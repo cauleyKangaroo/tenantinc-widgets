@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tenantinc Widget Dev Harness</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; background: #f9fafb; font-family: sans-serif; }
+    h1 { font-size: 18px; color: #374151; margin: 0 0 4px; }
+    .subtitle { font-size: 13px; color: #9ca3af; margin: 0 0 32px; }
+    .widget-section { margin-bottom: 40px; }
+    .widget-section h2 { font-size: 13px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .05em; color: #6b7280; margin: 0 0 8px; }
+    .widget-container { min-height: 60px; }
+    .controls { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    button { padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 6px;
+      background: #fff; font-size: 13px; cursor: pointer; }
+    button:hover { background: #f3f4f6; }
+    button.danger { border-color: #fca5a5; color: #dc2626; }
+    button.danger:hover { background: #fef2f2; }
+    select { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 13px; background: #fff; }
+    label { font-size: 13px; color: #374151; display: flex; align-items: center; gap: 6px; }
+    .note { font-size: 12px; color: #9ca3af; margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+  <h1>Tenantinc Widget Dev Harness</h1>
+  <p class="subtitle">
+    Bundles are loaded via require.js exactly as Duda does — AMD modules at
+    <code>/dist/widget-*.js</code>. Run <code>npm run dev</code> to start.
+  </p>
+
+  <!-- ── widget-hero ──────────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-hero</h2>
+
+    <div id="hero-container" class="widget-container"></div>
+
+    <div class="controls">
+      <!-- Simulates a Duda content panel dropdown for layout -->
+      <label>
+        Layout:
+        <select id="hero-layout" onchange="reinitHero()">
+          <option value="default">default</option>
+          <option value="centered">centered</option>
+          <option value="split">split</option>
+        </select>
+      </label>
+      <button onclick="reinitHero()">Re-init (simulate prop change)</button>
+      <button class="danger" onclick="cleanHero()">clean()</button>
+    </div>
+    <p class="note">
+      Changing the dropdown calls init() again with new props — the same thing
+      Duda does when the site editor updates a content panel field.
+    </p>
+  </div>
+
+  <!-- ── widget-clock ─────────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-clock</h2>
+
+    <div id="clock-container" class="widget-container"></div>
+
+    <div class="controls">
+      <label>
+        Timezone:
+        <select id="clock-tz" onchange="reinitClock()">
+          <option value="Europe/London">Europe/London</option>
+          <option value="America/New_York">America/New_York</option>
+          <option value="Asia/Tokyo">Asia/Tokyo</option>
+        </select>
+      </label>
+      <label>
+        Layout:
+        <select id="clock-layout" onchange="reinitClock()">
+          <option value="default">default</option>
+          <option value="minimal">minimal</option>
+        </select>
+      </label>
+      <button class="danger" onclick="cleanClock()">clean()</button>
+    </div>
+  </div>
+
+  <!--
+    require.js loads the AMD bundles exactly as Duda does.
+    The bundles are served by webpack-dev-server at /dist/widget-*.js.
+  -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
+  <script>
+    var heroWidget = null;
+    var clockWidget = null;
+
+    function getHeroProps() {
+      return {
+        title: 'Welcome to Tenantinc',
+        subtitle: 'Your property management platform',
+        layout: document.getElementById('hero-layout').value,
+        ctaLabel: 'View Properties',
+        ctaHref: '#',
+      };
+    }
+
+    function getClockProps() {
+      return {
+        timezone: document.getElementById('clock-tz').value,
+        layout: document.getElementById('clock-layout').value,
+      };
+    }
+
+    function reinitHero() {
+      if (heroWidget) {
+        heroWidget.init({
+          container: document.getElementById('hero-container'),
+          props: getHeroProps(),
+        });
+      }
+    }
+
+    function cleanHero() {
+      if (heroWidget) heroWidget.clean();
+    }
+
+    function reinitClock() {
+      if (clockWidget) {
+        clockWidget.init({
+          container: document.getElementById('clock-container'),
+          props: getClockProps(),
+        });
+      }
+    }
+
+    function cleanClock() {
+      if (clockWidget) clockWidget.clean();
+    }
+
+    // Initial mount — mirrors Duda calling renderExternalApp on page load
+    require(['/dist/widget-hero.js'], function (widget) {
+      heroWidget = widget;
+      widget.init({
+        container: document.getElementById('hero-container'),
+        props: getHeroProps(),
+      });
+    });
+
+    require(['/dist/widget-clock.js'], function (widget) {
+      clockWidget = widget;
+      widget.init({
+        container: document.getElementById('clock-container'),
+        props: getClockProps(),
+      });
+    });
+  </script>
+
+</body>
+</html>
