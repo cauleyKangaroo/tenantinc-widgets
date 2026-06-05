@@ -22,12 +22,13 @@ React + TypeScript widgets for Duda sites, built as AMD bundles and loaded via D
 tenantinc-widgets/
 ├── src/
 │   ├── shared/
+│   │   ├── createWidget.tsx # Wraps a React component as a Duda app (init/clean)
 │   │   ├── components/     # Card, Button — used across widgets
 │   │   ├── hooks/          # useInterval — used across widgets
 │   │   ├── api/            # HummingbirdClient stub
 │   │   └── types/          # Shared TypeScript interfaces
 │   ├── widget-hero/
-│   │   ├── index.tsx       # Duda lifecycle: exports init() and clean()
+│   │   ├── index.tsx       # One-liner: createWidget(Hero) → exports init/clean
 │   │   └── Hero.tsx        # React component
 │   └── widget-clock/
 │       ├── index.tsx
@@ -74,8 +75,22 @@ The harness gives you:
 
 ## Adding a new widget
 
-1. Create `src/widget-foo/index.tsx` with `init()` and `clean()` exports (copy from an existing widget).
-2. Create `src/widget-foo/Foo.tsx` for the React component.
+1. Create `src/widget-foo/Foo.tsx` for the React component.
+2. Create `src/widget-foo/index.tsx` — a single line that wraps the component with `createWidget`:
+
+```tsx
+import { createWidget } from '@shared/createWidget';
+import { Foo } from './Foo';
+import type { FooProps } from '@shared/types';
+
+export const { init, clean } = createWidget<FooProps>(Foo);
+```
+
+`createWidget` provides the `init`/`clean` lifecycle Duda expects, including the
+root-management that survives Duda's content-panel updates (see
+[Live editor updates](#live-editor-updates--how-re-renders-work)). You never
+write that logic per-widget.
+
 3. Add **one line** to `webpack.config.js`:
 
 ```js
@@ -199,29 +214,77 @@ if (layout === 'split')    return <Card><div style={{ display: 'flex' }}>...</di
 return <Card>...</Card>;
 ```
 
-When the site editor changes the dropdown, Duda calls `renderExternalApp()` again, which calls your `init()` again with the new props. Because `init()` reuses the existing React root (rather than creating a new one), React simply re-renders with the updated props — the layout shifts live in the editor preview.
+When the site editor changes the dropdown, Duda calls `renderExternalApp()` again, which calls your `init()` again with the new props. `createWidget` handles the re-render correctly so the layout shifts live in the editor preview — see the section below for why this is more subtle than it looks.
 
 ### Live editor updates — how re-renders work
 
-Duda calls `renderExternalApp()` once on page load and again **every time** a content panel field changes. Your `init()` is therefore called multiple times on the same container. The correct pattern (already in place in this repo) is:
+Duda calls `renderExternalApp()` once on page load and again **every time** a content panel field changes. Your `init()` is therefore called multiple times. Getting this right is the core of the whole framework, and it is more subtle than it first appears.
+
+#### The gotcha: Duda wipes your container on every update
+
+`renderExternalApp`'s `options.keepSubtree` **defaults to `false`** — meaning that on each content-panel update, Duda re-runs the widget and **empties the DOM subtree inside `container`** *before* calling `init()` again. It reuses the same container element; it just guts its contents.
+
+This breaks the naive React pattern:
 
 ```ts
+// ❌ DO NOT do this — looks correct, fails in Duda
 let root: Root | null = null;
-
 export function init({ container, props }) {
-  if (!root) {
-    root = createRoot(container); // first mount only
-  }
-  root.render(<YourComponent {...props} />); // re-render on subsequent calls
-}
-
-export function clean() {
-  root?.unmount();
-  root = null;
+  if (!root) root = createRoot(container);
+  root.render(<YourComponent {...props} />);
 }
 ```
 
-This means all content panel changes — text, dropdowns, toggles, image pickers — are reflected in real time with no extra work on your side.
+`createRoot(container)` builds an internal **fiber tree** — React's private model of the DOM it rendered. When Duda wipes the container behind React's back, that model goes stale. The next `root.render()` diffs the new output against the fiber tree (which still believes the old DOM is present), computes a tiny patch, and tries to update nodes **that no longer exist** — so it paints nothing. The widget goes blank and never recovers, because React's model stays permanently out of sync. (A container-identity check like `container !== rootContainer` does **not** catch this — it's the *same* container, just emptied.)
+
+#### The fix: mount into our own child node
+
+`createWidget` (in `src/shared/createWidget.tsx`) solves this by mounting React onto a child `<div>` we create *inside* the container, rather than on the container itself. When Duda wipes the container, our child node is removed too — giving us a reliable tripwire. On the next `init()` we detect the detachment and rebuild a fresh root:
+
+```ts
+export function createWidget<TProps extends object>(Component) {
+  let root: Root | null = null;
+  let mountEl: HTMLElement | null = null;
+  let rootContainer: HTMLElement | null = null;
+
+  function init({ container, props }) {
+    const detached = !mountEl || mountEl.parentNode !== container;
+    if (root && (detached || container !== rootContainer)) {
+      root.unmount();
+      root = null;
+      mountEl = null;
+    }
+    if (!root) {
+      mountEl = document.createElement('div');
+      container.appendChild(mountEl);
+      root = createRoot(mountEl);
+      rootContainer = container;
+    }
+    root.render(React.createElement(Component, props));
+  }
+
+  function clean() {
+    root?.unmount();
+    root = null;
+    mountEl = null;
+    rootContainer = null;
+  }
+
+  return { init, clean };
+}
+```
+
+This handles all three cases that occur in Duda:
+
+| Situation | What we detect | What we do |
+|---|---|---|
+| First render | no root yet | create child node + root |
+| Duda wiped the container (the update case) | `mountEl.parentNode` is now `null` | unmount stale root, rebuild fresh |
+| Duda hands a brand-new container | `container !== rootContainer` | unmount stale root, rebuild fresh |
+
+Because every widget is built with `createWidget`, all content panel changes — text, dropdowns, toggles, image pickers — are reflected in real time with no per-widget work.
+
+> **Note:** You do **not** need to set `keepSubtree: true` in the Duda JS to make this work. The fix lives entirely in the bundle, which keeps your Duda config dead simple and makes the widgets robust regardless of host cleanup behaviour.
 
 ### Supported field types
 
@@ -238,12 +301,7 @@ api.scripts.renderExternalApp(scriptSrc, element, props, {
 });
 ```
 
-```ts
-// index.tsx
-export function init({ container, props, proxyBaseUrl }: DudaInitParams & { proxyBaseUrl?: string }) {
-  // proxyBaseUrl available here
-}
-```
+`createWidget` currently forwards only `props` to your component. The simplest way to consume `additionalData` today is to fold it into the props you pass from the Duda JS tab. If a widget genuinely needs the spread `init({ container, props, ...additionalData })` shape, write that widget's `index.tsx` by hand instead of using `createWidget` — but keep the mount-into-own-child logic from `createWidget`, or it will hit the [blank-on-update bug](#live-editor-updates--how-re-renders-work).
 
 > Never put API keys or secrets in `props` or `additionalData` — both are visible in the browser. All secrets must stay server-side in the proxy.
 
