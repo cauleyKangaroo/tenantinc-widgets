@@ -1,0 +1,511 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+/* All rules are prefixed with .suf- and live under the .suf-wrapper root, so
+   they don't leak into the host Duda page. */
+
+.suf-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  gap: 20px;
+  background: #f5f5f5;
+  padding: 20px;
+  min-height: 600px;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+.suf-wrapper *,
+.suf-wrapper *::before,
+.suf-wrapper *::after { box-sizing: border-box; }
+
+.suf-wrapper.filter-left { flex-direction: row; }
+.suf-wrapper.filter-right { flex-direction: row-reverse; }
+.suf-wrapper.filter-top { flex-direction: column; }
+
+/* ===========================================================================
+   FILTER PANEL
+   =========================================================================== */
+.suf-filter-panel {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.suf-wrapper.filter-left .suf-filter-panel,
+.suf-wrapper.filter-right .suf-filter-panel { width: 280px; }
+
+.suf-wrapper.filter-top .suf-filter-panel { width: 100%; }
+
+/* ── TOP MODE: landscape two-column layout ── */
+.suf-wrapper.filter-top .suf-filter-body {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  align-items: flex-start;
+}
+.suf-wrapper.filter-top .suf-filter-left-group {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 20px 32px;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+.suf-wrapper.filter-top .suf-filter-left-group .suf-filter-section {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+.suf-wrapper.filter-top .suf-cards-grid { grid-template-columns: repeat(3, 1fr); }
+.suf-wrapper.filter-top .suf-list-view,
+.suf-wrapper.filter-top .suf-list-card { width: 100%; }
+.suf-wrapper.filter-top .suf-list-inner { width: 100%; }
+.suf-wrapper.filter-top .suf-filter-right-group {
+  flex-shrink: 0;
+  border-left: 1px solid #e0e0e0;
+  margin-left: 28px;
+  padding-left: 28px;
+}
+.suf-wrapper.filter-top .suf-filter-right-group .suf-filter-section { margin-bottom: 0; }
+.suf-wrapper.filter-top .suf-checkboxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 20px;
+}
+
+/* Filter Header */
+.suf-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  cursor: pointer;
+  user-select: none;
+}
+.suf-filter-header-right { display: flex; align-items: center; gap: 10px; }
+.suf-filter-chevron {
+  font-size: 12px;
+  color: #555;
+  transition: transform 0.2s;
+  line-height: 1;
+}
+.suf-filter-panel.collapsed .suf-filter-chevron { transform: rotate(180deg); }
+.suf-filter-body {
+  overflow: hidden;
+  transition: opacity 0.2s ease;
+  pointer-events: auto;
+  user-select: text;
+}
+.suf-filter-panel.collapsed .suf-filter-body { display: none; }
+.suf-filter-panel.collapsed .suf-filter-header { margin-bottom: 0; }
+.suf-filter-title-row { display: flex; align-items: center; gap: 6px; }
+.suf-filter-icon { display: flex; align-items: center; color: #333; }
+.suf-filter-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.suf-filter-badge {
+  background: #4caf50;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 50px;
+  line-height: 1.4;
+}
+.suf-reset-btn {
+  background: #ffffff;
+  border: 1px solid #333333;
+  border-radius: 4px;
+  font-size: 13px;
+  padding: 4px 12px;
+  cursor: pointer;
+  color: #333;
+  transition: background 0.15s;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+}
+.suf-reset-btn:hover { background: #f5f5f5; }
+
+/* Filter group wrappers — default (sidebar) mode: stack vertically */
+.suf-filter-left-group,
+.suf-filter-right-group { display: block; }
+
+.suf-filter-section { margin-bottom: 16px; }
+.suf-filter-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+
+/* Pill Buttons */
+.suf-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.suf-pill {
+  background: #ffffff;
+  border: 1.5px solid #cccccc;
+  border-radius: 50px;
+  font-size: 13px;
+  color: #333333;
+  padding: 5px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+}
+.suf-pill:hover { border-color: #888; }
+.suf-pill.active {
+  background: #1a1a1a;
+  color: #ffffff;
+  border-color: #1a1a1a;
+}
+
+/* Checkboxes */
+.suf-checkboxes { display: flex; flex-direction: column; gap: 8px; }
+.suf-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #333333;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  font-weight: 400;
+}
+.suf-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #4caf50;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+/* ===========================================================================
+   LISTING AREA
+   =========================================================================== */
+.suf-listing-area { flex: 1; min-width: 0; }
+
+/* ===========================================================================
+   GRID VIEW — ACCORDIONS
+   =========================================================================== */
+.suf-grid-view { display: flex; flex-direction: column; gap: 12px; }
+.suf-accordion { width: 100%; }
+.suf-accordion-header {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.suf-accordion-header:hover { background: #f9f9f9; }
+.suf-accordion-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.suf-chevron { font-size: 14px; color: #555; transition: transform 0.2s; }
+.suf-accordion-body { padding-top: 12px; }
+
+/* Cards Grid */
+.suf-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+/* Unit Card */
+.suf-unit-card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+}
+.suf-card-top { display: grid; grid-template-columns: 1fr auto; gap: 12px; }
+.suf-card-info { min-width: 0; }
+.suf-unit-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+.suf-unit-subtype {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+.suf-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.suf-features li {
+  font-size: 13px;
+  color: #333333;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  line-height: 1.4;
+  font-weight: 400;
+}
+.suf-check { color: #4caf50; font-weight: 700; flex-shrink: 0; }
+.suf-card-image-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.suf-unit-img {
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+.suf-see-fits {
+  font-size: 13px;
+  color: #4caf50;
+  text-decoration: none;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.suf-see-fits:hover { text-decoration: underline; }
+
+/* Promo Badge */
+.suf-promo-badge {
+  border: 1.5px dashed #4caf50;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #4caf50;
+  font-weight: 400;
+}
+.suf-promo-icon { display: flex; align-items: center; flex-shrink: 0; }
+
+/* Pricing Row */
+.suf-card-pricing {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid #f0f0f0;
+}
+.suf-price-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+.suf-instore-label {
+  font-size: 11px;
+  color: #999999;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.suf-strike {
+  font-size: 14px;
+  color: #999999;
+  text-decoration: line-through;
+  font-weight: 400;
+}
+.suf-price-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+.suf-starting-label {
+  font-size: 11px;
+  color: #888888;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.suf-main-price {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.1;
+}
+.suf-admin-fee { font-size: 11px; color: #888888; margin-top: 2px; font-weight: 400; }
+.suf-urgency {
+  font-size: 12px;
+  color: #d32f2f;
+  font-weight: 700;
+  margin-top: 2px;
+}
+.suf-cta-col {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: flex-end;
+}
+.suf-select-btn {
+  background: #f05a28;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 28px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  font-family: 'Montserrat', sans-serif;
+}
+.suf-select-btn:hover { background: #d94e1f; }
+
+/* ===========================================================================
+   LIST VIEW
+   =========================================================================== */
+.suf-list-view { display: flex; flex-direction: column; }
+.suf-list-card {
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+.suf-list-inner { display: flex; align-items: flex-start; gap: 16px; }
+.suf-list-img-col { flex-shrink: 0; }
+.suf-list-img {
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+.suf-list-info-col { flex: 0 0 160px; min-width: 0; }
+.suf-list-size-label {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+.suf-list-subtype {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4caf50;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.suf-list-dims-col { flex: 1; min-width: 0; }
+
+/* Dimension Pills Grid */
+.suf-dims-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.suf-dim-pill {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #cccccc;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #333333;
+  padding: 6px 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s;
+  white-space: nowrap;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+}
+.suf-dim-pill:hover { border-color: #4caf50; }
+.suf-dim-pill.active { border: 2px solid #4caf50; font-weight: 600; color: #1a1a1a; }
+.suf-dim-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  background: #4caf50;
+  border-radius: 50%;
+}
+
+/* List Pricing */
+.suf-list-pricing-col {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 160px;
+}
+.suf-list-prices { display: flex; gap: 12px; align-items: flex-end; }
+.suf-select-full { width: 100%; padding: 10px 20px; }
+
+/* Empty state */
+.suf-empty-msg {
+  padding: 40px 20px;
+  text-align: center;
+  color: #888;
+  font-size: 15px;
+  background: #ffffff;
+  border-radius: 10px;
+}
+
+/* ===========================================================================
+   RESPONSIVE — TABLET
+   =========================================================================== */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .suf-wrapper.filter-left,
+  .suf-wrapper.filter-right { flex-direction: column; }
+  .suf-wrapper.filter-left .suf-filter-panel,
+  .suf-wrapper.filter-right .suf-filter-panel { width: 100%; }
+  .suf-cards-grid { grid-template-columns: repeat(2, 1fr); }
+  .suf-list-inner { flex-wrap: wrap; }
+  .suf-list-info-col { flex: 0 0 140px; }
+  .suf-dims-grid { grid-template-columns: repeat(3, 1fr); }
+  .suf-list-pricing-col { min-width: 140px; }
+}
+
+/* ===========================================================================
+   RESPONSIVE — MOBILE
+   =========================================================================== */
+@media (max-width: 767px) {
+  .suf-wrapper {
+    flex-direction: column !important;
+    padding: 12px;
+    gap: 14px;
+  }
+  .suf-filter-panel { width: 100% !important; }
+  .suf-cards-grid { grid-template-columns: 1fr; }
+  .suf-card-pricing { flex-wrap: wrap; gap: 8px; }
+  .suf-cta-col { width: 100%; margin-left: 0; }
+  .suf-select-btn { width: 100%; }
+  .suf-list-inner { flex-direction: column; }
+  .suf-list-img { width: 100%; height: 160px; }
+  .suf-list-info-col { flex: none; width: 100%; }
+  .suf-dims-grid { grid-template-columns: repeat(3, 1fr); }
+  .suf-list-pricing-col { width: 100%; min-width: 0; align-items: stretch; }
+  .suf-list-prices { justify-content: flex-start; }
+  .suf-select-full { width: 100%; }
+  .suf-unit-img { width: 80px; height: 80px; }
+  .suf-main-price { font-size: 20px; }
+}

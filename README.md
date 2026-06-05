@@ -51,6 +51,7 @@ tenantinc-widgets/
 | `npm run dev` | Start dev server at `http://localhost:3000` with the test harness |
 | `npm run typecheck` | Type-check without emitting files |
 | `npm run lint` | ESLint over all TypeScript source |
+| `npm run smoke` | Build, then headless-render the widgets (jsdom) to verify they mount, style, and filter without a browser |
 
 ---
 
@@ -104,6 +105,19 @@ const widgetEntries = {
 4. Add sample props for the widget to `dev/index.html` if you want to test it locally.
 
 That's it — no other config changes needed.
+
+### Styling
+
+Widgets may use inline styles (like `widget-hero`) or import a real stylesheet
+(like `widget-space-list`): `import './MyWidget.css'`. CSS is bundled **into**
+the widget's `.js` and injected as a `<style>` tag at runtime by `style-loader`,
+so there's still only one CDN file per widget. Prefix your classes (e.g.
+`.suf-`) and scope rules under the widget's root element so they don't leak into
+the host Duda page — there is no CSS-module isolation.
+
+For a larger, data-driven example — component breakdown, a typed data seam, and
+functional filtering — see [`src/widget-space-list/`](src/widget-space-list/)
+and its [`HANDOFF.md`](src/widget-space-list/HANDOFF.md).
 
 ---
 

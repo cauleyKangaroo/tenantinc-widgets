@@ -84,6 +84,36 @@
     </div>
   </div>
 
+  <!-- ── widget-space-list ────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-space-list</h2>
+
+    <div id="space-list-container" class="widget-container"></div>
+
+    <div class="controls">
+      <label>
+        Layout (layoutMode):
+        <select id="sl-layout" onchange="reinitSpaceList()">
+          <option value="grid">grid</option>
+          <option value="list">list</option>
+        </select>
+      </label>
+      <label>
+        Filter position:
+        <select id="sl-filter-pos" onchange="reinitSpaceList()">
+          <option value="right">right</option>
+          <option value="left">left</option>
+          <option value="top">top</option>
+        </select>
+      </label>
+      <button class="danger" onclick="cleanSpaceList()">clean()</button>
+    </div>
+    <p class="note">
+      The two dropdowns mirror the Duda content-panel vars (layoutMode,
+      filterPosition). The in-widget filter pills/checkboxes are React state.
+    </p>
+  </div>
+
   <!--
     require.js loads the AMD bundles exactly as Duda does.
     The bundles are served by webpack-dev-server at /dist/widget-*.js.
@@ -92,6 +122,7 @@
   <script>
     var heroWidget = null;
     var clockWidget = null;
+    var spaceListWidget = null;
 
     function getHeroProps() {
       return {
@@ -136,6 +167,26 @@
       if (clockWidget) clockWidget.clean();
     }
 
+    function getSpaceListProps() {
+      return {
+        layoutMode: document.getElementById('sl-layout').value,
+        filterPosition: document.getElementById('sl-filter-pos').value,
+      };
+    }
+
+    function reinitSpaceList() {
+      if (spaceListWidget) {
+        spaceListWidget.init({
+          container: document.getElementById('space-list-container'),
+          props: getSpaceListProps(),
+        });
+      }
+    }
+
+    function cleanSpaceList() {
+      if (spaceListWidget) spaceListWidget.clean();
+    }
+
     // Initial mount — mirrors Duda calling renderExternalApp on page load
     require(['/dist/widget-hero.js'], function (widget) {
       heroWidget = widget;
@@ -150,6 +201,14 @@
       widget.init({
         container: document.getElementById('clock-container'),
         props: getClockProps(),
+      });
+    });
+
+    require(['/dist/widget-space-list.js'], function (widget) {
+      spaceListWidget = widget;
+      widget.init({
+        container: document.getElementById('space-list-container'),
+        props: getSpaceListProps(),
       });
     });
   </script>

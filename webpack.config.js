@@ -6,8 +6,9 @@ const path = require('path');
 // Nothing else in this file needs to change.
 // ---------------------------------------------------------------------------
 const widgetEntries = {
-  'widget-hero':  './src/widget-hero/index.tsx',
-  'widget-clock': './src/widget-clock/index.tsx',
+  'widget-hero':       './src/widget-hero/index.tsx',
+  'widget-clock':      './src/widget-clock/index.tsx',
+  'widget-space-list': './src/widget-space-list/index.tsx',
 };
 
 module.exports = (_env, argv) => {
@@ -40,6 +41,13 @@ module.exports = (_env, argv) => {
           test: /\.tsx?$/,
           use: 'ts-loader',
           exclude: /node_modules/,
+        },
+        {
+          // CSS is bundled INTO the widget's .js and injected as a <style> tag
+          // at runtime by style-loader. This keeps us at one CDN file per
+          // widget (no separate .css to host) — required for the Duda loader.
+          test: /\.css$/,
+          use: ['style-loader', 'css-loader'],
         },
       ],
     },
