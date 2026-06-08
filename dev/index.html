@@ -106,11 +106,47 @@
           <option value="top">top</option>
         </select>
       </label>
+      <label>
+        Sidebar section:
+        <select id="sl-sidebar-section" onchange="reinitSpaceList()">
+          <option value="none">none</option>
+          <option value="reviews">Customer Reviews</option>
+          <option value="features">Features</option>
+          <option value="nearby">Nearby Properties</option>
+          <option value="store">Store Content</option>
+          <option value="notes">Notes</option>
+          <option value="faqs">FAQs</option>
+          <option value="hours">Hours</option>
+        </select>
+      </label>
+      <label>
+        AP section:
+        <select id="sl-ap-section" onchange="reinitSpaceList()">
+          <option value="none">none</option>
+          <option value="reviews">Customer Reviews</option>
+          <option value="features">Features</option>
+          <option value="nearby">Nearby Properties</option>
+          <option value="store">Store Content</option>
+          <option value="notes">Notes</option>
+          <option value="faqs">FAQs</option>
+          <option value="hours">Hours</option>
+        </select>
+      </label>
+      <label>
+        AP position:
+        <select id="sl-ap-pos" onchange="reinitSpaceList()">
+          <option value="bottom">bottom</option>
+          <option value="left">left</option>
+          <option value="right">right</option>
+        </select>
+      </label>
       <button class="danger" onclick="cleanSpaceList()">clean()</button>
     </div>
     <p class="note">
-      The two dropdowns mirror the Duda content-panel vars (layoutMode,
-      filterPosition). The in-widget filter pills/checkboxes are React state.
+      Dropdowns mirror the Duda content-panel vars (layoutMode, filterPosition,
+      sidebarSection, additionalPanelSection, additionalPanelPosition). The
+      in-widget filter pills/checkboxes are React state. Note: an AP position
+      that collides with the filter side falls back to bottom.
     </p>
   </div>
 
@@ -171,6 +207,9 @@
       return {
         layoutMode: document.getElementById('sl-layout').value,
         filterPosition: document.getElementById('sl-filter-pos').value,
+        sidebarSection: document.getElementById('sl-sidebar-section').value,
+        additionalPanelSection: document.getElementById('sl-ap-section').value,
+        additionalPanelPosition: document.getElementById('sl-ap-pos').value,
       };
     }
 

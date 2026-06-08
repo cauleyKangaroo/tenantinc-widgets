@@ -49,9 +49,19 @@ export interface FilterOption<T extends string = string> {
 // Widget props — these come straight from the Duda content panel
 // ---------------------------------------------------------------------------
 
+export type AdditionalPanelPosition = 'left' | 'right' | 'bottom';
+
 export interface SpaceListProps {
   /** Radio in the content panel: Grid View / List View */
   layoutMode?: 'grid' | 'list';
   /** Dropdown in the content panel: Left / Top / Right */
   filterPosition?: 'left' | 'top' | 'right';
+  /** Section shown under the filters in the sidebar. 'none'/omitted = hidden. */
+  sidebarSection?: string;
+  /** Section shown in the Additional Panel. 'none'/omitted = AP hidden. */
+  additionalPanelSection?: string;
+  /** Where the Additional Panel sits (constrained by filterPosition in Duda). */
+  additionalPanelPosition?: AdditionalPanelPosition;
 }
+
+export type { SectionKey } from './sections';

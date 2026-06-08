@@ -3,23 +3,62 @@
 /* All rules are prefixed with .suf- and live under the .suf-wrapper root, so
    they don't leak into the host Duda page. */
 
+/* Column shell: optional top slot (filter), middle row, optional bottom slot
+   (additional panel). Side placement is handled by .suf-row, not by changing
+   this element's direction. */
 .suf-wrapper {
   font-family: 'Montserrat', sans-serif;
   display: flex;
+  flex-direction: column;
   gap: 20px;
   background: #f5f5f5;
   padding: 20px;
   min-height: 600px;
-  align-items: flex-start;
   box-sizing: border-box;
 }
 .suf-wrapper *,
 .suf-wrapper *::before,
 .suf-wrapper *::after { box-sizing: border-box; }
 
-.suf-wrapper.filter-left { flex-direction: row; }
-.suf-wrapper.filter-right { flex-direction: row-reverse; }
-.suf-wrapper.filter-top { flex-direction: column; }
+/* Middle row: left slot + listing + right slot */
+.suf-row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+/* Filter panel + its sidebar section, stacked in one column */
+.suf-filter-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex-shrink: 0;
+}
+.suf-wrapper.filter-left .suf-filter-stack,
+.suf-wrapper.filter-right .suf-filter-stack { width: 280px; }
+.suf-wrapper.filter-top .suf-filter-stack { width: 100%; }
+
+/* Additional panel */
+.suf-additional-panel { flex-shrink: 0; }
+.suf-additional-panel.ap-left,
+.suf-additional-panel.ap-right { width: 280px; }
+.suf-additional-panel.ap-bottom { width: 100%; }
+
+/* Dummy content section container (no design yet) */
+.suf-section {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+}
+.suf-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+}
+.suf-section-body { font-size: 13px; color: #6b7280; }
 
 /* ===========================================================================
    FILTER PANEL
@@ -474,10 +513,11 @@
    RESPONSIVE — TABLET
    =========================================================================== */
 @media (min-width: 768px) and (max-width: 1024px) {
-  .suf-wrapper.filter-left,
-  .suf-wrapper.filter-right { flex-direction: column; }
-  .suf-wrapper.filter-left .suf-filter-panel,
-  .suf-wrapper.filter-right .suf-filter-panel { width: 100%; }
+  /* Stack the side slots full-width when the filter panel is on a side. */
+  .suf-wrapper.filter-left .suf-row,
+  .suf-wrapper.filter-right .suf-row { flex-direction: column; }
+  .suf-wrapper.filter-left .suf-filter-stack,
+  .suf-wrapper.filter-right .suf-filter-stack { width: 100%; }
   .suf-cards-grid { grid-template-columns: repeat(2, 1fr); }
   .suf-list-inner { flex-wrap: wrap; }
   .suf-list-info-col { flex: 0 0 140px; }
@@ -490,10 +530,14 @@
    =========================================================================== */
 @media (max-width: 767px) {
   .suf-wrapper {
-    flex-direction: column !important;
     padding: 12px;
     gap: 14px;
   }
+  /* Everything stacks: side slots become full-width rows. */
+  .suf-row { flex-direction: column; }
+  .suf-filter-stack,
+  .suf-additional-panel.ap-left,
+  .suf-additional-panel.ap-right { width: 100%; }
   .suf-filter-panel { width: 100% !important; }
   .suf-cards-grid { grid-template-columns: 1fr; }
   .suf-card-pricing { flex-wrap: wrap; gap: 8px; }
