@@ -67,6 +67,13 @@ async function renderFresh(props) {
   const styleTag = document.head.querySelector('style');
   check('style-loader injected a <style> tag', !!styleTag);
   check('CSS shipped in bundle', code.includes('.suf-wrapper'));
+  // Container-query layout (so the listing reflows by its own width, not the
+  // viewport) — the fix for the narrow-container overlap seen in Duda. jsdom
+  // can't measure layout, so we assert the CSS shipped rather than its effect.
+  check(
+    'container-query listing layout shipped',
+    code.includes('container-type') && code.includes('@container') && code.includes('auto-fit')
+  );
   check('badge shows default active count (4)', html.includes('>4<'));
 
   // ── List view, default filters ──────────────────────────────────────

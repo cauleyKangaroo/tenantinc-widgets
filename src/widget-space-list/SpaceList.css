@@ -97,7 +97,6 @@
   margin-bottom: 0;
   flex-shrink: 0;
 }
-.suf-wrapper.filter-top .suf-cards-grid { grid-template-columns: repeat(3, 1fr); }
 .suf-wrapper.filter-top .suf-list-view,
 .suf-wrapper.filter-top .suf-list-card { width: 100%; }
 .suf-wrapper.filter-top .suf-list-inner { width: 100%; }
@@ -229,7 +228,11 @@
 /* ===========================================================================
    LISTING AREA
    =========================================================================== */
-.suf-listing-area { flex: 1; min-width: 0; }
+/* container-type lets the listing content respond to ITS OWN width (not the
+   viewport) via @container queries below — essential in Duda, where the widget
+   can be narrow while the viewport is still desktop-wide (e.g. squeezed by the
+   filter panel + additional panel). */
+.suf-listing-area { flex: 1; min-width: 0; container-type: inline-size; }
 
 /* ===========================================================================
    GRID VIEW — ACCORDIONS
@@ -256,10 +259,12 @@
 .suf-chevron { font-size: 14px; color: #555; transition: transform 0.2s; }
 .suf-accordion-body { padding-top: 12px; }
 
-/* Cards Grid */
+/* Cards Grid — auto-fit makes the column count follow the listing area's own
+   width, so cards never get squeezed below a usable size (which caused the
+   in-card pricing to overlap in Duda's narrow container). */
 .suf-cards-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   gap: 16px;
 }
 
@@ -344,9 +349,11 @@
 }
 .suf-promo-icon { display: flex; align-items: center; flex-shrink: 0; }
 
-/* Pricing Row */
+/* Pricing Row — wrap so the CTA drops below instead of overlapping the price
+   when a card is narrow. */
 .suf-card-pricing {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: 12px;
   padding-top: 4px;
@@ -459,7 +466,9 @@
 .suf-list-dims-col { flex: 1; min-width: 0; }
 
 /* Dimension Pills Grid */
-.suf-dims-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+/* auto-fit so the pills reflow to fewer columns as the dims column narrows,
+   rather than overflowing into the pricing column. */
+.suf-dims-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: 8px; }
 .suf-dim-pill {
   position: relative;
   background: #ffffff;
@@ -510,43 +519,49 @@
 }
 
 /* ===========================================================================
-   RESPONSIVE — TABLET
+   RESPONSIVE — overall shell (viewport based)
+   These only handle how the FILTER / ADDITIONAL panels stack relative to the
+   listing; the listing's own content responsiveness is container-based below.
    =========================================================================== */
-@media (min-width: 768px) and (max-width: 1024px) {
-  /* Stack the side slots full-width when the filter panel is on a side. */
+@media (max-width: 1024px) {
+  /* When the filter panel is on a side, stack the side slots on smaller
+     viewports so panels don't crowd the listing. */
   .suf-wrapper.filter-left .suf-row,
   .suf-wrapper.filter-right .suf-row { flex-direction: column; }
   .suf-wrapper.filter-left .suf-filter-stack,
   .suf-wrapper.filter-right .suf-filter-stack { width: 100%; }
-  .suf-cards-grid { grid-template-columns: repeat(2, 1fr); }
-  .suf-list-inner { flex-wrap: wrap; }
-  .suf-list-info-col { flex: 0 0 140px; }
-  .suf-dims-grid { grid-template-columns: repeat(3, 1fr); }
-  .suf-list-pricing-col { min-width: 140px; }
 }
 
-/* ===========================================================================
-   RESPONSIVE — MOBILE
-   =========================================================================== */
 @media (max-width: 767px) {
-  .suf-wrapper {
-    padding: 12px;
-    gap: 14px;
-  }
-  /* Everything stacks: side slots become full-width rows. */
+  .suf-wrapper { padding: 12px; gap: 14px; }
+  /* Everything stacks: all side slots become full-width rows. */
   .suf-row { flex-direction: column; }
   .suf-filter-stack,
   .suf-additional-panel.ap-left,
   .suf-additional-panel.ap-right { width: 100%; }
   .suf-filter-panel { width: 100% !important; }
-  .suf-cards-grid { grid-template-columns: 1fr; }
-  .suf-card-pricing { flex-wrap: wrap; gap: 8px; }
+}
+
+/* ===========================================================================
+   RESPONSIVE — listing content (CONTAINER based)
+   Keyed off the listing area's own width via container-type: inline-size, so
+   it reflows correctly even when the widget is narrow inside a wide viewport
+   (the Duda case: listing squeezed by the filter + additional panels). The
+   card/dims grids already auto-fit; these handle the list-view columns and the
+   grid card CTA.
+   =========================================================================== */
+@container (max-width: 680px) {
+  .suf-list-inner { flex-wrap: wrap; }
+  .suf-list-info-col { flex: 0 0 140px; }
+  .suf-list-pricing-col { min-width: 140px; }
   .suf-cta-col { width: 100%; margin-left: 0; }
   .suf-select-btn { width: 100%; }
+}
+
+@container (max-width: 480px) {
   .suf-list-inner { flex-direction: column; }
   .suf-list-img { width: 100%; height: 160px; }
   .suf-list-info-col { flex: none; width: 100%; }
-  .suf-dims-grid { grid-template-columns: repeat(3, 1fr); }
   .suf-list-pricing-col { width: 100%; min-width: 0; align-items: stretch; }
   .suf-list-prices { justify-content: flex-start; }
   .suf-select-full { width: 100%; }
