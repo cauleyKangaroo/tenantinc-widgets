@@ -13,20 +13,21 @@ import { FilterPanel } from './components/FilterPanel';
 import { GridView } from './components/GridView';
 import { ListView } from './components/ListView';
 import { SectionPanel } from './components/SectionPanel';
+import { SectionAccordion } from './components/SectionAccordion';
 
 /**
  * Decide where the Additional Panel actually renders.
- * - null  → AP hidden (no section selected, or unknown key).
+ * - null  → AP hidden (not active).
  * - Otherwise the requested position, except a side that collides with the
  *   filter panel falls back to 'bottom' (defensive — Duda "Show if" should
  *   already prevent the collision, but never let the AP vanish or overlap).
  */
 function resolveApPosition(
   filterPosition: 'left' | 'top' | 'right',
-  apSection: string | undefined,
+  active: boolean,
   apPosition: AdditionalPanelPosition
 ): AdditionalPanelPosition | null {
-  if (!getSection(apSection)) return null;
+  if (!active) return null;
   if (apPosition === filterPosition) return 'bottom';
   return apPosition;
 }
@@ -34,6 +35,7 @@ function resolveApPosition(
 export function SpaceList({
   layoutMode = 'grid',
   filterPosition = 'right',
+  additionalPanelMode = 'single',
   additionalPanelSection,
   additionalPanelPosition = 'bottom',
 }: SpaceListProps) {
@@ -44,7 +46,10 @@ export function SpaceList({
   const visibleUnits = useMemo(() => filterUnits(DEMO_UNITS, filters), [filters]);
   const badge = activeFilterCount(filters);
 
-  const apPos = resolveApPosition(filterPosition, additionalPanelSection, additionalPanelPosition);
+  // 'all' mode always shows the accordion; 'single' mode needs a valid section.
+  const apActive =
+    additionalPanelMode === 'all' || !!getSection(additionalPanelSection);
+  const apPos = resolveApPosition(filterPosition, apActive, additionalPanelPosition);
 
   // The three regions — filter panel, additional panel, and the listing — are
   // placed into shell slots below. The filter panel is just the filter panel.
@@ -61,7 +66,11 @@ export function SpaceList({
 
   const additionalPanel = apPos ? (
     <aside className={`suf-additional-panel ap-${apPos}`}>
-      <SectionPanel section={additionalPanelSection} />
+      {additionalPanelMode === 'all' ? (
+        <SectionAccordion />
+      ) : (
+        <SectionPanel section={additionalPanelSection} />
+      )}
     </aside>
   ) : null;
 

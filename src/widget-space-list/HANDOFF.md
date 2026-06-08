@@ -104,12 +104,15 @@ needed, listed here for completeness:
 |---|---|---|
 | `layoutMode` | `grid` \| `list` | which view renders |
 | `filterPosition` | `left` \| `top` \| `right` | filter panel placement |
-| `additionalPanelSection` | `none` \| section key | section shown in the Additional Panel |
+| `additionalPanelMode` | `single` \| `all` | AP shows one section, or all sections as an accordion |
+| `additionalPanelSection` | `none` \| section key | section shown in the AP when mode is `single` |
 | `additionalPanelPosition` | `left` \| `right` \| `bottom` | where the Additional Panel sits |
 
 Section keys: `reviews`, `features`, `nearby`, `store`, `notes`, `faqs`, `hours`.
 The Additional Panel can't share the filter panel's side (e.g. filter right ⇒ AP
 left or bottom); the widget falls back to bottom if a colliding combo is sent.
+In `all` mode `additionalPanelSection` is ignored (Duda hides it via conditional
+logic); the AP renders every section as a collapsible accordion.
 
 ## Content sections (also placeholder, also a seam)
 

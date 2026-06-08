@@ -129,6 +129,25 @@ async function renderFresh(props) {
     collideHtml.includes('ap-bottom') ? 'fell back to bottom' : 'did NOT fall back'
   );
 
+  // ── Additional Panel: "all" mode (accordion of every section) ───────
+  const allHtml = await renderFresh({
+    layoutMode: 'grid',
+    filterPosition: 'right',
+    additionalPanelMode: 'all',
+    additionalPanelPosition: 'left',
+    // no additionalPanelSection — 'all' mode shows the panel regardless
+  });
+  const accordionHeaders = (allHtml.match(/suf-accordion-header/g) || []).length;
+  check(
+    "'all' mode shows every section as an accordion",
+    allHtml.includes('suf-additional-panel ap-left') &&
+      allHtml.includes('suf-section-accordion') &&
+      allHtml.includes('Customer Reviews') &&
+      allHtml.includes('Hours') &&
+      accordionHeaders >= 7, // 7 section headers (grid size accordions add more)
+    `${accordionHeaders} accordion headers total`
+  );
+
   const idx = html.indexOf('suf-unit-title');
   console.log('\nFirst card title region:');
   console.log(idx >= 0 ? html.slice(idx, idx + 160) : '(none)');

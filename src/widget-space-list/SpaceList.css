@@ -49,6 +49,10 @@
 }
 .suf-section-body { font-size: 13px; color: #6b7280; }
 
+/* Additional Panel "all" mode — stacked collapsible sections (reuses the
+   .suf-accordion header/body styling from the grid view). */
+.suf-section-accordion { display: flex; flex-direction: column; gap: 12px; }
+
 /* ===========================================================================
    FILTER PANEL
    =========================================================================== */

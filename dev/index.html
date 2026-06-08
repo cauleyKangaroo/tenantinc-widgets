@@ -107,6 +107,13 @@
         </select>
       </label>
       <label>
+        AP mode:
+        <select id="sl-ap-mode" onchange="reinitSpaceList()">
+          <option value="single">single</option>
+          <option value="all">all (accordion)</option>
+        </select>
+      </label>
+      <label>
         AP section:
         <select id="sl-ap-section" onchange="reinitSpaceList()">
           <option value="none">none</option>
@@ -131,9 +138,9 @@
     </div>
     <p class="note">
       Dropdowns mirror the Duda content-panel vars (layoutMode, filterPosition,
-      additionalPanelSection, additionalPanelPosition). The in-widget filter
-      pills/checkboxes are React state. Note: an AP position that collides with
-      the filter side falls back to bottom.
+      additionalPanelMode, additionalPanelSection, additionalPanelPosition).
+      AP mode "all" ignores AP section (shows every section as an accordion).
+      An AP position that collides with the filter side falls back to bottom.
     </p>
   </div>
 
@@ -194,6 +201,7 @@
       return {
         layoutMode: document.getElementById('sl-layout').value,
         filterPosition: document.getElementById('sl-filter-pos').value,
+        additionalPanelMode: document.getElementById('sl-ap-mode').value,
         additionalPanelSection: document.getElementById('sl-ap-section').value,
         additionalPanelPosition: document.getElementById('sl-ap-pos').value,
       };

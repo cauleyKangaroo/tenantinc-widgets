@@ -56,7 +56,15 @@ export interface SpaceListProps {
   layoutMode?: 'grid' | 'list';
   /** Dropdown in the content panel: Left / Top / Right */
   filterPosition?: 'left' | 'top' | 'right';
-  /** Section shown in the Additional Panel. 'none'/omitted = AP hidden. */
+  /**
+   * Additional Panel mode:
+   * - 'single' — show one section, always open (uses additionalPanelSection)
+   * - 'all'    — show every section as a collapsible accordion
+   * Default 'single'. In 'all' mode the section dropdown is irrelevant (Duda
+   * hides it via conditional logic).
+   */
+  additionalPanelMode?: 'single' | 'all';
+  /** Section shown in the Additional Panel when mode is 'single'. 'none'/omitted = AP hidden. */
   additionalPanelSection?: string;
   /** Where the Additional Panel sits (constrained by filterPosition in Duda). */
   additionalPanelPosition?: AdditionalPanelPosition;
