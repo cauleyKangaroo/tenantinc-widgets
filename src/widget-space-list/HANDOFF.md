@@ -104,11 +104,12 @@ needed, listed here for completeness:
 |---|---|---|
 | `layoutMode` | `grid` \| `list` | which view renders |
 | `filterPosition` | `left` \| `top` \| `right` | filter panel placement |
-| `sidebarSection` | `none` \| section key | section shown under the filters |
 | `additionalPanelSection` | `none` \| section key | section shown in the Additional Panel |
 | `additionalPanelPosition` | `left` \| `right` \| `bottom` | where the Additional Panel sits |
 
 Section keys: `reviews`, `features`, `nearby`, `store`, `notes`, `faqs`, `hours`.
+The Additional Panel can't share the filter panel's side (e.g. filter right ⇒ AP
+left or bottom); the widget falls back to bottom if a colliding combo is sent.
 
 ## Content sections (also placeholder, also a seam)
 
@@ -117,7 +118,7 @@ titled containers** — see [`sections.ts`](./sections.ts) and
 [`components/SectionPanel.tsx`](./components/SectionPanel.tsx). `sections.ts` is
 the seam for their real content the same way `data.ts` is for units: add fields
 to `Section` (and any fetching) and render them in `SectionPanel`. The layout
-(`SpaceList.tsx`) and the sidebar/AP placement logic don't change. Some sections
+(`SpaceList.tsx`) and the AP placement logic don't change. Some sections
 (reviews, hours) will likely be Hummingbird-backed via the proxy; others may be
 editor-authored content passed in as props.
 

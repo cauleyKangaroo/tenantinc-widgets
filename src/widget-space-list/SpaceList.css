@@ -27,17 +27,6 @@
   align-items: flex-start;
 }
 
-/* Filter panel + its sidebar section, stacked in one column */
-.suf-filter-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  flex-shrink: 0;
-}
-.suf-wrapper.filter-left .suf-filter-stack,
-.suf-wrapper.filter-right .suf-filter-stack { width: 280px; }
-.suf-wrapper.filter-top .suf-filter-stack { width: 100%; }
-
 /* Additional panel */
 .suf-additional-panel { flex-shrink: 0; }
 .suf-additional-panel.ap-left,
@@ -528,18 +517,17 @@
      viewports so panels don't crowd the listing. */
   .suf-wrapper.filter-left .suf-row,
   .suf-wrapper.filter-right .suf-row { flex-direction: column; }
-  .suf-wrapper.filter-left .suf-filter-stack,
-  .suf-wrapper.filter-right .suf-filter-stack { width: 100%; }
+  .suf-wrapper.filter-left .suf-filter-panel,
+  .suf-wrapper.filter-right .suf-filter-panel { width: 100%; }
 }
 
 @media (max-width: 767px) {
   .suf-wrapper { padding: 12px; gap: 14px; }
   /* Everything stacks: all side slots become full-width rows. */
   .suf-row { flex-direction: column; }
-  .suf-filter-stack,
+  .suf-filter-panel,
   .suf-additional-panel.ap-left,
-  .suf-additional-panel.ap-right { width: 100%; }
-  .suf-filter-panel { width: 100% !important; }
+  .suf-additional-panel.ap-right { width: 100% !important; }
 }
 
 /* ===========================================================================

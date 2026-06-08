@@ -98,23 +98,9 @@ async function renderFresh(props) {
     `${cardCount} cards -> ${afterCount}, empty message ${afterHtml.includes('No spaces match') ? 'shown' : 'missing'}`
   );
 
-  // ── Content sections: sidebar ───────────────────────────────────────
-  const sidebarHtml = await renderFresh({
-    layoutMode: 'grid',
-    filterPosition: 'left',
-    sidebarSection: 'reviews',
-  });
-  // With filter on the left, the filter stack (and its sidebar section) is the
-  // left slot, so the section renders inside .suf-filter-stack and before the
-  // listing area.
-  const reviewsIdx = sidebarHtml.indexOf('Customer Reviews');
-  check(
-    'sidebar section renders under the filters',
-    sidebarHtml.includes('suf-filter-stack') &&
-      reviewsIdx >= 0 &&
-      reviewsIdx < sidebarHtml.indexOf('suf-listing-area')
-  );
-  check('no additional panel when AP section is none', !sidebarHtml.includes('suf-additional-panel'));
+  // ── No additional panel when AP section is none ─────────────────────
+  const noApHtml = await renderFresh({ layoutMode: 'grid', filterPosition: 'left' });
+  check('no additional panel when AP section is none', !noApHtml.includes('suf-additional-panel'));
 
   // ── Additional Panel: placement ─────────────────────────────────────
   const apHtml = await renderFresh({

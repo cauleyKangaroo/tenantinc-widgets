@@ -56,8 +56,6 @@ export interface SpaceListProps {
   layoutMode?: 'grid' | 'list';
   /** Dropdown in the content panel: Left / Top / Right */
   filterPosition?: 'left' | 'top' | 'right';
-  /** Section shown under the filters in the sidebar. 'none'/omitted = hidden. */
-  sidebarSection?: string;
   /** Section shown in the Additional Panel. 'none'/omitted = AP hidden. */
   additionalPanelSection?: string;
   /** Where the Additional Panel sits (constrained by filterPosition in Duda). */

@@ -34,7 +34,6 @@ function resolveApPosition(
 export function SpaceList({
   layoutMode = 'grid',
   filterPosition = 'right',
-  sidebarSection,
   additionalPanelSection,
   additionalPanelPosition = 'bottom',
 }: SpaceListProps) {
@@ -47,20 +46,17 @@ export function SpaceList({
 
   const apPos = resolveApPosition(filterPosition, additionalPanelSection, additionalPanelPosition);
 
-  // Filter panel + its (optional) sidebar section, stacked together so the
-  // section always sits directly under the filters wherever they live.
-  const filterStack = (
-    <div className="suf-filter-stack">
-      <FilterPanel
-        filters={filters}
-        onChange={setFilters}
-        badge={badge}
-        collapsed={collapsed}
-        onToggleCollapse={() => setCollapsed((c) => !c)}
-        onReset={() => setFilters(DEFAULT_FILTERS)}
-      />
-      <SectionPanel section={sidebarSection} />
-    </div>
+  // The three regions — filter panel, additional panel, and the listing — are
+  // placed into shell slots below. The filter panel is just the filter panel.
+  const filterPanel = (
+    <FilterPanel
+      filters={filters}
+      onChange={setFilters}
+      badge={badge}
+      collapsed={collapsed}
+      onToggleCollapse={() => setCollapsed((c) => !c)}
+      onReset={() => setFilters(DEFAULT_FILTERS)}
+    />
   );
 
   const additionalPanel = apPos ? (
@@ -70,10 +66,10 @@ export function SpaceList({
   ) : null;
 
   const leftSlot =
-    filterPosition === 'left' ? filterStack : apPos === 'left' ? additionalPanel : null;
+    filterPosition === 'left' ? filterPanel : apPos === 'left' ? additionalPanel : null;
   const rightSlot =
-    filterPosition === 'right' ? filterStack : apPos === 'right' ? additionalPanel : null;
-  const topSlot = filterPosition === 'top' ? filterStack : null;
+    filterPosition === 'right' ? filterPanel : apPos === 'right' ? additionalPanel : null;
+  const topSlot = filterPosition === 'top' ? filterPanel : null;
   const bottomSlot = apPos === 'bottom' ? additionalPanel : null;
 
   return (
