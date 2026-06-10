@@ -107,12 +107,16 @@ needed, listed here for completeness:
 | `additionalPanelMode` | `single` \| `all` | AP shows one section, or all sections as an accordion |
 | `additionalPanelSection` | `none` \| section key | section shown in the AP when mode is `single` |
 | `additionalPanelPosition` | `left` \| `right` \| `bottom` | where the Additional Panel sits |
+| `panelOrder` | `string[]` of section keys | order of the accordion sections in `all` mode |
 
 Section keys: `reviews`, `features`, `nearby`, `store`, `notes`, `faqs`, `hours`.
 The Additional Panel can't share the filter panel's side (e.g. filter right ⇒ AP
 left or bottom); the widget falls back to bottom if a colliding combo is sent.
 In `all` mode `additionalPanelSection` is ignored (Duda hides it via conditional
-logic); the AP renders every section as a collapsible accordion.
+logic); the AP renders every section as a collapsible accordion, ordered by
+`panelOrder`. `panelOrder` is handled defensively by `orderSections()` in
+`sections.ts` (unknown keys ignored, missing keys appended, empty = default
+order), so it's always safe — and only affects `all` mode.
 
 ## Content sections (also placeholder, also a seam)
 

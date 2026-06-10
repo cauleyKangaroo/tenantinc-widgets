@@ -38,6 +38,7 @@ export function SpaceList({
   additionalPanelMode = 'single',
   additionalPanelSection,
   additionalPanelPosition = 'bottom',
+  panelOrder,
 }: SpaceListProps) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [collapsed, setCollapsed] = useState(false);
@@ -67,7 +68,7 @@ export function SpaceList({
   const additionalPanel = apPos ? (
     <aside className={`suf-additional-panel ap-${apPos}`}>
       {additionalPanelMode === 'all' ? (
-        <SectionAccordion />
+        <SectionAccordion order={panelOrder} />
       ) : (
         <SectionPanel section={additionalPanelSection} />
       )}

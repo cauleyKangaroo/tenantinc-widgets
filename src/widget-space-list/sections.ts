@@ -39,3 +39,25 @@ const BY_KEY = new Map<string, Section>(SECTIONS.map((s) => [s.key, s]));
 export function getSection(key: string | undefined): Section | undefined {
   return key ? BY_KEY.get(key) : undefined;
 }
+
+/**
+ * Return all sections in the order given by `order` (the Duda panelOrder prop).
+ * Defensive: unknown keys are ignored, duplicates de-duped, any sections missing
+ * from `order` are appended in default order, and an empty/undefined `order`
+ * falls back to the default order. So the result is always all 7 sections.
+ */
+export function orderSections(order?: string[]): Section[] {
+  const result: Section[] = [];
+  const seen = new Set<string>();
+  for (const key of order ?? []) {
+    const s = BY_KEY.get(key);
+    if (s && !seen.has(key)) {
+      result.push(s);
+      seen.add(key);
+    }
+  }
+  for (const s of SECTIONS) {
+    if (!seen.has(s.key)) result.push(s);
+  }
+  return result;
+}

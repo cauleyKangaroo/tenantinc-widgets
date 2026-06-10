@@ -134,6 +134,12 @@
           <option value="right">right</option>
         </select>
       </label>
+      <label>
+        Panel order (all mode):
+        <input id="sl-panel-order" type="text" size="48"
+          value="reviews,features,nearby,store,notes,faqs,hours"
+          oninput="reinitSpaceList()" />
+      </label>
       <button class="danger" onclick="cleanSpaceList()">clean()</button>
     </div>
     <p class="note">
@@ -204,6 +210,8 @@
         additionalPanelMode: document.getElementById('sl-ap-mode').value,
         additionalPanelSection: document.getElementById('sl-ap-section').value,
         additionalPanelPosition: document.getElementById('sl-ap-pos').value,
+        panelOrder: document.getElementById('sl-panel-order').value
+          .split(',').map(function (s) { return s.trim(); }).filter(Boolean),
       };
     }
 

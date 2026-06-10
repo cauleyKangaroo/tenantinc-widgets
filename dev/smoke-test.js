@@ -148,6 +148,21 @@ async function renderFresh(props) {
     `${accordionHeaders} accordion headers total`
   );
 
+  // ── panelOrder reorders the 'all' accordion ─────────────────────────
+  // Default order has Customer Reviews first; this order puts Hours first.
+  const orderedHtml = await renderFresh({
+    layoutMode: 'grid',
+    filterPosition: 'right',
+    additionalPanelMode: 'all',
+    additionalPanelPosition: 'bottom',
+    panelOrder: ['hours', 'faqs', 'notes', 'store', 'nearby', 'features', 'reviews'],
+  });
+  check(
+    'panelOrder reorders the accordion sections',
+    orderedHtml.indexOf('Hours') < orderedHtml.indexOf('Customer Reviews'),
+    `Hours@${orderedHtml.indexOf('Hours')} vs Reviews@${orderedHtml.indexOf('Customer Reviews')}`
+  );
+
   const idx = html.indexOf('suf-unit-title');
   console.log('\nFirst card title region:');
   console.log(idx >= 0 ? html.slice(idx, idx + 160) : '(none)');

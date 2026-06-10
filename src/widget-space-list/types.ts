@@ -68,6 +68,12 @@ export interface SpaceListProps {
   additionalPanelSection?: string;
   /** Where the Additional Panel sits (constrained by filterPosition in Duda). */
   additionalPanelPosition?: AdditionalPanelPosition;
+  /**
+   * Order of the accordion sections in 'all' mode (section keys), set by the
+   * editor's draggable list in Duda. Defensive: missing/unknown handled by
+   * orderSections(); ignored in 'single' mode.
+   */
+  panelOrder?: string[];
 }
 
 export type { SectionKey } from './sections';
