@@ -304,6 +304,37 @@ Because every widget is built with `createWidget`, all content panel changes —
 
 Duda's Content Editor supports: text input, textarea, number, toggle/checkbox, select/dropdown, image picker, link picker, colour picker. All of them land in `data.config` by their variable name and can be forwarded as props.
 
+#### Toggle fields are real booleans — no conversion needed
+
+Duda passes toggle values as actual JavaScript `true` / `false`, not the strings `"true"` / `"false"`. Forward them directly:
+
+```js
+// ✅ Correct
+showInstorePrice: data.config.showInstorePrice,
+
+// ❌ Wrong — do not do this
+showInstorePrice: data.config.showInstorePrice !== 'false',
+showInstorePrice: data.config.showInstorePrice === 'true',
+```
+
+The widget's TypeScript prop types (`boolean`) match exactly — no adapter code is needed anywhere.
+
+#### Groups are visual only — fields stay flat in data.config
+
+Adding a **group** in the Content Editor is purely a UI affordance (collapsible section in the editor panel). It does **not** create a nested namespace in `data.config`. Fields inside a group called `clientConfig` are still accessed as `data.config.fieldName`, not `data.config.clientConfig.fieldName`.
+
+```js
+// ✅ Correct — even if the field lives inside a group in the editor
+showInstorePrice: data.config.showInstorePrice,
+
+// ❌ Wrong
+showInstorePrice: data.config.clientConfig.showInstorePrice,
+```
+
+#### GitHub Pages CDN cache — wait after deploying
+
+After `git push`, GitHub Pages may serve a stale bundle for up to 10–15 minutes while the CDN invalidates. If a widget appears not to respond to new props immediately after a push, wait a few minutes and hard-refresh before debugging further.
+
 ### Passing non-editor data (additionalData)
 
 If you need to pass data that doesn't come from the editor — e.g. a proxy base URL determined at build time — use `options.additionalData`. It arrives in `init()` as spread properties alongside `container` and `props`:
