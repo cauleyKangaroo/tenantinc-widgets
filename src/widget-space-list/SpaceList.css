@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
 /* All rules are prefixed with .suf- and live under the .suf-wrapper root, so
    they don't leak into the host Duda page. */
@@ -11,7 +11,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  background: #f5f5f5;
   padding: 20px;
   min-height: 600px;
   box-sizing: border-box;
@@ -23,7 +22,7 @@
 /* Middle row: left slot + listing + right slot */
 .suf-row {
   display: flex;
-  gap: 20px;
+  gap: 24px;
   align-items: flex-start;
 }
 
@@ -33,24 +32,23 @@
 .suf-additional-panel.ap-right { width: 280px; }
 .suf-additional-panel.ap-bottom { width: 100%; }
 
-/* Dummy content section container (no design yet) */
+/* Dummy content section container */
 .suf-section {
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 16px;
   padding: 16px 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
   box-sizing: border-box;
 }
 .suf-section-title {
   font-size: 15px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #101318;
   margin-bottom: 6px;
 }
-.suf-section-body { font-size: 13px; color: #6b7280; }
+.suf-section-body { font-size: 13px; color: #637381; }
 
-/* Additional Panel "all" mode — stacked collapsible sections (reuses the
-   .suf-accordion header/body styling from the grid view). */
+/* Additional Panel "all" mode — stacked collapsible sections */
 .suf-section-accordion { display: flex; flex-direction: column; gap: 12px; }
 
 /* ===========================================================================
@@ -58,15 +56,15 @@
    =========================================================================== */
 .suf-filter-panel {
   background: #ffffff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f4f6f8;
+  border-radius: 16px;
   flex-shrink: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .suf-wrapper.filter-left .suf-filter-panel,
-.suf-wrapper.filter-right .suf-filter-panel { width: 280px; }
+.suf-wrapper.filter-right .suf-filter-panel { width: 422px; }
 
 .suf-wrapper.filter-top .suf-filter-panel { width: 100%; }
 
@@ -81,13 +79,12 @@
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 20px 32px;
+  gap: 16px 24px;
   align-items: flex-start;
   flex: 1;
   min-width: 0;
 }
 .suf-wrapper.filter-top .suf-filter-left-group .suf-filter-section {
-  margin-bottom: 0;
   flex-shrink: 0;
 }
 .suf-wrapper.filter-top .suf-list-view,
@@ -95,15 +92,16 @@
 .suf-wrapper.filter-top .suf-list-inner { width: 100%; }
 .suf-wrapper.filter-top .suf-filter-right-group {
   flex-shrink: 0;
-  border-left: 1px solid #e0e0e0;
-  margin-left: 28px;
-  padding-left: 28px;
+  border-left: 1px solid #dfe3e8;
+  margin-left: 24px;
+  padding-left: 24px;
+  display: block;
 }
-.suf-wrapper.filter-top .suf-filter-right-group .suf-filter-section { margin-bottom: 0; }
+.suf-wrapper.filter-top .suf-filter-right-group .suf-filter-section { }
 .suf-wrapper.filter-top .suf-checkboxes {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px 20px;
+  gap: 8px 20px;
 }
 
 /* Filter Header */
@@ -111,108 +109,150 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  padding: 28px 22px 18px;
   cursor: pointer;
   user-select: none;
 }
 .suf-filter-header-right { display: flex; align-items: center; gap: 10px; }
 .suf-filter-chevron {
   font-size: 12px;
-  color: #555;
+  color: #637381;
   transition: transform 0.2s;
   line-height: 1;
+  display: flex;
+  align-items: center;
 }
 .suf-filter-panel.collapsed .suf-filter-chevron { transform: rotate(180deg); }
+
+.suf-filter-separator {
+  height: 1px;
+  background: #dfe3e8;
+  margin: 0;
+}
+.suf-filter-panel.collapsed .suf-filter-separator { display: none; }
+
 .suf-filter-body {
   overflow: hidden;
-  transition: opacity 0.2s ease;
   pointer-events: auto;
   user-select: text;
+  padding: 19px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .suf-filter-panel.collapsed .suf-filter-body { display: none; }
-.suf-filter-panel.collapsed .suf-filter-header { margin-bottom: 0; }
+.suf-filter-panel.collapsed .suf-filter-header { padding-bottom: 28px; }
+
 .suf-filter-title-row { display: flex; align-items: center; gap: 6px; }
-.suf-filter-icon { display: flex; align-items: center; color: #333; }
+.suf-filter-icon {
+  display: flex;
+  align-items: center;
+  color: #101318;
+  flex-shrink: 0;
+}
 .suf-filter-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #1a1a1a;
+  font-size: 20px;
+  font-weight: 600;
+  color: #101318;
+  line-height: 1;
 }
 .suf-filter-badge {
-  background: #4caf50;
+  background: #509e2f;
   color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 50px;
-  line-height: 1.4;
+  font-size: 13px;
+  font-weight: 600;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
 }
 .suf-reset-btn {
   background: #ffffff;
-  border: 1px solid #333333;
+  border: 2px solid #509e2f;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 14px;
   padding: 4px 12px;
+  height: 31px;
   cursor: pointer;
-  color: #333;
-  transition: background 0.15s;
+  color: #101318;
   font-family: 'Montserrat', sans-serif;
-  font-weight: 400;
-}
-.suf-reset-btn:hover { background: #f5f5f5; }
-
-/* Filter group wrappers — default (sidebar) mode: stack vertically */
-.suf-filter-left-group,
-.suf-filter-right-group { display: block; }
-
-.suf-filter-section { margin-bottom: 16px; }
-.suf-filter-label {
-  font-size: 13px;
   font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 8px;
+  line-height: 1;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+}
+.suf-reset-btn:hover { background: #f0f9eb; }
+
+/* Filter group wrappers — sidebar mode: use display:contents so sections
+   become direct flex children of suf-filter-body, letting body's gap apply
+   uniformly between every section regardless of group boundaries. */
+.suf-filter-left-group,
+.suf-filter-right-group { display: contents; }
+
+.suf-filter-section {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 10px 28px 22px;
+  width: 100%;
+}
+.suf-filter-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #101318;
+  line-height: 36px;
+  margin-bottom: 2px;
 }
 
 /* Pill Buttons */
 .suf-pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .suf-pill {
   background: #ffffff;
-  border: 1.5px solid #cccccc;
-  border-radius: 50px;
-  font-size: 13px;
-  color: #333333;
-  padding: 5px 14px;
+  border: 1px solid #101318;
+  border-radius: 100px;
+  font-size: 14px;
+  color: #101318;
+  padding: 0 15px;
+  height: 36px;
   cursor: pointer;
   transition: all 0.15s ease;
-  line-height: 1.4;
+  line-height: 1;
   font-family: 'Montserrat', sans-serif;
   font-weight: 400;
+  display: flex;
+  align-items: center;
 }
-.suf-pill:hover { border-color: #888; }
+.suf-pill:hover { background: #f9fafb; }
 .suf-pill.active {
-  background: #1a1a1a;
+  background: #101318;
   color: #ffffff;
-  border-color: #1a1a1a;
+  border-color: #101318;
+  font-weight: 600;
 }
 
 /* Checkboxes */
-.suf-checkboxes { display: flex; flex-direction: column; gap: 8px; }
+.suf-checkboxes { display: flex; flex-direction: column; gap: 12px; }
 .suf-checkbox-item {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: #333333;
+  color: #101318;
   cursor: pointer;
   position: relative;
   z-index: 1;
   font-weight: 400;
+  line-height: 18px;
 }
 .suf-checkbox {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   cursor: pointer;
-  accent-color: #4caf50;
+  accent-color: #509e2f;
   flex-shrink: 0;
   position: relative;
   z-index: 2;
@@ -223,8 +263,7 @@
    =========================================================================== */
 /* container-type lets the listing content respond to ITS OWN width (not the
    viewport) via @container queries below — essential in Duda, where the widget
-   can be narrow while the viewport is still desktop-wide (e.g. squeezed by the
-   filter panel + additional panel). */
+   can be narrow while the viewport is still desktop-wide. */
 .suf-listing-area { flex: 1; min-width: 0; container-type: inline-size; }
 
 /* ===========================================================================
@@ -234,8 +273,8 @@
 .suf-accordion { width: 100%; }
 .suf-accordion-header {
   background: #ffffff;
-  border-radius: 8px;
-  padding: 14px 20px;
+  border-radius: 16px;
+  padding: 23px 31px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -243,48 +282,84 @@
   user-select: none;
   transition: background 0.15s;
 }
-.suf-accordion-header:hover { background: #f9f9f9; }
+.suf-accordion-header:hover { background: #f9fafb; }
 .suf-accordion-title {
-  font-size: 20px;
+  font-size: 30px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #101318;
+  line-height: 1.2;
 }
-.suf-chevron { font-size: 14px; color: #555; transition: transform 0.2s; }
-.suf-accordion-body { padding-top: 12px; }
+.suf-chevron {
+  display: flex;
+  align-items: center;
+  color: #637381;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+.suf-accordion.expanded .suf-chevron { transform: rotate(180deg); }
+.suf-accordion-body { padding-top: 24px; }
 
 /* Cards Grid — auto-fit makes the column count follow the listing area's own
-   width, so cards never get squeezed below a usable size (which caused the
-   in-card pricing to overlap in Duda's narrow container). */
+   width, so cards never get squeezed below a usable size. */
 .suf-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 16px;
+  gap: 24px;
 }
 
-/* Unit Card */
+/* Unit Card — no padding at card level; display and action panels handle it */
 .suf-unit-card {
   background: #ffffff;
-  border-radius: 10px;
-  padding: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  overflow: hidden;
   box-sizing: border-box;
 }
-.suf-card-top { display: grid; grid-template-columns: 1fr auto; gap: 12px; }
-.suf-card-info { min-width: 0; }
+
+/* Card Display Panel — white top section */
+.suf-card-display-panel {
+  background: #ffffff;
+  padding: 30px 30px 48px;
+  flex-shrink: 0;
+}
+
+/* Card Action Panel — light grey bottom section */
+.suf-card-action-panel {
+  background: #f9fafb;
+  padding: 30px;
+  flex-shrink: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.suf-card-top {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+}
+.suf-card-info {
+  flex-shrink: 0;
+  width: 171px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.suf-unit-heading { display: flex; flex-direction: column; }
 .suf-unit-title {
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 4px;
+  color: #101318;
+  line-height: 1.2;
 }
 .suf-unit-subtype {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 8px;
+  color: #101318;
+  line-height: 20px;
 }
 .suf-features {
   list-style: none;
@@ -292,44 +367,48 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 .suf-features li {
-  font-size: 13px;
-  color: #333333;
+  font-size: 14px;
+  color: #637381;
   display: flex;
   align-items: flex-start;
-  gap: 5px;
-  line-height: 1.4;
+  gap: 4px;
+  line-height: 16px;
   font-weight: 400;
 }
-.suf-check { color: #4caf50; font-weight: 700; flex-shrink: 0; }
+.suf-check { color: #509e2f; font-weight: 700; flex-shrink: 0; }
 .suf-card-image-col {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+  gap: 16px;
 }
 .suf-unit-img {
-  width: 90px;
-  height: 90px;
-  object-fit: cover;
-  border-radius: 8px;
+  width: 100%;
+  max-width: 162px;
+  height: auto;
+  object-fit: contain;
   display: block;
 }
 .suf-see-fits {
-  font-size: 13px;
-  color: #4caf50;
+  font-size: 15px;
+  color: #509e2f;
   text-decoration: none;
   white-space: nowrap;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .suf-see-fits:hover { text-decoration: underline; }
 
 /* Promo Badge */
 .suf-promo-badge {
-  border: 1.5px dashed #4caf50;
+  border: 1.5px dashed #509e2f;
   border-radius: 6px;
   padding: 6px 10px;
   background: transparent;
@@ -337,61 +416,78 @@
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #4caf50;
+  color: #509e2f;
   font-weight: 400;
+  margin-top: 12px;
 }
 .suf-promo-icon { display: flex; align-items: center; flex-shrink: 0; }
 
-/* Pricing Row — wrap so the CTA drops below instead of overlapping the price
-   when a card is narrow. */
+/* Pricing Row — price block on left, CTA button on right */
 .suf-card-pricing {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-  padding-top: 4px;
-  border-top: 1px solid #f0f0f0;
+  gap: 16px;
+  align-items: flex-start;
 }
+
+/* Inner price display: [in-store | divider | starting-at] in a 50px tall row */
+.suf-prices-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 50px;
+  flex-shrink: 0;
+}
+
 .suf-price-left {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 45px;
   flex-shrink: 0;
 }
 .suf-instore-label {
-  font-size: 11px;
-  color: #999999;
-  font-weight: 400;
-  letter-spacing: 0.3px;
+  font-size: 10px;
+  color: #637381;
+  font-weight: 500;
+  line-height: 1.5;
   text-transform: uppercase;
 }
 .suf-strike {
-  font-size: 14px;
-  color: #999999;
+  font-size: 16px;
+  color: #637381;
   text-decoration: line-through;
   font-weight: 400;
+  line-height: 1.5;
 }
+
+.suf-price-divider {
+  width: 1px;
+  height: 37px;
+  background: #dfe3e8;
+  flex-shrink: 0;
+}
+
 .suf-price-main {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  flex: 1;
-  min-width: 0;
+  align-items: flex-end;
+  flex-shrink: 0;
 }
 .suf-starting-label {
-  font-size: 11px;
-  color: #888888;
+  font-size: 10px;
+  color: #101318;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  line-height: 16px;
   text-transform: uppercase;
 }
 .suf-main-price {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
-  color: #1a1a1a;
-  line-height: 1.1;
+  color: #101318;
+  line-height: 1.2;
 }
-.suf-admin-fee { font-size: 11px; color: #888888; margin-top: 2px; font-weight: 400; }
+.suf-admin-fee { font-size: 11px; color: #637381; margin-top: 2px; font-weight: 400; }
 .suf-urgency {
   font-size: 12px;
   color: #d32f2f;
@@ -399,53 +495,68 @@
   margin-top: 2px;
 }
 .suf-cta-col {
-  flex-shrink: 0;
-  margin-left: auto;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  justify-content: center;
 }
+
 .suf-select-btn {
-  background: #f05a28;
+  background: #f45f30;
   color: #ffffff;
   border: none;
-  border-radius: 6px;
-  padding: 10px 28px;
-  font-size: 15px;
+  border-radius: 8px;
+  height: 50px;
+  width: 100%;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
   font-family: 'Montserrat', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .suf-select-btn:hover { background: #d94e1f; }
 
 .suf-call-btn {
   background: #ffffff;
-  color: #f05a28;
-  border: 2px solid #f05a28;
-  border-radius: 6px;
-  padding: 8px 28px;
-  font-size: 15px;
+  color: #f45f30;
+  border: 2px solid #f45f30;
+  border-radius: 8px;
+  height: 50px;
+  width: 100%;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
   font-family: 'Montserrat', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .suf-call-btn:hover { background: #fff5f2; }
 
 .suf-waitlist-btn {
   background: #ffffff;
-  color: #1a1a1a;
-  border: 2px solid #1a1a1a;
-  border-radius: 6px;
-  padding: 8px 20px;
-  font-size: 15px;
+  color: #101318;
+  border: 2px solid #101318;
+  border-radius: 8px;
+  height: 50px;
+  width: 100%;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
   font-family: 'Montserrat', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .suf-waitlist-btn:hover { background: #f9f9f9; }
 
@@ -453,6 +564,7 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  width: 100%;
 }
 
 .suf-limited-label {
@@ -465,8 +577,8 @@
 
 .suf-junk-disclaimer {
   font-size: 11px;
-  color: #999999;
-  margin-top: 6px;
+  color: #637381;
+  margin-top: 8px;
   font-weight: 400;
   line-height: 1.4;
 }
@@ -477,32 +589,31 @@
 .suf-list-view { display: flex; flex-direction: column; }
 .suf-list-card {
   background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-  padding: 16px 20px;
+  border-radius: 16px;
+  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
+  padding: 24px 30px;
   margin-bottom: 16px;
   box-sizing: border-box;
 }
 .suf-list-inner { display: flex; align-items: flex-start; gap: 16px; }
 .suf-list-img-col { flex-shrink: 0; }
 .suf-list-img {
-  width: 90px;
-  height: 90px;
-  object-fit: cover;
-  border-radius: 8px;
+  width: 110px;
+  height: auto;
+  object-fit: contain;
   display: block;
 }
 .suf-list-info-col { flex: 0 0 160px; min-width: 0; }
 .suf-list-size-label {
   font-size: 20px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #101318;
   margin-bottom: 4px;
 }
 .suf-list-subtype {
   font-size: 13px;
   font-weight: 700;
-  color: #4caf50;
+  color: #509e2f;
   margin-bottom: 6px;
   display: flex;
   align-items: center;
@@ -511,16 +622,14 @@
 .suf-list-dims-col { flex: 1; min-width: 0; }
 
 /* Dimension Pills Grid */
-/* auto-fit so the pills reflow to fewer columns as the dims column narrows,
-   rather than overflowing into the pricing column. */
 .suf-dims-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: 8px; }
 .suf-dim-pill {
   position: relative;
   background: #ffffff;
-  border: 1px solid #cccccc;
+  border: 1px solid #dfe3e8;
   border-radius: 6px;
   font-size: 12px;
-  color: #333333;
+  color: #101318;
   padding: 6px 4px;
   cursor: pointer;
   text-align: center;
@@ -529,15 +638,15 @@
   font-family: 'Montserrat', sans-serif;
   font-weight: 400;
 }
-.suf-dim-pill:hover { border-color: #4caf50; }
-.suf-dim-pill.active { border: 2px solid #4caf50; font-weight: 600; color: #1a1a1a; }
+.suf-dim-pill:hover { border-color: #509e2f; }
+.suf-dim-pill.active { border: 2px solid #509e2f; font-weight: 600; color: #101318; }
 .suf-dim-dot {
   position: absolute;
   top: 3px;
   right: 3px;
   width: 7px;
   height: 7px;
-  background: #4caf50;
+  background: #509e2f;
   border-radius: 50%;
 }
 
@@ -550,27 +659,23 @@
   gap: 10px;
   min-width: 160px;
 }
-.suf-list-prices { display: flex; gap: 12px; align-items: flex-end; }
-.suf-select-full { width: 100%; padding: 10px 20px; }
+.suf-list-prices { display: flex; gap: 12px; align-items: center; }
+.suf-select-full { width: 100%; }
 
 /* Empty state */
 .suf-empty-msg {
   padding: 40px 20px;
   text-align: center;
-  color: #888;
+  color: #637381;
   font-size: 15px;
   background: #ffffff;
-  border-radius: 10px;
+  border-radius: 16px;
 }
 
 /* ===========================================================================
    RESPONSIVE — overall shell (viewport based)
-   These only handle how the FILTER / ADDITIONAL panels stack relative to the
-   listing; the listing's own content responsiveness is container-based below.
    =========================================================================== */
 @media (max-width: 1024px) {
-  /* When the filter panel is on a side, stack the side slots on smaller
-     viewports so panels don't crowd the listing. */
   .suf-wrapper.filter-left .suf-row,
   .suf-wrapper.filter-right .suf-row { flex-direction: column; }
   .suf-wrapper.filter-left .suf-filter-panel,
@@ -579,7 +684,6 @@
 
 @media (max-width: 767px) {
   .suf-wrapper { padding: 12px; gap: 14px; }
-  /* Everything stacks: all side slots become full-width rows. */
   .suf-row { flex-direction: column; }
   .suf-filter-panel,
   .suf-additional-panel.ap-left,
@@ -588,27 +692,26 @@
 
 /* ===========================================================================
    RESPONSIVE — listing content (CONTAINER based)
-   Keyed off the listing area's own width via container-type: inline-size, so
-   it reflows correctly even when the widget is narrow inside a wide viewport
-   (the Duda case: listing squeezed by the filter + additional panels). The
-   card/dims grids already auto-fit; these handle the list-view columns and the
-   grid card CTA.
    =========================================================================== */
 @container (max-width: 680px) {
   .suf-list-inner { flex-wrap: wrap; }
   .suf-list-info-col { flex: 0 0 140px; }
   .suf-list-pricing-col { min-width: 140px; }
-  .suf-cta-col { width: 100%; margin-left: 0; }
+  .suf-cta-col { width: 100%; align-self: auto; }
   .suf-select-btn { width: 100%; }
 }
 
 @container (max-width: 480px) {
   .suf-list-inner { flex-direction: column; }
-  .suf-list-img { width: 100%; height: 160px; }
+  .suf-list-img { width: 100%; height: 160px; object-fit: cover; }
   .suf-list-info-col { flex: none; width: 100%; }
   .suf-list-pricing-col { width: 100%; min-width: 0; align-items: stretch; }
   .suf-list-prices { justify-content: flex-start; }
   .suf-select-full { width: 100%; }
-  .suf-unit-img { width: 80px; height: 80px; }
+  .suf-unit-img { width: 100%; max-width: 100%; }
   .suf-main-price { font-size: 20px; }
+  .suf-card-display-panel { padding: 20px 20px 30px; }
+  .suf-card-action-panel { padding: 20px; }
+  .suf-card-top { gap: 16px; }
+  .suf-card-info { width: auto; flex: 1; }
 }

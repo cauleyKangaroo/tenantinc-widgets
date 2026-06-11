@@ -6,12 +6,15 @@ const fmt = (n: number) =>
 
 export function PriceBlock({ unit, config }: { unit: Unit; config: WidgetConfig }) {
   return (
-    <>
+    <div className="suf-prices-row">
       {config.showInstorePrice && (
-        <div className="suf-price-left">
-          <div className="suf-instore-label">{config.instorePriceLabel}</div>
-          <div className="suf-strike">{fmt(unit.inStorePrice)}</div>
-        </div>
+        <>
+          <div className="suf-price-left">
+            <div className="suf-instore-label">{config.instorePriceLabel}</div>
+            <div className="suf-strike">{fmt(unit.inStorePrice)}</div>
+          </div>
+          <div className="suf-price-divider" />
+        </>
       )}
       <div className="suf-price-main">
         <div className="suf-starting-label">STARTING AT</div>
@@ -23,7 +26,7 @@ export function PriceBlock({ unit, config }: { unit: Unit; config: WidgetConfig 
           <div className="suf-urgency">{unit.urgency}</div>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -31,7 +34,7 @@ export function PromoBadge({ text, style }: { text: string; style?: React.CSSPro
   return (
     <div className="suf-promo-badge" style={style}>
       <span className="suf-promo-icon">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="#4caf50">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#509e2f">
           <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
         </svg>
       </span>
