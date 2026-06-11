@@ -121,6 +121,7 @@ export const DEMO_UNITS: Unit[] = [
     inStorePrice: 199.5,
     startingPrice: 184.5,
     promo: 'Short Promotion Title',
+    availability: 'call',
   },
   {
     id: 'md-9x7',
@@ -135,6 +136,7 @@ export const DEMO_UNITS: Unit[] = [
     startingPrice: 184.5,
     promo: 'Short Promotion Title',
     adminFee: 20,
+    availability: 'waitlist',
   },
   {
     id: 'md-9x9',

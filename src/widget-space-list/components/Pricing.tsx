@@ -1,25 +1,27 @@
 import React from 'react';
-import type { Unit } from '../types';
+import type { Unit, WidgetConfig } from '../types';
 
 const fmt = (n: number) =>
   `$${n.toFixed(2).replace(/\.00$/, '.00')}`;
 
-/** The in-store strike price + "starting at" main price, with optional
- *  admin-fee and urgency lines. Shared by the grid card and list row. */
-export function PriceBlock({ unit }: { unit: Unit }) {
+export function PriceBlock({ unit, config }: { unit: Unit; config: WidgetConfig }) {
   return (
     <>
-      <div className="suf-price-left">
-        <div className="suf-instore-label">IN-STORE</div>
-        <div className="suf-strike">{fmt(unit.inStorePrice)}</div>
-      </div>
+      {config.showInstorePrice && (
+        <div className="suf-price-left">
+          <div className="suf-instore-label">{config.instorePriceLabel}</div>
+          <div className="suf-strike">{fmt(unit.inStorePrice)}</div>
+        </div>
+      )}
       <div className="suf-price-main">
         <div className="suf-starting-label">STARTING AT</div>
         <div className="suf-main-price">{fmt(unit.startingPrice)}</div>
         {unit.adminFee != null && (
           <div className="suf-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
         )}
-        {unit.urgency && <div className="suf-urgency">{unit.urgency}</div>}
+        {config.showUrgencyMessage && unit.urgency && (
+          <div className="suf-urgency">{unit.urgency}</div>
+        )}
       </div>
     </>
   );
@@ -47,5 +49,37 @@ export function FeatureList({ features }: { features: string[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+export function JunkFeeDisclaimer() {
+  return (
+    <div className="suf-junk-disclaimer">
+      * Prices shown exclude applicable taxes and admin fees. Final price confirmed at checkout.
+    </div>
+  );
+}
+
+/** Primary CTA button — renders Select / Call / Waitlist based on unit availability and config flags. */
+export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetConfig; full?: boolean }) {
+  const fullClass = full ? ' suf-select-full' : '';
+
+  if (unit.availability === 'call' && config.callOnLimitedAvailability) {
+    return (
+      <button className={`suf-call-btn${fullClass}`}>Call</button>
+    );
+  }
+
+  if (unit.availability === 'waitlist' && config.enableWaitlist) {
+    return (
+      <div className="suf-cta-group">
+        <button className={`suf-waitlist-btn${fullClass}`}>Waitlist</button>
+        <div className="suf-limited-label">Limited Availability</div>
+      </div>
+    );
+  }
+
+  return (
+    <button className={`suf-select-btn${fullClass}`}>{config.ctaButtonCopy}</button>
   );
 }

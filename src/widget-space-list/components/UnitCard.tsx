@@ -1,9 +1,8 @@
 import React from 'react';
-import type { Unit } from '../types';
-import { PriceBlock, PromoBadge, FeatureList } from './Pricing';
+import type { Unit, WidgetConfig } from '../types';
+import { PriceBlock, PromoBadge, FeatureList, CtaButton, JunkFeeDisclaimer } from './Pricing';
 
-/** A single unit card in the grid view. */
-export function UnitCard({ unit }: { unit: Unit }) {
+export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig }) {
   return (
     <div className="suf-unit-card">
       <div className="suf-card-top">
@@ -23,11 +22,12 @@ export function UnitCard({ unit }: { unit: Unit }) {
       {unit.promo && <PromoBadge text={unit.promo} />}
 
       <div className="suf-card-pricing">
-        <PriceBlock unit={unit} />
+        <PriceBlock unit={unit} config={config} />
         <div className="suf-cta-col">
-          <button className="suf-select-btn">Select</button>
+          <CtaButton unit={unit} config={config} />
         </div>
       </div>
+      {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer />}
     </div>
   );
 }

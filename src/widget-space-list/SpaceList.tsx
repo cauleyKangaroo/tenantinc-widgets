@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import './SpaceList.css';
-import type { SpaceListProps, AdditionalPanelPosition } from './types';
+import type { SpaceListProps, AdditionalPanelPosition, WidgetConfig } from './types';
 import { DEMO_UNITS } from './data';
 import {
   DEFAULT_FILTERS,
@@ -39,7 +39,23 @@ export function SpaceList({
   additionalPanelSection,
   additionalPanelPosition = 'bottom',
   panelOrder,
+  showInstorePrice = true,
+  instorePriceLabel = 'IN-STORE',
+  showJunkFeeDisclaimer = false,
+  showUrgencyMessage = true,
+  enableWaitlist = false,
+  callOnLimitedAvailability = false,
+  ctaButtonCopy = 'Select',
 }: SpaceListProps) {
+  const config: WidgetConfig = {
+    showInstorePrice,
+    instorePriceLabel,
+    showJunkFeeDisclaimer,
+    showUrgencyMessage,
+    enableWaitlist,
+    callOnLimitedAvailability,
+    ctaButtonCopy,
+  };
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -89,9 +105,9 @@ export function SpaceList({
         {leftSlot}
         <main className="suf-listing-area">
           {layoutMode === 'list' ? (
-            <ListView units={visibleUnits} />
+            <ListView units={visibleUnits} config={config} />
           ) : (
-            <GridView units={visibleUnits} />
+            <GridView units={visibleUnits} config={config} />
           )}
         </main>
         {rightSlot}

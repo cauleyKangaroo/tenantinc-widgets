@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import type { Unit, UnitSize } from '../types';
-import { PriceBlock, PromoBadge, FeatureList } from './Pricing';
+import type { Unit, UnitSize, WidgetConfig } from '../types';
+import { PriceBlock, PromoBadge, FeatureList, CtaButton, JunkFeeDisclaimer } from './Pricing';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
   small: 'Small',
@@ -8,11 +8,7 @@ const SIZE_LABEL: Record<UnitSize, string> = {
   large: 'Large',
 };
 
-/**
- * A list-view row for one size group. The units in the group are shown as
- * selectable dimension pills; the selected unit drives the info + pricing.
- */
-export function ListCard({ size, units }: { size: UnitSize; units: Unit[] }) {
+export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[]; config: WidgetConfig }) {
   const [selectedId, setSelectedId] = useState(units[0].id);
   // The selected unit may disappear if filters change; fall back to first.
   const selected = units.find((u) => u.id === selectedId) ?? units[0];
@@ -56,9 +52,10 @@ export function ListCard({ size, units }: { size: UnitSize; units: Unit[] }) {
 
         <div className="suf-list-pricing-col">
           <div className="suf-list-prices">
-            <PriceBlock unit={selected} />
+            <PriceBlock unit={selected} config={config} />
           </div>
-          <button className="suf-select-btn suf-select-full">Select</button>
+          <CtaButton unit={selected} config={config} full />
+          {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer />}
         </div>
       </div>
     </div>

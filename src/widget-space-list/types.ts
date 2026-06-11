@@ -34,6 +34,24 @@ export interface Unit {
   promo?: string;
   /** Optional urgency line, e.g. "Only 1 left · Rent soon!" */
   urgency?: string;
+  /** CTA state: absent = normal Select, 'call' = Call button, 'waitlist' = Waitlist button */
+  availability?: 'call' | 'waitlist';
+}
+
+// ---------------------------------------------------------------------------
+// Widget-level display config — built from SpaceListProps in SpaceList.tsx
+// and threaded down to all card components.
+// ---------------------------------------------------------------------------
+
+export interface WidgetConfig {
+  showInstorePrice: boolean;
+  /** Label shown above the in-store strike price ("IN-STORE", "WAS", etc.) */
+  instorePriceLabel: string;
+  showJunkFeeDisclaimer: boolean;
+  showUrgencyMessage: boolean;
+  enableWaitlist: boolean;
+  callOnLimitedAvailability: boolean;
+  ctaButtonCopy: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,6 +92,22 @@ export interface SpaceListProps {
    * orderSections(); ignored in 'single' mode.
    */
   panelOrder?: string[];
+
+  // ── General widget properties ───────────────────────────────────────────
+  /** Toggle: show or hide the in-store strike-through price block. Default true. */
+  showInstorePrice?: boolean;
+  /** Text label above the in-store strike price. Default 'IN-STORE'. */
+  instorePriceLabel?: string;
+  /** Toggle: show a junk-fee disclaimer below unit pricing. Default false. */
+  showJunkFeeDisclaimer?: boolean;
+  /** Toggle: show "Only X left" urgency messages on eligible units. Default true. */
+  showUrgencyMessage?: boolean;
+  /** Toggle: show "Waitlist" CTA + "Limited Availability" label on waitlisted units. Default false. */
+  enableWaitlist?: boolean;
+  /** Toggle: show "Call" CTA on units flagged as call-only. Default false. */
+  callOnLimitedAvailability?: boolean;
+  /** Text for the primary CTA button. Default 'Select'. */
+  ctaButtonCopy?: string;
 }
 
 export type { SectionKey } from './sections';

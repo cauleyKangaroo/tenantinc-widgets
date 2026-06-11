@@ -419,6 +419,58 @@
 }
 .suf-select-btn:hover { background: #d94e1f; }
 
+.suf-call-btn {
+  background: #ffffff;
+  color: #f05a28;
+  border: 2px solid #f05a28;
+  border-radius: 6px;
+  padding: 8px 28px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  font-family: 'Montserrat', sans-serif;
+}
+.suf-call-btn:hover { background: #fff5f2; }
+
+.suf-waitlist-btn {
+  background: #ffffff;
+  color: #1a1a1a;
+  border: 2px solid #1a1a1a;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  font-family: 'Montserrat', sans-serif;
+}
+.suf-waitlist-btn:hover { background: #f9f9f9; }
+
+.suf-cta-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.suf-limited-label {
+  font-size: 11px;
+  color: #d32f2f;
+  font-weight: 700;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.suf-junk-disclaimer {
+  font-size: 11px;
+  color: #999999;
+  margin-top: 6px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 /* ===========================================================================
    LIST VIEW
    =========================================================================== */

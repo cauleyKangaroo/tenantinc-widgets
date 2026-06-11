@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Unit, UnitSize } from '../types';
+import type { Unit, UnitSize, WidgetConfig } from '../types';
 import { groupBySize } from '../filters';
 import { UnitCard } from './UnitCard';
 
@@ -16,7 +16,7 @@ const DEFAULT_OPEN: Record<UnitSize, boolean> = {
   large: false,
 };
 
-export function GridView({ units }: { units: Unit[] }) {
+export function GridView({ units, config }: { units: Unit[]; config: WidgetConfig }) {
   const [open, setOpen] = useState<Record<UnitSize, boolean>>(DEFAULT_OPEN);
   const groups = groupBySize(units);
 
@@ -40,7 +40,7 @@ export function GridView({ units }: { units: Unit[] }) {
               <div className="suf-accordion-body">
                 <div className="suf-cards-grid">
                   {groupUnits.map((u) => (
-                    <UnitCard key={u.id} unit={u} />
+                    <UnitCard key={u.id} unit={u} config={config} />
                   ))}
                 </div>
               </div>
