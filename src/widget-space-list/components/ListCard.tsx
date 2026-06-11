@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Unit, UnitSize, WidgetConfig } from '../types';
-import { PriceBlock, PromoBadge, FeatureList, CtaButton, JunkFeeDisclaimer } from './Pricing';
+import { PriceBlock, PromoBadge, FeatureList, CtaButton, JunkFeeDisclaimer, CheckIcon } from './Pricing';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
   small: 'Small',
@@ -23,7 +23,7 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
         <div className="suf-list-info-col">
           <div className="suf-list-size-label">{SIZE_LABEL[size]}</div>
           <div className="suf-list-subtype">
-            <span className="suf-check">✓</span> {selected.subtype}
+            <CheckIcon /> {selected.subtype}
           </div>
           <FeatureList features={selected.features} />
           <a href="#" className="suf-see-fits">
