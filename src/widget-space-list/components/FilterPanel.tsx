@@ -95,7 +95,7 @@ export function FilterPanel({
           {/* Features — multi select */}
           <div className="suf-filter-section">
             <div className="suf-filter-label">Space Features:</div>
-            <div className="suf-pills">
+            <div className="suf-pills suf-pills-wrap">
               {FEATURE_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
