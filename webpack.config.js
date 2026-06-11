@@ -49,6 +49,12 @@ module.exports = (_env, argv) => {
           test: /\.css$/,
           use: ['style-loader', 'css-loader'],
         },
+        {
+          // Images are base64-inlined into the bundle so the widget stays a
+          // single self-contained .js file (required for the Duda AMD loader).
+          test: /\.(png|jpe?g|gif|svg|webp)$/i,
+          type: 'asset/inline',
+        },
       ],
     },
 
