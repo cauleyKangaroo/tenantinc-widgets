@@ -1,11 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
 /* All rules are prefixed with .suf- and live under the .suf-wrapper root, so
-   they don't leak into the host Duda page. */
+   they don't leak into the host Duda page. Every selector is also scoped under
+   .suf-wrapper to raise specificity to (0,2,0) and beat Duda's single-class
+   overrides without resorting to !important. */
 
-/* Column shell: optional top slot (filter), middle row, optional bottom slot
-   (additional panel). Side placement is handled by .suf-row, not by changing
-   this element's direction. */
 .suf-wrapper {
   font-family: 'Montserrat', sans-serif;
   display: flex;
@@ -19,42 +18,37 @@
 .suf-wrapper *::before,
 .suf-wrapper *::after { box-sizing: border-box; }
 
-/* Middle row: left slot + listing + right slot */
-.suf-row {
+.suf-wrapper .suf-row {
   display: flex;
   gap: 24px;
   align-items: flex-start;
 }
 
-/* Additional panel */
-.suf-additional-panel { flex-shrink: 0; }
-.suf-additional-panel.ap-left,
-.suf-additional-panel.ap-right { width: 280px; }
-.suf-additional-panel.ap-bottom { width: 100%; }
+.suf-wrapper .suf-additional-panel { flex-shrink: 0; }
+.suf-wrapper .suf-additional-panel.ap-left,
+.suf-wrapper .suf-additional-panel.ap-right { width: 280px; }
+.suf-wrapper .suf-additional-panel.ap-bottom { width: 100%; }
 
-/* Dummy content section container */
-.suf-section {
+.suf-wrapper .suf-section {
   background: #ffffff;
   border-radius: 16px;
   padding: 16px 20px;
   box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
   box-sizing: border-box;
 }
-.suf-section-title {
+.suf-wrapper .suf-section-title {
   font-size: 15px;
   font-weight: 700;
   color: #101318;
   margin-bottom: 6px;
 }
-.suf-section-body { font-size: 13px; color: #637381; }
-
-/* Additional Panel "all" mode — stacked collapsible sections */
-.suf-section-accordion { display: flex; flex-direction: column; gap: 12px; }
+.suf-wrapper .suf-section-body { font-size: 13px; color: #637381; }
+.suf-wrapper .suf-section-accordion { display: flex; flex-direction: column; gap: 12px; }
 
 /* ===========================================================================
    FILTER PANEL
    =========================================================================== */
-.suf-filter-panel {
+.suf-wrapper .suf-filter-panel {
   background: #ffffff;
   border: 1px solid #f4f6f8;
   border-radius: 16px;
@@ -68,7 +62,7 @@
 
 .suf-wrapper.filter-top .suf-filter-panel { width: 100%; }
 
-/* ── TOP MODE: landscape two-column layout ── */
+/* ── TOP MODE ── */
 .suf-wrapper.filter-top .suf-filter-body {
   display: flex;
   flex-direction: row;
@@ -84,9 +78,6 @@
   flex: 1;
   min-width: 0;
 }
-.suf-wrapper.filter-top .suf-filter-left-group .suf-filter-section {
-  flex-shrink: 0;
-}
 .suf-wrapper.filter-top .suf-list-view,
 .suf-wrapper.filter-top .suf-list-card { width: 100%; }
 .suf-wrapper.filter-top .suf-list-inner { width: 100%; }
@@ -97,15 +88,13 @@
   padding-left: 24px;
   display: block;
 }
-.suf-wrapper.filter-top .suf-filter-right-group .suf-filter-section { }
 .suf-wrapper.filter-top .suf-checkboxes {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px 20px;
 }
 
-/* Filter Header */
-.suf-filter-header {
+.suf-wrapper .suf-filter-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -113,8 +102,8 @@
   cursor: pointer;
   user-select: none;
 }
-.suf-filter-header-right { display: flex; align-items: center; gap: 10px; }
-.suf-filter-chevron {
+.suf-wrapper .suf-filter-header-right { display: flex; align-items: center; gap: 10px; }
+.suf-wrapper .suf-filter-chevron {
   font-size: 12px;
   color: #637381;
   transition: transform 0.2s;
@@ -122,16 +111,16 @@
   display: flex;
   align-items: center;
 }
-.suf-filter-panel.collapsed .suf-filter-chevron { transform: rotate(180deg); }
+.suf-wrapper .suf-filter-panel.collapsed .suf-filter-chevron { transform: rotate(180deg); }
 
-.suf-filter-separator {
+.suf-wrapper .suf-filter-separator {
   height: 1px;
   background: #dfe3e8;
   margin: 0;
 }
-.suf-filter-panel.collapsed .suf-filter-separator { display: none; }
+.suf-wrapper .suf-filter-panel.collapsed .suf-filter-separator { display: none; }
 
-.suf-filter-body {
+.suf-wrapper .suf-filter-body {
   overflow: hidden;
   pointer-events: auto;
   user-select: text;
@@ -140,23 +129,23 @@
   flex-direction: column;
   gap: 19px;
 }
-.suf-filter-panel.collapsed .suf-filter-body { display: none; }
-.suf-filter-panel.collapsed .suf-filter-header { padding-bottom: 28px; }
+.suf-wrapper .suf-filter-panel.collapsed .suf-filter-body { display: none; }
+.suf-wrapper .suf-filter-panel.collapsed .suf-filter-header { padding-bottom: 28px; }
 
-.suf-filter-title-row { display: flex; align-items: center; gap: 6px; }
-.suf-filter-icon {
+.suf-wrapper .suf-filter-title-row { display: flex; align-items: center; gap: 6px; }
+.suf-wrapper .suf-filter-icon {
   display: flex;
   align-items: center;
   color: #101318;
   flex-shrink: 0;
 }
-.suf-filter-title {
+.suf-wrapper .suf-filter-title {
   font-size: 20px;
   font-weight: 600;
   color: #101318;
   line-height: 1;
 }
-.suf-filter-badge {
+.suf-wrapper .suf-filter-badge {
   background: #509e2f;
   color: #ffffff;
   font-size: 13px;
@@ -170,7 +159,7 @@
   flex-shrink: 0;
   line-height: 1;
 }
-.suf-reset-btn {
+.suf-wrapper .suf-reset-btn {
   background: #ffffff;
   border: 2px solid #509e2f;
   border-radius: 4px;
@@ -186,21 +175,18 @@
   display: flex;
   align-items: center;
 }
-.suf-reset-btn:hover { background: #f0f9eb; }
+.suf-wrapper .suf-reset-btn:hover { background: #f0f9eb; }
 
-/* Filter group wrappers — sidebar mode: use display:contents so sections
-   become direct flex children of suf-filter-body, letting body's gap apply
-   uniformly between every section regardless of group boundaries. */
-.suf-filter-left-group,
-.suf-filter-right-group { display: contents; }
+.suf-wrapper .suf-filter-left-group,
+.suf-wrapper .suf-filter-right-group { display: contents; }
 
-.suf-filter-section {
+.suf-wrapper .suf-filter-section {
   background: #f9fafb;
   border-radius: 12px;
   padding: 10px 30px 25px;
   width: 100%;
 }
-.suf-filter-label {
+.suf-wrapper .suf-filter-label {
   font-size: 16px;
   font-weight: 600;
   color: #101318;
@@ -208,11 +194,9 @@
   margin-bottom: 2px;
 }
 
-/* Pill Buttons */
-.suf-pills { display: flex; flex-wrap: wrap; gap: 8px; }
-/* Space Features pills have tighter column gap, larger row gap when they wrap */
-.suf-pills.suf-pills-wrap { gap: 12px 8px; }
-.suf-pill {
+.suf-wrapper .suf-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.suf-wrapper .suf-pills.suf-pills-wrap { gap: 12px 8px; }
+.suf-wrapper .suf-pill {
   background: #ffffff;
   border: 1px solid #101318;
   border-radius: 100px;
@@ -228,17 +212,16 @@
   display: flex;
   align-items: center;
 }
-.suf-pill:hover { background: #f9fafb; }
-.suf-pill.active {
+.suf-wrapper .suf-pill:hover { background: #f9fafb; }
+.suf-wrapper .suf-pill.active {
   background: #101318;
   color: #ffffff;
   border-color: #101318;
   font-weight: 600;
 }
 
-/* Checkboxes */
-.suf-checkboxes { display: flex; flex-direction: column; gap: 12px; }
-.suf-checkbox-item {
+.suf-wrapper .suf-checkboxes { display: flex; flex-direction: column; gap: 12px; }
+.suf-wrapper .suf-checkbox-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -250,7 +233,7 @@
   font-weight: 400;
   line-height: 18px;
 }
-.suf-checkbox {
+.suf-wrapper .suf-checkbox {
   width: 18px;
   height: 18px;
   cursor: pointer;
@@ -263,17 +246,14 @@
 /* ===========================================================================
    LISTING AREA
    =========================================================================== */
-/* container-type lets the listing content respond to ITS OWN width (not the
-   viewport) via @container queries below — essential in Duda, where the widget
-   can be narrow while the viewport is still desktop-wide. */
-.suf-listing-area { flex: 1; min-width: 0; container-type: inline-size; }
+.suf-wrapper .suf-listing-area { flex: 1; min-width: 0; container-type: inline-size; }
 
 /* ===========================================================================
    GRID VIEW — ACCORDIONS
    =========================================================================== */
-.suf-grid-view { display: flex; flex-direction: column; gap: 12px; }
-.suf-accordion { width: 100%; }
-.suf-accordion-header {
+.suf-wrapper .suf-grid-view { display: flex; flex-direction: column; gap: 12px; }
+.suf-wrapper .suf-accordion { width: 100%; }
+.suf-wrapper .suf-accordion-header {
   background: #ffffff;
   border-radius: 16px;
   padding: 23px 31px;
@@ -284,33 +264,30 @@
   user-select: none;
   transition: background 0.15s;
 }
-.suf-accordion-header:hover { background: #f9fafb; }
-.suf-accordion-title {
+.suf-wrapper .suf-accordion-header:hover { background: #f9fafb; }
+.suf-wrapper .suf-accordion-title {
   font-size: 30px;
   font-weight: 700;
   color: #101318;
   line-height: 1.2;
 }
-.suf-chevron {
+.suf-wrapper .suf-chevron {
   display: flex;
   align-items: center;
   color: #637381;
   flex-shrink: 0;
   transition: transform 0.2s;
 }
-.suf-accordion.expanded .suf-chevron { transform: rotate(180deg); }
-.suf-accordion-body { padding-top: 24px; }
+.suf-wrapper .suf-accordion.expanded .suf-chevron { transform: rotate(180deg); }
+.suf-wrapper .suf-accordion-body { padding-top: 24px; }
 
-/* Cards Grid — auto-fit makes the column count follow the listing area's own
-   width, so cards never get squeezed below a usable size. */
-.suf-cards-grid {
+.suf-wrapper .suf-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   gap: 24px;
 }
 
-/* Unit Card — no padding at card level; display and action panels handle it */
-.suf-unit-card {
+.suf-wrapper .suf-unit-card {
   background: #ffffff;
   border-radius: 16px;
   box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
@@ -319,16 +296,12 @@
   overflow: hidden;
   box-sizing: border-box;
 }
-
-/* Card Display Panel — white top section */
-.suf-card-display-panel {
+.suf-wrapper .suf-card-display-panel {
   background: #ffffff;
   padding: 30px 30px 48px;
   flex-shrink: 0;
 }
-
-/* Card Action Panel — light grey bottom section */
-.suf-card-action-panel {
+.suf-wrapper .suf-card-action-panel {
   background: #f9fafb;
   padding: 30px;
   flex-shrink: 0;
@@ -337,33 +310,32 @@
   flex-direction: column;
   justify-content: flex-end;
 }
-
-.suf-card-top {
+.suf-wrapper .suf-card-top {
   display: flex;
   gap: 30px;
   align-items: flex-start;
 }
-.suf-card-info {
+.suf-wrapper .suf-card-info {
   flex-shrink: 0;
   width: 171px;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-.suf-unit-heading { display: flex; flex-direction: column; }
-.suf-unit-title {
+.suf-wrapper .suf-unit-heading { display: flex; flex-direction: column; }
+.suf-wrapper .suf-unit-title {
   font-size: 24px;
   font-weight: 700;
   color: #101318;
   line-height: 1.2;
 }
-.suf-unit-subtype {
+.suf-wrapper .suf-unit-subtype {
   font-size: 16px;
   font-weight: 700;
   color: #101318;
   line-height: 20px;
 }
-.suf-features {
+.suf-wrapper .suf-features {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -371,7 +343,7 @@
   flex-direction: column;
   gap: 5px;
 }
-.suf-features li {
+.suf-wrapper .suf-features li {
   font-size: 14px;
   color: #637381;
   display: flex;
@@ -380,8 +352,8 @@
   line-height: 16px;
   font-weight: 400;
 }
-.suf-check { color: #509e2f; font-weight: 700; flex-shrink: 0; }
-.suf-card-image-col {
+.suf-wrapper .suf-check { color: #509e2f; font-weight: 700; flex-shrink: 0; }
+.suf-wrapper .suf-card-image-col {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -389,14 +361,14 @@
   align-items: center;
   gap: 16px;
 }
-.suf-unit-img {
+.suf-wrapper .suf-unit-img {
   width: 100%;
   max-width: 162px;
   height: auto;
   object-fit: contain;
   display: block;
 }
-.suf-see-fits {
+.suf-wrapper .suf-see-fits {
   font-size: 15px;
   color: #509e2f;
   text-decoration: none;
@@ -406,10 +378,9 @@
   align-items: center;
   gap: 6px;
 }
-.suf-see-fits:hover { text-decoration: underline; }
+.suf-wrapper .suf-see-fits:hover { text-decoration: underline; }
 
-/* Promo Badge */
-.suf-promo-badge {
+.suf-wrapper .suf-promo-badge {
   border: 1.5px dashed #509e2f;
   border-radius: 6px;
   padding: 6px 10px;
@@ -422,25 +393,21 @@
   font-weight: 400;
   margin-top: 12px;
 }
-.suf-promo-icon { display: flex; align-items: center; flex-shrink: 0; }
+.suf-wrapper .suf-promo-icon { display: flex; align-items: center; flex-shrink: 0; }
 
-/* Pricing Row — price block on left, CTA button on right */
-.suf-card-pricing {
+.suf-wrapper .suf-card-pricing {
   display: flex;
   gap: 16px;
   align-items: flex-start;
 }
-
-/* Inner price display: [in-store | divider | starting-at] in a 50px tall row */
-.suf-prices-row {
+.suf-wrapper .suf-prices-row {
   display: flex;
   gap: 8px;
   align-items: center;
   height: 50px;
   flex-shrink: 0;
 }
-
-.suf-price-left {
+.suf-wrapper .suf-price-left {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -448,55 +415,53 @@
   height: 45px;
   flex-shrink: 0;
 }
-.suf-instore-label {
+.suf-wrapper .suf-instore-label {
   font-size: 10px;
   color: #637381;
   font-weight: 500;
   line-height: 1.5;
   text-transform: uppercase;
 }
-.suf-strike {
+.suf-wrapper .suf-strike {
   font-size: 16px;
   color: #637381;
   text-decoration: line-through;
   font-weight: 400;
   line-height: 1.5;
 }
-
-.suf-price-divider {
+.suf-wrapper .suf-price-divider {
   width: 1px;
   height: 37px;
   background: #dfe3e8;
   flex-shrink: 0;
 }
-
-.suf-price-main {
+.suf-wrapper .suf-price-main {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   flex-shrink: 0;
 }
-.suf-starting-label {
+.suf-wrapper .suf-starting-label {
   font-size: 10px;
   color: #101318;
   font-weight: 700;
   line-height: 16px;
   text-transform: uppercase;
 }
-.suf-main-price {
+.suf-wrapper .suf-main-price {
   font-size: 24px;
   font-weight: 700;
   color: #101318;
   line-height: 1.2;
 }
-.suf-admin-fee { font-size: 11px; color: #637381; margin-top: 2px; font-weight: 400; }
-.suf-urgency {
+.suf-wrapper .suf-admin-fee { font-size: 11px; color: #637381; margin-top: 2px; font-weight: 400; }
+.suf-wrapper .suf-urgency {
   font-size: 12px;
   color: #d32f2f;
   font-weight: 700;
   margin-top: 2px;
 }
-.suf-cta-col {
+.suf-wrapper .suf-cta-col {
   flex: 1;
   min-width: 0;
   align-self: stretch;
@@ -504,8 +469,7 @@
   flex-direction: column;
   justify-content: center;
 }
-
-.suf-select-btn {
+.suf-wrapper .suf-select-btn {
   background: #f45f30;
   color: #ffffff;
   border: none;
@@ -522,9 +486,8 @@
   align-items: center;
   justify-content: center;
 }
-.suf-select-btn:hover { background: #d94e1f; }
-
-.suf-call-btn {
+.suf-wrapper .suf-select-btn:hover { background: #d94e1f; }
+.suf-wrapper .suf-call-btn {
   background: #ffffff;
   color: #f45f30;
   border: 2px solid #f45f30;
@@ -541,9 +504,8 @@
   align-items: center;
   justify-content: center;
 }
-.suf-call-btn:hover { background: #fff5f2; }
-
-.suf-waitlist-btn {
+.suf-wrapper .suf-call-btn:hover { background: #fff5f2; }
+.suf-wrapper .suf-waitlist-btn {
   background: #ffffff;
   color: #101318;
   border: 2px solid #101318;
@@ -560,24 +522,21 @@
   align-items: center;
   justify-content: center;
 }
-.suf-waitlist-btn:hover { background: #f9f9f9; }
-
-.suf-cta-group {
+.suf-wrapper .suf-waitlist-btn:hover { background: #f9f9f9; }
+.suf-wrapper .suf-cta-group {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   width: 100%;
 }
-
-.suf-limited-label {
+.suf-wrapper .suf-limited-label {
   font-size: 11px;
   color: #d32f2f;
   font-weight: 700;
   text-align: center;
   margin-top: 4px;
 }
-
-.suf-junk-disclaimer {
+.suf-wrapper .suf-junk-disclaimer {
   font-size: 11px;
   color: #637381;
   margin-top: 8px;
@@ -588,8 +547,8 @@
 /* ===========================================================================
    LIST VIEW
    =========================================================================== */
-.suf-list-view { display: flex; flex-direction: column; }
-.suf-list-card {
+.suf-wrapper .suf-list-view { display: flex; flex-direction: column; }
+.suf-wrapper .suf-list-card {
   background: #ffffff;
   border-radius: 16px;
   box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
@@ -597,22 +556,22 @@
   margin-bottom: 16px;
   box-sizing: border-box;
 }
-.suf-list-inner { display: flex; align-items: flex-start; gap: 16px; }
-.suf-list-img-col { flex-shrink: 0; }
-.suf-list-img {
+.suf-wrapper .suf-list-inner { display: flex; align-items: flex-start; gap: 16px; }
+.suf-wrapper .suf-list-img-col { flex-shrink: 0; }
+.suf-wrapper .suf-list-img {
   width: 110px;
   height: auto;
   object-fit: contain;
   display: block;
 }
-.suf-list-info-col { flex: 0 0 160px; min-width: 0; }
-.suf-list-size-label {
+.suf-wrapper .suf-list-info-col { flex: 0 0 160px; min-width: 0; }
+.suf-wrapper .suf-list-size-label {
   font-size: 20px;
   font-weight: 700;
   color: #101318;
   margin-bottom: 4px;
 }
-.suf-list-subtype {
+.suf-wrapper .suf-list-subtype {
   font-size: 13px;
   font-weight: 700;
   color: #509e2f;
@@ -621,11 +580,9 @@
   align-items: center;
   gap: 4px;
 }
-.suf-list-dims-col { flex: 1; min-width: 0; }
-
-/* Dimension Pills Grid */
-.suf-dims-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: 8px; }
-.suf-dim-pill {
+.suf-wrapper .suf-list-dims-col { flex: 1; min-width: 0; }
+.suf-wrapper .suf-dims-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: 8px; }
+.suf-wrapper .suf-dim-pill {
   position: relative;
   background: #ffffff;
   border: 1px solid #dfe3e8;
@@ -640,9 +597,9 @@
   font-family: 'Montserrat', sans-serif;
   font-weight: 400;
 }
-.suf-dim-pill:hover { border-color: #509e2f; }
-.suf-dim-pill.active { border: 2px solid #509e2f; font-weight: 600; color: #101318; }
-.suf-dim-dot {
+.suf-wrapper .suf-dim-pill:hover { border-color: #509e2f; }
+.suf-wrapper .suf-dim-pill.active { border: 2px solid #509e2f; font-weight: 600; color: #101318; }
+.suf-wrapper .suf-dim-dot {
   position: absolute;
   top: 3px;
   right: 3px;
@@ -651,9 +608,7 @@
   background: #509e2f;
   border-radius: 50%;
 }
-
-/* List Pricing */
-.suf-list-pricing-col {
+.suf-wrapper .suf-list-pricing-col {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -661,11 +616,9 @@
   gap: 10px;
   min-width: 160px;
 }
-.suf-list-prices { display: flex; gap: 12px; align-items: center; }
-.suf-select-full { width: 100%; }
-
-/* Empty state */
-.suf-empty-msg {
+.suf-wrapper .suf-list-prices { display: flex; gap: 12px; align-items: center; }
+.suf-wrapper .suf-select-full { width: 100%; }
+.suf-wrapper .suf-empty-msg {
   padding: 40px 20px;
   text-align: center;
   color: #637381;
@@ -686,34 +639,34 @@
 
 @media (max-width: 767px) {
   .suf-wrapper { padding: 12px; gap: 14px; }
-  .suf-row { flex-direction: column; }
-  .suf-filter-panel,
-  .suf-additional-panel.ap-left,
-  .suf-additional-panel.ap-right { width: 100% !important; }
+  .suf-wrapper .suf-row { flex-direction: column; }
+  .suf-wrapper .suf-filter-panel,
+  .suf-wrapper .suf-additional-panel.ap-left,
+  .suf-wrapper .suf-additional-panel.ap-right { width: 100% !important; }
 }
 
 /* ===========================================================================
    RESPONSIVE — listing content (CONTAINER based)
    =========================================================================== */
 @container (max-width: 680px) {
-  .suf-list-inner { flex-wrap: wrap; }
-  .suf-list-info-col { flex: 0 0 140px; }
-  .suf-list-pricing-col { min-width: 140px; }
-  .suf-cta-col { width: 100%; align-self: auto; }
-  .suf-select-btn { width: 100%; }
+  .suf-wrapper .suf-list-inner { flex-wrap: wrap; }
+  .suf-wrapper .suf-list-info-col { flex: 0 0 140px; }
+  .suf-wrapper .suf-list-pricing-col { min-width: 140px; }
+  .suf-wrapper .suf-cta-col { width: 100%; align-self: auto; }
+  .suf-wrapper .suf-select-btn { width: 100%; }
 }
 
 @container (max-width: 480px) {
-  .suf-list-inner { flex-direction: column; }
-  .suf-list-img { width: 100%; height: 160px; object-fit: cover; }
-  .suf-list-info-col { flex: none; width: 100%; }
-  .suf-list-pricing-col { width: 100%; min-width: 0; align-items: stretch; }
-  .suf-list-prices { justify-content: flex-start; }
-  .suf-select-full { width: 100%; }
-  .suf-unit-img { width: 100%; max-width: 100%; }
-  .suf-main-price { font-size: 20px; }
-  .suf-card-display-panel { padding: 20px 20px 30px; }
-  .suf-card-action-panel { padding: 20px; }
-  .suf-card-top { gap: 16px; }
-  .suf-card-info { width: auto; flex: 1; }
+  .suf-wrapper .suf-list-inner { flex-direction: column; }
+  .suf-wrapper .suf-list-img { width: 100%; height: 160px; object-fit: cover; }
+  .suf-wrapper .suf-list-info-col { flex: none; width: 100%; }
+  .suf-wrapper .suf-list-pricing-col { width: 100%; min-width: 0; align-items: stretch; }
+  .suf-wrapper .suf-list-prices { justify-content: flex-start; }
+  .suf-wrapper .suf-select-full { width: 100%; }
+  .suf-wrapper .suf-unit-img { width: 100%; max-width: 100%; }
+  .suf-wrapper .suf-main-price { font-size: 20px; }
+  .suf-wrapper .suf-card-display-panel { padding: 20px 20px 30px; }
+  .suf-wrapper .suf-card-action-panel { padding: 20px; }
+  .suf-wrapper .suf-card-top { gap: 16px; }
+  .suf-wrapper .suf-card-info { width: auto; flex: 1; }
 }
