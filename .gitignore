@@ -4,4 +4,7 @@ node_modules/
 .DS_Store
 *.log
 *.AGENTS.md
+*.md
+!README.md
+*.docx
 .idea/

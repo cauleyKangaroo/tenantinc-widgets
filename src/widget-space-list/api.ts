@@ -1,12 +1,11 @@
-import widgetData from '../shared/widgetdata.json';
 import type { Unit, UnitSize } from './types';
 
-const APP_ID = 'appbc35600a675841eea5893df84231789e';
+const APP_ID = process.env.WIDGET_APP_ID as string;
+const API_KEY = process.env.WIDGET_API_KEY as string;
+const PROPERTY_ID = process.env.WIDGET_PROPERTY_ID as string;
+const SPACE_GROUP_ID = process.env.WIDGET_SPACE_GROUP_ID as string;
 
 const BASE_URL = `https://edge.tenant.dev/api/v3/applications/${APP_ID}/v2/companies/kQoBXpBpnx`;
-
-// todo will be removed after we get the proxy api
-const API_KEY = '309365e7685b4b048d79dc7d29bd4f57';
 
 // ---------------------------------------------------------------------------
 // Raw API response types
@@ -134,8 +133,7 @@ export function mapApiToUnits(raw: unknown): Unit[] {
 // ---------------------------------------------------------------------------
 
 export async function fetchSpaceGroups(): Promise<unknown> {
-  const { property_id, space_group_id } = widgetData;
-  const url = `${BASE_URL}/properties/${property_id}/space-groups/${space_group_id}/groups`;
+  const url = `${BASE_URL}/properties/${PROPERTY_ID}/space-groups/${SPACE_GROUP_ID}/groups`;
 
   const res = await fetch(url, {
     headers: {
