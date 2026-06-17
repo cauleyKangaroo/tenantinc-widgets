@@ -8,7 +8,13 @@
 // ---------------------------------------------------------------------------
 
 export type SpaceType = 'storage' | 'parking';
-export type UnitSize = 'small' | 'medium' | 'large';
+
+/**
+ * Size categories derived from length × height area (sq ft):
+ *   0 → other | 1 → extra_small | 2–24 → small | 25–76 → medium
+ *   77–151 → large | 152+ → extra_large
+ */
+export type UnitSize = 'other' | 'extra_small' | 'small' | 'medium' | 'large' | 'extra_large';
 
 /** A single rentable space. One flat array of these drives both views. */
 export interface Unit {

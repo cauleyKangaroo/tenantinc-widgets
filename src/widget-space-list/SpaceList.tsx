@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './SpaceList.css';
-import type { SpaceListProps, AdditionalPanelPosition, WidgetConfig } from './types';
-import { DEMO_UNITS } from './data';
+import type { SpaceListProps, AdditionalPanelPosition, WidgetConfig, Unit } from './types';
+import { fetchSpaceGroups, mapApiToUnits } from './api';
 import {
   DEFAULT_FILTERS,
   FilterState,
@@ -56,11 +56,25 @@ export function SpaceList({
     callOnLimitedAvailability,
     ctaButtonCopy,
   };
+  const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
+
+  useEffect(() => {
+    fetchSpaceGroups()
+      .then((raw) => {
+        console.log('[SpaceList] raw space groups:', raw);
+        const mapped = mapApiToUnits(raw);
+        console.log('[SpaceList] mapped units:', mapped);
+        setLiveUnits(mapped);
+      })
+      .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err));
+  }, []);
+
+  const units = liveUnits;
+
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [collapsed, setCollapsed] = useState(false);
 
-  // DEMO_UNITS is the static data seam — see data.ts / HANDOFF.md.
-  const visibleUnits = useMemo(() => filterUnits(DEMO_UNITS, filters), [filters]);
+  const visibleUnits = useMemo(() => filterUnits(units, filters), [units, filters]);
   const badge = activeFilterCount(filters);
 
   // 'all' mode always shows the accordion; 'single' mode needs a valid section.

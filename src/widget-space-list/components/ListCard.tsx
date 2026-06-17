@@ -3,9 +3,12 @@ import type { Unit, UnitSize, WidgetConfig } from '../types';
 import { PriceBlock, PromoBadge, FeatureList, CtaButton, JunkFeeDisclaimer, CheckIcon } from './Pricing';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
+  other: 'Other',
+  extra_small: 'Extra Small',
   small: 'Small',
   medium: 'Medium',
   large: 'Large',
+  extra_large: 'Extra Large',
 };
 
 export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[]; config: WidgetConfig }) {
