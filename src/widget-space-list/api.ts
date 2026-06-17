@@ -1,11 +1,10 @@
 import type { Unit, UnitSize } from './types';
 
+const BASE_URL = process.env.WIDGET_BASE_URL as string;
 const APP_ID = process.env.WIDGET_APP_ID as string;
 const API_KEY = process.env.WIDGET_API_KEY as string;
 const PROPERTY_ID = process.env.WIDGET_PROPERTY_ID as string;
 const SPACE_GROUP_ID = process.env.WIDGET_SPACE_GROUP_ID as string;
-
-const BASE_URL = `https://edge.tenant.dev/api/v3/applications/${APP_ID}/v2/companies/kQoBXpBpnx`;
 
 // ---------------------------------------------------------------------------
 // Raw API response types
