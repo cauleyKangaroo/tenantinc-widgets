@@ -12,9 +12,6 @@ export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig })
             <div className="suf-unit-heading">
               <div className="suf-unit-title">{unit.dimensions}</div>
               <div className="suf-unit-subtype">{unit.subtype}</div>
-              <div className={`suf-unit-type-tag suf-unit-type-tag--${unit.type}`}>
-                {unit.type === 'parking' ? 'Parking' : 'Storage'}
-              </div>
             </div>
             <FeatureList features={unit.features} />
           </div>

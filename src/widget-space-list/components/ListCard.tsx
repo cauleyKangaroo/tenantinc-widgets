@@ -26,9 +26,6 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
 
         <div className="suf-list-info-col">
           <div className="suf-list-size-label">{SIZE_LABEL[size]}</div>
-          <div className={`suf-unit-type-tag suf-unit-type-tag--${selected.type}`}>
-            {selected.type === 'parking' ? 'Parking' : 'Storage'}
-          </div>
           <div className="suf-list-subtype">
             <CheckIcon /> {selected.subtype}
           </div>
