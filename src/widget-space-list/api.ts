@@ -101,9 +101,6 @@ export function mapApiToUnits(raw: unknown): Unit[] {
         const type: Unit['type'] = primaryAssoc?.unit_type_name === 'parking' ? 'parking' : 'storage';
 
         const amenityNames = (tier.amenities ?? []).map((a) => a.name);
-        const websiteFeatures = (tier.amenities ?? [])
-          .filter((a) => a.show_in_website === 1)
-          .map((a) => a.name);
 
         const startingPrice = tier.sell_rate ?? tier.units?.min_price ?? 0;
         const inStorePrice = tier.set_rate ?? tier.units?.max_price ?? 0;
@@ -114,7 +111,7 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           size,
           dimensions: tier.description,
           subtype: group.name,
-          features: websiteFeatures,
+          features: amenityNames.slice(0, 7),
           amenities: amenityNames,
           image: '',
           inStorePrice,

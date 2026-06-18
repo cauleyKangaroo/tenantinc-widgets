@@ -71,6 +71,14 @@ export function SpaceList({
 
   const units = liveUnits;
 
+  const amenityOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const u of units) {
+      for (const a of u.amenities) seen.add(a);
+    }
+    return Array.from(seen).sort();
+  }, [units]);
+
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -92,6 +100,7 @@ export function SpaceList({
       collapsed={collapsed}
       onToggleCollapse={() => setCollapsed((c) => !c)}
       onReset={() => setFilters(DEFAULT_FILTERS)}
+      amenityOptions={amenityOptions}
     />
   );
 
