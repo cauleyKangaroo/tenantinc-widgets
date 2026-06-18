@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import type { Unit, UnitSize, WidgetConfig } from '../types';
 import { PriceBlock, PromoBadge, FeatureList, CtaButton, JunkFeeDisclaimer, CheckIcon } from './Pricing';
+import defaultImg from '../assets/tenantinc-default.png';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
+  other: 'Other',
+  extra_small: 'Extra Small',
   small: 'Small',
   medium: 'Medium',
   large: 'Large',
+  extra_large: 'Extra Large',
 };
 
 export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[]; config: WidgetConfig }) {
@@ -17,7 +21,7 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
     <div className="suf-list-card">
       <div className="suf-list-inner">
         <div className="suf-list-img-col">
-          <img className="suf-list-img" src={selected.image} alt="Storage Unit" />
+          <img className="suf-list-img" src={selected.image} alt="Storage Unit" onError={(e) => { (e.target as HTMLImageElement).src = defaultImg; }} />
         </div>
 
         <div className="suf-list-info-col">

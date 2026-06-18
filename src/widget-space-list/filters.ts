@@ -24,8 +24,8 @@ export interface FilterState {
 export const DEFAULT_FILTERS: FilterState = {
   type: 'storage',
   sizes: [],
-  features: ['climate'],
-  amenities: ['Smart Phone Access', 'Ground Floor'],
+  features: [],
+  amenities: [],
 };
 
 const FEATURE_LABEL = new Map(FEATURE_OPTIONS.map((o) => [o.value, o.label]));

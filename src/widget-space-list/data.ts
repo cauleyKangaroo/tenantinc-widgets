@@ -239,9 +239,12 @@ export const TYPE_OPTIONS: FilterOption<SpaceType>[] = [
 ];
 
 export const SIZE_OPTIONS: FilterOption<UnitSize>[] = [
+  { value: 'other', label: 'Other' },
+  { value: 'extra_small', label: 'Extra Small' },
   { value: 'small', label: 'Small' },
   { value: 'medium', label: 'Medium' },
   { value: 'large', label: 'Large' },
+  { value: 'extra_large', label: 'Extra Large' },
 ];
 
 /**
@@ -264,4 +267,4 @@ export const AMENITY_OPTIONS: string[] = [
 ];
 
 /** Sizes in display order, used to render accordions / list groups. */
-export const SIZE_ORDER: UnitSize[] = ['small', 'medium', 'large'];
+export const SIZE_ORDER: UnitSize[] = ['other', 'extra_small', 'small', 'medium', 'large', 'extra_large'];

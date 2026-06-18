@@ -4,16 +4,21 @@ import { groupBySize } from '../filters';
 import { UnitCard } from './UnitCard';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
+  other: 'Other',
+  extra_small: 'Extra Small',
   small: 'Small',
   medium: 'Medium',
   large: 'Large',
+  extra_large: 'Extra Large',
 };
 
-// Original default open state: only Medium expanded.
 const DEFAULT_OPEN: Record<UnitSize, boolean> = {
+  other: false,
+  extra_small: false,
   small: false,
   medium: true,
   large: false,
+  extra_large: false,
 };
 
 const ChevronDown = () => (
