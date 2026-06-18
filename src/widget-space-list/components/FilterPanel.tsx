@@ -1,7 +1,7 @@
 import React from 'react';
 import type { SpaceType, UnitSize } from '../types';
 import type { FilterState } from '../filters';
-import { TYPE_OPTIONS, SIZE_OPTIONS, FEATURE_OPTIONS, AMENITY_OPTIONS } from '../data';
+import { TYPE_OPTIONS, SIZE_OPTIONS, FEATURE_OPTIONS } from '../data';
 
 interface FilterPanelProps {
   filters: FilterState;
@@ -10,6 +10,7 @@ interface FilterPanelProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   onReset: () => void;
+  amenityOptions: string[];
 }
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -23,6 +24,7 @@ export function FilterPanel({
   collapsed,
   onToggleCollapse,
   onReset,
+  amenityOptions,
 }: FilterPanelProps) {
   return (
     <aside className={`suf-filter-panel${collapsed ? ' collapsed' : ''}`}>
@@ -115,7 +117,7 @@ export function FilterPanel({
           <div className="suf-filter-section">
             <div className="suf-filter-label">Amenities</div>
             <div className="suf-checkboxes">
-              {AMENITY_OPTIONS.map((amenity) => (
+              {amenityOptions.map((amenity) => (
                 <label key={amenity} className="suf-checkbox-item">
                   <input
                     type="checkbox"
