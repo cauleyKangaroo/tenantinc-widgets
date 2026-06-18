@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull *)",
+      "Bash(cd /d \"e:\\\\work\\\\repos\\\\tenantinc-widgets\")",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "WebSearch",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(claude plugin *)",
+      "PowerShell(claude plugin install figma@claude-plugins-official 2>&1)",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\" -Recurse -Filter \"claude.exe\" -ErrorAction SilentlyContinue | Select-Object FullName)",
+      "Read(//c/Users/m4cau/.claude/**)",
+      "Bash(claude mcp *)",
+      "PowerShell(claude mcp list 2>&1)",
+      "WebFetch(domain:help.figma.com)",
+      "mcp__figma__get_design_context",
+      "Bash(dir /s /b e:\\\\work\\\\repos\\\\tenantinc-widgets\\\\src)",
+      "Bash(Get-ChildItem -Path \"e:\\\\work\\\\repos\\\\tenantinc-widgets\\\\src\\\\widget-space-list\" -Recurse)",
+      "Bash(Select-Object -Property FullName)",
+      "Bash(Sort-Object FullName)",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/webpack/package.json'\\).version\\)\")",
+      "Bash(git commit *)",
+      "Read(//e/work/repos/**)",
+      "Bash(git fetch *)",
+      "Bash(git checkout *)",
+      "Bash(git stash *)",
+      "Bash(Copy-Item \"e:\\\\work\\\\repos\\\\tenantinc-widgets\\\\src\\\\widget-space-list\\\\assets\\\\unit-medium.png.png\" \"e:\\\\work\\\\repos\\\\tenantinc-widgets\\\\src\\\\widget-space-list\\\\assets\\\\tenantinc-default.png\")",
+      "Bash(curl -s https://edge.tenant.dev/api/v3/applications/appbc35600a675841eea5893df84231789e/v2/companies/kQoBXpBpnx/properties/8W2WA6f9BY/space-groups/WEj66pIYje/groups -H 'x-storageapi-key: 309365e7685b4b048d79dc7d29bd4f57' -H 'x-storageapi-date: __CMDSUB_OUTPUT__')",
+      "Bash(python3 -m json.tool)",
+      "Bash(node -e \"const d=[];process.stdin.on\\('data',c=>d.push\\(c\\)\\);process.stdin.on\\('end',\\(\\)=>console.log\\(JSON.stringify\\(JSON.parse\\(d.join\\(''\\)\\),null,2\\)\\)\\)\")"
+    ]
+  }
+}
