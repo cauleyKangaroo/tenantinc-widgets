@@ -100,7 +100,7 @@ export function mapApiToUnits(raw: unknown): Unit[] {
         const primaryAssoc = tier.space_type_associations?.find((a) => a.is_primary === 1);
         const type: Unit['type'] = primaryAssoc?.unit_type_name === 'parking' ? 'parking' : 'storage';
 
-        const amenityNames = (tier.amenities ?? []).map((a) => a.name);
+        const amenityNames = Array.from(new Set((tier.amenities ?? []).map((a) => a.name)));
 
         const startingPrice = tier.sell_rate ?? tier.units?.min_price ?? 0;
         const inStorePrice = tier.set_rate ?? tier.units?.max_price ?? 0;
