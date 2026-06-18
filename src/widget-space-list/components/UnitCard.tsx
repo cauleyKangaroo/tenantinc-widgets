@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Unit, WidgetConfig } from '../types';
 import { PriceBlock, PromoBadge, FeatureList, CtaButton, JunkFeeDisclaimer } from './Pricing';
+import defaultImg from '../assets/tenantinc-default.png';
 
 export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig }) {
   return (
@@ -15,7 +16,7 @@ export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig })
             <FeatureList features={unit.features} />
           </div>
           <div className="suf-card-image-col">
-            <img className="suf-unit-img" src={unit.image} alt="Storage Unit" />
+            <img className="suf-unit-img" src={unit.image} alt="Storage Unit" onError={(e) => { (e.target as HTMLImageElement).src = defaultImg; }} />
             <a href="#" className="suf-see-fits">
               See what fits
               <svg width="18" height="18" viewBox="0 0 24 24" fill="#509e2f">
