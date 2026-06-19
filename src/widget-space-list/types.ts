@@ -29,6 +29,8 @@ export interface Unit {
   features: string[];
   /** Amenities this unit has — matched against the amenity checkboxes filter */
   amenities: string[];
+  /** Amenity names where show_in_filter_bar === 1 — drives the Space Features pills */
+  filterBarFeatures: string[];
   image: string;
   /** Strike-through "in-store" price */
   inStorePrice: number;

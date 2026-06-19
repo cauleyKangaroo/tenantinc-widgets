@@ -1,7 +1,7 @@
 import React from 'react';
 import type { SpaceType, UnitSize } from '../types';
 import type { FilterState } from '../filters';
-import { TYPE_OPTIONS, SIZE_OPTIONS, FEATURE_OPTIONS } from '../data';
+import { TYPE_OPTIONS, SIZE_OPTIONS } from '../data';
 
 interface FilterPanelProps {
   filters: FilterState;
@@ -11,6 +11,7 @@ interface FilterPanelProps {
   onToggleCollapse: () => void;
   onReset: () => void;
   amenityOptions: string[];
+  featureOptions: string[];
 }
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -25,6 +26,7 @@ export function FilterPanel({
   onToggleCollapse,
   onReset,
   amenityOptions,
+  featureOptions,
 }: FilterPanelProps) {
   return (
     <aside className={`suf-filter-panel${collapsed ? ' collapsed' : ''}`}>
@@ -68,7 +70,7 @@ export function FilterPanel({
                 <button
                   key={opt.value}
                   className={`suf-pill${filters.type === opt.value ? ' active' : ''}`}
-                  onClick={() => onChange({ ...filters, type: opt.value as SpaceType })}
+                  onClick={() => onChange({ ...filters, type: opt.value as SpaceType, features: [] })}
                 >
                   {opt.label}
                 </button>
@@ -98,15 +100,15 @@ export function FilterPanel({
           <div className="suf-filter-section">
             <div className="suf-filter-label">Space Features:</div>
             <div className="suf-pills suf-pills-wrap">
-              {FEATURE_OPTIONS.map((opt) => (
+              {featureOptions.map((name) => (
                 <button
-                  key={opt.value}
-                  className={`suf-pill${filters.features.includes(opt.value) ? ' active' : ''}`}
+                  key={name}
+                  className={`suf-pill${filters.features.includes(name) ? ' active' : ''}`}
                   onClick={() =>
-                    onChange({ ...filters, features: toggle(filters.features, opt.value) })
+                    onChange({ ...filters, features: toggle(filters.features, name) })
                   }
                 >
-                  {opt.label}
+                  {name}
                 </button>
               ))}
             </div>

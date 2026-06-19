@@ -100,7 +100,26 @@ export function mapApiToUnits(raw: unknown): Unit[] {
         const primaryAssoc = tier.space_type_associations?.find((a) => a.is_primary === 1);
         const type: Unit['type'] = primaryAssoc?.unit_type_name === 'parking' ? 'parking' : 'storage';
 
-        const amenityNames = Array.from(new Set((tier.amenities ?? []).map((a) => a.name)));
+        // Sort by sort_order, then deduplicate by name (keep first occurrence)
+        const sortedUnique = [...(tier.amenities ?? [])]
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .filter((a, i, arr) => arr.findIndex((x) => x.name === a.name) === i);
+
+        const subtype = sortedUnique[0]?.name ?? group.name;
+        const features = sortedUnique.slice(1, 5).map((a) => a.name);
+        const amenityNames = sortedUnique.map((a) => a.name);
+        // Use raw amenities (not deduped) so each distinct value is its own filter option.
+        // Boolean amenities (type 'boolean' or value 'Yes'/'No') → use name as the label.
+        // String/text amenities → use value, which is the meaningful descriptor (e.g. "Drive-Up Access").
+        const filterBarFeatures = Array.from(new Set(
+          (tier.amenities ?? [])
+            .filter((a) => a.show_in_filter_bar === 1)
+            .map((a) =>
+              a.type === 'boolean' || a.value === 'Yes' || a.value === 'No'
+                ? a.name
+                : a.value
+            )
+        ));
 
         const startingPrice = tier.sell_rate ?? tier.units?.min_price ?? 0;
         const inStorePrice = tier.set_rate ?? tier.units?.max_price ?? 0;
@@ -110,9 +129,10 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           type,
           size,
           dimensions: tier.description,
-          subtype: group.name,
-          features: amenityNames.slice(0, 7),
+          subtype,
+          features,
           amenities: amenityNames,
+          filterBarFeatures,
           image: '',
           inStorePrice,
           startingPrice,

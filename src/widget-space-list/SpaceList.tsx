@@ -71,6 +71,9 @@ export function SpaceList({
 
   const units = liveUnits;
 
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [collapsed, setCollapsed] = useState(false);
+
   const amenityOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
@@ -79,8 +82,14 @@ export function SpaceList({
     return Array.from(seen).sort();
   }, [units]);
 
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [collapsed, setCollapsed] = useState(false);
+  const featureOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const u of units) {
+      if (u.type !== filters.type) continue;
+      for (const f of u.filterBarFeatures) seen.add(f);
+    }
+    return Array.from(seen).sort();
+  }, [units, filters.type]);
 
   const visibleUnits = useMemo(() => filterUnits(units, filters), [units, filters]);
   const badge = activeFilterCount(filters);
@@ -101,6 +110,7 @@ export function SpaceList({
       onToggleCollapse={() => setCollapsed((c) => !c)}
       onReset={() => setFilters(DEFAULT_FILTERS)}
       amenityOptions={amenityOptions}
+      featureOptions={featureOptions}
     />
   );
 
@@ -128,9 +138,9 @@ export function SpaceList({
         {leftSlot}
         <main className="suf-listing-area">
           {layoutMode === 'list' ? (
-            <ListView units={visibleUnits} config={config} />
+            <ListView units={visibleUnits} config={config} type={filters.type} />
           ) : (
-            <GridView units={visibleUnits} config={config} />
+            <GridView units={visibleUnits} config={config} type={filters.type} />
           )}
         </main>
         {rightSlot}

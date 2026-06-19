@@ -27,14 +27,26 @@ const ChevronDown = () => (
   </svg>
 );
 
-export function GridView({ units, config }: { units: Unit[]; config: WidgetConfig }) {
+export function GridView({ units, config, type }: { units: Unit[]; config: WidgetConfig; type: string }) {
   const [open, setOpen] = useState<Record<UnitSize, boolean>>(DEFAULT_OPEN);
-  const groups = groupBySize(units);
 
-  if (groups.length === 0) {
+  if (units.length === 0) {
     return <div className="suf-empty-msg">No spaces match your filters.</div>;
   }
 
+  if (type === 'parking') {
+    return (
+      <div className="suf-grid-view">
+        <div className="suf-cards-grid">
+          {units.map((u) => (
+            <UnitCard key={u.id} unit={u} config={config} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const groups = groupBySize(units);
   const toggle = (size: UnitSize) => setOpen((o) => ({ ...o, [size]: !o[size] }));
 
   return (
