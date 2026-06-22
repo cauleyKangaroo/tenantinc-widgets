@@ -1,10 +1,11 @@
 import type { Unit, UnitSize } from './types';
+import cfg from './config.json';
 
-const BASE_URL = process.env.WIDGET_BASE_URL as string;
-const APP_ID = process.env.WIDGET_APP_ID as string;
-const API_KEY = process.env.WIDGET_API_KEY as string;
-const PROPERTY_ID = process.env.WIDGET_PROPERTY_ID as string;
-const SPACE_GROUP_ID = process.env.WIDGET_SPACE_GROUP_ID as string;
+const BASE_URL = cfg.baseUrl;
+const APP_ID = cfg.appId;
+const API_KEY = cfg.apiKey;
+const PROPERTY_ID = cfg.propertyId;
+const SPACE_GROUP_ID = cfg.spaceGroupId;
 
 // ---------------------------------------------------------------------------
 // Raw API response types

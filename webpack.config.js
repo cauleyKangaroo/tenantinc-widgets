@@ -1,5 +1,4 @@
 const path = require('path');
-const Dotenv = require('dotenv-webpack');
 
 // ---------------------------------------------------------------------------
 // Widget entries
@@ -59,9 +58,7 @@ module.exports = (_env, argv) => {
       ],
     },
 
-    plugins: [
-      new Dotenv({ systemvars: true }),
-    ],
+    plugins: [],
 
     // Source maps in dev only
     devtool: isDev ? 'inline-source-map' : false,

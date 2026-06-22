@@ -14,6 +14,7 @@ import { GridView } from './components/GridView';
 import { ListView } from './components/ListView';
 import { SectionPanel } from './components/SectionPanel';
 import { SectionAccordion } from './components/SectionAccordion';
+import { SkeletonLoader } from './components/SkeletonLoader';
 
 /**
  * Decide where the Additional Panel actually renders.
@@ -57,16 +58,16 @@ export function SpaceList({
     ctaButtonCopy,
   };
   const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchSpaceGroups()
       .then((raw) => {
-        console.log('[SpaceList] raw space groups:', raw);
         const mapped = mapApiToUnits(raw);
-        console.log('[SpaceList] mapped units:', mapped);
         setLiveUnits(mapped);
       })
-      .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err));
+      .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
+      .finally(() => setLoading(false));
   }, []);
 
   const units = liveUnits;
@@ -137,7 +138,9 @@ export function SpaceList({
       <div className="suf-row">
         {leftSlot}
         <main className="suf-listing-area">
-          {layoutMode === 'list' ? (
+          {loading ? (
+            <SkeletonLoader />
+          ) : layoutMode === 'list' ? (
             <ListView units={visibleUnits} config={config} type={filters.type} />
           ) : (
             <GridView units={visibleUnits} config={config} type={filters.type} />
