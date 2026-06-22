@@ -14,6 +14,7 @@ import { GridView } from './components/GridView';
 import { ListView } from './components/ListView';
 import { SectionPanel } from './components/SectionPanel';
 import { SectionAccordion } from './components/SectionAccordion';
+import { SkeletonLoader } from './components/SkeletonLoader';
 
 /**
  * Decide where the Additional Panel actually renders.
@@ -57,30 +58,43 @@ export function SpaceList({
     ctaButtonCopy,
   };
   const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchSpaceGroups()
       .then((raw) => {
-        console.log('[SpaceList] raw space groups:', raw);
         const mapped = mapApiToUnits(raw);
-        console.log('[SpaceList] mapped units:', mapped);
         setLiveUnits(mapped);
       })
-      .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err));
+      .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
+      .finally(() => setLoading(false));
   }, []);
 
   const units = liveUnits;
 
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [collapsed, setCollapsed] = useState(false);
+
   const amenityOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
-      for (const a of u.amenities) seen.add(a);
+      if (u.type !== filters.type) continue;
+      for (const a of u.amenities) {
+        seen.add(a);
+        if (seen.size >= 5) break;
+      }
+    }
+    return Array.from(seen); // insertion order = sort_order (unit.amenities is already sorted)
+  }, [units, filters.type]);
+
+  const featureOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const u of units) {
+      if (u.type !== filters.type) continue;
+      for (const f of u.filterBarFeatures) seen.add(f);
     }
     return Array.from(seen).sort();
-  }, [units]);
-
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [collapsed, setCollapsed] = useState(false);
+  }, [units, filters.type]);
 
   const visibleUnits = useMemo(() => filterUnits(units, filters), [units, filters]);
   const badge = activeFilterCount(filters);
@@ -101,6 +115,7 @@ export function SpaceList({
       onToggleCollapse={() => setCollapsed((c) => !c)}
       onReset={() => setFilters(DEFAULT_FILTERS)}
       amenityOptions={amenityOptions}
+      featureOptions={featureOptions}
     />
   );
 
@@ -127,10 +142,12 @@ export function SpaceList({
       <div className="suf-row">
         {leftSlot}
         <main className="suf-listing-area">
-          {layoutMode === 'list' ? (
-            <ListView units={visibleUnits} config={config} />
+          {loading ? (
+            <SkeletonLoader />
+          ) : layoutMode === 'list' ? (
+            <ListView units={visibleUnits} config={config} type={filters.type} />
           ) : (
-            <GridView units={visibleUnits} config={config} />
+            <GridView units={visibleUnits} config={config} type={filters.type} />
           )}
         </main>
         {rightSlot}

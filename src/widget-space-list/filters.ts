@@ -1,5 +1,5 @@
 import type { Unit, SpaceType, UnitSize } from './types';
-import { FEATURE_OPTIONS, SIZE_ORDER } from './data';
+import { SIZE_ORDER } from './data';
 
 // ---------------------------------------------------------------------------
 // Filter state + logic
@@ -28,16 +28,8 @@ export const DEFAULT_FILTERS: FilterState = {
   amenities: [],
 };
 
-const FEATURE_LABEL = new Map(FEATURE_OPTIONS.map((o) => [o.value, o.label]));
-
-function unitMatchesFeature(unit: Unit, featureValue: string): boolean {
-  const label = FEATURE_LABEL.get(featureValue);
-  if (!label) return false;
-  return (
-    unit.subtype === label ||
-    unit.features.includes(label) ||
-    unit.amenities.includes(label)
-  );
+function unitMatchesFeature(unit: Unit, featureName: string): boolean {
+  return (unit.filterBarFeatures ?? []).includes(featureName);
 }
 
 export function filterUnits(units: Unit[], f: FilterState): Unit[] {

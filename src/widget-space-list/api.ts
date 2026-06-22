@@ -1,10 +1,11 @@
 import type { Unit, UnitSize } from './types';
+import cfg from './config.json';
 
-const BASE_URL = process.env.WIDGET_BASE_URL as string;
-const APP_ID = process.env.WIDGET_APP_ID as string;
-const API_KEY = process.env.WIDGET_API_KEY as string;
-const PROPERTY_ID = process.env.WIDGET_PROPERTY_ID as string;
-const SPACE_GROUP_ID = process.env.WIDGET_SPACE_GROUP_ID as string;
+const BASE_URL = cfg.baseUrl;
+const APP_ID = cfg.appId;
+const API_KEY = cfg.apiKey;
+const PROPERTY_ID = cfg.propertyId;
+const SPACE_GROUP_ID = cfg.spaceGroupId;
 
 // ---------------------------------------------------------------------------
 // Raw API response types
@@ -18,6 +19,7 @@ interface ApiAmenity {
   sort_order?: number;
   show_in_website?: number;
   show_in_filter_bar?: number;
+  available_units?: number;
 }
 
 interface ApiSpaceTypeAssociation {
@@ -75,6 +77,14 @@ export function classifySize(area: number): UnitSize {
   return 'extra_large';
 }
 
+// boolean amenities → the name IS the label (e.g. "Climate Controlled", not "Yes")
+// string/text/null amenities → the value IS the label (e.g. "Drive-Up Access", not "Access")
+function amenityLabel(a: ApiAmenity): string {
+  return a.type === 'boolean' || a.value === 'Yes' || a.value === 'No'
+    ? a.name
+    : a.value;
+}
+
 // ---------------------------------------------------------------------------
 // Mapper — raw API response → Unit[]
 // ---------------------------------------------------------------------------
@@ -100,7 +110,19 @@ export function mapApiToUnits(raw: unknown): Unit[] {
         const primaryAssoc = tier.space_type_associations?.find((a) => a.is_primary === 1);
         const type: Unit['type'] = primaryAssoc?.unit_type_name === 'parking' ? 'parking' : 'storage';
 
-        const amenityNames = Array.from(new Set((tier.amenities ?? []).map((a) => a.name)));
+        // Sort by sort_order, then deduplicate by name (keep first occurrence)
+        const sortedUnique = [...(tier.amenities ?? [])]
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .filter((a, i, arr) => arr.findIndex((x) => x.name === a.name) === i);
+
+        const subtype = sortedUnique[0] ? amenityLabel(sortedUnique[0]) : group.name;
+        const features = sortedUnique.slice(1, 5).map(amenityLabel);
+        const amenityNames = sortedUnique.map(amenityLabel);
+        const filterBarFeatures = Array.from(new Set(
+          (tier.amenities ?? [])
+            .filter((a) => a.show_in_filter_bar === 1 && (a.available_units ?? 1) > 0)
+            .map(amenityLabel)
+        ));
 
         const startingPrice = tier.sell_rate ?? tier.units?.min_price ?? 0;
         const inStorePrice = tier.set_rate ?? tier.units?.max_price ?? 0;
@@ -110,9 +132,10 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           type,
           size,
           dimensions: tier.description,
-          subtype: group.name,
-          features: amenityNames.slice(0, 7),
+          subtype,
+          features,
           amenities: amenityNames,
+          filterBarFeatures,
           image: '',
           inStorePrice,
           startingPrice,

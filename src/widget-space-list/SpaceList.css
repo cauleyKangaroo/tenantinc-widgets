@@ -670,3 +670,37 @@
   .suf-wrapper .suf-card-top { gap: 16px; }
   .suf-wrapper .suf-card-info { width: auto; flex: 1; }
 }
+
+/* ===========================================================================
+   SKELETON LOADER
+   =========================================================================== */
+@keyframes suf-shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+.suf-wrapper .suf-skeleton-card .suf-card-display-panel,
+.suf-wrapper .suf-skeleton-card .suf-card-action-panel {
+  pointer-events: none;
+}
+
+.suf-wrapper .suf-skeleton-line,
+.suf-wrapper .suf-skeleton-image,
+.suf-wrapper .suf-skeleton-btn {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 600px 100%;
+  animation: suf-shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+
+.suf-wrapper .suf-skeleton-title        { height: 28px; width: 90px; margin-bottom: 8px; }
+.suf-wrapper .suf-skeleton-subtitle     { height: 18px; width: 120px; margin-bottom: 12px; }
+.suf-wrapper .suf-skeleton-feature      { height: 14px; width: 100%; margin-bottom: 6px; }
+.suf-wrapper .suf-skeleton-feature--short { width: 70%; }
+.suf-wrapper .suf-skeleton-image        { width: 100%; height: 120px; border-radius: 8px; }
+.suf-wrapper .suf-skeleton-price        { height: 40px; width: 120px; }
+.suf-wrapper .suf-skeleton-btn          { height: 50px; flex: 1; border-radius: 8px; }
+.suf-wrapper .suf-skeleton-accordion-title { height: 26px; width: 140px; }
+
+.suf-wrapper .suf-skeleton .suf-accordion-header { cursor: default; }
+.suf-wrapper .suf-skeleton .suf-accordion-body   { padding-top: 24px; display: block; }
