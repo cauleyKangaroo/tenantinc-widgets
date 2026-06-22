@@ -70,7 +70,7 @@ export function FilterPanel({
                 <button
                   key={opt.value}
                   className={`suf-pill${filters.type === opt.value ? ' active' : ''}`}
-                  onClick={() => onChange({ ...filters, type: opt.value as SpaceType, features: [] })}
+                  onClick={() => onChange({ ...filters, type: opt.value as SpaceType, features: [], sizes: [] })}
                 >
                   {opt.label}
                 </button>
@@ -78,23 +78,25 @@ export function FilterPanel({
             </div>
           </div>
 
-          {/* Size — multi select */}
-          <div className="suf-filter-section">
-            <div className="suf-filter-label">Size:</div>
-            <div className="suf-pills">
-              {SIZE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  className={`suf-pill${filters.sizes.includes(opt.value) ? ' active' : ''}`}
-                  onClick={() =>
-                    onChange({ ...filters, sizes: toggle<UnitSize>(filters.sizes, opt.value) })
-                  }
-                >
-                  {opt.label}
-                </button>
-              ))}
+          {/* Size — multi select, hidden for parking */}
+          {filters.type !== 'parking' && (
+            <div className="suf-filter-section">
+              <div className="suf-filter-label">Size:</div>
+              <div className="suf-pills">
+                {SIZE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    className={`suf-pill${filters.sizes.includes(opt.value) ? ' active' : ''}`}
+                    onClick={() =>
+                      onChange({ ...filters, sizes: toggle<UnitSize>(filters.sizes, opt.value) })
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Features — multi select */}
           <div className="suf-filter-section">

@@ -19,6 +19,7 @@ interface ApiAmenity {
   sort_order?: number;
   show_in_website?: number;
   show_in_filter_bar?: number;
+  available_units?: number;
 }
 
 interface ApiSpaceTypeAssociation {
@@ -76,6 +77,14 @@ export function classifySize(area: number): UnitSize {
   return 'extra_large';
 }
 
+// boolean amenities → the name IS the label (e.g. "Climate Controlled", not "Yes")
+// string/text/null amenities → the value IS the label (e.g. "Drive-Up Access", not "Access")
+function amenityLabel(a: ApiAmenity): string {
+  return a.type === 'boolean' || a.value === 'Yes' || a.value === 'No'
+    ? a.name
+    : a.value;
+}
+
 // ---------------------------------------------------------------------------
 // Mapper — raw API response → Unit[]
 // ---------------------------------------------------------------------------
@@ -106,20 +115,13 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
           .filter((a, i, arr) => arr.findIndex((x) => x.name === a.name) === i);
 
-        const subtype = sortedUnique[0]?.name ?? group.name;
-        const features = sortedUnique.slice(1, 5).map((a) => a.name);
-        const amenityNames = sortedUnique.map((a) => a.name);
-        // Use raw amenities (not deduped) so each distinct value is its own filter option.
-        // Boolean amenities (type 'boolean' or value 'Yes'/'No') → use name as the label.
-        // String/text amenities → use value, which is the meaningful descriptor (e.g. "Drive-Up Access").
+        const subtype = sortedUnique[0] ? amenityLabel(sortedUnique[0]) : group.name;
+        const features = sortedUnique.slice(1, 5).map(amenityLabel);
+        const amenityNames = sortedUnique.map(amenityLabel);
         const filterBarFeatures = Array.from(new Set(
           (tier.amenities ?? [])
-            .filter((a) => a.show_in_filter_bar === 1)
-            .map((a) =>
-              a.type === 'boolean' || a.value === 'Yes' || a.value === 'No'
-                ? a.name
-                : a.value
-            )
+            .filter((a) => a.show_in_filter_bar === 1 && (a.available_units ?? 1) > 0)
+            .map(amenityLabel)
         ));
 
         const startingPrice = tier.sell_rate ?? tier.units?.min_price ?? 0;

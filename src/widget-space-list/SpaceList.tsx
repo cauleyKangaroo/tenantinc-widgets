@@ -78,10 +78,14 @@ export function SpaceList({
   const amenityOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
-      for (const a of u.amenities) seen.add(a);
+      if (u.type !== filters.type) continue;
+      for (const a of u.amenities) {
+        seen.add(a);
+        if (seen.size >= 5) break;
+      }
     }
-    return Array.from(seen).sort();
-  }, [units]);
+    return Array.from(seen); // insertion order = sort_order (unit.amenities is already sorted)
+  }, [units, filters.type]);
 
   const featureOptions = useMemo(() => {
     const seen = new Set<string>();
