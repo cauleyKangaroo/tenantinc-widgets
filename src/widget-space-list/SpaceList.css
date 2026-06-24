@@ -470,7 +470,7 @@
   justify-content: center;
 }
 .sl-wrapper .sl-select-btn {
-  background: #f45f30;
+  background: var(--color_1, #f45f30);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -486,11 +486,11 @@
   align-items: center;
   justify-content: center;
 }
-.sl-wrapper .sl-select-btn:hover { background: color-mix(in srgb, var(--color_1, var(--color_1, #f45f30)) 80%, black); }
+.sl-wrapper .sl-select-btn:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 80%, black); }
 .sl-wrapper .sl-call-btn {
   background: #ffffff;
-  color: #f45f30;
-  border: 2px solid #f45f30;
+  color: var(--color_1, #f45f30);
+  border: 2px solid var(--color_1, #f45f30);
   border-radius: 8px;
   height: 50px;
   width: 100%;
@@ -1010,7 +1010,7 @@
 .sl-wrapper .sl-nb-starting-label { font-size: 9px; color: #101318; font-weight: 600; }
 .sl-wrapper .sl-nb-starting-price { font-size: 16px; font-weight: 700; color: #101318; }
 .sl-wrapper .sl-nb-select-btn {
-  background: #f45f30;
+  background: var(--color_1, #f45f30);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -1021,7 +1021,7 @@
   white-space: nowrap;
   font-family: 'Montserrat', sans-serif;
 }
-.sl-wrapper .sl-nb-select-btn:hover { background: color-mix(in srgb, var(--color_1, var(--color_1, #f45f30)) 80%, black); }
+.sl-wrapper .sl-nb-select-btn:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 80%, black); }
 
 /* Footer */
 .sl-wrapper .sl-nb-footer {
@@ -1033,7 +1033,7 @@
   border-top: 1px solid #f0f0f0;
 }
 .sl-wrapper .sl-nb-admin-fee { font-size: 12px; color: #637381; }
-.sl-wrapper .sl-nb-see-all   { font-size: 13px; font-weight: 600; color: #f45f30; text-decoration: none; }
+.sl-wrapper .sl-nb-see-all   { font-size: 13px; font-weight: 600; color: var(--color_1, #f45f30); text-decoration: none; }
 .sl-wrapper .sl-nb-see-all:hover { text-decoration: underline; }
 
 /* Pagination */
@@ -1173,11 +1173,11 @@
 .sl-wrapper .sl-sg-cta {
   font-size: 14px;
   font-weight: 600;
-  color: #f45f30;
+  color: var(--color_1, #f45f30);
   text-decoration: underline;
   cursor: pointer;
 }
-.sl-wrapper .sl-sg-cta:hover { color: color-mix(in srgb, var(--color_1, var(--color_1, #f45f30)) 80%, black); }
+.sl-wrapper .sl-sg-cta:hover { color: color-mix(in srgb, var(--color_1, #f45f30) 80%, black); }
 
 /* ===========================================================================
    BLOG SECTION

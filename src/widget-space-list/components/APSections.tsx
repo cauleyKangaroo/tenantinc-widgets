@@ -22,15 +22,15 @@ interface APSectionsProps {
 }
 
 export function APSections({
-  isReviews   = false,
-  isFeatures  = false,
-  isNearby    = false,
-  isSizeGuide = false,
-  isBlog      = false,
-  isStore     = false,
-  isNotes     = false,
-  isFAQ       = false,
-  isHours     = false,
+  isReviews   = true,
+  isFeatures  = true,
+  isNearby    = true,
+  isSizeGuide = true,
+  isBlog      = true,
+  isStore     = true,
+  isNotes     = true,
+  isFAQ       = true,
+  isHours     = true,
 }: APSectionsProps) {
   return (
     <div className="sl-ap-sections">
