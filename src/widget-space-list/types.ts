@@ -8,6 +8,7 @@
 // ---------------------------------------------------------------------------
 
 export type SpaceType = 'storage' | 'parking';
+export type FilterType = 'all' | SpaceType;
 
 /**
  * Size categories derived from length × height area (sq ft):
@@ -75,31 +76,11 @@ export interface FilterOption<T extends string = string> {
 // Widget props — these come straight from the Duda content panel
 // ---------------------------------------------------------------------------
 
-export type AdditionalPanelPosition = 'left' | 'right' | 'bottom';
-
 export interface SpaceListProps {
   /** Radio in the content panel: Grid View / List View */
   layoutMode?: 'grid' | 'list';
   /** Dropdown in the content panel: Left / Top / Right */
   filterPosition?: 'left' | 'top' | 'right';
-  /**
-   * Additional Panel mode:
-   * - 'single' — show one section, always open (uses additionalPanelSection)
-   * - 'all'    — show every section as a collapsible accordion
-   * Default 'single'. In 'all' mode the section dropdown is irrelevant (Duda
-   * hides it via conditional logic).
-   */
-  additionalPanelMode?: 'single' | 'all';
-  /** Section shown in the Additional Panel when mode is 'single'. 'none'/omitted = AP hidden. */
-  additionalPanelSection?: string;
-  /** Where the Additional Panel sits (constrained by filterPosition in Duda). */
-  additionalPanelPosition?: AdditionalPanelPosition;
-  /**
-   * Order of the accordion sections in 'all' mode (section keys), set by the
-   * editor's draggable list in Duda. Defensive: missing/unknown handled by
-   * orderSections(); ignored in 'single' mode.
-   */
-  panelOrder?: string[];
 
   // ── General widget properties ───────────────────────────────────────────
   /** Toggle: show or hide the in-store strike-through price block. Default true. */
@@ -116,6 +97,16 @@ export interface SpaceListProps {
   callOnLimitedAvailability?: boolean;
   /** Text for the primary CTA button. Default 'Select'. */
   ctaButtonCopy?: string;
+
+  // ── AP section visibility toggles ──────────────────────────────────────────
+  isReviews?:   boolean;
+  isFeatures?:  boolean;
+  isNearby?:    boolean;
+  isSizeGuide?: boolean;
+  isBlog?:      boolean;
+  isStore?:     boolean;
+  isNotes?:     boolean;
+  isFAQ?:       boolean;
+  isHours?:     boolean;
 }
 
-export type { SectionKey } from './sections';

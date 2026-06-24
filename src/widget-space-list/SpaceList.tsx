@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './SpaceList.css';
-import type { SpaceListProps, AdditionalPanelPosition, WidgetConfig, Unit } from './types';
+import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import { fetchSpaceGroups, mapApiToUnits } from './api';
 import {
   DEFAULT_FILTERS,
@@ -8,38 +8,15 @@ import {
   filterUnits,
   activeFilterCount,
 } from './filters';
-import { getSection } from './sections';
 import { FilterPanel } from './components/FilterPanel';
 import { GridView } from './components/GridView';
 import { ListView } from './components/ListView';
-import { SectionPanel } from './components/SectionPanel';
-import { SectionAccordion } from './components/SectionAccordion';
+import { APSections } from './components/APSections';
 import { SkeletonLoader } from './components/SkeletonLoader';
-
-/**
- * Decide where the Additional Panel actually renders.
- * - null  → AP hidden (not active).
- * - Otherwise the requested position, except a side that collides with the
- *   filter panel falls back to 'bottom' (defensive — Duda "Show if" should
- *   already prevent the collision, but never let the AP vanish or overlap).
- */
-function resolveApPosition(
-  filterPosition: 'left' | 'top' | 'right',
-  active: boolean,
-  apPosition: AdditionalPanelPosition
-): AdditionalPanelPosition | null {
-  if (!active) return null;
-  if (apPosition === filterPosition) return 'bottom';
-  return apPosition;
-}
 
 export function SpaceList({
   layoutMode = 'grid',
   filterPosition = 'right',
-  additionalPanelMode = 'single',
-  additionalPanelSection,
-  additionalPanelPosition = 'bottom',
-  panelOrder,
   showInstorePrice = true,
   instorePriceLabel = 'IN-STORE',
   showJunkFeeDisclaimer = false,
@@ -47,6 +24,15 @@ export function SpaceList({
   enableWaitlist = false,
   callOnLimitedAvailability = false,
   ctaButtonCopy = 'Select',
+  isReviews   = true,
+  isFeatures  = true,
+  isNearby    = true,
+  isSizeGuide = true,
+  isBlog      = true,
+  isStore     = true,
+  isNotes     = true,
+  isFAQ       = true,
+  isHours     = true,
 }: SpaceListProps) {
   const config: WidgetConfig = {
     showInstorePrice,
@@ -78,19 +64,19 @@ export function SpaceList({
   const amenityOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
-      if (u.type !== filters.type) continue;
+      if (filters.type !== 'all' && u.type !== filters.type) continue;
       for (const a of u.amenities) {
         seen.add(a);
         if (seen.size >= 5) break;
       }
     }
-    return Array.from(seen); // insertion order = sort_order (unit.amenities is already sorted)
+    return Array.from(seen);
   }, [units, filters.type]);
 
   const featureOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
-      if (u.type !== filters.type) continue;
+      if (filters.type !== 'all' && u.type !== filters.type) continue;
       for (const f of u.filterBarFeatures) seen.add(f);
     }
     return Array.from(seen).sort();
@@ -99,13 +85,6 @@ export function SpaceList({
   const visibleUnits = useMemo(() => filterUnits(units, filters), [units, filters]);
   const badge = activeFilterCount(filters);
 
-  // 'all' mode always shows the accordion; 'single' mode needs a valid section.
-  const apActive =
-    additionalPanelMode === 'all' || !!getSection(additionalPanelSection);
-  const apPos = resolveApPosition(filterPosition, apActive, additionalPanelPosition);
-
-  // The three regions — filter panel, additional panel, and the listing — are
-  // placed into shell slots below. The filter panel is just the filter panel.
   const filterPanel = (
     <FilterPanel
       filters={filters}
@@ -119,25 +98,12 @@ export function SpaceList({
     />
   );
 
-  const additionalPanel = apPos ? (
-    <aside className={`suf-additional-panel ap-${apPos}`}>
-      {additionalPanelMode === 'all' ? (
-        <SectionAccordion order={panelOrder} />
-      ) : (
-        <SectionPanel section={additionalPanelSection} />
-      )}
-    </aside>
-  ) : null;
-
-  const leftSlot =
-    filterPosition === 'left' ? filterPanel : apPos === 'left' ? additionalPanel : null;
-  const rightSlot =
-    filterPosition === 'right' ? filterPanel : apPos === 'right' ? additionalPanel : null;
-  const topSlot = filterPosition === 'top' ? filterPanel : null;
-  const bottomSlot = apPos === 'bottom' ? additionalPanel : null;
+  const leftSlot  = filterPosition === 'left'  ? filterPanel : null;
+  const rightSlot = filterPosition === 'right' ? filterPanel : null;
+  const topSlot   = filterPosition === 'top'   ? filterPanel : null;
 
   return (
-    <div className={`suf-wrapper filter-${filterPosition}${apPos ? ` ap-${apPos}` : ''}`}>
+    <div className={`suf-wrapper filter-${filterPosition}`}>
       {topSlot}
       <div className="suf-row">
         {leftSlot}
@@ -152,7 +118,17 @@ export function SpaceList({
         </main>
         {rightSlot}
       </div>
-      {bottomSlot}
+      <APSections
+        isReviews={isReviews}
+        isFeatures={isFeatures}
+        isNearby={isNearby}
+        isSizeGuide={isSizeGuide}
+        isBlog={isBlog}
+        isStore={isStore}
+        isNotes={isNotes}
+        isFAQ={isFAQ}
+        isHours={isHours}
+      />
     </div>
   );
 }

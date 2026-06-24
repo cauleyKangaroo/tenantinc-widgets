@@ -34,43 +34,60 @@ export function GridView({ units, config, type }: { units: Unit[]; config: Widge
     return <div className="suf-empty-msg">No spaces match your filters.</div>;
   }
 
-  if (type === 'parking') {
+  const toggle = (size: UnitSize) => setOpen((o) => ({ ...o, [size]: !o[size] }));
+
+  const renderStorageAccordions = (storageUnits: Unit[]) =>
+    groupBySize(storageUnits).map(({ size, units: groupUnits }) => {
+      const isOpen = open[size];
+      return (
+        <div key={size} className={`suf-accordion${isOpen ? ' expanded' : ''}`}>
+          <div className="suf-accordion-header" onClick={() => toggle(size)}>
+            <span className="suf-accordion-title">{SIZE_LABEL[size]}</span>
+            <span className="suf-chevron"><ChevronDown /></span>
+          </div>
+          {isOpen && (
+            <div className="suf-accordion-body">
+              <div className="suf-cards-grid">
+                {groupUnits.map((u) => (
+                  <UnitCard key={u.id} unit={u} config={config} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    });
+
+  const renderParkingFlat = (parkingUnits: Unit[]) => (
+    <div className="suf-cards-grid">
+      {parkingUnits.map((u) => (
+        <UnitCard key={u.id} unit={u} config={config} />
+      ))}
+    </div>
+  );
+
+  if (type === 'all') {
+    const storageUnits = units.filter((u) => u.type === 'storage');
+    const parkingUnits = units.filter((u) => u.type === 'parking');
     return (
       <div className="suf-grid-view">
-        <div className="suf-cards-grid">
-          {units.map((u) => (
-            <UnitCard key={u.id} unit={u} config={config} />
-          ))}
-        </div>
+        {renderStorageAccordions(storageUnits)}
+        {parkingUnits.length > 0 && renderParkingFlat(parkingUnits)}
       </div>
     );
   }
 
-  const groups = groupBySize(units);
-  const toggle = (size: UnitSize) => setOpen((o) => ({ ...o, [size]: !o[size] }));
+  if (type === 'parking') {
+    return (
+      <div className="suf-grid-view">
+        {renderParkingFlat(units)}
+      </div>
+    );
+  }
 
   return (
     <div className="suf-grid-view">
-      {groups.map(({ size, units: groupUnits }) => {
-        const isOpen = open[size];
-        return (
-          <div key={size} className={`suf-accordion${isOpen ? ' expanded' : ''}`}>
-            <div className="suf-accordion-header" onClick={() => toggle(size)}>
-              <span className="suf-accordion-title">{SIZE_LABEL[size]}</span>
-              <span className="suf-chevron"><ChevronDown /></span>
-            </div>
-            {isOpen && (
-              <div className="suf-accordion-body">
-                <div className="suf-cards-grid">
-                  {groupUnits.map((u) => (
-                    <UnitCard key={u.id} unit={u} config={config} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {renderStorageAccordions(units)}
     </div>
   );
 }

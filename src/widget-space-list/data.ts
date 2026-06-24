@@ -1,4 +1,4 @@
-import type { Unit, FilterOption, SpaceType, UnitSize } from './types';
+import type { Unit, FilterOption, FilterType, UnitSize } from './types';
 import unitImg from './assets/unit-medium.png.png';
 
 // ===========================================================================
@@ -249,7 +249,7 @@ export const DEMO_UNITS: Unit[] = [
 // Filter option definitions
 // ---------------------------------------------------------------------------
 
-export const TYPE_OPTIONS: FilterOption<SpaceType>[] = [
+export const TYPE_OPTIONS: FilterOption<FilterType>[] = [
   { value: 'storage', label: 'Storage' },
   { value: 'parking', label: 'Parking' },
 ];
