@@ -8,6 +8,7 @@
 // ---------------------------------------------------------------------------
 
 export type SpaceType = 'storage' | 'parking';
+export type FilterType = 'all' | SpaceType;
 
 /**
  * Size categories derived from length × height area (sq ft):

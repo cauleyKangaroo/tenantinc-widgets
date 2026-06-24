@@ -1,4 +1,4 @@
-import type { Unit, SpaceType, UnitSize } from './types';
+import type { Unit, FilterType, UnitSize } from './types';
 import { SIZE_ORDER } from './data';
 
 // ---------------------------------------------------------------------------
@@ -14,7 +14,7 @@ import { SIZE_ORDER } from './data';
 // ---------------------------------------------------------------------------
 
 export interface FilterState {
-  type: SpaceType;
+  type: FilterType;
   sizes: UnitSize[];
   features: string[]; // FEATURE_OPTIONS values, e.g. 'climate'
   amenities: string[]; // amenity labels, e.g. 'Smart Phone Access'
@@ -22,7 +22,7 @@ export interface FilterState {
 
 /** Mirrors the original widget's default active pills / checked boxes. */
 export const DEFAULT_FILTERS: FilterState = {
-  type: 'storage',
+  type: 'all',
   sizes: [],
   features: [],
   amenities: [],
@@ -34,7 +34,7 @@ function unitMatchesFeature(unit: Unit, featureName: string): boolean {
 
 export function filterUnits(units: Unit[], f: FilterState): Unit[] {
   return units.filter((unit) => {
-    if (unit.type !== f.type) return false;
+    if (f.type !== 'all' && unit.type !== f.type) return false;
     if (f.sizes.length > 0 && !f.sizes.includes(unit.size)) return false;
     if (f.features.length > 0 && !f.features.some((fv) => unitMatchesFeature(unit, fv))) {
       return false;

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SpaceType, UnitSize } from '../types';
+import type { FilterType, UnitSize } from '../types';
 import type { FilterState } from '../filters';
 import { TYPE_OPTIONS, SIZE_OPTIONS } from '../data';
 
@@ -70,7 +70,7 @@ export function FilterPanel({
                 <button
                   key={opt.value}
                   className={`suf-pill${filters.type === opt.value ? ' active' : ''}`}
-                  onClick={() => onChange({ ...filters, type: opt.value as SpaceType, features: [], sizes: [] })}
+                  onClick={() => onChange({ ...filters, type: filters.type === opt.value ? 'all' : opt.value as FilterType, features: [], sizes: [] })}
                 >
                   {opt.label}
                 </button>
@@ -78,8 +78,8 @@ export function FilterPanel({
             </div>
           </div>
 
-          {/* Size — multi select, hidden for parking */}
-          {filters.type !== 'parking' && (
+          {/* Size — multi select, only relevant when viewing storage exclusively */}
+          {filters.type === 'storage' && (
             <div className="suf-filter-section">
               <div className="suf-filter-label">Size:</div>
               <div className="suf-pills">
