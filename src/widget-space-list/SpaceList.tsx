@@ -78,7 +78,7 @@ export function SpaceList({
   const amenityOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
-      if (u.type !== filters.type) continue;
+      if (filters.type !== 'all' && u.type !== filters.type) continue;
       for (const a of u.amenities) {
         seen.add(a);
         if (seen.size >= 5) break;
@@ -90,7 +90,7 @@ export function SpaceList({
   const featureOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
-      if (u.type !== filters.type) continue;
+      if (filters.type !== 'all' && u.type !== filters.type) continue;
       for (const f of u.filterBarFeatures) seen.add(f);
     }
     return Array.from(seen).sort();

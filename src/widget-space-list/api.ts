@@ -110,8 +110,9 @@ export function mapApiToUnits(raw: unknown): Unit[] {
         const primaryAssoc = tier.space_type_associations?.find((a) => a.is_primary === 1);
         const type: Unit['type'] = primaryAssoc?.unit_type_name === 'parking' ? 'parking' : 'storage';
 
-        // Sort by sort_order, then deduplicate by name (keep first occurrence)
+        // Only website-visible amenities, sorted by sort_order, deduped by name (first occurrence wins)
         const sortedUnique = [...(tier.amenities ?? [])]
+          .filter((a) => a.show_in_website === 1)
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
           .filter((a, i, arr) => arr.findIndex((x) => x.name === a.name) === i);
 
