@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -65,7 +65,7 @@ function useCardsPerPage() {
 
 function PlayButton() {
   return (
-    <div className="suf-sg-play">
+    <div className="sl-sg-play">
       <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
         <circle cx="28" cy="28" r="28" fill="rgba(255,255,255,0.85)" />
         <polygon points="22,18 42,28 22,38" fill="#637381" />
@@ -76,18 +76,18 @@ function PlayButton() {
 
 function UnitCard({ unit }: { unit: SizeUnit }) {
   return (
-    <div className="suf-sg-card">
-      <div className="suf-sg-thumb">
-        <div className="suf-sg-thumb-bg" />
+    <div className="sl-sg-card">
+      <div className="sl-sg-thumb">
+        <div className="sl-sg-thumb-bg" />
         <PlayButton />
       </div>
-      <div className="suf-sg-card-body">
-        <div className="suf-sg-card-title">{unit.title}</div>
-        <p className="suf-sg-card-desc">{unit.description}</p>
-        <ul className="suf-sg-bullets">
+      <div className="sl-sg-card-body">
+        <div className="sl-sg-card-title">{unit.title}</div>
+        <p className="sl-sg-card-desc">{unit.description}</p>
+        <ul className="sl-sg-bullets">
           {unit.bullets.map((b, i) => <li key={i}>{b}</li>)}
         </ul>
-        <a href="#" className="suf-sg-cta">&#8250; See Available Spaces</a>
+        <a href="#" className="sl-sg-cta">&#8250; See Available Spaces</a>
       </div>
     </div>
   );
@@ -107,18 +107,18 @@ export function SizeGuideSection() {
   useEffect(() => { setPage(0); }, [activeCategory, cardsPerPage]);
 
   return (
-    <section className="suf-section suf-section--sizeguide">
+    <section className="sl-section sl-section--sizeguide">
 
-      <div className="suf-rv-header">
-        <div className="suf-ap-title">Size Guide</div>
-        <p className="suf-rv-subtitle">Sizes are approximate and may vary by facility.</p>
+      <div className="sl-rv-header">
+        <div className="sl-ap-title">Size Guide</div>
+        <p className="sl-rv-subtitle">Sizes are approximate and may vary by facility.</p>
       </div>
 
-      <div className="suf-sg-tabs">
+      <div className="sl-sg-tabs">
         {CATEGORIES.map((cat) => (
           <button
             key={cat}
-            className={`suf-sg-tab${activeCategory === cat ? ' active' : ''}`}
+            className={`sl-sg-tab${activeCategory === cat ? ' active' : ''}`}
             onClick={() => setActiveCategory(cat)}
           >
             {cat}
@@ -126,24 +126,24 @@ export function SizeGuideSection() {
         ))}
       </div>
 
-      <div className="suf-sg-grid">
+      <div className="sl-sg-grid">
         {visible.map((u) => <UnitCard key={u.id} unit={u} />)}
       </div>
 
       {totalPages > 1 && (
-        <div className="suf-nb-pagination">
+        <div className="sl-nb-pagination">
           <button
-            className="suf-nb-arrow"
+            className="sl-nb-arrow"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
           </button>
           {Array.from({ length: totalPages }, (_, i) => (
-            <button key={i} className={`suf-nb-dot${i === page ? ' active' : ''}`} onClick={() => setPage(i)} />
+            <button key={i} className={`sl-nb-dot${i === page ? ' active' : ''}`} onClick={() => setPage(i)} />
           ))}
           <button
-            className="suf-nb-arrow"
+            className="sl-nb-arrow"
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page === totalPages - 1}
           >

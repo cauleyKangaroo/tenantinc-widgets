@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import { fetchSpaceGroups, mapApiToUnits } from './api';
@@ -8,6 +8,7 @@ import {
   filterUnits,
   activeFilterCount,
 } from './filters';
+import { readFiltersFromUrl, writeFiltersToUrl } from './urlFilters';
 import { FilterPanel } from './components/FilterPanel';
 import { GridView } from './components/GridView';
 import { ListView } from './components/ListView';
@@ -58,8 +59,10 @@ export function SpaceList({
 
   const units = liveUnits;
 
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<FilterState>(() => readFiltersFromUrl());
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => { writeFiltersToUrl(filters); }, [filters]);
 
   const amenityOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -103,11 +106,11 @@ export function SpaceList({
   const topSlot   = filterPosition === 'top'   ? filterPanel : null;
 
   return (
-    <div className={`suf-wrapper filter-${filterPosition}`}>
+    <div className={`sl-wrapper filter-${filterPosition}`}>
       {topSlot}
-      <div className="suf-row">
+      <div className="sl-row">
         {leftSlot}
-        <main className="suf-listing-area">
+        <main className="sl-listing-area">
           {loading ? (
             <SkeletonLoader />
           ) : layoutMode === 'list' ? (

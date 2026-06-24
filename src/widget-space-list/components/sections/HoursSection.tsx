@@ -1,9 +1,9 @@
-import React from 'react';
+﻿import React from 'react';
 
 export function HoursSection() {
   return (
-    <section className="suf-section suf-section--hours">
-      <div className="suf-section-placeholder">Hours — coming soon</div>
+    <section className="sl-section sl-section--hours">
+      <div className="sl-section-placeholder">Hours — coming soon</div>
     </section>
   );
 }

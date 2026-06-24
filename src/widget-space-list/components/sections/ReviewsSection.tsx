@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 // ── Platform logos ────────────────────────────────────────────────────────────
 
@@ -35,9 +35,9 @@ function ReviewsLogo() {
 
 function Stars({ rating, color }: { rating: number; color: string }) {
   return (
-    <div className="suf-rv-stars" style={{ color }}>
+    <div className="sl-rv-stars" style={{ color }}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <span key={i} className={i <= Math.round(rating) ? 'suf-rv-star filled' : 'suf-rv-star'}>★</span>
+        <span key={i} className={i <= Math.round(rating) ? 'sl-rv-star filled' : 'sl-rv-star'}>★</span>
       ))}
     </div>
   );
@@ -64,52 +64,52 @@ const REVIEWS = [
 
 export function ReviewsSection() {
   return (
-    <section className="suf-section suf-section--reviews">
+    <section className="sl-section sl-section--reviews">
 
-      <div className="suf-rv-header">
-        <div className="suf-ap-title">Customer Reviews</div>
-        <p className="suf-rv-subtitle">Vorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc vulputate libero et velit interdum, ac aliquet odio mattis.</p>
+      <div className="sl-rv-header">
+        <div className="sl-ap-title">Customer Reviews</div>
+        <p className="sl-rv-subtitle">Vorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc vulputate libero et velit interdum, ac aliquet odio mattis.</p>
       </div>
 
-      <div className="suf-rv-platforms">
+      <div className="sl-rv-platforms">
         {PLATFORMS.map(({ id, Logo, score, count, color, url }) => (
-          <div key={id} className="suf-rv-platform">
-            <div className="suf-rv-platform-top">
+          <div key={id} className="sl-rv-platform">
+            <div className="sl-rv-platform-top">
               <Logo />
-              <div className="suf-rv-platform-score">
-                <div className="suf-rv-platform-number">
-                  <span className="suf-rv-score-val">{score}</span>
-                  <span className="suf-rv-score-denom">&nbsp;/ 5</span>
+              <div className="sl-rv-platform-score">
+                <div className="sl-rv-platform-number">
+                  <span className="sl-rv-score-val">{score}</span>
+                  <span className="sl-rv-score-denom">&nbsp;/ 5</span>
                 </div>
-                <div className="suf-rv-platform-right">
+                <div className="sl-rv-platform-right">
                   <Stars rating={score} color={color} />
-                  <span className="suf-rv-count">{count} ratings</span>
+                  <span className="sl-rv-count">{count} ratings</span>
                 </div>
               </div>
             </div>
-            <a href={url} className="suf-rv-more">› More Reviews</a>
+            <a href={url} className="sl-rv-more">› More Reviews</a>
           </div>
         ))}
       </div>
 
-      <div className="suf-rv-grid">
+      <div className="sl-rv-grid">
         {REVIEWS.map((r) => (
-          <div key={r.id} className="suf-rv-card">
-            <div className="suf-rv-card-header">
-              <div className="suf-rv-avatar">
+          <div key={r.id} className="sl-rv-card">
+            <div className="sl-rv-card-header">
+              <div className="sl-rv-avatar">
                 <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
                   <circle cx="20" cy="20" r="20" fill="#e5e7eb"/>
                   <circle cx="20" cy="16" r="7" fill="#9ca3af"/>
                   <ellipse cx="20" cy="36" rx="12" ry="8" fill="#9ca3af"/>
                 </svg>
               </div>
-              <div className="suf-rv-card-meta">
-                <span className="suf-rv-author">{r.author}</span>
+              <div className="sl-rv-card-meta">
+                <span className="sl-rv-author">{r.author}</span>
                 <Stars rating={r.rating} color={r.color} />
               </div>
             </div>
-            <p className="suf-rv-text">{r.text}</p>
-            <span className="suf-rv-time">{r.timeAgo}</span>
+            <p className="sl-rv-text">{r.text}</p>
+            <span className="sl-rv-time">{r.timeAgo}</span>
           </div>
         ))}
       </div>

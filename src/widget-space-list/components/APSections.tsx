@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { ReviewsSection } from './sections/ReviewsSection';
 import { FeaturesSection } from './sections/FeaturesSection';
 import { NearbySection } from './sections/NearbySection';
@@ -33,7 +33,7 @@ export function APSections({
   isHours     = true,
 }: APSectionsProps) {
   return (
-    <div className="suf-ap-sections">
+    <div className="sl-ap-sections">
       {isReviews   && <ReviewsSection />}
       {isFeatures  && <FeaturesSection />}
       {isNearby    && <NearbySection />}

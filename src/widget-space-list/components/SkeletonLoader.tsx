@@ -1,25 +1,25 @@
-import React from 'react';
+﻿import React from 'react';
 
 function SkeletonCard() {
   return (
-    <div className="suf-unit-card suf-skeleton-card">
-      <div className="suf-card-display-panel">
-        <div className="suf-card-top">
-          <div className="suf-card-info">
-            <div className="suf-skeleton-line suf-skeleton-title" />
-            <div className="suf-skeleton-line suf-skeleton-subtitle" />
-            <div className="suf-skeleton-line suf-skeleton-feature" />
-            <div className="suf-skeleton-line suf-skeleton-feature suf-skeleton-feature--short" />
+    <div className="sl-unit-card sl-skeleton-card">
+      <div className="sl-card-display-panel">
+        <div className="sl-card-top">
+          <div className="sl-card-info">
+            <div className="sl-skeleton-line sl-skeleton-title" />
+            <div className="sl-skeleton-line sl-skeleton-subtitle" />
+            <div className="sl-skeleton-line sl-skeleton-feature" />
+            <div className="sl-skeleton-line sl-skeleton-feature sl-skeleton-feature--short" />
           </div>
-          <div className="suf-card-image-col">
-            <div className="suf-skeleton-image" />
+          <div className="sl-card-image-col">
+            <div className="sl-skeleton-image" />
           </div>
         </div>
       </div>
-      <div className="suf-card-action-panel">
-        <div className="suf-card-pricing">
-          <div className="suf-skeleton-line suf-skeleton-price" />
-          <div className="suf-skeleton-btn" />
+      <div className="sl-card-action-panel">
+        <div className="sl-card-pricing">
+          <div className="sl-skeleton-line sl-skeleton-price" />
+          <div className="sl-skeleton-btn" />
         </div>
       </div>
     </div>
@@ -28,12 +28,12 @@ function SkeletonCard() {
 
 function SkeletonAccordion({ cardCount }: { cardCount: number }) {
   return (
-    <div className="suf-accordion">
-      <div className="suf-accordion-header">
-        <div className="suf-skeleton-line suf-skeleton-accordion-title" />
+    <div className="sl-accordion">
+      <div className="sl-accordion-header">
+        <div className="sl-skeleton-line sl-skeleton-accordion-title" />
       </div>
-      <div className="suf-accordion-body">
-        <div className="suf-cards-grid">
+      <div className="sl-accordion-body">
+        <div className="sl-cards-grid">
           {Array.from({ length: cardCount }, (_, i) => <SkeletonCard key={i} />)}
         </div>
       </div>
@@ -43,7 +43,7 @@ function SkeletonAccordion({ cardCount }: { cardCount: number }) {
 
 export function SkeletonLoader() {
   return (
-    <div className="suf-grid-view suf-skeleton">
+    <div className="sl-grid-view sl-skeleton">
       <SkeletonAccordion cardCount={3} />
       <SkeletonAccordion cardCount={4} />
       <SkeletonAccordion cardCount={2} />

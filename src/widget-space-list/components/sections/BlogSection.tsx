@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,27 +57,27 @@ function BlogCard({ post }: { post: BlogPost }) {
   const [shareOpen, setShareOpen] = useState(false);
 
   return (
-    <div className="suf-bl-card">
-      <div className="suf-bl-image" style={{ background: post.imageBg }} />
-      <div className="suf-bl-body">
-        <div className="suf-bl-title">{post.title}</div>
-        <div className="suf-bl-meta">By {post.author},&nbsp; {post.date}</div>
+    <div className="sl-bl-card">
+      <div className="sl-bl-image" style={{ background: post.imageBg }} />
+      <div className="sl-bl-body">
+        <div className="sl-bl-title">{post.title}</div>
+        <div className="sl-bl-meta">By {post.author},&nbsp; {post.date}</div>
 
         {shareOpen ? (
-          <div className="suf-bl-social">
+          <div className="sl-bl-social">
             {SOCIAL_LINKS.map((s) => (
-              <a key={s.label} href="#" className="suf-bl-social-icon" aria-label={s.label} title={s.label}>
+              <a key={s.label} href="#" className="sl-bl-social-icon" aria-label={s.label} title={s.label}>
                 {s.icon}
               </a>
             ))}
           </div>
         ) : (
-          <p className="suf-bl-excerpt">{post.excerpt}</p>
+          <p className="sl-bl-excerpt">{post.excerpt}</p>
         )}
 
-        <div className="suf-bl-footer">
-          <a href="#" className="suf-bl-read-more">Read more</a>
-          <button className="suf-bl-share-btn" onClick={() => setShareOpen((o) => !o)}>
+        <div className="sl-bl-footer">
+          <a href="#" className="sl-bl-read-more">Read more</a>
+          <button className="sl-bl-share-btn" onClick={() => setShareOpen((o) => !o)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
               <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
@@ -101,25 +101,25 @@ export function BlogSection() {
   useEffect(() => { setPage(0); }, [cardsPerPage]);
 
   return (
-    <section className="suf-section suf-section--blog">
+    <section className="sl-section sl-section--blog">
 
-      <div className="suf-rv-header">
-        <div className="suf-ap-title">Self Storage Blog</div>
-        <p className="suf-rv-subtitle">Vorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc vulputate libero et velit interdum, ac aliquet odio mattis.</p>
+      <div className="sl-rv-header">
+        <div className="sl-ap-title">Self Storage Blog</div>
+        <p className="sl-rv-subtitle">Vorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc vulputate libero et velit interdum, ac aliquet odio mattis.</p>
       </div>
 
-      <div className="suf-bl-grid">
+      <div className="sl-bl-grid">
         {visible.map((p) => <BlogCard key={p.id} post={p} />)}
       </div>
 
-      <div className="suf-nb-pagination">
-        <button className="suf-nb-arrow" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+      <div className="sl-nb-pagination">
+        <button className="sl-nb-arrow" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
         </button>
         {Array.from({ length: totalPages }, (_, i) => (
-          <button key={i} className={`suf-nb-dot${i === page ? ' active' : ''}`} onClick={() => setPage(i)} />
+          <button key={i} className={`sl-nb-dot${i === page ? ' active' : ''}`} onClick={() => setPage(i)} />
         ))}
-        <button className="suf-nb-arrow" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}>
+        <button className="sl-nb-arrow" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
         </button>
       </div>

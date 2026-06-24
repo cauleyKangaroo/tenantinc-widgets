@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ function useCardsPerPage() {
 
 function Stars({ rating }: { rating: number }) {
   return (
-    <div className="suf-nb-stars">
+    <div className="sl-nb-stars">
       {[1, 2, 3, 4, 5].map((i) => (
         <span key={i} className={i <= Math.floor(rating) ? 'filled' : i - 0.5 <= rating ? 'half' : ''}>★</span>
       ))}
@@ -70,24 +70,24 @@ function TagIcon() {
 
 function PropertyCard({ p }: { p: NearbyProperty }) {
   return (
-    <div className="suf-nb-card">
-      <div className="suf-nb-image">
-        <div className="suf-nb-image-placeholder" />
-        <div className="suf-nb-overlay">
-          <span className="suf-nb-distance">{p.distance}</span>
-          <div className="suf-nb-info">
-            <div className="suf-nb-name">{p.name}</div>
-            <div className="suf-nb-rating">
-              <span className="suf-nb-rating-val">{p.rating}</span>
+    <div className="sl-nb-card">
+      <div className="sl-nb-image">
+        <div className="sl-nb-image-placeholder" />
+        <div className="sl-nb-overlay">
+          <span className="sl-nb-distance">{p.distance}</span>
+          <div className="sl-nb-info">
+            <div className="sl-nb-name">{p.name}</div>
+            <div className="sl-nb-rating">
+              <span className="sl-nb-rating-val">{p.rating}</span>
               <Stars rating={p.rating} />
-              <a href="#" className="suf-nb-reviews">{p.reviewCount} Reviews</a>
+              <a href="#" className="sl-nb-reviews">{p.reviewCount} Reviews</a>
             </div>
-            <div className="suf-nb-meta">
-              <span className="suf-nb-meta-row">
+            <div className="sl-nb-meta">
+              <span className="sl-nb-meta-row">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
                 <a href="#">{p.address}</a>
               </span>
-              <span className="suf-nb-meta-row">
+              <span className="sl-nb-meta-row">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.47 11.47 0 003.58.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.47 11.47 0 00.57 3.57 1 1 0 01-.25 1.02l-2.2 2.2z"/></svg>
                 <a href="#">{p.phone}</a>
               </span>
@@ -96,40 +96,40 @@ function PropertyCard({ p }: { p: NearbyProperty }) {
         </div>
       </div>
 
-      <div className="suf-nb-body">
-        <div className="suf-nb-promo">
-          <span className="suf-nb-promo-dot" />
+      <div className="sl-nb-body">
+        <div className="sl-nb-promo">
+          <span className="sl-nb-promo-dot" />
           {p.promotion}
         </div>
 
-        <div className="suf-nb-units">
+        <div className="sl-nb-units">
           {p.units.map((u, i) => (
-            <div key={i} className="suf-nb-unit-row">
-              <div className="suf-nb-unit-left">
+            <div key={i} className="sl-nb-unit-row">
+              <div className="sl-nb-unit-left">
                 <TagIcon />
-                <div className="suf-nb-unit-info">
-                  <span className="suf-nb-unit-dims">{u.dimensions}</span>
-                  <span className="suf-nb-unit-subtype">{u.subtype}</span>
+                <div className="sl-nb-unit-info">
+                  <span className="sl-nb-unit-dims">{u.dimensions}</span>
+                  <span className="sl-nb-unit-subtype">{u.subtype}</span>
                 </div>
               </div>
-              <div className="suf-nb-unit-right">
-                <div className="suf-nb-price-block">
-                  <span className="suf-nb-instore-label">IN-STORE</span>
-                  <span className="suf-nb-instore-price">${u.inStore}</span>
+              <div className="sl-nb-unit-right">
+                <div className="sl-nb-price-block">
+                  <span className="sl-nb-instore-label">IN-STORE</span>
+                  <span className="sl-nb-instore-price">${u.inStore}</span>
                 </div>
-                <div className="suf-nb-price-block">
-                  <span className="suf-nb-starting-label">STARTING AT</span>
-                  <span className="suf-nb-starting-price">${u.startingAt}</span>
+                <div className="sl-nb-price-block">
+                  <span className="sl-nb-starting-label">STARTING AT</span>
+                  <span className="sl-nb-starting-price">${u.startingAt}</span>
                 </div>
-                <button className="suf-nb-select-btn">Select</button>
+                <button className="sl-nb-select-btn">Select</button>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="suf-nb-footer">
-          <span className="suf-nb-admin-fee">+ Plus ${p.adminFee} Admin Fee</span>
-          <a href="#" className="suf-nb-see-all">› See All Spaces</a>
+        <div className="sl-nb-footer">
+          <span className="sl-nb-admin-fee">+ Plus ${p.adminFee} Admin Fee</span>
+          <a href="#" className="sl-nb-see-all">› See All Spaces</a>
         </div>
       </div>
     </div>
@@ -149,25 +149,25 @@ export function NearbySection() {
   }, [cardsPerPage]);
 
   return (
-    <section className="suf-section suf-section--nearby">
+    <section className="sl-section sl-section--nearby">
 
-      <div className="suf-rv-header">
-        <div className="suf-ap-title">Nearby Storage</div>
-        <p className="suf-rv-subtitle">Vorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc vulputate libero et velit interdum, ac aliquet odio mattis.</p>
+      <div className="sl-rv-header">
+        <div className="sl-ap-title">Nearby Storage</div>
+        <p className="sl-rv-subtitle">Vorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc vulputate libero et velit interdum, ac aliquet odio mattis.</p>
       </div>
 
-      <div className="suf-nb-grid">
+      <div className="sl-nb-grid">
         {visible.map((p) => <PropertyCard key={p.id} p={p} />)}
       </div>
 
-      <div className="suf-nb-pagination">
-        <button className="suf-nb-arrow" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+      <div className="sl-nb-pagination">
+        <button className="sl-nb-arrow" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
         </button>
         {Array.from({ length: totalPages }, (_, i) => (
-          <button key={i} className={`suf-nb-dot${i === page ? ' active' : ''}`} onClick={() => setPage(i)} />
+          <button key={i} className={`sl-nb-dot${i === page ? ' active' : ''}`} onClick={() => setPage(i)} />
         ))}
-        <button className="suf-nb-arrow" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}>
+        <button className="sl-nb-arrow" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
         </button>
       </div>

@@ -1,9 +1,9 @@
-import React from 'react';
+﻿import React from 'react';
 
 export function NotesSection() {
   return (
-    <section className="suf-section suf-section--notes">
-      <div className="suf-section-placeholder">Notes — coming soon</div>
+    <section className="sl-section sl-section--notes">
+      <div className="sl-section-placeholder">Notes — coming soon</div>
     </section>
   );
 }

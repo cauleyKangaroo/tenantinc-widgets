@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import type { Unit, UnitSize, WidgetConfig } from '../types';
 import { groupBySize } from '../filters';
 import { UnitCard } from './UnitCard';
@@ -31,7 +31,7 @@ export function GridView({ units, config, type }: { units: Unit[]; config: Widge
   const [open, setOpen] = useState<Record<UnitSize, boolean>>(DEFAULT_OPEN);
 
   if (units.length === 0) {
-    return <div className="suf-empty-msg">No spaces match your filters.</div>;
+    return <div className="sl-empty-msg">No spaces match your filters.</div>;
   }
 
   const toggle = (size: UnitSize) => setOpen((o) => ({ ...o, [size]: !o[size] }));
@@ -40,14 +40,14 @@ export function GridView({ units, config, type }: { units: Unit[]; config: Widge
     groupBySize(storageUnits).map(({ size, units: groupUnits }) => {
       const isOpen = open[size];
       return (
-        <div key={size} className={`suf-accordion${isOpen ? ' expanded' : ''}`}>
-          <div className="suf-accordion-header" onClick={() => toggle(size)}>
-            <span className="suf-accordion-title">{SIZE_LABEL[size]}</span>
-            <span className="suf-chevron"><ChevronDown /></span>
+        <div key={size} className={`sl-accordion${isOpen ? ' expanded' : ''}`}>
+          <div className="sl-accordion-header" onClick={() => toggle(size)}>
+            <span className="sl-accordion-title">{SIZE_LABEL[size]}</span>
+            <span className="sl-chevron"><ChevronDown /></span>
           </div>
           {isOpen && (
-            <div className="suf-accordion-body">
-              <div className="suf-cards-grid">
+            <div className="sl-accordion-body">
+              <div className="sl-cards-grid">
                 {groupUnits.map((u) => (
                   <UnitCard key={u.id} unit={u} config={config} />
                 ))}
@@ -59,7 +59,7 @@ export function GridView({ units, config, type }: { units: Unit[]; config: Widge
     });
 
   const renderParkingFlat = (parkingUnits: Unit[]) => (
-    <div className="suf-cards-grid">
+    <div className="sl-cards-grid">
       {parkingUnits.map((u) => (
         <UnitCard key={u.id} unit={u} config={config} />
       ))}
@@ -70,7 +70,7 @@ export function GridView({ units, config, type }: { units: Unit[]; config: Widge
     const storageUnits = units.filter((u) => u.type === 'storage');
     const parkingUnits = units.filter((u) => u.type === 'parking');
     return (
-      <div className="suf-grid-view">
+      <div className="sl-grid-view">
         {renderStorageAccordions(storageUnits)}
         {parkingUnits.length > 0 && renderParkingFlat(parkingUnits)}
       </div>
@@ -79,14 +79,14 @@ export function GridView({ units, config, type }: { units: Unit[]; config: Widge
 
   if (type === 'parking') {
     return (
-      <div className="suf-grid-view">
+      <div className="sl-grid-view">
         {renderParkingFlat(units)}
       </div>
     );
   }
 
   return (
-    <div className="suf-grid-view">
+    <div className="sl-grid-view">
       {renderStorageAccordions(units)}
     </div>
   );

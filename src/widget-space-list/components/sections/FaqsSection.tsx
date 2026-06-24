@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -31,17 +31,17 @@ function FaqItem({ faq }: { faq: Faq }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className={`suf-faq-item${open ? ' open' : ''}`}>
-      <button className="suf-faq-question" onClick={() => setOpen((o) => !o)}>
+    <div className={`sl-faq-item${open ? ' open' : ''}`}>
+      <button className="sl-faq-question" onClick={() => setOpen((o) => !o)}>
         <span>{faq.question}</span>
-        <svg className="suf-faq-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="sl-faq-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
       {open && (
-        <div className="suf-faq-answer">
+        <div className="sl-faq-answer">
           <p>{faq.answer}</p>
-          {faq.link && <a href="#" className="suf-faq-link">&#8250; {faq.link}</a>}
+          {faq.link && <a href="#" className="sl-faq-link">&#8250; {faq.link}</a>}
         </div>
       )}
     </div>
@@ -58,32 +58,32 @@ export function FaqsSection() {
     : FAQS;
 
   return (
-    <section className="suf-section suf-section--faqs">
+    <section className="sl-section sl-section--faqs">
 
-      <div className="suf-rv-header">
-        <div className="suf-ap-title">FAQ</div>
-        <p className="suf-rv-subtitle">Find answers to common questions about choosing a storage unit, storage unit rules and regulations, payment procedures, and more.</p>
+      <div className="sl-rv-header">
+        <div className="sl-ap-title">FAQ</div>
+        <p className="sl-rv-subtitle">Find answers to common questions about choosing a storage unit, storage unit rules and regulations, payment procedures, and more.</p>
       </div>
 
-      <div className="suf-faq-search-wrap">
+      <div className="sl-faq-search-wrap">
         <input
-          className="suf-faq-search"
+          className="sl-faq-search"
           type="text"
           placeholder="Ask a question..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button className="suf-faq-search-btn" aria-label="Search">
+        <button className="sl-faq-search-btn" aria-label="Search">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
         </button>
       </div>
 
-      <div className="suf-faq-list">
+      <div className="sl-faq-list">
         {filtered.length > 0
           ? filtered.map((f) => <FaqItem key={f.id} faq={f} />)
-          : <p className="suf-faq-no-results">No results found for "{query}"</p>
+          : <p className="sl-faq-no-results">No results found for "{query}"</p>
         }
       </div>
 
