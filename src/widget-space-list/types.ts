@@ -8,7 +8,8 @@
 // ---------------------------------------------------------------------------
 
 export type SpaceType = 'storage' | 'parking';
-export type FilterType = 'all' | SpaceType;
+/** @deprecated — use SpaceType[] in FilterState.types instead */
+export type FilterType = SpaceType;
 
 /**
  * Size categories derived from length × height area (sq ft):

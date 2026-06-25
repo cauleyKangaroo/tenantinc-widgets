@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import type { FilterType, UnitSize } from '../types';
+import type { SpaceType, UnitSize } from '../types';
 import type { FilterState } from '../filters';
 import { TYPE_OPTIONS, SIZE_OPTIONS } from '../data';
 
@@ -62,15 +62,21 @@ export function FilterPanel({
 
       <div className="sl-filter-body">
         <div className="sl-filter-left-group">
-          {/* Type — single select */}
+          {/* Type — multi select; empty = all types shown */}
           <div className="sl-filter-section">
             <div className="sl-filter-label">Type:</div>
             <div className="sl-pills">
               {TYPE_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
-                  className={`sl-pill${filters.type === opt.value ? ' active' : ''}`}
-                  onClick={() => onChange({ ...filters, type: filters.type === opt.value ? 'all' : opt.value as FilterType, features: [], sizes: [] })}
+                  className={`sl-pill${filters.types.includes(opt.value as SpaceType) ? ' active' : ''}`}
+                  onClick={() => {
+                    const val = opt.value as SpaceType;
+                    const next = filters.types.includes(val)
+                      ? filters.types.filter((t) => t !== val)
+                      : [...filters.types, val];
+                    onChange({ ...filters, types: next, sizes: next.length > 0 && !next.includes('storage') ? [] : filters.sizes });
+                  }}
                 >
                   {opt.label}
                 </button>
@@ -78,8 +84,8 @@ export function FilterPanel({
             </div>
           </div>
 
-          {/* Size — multi select, only relevant when viewing storage exclusively */}
-          {filters.type === 'storage' && (
+          {/* Size — multi select, only relevant when storage could be showing */}
+          {(filters.types.length === 0 || filters.types.includes('storage')) && (
             <div className="sl-filter-section">
               <div className="sl-filter-label">Size:</div>
               <div className="sl-pills">

@@ -70,23 +70,23 @@ export function SpaceList({
   const amenityOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
-      if (filters.type !== 'all' && u.type !== filters.type) continue;
+      if (filters.types.length > 0 && !filters.types.includes(u.type)) continue;
       for (const a of u.amenities) {
         seen.add(a);
         if (seen.size >= 5) break;
       }
     }
     return Array.from(seen);
-  }, [units, filters.type]);
+  }, [units, filters.types]);
 
   const featureOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
-      if (filters.type !== 'all' && u.type !== filters.type) continue;
+      if (filters.types.length > 0 && !filters.types.includes(u.type)) continue;
       for (const f of u.filterBarFeatures) seen.add(f);
     }
     return Array.from(seen).sort();
-  }, [units, filters.type]);
+  }, [units, filters.types]);
 
   const visibleUnits = useMemo(() => filterUnits(units, filters, searchTerm), [units, filters, searchTerm]);
   const badge = activeFilterCount(filters);
@@ -166,9 +166,9 @@ export function SpaceList({
           {loading ? (
             <SkeletonLoader />
           ) : layoutMode === 'list' ? (
-            <ListView units={visibleUnits} config={config} type={filters.type} />
+            <ListView units={visibleUnits} config={config} />
           ) : (
-            <GridView units={visibleUnits} config={config} type={filters.type} />
+            <GridView units={visibleUnits} config={config} />
           )}
         </main>
         {rightSlot}

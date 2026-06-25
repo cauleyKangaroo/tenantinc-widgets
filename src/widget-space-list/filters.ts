@@ -1,11 +1,12 @@
-import type { Unit, FilterType, UnitSize } from './types';
+import type { Unit, SpaceType, UnitSize } from './types';
 import { SIZE_ORDER } from './data';
 
 // ---------------------------------------------------------------------------
 // Filter state + logic
 //
-// Semantics (documented so they're easy to tune for production):
-//   • type      — single select; a unit must match the chosen type.
+// Semantics:
+//   • types     — multi select; empty = show all types. A unit must match at
+//                 least one selected type.
 //   • sizes     — multi select, OR within the group; empty = all sizes.
 //   • features  — multi select, OR within the group; empty = all. A feature
 //                 matches if the unit's subtype/features/amenities contain the
@@ -14,15 +15,15 @@ import { SIZE_ORDER } from './data';
 // ---------------------------------------------------------------------------
 
 export interface FilterState {
-  type: FilterType;
+  types: SpaceType[];
   sizes: UnitSize[];
-  features: string[]; // FEATURE_OPTIONS values, e.g. 'climate'
-  amenities: string[]; // amenity labels, e.g. 'Smart Phone Access'
+  features: string[];
+  amenities: string[];
 }
 
-/** Mirrors the original widget's default active pills / checked boxes. */
+/** Default: no filters active — show everything. */
 export const DEFAULT_FILTERS: FilterState = {
-  type: 'all',
+  types: [],
   sizes: [],
   features: [],
   amenities: [],
@@ -35,7 +36,7 @@ function unitMatchesFeature(unit: Unit, featureName: string): boolean {
 export function filterUnits(units: Unit[], f: FilterState, searchTerm = ''): Unit[] {
   const term = searchTerm.trim().toLowerCase();
   return units.filter((unit) => {
-    if (f.type !== 'all' && unit.type !== f.type) return false;
+    if (f.types.length > 0 && !f.types.includes(unit.type)) return false;
     if (f.sizes.length > 0 && !f.sizes.includes(unit.size)) return false;
     if (f.features.length > 0 && !f.features.some((fv) => unitMatchesFeature(unit, fv))) {
       return false;
@@ -57,10 +58,7 @@ export function groupBySize(units: Unit[]): { size: UnitSize; units: Unit[] }[] 
   })).filter((group) => group.units.length > 0);
 }
 
-/**
- * Badge count = number of active filters, matching the original widget which
- * counted active pills (type + sizes + features) plus checked amenity boxes.
- */
+/** Badge count = number of active filter selections. */
 export function activeFilterCount(f: FilterState): number {
-  return 1 /* type is always one active pill */ + f.sizes.length + f.features.length + f.amenities.length;
+  return f.types.length + f.sizes.length + f.features.length + f.amenities.length;
 }
