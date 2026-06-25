@@ -32,7 +32,10 @@
       "Bash(Copy-Item \"e:\\\\work\\\\repos\\\\tenantinc-widgets\\\\src\\\\widget-space-list\\\\assets\\\\unit-medium.png.png\" \"e:\\\\work\\\\repos\\\\tenantinc-widgets\\\\src\\\\widget-space-list\\\\assets\\\\tenantinc-default.png\")",
       "Bash(curl -s https://edge.tenant.dev/api/v3/applications/appbc35600a675841eea5893df84231789e/v2/companies/kQoBXpBpnx/properties/8W2WA6f9BY/space-groups/WEj66pIYje/groups -H 'x-storageapi-key: 309365e7685b4b048d79dc7d29bd4f57' -H 'x-storageapi-date: __CMDSUB_OUTPUT__')",
       "Bash(python3 -m json.tool)",
-      "Bash(node -e \"const d=[];process.stdin.on\\('data',c=>d.push\\(c\\)\\);process.stdin.on\\('end',\\(\\)=>console.log\\(JSON.stringify\\(JSON.parse\\(d.join\\(''\\)\\),null,2\\)\\)\\)\")"
+      "Bash(node -e \"const d=[];process.stdin.on\\('data',c=>d.push\\(c\\)\\);process.stdin.on\\('end',\\(\\)=>console.log\\(JSON.stringify\\(JSON.parse\\(d.join\\(''\\)\\),null,2\\)\\)\\)\")",
+      "Bash(git merge *)",
+      "Bash(git rm *)",
+      "Bash(git revert *)"
     ]
   }
 }

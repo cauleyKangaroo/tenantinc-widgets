@@ -6,8 +6,6 @@ const path = require('path');
 // Nothing else in this file needs to change.
 // ---------------------------------------------------------------------------
 const widgetEntries = {
-  'widget-hero':       './src/widget-hero/index.tsx',
-  'widget-clock':      './src/widget-clock/index.tsx',
   'widget-space-list': './src/widget-space-list/index.tsx',
 };
 
