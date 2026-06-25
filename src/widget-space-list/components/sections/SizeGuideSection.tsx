@@ -1,94 +1,96 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Data ──────────────────────────────────────────────────────────────────────
 
-interface SizeUnit {
-  id: number;
+type ContentBlock =
+  | { type: 'heading'; text: string }
+  | { type: 'para'; text: string }
+  | { type: 'bullets'; items: string[] };
+
+interface SizeCategory {
+  tab: string;
   title: string;
-  description: string;
-  bullets: string[];
+  imageBg: string;
+  content: ContentBlock[];
 }
 
-// ── Placeholder data ──────────────────────────────────────────────────────────
+const CATEGORIES: SizeCategory[] = [
+  {
+    tab: 'Extra Small',
+    title: 'Extra Small 4x4',
+    imageBg: 'linear-gradient(160deg, #b0bec5 0%, #546e7a 100%)',
+    content: [
+      { type: 'heading', text: 'How big is a storage locker?' },
+      { type: 'para',    text: "Storage locker units (about 4x4x4ft) are convenient and often more cost-effective than other storage unit sizes. Perfect for keeping just a few items safe when you don't need much space." },
+      { type: 'para',    text: 'The most you\'ll be able to comfortably fit in this unit is:' },
+      { type: 'bullets', items: ['A few boxes', 'Small household appliances', 'Documents and files', 'Holiday decorations'] },
+      { type: 'heading', text: 'What fits in an extra small unit?' },
+      { type: 'para',    text: 'An extra small storage unit is ideal for students, travellers, and minimalists who need a secure spot for a handful of belongings. Think of it as a very large safety deposit box. If you only need a small amount of extra storage, this is the most affordable option available.' },
+    ],
+  },
+  {
+    tab: 'Small',
+    title: 'Small 5x5',
+    imageBg: 'linear-gradient(160deg, #8d9db6 0%, #667292 100%)',
+    content: [
+      { type: 'heading', text: 'How big is a storage locker?' },
+      { type: 'para',    text: "This unit is ideal for storing seasonal decorations and equipment that you don't want to keep at home and for a few loose items you have around your house, business, or dorm." },
+      { type: 'para',    text: 'The most you\'ll be able to comfortably fit in this unit is:' },
+      { type: 'bullets', items: ['A twin mattress set', 'A dresser', 'A couple of large boxes'] },
+      { type: 'heading', text: 'What fits in a storage locker?' },
+      { type: 'para',    text: "Hi there, you found us! I'm here to help you choose the perfect storage unit to fit your needs and your budget. Let's look at a small unit. The 5x5 is a great size for keeping your belongings safe for the future. Renting a small unit is like having another large closet. Imagine how that would clean up your home! When full, this unit can fit items like a twin mattress set, a dresser, and many boxes. You might also store seasonal decorations, yard equipment, and even valuable keepsakes like family photos and heirlooms. If this unit is large enough to declutter your home or garage, rent your space online now. Demand for self storage is higher than ever and the best deals are always online." },
+    ],
+  },
+  {
+    tab: 'Medium',
+    title: 'Medium 10x10',
+    imageBg: 'linear-gradient(160deg, #3d4f5f 0%, #1c2b3a 100%)',
+    content: [
+      { type: 'heading', text: 'How big is a 10x10 storage unit?' },
+      { type: 'para',    text: 'A 10x10 storage unit is about the size of a standard bedroom — large enough to hold furniture and belongings from a one or two-bedroom apartment.' },
+      { type: 'para',    text: 'The most you\'ll be able to comfortably fit in this unit is:' },
+      { type: 'bullets', items: ['Full bedroom set', 'Sofa and armchairs', 'Dining table and chairs', 'Appliances and boxes'] },
+      { type: 'heading', text: 'What fits in a medium storage unit?' },
+      { type: 'para',    text: "A medium unit is one of our most popular sizes. Whether you're moving, downsizing, or just need more room at home, a 10x10 gives you the flexibility to store a wide variety of household items. It's also a great option for small business owners who need space for equipment or inventory." },
+    ],
+  },
+  {
+    tab: 'Large',
+    title: 'Large 10x20',
+    imageBg: 'linear-gradient(160deg, #3b4a41 0%, #1a2820 100%)',
+    content: [
+      { type: 'heading', text: 'How big is a 10x20 storage unit?' },
+      { type: 'para',    text: 'A 10x20 storage unit is the same size as a single-car garage. It is perfect for storing all the contents of a three-bedroom home or a substantial amount of business inventory.' },
+      { type: 'para',    text: 'The most you\'ll be able to comfortably fit in this unit is:' },
+      { type: 'bullets', items: ['Full three-bedroom household', 'Multiple furniture sets', 'Large appliances', 'Boxes, bikes, and outdoor equipment'] },
+      { type: 'heading', text: 'What fits in a large storage unit?' },
+      { type: 'para',    text: "Large units are ideal for long-distance moves, home renovations, or any situation where you need to clear out a whole house worth of belongings. With drive-up access available at many locations, loading and unloading is convenient. Book online today to secure the best available rate." },
+    ],
+  },
+  {
+    tab: 'Extra Large',
+    title: 'Extra Large 10x30',
+    imageBg: 'linear-gradient(160deg, #4a4035 0%, #271f16 100%)',
+    content: [
+      { type: 'heading', text: 'How big is a 10x30 storage unit?' },
+      { type: 'para',    text: 'A 10x30 storage unit provides up to 300 square feet of space — enough for the contents of a large five-bedroom home, a commercial operation, or multiple vehicles.' },
+      { type: 'para',    text: 'The most you\'ll be able to comfortably fit in this unit is:' },
+      { type: 'bullets', items: ['Five-bedroom home contents', 'Commercial equipment and stock', 'Multiple vehicles or large RV', 'Workshop or studio supplies'] },
+      { type: 'heading', text: 'What fits in an extra large storage unit?' },
+      { type: 'para',    text: "Extra large units are our biggest standard offering and suit contractors, retailers, collectors, and families undergoing major life transitions. Drive-up access makes it easy to come and go. If you need even more space, ask our team about our specialty vehicle and RV storage options." },
+    ],
+  },
+];
 
-const CATEGORIES = ['Small', 'Medium', 'Large', 'Vehicle', 'Boat / RV'];
-
-const UNITS: Record<string, SizeUnit[]> = {
-  Small: [
-    { id: 1,  title: 'Storage Locker', description: "Storage locker units (about 5x5x4ft) are convenient and often more cost effective than other storage unit sizes, but what can you fit inside? In this video we will show you how big our locker storage units are and what you can fit inside.", bullets: ['25 sq ft', 'Closet-sized storage with less height'] },
-    { id: 2,  title: "5' x 5'",        description: "Ever wondered what a 5x5 storage unit looks like or what fits in a 5x5 foot storage unit? In this video we will show you how big our 5x5 storage unit is and what you can fit inside.",                                   bullets: ['25 sq ft', 'Closet-sized storage'] },
-    { id: 3,  title: "5' x 10'",       description: "Ever wondered what a 5x10 storage unit looks like or what fits in a 5x10 foot storage unit? In this video we will show you how big our 5x10 storage unit is and what you can fit inside.",                                  bullets: ['50 sq ft', 'Small apartment extras'] },
-    { id: 4,  title: "5' x 15'",       description: "A 5x15 storage unit is a great option for storing the contents of a one-bedroom apartment. In this video we will show you how big our 5x15 storage unit is and what you can fit inside.",                                     bullets: ['75 sq ft', 'One-bedroom apartment'] },
-    { id: 5,  title: "10' x 5'",       description: "The 10x5 storage unit is similar in size to a large walk-in closet. In this video we will show you how big our 10x5 storage unit is and what you can fit inside.",                                                            bullets: ['50 sq ft', 'Large closet worth of items'] },
-    { id: 6,  title: "5' x 20'",       description: "A 5x20 storage unit is a great option for storing the contents of a small one-bedroom apartment. In this video we will show you how big our 5x20 storage unit is and what you can fit inside.",                               bullets: ['100 sq ft', 'Small apartment or dorm room'] },
-  ],
-  Medium: [
-    { id: 7,  title: "10' x 10'",      description: "A 10x10 storage unit is about the size of a standard bedroom. In this video we will show you how big our 10x10 storage unit is and what you can fit inside.",                                                                 bullets: ['100 sq ft', 'Two-bedroom apartment'] },
-    { id: 8,  title: "10' x 15'",      description: "A 10x15 storage unit is a good choice for storing furniture from a two-bedroom apartment. In this video we will show you how big our 10x15 storage unit is and what you can fit inside.",                                     bullets: ['150 sq ft', 'Large two-bedroom apartment'] },
-    { id: 9,  title: "10' x 20'",      description: "A 10x20 storage unit is ideal for storing a three-bedroom home. In this video we will show you how big our 10x20 storage unit is and what you can fit inside.",                                                               bullets: ['200 sq ft', 'Three-bedroom home'] },
-  ],
-  Large: [
-    { id: 10, title: "10' x 25'",      description: "A 10x25 storage unit is large enough to store the contents of a three or four-bedroom home. In this video we will show you how big our 10x25 storage unit is and what you can fit inside.",                                    bullets: ['250 sq ft', 'Three to four-bedroom home'] },
-    { id: 11, title: "10' x 30'",      description: "A 10x30 storage unit is large enough to hold the contents of a five-bedroom home. In this video we will show you how big our 10x30 storage unit is and what you can fit inside.",                                             bullets: ['300 sq ft', 'Five-bedroom home'] },
-    { id: 12, title: "20' x 20'",      description: "A 20x20 storage unit offers a generous amount of space for large furniture, appliances, and other items from a four or five-bedroom home.",                                                                                    bullets: ['400 sq ft', 'Large home or business storage'] },
-  ],
-  Vehicle: [
-    { id: 13, title: "10' x 20'",      description: "Our 10x20 vehicle storage unit is perfect for storing a standard car or small SUV. Drive-up access makes loading and unloading your vehicle easy.",                                                                             bullets: ['200 sq ft', 'Standard car or small SUV'] },
-    { id: 14, title: "10' x 25'",      description: "Our 10x25 vehicle storage unit is ideal for storing a full-size truck, van, or larger SUV. Drive-up access makes loading and unloading your vehicle easy.",                                                                    bullets: ['250 sq ft', 'Full-size truck or SUV'] },
-    { id: 15, title: "10' x 30'",      description: "Our 10x30 vehicle storage unit is designed for storing oversized vehicles such as large trucks, vans, or cars with trailers.",                                                                                                 bullets: ['300 sq ft', 'Oversized vehicles or trailers'] },
-  ],
-  'Boat / RV': [
-    { id: 16, title: "12' x 30'",      description: "Our 12x30 boat and RV storage unit is ideal for storing a mid-size RV, boat, or other large recreational vehicle. Drive-up access ensures easy entry and exit.",                                                               bullets: ['360 sq ft', 'Mid-size RV or boat'] },
-    { id: 17, title: "12' x 40'",      description: "Our 12x40 boat and RV storage unit is designed for larger recreational vehicles, boats with trailers, or motorhomes.",                                                                                                         bullets: ['480 sq ft', 'Large RV, motorhome or boat'] },
-    { id: 18, title: "14' x 40'",      description: "Our 14x40 boat and RV storage unit provides maximum space for the largest recreational vehicles, extended motorhomes, and oversized boat trailers.",                                                                            bullets: ['560 sq ft', 'Oversized motorhome or boat trailer'] },
-  ],
-};
-
-// ── Responsive cards per page ─────────────────────────────────────────────────
-
-function useCardsPerPage() {
-  const getCount = () => {
-    if (window.innerWidth <= 767) return 1;
-    if (window.innerWidth <= 1024) return 2;
-    return 3;
-  };
-  const [count, setCount] = useState(getCount);
-  useEffect(() => {
-    const handler = () => setCount(getCount());
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
-  return count;
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Play button ───────────────────────────────────────────────────────────────
 
 function PlayButton() {
   return (
-    <div className="sl-sg-play">
+    <div className="sl-sg2-play">
       <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
         <circle cx="28" cy="28" r="28" fill="rgba(255,255,255,0.85)" />
-        <polygon points="22,18 42,28 22,38" fill="#637381" />
+        <polygon points="23,18 43,28 23,38" fill="#637381" />
       </svg>
-    </div>
-  );
-}
-
-function UnitCard({ unit }: { unit: SizeUnit }) {
-  return (
-    <div className="sl-sg-card">
-      <div className="sl-sg-thumb">
-        <div className="sl-sg-thumb-bg" />
-        <PlayButton />
-      </div>
-      <div className="sl-sg-card-body">
-        <div className="sl-sg-card-title">{unit.title}</div>
-        <p className="sl-sg-card-desc">{unit.description}</p>
-        <ul className="sl-sg-bullets">
-          {unit.bullets.map((b, i) => <li key={i}>{b}</li>)}
-        </ul>
-        <a href="#" className="sl-sg-cta">&#8250; See Available Spaces</a>
-      </div>
     </div>
   );
 }
@@ -96,62 +98,58 @@ function UnitCard({ unit }: { unit: SizeUnit }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function SizeGuideSection() {
-  const [activeCategory, setActiveCategory] = useState('Small');
-  const [page, setPage] = useState(0);
-  const cardsPerPage = useCardsPerPage();
+  const [activeTab, setActiveTab] = useState('Small');
 
-  const units = UNITS[activeCategory] ?? [];
-  const totalPages = Math.ceil(units.length / cardsPerPage);
-  const visible = units.slice(page * cardsPerPage, page * cardsPerPage + cardsPerPage);
-
-  useEffect(() => { setPage(0); }, [activeCategory, cardsPerPage]);
+  const category = CATEGORIES.find((c) => c.tab === activeTab) ?? CATEGORIES[1];
 
   return (
-    <section className="sl-section sl-section--sizeguide">
+    <div className="sl-sg2">
 
-      <div className="sl-rv-header">
-        <div className="sl-ap-title">Size Guide</div>
-        <p className="sl-rv-subtitle">Sizes are approximate and may vary by facility.</p>
-      </div>
-
-      <div className="sl-sg-tabs">
-        {CATEGORIES.map((cat) => (
+      {/* Category pills */}
+      <div className="sl-sg2-tabs">
+        {CATEGORIES.map((c) => (
           <button
-            key={cat}
-            className={`sl-sg-tab${activeCategory === cat ? ' active' : ''}`}
-            onClick={() => setActiveCategory(cat)}
+            key={c.tab}
+            className={`sl-sg2-tab${activeTab === c.tab ? ' active' : ''}`}
+            onClick={() => setActiveTab(c.tab)}
           >
-            {cat}
+            {c.tab}
           </button>
         ))}
       </div>
 
-      <div className="sl-sg-grid">
-        {visible.map((u) => <UnitCard key={u.id} unit={u} />)}
-      </div>
+      {/* Scrollable content area */}
+      <div className="sl-sg2-content">
 
-      {totalPages > 1 && (
-        <div className="sl-nb-pagination">
-          <button
-            className="sl-nb-arrow"
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => (
-            <button key={i} className={`sl-nb-dot${i === page ? ' active' : ''}`} onClick={() => setPage(i)} />
-          ))}
-          <button
-            className="sl-nb-arrow"
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={page === totalPages - 1}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-          </button>
+        {/* Video thumbnail */}
+        <div className="sl-sg2-image" style={{ background: category.imageBg }}>
+          <PlayButton />
         </div>
-      )}
 
-    </section>
+        {/* Title */}
+        <h3 className="sl-sg2-title">{category.title}</h3>
+
+        {/* Body */}
+        <div className="sl-sg2-body">
+          {category.content.map((block, i) => {
+            if (block.type === 'heading') {
+              return <p key={i} className="sl-sg2-body-heading">{block.text}</p>;
+            }
+            if (block.type === 'bullets') {
+              return (
+                <ul key={i} className="sl-sg2-list">
+                  {block.items.map((item, j) => <li key={j}>{item}</li>)}
+                </ul>
+              );
+            }
+            return <p key={i} className="sl-sg2-body-para">{block.text}</p>;
+          })}
+        </div>
+
+        {/* CTA */}
+        <a href="#" className="sl-sg2-cta">See Available Spaces</a>
+
+      </div>
+    </div>
   );
 }

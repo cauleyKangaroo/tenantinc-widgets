@@ -10,9 +10,10 @@ import {
 } from './filters';
 import { readFiltersFromUrl, writeFiltersToUrl } from './urlFilters';
 import { FilterPanel } from './components/FilterPanel';
+import { TopFilterBar } from './components/TopFilterBar';
 import { GridView } from './components/GridView';
 import { ListView } from './components/ListView';
-import { APSections } from './components/APSections';
+import { SectionAccordion } from './components/SectionAccordion';
 import { SkeletonLoader } from './components/SkeletonLoader';
 
 export function SpaceList({
@@ -25,15 +26,15 @@ export function SpaceList({
   enableWaitlist = false,
   callOnLimitedAvailability = false,
   ctaButtonCopy = 'Select',
-  isReviews   = true,
-  isFeatures  = true,
-  isNearby    = true,
-  isSizeGuide = true,
-  isBlog      = true,
-  isStore     = true,
-  isNotes     = true,
-  isFAQ       = true,
-  isHours     = true,
+  isReviews   = false,
+  isFeatures  = false,
+  isNearby    = false,
+  isSizeGuide = false,
+  isBlog      = false,
+  isStore     = false,
+  isNotes     = false,
+  isFAQ       = false,
+  isHours     = false,
 }: SpaceListProps) {
   const config: WidgetConfig = {
     showInstorePrice,
@@ -61,6 +62,8 @@ export function SpaceList({
 
   const [filters, setFilters] = useState<FilterState>(() => readFiltersFromUrl());
   const [collapsed, setCollapsed] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => { writeFiltersToUrl(filters); }, [filters]);
 
@@ -85,10 +88,10 @@ export function SpaceList({
     return Array.from(seen).sort();
   }, [units, filters.type]);
 
-  const visibleUnits = useMemo(() => filterUnits(units, filters), [units, filters]);
+  const visibleUnits = useMemo(() => filterUnits(units, filters, searchTerm), [units, filters, searchTerm]);
   const badge = activeFilterCount(filters);
 
-  const filterPanel = (
+  const sidebarFilterPanel = (
     <FilterPanel
       filters={filters}
       onChange={setFilters}
@@ -101,9 +104,58 @@ export function SpaceList({
     />
   );
 
-  const leftSlot  = filterPosition === 'left'  ? filterPanel : null;
-  const rightSlot = filterPosition === 'right' ? filterPanel : null;
-  const topSlot   = filterPosition === 'top'   ? filterPanel : null;
+  const hasSections = isStore || isNearby || isReviews || isFAQ || isBlog || isSizeGuide;
+  const sectionPanel = hasSections ? (
+    <SectionAccordion
+      isStore={isStore}
+      isNearby={isNearby}
+      isReviews={isReviews}
+      isFAQ={isFAQ}
+      isBlog={isBlog}
+      isSizeGuide={isSizeGuide}
+    />
+  ) : null;
+
+  // Section accordion always sits opposite the filter panel.
+  // filter=right → accordion left | filter=left → accordion right | filter=top → accordion right
+  let leftSlot: React.ReactNode  = null;
+  let rightSlot: React.ReactNode = null;
+  let topSlot: React.ReactNode   = null;
+
+  if (filterPosition === 'top') {
+    topSlot = (
+      <>
+        <TopFilterBar
+          filters={filters}
+          onChange={setFilters}
+          featureOptions={featureOptions}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          panelOpen={panelOpen}
+          onTogglePanel={() => setPanelOpen((o) => !o)}
+        />
+        {panelOpen && (
+          <FilterPanel
+            filters={filters}
+            onChange={setFilters}
+            badge={badge}
+            collapsed={false}
+            onToggleCollapse={() => setPanelOpen(false)}
+            onReset={() => setFilters(DEFAULT_FILTERS)}
+            amenityOptions={amenityOptions}
+            featureOptions={featureOptions}
+          />
+        )}
+      </>
+    );
+    rightSlot = sectionPanel;
+  } else if (filterPosition === 'left') {
+    leftSlot  = sidebarFilterPanel;
+    rightSlot = sectionPanel;
+  } else {
+    leftSlot  = sectionPanel;
+    rightSlot = sidebarFilterPanel;
+  }
 
   return (
     <div className={`sl-wrapper filter-${filterPosition}`}>
@@ -121,17 +173,6 @@ export function SpaceList({
         </main>
         {rightSlot}
       </div>
-      <APSections
-        isReviews={isReviews}
-        isFeatures={isFeatures}
-        isNearby={isNearby}
-        isSizeGuide={isSizeGuide}
-        isBlog={isBlog}
-        isStore={isStore}
-        isNotes={isNotes}
-        isFAQ={isFAQ}
-        isHours={isHours}
-      />
     </div>
   );
 }

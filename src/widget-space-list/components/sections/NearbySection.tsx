@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+type ViewMode = 'list' | 'map';
 
 interface NearbyUnit {
   dimensions: string;
@@ -22,115 +22,160 @@ interface NearbyProperty {
   adminFee: number;
 }
 
-// ── Placeholder data ──────────────────────────────────────────────────────────
-
 const PROPERTIES: NearbyProperty[] = [
-  { id: 1, name: '3rd Street Storage',   distance: '1.7 Miles', rating: 4.5, reviewCount: 32, address: '8478 3rd Street, Fullerton, CA 02027', phone: '(555) 555-5555', promotion: 'Short Promotion Title', units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }], adminFee: 20 },
-  { id: 2, name: 'Storfun Storage',       distance: '2.5 Miles', rating: 4.5, reviewCount: 32, address: '8478 3rd Street, Fullerton, CA 02027', phone: '(555) 555-5555', promotion: 'Short Promotion Title', units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }], adminFee: 20 },
-  { id: 3, name: 'Green Street Storage',  distance: '3 Miles',   rating: 4.5, reviewCount: 32, address: '8478 3rd Street, Fullerton, CA 02027', phone: '(555) 555-5555', promotion: 'Short Promotion Title', units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }], adminFee: 20 },
-  { id: 4, name: 'Maple Avenue Storage',  distance: '3.8 Miles', rating: 4.2, reviewCount: 18, address: '100 Maple Ave, Fullerton, CA 02028',    phone: '(555) 555-1234', promotion: 'Short Promotion Title', units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }], adminFee: 20 },
-  { id: 5, name: 'Central Self Storage',  distance: '4.1 Miles', rating: 4.7, reviewCount: 54, address: '22 Central Blvd, Fullerton, CA 02029',  phone: '(555) 555-5678', promotion: 'Short Promotion Title', units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }], adminFee: 20 },
-  { id: 6, name: 'Westside Storage Co.',  distance: '5 Miles',   rating: 4.3, reviewCount: 27, address: '77 West End Rd, Fullerton, CA 02030',   phone: '(555) 555-9012', promotion: 'Short Promotion Title', units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }], adminFee: 20 },
+  { id: 1, name: '3rd Street Storage',  distance: '1.7 Miles', rating: 4.5, reviewCount: 32, address: '8478 3rd Street, Fullerton, CA 02027',   phone: '(555) 555-5555', promotion: 'Short Promotion Title', adminFee: 20, units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }] },
+  { id: 2, name: 'Storfun Storage',      distance: '2.5 Miles', rating: 4.5, reviewCount: 19, address: '210 Holt Ave, Pomona, CA 91768',          phone: '(555) 555-1111', promotion: 'First Month Free', adminFee: 20, units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 60,  startingAt: 30  }, { dimensions: "10' x 10'", subtype: 'Climate Controlled', inStore: 190, startingAt: 155 }, { dimensions: "10' x 20'", subtype: 'Drive Up', inStore: 320, startingAt: 260 }] },
+  { id: 3, name: 'Green Street Storage', distance: '3.0 Miles', rating: 4.2, reviewCount: 41, address: '540 Green St, Covina, CA 91722',          phone: '(555) 555-2222', promotion: 'No Admin Fee Today', adminFee: 0,  units: [{ dimensions: "5' x 5'", subtype: 'Drive Up', inStore: 45,  startingAt: 22  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 160, startingAt: 130 }, { dimensions: "10' x 15'", subtype: 'Drive Up', inStore: 200, startingAt: 170 }] },
+  { id: 4, name: 'Maple Avenue Storage', distance: '3.8 Miles', rating: 4.8, reviewCount: 18, address: '100 Maple Ave, Fullerton, CA 02028',      phone: '(555) 555-3333', promotion: 'Short Promotion Title', adminFee: 20, units: [{ dimensions: "5' x 10'", subtype: 'Climate Controlled', inStore: 90,  startingAt: 65  }, { dimensions: "10' x 10'", subtype: 'Climate Controlled', inStore: 174, startingAt: 140 }, { dimensions: "10' x 20'", subtype: 'Drive Up', inStore: 310, startingAt: 250 }] },
+  { id: 5, name: 'Central Self Storage', distance: '4.1 Miles', rating: 4.7, reviewCount: 54, address: '22 Central Blvd, Fullerton, CA 02029',   phone: '(555) 555-4444', promotion: 'Short Promotion Title', adminFee: 20, units: [{ dimensions: "5' x 5'", subtype: 'Drive Up', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }] },
 ];
 
-function useCardsPerPage() {
-  const getCount = () => {
-    if (window.innerWidth <= 767) return 1;
-    if (window.innerWidth <= 1024) return 2;
-    return 3;
-  };
-  const [count, setCount] = useState(getCount);
-  useEffect(() => {
-    const handler = () => setCount(getCount());
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
-  return count;
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
+function TagIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#509e2f" xmlns="http://www.w3.org/2000/svg">
+      <path d="M21.41 11.58l-9-9A2 2 0 0011 2H4a2 2 0 00-2 2v7a2 2 0 00.59 1.42l9 9a2 2 0 002.82 0l7-7a2 2 0 000-2.84zM6.5 8A1.5 1.5 0 115 6.5 1.5 1.5 0 016.5 8z"/>
+    </svg>
+  );
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function Stars({ rating }: { rating: number }) {
+function MapPinIcon() {
   return (
-    <div className="sl-nb-stars">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <span key={i} className={i <= Math.floor(rating) ? 'filled' : i - 0.5 <= rating ? 'half' : ''}>★</span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.66A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z"/>
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  );
+}
+
+// ── Stars (with half-star support) ────────────────────────────────────────────
+
+function Stars({ rating, size = 16, color = '#FBBC05' }: { rating: number; size?: number; color?: string }) {
+  const full  = Math.floor(rating);
+  const half  = rating - full >= 0.5;
+  const empty = 5 - full - (half ? 1 : 0);
+  const path  = 'M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2Z';
+
+  return (
+    <div className="sl-nb2-stars">
+      {Array.from({ length: full }).map((_, i) => (
+        <svg key={`f${i}`} width={size} height={size} viewBox="0 0 24 24" fill={color}><path d={path}/></svg>
+      ))}
+      {half && (
+        <span style={{ position: 'relative', display: 'inline-flex', width: size, height: size, flexShrink: 0 }}>
+          <svg width={size} height={size} viewBox="0 0 24 24" fill="#e0e0e0" style={{ position: 'absolute' }}><path d={path}/></svg>
+          <svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={{ position: 'absolute', clipPath: 'inset(0 50% 0 0)' }}><path d={path}/></svg>
+        </span>
+      )}
+      {Array.from({ length: empty }).map((_, i) => (
+        <svg key={`e${i}`} width={size} height={size} viewBox="0 0 24 24" fill="#e0e0e0"><path d={path}/></svg>
       ))}
     </div>
   );
 }
 
-function TagIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="#509e2f">
-      <path d="M21.41 11.58L12.41 2.58A2 2 0 0011 2H4a2 2 0 00-2 2v7a2 2 0 00.59 1.42l9 9a2 2 0 002.82 0l7-7a2 2 0 000-2.84zM6.5 8A1.5 1.5 0 115 6.5 1.5 1.5 0 016.5 8z"/>
-    </svg>
-  );
-}
+// ── Property card ─────────────────────────────────────────────────────────────
 
-function PropertyCard({ p }: { p: NearbyProperty }) {
+const CARD_GRADIENTS = [
+  'linear-gradient(160deg,#3d4f5f 0%,#1c2b3a 100%)',
+  'linear-gradient(160deg,#3b4a41 0%,#1a2820 100%)',
+  'linear-gradient(160deg,#4a4035 0%,#271f16 100%)',
+  'linear-gradient(160deg,#3a3d55 0%,#1b1e35 100%)',
+  'linear-gradient(160deg,#4a3545 0%,#2a1828 100%)',
+];
+
+function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
   return (
-    <div className="sl-nb-card">
-      <div className="sl-nb-image">
-        <div className="sl-nb-image-placeholder" />
-        <div className="sl-nb-overlay">
-          <span className="sl-nb-distance">{p.distance}</span>
-          <div className="sl-nb-info">
-            <div className="sl-nb-name">{p.name}</div>
-            <div className="sl-nb-rating">
-              <span className="sl-nb-rating-val">{p.rating}</span>
-              <Stars rating={p.rating} />
-              <a href="#" className="sl-nb-reviews">{p.reviewCount} Reviews</a>
+    <div className="sl-nb2-card">
+
+      {/* Image area */}
+      <div className="sl-nb2-img" style={{ background: CARD_GRADIENTS[index % CARD_GRADIENTS.length] }}>
+        <div className="sl-nb2-img-overlay" />
+        <span className="sl-nb2-distance">{p.distance}</span>
+        <div className="sl-nb2-prop-info">
+          <p className="sl-nb2-prop-name">{p.name}</p>
+          <div className="sl-nb2-prop-rating">
+            <span className="sl-nb2-prop-score">{p.rating}</span>
+            <Stars rating={p.rating} size={16} color="#FBBC05" />
+            <a href="#" className="sl-nb2-prop-reviews">{p.reviewCount} Reviews</a>
+          </div>
+          <div className="sl-nb2-prop-meta">
+            <div className="sl-nb2-prop-meta-row">
+              <MapPinIcon />
+              <a href="#" className="sl-nb2-prop-meta-link">{p.address}</a>
             </div>
-            <div className="sl-nb-meta">
-              <span className="sl-nb-meta-row">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                <a href="#">{p.address}</a>
-              </span>
-              <span className="sl-nb-meta-row">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.47 11.47 0 003.58.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.47 11.47 0 00.57 3.57 1 1 0 01-.25 1.02l-2.2 2.2z"/></svg>
-                <a href="#">{p.phone}</a>
-              </span>
+            <div className="sl-nb2-prop-meta-row">
+              <PhoneIcon />
+              <a href="#" className="sl-nb2-prop-meta-link">{p.phone}</a>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="sl-nb-body">
-        <div className="sl-nb-promo">
-          <span className="sl-nb-promo-dot" />
-          {p.promotion}
-        </div>
+      {/* Available spaces */}
+      <div className="sl-nb2-spaces">
 
-        <div className="sl-nb-units">
+        {/* Promo banner */}
+        {p.promotion && (
+          <div className="sl-nb2-promo">
+            <TagIcon />
+            <span className="sl-nb2-promo-title">{p.promotion}</span>
+          </div>
+        )}
+
+        {/* Unit rows */}
+        <div className="sl-nb2-units">
           {p.units.map((u, i) => (
-            <div key={i} className="sl-nb-unit-row">
-              <div className="sl-nb-unit-left">
-                <TagIcon />
-                <div className="sl-nb-unit-info">
-                  <span className="sl-nb-unit-dims">{u.dimensions}</span>
-                  <span className="sl-nb-unit-subtype">{u.subtype}</span>
-                </div>
+            <div key={i} className="sl-nb2-unit-row">
+              <div className="sl-nb2-unit-info">
+                <span className="sl-nb2-unit-dims">{u.dimensions}</span>
+                <span className="sl-nb2-unit-type">{u.subtype}</span>
               </div>
-              <div className="sl-nb-unit-right">
-                <div className="sl-nb-price-block">
-                  <span className="sl-nb-instore-label">IN-STORE</span>
-                  <span className="sl-nb-instore-price">${u.inStore}</span>
+              <div className="sl-nb2-unit-pricing">
+                <TagIcon />
+                <div className="sl-nb2-instore">
+                  <span className="sl-nb2-instore-label">IN-STORE</span>
+                  <span className="sl-nb2-instore-price">${u.inStore}</span>
                 </div>
-                <div className="sl-nb-price-block">
-                  <span className="sl-nb-starting-label">STARTING AT</span>
-                  <span className="sl-nb-starting-price">${u.startingAt}</span>
+                <div className="sl-nb2-vdivider" />
+                <div className="sl-nb2-starting">
+                  <span className="sl-nb2-starting-label">STARTING AT</span>
+                  <span className="sl-nb2-starting-price">${u.startingAt}</span>
                 </div>
-                <button className="sl-nb-select-btn">Select</button>
+                <button className="sl-nb2-select">Select</button>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="sl-nb-footer">
-          <span className="sl-nb-admin-fee">+ Plus ${p.adminFee} Admin Fee</span>
-          <a href="#" className="sl-nb-see-all">› See All Spaces</a>
+        {/* Footer */}
+        <div className="sl-nb2-footer">
+          {p.adminFee > 0 && (
+            <span className="sl-nb2-admin-fee">+ Plus ${p.adminFee} Admin Fee</span>
+          )}
+          <a href="#" className="sl-nb2-see-all">
+            <ChevronRightIcon size={20} />
+            See All Spaces
+          </a>
         </div>
+
       </div>
     </div>
   );
@@ -139,39 +184,49 @@ function PropertyCard({ p }: { p: NearbyProperty }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function NearbySection() {
-  const cardsPerPage = useCardsPerPage();
+  const [view, setView] = useState<ViewMode>('list');
   const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(PROPERTIES.length / cardsPerPage);
-  const visible = PROPERTIES.slice(page * cardsPerPage, page * cardsPerPage + cardsPerPage);
 
-  useEffect(() => {
-    setPage(0);
-  }, [cardsPerPage]);
+  const total = PROPERTIES.length;
+  const property = PROPERTIES[page];
 
   return (
-    <section className="sl-section sl-section--nearby">
+    <div className="sl-nb2">
 
-      <div className="sl-rv-header">
-        <div className="sl-ap-title">Nearby Storage</div>
-        <p className="sl-rv-subtitle">Vorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc vulputate libero et velit interdum, ac aliquet odio mattis.</p>
+      {/* View toggle */}
+      <div className="sl-nb2-view-tabs">
+        <button className={`sl-nb2-view-tab${view === 'list' ? ' active' : ''}`} onClick={() => setView('list')}>List View</button>
+        <button className={`sl-nb2-view-tab${view === 'map'  ? ' active' : ''}`} onClick={() => setView('map')}>Map View</button>
       </div>
 
-      <div className="sl-nb-grid">
-        {visible.map((p) => <PropertyCard key={p.id} p={p} />)}
+      {/* Content */}
+      <div className="sl-nb2-content">
+        {view === 'map' ? (
+          <div className="sl-nb2-map-placeholder">
+            <span>Map view coming soon</span>
+          </div>
+        ) : (
+          <PropertyCard p={property} index={page} />
+        )}
       </div>
 
-      <div className="sl-nb-pagination">
-        <button className="sl-nb-arrow" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+      {/* Pagination */}
+      <div className="sl-nb2-pagination">
+        <button className="sl-nb2-arrow" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="24 12 16 20 24 28"/>
+          </svg>
         </button>
-        {Array.from({ length: totalPages }, (_, i) => (
-          <button key={i} className={`sl-nb-dot${i === page ? ' active' : ''}`} onClick={() => setPage(i)} />
+        {PROPERTIES.map((_, i) => (
+          <button key={i} className={`sl-nb2-dot${i === page ? ' active' : ''}`} onClick={() => setPage(i)} />
         ))}
-        <button className="sl-nb-arrow" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        <button className="sl-nb2-arrow" onClick={() => setPage((p) => Math.min(total - 1, p + 1))} disabled={page === total - 1}>
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="16 12 24 20 16 28"/>
+          </svg>
         </button>
       </div>
 
-    </section>
+    </div>
   );
 }

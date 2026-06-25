@@ -32,7 +32,8 @@ function unitMatchesFeature(unit: Unit, featureName: string): boolean {
   return (unit.filterBarFeatures ?? []).includes(featureName);
 }
 
-export function filterUnits(units: Unit[], f: FilterState): Unit[] {
+export function filterUnits(units: Unit[], f: FilterState, searchTerm = ''): Unit[] {
+  const term = searchTerm.trim().toLowerCase();
   return units.filter((unit) => {
     if (f.type !== 'all' && unit.type !== f.type) return false;
     if (f.sizes.length > 0 && !f.sizes.includes(unit.size)) return false;
@@ -40,6 +41,10 @@ export function filterUnits(units: Unit[], f: FilterState): Unit[] {
       return false;
     }
     if (!f.amenities.every((a) => unit.amenities.includes(a))) return false;
+    if (term) {
+      const haystack = [unit.dimensions, unit.subtype, ...unit.features].join(' ').toLowerCase();
+      if (!haystack.includes(term)) return false;
+    }
     return true;
   });
 }
