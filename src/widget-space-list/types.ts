@@ -42,6 +42,8 @@ export interface Unit {
   adminFee?: number;
   /** Optional promo badge text */
   promo?: string;
+  /** Promotion categories this unit qualifies for — matched against the Promotions filter checkboxes */
+  promotions?: string[];
   /** Optional urgency line, e.g. "Only 1 left · Rent soon!" */
   urgency?: string;
   /** CTA state: absent = normal Select, 'call' = Call button, 'waitlist' = Waitlist button */

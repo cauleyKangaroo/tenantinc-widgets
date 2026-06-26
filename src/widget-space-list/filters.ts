@@ -11,7 +11,9 @@ import { SIZE_ORDER } from './data';
 //   • features  — multi select, OR within the group; empty = all. A feature
 //                 matches if the unit's subtype/features/amenities contain the
 //                 feature's label (e.g. "Climate Controlled").
-//   • amenities — multi select, AND; a unit must have every checked amenity.
+//   • amenities  — multi select, AND; a unit must have every checked amenity.
+//   • promotions — multi select, OR; a unit must qualify for at least one
+//                  checked promotion.
 // ---------------------------------------------------------------------------
 
 export interface FilterState {
@@ -19,6 +21,7 @@ export interface FilterState {
   sizes: UnitSize[];
   features: string[];
   amenities: string[];
+  promotions: string[];
 }
 
 /** Default: no filters active — show everything. */
@@ -27,6 +30,7 @@ export const DEFAULT_FILTERS: FilterState = {
   sizes: [],
   features: [],
   amenities: [],
+  promotions: [],
 };
 
 function unitMatchesFeature(unit: Unit, featureName: string): boolean {
@@ -42,6 +46,12 @@ export function filterUnits(units: Unit[], f: FilterState, searchTerm = ''): Uni
       return false;
     }
     if (!f.amenities.every((a) => unit.amenities.includes(a))) return false;
+    if (
+      f.promotions.length > 0 &&
+      !f.promotions.some((p) => (unit.promotions ?? []).includes(p))
+    ) {
+      return false;
+    }
     if (term) {
       const haystack = [unit.dimensions, unit.subtype, ...unit.features].join(' ').toLowerCase();
       if (!haystack.includes(term)) return false;
@@ -60,5 +70,11 @@ export function groupBySize(units: Unit[]): { size: UnitSize; units: Unit[] }[] 
 
 /** Badge count = number of active filter selections. */
 export function activeFilterCount(f: FilterState): number {
-  return f.types.length + f.sizes.length + f.features.length + f.amenities.length;
+  return (
+    f.types.length +
+    f.sizes.length +
+    f.features.length +
+    f.amenities.length +
+    f.promotions.length
+  );
 }

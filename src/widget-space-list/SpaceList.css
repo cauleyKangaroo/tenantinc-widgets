@@ -78,9 +78,7 @@
   flex: 1;
   min-width: 0;
 }
-.sl-wrapper.filter-top .sl-list-view,
 .sl-wrapper.filter-top .sl-list-card { width: 100%; }
-.sl-wrapper.filter-top .sl-list-inner { width: 100%; }
 .sl-wrapper.filter-top .sl-filter-right-group {
   flex-shrink: 0;
   border-left: 1px solid #dfe3e8;
@@ -547,76 +545,183 @@
 /* ===========================================================================
    LIST VIEW
    =========================================================================== */
-.sl-wrapper .sl-list-view { display: flex; flex-direction: column; }
+/* The list is one card per row, so cap its width and centre it — full-bleed
+   rows look silly on wide screens. (Grid view tiles, so it keeps full width.) */
+.sl-wrapper .sl-list-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+}
 .sl-wrapper .sl-list-card {
   background: #ffffff;
   border-radius: 16px;
   box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
-  padding: 24px 30px;
-  margin-bottom: 16px;
+  overflow: hidden;
+  margin-bottom: 24px;
   box-sizing: border-box;
 }
-.sl-wrapper .sl-list-inner { display: flex; align-items: flex-start; gap: 16px; }
-.sl-wrapper .sl-list-img-col { flex-shrink: 0; }
-.sl-wrapper .sl-list-img {
-  width: 110px;
+.sl-wrapper .sl-list-card:last-child { margin-bottom: 0; }
+
+/* ── Display panel (white): image + amenities | size grid ── */
+.sl-wrapper .sl-lc-display {
+  background: #ffffff;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px 40px;
+  flex-wrap: wrap;
+  padding: 30px;
+}
+.sl-wrapper .sl-lc-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 50px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sl-wrapper .sl-lc-image-col {
+  width: 162px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.sl-wrapper .sl-lc-img {
+  width: 100%;
+  max-width: 162px;
   height: auto;
   object-fit: contain;
   display: block;
 }
-.sl-wrapper .sl-list-info-col { flex: 0 0 160px; min-width: 0; }
-.sl-wrapper .sl-list-size-label {
-  font-size: 20px;
-  font-weight: 700;
-  color: #101318;
-  margin-bottom: 4px;
-}
-.sl-wrapper .sl-list-subtype {
-  font-size: 13px;
+.sl-wrapper .sl-lc-see-fits {
+  font-size: 15px;
   font-weight: 700;
   color: #509e2f;
-  margin-bottom: 6px;
+  text-decoration: none;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sl-wrapper .sl-lc-see-fits:hover { text-decoration: underline; }
+.sl-wrapper .sl-lc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.sl-wrapper .sl-lc-size-label {
+  font-size: 24px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+}
+.sl-wrapper .sl-lc-subtype {
+  align-self: flex-start;
+  background: #f4f6f8;
+  border-radius: 4px;
+  padding: 4px 5px;
   display: flex;
   align-items: center;
   gap: 4px;
-}
-.sl-wrapper .sl-list-dims-col { flex: 1; min-width: 0; }
-.sl-wrapper .sl-dims-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: 8px; }
-.sl-wrapper .sl-dim-pill {
-  position: relative;
-  background: #ffffff;
-  border: 1px solid #dfe3e8;
-  border-radius: 6px;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
   color: #101318;
-  padding: 6px 4px;
-  cursor: pointer;
-  text-align: center;
-  transition: border-color 0.15s;
-  white-space: nowrap;
+  line-height: 16px;
+}
+
+/* ── Size grid (dimension pills) ── */
+.sl-wrapper .sl-lc-sizes {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  flex: 0 0 352px;
+  max-width: 352px;
+}
+.sl-wrapper .sl-lc-size {
+  position: relative;
+  width: 82px;
+  height: 40px;
+  border-radius: 4px;
+  background: #ffffff;
+  border: 2px solid #a5b4bf;
   font-family: 'Montserrat', sans-serif;
-  font-weight: 400;
-}
-.sl-wrapper .sl-dim-pill:hover { border-color: #509e2f; }
-.sl-wrapper .sl-dim-pill.active { border: 2px solid #509e2f; font-weight: 600; color: #101318; }
-.sl-wrapper .sl-dim-dot {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 7px;
-  height: 7px;
-  background: #509e2f;
-  border-radius: 50%;
-}
-.sl-wrapper .sl-list-pricing-col {
+  font-size: 14px;
+  font-weight: 500;
+  color: #242627;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s;
   flex-shrink: 0;
+}
+.sl-wrapper .sl-lc-size:hover:not(.selected) { border-color: #509e2f; }
+.sl-wrapper .sl-lc-size.selected { border: 4px solid #509e2f; font-weight: 600; }
+.sl-wrapper .sl-lc-size.unavail {
+  border-style: dashed;
+  border-width: 2.5px;
+  color: #a5b4bf;
+}
+.sl-wrapper .sl-lc-size-tag {
+  position: absolute;
+  top: -7px;
+  right: -5px;
+  display: flex;
+  line-height: 0;
+}
+
+/* ── Action panel (grey): promo + price + CTA ── */
+.sl-wrapper .sl-lc-action {
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 30px;
+}
+.sl-wrapper .sl-lc-promo {
+  flex: 1 1 220px;
+  min-width: 200px;
+  border: 2px dashed #509e2f;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 16px;
+}
+.sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; }
+.sl-wrapper .sl-lc-price-button {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex: 0 0 334px;
+  max-width: 100%;
+}
+.sl-wrapper .sl-lc-price { flex-shrink: 0; }
+.sl-wrapper .sl-lc-btn-col {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-  min-width: 160px;
+  align-items: stretch;
+  gap: 4px;
 }
-.sl-wrapper .sl-list-prices { display: flex; gap: 12px; align-items: center; }
+.sl-wrapper .sl-lc-urgency {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fb4c4c;
+  text-align: right;
+}
 .sl-wrapper .sl-select-full { width: 100%; }
 .sl-wrapper .sl-empty-msg {
   padding: 40px 20px;
@@ -649,26 +754,22 @@
    RESPONSIVE — listing content (CONTAINER based)
    =========================================================================== */
 @container (max-width: 680px) {
-  .sl-wrapper .sl-list-inner { flex-wrap: wrap; }
-  .sl-wrapper .sl-list-info-col { flex: 0 0 140px; }
-  .sl-wrapper .sl-list-pricing-col { min-width: 140px; }
-  .sl-wrapper .sl-cta-col { width: 100%; align-self: auto; }
-  .sl-wrapper .sl-select-btn { width: 100%; }
+  /* Action panel: promo + price/CTA stack and go full width */
+  .sl-wrapper .sl-lc-promo { flex: 1 1 100%; }
+  .sl-wrapper .sl-lc-price-button { flex: 1 1 100%; justify-content: space-between; }
+  .sl-wrapper .sl-lc-action { justify-content: stretch; }
 }
 
 @container (max-width: 480px) {
-  .sl-wrapper .sl-list-inner { flex-direction: column; }
-  .sl-wrapper .sl-list-img { width: 100%; height: 160px; object-fit: cover; }
-  .sl-wrapper .sl-list-info-col { flex: none; width: 100%; }
-  .sl-wrapper .sl-list-pricing-col { width: 100%; min-width: 0; align-items: stretch; }
-  .sl-wrapper .sl-list-prices { justify-content: flex-start; }
-  .sl-wrapper .sl-select-full { width: 100%; }
-  .sl-wrapper .sl-unit-img { width: 100%; max-width: 100%; }
+  .sl-wrapper .sl-lc-left { flex-direction: column; gap: 20px; align-items: flex-start; }
+  .sl-wrapper .sl-lc-image-col { width: 100%; align-items: flex-start; }
+  .sl-wrapper .sl-lc-sizes { flex: 1 1 100%; max-width: 100%; }
+  .sl-wrapper .sl-lc-price-button { flex-direction: column; align-items: stretch; }
+  .sl-wrapper .sl-lc-price { align-self: flex-start; }
   .sl-wrapper .sl-main-price { font-size: 20px; }
-  .sl-wrapper .sl-card-display-panel { padding: 20px 20px 30px; }
-  .sl-wrapper .sl-card-action-panel { padding: 20px; }
-  .sl-wrapper .sl-card-top { gap: 16px; }
-  .sl-wrapper .sl-card-info { width: auto; flex: 1; }
+  .sl-wrapper .sl-lc-display { padding: 20px; }
+  .sl-wrapper .sl-lc-action { padding: 20px; }
+  .sl-wrapper .sl-unit-img { width: 100%; max-width: 100%; }
 }
 
 /* ===========================================================================
@@ -2887,4 +2988,160 @@
 .sl-wrapper.filter-top .sl-filter-panel {
   width: 100%;
   margin-bottom: 8px;
+}
+
+/* ===========================================================================
+   FILTER MODAL — lightbox  (.sl-modal-*)
+   Opened from the top filter bar's abacus icon / "More" button
+   =========================================================================== */
+
+.sl-wrapper .sl-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 19, 24, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  z-index: 2147483000;
+  animation: sl-modal-fade 0.15s ease;
+}
+
+@keyframes sl-modal-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.sl-wrapper .sl-filter-modal {
+  background: #ffffff;
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 436px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(16, 19, 24, 0.25);
+  overflow: hidden;
+  animation: sl-modal-pop 0.18s ease;
+}
+
+@keyframes sl-modal-pop {
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Header */
+.sl-wrapper .sl-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px 16px;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-modal-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sl-wrapper .sl-modal-reset {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  color: #101318;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sl-wrapper .sl-modal-reset:hover { color: #509e2f; }
+.sl-wrapper .sl-modal-close {
+  background: none;
+  border: none;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  color: #101318;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-modal-close:hover { color: #509e2f; }
+
+/* Body — scrolls internally when content exceeds the viewport */
+.sl-wrapper .sl-modal-body {
+  padding: 21px 22px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+}
+
+/* Search */
+.sl-wrapper .sl-modal-search {
+  position: relative;
+  width: 100%;
+  height: 54px;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-modal-search-input {
+  width: 100%;
+  height: 100%;
+  border: 2px solid #101318;
+  border-radius: 100px;
+  padding: 0 56px 0 21px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  background: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+}
+.sl-wrapper .sl-modal-search-input::placeholder { color: #637381; }
+.sl-wrapper .sl-modal-search-btn {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border-radius: 100px;
+  background: #101318;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s;
+}
+.sl-wrapper .sl-modal-search-btn:hover { background: #2d3748; }
+
+/* Amenities/Promotions checkboxes: single column (override the filter-top
+   2-column grid that would otherwise leak into the modal) + dark fill per Figma */
+.sl-wrapper .sl-filter-modal .sl-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sl-wrapper .sl-filter-modal .sl-checkbox { accent-color: #101318; }
+
+/* Active (selected) pill renders as a removable chip — circle-X icon to the
+   left of the label, with tighter left padding to seat the icon (per Figma) */
+.sl-wrapper .sl-filter-modal .sl-pill.active { padding-left: 6px; padding-right: 16px; }
+.sl-wrapper .sl-pill-x {
+  display: flex;
+  align-items: center;
+  margin-right: 4px;
+  color: #ffffff;
+}
+
+/* On phones let the lightbox use the full width comfortably */
+@media (max-width: 480px) {
+  .sl-wrapper .sl-modal-overlay { padding: 12px; align-items: flex-start; }
+  .sl-wrapper .sl-filter-modal { max-height: calc(100vh - 24px); }
 }

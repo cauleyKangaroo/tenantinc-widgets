@@ -4,7 +4,7 @@ import type { Unit, WidgetConfig } from '../types';
 const fmt = (n: number) =>
   `$${n.toFixed(2).replace(/\.00$/, '.00')}`;
 
-export function PriceBlock({ unit, config }: { unit: Unit; config: WidgetConfig }) {
+export function PriceBlock({ unit, config, hideUrgency }: { unit: Unit; config: WidgetConfig; hideUrgency?: boolean }) {
   return (
     <div className="sl-prices-row">
       {config.showInstorePrice && (
@@ -22,7 +22,7 @@ export function PriceBlock({ unit, config }: { unit: Unit; config: WidgetConfig 
         {unit.adminFee != null && (
           <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
         )}
-        {config.showUrgencyMessage && unit.urgency && (
+        {!hideUrgency && config.showUrgencyMessage && unit.urgency && (
           <div className="sl-urgency">{unit.urgency}</div>
         )}
       </div>

@@ -9,7 +9,9 @@ import {
   activeFilterCount,
 } from './filters';
 import { readFiltersFromUrl, writeFiltersToUrl } from './urlFilters';
+import { PROMOTION_OPTIONS } from './data';
 import { FilterPanel } from './components/FilterPanel';
+import { FilterModal } from './components/FilterModal';
 import { TopFilterBar } from './components/TopFilterBar';
 import { GridView } from './components/GridView';
 import { ListView } from './components/ListView';
@@ -135,15 +137,17 @@ export function SpaceList({
           onTogglePanel={() => setPanelOpen((o) => !o)}
         />
         {panelOpen && (
-          <FilterPanel
+          <FilterModal
             filters={filters}
             onChange={setFilters}
             badge={badge}
-            collapsed={false}
-            onToggleCollapse={() => setPanelOpen(false)}
+            onClose={() => setPanelOpen(false)}
             onReset={() => setFilters(DEFAULT_FILTERS)}
             amenityOptions={amenityOptions}
             featureOptions={featureOptions}
+            promotionOptions={PROMOTION_OPTIONS}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
           />
         )}
       </>

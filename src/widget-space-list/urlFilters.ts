@@ -29,7 +29,11 @@ export function readFiltersFromUrl(): FilterState {
       .split(',')
       .filter(Boolean);
 
-    return { types, sizes, features, amenities };
+    const promotions = (p.get(`${P}promotions`) ?? '')
+      .split(',')
+      .filter(Boolean);
+
+    return { types, sizes, features, amenities, promotions };
   } catch {
     return DEFAULT_FILTERS;
   }
@@ -61,6 +65,12 @@ export function writeFiltersToUrl(filters: FilterState): void {
       p.delete(`${P}amenities`);
     } else {
       p.set(`${P}amenities`, filters.amenities.join(','));
+    }
+
+    if (filters.promotions.length === 0) {
+      p.delete(`${P}promotions`);
+    } else {
+      p.set(`${P}promotions`, filters.promotions.join(','));
     }
 
     const qs = p.toString();
