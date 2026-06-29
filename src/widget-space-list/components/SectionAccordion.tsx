@@ -5,6 +5,12 @@ import { SizeGuideSection } from './sections/SizeGuideSection';
 import { BlogSection } from './sections/BlogSection';
 import { FaqsSection } from './sections/FaqsSection';
 import { StoreSection } from './sections/StoreSection';
+import {
+  ACCORDION_SECTIONS,
+  resolveVisibleOrder,
+  type AccordionConfig,
+  type AccordionKey,
+} from '../accordionSections';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -69,10 +75,41 @@ function IconScale() {
   );
 }
 
+function IconReorder() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+      <polyline points="6 3 9 6 6 9" transform="translate(-3 0)" />
+    </svg>
+  );
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface AccordionVisual {
+  icon: React.ReactNode;
+  badge?: number;
+  content: React.ReactNode;
+}
+
+/** Per-key icon + content. Labels + default order live in accordionSections.ts. */
+const VISUALS: Record<AccordionKey, AccordionVisual> = {
+  store:     { icon: <IconInfo />,     content: <StoreSection /> },
+  nearby:    { icon: <IconBuilding />, badge: 5, content: <NearbySection /> },
+  reviews:   { icon: <IconReview />,   content: <ReviewsSection /> },
+  faq:       { icon: <IconQuestion />, content: <FaqsSection /> },
+  blog:      { icon: <IconFile />,     content: <BlogSection /> },
+  sizeguide: { icon: <IconScale />,    content: <SizeGuideSection /> },
+};
+
+const LABELS: Record<AccordionKey, string> = Object.fromEntries(
+  ACCORDION_SECTIONS.map((s) => [s.key, s.label]),
+) as Record<AccordionKey, string>;
+
 interface AccordionItemDef {
-  key: string;
+  key: AccordionKey;
   label: string;
   icon: React.ReactNode;
   badge?: number;
@@ -86,6 +123,12 @@ export interface SectionAccordionProps {
   isFAQ?:       boolean;
   isBlog?:      boolean;
   isSizeGuide?: boolean;
+  /** Per-instance arrangement (order + hidden). Null = default order, none hidden. */
+  config?: AccordionConfig | null;
+  /** Editor-only: when true, render the floating "Reorder sections" button. */
+  inEditor?: boolean;
+  /** Opens the reorder modal (owned by SpaceList). */
+  onReorderClick?: () => void;
 }
 
 // ── Single accordion row ──────────────────────────────────────────────────────
@@ -121,21 +164,41 @@ export function SectionAccordion({
   isFAQ       = false,
   isBlog      = false,
   isSizeGuide = false,
+  config      = null,
+  inEditor    = false,
+  onReorderClick,
 }: SectionAccordionProps) {
-  const items: AccordionItemDef[] = [
-    isStore     && { key: 'store',     label: 'Property Information', icon: <IconInfo />,     content: <StoreSection /> },
-    isNearby    && { key: 'nearby',    label: 'Nearby Storage',       icon: <IconBuilding />, badge: 5, content: <NearbySection /> },
-    isReviews   && { key: 'reviews',   label: 'Reviews',              icon: <IconReview />,   content: <ReviewsSection /> },
-    isFAQ       && { key: 'faq',       label: 'FAQ',                  icon: <IconQuestion />, content: <FaqsSection /> },
-    isBlog      && { key: 'blog',      label: 'Storage Blogs',        icon: <IconFile />,     content: <BlogSection /> },
-    isSizeGuide && { key: 'sizeguide', label: 'Size Guide',           icon: <IconScale />,    content: <SizeGuideSection /> },
-  ].filter(Boolean) as AccordionItemDef[];
+  const enabledKeys: AccordionKey[] = [
+    isStore     && 'store',
+    isNearby    && 'nearby',
+    isReviews   && 'reviews',
+    isFAQ       && 'faq',
+    isBlog      && 'blog',
+    isSizeGuide && 'sizeguide',
+  ].filter(Boolean) as AccordionKey[];
 
-  if (items.length === 0) return null;
+  const items: AccordionItemDef[] = resolveVisibleOrder(enabledKeys, config).map((key) => ({
+    key,
+    label: LABELS[key],
+    icon: VISUALS[key].icon,
+    badge: VISUALS[key].badge,
+    content: VISUALS[key].content,
+  }));
+
+  // Nothing to show and not in the editor → render nothing. In the editor we
+  // still render the panel (even if every section is hidden) so the Reorder
+  // button stays reachable to un-hide sections.
+  if (items.length === 0 && !(inEditor && enabledKeys.length > 0)) return null;
 
   return (
     <aside className="sl-sa-panel">
       {items.map((item) => <AccordionRow key={item.key} item={item} />)}
+      {inEditor && enabledKeys.length > 0 && (
+        <button className="sl-sa-reorder-btn" onClick={onReorderClick} type="button">
+          <IconReorder />
+          <span>Reorder sections</span>
+        </button>
+      )}
     </aside>
   );
 }

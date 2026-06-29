@@ -16,7 +16,10 @@ import { TopFilterBar } from './components/TopFilterBar';
 import { GridView } from './components/GridView';
 import { ListView } from './components/ListView';
 import { SectionAccordion } from './components/SectionAccordion';
+import { ReorderModal } from './components/ReorderModal';
 import { SkeletonLoader } from './components/SkeletonLoader';
+import { enabledSections, type AccordionConfig } from './accordionSections';
+import { instanceKey, readAccordionConfig, saveAccordionConfig } from './accordionConfigApi';
 
 export function SpaceList({
   layoutMode = 'grid',
@@ -37,7 +40,15 @@ export function SpaceList({
   isNotes     = false,
   isFAQ       = false,
   isHours     = false,
+  inEditor    = false,
+  elementId,
+  siteId,
+  configApiUrl,
+  configCollection = 'accordionConfig',
 }: SpaceListProps) {
+  const sectionProps = {
+    isStore, isNearby, isReviews, isFAQ, isBlog, isSizeGuide,
+  };
   const config: WidgetConfig = {
     showInstorePrice,
     instorePriceLabel,
@@ -67,7 +78,49 @@ export function SpaceList({
   const [panelOpen, setPanelOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Per-instance accordion arrangement (order + hidden). Read from Duda on
+  // mount (step: collections read); null until then = default order, none hidden.
+  const [accordionConfig, setAccordionConfig] = useState<AccordionConfig | null>(null);
+  const [reorderOpen, setReorderOpen] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   useEffect(() => { writeFiltersToUrl(filters); }, [filters]);
+
+  // Read this instance's saved arrangement from the Duda collection on mount.
+  // No-ops (keeps defaults) when not in Duda or ids are missing.
+  useEffect(() => {
+    const key = instanceKey(siteId, elementId);
+    if (!key) return;
+    let cancelled = false;
+    readAccordionConfig(configCollection, key).then((cfg) => {
+      if (!cancelled && cfg) setAccordionConfig(cfg);
+    });
+    return () => { cancelled = true; };
+  }, [siteId, elementId, configCollection]);
+
+  // Save the arrangement. With no endpoint/ids (dev harness, not in Duda) we
+  // just apply locally. Otherwise POST to the PHP proxy and only commit + close
+  // on success; on failure keep the modal open with an inline error to retry.
+  async function handleSaveConfig(next: AccordionConfig) {
+    setSaveError(null);
+    const key = instanceKey(siteId, elementId);
+    if (!configApiUrl || !key || !siteId || !elementId) {
+      setAccordionConfig(next);
+      setReorderOpen(false);
+      return;
+    }
+    setSavingConfig(true);
+    try {
+      await saveAccordionConfig({ endpoint: configApiUrl, siteId, elementId, config: next });
+      setAccordionConfig(next);
+      setReorderOpen(false);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Save failed. Please try again.');
+    } finally {
+      setSavingConfig(false);
+    }
+  }
 
   const amenityOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -109,12 +162,10 @@ export function SpaceList({
   const hasSections = isStore || isNearby || isReviews || isFAQ || isBlog || isSizeGuide;
   const sectionPanel = hasSections ? (
     <SectionAccordion
-      isStore={isStore}
-      isNearby={isNearby}
-      isReviews={isReviews}
-      isFAQ={isFAQ}
-      isBlog={isBlog}
-      isSizeGuide={isSizeGuide}
+      {...sectionProps}
+      config={accordionConfig}
+      inEditor={inEditor}
+      onReorderClick={() => { setSaveError(null); setReorderOpen(true); }}
     />
   ) : null;
 
@@ -180,6 +231,16 @@ export function SpaceList({
         </main>
         {rightSlot}
       </div>
+      {reorderOpen && (
+        <ReorderModal
+          sections={enabledSections(sectionProps)}
+          config={accordionConfig}
+          onClose={() => setReorderOpen(false)}
+          onSave={handleSaveConfig}
+          saving={savingConfig}
+          error={saveError}
+        />
+      )}
     </div>
   );
 }

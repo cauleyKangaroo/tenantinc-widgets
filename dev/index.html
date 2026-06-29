@@ -76,6 +76,11 @@
         <label class="checkbox"><input type="checkbox" id="sl-is-hours"     onchange="reinitSpaceList()"> Hours</label>
       </div>
 
+      <div class="controls-group">
+        <span class="controls-group-label">Duda runtime</span>
+        <label class="checkbox"><input type="checkbox" id="sl-in-editor" onchange="reinitSpaceList()"> inEditor (show Reorder button)</label>
+      </div>
+
       <button class="danger" onclick="cleanSpaceList()">clean()</button>
     </div>
   </div>
@@ -97,6 +102,9 @@
         isNotes:     document.getElementById('sl-is-notes').checked,
         isFAQ:       document.getElementById('sl-is-faq').checked,
         isHours:     document.getElementById('sl-is-hours').checked,
+        inEditor:    document.getElementById('sl-in-editor').checked,
+        elementId:   'dev-element-001',
+        siteId:      'dev-site',
       };
     }
 

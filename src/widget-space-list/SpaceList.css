@@ -3166,3 +3166,184 @@
   .sl-wrapper .sl-modal-overlay { padding: 12px; align-items: flex-start; }
   .sl-wrapper .sl-filter-modal { max-height: calc(100vh - 24px); }
 }
+
+/* ===========================================================================
+   REORDER — editor-only "Reorder sections" button + drag-to-reorder modal
+   (.sl-sa-reorder-btn, .sl-reorder-*)
+   The button only renders when the widget runs inside the Duda editor
+   (data.inEditor). Orange to read clearly as an editor affordance.
+   =========================================================================== */
+
+.sl-wrapper .sl-sa-reorder-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f45f30;
+  background: #ffffff;
+  border: 1.5px dashed #f45f30;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sl-wrapper .sl-sa-reorder-btn:hover { background: #fff4f0; }
+
+/* ── Modal ──────────────────────────────────────────────────────────────── */
+.sl-wrapper .sl-reorder-modal {
+  background: #ffffff;
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 436px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(16, 19, 24, 0.25);
+  overflow: hidden;
+}
+
+.sl-wrapper .sl-reorder-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sl-wrapper .sl-reorder-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #101318;
+}
+.sl-wrapper .sl-reorder-subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8a9099;
+}
+
+.sl-wrapper .sl-reorder-list {
+  list-style: none;
+  margin: 0;
+  padding: 12px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sl-wrapper .sl-reorder-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  user-select: none;
+}
+
+.sl-wrapper .sl-reorder-pos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: #f1f3f5;
+  color: #6b7280;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+.sl-wrapper .sl-reorder-label {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #101318;
+}
+
+.sl-wrapper .sl-reorder-arrows {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-reorder-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d6dade;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #101318;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.sl-wrapper .sl-reorder-arrow:hover:not(:disabled) {
+  background: #f0f7ec;
+  border-color: #509e2f;
+  color: #509e2f;
+}
+.sl-wrapper .sl-reorder-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.sl-wrapper .sl-reorder-error {
+  margin: 0 16px;
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+  color: #b91c1c;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+}
+
+.sl-wrapper .sl-reorder-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #f0f2f4;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-reorder-count {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  color: #8a9099;
+}
+.sl-wrapper .sl-reorder-actions { display: flex; gap: 10px; }
+.sl-wrapper .sl-reorder-cancel,
+.sl-wrapper .sl-reorder-save {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+.sl-wrapper .sl-reorder-cancel {
+  background: #ffffff;
+  border: 1px solid #d6dade;
+  color: #101318;
+}
+.sl-wrapper .sl-reorder-cancel:hover { background: #f6f7f8; }
+.sl-wrapper .sl-reorder-save {
+  background: #509e2f;
+  border: 1px solid #509e2f;
+  color: #ffffff;
+}
+.sl-wrapper .sl-reorder-save:hover { background: #468a29; }
+.sl-wrapper .sl-reorder-cancel:disabled,
+.sl-wrapper .sl-reorder-save:disabled { opacity: 0.6; cursor: default; }

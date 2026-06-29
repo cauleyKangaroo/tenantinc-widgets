@@ -85,6 +85,24 @@ export interface SpaceListProps {
   /** Dropdown in the content panel: Left / Top / Right */
   filterPosition?: 'left' | 'top' | 'right';
 
+  // ── Duda runtime context (forwarded from `data` in the Duda JS tab, NOT
+  //    content-panel inputs). Used to gate the editor-only reorder UI and to
+  //    key this instance's saved accordion config (siteId + elementId). ───────
+  /** True only inside the Duda editor — gates the floating "Reorder" button. */
+  inEditor?: boolean;
+  /** Duda's per-page unique element id (data.elementId). */
+  elementId?: string;
+  /** Duda's site id (data.siteId). */
+  siteId?: string;
+  /**
+   * URL of the PHP write-proxy that persists the accordion arrangement to the
+   * Duda collection. Set in the Duda JS tab so it can change without a rebuild.
+   * When absent (dev harness / not configured) Save applies locally only.
+   */
+  configApiUrl?: string;
+  /** Name of the Duda collection holding the arrangement. Default 'accordionConfig'. */
+  configCollection?: string;
+
   // ── General widget properties ───────────────────────────────────────────
   /** Toggle: show or hide the in-store strike-through price block. Default true. */
   showInstorePrice?: boolean;
