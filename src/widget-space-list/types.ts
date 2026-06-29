@@ -82,8 +82,10 @@ export interface FilterOption<T extends string = string> {
 export interface SpaceListProps {
   /** Radio in the content panel: Grid View / List View */
   layoutMode?: 'grid' | 'list';
-  /** Dropdown in the content panel: Left / Top / Right */
+  /** @deprecated Filters now always render as a top bar; this is ignored. */
   filterPosition?: 'left' | 'top' | 'right';
+  /** Dropdown in the content panel: which side the accordion panel sits on. Default 'right'. */
+  apLocation?: 'left' | 'right';
 
   // ── Duda runtime context (forwarded from `data` in the Duda JS tab, NOT
   //    content-panel inputs). Used to gate the editor-only reorder UI and to

@@ -66,49 +66,38 @@ committed (the repo is public).
 
 ## 3. Wire the widget's Duda JS tab
 
-In the widget's **JS tab**, add these lines to the props object passed to
-`renderExternalApp` (keep all your existing `data.config.*` lines):
-
-```js
-// ── reorder feature: Duda runtime context + persistence ──
-inEditor:         data.inEditor,
-elementId:        data.elementId,
-siteId:           data.siteId,
-configApiUrl:     'https://YOURDOMAIN.com/duda/accordion-config.php',
-configCollection: 'accordionConfig',
-```
-
-For reference, the full call looks like:
+Accordion **visibility and order are managed in the "Manage accordions" modal**
+now, so the old per-section `isX` toggles and `filterPosition` are no longer read
+— delete those content-panel fields and their JS-tab lines. Add one content-panel
+dropdown **`apLocation`** (`left` / `right`) for which side the accordion panel sits.
 
 ```js
 api.scripts.renderExternalApp(
-  'https://cauleykangaroo.github.io/tenantinc-widgets/dist/widget-space-list.js',
+  'https://kangaroodev.co.uk/server/tenantinc/widget-space-list.js',  // staging; github.io in prod
   element,
   {
-    layoutMode:      data.config.layoutMode,
-    filterPosition:  data.config.filterPosition,
-    showInstorePrice: data.config.showInstorePrice,
-    instorePriceLabel: data.config.instorePriceLabel,
-    showJunkFeeDisclaimer: data.config.showJunkFeeDisclaimer,
-    showUrgencyMessage: data.config.showUrgencyMessage,
-    enableWaitlist:  data.config.enableWaitlist,
+    layoutMode:                data.config.layoutMode,
+    apLocation:                data.config.apLocation,            // 'left' | 'right'
+    showInstorePrice:          data.config.showInstorePrice,
+    instorePriceLabel:         data.config.instorePriceLabel,
+    showJunkFeeDisclaimer:     data.config.showJunkFeeDisclaimer,
+    showUrgencyMessage:        data.config.showUrgencyMessage,
+    enableWaitlist:            data.config.enableWaitlist,
     callOnLimitedAvailability: data.config.callOnLimitedAvailability,
-    ctaButtonCopy:   data.config.ctaButtonCopy,
-    isStore:         data.config.isStore,
-    isNearby:        data.config.isNearby,
-    isReviews:       data.config.isReviews,
-    isFAQ:           data.config.isFAQ,
-    isBlog:          data.config.isBlog,
-    isSizeGuide:     data.config.isSizeGuide,
-    // reorder feature:
-    inEditor:         data.inEditor,
-    elementId:        data.elementId,
-    siteId:           data.siteId,
-    configApiUrl:     'https://YOURDOMAIN.com/duda/accordion-config.php',
-    configCollection: 'accordionConfig'
+    ctaButtonCopy:             data.config.ctaButtonCopy,
+    // accordion manage feature — Duda runtime context + persistence:
+    inEditor:                  data.inEditor,
+    elementId:                 data.elementId,
+    siteId:                    data.siteId,
+    configApiUrl:              'https://kangaroodev.co.uk/server/tenantinc/accordion-sync.php',
+    configCollection:          'accordionConfig'
   }
 );
 ```
+
+> Filters now always render as a top bar; the accordion panel sits on the
+> `apLocation` side (default `right`). The 9 `isX` lines and `filterPosition` are
+> ignored by the widget and safe to delete.
 
 > Remember the JS tab is the function **body** — `element`, `data`, `api` are
 > already in scope. Don't wrap it in `function(element, data, api){…}`.

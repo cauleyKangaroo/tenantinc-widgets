@@ -7,7 +7,7 @@ import {
 } from '../accordionSections';
 
 interface ReorderModalProps {
-  /** The enabled candidate sections (isX = true), in default order. */
+  /** All candidate sections, in default order. */
   sections: AccordionSectionMeta[];
   /** Currently-saved arrangement for this instance (null = defaults). */
   config: AccordionConfig | null;
@@ -51,15 +51,16 @@ const DEFAULT_INDEX = new Map<AccordionKey, number>(
 );
 
 /**
- * Initial ordered list: every enabled section, ordered by the saved config
- * first, with any remaining enabled sections appended in default order.
+ * Initial ordered list: every section, ordered by the saved config first, with
+ * any remaining sections appended in default order. (Hidden sections still
+ * appear in the list — just unticked — so they can be reordered / re-shown.)
  */
 function initialOrder(sections: AccordionSectionMeta[], config: AccordionConfig | null): AccordionKey[] {
-  const enabled = new Set(sections.map((s) => s.key));
+  const all = new Set(sections.map((s) => s.key));
   const seen = new Set<AccordionKey>();
   const ordered: AccordionKey[] = [];
   for (const key of config?.order ?? []) {
-    if (enabled.has(key) && !seen.has(key)) { ordered.push(key); seen.add(key); }
+    if (all.has(key) && !seen.has(key)) { ordered.push(key); seen.add(key); }
   }
   const rest = sections.map((s) => s.key).filter((k) => !seen.has(k));
   rest.sort((a, b) => (DEFAULT_INDEX.get(a)! - DEFAULT_INDEX.get(b)!));
@@ -75,6 +76,9 @@ export function ReorderModal({ sections, config, onClose, onSave, saving = false
   );
 
   const [order, setOrder] = useState<AccordionKey[]>(() => initialOrder(sections, config));
+  const [hidden, setHidden] = useState<Set<AccordionKey>>(
+    () => new Set((config?.hidden ?? []).filter((k) => labelOf.has(k))),
+  );
 
   // Close on Escape; lock host-page scroll while open (matches FilterModal).
   useEffect(() => {
@@ -99,9 +103,19 @@ export function ReorderModal({ sections, config, onClose, onSave, saving = false
     });
   }
 
+  function toggleHidden(key: AccordionKey) {
+    setHidden((cur) => {
+      const next = new Set(cur);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  const visibleCount = order.length - hidden.size;
+
   function handleSave() {
-    // Visibility was removed — every enabled section is shown; only order is saved.
-    onSave({ order, hidden: [] });
+    // Persist both visibility (hidden) and order, in display order.
+    onSave({ order, hidden: order.filter((k) => hidden.has(k)) });
   }
 
   return (
@@ -110,13 +124,13 @@ export function ReorderModal({ sections, config, onClose, onSave, saving = false
         className="sl-reorder-modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Reorder sidebar sections"
+        aria-label="Manage accordions"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sl-modal-header">
           <div className="sl-reorder-title-row">
-            <span className="sl-reorder-title">Reorder sections</span>
-            <span className="sl-reorder-subtitle">Use the arrows — top appears first</span>
+            <span className="sl-reorder-title">Manage accordions</span>
+            <span className="sl-reorder-subtitle">Tick to show · arrows to reorder</span>
           </div>
           <button className="sl-modal-close" onClick={onClose} aria-label="Close">
             <CloseIcon />
@@ -126,38 +140,50 @@ export function ReorderModal({ sections, config, onClose, onSave, saving = false
         <div className="sl-filter-separator" />
 
         <ul className="sl-reorder-list">
-          {order.map((key, i) => (
-            <li key={key} className="sl-reorder-row">
-              <span className="sl-reorder-pos">{i + 1}</span>
-              <span className="sl-reorder-label">{labelOf.get(key)}</span>
-              <div className="sl-reorder-arrows">
+          {order.map((key, i) => {
+            const shown = !hidden.has(key);
+            return (
+              <li key={key} className={`sl-reorder-row${shown ? '' : ' is-hidden'}`}>
                 <button
-                  className="sl-reorder-arrow"
                   type="button"
-                  disabled={i === 0}
-                  onClick={() => move(i, i - 1)}
-                  aria-label={`Move ${labelOf.get(key)} up`}
+                  role="switch"
+                  aria-checked={shown}
+                  className={`sl-reorder-toggle${shown ? ' on' : ''}`}
+                  onClick={() => toggleHidden(key)}
+                  aria-label={`${shown ? 'Hide' : 'Show'} ${labelOf.get(key)}`}
                 >
-                  <ChevronUp />
+                  <span className="sl-reorder-toggle-knob" />
                 </button>
-                <button
-                  className="sl-reorder-arrow"
-                  type="button"
-                  disabled={i === order.length - 1}
-                  onClick={() => move(i, i + 1)}
-                  aria-label={`Move ${labelOf.get(key)} down`}
-                >
-                  <ChevronDown />
-                </button>
-              </div>
-            </li>
-          ))}
+                <span className="sl-reorder-label">{labelOf.get(key)}</span>
+                <div className="sl-reorder-arrows">
+                  <button
+                    className="sl-reorder-arrow"
+                    type="button"
+                    disabled={i === 0}
+                    onClick={() => move(i, i - 1)}
+                    aria-label={`Move ${labelOf.get(key)} up`}
+                  >
+                    <ChevronUp />
+                  </button>
+                  <button
+                    className="sl-reorder-arrow"
+                    type="button"
+                    disabled={i === order.length - 1}
+                    onClick={() => move(i, i + 1)}
+                    aria-label={`Move ${labelOf.get(key)} down`}
+                  >
+                    <ChevronDown />
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
 
         {error && <div className="sl-reorder-error">{error}</div>}
 
         <div className="sl-reorder-footer">
-          <span className="sl-reorder-count">{order.length} sections</span>
+          <span className="sl-reorder-count">{visibleCount} of {order.length} shown</span>
           <div className="sl-reorder-actions">
             <button className="sl-reorder-cancel" onClick={onClose} type="button" disabled={saving}>
               Cancel

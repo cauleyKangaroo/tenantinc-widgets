@@ -14,12 +14,13 @@ and `src/shared/createWidget.tsx` for the Duda mount bridge.
 **Branch:** `space-list-ordering` (off `master`). **Status (2026-06-29): working
 end-to-end on a staging Duda site.** Feature commit `e620b70`.
 
-Lets a Duda site editor reorder the Space List widget's sidebar accordion
+Lets a Duda site editor manage the Space List widget's sidebar accordion
 sections (store / nearby / reviews / faq / blog / sizeguide) **per widget
-instance** (so Home and About pages can differ). Editor-only "Reorder sections"
-modal with up/down arrows. (Show/hide checkboxes were built then removed at the
-user's request — reorder only; the `hidden` field remains in the model/collection
-but is always `[]`.)
+instance** (so Home and About pages can differ). Editor-only **"Manage accordions"**
+modal: a toggle switch per section (show/hide) + up/down arrows (order). Both
+visibility (`hidden`) and order (`order`) persist to the collection. All six
+sections are always candidates — the widget **no longer reads the content-menu
+`isX` toggles**; an unconfigured instance shows all six.
 
 ### Architecture
 - **Why a server proxy:** Duda's client-side Collections JS API is **READ-ONLY**,
@@ -31,7 +32,10 @@ but is always `[]`.)
   default order when absent / not in Duda.
 - Duda runtime values are forwarded as props from the Duda JS tab
   (`data.inEditor`, `data.elementId`, `data.siteId`) — NOT `data.config`. Plus
-  `configApiUrl` (the PHP URL) and `configCollection` props.
+  `configApiUrl` (the PHP URL), `configCollection`, and `apLocation` (`'left'`|`'right'`).
+- **Layout:** filters always render as a top bar — the old `filterPosition`
+  (left/top/right) is deprecated/ignored. `apLocation` chooses which side the
+  accordion panel sits on (default `right`). The sidebar FilterPanel was removed.
 - Key files: `src/widget-space-list/accordionSections.ts` (single source of truth
   for keys/labels/order), `accordionConfigApi.ts` (read+write),
   `components/ReorderModal.tsx` (the modal), and `accordion-sync.php` (proxy, repo root).

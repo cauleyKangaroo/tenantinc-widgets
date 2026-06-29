@@ -10,7 +10,6 @@ import {
 } from './filters';
 import { readFiltersFromUrl, writeFiltersToUrl } from './urlFilters';
 import { PROMOTION_OPTIONS } from './data';
-import { FilterPanel } from './components/FilterPanel';
 import { FilterModal } from './components/FilterModal';
 import { TopFilterBar } from './components/TopFilterBar';
 import { GridView } from './components/GridView';
@@ -18,12 +17,12 @@ import { ListView } from './components/ListView';
 import { SectionAccordion } from './components/SectionAccordion';
 import { ReorderModal } from './components/ReorderModal';
 import { SkeletonLoader } from './components/SkeletonLoader';
-import { enabledSections, type AccordionConfig } from './accordionSections';
+import { ACCORDION_SECTIONS, type AccordionConfig } from './accordionSections';
 import { instanceKey, readAccordionConfig, saveAccordionConfig } from './accordionConfigApi';
 
 export function SpaceList({
   layoutMode = 'grid',
-  filterPosition = 'right',
+  apLocation = 'right',
   showInstorePrice = true,
   instorePriceLabel = 'IN-STORE',
   showJunkFeeDisclaimer = false,
@@ -31,24 +30,14 @@ export function SpaceList({
   enableWaitlist = false,
   callOnLimitedAvailability = false,
   ctaButtonCopy = 'Select',
-  isReviews   = false,
-  isFeatures  = false,
-  isNearby    = false,
-  isSizeGuide = false,
-  isBlog      = false,
-  isStore     = false,
-  isNotes     = false,
-  isFAQ       = false,
-  isHours     = false,
   inEditor    = false,
   elementId,
   siteId,
   configApiUrl,
   configCollection = 'accordionConfig',
 }: SpaceListProps) {
-  const sectionProps = {
-    isStore, isNearby, isReviews, isFAQ, isBlog, isSizeGuide,
-  };
+  // Section visibility + order are managed entirely in the "Manage accordions"
+  // modal (persisted to the collection), not via content-panel isX toggles.
   const config: WidgetConfig = {
     showInstorePrice,
     instorePriceLabel,
@@ -74,7 +63,6 @@ export function SpaceList({
   const units = liveUnits;
 
   const [filters, setFilters] = useState<FilterState>(() => readFiltersFromUrl());
-  const [collapsed, setCollapsed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -146,32 +134,17 @@ export function SpaceList({
   const visibleUnits = useMemo(() => filterUnits(units, filters, searchTerm), [units, filters, searchTerm]);
   const badge = activeFilterCount(filters);
 
-  const sidebarFilterPanel = (
-    <FilterPanel
-      filters={filters}
-      onChange={setFilters}
-      badge={badge}
-      collapsed={collapsed}
-      onToggleCollapse={() => setCollapsed((c) => !c)}
-      onReset={() => setFilters(DEFAULT_FILTERS)}
-      amenityOptions={amenityOptions}
-      featureOptions={featureOptions}
-    />
-  );
-
-  const hasSections = isStore || isNearby || isReviews || isFAQ || isBlog || isSizeGuide;
-  const sectionPanel = hasSections ? (
+  const sectionPanel = (
     <SectionAccordion
-      {...sectionProps}
       config={accordionConfig}
       inEditor={inEditor}
       onReorderClick={() => { setSaveError(null); setReorderOpen(true); }}
     />
-  ) : null;
+  );
 
-  // In top mode the filter bar lives inside the main content column (not above
-  // the whole row) so it lines up with the title and the listing below it.
-  const topBar = filterPosition === 'top' ? (
+  // Filters always render as a top bar inside the main content column so they
+  // line up with the title and the listing below them.
+  const topBar = (
     <>
       <TopFilterBar
         filters={filters}
@@ -197,28 +170,15 @@ export function SpaceList({
         />
       )}
     </>
-  ) : null;
+  );
 
-  // Section accordion always sits opposite the filter panel.
-  // filter=right → accordion left | filter=left → accordion right | filter=top → accordion right
-  let leftSlot: React.ReactNode  = null;
-  let rightSlot: React.ReactNode = null;
-
-  if (filterPosition === 'left') {
-    leftSlot  = sidebarFilterPanel;
-    rightSlot = sectionPanel;
-  } else if (filterPosition === 'right') {
-    leftSlot  = sectionPanel;
-    rightSlot = sidebarFilterPanel;
-  } else {
-    rightSlot = sectionPanel;
-  }
-
+  // Filters are always a top bar inside the listing column; the accordion panel
+  // sits on whichever side apLocation specifies.
   return (
-    <div className={`sl-wrapper filter-${filterPosition}`}>
+    <div className={`sl-wrapper filter-top ap-${apLocation}`}>
       <h2 className="sl-page-title">Storage Units in {'{Location}'}</h2>
       <div className="sl-row">
-        {leftSlot}
+        {apLocation === 'left' && sectionPanel}
         <main className="sl-listing-area">
           {topBar}
           {loading ? (
@@ -229,11 +189,11 @@ export function SpaceList({
             <GridView units={visibleUnits} config={config} />
           )}
         </main>
-        {rightSlot}
+        {apLocation === 'right' && sectionPanel}
       </div>
       {reorderOpen && (
         <ReorderModal
-          sections={enabledSections(sectionProps)}
+          sections={ACCORDION_SECTIONS}
           config={accordionConfig}
           onClose={() => setReorderOpen(false)}
           onSave={handleSaveConfig}

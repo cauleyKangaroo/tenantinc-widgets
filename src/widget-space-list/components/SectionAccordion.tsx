@@ -117,17 +117,11 @@ interface AccordionItemDef {
 }
 
 export interface SectionAccordionProps {
-  isStore?:     boolean;
-  isNearby?:    boolean;
-  isReviews?:   boolean;
-  isFAQ?:       boolean;
-  isBlog?:      boolean;
-  isSizeGuide?: boolean;
   /** Per-instance arrangement (order + hidden). Null = default order, none hidden. */
   config?: AccordionConfig | null;
-  /** Editor-only: when true, render the floating "Reorder sections" button. */
+  /** Editor-only: when true, render the floating "Manage accordions" button. */
   inEditor?: boolean;
-  /** Opens the reorder modal (owned by SpaceList). */
+  /** Opens the manage-accordions modal (owned by SpaceList). */
   onReorderClick?: () => void;
 }
 
@@ -158,26 +152,16 @@ function AccordionRow({ item }: { item: AccordionItemDef }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function SectionAccordion({
-  isStore     = false,
-  isNearby    = false,
-  isReviews   = false,
-  isFAQ       = false,
-  isBlog      = false,
-  isSizeGuide = false,
   config      = null,
   inEditor    = false,
   onReorderClick,
 }: SectionAccordionProps) {
-  const enabledKeys: AccordionKey[] = [
-    isStore     && 'store',
-    isNearby    && 'nearby',
-    isReviews   && 'reviews',
-    isFAQ       && 'faq',
-    isBlog      && 'blog',
-    isSizeGuide && 'sizeguide',
-  ].filter(Boolean) as AccordionKey[];
+  // Every section is a candidate; the "Manage accordions" modal controls which
+  // are visible (config.hidden) and their order (config.order). No config →
+  // all sections shown in default order.
+  const allKeys = ACCORDION_SECTIONS.map((s) => s.key);
 
-  const items: AccordionItemDef[] = resolveVisibleOrder(enabledKeys, config).map((key) => ({
+  const items: AccordionItemDef[] = resolveVisibleOrder(allKeys, config).map((key) => ({
     key,
     label: LABELS[key],
     icon: VISUALS[key].icon,
@@ -185,18 +169,18 @@ export function SectionAccordion({
     content: VISUALS[key].content,
   }));
 
-  // Nothing to show and not in the editor → render nothing. In the editor we
-  // still render the panel (even if every section is hidden) so the Reorder
+  // Nothing visible and not in the editor → render nothing. In the editor we
+  // still render the panel (even if every section is hidden) so the Manage
   // button stays reachable to un-hide sections.
-  if (items.length === 0 && !(inEditor && enabledKeys.length > 0)) return null;
+  if (items.length === 0 && !inEditor) return null;
 
   return (
     <aside className="sl-sa-panel">
       {items.map((item) => <AccordionRow key={item.key} item={item} />)}
-      {inEditor && enabledKeys.length > 0 && (
+      {inEditor && (
         <button className="sl-sa-reorder-btn" onClick={onReorderClick} type="button">
           <IconReorder />
-          <span>Reorder sections</span>
+          <span>Manage accordions</span>
         </button>
       )}
     </aside>

@@ -54,11 +54,10 @@
           </select>
         </label>
         <label>
-          Filter position:
-          <select id="sl-filter-pos" onchange="reinitSpaceList()">
+          Accordion side:
+          <select id="sl-ap-location" onchange="reinitSpaceList()">
             <option value="right">right</option>
             <option value="left">left</option>
-            <option value="top">top</option>
           </select>
         </label>
       </div>
@@ -92,7 +91,7 @@
     function getSpaceListProps() {
       return {
         layoutMode:    document.getElementById('sl-layout').value,
-        filterPosition: document.getElementById('sl-filter-pos').value,
+        apLocation:    document.getElementById('sl-ap-location').value,
         isReviews:   document.getElementById('sl-is-reviews').checked,
         isFeatures:  document.getElementById('sl-is-features').checked,
         isNearby:    document.getElementById('sl-is-nearby').checked,
