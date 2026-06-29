@@ -118,55 +118,58 @@ export function SpaceList({
     />
   ) : null;
 
+  // In top mode the filter bar lives inside the main content column (not above
+  // the whole row) so it lines up with the title and the listing below it.
+  const topBar = filterPosition === 'top' ? (
+    <>
+      <TopFilterBar
+        filters={filters}
+        onChange={setFilters}
+        featureOptions={featureOptions}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        panelOpen={panelOpen}
+        onTogglePanel={() => setPanelOpen((o) => !o)}
+      />
+      {panelOpen && (
+        <FilterModal
+          filters={filters}
+          onChange={setFilters}
+          badge={badge}
+          onClose={() => setPanelOpen(false)}
+          onReset={() => setFilters(DEFAULT_FILTERS)}
+          amenityOptions={amenityOptions}
+          featureOptions={featureOptions}
+          promotionOptions={PROMOTION_OPTIONS}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
+      )}
+    </>
+  ) : null;
+
   // Section accordion always sits opposite the filter panel.
   // filter=right → accordion left | filter=left → accordion right | filter=top → accordion right
   let leftSlot: React.ReactNode  = null;
   let rightSlot: React.ReactNode = null;
-  let topSlot: React.ReactNode   = null;
 
-  if (filterPosition === 'top') {
-    topSlot = (
-      <>
-        <TopFilterBar
-          filters={filters}
-          onChange={setFilters}
-          featureOptions={featureOptions}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          panelOpen={panelOpen}
-          onTogglePanel={() => setPanelOpen((o) => !o)}
-        />
-        {panelOpen && (
-          <FilterModal
-            filters={filters}
-            onChange={setFilters}
-            badge={badge}
-            onClose={() => setPanelOpen(false)}
-            onReset={() => setFilters(DEFAULT_FILTERS)}
-            amenityOptions={amenityOptions}
-            featureOptions={featureOptions}
-            promotionOptions={PROMOTION_OPTIONS}
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-          />
-        )}
-      </>
-    );
-    rightSlot = sectionPanel;
-  } else if (filterPosition === 'left') {
+  if (filterPosition === 'left') {
     leftSlot  = sidebarFilterPanel;
     rightSlot = sectionPanel;
-  } else {
+  } else if (filterPosition === 'right') {
     leftSlot  = sectionPanel;
     rightSlot = sidebarFilterPanel;
+  } else {
+    rightSlot = sectionPanel;
   }
 
   return (
     <div className={`sl-wrapper filter-${filterPosition}`}>
-      {topSlot}
+      <h2 className="sl-page-title">Storage Units in {'{Location}'}</h2>
       <div className="sl-row">
         {leftSlot}
         <main className="sl-listing-area">
+          {topBar}
           {loading ? (
             <SkeletonLoader />
           ) : layoutMode === 'list' ? (

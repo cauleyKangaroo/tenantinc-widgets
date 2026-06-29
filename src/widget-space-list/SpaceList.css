@@ -13,6 +13,11 @@
   padding: 20px;
   min-height: 600px;
   box-sizing: border-box;
+  /* Centred max-width container so the title, filter bar, listing and sidebar
+     all line up within a contained width instead of spanning the whole page. */
+  max-width: 1360px;
+  width: 100%;
+  margin: 0 auto;
 }
 .sl-wrapper *,
 .sl-wrapper *::before,
@@ -244,7 +249,25 @@
 /* ===========================================================================
    LISTING AREA
    =========================================================================== */
-.sl-wrapper .sl-listing-area { flex: 1; min-width: 0; container-type: inline-size; }
+.sl-wrapper .sl-listing-area {
+  flex: 1;
+  min-width: 0;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.sl-wrapper .sl-page-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 40px;
+  color: #101318;
+  margin: 0;
+  /* Guard against host themes restyling bare <h2> (e.g. uppercasing it) */
+  text-transform: none;
+  letter-spacing: normal;
+}
 
 /* ===========================================================================
    GRID VIEW — ACCORDIONS
@@ -545,14 +568,12 @@
 /* ===========================================================================
    LIST VIEW
    =========================================================================== */
-/* The list is one card per row, so cap its width and centre it — full-bleed
-   rows look silly on wide screens. (Grid view tiles, so it keeps full width.) */
+/* One card per row; fills the main content column, which is itself bounded by
+   the widget's max-width container so rows never span the whole page. */
 .sl-wrapper .sl-list-view {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 1040px;
-  margin: 0 auto;
 }
 .sl-wrapper .sl-list-card {
   background: #ffffff;
@@ -2866,7 +2887,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 0 12px;
+  padding: 0;
 }
 
 .sl-wrapper .sl-top-bar-left {
