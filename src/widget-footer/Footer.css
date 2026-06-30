@@ -1,0 +1,285 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* ── Root (full-width dark band) ────────────────────────────────────────── */
+
+.ft-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+  background: #101318;
+  color: #fff;
+}
+
+.ft-wrapper *,
+.ft-wrapper *::before,
+.ft-wrapper *::after {
+  box-sizing: border-box;
+}
+
+/* Content is capped at 1330px and centred; the band itself stays full width. */
+.ft-inner {
+  width: 100%;
+  max-width: 1330px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* ── Top section ────────────────────────────────────────────────────────── */
+
+.ft-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 48px;
+  padding-top: 48px;
+  flex-wrap: wrap;
+}
+
+.ft-links {
+  display: flex;
+  gap: 138px;
+  flex-wrap: wrap;
+}
+
+.ft-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ft-col-heading {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.44px;
+  margin: 0;
+  color: #fff;
+}
+
+.ft-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ft-link {
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: -0.31px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.ft-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Aside (Need Help card + description) ───────────────────────────────── */
+
+.ft-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  width: 417px;
+  max-width: 100%;
+}
+
+.ft-help {
+  border: 1px solid #fff;
+  border-radius: 16px;
+  padding: 18px 27px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ft-help-heading {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.44px;
+  margin: 0 0 6px;
+  color: #fff;
+}
+
+.ft-help-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: -0.44px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.ft-help-chat {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ft-help-row svg {
+  flex-shrink: 0;
+}
+
+.ft-help-row:hover span {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ft-desc {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: -0.44px;
+  color: #fff;
+  margin: 0;
+}
+
+/* ── Divider (full width) ───────────────────────────────────────────────── */
+
+.ft-divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  margin-top: 40px;
+}
+
+/* ── Follow / powered-by row ────────────────────────────────────────────── */
+
+.ft-follow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 18px;
+  padding-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.ft-follow-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.ft-follow-label {
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: -0.31px;
+  color: #fff;
+}
+
+.ft-socials {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ft-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: #fff;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.ft-social:hover {
+  color: #f45f30;
+}
+
+.ft-powered {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ft-powered-label {
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: -0.15px;
+  color: #fff;
+}
+
+.ft-tenant {
+  display: block;
+  height: 28px;
+  width: auto;
+}
+
+/* ── Bottom bar (full-width white) ──────────────────────────────────────── */
+
+.ft-bottom {
+  width: 100%;
+  background: #fff;
+}
+
+.ft-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 13px;
+  padding-bottom: 13px;
+  flex-wrap: wrap;
+}
+
+.ft-copy {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: -0.15px;
+  color: #101318;
+}
+
+.ft-session {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: #101318;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .ft-top {
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .ft-links {
+    gap: 40px;
+  }
+
+  .ft-aside {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .ft-links {
+    flex-direction: column;
+  }
+
+  .ft-follow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .ft-bottom-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
