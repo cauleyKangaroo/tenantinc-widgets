@@ -88,16 +88,10 @@ export function BuildingIcon({ size = 24 }: { size?: number }) {
 }
 
 export function ChevronRight({ size = 24, className }: { size?: number; className?: string }) {
-  // Native vector is ~8×14; render inside a square box so callers can size it simply.
+  // Matches the reviews widget pagination chevron for cross-widget consistency.
   return (
-    <svg className={className} width={size} height={size} viewBox="-3 0 14 14" fill="none" aria-hidden="true">
-      <path
-        d="M1.00007 13.0001C3.18086 11.4231 5.13648 9.57714 6.81724 7.5102C7.06102 7.2104 7.06102 6.78975 6.81724 6.48995C5.13648 4.42301 3.18086 2.57708 1.00007 1.00007"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
