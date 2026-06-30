@@ -1,5 +1,5 @@
-﻿import React, { useState } from 'react';
-import type { Unit, UnitSize, WidgetConfig } from '../types';
+import React, { useState } from 'react';
+import type { Unit, SpaceType, UnitSize, WidgetConfig } from '../types';
 import { groupBySize } from '../filters';
 import { UnitCard } from './UnitCard';
 
@@ -12,7 +12,11 @@ const SIZE_LABEL: Record<UnitSize, string> = {
   extra_large: 'Extra Large',
 };
 
-const DEFAULT_OPEN: Record<UnitSize, boolean> = {
+const TYPE_LABEL: Partial<Record<SpaceType, string>> = {
+  parking: 'Parking',
+};
+
+const SIZE_DEFAULT_OPEN: Record<UnitSize, boolean> = {
   other: false,
   extra_small: false,
   small: false,
@@ -27,67 +31,82 @@ const ChevronDown = () => (
   </svg>
 );
 
-export function GridView({ units, config, type }: { units: Unit[]; config: WidgetConfig; type: string }) {
-  const [open, setOpen] = useState<Record<UnitSize, boolean>>(DEFAULT_OPEN);
+// ── Storage: grouped by size accordions ───────────────────────────────────────
 
+function StorageAccordions({ units, config }: { units: Unit[]; config: WidgetConfig }) {
+  const [open, setOpen] = useState<Record<UnitSize, boolean>>(SIZE_DEFAULT_OPEN);
+  const toggle = (size: UnitSize) => setOpen((o) => ({ ...o, [size]: !o[size] }));
+
+  return (
+    <>
+      {groupBySize(units).map(({ size, units: groupUnits }) => {
+        const isOpen = open[size];
+        return (
+          <div key={size} className={`sl-accordion${isOpen ? ' expanded' : ''}`}>
+            <div className="sl-accordion-header" onClick={() => toggle(size)}>
+              <span className="sl-accordion-title">{SIZE_LABEL[size]}</span>
+              <span className="sl-chevron"><ChevronDown /></span>
+            </div>
+            {isOpen && (
+              <div className="sl-accordion-body">
+                <div className="sl-cards-grid">
+                  {groupUnits.map((u) => (
+                    <UnitCard key={u.id} unit={u} config={config} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+// ── Non-storage types: one named accordion each ───────────────────────────────
+
+function TypeAccordion({ spaceType, units, config }: { spaceType: SpaceType; units: Unit[]; config: WidgetConfig }) {
+  const [open, setOpen] = useState(true);
+  const label = TYPE_LABEL[spaceType] ?? (spaceType.charAt(0).toUpperCase() + spaceType.slice(1));
+
+  return (
+    <div className={`sl-accordion${open ? ' expanded' : ''}`}>
+      <div className="sl-accordion-header" onClick={() => setOpen((o) => !o)}>
+        <span className="sl-accordion-title">{label}</span>
+        <span className="sl-chevron"><ChevronDown /></span>
+      </div>
+      {open && (
+        <div className="sl-accordion-body">
+          <div className="sl-cards-grid">
+            {units.map((u) => (
+              <UnitCard key={u.id} unit={u} config={config} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main view ─────────────────────────────────────────────────────────────────
+
+export function GridView({ units, config }: { units: Unit[]; config: WidgetConfig }) {
   if (units.length === 0) {
     return <div className="sl-empty-msg">No spaces match your filters.</div>;
   }
 
-  const toggle = (size: UnitSize) => setOpen((o) => ({ ...o, [size]: !o[size] }));
-
-  const renderStorageAccordions = (storageUnits: Unit[]) =>
-    groupBySize(storageUnits).map(({ size, units: groupUnits }) => {
-      const isOpen = open[size];
-      return (
-        <div key={size} className={`sl-accordion${isOpen ? ' expanded' : ''}`}>
-          <div className="sl-accordion-header" onClick={() => toggle(size)}>
-            <span className="sl-accordion-title">{SIZE_LABEL[size]}</span>
-            <span className="sl-chevron"><ChevronDown /></span>
-          </div>
-          {isOpen && (
-            <div className="sl-accordion-body">
-              <div className="sl-cards-grid">
-                {groupUnits.map((u) => (
-                  <UnitCard key={u.id} unit={u} config={config} />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    });
-
-  const renderParkingFlat = (parkingUnits: Unit[]) => (
-    <div className="sl-cards-grid">
-      {parkingUnits.map((u) => (
-        <UnitCard key={u.id} unit={u} config={config} />
-      ))}
-    </div>
-  );
-
-  if (type === 'all') {
-    const storageUnits = units.filter((u) => u.type === 'storage');
-    const parkingUnits = units.filter((u) => u.type === 'parking');
-    return (
-      <div className="sl-grid-view">
-        {renderStorageAccordions(storageUnits)}
-        {parkingUnits.length > 0 && renderParkingFlat(parkingUnits)}
-      </div>
-    );
-  }
-
-  if (type === 'parking') {
-    return (
-      <div className="sl-grid-view">
-        {renderParkingFlat(units)}
-      </div>
-    );
-  }
+  // Derive unique types in the order they appear
+  const orderedTypes = Array.from(new Set(units.map((u) => u.type))) as SpaceType[];
 
   return (
     <div className="sl-grid-view">
-      {renderStorageAccordions(units)}
+      {orderedTypes.map((spaceType) => {
+        const typeUnits = units.filter((u) => u.type === spaceType);
+        if (spaceType === 'storage') {
+          return <StorageAccordions key="storage" units={typeUnits} config={config} />;
+        }
+        return <TypeAccordion key={spaceType} spaceType={spaceType} units={typeUnits} config={config} />;
+      })}
     </div>
   );
 }

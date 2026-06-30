@@ -1,19 +1,21 @@
 ﻿import type { FilterState } from './filters';
 import { DEFAULT_FILTERS } from './filters';
-import type { FilterType, UnitSize } from './types';
+import type { SpaceType, UnitSize } from './types';
 
 // All URL params are prefixed so they don't clash with Duda page params.
-// Example URL: ?sl_type=storage&sl_features=24+Hour+Access,Ground+Level
+// Example URL: ?sl_types=storage,parking&sl_features=24+Hour+Access,Ground+Level
 
 const P = 'sl_';
+
+const VALID_TYPES: SpaceType[] = ['storage', 'parking'];
 
 export function readFiltersFromUrl(): FilterState {
   try {
     const p = new URLSearchParams(window.location.search);
 
-    const rawType = p.get(`${P}type`);
-    const type: FilterType =
-      rawType === 'storage' || rawType === 'parking' ? rawType : DEFAULT_FILTERS.type;
+    const types = (p.get(`${P}types`) ?? '')
+      .split(',')
+      .filter((v): v is SpaceType => VALID_TYPES.includes(v as SpaceType));
 
     const sizes = (p.get(`${P}sizes`) ?? '')
       .split(',')
@@ -27,7 +29,11 @@ export function readFiltersFromUrl(): FilterState {
       .split(',')
       .filter(Boolean);
 
-    return { type, sizes, features, amenities };
+    const promotions = (p.get(`${P}promotions`) ?? '')
+      .split(',')
+      .filter(Boolean);
+
+    return { types, sizes, features, amenities, promotions };
   } catch {
     return DEFAULT_FILTERS;
   }
@@ -37,10 +43,10 @@ export function writeFiltersToUrl(filters: FilterState): void {
   try {
     const p = new URLSearchParams(window.location.search);
 
-    if (filters.type === 'all') {
-      p.delete(`${P}type`);
+    if (filters.types.length === 0) {
+      p.delete(`${P}types`);
     } else {
-      p.set(`${P}type`, filters.type);
+      p.set(`${P}types`, filters.types.join(','));
     }
 
     if (filters.sizes.length === 0) {
@@ -59,6 +65,12 @@ export function writeFiltersToUrl(filters: FilterState): void {
       p.delete(`${P}amenities`);
     } else {
       p.set(`${P}amenities`, filters.amenities.join(','));
+    }
+
+    if (filters.promotions.length === 0) {
+      p.delete(`${P}promotions`);
+    } else {
+      p.set(`${P}promotions`, filters.promotions.join(','));
     }
 
     const qs = p.toString();

@@ -282,5 +282,17 @@ export const AMENITY_OPTIONS: string[] = [
   'Drive Up',
 ];
 
+/**
+ * Promotion categories shown in the filter modal's "Promotions" section.
+ * Placeholder/demo labels from the Figma — replace with backend-provided
+ * promotion categories once the API exposes them, and populate
+ * `Unit.promotions` in api.ts so the filter matches real units.
+ */
+export const PROMOTION_OPTIONS: string[] = [
+  '$1 Moves you in',
+  '3 Month 50% Off',
+  'Get a free Bunny Rabbit',
+];
+
 /** Sizes in display order, used to render accordions / list groups. */
 export const SIZE_ORDER: UnitSize[] = ['other', 'extra_small', 'small', 'medium', 'large', 'extra_large'];

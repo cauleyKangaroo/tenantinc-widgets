@@ -8,7 +8,8 @@
 // ---------------------------------------------------------------------------
 
 export type SpaceType = 'storage' | 'parking';
-export type FilterType = 'all' | SpaceType;
+/** @deprecated — use SpaceType[] in FilterState.types instead */
+export type FilterType = SpaceType;
 
 /**
  * Size categories derived from length × height area (sq ft):
@@ -41,6 +42,8 @@ export interface Unit {
   adminFee?: number;
   /** Optional promo badge text */
   promo?: string;
+  /** Promotion categories this unit qualifies for — matched against the Promotions filter checkboxes */
+  promotions?: string[];
   /** Optional urgency line, e.g. "Only 1 left · Rent soon!" */
   urgency?: string;
   /** CTA state: absent = normal Select, 'call' = Call button, 'waitlist' = Waitlist button */
@@ -79,8 +82,28 @@ export interface FilterOption<T extends string = string> {
 export interface SpaceListProps {
   /** Radio in the content panel: Grid View / List View */
   layoutMode?: 'grid' | 'list';
-  /** Dropdown in the content panel: Left / Top / Right */
+  /** @deprecated Filters now always render as a top bar; this is ignored. */
   filterPosition?: 'left' | 'top' | 'right';
+  /** Dropdown in the content panel: which side the accordion panel sits on. Default 'right'. */
+  apLocation?: 'left' | 'right';
+
+  // ── Duda runtime context (forwarded from `data` in the Duda JS tab, NOT
+  //    content-panel inputs). Used to gate the editor-only reorder UI and to
+  //    key this instance's saved accordion config (siteId + elementId). ───────
+  /** True only inside the Duda editor — gates the floating "Reorder" button. */
+  inEditor?: boolean;
+  /** Duda's per-page unique element id (data.elementId). */
+  elementId?: string;
+  /** Duda's site id (data.siteId). */
+  siteId?: string;
+  /**
+   * URL of the PHP write-proxy that persists the accordion arrangement to the
+   * Duda collection. Set in the Duda JS tab so it can change without a rebuild.
+   * When absent (dev harness / not configured) Save applies locally only.
+   */
+  configApiUrl?: string;
+  /** Name of the Duda collection holding the arrangement. Default 'accordionConfig'. */
+  configCollection?: string;
 
   // ── General widget properties ───────────────────────────────────────────
   /** Toggle: show or hide the in-store strike-through price block. Default true. */

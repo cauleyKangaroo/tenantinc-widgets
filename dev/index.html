@@ -36,6 +36,24 @@
     <code>/dist/widget-*.js</code>. Run <code>npm run dev</code> to start.
   </p>
 
+  <!-- ── widget-utility-bar ──────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-utility-bar (#01)</h2>
+    <div id="utility-bar-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-navigation-bar ────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-navigation-bar (#02)</h2>
+    <div id="navigation-bar-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-property-info ─────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-property-info (#03)</h2>
+    <div id="property-info-container" class="widget-container"></div>
+  </div>
+
   <!-- ── widget-space-list ────────────────────────────────────────────── -->
   <div class="widget-section">
     <h2>widget-space-list</h2>
@@ -54,11 +72,10 @@
           </select>
         </label>
         <label>
-          Filter position:
-          <select id="sl-filter-pos" onchange="reinitSpaceList()">
+          Accordion side:
+          <select id="sl-ap-location" onchange="reinitSpaceList()">
             <option value="right">right</option>
             <option value="left">left</option>
-            <option value="top">top</option>
           </select>
         </label>
       </div>
@@ -76,8 +93,55 @@
         <label class="checkbox"><input type="checkbox" id="sl-is-hours"     onchange="reinitSpaceList()"> Hours</label>
       </div>
 
+      <div class="controls-group">
+        <span class="controls-group-label">Duda runtime</span>
+        <label class="checkbox"><input type="checkbox" id="sl-in-editor" onchange="reinitSpaceList()"> inEditor (show Reorder button)</label>
+      </div>
+
       <button class="danger" onclick="cleanSpaceList()">clean()</button>
     </div>
+  </div>
+
+  <!-- ── widget-promotions ────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-promotions (#06)</h2>
+    <div id="promotions-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-nearby-locations ──────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-nearby-locations (#07)</h2>
+    <div id="nearby-locations-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-reviews ───────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-reviews (#09)</h2>
+    <div id="reviews-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-faqs ──────────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-faqs (#10)</h2>
+    <div id="faqs-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-size-guide ────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-size-guide (#11)</h2>
+    <div id="size-guide-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-blogs-listing ─────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-blogs-listing (#12)</h2>
+    <div id="blogs-listing-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-footer ────────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-footer (#13)</h2>
+    <div id="footer-container" class="widget-container"></div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
@@ -87,7 +151,7 @@
     function getSpaceListProps() {
       return {
         layoutMode:    document.getElementById('sl-layout').value,
-        filterPosition: document.getElementById('sl-filter-pos').value,
+        apLocation:    document.getElementById('sl-ap-location').value,
         isReviews:   document.getElementById('sl-is-reviews').checked,
         isFeatures:  document.getElementById('sl-is-features').checked,
         isNearby:    document.getElementById('sl-is-nearby').checked,
@@ -97,6 +161,9 @@
         isNotes:     document.getElementById('sl-is-notes').checked,
         isFAQ:       document.getElementById('sl-is-faq').checked,
         isHours:     document.getElementById('sl-is-hours').checked,
+        inEditor:    document.getElementById('sl-in-editor').checked,
+        elementId:   'dev-element-001',
+        siteId:      'dev-site',
       };
     }
 
@@ -119,6 +186,37 @@
         container: document.getElementById('space-list-container'),
         props: getSpaceListProps(),
       });
+    });
+
+    require(['/dist/widget-utility-bar.js'], function (widget) {
+      widget.init({ container: document.getElementById('utility-bar-container'), props: {} });
+    });
+    require(['/dist/widget-navigation-bar.js'], function (widget) {
+      widget.init({ container: document.getElementById('navigation-bar-container'), props: {} });
+    });
+    require(['/dist/widget-property-info.js'], function (widget) {
+      widget.init({ container: document.getElementById('property-info-container'), props: {} });
+    });
+    require(['/dist/widget-promotions.js'], function (widget) {
+      widget.init({ container: document.getElementById('promotions-container'), props: {} });
+    });
+    require(['/dist/widget-nearby-locations.js'], function (widget) {
+      widget.init({ container: document.getElementById('nearby-locations-container'), props: {} });
+    });
+    require(['/dist/widget-reviews.js'], function (widget) {
+      widget.init({ container: document.getElementById('reviews-container'), props: {} });
+    });
+    require(['/dist/widget-faqs.js'], function (widget) {
+      widget.init({ container: document.getElementById('faqs-container'), props: {} });
+    });
+    require(['/dist/widget-size-guide.js'], function (widget) {
+      widget.init({ container: document.getElementById('size-guide-container'), props: {} });
+    });
+    require(['/dist/widget-blogs-listing.js'], function (widget) {
+      widget.init({ container: document.getElementById('blogs-listing-container'), props: {} });
+    });
+    require(['/dist/widget-footer.js'], function (widget) {
+      widget.init({ container: document.getElementById('footer-container'), props: {} });
     });
   </script>
 
