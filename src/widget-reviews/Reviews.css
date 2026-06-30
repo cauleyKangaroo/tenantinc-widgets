@@ -1,0 +1,358 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* ── Root ──────────────────────────────────────────────────────────────── */
+
+.rw-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.rw-wrapper *,
+.rw-wrapper *::before,
+.rw-wrapper *::after {
+  box-sizing: border-box;
+}
+
+/* ── Desktop layout ─────────────────────────────────────────────────────── */
+
+.rw-desktop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+  width: 100%;
+}
+
+.rw-mobile {
+  display: none;
+}
+
+/* ── Heading ────────────────────────────────────────────────────────────── */
+
+.rw-heading-block {
+  text-align: center;
+  max-width: 1050px;
+  width: 100%;
+}
+
+.rw-title {
+  font-size: 48px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 60px;
+  margin: 0 0 13px;
+  text-wrap: balance;
+}
+
+.rw-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  color: #101318;
+  line-height: 2;
+  margin: 0;
+}
+
+/* ── 3-column grid ──────────────────────────────────────────────────────── */
+
+.rw-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  width: 100%;
+  max-width: 1314px;
+}
+
+.rw-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.rw-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Source header ──────────────────────────────────────────────────────── */
+
+.rw-source-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rw-source-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.rw-platform-logo {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+.rw-source-score-block {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.rw-source-score {
+  font-size: 48px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+}
+
+.rw-source-out-of {
+  font-size: 20px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+}
+
+.rw-source-rating-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rw-stars {
+  display: block;
+  flex-shrink: 0;
+}
+
+.rw-source-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1;
+}
+
+.rw-more-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 18px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.rw-more-link:hover {
+  color: #f45f30;
+}
+
+.rw-more-link:hover svg path {
+  stroke: #f45f30;
+}
+
+/* ── Review card ────────────────────────────────────────────────────────── */
+
+.rw-card {
+  background: #F9FAFB;
+  border-radius: 16px;
+  padding: 23px 31px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 284px;
+}
+
+.rw-card-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.rw-avatar {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.rw-card-author-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rw-card-author-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #101318;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rw-card-text {
+  font-size: 16px;
+  font-weight: 400;
+  color: #637381;
+  line-height: 20px;
+  margin: 0;
+  flex: 1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 9;
+  -webkit-box-orient: vertical;
+}
+
+.rw-card-time {
+  font-size: 14px;
+  font-weight: 400;
+  color: #101318;
+  line-height: 20px;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+
+.rw-pagination {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.rw-page-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.rw-page-btn:hover:not(:disabled) {
+  background: #F4F6F8;
+}
+
+.rw-page-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.rw-page-btn-prev svg {
+  transform: rotate(180deg);
+}
+
+.rw-page-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #A5B4BF;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s;
+}
+
+.rw-page-dot.active {
+  background: #101318;
+}
+
+.rw-page-dot:hover:not(.active) {
+  background: #637381;
+}
+
+/* ── Mobile layout ──────────────────────────────────────────────────────── */
+
+.rw-mobile-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 23px 31px 0;
+}
+
+.rw-mobile-heading {
+  font-size: 20px;
+  font-weight: 600;
+  color: #101318;
+  line-height: 36px;
+}
+
+.rw-mobile-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 23px;
+}
+
+.rw-mobile-tab {
+  padding: 8px 18px;
+  border-radius: 70px;
+  border: 1px solid #101318;
+  background: white;
+  font-size: 14px;
+  font-weight: 400;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.rw-mobile-tab.active {
+  background: #101318;
+  color: white;
+  font-weight: 600;
+}
+
+.rw-mobile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 0 23px;
+}
+
+.rw-mobile-body .rw-card {
+  min-height: 320px;
+}
+
+/* ── Responsive breakpoint ──────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .rw-desktop {
+    display: none;
+  }
+
+  .rw-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-bottom: 24px;
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .rw-mobile .rw-pagination {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 1100px) and (min-width: 901px) {
+  .rw-columns {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .rw-columns .rw-column:last-child {
+    grid-column: 1 / -1;
+    max-width: calc(50% - 12px);
+  }
+}
