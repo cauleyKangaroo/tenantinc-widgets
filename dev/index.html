@@ -189,7 +189,7 @@
     });
 
     require(['/dist/widget-utility-bar.js'], function (widget) {
-      widget.init({ container: document.getElementById('utility-bar-container'), props: {} });
+      widget.init({ container: document.getElementById('utility-bar-container'), props: { inEditor: true } });
     });
     require(['/dist/widget-navigation-bar.js'], function (widget) {
       widget.init({ container: document.getElementById('navigation-bar-container'), props: {} });
