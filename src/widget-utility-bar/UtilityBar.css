@@ -1,0 +1,314 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+
+/* ── Root ──────────────────────────────────────────────────────────────── */
+
+.ub-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ub-wrapper *,
+.ub-wrapper *::before,
+.ub-wrapper *::after {
+  box-sizing: border-box;
+}
+
+.ub-bar {
+  width: 100%;
+  background: #000;
+  box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
+}
+
+.ub-bar--block {
+  position: relative;
+}
+
+.ub-bar--sticky {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2147483647;
+}
+
+.ub-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  width: 100%;
+}
+
+/* Spacer + close-wrap balance each other so the message stays centred. */
+.ub-spacer,
+.ub-close-wrap {
+  flex: 0 0 40px;
+  display: flex;
+  align-items: center;
+}
+
+.ub-close-wrap {
+  justify-content: flex-end;
+}
+
+.ub-message-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ub-message {
+  text-align: center;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+/* ── Info icon + tooltip ────────────────────────────────────────────────── */
+
+.ub-info {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity 0.2s ease;
+  position: relative;
+  outline: none;
+}
+
+.ub-info:hover,
+.ub-info:focus-visible {
+  opacity: 1;
+}
+
+.ub-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 6px;
+  width: 220px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: opacity 0.18s ease, visibility 0.18s ease;
+  z-index: 2147483647;
+}
+
+.ub-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: rgba(0, 0, 0, 0.9);
+}
+
+.ub-info--tooltip:hover .ub-tooltip,
+.ub-info--tooltip:focus-visible .ub-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* ── Close button ───────────────────────────────────────────────────────── */
+
+.ub-close {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  margin: 0;
+  cursor: pointer;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  transition: opacity 0.2s ease;
+  line-height: 1;
+}
+
+.ub-close:hover {
+  opacity: 1;
+}
+
+/* ── Info modal ─────────────────────────────────────────────────────────── */
+
+.ub-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.ub-modal {
+  position: relative;
+  background: #fff;
+  color: #111;
+  border-radius: 10px;
+  padding: 28px 28px 24px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.ub-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.ub-modal-close:hover {
+  opacity: 1;
+}
+
+.ub-modal-body {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: #333;
+  padding-right: 20px;
+}
+
+/* ── Debug panel (editor only) ──────────────────────────────────────────── */
+
+.ub-debug {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #1a1a2e;
+  border: 2px solid #e94560;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  max-width: 320px;
+}
+
+.ub-debug-label {
+  font-weight: 700;
+  color: #e94560;
+}
+
+.ub-debug-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ub-debug-key {
+  color: #a0aec0;
+  white-space: nowrap;
+}
+
+.ub-debug-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #2d3748;
+  color: #fff;
+}
+
+.ub-debug-badge--shown {
+  background: #276749;
+  color: #9ae6b4;
+}
+
+.ub-debug-badge--hidden {
+  background: #742a2a;
+  color: #feb2b2;
+}
+
+.ub-debug-countdown {
+  color: #f6e05e;
+  font-weight: 600;
+}
+
+.ub-debug-btn {
+  background: #2d3748;
+  color: #e2e8f0;
+  border: 1px solid #4a5568;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: 'Courier New', Courier, monospace;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ub-debug-btn:hover {
+  background: #e94560;
+  border-color: #e94560;
+  color: #fff;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  .ub-message {
+    font-size: 18px;
+  }
+
+  .ub-inner {
+    padding: 10px;
+  }
+
+  .ub-spacer,
+  .ub-close-wrap {
+    flex-basis: 28px;
+  }
+
+  .ub-message-wrap {
+    gap: 8px;
+  }
+
+  .ub-tooltip {
+    width: 180px;
+  }
+}

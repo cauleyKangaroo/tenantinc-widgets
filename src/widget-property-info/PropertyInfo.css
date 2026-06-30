@@ -1,0 +1,373 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* ── Root ──────────────────────────────────────────────────────────────── */
+
+.pi-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  max-width: 1330px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  color: #101318;
+}
+
+.pi-wrapper *,
+.pi-wrapper *::before,
+.pi-wrapper *::after {
+  box-sizing: border-box;
+}
+
+.pi-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+/* ── Info column ────────────────────────────────────────────────────────── */
+
+.pi-info {
+  flex: 1 1 0;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pi-name {
+  font-size: 35px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 4px;
+  color: #101318;
+}
+
+.pi-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pi-rating-score {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.pi-reviews {
+  font-size: 18px;
+  font-weight: 500;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pi-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.pi-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #101318;
+  text-decoration: none;
+}
+
+.pi-contact-row svg {
+  flex-shrink: 0;
+  color: #101318;
+}
+
+.pi-contact-row--indent {
+  padding-left: 32px;
+}
+
+.pi-underline {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pi-link:hover .pi-underline,
+.pi-contact-row:hover .pi-underline {
+  color: #509e2f;
+}
+
+.pi-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pi-status--open {
+  color: #028a0c;
+  font-weight: 600;
+}
+
+.pi-status--closed {
+  color: #e53935;
+  font-weight: 600;
+}
+
+.pi-see-hours {
+  font-size: 16px;
+}
+
+/* ── Media column ───────────────────────────────────────────────────────── */
+
+.pi-media {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.pi-breadcrumb {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 22px;
+  color: #101318;
+}
+
+.pi-breadcrumb a {
+  color: #101318;
+}
+
+.pi-breadcrumb a:hover {
+  color: #509e2f;
+}
+
+.pi-cards {
+  display: flex;
+  gap: 24px;
+}
+
+.pi-card-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 422px;
+  max-width: 100%;
+}
+
+/* ── Gallery ────────────────────────────────────────────────────────────── */
+
+.pi-gallery {
+  position: relative;
+  width: 100%;
+  height: 317px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: block;
+}
+
+.pi-gallery-img {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.pi-gallery-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.pi-gallery-expand {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: #fff;
+  display: flex;
+}
+
+.pi-gallery-nav {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pi-gallery-arrow {
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pi-gallery-arrow--prev {
+  transform: rotate(180deg);
+}
+
+.pi-gallery-dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pi-gallery-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+
+.pi-gallery-dot.active {
+  background: #fff;
+}
+
+.pi-reservation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #101318;
+  text-decoration: none;
+}
+
+.pi-reservation svg {
+  flex-shrink: 0;
+}
+
+/* ── Map (placeholder) ──────────────────────────────────────────────────── */
+
+.pi-map {
+  position: relative;
+  width: 100%;
+  height: 317px;
+  border-radius: 16px;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(0deg, #e3e6ea 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(90deg, #e3e6ea 0 1px, transparent 1px 44px),
+    #eef1f4;
+}
+
+.pi-map-pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  background: #101318;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: translate(-50%, -100%) rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* ── Socials ────────────────────────────────────────────────────────────── */
+
+.pi-socials {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.pi-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #101318;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.pi-social:hover {
+  color: #509e2f;
+}
+
+/* ── Lightbox ───────────────────────────────────────────────────────────── */
+
+.pi-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 24px;
+  cursor: zoom-out;
+}
+
+.pi-lb-img {
+  width: min(80vw, 1000px);
+  height: min(75vh, 680px);
+  border-radius: 12px;
+  cursor: default;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+
+.pi-lb-arrow {
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
+.pi-lb-arrow:hover {
+  opacity: 1;
+}
+
+.pi-lb-arrow--prev {
+  transform: rotate(180deg);
+}
+
+.pi-lb-counter {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1180px) {
+  .pi-row {
+    flex-direction: column;
+  }
+
+  .pi-cards {
+    flex-wrap: wrap;
+  }
+
+  .pi-card-col {
+    flex: 1 1 360px;
+    width: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .pi-name {
+    font-size: 28px;
+  }
+
+  .pi-lb-arrow {
+    display: none;
+  }
+}

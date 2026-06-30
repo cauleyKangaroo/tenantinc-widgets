@@ -1,0 +1,307 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* ── Root ──────────────────────────────────────────────────────────────── */
+
+.sg-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  max-width: 1330px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  color: #101318;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 80px;
+}
+
+.sg-wrapper *,
+.sg-wrapper *::before,
+.sg-wrapper *::after {
+  box-sizing: border-box;
+}
+
+/* ── Header (title + tabs) ──────────────────────────────────────────────── */
+
+.sg-header {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.sg-heading-block {
+  text-align: center;
+  width: 100%;
+}
+
+.sg-title {
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0 0 4px;
+  text-wrap: balance;
+}
+
+.sg-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.4;
+  margin: 0;
+  color: #101318;
+}
+
+.sg-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Canonical pill — matches the space-list top filter bar for cross-widget consistency. */
+.sg-tab {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 21px;
+  border-radius: 100px;
+  border: 2px solid #101318;
+  background: #fff;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sg-tab:hover:not(.active) {
+  background: #f4f6f8;
+}
+
+.sg-tab.active {
+  background: #101318;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ── Content area ───────────────────────────────────────────────────────── */
+
+.sg-desktop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+  width: 100%;
+}
+
+.sg-mobile {
+  display: none;
+}
+
+.sg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  width: 100%;
+  align-items: start;
+}
+
+/* ── Size card ──────────────────────────────────────────────────────────── */
+
+.sg-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sg-card-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 283 / 184;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sg-play {
+  position: relative;
+  z-index: 1;
+}
+
+.sg-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sg-card-title {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #101318;
+  margin: 0;
+}
+
+.sg-card-desc {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #101318;
+}
+
+.sg-card-desc p {
+  margin: 0;
+}
+
+.sg-card-desc ul {
+  margin: 12px 0 0;
+  padding-left: 21px;
+  list-style: disc;
+}
+
+.sg-card-desc li {
+  margin-bottom: 2px;
+}
+
+.sg-readmore {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  display: none;
+}
+
+.sg-see-all {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f45f30;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  width: fit-content;
+}
+
+.sg-see-all:hover {
+  color: color-mix(in srgb, #f45f30 85%, black);
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+
+.sg-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.sg-page-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: #101318;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.sg-page-btn:hover:not(:disabled) {
+  background: #f4f6f8;
+}
+
+.sg-page-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.sg-page-btn-prev svg {
+  transform: rotate(180deg);
+}
+
+.sg-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #dfe3e8;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s;
+}
+
+.sg-dot.active {
+  background: #101318;
+}
+
+.sg-dot:hover:not(.active) {
+  background: #a5b4bf;
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .sg-wrapper {
+    gap: 32px;
+  }
+
+  .sg-title {
+    font-size: 28px;
+    line-height: 36px;
+  }
+
+  .sg-subtitle {
+    font-size: 15px;
+  }
+
+  .sg-desktop {
+    display: none;
+  }
+
+  .sg-mobile {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 24px;
+    width: 100%;
+  }
+
+  .sg-mobile .sg-card-desc {
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  /* Read-more clamp on mobile */
+  .sg-mobile .sg-readmore {
+    display: inline-block;
+  }
+
+  .sg-mobile .sg-card-desc.clamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 9;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .sg-mobile .sg-card-desc.clamp ul {
+    /* keep bullets visible within the clamp */
+    margin-top: 8px;
+  }
+
+  .sg-mobile .sg-see-all {
+    align-self: center;
+  }
+}
