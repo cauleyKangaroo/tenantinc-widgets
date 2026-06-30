@@ -1,0 +1,501 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* ── Root ──────────────────────────────────────────────────────────────── */
+
+.nl-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+  color: #101318;
+}
+
+.nl-wrapper *,
+.nl-wrapper *::before,
+.nl-wrapper *::after {
+  box-sizing: border-box;
+}
+
+.nl-desktop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 50px;
+  width: 100%;
+}
+
+.nl-mobile {
+  display: none;
+}
+
+/* ── Heading ────────────────────────────────────────────────────────────── */
+
+.nl-heading-block {
+  text-align: center;
+  max-width: 1050px;
+  width: 100%;
+}
+
+.nl-title {
+  font-size: 48px;
+  font-weight: 600;
+  color: #101318;
+  line-height: 1.1;
+  margin: 0 0 13px;
+  text-wrap: balance;
+}
+
+.nl-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  color: #101318;
+  line-height: 2;
+  margin: 0;
+}
+
+/* ── Grid ───────────────────────────────────────────────────────────────── */
+
+.nl-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  width: 100%;
+  max-width: 1314px;
+  align-items: start;
+}
+
+/* ── Property card ──────────────────────────────────────────────────────── */
+
+.nl-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  filter: drop-shadow(0px 4px 5px rgba(71, 84, 116, 0.1));
+}
+
+.nl-card-image {
+  position: relative;
+  height: 234px;
+  width: 100%;
+}
+
+.nl-card-image-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.nl-card-distance {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.nl-card-data {
+  position: absolute;
+  left: 24px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: calc(100% - 48px);
+}
+
+.nl-card-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nl-card-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.nl-card-rating-num {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.5;
+}
+
+.nl-card-reviews {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.nl-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.nl-card-meta span {
+  text-decoration: underline;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nl-card-meta svg {
+  flex-shrink: 0;
+}
+
+/* ── Card body ──────────────────────────────────────────────────────────── */
+
+.nl-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+}
+
+.nl-promo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 2px dashed #509e2f;
+  border-radius: 8px;
+  padding: 12px;
+  color: #509e2f;
+}
+
+.nl-promo-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 16px;
+}
+
+/* ── Spaces list ────────────────────────────────────────────────────────── */
+
+.nl-spaces {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.nl-space-divider {
+  height: 1px;
+  width: 100%;
+  background: #dfe3e8;
+  margin: 12px 0;
+}
+
+.nl-space-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.nl-space-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.nl-space-size {
+  font-size: 16px;
+  font-weight: 600;
+  color: #101318;
+  white-space: nowrap;
+}
+
+.nl-space-subtype {
+  font-size: 12px;
+  font-weight: 400;
+  color: #637381;
+  line-height: 16px;
+}
+
+.nl-space-prices {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nl-price-tag {
+  display: inline-flex;
+  color: #509e2f;
+  flex-shrink: 0;
+}
+
+.nl-price-strike {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: #637381;
+}
+
+.nl-price-strike-label {
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.nl-price-strike-value {
+  font-size: 16px;
+  font-weight: 400;
+  text-decoration: line-through;
+  line-height: 1.2;
+}
+
+.nl-price-divider {
+  width: 1px;
+  height: 29px;
+  background: #dfe3e8;
+  flex-shrink: 0;
+}
+
+.nl-price-start {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: #101318;
+}
+
+.nl-price-start-label {
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.nl-price-start-value {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.nl-select-btn {
+  background: #f45f30;
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 16px;
+  height: 33px;
+  width: 78px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.nl-select-btn:hover {
+  background: color-mix(in srgb, #f45f30 85%, black);
+}
+
+/* ── Card footer ────────────────────────────────────────────────────────── */
+
+.nl-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nl-admin-fee {
+  font-size: 12px;
+  font-weight: 600;
+  color: #000;
+}
+
+.nl-see-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #f45f30;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: underline;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+
+.nl-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.nl-page-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: #101318;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.nl-page-btn:hover:not(:disabled) {
+  background: #f4f6f8;
+}
+
+.nl-page-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.nl-page-btn-prev svg {
+  transform: rotate(180deg);
+}
+
+.nl-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #dfe3e8;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s;
+}
+
+.nl-dot.active {
+  background: #101318;
+}
+
+.nl-dot:hover:not(.active) {
+  background: #a5b4bf;
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+
+.nl-mobile-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 36px;
+}
+
+.nl-mobile-tabs {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.nl-mobile-tab {
+  padding: 11px 17px;
+  border-radius: 70px;
+  border: 0.7px solid #101318;
+  background: #fff;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nl-mobile-tab.active {
+  background: #101318;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Mobile Map View — placeholder surface */
+.nl-map {
+  position: relative;
+  width: 100%;
+  height: 560px;
+  border-radius: 16px;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(0deg, #e3e6ea 0 1px, transparent 1px 40px),
+    repeating-linear-gradient(90deg, #e3e6ea 0 1px, transparent 1px 40px),
+    #eef0f3;
+}
+
+.nl-map-pin {
+  position: absolute;
+  background: #fff;
+  border: 3px solid #101318;
+  border-radius: 100px;
+  padding: 6px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #101318;
+}
+
+.nl-map-pin-1 { top: 18%; right: 16%; }
+.nl-map-pin-2 { top: 50%; left: 6%; }
+.nl-map-pin-3 { bottom: 14%; left: 38%; }
+
+.nl-map-marker {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.nl-map-selected {
+  position: absolute;
+  top: calc(44% + 26px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+/* ── Breakpoint ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) and (min-width: 769px) {
+  .nl-grid {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 880px;
+  }
+}
+
+@media (max-width: 768px) {
+  .nl-desktop {
+    display: none;
+  }
+
+  .nl-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-items: stretch;
+    background: #f9fafb;
+    border-radius: 16px;
+    padding: 24px;
+  }
+}
