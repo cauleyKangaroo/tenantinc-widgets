@@ -6,7 +6,17 @@ const path = require('path');
 // Nothing else in this file needs to change.
 // ---------------------------------------------------------------------------
 const widgetEntries = {
-  'widget-space-list': './src/widget-space-list/index.tsx',
+  'widget-utility-bar':      './src/widget-utility-bar/index.tsx',      // #01
+  'widget-navigation-bar':   './src/widget-navigation-bar/index.tsx',   // #02
+  'widget-property-info':    './src/widget-property-info/index.tsx',    // #03
+  'widget-space-list':       './src/widget-space-list/index.tsx',       // #05
+  'widget-promotions':       './src/widget-promotions/index.tsx',       // #06
+  'widget-nearby-locations': './src/widget-nearby-locations/index.tsx', // #07
+  'widget-reviews':          './src/widget-reviews/index.tsx',          // #09
+  'widget-faqs':             './src/widget-faqs/index.tsx',             // #10
+  'widget-size-guide':       './src/widget-size-guide/index.tsx',       // #11
+  'widget-blogs-listing':    './src/widget-blogs-listing/index.tsx',    // #12
+  'widget-footer':           './src/widget-footer/index.tsx',           // #13
 };
 
 module.exports = (_env, argv) => {
