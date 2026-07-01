@@ -17,42 +17,116 @@
   box-sizing: border-box;
 }
 
-/* Content capped at 1314px and centred; logo tile is anchored to the left. */
-.nav-inner {
-  position: relative;
+/* Both bars cap their content at 1314px and reserve room on the left for the
+   raised logo tile, so right-aligned content can never slide under it. */
+
+/* ── Secondary (top) utility bar ────────────────────────────────────────── */
+
+.nav-topbar {
+  width: 100%;
+  background: #f4f6f8;
+}
+
+.nav-topbar-inner {
   max-width: 1314px;
   margin: 0 auto;
-  height: 100px;
-  padding: 0 24px;
+  min-height: 46px;
+  padding: 10px 24px 10px 285px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
 }
 
-/* ── Logo (raised green tile that protrudes below the bar) ──────────────── */
+.nav-top-items {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.nav-top-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  text-decoration: none;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.nav-top-item:hover {
+  color: #509e2f;
+}
+
+.nav-top-item svg {
+  flex-shrink: 0;
+}
+
+.nav-lang {
+  gap: 6px;
+}
+
+/* ── Primary bar ────────────────────────────────────────────────────────── */
+
+.nav-primary {
+  width: 100%;
+  background: #fff;
+}
+
+.nav-inner {
+  position: relative;
+  max-width: 1314px;
+  margin: 0 auto;
+  min-height: 100px;
+  padding: 0 24px 0 285px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* ── Logo (raised green tile that spans both bars + protrudes below) ─────── */
 
 .nav-logo {
   position: absolute;
-  left: 24px;
   top: 0;
-  height: 131px;
+  left: max(24px, calc((100% - 1314px) / 2 + 24px));
+  width: 240px;
+  height: 150px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 28px;
-  border-radius: 4px;
+  /* Flush to the top edge (square top corners); only the protruding bottom is rounded. */
+  border-radius: 0 0 4px 4px;
   box-shadow: 0px 1px 11px rgba(0, 0, 0, 0.35);
   text-decoration: none;
-  z-index: 1;
+  overflow: hidden;
+  z-index: 5;
 }
 
+/* Single-bar mode (top bar off): shorter nav → smaller tile. */
+.nav-bar:not(.has-topbar) .nav-logo {
+  top: 0;
+  width: 210px;
+  height: 104px;
+}
+
+/* The logo SVG uses preserveAspectRatio="none" (viewBox ~205x57 ≈ 3.6:1), so it
+   stretches to whatever box it's given. We pin BOTH dimensions at that exact
+   ratio — !important beats host resets like `img { width: 100% }`. */
 .nav-logo-img {
   display: block;
-  height: 44px;
-  width: auto;
+  width: 151px !important;
+  height: 42px !important;
+  max-width: none !important;
 }
 
-/* ── Right cluster ──────────────────────────────────────────────────────── */
+/* ── Right cluster (nav links + optional inline actions) ────────────────── */
 
 .nav-right {
   display: flex;
@@ -89,6 +163,8 @@
 .nav-link-chevron {
   color: #111;
 }
+
+/* ── Inline actions — single-bar mode only (top bar toggled off) ─────────── */
 
 .nav-actions {
   display: flex;
@@ -175,7 +251,7 @@
 
 .nav-drawer {
   position: relative;
-  width: min(320px, 85vw);
+  width: min(340px, 88vw);
   height: 100%;
   background: #fff;
   padding: 72px 28px 28px;
@@ -203,7 +279,8 @@
   gap: 18px;
 }
 
-.nav-drawer .nav-actions {
+.nav-drawer .nav-actions,
+.nav-drawer .nav-top-items {
   flex-direction: column;
   align-items: flex-start;
   gap: 18px;
@@ -215,7 +292,11 @@
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
-@media (max-width: 980px) {
+@media (max-width: 1024px) {
+  .nav-topbar {
+    display: none;
+  }
+
   .nav-right {
     display: none;
   }
@@ -226,14 +307,19 @@
 
   .nav-inner {
     justify-content: flex-end;
-    height: 88px;
+    min-height: 88px;
+    padding: 0 24px;
   }
 
-  .nav-logo {
-    height: 110px;
+  .nav-bar .nav-logo,
+  .nav-bar:not(.has-topbar) .nav-logo {
+    top: 0;
+    width: 150px;
+    height: 92px;
   }
 
   .nav-logo-img {
-    height: 38px;
+    width: 120px !important;
+    height: 33px !important;
   }
 }
