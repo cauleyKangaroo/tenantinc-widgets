@@ -173,6 +173,9 @@
   position: absolute;
   inset: 0;
   display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .pi-gallery-overlay {
@@ -305,14 +308,41 @@
   gap: 24px;
   padding: 24px;
   cursor: zoom-out;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-.pi-lb-img {
-  width: min(80vw, 1000px);
-  height: min(75vh, 680px);
-  border-radius: 12px;
+.pi-lb-img-wrap {
+  width: min(90vw, 1000px);
+  height: min(80vh, 680px);
+  max-width: 100%;
   cursor: default;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Real photo: contain within the wrap. `!important` + width/height:auto beats
+   host resets like `img { width: 100% !important }` that would otherwise blow
+   the image up to its natural size (stretched + offscreen on mobile). */
+img.pi-lb-img {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain;
+  border-radius: 12px;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  display: block;
+}
+
+/* Gradient placeholder (span) has no intrinsic size — fill the wrap. */
+span.pi-lb-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  display: block;
 }
 
 .pi-lb-arrow {
@@ -345,6 +375,129 @@
   letter-spacing: 0.04em;
 }
 
+/* ── Desktop / mobile visibility switch ─────────────────────────────────── */
+
+.pi-mobile {
+  display: none;
+}
+
+/* ── Hero (image-led) view ──────────────────────────────────────────────── */
+
+.pi-hero-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.pi-hero-row {
+  display: flex;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.pi-hero-card {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 302px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #dfe3e8;
+}
+
+.pi-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pi-hero-overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.pi-hero-expand {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #fff;
+}
+
+.pi-hero-content {
+  position: absolute;
+  left: 40px;
+  right: 40px;
+  top: 91px;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+}
+
+.pi-hero-name {
+  margin: 0 0 8px;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 50px;
+  color: #fff;
+}
+
+.pi-hero-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pi-hero-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pi-hero-score {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 40px;
+  color: #fff;
+}
+
+.pi-hero-reviews {
+  color: #fff;
+}
+
+.pi-hero-address {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #fff;
+  text-decoration: none;
+}
+
+.pi-hero-address svg {
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.pi-hero-map {
+  flex-shrink: 0;
+  width: 422px;
+  max-width: 100%;
+  height: 302px;
+}
+
+.pi-hero-map .pi-map {
+  height: 302px;
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 @media (max-width: 1180px) {
@@ -360,6 +513,14 @@
     flex: 1 1 360px;
     width: auto;
   }
+
+  .pi-hero-row {
+    flex-direction: column;
+  }
+
+  .pi-hero-map {
+    width: auto;
+  }
 }
 
 @media (max-width: 560px) {
@@ -370,4 +531,183 @@
   .pi-lb-arrow {
     display: none;
   }
+}
+
+/* ── Mobile layout (single, replaces both desktop modes) ────────────────── */
+
+@media (max-width: 768px) {
+  .pi-desktop {
+    display: none;
+  }
+
+  .pi-mobile {
+    display: block;
+  }
+
+  .pi-wrapper {
+    max-width: 100%;
+  }
+}
+
+.pi-m-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 27px 24px;
+  color: #fff;
+}
+
+.pi-m-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  z-index: 0;
+}
+
+.pi-m-hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.pi-m-hero-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pi-m-breadcrumb {
+  font-size: 14px;
+  line-height: 22px;
+  color: #fff;
+}
+
+.pi-m-breadcrumb a {
+  color: #fff;
+}
+
+.pi-m-expand {
+  flex-shrink: 0;
+  display: flex;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #fff;
+}
+
+.pi-m-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pi-m-name {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+}
+
+.pi-m-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pi-m-score {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.pi-m-reviews {
+  color: #fff;
+  font-size: 16px;
+}
+
+.pi-m-address {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  text-decoration: none;
+}
+
+.pi-m-address svg {
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.pi-m-circles {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px 16px;
+}
+
+.pi-m-circle-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 61px;
+  text-decoration: none;
+  color: #101318;
+}
+
+.pi-m-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid #101318;
+  border-radius: 50%;
+  color: #101318;
+}
+
+.pi-m-circle-label {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pi-m-hours {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px 24px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+}
+
+.pi-m-hours p {
+  margin: 0;
+}
+
+.pi-m-seehours {
+  margin-top: 8px;
+  font-size: 16px;
+  color: #101318;
+  text-decoration: underline;
 }
