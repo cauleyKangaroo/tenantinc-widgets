@@ -3,6 +3,7 @@ import './NavigationBar.css';
 import storelocalLogo from './storelocal-logo.svg';
 import {
   ChevronDown,
+  ChevronRight,
   PhoneIcon,
   MessageAiIcon,
   MessageDefaultIcon,
@@ -11,22 +12,112 @@ import {
   UserCircleIcon,
   HamburgerIcon,
   CloseIcon,
+  SelfStorageIcon,
+  BusinessStorageIcon,
+  DriveUpIcon,
+  VehicleRvIcon,
+  MailboxIcon,
+  ClimateControlledIcon,
 } from './icons';
 
 // ---------------------------------------------------------------------------
 // Types + defaults
 // ---------------------------------------------------------------------------
 
+/** A leaf item in the second-level (city) list. */
+interface NavSubItem {
+  label: string;
+  href: string;
+}
+
+/** A first-level dropdown row; may open a second-level list on hover. */
+interface NavMenuItem {
+  label: string;
+  href: string;
+  /** Optional leading icon (used by the Storage Types menu). */
+  icon?: React.ReactNode;
+  children?: NavSubItem[];
+}
+
 interface NavLink {
   label: string;
   href: string;
   hasDropdown?: boolean;
+  /** Two-level hover mega-menu (first-level rows, each optionally nesting a city list). */
+  menu?: NavMenuItem[];
 }
 
+// Hardcoded for now — the real data will come from a collection / props later.
+const FIND_STORAGE_MENU: NavMenuItem[] = [
+  { label: 'All Locations', href: '#' },
+  {
+    label: 'Arizona',
+    href: '#',
+    children: [
+      { label: 'Phoenix', href: '#' },
+      { label: 'Tucson', href: '#' },
+      { label: 'Mesa', href: '#' },
+      { label: 'Scottsdale', href: '#' },
+    ],
+  },
+  {
+    label: 'California',
+    href: '#',
+    children: [
+      { label: 'Los Angeles', href: '#' },
+      { label: 'San Diego', href: '#' },
+      { label: 'Newport Beach', href: '#' },
+      { label: 'Oceanside', href: '#' },
+      { label: 'Santa Barbara', href: '#' },
+      { label: 'San Luis Obispo', href: '#' },
+      { label: 'Riverside', href: '#' },
+      { label: 'Redlands', href: '#' },
+    ],
+  },
+  {
+    label: 'Oregon',
+    href: '#',
+    children: [
+      { label: 'Portland', href: '#' },
+      { label: 'Eugene', href: '#' },
+      { label: 'Salem', href: '#' },
+      { label: 'Bend', href: '#' },
+    ],
+  },
+  {
+    label: 'Washington',
+    href: '#',
+    children: [
+      { label: 'Seattle', href: '#' },
+      { label: 'Spokane', href: '#' },
+      { label: 'Tacoma', href: '#' },
+      { label: 'Bellevue', href: '#' },
+    ],
+  },
+];
+
+const STORAGE_TYPES_MENU: NavMenuItem[] = [
+  { label: 'Self Storage', href: '#', icon: <SelfStorageIcon /> },
+  { label: 'Business Storage', href: '#', icon: <BusinessStorageIcon /> },
+  { label: 'Drive-Up Access', href: '#', icon: <DriveUpIcon /> },
+  { label: 'Vehicle & RV Storage', href: '#', icon: <VehicleRvIcon /> },
+  { label: 'Mailboxes', href: '#', icon: <MailboxIcon /> },
+  { label: 'Climate Controlled Storage', href: '#', icon: <ClimateControlledIcon /> },
+];
+
+const RESOURCES_MENU: NavMenuItem[] = [
+  { label: 'Storage Blog', href: '#' },
+  { label: 'Storage Tips', href: '#' },
+  { label: 'About Us', href: '#' },
+  { label: 'Careers', href: '#' },
+  { label: '3rd Party Management', href: '#' },
+  { label: 'Customer Service', href: '#' },
+];
+
 const DEFAULT_LINKS: NavLink[] = [
-  { label: 'Find Storage', href: '#', hasDropdown: true },
-  { label: 'Storage Types', href: '#', hasDropdown: true },
-  { label: 'Resources', href: '#', hasDropdown: true },
+  { label: 'Find Storage', href: '#', hasDropdown: true, menu: FIND_STORAGE_MENU },
+  { label: 'Storage Types', href: '#', hasDropdown: true, menu: STORAGE_TYPES_MENU },
+  { label: 'Resources', href: '#', hasDropdown: true, menu: RESOURCES_MENU },
   { label: 'Size Guide', href: '#' },
 ];
 
@@ -75,10 +166,81 @@ export function NavigationBar({
   links = DEFAULT_LINKS,
 }: NavigationBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // Desktop hover mega-menu: which top-level link is open, and which of its
+  // rows is currently hovered (plus that row's vertical offset so the city
+  // panel lines up with it).
+  const [openLink, setOpenLink] = useState<string | null>(null);
+  const [subIndex, setSubIndex] = useState<number | null>(null);
+  const [subTop, setSubTop] = useState(0);
   const telHref = phoneHref ?? `tel:${phone.replace(/[^0-9+]/g, '')}`;
   const smsHref = smsPhoneHref ?? `tel:${smsPhone.replace(/[^0-9+]/g, '')}`;
 
+  const closeMenus = () => {
+    setOpenLink(null);
+    setSubIndex(null);
+  };
+
+  // Desktop nav links, including the two-level hover mega-menu.
   const navLinks = (
+    <ul className="nav-links">
+      {links.map((link) => {
+        const hasMenu = !!link.menu?.length;
+        const isOpen = hasMenu && openLink === link.label;
+        const activeItem = isOpen && subIndex != null ? link.menu![subIndex] : undefined;
+        return (
+          <li
+            key={link.label}
+            className="nav-item"
+            onMouseEnter={() => hasMenu && setOpenLink(link.label)}
+            onMouseLeave={closeMenus}
+          >
+            <a className="nav-link" href={link.href}>
+              <span>{link.label}</span>
+              {link.hasDropdown && <ChevronDown size={20} className="nav-link-chevron" />}
+            </a>
+
+            {isOpen && (
+              <div className="nav-dropdown">
+                <ul className="nav-dd-panel">
+                  {link.menu!.map((item, i) => (
+                    <li
+                      key={item.label}
+                      className={`nav-dd-item${subIndex === i ? ' is-active' : ''}`}
+                      onMouseEnter={(e) => {
+                        setSubIndex(i);
+                        setSubTop((e.currentTarget as HTMLElement).offsetTop);
+                      }}
+                    >
+                      <a className="nav-dd-link" href={item.href}>
+                        {item.icon && <span className="nav-dd-icon">{item.icon}</span>}
+                        <span>{item.label}</span>
+                      </a>
+                      {item.children?.length ? (
+                        <ChevronRight size={16} className="nav-dd-arrow" />
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+
+                {activeItem?.children?.length ? (
+                  <ul className="nav-subpanel" style={{ top: subTop }}>
+                    {activeItem.children.map((sub) => (
+                      <li key={sub.label} className="nav-sub-item">
+                        <a href={sub.href}>{sub.label}</a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  // Plain link list for the mobile drawer (no hover mega-menu).
+  const drawerLinks = (
     <ul className="nav-links">
       {links.map((link) => (
         <li key={link.label}>
@@ -175,7 +337,7 @@ export function NavigationBar({
             <button className="nav-drawer-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
               <CloseIcon size={28} />
             </button>
-            {navLinks}
+            {drawerLinks}
             {showTopBar ? topItems : actions}
           </div>
         </div>
