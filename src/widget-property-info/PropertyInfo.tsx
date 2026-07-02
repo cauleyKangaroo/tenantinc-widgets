@@ -167,7 +167,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
             <PhotoExpandIcon size={48} />
           </button>
           <div className="pi-hero-content">
-            <h2 className="pi-hero-name">{name}</h2>
+            <p className="pi-hero-name">{name}</p>
             <div className="pi-hero-meta">
               <div className="pi-hero-rating">
                 <span className="pi-hero-score">{rating}</span>
@@ -196,7 +196,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
     <div className="pi-row">
       {/* Info column */}
       <div className="pi-info">
-        <h2 className="pi-name">{name}</h2>
+        <p className="pi-name">{name}</p>
 
         <div className="pi-rating">
           <span className="pi-rating-score">{rating}</span>
@@ -307,7 +307,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
           </button>
         </div>
         <div className="pi-m-hero-content">
-          <h2 className="pi-m-name">{name}</h2>
+          <p className="pi-m-name">{name}</p>
           <div className="pi-m-rating">
             <span className="pi-m-score">{rating}</span>
             <Stars rating={rating} width={77} />

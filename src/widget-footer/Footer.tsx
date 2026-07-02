@@ -62,7 +62,7 @@ export function Footer({
         <div className="ft-links">
           {COLUMNS.map((col) => (
             <nav key={col.heading} className="ft-col" aria-label={col.heading}>
-              <h3 className="ft-col-heading">{col.heading}</h3>
+              <p className="ft-col-heading">{col.heading}</p>
               <ul className="ft-list">
                 {col.links.map((link) => (
                   <li key={link.label}>
@@ -76,7 +76,7 @@ export function Footer({
 
         <div className="ft-aside">
           <div className="ft-help">
-            <h3 className="ft-help-heading">Need Help?</h3>
+            <p className="ft-help-heading">Need Help?</p>
             <a className="ft-help-row" href={`tel:${phone}`}>
               <PhoneIcon size={24} />
               <span>{phone}</span>
