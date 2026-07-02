@@ -149,6 +149,53 @@ export function ClimateControlledIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+// ===========================================================================
+// Mobile menu icons — traced from the Figma vectors (24x24, stroke currentColor).
+// ===========================================================================
+
+export function EnvelopeIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke="currentColor" strokeWidth="2" />
+      <path d="M3.5 7l8.5 6 8.5-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function MapPinIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12.0004 13.7105C13.6137 13.7105 14.9215 12.4027 14.9215 10.7895C14.9215 9.17622 13.6137 7.86842 12.0004 7.86842C10.3872 7.86842 9.07936 9.17622 9.07936 10.7895C9.07936 12.4027 10.3872 13.7105 12.0004 13.7105Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12.0004 21.5C13.9478 21.5 19.7899 17.3889 19.7899 11.2222C19.7899 5.05556 14.9215 3 12.0004 3C9.07936 3 4.21094 5.05556 4.21094 11.2222C4.21094 17.3889 10.053 21.5 12.0004 21.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function LoginIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M18.1885 9C19.1755 9.74024 20.0668 10.599 20.8426 11.5564C20.9475 11.6859 21 11.843 21 12M18.1885 15C19.1755 14.2598 20.0668 13.401 20.8426 12.4436C20.9475 12.3141 21 12.157 21 12M21 12H8M13 4.52779C11.9385 3.57771 10.5367 3 9 3C5.68629 3 3 5.68629 3 9V15C3 18.3137 5.68629 21 9 21C10.5367 21 11.9385 20.4223 13 19.4722" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function KeyIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20.0001 10L22.0001 12L20.0001 14H17.0001L15.8541 12.854C15.8077 12.8074 15.7525 12.7705 15.6917 12.7453C15.631 12.7201 15.5659 12.7071 15.5001 12.7071C15.4343 12.7071 15.3692 12.7201 15.3085 12.7453C15.2477 12.7705 15.1926 12.8074 15.1461 12.854L14.0001 14H10.5321C10.081 14.9092 9.33588 15.6391 8.41763 16.0714C7.49939 16.5037 6.46198 16.6129 5.47386 16.3812C4.48575 16.1496 3.60495 15.5907 2.9745 14.7954C2.34406 14 2.00098 13.0149 2.00098 12C2.00098 10.9851 2.34406 9.99999 2.9745 9.20465C3.60495 8.40931 4.48575 7.85044 5.47386 7.61879C6.46198 7.38714 7.49939 7.49632 8.41763 7.92859C9.33588 8.36086 10.081 9.09084 10.5321 10H20.0001Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5.50011 13V11C5.34486 11.1164 5.21886 11.2674 5.13207 11.441C5.04529 11.6146 5.00011 11.8059 5.00011 12C5.00011 12.1941 5.04529 12.3855 5.13207 12.559C5.21886 12.7326 5.34486 12.8836 5.50011 13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function SearchIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M17.5 17.5L12.4581 12.4581M12.4581 12.4581C13.5137 11.4025 14.1667 9.94416 14.1667 8.33333C14.1667 5.11167 11.555 2.5 8.33333 2.5C5.11167 2.5 2.5 5.11167 2.5 8.33333C2.5 11.555 5.11167 14.1667 8.33333 14.1667C9.94416 14.1667 11.4025 13.5137 12.4581 12.4581Z" stroke="currentColor" strokeWidth="1.66667" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function HamburgerIcon({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
