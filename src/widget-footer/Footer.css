@@ -283,3 +283,21 @@
     gap: 6px;
   }
 }
+
+/* ── Duda host-style resilience ─────────────────────────────────────────── */
+/* Column/help headings render as <p> now, but Duda's scoped rules can still
+   dim them — force white. */
+.ft-col-heading,
+.ft-help-heading {
+  color: #fff !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+}
+
+/* The tenant logo SVG uses preserveAspectRatio="none" (stretches to its box);
+   pin BOTH dimensions at its ~4.86:1 ratio so a host `img` reset can't stretch it. */
+.ft-tenant {
+  width: 136px !important;
+  height: 28px !important;
+  max-width: none !important;
+}
