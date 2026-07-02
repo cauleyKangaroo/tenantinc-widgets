@@ -8,8 +8,18 @@
   box-sizing: border-box;
   background: #fff;
   position: relative;
+}
+
+/* ── Bottom separator (content-menu: Separator) ─────────────────────────── */
+.nav-bar.sep-shadow {
   box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
 }
+
+.nav-bar.sep-line {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* .nav-bar.sep-none → no shadow, no border. */
 
 .nav-bar *,
 .nav-bar *::before,
@@ -17,42 +27,155 @@
   box-sizing: border-box;
 }
 
-/* Content capped at 1314px and centred; logo tile is anchored to the left. */
-.nav-inner {
-  position: relative;
+/* Both bars cap their content at 1314px and reserve room on the left for the
+   raised logo tile, so right-aligned content can never slide under it. */
+
+/* ── Secondary (top) utility bar ────────────────────────────────────────── */
+
+.nav-topbar {
+  width: 100%;
+  background: #f4f6f8;
+}
+
+.nav-topbar-inner {
   max-width: 1314px;
   margin: 0 auto;
-  height: 100px;
-  padding: 0 24px;
+  min-height: 46px;
+  padding: 10px 24px 10px 285px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
 }
 
-/* ── Logo (raised green tile that protrudes below the bar) ──────────────── */
+.nav-top-items {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.nav-top-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  text-decoration: none;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.nav-top-item:hover {
+  color: #509e2f;
+}
+
+.nav-top-item svg {
+  flex-shrink: 0;
+}
+
+.nav-lang {
+  gap: 6px;
+}
+
+/* ── Primary bar ────────────────────────────────────────────────────────── */
+
+.nav-primary {
+  width: 100%;
+  background: #fff;
+}
+
+.nav-inner {
+  position: relative;
+  max-width: 1314px;
+  margin: 0 auto;
+  min-height: 100px;
+  padding: 0 24px 0 285px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Height (content-menu: Height) — Narrow 100px (default) / Wide 180px. */
+.nav-bar.is-wide .nav-inner {
+  min-height: 180px;
+}
+
+/* Inline logo (content-menu: Logo = Inline) — no overlapping banner, so the
+   bars reserve no left gutter and the logo renders inline at the left. */
+.nav-bar.logo-inline .nav-inner {
+  padding-left: 24px;
+  justify-content: space-between;
+}
+
+.nav-bar.logo-inline .nav-topbar-inner {
+  padding-left: 24px;
+}
+
+.nav-logo-inline {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+/* The bundled logo is a white knockout (built for the green banner tile). Inline,
+   it sits on the white bar, so render it solid dark to stay visible. Supply a
+   colour logo via `logoUrl` if the brand-coloured mark is wanted here. */
+.nav-logo-inline .nav-logo-img {
+  filter: brightness(0);
+}
+
+/* ── Logo (raised green tile that spans both bars + protrudes below) ─────── */
 
 .nav-logo {
   position: absolute;
-  left: 24px;
   top: 0;
-  height: 131px;
+  left: max(24px, calc((100% - 1314px) / 2 + 24px));
+  width: 240px;
+  height: 150px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 28px;
-  border-radius: 4px;
+  /* Flush to the top edge (square top corners); only the protruding bottom is rounded. */
+  border-radius: 0 0 4px 4px;
   box-shadow: 0px 1px 11px rgba(0, 0, 0, 0.35);
   text-decoration: none;
-  z-index: 1;
+  overflow: hidden;
+  z-index: 5;
 }
 
+/* Single-bar mode (top bar off): shorter nav → smaller tile. */
+.nav-bar:not(.has-topbar) .nav-logo {
+  top: 0;
+  width: 210px;
+  height: 104px;
+}
+
+/* Wide height → taller banner tile. */
+.nav-bar.is-wide .nav-logo {
+  height: 200px;
+}
+
+.nav-bar.is-wide:not(.has-topbar) .nav-logo {
+  height: 150px;
+}
+
+/* The logo SVG uses preserveAspectRatio="none" (viewBox ~205x57 ≈ 3.6:1), so it
+   stretches to whatever box it's given. We pin BOTH dimensions at that exact
+   ratio — !important beats host resets like `img { width: 100% }`. */
 .nav-logo-img {
   display: block;
-  height: 44px;
-  width: auto;
+  width: 151px !important;
+  height: 42px !important;
+  max-width: none !important;
 }
 
-/* ── Right cluster ──────────────────────────────────────────────────────── */
+/* ── Right cluster (nav links + optional inline actions) ────────────────── */
 
 .nav-right {
   display: flex;
@@ -62,11 +185,19 @@
 
 .nav-links {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 16px;
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+/* Each top-level link is a full-height hover target so its dropdown can anchor
+   to the bottom edge of the bar. */
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .nav-link {
@@ -89,6 +220,105 @@
 .nav-link-chevron {
   color: #111;
 }
+
+/* ── Two-level hover mega-menu ───────────────────────────────────────────── */
+
+/* Wrapper anchored to the bottom of the bar. The transparent top padding
+   bridges the gap so the mouse can travel from the link into the panel. */
+.nav-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  padding-top: 10px;
+  z-index: 50;
+}
+
+/* First-level panel (states) and second-level panel (cities) share a look. */
+.nav-dd-panel,
+.nav-subpanel {
+  list-style: none;
+  margin: 0;
+  /* 4px white spacers top/bottom, matching the Figma frame. */
+  padding: 4px 0;
+  min-width: 270px;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+  overflow: hidden;
+}
+
+/* Second-level panel sits flush to the right edge of the first, aligned to the
+   hovered row (top set inline). */
+.nav-subpanel {
+  position: absolute;
+  left: 100%;
+}
+
+.nav-dd-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 15px;
+  box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
+  cursor: pointer;
+}
+
+.nav-dd-item.is-active,
+.nav-dd-item:hover {
+  background: #f9fafb;
+}
+
+.nav-dd-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-dd-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: #101318;
+}
+
+.nav-dd-arrow {
+  flex-shrink: 0;
+  color: #000;
+}
+
+.nav-sub-item {
+  padding: 10px 15px;
+  box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
+}
+
+.nav-sub-item:hover {
+  background: #f9fafb;
+}
+
+.nav-sub-item a {
+  display: block;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #000;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* ── Inline actions — single-bar mode only (top bar toggled off) ─────────── */
 
 .nav-actions {
   display: flex;
@@ -164,58 +394,338 @@
   color: #111;
 }
 
-.nav-drawer-overlay {
+/* ── Mobile full-screen menu (hamburger) ────────────────────────────────── */
+
+.nav-mobile-menu {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
   z-index: 2147483647;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.nav-drawer {
-  position: relative;
-  width: min(320px, 85vw);
-  height: 100%;
   background: #fff;
-  padding: 72px 28px 28px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
   overflow-y: auto;
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.15);
+  font-family: 'Montserrat', sans-serif;
 }
 
-.nav-drawer-close {
-  position: absolute;
-  top: 18px;
-  right: 18px;
+.nav-mm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  flex-shrink: 0;
+}
+
+.nav-mm-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* Bundled logo is a white knockout → render dark on the white menu. */
+.nav-mm-logo-img {
+  display: block;
+  width: 132px !important;
+  height: 37px !important;
+  max-width: none !important;
+  filter: brightness(0);
+}
+
+.nav-mm-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
-  padding: 0;
+  padding: 4px;
   cursor: pointer;
-  color: #111;
+  color: #101318;
 }
 
-.nav-drawer .nav-links {
+.nav-mm-body {
+  display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 18px;
 }
 
-.nav-drawer .nav-actions {
+/* Quick actions grid */
+.nav-mm-quick {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  background: #f9fafb;
+  padding: 32px 31px;
+}
+
+.nav-mm-quick-item {
+  display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 18px;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  text-decoration: none;
+  color: #101318;
 }
 
-.nav-drawer .nav-paybill {
+.nav-mm-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #c4cdd5;
+  border-radius: 50%;
+  color: #101318;
+}
+
+.nav-mm-quick-label {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #101318;
+}
+
+/* Location search */
+.nav-mm-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 50px;
+  margin: 0 34px 20px;
+  padding: 0 6px 0 16px;
+  background: #fefefe;
+  border: 1px solid #101318;
+  border-radius: 100px;
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+.nav-mm-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: #101318;
+}
+
+.nav-mm-search-input::placeholder {
+  color: #637381;
+}
+
+.nav-mm-search-divider {
+  width: 1px;
+  height: 27px;
+  background: #c4cdd5;
+  flex-shrink: 0;
+}
+
+.nav-mm-search-type {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0 2px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: #637381;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nav-mm-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: var(--color_1, #f45f30);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #fff;
+}
+
+/* Account / utility links */
+.nav-mm-account {
+  list-style: none;
+  margin: 0;
+  padding: 8px 40px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nav-mm-account a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  color: #000;
+}
+
+.nav-mm-account svg {
+  flex-shrink: 0;
+  color: #101318;
+}
+
+.nav-mm-account span {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.nav-mm-divider {
+  height: 1px;
+  background: #c4cdd5;
+  margin: 0 40px;
+}
+
+/* Nav accordion */
+.nav-mm-nav {
+  list-style: none;
+  margin: 0;
+  padding: 4px 40px 40px;
+}
+
+.nav-mm-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   width: 100%;
+  padding: 11px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
+}
+
+.nav-mm-nav-row.is-open {
+  color: var(--color_1, #f45f30);
+}
+
+.nav-mm-chevron {
+  transition: transform 0.15s ease;
+}
+
+.nav-mm-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.nav-mm-sub {
+  background: #f9fafb;
+  box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
+}
+
+.nav-mm-sub-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
+}
+
+.nav-mm-sub-item:last-child {
+  box-shadow: none;
+}
+
+.nav-mm-sub-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: #101318;
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
-@media (max-width: 980px) {
+/* Tablet / small-desktop: shrink the utility bar + nav links so they don't
+   collide with the raised logo tile before the layout snaps to the hamburger.
+   (Text + gaps are the width drivers; icons are left alone so the flag keeps
+   its aspect ratio.) */
+@media (max-width: 1300px) {
+  .nav-top-items {
+    gap: 18px;
+  }
+
+  .nav-top-item {
+    font-size: 14px;
+    gap: 6px;
+  }
+
+  .nav-lang {
+    gap: 4px;
+  }
+
+  .nav-right {
+    gap: 32px;
+  }
+
+  .nav-links {
+    gap: 12px;
+  }
+
+  .nav-link {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .nav-top-items {
+    gap: 12px;
+  }
+
+  .nav-top-item {
+    font-size: 12.5px;
+    gap: 5px;
+  }
+
+  .nav-lang {
+    gap: 3px;
+  }
+
+  .nav-links {
+    gap: 8px;
+  }
+
+  .nav-link {
+    font-size: 15px;
+  }
+
+  /* Reclaim room: a slightly smaller tile + narrower reserved gutter. Banner
+     mode only — inline mode reserves no gutter. */
+  .nav-bar.logo-banner .nav-logo {
+    width: 200px;
+  }
+
+  .nav-bar.logo-banner .nav-topbar-inner,
+  .nav-bar.logo-banner .nav-inner {
+    padding-left: 236px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .nav-topbar {
+    display: none;
+  }
+
   .nav-right {
     display: none;
   }
@@ -226,14 +736,19 @@
 
   .nav-inner {
     justify-content: flex-end;
-    height: 88px;
+    min-height: 88px;
+    padding: 0 24px;
   }
 
-  .nav-logo {
-    height: 110px;
+  .nav-bar .nav-logo,
+  .nav-bar:not(.has-topbar) .nav-logo {
+    top: 0;
+    width: 150px;
+    height: 92px;
   }
 
   .nav-logo-img {
-    height: 38px;
+    width: 120px !important;
+    height: 33px !important;
   }
 }
