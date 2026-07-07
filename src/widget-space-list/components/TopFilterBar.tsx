@@ -45,48 +45,37 @@ export function TopFilterBar({
   panelOpen,
   onTogglePanel,
 }: TopFilterBarProps) {
-  // Show first 2 available features as quick-access pills
-  const quickPills = featureOptions.slice(0, 2);
+  // Show all available features as quick-access pills; the row scrolls
+  // horizontally when they don't all fit. The filter icon opens the full panel.
+  const quickPills = featureOptions;
 
   return (
     <div className="sl-top-bar">
 
-      {/* Left group: icon + quick pills + More */}
-      <div className="sl-top-bar-left">
+      {/* Filter icon — opens the full panel */}
+      <button
+        className={`sl-top-bar-icon-btn${panelOpen ? ' active' : ''}`}
+        onClick={onTogglePanel}
+        aria-label="Open filters"
+        title="Open filters"
+      >
+        <FilterHorizontalIcon />
+      </button>
 
-        {/* Abacus / filter icon button */}
-        <button
-          className={`sl-top-bar-icon-btn${panelOpen ? ' active' : ''}`}
-          onClick={onTogglePanel}
-          aria-label="Open filters"
-          title="Open filters"
-        >
-          <FilterHorizontalIcon />
-        </button>
-
-        {/* Quick feature pills */}
-        <div className="sl-top-bar-pills">
-          {quickPills.map((name) => (
-            <button
-              key={name}
-              className={`sl-top-bar-pill${filters.features.includes(name) ? ' active' : ''}`}
-              onClick={() => onChange({ ...filters, features: toggle(filters.features, name) })}
-            >
-              {name}
-            </button>
-          ))}
-
-          {/* More — opens the full panel */}
+      {/* Quick feature pills — scroll horizontally when they overflow */}
+      <div className="sl-top-bar-pills">
+        {quickPills.map((name) => (
           <button
-            className={`sl-top-bar-pill${panelOpen ? ' active' : ''}`}
-            onClick={onTogglePanel}
+            key={name}
+            className={`sl-top-bar-pill${filters.features.includes(name) ? ' active' : ''}`}
+            onClick={() => onChange({ ...filters, features: toggle(filters.features, name) })}
           >
-            More
+            {name}
           </button>
-        </div>
+        ))}
       </div>
 
-      {/* Right: search input */}
+      {/* Search input */}
       <div className="sl-top-bar-search">
         <input
           className="sl-top-bar-search-input"
