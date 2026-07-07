@@ -61,19 +61,6 @@ const SOURCES: ReviewSource[] = [
       { id: 'y4', author: 'Daniel Wu', rating: 4, text: '"Really solid storage facility. Easy access, great staff, very clean. Pricing is fair and competitive. Would definitely rent here again."', timeAgo: '5 months ago' },
     ],
   },
-  {
-    key: 'reviews',
-    name: 'Reviews.io',
-    score: 4.2,
-    count: 15,
-    moreUrl: '#',
-    reviews: [
-      { id: 'r1', author: 'Jenny Mongelli', rating: 5, text: '"We have consistently experienced exceptional customer service at this facility, which is always secure and impeccably clean. As loyal customers for more than two years, we have rented a climate-controlled unit and have encountered no issues."', timeAgo: '4 months ago' },
-      { id: 'r2', author: 'Marky Mark', rating: 4, text: 'The online process is incredibly simple and straightforward, making it easy for anyone to navigate. I truly appreciate the offer of a 12-month rate lock, as it provides peace of mind and stability during the financial planning process.', timeAgo: '2 months ago' },
-      { id: 'r3', author: 'Patricia Nguyen', rating: 5, text: '"Top notch facility. Staff went above and beyond to help me find the right unit size. Pricing is very transparent with no hidden fees."', timeAgo: '6 months ago' },
-      { id: 'r4', author: 'Kevin Hart', rating: 4, text: '"Clean, safe, and conveniently located. The drive-up access is perfect for loading and unloading. Staff are always helpful and professional."', timeAgo: '3 months ago' },
-    ],
-  },
 ];
 
 const REVIEWS_PER_PAGE = 2;
