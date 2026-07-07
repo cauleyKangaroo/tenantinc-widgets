@@ -399,10 +399,15 @@
 .nav-mobile-menu {
   position: fixed;
   inset: 0;
+  width: 100%;
+  max-width: 100%;
   z-index: 2147483647;
   background: #fff;
   display: flex;
   flex-direction: column;
+  /* Clip any horizontal spill — a fixed element's overflowing child otherwise
+     extends the document scroll width (the white gap down the right). */
+  overflow-x: hidden;
   overflow-y: auto;
   font-family: 'Montserrat', sans-serif;
 }
@@ -444,16 +449,18 @@
 .nav-mm-body {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  min-width: 0;
 }
 
-/* Quick actions grid */
+/* Quick actions grid — minmax(0, 1fr) columns can't force the row wider than
+   the menu (equal columns that shrink to 0), so it never overflows. */
 .nav-mm-quick {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   background: #f9fafb;
-  padding: 32px 31px;
+  padding: 32px 16px;
 }
 
 .nav-mm-quick-item {
@@ -461,9 +468,14 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  flex: 1;
+  min-width: 0;
   text-decoration: none;
   color: #101318;
+}
+
+.nav-mm-quick-label {
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .nav-mm-circle {

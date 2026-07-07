@@ -95,9 +95,10 @@
 }
 
 .ub-tooltip {
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
+  /* display:none (not visibility:hidden) so the hidden tooltip is removed from
+     layout — otherwise its absolute box near the right edge permanently extends
+     the page width and creates a horizontal-scroll gap. */
+  display: none;
   position: absolute;
   top: calc(100% + 8px);
   left: 50%;
@@ -111,8 +112,8 @@
   padding: 8px 12px;
   border-radius: 6px;
   width: 220px;
+  max-width: calc(100vw - 24px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: opacity 0.18s ease, visibility 0.18s ease;
   z-index: 2147483647;
 }
 
@@ -128,8 +129,7 @@
 
 .ub-info--tooltip:hover .ub-tooltip,
 .ub-info--tooltip:focus-visible .ub-tooltip {
-  visibility: visible;
-  opacity: 1;
+  display: block;
 }
 
 /* ── Close button ───────────────────────────────────────────────────────── */

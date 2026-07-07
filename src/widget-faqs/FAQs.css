@@ -11,6 +11,7 @@
   flex-direction: column;
   align-items: center;
   gap: 40px;
+  overflow-wrap: break-word;
 }
 
 .faq-wrapper *,
@@ -174,6 +175,15 @@
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
+
+/* Give the full-width elements (search, accordion list) a gutter on smaller
+   screens so they don't run edge-to-edge / off-screen. */
+@media (max-width: 768px) {
+  .faq-wrapper {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
 
 @media (max-width: 640px) {
   .faq-wrapper {
