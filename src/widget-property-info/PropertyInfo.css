@@ -655,17 +655,20 @@ span.pi-lb-img {
 
 .pi-m-circles {
   display: flex;
-  justify-content: center;
-  gap: 16px;
-  padding: 24px 16px;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 24px 12px;
 }
 
+/* Items share the row equally and can shrink to 0, so 5 fixed circles can never
+   push the row wider than the screen (was overflowing at 5×61px + gaps). */
 .pi-m-circle-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  width: 61px;
+  flex: 1 1 0;
+  min-width: 0;
   text-decoration: none;
   color: #101318;
 }
@@ -682,11 +685,11 @@ span.pi-lb-img {
 }
 
 .pi-m-circle-label {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .pi-m-hours {
