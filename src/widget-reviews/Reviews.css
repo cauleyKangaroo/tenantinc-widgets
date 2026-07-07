@@ -53,14 +53,15 @@
   margin: 0;
 }
 
-/* ── 3-column grid ──────────────────────────────────────────────────────── */
+/* ── 2-column grid (centered) ───────────────────────────────────────────── */
 
 .rw-columns {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 24px;
   width: 100%;
-  max-width: 1314px;
+  max-width: 868px;
+  margin: 0 auto;
 }
 
 .rw-column {
@@ -343,16 +344,5 @@
 
   .rw-mobile .rw-pagination {
     justify-content: center;
-  }
-}
-
-@media (max-width: 1100px) and (min-width: 901px) {
-  .rw-columns {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .rw-columns .rw-column:last-child {
-    grid-column: 1 / -1;
-    max-width: calc(50% - 12px);
   }
 }
