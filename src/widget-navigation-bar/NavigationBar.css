@@ -561,6 +561,14 @@
   color: #fff;
 }
 
+/* Keep the magnifying glass its full size — flexbox was shrinking the SVG's
+   width to ~8px. */
+.nav-mm-search-btn svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
 /* Account / utility links */
 .nav-mm-account {
   list-style: none;
