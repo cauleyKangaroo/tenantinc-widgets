@@ -765,7 +765,12 @@
 
 @media (max-width: 767px) {
   .sl-wrapper { padding: 12px; gap: 14px; }
-  .sl-wrapper .sl-row { flex-direction: column; }
+  /* Stack the columns and stretch them full-width. Without align-items:stretch
+     the listing area (which has container-type:inline-size) can't derive a
+     width from its content and collapses to ~min-content. */
+  .sl-wrapper .sl-row { flex-direction: column; align-items: stretch; }
+  .sl-wrapper .sl-listing-area { width: 100%; }
+  .sl-wrapper .sl-page-title { text-align: center; }
   .sl-wrapper .sl-filter-panel,
   .sl-wrapper .sl-additional-panel.ap-left,
   .sl-wrapper .sl-additional-panel.ap-right { width: 100% !important; }
@@ -791,7 +796,17 @@
   .sl-wrapper .sl-lc-display { padding: 20px; }
   .sl-wrapper .sl-lc-action { padding: 20px; }
   .sl-wrapper .sl-unit-img { width: 100%; max-width: 100%; }
+
+  /* Grid unit card: one full-width column, and stack the info + image so the
+     fixed 171px info column can't overflow a narrow card. */
+  .sl-wrapper .sl-cards-grid { grid-template-columns: 1fr; }
+  .sl-wrapper .sl-card-top { flex-direction: column; gap: 20px; }
+  .sl-wrapper .sl-card-info { width: 100%; }
+  .sl-wrapper .sl-card-image-col { width: 100%; align-items: flex-start; }
+  .sl-wrapper .sl-card-display-panel { padding: 20px; }
+  .sl-wrapper .sl-card-action-panel { padding: 20px; }
 }
+
 
 /* ===========================================================================
    SKELETON LOADER
@@ -1647,6 +1662,23 @@
   padding: 24px;
   box-shadow: none;
   border-radius: 0;
+}
+
+/* Mobile: the "side" accordions become full-width bottom accordions. These
+   overrides must live AFTER the base .sl-sa-* rules above — @container/@media
+   add no specificity, so an earlier override would lose the source-order tie
+   (which is why the width:422px base was still winning). */
+@media (max-width: 767px) {
+  .sl-wrapper .sl-sa-panel { width: 100%; }
+  .sl-wrapper .sl-sa-item { max-width: 100%; }
+  .sl-wrapper .sl-sa-header { padding: 0 16px; min-height: 64px; gap: 8px; }
+  .sl-wrapper .sl-sa-header-left { gap: 12px; }
+  .sl-wrapper .sl-sa-title { font-size: 18px; }
+  .sl-wrapper .sl-sa-body { padding: 0; }
+  .sl-wrapper .sl-sa-body .sl-section--nearby,
+  .sl-wrapper .sl-sa-body .sl-section--sizeguide,
+  .sl-wrapper .sl-sa-body .sl-section--blog,
+  .sl-wrapper .sl-sa-body .sl-section--faqs { padding: 16px; }
 }
 
 /* ===========================================================================
@@ -2885,8 +2917,8 @@
 .sl-wrapper .sl-top-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 12px;
   padding: 0;
 }
 
@@ -2919,13 +2951,20 @@
   background: #f4f6f8;
 }
 
-/* Quick filter pill group */
+/* Quick filter pill group — a single row that scrolls horizontally when the
+   (dynamic) tags overflow. */
 .sl-wrapper .sl-top-bar-pills {
   display: flex;
   gap: 12px;
   align-items: center;
-  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;              /* Firefox */
 }
+.sl-wrapper .sl-top-bar-pills::-webkit-scrollbar { display: none; }  /* WebKit */
 
 .sl-wrapper .sl-top-bar-pill {
   height: 44px;
@@ -2939,6 +2978,7 @@
   font-family: 'Montserrat', sans-serif;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
@@ -2951,12 +2991,13 @@
   background: #f4f6f8;
 }
 
-/* Search input wrapper */
+/* Search input wrapper — pushed to the right of the bar on desktop. */
 .sl-wrapper .sl-top-bar-search {
   position: relative;
   width: 250px;
   height: 56px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .sl-wrapper .sl-top-bar-search-input {
@@ -3003,6 +3044,31 @@
 
 .sl-wrapper .sl-top-bar-search-btn:hover {
   background: #2d3748;
+}
+
+/* Top filter bar (mobile): two rows.
+   Row 1 = filter icon + search (search fills the rest).
+   Row 2 = the quick pills, scrolling horizontally (drag) when they overflow.
+   NOTE: this block must come AFTER the base .sl-top-bar-* rules above —
+   @container adds no specificity, so a later source rule would otherwise win. */
+@container (max-width: 600px) {
+  .sl-wrapper .sl-top-bar { flex-wrap: wrap; align-items: center; }
+
+  .sl-wrapper .sl-top-bar-icon-btn { order: 0; }
+
+  .sl-wrapper .sl-top-bar-search {
+    order: 1;
+    margin-left: 0;
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .sl-wrapper .sl-top-bar-pills {
+    order: 2;
+    flex: 0 0 100%;
+    width: 100%;
+  }
 }
 
 /* When FilterPanel drops down below the top bar, make it full-width */
