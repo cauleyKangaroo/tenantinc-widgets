@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import './SizeGuide.css';
 import { ChevronRight, PlayButton } from './icons';
+import { SIZE_IMAGES, cover } from '@shared/demoImages';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -33,8 +34,8 @@ const CATEGORIES: Category[] = [
     label: 'Small',
     units: [
       { id: 's1', title: 'Storage Locker', image: G1, description: 'Storage locker units (about 5x5x4ft) are convenient and often more cost effective than other storage unit sizes. In this video we show you how big our locker storage units are and what you can fit inside.', bullets: ['25 sq ft', 'Closet-sized storage with less height'] },
-      { id: 's2', title: '5’ x 5’', image: G2, description: 'Ever wondered what a 5x5 storage unit looks like or what fits in a 5x5 foot storage unit? In this video we show you how big our 5x5 storage unit is and what you can fit inside.', bullets: ['25 sq ft', 'Closet-sized storage'] },
-      { id: 's3', title: '5’ x 10’', image: G3, description: 'Ever wondered what a 5x10 storage unit looks like or what fits in a 5x10 foot storage unit? In this video we show you how big our 5x10 storage unit is and what you can fit inside.', bullets: ['50 sq ft', 'Small apartment extras'] },
+      { id: 's2', title: '5’ x 5’', image: cover(SIZE_IMAGES['5x5']), description: 'Ever wondered what a 5x5 storage unit looks like or what fits in a 5x5 foot storage unit? In this video we show you how big our 5x5 storage unit is and what you can fit inside.', bullets: ['25 sq ft', 'Closet-sized storage'] },
+      { id: 's3', title: '5’ x 10’', image: cover(SIZE_IMAGES['5x10']), description: 'Ever wondered what a 5x10 storage unit looks like or what fits in a 5x10 foot storage unit? In this video we show you how big our 5x10 storage unit is and what you can fit inside.', bullets: ['50 sq ft', 'Small apartment extras'] },
       { id: 's4', title: '5’ x 15’', image: G1, description: 'A 5x15 unit offers extra depth for longer items while keeping a compact footprint. See what fits inside and whether it suits your move.', bullets: ['75 sq ft', 'Contents of a one-bedroom apartment'] },
     ],
   },
@@ -44,7 +45,7 @@ const CATEGORIES: Category[] = [
     units: [
       { id: 'm1', title: '10’ x 10’', image: G2, description: 'A 10x10 storage unit is one of our most popular sizes — roughly half of a standard one-car garage. Great for the contents of a two-bedroom home.', bullets: ['100 sq ft', 'Two bedrooms of furniture'] },
       { id: 'm2', title: '10’ x 15’', image: G3, description: 'A 10x15 unit comfortably holds the contents of a larger apartment or a small house, including major appliances.', bullets: ['150 sq ft', 'Three bedrooms of furniture'] },
-      { id: 'm3', title: '10’ x 20’', image: G1, description: 'A 10x20 unit is about the size of a standard one-car garage and ideal for whole-home moves or vehicle storage.', bullets: ['200 sq ft', 'Contents of a full house'] },
+      { id: 'm3', title: '10’ x 20’', image: cover(SIZE_IMAGES['10x20']), description: 'A 10x20 unit is about the size of a standard one-car garage and ideal for whole-home moves or vehicle storage.', bullets: ['200 sq ft', 'Contents of a full house'] },
     ],
   },
   {
@@ -52,7 +53,7 @@ const CATEGORIES: Category[] = [
     label: 'Large',
     units: [
       { id: 'l1', title: '10’ x 25’', image: G3, description: 'A 10x25 unit suits large household moves and business inventory, with room to organize and access your items.', bullets: ['250 sq ft', 'Large home + appliances'] },
-      { id: 'l2', title: '10’ x 30’', image: G2, description: 'Our largest standard unit — comparable to a two-car garage. Perfect for major moves, commercial storage, or vehicles.', bullets: ['300 sq ft', 'Five+ bedrooms or commercial use'] },
+      { id: 'l2', title: '10’ x 30’', image: cover(SIZE_IMAGES['10x30']), description: 'Our largest standard unit — comparable to a two-car garage. Perfect for major moves, commercial storage, or vehicles.', bullets: ['300 sq ft', 'Five+ bedrooms or commercial use'] },
     ],
   },
   {

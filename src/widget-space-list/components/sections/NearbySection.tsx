@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PROPERTY_IMAGES, cover } from '@shared/demoImages';
 
 type ViewMode = 'list' | 'map';
 
@@ -93,20 +94,12 @@ function Stars({ rating, size = 16, color = '#FBBC05' }: { rating: number; size?
 
 // ── Property card ─────────────────────────────────────────────────────────────
 
-const CARD_GRADIENTS = [
-  'linear-gradient(160deg,#3d4f5f 0%,#1c2b3a 100%)',
-  'linear-gradient(160deg,#3b4a41 0%,#1a2820 100%)',
-  'linear-gradient(160deg,#4a4035 0%,#271f16 100%)',
-  'linear-gradient(160deg,#3a3d55 0%,#1b1e35 100%)',
-  'linear-gradient(160deg,#4a3545 0%,#2a1828 100%)',
-];
-
 function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
   return (
     <div className="sl-nb2-card">
 
       {/* Image area */}
-      <div className="sl-nb2-img" style={{ background: CARD_GRADIENTS[index % CARD_GRADIENTS.length] }}>
+      <div className="sl-nb2-img" style={{ background: cover(PROPERTY_IMAGES[index % PROPERTY_IMAGES.length]) }}>
         <div className="sl-nb2-img-overlay" />
         <span className="sl-nb2-distance">{p.distance}</span>
         <div className="sl-nb2-prop-info">

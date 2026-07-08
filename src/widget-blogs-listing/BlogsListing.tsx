@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './BlogsListing.css';
 import { ShareIcon, FileTextIcon, ChevronRight, SOCIALS } from './icons';
+import { BLOG_IMAGES, cover } from '@shared/demoImages';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -18,12 +19,12 @@ interface BlogPost {
 }
 
 const POSTS: BlogPost[] = [
-  { id: 'b1', title: 'Spring Cleaning Made Simple: Storage Outlet Has Your Back', author: 'Storage Outlet', date: 'Mar 15, 2026 @ 4:30pm', excerpt: "Don't start the year off with overflowing closets, stuffed garages, and just too much clutter. Here's how a storage unit can help you reset.", image: 'linear-gradient(135deg, #c9b6e4 0%, #a78bc8 100%)', href: '#' },
-  { id: 'b2', title: '5 Tips for Packing a Storage Unit Efficiently', author: 'Storage Outlet', date: 'Mar 10, 2026 @ 1:15pm', excerpt: 'Make the most of every square foot. These simple packing strategies help you fit more and keep your belongings easy to reach.', image: 'linear-gradient(135deg, #e0a96d 0%, #c47e3f 100%)', href: '#' },
-  { id: 'b3', title: 'How to Choose the Right Storage Unit Size', author: 'Storage Outlet', date: 'Mar 4, 2026 @ 9:00am', excerpt: 'From lockers to large drive-up units, picking the right size saves money and hassle. Our guide breaks down what fits where.', image: 'linear-gradient(135deg, #8fb3d9 0%, #5d86b3 100%)', href: '#' },
-  { id: 'b4', title: 'Climate-Controlled Storage: Is It Worth It?', author: 'Storage Outlet', date: 'Feb 26, 2026 @ 11:45am', excerpt: 'Temperature swings can damage furniture, electronics, and documents. Here\'s when climate control is worth the upgrade.', image: 'linear-gradient(135deg, #9ed0c0 0%, #6aa893 100%)', href: '#' },
-  { id: 'b5', title: 'Moving Soon? A Stress-Free Storage Checklist', author: 'Storage Outlet', date: 'Feb 18, 2026 @ 3:20pm', excerpt: 'Keep your move organized from start to finish with our printable checklist covering everything from boxes to insurance.', image: 'linear-gradient(135deg, #d9a3b0 0%, #b56e80 100%)', href: '#' },
-  { id: 'b6', title: 'Business Storage Solutions for Growing Companies', author: 'Storage Outlet', date: 'Feb 9, 2026 @ 10:05am', excerpt: 'Inventory, equipment, and records add up fast. See how flexible storage keeps your workspace clear and your costs down.', image: 'linear-gradient(135deg, #b0b8c4 0%, #828c9c 100%)', href: '#' },
+  { id: 'b1', title: 'Spring Cleaning Made Simple: Storage Outlet Has Your Back', author: 'Storage Outlet', date: 'Mar 15, 2026 @ 4:30pm', excerpt: "Don't start the year off with overflowing closets, stuffed garages, and just too much clutter. Here's how a storage unit can help you reset.", image: cover(BLOG_IMAGES[0]), href: '#' },
+  { id: 'b2', title: '5 Tips for Packing a Storage Unit Efficiently', author: 'Storage Outlet', date: 'Mar 10, 2026 @ 1:15pm', excerpt: 'Make the most of every square foot. These simple packing strategies help you fit more and keep your belongings easy to reach.', image: cover(BLOG_IMAGES[1]), href: '#' },
+  { id: 'b3', title: 'How to Choose the Right Storage Unit Size', author: 'Storage Outlet', date: 'Mar 4, 2026 @ 9:00am', excerpt: 'From lockers to large drive-up units, picking the right size saves money and hassle. Our guide breaks down what fits where.', image: cover(BLOG_IMAGES[2]), href: '#' },
+  { id: 'b4', title: 'Climate-Controlled Storage: Is It Worth It?', author: 'Storage Outlet', date: 'Feb 26, 2026 @ 11:45am', excerpt: 'Temperature swings can damage furniture, electronics, and documents. Here\'s when climate control is worth the upgrade.', image: cover(BLOG_IMAGES[0]), href: '#' },
+  { id: 'b5', title: 'Moving Soon? A Stress-Free Storage Checklist', author: 'Storage Outlet', date: 'Feb 18, 2026 @ 3:20pm', excerpt: 'Keep your move organized from start to finish with our printable checklist covering everything from boxes to insurance.', image: cover(BLOG_IMAGES[1]), href: '#' },
+  { id: 'b6', title: 'Business Storage Solutions for Growing Companies', author: 'Storage Outlet', date: 'Feb 9, 2026 @ 10:05am', excerpt: 'Inventory, equipment, and records add up fast. See how flexible storage keeps your workspace clear and your costs down.', image: cover(BLOG_IMAGES[2]), href: '#' },
 ];
 
 const CARDS_PER_PAGE = 3;

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SIZE_IMAGES, cover } from '@shared/demoImages';
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -18,7 +19,7 @@ const CATEGORIES: SizeCategory[] = [
   {
     tab: 'Extra Small',
     title: 'Extra Small 4x4',
-    imageBg: 'linear-gradient(160deg, #b0bec5 0%, #546e7a 100%)',
+    imageBg: cover(SIZE_IMAGES['5x5']),
     content: [
       { type: 'heading', text: 'How big is a storage locker?' },
       { type: 'para',    text: "Storage locker units (about 4x4x4ft) are convenient and often more cost-effective than other storage unit sizes. Perfect for keeping just a few items safe when you don't need much space." },
@@ -31,7 +32,7 @@ const CATEGORIES: SizeCategory[] = [
   {
     tab: 'Small',
     title: 'Small 5x5',
-    imageBg: 'linear-gradient(160deg, #8d9db6 0%, #667292 100%)',
+    imageBg: cover(SIZE_IMAGES['5x5']),
     content: [
       { type: 'heading', text: 'How big is a storage locker?' },
       { type: 'para',    text: "This unit is ideal for storing seasonal decorations and equipment that you don't want to keep at home and for a few loose items you have around your house, business, or dorm." },
@@ -44,7 +45,7 @@ const CATEGORIES: SizeCategory[] = [
   {
     tab: 'Medium',
     title: 'Medium 10x10',
-    imageBg: 'linear-gradient(160deg, #3d4f5f 0%, #1c2b3a 100%)',
+    imageBg: cover(SIZE_IMAGES['5x10']),
     content: [
       { type: 'heading', text: 'How big is a 10x10 storage unit?' },
       { type: 'para',    text: 'A 10x10 storage unit is about the size of a standard bedroom — large enough to hold furniture and belongings from a one or two-bedroom apartment.' },
@@ -57,7 +58,7 @@ const CATEGORIES: SizeCategory[] = [
   {
     tab: 'Large',
     title: 'Large 10x20',
-    imageBg: 'linear-gradient(160deg, #3b4a41 0%, #1a2820 100%)',
+    imageBg: cover(SIZE_IMAGES['10x20']),
     content: [
       { type: 'heading', text: 'How big is a 10x20 storage unit?' },
       { type: 'para',    text: 'A 10x20 storage unit is the same size as a single-car garage. It is perfect for storing all the contents of a three-bedroom home or a substantial amount of business inventory.' },
@@ -70,7 +71,7 @@ const CATEGORIES: SizeCategory[] = [
   {
     tab: 'Extra Large',
     title: 'Extra Large 10x30',
-    imageBg: 'linear-gradient(160deg, #4a4035 0%, #271f16 100%)',
+    imageBg: cover(SIZE_IMAGES['10x30']),
     content: [
       { type: 'heading', text: 'How big is a 10x30 storage unit?' },
       { type: 'para',    text: 'A 10x30 storage unit provides up to 300 square feet of space — enough for the contents of a large five-bedroom home, a commercial operation, or multiple vehicles.' },

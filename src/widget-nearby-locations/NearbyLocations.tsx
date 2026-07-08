@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './NearbyLocations.css';
+import { PROPERTY_IMAGES, cover } from '@shared/demoImages';
 import {
   StarRating,
   PhoneIcon,
@@ -51,11 +52,11 @@ const ADDRESS = '8478 3rd Street, Fullerton, CA 02027';
 const PHONE = '(555) 555-5555';
 
 const PROPERTIES: Property[] = [
-  { id: 'p1', name: '3rd Street Storage', distance: '1.7 Miles', rating: 4.5, reviewCount: 32, address: ADDRESS, phone: PHONE, image: 'linear-gradient(135deg, #4a5568 0%, #2d3748 100%)', promo: '$1 Move-In', adminFee: 20, spaces: SPACES },
-  { id: 'p2', name: 'Storfun Storage', distance: '2.5 Miles', rating: 4.5, reviewCount: 32, address: ADDRESS, phone: PHONE, image: 'linear-gradient(135deg, #7c4a3a 0%, #3e2723 100%)', promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
-  { id: 'p3', name: 'Green Street Storage', distance: '3 Miles', rating: 4.5, reviewCount: 32, address: ADDRESS, phone: PHONE, image: 'linear-gradient(135deg, #4a6b4f 0%, #1b3a23 100%)', promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
-  { id: 'p4', name: 'Lakeside Self Storage', distance: '4.1 Miles', rating: 4, reviewCount: 18, address: ADDRESS, phone: PHONE, image: 'linear-gradient(135deg, #3a5a7c 0%, #1a2f44 100%)', promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
-  { id: 'p5', name: 'Uptown Storage Co.', distance: '5.3 Miles', rating: 5, reviewCount: 47, address: ADDRESS, phone: PHONE, image: 'linear-gradient(135deg, #5a4a6b 0%, #2c1f3a 100%)', promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
+  { id: 'p1', name: '3rd Street Storage', distance: '1.7 Miles', rating: 4.5, reviewCount: 32, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[0]), promo: '$1 Move-In', adminFee: 20, spaces: SPACES },
+  { id: 'p2', name: 'Storfun Storage', distance: '2.5 Miles', rating: 4.5, reviewCount: 32, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[1]), promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
+  { id: 'p3', name: 'Green Street Storage', distance: '3 Miles', rating: 4.5, reviewCount: 32, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[2]), promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
+  { id: 'p4', name: 'Lakeside Self Storage', distance: '4.1 Miles', rating: 4, reviewCount: 18, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[0]), promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
+  { id: 'p5', name: 'Uptown Storage Co.', distance: '5.3 Miles', rating: 5, reviewCount: 47, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[1]), promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
 ];
 
 const CARDS_PER_PAGE = 3;

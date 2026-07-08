@@ -176,7 +176,10 @@ export function SpaceList({
   // sits on whichever side apLocation specifies.
   return (
     <div className={`sl-wrapper filter-top ap-${apLocation}`}>
-      <h2 className="sl-page-title">Storage Units in {'{Location}'}</h2>
+      <div className="sl-heading">
+        <p className="sl-select-heading">Select a Space</p>
+        <h2 className="sl-page-title">Storage Units in {'{Location}'}</h2>
+      </div>
       <div className="sl-row">
         {apLocation === 'left' && sectionPanel}
         <main className="sl-listing-area">
