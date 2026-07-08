@@ -128,7 +128,7 @@ export function SizeGuideSection() {
         </div>
 
         {/* Title */}
-        <h3 className="sl-sg2-title">{category.title}</h3>
+        <p className="sl-sg2-title">{category.title}</p>
 
         {/* Body */}
         <div className="sl-sg2-body">

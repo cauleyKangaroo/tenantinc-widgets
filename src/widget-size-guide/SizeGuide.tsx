@@ -88,7 +88,7 @@ function SizeCard({ unit, mobile }: { unit: SizeUnit; mobile?: boolean }) {
         <PlayButton size={72} />
       </div>
       <div className="sg-card-body">
-        <h3 className="sg-card-title">{unit.title}</h3>
+        <p className="sg-card-title">{unit.title}</p>
         <div className={`sg-card-desc${mobile && !expanded ? ' clamp' : ''}`}>
           <p>{unit.description}</p>
           <ul>
