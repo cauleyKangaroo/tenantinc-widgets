@@ -39,7 +39,7 @@ function BlogCard({ post }: { post: BlogPost }) {
     <article className="blog-card">
       <div className="blog-card-img" style={{ background: post.image }} />
       <div className="blog-card-body">
-        <h3 className="blog-card-title">{post.title}</h3>
+        <p className="blog-card-title">{post.title}</p>
         <p className="blog-card-byline">By {post.author},&nbsp; {post.date}</p>
         <p className="blog-card-excerpt">{post.excerpt}</p>
         <div className="blog-card-footer">

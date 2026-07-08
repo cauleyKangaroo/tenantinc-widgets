@@ -66,7 +66,7 @@ export function BlogSection() {
 
           {/* Card body */}
           <div className="sl-blog2-body">
-            <h3 className="sl-blog2-title">{post.title}</h3>
+            <p className="sl-blog2-title">{post.title}</p>
             <p className="sl-blog2-byline">By {post.author},&nbsp;&nbsp;{post.date}</p>
             <p className="sl-blog2-excerpt">{post.excerpt}</p>
             <div className="sl-blog2-footer">
