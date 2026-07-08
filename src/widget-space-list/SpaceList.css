@@ -268,6 +268,10 @@
   text-transform: none;
   letter-spacing: normal;
 }
+/* "Select a Space" is a mobile-only heading. On desktop .sl-heading collapses
+   (display:contents) so only the page title shows — desktop is unchanged. */
+.sl-wrapper .sl-heading { display: contents; }
+.sl-wrapper .sl-select-heading { display: none; }
 
 /* ===========================================================================
    GRID VIEW — ACCORDIONS
@@ -770,7 +774,13 @@
      width from its content and collapses to ~min-content. */
   .sl-wrapper .sl-row { flex-direction: column; align-items: stretch; }
   .sl-wrapper .sl-listing-area { width: 100%; }
-  .sl-wrapper .sl-page-title { text-align: center; }
+  /* Header → "Select a Space" (28px) over the location subtitle (16px), centred */
+  .sl-wrapper .sl-heading { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .sl-wrapper .sl-select-heading {
+    display: block; margin: 0; font-family: 'Montserrat', sans-serif;
+    font-size: 28px; font-weight: 700; line-height: 1.2; color: #101318; text-align: center;
+  }
+  .sl-wrapper .sl-page-title { font-size: 16px; line-height: 1.2; text-align: center; }
   .sl-wrapper .sl-filter-panel,
   .sl-wrapper .sl-additional-panel.ap-left,
   .sl-wrapper .sl-additional-panel.ap-right { width: 100% !important; }
@@ -797,14 +807,34 @@
   .sl-wrapper .sl-lc-action { padding: 20px; }
   .sl-wrapper .sl-unit-img { width: 100%; max-width: 100%; }
 
-  /* Grid unit card: one full-width column, and stack the info + image so the
-     fixed 171px info column can't overflow a narrow card. */
-  .sl-wrapper .sl-cards-grid { grid-template-columns: 1fr; }
-  .sl-wrapper .sl-card-top { flex-direction: column; gap: 20px; }
-  .sl-wrapper .sl-card-info { width: 100%; }
-  .sl-wrapper .sl-card-image-col { width: 100%; align-items: flex-start; }
-  .sl-wrapper .sl-card-display-panel { padding: 20px; }
-  .sl-wrapper .sl-card-action-panel { padding: 20px; }
+  /* Grid unit card → mobile (Figma node 9697-48905): one column; the image sits
+     beside the info as a compact 132px thumbnail (not stacked full-width), and
+     "See what fits" is dropped. */
+  .sl-wrapper .sl-cards-grid { grid-template-columns: 1fr; gap: 16px; }
+  .sl-wrapper .sl-card-display-panel { padding: 16px; }
+  .sl-wrapper .sl-card-action-panel { padding: 16px; }
+  .sl-wrapper .sl-card-top { gap: 16px; align-items: flex-start; }
+  .sl-wrapper .sl-card-info { width: auto; flex: 1 1 auto; min-width: 0; }
+  .sl-wrapper .sl-card-image-col { flex: 0 0 auto; width: 132px; }
+  .sl-wrapper .sl-unit-img { max-width: 132px; }
+  .sl-wrapper .sl-see-fits { display: none; }
+
+  /* Size-group dropdown headers */
+  .sl-wrapper .sl-accordion-header { padding: 14px 20px; border-radius: 12px; }
+  .sl-wrapper .sl-accordion-title { font-size: 20px; }
+  .sl-wrapper .sl-accordion-body { padding-top: 16px; }
+  .sl-wrapper .sl-accordion.expanded .sl-accordion-header {
+    border: 2px solid #c4cdd5;
+    box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+  }
+
+  /* Filter bar → two rows on mobile: [icon + search] on the first row, and the
+     horizontally-scrollable tag pills wrap onto the second. */
+  .sl-wrapper .sl-top-bar { flex-wrap: wrap; }
+  .sl-wrapper .sl-top-bar-search {
+    order: 0; flex: 1 1 auto; width: auto; min-width: 0; margin-left: 0; height: 44px;
+  }
+  .sl-wrapper .sl-top-bar-pills { order: 1; flex-basis: 100%; }
 }
 
 

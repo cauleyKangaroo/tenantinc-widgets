@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BLOG_IMAGES, cover } from '@shared/demoImages';
 
 interface BlogPost {
   id: number;
@@ -16,7 +17,7 @@ const POSTS: BlogPost[] = [
     author: 'Storage Outlet',
     date: 'Mar 15, 2026 @ 4:30pm',
     excerpt: "Don't start the year off with overflowing closets, stuffed garages, and just too much stuff taking over your home.",
-    imageBg: 'linear-gradient(160deg, #b0bec5 0%, #78909c 100%)',
+    imageBg: cover(BLOG_IMAGES[0]),
   },
   {
     id: 2,
@@ -24,7 +25,7 @@ const POSTS: BlogPost[] = [
     author: 'Storage Outlet',
     date: 'Feb 28, 2026 @ 10:00am',
     excerpt: 'Maximise every square foot of your storage unit with these expert packing tips and tricks for a stress-free experience.',
-    imageBg: 'linear-gradient(160deg, #3d4f5f 0%, #1c2b3a 100%)',
+    imageBg: cover(BLOG_IMAGES[1]),
   },
   {
     id: 3,
@@ -32,7 +33,7 @@ const POSTS: BlogPost[] = [
     author: 'Storage Outlet',
     date: 'Feb 14, 2026 @ 2:00pm',
     excerpt: 'Not sure which unit type is right for your belongings? We break down the key differences to help you decide.',
-    imageBg: 'linear-gradient(160deg, #3b4a41 0%, #1a2820 100%)',
+    imageBg: cover(BLOG_IMAGES[2]),
   },
 ];
 

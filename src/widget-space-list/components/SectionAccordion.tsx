@@ -12,65 +12,55 @@ import {
   type AccordionKey,
 } from '../accordionSections';
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
+// ── Icons ──────────────────────────────────────────────────────────────────────
+// Real icons from Figma (Mariposa accordion set, node 9417-86779). Stroke-style,
+// drawn with currentColor so they inherit the .sl-sa-icon / .sl-sa-chevron colour.
 
 function IconInfo() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9" />
-      <line x1="12" y1="8" x2="12" y2="8" strokeWidth="2.5" />
-      <line x1="12" y1="11" x2="12" y2="16" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 11.9999V15.9999M12 8.6249V8.62378M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" />
     </svg>
   );
 }
 
 function IconBuilding() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="1" />
-      <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 6H16M14 10H16M14 14H16M8 6H10M8 10H10M8 14H10M16 22V19.6C16 19.0399 16 18.7599 15.891 18.546C15.7951 18.3578 15.6422 18.2049 15.454 18.109C15.2401 18 14.9601 18 14.4 18H9.6C9.03995 18 8.75992 18 8.54601 18.109C8.35785 18.2049 8.20487 18.3578 8.10899 18.546C8 18.7599 8 19.0399 8 19.6V22M16 22H17.4C17.9601 22 18.2401 22 18.454 21.891C18.6422 21.7951 18.7951 21.6422 18.891 21.454C19 21.2401 19 20.9601 19 20.4V5.2C19 4.0799 19 3.51984 18.782 3.09202C18.5903 2.71569 18.2843 2.40973 17.908 2.21799C17.4802 2 16.9201 2 15.8 2H8.2C7.0799 2 6.51984 2 6.09202 2.21799C5.71569 2.40973 5.40973 2.71569 5.21799 3.09202C5 3.51984 5 4.0799 5 5.2V20.4C5 20.9601 5 21.2401 5.10899 21.454C5.20487 21.6422 5.35785 21.7951 5.54601 21.891C5.75992 22 6.03995 22 6.6 22H8M16 22H8" />
     </svg>
   );
 }
 
 function IconReview() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-      <path d="M12 8v4M10 10h4" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V12.2C3 13.8802 3 14.7202 3.32698 15.362C3.6146 15.9265 4.07354 16.3854 4.63803 16.673C5.27976 17 6.11984 17 7.8 17H8V21L13 17H16.2C17.8802 17 18.7202 17 19.362 16.673C19.9265 16.3854 20.3854 15.9265 20.673 15.362C21 14.7202 21 13.8802 21 12.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3Z" />
+      <path d="M9.0258 12.2118C9.03341 11.9795 9.03721 11.8633 9.06595 11.7542C9.09143 11.6575 9.13129 11.5651 9.18418 11.4804C9.24382 11.3847 9.32568 11.3025 9.48939 11.1381L13.4359 7.17476C13.6331 6.97678 13.9407 6.9431 14.1757 7.09378C14.4595 7.27574 14.7015 7.51618 14.8858 7.79917L14.8987 7.81897C15.0597 8.06623 15.026 8.39297 14.818 8.60187L10.9081 12.5284C10.7382 12.699 10.6533 12.7843 10.5542 12.8455C10.4664 12.8998 10.3707 12.94 10.2705 12.9647C10.1575 12.9924 10.0374 12.9932 9.79717 12.9948L9 13L9.0258 12.2118Z" strokeWidth="1" />
     </svg>
   );
 }
 
 function IconQuestion() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5" />
-      <circle cx="12" cy="17" r="0.5" fill="currentColor" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.28149 9.71853C9.28149 8.21713 10.4986 7 12 7C13.5014 7 14.7186 8.21713 14.7186 9.71853C14.7186 10.6748 14.2248 11.5157 13.4784 12.0003C12.7544 12.4704 12 13.1368 12 14M12 17H12.001M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" />
     </svg>
   );
 }
 
 function IconFile() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-      <polyline points="14,2 14,8 20,8" />
-      <line x1="8" y1="13" x2="16" y2="13" />
-      <line x1="8" y1="17" x2="16" y2="17" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 11C20 9.34315 18.6569 8 17 8L16.4 8C16.0284 8 15.8426 8 15.6871 7.97538C14.8313 7.83983 14.1602 7.16865 14.0246 6.31287C14 6.1574 14 5.9716 14 5.6V5C14 3.34315 12.6569 2 11 2M8 13H16M8 17H13M20 10V18C20 20.2091 18.2091 22 16 22H8C5.79086 22 4 20.2091 4 18V6C4 3.79086 5.79086 2 8 2H12C16.4183 2 20 5.58172 20 10Z" />
     </svg>
   );
 }
 
 function IconScale() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="3" x2="12" y2="21" />
-      <path d="M5 21h14" />
-      <path d="M5 6l-2 5c0 1.66 1.34 3 3 3s3-1.34 3-3L7 6z" />
-      <path d="M19 6l-2 5c0 1.66 1.34 3 3 3s3-1.34 3-3l-2-5z" />
-      <path d="M5 6h14" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.22213 12.707L7.75767 16.2425M9.87948 7.05L13.415 10.5855M12.7077 4.22163L14.829 6.34295M7.05033 9.87861L9.17165 11.9999M3.65648 17.7981L6.20207 20.3437C6.9941 21.1357 7.39012 21.5318 7.84678 21.6801C8.24846 21.8107 8.68116 21.8107 9.08284 21.6801C9.5395 21.5318 9.93552 21.1357 10.7276 20.3437L20.3442 10.7271C21.1362 9.93503 21.5323 9.53901 21.6806 9.08236C21.8111 8.68067 21.8111 8.24797 21.6806 7.84629C21.5323 7.38963 21.1362 6.99361 20.3442 6.20158L17.7986 3.65599C17.0066 2.86396 16.6106 2.46794 16.1539 2.31957C15.7522 2.18905 15.3195 2.18905 14.9178 2.31957C14.4612 2.46794 14.0652 2.86396 13.2731 3.65599L3.65648 13.2726C2.86445 14.0647 2.46843 14.4607 2.32005 14.9174C2.18954 15.319 2.18954 15.7517 2.32005 16.1534C2.46843 16.6101 2.86445 17.0061 3.65648 17.7981Z" />
     </svg>
   );
 }
@@ -141,7 +131,7 @@ function AccordionRow({ item }: { item: AccordionItemDef }) {
           )}
         </div>
         <svg className="sl-sa-chevron" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="6 9 12 15 18 9" />
+          <path d="M6 9C7.57701 11.1808 9.42293 13.1364 11.4899 14.8172C11.7897 15.0609 12.2103 15.0609 12.5101 14.8172C14.5771 13.1364 16.423 11.1808 18 9" />
         </svg>
       </button>
       {open && <div className="sl-sa-body">{item.content}</div>}
