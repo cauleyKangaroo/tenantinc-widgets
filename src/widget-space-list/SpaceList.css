@@ -304,6 +304,8 @@
   transition: transform 0.2s;
 }
 .sl-wrapper .sl-accordion.expanded .sl-chevron { transform: rotate(180deg); }
+/* Open (main) accordions get a 3px black border on their header. */
+.sl-wrapper .sl-accordion.expanded .sl-accordion-header { border: 3px solid #101318; }
 .sl-wrapper .sl-accordion-body { padding-top: 24px; }
 
 .sl-wrapper .sl-cards-grid {
@@ -824,7 +826,7 @@
   .sl-wrapper .sl-accordion-title { font-size: 20px; }
   .sl-wrapper .sl-accordion-body { padding-top: 16px; }
   .sl-wrapper .sl-accordion.expanded .sl-accordion-header {
-    border: 2px solid #c4cdd5;
+    border: 3px solid #101318;
     box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
   }
 
@@ -1995,7 +1997,7 @@
   padding: 0 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
 }
 
 .sl-wrapper .sl-nb2-prop-name {
@@ -2039,8 +2041,8 @@
 .sl-wrapper .sl-nb2-prop-meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin-top: 2px;
+  gap: 6px;
+  margin-top: 0;
 }
 
 .sl-wrapper .sl-nb2-prop-meta-row {
