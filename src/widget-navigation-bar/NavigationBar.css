@@ -140,9 +140,8 @@
   width: 264px;
   height: 150px;
   display: flex;
-  align-items: flex-start;   /* logo butts up to the top edge (per Figma) */
+  align-items: flex-start;   /* logo butts up flush to the top edge (per Figma) */
   justify-content: center;
-  padding-top: 8px;
   /* No badge/tile by default — the brand logo is full-colour and sits directly
      on the nav. A coloured tile only appears if a `logoBg` is passed in. */
   border-radius: 0 0 4px 4px;
