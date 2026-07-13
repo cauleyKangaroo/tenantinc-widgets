@@ -1,6 +1,8 @@
 import React from 'react';
 import './Promotions.css';
 import { TagIcon, InfoIcon, ChevronRight } from './icons';
+import promoBanner from './assets/promo-banner.png';
+import promoBannerMobile from './assets/promo-banner-mobile.png';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -98,11 +100,12 @@ export function Promotions({
           {bannerImage ? (
             <img className="promo-banner-img" src={bannerImage} alt={bannerAlt} />
           ) : (
-            // Editor/demo fallback — a gradient banner mirroring the Figma slot.
-            <span className="promo-banner-fallback">
-              <span className="promo-banner-title">First 3 Months 30% Off</span>
-              <span className="promo-banner-sub">Limited time offer on selected spaces*</span>
-            </span>
+            // Default banner (used until a Duda banner image is uploaded). Mobile
+            // art swaps in below 640px.
+            <picture>
+              <source media="(max-width: 640px)" srcSet={promoBannerMobile} />
+              <img className="promo-banner-img" src={promoBanner} alt={bannerAlt || 'Current promotion'} />
+            </picture>
           )}
         </a>
       </div>

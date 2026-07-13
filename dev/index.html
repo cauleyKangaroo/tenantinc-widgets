@@ -107,6 +107,26 @@
   <div class="widget-section">
     <h2>widget-promotions (#06)</h2>
     <div id="promotions-container" class="widget-container"></div>
+
+    <div class="controls">
+      <div class="controls-group">
+        <span class="controls-group-label">Promotions</span>
+        <label>
+          Mode:
+          <select id="pr-mode" onchange="reinitPromotions()">
+            <option value="banner">banner</option>
+            <option value="bar">bar</option>
+            <option value="cards">cards</option>
+          </select>
+        </label>
+        <label>
+          Banner image URL:
+          <input id="pr-banner" type="text" placeholder="(blank = bundled default)"
+            style="width: 240px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;"
+            oninput="reinitPromotions()" />
+        </label>
+      </div>
+    </div>
   </div>
 
   <!-- ── widget-nearby-locations ──────────────────────────────────────── -->
@@ -181,6 +201,25 @@
       if (spaceListWidget) spaceListWidget.clean();
     }
 
+    var promotionsWidget = null;
+
+    function getPromotionsProps() {
+      var url = document.getElementById('pr-banner').value.trim();
+      return {
+        mode: document.getElementById('pr-mode').value,
+        bannerImage: url || undefined,
+      };
+    }
+
+    function reinitPromotions() {
+      if (promotionsWidget) {
+        promotionsWidget.init({
+          container: document.getElementById('promotions-container'),
+          props: getPromotionsProps(),
+        });
+      }
+    }
+
     require(['/dist/widget-space-list.js'], function (widget) {
       spaceListWidget = widget;
       widget.init({
@@ -199,7 +238,8 @@
       widget.init({ container: document.getElementById('property-info-container'), props: {} });
     });
     require(['/dist/widget-promotions.js'], function (widget) {
-      widget.init({ container: document.getElementById('promotions-container'), props: {} });
+      promotionsWidget = widget;
+      widget.init({ container: document.getElementById('promotions-container'), props: getPromotionsProps() });
     });
     require(['/dist/widget-nearby-locations.js'], function (widget) {
       widget.init({ container: document.getElementById('nearby-locations-container'), props: {} });

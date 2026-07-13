@@ -126,8 +126,9 @@
 /* The bundled logo is a white knockout (built for the green banner tile). Inline,
    it sits on the white bar, so render it solid dark to stay visible. Supply a
    colour logo via `logoUrl` if the brand-coloured mark is wanted here. */
+/* Bundled logo is already full-colour — show it as-is. */
 .nav-logo-inline .nav-logo-img {
-  filter: brightness(0);
+  filter: none;
 }
 
 /* ── Logo (raised green tile that spans both bars + protrudes below) ─────── */
@@ -136,16 +137,16 @@
   position: absolute;
   top: 0;
   left: max(24px, calc((100% - 1314px) / 2 + 24px));
-  width: 240px;
+  width: 264px;
   height: 150px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;   /* logo butts up to the top edge (per Figma) */
   justify-content: center;
-  /* Flush to the top edge (square top corners); only the protruding bottom is rounded. */
+  padding-top: 8px;
+  /* No badge/tile by default — the brand logo is full-colour and sits directly
+     on the nav. A coloured tile only appears if a `logoBg` is passed in. */
   border-radius: 0 0 4px 4px;
-  box-shadow: 0px 1px 11px rgba(0, 0, 0, 0.35);
   text-decoration: none;
-  overflow: hidden;
   z-index: 5;
 }
 
@@ -170,9 +171,17 @@
    ratio — !important beats host resets like `img { width: 100% }`. */
 .nav-logo-img {
   display: block;
-  width: 151px !important;
-  height: 42px !important;
+  width: 160px !important;
+  height: auto !important;   /* PNG logo (~2.25:1) — keep natural aspect, don't squish */
   max-width: none !important;
+}
+
+/* In the banner tile the logo should fill the green badge, not float small in
+   it — size to the tile width (a little breathing room), height follows aspect. */
+/* Fill the logo block width (~264px) so it spans both nav bars like the Figma. */
+.nav-logo .nav-logo-img {
+  width: 100% !important;
+  height: auto !important;
 }
 
 /* ── Right cluster (nav links + optional inline actions) ────────────────── */
@@ -426,13 +435,11 @@
   text-decoration: none;
 }
 
-/* Bundled logo is a white knockout → render dark on the white menu. */
 .nav-mm-logo-img {
   display: block;
   width: 132px !important;
-  height: 37px !important;
+  height: auto !important;
   max-width: none !important;
-  filter: brightness(0);
 }
 
 .nav-mm-close {
@@ -769,6 +776,6 @@
 
   .nav-logo-img {
     width: 120px !important;
-    height: 33px !important;
+    height: auto !important;
   }
 }

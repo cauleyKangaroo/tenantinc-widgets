@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './NavigationBar.css';
-import storelocalLogo from './storelocal-logo.svg';
+import storelocalLogo from './Storelocal_logo.png';
 import {
   ChevronDown,
   ChevronRight,
@@ -170,7 +170,7 @@ export interface NavigationBarProps {
 
 export function NavigationBar({
   logoUrl,
-  logoBg = '#509E2F',
+  logoBg = 'transparent',
   height = 'narrow',
   logoStyle = 'banner',
   separator = 'shadow',

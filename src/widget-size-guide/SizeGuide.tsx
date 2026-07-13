@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import './SizeGuide.css';
 import { ChevronRight, PlayButton } from './icons';
 import { SIZE_IMAGES, cover } from '@shared/demoImages';
+import storageLocker from './assets/storage-locker.png';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -33,7 +34,7 @@ const CATEGORIES: Category[] = [
     key: 'small',
     label: 'Small',
     units: [
-      { id: 's1', title: 'Storage Locker', image: G1, description: 'Storage locker units (about 5x5x4ft) are convenient and often more cost effective than other storage unit sizes. In this video we show you how big our locker storage units are and what you can fit inside.', bullets: ['25 sq ft', 'Closet-sized storage with less height'] },
+      { id: 's1', title: 'Storage Locker', image: cover(storageLocker), description: 'Storage locker units (about 5x5x4ft) are convenient and often more cost effective than other storage unit sizes. In this video we show you how big our locker storage units are and what you can fit inside.', bullets: ['25 sq ft', 'Closet-sized storage with less height'] },
       { id: 's2', title: '5’ x 5’', image: cover(SIZE_IMAGES['5x5']), description: 'Ever wondered what a 5x5 storage unit looks like or what fits in a 5x5 foot storage unit? In this video we show you how big our 5x5 storage unit is and what you can fit inside.', bullets: ['25 sq ft', 'Closet-sized storage'] },
       { id: 's3', title: '5’ x 10’', image: cover(SIZE_IMAGES['5x10']), description: 'Ever wondered what a 5x10 storage unit looks like or what fits in a 5x10 foot storage unit? In this video we show you how big our 5x10 storage unit is and what you can fit inside.', bullets: ['50 sq ft', 'Small apartment extras'] },
       { id: 's4', title: '5’ x 15’', image: G1, description: 'A 5x15 unit offers extra depth for longer items while keeping a compact footprint. See what fits inside and whether it suits your move.', bullets: ['75 sq ft', 'Contents of a one-bedroom apartment'] },
