@@ -210,12 +210,18 @@ export function PropertyInfo(props: PropertyInfoProps) {
             <span className="pi-underline">{address}</span>
           </a>
 
-          {phones.map((p) => (
-            <a key={p.number} className="pi-contact-row" href={`tel:${p.number.replace(/[^0-9+]/g, '')}`}>
-              <PhoneIcon size={24} />
-              <span><span className="pi-underline">{p.number}</span>{p.note ? ` (${p.note})` : ''}</span>
-            </a>
-          ))}
+          <div className="pi-phones">
+            {phones.map((p, i) => (
+              <a
+                key={p.number}
+                className={`pi-contact-row${i > 0 ? ' pi-contact-row--indent' : ''}`}
+                href={`tel:${p.number.replace(/[^0-9+]/g, '')}`}
+              >
+                {i === 0 && <PhoneIcon size={24} />}
+                <span><span className="pi-underline">{p.number}</span>{p.note ? ` (${p.note})` : ''}</span>
+              </a>
+            ))}
+          </div>
 
           <a className="pi-contact-row" href={messageUrl}>
             <EnvelopeIcon size={24} />
