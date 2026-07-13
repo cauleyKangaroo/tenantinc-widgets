@@ -16,13 +16,15 @@ const TYPE_LABEL: Partial<Record<SpaceType, string>> = {
   parking: 'Parking',
 };
 
+// Every size group opens by default (dynamic — whichever sizes are present all
+// start expanded on load).
 const SIZE_DEFAULT_OPEN: Record<UnitSize, boolean> = {
-  other: false,
-  extra_small: false,
-  small: false,
+  other: true,
+  extra_small: true,
+  small: true,
   medium: true,
-  large: false,
-  extra_large: false,
+  large: true,
+  extra_large: true,
 };
 
 const ChevronDown = () => (

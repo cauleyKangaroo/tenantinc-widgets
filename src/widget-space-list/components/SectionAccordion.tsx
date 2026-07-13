@@ -117,12 +117,10 @@ export interface SectionAccordionProps {
 
 // ── Single accordion row ──────────────────────────────────────────────────────
 
-function AccordionRow({ item }: { item: AccordionItemDef }) {
-  const [open, setOpen] = useState(false);
-
+function AccordionRow({ item, open, onToggle }: { item: AccordionItemDef; open: boolean; onToggle: () => void }) {
   return (
     <div className={`sl-sa-item${open ? ' open' : ''}`}>
-      <button className="sl-sa-header" onClick={() => setOpen((o) => !o)}>
+      <button className="sl-sa-header" onClick={onToggle}>
         <div className="sl-sa-header-left">
           <span className="sl-sa-icon">{item.icon}</span>
           <span className="sl-sa-title">{item.label}</span>
@@ -146,6 +144,9 @@ export function SectionAccordion({
   inEditor    = false,
   onReorderClick,
 }: SectionAccordionProps) {
+  // Only one section open at a time — opening one closes the currently-open one.
+  const [openKey, setOpenKey] = useState<AccordionKey | null>(null);
+
   // Every section is a candidate; the "Manage accordions" modal controls which
   // are visible (config.hidden) and their order (config.order). No config →
   // all sections shown in default order.
@@ -166,7 +167,14 @@ export function SectionAccordion({
 
   return (
     <aside className="sl-sa-panel">
-      {items.map((item) => <AccordionRow key={item.key} item={item} />)}
+      {items.map((item) => (
+        <AccordionRow
+          key={item.key}
+          item={item}
+          open={openKey === item.key}
+          onToggle={() => setOpenKey((prev) => (prev === item.key ? null : item.key))}
+        />
+      ))}
       {inEditor && (
         <button className="sl-sa-reorder-btn" onClick={onReorderClick} type="button">
           <IconReorder />
