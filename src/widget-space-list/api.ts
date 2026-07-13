@@ -1,5 +1,6 @@
 import type { Unit, UnitSize } from './types';
 import cfg from './config.json';
+import { spaceImageFor } from './spaceImages';
 
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
@@ -137,7 +138,9 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           features,
           amenities: amenityNames,
           filterBarFeatures,
-          image: '',
+          // DEMO: derive card image from dimensions/size/type until the API
+          // returns one per unit — see spaceImages.ts.
+          image: spaceImageFor({ type, dimensions: tier.description, size, subtype }),
           inStorePrice,
           startingPrice,
         });

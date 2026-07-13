@@ -31,24 +31,23 @@
   width: 100%;
   max-width: 1314px;
   margin: 0 auto;
-  /* Fixed banner slot — fill the width, crop top/bottom overflow. */
-  aspect-ratio: 1024 / 124;
   border-radius: 2px;
   overflow: hidden;
   text-decoration: none;
 }
 
-/* Fill the slot and centre-crop; `!important` beats host `img` resets that
-   would otherwise force the natural height and reveal the whole image. */
+/* Show the banner artwork in FULL at its natural aspect ratio — the slot height
+   follows the image, so nothing (faces, edges) is ever cropped. `!important`
+   beats host `img` resets. The <picture> wrapper must be block for width:100%. */
+.promo-banner picture { display: block; width: 100%; }
 img.promo-banner-img {
   display: block;
   width: 100% !important;
-  height: 100% !important;
-  object-fit: cover;
-  object-position: center;
+  height: auto !important;
 }
 
-/* Fallback shown until an image is uploaded (mirrors the Figma slot). */
+/* Fallback shown until an image is uploaded — keeps a fixed banner-shaped slot
+   (the image case no longer sets one on the parent). */
 .promo-banner-fallback {
   position: relative;
   display: flex;
@@ -57,7 +56,7 @@ img.promo-banner-img {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  height: 100%;
+  aspect-ratio: 1024 / 124;
   padding: 16px;
   text-align: center;
   color: #fff;
