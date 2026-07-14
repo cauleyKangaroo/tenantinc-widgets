@@ -301,12 +301,17 @@ export function PropertyInfo(props: PropertyInfoProps) {
         <span className="pi-m-hero-overlay" style={{ background: `rgba(16, 19, 24, ${overlay})` }} />
         <div className="pi-m-hero-top">
           <nav className="pi-breadcrumb pi-m-breadcrumb" aria-label="Breadcrumb">
-            {breadcrumb.map((crumb, i) => (
-              <span key={crumb}>
-                {i < breadcrumb.length - 1 ? <a href="#">{crumb}</a> : <span>{crumb}</span>}
-                {i < breadcrumb.length - 1 && <span className="pi-crumb-sep"> / </span>}
-              </span>
-            ))}
+            {breadcrumb.map((crumb, i) => {
+              const last = i === breadcrumb.length - 1;
+              // On mobile, collapse everything except the final two crumbs to "…".
+              const label = i < breadcrumb.length - 2 ? '...' : crumb;
+              return (
+                <span key={crumb}>
+                  {last ? <span>{label}</span> : <a href="#">{label}</a>}
+                  {!last && <span className="pi-crumb-sep"> / </span>}
+                </span>
+              );
+            })}
           </nav>
           <button className="pi-m-expand" onClick={() => setLightbox(true)} aria-label="Open photo gallery">
             <PhotoExpandIcon size={40} />

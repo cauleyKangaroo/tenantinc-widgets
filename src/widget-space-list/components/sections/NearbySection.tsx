@@ -67,25 +67,29 @@ function ChevronRightIcon({ size = 24 }: { size?: number }) {
 
 // ── Stars (with half-star support) ────────────────────────────────────────────
 
-function Stars({ rating, size = 16, color = '#FBBC05' }: { rating: number; size?: number; color?: string }) {
+// Canonical round rating star (shared with the Reviews widget).
+const ROUND_STAR =
+  'M16.5423 5.649L12.0203 4.63275L9.67431 0.562657C9.24231 -0.187552 8.17831 -0.187552 7.74631 0.562657L5.40031 4.63275L0.878308 5.649C0.0453085 5.83655 -0.283691 6.86707 0.282309 7.51841L3.35531 11.0503L2.90631 15.7483C2.82331 16.6137 3.68431 17.2518 4.46631 16.9032L8.71131 15.0164L12.9563 16.9032C13.7383 17.2508 14.5993 16.6137 14.5163 15.7483L14.0673 11.0503L17.1403 7.51841C17.7063 6.86809 17.3773 5.83655 16.5443 5.649H16.5423Z';
+
+function Stars({ rating, size = 16, color = '#FFD000' }: { rating: number; size?: number; color?: string }) {
   const full  = Math.floor(rating);
   const half  = rating - full >= 0.5;
   const empty = 5 - full - (half ? 1 : 0);
-  const path  = 'M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2Z';
+  const vb = '0 0 17.15 17';
 
   return (
     <div className="sl-nb2-stars">
       {Array.from({ length: full }).map((_, i) => (
-        <svg key={`f${i}`} width={size} height={size} viewBox="0 0 24 24" fill={color}><path d={path}/></svg>
+        <svg key={`f${i}`} width={size} height={size} viewBox={vb} fill={color}><path d={ROUND_STAR}/></svg>
       ))}
       {half && (
         <span style={{ position: 'relative', display: 'inline-flex', width: size, height: size, flexShrink: 0 }}>
-          <svg width={size} height={size} viewBox="0 0 24 24" fill="#e0e0e0" style={{ position: 'absolute' }}><path d={path}/></svg>
-          <svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={{ position: 'absolute', clipPath: 'inset(0 50% 0 0)' }}><path d={path}/></svg>
+          <svg width={size} height={size} viewBox={vb} fill="#DFE3E8" style={{ position: 'absolute' }}><path d={ROUND_STAR}/></svg>
+          <svg width={size} height={size} viewBox={vb} fill={color} style={{ position: 'absolute', clipPath: 'inset(0 50% 0 0)' }}><path d={ROUND_STAR}/></svg>
         </span>
       )}
       {Array.from({ length: empty }).map((_, i) => (
-        <svg key={`e${i}`} width={size} height={size} viewBox="0 0 24 24" fill="#e0e0e0"><path d={path}/></svg>
+        <svg key={`e${i}`} width={size} height={size} viewBox={vb} fill="#DFE3E8"><path d={ROUND_STAR}/></svg>
       ))}
     </div>
   );
