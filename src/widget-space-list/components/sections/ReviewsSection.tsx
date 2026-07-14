@@ -45,7 +45,7 @@ const ALL_REVIEWS: ReviewData[] = [
 ];
 
 const PLATFORM_META: Record<Platform, { label: string; score: number; count: number; starColor: string }> = {
-  google:  { label: 'Google',  score: 4.3, count: 264, starColor: '#FBBC05' },
+  google:  { label: 'Google',  score: 4.3, count: 264, starColor: '#FFD000' },
   yelp:    { label: 'Yelp',    score: 4.1, count: 87,  starColor: '#D32323' },
   website: { label: 'Website', score: 4.5, count: 42,  starColor: '#509e2f' },
 };
@@ -98,12 +98,17 @@ function UserCircleIcon() {
   );
 }
 
-function Stars({ rating, size = 14, color = '#FBBC05' }: { rating: number; size?: number; color?: string }) {
+// Shared round rating star (matches the Reviews widget). Yelp keeps its red colour.
+const ROUND_STAR =
+  'M16.5423 5.649L12.0203 4.63275L9.67431 0.562657C9.24231 -0.187552 8.17831 -0.187552 7.74631 0.562657L5.40031 4.63275L0.878308 5.649C0.0453085 5.83655 -0.283691 6.86707 0.282309 7.51841L3.35531 11.0503L2.90631 15.7483C2.82331 16.6137 3.68431 17.2518 4.46631 16.9032L8.71131 15.0164L12.9563 16.9032C13.7383 17.2508 14.5993 16.6137 14.5163 15.7483L14.0673 11.0503L17.1403 7.51841C17.7063 6.86809 17.3773 5.83655 16.5443 5.649H16.5423Z';
+
+function Stars({ rating, size = 14, color = '#FFD000' }: { rating: number; size?: number; color?: string }) {
+  const filled = Math.round(rating);
   return (
     <div className="sl-rv2-stars">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <svg key={i} width={size} height={size} viewBox="0 0 16 16" fill={i <= Math.round(rating) ? color : '#e0e0e0'} xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 1.2L9.8 5.8H14.8L10.9 8.7L12.5 13.3L8 10.4L3.5 13.3L5.1 8.7L1.2 5.8H6.2L8 1.2Z"/>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <svg key={i} width={size} height={size} viewBox="0 0 17.15 17" fill={i < filled ? color : '#DFE3E8'} xmlns="http://www.w3.org/2000/svg">
+          <path d={ROUND_STAR} />
         </svg>
       ))}
     </div>
