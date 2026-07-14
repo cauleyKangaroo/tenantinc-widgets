@@ -97,7 +97,7 @@
 
 .pi-link:hover .pi-underline,
 .pi-contact-row:hover .pi-underline {
-  color: #509e2f;
+  color: var(--color_2, #509e2f);
 }
 
 /* Phone + hours are grouped blocks — their rows sit tight together, while
@@ -147,7 +147,7 @@
 }
 
 .pi-breadcrumb a:hover {
-  color: #509e2f;
+  color: var(--color_2, #509e2f);
 }
 
 .pi-cards {
@@ -289,7 +289,7 @@
 }
 
 .pi-social:hover {
-  color: #509e2f;
+  color: var(--color_2, #509e2f);
 }
 
 /* ── Lightbox ───────────────────────────────────────────────────────────── */
