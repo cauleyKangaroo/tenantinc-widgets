@@ -3089,6 +3089,17 @@
      remaining width and scrolls horizontally. */
 }
 
+/* Above mobile: show only the first two tags plus a "More" pill (opens the
+   filters panel); hide the remaining tags. Mobile shows all + no More. */
+.sl-wrapper .sl-top-bar-more { display: none; }
+
+@container (min-width: 601px) {
+  .sl-wrapper .sl-top-bar-more { display: inline-flex; align-items: center; }
+  .sl-wrapper .sl-top-bar-pills > .sl-top-bar-pill:not(.sl-top-bar-more):nth-of-type(n+3) {
+    display: none;
+  }
+}
+
 /* When FilterPanel drops down below the top bar, make it full-width */
 .sl-wrapper.filter-top .sl-filter-panel {
   width: 100%;

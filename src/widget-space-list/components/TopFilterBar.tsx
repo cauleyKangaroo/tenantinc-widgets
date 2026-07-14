@@ -62,7 +62,9 @@ export function TopFilterBar({
         <FilterHorizontalIcon />
       </button>
 
-      {/* Quick feature pills — scroll horizontally when they overflow */}
+      {/* Quick feature pills. Above mobile: only the first two show, plus a
+          "More" pill that opens the filters panel (CSS hides the rest). On
+          mobile all pills show and scroll horizontally; "More" is hidden. */}
       <div className="sl-top-bar-pills">
         {quickPills.map((name) => (
           <button
@@ -73,6 +75,13 @@ export function TopFilterBar({
             {name}
           </button>
         ))}
+        <button
+          className="sl-top-bar-pill sl-top-bar-more"
+          type="button"
+          onClick={onTogglePanel}
+        >
+          More
+        </button>
       </div>
 
       {/* Search input */}
