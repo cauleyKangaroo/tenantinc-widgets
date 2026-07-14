@@ -74,7 +74,7 @@ const OFFICE_HOURS = [
   { day: 'Saturday',        hours: '8:30am – 5:00pm' },
   { day: 'Sunday',          hours: '10:00am – 4:00pm' },
 ];
-const GATE_HOURS = '6:00am – 11:30pm (Daily)';
+const GATE_HOURS = '6:00am – 11:30pm';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -155,27 +155,21 @@ export function StoreSection() {
             <span className="sl-pi-status-detail"> (Opens 8:30am)</span>
           </p>
 
-          {hoursExpanded && (
-            <div className="sl-pi-hours-table">
-              <div className="sl-pi-hours-section-label">Office Hours</div>
-              {OFFICE_HOURS.map((row) => (
-                <div key={row.day} className="sl-pi-hours-row">
-                  <span className="sl-pi-hours-day">{row.day}</span>
-                  <span className="sl-pi-hours-time">{row.hours}</span>
-                </div>
-              ))}
-              <div className="sl-pi-hours-section-label sl-pi-hours-section-label--mt">Gate Access</div>
-              <div className="sl-pi-hours-row">
-                <span className="sl-pi-hours-day">Daily</span>
-                <span className="sl-pi-hours-time">{GATE_HOURS}</span>
-              </div>
-            </div>
-          )}
-
           <button className="sl-pi-see-hours" onClick={() => setHoursExpanded((e) => !e)}>
             <ChevronDownIcon rotated={hoursExpanded} />
             See all Hours
           </button>
+
+          {hoursExpanded && (
+            <div className="sl-pi-hours-detail">
+              <p className="sl-pi-hours-label">Office Hours</p>
+              {OFFICE_HOURS.map((row) => (
+                <p key={row.day} className="sl-pi-hours-line">{row.day}: {row.hours}</p>
+              ))}
+              <p className="sl-pi-hours-label">Gate Hours</p>
+              <p className="sl-pi-hours-line">Daily: {GATE_HOURS}</p>
+            </div>
+          )}
         </div>
       </div>
 

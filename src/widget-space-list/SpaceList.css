@@ -2413,43 +2413,28 @@
   font-weight: 400;
 }
 
-.sl-wrapper .sl-pi-hours-table {
-  margin-top: 10px;
+.sl-wrapper .sl-pi-hours-detail {
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
-.sl-wrapper .sl-pi-hours-section-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #a5b4bf;
+.sl-wrapper .sl-pi-hours-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #101318;
   font-family: 'Montserrat', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 4px;
+  line-height: 24px;
+  margin: 0;
 }
 
-.sl-wrapper .sl-pi-hours-section-label--mt {
-  margin-top: 10px;
-}
-
-.sl-wrapper .sl-pi-hours-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
+.sl-wrapper .sl-pi-hours-line {
+  font-size: 16px;
   font-weight: 400;
   color: #101318;
   font-family: 'Montserrat', sans-serif;
-  line-height: 1.6;
-}
-
-.sl-wrapper .sl-pi-hours-day {
-  color: #637381;
-}
-
-.sl-wrapper .sl-pi-hours-time {
-  font-weight: 500;
+  line-height: 24px;
+  margin: 0;
 }
 
 .sl-wrapper .sl-pi-see-hours {
