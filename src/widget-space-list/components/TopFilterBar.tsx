@@ -9,10 +9,23 @@ interface TopFilterBarProps {
   onSearchChange: (term: string) => void;
   panelOpen: boolean;
   onTogglePanel: () => void;
+  /** Number of active filters — shown as a bubble on the filter icon. */
+  activeCount?: number;
 }
 
 function toggle(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
+
+// White circle with a dark cross — matches the filter panel's active chip.
+function PillRemoveIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="8" cy="8" r="8" fill="currentColor" />
+      <line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -44,6 +57,7 @@ export function TopFilterBar({
   onSearchChange,
   panelOpen,
   onTogglePanel,
+  activeCount = 0,
 }: TopFilterBarProps) {
   // Show all available features as quick-access pills; the row scrolls
   // horizontally when they don't all fit. The filter icon opens the full panel.
@@ -52,7 +66,7 @@ export function TopFilterBar({
   return (
     <div className="sl-top-bar">
 
-      {/* Filter icon — opens the full panel */}
+      {/* Filter icon — opens the full panel; bubble shows active filter count */}
       <button
         className={`sl-top-bar-icon-btn${panelOpen ? ' active' : ''}`}
         onClick={onTogglePanel}
@@ -60,21 +74,26 @@ export function TopFilterBar({
         title="Open filters"
       >
         <FilterHorizontalIcon />
+        {activeCount > 0 && <span className="sl-top-bar-icon-badge">{activeCount}</span>}
       </button>
 
       {/* Quick feature pills. Above mobile: only the first two show, plus a
           "More" pill that opens the filters panel (CSS hides the rest). On
           mobile all pills show and scroll horizontally; "More" is hidden. */}
       <div className="sl-top-bar-pills">
-        {quickPills.map((name) => (
-          <button
-            key={name}
-            className={`sl-top-bar-pill${filters.features.includes(name) ? ' active' : ''}`}
-            onClick={() => onChange({ ...filters, features: toggle(filters.features, name) })}
-          >
-            {name}
-          </button>
-        ))}
+        {quickPills.map((name) => {
+          const active = filters.features.includes(name);
+          return (
+            <button
+              key={name}
+              className={`sl-top-bar-pill${active ? ' active' : ''}`}
+              onClick={() => onChange({ ...filters, features: toggle(filters.features, name) })}
+            >
+              <span>{name}</span>
+              {active && <span className="sl-top-bar-pill-x"><PillRemoveIcon /></span>}
+            </button>
+          );
+        })}
         <button
           className="sl-top-bar-pill sl-top-bar-more"
           type="button"

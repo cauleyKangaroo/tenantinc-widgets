@@ -154,6 +154,7 @@ export function SpaceList({
         onSearchChange={setSearchTerm}
         panelOpen={panelOpen}
         onTogglePanel={() => setPanelOpen((o) => !o)}
+        activeCount={badge}
       />
       {panelOpen && (
         <FilterModal

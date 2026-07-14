@@ -3017,10 +3017,42 @@
 .sl-wrapper .sl-top-bar-pill.active {
   background: #101318;
   color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 10px;   /* seat the remove icon */
 }
 
 .sl-wrapper .sl-top-bar-pill:hover:not(.active) {
   background: #f4f6f8;
+}
+
+/* White circle-cross on an active top pill (matches the filter panel chip). */
+.sl-wrapper .sl-top-bar-pill-x {
+  display: inline-flex;
+  align-items: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+/* Active-filter count bubble on the filter icon button. */
+.sl-wrapper .sl-top-bar-icon-btn { position: relative; }
+.sl-wrapper .sl-top-bar-icon-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 99px;
+  background: var(--color_1, #f45f30);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 18px;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 /* Search input wrapper — pushed to the right of the bar on desktop. */
