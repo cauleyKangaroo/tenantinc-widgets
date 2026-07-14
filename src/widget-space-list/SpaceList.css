@@ -3019,8 +3019,9 @@
   color: #ffffff;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding-right: 10px;   /* seat the remove icon */
+  gap: 4px;
+  padding-left: 6px;    /* seat the remove icon on the left (matches the panel) */
+  padding-right: 16px;
 }
 
 .sl-wrapper .sl-top-bar-pill:hover:not(.active) {
