@@ -136,7 +136,7 @@
 }
 
 .blog-readmore:hover {
-  color: #f45f30;
+  color: var(--color_2, #f45f30);
 }
 
 .blog-share {
@@ -153,6 +153,10 @@
   color: #101318;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.blog-share:hover {
+  color: var(--color_2, #f45f30);
 }
 
 .blog-share svg {
@@ -188,7 +192,7 @@
 }
 
 .blog-social:hover {
-  color: #f45f30;
+  color: var(--color_2, #f45f30);
 }
 
 /* ── Pagination ─────────────────────────────────────────────────────────── */

@@ -6,6 +6,9 @@
   font-family: 'Montserrat', sans-serif;
   width: 100%;
   box-sizing: border-box;
+  /* Fluid side gutter: keeps the column comfortably contained on small-desktop
+     while preserving the large-screen look (inner max-widths still cap it). */
+  padding-inline: clamp(16px, 4vw, 64px);
 }
 
 .rw-wrapper *,
@@ -60,7 +63,7 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 24px;
   width: 100%;
-  max-width: 868px;
+  max-width: 1314px;
   margin: 0 auto;
 }
 
@@ -149,11 +152,11 @@
 }
 
 .rw-more-link:hover {
-  color: #f45f30;
+  color: var(--color_2, #f45f30);
 }
 
 .rw-more-link:hover svg path {
-  stroke: #f45f30;
+  stroke: var(--color_2, #f45f30);
 }
 
 /* ── Review card ────────────────────────────────────────────────────────── */

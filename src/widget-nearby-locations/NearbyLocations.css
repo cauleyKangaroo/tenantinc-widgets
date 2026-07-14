@@ -173,10 +173,10 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  border: 2px dashed #509e2f;
+  border: 2px dashed var(--color_2, #509e2f);
   border-radius: 8px;
   padding: 12px;
-  color: #509e2f;
+  color: var(--color_2, #509e2f);
 }
 
 .nl-promo-text {
@@ -288,7 +288,7 @@
 }
 
 .nl-select-btn {
-  background: #f45f30;
+  background: var(--color_1, #f45f30);
   color: #fff;
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
@@ -304,7 +304,7 @@
 }
 
 .nl-select-btn:hover {
-  background: color-mix(in srgb, #f45f30 85%, black);
+  background: color-mix(in srgb, var(--color_1, #f45f30) 85%, black);
 }
 
 /* ── Card footer ────────────────────────────────────────────────────────── */

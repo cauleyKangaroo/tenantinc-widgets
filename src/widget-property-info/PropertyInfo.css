@@ -5,9 +5,11 @@
 .pi-wrapper {
   font-family: 'Montserrat', sans-serif;
   width: 100%;
-  max-width: 1330px;
+  /* max-width bumped by 2×max-gutter so the large-screen content stays ~1330px */
+  max-width: 1458px;
   margin: 0 auto;
   box-sizing: border-box;
+  padding-inline: clamp(16px, 4vw, 64px);
   color: #101318;
 }
 
@@ -95,7 +97,7 @@
 
 .pi-link:hover .pi-underline,
 .pi-contact-row:hover .pi-underline {
-  color: #509e2f;
+  color: var(--color_2, #509e2f);
 }
 
 /* Phone + hours are grouped blocks — their rows sit tight together, while
@@ -145,7 +147,7 @@
 }
 
 .pi-breadcrumb a:hover {
-  color: #509e2f;
+  color: var(--color_2, #509e2f);
 }
 
 .pi-cards {
@@ -287,7 +289,7 @@
 }
 
 .pi-social:hover {
-  color: #509e2f;
+  color: var(--color_2, #509e2f);
 }
 
 /* ── Lightbox ───────────────────────────────────────────────────────────── */
@@ -541,8 +543,14 @@ span.pi-lb-img {
 
   .pi-wrapper {
     max-width: 100%;
+    padding-inline: 0;   /* mobile hero is full-bleed */
   }
 }
+
+/* TRIAL: small-desktop uniform scale-down (stepped zoom) for the 1181–1515 band. */
+@media (min-width: 1421px) and (max-width: 1515px) { .pi-wrapper { zoom: 0.95; } }
+@media (min-width: 1301px) and (max-width: 1420px) { .pi-wrapper { zoom: 0.90; } }
+@media (min-width: 1182px) and (max-width: 1300px) { .pi-wrapper { zoom: 0.85; } }
 
 .pi-m-hero {
   position: relative;

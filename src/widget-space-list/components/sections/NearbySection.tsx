@@ -57,14 +57,6 @@ function PhoneIcon() {
   );
 }
 
-function ChevronRightIcon({ size = 24 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6"/>
-    </svg>
-  );
-}
-
 // ── Stars (with half-star support) ────────────────────────────────────────────
 
 // Canonical round rating star (shared with the Reviews widget).
@@ -167,7 +159,6 @@ function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
             <span className="sl-nb2-admin-fee">+ Plus ${p.adminFee} Admin Fee</span>
           )}
           <a href="#" className="sl-nb2-see-all">
-            <ChevronRightIcon size={20} />
             See All Spaces
           </a>
         </div>
