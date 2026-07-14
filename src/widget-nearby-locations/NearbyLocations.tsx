@@ -133,7 +133,6 @@ function PropertyCard({ property }: { property: Property }) {
         <div className="nl-card-footer">
           <span className="nl-admin-fee">+ Plus ${property.adminFee} Admin Fee</span>
           <a className="nl-see-all" href="#">
-            <ChevronRight size={24} />
             See All Spaces
           </a>
         </div>
