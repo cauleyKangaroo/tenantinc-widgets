@@ -3063,29 +3063,15 @@
   background: #2d3748;
 }
 
-/* Top filter bar (mobile): two rows.
-   Row 1 = filter icon + search (search fills the rest).
-   Row 2 = the quick pills, scrolling horizontally (drag) when they overflow.
+/* Top filter bar (mobile): single row — filter icon on the left, the
+   side-swipeable pills filling the rest. The search bar is hidden.
    NOTE: this block must come AFTER the base .sl-top-bar-* rules above —
    @container adds no specificity, so a later source rule would otherwise win. */
 @container (max-width: 600px) {
-  .sl-wrapper .sl-top-bar { flex-wrap: wrap; align-items: center; }
-
-  .sl-wrapper .sl-top-bar-icon-btn { order: 0; }
-
-  .sl-wrapper .sl-top-bar-search {
-    order: 1;
-    margin-left: 0;
-    flex: 1;
-    width: auto;
-    min-width: 0;
-  }
-
-  .sl-wrapper .sl-top-bar-pills {
-    order: 2;
-    flex: 0 0 100%;
-    width: 100%;
-  }
+  .sl-wrapper .sl-top-bar { flex-wrap: nowrap; align-items: center; }
+  .sl-wrapper .sl-top-bar-search { display: none; }
+  /* .sl-top-bar-pills already flex:1 + overflow-x:auto, so it takes the
+     remaining width and scrolls horizontally. */
 }
 
 /* When FilterPanel drops down below the top bar, make it full-width */
