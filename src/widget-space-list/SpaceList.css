@@ -1792,7 +1792,7 @@
 
 .sl-wrapper .sl-rv2-stars {
   display: flex;
-  gap: 2px;
+  gap: 4px;
 }
 
 .sl-wrapper .sl-rv2-count {
@@ -2027,7 +2027,7 @@
 
 .sl-wrapper .sl-nb2-stars {
   display: flex;
-  gap: 1px;
+  gap: 4px;
 }
 
 .sl-wrapper .sl-nb2-prop-reviews {

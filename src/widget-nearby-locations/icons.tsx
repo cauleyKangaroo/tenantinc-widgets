@@ -17,7 +17,7 @@ const STAR_EMPTY = '#DFE3E8';
 export function StarRating({ rating, size = 16 }: { rating: number; size?: number }) {
   const uid = React.useId();
   return (
-    <span className="nl-stars" style={{ display: 'inline-flex', alignItems: 'center', gap: '1.5px' }}>
+    <span className="nl-stars" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
       {[0, 1, 2, 3, 4].map((i) => {
         const v = rating - i;
         const frac = v >= 1 ? 1 : v >= 0.5 ? 0.5 : 0;
