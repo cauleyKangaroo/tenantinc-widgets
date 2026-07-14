@@ -2793,8 +2793,8 @@
 
 .sl-wrapper .sl-sg2-tab {
   padding: 11px 17px;
-  border-radius: 70px;
-  border: 0.7px solid #101318;
+  border-radius: 100px;
+  border: 2px solid #101318;
   background: #ffffff;
   font-size: 14px;
   font-weight: 400;
