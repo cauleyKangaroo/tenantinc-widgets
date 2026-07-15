@@ -136,7 +136,7 @@
 }
 
 .blog-readmore:hover {
-  color: var(--color_2, #f45f30);
+  color: var(--color_1, #f45f30);
 }
 
 .blog-share {
@@ -156,7 +156,7 @@
 }
 
 .blog-share:hover {
-  color: var(--color_2, #f45f30);
+  color: var(--color_1, #f45f30);
 }
 
 .blog-share svg {
@@ -192,7 +192,7 @@
 }
 
 .blog-social:hover {
-  color: var(--color_2, #f45f30);
+  color: var(--color_1, #f45f30);
 }
 
 /* ── Pagination ─────────────────────────────────────────────────────────── */

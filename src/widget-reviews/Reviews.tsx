@@ -84,7 +84,6 @@ function SourceHeader({ source }: { source: ReviewSource }) {
         </div>
       </div>
       <a href={source.moreUrl} className="rw-more-link">
-        <ChevronRight size={24} />
         More Reviews
       </a>
     </div>

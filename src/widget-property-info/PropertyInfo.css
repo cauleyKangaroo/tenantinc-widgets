@@ -74,7 +74,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1.5;
   color: #101318;
@@ -97,7 +97,7 @@
 
 .pi-link:hover .pi-underline,
 .pi-contact-row:hover .pi-underline {
-  color: var(--color_2, #509e2f);
+  color: var(--color_1, #f45f30);
 }
 
 /* Phone + hours are grouped blocks — their rows sit tight together, while
@@ -121,7 +121,7 @@
 }
 
 .pi-see-hours {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
   color: #101318;
 }
@@ -147,7 +147,7 @@
 }
 
 .pi-breadcrumb a:hover {
-  color: var(--color_2, #509e2f);
+  color: var(--color_1, #f45f30);
 }
 
 .pi-cards {
@@ -289,7 +289,7 @@
 }
 
 .pi-social:hover {
-  color: var(--color_2, #509e2f);
+  color: var(--color_1, #f45f30);
 }
 
 /* ── Lightbox ───────────────────────────────────────────────────────────── */

@@ -99,11 +99,10 @@ export function PlatformLogo({ platform }: { platform: Platform }) {
 // ── UI glyphs ─────────────────────────────────────────────────────────────
 
 export function UserAvatar() {
+  // Pika user/user-circle (Figma node 6349:120858) — currentColor via .rw-avatar.
   return (
-    <svg className="rw-avatar" viewBox="0 0 42 42" fill="none" aria-hidden="true">
-      <circle cx="21" cy="21" r="20.5" stroke="#101318" strokeWidth="1" />
-      <circle cx="21" cy="16.5" r="6" stroke="#101318" strokeWidth="1.5" />
-      <path d="M9 35c1.5-5.5 6.3-9 12-9s10.5 3.5 12 9" stroke="#101318" strokeWidth="1.5" strokeLinecap="round" />
+    <svg className="rw-avatar" width="42" height="42" viewBox="0 0 42 42" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M33.2406 33.5068C33.0627 30.437 30.3927 28 27.125 28H14.875C11.6073 28 8.93731 30.437 8.75944 33.5068M8.75944 33.5068C11.9152 36.5957 16.2352 38.5 21 38.5C25.7648 38.5 30.0848 36.5957 33.2406 33.5068C36.486 30.33 38.5 25.9002 38.5 21C38.5 11.335 30.665 3.5 21 3.5C11.335 3.5 3.5 11.335 3.5 21C3.5 25.9002 5.51402 30.33 8.75944 33.5068ZM26.25 17.5C26.25 20.3995 23.8995 22.75 21 22.75C18.1005 22.75 15.75 20.3995 15.75 17.5C15.75 14.6005 18.1005 12.25 21 12.25C23.8995 12.25 26.25 14.6005 26.25 17.5Z" />
     </svg>
   );
 }
