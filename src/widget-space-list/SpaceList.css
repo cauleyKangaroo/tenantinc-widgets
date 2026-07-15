@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
 /* All rules are prefixed with .sl- and live under the .sl-wrapper root, so
    they don't leak into the host Duda page. Every selector is also scoped under
@@ -413,7 +413,7 @@
 }
 .sl-wrapper .sl-see-fits {
   font-size: 15px;
-  color: #509e2f;
+  color: var(--color_1, #f45f30);
   text-decoration: none;
   white-space: nowrap;
   font-weight: 700;
@@ -642,7 +642,7 @@
 .sl-wrapper .sl-lc-see-fits {
   font-size: 15px;
   font-weight: 700;
-  color: #509e2f;
+  color: var(--color_1, #f45f30);
   text-decoration: none;
   white-space: nowrap;
   display: flex;
@@ -1227,7 +1227,7 @@
   border-top: 1px solid #f0f0f0;
 }
 .sl-wrapper .sl-nb-admin-fee { font-size: 12px; color: #637381; }
-.sl-wrapper .sl-nb-see-all   { font-size: 13px; font-weight: 600; color: var(--color_2, #f45f30); text-decoration: none; }
+.sl-wrapper .sl-nb-see-all   { font-size: 13px; font-weight: 600; color: var(--color_1, #f45f30); text-decoration: none; }
 .sl-wrapper .sl-nb-see-all:hover { text-decoration: underline; }
 
 /* Pagination */
@@ -1367,11 +1367,11 @@
 .sl-wrapper .sl-sg-cta {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color_2, #f45f30);
+  color: var(--color_1, #f45f30);
   text-decoration: underline;
   cursor: pointer;
 }
-.sl-wrapper .sl-sg-cta:hover { color: color-mix(in srgb, var(--color_2, #f45f30) 80%, black); }
+.sl-wrapper .sl-sg-cta:hover { color: color-mix(in srgb, var(--color_1, #f45f30) 80%, black); }
 
 /* ===========================================================================
    BLOG SECTION
@@ -1449,7 +1449,7 @@
   flex-shrink: 0;
   transition: color 0.15s;
 }
-.sl-wrapper .sl-bl-social-icon:hover { color: var(--color_2, #f45f30); }
+.sl-wrapper .sl-bl-social-icon:hover { color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-bl-social-icon svg { width: 100%; height: 100%; }
 
 /* Footer */
@@ -1467,7 +1467,7 @@
   color: #101318;
   text-decoration: underline;
 }
-.sl-wrapper .sl-bl-read-more:hover { color: var(--color_2, #f45f30); }
+.sl-wrapper .sl-bl-read-more:hover { color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-bl-share-btn {
   display: flex;
   align-items: center;
@@ -1482,7 +1482,7 @@
   text-decoration: underline;
   padding: 0;
 }
-.sl-wrapper .sl-bl-share-btn:hover { color: var(--color_2, #f45f30); }
+.sl-wrapper .sl-bl-share-btn:hover { color: var(--color_1, #f45f30); }
 
 /* ===========================================================================
    FAQ SECTION
@@ -1555,7 +1555,7 @@
   color: #101318;
   transition: color 0.15s;
 }
-.sl-wrapper .sl-faq-question:hover { color: var(--color_2, #f45f30); }
+.sl-wrapper .sl-faq-question:hover { color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-faq-item.open .sl-faq-question { color: #101318; }
 
 .sl-wrapper .sl-faq-chevron {
@@ -1584,7 +1584,7 @@
   color: #101318;
   text-decoration: underline;
 }
-.sl-wrapper .sl-faq-link:hover { color: var(--color_2, #f45f30); }
+.sl-wrapper .sl-faq-link:hover { color: var(--color_1, #f45f30); }
 
 .sl-wrapper .sl-faq-no-results {
   padding: 24px 4px;
@@ -1688,7 +1688,7 @@
   height: 28px;
   padding: 0 8px;
   border-radius: 99px;
-  background: var(--color_2, #509e2f);
+  background: var(--color_1, #f45f30);
   color: #ffffff;
   font-size: 13px;
   font-weight: 600;
@@ -2265,14 +2265,14 @@
   align-items: center;
   font-size: 16px;
   font-weight: 600;
-  color: var(--color_2, #f45f30);
+  color: var(--color_1, #f45f30);
   font-family: 'Montserrat', sans-serif;
   text-decoration: underline;
   gap: 2px;
 }
 
 .sl-wrapper .sl-nb2-see-all:hover {
-  color: color-mix(in srgb, var(--color_2, #f45f30) 80%, black);
+  color: color-mix(in srgb, var(--color_1, #f45f30) 80%, black);
 }
 
 /* Pagination */
@@ -2361,6 +2361,11 @@
   padding: 18px 20px;
 }
 
+/* Header icons stay dark — they must NOT inherit the host page's accent
+   (--color_1). Email only looked right by accident (it's a <button>, which
+   resets color); pin the rest explicitly to match. */
+.sl-wrapper .sl-pi-card-header svg { color: #101318; }
+
 .sl-wrapper .sl-pi-card-title {
   font-size: 20px;
   font-weight: 700;
@@ -2406,7 +2411,7 @@
 }
 
 .sl-wrapper .sl-pi-phone-link:hover {
-  color: var(--color_2, #f45f30);
+  color: var(--color_1, #f45f30);
 }
 
 .sl-wrapper .sl-pi-phone-label {
@@ -2478,7 +2483,7 @@
 }
 
 .sl-wrapper .sl-pi-see-hours:hover {
-  color: var(--color_2, #f45f30);
+  color: var(--color_1, #f45f30);
 }
 
 /* Star rating */
@@ -2558,7 +2563,7 @@
 }
 
 .sl-wrapper .sl-pi-social-link:hover {
-  opacity: 0.6;
+  color: var(--color_1, #f45f30);
 }
 
 /* ===========================================================================
@@ -2642,12 +2647,12 @@
 .sl-wrapper .sl-faq2-link {
   font-size: 14px;
   font-weight: 500;
-  color: var(--color_2, #f45f30);
+  color: var(--color_1, #f45f30);
   text-decoration: underline;
 }
 
 .sl-wrapper .sl-faq2-link:hover {
-  color: color-mix(in srgb, var(--color_2, #f45f30) 80%, black);
+  color: color-mix(in srgb, var(--color_1, #f45f30) 80%, black);
 }
 
 /* ===========================================================================
@@ -2941,14 +2946,14 @@
 .sl-wrapper .sl-sg2-cta {
   font-size: 16px;
   font-weight: 600;
-  color: var(--color_2, #f45f30);
+  color: var(--color_1, #f45f30);
   text-decoration: underline;
   text-underline-position: from-font;
   white-space: nowrap;
 }
 
 .sl-wrapper .sl-sg2-cta:hover {
-  color: color-mix(in srgb, var(--color_2, #f45f30) 80%, black);
+  color: color-mix(in srgb, var(--color_1, #f45f30) 80%, black);
 }
 
 /* ===========================================================================
@@ -3056,7 +3061,7 @@
   height: 18px;
   padding: 0 4px;
   border-radius: 99px;
-  background: var(--color_2, #f45f30);
+  background: var(--color_1, #f45f30);
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;

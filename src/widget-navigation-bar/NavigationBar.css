@@ -71,7 +71,7 @@
 }
 
 .nav-top-item:hover {
-  color: var(--color_2, #509e2f);
+  color: var(--color_1, #f45f30);
 }
 
 .nav-top-item svg {
@@ -222,7 +222,7 @@
 }
 
 .nav-link:hover {
-  color: var(--color_2, #509e2f);
+  color: var(--color_1, #f45f30);
 }
 
 .nav-link-chevron {
@@ -388,7 +388,7 @@
 }
 
 .nav-icon-btn:hover {
-  color: var(--color_2, #509e2f);
+  color: var(--color_1, #f45f30);
 }
 
 /* ── Mobile burger (hidden on desktop) ──────────────────────────────────── */
@@ -637,7 +637,7 @@
 }
 
 .nav-mm-nav-row.is-open {
-  color: var(--color_2, #509e2f);
+  color: var(--color_1, #f45f30);
 }
 
 .nav-mm-chevron {

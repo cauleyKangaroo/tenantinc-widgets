@@ -37,7 +37,6 @@ const CATEGORIES: Category[] = [
       { id: 's1', title: 'Storage Locker', image: cover(storageLocker), description: 'Storage locker units (about 5x5x4ft) are convenient and often more cost effective than other storage unit sizes. In this video we show you how big our locker storage units are and what you can fit inside.', bullets: ['25 sq ft', 'Closet-sized storage with less height'] },
       { id: 's2', title: '5’ x 5’', image: cover(SIZE_IMAGES['5x5']), description: 'Ever wondered what a 5x5 storage unit looks like or what fits in a 5x5 foot storage unit? In this video we show you how big our 5x5 storage unit is and what you can fit inside.', bullets: ['25 sq ft', 'Closet-sized storage'] },
       { id: 's3', title: '5’ x 10’', image: cover(SIZE_IMAGES['5x10']), description: 'Ever wondered what a 5x10 storage unit looks like or what fits in a 5x10 foot storage unit? In this video we show you how big our 5x10 storage unit is and what you can fit inside.', bullets: ['50 sq ft', 'Small apartment extras'] },
-      { id: 's4', title: '5’ x 15’', image: G1, description: 'A 5x15 unit offers extra depth for longer items while keeping a compact footprint. See what fits inside and whether it suits your move.', bullets: ['75 sq ft', 'Contents of a one-bedroom apartment'] },
     ],
   },
   {
@@ -53,24 +52,16 @@ const CATEGORIES: Category[] = [
     key: 'large',
     label: 'Large',
     units: [
-      { id: 'l1', title: '10’ x 25’', image: G3, description: 'A 10x25 unit suits large household moves and business inventory, with room to organize and access your items.', bullets: ['250 sq ft', 'Large home + appliances'] },
+      { id: 'l1', title: '10’ x 25’', image: cover(SIZE_IMAGES['10x30']), description: 'A 10x25 unit suits large household moves and business inventory, with room to organize and access your items.', bullets: ['250 sq ft', 'Large home + appliances'] },
       { id: 'l2', title: '10’ x 30’', image: cover(SIZE_IMAGES['10x30']), description: 'Our largest standard unit — comparable to a two-car garage. Perfect for major moves, commercial storage, or vehicles.', bullets: ['300 sq ft', 'Five+ bedrooms or commercial use'] },
     ],
   },
   {
-    key: 'vehicle',
-    label: 'Vehicle',
+    key: 'parking',
+    label: 'Parking',
     units: [
       { id: 'v1', title: 'Covered Parking', image: G1, description: 'Covered parking shields your car, motorcycle, or trailer from the elements while keeping it secure behind gated access.', bullets: ['Up to 20 ft', 'Cars, motorcycles, trailers'] },
       { id: 'v2', title: 'Uncovered Parking', image: G3, description: 'An economical outdoor space for vehicles and trailers within our secured, monitored lot.', bullets: ['Up to 25 ft', 'Cars, trucks, trailers'] },
-    ],
-  },
-  {
-    key: 'boat-rv',
-    label: 'Boat / RV',
-    units: [
-      { id: 'b1', title: 'RV Storage', image: G2, description: 'Spacious drive-up spaces sized for recreational vehicles, with easy maneuvering and gated security.', bullets: ['Up to 40 ft', 'Motorhomes and travel trailers'] },
-      { id: 'b2', title: 'Boat Storage', image: G1, description: 'Keep your boat protected and out of the driveway in a space designed for trailered watercraft.', bullets: ['Up to 35 ft', 'Boats on trailers'] },
     ],
   },
 ];

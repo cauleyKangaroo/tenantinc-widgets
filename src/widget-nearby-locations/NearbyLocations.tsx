@@ -55,8 +55,9 @@ const PROPERTIES: Property[] = [
   { id: 'p1', name: '3rd Street Storage', distance: '1.7 Miles', rating: 4.5, reviewCount: 32, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[0]), promo: '$1 Move-In', adminFee: 20, spaces: SPACES },
   { id: 'p2', name: 'Storfun Storage', distance: '2.5 Miles', rating: 4.5, reviewCount: 32, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[1]), promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
   { id: 'p3', name: 'Green Street Storage', distance: '3 Miles', rating: 4.5, reviewCount: 32, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[2]), promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
-  { id: 'p4', name: 'Lakeside Self Storage', distance: '4.1 Miles', rating: 4, reviewCount: 18, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[0]), promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
-  { id: 'p5', name: 'Uptown Storage Co.', distance: '5.3 Miles', rating: 5, reviewCount: 47, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[1]), promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
+  { id: 'p4', name: 'Lakeside Self Storage', distance: '4.1 Miles', rating: 4, reviewCount: 18, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[3]), promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
+  { id: 'p5', name: 'Uptown Storage Co.', distance: '5.3 Miles', rating: 5, reviewCount: 47, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[4]), promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
+  { id: 'p6', name: 'Riverside Storage', distance: '6.2 Miles', rating: 4.5, reviewCount: 29, address: ADDRESS, phone: PHONE, image: cover(PROPERTY_IMAGES[5]), promo: 'Short Promotion Title', adminFee: 20, spaces: SPACES },
 ];
 
 const CARDS_PER_PAGE = 3;
