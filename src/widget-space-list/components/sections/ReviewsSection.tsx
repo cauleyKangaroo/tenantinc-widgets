@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-type Platform = 'google' | 'yelp' | 'website';
+type Platform = 'google' | 'yelp';
 
 interface ReviewData {
   id: number;
@@ -13,7 +13,7 @@ interface ReviewData {
 
 const ALL_REVIEWS: ReviewData[] = [
   {
-    id: 1, platform: 'google', author: 'Randall Snickelfritz', rating: 5,
+    id: 1, platform: 'google', author: 'Michael Reyes', rating: 5,
     text: '"Great customer service with secure and clean facilities. We have been customers for over 2 years and rent out a climate control unit. We have never had any problems. Would recommend for short term or long term storage needs.."',
     timeAgo: '4 months ago',
   },
@@ -33,21 +33,15 @@ const ALL_REVIEWS: ReviewData[] = [
     timeAgo: '5 months ago',
   },
   {
-    id: 5, platform: 'yelp', author: 'John Doe', rating: 4,
+    id: 5, platform: 'yelp', author: 'David Thompson', rating: 4,
     text: '"Great facility with easy access, well-lit and clean. Staff are friendly and helpful. Would definitely recommend to anyone looking for storage in the area."',
     timeAgo: '1 month ago',
-  },
-  {
-    id: 6, platform: 'website', author: 'Marky Mark', rating: 5,
-    text: '"The online process is incredibly simple and straightforward, making it easy for anyone to navigate. I appreciate the 12-month rate lock — it provides peace of mind and financial stability."',
-    timeAgo: '2 months ago',
   },
 ];
 
 const PLATFORM_META: Record<Platform, { label: string; score: number; count: number; starColor: string }> = {
   google:  { label: 'Google',  score: 4.3, count: 264, starColor: '#FFD000' },
   yelp:    { label: 'Yelp',    score: 4.1, count: 87,  starColor: '#D32323' },
-  website: { label: 'Website', score: 4.5, count: 42,  starColor: '#509e2f' },
 };
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -72,20 +66,9 @@ function YelpLogo() {
   );
 }
 
-function WebsiteLogo() {
-  return (
-    <svg width="46" height="47" viewBox="0 0 24 24" fill="none" stroke="#101318" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="2" y1="12" x2="22" y2="12"/>
-      <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
-    </svg>
-  );
-}
-
 function PlatformLogo({ platform }: { platform: Platform }) {
-  if (platform === 'google')  return <GoogleLogo />;
-  if (platform === 'yelp')    return <YelpLogo />;
-  return <WebsiteLogo />;
+  if (platform === 'google') return <GoogleLogo />;
+  return <YelpLogo />;
 }
 
 function UserCircleIcon() {
@@ -135,7 +118,7 @@ export function ReviewsSection() {
 
       {/* Platform tabs */}
       <div className="sl-rv2-tabs">
-        {(['google', 'yelp', 'website'] as Platform[]).map((p) => (
+        {(['google', 'yelp'] as Platform[]).map((p) => (
           <button
             key={p}
             className={`sl-rv2-tab${platform === p ? ' active' : ''}`}

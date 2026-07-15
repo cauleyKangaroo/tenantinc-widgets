@@ -288,7 +288,7 @@
 }
 
 .nl-select-btn {
-  background: var(--color_1, #f45f30);
+  background: var(--color_2, #509e2f);
   color: #fff;
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
@@ -304,7 +304,7 @@
 }
 
 .nl-select-btn:hover {
-  background: color-mix(in srgb, var(--color_1, #f45f30) 85%, black);
+  background: color-mix(in srgb, var(--color_2, #509e2f) 85%, black);
 }
 
 /* ── Card footer ────────────────────────────────────────────────────────── */
@@ -326,7 +326,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--color_1, #f45f30);
+  color: var(--color_2, #509e2f);
   font-size: 16px;
   font-weight: 600;
   text-decoration: underline;

@@ -179,7 +179,7 @@ export function SpaceList({
     <div className={`sl-wrapper filter-top ap-${apLocation}`}>
       <div className="sl-heading">
         <p className="sl-select-heading">Select a Space</p>
-        <p className="sl-page-title">Storage Units in {'{Location}'}</p>
+        <p className="sl-page-title">Storage Units in Laguna Beach</p>
       </div>
       <div className="sl-row">
         {apLocation === 'left' && sectionPanel}

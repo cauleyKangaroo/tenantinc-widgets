@@ -42,7 +42,7 @@ const SOURCES: ReviewSource[] = [
     count: 264,
     moreUrl: '#',
     reviews: [
-      { id: 'g1', author: 'Randall Snickelfritz', rating: 5, text: '"Great customer service with secure and clean facilities. We have been customers for over 2 years and rent out a climate control unit. We have never had any problems. Would recommend for short term or long term storage needs."', timeAgo: '4 months ago' },
+      { id: 'g1', author: 'Michael Reyes', rating: 5, text: '"Great customer service with secure and clean facilities. We have been customers for over 2 years and rent out a climate control unit. We have never had any problems. Would recommend for short term or long term storage needs."', timeAgo: '4 months ago' },
       { id: 'g2', author: 'Lucas Brady', rating: 5, text: '"Awesome customer service and super clean, secure facilities! We\'ve been renting a climate-controlled unit for over 2 years and have had zero issues. Totally recommend it for both short and long-term storage!"', timeAgo: '4 months ago' },
       { id: 'g3', author: 'Sarah Chen', rating: 4, text: '"The facility is immaculate and the staff are incredibly helpful. Moving in was a breeze and the online portal makes billing simple. Highly recommended."', timeAgo: '2 months ago' },
       { id: 'g4', author: 'Mike Patterson', rating: 5, text: '"Exceptional service from the moment I walked in. The unit is exactly as described and the security cameras everywhere give real peace of mind."', timeAgo: '1 month ago' },
@@ -55,7 +55,7 @@ const SOURCES: ReviewSource[] = [
     count: 76,
     moreUrl: '#',
     reviews: [
-      { id: 'y1', author: 'John Doe', rating: 5, text: '"Excellent customer service and clean, secure facilities. We\'ve rented a climate-controlled unit for over 2 years without any issues. Highly recommend for both short and long-term storage!"', timeAgo: '4 months ago' },
+      { id: 'y1', author: 'David Thompson', rating: 5, text: '"Excellent customer service and clean, secure facilities. We\'ve rented a climate-controlled unit for over 2 years without any issues. Highly recommend for both short and long-term storage!"', timeAgo: '4 months ago' },
       { id: 'y2', author: 'Jesse Miller', rating: 5, text: '"This place is super convenient! It\'s secure, clean, and really well managed. India and Delicia are awesome, and I totally recommend storing your stuff here!"', timeAgo: '4 months ago' },
       { id: 'y3', author: 'Amanda Torres', rating: 5, text: '"I was nervous about putting my belongings in storage but this place gave me total confidence. Climate controlled units are spotless and the access hours are very flexible."', timeAgo: '3 months ago' },
       { id: 'y4', author: 'Daniel Wu', rating: 4, text: '"Really solid storage facility. Easy access, great staff, very clean. Pricing is fair and competitive. Would definitely rent here again."', timeAgo: '5 months ago' },

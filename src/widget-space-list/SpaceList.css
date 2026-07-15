@@ -513,7 +513,7 @@
   justify-content: center;
 }
 .sl-wrapper .sl-select-btn {
-  background: var(--color_1, #f45f30);
+  background: var(--color_2, #509e2f);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -529,7 +529,7 @@
   align-items: center;
   justify-content: center;
 }
-.sl-wrapper .sl-select-btn:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 80%, black); }
+.sl-wrapper .sl-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
 .sl-wrapper .sl-call-btn {
   background: #ffffff;
   color: var(--color_1, #f45f30);
@@ -1204,7 +1204,7 @@
 .sl-wrapper .sl-nb-starting-label { font-size: 9px; color: #101318; font-weight: 600; }
 .sl-wrapper .sl-nb-starting-price { font-size: 16px; font-weight: 700; color: #101318; }
 .sl-wrapper .sl-nb-select-btn {
-  background: var(--color_1, #f45f30);
+  background: var(--color_2, #509e2f);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -1215,7 +1215,7 @@
   white-space: nowrap;
   font-family: 'Montserrat', sans-serif;
 }
-.sl-wrapper .sl-nb-select-btn:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 80%, black); }
+.sl-wrapper .sl-nb-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
 
 /* Footer */
 .sl-wrapper .sl-nb-footer {
@@ -1227,7 +1227,7 @@
   border-top: 1px solid #f0f0f0;
 }
 .sl-wrapper .sl-nb-admin-fee { font-size: 12px; color: #637381; }
-.sl-wrapper .sl-nb-see-all   { font-size: 13px; font-weight: 600; color: var(--color_1, #f45f30); text-decoration: none; }
+.sl-wrapper .sl-nb-see-all   { font-size: 13px; font-weight: 600; color: var(--color_2, #509e2f); text-decoration: none; }
 .sl-wrapper .sl-nb-see-all:hover { text-decoration: underline; }
 
 /* Pagination */
@@ -1726,7 +1726,8 @@
    add no specificity, so an earlier override would lose the source-order tie
    (which is why the width:422px base was still winning). */
 @media (max-width: 767px) {
-  .sl-wrapper .sl-sa-panel { width: 100%; }
+  /* Side accordion sidebar is desktop/tablet only — hidden on mobile. */
+  .sl-wrapper .sl-sa-panel { display: none; }
   .sl-wrapper .sl-sa-item { max-width: 100%; }
   .sl-wrapper .sl-sa-header { padding: 0 16px; min-height: 64px; gap: 8px; }
   .sl-wrapper .sl-sa-header-left { gap: 12px; }
@@ -2225,7 +2226,7 @@
 
 /* Select button */
 .sl-wrapper .sl-nb2-select {
-  background: var(--color_1, #f45f30);
+  background: var(--color_2, #509e2f);
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
@@ -2240,7 +2241,7 @@
 }
 
 .sl-wrapper .sl-nb2-select:hover {
-  background: color-mix(in srgb, var(--color_1, #f45f30) 80%, black);
+  background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black);
 }
 
 /* Footer */
@@ -2265,14 +2266,14 @@
   align-items: center;
   font-size: 16px;
   font-weight: 600;
-  color: var(--color_1, #f45f30);
+  color: var(--color_2, #509e2f);
   font-family: 'Montserrat', sans-serif;
   text-decoration: underline;
   gap: 2px;
 }
 
 .sl-wrapper .sl-nb2-see-all:hover {
-  color: color-mix(in srgb, var(--color_1, #f45f30) 80%, black);
+  color: color-mix(in srgb, var(--color_2, #509e2f) 80%, black);
 }
 
 /* Pagination */
@@ -2946,14 +2947,14 @@
 .sl-wrapper .sl-sg2-cta {
   font-size: 16px;
   font-weight: 600;
-  color: var(--color_1, #f45f30);
+  color: var(--color_2, #509e2f);
   text-decoration: underline;
   text-underline-position: from-font;
   white-space: nowrap;
 }
 
 .sl-wrapper .sl-sg2-cta:hover {
-  color: color-mix(in srgb, var(--color_1, #f45f30) 80%, black);
+  color: color-mix(in srgb, var(--color_2, #509e2f) 80%, black);
 }
 
 /* ===========================================================================
@@ -3293,6 +3294,9 @@
   gap: 12px;
 }
 .sl-wrapper .sl-filter-modal .sl-checkbox { accent-color: #101318; }
+
+/* Filter-modal pills use a heavier 2px border. */
+.sl-wrapper .sl-filter-modal .sl-pill { border-width: 2px; }
 
 /* Active (selected) pill renders as a removable chip — circle-X icon to the
    left of the label, with tighter left padding to seat the icon (per Figma) */

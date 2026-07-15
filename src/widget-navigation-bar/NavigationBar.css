@@ -503,9 +503,9 @@
 
 .nav-mm-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 0 20px 10px;
   flex-shrink: 0;
 }
 
@@ -517,7 +517,7 @@
 
 .nav-mm-logo-img {
   display: block;
-  width: 132px !important;
+  width: 146px !important;
   height: auto !important;
   max-width: none !important;
 }
@@ -571,7 +571,7 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  border: 1px solid #c4cdd5;
+  border: 2px solid #101318;
   border-radius: 50%;
   color: #101318;
 }
@@ -660,7 +660,7 @@
 .nav-mm-account {
   list-style: none;
   margin: 0;
-  padding: 8px 40px 24px;
+  padding: 8px 48px 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -675,8 +675,8 @@
 }
 
 .nav-mm-account svg {
-  flex-shrink: 0;
-  color: #101318;
+  /* Leading title icons removed on mobile per client request. */
+  display: none;
 }
 
 .nav-mm-account span {
@@ -688,14 +688,14 @@
 .nav-mm-divider {
   height: 1px;
   background: #c4cdd5;
-  margin: 0 40px;
+  margin: 0 48px;
 }
 
 /* Nav accordion */
 .nav-mm-nav {
   list-style: none;
   margin: 0;
-  padding: 4px 40px 40px;
+  padding: 4px 48px 40px;
 }
 
 .nav-mm-nav-row {
@@ -752,13 +752,8 @@
 }
 
 .nav-mm-sub-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  color: #101318;
+  /* Leading submenu icons removed on mobile per client request. */
+  display: none;
 }
 
 /* Nested accordion toggle rows (state › city) reuse the sub-item look but need
