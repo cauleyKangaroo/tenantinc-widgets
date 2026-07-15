@@ -45,10 +45,12 @@ export function MessageAiIcon({ size = 24 }: { size?: number }) {
 }
 
 export function UserCircleIcon({ size = 24 }: { size?: number }) {
+  // Pika user/user-circle (Figma node 7101:46283). 24-unit viewBox so the 2px
+  // stroke renders at full weight — the old 44-unit box made it look too thin.
   return (
-    <svg width={size} height={size} viewBox="0 0 44 44" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M34.8234 35.1023C34.6371 31.8864 31.8399 29.3333 28.4167 29.3333H15.5833C12.1601 29.3333 9.3629 31.8864 9.17655 35.1023M9.17655 35.1023C12.4826 38.3384 17.0083 40.3333 22 40.3333C26.9917 40.3333 31.5174 38.3384 34.8234 35.1023C38.2234 31.7743 40.3333 27.1335 40.3333 22C40.3333 11.8748 32.1252 3.66667 22 3.66667C11.8748 3.66667 3.66667 11.8748 3.66667 22C3.66667 27.1335 5.77659 31.7743 9.17655 35.1023ZM27.5 18.3333C27.5 21.3709 25.0376 23.8333 22 23.8333C18.9624 23.8333 16.5 21.3709 16.5 18.3333C16.5 15.2958 18.9624 12.8333 22 12.8333C25.0376 12.8333 27.5 15.2958 27.5 18.3333Z"
+        d="M18.9946 19.1467C18.893 17.3926 17.3672 16 15.5 16H8.5C6.63276 16 5.10703 17.3926 5.00539 19.1467M5.00539 19.1467C6.80867 20.9119 9.27726 22 12 22C14.7227 22 17.1913 20.9119 18.9946 19.1467C20.8491 17.3314 22 14.8001 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.8001 3.15087 17.3314 5.00539 19.1467ZM15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
@@ -68,11 +70,10 @@ export function MessageDefaultIcon({ size = 24 }: { size?: number }) {
 }
 
 export function CreditCardIcon({ size = 24 }: { size?: number }) {
+  // Pika credit-card/credit-card (Figma node 6349:121313).
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" strokeWidth="2" />
-      <path d="M2 9.5h20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M6 15h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M2 9H22M6 13H9M15.6 20H8.4C6.1598 20 5.0397 20 4.184 19.564C3.4314 19.1805 2.8195 18.5686 2.436 17.816C2 16.9603 2 15.8402 2 13.6V10.4C2 8.1598 2 7.0397 2.436 6.184C2.8195 5.4314 3.4314 4.8195 4.184 4.436C5.0397 4 6.1598 4 8.4 4H15.6C17.8402 4 18.9603 4 19.816 4.436C20.5686 4.8195 21.1805 5.4314 21.564 6.184C22 7.0397 22 8.1598 22 10.4V13.6C22 15.8402 22 16.9603 21.564 17.816C21.1805 18.5686 20.5686 19.1805 19.816 19.564C18.9603 20 17.8402 20 15.6 20Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -154,10 +155,10 @@ export function ClimateControlledIcon({ size = 16 }: { size?: number }) {
 // ===========================================================================
 
 export function EnvelopeIcon({ size = 24 }: { size?: number }) {
+  // Pika mail (Figma email quick-action, node 7101:46250).
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke="currentColor" strokeWidth="2" />
-      <path d="M3.5 7l8.5 6 8.5-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21.8032 7.76159L16.295 11.2668C14.7385 12.2573 13.9602 12.7526 13.1238 12.9455C12.3843 13.1161 11.6157 13.1161 10.8762 12.9455C10.0398 12.7526 9.2615 12.2573 7.705 11.2668L2.1968 7.76159M21.8032 7.76159C22 8.7219 22 10.006 22 12C22 14.8003 22 16.2004 21.455 17.27C20.9757 18.2108 20.2108 18.9757 19.27 19.455C18.2004 20 16.8003 20 14 20H10C7.1997 20 5.7996 20 4.73 19.455C3.7892 18.9757 3.0243 18.2108 2.545 17.27C2 16.2004 2 14.8003 2 12C2 10.006 2 8.7219 2.1968 7.76159M21.8032 7.76159C21.7237 7.3733 21.6119 7.038 21.455 6.73C20.9757 5.7892 20.2108 5.0243 19.27 4.545C18.2004 4 16.8003 4 14 4H10C7.1997 4 5.7996 4 4.73 4.545C3.7892 5.0243 3.0243 5.7892 2.545 6.73C2.3881 7.038 2.2763 7.3733 2.1968 7.76159" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
