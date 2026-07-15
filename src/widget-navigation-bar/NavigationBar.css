@@ -241,9 +241,11 @@
   z-index: 50;
 }
 
-/* First-level panel (states) and second-level panel (cities) share a look. */
+/* First-level (states), second-level (cities) and third-level (facilities)
+   panels share a look. */
 .nav-dd-panel,
-.nav-subpanel {
+.nav-subpanel,
+.nav-subsubpanel {
   list-style: none;
   margin: 0;
   /* 4px white spacers top/bottom, matching the Figma frame. */
@@ -253,6 +255,12 @@
   border: 1px solid #eee;
   border-radius: 12px;
   box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+/* The first-level panel and the leaf third-level panel clip their own rows; the
+   middle panel must stay visible so its third-level flyout can escape right. */
+.nav-dd-panel,
+.nav-subsubpanel {
   overflow: hidden;
 }
 
@@ -307,16 +315,22 @@
 }
 
 .nav-sub-item {
+  position: relative;
   padding: 10px 15px;
   box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
 }
 
 .nav-sub-item:hover {
   background: #f9fafb;
+  /* Lift above later sibling rows so the third-level flyout isn't overpainted. */
+  z-index: 3;
 }
 
 .nav-sub-item a {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
   font-weight: 400;
@@ -324,6 +338,29 @@
   color: #000;
   text-decoration: none;
   white-space: nowrap;
+}
+
+.nav-sub-arrow {
+  flex-shrink: 0;
+  color: #000;
+}
+
+/* Third-level flyout (a city's facilities), revealed on hover, aligned so its
+   first row lines up with the hovered city. It opens to the LEFT of the cities
+   column: the nav links are right-aligned, so a rightward cascade would run off
+   the right edge of the viewport on wide screens. A left flyout is always
+   on-screen and paints above the (now-behind) first-level panel. */
+.nav-subsubpanel {
+  position: absolute;
+  right: 100%;
+  top: -4px;
+  min-width: 220px;
+  z-index: 10;
+  display: none;
+}
+
+.nav-sub-item:hover > .nav-subsubpanel {
+  display: block;
 }
 
 /* ── Inline actions — single-bar mode only (top bar toggled off) ─────────── */
@@ -407,9 +444,40 @@
 .nav-mobile-menu {
   position: fixed;
   inset: 0;
-  width: 100%;
-  max-width: 100%;
   z-index: 2147483647;
+  font-family: 'Montserrat', sans-serif;
+  /* Hidden until open. Delay the visibility flip on close so the panel can
+     finish sliding out before the layer leaves the hit/a11y tree. */
+  visibility: hidden;
+  transition: visibility 0s linear 0.32s;
+}
+
+.nav-mobile-menu.is-open {
+  visibility: visible;
+  transition: visibility 0s linear 0s;
+}
+
+/* Darkened page behind the drawer — the visible ~10% strip on the left. */
+.nav-mm-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 19, 24, 0.5);
+  opacity: 0;
+  transition: opacity 0.32s ease;
+  cursor: pointer;
+}
+
+.nav-mobile-menu.is-open .nav-mm-overlay {
+  opacity: 1;
+}
+
+/* The drawer: fills the right 90%, slides in from the right edge. */
+.nav-mm-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 90%;
   background: #fff;
   display: flex;
   flex-direction: column;
@@ -417,7 +485,20 @@
      extends the document scroll width (the white gap down the right). */
   overflow-x: hidden;
   overflow-y: auto;
-  font-family: 'Montserrat', sans-serif;
+  box-shadow: -8px 0 24px rgba(16, 19, 24, 0.12);
+  transform: translateX(100%);
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.nav-mobile-menu.is-open .nav-mm-panel {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-mm-overlay,
+  .nav-mm-panel {
+    transition-duration: 0.01ms;
+  }
 }
 
 .nav-mm-header {
@@ -678,6 +759,21 @@
   width: 16px;
   height: 16px;
   color: #101318;
+}
+
+/* Nested accordion toggle rows (state › city) reuse the sub-item look but need
+   button resets and the open-state accent, matching the top-level rows. */
+.nav-mm-sub-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.nav-mm-sub-toggle.is-open {
+  color: var(--color_1, #f45f30);
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */

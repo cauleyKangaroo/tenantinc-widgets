@@ -29,10 +29,12 @@ import {
 // Types + defaults
 // ---------------------------------------------------------------------------
 
-/** A leaf item in the second-level (city) list. */
+/** A second-level (city) item; may nest a third-level list (facilities). */
 interface NavSubItem {
   label: string;
   href: string;
+  /** Optional third-level dropdown, e.g. a city's individual facilities. */
+  children?: NavSubItem[];
 }
 
 /** A first-level dropdown row; may open a second-level list on hover. */
@@ -51,6 +53,10 @@ interface NavLink {
   /** Two-level hover mega-menu (first-level rows, each optionally nesting a city list). */
   menu?: NavMenuItem[];
 }
+
+/** Structural shape shared by every level of the mobile accordion tree
+ *  (NavMenuItem and NavSubItem both satisfy it). */
+type MobileMenuNode = { label: string; href: string; icon?: React.ReactNode; children?: MobileMenuNode[] };
 
 // Hardcoded for now — the real data will come from a collection / props later.
 const FIND_STORAGE_MENU: NavMenuItem[] = [
@@ -119,12 +125,31 @@ const RESOURCES_MENU: NavMenuItem[] = [
   { label: 'Customer Service', href: '#' },
 ];
 
-const DEFAULT_LINKS: NavLink[] = [
-  { label: 'Find Storage', href: '#', hasDropdown: true, menu: FIND_STORAGE_MENU },
-  { label: 'Storage Types', href: '#', hasDropdown: true, menu: STORAGE_TYPES_MENU },
-  { label: 'Resources', href: '#', hasDropdown: true, menu: RESOURCES_MENU },
-  { label: 'Size Guide', href: '#' },
-];
+/** Build the default nav, injecting the two Duda-configurable custom links
+ *  (Laguna Beach + its "3050 Bowling Dr" facility) under Find Storage › California. */
+function buildDefaultLinks(lagunaBeachUrl: string, bowlingDrUrl: string): NavLink[] {
+  const findStorageMenu: NavMenuItem[] = FIND_STORAGE_MENU.map((state) =>
+    state.label === 'California'
+      ? {
+          ...state,
+          children: [
+            ...(state.children ?? []),
+            {
+              label: 'Laguna Beach',
+              href: lagunaBeachUrl,
+              children: [{ label: '3050 Bowling Dr', href: bowlingDrUrl }],
+            },
+          ],
+        }
+      : state,
+  );
+  return [
+    { label: 'Find Storage', href: '#', hasDropdown: true, menu: findStorageMenu },
+    { label: 'Storage Types', href: '#', hasDropdown: true, menu: STORAGE_TYPES_MENU },
+    { label: 'Resources', href: '#', hasDropdown: true, menu: RESOURCES_MENU },
+    { label: 'Size Guide', href: '#' },
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -133,6 +158,12 @@ const DEFAULT_LINKS: NavLink[] = [
 export interface NavigationBarProps {
   /** Override the bundled storelocal logo with a custom image URL. */
   logoUrl?: string;
+  /** Click destination for the logo (Duda link picker). Default '#'. */
+  logoLink?: string;
+  /** Custom link for Find Storage › California › Laguna Beach. Default '#'. */
+  lagunaBeachUrl?: string;
+  /** Custom link for Laguna Beach › 3050 Bowling Dr. Default '#'. */
+  bowlingDrUrl?: string;
   /** Colour of the raised logo tile. Default storelocal green. */
   logoBg?: string;
   /** Primary-bar height. 'narrow' = 100px, 'wide' = 180px. Default 'narrow'. */
@@ -191,7 +222,10 @@ export function NavigationBar({
   payBillUrl = '#',
   accountLabel = 'My Account',
   accountUrl = '#',
-  links = DEFAULT_LINKS,
+  logoLink = '#',
+  lagunaBeachUrl = '#',
+  bowlingDrUrl = '#',
+  links,
 }: NavigationBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   // Desktop hover mega-menu: which top-level link is open, and which of its
@@ -200,10 +234,49 @@ export function NavigationBar({
   const [openLink, setOpenLink] = useState<string | null>(null);
   const [subIndex, setSubIndex] = useState<number | null>(null);
   const [subTop, setSubTop] = useState(0);
-  // Mobile menu: which top-level link's accordion is expanded.
-  const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
+  // Mobile menu: which accordion rows are open, keyed by full path so nested
+  // (state › city › facility) accordions each open independently.
+  const [mobileOpen, setMobileOpen] = useState<Record<string, boolean>>({});
+  const toggleMobile = (key: string) =>
+    setMobileOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   const telHref = phoneHref ?? `tel:${phone.replace(/[^0-9+]/g, '')}`;
   const smsHref = smsPhoneHref ?? `tel:${smsPhone.replace(/[^0-9+]/g, '')}`;
+  // Full override via `links`, else the default nav with the Duda custom links injected.
+  const linkList = links ?? buildDefaultLinks(lagunaBeachUrl, bowlingDrUrl);
+
+  // Recursively render mobile sub-levels: a leaf is a link; a node with children
+  // becomes a nested accordion toggle. Each deeper level indents 16px.
+  const renderMobileChildren = (nodes: MobileMenuNode[], parentKey: string, depth: number): React.ReactNode =>
+    nodes.map((node) => {
+      const key = `${parentKey}/${node.label}`;
+      const kids = node.children;
+      const open = !!mobileOpen[key];
+      const indent = depth > 0 ? { paddingLeft: 15 + depth * 16 } : undefined;
+      if (!kids?.length) {
+        return (
+          <a key={key} className="nav-mm-sub-item" href={node.href} style={indent}>
+            {node.icon && <span className="nav-mm-sub-icon">{node.icon}</span>}
+            <span>{node.label}</span>
+          </a>
+        );
+      }
+      return (
+        <React.Fragment key={key}>
+          <button
+            type="button"
+            className={`nav-mm-sub-item nav-mm-sub-toggle${open ? ' is-open' : ''}`}
+            style={indent}
+            aria-expanded={open}
+            onClick={() => toggleMobile(key)}
+          >
+            {node.icon && <span className="nav-mm-sub-icon">{node.icon}</span>}
+            <span>{node.label}</span>
+            <ChevronDown size={16} className={`nav-mm-chevron${open ? ' is-open' : ''}`} />
+          </button>
+          {open && renderMobileChildren(kids, key, depth + 1)}
+        </React.Fragment>
+      );
+    });
 
   const closeMenus = () => {
     setOpenLink(null);
@@ -213,7 +286,7 @@ export function NavigationBar({
   // Desktop nav links, including the two-level hover mega-menu.
   const navLinks = (
     <ul className="nav-links">
-      {links.map((link) => {
+      {linkList.map((link) => {
         const hasMenu = !!link.menu?.length;
         const isOpen = hasMenu && openLink === link.label;
         const activeItem = isOpen && subIndex != null ? link.menu![subIndex] : undefined;
@@ -256,7 +329,20 @@ export function NavigationBar({
                   <ul className="nav-subpanel" style={{ top: subTop }}>
                     {activeItem.children.map((sub) => (
                       <li key={sub.label} className="nav-sub-item">
-                        <a href={sub.href}>{sub.label}</a>
+                        <a href={sub.href}>
+                          <span>{sub.label}</span>
+                          {sub.children?.length ? <ChevronRight size={16} className="nav-sub-arrow" /> : null}
+                        </a>
+                        {/* Third level (e.g. a city's facilities) — CSS hover flyout. */}
+                        {sub.children?.length ? (
+                          <ul className="nav-subsubpanel">
+                            {sub.children.map((leaf) => (
+                              <li key={leaf.label} className="nav-sub-item">
+                                <a href={leaf.href}><span>{leaf.label}</span></a>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -369,7 +455,7 @@ export function NavigationBar({
       <div className="nav-primary">
         <div className="nav-inner">
           {logoMode === 'inline' && (
-            <a className="nav-logo-inline" href="#" aria-label="Home">
+            <a className="nav-logo-inline" href={logoLink} aria-label="Home">
               <img className="nav-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
             </a>
           )}
@@ -387,16 +473,18 @@ export function NavigationBar({
           protrudes below. Space is reserved via padding-left on the bar inners
           so it never overlaps the nav content. Only in 'banner' mode. */}
       {logoMode === 'banner' && (
-        <a className="nav-logo" href="#" style={{ background: logoBg }} aria-label="Home">
+        <a className="nav-logo" href={logoLink} style={{ background: logoBg }} aria-label="Home">
           <img className="nav-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
         </a>
       )}
 
-      {/* Mobile full-screen menu (hamburger). */}
-      {menuOpen && (
-        <div className="nav-mobile-menu" role="dialog" aria-modal="true">
+      {/* Mobile slide-out menu (hamburger). Always mounted so it animates both
+          in and out; `is-open` drives the slide + overlay fade. */}
+      <div className={`nav-mobile-menu${menuOpen ? ' is-open' : ''}`} role="dialog" aria-modal="true" aria-hidden={!menuOpen}>
+        <div className="nav-mm-overlay" onClick={() => setMenuOpen(false)} />
+        <div className="nav-mm-panel">
           <div className="nav-mm-header">
-            <a className="nav-mm-logo" href="#" aria-label="Home">
+            <a className="nav-mm-logo" href={logoLink} aria-label="Home">
               <img className="nav-mm-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
             </a>
             <button className="nav-mm-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
@@ -449,22 +537,22 @@ export function NavigationBar({
 
             <div className="nav-mm-divider" />
 
-            {/* Nav accordion */}
+            {/* Nav accordion — recurses into nested state › city › facility levels. */}
             <ul className="nav-mm-nav">
-              {links.map((link) => {
+              {linkList.map((link) => {
                 const expandable = !!link.menu?.length;
-                const expanded = mobileExpanded === link.label;
+                const open = !!mobileOpen[link.label];
                 return (
                   <li key={link.label} className="nav-mm-nav-item">
                     {expandable ? (
                       <button
                         type="button"
-                        className={`nav-mm-nav-row${expanded ? ' is-open' : ''}`}
-                        aria-expanded={expanded}
-                        onClick={() => setMobileExpanded(expanded ? null : link.label)}
+                        className={`nav-mm-nav-row${open ? ' is-open' : ''}`}
+                        aria-expanded={open}
+                        onClick={() => toggleMobile(link.label)}
                       >
                         <span>{link.label}</span>
-                        <ChevronDown size={16} className={`nav-mm-chevron${expanded ? ' is-open' : ''}`} />
+                        <ChevronDown size={16} className={`nav-mm-chevron${open ? ' is-open' : ''}`} />
                       </button>
                     ) : (
                       <a className="nav-mm-nav-row" href={link.href}>
@@ -472,14 +560,9 @@ export function NavigationBar({
                       </a>
                     )}
 
-                    {expandable && expanded && (
+                    {expandable && open && (
                       <div className="nav-mm-sub">
-                        {link.menu!.map((item) => (
-                          <a key={item.label} className="nav-mm-sub-item" href={item.href}>
-                            {item.icon && <span className="nav-mm-sub-icon">{item.icon}</span>}
-                            <span>{item.label}</span>
-                          </a>
-                        ))}
+                        {renderMobileChildren(link.menu!, link.label, 0)}
                       </div>
                     )}
                   </li>
@@ -488,7 +571,7 @@ export function NavigationBar({
             </ul>
           </div>
         </div>
-      )}
+      </div>
     </nav>
   );
 }
