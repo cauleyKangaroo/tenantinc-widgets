@@ -17,6 +17,7 @@ const widgetEntries = {
   'widget-size-guide':       './src/widget-size-guide/index.tsx',       // #11
   'widget-blogs-listing':    './src/widget-blogs-listing/index.tsx',    // #12
   'widget-footer':           './src/widget-footer/index.tsx',           // #13
+  'widget-tier-selection':   './src/widget-tier-selection/index.tsx',   // #14
 };
 
 module.exports = (_env, argv) => {
