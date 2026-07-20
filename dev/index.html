@@ -27,6 +27,12 @@
     label { font-size: 13px; color: #374151; display: flex; align-items: center; gap: 6px; }
     label.checkbox { cursor: pointer; }
     input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: #f45f30; }
+    /* Harness page switcher */
+    .page-nav { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid #e5e7eb; }
+    .page-tab { border: none; border-bottom: 2px solid transparent; border-radius: 0;
+      background: none; padding: 10px 16px; font-size: 14px; font-weight: 600; color: #6b7280; cursor: pointer; }
+    .page-tab:hover { background: none; color: #374151; }
+    .page-tab.active { color: #f45f30; border-bottom-color: #f45f30; }
   </style>
 </head>
 <body>
@@ -36,6 +42,14 @@
     Bundles are loaded via require.js exactly as Duda does — AMD modules at
     <code>/dist/widget-*.js</code>. Run <code>npm run dev</code> to start.
   </p>
+
+  <!-- Harness page switcher (dev-only) -->
+  <div class="page-nav">
+    <button class="page-tab active" data-page="property" onclick="showPage('property')">Property Landing Page</button>
+    <button class="page-tab" data-page="value-tiers" onclick="showPage('value-tiers')">Value Tiers page</button>
+  </div>
+
+  <div id="page-property" class="page">
 
   <!-- ── widget-utility-bar ──────────────────────────────────────────── -->
   <div class="widget-section">
@@ -165,8 +179,30 @@
     <div id="footer-container" class="widget-container"></div>
   </div>
 
+  </div><!-- /#page-property -->
+
+  <div id="page-value-tiers" class="page" hidden>
+
+  <!-- ── widget-tier-selection ────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-tier-selection (#14)</h2>
+    <div id="tier-selection-container" class="widget-container"></div>
+  </div>
+
+  </div><!-- /#page-value-tiers -->
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
   <script>
+    // Harness page switcher — all widgets stay initialised; we just show/hide pages.
+    function showPage(name) {
+      document.getElementById('page-property').hidden = (name !== 'property');
+      document.getElementById('page-value-tiers').hidden = (name !== 'value-tiers');
+      var tabs = document.querySelectorAll('.page-tab');
+      for (var i = 0; i < tabs.length; i++) {
+        tabs[i].classList.toggle('active', tabs[i].getAttribute('data-page') === name);
+      }
+    }
+
     var spaceListWidget = null;
 
     function getSpaceListProps() {
@@ -258,6 +294,9 @@
     });
     require(['/dist/widget-footer.js'], function (widget) {
       widget.init({ container: document.getElementById('footer-container'), props: {} });
+    });
+    require(['/dist/widget-tier-selection.js'], function (widget) {
+      widget.init({ container: document.getElementById('tier-selection-container'), props: {} });
     });
   </script>
 
