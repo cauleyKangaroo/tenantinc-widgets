@@ -122,10 +122,47 @@ const OPTION2: O2Tier[] = [
 ];
 const ADMIN_FEE_NOTE = '$30 Admin fee applied to all transactions';
 
+// ── Option 3 — pricing cards fused with a comparison table (Figma 8235-42371).
+interface O3Tier {
+  key: TierKey;
+  name: string;
+  tagline: string;
+  price: number;
+  popular?: boolean;
+  promo?: string;
+}
+const OPTION3: O3Tier[] = [
+  { key: 'good',   name: 'Good',   tagline: 'Lowest Rate',   price: 65 },
+  { key: 'better', name: 'Better', tagline: 'Best Value',    price: 94, popular: true, promo: 'Short Promotion Title' },
+  { key: 'best',   name: 'Best',   tagline: 'Most Features', price: 84, promo: 'Short Promotion Title' },
+];
+
+type O3Weight = 'bold' | 'medium' | 'normal';
+interface O3Row {
+  label: string;
+  type: 'hours' | 'check';
+  weight: O3Weight;
+  gray?: boolean;
+  good?: boolean;
+  better?: boolean;
+  best?: boolean;
+}
+const ROWS3: O3Row[] = [
+  { label: 'Access Hours',       type: 'hours', weight: 'bold',   gray: true },
+  { label: 'Climate Controlled', type: 'check', weight: 'bold',   gray: true, good: false, better: true,  best: true },
+  { label: 'Drive-up',           type: 'check', weight: 'normal', good: false, better: false, best: true },
+  { label: 'Interior Access',    type: 'check', weight: 'medium', good: true,  better: true,  best: false },
+  { label: 'Ground Floor',       type: 'check', weight: 'normal', good: false, better: false, best: true },
+  { label: 'Electronic Lock',    type: 'check', weight: 'medium', good: true,  better: true,  best: true },
+];
+// Per-tier access-hours values shown in the first table row.
+const O3_HOURS: Record<TierKey, string> = { good: '7am - 7pm', better: '7am - 9pm', best: '24 hours' };
+
 export interface TierSelectionProps {
   /** 'option1' = selector + comparison table (+ order card on desktop);
-   *  'option2' = three Good/Better/Best pricing cards. */
-  variant?: 'option1' | 'option2';
+   *  'option2' = three Good/Better/Best pricing cards;
+   *  'option3' = pricing cards fused with a comparison table. */
+  variant?: 'option1' | 'option2' | 'option3';
   heading?: string;
   subheading?: string;
   headingMobile?: string;
@@ -177,6 +214,14 @@ export function TierSelection({
     );
   }
 
+  if (variant === 'option3') {
+    return (
+      <div className="ts-wrapper" ref={ref}>
+        <Option3Layout heading={heading} subheading={subheading} />
+      </div>
+    );
+  }
+
   return (
     <div className="ts-wrapper" ref={ref}>
       {isMobile ? (
@@ -222,6 +267,64 @@ function Pills({ selected, setSelected }: { selected: TierKey; setSelected: (k: 
         </button>
       ))}
     </div>
+  );
+}
+
+// "Pricing Details" link + hover tooltip. The dark breakdown fades in on hover
+// and follows the cursor (mouse sits at the tooltip's top-centre); the trigger
+// shows a help (question-mark) cursor.
+function PricingDetails({ price, className }: { price: number; className?: string }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  const track = (e: React.MouseEvent) => setPos({ x: e.clientX, y: e.clientY });
+
+  return (
+    <span className="ts-pd">
+      <a
+        className={`ts-pd-link${className ? ' ' + className : ''}`}
+        href="#"
+        onClick={(e) => e.preventDefault()}
+        onMouseEnter={(e) => { track(e); setVisible(true); }}
+        onMouseMove={track}
+        onMouseLeave={() => setVisible(false)}
+      >
+        Pricing Details
+      </a>
+      {pos && (
+        <div
+          className="ts-pd-modal"
+          style={{ left: pos.x, top: pos.y + 6, opacity: visible ? 1 : 0 }}
+          aria-hidden
+        >
+          <div className="ts-pd-inner">
+            <div className="ts-pd-row">
+              <span className="ts-pd-label"><span>Monthly Rent</span><InfoCircle size={15} className="ts-pd-info" /></span>
+              <span className="ts-pd-amt">$ {price}.00</span>
+            </div>
+            <div className="ts-pd-row">
+              <span className="ts-pd-label">Coverage</span>
+              <span className="ts-pd-amt">$ 10.00</span>
+            </div>
+            <hr className="ts-pd-divider" />
+            <div className="ts-pd-row">
+              <span className="ts-pd-strong">Rent (Prorated)</span>
+              <span className="ts-pd-strong">$ 64.00</span>
+            </div>
+            <p className="ts-pd-dates">(05/06/2026 - 05/31/2026)</p>
+            <div className="ts-pd-breakdown">
+              <div className="ts-pd-row"><span className="ts-pd-reg">Admin Fee</span><span className="ts-pd-reg">$ 29.00</span></div>
+              <div className="ts-pd-row"><span className="ts-pd-reg">Protection</span><span className="ts-pd-reg">$ 17.00</span></div>
+              <div className="ts-pd-row"><span className="ts-pd-reg">Total Tax</span><span className="ts-pd-reg">$ 0.00</span></div>
+            </div>
+            <div className="ts-pd-row ts-pd-total">
+              <span>Total Cost to Move-In:</span>
+              <span className="ts-pd-total-amt">$99.68</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </span>
   );
 }
 
@@ -596,7 +699,7 @@ function O2Card({ card }: { card: O2Tier }) {
             <span className="ts-o2-amt">${card.price}</span>
             <span className="ts-o2-per">/MONTH</span>
           </div>
-          <a className="ts-o2-details" href="#">Pricing Details</a>
+          <PricingDetails price={card.price} className="ts-o2-details" />
         </div>
         <div className="ts-o2-foot-bottom">
           {card.promo && (
@@ -688,4 +791,113 @@ function O2MExpanded({ card }: { card: O2Tier }) {
       </button>
     </div>
   );
+}
+
+// ── Option 3 — pricing cards fused with comparison table ────────────────────
+
+function Option3Layout({ heading, subheading }: { heading: string; subheading?: string }) {
+  return (
+    <div className="ts-o3">
+      <div className="ts-o3-header">
+        <div className="ts-o3-headings">
+          <h2 className="ts-title ts-o3-title">{heading}</h2>
+          <p className="ts-subtitle">{subheading}</p>
+        </div>
+        <p className="ts-o3-admin">
+          {ADMIN_FEE_NOTE}
+          <InfoCircle size={22} className="ts-o3-admin-info" />
+        </p>
+      </div>
+      <hr className="ts-rule ts-o3-rule" />
+
+      <div className="ts-o3-scroll">
+        <div className="ts-o3-grid">
+          {/* Feature-label column (unit illustration on top) */}
+          <div className="ts-o3-col ts-o3-col--label">
+            <div className="ts-o3-head ts-o3-unit">
+              <img className="ts-o3-unit-img" src={SIZE_IMAGES['5x5']} alt="5 by 5 storage unit" />
+              <button type="button" className="ts-seewhatfits ts-o3-seewhatfits">
+                <span>See what fits</span>
+                <PlayCircle size={24} />
+              </button>
+            </div>
+            <div className="ts-o3-rows">
+              {ROWS3.map((r) => (
+                <div
+                  key={r.label}
+                  className={`ts-o3-lrow ts-o3-w-${r.weight}${r.gray ? ' ts-o3-row--gray' : ''}`}
+                >
+                  {r.label}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {OPTION3.map((card) => (
+            <O3Column key={card.key} card={card} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function O3Column({ card }: { card: O3Tier }) {
+  return (
+    <div className={`ts-o3-col ts-o3-tier${card.popular ? ' ts-o3-col--popular' : ''}`}>
+      {card.popular && <span className="ts-o2-badge ts-o3-badge">Most Popular</span>}
+
+      <div className="ts-o3-head ts-o3-card">
+        <div className="ts-o3-cardhead">
+          <p className="ts-o3-name">{card.name}</p>
+          <p className="ts-o3-tag">{card.tagline}</p>
+        </div>
+        <div className="ts-o3-foot">
+          <div className="ts-o3-foot-top">
+            <div className="ts-o3-price">
+              <span className="ts-o3-amt">${card.price}</span>
+              <span className="ts-o3-per">/ MONTH</span>
+            </div>
+            <PricingDetails price={card.price} className="ts-o3-details" />
+          </div>
+          <div className="ts-o3-foot-bottom">
+            <div className="ts-o3-promo-slot">
+              {card.promo && (
+                <div className="ts-promo ts-o3-promo">
+                  <TagIcon size={16} className="ts-promo-icon" />
+                  <span className="ts-promo-text">{card.promo}</span>
+                </div>
+              )}
+            </div>
+            <button type="button" className={`ts-o2-select${card.popular ? ' ts-o2-select--accent' : ''}`}>
+              Select
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="ts-o3-rows">
+        {ROWS3.map((r, i) => (
+          <div
+            key={r.label}
+            className={`ts-o3-vrow${r.gray ? ' ts-o3-row--gray' : ''}${i === ROWS3.length - 1 ? ' ts-o3-vrow--last' : ''}`}
+          >
+            <O3Cell row={r} tierKey={card.key} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function O3Cell({ row, tierKey }: { row: O3Row; tierKey: TierKey }) {
+  if (row.type === 'hours') {
+    return (
+      <span className="ts-o3-hours">
+        <PromoStar size={20} className="ts-o3-hours-star" />
+        {O3_HOURS[tierKey]}
+      </span>
+    );
+  }
+  return row[tierKey] ? <CheckIcon size={24} className="ts-o3-check" /> : null;
 }
