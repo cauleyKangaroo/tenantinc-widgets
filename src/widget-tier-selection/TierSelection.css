@@ -1,57 +1,757 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+
+/* ── Tokens (from Figma variables) ─────────────────────────────────────────
+   Night #101318 · Night-Light #637381 · CTA green #509E2F · Orange #F45F30
+   Cloud Main #DFE3E8 · Cloud Light #F4F6F8 · Cloud Lighter #F9FAFB
+   Table divider rgba(142,142,143,0.15) · Elevation 0 4 10 3 rgba(71,84,116,.1) */
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
-
 .ts-wrapper {
   font-family: 'Montserrat', sans-serif;
   width: 100%;
   box-sizing: border-box;
   color: #101318;
+  padding: 8px;
 }
-
 .ts-wrapper *,
 .ts-wrapper *::before,
-.ts-wrapper *::after {
-  box-sizing: border-box;
+.ts-wrapper *::after { box-sizing: border-box; }
+
+.ts-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 422px;
+  gap: 48px;
+  max-width: 1320px;
+  margin: 0 auto;
+  align-items: start;
 }
 
-/* ── Heading ────────────────────────────────────────────────────────────── */
-
-.ts-heading-block {
-  text-align: center;
-  max-width: 1050px;
-  margin: 0 auto 32px;
-}
-
-.ts-title {
-  font-size: 48px;
+/* ── Heading ───────────────────────────────────────────────────────────── */
+.ts-header { margin-bottom: 4px; }
+/* Prefixed with .ts-wrapper so host heading rules (e.g. a Duda theme's
+   `h2 { text-transform: uppercase }`, or the dev harness) can't win on
+   specificity. */
+.ts-wrapper .ts-title {
+  font-size: 40px;
   font-weight: 700;
   line-height: 1.1;
-  margin: 0 0 13px;
+  margin: 0 0 14px;
   color: #101318;
-  text-wrap: balance;
+  text-transform: none;
+  letter-spacing: normal;
 }
-
 .ts-subtitle {
   font-size: 18px;
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 28px;
   margin: 0;
+  color: #000;
+}
+.ts-rule {
+  border: 0;
+  border-top: 1px solid #DFE3E8;
+  margin: 28px 0 40px;
+}
+
+/* ── Picker row (unit + selector) ──────────────────────────────────────── */
+.ts-picker-row {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+}
+
+/* Unit illustration */
+.ts-unit {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 34px;
+  padding-top: 8px;
+}
+.ts-unit-img {
+  width: 130px;
+  height: 178px;
+  object-fit: contain;
+}
+.ts-seewhatfits {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: #509E2F;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+/* Selector column */
+.ts-picker {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 623px;
+}
+
+/* Pills */
+.ts-pills { display: flex; gap: 12px; }
+.ts-pill {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 116px;
+  overflow: hidden;
+  background: #fff;
+  border: 4px solid transparent;
+  border-radius: 16px;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 12px 0;
+  transition: border-color 0.15s ease;
+}
+.ts-pill--active { border-color: #101318; }
+.ts-pill-name {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  color: #000;
+  text-transform: uppercase;
+  text-align: center;
+}
+.ts-pill-tag {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 1px;
+  color: #509E2F;
+  text-transform: uppercase;
+  text-align: center;
+}
+.ts-pill-divider {
+  width: 100%;
+  height: 1px;
+  background: #DFE3E8;
+  margin: 12px 0 8px;
+}
+.ts-pill-price {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #000;
+  white-space: nowrap;
+}
+
+/* Promo banner */
+.ts-promo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 26px;
+  padding: 12px;
+  background: #fff;
+  border: 2px dashed #509E2F;
+  border-radius: 8px;
+}
+.ts-promo-icon { color: #509E2F; flex: 0 0 auto; }
+.ts-promo-text {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 16px;
   color: #101318;
 }
 
-/* ── Tiers (placeholder until the Figma layout lands) ───────────────────── */
+/* Amenity lists */
+.ts-features {
+  display: flex;
+  gap: 40px;
+  margin-top: 19px;
+  padding-left: 16px;
+}
+.ts-feat-col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+}
+.ts-feat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 16px;
+  color: #637381;
+}
+.ts-feat-check { color: #212B36; flex: 0 0 auto; }
+.ts-feat--chip {
+  background: #F9FAFB;
+  border-radius: 4px;
+  padding: 4px 5px;
+  font-weight: 600;
+  color: #101318;
+}
 
-.ts-tiers {
+/* Select button */
+.ts-select-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 50px;
+  margin-top: 19px;
+  background: #F45F30;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+.ts-select-btn:hover { background: #e5501f; }
+
+/* ── Comparison table ──────────────────────────────────────────────────── */
+.ts-table {
+  margin-top: 44px;
+  width: 100%;
+  max-width: 832px;
+}
+.ts-thead, .ts-tr {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 1fr 1fr;
+}
+.ts-th {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: #101318;
+  background: #F9FAFB;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.ts-th--label { background: #fff; box-shadow: none; }
+.ts-td {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+  font-size: 16px;
+  color: #101318;
+}
+.ts-td--label {
+  justify-content: flex-start;
+  padding-left: 16px;
+  box-shadow: inset -1px -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.ts-td--bold { font-weight: 700; }
+.ts-td--value { justify-content: center; }
+
+.ts-cell-price { font-size: 20px; font-weight: 700; color: #101318; }
+.ts-cell-hours {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #101318;
+}
+.ts-cell-star { color: #509E2F; flex: 0 0 auto; }
+.ts-cell-check { color: #509E2F; }
+
+/* Selected-column highlight box */
+.ts-col--active { border-left: 3px solid #101318; border-right: 3px solid #101318; }
+.ts-thead .ts-col--active {
+  background: #F4F6F8;
+  border-top: 3px solid #101318;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+.ts-td--last.ts-col--active {
+  border-bottom: 3px solid #101318;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* ── Order-summary card ────────────────────────────────────────────────── */
+.ts-card {
+  width: 422px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+/* Hero */
+.ts-card-hero { position: relative; height: 208px; }
+.ts-card-hero-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ts-card-hero-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); }
+.ts-card-hero-content {
+  position: absolute;
+  left: 0; right: 0; bottom: 19px;
+  padding: 0 29px;
+  color: #fff;
+}
+.ts-card-storename {
+  margin: 0 0 7px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+}
+.ts-card-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: underline;
+}
+.ts-card-line-icon { flex: 0 0 auto; color: #fff; }
+
+/* Body */
+.ts-card-body { padding: 20px 30px 24px; }
+
+.ts-card-top { display: flex; justify-content: space-between; gap: 20px; }
+.ts-card-top-left { min-width: 0; }
+.ts-card-size {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #101318;
+}
+.ts-card-bar { font-weight: 300; }
+.ts-card-sub {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 20px;
+  color: #101318;
+}
+.ts-card-amenities {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ts-card-top-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 24px;
+  flex: 0 0 auto;
+}
+.ts-card-change {
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.ts-card-prices { display: flex; align-items: center; gap: 8px; height: 50px; }
+.ts-price-instore, .ts-price-online {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.ts-price-instore { color: #637381; }
+.ts-price-label { font-size: 10px; line-height: 1.5; }
+.ts-price-instore .ts-price-label { font-weight: 500; }
+.ts-price-online .ts-price-label { font-weight: 700; line-height: 16px; color: #101318; }
+.ts-price-strike {
+  font-size: 16px;
+  font-weight: 400;
+  text-decoration: line-through;
+  line-height: 1.5;
+}
+.ts-price-online { color: #101318; }
+.ts-price-amount { font-size: 24px; font-weight: 700; line-height: 1.2; }
+.ts-price-sep { width: 1px; height: 37px; background: #DFE3E8; }
+
+/* Card promo banner */
+.ts-card-promo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 24px;
+  padding: 12px;
+  background: #fff;
+  border: 2px dashed #509E2F;
+  border-radius: 8px;
+}
+
+/* Breakdown */
+.ts-card-breakdown { margin-top: 20px; }
+.ts-bd-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ts-bd-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  color: #333;
+}
+.ts-bd-dates { font-weight: 500; }
+.ts-bd-plain { font-size: 14px; font-weight: 400; color: #000; }
+.ts-bd-amt { font-size: 14px; font-weight: 400; color: #000; white-space: nowrap; }
+.ts-bd-amt--strong { font-size: 14px; font-weight: 600; color: #333; }
+.ts-bd-row--total { margin-top: 8px; margin-bottom: 0; align-items: center; }
+.ts-bd-total-label { font-size: 18px; font-weight: 700; color: #101318; }
+.ts-bd-total-amt { font-size: 18px; font-weight: 700; color: #101318; white-space: nowrap; }
+
+/* Payment methods */
+.ts-card-payments {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 24px;
+}
+.ts-pay-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 39px;
+  height: 24px;
+  padding: 3px 5px;
+  background: #fff;
+  border: 0.7px solid #101318;
+  border-radius: 3px;
+}
+.ts-pay-box--amex { background: #006FCF; border-color: #006FCF; }
+.ts-pay-mark { display: inline-flex; align-items: center; }
+/* Keep every brand mark inside its chip regardless of intrinsic svg width. */
+.ts-pay-box svg,
+.ts-pay-mark svg { display: block; max-width: 100%; height: auto; }
+
+/* ── Desktop (Layout 1) internal responsive ────────────────────────────── */
+@media (max-width: 1080px) {
+  .ts-grid { grid-template-columns: minmax(0, 1fr); }
+  .ts-card { width: 100%; max-width: 422px; }
+}
+@media (max-width: 900px) {
+  .ts-picker-row { flex-direction: column; align-items: stretch; gap: 24px; }
+  .ts-unit { align-self: flex-start; }
+  .ts-table { overflow-x: auto; }
+  .ts-thead, .ts-tr { min-width: 560px; }
+}
+
+/* ═══ Mobile (Layout 2) ═════════════════════════════════════════════════════
+   Rendered by <MobileLayout> below the 640px container breakpoint. */
+.ts-m {
+  background: #f4f6f8;
+  border-radius: 12px;
+  padding: 32px 20px 24px;
+}
+.ts-m-headwrap { text-align: center; margin-bottom: 22px; }
+.ts-wrapper .ts-m-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #101318;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.ts-m-urgency { margin: 8px 0 0; font-size: 16px; font-weight: 400; color: #e53935; }
+
+.ts-m-pills .ts-pills { gap: 16px; }
+.ts-m-pills .ts-pill { padding-top: 10px; }
+
+.ts-m-promo { margin-top: 22px; }
+.ts-m-features { margin-top: 20px; padding-left: 0; gap: 24px; }
+
+.ts-m-select {
+  margin-top: 16px;
+  height: 52px;
+  font-size: 20px;
+  background: #f26500;
+  border: 2px solid #f45f30;
+}
+.ts-m-select:hover { background: #d95a00; }
+
+/* Collapsible move-in total */
+.ts-m-total { margin-top: 20px; }
+.ts-m-total-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.ts-m-total-label { font-size: 16px; font-weight: 700; color: #000; }
+.ts-m-total-amt { margin-left: auto; font-size: 20px; font-weight: 700; color: #000; }
+.ts-m-total-chev { color: #101318; flex: 0 0 auto; transition: transform 0.2s ease; }
+.ts-m-total-chev--open { transform: rotate(180deg); }
+.ts-m-total-detail { margin-top: 12px; }
+
+/* Compact comparison table */
+.ts-mt {
+  margin-top: 24px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ts-mt-row { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; }
+.ts-mt-cell {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  font-size: 12px;
+  color: #000;
+  background: #fff;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.ts-mt-label { justify-content: flex-start; font-weight: 400; }
+.ts-mt-label--bold { font-weight: 600; }
+.ts-mt-value { justify-content: center; }
+.ts-mt-head .ts-mt-cell { min-height: 41px; background: #f9fafb; }
+.ts-mt-hcell { justify-content: center; font-weight: 600; }
+.ts-mt-text { font-size: 12px; font-weight: 600; color: #000; text-align: center; }
+.ts-mt-check { color: #509e2f; }
+
+/* Selected-column highlight box (2px) */
+.ts-mt-col--active { border-left: 2px solid #101318; border-right: 2px solid #101318; }
+.ts-mt-head .ts-mt-col--active {
+  border-top: 2px solid #101318;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+.ts-mt-value--last.ts-mt-col--active {
+  border-bottom: 2px solid #101318;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+/* ═══ Option 2 — Good/Better/Best pricing cards ═════════════════════════════ */
+.ts-o2 { max-width: 1320px; margin: 0 auto; }
+.ts-o2-header { text-align: center; margin-bottom: 28px; }
+.ts-wrapper .ts-o2-title {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 10px;
+  color: #101318;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.ts-o2-subtitle { font-size: 18px; font-weight: 400; line-height: 28px; color: #000; margin: 0; }
+
+.ts-o2-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 422px));
+  gap: 28px;
+  justify-content: center;
+  align-items: start;
+  padding-top: 16px; /* room for the Most Popular badge */
+}
+
+.ts-o2-card {
+  position: relative;
+  min-height: 521px;
+  background: #fff;
+  border: 4px solid transparent;
+  border-radius: 16px;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+.ts-o2-card--popular { border-color: #101318; }
+
+.ts-o2-badge {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #101318;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 8px 24px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.ts-o2-card-top {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 30px 44px 24px;
+}
+.ts-o2-card-head { text-align: center; }
+.ts-o2-name {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #000;
+  text-transform: uppercase;
+}
+.ts-o2-tag {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 3px;
+  color: #509e2f;
+  text-transform: uppercase;
+}
+.ts-o2-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ts-o2-feat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #101318;
+}
+.ts-o2-feat-star { color: #509e2f; flex: 0 0 auto; }
+.ts-o2-feat-check { color: #101318; flex: 0 0 auto; }
+
+.ts-o2-foot {
+  flex: 0 0 auto;
+  min-height: 234px;
+  background: #f9fafb;
+  padding: 16px 52px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+.ts-o2-foot-top { text-align: center; }
+.ts-o2-price { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+.ts-o2-amt { font-size: 30px; font-weight: 700; color: #101318; line-height: 1.5; }
+.ts-o2-per { font-size: 16px; font-weight: 700; color: #101318; }
+.ts-o2-details {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+}
+.ts-o2-foot-bottom { display: flex; flex-direction: column; }
+.ts-o2-promo { margin-top: 0; margin-bottom: 12px; }
+.ts-o2-select {
+  width: 100%;
+  height: 52px;
+  border: 2px solid #f45f30;
+  border-radius: 8px;
+  background: #fff;
+  color: #101318;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ts-o2-select:hover { background: #fff5f1; }
+.ts-o2-select--accent { background: #f26500; color: #fff; }
+.ts-o2-select--accent:hover { background: #d95a00; }
+
+.ts-o2-admin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 40px 0 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #101318;
+}
+.ts-o2-admin-info { color: #101318; flex: 0 0 auto; }
+
+@media (max-width: 900px) {
+  .ts-o2-cards { grid-template-columns: minmax(0, 422px); }
+  .ts-wrapper .ts-o2-title { font-size: 30px; }
+}
+
+/* ── Option 2 mobile — accordion ───────────────────────────────────────── */
+.ts-o2m-cards { display: flex; flex-direction: column; gap: 32px; }
+
+/* Shared header row (name + tagline left, price right) */
+.ts-o2m-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
   width: 100%;
 }
-
-.ts-placeholder {
-  text-align: center;
-  color: #637381;
-  font-size: 16px;
-  padding: 48px 16px;
-  border: 1px dashed #dfe3e8;
-  border-radius: 12px;
-  margin: 0;
+.ts-o2m-head-info { display: flex; flex-direction: column; gap: 2px; }
+.ts-o2m-name {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #000;
+  text-transform: uppercase;
 }
+.ts-o2m-tag {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 3px;
+  color: #509e2f;
+  text-transform: uppercase;
+}
+.ts-o2m-price { font-size: 20px; font-weight: 700; color: #101318; white-space: nowrap; }
+
+/* Collapsed summary bar */
+.ts-o2m-bar {
+  background: #fff;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+  padding: 14px 24px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+/* Expanded card — the open accordion panel always gets the dark outline
+   (the "Most Popular" badge, rendered separately, stays exclusive to Better). */
+.ts-o2m-card {
+  position: relative;
+  background: #fff;
+  border: 4px solid #101318;
+  border-radius: 16px;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+  padding: 18px 22px 22px;
+}
+.ts-o2m-features { margin-top: 16px; }
+.ts-o2m-promo { margin-top: 16px; }
+.ts-o2m .ts-o2-select { height: 46px; margin-top: 16px; }

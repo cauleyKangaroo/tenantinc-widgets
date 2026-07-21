@@ -9,6 +9,30 @@ and `src/shared/createWidget.tsx` for the Duda mount bridge.
 
 ---
 
+## Widgets
+
+Numbering is the single source of truth in `webpack.config.js` (`widgetEntries`).
+
+| #  | Widget                   | Source dir                     |
+|----|--------------------------|--------------------------------|
+| 01 | widget-utility-bar       | `src/widget-utility-bar/`      |
+| 02 | widget-navigation-bar    | `src/widget-navigation-bar/`   |
+| 03 | widget-property-info     | `src/widget-property-info/`    |
+| 05 | widget-space-list        | `src/widget-space-list/`       |
+| 06 | widget-promotions        | `src/widget-promotions/`       |
+| 07 | widget-nearby-locations  | `src/widget-nearby-locations/` |
+| 09 | widget-reviews           | `src/widget-reviews/`          |
+| 10 | widget-faqs              | `src/widget-faqs/`             |
+| 11 | widget-size-guide        | `src/widget-size-guide/`       |
+| 12 | widget-blogs-listing     | `src/widget-blogs-listing/`    |
+| 13 | widget-footer            | `src/widget-footer/`           |
+| 14 | widget-tier-selection    | `src/widget-tier-selection/`   |
+
+Widget **#14 widget-tier-selection** lives on the **value tiers page** (there is
+also a property landing page in the dev harness).
+
+---
+
 ## CURRENT WORK IN PROGRESS — Sidebar accordion reordering
 
 **Branch:** `space-list-ordering` (off `master`). **Status (2026-06-29): working

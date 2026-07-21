@@ -187,6 +187,19 @@
   <div class="widget-section">
     <h2>widget-tier-selection (#14)</h2>
     <div id="tier-selection-container" class="widget-container"></div>
+
+    <div class="controls">
+      <div class="controls-group">
+        <span class="controls-group-label">Layout</span>
+        <label>
+          Option:
+          <select id="ts-variant" onchange="reinitTierSelection()">
+            <option value="option1">Option 1 — selector + table + card</option>
+            <option value="option2">Option 2 — Good/Better/Best cards</option>
+          </select>
+        </label>
+      </div>
+    </div>
   </div>
 
   </div><!-- /#page-value-tiers -->
@@ -194,14 +207,26 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
   <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
-    function showPage(name) {
+    // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
+    var PAGES = ['property', 'value-tiers'];
+
+    function showPage(name, skipUrl) {
+      if (PAGES.indexOf(name) === -1) name = 'property';
       document.getElementById('page-property').hidden = (name !== 'property');
       document.getElementById('page-value-tiers').hidden = (name !== 'value-tiers');
       var tabs = document.querySelectorAll('.page-tab');
       for (var i = 0; i < tabs.length; i++) {
         tabs[i].classList.toggle('active', tabs[i].getAttribute('data-page') === name);
       }
+      if (!skipUrl) {
+        var url = new URL(window.location.href);
+        url.searchParams.set('page', name);
+        window.history.replaceState(null, '', url);
+      }
     }
+
+    // Restore the tab from ?page=… on load (defaults to 'property').
+    showPage(new URLSearchParams(window.location.search).get('page') || 'property', true);
 
     var spaceListWidget = null;
 
@@ -295,8 +320,27 @@
     require(['/dist/widget-footer.js'], function (widget) {
       widget.init({ container: document.getElementById('footer-container'), props: {} });
     });
+    var tierSelectionWidget = null;
+
+    function getTierSelectionProps() {
+      return { variant: document.getElementById('ts-variant').value };
+    }
+
+    function reinitTierSelection() {
+      if (tierSelectionWidget) {
+        tierSelectionWidget.init({
+          container: document.getElementById('tier-selection-container'),
+          props: getTierSelectionProps(),
+        });
+      }
+    }
+
     require(['/dist/widget-tier-selection.js'], function (widget) {
-      widget.init({ container: document.getElementById('tier-selection-container'), props: {} });
+      tierSelectionWidget = widget;
+      widget.init({
+        container: document.getElementById('tier-selection-container'),
+        props: getTierSelectionProps(),
+      });
     });
   </script>
 
