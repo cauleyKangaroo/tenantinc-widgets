@@ -9,6 +9,67 @@ and `src/shared/createWidget.tsx` for the Duda mount bridge.
 
 ---
 
+## Widgets
+
+Numbering is the single source of truth in `webpack.config.js` (`widgetEntries`).
+
+| #  | Widget                   | Source dir                     |
+|----|--------------------------|--------------------------------|
+| 01 | widget-utility-bar       | `src/widget-utility-bar/`      |
+| 02 | widget-navigation-bar    | `src/widget-navigation-bar/`   |
+| 03 | widget-property-info     | `src/widget-property-info/`    |
+| 05 | widget-space-list        | `src/widget-space-list/`       |
+| 06 | widget-promotions        | `src/widget-promotions/`       |
+| 07 | widget-nearby-locations  | `src/widget-nearby-locations/` |
+| 09 | widget-reviews           | `src/widget-reviews/`          |
+| 10 | widget-faqs              | `src/widget-faqs/`             |
+| 11 | widget-size-guide        | `src/widget-size-guide/`       |
+| 12 | widget-blogs-listing     | `src/widget-blogs-listing/`    |
+| 13 | widget-footer            | `src/widget-footer/`           |
+| 14 | widget-tier-selection    | `src/widget-tier-selection/`   |
+
+Widget **#14 widget-tier-selection** lives on the **value tiers page** (there is
+also a property landing page in the dev harness).
+
+---
+
+## widget-tier-selection (#14) — Value Tiers
+
+Storage-tier chooser (Good / Better / Best) built figma-perfect from the Mariposa
+Duda file. **One widget, three interchangeable layouts** via a `variant` prop
+(`'option1'` | `'option2'` | `'option3'`, default `option1`); each is responsive
+(desktop + mobile). The dev harness "Value Tiers page" tab has a **Layout**
+dropdown that re-inits the widget with each variant.
+
+- **Option 1** — tier selector (pills) + comparison table + order-summary card.
+  Desktop: two columns. Mobile (<640px, measured via `ResizeObserver` on the
+  wrapper): centred header, stacked selector, collapsible "Total Cost to Move-In".
+- **Option 2** — three Good/Better/Best pricing cards. Desktop: 3 columns with a
+  "Most Popular" badge on Better. Mobile: accordion — one expanded card (dark
+  outline; badge only on the popular one), others collapse to summary bars.
+- **Option 3** — pricing cards fused with a comparison table; the Better column is
+  one bordered box spanning card + table rows. Narrow widths scroll horizontally
+  (no dedicated mobile frame yet).
+
+Details:
+- Selected/popular outline is **2px** `#101318` across all layouts.
+- **"Pricing Details"** (Options 2 & 3) shows a dark breakdown tooltip on hover:
+  fades in/out, `cursor: help`, `position: fixed` tracking the mouse (mouse at the
+  tooltip's top-centre), `pointer-events: none`. See `PricingDetails` in
+  `TierSelection.tsx`.
+- Icons are inline SVG traced from Figma (`icons.tsx`) — rounded promo star,
+  circle-check, plain check, tag, play-circle, info, chevron, map-pin, phone.
+  Payment brand marks are inline SVG in `paymentIcons.tsx` (self-contained; the
+  AMD bundle can't load remote assets). Building/unit photos use bundled demo
+  imagery from `@shared/demoImages`.
+- Each layout carries its **own demo dataset** (`TIERS`/`ROWS`, `OPTION2`,
+  `OPTION3`/`ROWS3`) because the Figma frames used inconsistent placeholder
+  numbers — real values will come from Duda/Hummingbird later.
+- Fonts: heading weights are **700** (matches the other widgets), not the Figma's
+  600 token.
+
+---
+
 ## CURRENT WORK IN PROGRESS — Sidebar accordion reordering
 
 **Branch:** `space-list-ordering` (off `master`). **Status (2026-06-29): working
