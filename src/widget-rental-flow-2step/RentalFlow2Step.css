@@ -1,7 +1,105 @@
-/* Widget #99 (TBD) — Rental Flow (2 Step) */
+/* Widget #99 (TBD) — Rental Flow (2 Step), first screen. Figma 8507-23264. */
 .rf-wrapper {
-  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+  container-type: inline-size;
+  font-family: 'Montserrat', sans-serif;
   color: #101318;
 }
-.rf-title { margin: 0 0 4px; font-size: 28px; font-weight: 700; line-height: 1.2; }
-.rf-placeholder { margin: 0; font-size: 14px; color: #6b7280; }
+.rf-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 56px 72px;
+}
+
+/* ── Title ─────────────────────────────────────────────────────────────── */
+.rf-title { display: flex; flex-direction: column; gap: 14px; margin-bottom: 26px; }
+.rf-eyebrow { margin: 0; font-size: 24px; font-weight: 600; line-height: 1; color: var(--color_2, #509e2f); }
+.rf-heading { margin: 0; font-size: 36px; font-weight: 600; line-height: 1.05; color: #101318; }
+
+/* ── "Renting as a business" checkbox ──────────────────────────────────── */
+.rf-business { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; cursor: pointer; user-select: none; }
+.rf-business input { position: absolute; width: 0; height: 0; opacity: 0; }
+.rf-checkbox {
+  flex: 0 0 auto;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #c4cdd5;
+  border-radius: 4px;
+  color: #fff;
+}
+.rf-business--checked .rf-checkbox { background: var(--color_1, #f45f30); border-color: var(--color_1, #f45f30); }
+.rf-business input:focus-visible + .rf-checkbox { outline: 2px solid var(--color_1, #f45f30); outline-offset: 2px; }
+.rf-business-label { font-size: 16px; line-height: 18px; color: #101318; }
+
+/* ── Form ──────────────────────────────────────────────────────────────── */
+.rf-form { display: flex; flex-direction: column; gap: 20px; }
+.rf-row { display: flex; gap: 20px; }
+.rf-row > * { flex: 1 1 0; min-width: 0; }
+
+.rf-field {
+  position: relative;
+  height: 56px;
+  background: #fff;
+  border: 1px solid #a5b4bf;
+  border-radius: 8px;
+}
+.rf-field--valid { border-color: #028a0c; }
+.rf-field-input {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  padding: 20px 44px 0 16px;
+  border: none;
+  background: transparent;
+  outline: none;
+  font: 400 16px/20px 'Montserrat', sans-serif;
+  color: #101318;
+}
+.rf-field-label {
+  position: absolute;
+  left: 16px; top: 50%;
+  transform: translateY(-50%);
+  font: 400 16px/20px 'Montserrat', sans-serif;
+  color: #637381;
+  pointer-events: none;
+  transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
+}
+.rf-field:focus-within .rf-field-label,
+.rf-field--filled .rf-field-label { top: 9px; transform: none; font-size: 12px; line-height: 15px; }
+.rf-field-check {
+  position: absolute;
+  right: 14px; top: 50%;
+  transform: translateY(-50%);
+  color: #028a0c;
+}
+.rf-req { color: #e53935; margin-left: 2px; }
+
+.rf-consent { margin: 0; padding-left: 12px; font-size: 14px; line-height: 18px; color: #637381; }
+.rf-consent a { color: inherit; text-decoration: underline; }
+
+/* ── Actions (centred, narrower than the form) ─────────────────────────── */
+.rf-actions { display: flex; flex-direction: column; align-items: center; max-width: 343px; margin: 26px auto 0; }
+.rf-btn {
+  width: 100%;
+  height: 50px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  font: 16px 'Montserrat', sans-serif;
+  cursor: pointer;
+}
+.rf-btn--rent { border: none; background: var(--color_1, #f45f30); color: #fff; font-weight: 700; }
+.rf-btn--rent:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black); }
+.rf-btn--reserve { background: #fff; border: 2px solid var(--color_1, #f45f30); color: #101318; font-weight: 600; }
+.rf-btn--reserve:hover { background: #fff6f2; }
+.rf-or { display: flex; align-items: center; gap: 24px; width: 100%; margin: 11px 0; color: #637381; font-size: 16px; }
+.rf-or::before, .rf-or::after { content: ''; flex: 1 1 0; height: 1px; background: #c4cdd5; }
+
+/* ── Narrow container (mobile / small widget widths) ───────────────────── */
+@container (max-width: 640px) {
+  .rf-card { padding: 32px 20px; }
+  .rf-heading { font-size: 28px; }
+  .rf-row { flex-direction: column; }
+  .rf-actions { max-width: none; }
+}
