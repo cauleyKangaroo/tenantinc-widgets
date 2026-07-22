@@ -47,6 +47,7 @@
   <div class="page-nav">
     <button class="page-tab active" data-page="property" onclick="showPage('property')">Property Landing Page</button>
     <button class="page-tab" data-page="value-tiers" onclick="showPage('value-tiers')">Value Tiers page</button>
+    <button class="page-tab" data-page="rental-flow" onclick="showPage('rental-flow')">Rental Flow</button>
   </div>
 
   <div id="page-property" class="page">
@@ -205,16 +206,27 @@
 
   </div><!-- /#page-value-tiers -->
 
+  <div id="page-rental-flow" class="page" hidden>
+
+    <!-- Rental-flow widgets land here as they are built. -->
+    <div class="widget-section">
+      <h2>Rental Flow</h2>
+      <p class="subtitle">No widgets wired up yet — add rental-flow sections here.</p>
+    </div>
+
+  </div><!-- /#page-rental-flow -->
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
   <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
     // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
-    var PAGES = ['property', 'value-tiers'];
+    var PAGES = ['property', 'value-tiers', 'rental-flow'];
 
     function showPage(name, skipUrl) {
       if (PAGES.indexOf(name) === -1) name = 'property';
-      document.getElementById('page-property').hidden = (name !== 'property');
-      document.getElementById('page-value-tiers').hidden = (name !== 'value-tiers');
+      for (var p = 0; p < PAGES.length; p++) {
+        document.getElementById('page-' + PAGES[p]).hidden = (PAGES[p] !== name);
+      }
       var tabs = document.querySelectorAll('.page-tab');
       for (var i = 0; i < tabs.length; i++) {
         tabs[i].classList.toggle('active', tabs[i].getAttribute('data-page') === name);
