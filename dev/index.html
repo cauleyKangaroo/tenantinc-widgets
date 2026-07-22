@@ -208,10 +208,10 @@
 
   <div id="page-rental-flow" class="page" hidden>
 
-    <!-- Rental-flow widgets land here as they are built. -->
+    <!-- ── widget-rental-flow-2step ─────────────────────────────────────── -->
     <div class="widget-section">
-      <h2>Rental Flow</h2>
-      <p class="subtitle">No widgets wired up yet — add rental-flow sections here.</p>
+      <h2>widget-rental-flow-2step — Rental flow (2 Step) (#99 TBD)</h2>
+      <div id="rental-flow-2step-container" class="widget-container"></div>
     </div>
 
   </div><!-- /#page-rental-flow -->
@@ -354,6 +354,10 @@
         container: document.getElementById('tier-selection-container'),
         props: getTierSelectionProps(),
       });
+    });
+
+    require(['/dist/widget-rental-flow-2step.js'], function (widget) {
+      widget.init({ container: document.getElementById('rental-flow-2step-container'), props: {} });
     });
   </script>
 

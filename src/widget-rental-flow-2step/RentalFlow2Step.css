@@ -1,0 +1,7 @@
+/* Widget #99 (TBD) — Rental Flow (2 Step) */
+.rf-wrapper {
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+  color: #101318;
+}
+.rf-title { margin: 0 0 4px; font-size: 28px; font-weight: 700; line-height: 1.2; }
+.rf-placeholder { margin: 0; font-size: 14px; color: #6b7280; }
