@@ -18,6 +18,7 @@ const widgetEntries = {
   'widget-blogs-listing':    './src/widget-blogs-listing/index.tsx',    // #12
   'widget-footer':           './src/widget-footer/index.tsx',           // #13
   'widget-tier-selection':   './src/widget-tier-selection/index.tsx',   // #14
+  'widget-rental-flow-2step':'./src/widget-rental-flow-2step/index.tsx',// #99 (TBD)
 };
 
 module.exports = (_env, argv) => {
