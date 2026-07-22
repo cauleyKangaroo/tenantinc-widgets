@@ -4,6 +4,11 @@
   font-family: 'Montserrat', sans-serif;
   color: #101318;
 }
+
+/* Step crossfade — quick fade + slight lift. */
+.rf-step { transition: opacity 0.15s ease, transform 0.15s ease; }
+.rf-step--in { opacity: 1; transform: none; }
+.rf-step--out { opacity: 0; transform: translateY(6px); }
 .rf-card {
   background: #fff;
   border-radius: 12px;
@@ -179,4 +184,133 @@
   .rf-modal-title { font-size: 20px; }
   .rf-modal-body { padding: 24px 16px; }
   .rf-cals { gap: 16px; }
+}
+
+/* ═══ Step 2 — "Secure your space today" ═══════════════════════════════════ */
+.rf2-h { font-size: 20px; font-weight: 700; color: #101318; }
+.rf2-link {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 16px; color: #101318; text-decoration: underline; cursor: pointer;
+}
+
+/* Contact form (label-above fields) */
+.rf2-form { display: flex; flex-direction: column; gap: 13px; margin-bottom: 30px; }
+.rf2-row { display: flex; gap: 18px; }
+.rf2-field { display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-width: 0; }
+.rf2-field-label { font-size: 16px; color: #637381; }
+.rf2-field-input {
+  height: 52px;
+  padding: 0 16px;
+  border: 1px solid #c4cdd5;
+  border-radius: 8px;
+  background: #fff;
+  outline: none;
+  font: 400 16px 'Montserrat', sans-serif;
+  color: #101318;
+}
+.rf2-field-input:focus { border-color: #101318; }
+
+/* Move-in date (populated from the picker; click to re-open) */
+.rf2-movein {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; max-width: 346px; height: 56px;
+  padding: 0 16px;
+  background: #fff;
+  border: 1px solid #028a0c;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.rf2-movein-text { display: flex; flex-direction: column; gap: 2px; }
+.rf2-movein-label { font-size: 12px; line-height: 15px; color: #637381; }
+.rf2-movein-value { font-size: 16px; line-height: 20px; color: #101318; }
+.rf2-movein svg { flex: 0 0 auto; color: #101318; }
+
+.rf2-sections { display: flex; flex-direction: column; gap: 30px; }
+
+/* Grey panels */
+.rf2-panel { background: #f4f6f8; border-radius: 12px; padding: 30px; display: flex; flex-direction: column; gap: 16px; }
+.rf2-plain { display: flex; flex-direction: column; gap: 16px; }
+.rf2-rowhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+/* Protection plan option */
+.rf2-plan {
+  display: flex; align-items: stretch;
+  background: #fff;
+  border: 2px solid var(--color_2, #509e2f);
+  border-radius: 4px;
+  box-shadow: 0 4px 5px rgba(71, 84, 116, 0.1);
+  overflow: hidden;
+}
+.rf2-plan-body { flex: 1 1 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 20px; min-width: 0; }
+.rf2-plan-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.rf2-plan-cov { font-size: 18px; color: #101318; white-space: nowrap; }
+.rf2-plan-cov b { font-weight: 700; }
+.rf2-plan-best { background: #101318; color: #fff; font-weight: 700; font-size: 16px; padding: 8px; border-radius: 4px; white-space: nowrap; }
+.rf2-plan-price { display: flex; align-items: baseline; gap: 2px; white-space: nowrap; }
+.rf2-plan-price b { font-size: 20px; font-weight: 600; }
+.rf2-plan-price span { font-size: 14px; font-weight: 600; }
+.rf2-plan-drop {
+  flex: 0 0 auto; width: 52px;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; border: none; border-left: 1px solid #dfe3e8;
+  color: #101318; cursor: pointer;
+}
+.rf2-chev-down { transform: rotate(90deg); }
+
+/* Additional Information toggles */
+.rf2-checks { display: flex; flex-direction: column; gap: 4px; }
+.rf2-checkline { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.rf2-checkline input { position: absolute; width: 0; height: 0; opacity: 0; }
+.rf2-box {
+  flex: 0 0 auto; width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #c4cdd5; border-radius: 6px; color: #fff;
+}
+.rf2-box--on { background: #101318; border-color: #101318; }
+.rf2-checklabel { font-size: 16px; color: #101318; }
+.rf2-checkline--sm .rf2-checklabel { font-size: 14px; }
+
+/* Rental Agreement */
+.rf2-agree { background: #f4f6f8; border-radius: 16px; overflow: hidden; }
+.rf2-agree-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 28px 29px 20px; }
+.rf2-agree-doc { margin: 0 24px; height: 300px; overflow: auto; background: #fff; border-radius: 4px; }
+.rf2-doc-page { padding: 24px 28px; }
+.rf2-doc-title { margin: 0 0 14px; font-size: 16px; font-weight: 700; color: #101318; }
+.rf2-doc-h { margin: 0 0 6px; font-size: 12px; font-weight: 700; font-style: italic; color: #101318; }
+.rf2-doc-p { margin: 0 0 10px; font-size: 11px; line-height: 1.5; color: #45505c; }
+.rf2-agree-bar { display: flex; align-items: center; gap: 8px; padding: 16px 24px; cursor: pointer; }
+.rf2-agree-text { font-size: 16px; line-height: 18px; color: #101318; }
+.rf2-agree-text b { font-weight: 600; }
+
+/* Payment */
+.rf2-payment { gap: 22px; }
+.rf2-autopay { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 10px; padding: 20px 30px; }
+.rf2-autopay-label { font-size: 16px; font-weight: 600; color: #101318; }
+.rf2-autopay-info { color: #101318; flex: 0 0 auto; }
+.rf2-paygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.rf2-pay {
+  height: 64px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  border-radius: 12px;
+  font: 500 20px 'Montserrat', sans-serif;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+}
+.rf2-pay--dark { background: #101318; color: #fff; border: none; }
+.rf2-pay--outline { background: #fff; border: 2px solid #101318; color: #000; }
+.rf2-pay--outline svg { flex: 0 0 auto; }
+.rf2-paylogo { display: inline-flex; align-items: center; gap: 6px; }
+.rf2-paylogo svg { display: block; }
+.rf2-paylogo span { color: #fff; font-weight: 500; font-size: 20px; }
+
+@container (max-width: 640px) {
+  .rf2-row { flex-direction: column; }
+  .rf2-movein { max-width: none; }
+  .rf2-panel, .rf2-payment { padding: 20px; }
+  .rf2-autopay { padding: 16px 20px; }
+  .rf2-agree-head { padding: 20px 20px 16px; }
+  .rf2-agree-doc { margin: 0 16px; }
+  .rf2-paygrid { grid-template-columns: 1fr; }
 }
