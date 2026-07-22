@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import './RentalFlow2Step.css';
 import { CheckTick } from './icons';
+import { MoveInDateModal } from './MoveInDateModal';
+
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
 
 // ---------------------------------------------------------------------------
 // Widget #99 (TBD) — Rental Flow (2 Step), first screen ("Secure your space").
@@ -61,6 +68,8 @@ export function RentalFlow2Step({
   const [phone, setPhone] = useState('');
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
+  const [dateModalOpen, setDateModalOpen] = useState(false);
+  const [moveIn, setMoveIn] = useState<Date>(startOfToday);
 
   return (
     <div className="rf-wrapper">
@@ -102,11 +111,19 @@ export function RentalFlow2Step({
         </div>
 
         <div className="rf-actions">
-          <button type="button" className="rf-btn rf-btn--rent">Rent</button>
+          <button type="button" className="rf-btn rf-btn--rent" onClick={() => setDateModalOpen(true)}>Rent</button>
           <div className="rf-or"><span>or</span></div>
           <button type="button" className="rf-btn rf-btn--reserve">Reserve</button>
         </div>
       </div>
+
+      <MoveInDateModal
+        open={dateModalOpen}
+        onClose={() => setDateModalOpen(false)}
+        selected={moveIn}
+        onSelect={setMoveIn}
+        onConfirm={() => setDateModalOpen(false)}
+      />
     </div>
   );
 }
