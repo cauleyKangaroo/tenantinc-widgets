@@ -794,7 +794,7 @@
   border-radius: 16px;
 }
 .ts-o3-head { flex: 1 1 auto; display: flex; flex-direction: column; }
-.ts-o3-rows { flex: 0 0 auto; }
+.ts-o3-rows { flex: 0 0 auto; margin-top: 20px; } /* gap between cards and comparison table */
 
 /* Label column */
 .ts-o3-unit { align-items: center; justify-content: center; gap: 22px; padding: 8px 0 24px; }
