@@ -196,9 +196,10 @@
 /* Contact form (label-above fields) */
 .rf2-form { display: flex; flex-direction: column; gap: 13px; margin-bottom: 30px; }
 .rf2-row { display: flex; gap: 18px; }
-.rf2-field { display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-width: 0; }
-.rf2-field-label { font-size: 16px; color: #637381; }
+.rf2-field { display: flex; flex-direction: column; align-items: stretch; gap: 8px; flex: 1 1 0; min-width: 0; }
+.rf2-field-label { font-size: 16px; color: #637381; text-align: left; }
 .rf2-field-input {
+  width: 100%;
   height: 52px;
   padding: 0 16px;
   border: 1px solid #c4cdd5;
