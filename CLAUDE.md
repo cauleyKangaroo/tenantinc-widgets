@@ -70,18 +70,43 @@ Details:
 
 ---
 
+## widget-space-list (#05) — client-config options
+
+Content-panel options forwarded from the Duda JS tab (`data.config.*`) into
+`WidgetConfig` (`types.ts` → `SpaceList.tsx` → cards). Deployed to `master`
+(commit `9ac2c4a`). Team split: front-end/UI here, API/data wiring is Jaweed's.
+
+- `showSizeGuideVideos` — hides the video thumbnails inside the Size Guide
+  accordion (`SizeGuideSection` `showVideos`).
+- `showPromoRate` + `startingAtLabel` / `promoRateLabel` — the main price label
+  reads `promoRateLabel` when promo mode is on, else `startingAtLabel` (CSS
+  uppercases both). In Duda, the two text fields use "Show if" on `showPromoRate`
+  (promo label when enabled, starting label when disabled).
+- `instorePriceMode` — dropdown (`percentOfWeb` | `percentDiff` | `additionOfWeb`)
+  for how the in-store strike price relates to the web price. Plumbed into config
+  but the **calc is a no-op** until a %/amount source + real data land (`api.ts`
+  `mapApiToUnits` currently just reads `set_rate`). "Addition of web price" =
+  best-guess "web + flat amount".
+- `enableWaitlist` — units flagged `availability: 'waitlist'` are **hidden** unless
+  this is on, then shown with a **"Join waitlist"** CTA. The `availability` flag is
+  **not set by the API mapper yet** — Jaweed's side.
+- Two new sidebar accordions — **Features and Amenities** + **Notes** (placeholder
+  "coming soon" content) — bringing the panel + reorder modal to **8 sections**.
+
+---
+
 ## CURRENT WORK IN PROGRESS — Sidebar accordion reordering
 
 **Branch:** `space-list-ordering` (off `master`). **Status (2026-06-29): working
 end-to-end on a staging Duda site.** Feature commit `e620b70`.
 
 Lets a Duda site editor manage the Space List widget's sidebar accordion
-sections (store / nearby / reviews / faq / blog / sizeguide) **per widget
-instance** (so Home and About pages can differ). Editor-only **"Manage accordions"**
-modal: a toggle switch per section (show/hide) + up/down arrows (order). Both
-visibility (`hidden`) and order (`order`) persist to the collection. All six
-sections are always candidates — the widget **no longer reads the content-menu
-`isX` toggles**; an unconfigured instance shows all six.
+sections (store / features / nearby / reviews / faq / blog / sizeguide / notes)
+**per widget instance** (so Home and About pages can differ). Editor-only
+**"Manage accordions"** modal: a toggle switch per section (show/hide) + up/down
+arrows (order). Both visibility (`hidden`) and order (`order`) persist to the
+collection. All eight sections are always candidates — the widget **no longer
+reads the content-menu `isX` toggles**; an unconfigured instance shows all eight.
 
 ### Architecture
 - **Why a server proxy:** Duda's client-side Collections JS API is **READ-ONLY**,
