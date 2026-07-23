@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './Promotions.css';
+import { fetchSpaceGroups, extractPromos, type ApiPromo } from './api';
 import { TagIcon, InfoIcon, ChevronRight } from './icons';
 import promoBanner from './assets/promo-banner.png';
 import promoBannerMobile from './assets/promo-banner-mobile.png';
@@ -78,19 +79,56 @@ export interface PromotionsProps {
   promos?: Promo[];
 }
 
+// PromoCard colour cycle for API-sourced promos.
+const VARIANTS: PromoVariant[] = ['dark', 'green', 'outline'];
+
 export function Promotions({
   mode = 'cards',
   bannerImage,
   bannerUrl = '#',
   bannerAlt = '',
-  barText = 'First 3 Months 30% Off',
+  barText,
   barUrl = '#',
   barCtaLabel = 'See Qualifying Units',
   barInfo,
   promos = PROMOS,
 }: PromotionsProps) {
-  // Guard against an empty/unknown value from Duda.
-  const view = mode === 'banner' || mode === 'bar' ? mode : 'cards';
+  // Live promotions pulled from each tier's `allocated_promo` in the
+  // space-groups API; empty until loaded (or on failure), in which case the
+  // props/demo data keep rendering unchanged.
+  const [apiPromos, setApiPromos] = useState<ApiPromo[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSpaceGroups()
+      .then((raw) => {
+        if (!cancelled) setApiPromos(extractPromos(raw));
+      })
+      .catch((err) => console.error('[Promotions] fetchSpaceGroups error:', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  // Guard against an empty/unknown value from Duda. With API promos loaded,
+  // one promo renders best as the bar and several as cards — so 'cards' (the
+  // default) auto-collapses to the bar when only a single promo came back.
+  let view: 'banner' | 'bar' | 'cards' = mode === 'banner' || mode === 'bar' ? mode : 'cards';
+  if (view === 'cards' && apiPromos.length === 1) view = 'bar';
+
+  // API promos mapped onto the card shape, cycling the three card colours.
+  const displayPromos: Promo[] = apiPromos.length
+    ? apiPromos.map((p, i) => ({
+        id: p.id,
+        title: p.title,
+        variant: VARIANTS[i % VARIANTS.length],
+        info: p.info,
+        ctaLabel: 'See Qualifying Units',
+        ctaUrl: '#',
+      }))
+    : promos;
+
+  // Bar text: explicit prop wins, then the first API promo, then the demo copy.
+  const displayBarText = barText || apiPromos[0]?.title || 'First 3 Months 30% Off';
+  const displayBarInfo = barInfo || apiPromos[0]?.info;
 
   // ── Mode 1: banner ────────────────────────────────────────────────────
   if (view === 'banner') {
@@ -120,9 +158,9 @@ export function Promotions({
           <div className="promo-bar-inner">
             <div className="promo-bar-titlerow">
               <TagIcon size={48} />
-              <span className="promo-bar-title">{barText}</span>
-              {barInfo ? (
-                <button className="promo-bar-info" aria-label="More information" title={barInfo}>
+              <span className="promo-bar-title">{displayBarText}</span>
+              {displayBarInfo ? (
+                <button className="promo-bar-info" aria-label="More information" title={displayBarInfo}>
                   <InfoIcon size={36} />
                 </button>
               ) : (
@@ -143,7 +181,7 @@ export function Promotions({
   return (
     <div className="promo-wrapper">
       <div className="promo-row">
-        {promos.map((promo) => (
+        {displayPromos.map((promo) => (
           <PromoCard key={promo.id} promo={promo} />
         ))}
       </div>

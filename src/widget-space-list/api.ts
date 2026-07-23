@@ -5,6 +5,7 @@ import { spaceImageFor } from './spaceImages';
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
 const API_KEY = cfg.apiKey;
+const COMPANY_ID = cfg.companyId;
 const PROPERTY_ID = cfg.propertyId;
 const SPACE_GROUP_ID = cfg.spaceGroupId;
 
@@ -159,7 +160,7 @@ export function mapApiToUnits(raw: unknown): Unit[] {
 // ---------------------------------------------------------------------------
 
 export async function fetchSpaceGroups(): Promise<unknown> {
-  const url = `${BASE_URL}/properties/${PROPERTY_ID}/space-groups/${SPACE_GROUP_ID}/groups`;
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties/${PROPERTY_ID}/space-groups/${SPACE_GROUP_ID}/groups`;
 
   const res = await fetch(url, {
     headers: {

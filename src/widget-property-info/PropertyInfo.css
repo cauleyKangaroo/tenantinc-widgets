@@ -270,6 +270,15 @@
   display: none;
 }
 
+/* Real embedded map (rendered when the API provides lat/lng). */
+.pi-map-iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+}
+
 /* ── Socials ────────────────────────────────────────────────────────────── */
 
 .pi-socials {
