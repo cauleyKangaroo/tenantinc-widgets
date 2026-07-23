@@ -110,6 +110,26 @@
       </div>
 
       <div class="controls-group">
+        <span class="controls-group-label">Client config (test)</span>
+        <label class="checkbox"><input type="checkbox" id="sl-show-promo" onchange="reinitSpaceList()"> Show promo rate</label>
+        <label>Starting label:
+          <input id="sl-starting-label" type="text" value="Starting at" style="width:110px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
+        </label>
+        <label>Promo label:
+          <input id="sl-promo-label" type="text" value="Promo rate" style="width:110px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
+        </label>
+        <label class="checkbox"><input type="checkbox" id="sl-enable-waitlist" onchange="reinitSpaceList()"> Enable waitlist</label>
+        <label class="checkbox"><input type="checkbox" id="sl-sg-videos" checked onchange="reinitSpaceList()"> Size Guide videos</label>
+        <label>In-store price fn:
+          <select id="sl-instore-mode" onchange="reinitSpaceList()">
+            <option value="percentOfWeb">Percentage of web price</option>
+            <option value="percentDiff">Percentage difference</option>
+            <option value="additionOfWeb">Addition of web price</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="controls-group">
         <span class="controls-group-label">Duda runtime</span>
         <label class="checkbox"><input type="checkbox" id="sl-in-editor" onchange="reinitSpaceList()"> inEditor (show Reorder button)</label>
       </div>
@@ -256,6 +276,12 @@
         isNotes:     document.getElementById('sl-is-notes').checked,
         isFAQ:       document.getElementById('sl-is-faq').checked,
         isHours:     document.getElementById('sl-is-hours').checked,
+        showPromoRate:       document.getElementById('sl-show-promo').checked,
+        startingAtLabel:     document.getElementById('sl-starting-label').value,
+        promoRateLabel:      document.getElementById('sl-promo-label').value,
+        enableWaitlist:      document.getElementById('sl-enable-waitlist').checked,
+        showSizeGuideVideos: document.getElementById('sl-sg-videos').checked,
+        instorePriceMode:    document.getElementById('sl-instore-mode').value,
         inEditor:    document.getElementById('sl-in-editor').checked,
         elementId:   'dev-element-001',
         siteId:      'dev-site',

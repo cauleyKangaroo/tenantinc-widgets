@@ -17,7 +17,9 @@ export function PriceBlock({ unit, config, hideUrgency }: { unit: Unit; config: 
         </>
       )}
       <div className="sl-price-main">
-        <div className="sl-starting-label">STARTING AT</div>
+        <div className="sl-starting-label">
+          {config.showPromoRate ? config.promoRateLabel : config.startingAtLabel}
+        </div>
         <div className="sl-main-price">{fmt(unit.startingPrice)}</div>
         {unit.adminFee != null && (
           <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
@@ -84,7 +86,7 @@ export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetCo
   if (unit.availability === 'waitlist' && config.enableWaitlist) {
     return (
       <div className="sl-cta-group">
-        <button className={`sl-waitlist-btn${fullClass}`}>Waitlist</button>
+        <button className={`sl-waitlist-btn${fullClass}`}>Join waitlist</button>
         <div className="sl-limited-label">Limited Availability</div>
       </div>
     );

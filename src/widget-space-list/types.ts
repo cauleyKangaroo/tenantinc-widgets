@@ -55,15 +55,26 @@ export interface Unit {
 // and threaded down to all card components.
 // ---------------------------------------------------------------------------
 
+/** How the in-store strike price is derived from the web price. */
+export type InstorePriceMode = 'percentOfWeb' | 'percentDiff' | 'additionOfWeb';
+
 export interface WidgetConfig {
   showInstorePrice: boolean;
   /** Label shown above the in-store strike price ("IN-STORE", "WAS", etc.) */
   instorePriceLabel: string;
+  /** How the in-store price relates to the web price (calc wired with real data). */
+  instorePriceMode: InstorePriceMode;
   showJunkFeeDisclaimer: boolean;
   showUrgencyMessage: boolean;
   enableWaitlist: boolean;
   callOnLimitedAvailability: boolean;
   ctaButtonCopy: string;
+  /** When true, the main price label reads `promoRateLabel` instead of `startingAtLabel`. */
+  showPromoRate: boolean;
+  /** Label above the main price in normal mode. Default 'Starting at'. */
+  startingAtLabel: string;
+  /** Label above the main price when `showPromoRate` is on. Default 'Promo rate'. */
+  promoRateLabel: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,6 +121,16 @@ export interface SpaceListProps {
   showInstorePrice?: boolean;
   /** Text label above the in-store strike price. Default 'IN-STORE'. */
   instorePriceLabel?: string;
+  /** Dropdown: how the in-store price is derived from the web price. Default 'percentOfWeb'. */
+  instorePriceMode?: InstorePriceMode;
+  /** Toggle: swap the main price label to `promoRateLabel`. Default false. */
+  showPromoRate?: boolean;
+  /** Text label above the main price (normal mode). Default 'Starting at'. */
+  startingAtLabel?: string;
+  /** Text label above the main price when promo rate is on. Default 'Promo rate'. */
+  promoRateLabel?: string;
+  /** Toggle: show video thumbnails inside the Size Guide accordion. Default true. */
+  showSizeGuideVideos?: boolean;
   /** Toggle: show a junk-fee disclaimer below unit pricing. Default false. */
   showJunkFeeDisclaimer?: boolean;
   /** Toggle: show "Only X left" urgency messages on eligible units. Default true. */
