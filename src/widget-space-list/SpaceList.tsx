@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
+import cfg from './config.json';
 import { fetchSpaceGroups, mapApiToUnits } from './api';
 import {
   DEFAULT_FILTERS,
@@ -133,6 +134,7 @@ export function SpaceList({
 
   const visibleUnits = useMemo(() => filterUnits(units, filters, searchTerm), [units, filters, searchTerm]);
   const badge = activeFilterCount(filters);
+  const totalVacant = units.reduce((sum, u) => sum + (u.vacantCount ?? 0), 0);
 
   const sectionPanel = (
     <SectionAccordion
@@ -178,8 +180,8 @@ export function SpaceList({
   return (
     <div className={`sl-wrapper filter-top ap-${apLocation}`}>
       <div className="sl-heading">
-        <p className="sl-select-heading">Select a Space</p>
-        <p className="sl-page-title">Storage Units in Laguna Beach</p>
+        <p className="sl-select-heading">Select a Space {totalVacant > 0 && `— ${totalVacant} Available`}</p>
+        <p className="sl-page-title">Storage Units in {cfg.propertyName}</p>
       </div>
       <div className="sl-row">
         {apLocation === 'left' && sectionPanel}

@@ -31,6 +31,8 @@ export interface Unit {
   features: string[];
   /** Amenities this unit has — matched against the amenity checkboxes filter */
   amenities: string[];
+  /** Number of vacant (available to rent) units in this tier */
+  vacantCount?: number;
   /** Amenity names where show_in_filter_bar === 1 — drives the Space Features pills */
   filterBarFeatures: string[];
   image: string;
