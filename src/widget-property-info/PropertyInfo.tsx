@@ -105,6 +105,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
 
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
+  const [hoursOpen, setHoursOpen] = useState(false);
 
   // Live property details from the API; null until loaded (or on failure),
   // in which case the props/DEFAULTS above keep rendering unchanged.
@@ -127,6 +128,33 @@ export function PropertyInfo(props: PropertyInfoProps) {
   const displayPhones = property?.phones.length ? property.phones : phones;
   // "Send us a Message" -> explicit prop wins, else mailto: the API email.
   const messageHref = messageUrl !== '#' ? messageUrl : property?.email ? `mailto:${property.email}` : '#';
+
+  // Live gate/office status from AccessHours (computed in the property's tz);
+  // falls back to the static props/DEFAULTS until loaded or when disabled.
+  const gate = property?.hours.gate;
+  const office = property?.hours.office;
+  const displayGateStatus = gate?.label ?? gateStatus;
+  const displayGateNote = gate?.note ?? gateNote;
+  const displayOfficeStatus = office?.label ?? officeStatus;
+  const displayOfficeNote = office?.note ?? officeNote;
+  const gateStatusClass = `pi-status pi-status--${gate ? (gate.isOpen ? 'open' : 'closed') : 'open'}`;
+  const officeStatusClass = `pi-status pi-status--${office ? (office.isOpen ? 'open' : 'closed') : 'closed'}`;
+  const gateSchedule = property?.schedule.gate ?? [];
+  const officeSchedule = property?.schedule.office ?? [];
+  // Renders "Label (note)" or just "Label" when the note is empty.
+  const hoursText = (note: string) => (note ? ` (${note})` : '');
+
+  // Map API social platforms → icon keys (API says "twitter", icon key is "x").
+  const socialUrlByKey = new Map<string, string>();
+  for (const s of property?.socials ?? []) {
+    const key = s.platform === 'twitter' ? 'x' : s.platform;
+    if (!socialUrlByKey.has(key)) socialUrlByKey.set(key, s.url);
+  }
+  // With API socials, show only the platforms the property actually set (real
+  // links). Without, keep the full icon row as decorative placeholders.
+  const socialItems = socialUrlByKey.size
+    ? SOCIALS.filter((s) => socialUrlByKey.has(s.key)).map((s) => ({ ...s, url: socialUrlByKey.get(s.key)! }))
+    : SOCIALS.map((s) => ({ ...s, url: '#' }));
   // Address links out to Google Maps at the API coordinates when available.
   const hasCoords = property?.lat != null && property?.lng != null;
   const mapsHref = addressUrl !== '#'
@@ -274,14 +302,36 @@ export function PropertyInfo(props: PropertyInfoProps) {
           <div className="pi-hours">
             <div className="pi-contact-row">
               <ClockIcon size={24} />
-              <span><span className="pi-status pi-status--open">{gateStatus}</span> ({gateNote})</span>
+              <span><span className={gateStatusClass}>{displayGateStatus}</span>{hoursText(displayGateNote)}</span>
             </div>
             <div className="pi-contact-row pi-contact-row--indent">
-              <span><span className="pi-status pi-status--closed">{officeStatus}</span> ({officeNote})</span>
+              <span><span className={officeStatusClass}>{displayOfficeStatus}</span>{hoursText(displayOfficeNote)}</span>
             </div>
             <div className="pi-contact-row pi-contact-row--indent">
-              <a className="pi-underline pi-see-hours" href="#">See all Hours</a>
+              <button type="button" className="pi-underline pi-see-hours" onClick={() => setHoursOpen((o) => !o)}>
+                {hoursOpen ? 'Hide Hours' : 'See all Hours'}
+              </button>
             </div>
+            {hoursOpen && (gateSchedule.length > 0 || officeSchedule.length > 0) && (
+              <div className="pi-hours-detail pi-contact-row--indent">
+                {gateSchedule.length > 0 && (
+                  <div className="pi-hours-block">
+                    <p className="pi-hours-heading">Gate Hours</p>
+                    {gateSchedule.map((row) => (
+                      <p key={row.days} className="pi-hours-line"><span>{row.days}</span><span>{row.hours}</span></p>
+                    ))}
+                  </div>
+                )}
+                {officeSchedule.length > 0 && (
+                  <div className="pi-hours-block">
+                    <p className="pi-hours-heading">Office Hours</p>
+                    {officeSchedule.map((row) => (
+                      <p key={row.days} className="pi-hours-line"><span>{row.days}</span><span>{row.hours}</span></p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -321,8 +371,11 @@ export function PropertyInfo(props: PropertyInfoProps) {
           <div className="pi-card-col">
             {mapEl}
             <div className="pi-socials">
-              {SOCIALS.map(({ key, label, Icon }) => (
-                <a key={key} className="pi-social" href="#" aria-label={label} title={label}>
+              {socialItems.map(({ key, label, Icon, url }) => (
+                <a key={key} className="pi-social" href={url}
+                  target={url !== '#' ? '_blank' : undefined}
+                  rel={url !== '#' ? 'noopener noreferrer' : undefined}
+                  aria-label={label} title={label}>
                   <Icon size={29} />
                 </a>
               ))}
@@ -396,8 +449,8 @@ export function PropertyInfo(props: PropertyInfoProps) {
       </div>
 
       <div className="pi-m-hours">
-        <p><span className="pi-status pi-status--open">{gateStatus}</span> ({gateNote})</p>
-        <p><span className="pi-status pi-status--closed">{officeStatus}</span> ({officeNote})</p>
+        <p><span className={gateStatusClass}>{displayGateStatus}</span>{hoursText(displayGateNote)}</p>
+        <p><span className={officeStatusClass}>{displayOfficeStatus}</span>{hoursText(displayOfficeNote)}</p>
         <p><span className="pi-status pi-status--open">{supportStatus}</span> ({supportNote})</p>
         <a className="pi-m-seehours pi-underline" href="#">See all Hours</a>
       </div>

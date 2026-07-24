@@ -13,6 +13,7 @@ import {
   type AccordionConfig,
   type AccordionKey,
 } from '../accordionSections';
+import type { PropertyExtras } from '../propertyApi';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 // Real icons from Figma (Mariposa accordion set, node 9417-86779). Stroke-style,
@@ -137,6 +138,8 @@ export interface SectionAccordionProps {
   onReorderClick?: () => void;
   /** Show video thumbnails inside the Size Guide section. Default true. */
   showSizeGuideVideos?: boolean;
+  /** Property FAQ / phone / socials from the second API call. Null = use demo data. */
+  propertyExtras?: PropertyExtras | null;
 }
 
 // ── Single accordion row ──────────────────────────────────────────────────────
@@ -168,6 +171,7 @@ export function SectionAccordion({
   inEditor    = false,
   onReorderClick,
   showSizeGuideVideos = true,
+  propertyExtras = null,
 }: SectionAccordionProps) {
   // Only one section open at a time — opening one closes the currently-open one.
   const [openKey, setOpenKey] = useState<AccordionKey | null>(null);
@@ -182,9 +186,11 @@ export function SectionAccordion({
     label: LABELS[key],
     icon: VISUALS[key].icon,
     badge: VISUALS[key].badge,
-    // Size Guide takes the video-visibility flag; others use their static content.
-    content: key === 'sizeguide'
-      ? <SizeGuideSection showVideos={showSizeGuideVideos} />
+    // A few sections take live API data; the rest use their static content.
+    content:
+      key === 'sizeguide' ? <SizeGuideSection showVideos={showSizeGuideVideos} />
+      : key === 'store'   ? <StoreSection phones={propertyExtras?.phones} socials={propertyExtras?.socials} hours={propertyExtras?.hours} schedule={propertyExtras?.schedule} />
+      : key === 'faq'     ? <FaqsSection faqs={propertyExtras?.faqs} />
       : VISUALS[key].content,
   }));
 

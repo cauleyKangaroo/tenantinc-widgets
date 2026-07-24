@@ -124,6 +124,40 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* "See all Hours" opens this grouped office/gate schedule. */
+.pi-hours-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.pi-hours-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pi-hours-heading {
+  font-size: 14px;
+  font-weight: 700;
+  color: #101318;
+  margin-bottom: 2px;
+}
+
+.pi-hours-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+  color: #55606b;
 }
 
 /* ── Media column ───────────────────────────────────────────────────────── */

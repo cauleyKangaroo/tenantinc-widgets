@@ -3,6 +3,7 @@ import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import cfg from './config.json';
 import { fetchSpaceGroups, mapApiToUnits } from './api';
+import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
   DEFAULT_FILTERS,
   FilterState,
@@ -60,6 +61,10 @@ export function SpaceList({
   const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Second API call: property FAQ / phone / socials for the sidebar accordion.
+  // Null until loaded (or on failure) → sections fall back to their demo data.
+  const [propertyExtras, setPropertyExtras] = useState<PropertyExtras | null>(null);
+
   useEffect(() => {
     fetchSpaceGroups()
       .then((raw) => {
@@ -68,6 +73,16 @@ export function SpaceList({
       })
       .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchProperties()
+      .then((raw) => {
+        if (!cancelled) setPropertyExtras(extractPropertyExtras(raw));
+      })
+      .catch((err) => console.error('[SpaceList] fetchProperties error:', err));
+    return () => { cancelled = true; };
   }, []);
 
   const units = liveUnits;
@@ -156,6 +171,7 @@ export function SpaceList({
       inEditor={inEditor}
       onReorderClick={() => { setSaveError(null); setReorderOpen(true); }}
       showSizeGuideVideos={showSizeGuideVideos}
+      propertyExtras={propertyExtras}
     />
   );
 
