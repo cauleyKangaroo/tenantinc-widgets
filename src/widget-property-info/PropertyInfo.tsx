@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './PropertyInfo.css';
+import { fetchProperties, findProperty, type PropertyDetails } from './api';
 import {
   MapPinIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
@@ -104,6 +105,78 @@ export function PropertyInfo(props: PropertyInfoProps) {
 
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
+  const [hoursOpen, setHoursOpen] = useState(false);
+
+  // Live property details from the API; null until loaded (or on failure),
+  // in which case the props/DEFAULTS above keep rendering unchanged.
+  const [property, setProperty] = useState<PropertyDetails | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchProperties()
+      .then((raw) => {
+        const found = findProperty(raw);
+        if (!cancelled && found) setProperty(found);
+      })
+      .catch((err) => console.error('[PropertyInfo] fetchProperties error:', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  // Precedence: API value -> prop -> DEFAULT (empty API strings/arrays don't win).
+  const displayName = property?.name || name;
+  const displayAddress = property?.address || address;
+  const displayPhones = property?.phones.length ? property.phones : phones;
+  // "Send us a Message" -> explicit prop wins, else mailto: the API email.
+  const messageHref = messageUrl !== '#' ? messageUrl : property?.email ? `mailto:${property.email}` : '#';
+
+  // Live gate/office status from AccessHours (computed in the property's tz);
+  // falls back to the static props/DEFAULTS until loaded or when disabled.
+  const gate = property?.hours.gate;
+  const office = property?.hours.office;
+  const displayGateStatus = gate?.label ?? gateStatus;
+  const displayGateNote = gate?.note ?? gateNote;
+  const displayOfficeStatus = office?.label ?? officeStatus;
+  const displayOfficeNote = office?.note ?? officeNote;
+  const gateStatusClass = `pi-status pi-status--${gate ? (gate.isOpen ? 'open' : 'closed') : 'open'}`;
+  const officeStatusClass = `pi-status pi-status--${office ? (office.isOpen ? 'open' : 'closed') : 'closed'}`;
+  const gateSchedule = property?.schedule.gate ?? [];
+  const officeSchedule = property?.schedule.office ?? [];
+  // Renders "Label (note)" or just "Label" when the note is empty.
+  const hoursText = (note: string) => (note ? ` (${note})` : '');
+
+  // Map API social platforms → icon keys (API says "twitter", icon key is "x").
+  const socialUrlByKey = new Map<string, string>();
+  for (const s of property?.socials ?? []) {
+    const key = s.platform === 'twitter' ? 'x' : s.platform;
+    if (!socialUrlByKey.has(key)) socialUrlByKey.set(key, s.url);
+  }
+  // With API socials, show only the platforms the property actually set (real
+  // links). Without, keep the full icon row as decorative placeholders.
+  const socialItems = socialUrlByKey.size
+    ? SOCIALS.filter((s) => socialUrlByKey.has(s.key)).map((s) => ({ ...s, url: socialUrlByKey.get(s.key)! }))
+    : SOCIALS.map((s) => ({ ...s, url: '#' }));
+  // Address links out to Google Maps at the API coordinates when available.
+  const hasCoords = property?.lat != null && property?.lng != null;
+  const mapsHref = addressUrl !== '#'
+    ? addressUrl
+    : hasCoords ? `https://www.google.com/maps?q=${property!.lat},${property!.lng}` : '#';
+
+  // Real embedded map when the API gave us coordinates; CSS placeholder otherwise.
+  const mapEl = (
+    <div className="pi-map" role="img" aria-label="Map showing the property location">
+      {hasCoords ? (
+        <iframe
+          className="pi-map-iframe"
+          title={`Map of ${displayName}`}
+          src={`https://www.google.com/maps?q=${property!.lat},${property!.lng}&z=15&output=embed`}
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+      ) : (
+        <span className="pi-map-pin" />
+      )}
+    </div>
+  );
 
   // Build the slide list from real images (hero first, then the others),
   // falling back to gradient placeholders so the editor/demo still shows something.
@@ -167,25 +240,23 @@ export function PropertyInfo(props: PropertyInfoProps) {
             <PhotoExpandIcon size={48} />
           </button>
           <div className="pi-hero-content">
-            <p className="pi-hero-name">{name}</p>
+            <p className="pi-hero-name">{displayName}</p>
             <div className="pi-hero-meta">
               <div className="pi-hero-rating">
                 <span className="pi-hero-score">{rating}</span>
                 <Stars rating={rating} width={77} />
                 <a className="pi-reviews pi-hero-reviews" href={reviewsUrl}>{reviewCount} Reviews</a>
               </div>
-              <a className="pi-hero-address" href={addressUrl}>
+              <a className="pi-hero-address" href={mapsHref}>
                 <MapPinIcon size={24} />
-                <span className="pi-underline">{address}</span>
+                <span className="pi-underline">{displayAddress}</span>
               </a>
             </div>
           </div>
         </div>
 
         <div className="pi-hero-map">
-          <div className="pi-map" role="img" aria-label="Map showing the property location">
-            <span className="pi-map-pin" />
-          </div>
+          {mapEl}
         </div>
       </div>
     </div>
@@ -196,7 +267,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
     <div className="pi-row">
       {/* Info column */}
       <div className="pi-info">
-        <p className="pi-name">{name}</p>
+        <p className="pi-name">{displayName}</p>
 
         <div className="pi-rating">
           <span className="pi-rating-score">{rating}</span>
@@ -205,13 +276,13 @@ export function PropertyInfo(props: PropertyInfoProps) {
         </div>
 
         <div className="pi-contact">
-          <a className="pi-contact-row pi-link" href={addressUrl}>
+          <a className="pi-contact-row pi-link" href={mapsHref}>
             <MapPinIcon size={24} />
-            <span className="pi-underline">{address}</span>
+            <span className="pi-underline">{displayAddress}</span>
           </a>
 
           <div className="pi-phones">
-            {phones.map((p, i) => (
+            {displayPhones.map((p, i) => (
               <a
                 key={p.number}
                 className={`pi-contact-row${i > 0 ? ' pi-contact-row--indent' : ''}`}
@@ -223,7 +294,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
             ))}
           </div>
 
-          <a className="pi-contact-row" href={messageUrl}>
+          <a className="pi-contact-row" href={messageHref}>
             <EnvelopeIcon size={24} />
             <span className="pi-underline">Send us a Message</span>
           </a>
@@ -231,14 +302,36 @@ export function PropertyInfo(props: PropertyInfoProps) {
           <div className="pi-hours">
             <div className="pi-contact-row">
               <ClockIcon size={24} />
-              <span><span className="pi-status pi-status--open">{gateStatus}</span> ({gateNote})</span>
+              <span><span className={gateStatusClass}>{displayGateStatus}</span>{hoursText(displayGateNote)}</span>
             </div>
             <div className="pi-contact-row pi-contact-row--indent">
-              <span><span className="pi-status pi-status--closed">{officeStatus}</span> ({officeNote})</span>
+              <span><span className={officeStatusClass}>{displayOfficeStatus}</span>{hoursText(displayOfficeNote)}</span>
             </div>
             <div className="pi-contact-row pi-contact-row--indent">
-              <a className="pi-underline pi-see-hours" href="#">See all Hours</a>
+              <button type="button" className="pi-underline pi-see-hours" onClick={() => setHoursOpen((o) => !o)}>
+                {hoursOpen ? 'Hide Hours' : 'See all Hours'}
+              </button>
             </div>
+            {hoursOpen && (gateSchedule.length > 0 || officeSchedule.length > 0) && (
+              <div className="pi-hours-detail pi-contact-row--indent">
+                {gateSchedule.length > 0 && (
+                  <div className="pi-hours-block">
+                    <p className="pi-hours-heading">Gate Hours</p>
+                    {gateSchedule.map((row) => (
+                      <p key={row.days} className="pi-hours-line"><span>{row.days}</span><span>{row.hours}</span></p>
+                    ))}
+                  </div>
+                )}
+                {officeSchedule.length > 0 && (
+                  <div className="pi-hours-block">
+                    <p className="pi-hours-heading">Office Hours</p>
+                    {officeSchedule.map((row) => (
+                      <p key={row.days} className="pi-hours-line"><span>{row.days}</span><span>{row.hours}</span></p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -276,12 +369,13 @@ export function PropertyInfo(props: PropertyInfoProps) {
 
           {/* Map (fake) */}
           <div className="pi-card-col">
-            <div className="pi-map" role="img" aria-label="Map showing the property location">
-              <span className="pi-map-pin" />
-            </div>
+            {mapEl}
             <div className="pi-socials">
-              {SOCIALS.map(({ key, label, Icon }) => (
-                <a key={key} className="pi-social" href="#" aria-label={label} title={label}>
+              {socialItems.map(({ key, label, Icon, url }) => (
+                <a key={key} className="pi-social" href={url}
+                  target={url !== '#' ? '_blank' : undefined}
+                  rel={url !== '#' ? 'noopener noreferrer' : undefined}
+                  aria-label={label} title={label}>
                   <Icon size={29} />
                 </a>
               ))}
@@ -293,7 +387,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
   );
 
   // ── Mobile: single layout (regardless of desktop displayMode) ──────────
-  const phoneHref = phones[0] ? `tel:${phones[0].number.replace(/[^0-9+]/g, '')}` : '#';
+  const phoneHref = displayPhones[0] ? `tel:${displayPhones[0].number.replace(/[^0-9+]/g, '')}` : '#';
   const mobile = (
     <div className="pi-mobile">
       <div className="pi-m-hero">
@@ -318,15 +412,15 @@ export function PropertyInfo(props: PropertyInfoProps) {
           </button>
         </div>
         <div className="pi-m-hero-content">
-          <p className="pi-m-name">{name}</p>
+          <p className="pi-m-name">{displayName}</p>
           <div className="pi-m-rating">
             <span className="pi-m-score">{rating}</span>
             <Stars rating={rating} width={77} />
             <a className="pi-reviews pi-m-reviews" href={reviewsUrl}>{reviewCount} Reviews</a>
           </div>
-          <a className="pi-m-address" href={addressUrl}>
+          <a className="pi-m-address" href={mapsHref}>
             <MapPinIcon size={16} />
-            <span className="pi-underline">{address}</span>
+            <span className="pi-underline">{displayAddress}</span>
           </a>
         </div>
       </div>
@@ -336,7 +430,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
           <span className="pi-m-circle"><PhoneIcon size={24} /></span>
           <span className="pi-m-circle-label">Phone</span>
         </a>
-        <a className="pi-m-circle-item" href={messageUrl}>
+        <a className="pi-m-circle-item" href={messageHref}>
           <span className="pi-m-circle"><EnvelopeIcon size={24} /></span>
           <span className="pi-m-circle-label">Email</span>
         </a>
@@ -344,7 +438,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
           <span className="pi-m-circle"><CreditCardIcon size={24} /></span>
           <span className="pi-m-circle-label">Billpay</span>
         </a>
-        <a className="pi-m-circle-item" href={addressUrl}>
+        <a className="pi-m-circle-item" href={mapsHref}>
           <span className="pi-m-circle"><MapPinIcon size={24} /></span>
           <span className="pi-m-circle-label">Map</span>
         </a>
@@ -355,8 +449,8 @@ export function PropertyInfo(props: PropertyInfoProps) {
       </div>
 
       <div className="pi-m-hours">
-        <p><span className="pi-status pi-status--open">{gateStatus}</span> ({gateNote})</p>
-        <p><span className="pi-status pi-status--closed">{officeStatus}</span> ({officeNote})</p>
+        <p><span className={gateStatusClass}>{displayGateStatus}</span>{hoursText(displayGateNote)}</p>
+        <p><span className={officeStatusClass}>{displayOfficeStatus}</span>{hoursText(displayOfficeNote)}</p>
         <p><span className="pi-status pi-status--open">{supportStatus}</span> ({supportNote})</p>
         <a className="pi-m-seehours pi-underline" href="#">See all Hours</a>
       </div>

@@ -5,6 +5,7 @@ import { spaceImageFor } from './spaceImages';
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
 const API_KEY = cfg.apiKey;
+const COMPANY_ID = cfg.companyId;
 const PROPERTY_ID = cfg.propertyId;
 const SPACE_GROUP_ID = cfg.spaceGroupId;
 
@@ -39,7 +40,7 @@ interface ApiTier {
   sell_rate: number | null;
   promotion_sell_rate: number | null;
   promotion_sell_rate_discount: number;
-  units: { count: number; min_price: number | null; max_price: number | null };
+  units:  { count: number; min_price: number | null; max_price: number | null };
   vacant: { count: number; min_price: number | null; max_price: number | null };
   amenities: ApiAmenity[];
   space_type_associations: ApiSpaceTypeAssociation[];
@@ -111,9 +112,10 @@ export function mapApiToUnits(raw: unknown): Unit[] {
         const primaryAssoc = tier.space_type_associations?.find((a) => a.is_primary === 1);
         const type: Unit['type'] = primaryAssoc?.unit_type_name === 'parking' ? 'parking' : 'storage';
 
-        // Only website-visible amenities, sorted by sort_order, deduped by name (first occurrence wins)
+        // Storage: only show_in_website:1 amenities. Parking: all amenities
+        // (parking data rarely sets show_in_website:1, so the filter would leave cards empty).
         const sortedUnique = [...(tier.amenities ?? [])]
-          .filter((a) => a.show_in_website === 1)
+          .filter((a) => type === 'parking' || a.show_in_website === 1)
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
           .filter((a, i, arr) => arr.findIndex((x) => x.name === a.name) === i);
 
@@ -128,6 +130,7 @@ export function mapApiToUnits(raw: unknown): Unit[] {
 
         const startingPrice = tier.sell_rate ?? tier.units?.min_price ?? 0;
         const inStorePrice = tier.set_rate ?? tier.units?.max_price ?? 0;
+        const vacantCount = tier.vacant?.count ?? 0;
 
         units.push({
           id: tier.id,
@@ -138,6 +141,7 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           features,
           amenities: amenityNames,
           filterBarFeatures,
+          vacantCount,
           // DEMO: derive card image from dimensions/size/type until the API
           // returns one per unit — see spaceImages.ts.
           image: spaceImageFor({ type, dimensions: tier.description, size, subtype }),
@@ -156,7 +160,7 @@ export function mapApiToUnits(raw: unknown): Unit[] {
 // ---------------------------------------------------------------------------
 
 export async function fetchSpaceGroups(): Promise<unknown> {
-  const url = `${BASE_URL}/properties/${PROPERTY_ID}/space-groups/${SPACE_GROUP_ID}/groups`;
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties/${PROPERTY_ID}/space-groups/${SPACE_GROUP_ID}/groups`;
 
   const res = await fetch(url, {
     headers: {

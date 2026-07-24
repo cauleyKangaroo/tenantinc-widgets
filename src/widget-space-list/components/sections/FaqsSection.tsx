@@ -55,11 +55,16 @@ function FaqItem({ faq, isLast }: { faq: Faq; isLast: boolean }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function FaqsSection() {
+export function FaqsSection({ faqs }: { faqs?: { question: string; answer: string }[] }) {
+  // Live property FAQs when the API returned any; otherwise the demo set.
+  const items: Faq[] = faqs && faqs.length
+    ? faqs.map((f, i) => ({ id: i + 1, question: f.question, answer: f.answer }))
+    : FAQS;
+
   return (
     <div className="sl-faq2">
-      {FAQS.map((faq, i) => (
-        <FaqItem key={faq.id} faq={faq} isLast={i === FAQS.length - 1} />
+      {items.map((faq, i) => (
+        <FaqItem key={faq.id} faq={faq} isLast={i === items.length - 1} />
       ))}
     </div>
   );
