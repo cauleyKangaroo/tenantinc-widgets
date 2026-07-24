@@ -98,7 +98,7 @@ function PlayButton() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function SizeGuideSection() {
+export function SizeGuideSection({ showVideos = true }: { showVideos?: boolean }) {
   const [activeTab, setActiveTab] = useState('Small');
 
   const category = CATEGORIES.find((c) => c.tab === activeTab) ?? CATEGORIES[1];
@@ -122,10 +122,12 @@ export function SizeGuideSection() {
       {/* Scrollable content area */}
       <div className="sl-sg2-content">
 
-        {/* Video thumbnail */}
-        <div className="sl-sg2-image" style={{ background: category.imageBg }}>
-          <PlayButton />
-        </div>
+        {/* Video thumbnail — hidden when "Show videos in Size Guide?" is off */}
+        {showVideos && (
+          <div className="sl-sg2-image" style={{ background: category.imageBg }}>
+            <PlayButton />
+          </div>
+        )}
 
         {/* Title */}
         <p className="sl-sg2-title">{category.title}</p>

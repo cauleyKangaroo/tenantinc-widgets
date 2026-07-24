@@ -9,7 +9,7 @@
 
 import type { SpaceListProps } from './types';
 
-export type AccordionKey = 'store' | 'nearby' | 'reviews' | 'faq' | 'blog' | 'sizeguide';
+export type AccordionKey = 'store' | 'nearby' | 'reviews' | 'faq' | 'blog' | 'sizeguide' | 'notes' | 'features';
 
 export interface AccordionSectionMeta {
   key: AccordionKey;
@@ -20,12 +20,14 @@ export interface AccordionSectionMeta {
 
 /** Canonical default order + labels for the sidebar accordion sections. */
 export const ACCORDION_SECTIONS: AccordionSectionMeta[] = [
-  { key: 'store',     label: 'Property Information', enabledBy: 'isStore' },
-  { key: 'nearby',    label: 'Nearby Storage',       enabledBy: 'isNearby' },
-  { key: 'reviews',   label: 'Reviews',              enabledBy: 'isReviews' },
-  { key: 'faq',       label: 'FAQ',                  enabledBy: 'isFAQ' },
-  { key: 'blog',      label: 'Storage Blogs',        enabledBy: 'isBlog' },
-  { key: 'sizeguide', label: 'Size Guide',           enabledBy: 'isSizeGuide' },
+  { key: 'store',     label: 'Property Information',   enabledBy: 'isStore' },
+  { key: 'features',  label: 'Features and Amenities', enabledBy: 'isFeatures' },
+  { key: 'nearby',    label: 'Nearby Storage',         enabledBy: 'isNearby' },
+  { key: 'reviews',   label: 'Reviews',                enabledBy: 'isReviews' },
+  { key: 'faq',       label: 'FAQ',                    enabledBy: 'isFAQ' },
+  { key: 'blog',      label: 'Storage Blogs',          enabledBy: 'isBlog' },
+  { key: 'sizeguide', label: 'Size Guide',             enabledBy: 'isSizeGuide' },
+  { key: 'notes',     label: 'Notes',                  enabledBy: 'isNotes' },
 ];
 
 /**

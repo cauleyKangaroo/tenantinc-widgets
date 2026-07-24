@@ -26,11 +26,16 @@ export function SpaceList({
   apLocation = 'right',
   showInstorePrice = true,
   instorePriceLabel = 'IN-STORE',
+  instorePriceMode = 'percentOfWeb',
   showJunkFeeDisclaimer = false,
   showUrgencyMessage = true,
   enableWaitlist = false,
   callOnLimitedAvailability = false,
   ctaButtonCopy = 'Select',
+  showPromoRate = false,
+  startingAtLabel = 'Starting at',
+  promoRateLabel = 'Promo rate',
+  showSizeGuideVideos = true,
   inEditor    = false,
   elementId,
   siteId,
@@ -42,11 +47,15 @@ export function SpaceList({
   const config: WidgetConfig = {
     showInstorePrice,
     instorePriceLabel,
+    instorePriceMode,
     showJunkFeeDisclaimer,
     showUrgencyMessage,
     enableWaitlist,
     callOnLimitedAvailability,
     ctaButtonCopy,
+    showPromoRate,
+    startingAtLabel,
+    promoRateLabel,
   };
   const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,7 +141,12 @@ export function SpaceList({
     return Array.from(seen).sort();
   }, [units, filters.types]);
 
-  const visibleUnits = useMemo(() => filterUnits(units, filters, searchTerm), [units, filters, searchTerm]);
+  const visibleUnits = useMemo(() => {
+    const filtered = filterUnits(units, filters, searchTerm);
+    // Unavailable (waitlist) units are hidden unless the waitlist feature is on;
+    // when on they render with a "Join waitlist" CTA (see Pricing/CtaButton).
+    return enableWaitlist ? filtered : filtered.filter((u) => u.availability !== 'waitlist');
+  }, [units, filters, searchTerm, enableWaitlist]);
   const badge = activeFilterCount(filters);
   const totalVacant = units.reduce((sum, u) => sum + (u.vacantCount ?? 0), 0);
 
@@ -141,6 +155,7 @@ export function SpaceList({
       config={accordionConfig}
       inEditor={inEditor}
       onReorderClick={() => { setSaveError(null); setReorderOpen(true); }}
+      showSizeGuideVideos={showSizeGuideVideos}
     />
   );
 

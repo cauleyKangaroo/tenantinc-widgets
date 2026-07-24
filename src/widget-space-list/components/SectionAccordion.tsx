@@ -5,6 +5,8 @@ import { SizeGuideSection } from './sections/SizeGuideSection';
 import { BlogSection } from './sections/BlogSection';
 import { FaqsSection } from './sections/FaqsSection';
 import { StoreSection } from './sections/StoreSection';
+import { NotesSection } from './sections/NotesSection';
+import { FeaturesSection } from './sections/FeaturesSection';
 import {
   ACCORDION_SECTIONS,
   resolveVisibleOrder,
@@ -65,6 +67,24 @@ function IconScale() {
   );
 }
 
+function IconFeatures() {
+  // Pika list-check — "Features and Amenities".
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 6H21M11 12H21M11 18H21M3 6L4 7L6 5M3 12L4 13L6 11M3 18L4 19L6 17" />
+    </svg>
+  );
+}
+
+function IconNote() {
+  // Pika note/edit — "Notes".
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V16.2C3 17.8802 3 18.7202 3.32698 19.362C3.6146 19.9265 4.07354 20.3854 4.63803 20.673C5.27976 21 6.11984 21 7.8 21H15.2C16.8802 21 17.7202 21 18.362 20.673C18.9265 20.3854 19.3854 19.9265 19.673 19.362C20 18.7202 20 17.8802 20 16.2V13M15.5 5.5L18.3284 8.32843M10.7627 10.2373L17.634 3.36599C18.4149 2.58503 19.6812 2.58503 20.4623 3.36599C21.2433 4.14705 21.2433 5.41338 20.4623 6.19434L13.591 13.0657C13.2001 13.4566 12.7627 13.7809 12.2925 14.03L9.5 15.5L10.97 12.7075C11.2191 12.2373 11.5434 11.7999 11.9343 11.409L10.7627 10.2373Z" />
+    </svg>
+  );
+}
+
 function IconReorder() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -87,11 +107,13 @@ interface AccordionVisual {
 /** Per-key icon + content. Labels + default order live in accordionSections.ts. */
 const VISUALS: Record<AccordionKey, AccordionVisual> = {
   store:     { icon: <IconInfo />,     content: <StoreSection /> },
+  features:  { icon: <IconFeatures />, content: <FeaturesSection /> },
   nearby:    { icon: <IconBuilding />, badge: 5, content: <NearbySection /> },
   reviews:   { icon: <IconReview />,   content: <ReviewsSection /> },
   faq:       { icon: <IconQuestion />, content: <FaqsSection /> },
   blog:      { icon: <IconFile />,     content: <BlogSection /> },
   sizeguide: { icon: <IconScale />,    content: <SizeGuideSection /> },
+  notes:     { icon: <IconNote />,     content: <NotesSection /> },
 };
 
 const LABELS: Record<AccordionKey, string> = Object.fromEntries(
@@ -113,6 +135,8 @@ export interface SectionAccordionProps {
   inEditor?: boolean;
   /** Opens the manage-accordions modal (owned by SpaceList). */
   onReorderClick?: () => void;
+  /** Show video thumbnails inside the Size Guide section. Default true. */
+  showSizeGuideVideos?: boolean;
 }
 
 // ── Single accordion row ──────────────────────────────────────────────────────
@@ -143,6 +167,7 @@ export function SectionAccordion({
   config      = null,
   inEditor    = false,
   onReorderClick,
+  showSizeGuideVideos = true,
 }: SectionAccordionProps) {
   // Only one section open at a time — opening one closes the currently-open one.
   const [openKey, setOpenKey] = useState<AccordionKey | null>(null);
@@ -157,7 +182,10 @@ export function SectionAccordion({
     label: LABELS[key],
     icon: VISUALS[key].icon,
     badge: VISUALS[key].badge,
-    content: VISUALS[key].content,
+    // Size Guide takes the video-visibility flag; others use their static content.
+    content: key === 'sizeguide'
+      ? <SizeGuideSection showVideos={showSizeGuideVideos} />
+      : VISUALS[key].content,
   }));
 
   // Nothing visible and not in the editor → render nothing. In the editor we
