@@ -212,7 +212,7 @@ export function SpaceList({
     <div className={`sl-wrapper filter-top ap-${apLocation}`}>
       <div className="sl-heading">
         <p className="sl-select-heading">Select a Space {totalVacant > 0 && `— ${totalVacant} Available`}</p>
-        <p className="sl-page-title">Storage Units in {cfg.propertyName}</p>
+        <p className="sl-page-title">Storage Units in {propertyExtras?.name || cfg.propertyName}</p>
       </div>
       <div className="sl-row">
         {apLocation === 'left' && sectionPanel}

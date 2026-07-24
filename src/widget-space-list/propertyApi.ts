@@ -42,6 +42,7 @@ interface ApiSocialMedia {
 
 interface ApiProperty {
   id: string;
+  name?: string;
   utc_offset?: string;      // IANA tz, e.g. "America/Los_Angeles"
   Phones?: ApiPhone[] | '';
   Faq?: ApiFaq[] | '';
@@ -61,6 +62,8 @@ interface ApiResponse {
 // ---------------------------------------------------------------------------
 
 export interface PropertyExtras {
+  /** Property display name, e.g. "Storelocal Dove Mountain". */
+  name: string;
   phones: { number: string; note?: string }[];
   socials: { platform: string; url: string }[];
   faqs: { question: string; answer: string }[];
@@ -140,5 +143,5 @@ export function extractPropertyExtras(raw: unknown, propertyId: string = PROPERT
     gate: formatSchedule(gateSection),
   };
 
-  return { phones, socials, faqs, hours, schedule };
+  return { name: prop.name ?? '', phones, socials, faqs, hours, schedule };
 }
