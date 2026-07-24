@@ -3,6 +3,7 @@ import './PropertyInfo.css';
 import {
   MapPinIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
+  CloseIcon,
 } from './icons';
 
 // ---------------------------------------------------------------------------
@@ -49,6 +50,34 @@ function ImageFill({ src, className, alt = '' }: { src: string; className?: stri
   }
   return <img className={className} src={src} alt={alt} />;
 }
+
+// Demo "See all Hours" data (real values come from Duda later, like the other
+// widgets). Desktop shows a full week in two columns (Figma 6485-144634); the
+// mobile modal shows the condensed summary (Figma 6485-144656).
+const HOURS_COLUMNS: { title: string; rows: string[] }[] = [
+  {
+    title: 'Gate Hours',
+    rows: [
+      'Monday: 6:00 AM - 10:00 PM', 'Tuesday: 6:00 AM - 10:00 PM',
+      'Wednesday: 6:00 AM - 10:00 PM', 'Thursday: 6:00 AM - 10:00 PM',
+      'Friday: 6:00 AM - 10:00 PM', 'Saturday: 6:00 AM - 10:00 PM',
+      'Sunday: 6:00 AM - 10:00 PM',
+    ],
+  },
+  {
+    title: 'Office Hours',
+    rows: [
+      'Monday: 6:00 AM - 10:00 PM', 'Tuesday: 6:00 AM - 10:00 PM',
+      'Wednesday: 6:00 AM - 10:00 PM', 'Thursday: 6:00 AM - 10:00 PM',
+      'Friday: 6:00 AM - 10:00 PM', 'Saturday: 6:00 AM - 10:00 PM',
+      'Sunday: 6:00 AM - 10:00 PM',
+    ],
+  },
+];
+const HOURS_MOBILE: { title: string; rows: string[] }[] = [
+  { title: 'Office Hours', rows: ['Mon-Sat: 8:00 AM - 5:00 PM', 'Sun: 10:00 AM - 3:00 PM'] },
+  { title: 'Gate Hours', rows: ['Mon-Sun: 6:00 AM - 10:00 PM'] },
+];
 
 // Gradient placeholders stand in for real facility photos.
 const GALLERY = [
@@ -104,6 +133,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
 
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
+  const [hoursOpen, setHoursOpen] = useState(false);
 
   // Build the slide list from real images (hero first, then the others),
   // falling back to gradient placeholders so the editor/demo still shows something.
@@ -126,6 +156,58 @@ export function PropertyInfo(props: PropertyInfoProps) {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [lightbox]);
+
+  // Hours modal: Esc closes; lock background scroll while open.
+  useEffect(() => {
+    if (!hoursOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setHoursOpen(false); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [hoursOpen]);
+
+  const hoursModal = hoursOpen && (
+    <div className="pi-hours-overlay" onMouseDown={() => setHoursOpen(false)}>
+      <div
+        className="pi-hours-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Hours"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="pi-hours-head">
+          <span className="pi-hours-title"><ClockIcon size={24} /><span>Hours</span></span>
+          <button type="button" className="pi-hours-close" aria-label="Close" onClick={() => setHoursOpen(false)}>
+            <CloseIcon size={18} />
+          </button>
+        </div>
+        <div className="pi-hours-body">
+          {/* Desktop: full week, two columns */}
+          <div className="pi-hours-cols">
+            {HOURS_COLUMNS.map((col) => (
+              <div className="pi-hours-col" key={col.title}>
+                <p className="pi-hours-col-title">{col.title}</p>
+                {col.rows.map((r) => <p className="pi-hours-line" key={r}>{r}</p>)}
+              </div>
+            ))}
+          </div>
+          {/* Mobile: condensed summary */}
+          <div className="pi-hours-summary">
+            {HOURS_MOBILE.map((g) => (
+              <div className="pi-hours-group" key={g.title}>
+                <p className="pi-hours-col-title">{g.title}</p>
+                {g.rows.map((r) => <p className="pi-hours-line" key={r}>{r}</p>)}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const breadcrumbNav = (
     <nav className="pi-breadcrumb" aria-label="Breadcrumb">
@@ -237,7 +319,8 @@ export function PropertyInfo(props: PropertyInfoProps) {
               <span><span className="pi-status pi-status--closed">{officeStatus}</span> ({officeNote})</span>
             </div>
             <div className="pi-contact-row pi-contact-row--indent">
-              <a className="pi-underline pi-see-hours" href="#">See all Hours</a>
+              <a className="pi-underline pi-see-hours" href="#"
+                onClick={(e) => { e.preventDefault(); setHoursOpen(true); }}>See all Hours</a>
             </div>
           </div>
         </div>
@@ -358,7 +441,8 @@ export function PropertyInfo(props: PropertyInfoProps) {
         <p><span className="pi-status pi-status--open">{gateStatus}</span> ({gateNote})</p>
         <p><span className="pi-status pi-status--closed">{officeStatus}</span> ({officeNote})</p>
         <p><span className="pi-status pi-status--open">{supportStatus}</span> ({supportNote})</p>
-        <a className="pi-m-seehours pi-underline" href="#">See all Hours</a>
+        <a className="pi-m-seehours pi-underline" href="#"
+          onClick={(e) => { e.preventDefault(); setHoursOpen(true); }}>See all Hours</a>
       </div>
     </div>
   );
@@ -370,6 +454,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
       </div>
       {mobile}
       {lightboxEl}
+      {hoursModal}
     </div>
   );
 }

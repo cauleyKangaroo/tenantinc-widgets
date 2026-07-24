@@ -372,6 +372,76 @@ span.pi-lb-img {
   letter-spacing: 0.04em;
 }
 
+/* ── "See all Hours" modal (lightbox) ───────────────────────────────────── */
+.pi-hours-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(16, 19, 24, 0.55);
+  animation: pi-hours-fade 0.15s ease-out;
+}
+.pi-hours-modal {
+  width: min(660px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
+  font-family: 'Montserrat', sans-serif;
+  animation: pi-hours-pop 0.15s ease-out;
+}
+@keyframes pi-hours-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pi-hours-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.pi-hours-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 23px 33px;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.pi-hours-title { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 600; color: #101318; }
+.pi-hours-title svg { flex: 0 0 auto; }
+.pi-hours-close {
+  flex: 0 0 auto;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  border: none; background: none; border-radius: 6px;
+  color: #101318; cursor: pointer;
+}
+.pi-hours-close:hover { background: #f4f6f8; }
+
+.pi-hours-body { padding: 42px; }
+.pi-hours-cols { display: flex; gap: 30px; }
+.pi-hours-col { flex: 1 1 0; min-width: 0; }
+.pi-hours-summary { display: none; }
+.pi-hours-group + .pi-hours-group { margin-top: 4px; }
+.pi-hours-col-title { margin: 0; font-size: 16px; font-weight: 600; line-height: 28px; color: #101318; }
+.pi-hours-line { margin: 0; font-size: 16px; font-weight: 400; line-height: 28px; color: #101318; }
+
+/* Mobile: condensed summary, header kept (per request) */
+@media (max-width: 768px) {
+  .pi-hours-modal { max-width: 360px; border-radius: 16px; }
+  .pi-hours-head { padding: 18px 20px; }
+  .pi-hours-body { padding: 20px; }
+  .pi-hours-cols { display: none; }
+  .pi-hours-summary { display: block; }
+  .pi-hours-summary .pi-hours-line { line-height: 24px; }
+  .pi-hours-summary .pi-hours-col-title { line-height: 24px; }
+}
+
 /* ── Desktop / mobile visibility switch ─────────────────────────────────── */
 
 .pi-mobile {
