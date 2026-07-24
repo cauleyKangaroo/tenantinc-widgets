@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
-import {
-  FacebookIcon,
-  InstagramIcon,
-  YouTubeIcon,
-  XIcon,
-  LinkedInIcon,
-  TikTokIcon,
-} from '@shared/socialIcons';
+import { SOCIAL_ICONS } from '@shared/socialIcons';
+import type { HoursStatus, ScheduleRow } from '@shared/accessHours';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -112,9 +106,51 @@ function StarRatingInput() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function StoreSection() {
+interface StoreSectionProps {
+  /** Contact phones from the properties API; falls back to demo numbers. */
+  phones?: { number: string; note?: string }[];
+  /** Social links from the properties API; falls back to placeholder icons. */
+  socials?: { platform: string; url: string }[];
+  /** Live gate/office status from AccessHours; falls back to demo text. */
+  hours?: { office: HoursStatus | null; gate: HoursStatus | null };
+  /** Grouped weekly schedule per section for "See all Hours". */
+  schedule?: { office: ScheduleRow[]; gate: ScheduleRow[] };
+}
+
+// Default contact numbers shown until the API supplies real ones.
+const DEMO_PHONES = [
+  { number: '(877) 657-7465', note: 'New Customer' },
+  { number: '(877) 847-9487', note: 'Existing Customer' },
+];
+
+export function StoreSection({ phones, socials, hours, schedule }: StoreSectionProps = {}) {
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [reservationCode, setReservationCode] = useState('');
+
+  const phoneList = phones && phones.length ? phones : DEMO_PHONES;
+
+  // Live gate/office status + schedule from AccessHours; demo text until loaded.
+  const gate = hours?.gate;
+  const office = hours?.office;
+  const gateStatusText = gate?.label ?? 'Gate Open';
+  const gateStatusNote = gate?.note ?? 'Closes 11:30pm';
+  const officeStatusText = office?.label ?? 'Office Closed';
+  const officeStatusNote = office?.note ?? 'Opens 8:30am';
+  const gateStatusCls = `sl-pi-status--${gate ? (gate.isOpen ? 'open' : 'closed') : 'open'}`;
+  const officeStatusCls = `sl-pi-status--${office ? (office.isOpen ? 'open' : 'closed') : 'closed'}`;
+  const gateSchedule = schedule?.gate ?? [];
+  const officeSchedule = schedule?.office ?? [];
+  const hasApiSchedule = gateSchedule.length > 0 || officeSchedule.length > 0;
+
+  // Map API platforms → icon (API sends "twitter"; icon key is "x").
+  const socialUrlByKey = new Map<string, string>();
+  for (const s of socials ?? []) {
+    const key = s.platform === 'twitter' ? 'x' : s.platform;
+    if (!socialUrlByKey.has(key)) socialUrlByKey.set(key, s.url);
+  }
+  const socialItems = socialUrlByKey.size
+    ? SOCIAL_ICONS.filter((s) => socialUrlByKey.has(s.key)).map((s) => ({ ...s, url: socialUrlByKey.get(s.key)! }))
+    : SOCIAL_ICONS.map((s) => ({ ...s, url: '#' }));
 
   return (
     <div className="sl-pi">
@@ -126,14 +162,12 @@ export function StoreSection() {
           <span className="sl-pi-card-title">Call our Storage Experts</span>
         </div>
         <div className="sl-pi-card-body">
-          <p className="sl-pi-phone-row">
-            <a href="tel:8776577465" className="sl-pi-phone-link">(877) 657-7465</a>
-            <span className="sl-pi-phone-label"> (New Customer)</span>
-          </p>
-          <p className="sl-pi-phone-row">
-            <a href="tel:8778479487" className="sl-pi-phone-link">(877) 847-9487</a>
-            <span className="sl-pi-phone-label"> (Existing Customer)</span>
-          </p>
+          {phoneList.map((p, i) => (
+            <p className="sl-pi-phone-row" key={`${p.number}-${i}`}>
+              <a href={`tel:${p.number.replace(/[^0-9+]/g, '')}`} className="sl-pi-phone-link">{p.number}</a>
+              {p.note && <span className="sl-pi-phone-label"> ({p.note})</span>}
+            </p>
+          ))}
         </div>
       </div>
 
@@ -153,12 +187,12 @@ export function StoreSection() {
         </div>
         <div className="sl-pi-card-body">
           <p className="sl-pi-hours-status">
-            <span className="sl-pi-status--open">Gate Open</span>
-            <span className="sl-pi-status-detail"> (Closes 11:30pm)</span>
+            <span className={gateStatusCls}>{gateStatusText}</span>
+            {gateStatusNote && <span className="sl-pi-status-detail"> ({gateStatusNote})</span>}
           </p>
           <p className="sl-pi-hours-status">
-            <span className="sl-pi-status--closed">Office Closed</span>
-            <span className="sl-pi-status-detail"> (Opens 8:30am)</span>
+            <span className={officeStatusCls}>{officeStatusText}</span>
+            {officeStatusNote && <span className="sl-pi-status-detail"> ({officeStatusNote})</span>}
           </p>
 
           <button className="sl-pi-see-hours" onClick={() => setHoursExpanded((e) => !e)}>
@@ -168,12 +202,27 @@ export function StoreSection() {
 
           {hoursExpanded && (
             <div className="sl-pi-hours-detail">
-              <p className="sl-pi-hours-label">Office Hours</p>
-              {OFFICE_HOURS.map((row) => (
-                <p key={row.day} className="sl-pi-hours-line">{row.day}: {row.hours}</p>
-              ))}
-              <p className="sl-pi-hours-label">Gate Hours</p>
-              <p className="sl-pi-hours-line">Daily: {GATE_HOURS}</p>
+              {hasApiSchedule ? (
+                <>
+                  <p className="sl-pi-hours-label">Gate Hours</p>
+                  {gateSchedule.map((row) => (
+                    <p key={row.days} className="sl-pi-hours-line">{row.days}: {row.hours}</p>
+                  ))}
+                  <p className="sl-pi-hours-label">Office Hours</p>
+                  {officeSchedule.map((row) => (
+                    <p key={row.days} className="sl-pi-hours-line">{row.days}: {row.hours}</p>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <p className="sl-pi-hours-label">Office Hours</p>
+                  {OFFICE_HOURS.map((row) => (
+                    <p key={row.day} className="sl-pi-hours-line">{row.day}: {row.hours}</p>
+                  ))}
+                  <p className="sl-pi-hours-label">Gate Hours</p>
+                  <p className="sl-pi-hours-line">Daily: {GATE_HOURS}</p>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -210,12 +259,12 @@ export function StoreSection() {
 
       {/* ── Social icons ── */}
       <div className="sl-pi-social">
-        <a href="#" className="sl-pi-social-link" aria-label="Facebook"><FacebookIcon /></a>
-        <a href="#" className="sl-pi-social-link" aria-label="Instagram"><InstagramIcon /></a>
-        <a href="#" className="sl-pi-social-link" aria-label="YouTube"><YouTubeIcon /></a>
-        <a href="#" className="sl-pi-social-link" aria-label="X (Twitter)"><XIcon /></a>
-        <a href="#" className="sl-pi-social-link" aria-label="LinkedIn"><LinkedInIcon /></a>
-        <a href="#" className="sl-pi-social-link" aria-label="TikTok"><TikTokIcon /></a>
+        {socialItems.map(({ key, label, Icon, url }) => (
+          <a key={key} className="sl-pi-social-link" href={url}
+            target={url !== '#' ? '_blank' : undefined}
+            rel={url !== '#' ? 'noopener noreferrer' : undefined}
+            aria-label={label}><Icon /></a>
+        ))}
       </div>
 
     </div>

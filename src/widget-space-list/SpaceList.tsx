@@ -1,7 +1,9 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
+import cfg from './config.json';
 import { fetchSpaceGroups, mapApiToUnits } from './api';
+import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
   DEFAULT_FILTERS,
   FilterState,
@@ -59,6 +61,10 @@ export function SpaceList({
   const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Second API call: property FAQ / phone / socials for the sidebar accordion.
+  // Null until loaded (or on failure) → sections fall back to their demo data.
+  const [propertyExtras, setPropertyExtras] = useState<PropertyExtras | null>(null);
+
   useEffect(() => {
     fetchSpaceGroups()
       .then((raw) => {
@@ -67,6 +73,16 @@ export function SpaceList({
       })
       .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchProperties()
+      .then((raw) => {
+        if (!cancelled) setPropertyExtras(extractPropertyExtras(raw));
+      })
+      .catch((err) => console.error('[SpaceList] fetchProperties error:', err));
+    return () => { cancelled = true; };
   }, []);
 
   const units = liveUnits;
@@ -147,6 +163,7 @@ export function SpaceList({
     return enableWaitlist ? filtered : filtered.filter((u) => u.availability !== 'waitlist');
   }, [units, filters, searchTerm, enableWaitlist]);
   const badge = activeFilterCount(filters);
+  const totalVacant = units.reduce((sum, u) => sum + (u.vacantCount ?? 0), 0);
 
   const sectionPanel = (
     <SectionAccordion
@@ -154,6 +171,7 @@ export function SpaceList({
       inEditor={inEditor}
       onReorderClick={() => { setSaveError(null); setReorderOpen(true); }}
       showSizeGuideVideos={showSizeGuideVideos}
+      propertyExtras={propertyExtras}
     />
   );
 
@@ -193,8 +211,8 @@ export function SpaceList({
   return (
     <div className={`sl-wrapper filter-top ap-${apLocation}`}>
       <div className="sl-heading">
-        <p className="sl-select-heading">Select a Space</p>
-        <p className="sl-page-title">Storage Units in Laguna Beach</p>
+        <p className="sl-select-heading">Select a Space {totalVacant > 0 && `— ${totalVacant} Available`}</p>
+        <p className="sl-page-title">Storage Units in {propertyExtras?.name || cfg.propertyName}</p>
       </div>
       <div className="sl-row">
         {apLocation === 'left' && sectionPanel}

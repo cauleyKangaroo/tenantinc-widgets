@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './FAQs.css';
 import { SearchIcon, ChevronDown, ChevronRight } from './icons';
+import { fetchProperties, extractFaqs } from './faqApi';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -84,11 +85,29 @@ export function FAQs({
   const [query, setQuery] = useState('');
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
 
+  // Property FAQs from the API; empty until loaded (or on failure), when we fall
+  // back to the demo set.
+  const [apiFaqs, setApiFaqs] = useState<Faq[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchProperties()
+      .then((raw) => {
+        if (cancelled) return;
+        const items = extractFaqs(raw).map((f, i) => ({ id: `api-${i}`, question: f.question, answer: f.answer }));
+        setApiFaqs(items);
+      })
+      .catch((err) => console.error('[FAQs] fetchProperties error:', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  const source = apiFaqs.length ? apiFaqs : FAQS;
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return FAQS;
-    return FAQS.filter((f) => f.question.toLowerCase().includes(q) || f.answer.toLowerCase().includes(q));
-  }, [query]);
+    if (!q) return source;
+    return source.filter((f) => f.question.toLowerCase().includes(q) || f.answer.toLowerCase().includes(q));
+  }, [query, source]);
 
   function toggle(id: string) {
     setOpenIds((prev) => {
