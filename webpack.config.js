@@ -83,10 +83,13 @@ module.exports = (_env, argv) => {
           // AMD format is incompatible with webpack HMR; use plain live-reload.
           hot: false,
           liveReload: true,
-          // Write bundles to dist/ so require.js can load them via the
-          // dev server at /dist/widget-hero.js etc.
+          // Serve bundles from memory at /dist/ (require.js loads them over HTTP
+          // from here). We deliberately DON'T write to disk in dev: rewriting the
+          // committed dist/*.js on every recompile races Windows Defender/OneDrive
+          // file locks (EPERM/UNKNOWN). Run `npm run build` to refresh committed
+          // dist/ for shipping.
           devMiddleware: {
-            writeToDisk: true,
+            writeToDisk: false,
             publicPath: '/dist/',
           },
         }

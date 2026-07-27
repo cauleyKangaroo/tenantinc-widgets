@@ -238,6 +238,12 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
   <script>
+    // Dev bundles are large and served uncompressed, so the default 7s require.js
+    // timeout can fire before the biggest ones (tier-selection, rental-flow) load.
+    // 0 = wait indefinitely. Harness-only — Duda loads the production bundles.
+    require.config({ waitSeconds: 0 });
+  </script>
+  <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
     // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
     var PAGES = ['property', 'value-tiers', 'rental-flow'];

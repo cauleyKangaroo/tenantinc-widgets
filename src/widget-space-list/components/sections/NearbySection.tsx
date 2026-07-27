@@ -1,5 +1,14 @@
-import React, { useState } from 'react';
-import { PROPERTY_IMAGES, cover } from '@shared/demoImages';
+import React, { useEffect, useState } from 'react';
+import { propertyImage } from '@shared/demoImages';
+import {
+  fetchProperties,
+  extractNearbyProperties,
+  getUserLocation,
+  haversineMiles,
+  fetchPropertySpaces,
+} from '@shared/nearbyProperties';
+import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
+import cfg from '../../config.json';
 
 type ViewMode = 'list' | 'map';
 
@@ -11,11 +20,17 @@ interface NearbyUnit {
 }
 
 interface NearbyProperty {
-  id: number;
+  id: string;
   name: string;
-  distance: string;
-  rating: number;
-  reviewCount: number;
+  lat: number;
+  lng: number;
+  /** First facility photo URL from the API, if any (else placeholder). */
+  imageUrl?: string;
+  /** Miles from the reference location; null if unknown. */
+  distanceMiles: number | null;
+  /** Rating/reviews aren't in the properties API; present only on demo data. */
+  rating?: number;
+  reviewCount?: number;
   address: string;
   phone: string;
   promotion: string;
@@ -23,12 +38,15 @@ interface NearbyProperty {
   adminFee: number;
 }
 
-const PROPERTIES: NearbyProperty[] = [
-  { id: 1, name: '3rd Street Storage',  distance: '1.7 Miles', rating: 4.5, reviewCount: 32, address: '8478 3rd Street, Fullerton, CA 02027',   phone: '(555) 555-5555', promotion: 'Short Promotion Title', adminFee: 20, units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }] },
-  { id: 2, name: 'Storfun Storage',      distance: '2.5 Miles', rating: 4.5, reviewCount: 19, address: '210 Holt Ave, Pomona, CA 91768',          phone: '(555) 555-1111', promotion: 'First Month Free', adminFee: 20, units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 60,  startingAt: 30  }, { dimensions: "10' x 10'", subtype: 'Climate Controlled', inStore: 190, startingAt: 155 }, { dimensions: "10' x 20'", subtype: 'Drive Up', inStore: 320, startingAt: 260 }] },
-  { id: 3, name: 'Green Street Storage', distance: '3.0 Miles', rating: 4.2, reviewCount: 41, address: '540 Green St, Covina, CA 91722',          phone: '(555) 555-2222', promotion: 'No Admin Fee Today', adminFee: 0,  units: [{ dimensions: "5' x 5'", subtype: 'Drive Up', inStore: 45,  startingAt: 22  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 160, startingAt: 130 }, { dimensions: "10' x 15'", subtype: 'Drive Up', inStore: 200, startingAt: 170 }] },
-  { id: 4, name: 'Maple Avenue Storage', distance: '3.8 Miles', rating: 4.8, reviewCount: 18, address: '100 Maple Ave, Fullerton, CA 02028',      phone: '(555) 555-3333', promotion: 'Short Promotion Title', adminFee: 20, units: [{ dimensions: "5' x 10'", subtype: 'Climate Controlled', inStore: 90,  startingAt: 65  }, { dimensions: "10' x 10'", subtype: 'Climate Controlled', inStore: 174, startingAt: 140 }, { dimensions: "10' x 20'", subtype: 'Drive Up', inStore: 310, startingAt: 250 }] },
-  { id: 5, name: 'Central Self Storage', distance: '4.1 Miles', rating: 4.7, reviewCount: 54, address: '22 Central Blvd, Fullerton, CA 02029',   phone: '(555) 555-4444', promotion: 'Short Promotion Title', adminFee: 20, units: [{ dimensions: "5' x 5'", subtype: 'Drive Up', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }] },
+const MAX_NEARBY = 6;
+const DEFAULT_ADMIN_FEE = 20;
+
+const DEMO_PROPERTIES: NearbyProperty[] = [
+  { id: '1', name: '3rd Street Storage',  lat: 0, lng: 0, distanceMiles: 1.7, rating: 4.5, reviewCount: 32, address: '8478 3rd Street, Fullerton, CA 02027',   phone: '(555) 555-5555', promotion: 'Short Promotion Title', adminFee: 20, units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }] },
+  { id: '2', name: 'Storfun Storage',      lat: 0, lng: 0, distanceMiles: 2.5, rating: 4.5, reviewCount: 19, address: '210 Holt Ave, Pomona, CA 91768',          phone: '(555) 555-1111', promotion: 'First Month Free', adminFee: 20, units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 60,  startingAt: 30  }, { dimensions: "10' x 10'", subtype: 'Climate Controlled', inStore: 190, startingAt: 155 }, { dimensions: "10' x 20'", subtype: 'Drive Up', inStore: 320, startingAt: 260 }] },
+  { id: '3', name: 'Green Street Storage', lat: 0, lng: 0, distanceMiles: 3.0, rating: 4.2, reviewCount: 41, address: '540 Green St, Covina, CA 91722',          phone: '(555) 555-2222', promotion: 'No Admin Fee Today', adminFee: 0,  units: [{ dimensions: "5' x 5'", subtype: 'Drive Up', inStore: 45,  startingAt: 22  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 160, startingAt: 130 }, { dimensions: "10' x 15'", subtype: 'Drive Up', inStore: 200, startingAt: 170 }] },
+  { id: '4', name: 'Maple Avenue Storage', lat: 0, lng: 0, distanceMiles: 3.8, rating: 4.8, reviewCount: 18, address: '100 Maple Ave, Fullerton, CA 02028',      phone: '(555) 555-3333', promotion: 'Short Promotion Title', adminFee: 20, units: [{ dimensions: "5' x 10'", subtype: 'Climate Controlled', inStore: 90,  startingAt: 65  }, { dimensions: "10' x 10'", subtype: 'Climate Controlled', inStore: 174, startingAt: 140 }, { dimensions: "10' x 20'", subtype: 'Drive Up', inStore: 310, startingAt: 250 }] },
+  { id: '5', name: 'Central Self Storage', lat: 0, lng: 0, distanceMiles: 4.1, rating: 4.7, reviewCount: 54, address: '22 Central Blvd, Fullerton, CA 02029',   phone: '(555) 555-4444', promotion: 'Short Promotion Title', adminFee: 20, units: [{ dimensions: "5' x 5'", subtype: 'Drive Up', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }] },
 ];
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -94,25 +112,33 @@ function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
     <div className="sl-nb2-card">
 
       {/* Image area */}
-      <div className="sl-nb2-img" style={{ background: cover(PROPERTY_IMAGES[index % PROPERTY_IMAGES.length]) }}>
+      <div className="sl-nb2-img" style={{ background: propertyImage(p.imageUrl, index) }}>
         <div className="sl-nb2-img-overlay" />
-        <span className="sl-nb2-distance">{p.distance}</span>
+        {p.distanceMiles != null && (
+          <span className="sl-nb2-distance">{p.distanceMiles.toFixed(1)} Miles</span>
+        )}
         <div className="sl-nb2-prop-info">
           <p className="sl-nb2-prop-name">{p.name}</p>
-          <div className="sl-nb2-prop-rating">
-            <span className="sl-nb2-prop-score">{p.rating}</span>
-            <Stars rating={p.rating} size={16} color="#FBBC05" />
-            <a href="#" className="sl-nb2-prop-reviews">{p.reviewCount} Reviews</a>
-          </div>
+          {p.rating != null && (
+            <div className="sl-nb2-prop-rating">
+              <span className="sl-nb2-prop-score">{p.rating}</span>
+              <Stars rating={p.rating} size={16} color="#FBBC05" />
+              <a href="#" className="sl-nb2-prop-reviews">{p.reviewCount} Reviews</a>
+            </div>
+          )}
           <div className="sl-nb2-prop-meta">
-            <div className="sl-nb2-prop-meta-row">
-              <MapPinIcon />
-              <a href="#" className="sl-nb2-prop-meta-link">{p.address}</a>
-            </div>
-            <div className="sl-nb2-prop-meta-row">
-              <PhoneIcon />
-              <a href="#" className="sl-nb2-prop-meta-link">{p.phone}</a>
-            </div>
+            {p.address && (
+              <div className="sl-nb2-prop-meta-row">
+                <MapPinIcon />
+                <a href="#" className="sl-nb2-prop-meta-link">{p.address}</a>
+              </div>
+            )}
+            {p.phone && (
+              <div className="sl-nb2-prop-meta-row">
+                <PhoneIcon />
+                <a href={`tel:${p.phone.replace(/[^0-9+]/g, '')}`} className="sl-nb2-prop-meta-link">{p.phone}</a>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -129,6 +155,7 @@ function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
         )}
 
         {/* Unit rows */}
+        {p.units.length > 0 && (
         <div className="sl-nb2-units">
           {p.units.map((u, i) => (
             <div key={i} className="sl-nb2-unit-row">
@@ -152,6 +179,7 @@ function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
             </div>
           ))}
         </div>
+        )}
 
         {/* Footer */}
         <div className="sl-nb2-footer">
@@ -174,8 +202,102 @@ export function NearbySection() {
   const [view, setView] = useState<ViewMode>('list');
   const [page, setPage] = useState(0);
 
-  const total = PROPERTIES.length;
-  const property = PROPERTIES[page];
+  // null = still loading; [] = loaded but nothing nearby.
+  const [apiProps, setApiProps] = useState<NearbyProperty[] | null>(null);
+  const [refLoc, setRefLoc] = useState<{ lat: number; lng: number } | null>(null);
+
+  // This section only mounts when the "Nearby Storage" accordion is opened, so
+  // the fetch happens lazily. Same two location scenarios as widget #07:
+  // visitor geolocation → else the current property's coordinates.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [raw, userLoc] = await Promise.all([fetchProperties(cfg), getUserLocation()]);
+        const all = extractNearbyProperties(raw, cfg.appId);
+
+        const current = all.find((p) => p.id === cfg.propertyId);
+        const ref = userLoc
+          ? { ...userLoc, source: 'user' as const }
+          : current
+            ? { lat: current.lat, lng: current.lng, source: 'property' as const }
+            : null;
+        if (!ref) { if (!cancelled) setApiProps([]); return; }
+
+        const ranked = all
+          .filter((p) => p.id !== cfg.propertyId)
+          .map((p) => ({ p, distanceMiles: haversineMiles(ref, p) }))
+          .sort((a, b) => a.distanceMiles - b.distanceMiles)
+          .slice(0, MAX_NEARBY);
+
+        // Stage 1: paint cards with distance/name/address/phone immediately.
+        const base: NearbyProperty[] = ranked.map(({ p, distanceMiles }) => ({
+          id: p.id,
+          name: p.name,
+          lat: p.lat,
+          lng: p.lng,
+          imageUrl: p.imageUrl,
+          distanceMiles,
+          address: p.address,
+          phone: p.phone,
+          promotion: '',
+          units: [],
+          adminFee: DEFAULT_ADMIN_FEE,
+        }));
+        if (!cancelled) { setRefLoc({ lat: ref.lat, lng: ref.lng }); setApiProps(base); }
+
+        // Stage 2: enrich each card with spaces + promo as they resolve.
+        ranked.forEach(({ p }) => {
+          fetchPropertySpaces(cfg, p.id).then(({ promo, spaces }) => {
+            if (cancelled) return;
+            setApiProps((prev) =>
+              prev
+                ? prev.map((c) =>
+                    c.id === p.id
+                      ? {
+                          ...c,
+                          promotion: promo ?? '',
+                          units: spaces.map((s) => ({
+                            dimensions: s.size,
+                            subtype: s.subtype,
+                            inStore: s.inStorePrice,
+                            startingAt: s.startingPrice,
+                          })),
+                        }
+                      : c,
+                  )
+                : prev,
+            );
+          });
+        });
+      } catch (err) {
+        console.error('[NearbySection] load error:', err);
+        if (!cancelled) setApiProps([]);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fall back to demo data while loading / on empty result so the section never
+  // renders blank inside the editor or preview.
+  const properties = apiProps && apiProps.length ? apiProps : DEMO_PROPERTIES;
+  const total = properties.length;
+  const safePage = Math.min(page, total - 1);
+  const property = properties[safePage];
+
+  // Map pins from the live nearby list (price = cheapest starting rate).
+  const mapPoints: MapPoint[] = (apiProps ?? []).map((p, i) => ({
+    id: p.id,
+    lat: p.lat,
+    lng: p.lng,
+    label: p.units[0] ? `$${p.units[0].startingAt}` : undefined,
+    name: p.name,
+    address: p.address,
+    distance: p.distanceMiles != null ? `${p.distanceMiles.toFixed(1)} Miles` : undefined,
+    active: i === safePage,
+  }));
 
   return (
     <div className="sl-nb2">
@@ -189,25 +311,29 @@ export function NearbySection() {
       {/* Content */}
       <div className="sl-nb2-content">
         {view === 'map' ? (
-          <div className="sl-nb2-map-placeholder">
-            <span>Map view coming soon</span>
-          </div>
+          refLoc && mapPoints.length ? (
+            <NearbyMap center={refLoc} points={mapPoints} height={280} />
+          ) : (
+            <div className="sl-nb2-map-placeholder">
+              <span>Map unavailable</span>
+            </div>
+          )
         ) : (
-          <PropertyCard p={property} index={page} />
+          <PropertyCard p={property} index={safePage} />
         )}
       </div>
 
       {/* Pagination */}
       <div className="sl-nb2-pagination">
-        <button className="sl-nb2-arrow" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+        <button className="sl-nb2-arrow" onClick={() => setPage(Math.max(0, safePage - 1))} disabled={safePage === 0}>
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="24 12 16 20 24 28"/>
           </svg>
         </button>
-        {PROPERTIES.map((_, i) => (
-          <button key={i} className={`sl-nb2-dot${i === page ? ' active' : ''}`} onClick={() => setPage(i)} />
+        {properties.map((_, i) => (
+          <button key={i} className={`sl-nb2-dot${i === safePage ? ' active' : ''}`} onClick={() => setPage(i)} />
         ))}
-        <button className="sl-nb2-arrow" onClick={() => setPage((p) => Math.min(total - 1, p + 1))} disabled={page === total - 1}>
+        <button className="sl-nb2-arrow" onClick={() => setPage(Math.min(total - 1, safePage + 1))} disabled={safePage === total - 1}>
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="16 12 24 20 16 28"/>
           </svg>
