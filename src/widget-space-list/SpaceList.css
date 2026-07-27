@@ -463,16 +463,19 @@
 .sl-wrapper .sl-see-fits:hover { text-decoration: underline; }
 
 .sl-wrapper .sl-promo-badge {
-  border: 1.5px dashed #509e2f;
-  border-radius: 6px;
-  padding: 6px 10px;
-  background: transparent;
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px dashed #509e2f;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #509e2f;
-  font-weight: 400;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 16px;
+  color: #101318;
+  font-weight: 700;
   margin-top: 12px;
 }
 .sl-wrapper .sl-promo-icon { display: flex; align-items: center; flex-shrink: 0; }
@@ -773,6 +776,7 @@
   border: 2px dashed #509e2f;
   border-radius: 8px;
   padding: 12px;
+  background: #ffffff;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1801,6 +1805,15 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  cursor: pointer;
+  transition: transform 0.25s ease;
+}
+.sl-wrapper .sl-feat-tile:hover {
+  transform: scale(1.04);
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-wrapper .sl-feat-tile { transition: none; }
 }
 .sl-wrapper .sl-feat-tile-scrim {
   position: absolute;

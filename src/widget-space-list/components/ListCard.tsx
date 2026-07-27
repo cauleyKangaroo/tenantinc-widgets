@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Unit, UnitSize, WidgetConfig } from '../types';
-import { PriceBlock, CtaButton, FeatureList, CheckIcon, JunkFeeDisclaimer } from './Pricing';
+import { PriceBlock, CtaButton, FeatureList, CheckIcon, JunkFeeDisclaimer, PromoTagIcon } from './Pricing';
 import defaultImg from '../assets/tenantinc-default.png';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
@@ -29,15 +29,6 @@ function SizeTagIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="#509e2f" xmlns="http://www.w3.org/2000/svg">
       <path d="M5.5 2h7.1c.5 0 1 .2 1.4.6l7.4 7.4c.8.8.8 2 0 2.8l-7.1 7.1c-.8.8-2 .8-2.8 0L4.1 12.5c-.4-.4-.6-.9-.6-1.4V4A2 2 0 0 1 5.5 2Zm2.5 3.5A1.5 1.5 0 1 0 8 8.5 1.5 1.5 0 0 0 8 5.5Z" />
-    </svg>
-  );
-}
-
-function TagIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#509e2f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z" />
-      <line x1="7" y1="7" x2="7.01" y2="7" />
     </svg>
   );
 }
@@ -99,7 +90,7 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
       <div className="sl-lc-action">
         {selected.promo && (
           <div className="sl-lc-promo">
-            <span className="sl-lc-promo-icon"><TagIcon /></span>
+            <span className="sl-lc-promo-icon"><PromoTagIcon size={16} /></span>
             {selected.promo}
           </div>
         )}
