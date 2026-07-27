@@ -41,7 +41,9 @@ export function MessageModal({
   facilities: Facility[];
   termsHref?: string;
 }) {
-  const [selected, setSelected] = useState<Facility | null>(facilities.length === 1 ? facilities[0] : null);
+  // Always opens on the "Select Facility" dropdown (Figma 10199-60873); picking
+  // an option swaps to the name + address state (Figma 10199-67707).
+  const [selected, setSelected] = useState<Facility | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [consent, setConsent] = useState(false);
 
