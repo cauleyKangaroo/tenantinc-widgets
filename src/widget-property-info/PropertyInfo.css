@@ -955,6 +955,31 @@ span.pi-lb-img {
   font: 700 16px 'Montserrat', sans-serif; cursor: pointer;
 }
 .pi-msg-submit:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black); }
+.pi-msg-submit:disabled, .pi-msg-cancel:disabled { opacity: 0.6; cursor: default; }
+
+.pi-msg-error {
+  margin: 0 32px;
+  color: #e53935;
+  font: 500 15px 'Montserrat', sans-serif;
+}
+
+.pi-msg-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 24px 16px 8px;
+}
+.pi-msg-success-icon {
+  width: 56px; height: 56px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: #e7f5e8;
+}
+.pi-msg-success-title { margin: 4px 0 0; font: 700 22px 'Montserrat', sans-serif; color: #101318; }
+.pi-msg-success-text { margin: 0 0 12px; max-width: 420px; font: 400 16px 'Montserrat', sans-serif; line-height: 1.5; color: #55606b; }
+.pi-msg-success .pi-msg-submit { width: auto; padding: 0 28px; }
 
 @media (max-width: 640px) {
   .pi-msg-head { padding: 18px 20px; }

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { EnvelopeIcon, CloseIcon, MapPinIcon } from './icons';
+import { createLead } from './api';
 
 // ---------------------------------------------------------------------------
 // "Send Message" lightbox (Figma 10199-60873 / 10199-67707). Opens from the
@@ -18,15 +19,19 @@ function ChevronDown({ size = 24 }: { size?: number }) {
   );
 }
 
-function Field({ label, required, type = 'text', textarea }: { label: string; required?: boolean; type?: string; textarea?: boolean }) {
-  const [value, setValue] = useState('');
+function Field({
+  label, required, type = 'text', textarea, value, onChange, disabled,
+}: {
+  label: string; required?: boolean; type?: string; textarea?: boolean;
+  value: string; onChange: (v: string) => void; disabled?: boolean;
+}) {
   const filled = value.trim().length > 0;
   return (
     <label className={`pi-msg-field${textarea ? ' pi-msg-field--area' : ''}${filled ? ' pi-msg-field--filled' : ''}`}>
       {textarea ? (
-        <textarea className="pi-msg-field-input" value={value} onChange={(e) => setValue(e.target.value)} />
+        <textarea className="pi-msg-field-input" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
       ) : (
-        <input className="pi-msg-field-input" type={type} value={value} onChange={(e) => setValue(e.target.value)} />
+        <input className="pi-msg-field-input" type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
       )}
       <span className="pi-msg-field-label">{label}{required && <span className="pi-req">*</span>}</span>
     </label>
@@ -47,6 +52,22 @@ export function MessageModal({
   const [listOpen, setListOpen] = useState(false);
   const [consent, setConsent] = useState(false);
 
+  // Form values + submission state.
+  const [form, setForm] = useState({ first: '', last: '', email: '', mobile: '', message: '' });
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [error, setError] = useState('');
+  const set = (key: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [key]: v }));
+  const submitting = status === 'submitting';
+
+  // Reset the form each time the modal is opened.
+  useEffect(() => {
+    if (!open) return;
+    setForm({ first: '', last: '', email: '', mobile: '', message: '' });
+    setConsent(false);
+    setStatus('idle');
+    setError('');
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -58,6 +79,42 @@ export function MessageModal({
       document.body.style.overflow = prevOverflow;
     };
   }, [open, onClose]);
+
+  async function handleSubmit() {
+    setError('');
+    const first = form.first.trim();
+    const last = form.last.trim();
+    const email = form.email.trim();
+    const mobile = form.mobile.trim();
+    const message = form.message.trim();
+
+    if (!first || !last || !email || !mobile || !message) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (mobile.replace(/\D/g, '').length < 10) {
+      setError('Please enter a valid mobile number.');
+      return;
+    }
+    if (!consent) {
+      setError('Please agree to receive messages to continue.');
+      return;
+    }
+
+    setStatus('submitting');
+    try {
+      await createLead({ first, last, email, phone: mobile, message });
+      setStatus('success');
+    } catch (err) {
+      console.error('[MessageModal] createLead error:', err);
+      setStatus('error');
+      setError('Sorry, we couldn’t send your message. Please try again.');
+    }
+  }
 
   if (!open) return null;
 
@@ -72,6 +129,18 @@ export function MessageModal({
           <button type="button" className="pi-msg-close" aria-label="Close" onClick={onClose}><CloseIcon size={18} /></button>
         </div>
 
+        {status === 'success' ? (
+          <div className="pi-msg-body">
+            <div className="pi-msg-success">
+              <span className="pi-msg-success-icon" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#028a0c" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6.5 9.5 17 4.5 12" /></svg>
+              </span>
+              <p className="pi-msg-success-title">Message sent!</p>
+              <p className="pi-msg-success-text">Thanks for reaching out — a member of our team will be in touch shortly.</p>
+              <button type="button" className="pi-msg-submit" onClick={onClose}>Done</button>
+            </div>
+          </div>
+        ) : (
         <div className="pi-msg-body">
           {/* Facility: dropdown (unselected) or name + address (selected) */}
           <div className="pi-msg-facility-area">
@@ -109,17 +178,19 @@ export function MessageModal({
           <div className="pi-msg-form">
             <p className="pi-msg-note">fields marked with <span className="pi-req">*</span> are mandatory</p>
             <div className="pi-msg-row">
-              <Field label="First Name" required />
-              <Field label="Last Name" required />
+              <Field label="First Name" required value={form.first} onChange={set('first')} disabled={submitting} />
+              <Field label="Last Name" required value={form.last} onChange={set('last')} disabled={submitting} />
             </div>
             <div className="pi-msg-row">
-              <Field label="Email" required type="email" />
-              <Field label="Mobile" required type="tel" />
+              <Field label="Email" required type="email" value={form.email} onChange={set('email')} disabled={submitting} />
+              <Field label="Mobile" required type="tel" value={form.mobile} onChange={set('mobile')} disabled={submitting} />
             </div>
-            <Field label="Leave us a Message" required textarea />
+            <Field label="Leave us a Message" required textarea value={form.message} onChange={set('message')} disabled={submitting} />
           </div>
         </div>
+        )}
 
+        {status !== 'success' && (
         <div className="pi-msg-foot">
           <label className="pi-msg-consent">
             <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
@@ -135,6 +206,8 @@ export function MessageModal({
           </label>
           <a className="pi-msg-terms" href={termsHref}>Click to see our Terms and Privacy Policy</a>
 
+          {error && <p className="pi-msg-error" role="alert">{error}</p>}
+
           <div className="pi-msg-actions">
             <div className="pi-msg-captcha" aria-hidden="true">
               <span className="pi-msg-captcha-box" />
@@ -142,11 +215,14 @@ export function MessageModal({
               <span className="pi-msg-captcha-brand">reCAPTCHA</span>
             </div>
             <div className="pi-msg-buttons">
-              <button type="button" className="pi-msg-cancel" onClick={onClose}>Cancel</button>
-              <button type="button" className="pi-msg-submit">Submit</button>
+              <button type="button" className="pi-msg-cancel" onClick={onClose} disabled={submitting}>Cancel</button>
+              <button type="button" className="pi-msg-submit" onClick={handleSubmit} disabled={submitting}>
+                {submitting ? 'Sending…' : 'Submit'}
+              </button>
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

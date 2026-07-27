@@ -130,6 +130,63 @@ export async function fetchProperties(): Promise<unknown> {
   return res.json();
 }
 
+// ---------------------------------------------------------------------------
+// Lead creation ("Send us a Message")
+// ---------------------------------------------------------------------------
+
+export interface LeadInput {
+  first: string;
+  last: string;
+  email: string;
+  /** Raw phone as typed; digits are extracted before sending. */
+  phone: string;
+  /** The visitor's message — sent as the lead `content`. */
+  message: string;
+  /** Facility to attach the lead to; defaults to the configured property. */
+  propertyId?: string;
+}
+
+/**
+ * Create an "inquiry" lead from the Send-Message form. Notes:
+ *  - the leads endpoint is on /v1 (not /v2 like the other calls);
+ *  - the message goes in `content` — the API rejects a top-level `notes` field
+ *    (`"notes" is not allowed`), despite the sample curl showing one;
+ *  - source is fixed to "website"; the contact is deduped server-side by email.
+ */
+export async function createLead(input: LeadInput): Promise<unknown> {
+  const url = `${BASE_URL}/applications/${APP_ID}/v1/companies/${COMPANY_ID}/leads/`;
+
+  const body = {
+    source: 'website',
+    property_id: input.propertyId || PROPERTY_ID,
+    lead_type: 'inquiry',
+    subject: 'Website Inquiry',
+    content: input.message,
+    Contact: {
+      first: input.first,
+      last: input.last,
+      email: input.email,
+      Phones: [{ phone: input.phone.replace(/\D/g, ''), sms: true, type: 'Cell' }],
+    },
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
+      'x-storageapi-key': API_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    throw new Error(`createLead failed: ${res.status} ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
 /** Pull the properties array out of the nested response and find ours by id. */
 export function findProperty(raw: unknown, propertyId: string = PROPERTY_ID): PropertyDetails | null {
   const response = raw as ApiResponse;
