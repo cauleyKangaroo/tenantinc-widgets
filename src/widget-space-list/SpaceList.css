@@ -1754,7 +1754,9 @@
 .sl-wrapper .sl-sa-body .sl-section--nearby,
 .sl-wrapper .sl-sa-body .sl-section--sizeguide,
 .sl-wrapper .sl-sa-body .sl-section--blog,
-.sl-wrapper .sl-sa-body .sl-section--faqs {
+.sl-wrapper .sl-sa-body .sl-section--faqs,
+.sl-wrapper .sl-sa-body .sl-section--features,
+.sl-wrapper .sl-sa-body .sl-section--notes {
   padding: 24px;
   box-shadow: none;
   border-radius: 0;
@@ -1775,8 +1777,79 @@
   .sl-wrapper .sl-sa-body .sl-section--nearby,
   .sl-wrapper .sl-sa-body .sl-section--sizeguide,
   .sl-wrapper .sl-sa-body .sl-section--blog,
-  .sl-wrapper .sl-sa-body .sl-section--faqs { padding: 16px; }
+  .sl-wrapper .sl-sa-body .sl-section--faqs,
+  .sl-wrapper .sl-sa-body .sl-section--features,
+  .sl-wrapper .sl-sa-body .sl-section--notes { padding: 16px; }
 }
+
+/* ===========================================================================
+   FEATURES & AMENITIES SECTION  (.sl-feat-*)  — Figma 6411-130529
+   =========================================================================== */
+.sl-wrapper .sl-feat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+}
+.sl-wrapper .sl-feat-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  background-color: #f26500;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.sl-wrapper .sl-feat-tile-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+.sl-wrapper .sl-feat-tile-label {
+  position: relative;
+  z-index: 1;
+  padding: 12px 14px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* ===========================================================================
+   NOTES SECTION  (.sl-notes-*)  — Figma 10199-55239
+   =========================================================================== */
+.sl-wrapper .sl-notes-card {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sl-wrapper .sl-notes-text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.25;
+  color: #000000;
+}
+.sl-wrapper .sl-notes-block { display: flex; flex-direction: column; gap: 4px; }
+.sl-wrapper .sl-notes-heading {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #000000;
+}
+.sl-wrapper .sl-notes-link {
+  font-size: 16px;
+  line-height: 1.25;
+  color: #306fb6;
+  text-decoration: none;
+  word-break: break-word;
+}
+.sl-wrapper .sl-notes-link:hover { text-decoration: underline; }
 
 /* ===========================================================================
    REVIEWS SECTION v2  (.sl-rv2-*)
