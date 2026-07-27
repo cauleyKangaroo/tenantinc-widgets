@@ -66,6 +66,75 @@ function PromoCard({ promo }: { promo: Promo }) {
 }
 
 // ---------------------------------------------------------------------------
+// Active promotion bar — a single bar, or a 5s auto-advancing carousel with
+// clickable arrows when there are multiple promotions.
+// ---------------------------------------------------------------------------
+
+interface BarItem { id: string; title: string; info?: string; url: string; ctaLabel: string; }
+
+const AUTO_ADVANCE_MS = 5000;
+
+function PromoBar({ items }: { items: BarItem[] }) {
+  const [current, setCurrent] = useState(0);
+  const many = items.length > 1;
+  const go = (i: number) => setCurrent((i + items.length) % items.length);
+
+  // Auto-advance every 5s; the `current` dep resets the timer after any manual
+  // navigation so the next auto-advance is a fresh 5s away.
+  useEffect(() => {
+    if (!many) return;
+    const t = setInterval(() => setCurrent((c) => (c + 1) % items.length), AUTO_ADVANCE_MS);
+    return () => clearInterval(t);
+  }, [many, items.length, current]);
+
+  const item = items[current] ?? items[0];
+
+  return (
+    <div className={`promo-bar-carousel${many ? ' promo-bar-carousel--multi' : ''}`}>
+      {many && (
+        <button
+          className="promo-bar-arrow promo-bar-arrow--prev"
+          aria-label="Previous promotion"
+          onClick={() => go(current - 1)}
+        >
+          <ChevronRight size={24} />
+        </button>
+      )}
+
+      <div className="promo-bar" key={`${item.id}-${current}`}>
+        <div className="promo-bar-inner">
+          <div className="promo-bar-titlerow">
+            <TagIcon size={48} />
+            <span className="promo-bar-title">{item.title}</span>
+            {item.info ? (
+              <button className="promo-bar-info" aria-label="More information" title={item.info}>
+                <InfoIcon size={36} />
+              </button>
+            ) : (
+              <span className="promo-bar-info"><InfoIcon size={36} /></span>
+            )}
+          </div>
+          <a className="promo-bar-cta" href={item.url}>
+            <ChevronRight size={24} />
+            <span>{item.ctaLabel}</span>
+          </a>
+        </div>
+      </div>
+
+      {many && (
+        <button
+          className="promo-bar-arrow promo-bar-arrow--next"
+          aria-label="Next promotion"
+          onClick={() => go(current + 1)}
+        >
+          <ChevronRight size={24} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
@@ -161,28 +230,16 @@ export function Promotions({
   }
 
   // ── Mode 2: active promotion bar ──────────────────────────────────────
+  // Multiple promotions → auto-advancing carousel with arrows; otherwise a
+  // single bar (explicit barText wins, else the first API promo / demo copy).
   if (view === 'bar') {
+    const barItems: BarItem[] = displayPromos.length > 1
+      ? displayPromos.map((p) => ({ id: p.id, title: p.title, info: p.info, url: p.ctaUrl || barUrl, ctaLabel: p.ctaLabel || barCtaLabel }))
+      : [{ id: 'bar', title: displayBarText, info: displayBarInfo, url: barUrl, ctaLabel: barCtaLabel }];
+
     return (
       <div className="promo-wrapper">
-        <div className="promo-bar">
-          <div className="promo-bar-inner">
-            <div className="promo-bar-titlerow">
-              <TagIcon size={48} />
-              <span className="promo-bar-title">{displayBarText}</span>
-              {displayBarInfo ? (
-                <button className="promo-bar-info" aria-label="More information" title={displayBarInfo}>
-                  <InfoIcon size={36} />
-                </button>
-              ) : (
-                <span className="promo-bar-info"><InfoIcon size={36} /></span>
-              )}
-            </div>
-            <a className="promo-bar-cta" href={barUrl}>
-              <ChevronRight size={24} />
-              <span>{barCtaLabel}</span>
-            </a>
-          </div>
-        </div>
+        <PromoBar items={barItems} />
       </div>
     );
   }
