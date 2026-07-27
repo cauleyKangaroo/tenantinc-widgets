@@ -223,8 +223,8 @@ export function NavigationBar({
   accountLabel = 'My Account',
   accountUrl = '#',
   logoLink = '#',
-  lagunaBeachUrl = '#',
-  bowlingDrUrl = '#',
+  lagunaBeachUrl = 'https://mariposa26-testing.multiscreensite.com/',
+  bowlingDrUrl = 'https://mariposa26-testing.multiscreensite.com/property-landing-page',
   links,
 }: NavigationBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);

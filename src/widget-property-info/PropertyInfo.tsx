@@ -4,6 +4,7 @@ import { fetchProperties, findProperty, type PropertyDetails } from './api';
 import {
   MapPinIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
+  CloseIcon,
 } from './icons';
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,34 @@ function ImageFill({ src, className, alt = '' }: { src: string; className?: stri
   }
   return <img className={className} src={src} alt={alt} />;
 }
+
+// Demo "See all Hours" data (real values come from Duda later, like the other
+// widgets). Desktop shows a full week in two columns (Figma 6485-144634); the
+// mobile modal shows the condensed summary (Figma 6485-144656).
+const HOURS_COLUMNS: { title: string; rows: string[] }[] = [
+  {
+    title: 'Gate Hours',
+    rows: [
+      'Monday: 6:00 AM - 10:00 PM', 'Tuesday: 6:00 AM - 10:00 PM',
+      'Wednesday: 6:00 AM - 10:00 PM', 'Thursday: 6:00 AM - 10:00 PM',
+      'Friday: 6:00 AM - 10:00 PM', 'Saturday: 6:00 AM - 10:00 PM',
+      'Sunday: 6:00 AM - 10:00 PM',
+    ],
+  },
+  {
+    title: 'Office Hours',
+    rows: [
+      'Monday: 6:00 AM - 10:00 PM', 'Tuesday: 6:00 AM - 10:00 PM',
+      'Wednesday: 6:00 AM - 10:00 PM', 'Thursday: 6:00 AM - 10:00 PM',
+      'Friday: 6:00 AM - 10:00 PM', 'Saturday: 6:00 AM - 10:00 PM',
+      'Sunday: 6:00 AM - 10:00 PM',
+    ],
+  },
+];
+const HOURS_MOBILE: { title: string; rows: string[] }[] = [
+  { title: 'Office Hours', rows: ['Mon-Sat: 8:00 AM - 5:00 PM', 'Sun: 10:00 AM - 3:00 PM'] },
+  { title: 'Gate Hours', rows: ['Mon-Sun: 6:00 AM - 10:00 PM'] },
+];
 
 // Gradient placeholders stand in for real facility photos.
 const GALLERY = [
@@ -178,6 +207,16 @@ export function PropertyInfo(props: PropertyInfoProps) {
     </div>
   );
 
+  // Hours modal data: use the API's grouped weekly schedule when present,
+  // otherwise the demo constants. Desktop shows both columns; the mobile
+  // (condensed) modal reuses the same data.
+  const apiHoursColumns = [
+    { title: 'Gate Hours', rows: gateSchedule.map((r) => `${r.days}: ${r.hours}`) },
+    { title: 'Office Hours', rows: officeSchedule.map((r) => `${r.days}: ${r.hours}`) },
+  ].filter((c) => c.rows.length > 0);
+  const hoursDesktop = apiHoursColumns.length ? apiHoursColumns : HOURS_COLUMNS;
+  const hoursSummary = apiHoursColumns.length ? apiHoursColumns : HOURS_MOBILE;
+
   // Build the slide list from real images (hero first, then the others),
   // falling back to gradient placeholders so the editor/demo still shows something.
   const provided = [heroImage, ...(images ?? [])].filter(Boolean) as string[];
@@ -199,6 +238,58 @@ export function PropertyInfo(props: PropertyInfoProps) {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [lightbox]);
+
+  // Hours modal: Esc closes; lock background scroll while open.
+  useEffect(() => {
+    if (!hoursOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setHoursOpen(false); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [hoursOpen]);
+
+  const hoursModal = hoursOpen && (
+    <div className="pi-hours-overlay" onMouseDown={() => setHoursOpen(false)}>
+      <div
+        className="pi-hours-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Hours"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="pi-hours-head">
+          <span className="pi-hours-title"><ClockIcon size={24} /><span>Hours</span></span>
+          <button type="button" className="pi-hours-close" aria-label="Close" onClick={() => setHoursOpen(false)}>
+            <CloseIcon size={18} />
+          </button>
+        </div>
+        <div className="pi-hours-body">
+          {/* Desktop: full week, two columns */}
+          <div className="pi-hours-cols">
+            {hoursDesktop.map((col) => (
+              <div className="pi-hours-col" key={col.title}>
+                <p className="pi-hours-col-title">{col.title}</p>
+                {col.rows.map((r) => <p className="pi-hours-line" key={r}>{r}</p>)}
+              </div>
+            ))}
+          </div>
+          {/* Mobile: condensed summary */}
+          <div className="pi-hours-summary">
+            {hoursSummary.map((g) => (
+              <div className="pi-hours-group" key={g.title}>
+                <p className="pi-hours-col-title">{g.title}</p>
+                {g.rows.map((r) => <p className="pi-hours-line" key={r}>{r}</p>)}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const breadcrumbNav = (
     <nav className="pi-breadcrumb" aria-label="Breadcrumb">
@@ -308,30 +399,9 @@ export function PropertyInfo(props: PropertyInfoProps) {
               <span><span className={officeStatusClass}>{displayOfficeStatus}</span>{hoursText(displayOfficeNote)}</span>
             </div>
             <div className="pi-contact-row pi-contact-row--indent">
-              <button type="button" className="pi-underline pi-see-hours" onClick={() => setHoursOpen((o) => !o)}>
-                {hoursOpen ? 'Hide Hours' : 'See all Hours'}
-              </button>
+              <a className="pi-underline pi-see-hours" href="#"
+                onClick={(e) => { e.preventDefault(); setHoursOpen(true); }}>See all Hours</a>
             </div>
-            {hoursOpen && (gateSchedule.length > 0 || officeSchedule.length > 0) && (
-              <div className="pi-hours-detail pi-contact-row--indent">
-                {gateSchedule.length > 0 && (
-                  <div className="pi-hours-block">
-                    <p className="pi-hours-heading">Gate Hours</p>
-                    {gateSchedule.map((row) => (
-                      <p key={row.days} className="pi-hours-line"><span>{row.days}</span><span>{row.hours}</span></p>
-                    ))}
-                  </div>
-                )}
-                {officeSchedule.length > 0 && (
-                  <div className="pi-hours-block">
-                    <p className="pi-hours-heading">Office Hours</p>
-                    {officeSchedule.map((row) => (
-                      <p key={row.days} className="pi-hours-line"><span>{row.days}</span><span>{row.hours}</span></p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -452,7 +522,8 @@ export function PropertyInfo(props: PropertyInfoProps) {
         <p><span className={gateStatusClass}>{displayGateStatus}</span>{hoursText(displayGateNote)}</p>
         <p><span className={officeStatusClass}>{displayOfficeStatus}</span>{hoursText(displayOfficeNote)}</p>
         <p><span className="pi-status pi-status--open">{supportStatus}</span> ({supportNote})</p>
-        <a className="pi-m-seehours pi-underline" href="#">See all Hours</a>
+        <a className="pi-m-seehours pi-underline" href="#"
+          onClick={(e) => { e.preventDefault(); setHoursOpen(true); }}>See all Hours</a>
       </div>
     </div>
   );
@@ -464,6 +535,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
       </div>
       {mobile}
       {lightboxEl}
+      {hoursModal}
     </div>
   );
 }

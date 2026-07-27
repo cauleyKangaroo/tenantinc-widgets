@@ -48,6 +48,15 @@ export function ClockIcon({ size = 24 }: { size?: number }) {
   );
 }
 
+// Close (×) — mdiClose, used by the Hours modal.
+export function CloseIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
 export function CalendarCheckIcon({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
