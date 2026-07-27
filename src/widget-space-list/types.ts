@@ -44,6 +44,8 @@ export interface Unit {
   adminFee?: number;
   /** Optional promo badge text */
   promo?: string;
+  /** Allocated promotion id — matches the Promotions widget's promo id for cross-widget filtering */
+  promoId?: string;
   /** Promotion categories this unit qualifies for — matched against the Promotions filter checkboxes */
   promotions?: string[];
   /** Optional urgency line, e.g. "Only 1 left · Rent soon!" */

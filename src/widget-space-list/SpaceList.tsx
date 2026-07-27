@@ -21,6 +21,7 @@ import { ReorderModal } from './components/ReorderModal';
 import { SkeletonLoader } from './components/SkeletonLoader';
 import { ACCORDION_SECTIONS, type AccordionConfig } from './accordionSections';
 import { instanceKey, readAccordionConfig, saveAccordionConfig } from './accordionConfigApi';
+import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, type PromoSelection } from '@shared/promoBus';
 
 export function SpaceList({
   layoutMode = 'grid',
@@ -91,6 +92,28 @@ export function SpaceList({
   const [panelOpen, setPanelOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Cross-widget promo filter: the Promotions widget's "See Qualifying Units"
+  // sets this (event + URL param) to narrow the list to one promotion's units.
+  const [promoId, setPromoId] = useState<string | null>(() => readPromoFromUrl());
+  const [promoTitleFromEvent, setPromoTitleFromEvent] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onShowPromo = (e: Event) => {
+      const detail = (e as CustomEvent<PromoSelection>).detail;
+      if (!detail) return;
+      setPromoId(detail.promoId);
+      setPromoTitleFromEvent(detail.promoTitle);
+    };
+    window.addEventListener(PROMO_EVENT, onShowPromo);
+    return () => window.removeEventListener(PROMO_EVENT, onShowPromo);
+  }, []);
+
+  function clearPromoFilter() {
+    setPromoId(null);
+    setPromoTitleFromEvent(null);
+    clearPromoInUrl();
+  }
+
   // Per-instance accordion arrangement (order + hidden). Read from Duda on
   // mount (step: collections read); null until then = default order, none hidden.
   const [accordionConfig, setAccordionConfig] = useState<AccordionConfig | null>(null);
@@ -157,13 +180,21 @@ export function SpaceList({
   }, [units, filters.types]);
 
   const visibleUnits = useMemo(() => {
-    const filtered = filterUnits(units, filters, searchTerm);
+    let filtered = filterUnits(units, filters, searchTerm);
+    // Cross-widget promo filter: only units allocated to the selected promotion.
+    if (promoId) filtered = filtered.filter((u) => u.promoId === promoId);
     // Unavailable (waitlist) units are hidden unless the waitlist feature is on;
     // when on they render with a "Join waitlist" CTA (see Pricing/CtaButton).
     return enableWaitlist ? filtered : filtered.filter((u) => u.availability !== 'waitlist');
-  }, [units, filters, searchTerm, enableWaitlist]);
+  }, [units, filters, searchTerm, enableWaitlist, promoId]);
   const badge = activeFilterCount(filters);
   const totalVacant = units.reduce((sum, u) => sum + (u.vacantCount ?? 0), 0);
+
+  // Title for the active-promo banner: the event's title, else the promo name
+  // carried on any matching unit (covers deep-links where only the id is known).
+  const promoTitle = promoId
+    ? (promoTitleFromEvent || units.find((u) => u.promoId === promoId)?.promo || 'Selected Promotion')
+    : null;
 
   const sectionPanel = (
     <SectionAccordion
@@ -218,6 +249,21 @@ export function SpaceList({
         {apLocation === 'left' && sectionPanel}
         <main className="sl-listing-area">
           {topBar}
+          {promoId && (
+            <div className="sl-promo-banner">
+              <span className="sl-promo-banner-tag">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M21.41 11.58l-9-9A2 2 0 0011 2H4a2 2 0 00-2 2v7a2 2 0 00.59 1.42l9 9a2 2 0 002.82 0l7-7a2 2 0 000-2.84zM6.5 8A1.5 1.5 0 115 6.5 1.5 1.5 0 016.5 8z" />
+                </svg>
+                <span className="sl-promo-banner-text">
+                  Showing spaces with <strong>{promoTitle}</strong>
+                </span>
+              </span>
+              <button type="button" className="sl-promo-banner-clear" onClick={clearPromoFilter}>
+                Clear
+              </button>
+            </div>
+          )}
           {loading ? (
             <SkeletonLoader />
           ) : layoutMode === 'list' ? (

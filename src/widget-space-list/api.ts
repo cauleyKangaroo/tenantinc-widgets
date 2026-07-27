@@ -44,6 +44,7 @@ interface ApiTier {
   vacant: { count: number; min_price: number | null; max_price: number | null };
   amenities: ApiAmenity[];
   space_type_associations: ApiSpaceTypeAssociation[];
+  allocated_promo?: { id?: string; name?: string } | Record<string, never>;
 }
 
 interface ApiGroup {
@@ -132,6 +133,9 @@ export function mapApiToUnits(raw: unknown): Unit[] {
         const inStorePrice = tier.set_rate ?? tier.units?.max_price ?? 0;
         const vacantCount = tier.vacant?.count ?? 0;
 
+        // Promotion allocated to this tier (matched against the Promotions widget).
+        const promo = tier.allocated_promo && 'id' in tier.allocated_promo ? tier.allocated_promo : null;
+
         units.push({
           id: tier.id,
           type,
@@ -147,6 +151,8 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           image: spaceImageFor({ type, dimensions: tier.description, size, subtype }),
           inStorePrice,
           startingPrice,
+          promoId: promo?.id,
+          promo: promo?.name || undefined,
         });
       }
     }

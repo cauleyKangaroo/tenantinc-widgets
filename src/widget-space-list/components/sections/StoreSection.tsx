@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SOCIAL_ICONS } from '@shared/socialIcons';
 import type { HoursStatus, ScheduleRow } from '@shared/accessHours';
+
+function CloseIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
+}
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -67,15 +75,6 @@ function ChevronDownIcon({ rotated }: { rotated?: boolean }) {
 
 // Social icons live in @shared/socialIcons (imported above) so #05 and #03 match.
 
-// ── Hours data ────────────────────────────────────────────────────────────────
-
-const OFFICE_HOURS = [
-  { day: 'Monday – Friday', hours: '8:30am – 6:00pm' },
-  { day: 'Saturday',        hours: '8:30am – 5:00pm' },
-  { day: 'Sunday',          hours: '10:00am – 4:00pm' },
-];
-const GATE_HOURS = '6:00am – 11:30pm';
-
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function StarRatingInput() {
@@ -115,7 +114,25 @@ interface StoreSectionProps {
   hours?: { office: HoursStatus | null; gate: HoursStatus | null };
   /** Grouped weekly schedule per section for "See all Hours". */
   schedule?: { office: ScheduleRow[]; gate: ScheduleRow[] };
+  /** Per-type day-by-day schedule for the "See all Hours" popup. */
+  scheduleSections?: { title: string; rows: ScheduleRow[] }[];
 }
+
+// Demo per-day hours shown in the popup until the API supplies real ones.
+const DEMO_HOURS_SECTIONS: { title: string; rows: { days: string; hours: string }[] }[] = [
+  { title: 'Gate Hours', rows: [
+    { days: 'Monday', hours: '6:00am – 11:30pm' }, { days: 'Tuesday', hours: '6:00am – 11:30pm' },
+    { days: 'Wednesday', hours: '6:00am – 11:30pm' }, { days: 'Thursday', hours: '6:00am – 11:30pm' },
+    { days: 'Friday', hours: '6:00am – 11:30pm' }, { days: 'Saturday', hours: '6:00am – 11:30pm' },
+    { days: 'Sunday', hours: '6:00am – 11:30pm' },
+  ] },
+  { title: 'Office Hours', rows: [
+    { days: 'Monday', hours: '8:30am – 6:00pm' }, { days: 'Tuesday', hours: '8:30am – 6:00pm' },
+    { days: 'Wednesday', hours: '8:30am – 6:00pm' }, { days: 'Thursday', hours: '8:30am – 6:00pm' },
+    { days: 'Friday', hours: '8:30am – 6:00pm' }, { days: 'Saturday', hours: '8:30am – 5:00pm' },
+    { days: 'Sunday', hours: '10:00am – 4:00pm' },
+  ] },
+];
 
 // Default contact numbers shown until the API supplies real ones.
 const DEMO_PHONES = [
@@ -123,13 +140,13 @@ const DEMO_PHONES = [
   { number: '(877) 847-9487', note: 'Existing Customer' },
 ];
 
-export function StoreSection({ phones, socials, hours, schedule }: StoreSectionProps = {}) {
-  const [hoursExpanded, setHoursExpanded] = useState(false);
+export function StoreSection({ phones, socials, hours, scheduleSections }: StoreSectionProps = {}) {
+  const [hoursOpen, setHoursOpen] = useState(false);
   const [reservationCode, setReservationCode] = useState('');
 
   const phoneList = phones && phones.length ? phones : DEMO_PHONES;
 
-  // Live gate/office status + schedule from AccessHours; demo text until loaded.
+  // Live gate/office status from AccessHours; demo text until loaded.
   const gate = hours?.gate;
   const office = hours?.office;
   const gateStatusText = gate?.label ?? 'Gate Open';
@@ -138,9 +155,18 @@ export function StoreSection({ phones, socials, hours, schedule }: StoreSectionP
   const officeStatusNote = office?.note ?? 'Opens 8:30am';
   const gateStatusCls = `sl-pi-status--${gate ? (gate.isOpen ? 'open' : 'closed') : 'open'}`;
   const officeStatusCls = `sl-pi-status--${office ? (office.isOpen ? 'open' : 'closed') : 'closed'}`;
-  const gateSchedule = schedule?.gate ?? [];
-  const officeSchedule = schedule?.office ?? [];
-  const hasApiSchedule = gateSchedule.length > 0 || officeSchedule.length > 0;
+  // Full per-type, day-by-day schedule for the popup; demo until the API loads.
+  const hoursSections = scheduleSections && scheduleSections.length ? scheduleSections : DEMO_HOURS_SECTIONS;
+
+  // Esc closes the hours popup; lock background scroll while open.
+  useEffect(() => {
+    if (!hoursOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setHoursOpen(false); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+  }, [hoursOpen]);
 
   // Map API platforms → icon (API sends "twitter"; icon key is "x").
   const socialUrlByKey = new Map<string, string>();
@@ -195,38 +221,36 @@ export function StoreSection({ phones, socials, hours, schedule }: StoreSectionP
             {officeStatusNote && <span className="sl-pi-status-detail"> ({officeStatusNote})</span>}
           </p>
 
-          <button className="sl-pi-see-hours" onClick={() => setHoursExpanded((e) => !e)}>
-            <ChevronDownIcon rotated={hoursExpanded} />
+          <button className="sl-pi-see-hours" onClick={() => setHoursOpen(true)}>
+            <ChevronDownIcon rotated={false} />
             See all Hours
           </button>
-
-          {hoursExpanded && (
-            <div className="sl-pi-hours-detail">
-              {hasApiSchedule ? (
-                <>
-                  <p className="sl-pi-hours-label">Gate Hours</p>
-                  {gateSchedule.map((row) => (
-                    <p key={row.days} className="sl-pi-hours-line">{row.days}: {row.hours}</p>
-                  ))}
-                  <p className="sl-pi-hours-label">Office Hours</p>
-                  {officeSchedule.map((row) => (
-                    <p key={row.days} className="sl-pi-hours-line">{row.days}: {row.hours}</p>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <p className="sl-pi-hours-label">Office Hours</p>
-                  {OFFICE_HOURS.map((row) => (
-                    <p key={row.day} className="sl-pi-hours-line">{row.day}: {row.hours}</p>
-                  ))}
-                  <p className="sl-pi-hours-label">Gate Hours</p>
-                  <p className="sl-pi-hours-line">Daily: {GATE_HOURS}</p>
-                </>
-              )}
-            </div>
-          )}
         </div>
       </div>
+
+      {/* ── Hours popup ── */}
+      {hoursOpen && (
+        <div className="sl-hours-overlay" onMouseDown={() => setHoursOpen(false)}>
+          <div className="sl-hours-modal" role="dialog" aria-modal="true" aria-label="Hours" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="sl-hours-head">
+              <span className="sl-hours-title"><ClockIcon /><span>Hours</span></span>
+              <button type="button" className="sl-hours-close" aria-label="Close" onClick={() => setHoursOpen(false)}>
+                <CloseIcon />
+              </button>
+            </div>
+            <div className="sl-hours-body">
+              {hoursSections.map((sec) => (
+                <div className="sl-hours-col" key={sec.title}>
+                  <p className="sl-hours-col-title">{sec.title}</p>
+                  {sec.rows.map((r) => (
+                    <p className="sl-hours-line" key={r.days}>{r.days}: {r.hours}</p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Rate and Review ── */}
       <div className="sl-pi-card">

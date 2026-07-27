@@ -30,3 +30,14 @@ export const SIZE_IMAGES: Record<string, string> = {
 
 /** Ready-to-use CSS `background` value that covers the box with the image. */
 export const cover = (img: string): string => `url(${img}) center / cover no-repeat`;
+
+/**
+ * CSS background for a property card: the real API image when present, else a
+ * cycled placeholder. `index` picks the placeholder (modulo-safe for any count).
+ */
+export function propertyImage(apiUrl: string | undefined | null, index: number): string {
+  const src = apiUrl && apiUrl.trim()
+    ? apiUrl
+    : PROPERTY_IMAGES[((index % PROPERTY_IMAGES.length) + PROPERTY_IMAGES.length) % PROPERTY_IMAGES.length];
+  return cover(src);
+}

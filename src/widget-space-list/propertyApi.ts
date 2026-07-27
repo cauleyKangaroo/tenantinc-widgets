@@ -1,6 +1,6 @@
 import cfg from './config.json';
 import {
-  computeStatus, formatSchedule,
+  computeStatus, formatSchedule, formatScheduleByDay,
   type AccessHoursSection, type HoursStatus, type ScheduleRow,
 } from '@shared/accessHours';
 
@@ -71,6 +71,9 @@ export interface PropertyExtras {
   hours: { office: HoursStatus | null; gate: HoursStatus | null };
   /** Grouped weekly schedule per section for "See all Hours". */
   schedule: { office: ScheduleRow[]; gate: ScheduleRow[] };
+  /** One entry per enabled AccessHours type (Gate / Office / Call Center / …),
+   *  listed day-by-day, for the "See all Hours" popup. */
+  scheduleSections: { title: string; rows: ScheduleRow[] }[];
 }
 
 /** "18888888888" → "(888) 888-8888"; leaves anything unrecognized as-is. */
@@ -143,5 +146,21 @@ export function extractPropertyExtras(raw: unknown, propertyId: string = PROPERT
     gate: formatSchedule(gateSection),
   };
 
-  return { name: prop.name ?? '', phones, socials, faqs, hours, schedule };
+  // Per enabled type, listed day-by-day, for the "See all Hours" popup.
+  const TYPE_LABELS: Record<string, string> = {
+    gate: 'Gate Hours', office: 'Office Hours', call_center: 'Call Center Hours',
+  };
+  const TYPE_ORDER = ['gate', 'office', 'call_center'];
+  const titleFor = (type: string) =>
+    TYPE_LABELS[type] ?? `${type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} Hours`;
+  const scheduleSections = access
+    .map((s) => ({ type: s.type, title: titleFor(s.type), rows: formatScheduleByDay(s) }))
+    .filter((s) => s.rows.length > 0)
+    .sort((a, b) => {
+      const ai = TYPE_ORDER.indexOf(a.type); const bi = TYPE_ORDER.indexOf(b.type);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    })
+    .map(({ title, rows }) => ({ title, rows }));
+
+  return { name: prop.name ?? '', phones, socials, faqs, hours, schedule, scheduleSections };
 }
