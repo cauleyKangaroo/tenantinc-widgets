@@ -76,6 +76,41 @@ img.promo-banner-img {
 
 /* ── Mode 2: active promotion bar ───────────────────────────────────────── */
 
+/* Bar carousel (multiple promotions): arrows flank the bar; 5s auto-advance. */
+.promo-bar-carousel {
+  width: 100%;
+  max-width: 1314px;
+  margin: 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.promo-bar-carousel .promo-bar {
+  max-width: none;
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.promo-bar-arrow {
+  flex: 0 0 auto;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--color_1, #509e2f);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.promo-bar-arrow:hover { background: rgba(80, 158, 47, 0.1); }
+.promo-bar-arrow--prev svg { transform: rotate(180deg); }
+.promo-bar-carousel--multi .promo-bar { animation: promo-bar-fade 0.35s ease; }
+@keyframes promo-bar-fade { from { opacity: 0.35; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .promo-bar-carousel--multi .promo-bar { animation: none; }
+}
+
 .promo-bar {
   width: 100%;
   max-width: 1314px;

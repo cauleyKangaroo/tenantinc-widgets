@@ -18,6 +18,10 @@ import size5x5 from './assets/demo/size-5x5.jpg';
 import size5x10 from './assets/demo/size-5x10.jpg';
 import size10x20 from './assets/demo/size-10x20.jpg';
 import size10x30 from './assets/demo/size-10x30.jpg';
+import amenityDriveup from './assets/demo/amenity-driveup.jpg';
+import amenityVideo from './assets/demo/amenity-video.jpg';
+import amenityElevator from './assets/demo/amenity-elevator.jpg';
+import amenityLock from './assets/demo/amenity-lock.jpg';
 
 export const BLOG_IMAGES: string[] = [blog1, blog2, blog3, blog4, blog5, blog6];
 export const PROPERTY_IMAGES: string[] = [property1, property2, property3, property4, property5, property6];
@@ -26,6 +30,14 @@ export const SIZE_IMAGES: Record<string, string> = {
   '5x10': size5x10,
   '10x20': size10x20,
   '10x30': size10x30,
+};
+
+/** Demo photos for the Features & Amenities accordion tiles. */
+export const AMENITY_IMAGES: Record<string, string> = {
+  driveup: amenityDriveup,
+  video: amenityVideo,
+  elevator: amenityElevator,
+  lock: amenityLock,
 };
 
 /** Ready-to-use CSS `background` value that covers the box with the image. */

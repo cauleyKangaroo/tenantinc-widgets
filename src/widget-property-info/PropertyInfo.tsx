@@ -6,6 +6,7 @@ import {
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
   CloseIcon,
 } from './icons';
+import { MessageModal } from './MessageModal';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -135,6 +136,7 @@ export function PropertyInfo(props: PropertyInfoProps) {
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
   const [hoursOpen, setHoursOpen] = useState(false);
+  const [messageOpen, setMessageOpen] = useState(false);
 
   // Live property details from the API; null until loaded (or on failure),
   // in which case the props/DEFAULTS above keep rendering unchanged.
@@ -383,7 +385,8 @@ export function PropertyInfo(props: PropertyInfoProps) {
             ))}
           </div>
 
-          <a className="pi-contact-row" href={messageHref}>
+          <a className="pi-contact-row" href={messageHref}
+            onClick={(e) => { e.preventDefault(); setMessageOpen(true); }}>
             <EnvelopeIcon size={24} />
             <span className="pi-underline">Send us a Message</span>
           </a>
@@ -498,7 +501,8 @@ export function PropertyInfo(props: PropertyInfoProps) {
           <span className="pi-m-circle"><PhoneIcon size={24} /></span>
           <span className="pi-m-circle-label">Phone</span>
         </a>
-        <a className="pi-m-circle-item" href={messageHref}>
+        <a className="pi-m-circle-item" href={messageHref}
+          onClick={(e) => { e.preventDefault(); setMessageOpen(true); }}>
           <span className="pi-m-circle"><EnvelopeIcon size={24} /></span>
           <span className="pi-m-circle-label">Email</span>
         </a>
@@ -534,6 +538,11 @@ export function PropertyInfo(props: PropertyInfoProps) {
       {mobile}
       {lightboxEl}
       {hoursModal}
+      <MessageModal
+        open={messageOpen}
+        onClose={() => setMessageOpen(false)}
+        facilities={[{ name: displayName, address: displayAddress }]}
+      />
     </div>
   );
 }
