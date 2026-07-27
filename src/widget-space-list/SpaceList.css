@@ -259,6 +259,45 @@
   flex-direction: column;
   gap: 20px;
 }
+
+/* Active-promo banner (set by the Promotions widget's "See Qualifying Units"). */
+.sl-wrapper .sl-promo-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #eef7ea;
+  border: 1px solid #cfe6c4;
+}
+.sl-wrapper .sl-promo-banner-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #101318;
+}
+.sl-wrapper .sl-promo-banner-tag svg { color: #509e2f; flex: 0 0 auto; }
+.sl-wrapper .sl-promo-banner-text {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+}
+.sl-wrapper .sl-promo-banner-text strong { font-weight: 700; }
+.sl-wrapper .sl-promo-banner-clear {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #101318;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px 6px;
+  flex: 0 0 auto;
+}
+.sl-wrapper .sl-promo-banner-clear:hover { color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-page-title {
   font-family: 'Montserrat', sans-serif;
   font-size: 32px;
@@ -2486,6 +2525,58 @@
 .sl-wrapper .sl-pi-see-hours:hover {
   color: var(--color_1, #f45f30);
 }
+
+/* ── "See all Hours" popup ─────────────────────────────────────────────── */
+.sl-hours-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(16, 19, 24, 0.55);
+  animation: sl-hours-fade 0.15s ease-out;
+}
+.sl-hours-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
+  font-family: 'Montserrat', sans-serif;
+  animation: sl-hours-pop 0.15s ease-out;
+}
+@keyframes sl-hours-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sl-hours-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.sl-hours-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 20px 24px;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.sl-hours-title { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; color: #101318; }
+.sl-hours-title svg { flex: 0 0 auto; color: #101318; }
+.sl-hours-close {
+  flex: 0 0 auto;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; border: none; background: none; border-radius: 6px;
+  color: #101318; cursor: pointer;
+}
+.sl-hours-close:hover { background: #f4f6f8; }
+.sl-hours-body { padding: 28px 24px; display: flex; gap: 30px; flex-wrap: wrap; }
+.sl-hours-col { flex: 1 1 180px; min-width: 0; }
+.sl-hours-col-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; line-height: 26px; color: #101318; }
+.sl-hours-line { margin: 0; font-size: 15px; font-weight: 400; line-height: 26px; color: #101318; }
 
 /* Star rating */
 .sl-wrapper .sl-pi-stars {

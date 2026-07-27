@@ -168,8 +168,6 @@ export function PropertyInfo(props: PropertyInfoProps) {
   const displayOfficeNote = office?.note ?? officeNote;
   const gateStatusClass = `pi-status pi-status--${gate ? (gate.isOpen ? 'open' : 'closed') : 'open'}`;
   const officeStatusClass = `pi-status pi-status--${office ? (office.isOpen ? 'open' : 'closed') : 'closed'}`;
-  const gateSchedule = property?.schedule.gate ?? [];
-  const officeSchedule = property?.schedule.office ?? [];
   // Renders "Label (note)" or just "Label" when the note is empty.
   const hoursText = (note: string) => (note ? ` (${note})` : '');
 
@@ -210,10 +208,10 @@ export function PropertyInfo(props: PropertyInfoProps) {
   // Hours modal data: use the API's grouped weekly schedule when present,
   // otherwise the demo constants. Desktop shows both columns; the mobile
   // (condensed) modal reuses the same data.
-  const apiHoursColumns = [
-    { title: 'Gate Hours', rows: gateSchedule.map((r) => `${r.days}: ${r.hours}`) },
-    { title: 'Office Hours', rows: officeSchedule.map((r) => `${r.days}: ${r.hours}`) },
-  ].filter((c) => c.rows.length > 0);
+  const apiHoursColumns = (property?.scheduleSections ?? []).map((s) => ({
+    title: s.title,
+    rows: s.rows.map((r) => `${r.days}: ${r.hours}`),
+  }));
   const hoursDesktop = apiHoursColumns.length ? apiHoursColumns : HOURS_COLUMNS;
   const hoursSummary = apiHoursColumns.length ? apiHoursColumns : HOURS_MOBILE;
 

@@ -189,7 +189,7 @@ export function SectionAccordion({
     // A few sections take live API data; the rest use their static content.
     content:
       key === 'sizeguide' ? <SizeGuideSection showVideos={showSizeGuideVideos} />
-      : key === 'store'   ? <StoreSection phones={propertyExtras?.phones} socials={propertyExtras?.socials} hours={propertyExtras?.hours} schedule={propertyExtras?.schedule} />
+      : key === 'store'   ? <StoreSection phones={propertyExtras?.phones} socials={propertyExtras?.socials} hours={propertyExtras?.hours} schedule={propertyExtras?.schedule} scheduleSections={propertyExtras?.scheduleSections} />
       : key === 'faq'     ? <FaqsSection faqs={propertyExtras?.faqs} />
       : VISUALS[key].content,
   }));

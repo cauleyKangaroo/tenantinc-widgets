@@ -36,6 +36,10 @@ const DAY_SHORT: Record<string, string> = {
   monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu',
   friday: 'Fri', saturday: 'Sat', sunday: 'Sun',
 };
+const DAY_FULL: Record<string, string> = {
+  monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday',
+  friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday',
+};
 
 /** "09:00:00 AM" → minutes since midnight (0–1439); null if unparseable. */
 function parseTime(t: string): number | null {
@@ -149,4 +153,14 @@ export function formatSchedule(section: AccessHoursSection | undefined): Schedul
   flush();
 
   return rows;
+}
+
+/**
+ * One row per day (Mon→Sun), never grouped — e.g. "Monday: 9:00am – 6:00pm",
+ * "Sunday: Closed". Returns [] when the section is disabled/absent.
+ */
+export function formatScheduleByDay(section: AccessHoursSection | undefined): ScheduleRow[] {
+  if (!section?.enabled || !Array.isArray(section.hours)) return [];
+  const byDay = new Map(section.hours.map((h) => [h.day?.toLowerCase(), h]));
+  return DAY_ORDER.map((day) => ({ days: DAY_FULL[day], hours: dayHoursText(byDay.get(day)) }));
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './Promotions.css';
 import { fetchSpaceGroups, extractPromos, type ApiPromo } from './api';
+import { emitShowPromo, scrollToSpaceList } from '@shared/promoBus';
 import { TagIcon, InfoIcon, ChevronRight } from './icons';
 import promoBanner from './assets/promo-banner.png';
 import promoBannerMobile from './assets/promo-banner-mobile.png';
@@ -47,7 +48,16 @@ function PromoCard({ promo }: { promo: Promo }) {
           <span className="promo-info"><InfoIcon size={24} /></span>
         )}
       </div>
-      <a className="promo-cta" href={promo.ctaUrl}>
+      <a
+        className="promo-cta"
+        href={promo.ctaUrl}
+        onClick={(e) => {
+          // Filter the Space List to this promo's qualifying units and scroll to it.
+          e.preventDefault();
+          emitShowPromo({ promoId: promo.id, promoTitle: promo.title });
+          scrollToSpaceList();
+        }}
+      >
         <ChevronRight size={24} />
         <span>{promo.ctaLabel}</span>
       </a>
