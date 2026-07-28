@@ -126,7 +126,9 @@ const RESOURCES_MENU: NavMenuItem[] = [
 ];
 
 /** Build the default nav, injecting the two Duda-configurable custom links
- *  (Laguna Beach + its "3050 Bowling Dr" facility) under Find Storage › California. */
+ *  (Irvine + its "5281 California" facility) under Find Storage › California.
+ *  The prop names below still say lagunaBeach/bowlingDr — kept as-is so any
+ *  existing Duda JS-tab wiring keeps working; only the labels changed. */
 function buildDefaultLinks(lagunaBeachUrl: string, bowlingDrUrl: string): NavLink[] {
   const findStorageMenu: NavMenuItem[] = FIND_STORAGE_MENU.map((state) =>
     state.label === 'California'
@@ -135,9 +137,9 @@ function buildDefaultLinks(lagunaBeachUrl: string, bowlingDrUrl: string): NavLin
           children: [
             ...(state.children ?? []),
             {
-              label: 'Laguna Beach',
+              label: 'Irvine',
               href: lagunaBeachUrl,
-              children: [{ label: '3050 Bowling Dr', href: bowlingDrUrl }],
+              children: [{ label: '5281 California', href: bowlingDrUrl }],
             },
           ],
         }
@@ -160,9 +162,9 @@ export interface NavigationBarProps {
   logoUrl?: string;
   /** Click destination for the logo (Duda link picker). Default '#'. */
   logoLink?: string;
-  /** Custom link for Find Storage › California › Laguna Beach. Default '#'. */
+  /** Custom link for Find Storage › California › Irvine. */
   lagunaBeachUrl?: string;
-  /** Custom link for Laguna Beach › 3050 Bowling Dr. Default '#'. */
+  /** Custom link for Irvine › 5281 California. */
   bowlingDrUrl?: string;
   /** Colour of the raised logo tile. Default storelocal green. */
   logoBg?: string;
