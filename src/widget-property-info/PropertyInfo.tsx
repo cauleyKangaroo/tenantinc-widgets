@@ -35,9 +35,9 @@ export interface PropertyInfoProps {
   gateNote?: string;
   officeStatus?: string;
   officeNote?: string;
-  /** Third hours line, shown in the mobile layout. */
-  supportStatus?: string;
-  supportNote?: string;
+  /** Third hours line ("Call Center Open"), shown only when the property has one. */
+  callCenterStatus?: string;
+  callCenterNote?: string;
   reservationUrl?: string;
   breadcrumb?: string[];
 }
@@ -127,8 +127,8 @@ export function PropertyInfo(props: PropertyInfoProps) {
     gateNote = DEFAULTS.gateNote,
     officeStatus = DEFAULTS.officeStatus,
     officeNote = DEFAULTS.officeNote,
-    supportStatus = 'Customer Support',
-    supportNote = 'Closes 8:30am',
+    callCenterStatus = 'Call Center Open',
+    callCenterNote = 'Closes 8:30pm',
     reservationUrl = '#',
     breadcrumb = DEFAULTS.breadcrumb,
   } = props;
@@ -136,6 +136,8 @@ export function PropertyInfo(props: PropertyInfoProps) {
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
   const [hoursOpen, setHoursOpen] = useState(false);
+  const [reservationOpen, setReservationOpen] = useState(false);
+  const [reservationCode, setReservationCode] = useState('');
   const [messageOpen, setMessageOpen] = useState(false);
 
   // Live property details from the API; null until loaded (or on failure),
@@ -164,12 +166,20 @@ export function PropertyInfo(props: PropertyInfoProps) {
   // falls back to the static props/DEFAULTS until loaded or when disabled.
   const gate = property?.hours.gate;
   const office = property?.hours.office;
+  const callCenter = property?.hours.callCenter;
   const displayGateStatus = gate?.label ?? gateStatus;
   const displayGateNote = gate?.note ?? gateNote;
   const displayOfficeStatus = office?.label ?? officeStatus;
   const displayOfficeNote = office?.note ?? officeNote;
   const gateStatusClass = `pi-status pi-status--${gate ? (gate.isOpen ? 'open' : 'closed') : 'open'}`;
   const officeStatusClass = `pi-status pi-status--${office ? (office.isOpen ? 'open' : 'closed') : 'closed'}`;
+  // Call centre is "if available": once live data has loaded, show it only when the
+  // property actually has an enabled call_center section; before then (and in the dev
+  // harness, which has no API) fall back to the prop so the line is still previewable.
+  const showCallCenter = property ? !!callCenter : !!callCenterStatus;
+  const displayCallCenterStatus = callCenter?.label ?? callCenterStatus;
+  const displayCallCenterNote = callCenter?.note ?? callCenterNote;
+  const callCenterStatusClass = `pi-status pi-status--${callCenter ? (callCenter.isOpen ? 'open' : 'closed') : 'open'}`;
   // Renders "Label (note)" or just "Label" when the note is empty.
   const hoursText = (note: string) => (note ? ` (${note})` : '');
 
@@ -227,6 +237,14 @@ export function PropertyInfo(props: PropertyInfoProps) {
 
   const prev = () => setIndex((i) => (i - 1 + slides.length) % slides.length);
   const next = () => setIndex((i) => (i + 1) % slides.length);
+
+  // There's no reservation-lookup endpoint yet, so "Go" just follows the
+  // configured reservationUrl (what the old link did). Once a lookup exists,
+  // reservationCode is what it needs.
+  const submitReservation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (reservationUrl && reservationUrl !== '#') window.location.href = reservationUrl;
+  };
 
   useEffect(() => {
     if (!lightbox) return;
@@ -399,6 +417,11 @@ export function PropertyInfo(props: PropertyInfoProps) {
             <div className="pi-contact-row pi-contact-row--indent">
               <span><span className={officeStatusClass}>{displayOfficeStatus}</span>{hoursText(displayOfficeNote)}</span>
             </div>
+            {showCallCenter && (
+              <div className="pi-contact-row pi-contact-row--indent">
+                <span><span className={callCenterStatusClass}>{displayCallCenterStatus}</span>{hoursText(displayCallCenterNote)}</span>
+              </div>
+            )}
             <div className="pi-contact-row pi-contact-row--indent">
               <a className="pi-underline pi-see-hours" href="#"
                 onClick={(e) => { e.preventDefault(); setHoursOpen(true); }}>See all Hours</a>
@@ -432,10 +455,32 @@ export function PropertyInfo(props: PropertyInfoProps) {
                 </span>
               </span>
             </button>
-            <a className="pi-reservation" href={reservationUrl}>
-              <CalendarCheckIcon size={24} />
-              <span className="pi-underline">Find my Reservation</span>
-            </a>
+            {/* Clicking the link swaps it for the reservation-code lookup
+                (Figma 9697-22507); Escape puts the link back. */}
+            {reservationOpen ? (
+              <form className="pi-res-form" onSubmit={submitReservation}>
+                <input
+                  className="pi-res-input"
+                  type="text"
+                  placeholder="Reservation Code"
+                  aria-label="Reservation Code"
+                  value={reservationCode}
+                  autoFocus
+                  onChange={(e) => setReservationCode(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setReservationOpen(false); }}
+                />
+                <button type="submit" className="pi-res-go">Go</button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                className="pi-reservation"
+                onClick={() => setReservationOpen(true)}
+              >
+                <CalendarCheckIcon size={24} />
+                <span className="pi-underline">Find my Reservation</span>
+              </button>
+            )}
           </div>
 
           {/* Map (fake) */}
@@ -523,7 +568,9 @@ export function PropertyInfo(props: PropertyInfoProps) {
       <div className="pi-m-hours">
         <p><span className={gateStatusClass}>{displayGateStatus}</span>{hoursText(displayGateNote)}</p>
         <p><span className={officeStatusClass}>{displayOfficeStatus}</span>{hoursText(displayOfficeNote)}</p>
-        <p><span className="pi-status pi-status--open">{supportStatus}</span> ({supportNote})</p>
+        {showCallCenter && (
+          <p><span className={callCenterStatusClass}>{displayCallCenterStatus}</span>{hoursText(displayCallCenterNote)}</p>
+        )}
         <a className="pi-m-seehours pi-underline" href="#"
           onClick={(e) => { e.preventDefault(); setHoursOpen(true); }}>See all Hours</a>
       </div>
