@@ -38,6 +38,9 @@ export function SpaceList({
   startingAtLabel = 'Starting at',
   promoRateLabel = 'Promo rate',
   showSizeGuideVideos = true,
+  aboutTitle,
+  aboutContent,
+  notesContent,
   inEditor    = false,
   elementId,
   siteId,
@@ -203,6 +206,9 @@ export function SpaceList({
       onReorderClick={() => { setSaveError(null); setReorderOpen(true); }}
       showSizeGuideVideos={showSizeGuideVideos}
       propertyExtras={propertyExtras}
+      aboutTitle={aboutTitle}
+      aboutContent={aboutContent}
+      notesContent={notesContent}
     />
   );
 

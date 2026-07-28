@@ -6,6 +6,7 @@ import { BlogSection } from './sections/BlogSection';
 import { FaqsSection } from './sections/FaqsSection';
 import { StoreSection } from './sections/StoreSection';
 import { NotesSection } from './sections/NotesSection';
+import { AboutSection } from './sections/AboutSection';
 import { FeaturesSection } from './sections/FeaturesSection';
 import {
   ACCORDION_SECTIONS,
@@ -115,6 +116,7 @@ const VISUALS: Record<AccordionKey, AccordionVisual> = {
   blog:      { icon: <IconFile />,     content: <BlogSection /> },
   sizeguide: { icon: <IconScale />,    content: <SizeGuideSection /> },
   notes:     { icon: <IconNote />,     content: <NotesSection /> },
+  about:     { icon: <IconInfo />,     content: <AboutSection /> },
 };
 
 const LABELS: Record<AccordionKey, string> = Object.fromEntries(
@@ -140,6 +142,12 @@ export interface SectionAccordionProps {
   showSizeGuideVideos?: boolean;
   /** Property FAQ / phone / socials from the second API call. Null = use demo data. */
   propertyExtras?: PropertyExtras | null;
+  /** Heading for the About section; blank uses the registry label. */
+  aboutTitle?: string;
+  /** Body copy for the About section. */
+  aboutContent?: string;
+  /** Body copy for the Notes section. */
+  notesContent?: string;
 }
 
 // ── Single accordion row ──────────────────────────────────────────────────────
@@ -172,6 +180,9 @@ export function SectionAccordion({
   onReorderClick,
   showSizeGuideVideos = true,
   propertyExtras = null,
+  aboutTitle,
+  aboutContent,
+  notesContent,
 }: SectionAccordionProps) {
   // Only one section open at a time — opening one closes the currently-open one.
   const [openKey, setOpenKey] = useState<AccordionKey | null>(null);
@@ -183,15 +194,18 @@ export function SectionAccordion({
 
   const items: AccordionItemDef[] = resolveVisibleOrder(allKeys, config).map((key) => ({
     key,
-    label: LABELS[key],
+    // The About heading is editor-editable; everything else uses the registry label.
+    label: key === 'about' ? (aboutTitle?.trim() || LABELS.about) : LABELS[key],
     icon: VISUALS[key].icon,
     badge: VISUALS[key].badge,
-    // A few sections take live API data; the rest use their static content.
+    // A few sections take live API data or editor copy; the rest are static.
     content:
       key === 'sizeguide' ? <SizeGuideSection showVideos={showSizeGuideVideos} />
       : key === 'store'   ? <StoreSection phones={propertyExtras?.phones} socials={propertyExtras?.socials} hours={propertyExtras?.hours} schedule={propertyExtras?.schedule} scheduleSections={propertyExtras?.scheduleSections} facilityName={propertyExtras?.name} />
       : key === 'faq'     ? <FaqsSection faqs={propertyExtras?.faqs} />
       : key === 'features' ? <FeaturesSection amenities={propertyExtras?.amenities} />
+      : key === 'notes'   ? <NotesSection content={notesContent} />
+      : key === 'about'   ? <AboutSection content={aboutContent} />
       : VISUALS[key].content,
   }));
 

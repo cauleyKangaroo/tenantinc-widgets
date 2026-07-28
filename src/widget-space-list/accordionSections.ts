@@ -9,7 +9,7 @@
 
 import type { SpaceListProps } from './types';
 
-export type AccordionKey = 'store' | 'nearby' | 'reviews' | 'faq' | 'blog' | 'sizeguide' | 'notes' | 'features';
+export type AccordionKey = 'store' | 'nearby' | 'reviews' | 'faq' | 'blog' | 'sizeguide' | 'notes' | 'features' | 'about';
 
 export interface AccordionSectionMeta {
   key: AccordionKey;
@@ -28,6 +28,9 @@ export const ACCORDION_SECTIONS: AccordionSectionMeta[] = [
   { key: 'blog',      label: 'Storage Blogs',          enabledBy: 'isBlog' },
   { key: 'sizeguide', label: 'Size Guide',             enabledBy: 'isSizeGuide' },
   { key: 'notes',     label: 'Notes',                  enabledBy: 'isNotes' },
+  // Label is overridable per instance via the `aboutTitle` prop; this is the
+  // fallback and what the reorder modal lists it under.
+  { key: 'about',     label: 'About Storage Units in Irvine', enabledBy: 'isAbout' },
 ];
 
 /**

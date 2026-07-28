@@ -8,11 +8,19 @@ const NOTE_TEXT =
   'you find the right space and answer any questions before your move-in date. ' +
   'Reservations are held for 7 days and there is no obligation to rent.';
 
-export function NotesSection() {
+/** `content` comes from the Duda content menu; blank falls back to the demo copy. */
+export function NotesSection({ content }: { content?: string } = {}) {
+  const text = (content ?? '').trim() || NOTE_TEXT;
+  // Blank-line separated paragraphs, so an editor can add structure from a
+  // plain textarea without needing HTML.
+  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+
   return (
     <section className="sl-section sl-section--notes">
       <div className="sl-notes-card">
-        <p className="sl-notes-text">{NOTE_TEXT}</p>
+        {paragraphs.map((p, i) => (
+          <p className="sl-notes-text" key={i}>{p}</p>
+        ))}
         <div className="sl-notes-block">
           <p className="sl-notes-heading">Visit our other location here:</p>
           <a className="sl-notes-link" href="#">www.propertylandingpage.com</a>

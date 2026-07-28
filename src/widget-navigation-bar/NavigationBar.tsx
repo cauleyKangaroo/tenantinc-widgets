@@ -125,11 +125,40 @@ const RESOURCES_MENU: NavMenuItem[] = [
   { label: 'Customer Service', href: '#' },
 ];
 
-/** Build the default nav, injecting the two Duda-configurable custom links
- *  (Irvine + its "5281 California" facility) under Find Storage › California.
- *  The prop names below still say lagunaBeach/bowlingDr — kept as-is so any
- *  existing Duda JS-tab wiring keeps working; only the labels changed. */
-function buildDefaultLinks(lagunaBeachUrl: string, bowlingDrUrl: string): NavLink[] {
+// HARDCODED destinations for Find Storage › California › Irvine › 5281
+// California. These are deliberately NOT props: Duda's link picker feeds the JS
+// tab an editor URL (mariposa.responsivewebsitebuilder.io/home/site/<id>/…),
+// which used to override the defaults and send visitors into the editor.
+// forceHardcodedLinks() below re-applies these no matter where the nav data came
+// from, so nothing Duda passes can win.
+const IRVINE_URL = 'https://mariposa26-testing.multiscreensite.com/';
+const FACILITY_URL = 'https://mariposa26-testing.multiscreensite.com/property-landing-page';
+const IRVINE_LABEL = 'Irvine';
+const FACILITY_LABEL = '5281 California';
+
+/**
+ * Force the two hardcoded hrefs onto any matching menu entry, at any depth.
+ * Applied to the final link list so it also covers a full `links` override
+ * coming from the Duda JS tab.
+ */
+function forceHardcodedLinks<T extends { label: string; href?: string; children?: T[]; menu?: T[] }>(items: T[]): T[] {
+  return items.map((item) => {
+    const href =
+      item.label === FACILITY_LABEL ? FACILITY_URL
+        : item.label === IRVINE_LABEL ? IRVINE_URL
+          : item.href;
+    return {
+      ...item,
+      href,
+      ...(item.children ? { children: forceHardcodedLinks(item.children) } : null),
+      ...(item.menu ? { menu: forceHardcodedLinks(item.menu) } : null),
+    };
+  });
+}
+
+/** Build the default nav, injecting Irvine + its "5281 California" facility
+ *  under Find Storage › California. */
+function buildDefaultLinks(): NavLink[] {
   const findStorageMenu: NavMenuItem[] = FIND_STORAGE_MENU.map((state) =>
     state.label === 'California'
       ? {
@@ -137,9 +166,9 @@ function buildDefaultLinks(lagunaBeachUrl: string, bowlingDrUrl: string): NavLin
           children: [
             ...(state.children ?? []),
             {
-              label: 'Irvine',
-              href: lagunaBeachUrl,
-              children: [{ label: '5281 California', href: bowlingDrUrl }],
+              label: IRVINE_LABEL,
+              href: IRVINE_URL,
+              children: [{ label: FACILITY_LABEL, href: FACILITY_URL }],
             },
           ],
         }
@@ -162,10 +191,10 @@ export interface NavigationBarProps {
   logoUrl?: string;
   /** Click destination for the logo (Duda link picker). Default '#'. */
   logoLink?: string;
-  /** Custom link for Find Storage › California › Irvine. */
-  lagunaBeachUrl?: string;
-  /** Custom link for Irvine › 5281 California. */
-  bowlingDrUrl?: string;
+  /* Irvine / 5281 California are hardcoded (see IRVINE_URL / FACILITY_URL).
+     The former lagunaBeachUrl + bowlingDrUrl props were removed: Duda's link
+     picker supplied editor URLs through them, which sent visitors into the
+     website builder. Anything the JS tab still passes is simply ignored. */
   /** Colour of the raised logo tile. Default storelocal green. */
   logoBg?: string;
   /** Primary-bar height. 'narrow' = 100px, 'wide' = 180px. Default 'narrow'. */
@@ -225,8 +254,6 @@ export function NavigationBar({
   accountLabel = 'My Account',
   accountUrl = '#',
   logoLink = '#',
-  lagunaBeachUrl = 'https://mariposa26-testing.multiscreensite.com/',
-  bowlingDrUrl = 'https://mariposa26-testing.multiscreensite.com/property-landing-page',
   links,
 }: NavigationBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -243,8 +270,10 @@ export function NavigationBar({
     setMobileOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   const telHref = phoneHref ?? `tel:${phone.replace(/[^0-9+]/g, '')}`;
   const smsHref = smsPhoneHref ?? `tel:${smsPhone.replace(/[^0-9+]/g, '')}`;
-  // Full override via `links`, else the default nav with the Duda custom links injected.
-  const linkList = links ?? buildDefaultLinks(lagunaBeachUrl, bowlingDrUrl);
+  // Full override via `links`, else the default nav. Either way the two
+  // hardcoded destinations are re-applied so a Duda-supplied editor URL can't
+  // replace them.
+  const linkList = forceHardcodedLinks(links ?? buildDefaultLinks());
 
   // Recursively render mobile sub-levels: a leaf is a link; a node with children
   // becomes a nested accordion toggle. Each deeper level indents 16px.

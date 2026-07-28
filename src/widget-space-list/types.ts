@@ -146,7 +146,19 @@ export interface SpaceListProps {
   /** Text for the primary CTA button. Default 'Select'. */
   ctaButtonCopy?: string;
 
+  // ── Editable accordion copy (Duda text inputs) ─────────────────────────────
+  /** Heading of the "About" accordion. Default 'About Storage Units in Irvine'. */
+  aboutTitle?: string;
+  /** Body copy of the "About" accordion. Blank → the section renders nothing. */
+  aboutContent?: string;
+  /** Body copy of the "Notes" accordion. Blank → falls back to the demo note. */
+  notesContent?: string;
+
   // ── AP section visibility toggles ──────────────────────────────────────────
+  // Vestigial: SectionAccordion treats every registered section as a candidate
+  // and visibility is owned by the "Manage accordions" modal. Kept because the
+  // Duda JS tab still passes them and AccordionSectionMeta.enabledBy types
+  // against these keys.
   isReviews?:   boolean;
   isFeatures?:  boolean;
   isNearby?:    boolean;
@@ -156,5 +168,6 @@ export interface SpaceListProps {
   isNotes?:     boolean;
   isFAQ?:       boolean;
   isHours?:     boolean;
+  isAbout?:     boolean;
 }
 
