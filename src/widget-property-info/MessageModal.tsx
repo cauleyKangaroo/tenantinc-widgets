@@ -123,9 +123,9 @@ export function MessageModal({
 
   return (
     <div className="pi-msg-overlay" onMouseDown={onClose}>
-      <div className="pi-msg-modal" role="dialog" aria-modal="true" aria-label="Send Message" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="pi-msg-modal" role="dialog" aria-modal="true" aria-label="Send us a Message" onMouseDown={(e) => e.stopPropagation()}>
         <div className="pi-msg-head">
-          <span className="pi-msg-title"><EnvelopeIcon size={24} /><span>Send Message</span></span>
+          <span className="pi-msg-title"><EnvelopeIcon size={24} /><span>Send us a Message</span></span>
           <button type="button" className="pi-msg-close" aria-label="Close" onClick={onClose}><CloseIcon size={18} /></button>
         </div>
 
@@ -156,13 +156,11 @@ export function MessageModal({
                 )}
               </button>
             ) : (
-              <>
-                <p className="pi-msg-facility-heading">Select Facility</p>
-                <button type="button" className="pi-msg-dd-btn" onClick={() => setListOpen((o) => !o)}>
-                  <span>Select Facility</span>
-                  <ChevronDown size={24} />
-                </button>
-              </>
+              /* Figma 10295-76823: a single "Select Property" field, no heading above it. */
+              <button type="button" className="pi-msg-dd-btn" onClick={() => setListOpen((o) => !o)}>
+                <span>Select Property</span>
+                <ChevronDown size={24} />
+              </button>
             )}
             {listOpen && facilities.length > 0 && (
               <ul className="pi-msg-dd-list">
@@ -175,15 +173,18 @@ export function MessageModal({
             )}
           </div>
 
+          {/* Gaps follow the design: 16px between the name/contact rows, 24px
+              before the message box. */}
           <div className="pi-msg-form">
-            <p className="pi-msg-note">fields marked with <span className="pi-req">*</span> are mandatory</p>
-            <div className="pi-msg-row">
-              <Field label="First Name" required value={form.first} onChange={set('first')} disabled={submitting} />
-              <Field label="Last Name" required value={form.last} onChange={set('last')} disabled={submitting} />
-            </div>
-            <div className="pi-msg-row">
-              <Field label="Email" required type="email" value={form.email} onChange={set('email')} disabled={submitting} />
-              <Field label="Mobile" required type="tel" value={form.mobile} onChange={set('mobile')} disabled={submitting} />
+            <div className="pi-msg-rows">
+              <div className="pi-msg-row">
+                <Field label="First Name" required value={form.first} onChange={set('first')} disabled={submitting} />
+                <Field label="Last Name" required value={form.last} onChange={set('last')} disabled={submitting} />
+              </div>
+              <div className="pi-msg-row">
+                <Field label="Email" required type="email" value={form.email} onChange={set('email')} disabled={submitting} />
+                <Field label="Mobile" required type="tel" value={form.mobile} onChange={set('mobile')} disabled={submitting} />
+              </div>
             </div>
             <Field label="Leave us a Message" required textarea value={form.message} onChange={set('message')} disabled={submitting} />
           </div>
