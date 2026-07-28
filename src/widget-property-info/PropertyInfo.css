@@ -268,6 +268,91 @@
   flex-shrink: 0;
 }
 
+/* ── Loading skeleton ──────────────────────────────────────────────────────
+   Shown until the property fetch settles, so the placeholder name/address/
+   phones are never painted and then swapped. Mirrors .pi-row's shape (info
+   column beside the 317px media cards) to keep the swap from shifting layout. */
+
+.pi-skel {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.pi-skel-info {
+  flex: 1 1 0;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pi-skel-media {
+  flex: 2 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pi-skel-cards {
+  display: flex;
+  gap: 24px;
+}
+
+.pi-skel-bar,
+.pi-skel-block {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e7eaee 25%, #f1f3f5 37%, #e7eaee 63%);
+  background-size: 400% 100%;
+  animation: pi-skel-shimmer 1.4s ease-in-out infinite;
+}
+
+.pi-skel-name { height: 40px; width: 72%; }
+.pi-skel-rating { height: 28px; width: 46%; margin-bottom: 4px; }
+.pi-skel-line { height: 20px; width: 88%; }
+.pi-skel-line.short { width: 62%; }
+.pi-skel-crumb { height: 18px; width: 60%; }
+
+/* Matches .pi-gallery's height so the real cards drop straight in. */
+.pi-skel-block {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 317px;
+  border-radius: 16px;
+}
+
+@keyframes pi-skel-shimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pi-skel-bar,
+  .pi-skel-block { animation: none; }
+}
+
+/* Single column on the mobile frame, matching the real layout. */
+@media (max-width: 900px) {
+  .pi-skel { flex-direction: column; }
+  .pi-skel-cards { flex-direction: column; }
+  .pi-skel-block { height: 220px; }
+}
+
+/* Visually hidden, still announced. */
+.pi-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ── Reservation lookup (Figma 9697-22507) ───────────────────────────────── */
 
 .pi-res-form {

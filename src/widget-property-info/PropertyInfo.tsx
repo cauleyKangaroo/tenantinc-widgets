@@ -43,6 +43,37 @@ export interface PropertyInfoProps {
 }
 
 /**
+ * Loading state for the whole widget. Mirrors the full-desktop shape (info
+ * column beside the gallery + map) so the swap to real content barely shifts
+ * layout; collapses to a single column on mobile via the CSS.
+ */
+function PropertySkeleton() {
+  return (
+    <>
+      <div className="pi-skel" aria-hidden="true">
+        <div className="pi-skel-info">
+          <span className="pi-skel-bar pi-skel-name" />
+          <span className="pi-skel-bar pi-skel-rating" />
+          <span className="pi-skel-bar pi-skel-line" />
+          <span className="pi-skel-bar pi-skel-line short" />
+          <span className="pi-skel-bar pi-skel-line" />
+          <span className="pi-skel-bar pi-skel-line short" />
+          <span className="pi-skel-bar pi-skel-line" />
+        </div>
+        <div className="pi-skel-media">
+          <span className="pi-skel-bar pi-skel-crumb" />
+          <div className="pi-skel-cards">
+            <span className="pi-skel-block" />
+            <span className="pi-skel-block" />
+          </div>
+        </div>
+      </div>
+      <span className="pi-sr-only" role="status">Loading property details…</span>
+    </>
+  );
+}
+
+/**
  * Fills its box with either a real image (URL) or a CSS gradient placeholder.
  * Gradient strings contain "gradient(" — anything else is treated as an image src.
  */
@@ -102,7 +133,7 @@ const DEFAULTS: Required<Pick<PropertyInfoProps, 'name' | 'rating' | 'reviewCoun
   gateNote: 'Closes 11:30pm',
   officeStatus: 'Office Closed',
   officeNote: 'Opens 8:30am',
-  breadcrumb: ['Home', 'Find storage', 'California', 'Laguna Beach', '3050 Bowling Dr'],
+  breadcrumb: ['Home', 'Find storage', 'California', 'Irvine', '5281 California'],
 };
 
 // ---------------------------------------------------------------------------
@@ -143,6 +174,9 @@ export function PropertyInfo(props: PropertyInfoProps) {
   // Live property details from the API; null until loaded (or on failure),
   // in which case the props/DEFAULTS above keep rendering unchanged.
   const [property, setProperty] = useState<PropertyDetails | null>(null);
+  // No initial-delay grace period here (unlike promotions): this endpoint
+  // answers in ~570ms, so a delay would just add a third visible state.
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,7 +185,10 @@ export function PropertyInfo(props: PropertyInfoProps) {
         const found = findProperty(raw);
         if (!cancelled && found) setProperty(found);
       })
-      .catch((err) => console.error('[PropertyInfo] fetchProperties error:', err));
+      .catch((err) => console.error('[PropertyInfo] fetchProperties error:', err))
+      // Skeleton stays up until the request settles, so the widget never paints
+      // the placeholder name/address/phones and then swap them for live values.
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -576,6 +613,17 @@ export function PropertyInfo(props: PropertyInfoProps) {
       </div>
     </div>
   );
+
+  // Hold everything behind a skeleton until the property fetch settles. Covering
+  // the whole widget (rather than just the API-driven text) keeps it to one
+  // coherent loading state and guarantees nothing is painted then replaced.
+  if (loading) {
+    return (
+      <div className="pi-wrapper">
+        <PropertySkeleton />
+      </div>
+    );
+  }
 
   return (
     <div className="pi-wrapper">
