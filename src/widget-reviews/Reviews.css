@@ -91,10 +91,23 @@
   gap: 8px 16px;
 }
 
+/* Now an <a> wrapping the whole logo/score/stars block, so it needs the anchor
+   defaults reset — the inner type keeps its own colours. */
 .rw-source-meta {
   display: flex;
   align-items: center;
   gap: 14px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  width: fit-content;
+  transition: opacity 0.15s;
+}
+.rw-source-meta:hover {
+  opacity: 0.8;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rw-source-meta { transition: none; }
 }
 
 .rw-platform-logo {
@@ -139,23 +152,6 @@
   font-weight: 700;
   color: #101318;
   line-height: 1;
-}
-
-.rw-more-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 18px;
-  font-weight: 400;
-  color: #101318;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-  width: fit-content;
-}
-
-.rw-more-link:hover {
-  color: var(--color_1, #f45f30);
 }
 
 /* ── Review card ────────────────────────────────────────────────────────── */
