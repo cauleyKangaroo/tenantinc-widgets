@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SOCIAL_ICONS } from '@shared/socialIcons';
 import type { HoursStatus, ScheduleRow } from '@shared/accessHours';
+import { MessageModal } from '../MessageModal';
 
 function CloseIcon() {
   return (
@@ -116,6 +117,8 @@ interface StoreSectionProps {
   schedule?: { office: ScheduleRow[]; gate: ScheduleRow[] };
   /** Per-type day-by-day schedule for the "See all Hours" popup. */
   scheduleSections?: { title: string; rows: ScheduleRow[] }[];
+  /** Property name, shown in the "Send us a Message" popup. */
+  facilityName?: string;
 }
 
 // Demo per-day hours shown in the popup until the API supplies real ones.
@@ -140,8 +143,9 @@ const DEMO_PHONES = [
   { number: '(877) 847-9487', note: 'Existing Customer' },
 ];
 
-export function StoreSection({ phones, socials, hours, scheduleSections }: StoreSectionProps = {}) {
+export function StoreSection({ phones, socials, hours, scheduleSections, facilityName }: StoreSectionProps = {}) {
   const [hoursOpen, setHoursOpen] = useState(false);
+  const [messageOpen, setMessageOpen] = useState(false);
   const [reservationCode, setReservationCode] = useState('');
 
   const phoneList = phones && phones.length ? phones : DEMO_PHONES;
@@ -198,7 +202,7 @@ export function StoreSection({ phones, socials, hours, scheduleSections }: Store
       </div>
 
       {/* ── Send us a Message ── */}
-      <button className="sl-pi-card sl-pi-card--action">
+      <button className="sl-pi-card sl-pi-card--action" onClick={() => setMessageOpen(true)}>
         <div className="sl-pi-card-header">
           <EnvelopeIcon />
           <span className="sl-pi-card-title">Send us a Message</span>
@@ -290,6 +294,8 @@ export function StoreSection({ phones, socials, hours, scheduleSections }: Store
             aria-label={label}><Icon /></a>
         ))}
       </div>
+
+      <MessageModal open={messageOpen} onClose={() => setMessageOpen(false)} facilities={[{ name: facilityName || 'This Facility' }]} />
 
     </div>
   );
