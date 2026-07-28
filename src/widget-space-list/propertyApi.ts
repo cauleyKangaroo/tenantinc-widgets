@@ -8,11 +8,23 @@ import {
 // supplies FAQ, contact phone, and social links for the sidebar accordion.
 // The primary call (space-groups) still lives in ./api.ts.
 
+import { createLead as submitLead, type LeadInput } from '@shared/leadsApi';
+
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
 const API_KEY = cfg.apiKey;
 const COMPANY_ID = cfg.companyId;
 const PROPERTY_ID = cfg.propertyId;
+
+export type { LeadInput };
+
+/** "Send us a Message" → create an inquiry lead (shared logic, this widget's creds). */
+export function createLead(input: LeadInput): Promise<unknown> {
+  return submitLead(
+    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: COMPANY_ID, propertyId: PROPERTY_ID },
+    input,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Raw response types — only what we read
