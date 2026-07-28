@@ -103,13 +103,16 @@
   line-height: 1.1;
 }
 
+/* 8px rather than 2px: the reviews / address / phone links stack here, and at
+   2px adjacent tap targets sat far closer than the 24px WCAG 2.5.8 minimum.
+   With the 24px min-height on each link below, centres are ~32px apart. */
 .nl-card-data {
   position: absolute;
   left: 24px;
   bottom: 20px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
   max-width: calc(100% - 48px);
 }
 
@@ -128,7 +131,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 2px;
+  min-height: 24px;
 }
 
 .nl-card-rating-num {
@@ -138,7 +141,12 @@
   line-height: 1.5;
 }
 
+/* min-height gives each link a >=24px tap target (WCAG 2.5.8) without changing
+   how the text looks — it stays vertically centred. */
 .nl-card-reviews {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   font-size: 14px;
   font-weight: 500;
   color: #fff;
@@ -149,6 +157,7 @@
 .nl-card-meta {
   display: flex;
   align-items: center;
+  min-height: 24px;
   gap: 4px;
   color: #fff;
   font-size: 14px;
