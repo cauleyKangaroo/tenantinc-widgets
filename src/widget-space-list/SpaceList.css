@@ -989,7 +989,6 @@
   .sl-wrapper .sl-top-bar-pills { order: 1; flex-basis: 100%; }
 }
 
-
 /* ===========================================================================
    SKELETON LOADER
    =========================================================================== */
@@ -3110,9 +3109,13 @@
 }
 
 /* Scrollable content area */
+/* Video, then just the title and the CTA — both centred beneath it. The body
+   copy that used to fill this panel was removed. */
 .sl-wrapper .sl-sg2-content {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   gap: 20px;
   padding: 4px 32px 32px;
   max-height: 560px;
@@ -3167,42 +3170,6 @@
   line-height: 1.2;
   margin: 0;
   font-family: 'Montserrat', sans-serif;
-}
-
-/* Description body */
-.sl-wrapper .sl-sg2-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.sl-wrapper .sl-sg2-body-heading {
-  font-size: 16px;
-  font-weight: 400;
-  color: #101318;
-  line-height: 24px;
-  margin: 0 0 0;
-}
-
-.sl-wrapper .sl-sg2-body-para {
-  font-size: 16px;
-  font-weight: 400;
-  color: #101318;
-  line-height: 24px;
-  margin: 0;
-}
-
-.sl-wrapper .sl-sg2-list {
-  margin: 0;
-  padding-left: 24px;
-  list-style: disc;
-}
-
-.sl-wrapper .sl-sg2-list li {
-  font-size: 16px;
-  font-weight: 400;
-  color: #101318;
-  line-height: 24px;
 }
 
 /* CTA link */

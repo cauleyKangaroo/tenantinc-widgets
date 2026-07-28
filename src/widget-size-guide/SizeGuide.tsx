@@ -13,10 +13,6 @@ interface SizeUnit {
   title: string;
   /** CSS gradient placeholder until live video thumbnails are wired in. */
   image: string;
-  /** Lead paragraph(s). */
-  description: string;
-  /** Bulleted facts (sq ft, what fits). */
-  bullets: string[];
 }
 
 interface Category {
@@ -34,34 +30,34 @@ const CATEGORIES: Category[] = [
     key: 'small',
     label: 'Small',
     units: [
-      { id: 's1', title: 'Storage Locker', image: cover(storageLocker), description: 'Storage locker units (about 5x5x4ft) are convenient and often more cost effective than other storage unit sizes. In this video we show you how big our locker storage units are and what you can fit inside.', bullets: ['25 sq ft', 'Closet-sized storage with less height'] },
-      { id: 's2', title: '5’ x 5’', image: cover(SIZE_IMAGES['5x5']), description: 'Ever wondered what a 5x5 storage unit looks like or what fits in a 5x5 foot storage unit? In this video we show you how big our 5x5 storage unit is and what you can fit inside.', bullets: ['25 sq ft', 'Closet-sized storage'] },
-      { id: 's3', title: '5’ x 10’', image: cover(SIZE_IMAGES['5x10']), description: 'Ever wondered what a 5x10 storage unit looks like or what fits in a 5x10 foot storage unit? In this video we show you how big our 5x10 storage unit is and what you can fit inside.', bullets: ['50 sq ft', 'Small apartment extras'] },
+      { id: 's1', title: 'Storage Locker', image: cover(storageLocker) },
+      { id: 's2', title: '5’ x 5’', image: cover(SIZE_IMAGES['5x5']) },
+      { id: 's3', title: '5’ x 10’', image: cover(SIZE_IMAGES['5x10']) },
     ],
   },
   {
     key: 'medium',
     label: 'Medium',
     units: [
-      { id: 'm1', title: '10’ x 10’', image: G2, description: 'A 10x10 storage unit is one of our most popular sizes — roughly half of a standard one-car garage. Great for the contents of a two-bedroom home.', bullets: ['100 sq ft', 'Two bedrooms of furniture'] },
-      { id: 'm2', title: '10’ x 15’', image: G3, description: 'A 10x15 unit comfortably holds the contents of a larger apartment or a small house, including major appliances.', bullets: ['150 sq ft', 'Three bedrooms of furniture'] },
-      { id: 'm3', title: '10’ x 20’', image: cover(SIZE_IMAGES['10x20']), description: 'A 10x20 unit is about the size of a standard one-car garage and ideal for whole-home moves or vehicle storage.', bullets: ['200 sq ft', 'Contents of a full house'] },
+      { id: 'm1', title: '10’ x 10’', image: G2 },
+      { id: 'm2', title: '10’ x 15’', image: G3 },
+      { id: 'm3', title: '10’ x 20’', image: cover(SIZE_IMAGES['10x20']) },
     ],
   },
   {
     key: 'large',
     label: 'Large',
     units: [
-      { id: 'l1', title: '10’ x 25’', image: cover(SIZE_IMAGES['10x30']), description: 'A 10x25 unit suits large household moves and business inventory, with room to organize and access your items.', bullets: ['250 sq ft', 'Large home + appliances'] },
-      { id: 'l2', title: '10’ x 30’', image: cover(SIZE_IMAGES['10x30']), description: 'Our largest standard unit — comparable to a two-car garage. Perfect for major moves, commercial storage, or vehicles.', bullets: ['300 sq ft', 'Five+ bedrooms or commercial use'] },
+      { id: 'l1', title: '10’ x 25’', image: cover(SIZE_IMAGES['10x30']) },
+      { id: 'l2', title: '10’ x 30’', image: cover(SIZE_IMAGES['10x30']) },
     ],
   },
   {
     key: 'parking',
     label: 'Parking',
     units: [
-      { id: 'v1', title: 'Covered Parking', image: G1, description: 'Covered parking shields your car, motorcycle, or trailer from the elements while keeping it secure behind gated access.', bullets: ['Up to 20 ft', 'Cars, motorcycles, trailers'] },
-      { id: 'v2', title: 'Uncovered Parking', image: G3, description: 'An economical outdoor space for vehicles and trailers within our secured, monitored lot.', bullets: ['Up to 25 ft', 'Cars, trucks, trailers'] },
+      { id: 'v1', title: 'Covered Parking', image: G1 },
+      { id: 'v2', title: 'Uncovered Parking', image: G3 },
     ],
   },
 ];
@@ -72,8 +68,8 @@ const CARDS_PER_PAGE = 3;
 // Card
 // ---------------------------------------------------------------------------
 
-function SizeCard({ unit, mobile }: { unit: SizeUnit; mobile?: boolean }) {
-  const [expanded, setExpanded] = useState(false);
+/** Video thumbnail, then just the title and the CTA — both centred beneath it. */
+function SizeCard({ unit }: { unit: SizeUnit }) {
   return (
     <div className="sg-card">
       <div className="sg-card-image" style={{ background: unit.image }}>
@@ -81,19 +77,6 @@ function SizeCard({ unit, mobile }: { unit: SizeUnit; mobile?: boolean }) {
       </div>
       <div className="sg-card-body">
         <p className="sg-card-title">{unit.title}</p>
-        <div className={`sg-card-desc${mobile && !expanded ? ' clamp' : ''}`}>
-          <p>{unit.description}</p>
-          <ul>
-            {unit.bullets.map((b) => (
-              <li key={b}>{b}</li>
-            ))}
-          </ul>
-        </div>
-        {mobile && (
-          <button className="sg-readmore" onClick={() => setExpanded((e) => !e)}>
-            {expanded ? 'Read less' : 'Read more'}
-          </button>
-        )}
         <a className="sg-see-all" href="#">See Available Spaces</a>
       </div>
     </div>
@@ -183,7 +166,7 @@ export function SizeGuide({
 
       {/* ── Mobile: single card ─────────────────────────────────────────── */}
       <div className="sg-mobile">
-        <SizeCard key={`${category.key}-${mobileIdx}`} unit={category.units[mobileIdx]} mobile />
+        <SizeCard key={`${category.key}-${mobileIdx}`} unit={category.units[mobileIdx]} />
         {category.units.length > 1 && (
           <div className="sg-pagination sg-pagination-dots">
             <Dots count={category.units.length} active={mobileIdx} onPick={setMobileIdx} />
