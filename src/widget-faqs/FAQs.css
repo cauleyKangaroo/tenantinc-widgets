@@ -109,7 +109,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 24px 0;
+  /* 20px side inset so the question text and chevron sit in from the edges
+     rather than flush against them. */
+  padding: 24px 20px;
   background: none;
   border: none;
   cursor: pointer;
@@ -136,11 +138,12 @@
   transform: rotate(180deg);
 }
 
+/* Matches .faq-q's 20px inset so the answer stays flush with the question text. */
 .faq-a {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  padding: 0 0 24px;
+  padding: 0 20px 24px;
 }
 
 .faq-a-text {
@@ -168,7 +171,7 @@
 }
 
 .faq-empty {
-  padding: 24px 0;
+  padding: 24px 20px;
   margin: 0;
   font-size: 16px;
   color: #637381;
@@ -204,8 +207,9 @@
     font-size: 16px;
   }
 
+  /* Shorthand, so it must repeat the 20px side inset or it would reset it to 0. */
   .faq-q {
-    padding: 20px 0;
+    padding: 20px;
   }
 
   .faq-a {

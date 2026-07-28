@@ -25,8 +25,15 @@
 .sl-wrapper *::before,
 .sl-wrapper *::after { box-sizing: border-box; }
 
+/* The listing and the accordion panel sit side by side while there's room, and
+   the panel drops below the listing when there isn't. This MUST key off the
+   widget's own width, not the viewport: in Duda the widget often gets a narrow
+   column inside a wide window, so the old viewport @media breakpoints never
+   fired and the rigid 422px panel starved the listing to zero width.
+   flex-wrap + the lopsided grow factors below do it with no query at all. */
 .sl-wrapper .sl-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 24px;
   align-items: flex-start;
 }
@@ -251,8 +258,12 @@
 /* ===========================================================================
    LISTING AREA
    =========================================================================== */
+/* grow:999 vs the panel's grow:1 — while both share a line, essentially all the
+   free space goes to the listing so the panel stays at its 422px basis; once the
+   panel wraps onto its own line it is the only item there and grows to fill.
+   The 520px basis is the wrap trigger: below 520 + 24 + 422 the panel drops. */
 .sl-wrapper .sl-listing-area {
-  flex: 1;
+  flex: 999 1 520px;
   min-width: 0;
   container-type: inline-size;
   display: flex;
@@ -539,7 +550,16 @@
   color: #101318;
   line-height: 1.2;
 }
-.sl-wrapper .sl-admin-fee { font-size: 11px; color: #637381; margin-top: 2px; font-weight: 400; }
+/* Figma: "+ Plus $20 Admin Fee" is 12px/16px black, same small print as above. */
+.sl-wrapper .sl-admin-fee {
+  font-size: 12px;
+  color: #000000;
+  margin-top: 2px;
+  font-weight: 400;
+  line-height: 16px;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
 .sl-wrapper .sl-urgency {
   font-size: 12px;
   color: #d32f2f;
@@ -621,12 +641,17 @@
   text-align: center;
   margin-top: 4px;
 }
+/* Figma 7112-47056: the price small print is BLACK 12px/16px, and it must wrap
+   rather than run on — it used to be grey and, being nowrap-wide, got clipped by
+   the card's overflow:hidden. */
 .sl-wrapper .sl-junk-disclaimer {
-  font-size: 11px;
-  color: #637381;
+  font-size: 12px;
+  color: #000000;
   margin-top: 8px;
   font-weight: 400;
-  line-height: 1.4;
+  line-height: 16px;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 /* ===========================================================================
@@ -650,13 +675,16 @@
 .sl-wrapper .sl-list-card:last-child { margin-bottom: 0; }
 
 /* ── Display panel (white): image + amenities | size grid ── */
+/* nowrap is deliberate: the size grid must stay BESIDE the info (Figma
+   7112-47056), shrinking to fewer pill columns rather than wrapping underneath
+   it. Wrapping only returns at the narrow container query further down. */
 .sl-wrapper .sl-lc-display {
   background: #ffffff;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px 40px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   padding: 30px;
 }
 .sl-wrapper .sl-lc-left {
@@ -719,18 +747,29 @@
 }
 
 /* ── Size grid (dimension pills) ── */
+/* 352px = four 82px pills + three 8px gaps. Shrinkable (0 1) so a narrow
+   container drops to 3/2/1 pill columns instead of pushing the whole grid onto
+   its own line; 82px floor keeps one full-width pill legible. */
 .sl-wrapper .sl-lc-sizes {
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
   gap: 8px;
-  flex: 0 0 352px;
+  flex: 0 1 352px;
+  min-width: 82px;
   max-width: 352px;
 }
+/* The dimension label must never wrap. Two things used to make it: the browser's
+   default button padding (1px 6px) and the selected state's 4px border, which
+   together left the selected pill ~12px less inner width than its siblings — so
+   the same label fitted on one line everywhere except when selected.
+   padding:0 reclaims that, nowrap guarantees it, and min-width lets a genuinely
+   long label widen the pill instead of overflowing it. */
 .sl-wrapper .sl-lc-size {
   position: relative;
-  width: 82px;
+  min-width: 82px;
   height: 40px;
+  padding: 0 4px;
   border-radius: 4px;
   background: #ffffff;
   border: 2px solid #a5b4bf;
@@ -738,6 +777,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #242627;
+  white-space: nowrap;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -752,12 +792,24 @@
   border-width: 2.5px;
   color: #a5b4bf;
 }
+/* The badge straddles the pill's border, so it needs a white keyline to still
+   read as a separate label rather than merging into the border. Stacked 0-blur
+   drop-shadows trace the tag's actual silhouette (notch and all) and paint
+   behind it — no SVG stroke, so nothing can clip against the viewBox. */
 .sl-wrapper .sl-lc-size-tag {
   position: absolute;
   top: -7px;
   right: -5px;
   display: flex;
   line-height: 0;
+  /* Four 0-blur offsets, chained: each pass filters the previous result, so the
+     silhouette dilates 1px in every direction (diagonals included) — a crisp
+     keyline rather than the soft halo a blurred shadow would give. */
+  filter:
+    drop-shadow(1px 0 0 #ffffff)
+    drop-shadow(-1px 0 0 #ffffff)
+    drop-shadow(0 1px 0 #ffffff)
+    drop-shadow(0 -1px 0 #ffffff);
 }
 
 /* ── Action panel (grey): promo + price + CTA ── */
@@ -790,13 +842,21 @@
   display: flex;
   gap: 16px;
   align-items: flex-start;
-  flex: 0 0 334px;
+  flex: 0 1 334px;
+  min-width: 0;
   max-width: 100%;
 }
-.sl-wrapper .sl-lc-price { flex-shrink: 0; }
-.sl-wrapper .sl-lc-btn-col {
-  flex: 1 1 0;
+/* The price column absorbs the shrinking (its .sl-prices-row is shrink:0, so it
+   never squashes below the figures — the small print wraps instead). Previously
+   this was shrink:0 and the button column was min-width:0, so any shortfall
+   collapsed the button to zero width and it vanished entirely. */
+.sl-wrapper .sl-lc-price {
+  flex: 1 1 auto;
   min-width: 0;
+}
+.sl-wrapper .sl-lc-btn-col {
+  flex: 0 1 140px;
+  min-width: 120px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -863,6 +923,24 @@
 /* ===========================================================================
    RESPONSIVE — listing content (CONTAINER based)
    =========================================================================== */
+/* Squeezed listing column (the Duda case — the accordion panel takes width, so
+   the container is far narrower than in the dev harness). Tighten the left group
+   so the size grid keeps 2–3 pill columns beside the info instead of being
+   starved down to a single tall column. */
+@container (max-width: 900px) {
+  .sl-wrapper .sl-lc-left { gap: 24px; }
+  .sl-wrapper .sl-lc-image-col { width: 130px; }
+  .sl-wrapper .sl-lc-img { max-width: 130px; }
+}
+
+/* The full 4-column grid needs roughly 800px of listing to coexist with the
+   info column. Below that, cap it at two pill columns (172px = 2x82 + 8) so the
+   feature text keeps room to breathe — the grid still sits BESIDE the info,
+   which is the point of the fix. */
+@container (max-width: 820px) {
+  .sl-wrapper .sl-lc-sizes { flex-basis: 172px; max-width: 172px; }
+}
+
 @container (max-width: 680px) {
   /* Action panel: promo + price/CTA stack and go full width */
   .sl-wrapper .sl-lc-promo { flex: 1 1 100%; }
@@ -871,8 +949,12 @@
 }
 
 @container (max-width: 480px) {
+  /* Genuinely too narrow for side-by-side — re-enable wrapping (the base rule is
+     nowrap) so the size grid drops below the info at full width. */
+  .sl-wrapper .sl-lc-display { flex-wrap: wrap; }
   .sl-wrapper .sl-lc-left { flex-direction: column; gap: 20px; align-items: flex-start; }
   .sl-wrapper .sl-lc-image-col { width: 100%; align-items: flex-start; }
+  .sl-wrapper .sl-lc-img { max-width: 162px; }
   .sl-wrapper .sl-lc-sizes { flex: 1 1 100%; max-width: 100%; }
   .sl-wrapper .sl-lc-price-button { flex-direction: column; align-items: stretch; }
   .sl-wrapper .sl-lc-price { align-self: flex-start; }
@@ -1668,8 +1750,11 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  width: 422px;
-  flex-shrink: 0;
+  /* 422px is the design width when beside the listing; grow:1 only takes effect
+     once it has wrapped onto its own line, where it fills the width. */
+  flex: 1 1 422px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .sl-wrapper .sl-sa-item {

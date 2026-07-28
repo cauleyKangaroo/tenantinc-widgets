@@ -56,7 +56,7 @@
 }
 
 .pi-reviews {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
   color: #101318;
   text-decoration: underline;
@@ -141,7 +141,7 @@
 }
 
 .pi-breadcrumb {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 400;
   line-height: 22px;
   color: #101318;
@@ -245,6 +245,8 @@
   background: #fff;
 }
 
+/* Now a <button> (it toggles the lookup rather than navigating), so the anchor
+   styling needs the usual button resets to keep looking identical. */
 .pi-reservation {
   display: flex;
   align-items: center;
@@ -253,10 +255,71 @@
   font-weight: 500;
   color: #101318;
   text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .pi-reservation svg {
   flex-shrink: 0;
+}
+
+/* ── Reservation lookup (Figma 9697-22507) ───────────────────────────────── */
+
+.pi-res-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 306px is the design width, as a flex-basis rather than a hard width so it
+   shrinks instead of overflowing the gallery column. */
+.pi-res-input {
+  flex: 0 1 306px;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 56px;
+  padding: 0 16px;
+  border: 1px solid #a5b4bf;
+  border-radius: 8px;
+  background: #ffffff;
+  font: 400 16px/20px 'Montserrat', sans-serif;
+  color: #101318;
+  outline: none;
+}
+
+.pi-res-input::placeholder {
+  color: #637381;
+}
+
+.pi-res-input:focus {
+  border-color: #101318;
+}
+
+/* align-self: stretch mirrors the design's self-stretch — the button tracks the
+   input's 56px height rather than hard-coding it. */
+.pi-res-go {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #000000;
+  color: #ffffff;
+  font: 600 16px/16px 'Montserrat', sans-serif;
+  text-align: center;
+  cursor: pointer;
+}
+
+.pi-res-go:hover {
+  background: #101318;
 }
 
 /* ── Map (placeholder) ──────────────────────────────────────────────────── */

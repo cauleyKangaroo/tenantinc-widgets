@@ -26,7 +26,8 @@ interface ReviewSource {
   name: string;
   score: number;
   count: number;
-  moreUrl: string;
+  /** Destination for the whole score block. Empty until real URLs are wired. */
+  reviewsUrl: string;
   reviews: Review[];
 }
 
@@ -40,7 +41,7 @@ const SOURCES: ReviewSource[] = [
     name: 'Google',
     score: 4.3,
     count: 264,
-    moreUrl: '#',
+    reviewsUrl: '',
     reviews: [
       { id: 'g1', author: 'Michael Reyes', rating: 5, text: '"Great customer service with secure and clean facilities. We have been customers for over 2 years and rent out a climate control unit. We have never had any problems. Would recommend for short term or long term storage needs."', timeAgo: '4 months ago' },
       { id: 'g2', author: 'Lucas Brady', rating: 5, text: '"Awesome customer service and super clean, secure facilities! We\'ve been renting a climate-controlled unit for over 2 years and have had zero issues. Totally recommend it for both short and long-term storage!"', timeAgo: '4 months ago' },
@@ -53,7 +54,7 @@ const SOURCES: ReviewSource[] = [
     name: 'Yelp',
     score: 4.9,
     count: 76,
-    moreUrl: '#',
+    reviewsUrl: '',
     reviews: [
       { id: 'y1', author: 'David Thompson', rating: 5, text: '"Excellent customer service and clean, secure facilities. We\'ve rented a climate-controlled unit for over 2 years without any issues. Highly recommend for both short and long-term storage!"', timeAgo: '4 months ago' },
       { id: 'y2', author: 'Jesse Miller', rating: 5, text: '"This place is super convenient! It\'s secure, clean, and really well managed. India and Delicia are awesome, and I totally recommend storing your stuff here!"', timeAgo: '4 months ago' },
@@ -72,7 +73,15 @@ const REVIEWS_PER_PAGE = 2;
 function SourceHeader({ source }: { source: ReviewSource }) {
   return (
     <div className="rw-source-header">
-      <div className="rw-source-meta">
+      {/* The whole logo + score + stars block is the link to the platform's
+          reviews. `reviewsUrl` is empty until the real destinations land; the
+          attribute is omitted rather than left as href="" so a stray click
+          can't reload the page in the meantime. */}
+      <a
+        className="rw-source-meta"
+        href={source.reviewsUrl || undefined}
+        aria-label={`See ${source.name} reviews`}
+      >
         <PlatformLogo platform={source.key} />
         <div className="rw-source-score-block">
           <span className="rw-source-score">{source.score}</span>
@@ -82,9 +91,6 @@ function SourceHeader({ source }: { source: ReviewSource }) {
           <Stars platform={source.key} rating={5} width={source.key === 'yelp' ? 110 : 105} />
           <span className="rw-source-count">{source.count} ratings</span>
         </div>
-      </div>
-      <a href={source.moreUrl} className="rw-more-link">
-        More Reviews
       </a>
     </div>
   );

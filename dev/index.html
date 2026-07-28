@@ -150,8 +150,7 @@
           Mode:
           <select id="pr-mode" onchange="reinitPromotions()">
             <option value="banner">banner</option>
-            <option value="bar">bar</option>
-            <option value="cards">cards</option>
+            <option value="bar" selected>bar</option>
           </select>
         </label>
         <label>
@@ -309,6 +308,7 @@
 
     var promotionsWidget = null;
 
+    // Bar content is API-only — no static promo props here on purpose.
     function getPromotionsProps() {
       var url = document.getElementById('pr-banner').value.trim();
       return {

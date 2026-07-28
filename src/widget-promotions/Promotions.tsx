@@ -7,129 +7,142 @@ import promoBanner from './assets/promo-banner.png';
 import promoBannerMobile from './assets/promo-banner-mobile.png';
 
 // ---------------------------------------------------------------------------
-// Types + demo data
-// ---------------------------------------------------------------------------
-
-type PromoVariant = 'dark' | 'green' | 'outline';
-
-interface Promo {
-  id: string;
-  title: string;
-  variant: PromoVariant;
-  /** Optional fine-print shown on the info icon's tooltip. */
-  info?: string;
-  ctaLabel: string;
-  ctaUrl: string;
-}
-
-const PROMOS: Promo[] = [
-  { id: 'p1', title: 'First Full Month Free!', variant: 'dark', info: 'Applies to your first full calendar month on select units. Terms apply.', ctaLabel: 'See Qualifying Units', ctaUrl: '#' },
-  { id: 'p2', title: '50% Off for 3 Months', variant: 'green', info: 'Half price for the first three months on qualifying units. Terms apply.', ctaLabel: 'See Qualifying Units', ctaUrl: '#' },
-  { id: 'p3', title: 'Get a FREE Bunny Rabbit', variant: 'outline', info: 'Just kidding — but the savings are real. Terms apply.', ctaLabel: 'See Qualifying Units', ctaUrl: '#' },
-];
-
-// ---------------------------------------------------------------------------
-// Card
-// ---------------------------------------------------------------------------
-
-function PromoCard({ promo }: { promo: Promo }) {
-  return (
-    <div className={`promo-card promo-card--${promo.variant}`}>
-      <div className="promo-head">
-        <div className="promo-title-wrap">
-          <TagIcon size={36} />
-          <p className="promo-title">{promo.title}</p>
-        </div>
-        {promo.info ? (
-          <button className="promo-info" aria-label="More information" title={promo.info}>
-            <InfoIcon size={24} />
-          </button>
-        ) : (
-          <span className="promo-info"><InfoIcon size={24} /></span>
-        )}
-      </div>
-      <a
-        className="promo-cta"
-        href={promo.ctaUrl}
-        onClick={(e) => {
-          // Filter the Space List to this promo's qualifying units and scroll to it.
-          e.preventDefault();
-          emitShowPromo({ promoId: promo.id, promoTitle: promo.title });
-          scrollToSpaceList();
-        }}
-      >
-        <ChevronRight size={24} />
-        <span>{promo.ctaLabel}</span>
-      </a>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Active promotion bar — a single bar, or a 5s auto-advancing carousel with
-// clickable arrows when there are multiple promotions.
+// Promotion bars
+//
+// One promotion fills the width. Two, three or four split it evenly (a half, a
+// third, a quarter each). Beyond four the bars stay a quarter wide and page in
+// groups of four behind arrows + dots — there is no auto-advance; the viewer
+// drives it.
 // ---------------------------------------------------------------------------
 
 interface BarItem { id: string; title: string; info?: string; url: string; ctaLabel: string; }
 
-const AUTO_ADVANCE_MS = 5000;
+/** Max bars shown at once; also the carousel's page size. */
+const PAGE_SIZE = 4;
 
-function PromoBar({ items }: { items: BarItem[] }) {
-  const [current, setCurrent] = useState(0);
-  const many = items.length > 1;
-  const go = (i: number) => setCurrent((i + items.length) % items.length);
+/**
+ * Hold off on the skeleton for this long. A fast API response then renders the
+ * real bars directly, instead of flashing a placeholder for 80ms.
+ */
+const SKELETON_DELAY_MS = 200;
 
-  // Auto-advance every 5s; the `current` dep resets the timer after any manual
-  // navigation so the next auto-advance is a fresh 5s away.
-  useEffect(() => {
-    if (!many) return;
-    const t = setInterval(() => setCurrent((c) => (c + 1) % items.length), AUTO_ADVANCE_MS);
-    return () => clearInterval(t);
-  }, [many, items.length, current]);
+/** Placeholder count — the live promo count is unknown until the fetch lands. */
+const SKELETON_BARS = 2;
 
-  const item = items[current] ?? items[0];
+/** Shown while the promotions fetch is still in flight (past the delay above). */
+function PromoBarsSkeleton() {
+  return (
+    <>
+      <div className="promo-bars promo-bars--skeleton" data-cols={String(SKELETON_BARS)} aria-hidden="true">
+        {Array.from({ length: SKELETON_BARS }, (_, i) => (
+          <div className="promo-bar promo-bar--skeleton" key={i}>
+            <div className="promo-bar-inner">
+              <span className="promo-skel promo-skel--title" />
+              <span className="promo-skel promo-skel--cta" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <span className="promo-sr-only" role="status">Loading promotions…</span>
+    </>
+  );
+}
+
+function PromoBarItem({ item }: { item: BarItem }) {
+  // A bar with no explicit link filters the Space List to this promo's
+  // qualifying units and scrolls to it; a real URL is left to navigate.
+  const isFilterCta = !item.url || item.url === '#';
 
   return (
-    <div className={`promo-bar-carousel${many ? ' promo-bar-carousel--multi' : ''}`}>
-      {many && (
+    <div className="promo-bar">
+      <div className="promo-bar-inner">
+        {/* Tag + title group so the info icon can sit hard right (Figma 6242-44608). */}
+        <div className="promo-bar-titlerow">
+          <div className="promo-bar-titlewrap">
+            <TagIcon size={36} />
+            <span className="promo-bar-title">{item.title}</span>
+          </div>
+          {item.info ? (
+            <button className="promo-bar-info" aria-label="More information" title={item.info}>
+              <InfoIcon size={36} />
+            </button>
+          ) : (
+            <span className="promo-bar-info"><InfoIcon size={36} /></span>
+          )}
+        </div>
+        <a
+          className="promo-bar-cta"
+          href={item.url || '#'}
+          onClick={(e) => {
+            if (!isFilterCta) return;
+            e.preventDefault();
+            emitShowPromo({ promoId: item.id, promoTitle: item.title });
+            scrollToSpaceList();
+          }}
+        >
+          <ChevronRight size={24} />
+          <span>{item.ctaLabel}</span>
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function PromoBars({ items }: { items: BarItem[] }) {
+  const [page, setPage] = useState(0);
+
+  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const paged = items.length > PAGE_SIZE;
+  // Clamp rather than store-and-correct, so a shrinking `items` (API load
+  // replacing demo data) can't leave us on a page that no longer exists.
+  const current = Math.min(page, pageCount - 1);
+  const visible = paged ? items.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE) : items;
+  // Column count drives the width + type scale in CSS.
+  const cols = Math.min(items.length, PAGE_SIZE);
+  const go = (i: number) => setPage((i + pageCount) % pageCount);
+
+  const row = (
+    <div className="promo-bars" data-cols={cols}>
+      {visible.map((item) => (
+        <PromoBarItem key={item.id} item={item} />
+      ))}
+    </div>
+  );
+
+  if (!paged) return row;
+
+  return (
+    <div className="promo-bars-carousel">
+      <div className="promo-bars-track">
         <button
           className="promo-bar-arrow promo-bar-arrow--prev"
-          aria-label="Previous promotion"
+          aria-label="Previous promotions"
           onClick={() => go(current - 1)}
         >
           <ChevronRight size={24} />
         </button>
-      )}
-
-      <div className="promo-bar" key={`${item.id}-${current}`}>
-        <div className="promo-bar-inner">
-          <div className="promo-bar-titlerow">
-            <TagIcon size={48} />
-            <span className="promo-bar-title">{item.title}</span>
-            {item.info ? (
-              <button className="promo-bar-info" aria-label="More information" title={item.info}>
-                <InfoIcon size={36} />
-              </button>
-            ) : (
-              <span className="promo-bar-info"><InfoIcon size={36} /></span>
-            )}
-          </div>
-          <a className="promo-bar-cta" href={item.url}>
-            <ChevronRight size={24} />
-            <span>{item.ctaLabel}</span>
-          </a>
-        </div>
-      </div>
-
-      {many && (
+        {row}
         <button
           className="promo-bar-arrow promo-bar-arrow--next"
-          aria-label="Next promotion"
+          aria-label="Next promotions"
           onClick={() => go(current + 1)}
         >
           <ChevronRight size={24} />
         </button>
-      )}
+      </div>
+
+      <div className="promo-dots" role="tablist" aria-label="Promotion pages">
+        {Array.from({ length: pageCount }, (_, i) => (
+          <button
+            key={i}
+            className={`promo-dot${i === current ? ' promo-dot--active' : ''}`}
+            role="tab"
+            aria-selected={i === current}
+            aria-label={`Promotions page ${i + 1} of ${pageCount}`}
+            onClick={() => setPage(i)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -139,30 +152,24 @@ function PromoBar({ items }: { items: BarItem[] }) {
 // ---------------------------------------------------------------------------
 
 export interface PromotionsProps {
-  /** View mode (Duda dropdown). Default 'cards'. */
-  mode?: 'banner' | 'bar' | 'cards';
+  /** View mode (Duda dropdown). Default 'bar'. */
+  mode?: 'banner' | 'bar';
 
   // ── Mode 1: banner (uploaded image + link) ──
   bannerImage?: string;
   bannerUrl?: string;
   bannerAlt?: string;
 
-  // ── Mode 2: active promotion bar (coloured bar + text + link) ──
+  // ── Mode 2: promotion bars (coloured bar + text + link) ──
   barText?: string;
   barUrl?: string;
   barCtaLabel?: string;
   /** Optional fine-print shown on the info icon's tooltip. */
   barInfo?: string;
-
-  // ── Mode 3: cards (pulled via API) ──
-  promos?: Promo[];
 }
 
-// PromoCard colour cycle for API-sourced promos.
-const VARIANTS: PromoVariant[] = ['dark', 'green', 'outline'];
-
 export function Promotions({
-  mode = 'cards',
+  mode = 'bar',
   bannerImage,
   bannerUrl = '#',
   bannerAlt = '',
@@ -170,44 +177,34 @@ export function Promotions({
   barUrl = '#',
   barCtaLabel = 'See Qualifying Units',
   barInfo,
-  promos = PROMOS,
 }: PromotionsProps) {
-  // Live promotions pulled from each tier's `allocated_promo` in the
-  // space-groups API; empty until loaded (or on failure), in which case the
-  // props/demo data keep rendering unchanged.
+  // Only two modes. Anything else from Duda (including the retired 'cards')
+  // falls through to the bars, which absorbed the old cards layout.
+  const view: 'banner' | 'bar' = mode === 'banner' ? 'banner' : 'bar';
+
+  // The bars are API-driven — every tier's `allocated_promo` from the
+  // space-groups API, deduped. There is no static demo set: until the fetch
+  // resolves we show a skeleton, and if it returns nothing we render nothing.
   const [apiPromos, setApiPromos] = useState<ApiPromo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pastDelay, setPastDelay] = useState(false);
 
   useEffect(() => {
+    // Banner mode never reads the API, so don't call it.
+    if (view === 'banner') { setLoading(false); return; }
+
     let cancelled = false;
+    const timer = setTimeout(() => { if (!cancelled) setPastDelay(true); }, SKELETON_DELAY_MS);
+
     fetchSpaceGroups()
       .then((raw) => {
         if (!cancelled) setApiPromos(extractPromos(raw));
       })
-      .catch((err) => console.error('[Promotions] fetchSpaceGroups error:', err));
-    return () => { cancelled = true; };
-  }, []);
+      .catch((err) => console.error('[Promotions] fetchSpaceGroups error:', err))
+      .finally(() => { if (!cancelled) setLoading(false); });
 
-  // Guard against an empty/unknown value from Duda. With API promos loaded,
-  // one promo renders best as the bar and several as cards — so 'cards' (the
-  // default) auto-collapses to the bar when only a single promo came back.
-  let view: 'banner' | 'bar' | 'cards' = mode === 'banner' || mode === 'bar' ? mode : 'cards';
-  if (view === 'cards' && apiPromos.length === 1) view = 'bar';
-
-  // API promos mapped onto the card shape, cycling the three card colours.
-  const displayPromos: Promo[] = apiPromos.length
-    ? apiPromos.map((p, i) => ({
-        id: p.id,
-        title: p.title,
-        variant: VARIANTS[i % VARIANTS.length],
-        info: p.info,
-        ctaLabel: 'See Qualifying Units',
-        ctaUrl: '#',
-      }))
-    : promos;
-
-  // Bar text: explicit prop wins, then the first API promo, then the demo copy.
-  const displayBarText = barText || apiPromos[0]?.title || 'First 3 Months 30% Off';
-  const displayBarInfo = barInfo || apiPromos[0]?.info;
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [view]);
 
   // ── Mode 1: banner ────────────────────────────────────────────────────
   if (view === 'banner') {
@@ -229,29 +226,34 @@ export function Promotions({
     );
   }
 
-  // ── Mode 2: active promotion bar ──────────────────────────────────────
-  // Multiple promotions → auto-advancing carousel with arrows; otherwise a
-  // single bar (explicit barText wins, else the first API promo / demo copy).
-  if (view === 'bar') {
-    const barItems: BarItem[] = displayPromos.length > 1
-      ? displayPromos.map((p) => ({ id: p.id, title: p.title, info: p.info, url: p.ctaUrl || barUrl, ctaLabel: p.ctaLabel || barCtaLabel }))
-      : [{ id: 'bar', title: displayBarText, info: displayBarInfo, url: barUrl, ctaLabel: barCtaLabel }];
-
-    return (
-      <div className="promo-wrapper">
-        <PromoBar items={barItems} />
-      </div>
-    );
+  // ── Mode 2: promotion bars ────────────────────────────────────────────
+  // Still fetching: show the skeleton once we're past the delay, nothing before
+  // (a sub-200ms response shouldn't flash a placeholder).
+  if (loading) {
+    return pastDelay ? <div className="promo-wrapper"><PromoBarsSkeleton /></div> : null;
   }
 
-  // ── Mode 3: cards (default) ───────────────────────────────────────────
+  // One bar per live promo. `barText` remains an explicit editor override for
+  // sites that want to hand-write a single bar instead.
+  const barItems: BarItem[] = apiPromos.length
+    ? apiPromos.map((p) => ({
+        id: p.id,
+        title: p.title,
+        info: p.info,
+        url: barUrl,
+        ctaLabel: barCtaLabel,
+      }))
+    : barText
+      ? [{ id: 'bar', title: barText, info: barInfo, url: barUrl, ctaLabel: barCtaLabel }]
+      : [];
+
+  // No promotions and no manual override → render nothing rather than an
+  // empty green bar.
+  if (!barItems.length) return null;
+
   return (
     <div className="promo-wrapper">
-      <div className="promo-row">
-        {displayPromos.map((promo) => (
-          <PromoCard key={promo.id} promo={promo} />
-        ))}
-      </div>
+      <PromoBars items={barItems} />
     </div>
   );
 }

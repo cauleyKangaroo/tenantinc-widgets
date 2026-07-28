@@ -90,9 +90,9 @@ export interface PropertyDetails {
   /** First active email, e.g. "email.test@tenantinc.com" — null when unset. */
   email: string | null;
   /** Computed live status per section; null when that section is disabled/absent. */
-  hours: { office: HoursStatus | null; gate: HoursStatus | null };
+  hours: { office: HoursStatus | null; gate: HoursStatus | null; callCenter: HoursStatus | null };
   /** Grouped weekly schedule per section for the "See all Hours" panel. */
-  schedule: { office: ScheduleRow[]; gate: ScheduleRow[] };
+  schedule: { office: ScheduleRow[]; gate: ScheduleRow[]; callCenter: ScheduleRow[] };
   /** One entry per enabled AccessHours type (Office / Gate / Call Center / …). */
   scheduleSections: { title: string; rows: ScheduleRow[] }[];
   socials: { platform: string; url: string }[];
@@ -211,18 +211,21 @@ export function findProperty(raw: unknown, propertyId: string = PROPERTY_ID): Pr
     ? prop.Emails.find((e) => e.status !== 0 && e.email)?.email ?? null
     : null;
 
-  // Live gate/office status + grouped weekly schedule, in the property's own tz.
+  // Live gate/office/call-centre status + grouped weekly schedule, in the property's own tz.
   const access = Array.isArray(prop.AccessHours) ? prop.AccessHours : [];
   const sectionOf = (type: string) => access.find((a) => a.type === type);
   const officeSection = sectionOf('office');
   const gateSection = sectionOf('gate');
+  const callCenterSection = sectionOf('call_center');
   const hours = {
     office: computeStatus(officeSection, 'Office', prop.utc_offset),
     gate: computeStatus(gateSection, 'Gate', prop.utc_offset),
+    callCenter: computeStatus(callCenterSection, 'Call Center', prop.utc_offset),
   };
   const schedule = {
     office: formatSchedule(officeSection),
     gate: formatSchedule(gateSection),
+    callCenter: formatSchedule(callCenterSection),
   };
 
   // A titled schedule per enabled AccessHours type, so the "See all Hours" modal

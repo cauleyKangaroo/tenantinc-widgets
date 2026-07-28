@@ -15,15 +15,6 @@
   box-sizing: border-box;
 }
 
-.promo-row {
-  display: flex;
-  gap: 24px;
-  width: 100%;
-  max-width: 1314px;
-  margin: 0 auto;
-  align-items: stretch;
-}
-
 /* ── Mode 1: banner (uploaded image) ────────────────────────────────────── */
 
 .promo-banner {
@@ -74,80 +65,108 @@ img.promo-banner-img {
   font-weight: 400;
 }
 
-/* ── Mode 2: active promotion bar ───────────────────────────────────────── */
+/* ── Mode 2: promotion bars ─────────────────────────────────────────────── */
 
-/* Bar carousel (multiple promotions): arrows flank the bar; 5s auto-advance. */
-.promo-bar-carousel {
+/* The row. One bar fills it; 2/3/4 split it evenly via the [data-cols] rules
+   below. Beyond four, PromoBars pages in groups of four and cols stays at 4. */
+.promo-bars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
   width: 100%;
   max-width: 1314px;
   margin: 0 auto;
-  display: flex;
   align-items: stretch;
-  gap: 8px;
-}
-.promo-bar-carousel .promo-bar {
-  max-width: none;
-  margin: 0;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.promo-bar-arrow {
-  flex: 0 0 auto;
-  width: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--color_1, #509e2f);
-  border-radius: 8px;
-  cursor: pointer;
-}
-.promo-bar-arrow:hover { background: rgba(80, 158, 47, 0.1); }
-.promo-bar-arrow--prev svg { transform: rotate(180deg); }
-.promo-bar-carousel--multi .promo-bar { animation: promo-bar-fade 0.35s ease; }
-@keyframes promo-bar-fade { from { opacity: 0.35; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) {
-  .promo-bar-carousel--multi .promo-bar { animation: none; }
 }
 
+/* Figma 6242-44608: 16px radius, hb-elevation-medium shadow, 30px padding, and
+   left-aligned content (was centred with a 2px radius and no shadow). */
 .promo-bar {
-  width: 100%;
-  max-width: 1314px;
-  margin: 0 auto;
-  border-radius: 2px;
+  flex: 1 1 100%;
+  min-width: 0;
+  border-radius: 16px;
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
   background: var(--color_1, #509e2f);
   color: #fff;
-  padding: 40px 24px;
+  padding: 30px;
+  overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
 }
 
+/* Even splits. Basis subtracts the gaps so N bars fit exactly one row. */
+.promo-bars[data-cols='2'] .promo-bar { flex-basis: calc((100% - 24px) / 2); }
+.promo-bars[data-cols='3'] .promo-bar { flex-basis: calc((100% - 48px) / 3); }
+.promo-bars[data-cols='4'] .promo-bar { flex-basis: calc((100% - 72px) / 4); }
+
+/* space-between rather than a plain top stack: with one bar (height driven by
+   content) it renders identically to the Figma frame, but in a row of
+   equal-height bars it pins every CTA to the bottom so they line up even when
+   one title wraps to two lines. */
 .promo-bar-inner {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  text-align: center;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
 }
 
 .promo-bar-titlerow {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
 }
 
-.promo-bar-titlerow svg {
+/* Tag + title, flexed so the info icon is pushed to the far right. */
+.promo-bar-titlewrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.promo-bar-titlewrap svg {
   flex-shrink: 0;
 }
 
 .promo-bar-title {
-  font-size: clamp(24px, 4.5vw, 60px);
+  font-size: clamp(20px, 2.4vw, 34px);
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.12;
+  word-break: break-word;
 }
+
+/* The base rules above ARE the Figma 2-across spec (34px/38px title, 36px tag +
+   36px info box, 30px padding, 8px and 16px gaps), so [data-cols='2'] needs no
+   overrides. Figma only specifies the 2-across bar; the counts below scale
+   around it so a full-width bar isn't undersized and a quarter-width one stays
+   readable. Icon rules override the SVG width/height attributes. */
+.promo-bars[data-cols='1'] .promo-bar { padding: 40px; }
+.promo-bars[data-cols='1'] .promo-bar-title { font-size: clamp(24px, 4.5vw, 60px); }
+.promo-bars[data-cols='1'] .promo-bar-titlewrap { gap: 12px; }
+.promo-bars[data-cols='1'] .promo-bar-titlewrap svg { width: 48px; height: 48px; }
+.promo-bars[data-cols='1'] .promo-bar-info svg { width: 48px; height: 48px; }
+
+.promo-bars[data-cols='3'] .promo-bar { padding: 26px; }
+.promo-bars[data-cols='3'] .promo-bar-title { font-size: clamp(18px, 1.8vw, 26px); }
+.promo-bars[data-cols='3'] .promo-bar-titlewrap svg { width: 30px; height: 30px; }
+.promo-bars[data-cols='3'] .promo-bar-info svg { width: 30px; height: 30px; }
+.promo-bars[data-cols='3'] .promo-bar-cta { font-size: 17px; }
+
+.promo-bars[data-cols='4'] .promo-bar { padding: 22px; }
+.promo-bars[data-cols='4'] .promo-bar-inner { gap: 12px; }
+.promo-bars[data-cols='4'] .promo-bar-title { font-size: clamp(16px, 1.4vw, 22px); }
+.promo-bars[data-cols='4'] .promo-bar-titlerow { gap: 6px; }
+.promo-bars[data-cols='4'] .promo-bar-titlewrap { gap: 6px; }
+.promo-bars[data-cols='4'] .promo-bar-titlewrap svg { width: 26px; height: 26px; }
+.promo-bars[data-cols='4'] .promo-bar-info svg { width: 26px; height: 26px; }
+.promo-bars[data-cols='4'] .promo-bar-cta { font-size: 15px; }
 
 .promo-bar-info {
   flex-shrink: 0;
@@ -189,126 +208,167 @@ button.promo-bar-info {
   flex-shrink: 0;
 }
 
-/* ── Card ───────────────────────────────────────────────────────────────── */
+/* ── Skeleton (shown while the promotions fetch is in flight) ───────────── */
 
-.promo-card {
-  flex: 1 1 0;
-  min-width: 0;
+/* Neutral grey stand-in rather than the live green, so it reads as a placeholder
+   and not as a promo that failed to load its text. Reuses .promo-bar's padding
+   (via data-cols) so the swap to real bars barely shifts height. */
+.promo-bar--skeleton {
+  background: #eceef1;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.promo-bars--skeleton .promo-bar-inner {
+  width: 100%;
+  gap: 16px;
+}
+
+.promo-skel {
+  display: block;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #dfe2e7 25%, #eaecef 37%, #dfe2e7 63%);
+  background-size: 400% 100%;
+  animation: promo-skel-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Left-aligned and sized to the real title/CTA rows, so the swap is a quiet one. */
+.promo-skel--title {
+  width: 70%;
+  max-width: 320px;
+  height: 38px;
+}
+
+.promo-skel--cta {
+  width: 45%;
+  max-width: 180px;
+  height: 24px;
+}
+
+@keyframes promo-skel-shimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-skel { animation: none; }
+}
+
+/* Visually hidden, still announced — pairs with aria-hidden on the bars above. */
+.promo-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Carousel (more than four promotions) ───────────────────────────────── */
+
+.promo-bars-carousel {
+  width: 100%;
+  max-width: 1314px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 30px;
-  border-radius: 16px;
-  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
 }
 
-.promo-card--dark {
-  background: #000;
-  color: #fff;
-}
-
-.promo-card--green {
-  background: #509e2f;
-  color: #fff;
-}
-
-.promo-card--outline {
-  background: transparent;
-  color: #101318;
-  border: 3px dashed #000;
-  box-shadow: none;
-}
-
-/* ── Head (tag + title + info) ──────────────────────────────────────────── */
-
-.promo-head {
+/* Arrows flank the row; the row itself still owns the even-split widths. */
+.promo-bars-track {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: stretch;
   gap: 8px;
-  width: 100%;
 }
 
-.promo-title-wrap {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  flex: 1 1 0;
+.promo-bars-track .promo-bars {
+  max-width: none;
+  margin: 0;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
-.promo-title-wrap svg {
-  flex-shrink: 0;
-}
-
-.promo-title {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 32px;
-}
-
-.promo-info {
-  flex-shrink: 0;
+.promo-bar-arrow {
+  flex: 0 0 auto;
+  width: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: none;
   border: none;
-  padding: 0;
-  color: inherit;
-  cursor: default;
-  opacity: 0.85;
+  background: transparent;
+  color: var(--color_1, #509e2f);
+  border-radius: 8px;
+  cursor: pointer;
 }
 
-button.promo-info {
-  cursor: help;
-}
+.promo-bar-arrow:hover { background: rgba(80, 158, 47, 0.1); }
+.promo-bar-arrow--prev svg { transform: rotate(180deg); }
 
-.promo-info:hover {
-  opacity: 1;
-}
-
-/* ── CTA ────────────────────────────────────────────────────────────────── */
-
-.promo-cta {
-  display: inline-flex;
+.promo-dots {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  color: inherit;
-  font-size: 18px;
-  font-weight: 400;
-  text-decoration: none;
-  width: fit-content;
+  justify-content: center;
+  gap: 10px;
 }
 
-.promo-cta span {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.promo-dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(16, 19, 24, 0.25);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
-.promo-cta svg {
-  flex-shrink: 0;
+.promo-dot:hover { background: rgba(16, 19, 24, 0.45); }
+
+.promo-dot--active {
+  background: var(--color_1, #509e2f);
+  transform: scale(1.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-dot { transition: none; }
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
+/* Three or four across is too tight on tablets — wrap to two per row and take
+   the 3-column type scale. */
 @media (max-width: 900px) {
-  .promo-row {
-    flex-wrap: wrap;
+  .promo-bars[data-cols='3'] .promo-bar,
+  .promo-bars[data-cols='4'] .promo-bar {
+    flex-basis: calc((100% - 24px) / 2);
+    padding: 26px;
   }
-
-  .promo-card {
-    flex: 1 1 280px;
-  }
+  .promo-bars[data-cols='4'] .promo-bar-title { font-size: clamp(18px, 1.8vw, 26px); }
+  .promo-bars[data-cols='4'] .promo-bar-titlewrap svg,
+  .promo-bars[data-cols='4'] .promo-bar-info svg { width: 30px; height: 30px; }
+  .promo-bars[data-cols='4'] .promo-bar-cta { font-size: 17px; }
 }
 
+/* Single column on phones — everything back to the Figma 2-across scale. */
 @media (max-width: 560px) {
-  .promo-row {
-    flex-direction: column;
+  .promo-bars[data-cols='2'] .promo-bar,
+  .promo-bars[data-cols='3'] .promo-bar,
+  .promo-bars[data-cols='4'] .promo-bar {
+    flex-basis: 100%;
+    padding: 30px;
   }
+  .promo-bars[data-cols='3'] .promo-bar-title,
+  .promo-bars[data-cols='4'] .promo-bar-title { font-size: clamp(20px, 5vw, 34px); }
+  .promo-bars[data-cols='3'] .promo-bar-titlewrap svg,
+  .promo-bars[data-cols='4'] .promo-bar-titlewrap svg,
+  .promo-bars[data-cols='3'] .promo-bar-info svg,
+  .promo-bars[data-cols='4'] .promo-bar-info svg { width: 36px; height: 36px; }
+  .promo-bars[data-cols='3'] .promo-bar-cta,
+  .promo-bars[data-cols='4'] .promo-bar-cta { font-size: 20px; }
 
-  .promo-card {
-    flex: 1 1 auto;
-  }
+  .promo-bar-arrow { width: 32px; }
 }
