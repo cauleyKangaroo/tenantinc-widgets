@@ -52,6 +52,11 @@ interface ApiSocialMedia {
   link?: string;
 }
 
+interface ApiAmenity {
+  name?: string;   // slug, e.g. "contactless_rentals"
+  image?: string;  // full image URL
+}
+
 interface ApiProperty {
   id: string;
   name?: string;
@@ -60,6 +65,7 @@ interface ApiProperty {
   Faq?: ApiFaq[] | '';
   SocialMedia?: ApiSocialMedia[] | '';
   AccessHours?: AccessHoursSection[] | '';
+  Amenities?: ApiAmenity[] | '';
 }
 
 interface ApiResponse {
@@ -86,6 +92,34 @@ export interface PropertyExtras {
   /** One entry per enabled AccessHours type (Gate / Office / Call Center / …),
    *  listed day-by-day, for the "See all Hours" popup. */
   scheduleSections: { title: string; rows: ScheduleRow[] }[];
+  /** Property amenities (Features & Amenities section): label + photo. */
+  amenities: { name: string; label: string; image: string }[];
+}
+
+// Known amenity slugs → display labels; unknown slugs fall back to title-case.
+const AMENITY_LABELS: Record<string, string> = {
+  secure: 'Secure Facility',
+  ada: 'ADA Accessible',
+  business: 'Business Center',
+  contactless_rentals: 'Contactless Rentals',
+  dumpstation: 'Dump Station',
+  elevator: 'Elevator Access',
+  enclosedrvstorage: 'Enclosed RV Storage',
+  firealarms: 'Fire Alarms',
+  firesprinklers: 'Fire Sprinklers',
+  fenced: 'Fenced & Gated',
+  interiorstorage: 'Interior Storage',
+  solarpanels: 'Solar Panels',
+  climate: 'Climate Controlled',
+  climatecontrolled: 'Climate Controlled',
+  driveup: 'Drive-Up Access',
+  video: 'Video Surveillance',
+  parking: 'Vehicle Parking',
+};
+
+function amenityLabel(slug: string): string {
+  return AMENITY_LABELS[slug]
+    ?? slug.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /** "18888888888" → "(888) 888-8888"; leaves anything unrecognized as-is. */
@@ -174,5 +208,11 @@ export function extractPropertyExtras(raw: unknown, propertyId: string = PROPERT
     })
     .map(({ title, rows }) => ({ title, rows }));
 
-  return { name: prop.name ?? '', phones, socials, faqs, hours, schedule, scheduleSections };
+  const amenities = Array.isArray(prop.Amenities)
+    ? prop.Amenities
+        .filter((a) => a.name && a.image)
+        .map((a) => ({ name: a.name!, label: amenityLabel(a.name!), image: a.image! }))
+    : [];
+
+  return { name: prop.name ?? '', phones, socials, faqs, hours, schedule, scheduleSections, amenities };
 }
