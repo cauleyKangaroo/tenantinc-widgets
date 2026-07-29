@@ -1,4 +1,5 @@
 import React from 'react';
+import { RichText } from '@shared/richText';
 
 // About — free-text copy about the location, editable from the Duda content
 // menu (`aboutContent`). Reuses the Notes card treatment so the two read as a
@@ -9,16 +10,11 @@ export function AboutSection({ content }: { content?: string }) {
   const text = (content ?? '').trim();
   if (!text) return null;
 
-  // Blank-line separated paragraphs, so an editor can add structure from a
-  // plain textarea without needing HTML.
-  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-
   return (
     <section className="sl-section sl-section--about">
       <div className="sl-notes-card">
-        {paragraphs.map((p, i) => (
-          <p className="sl-notes-text" key={i}>{p}</p>
-        ))}
+        {/* HTML is parsed; plain text still becomes blank-line paragraphs. */}
+        <RichText value={text} className="sl-notes-text" />
       </div>
     </section>
   );

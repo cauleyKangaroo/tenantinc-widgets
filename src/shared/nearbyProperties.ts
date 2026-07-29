@@ -140,6 +140,15 @@ export function haversineMiles(a: { lat: number; lng: number }, b: { lat: number
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+/**
+ * Card-ready distance label: thousands separator, decimals dropped.
+ *   5183.9 → "5,183 Miles"    1.7 → "1 Miles"
+ * Truncates rather than rounds, per the spec'd example (5183.9 → 5,183).
+ */
+export function formatDistance(miles: number): string {
+  return `${Math.trunc(miles).toLocaleString('en-US')} Miles`;
+}
+
 /** Browser geolocation, resolving null on denial/error/timeout (never rejects). */
 export function getUserLocation(timeoutMs = 8000): Promise<{ lat: number; lng: number } | null> {
   return new Promise((resolve) => {

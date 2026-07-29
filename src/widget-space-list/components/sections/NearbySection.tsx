@@ -6,6 +6,7 @@ import {
   getUserLocation,
   haversineMiles,
   fetchPropertySpaces,
+  formatDistance,
 } from '@shared/nearbyProperties';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
 import cfg from '../../config.json';
@@ -115,7 +116,7 @@ function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
       <div className="sl-nb2-img" style={{ background: propertyImage(p.imageUrl, index) }}>
         <div className="sl-nb2-img-overlay" />
         {p.distanceMiles != null && (
-          <span className="sl-nb2-distance">{p.distanceMiles.toFixed(1)} Miles</span>
+          <span className="sl-nb2-distance">{formatDistance(p.distanceMiles)}</span>
         )}
         <div className="sl-nb2-prop-info">
           <p className="sl-nb2-prop-name">{p.name}</p>
@@ -191,6 +192,37 @@ function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
           </a>
         </div>
 
+      </div>
+    </div>
+  );
+}
+
+/** Loading placeholder mirroring the card's geometry (image, promo, 3 unit rows,
+ *  footer) so the panel doesn't jump when the real card arrives. */
+function SkeletonCard() {
+  return (
+    <div className="sl-nb2-card sl-nb2-skeleton" aria-hidden="true">
+      <div className="sl-nb2-img sl-nb2-sk-block" />
+      <div className="sl-nb2-spaces">
+        <div className="sl-nb2-sk-line sl-nb2-sk-promo" />
+        <div className="sl-nb2-units">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="sl-nb2-unit-row">
+              <div className="sl-nb2-unit-info">
+                <span className="sl-nb2-sk-line sl-nb2-sk-dims" />
+                <span className="sl-nb2-sk-line sl-nb2-sk-type" />
+              </div>
+              <div className="sl-nb2-unit-pricing">
+                <span className="sl-nb2-sk-line sl-nb2-sk-price" />
+                <span className="sl-nb2-sk-block sl-nb2-sk-btn" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="sl-nb2-footer">
+          <span className="sl-nb2-sk-line sl-nb2-sk-fee" />
+          <span className="sl-nb2-sk-line sl-nb2-sk-seeall" />
+        </div>
       </div>
     </div>
   );
@@ -280,8 +312,11 @@ export function NearbySection() {
     return () => { cancelled = true; };
   }, []);
 
-  // Fall back to demo data while loading / on empty result so the section never
-  // renders blank inside the editor or preview.
+  // While loading we render a skeleton card — showing DEMO_PROPERTIES here meant
+  // real-looking names/prices flashed up and were then replaced. Demo data is
+  // still the fallback for an EMPTY result, so the section never renders blank
+  // inside the editor or preview.
+  const loading = apiProps === null;
   const properties = apiProps && apiProps.length ? apiProps : DEMO_PROPERTIES;
   const total = properties.length;
   const safePage = Math.min(page, total - 1);
@@ -295,7 +330,7 @@ export function NearbySection() {
     label: p.units[0] ? `$${p.units[0].startingAt}` : undefined,
     name: p.name,
     address: p.address,
-    distance: p.distanceMiles != null ? `${p.distanceMiles.toFixed(1)} Miles` : undefined,
+    distance: p.distanceMiles != null ? formatDistance(p.distanceMiles) : undefined,
     active: i === safePage,
   }));
 
@@ -310,7 +345,9 @@ export function NearbySection() {
 
       {/* Content */}
       <div className="sl-nb2-content">
-        {view === 'map' ? (
+        {loading && view === 'list' ? (
+          <SkeletonCard />
+        ) : view === 'map' ? (
           refLoc && mapPoints.length ? (
             <NearbyMap center={refLoc} points={mapPoints} height={280} />
           ) : (
@@ -323,8 +360,8 @@ export function NearbySection() {
         )}
       </div>
 
-      {/* Pagination */}
-      <div className="sl-nb2-pagination">
+      {/* Pagination — hidden while loading, since the count isn't known yet */}
+      <div className="sl-nb2-pagination" style={loading ? { visibility: 'hidden' } : undefined}>
         <button className="sl-nb2-arrow" onClick={() => setPage(Math.max(0, safePage - 1))} disabled={safePage === 0}>
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="24 12 16 20 24 28"/>

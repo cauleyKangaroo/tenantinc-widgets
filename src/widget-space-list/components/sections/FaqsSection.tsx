@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { RichText } from '@shared/richText';
 
 interface Faq {
   id: number;
@@ -43,7 +44,9 @@ function FaqItem({ faq, isLast }: { faq: Faq; isLast: boolean }) {
       </button>
       {open && (
         <div className="sl-faq2-answer">
-          <p className="sl-faq2-answer-text">{faq.answer}</p>
+          {/* Answers are authored copy — HTML tags are parsed rather than shown
+              as text (see @shared/richText). */}
+          <RichText value={faq.answer} className="sl-faq2-answer-text" />
           {faq.link && (
             <a href="#" className="sl-faq2-link">&#8250; {faq.link}</a>
           )}

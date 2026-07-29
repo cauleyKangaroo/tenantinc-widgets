@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import cfg from './config.json';
@@ -16,12 +16,35 @@ import { FilterModal } from './components/FilterModal';
 import { TopFilterBar } from './components/TopFilterBar';
 import { GridView } from './components/GridView';
 import { ListView } from './components/ListView';
+import { DefaultView } from './components/DefaultView';
 import { SectionAccordion } from './components/SectionAccordion';
 import { ReorderModal } from './components/ReorderModal';
 import { SkeletonLoader } from './components/SkeletonLoader';
 import { ACCORDION_SECTIONS, type AccordionConfig } from './accordionSections';
 import { instanceKey, readAccordionConfig, saveAccordionConfig } from './accordionConfigApi';
 import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, type PromoSelection } from '@shared/promoBus';
+
+// Wrapper-width breakpoint below which we count as mobile. Keyed off the widget's
+// own width, not the viewport, for the same reason as the CSS container queries:
+// in Duda the widget often sits in a narrow column inside a wide window.
+const MOBILE_BP = 640;
+
+function useIsMobile(breakpoint: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < breakpoint : false,
+  );
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      setIsMobile(entries[0].contentRect.width < breakpoint);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [breakpoint]);
+  return { ref, isMobile };
+}
 
 export function SpaceList({
   layoutMode = 'grid',
@@ -41,6 +64,8 @@ export function SpaceList({
   aboutTitle,
   aboutContent,
   notesContent,
+  blogCollection,
+  blogBasePath,
   inEditor    = false,
   elementId,
   siteId,
@@ -64,6 +89,10 @@ export function SpaceList({
   };
   const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // The default layout has no mobile frame of its own — below MOBILE_BP it falls
+  // back to the grid layout, which does.
+  const { ref: wrapperRef, isMobile } = useIsMobile(MOBILE_BP);
 
   // Second API call: property FAQ / phone / socials for the sidebar accordion.
   // Null until loaded (or on failure) → sections fall back to their demo data.
@@ -209,6 +238,8 @@ export function SpaceList({
       aboutTitle={aboutTitle}
       aboutContent={aboutContent}
       notesContent={notesContent}
+      blogCollection={blogCollection}
+      blogBasePath={blogBasePath}
     />
   );
 
@@ -246,7 +277,7 @@ export function SpaceList({
   // Filters are always a top bar inside the listing column; the accordion panel
   // sits on whichever side apLocation specifies.
   return (
-    <div className={`sl-wrapper filter-top ap-${apLocation}`}>
+    <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
       <div className="sl-heading">
         <p className="sl-select-heading">Select a Space {totalVacant > 0 && `— ${totalVacant} Available`}</p>
         <p className="sl-page-title">Storage Units in {propertyExtras?.name || cfg.propertyName}</p>
@@ -274,6 +305,8 @@ export function SpaceList({
             <SkeletonLoader />
           ) : layoutMode === 'list' ? (
             <ListView units={visibleUnits} config={config} />
+          ) : layoutMode === 'default' && !isMobile ? (
+            <DefaultView units={visibleUnits} config={config} />
           ) : (
             <GridView units={visibleUnits} config={config} />
           )}

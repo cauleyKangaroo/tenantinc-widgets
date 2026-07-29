@@ -3,10 +3,10 @@ import './BlogsListing.css';
 import { ShareIcon, FileTextIcon, ChevronRight, SOCIALS } from './icons';
 import { BLOG_IMAGES, cover } from '@shared/demoImages';
 import { hasCollectionsApi } from '@shared/dudaCollections';
-import { fetchBlogPosts, type BlogPostData } from './blogsApi';
+import { fetchBlogPosts, type BlogPostData } from '@shared/blogPosts';
 
 // ---------------------------------------------------------------------------
-// Posts come from the Duda `BlogPosts` collection (see blogsApi.ts). The set
+// Posts come from the Duda `BlogPosts` collection (see @shared/blogPosts). The set
 // below is the dev-harness fallback only — outside Duda there's no dmAPI to
 // read, so without it the harness would render an empty section.
 // ---------------------------------------------------------------------------

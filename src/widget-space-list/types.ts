@@ -95,8 +95,16 @@ export interface FilterOption<T extends string = string> {
 // ---------------------------------------------------------------------------
 
 export interface SpaceListProps {
-  /** Radio in the content panel: Grid View / List View */
-  layoutMode?: 'grid' | 'list';
+  /**
+   * Dropdown in the content panel: which listing layout to render.
+   *   'grid'    — card grid inside size-group accordions
+   *   'list'    — one card per size group, dimensions as selectable pills
+   *   'default' — one horizontal card per unit (Figma 7112-47133); below the
+   *               widget's 640px mobile breakpoint this renders 'grid' instead,
+   *               since the default card has no mobile frame.
+   * Omitted → 'grid' (unchanged behaviour for instances that never set it).
+   */
+  layoutMode?: 'grid' | 'list' | 'default';
   /** @deprecated Filters now always render as a top bar; this is ignored. */
   filterPosition?: 'left' | 'top' | 'right';
   /** Dropdown in the content panel: which side the accordion panel sits on. Default 'right'. */
@@ -153,6 +161,13 @@ export interface SpaceListProps {
   aboutContent?: string;
   /** Body copy of the "Notes" accordion. Blank → falls back to the demo note. */
   notesContent?: string;
+  /**
+   * Duda collection the "Storage Blogs" accordion reads (case-sensitive).
+   * Default 'BlogPosts' — the same collection widget #12 reads.
+   */
+  blogCollection?: string;
+  /** Path the blog post slugs hang off, e.g. "/blog". Default '/blog'. */
+  blogBasePath?: string;
 
   // ── AP section visibility toggles ──────────────────────────────────────────
   // Vestigial: SectionAccordion treats every registered section as a candidate
