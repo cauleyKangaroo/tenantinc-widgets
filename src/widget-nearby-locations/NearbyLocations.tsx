@@ -16,6 +16,7 @@ import {
   getUserLocation,
   haversineMiles,
   fetchPropertySpaces,
+  formatDistance,
   CURRENT_PROPERTY_ID,
   type NearbyProperty,
   type NearbySpace,
@@ -96,7 +97,7 @@ function PropertyCard({ property }: { property: Property }) {
       <div className="nl-card-image" style={{ background: property.image }}>
         <div className="nl-card-image-overlay" />
         {property.distanceMiles != null && (
-          <span className="nl-card-distance">{property.distanceMiles.toFixed(1)} Miles</span>
+          <span className="nl-card-distance">{formatDistance(property.distanceMiles)}</span>
         )}
         <div className="nl-card-data">
           <span className="nl-card-name">{property.name}</span>
@@ -146,6 +147,38 @@ function PropertyCard({ property }: { property: Property }) {
           <a className="nl-see-all" href="#">
             See All Spaces
           </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Loading placeholder mirroring the card's own geometry (image, promo, 3 space
+ *  rows, footer) so the grid doesn't reflow when the real cards arrive. */
+function SkeletonCard() {
+  return (
+    <div className="nl-card nl-skeleton-card" aria-hidden="true">
+      <div className="nl-card-image nl-skeleton-block" />
+      <div className="nl-card-body">
+        <div className="nl-skeleton-line nl-skeleton-promo" />
+        <div className="nl-spaces">
+          {[0, 1, 2].map((i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span className="nl-space-divider" />}
+              <div className="nl-skeleton-space-row">
+                <div className="nl-skeleton-lines">
+                  <div className="nl-skeleton-line nl-skeleton-size" />
+                  <div className="nl-skeleton-line nl-skeleton-subtype" />
+                </div>
+                <div className="nl-skeleton-line nl-skeleton-price" />
+                <div className="nl-skeleton-block nl-skeleton-btn" />
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
+        <div className="nl-card-footer">
+          <div className="nl-skeleton-line nl-skeleton-fee" />
+          <div className="nl-skeleton-line nl-skeleton-seeall" />
         </div>
       </div>
     </div>
@@ -244,8 +277,10 @@ export function NearbyLocations({
     return () => { cancelled = true; };
   }, [radiusMiles, adminFee]);
 
-  // While loading, keep the demo grid as a placeholder; on empty API result fall
-  // back to demo too (so the section never renders blank in the editor/preview).
+  // While loading we render skeleton cards — showing DEMO_PROPERTIES here meant
+  // real-looking names/prices flashed up and were then replaced. Demo data is
+  // still the fallback for an EMPTY result, so the section never renders blank in
+  // the editor/preview.
   const loading = apiProperties === null;
   const properties = apiProperties && apiProperties.length ? apiProperties : DEMO_PROPERTIES;
   const noneInRadius = !loading && apiProperties!.length === 0 && radiusMiles > 0;
@@ -262,7 +297,7 @@ export function NearbyLocations({
     label: p.spaces[0] ? `$${p.spaces[0].startingPrice}` : undefined,
     name: p.name,
     address: p.address,
-    distance: p.distanceMiles != null ? `${p.distanceMiles.toFixed(1)} Miles` : undefined,
+    distance: p.distanceMiles != null ? formatDistance(p.distanceMiles) : undefined,
     active: i === mobileIdx,
   }));
 
@@ -281,12 +316,14 @@ export function NearbyLocations({
         ) : (
           <>
             <div className="nl-grid">
-              {pageCards.map((property) => (
-                <PropertyCard key={property.id} property={property} />
-              ))}
+              {loading
+                ? Array.from({ length: CARDS_PER_PAGE }, (_, i) => <SkeletonCard key={i} />)
+                : pageCards.map((property) => (
+                    <PropertyCard key={property.id} property={property} />
+                  ))}
             </div>
 
-            {totalPages > 1 && (
+            {!loading && totalPages > 1 && (
               <div className="nl-pagination">
                 <button className="nl-page-btn nl-page-btn-prev" onClick={() => setPage(() => Math.max(0, safePage - 1))} disabled={safePage === 0} aria-label="Previous">
                   <ChevronRight size={40} />
@@ -318,10 +355,16 @@ export function NearbyLocations({
             <p className="nl-empty">No properties found within {radiusMiles} miles.</p>
           ) : (
             <>
-              <PropertyCard property={properties[Math.min(mobileIdx, properties.length - 1)]} />
-              <div className="nl-pagination nl-pagination-dots">
-                <Dots count={properties.length} active={Math.min(mobileIdx, properties.length - 1)} onPick={setMobileIdx} />
-              </div>
+              {loading ? (
+                <SkeletonCard />
+              ) : (
+                <>
+                  <PropertyCard property={properties[Math.min(mobileIdx, properties.length - 1)]} />
+                  <div className="nl-pagination nl-pagination-dots">
+                    <Dots count={properties.length} active={Math.min(mobileIdx, properties.length - 1)} onPick={setMobileIdx} />
+                  </div>
+                </>
+              )}
             </>
           )
         ) : refLoc && mapPoints.length ? (

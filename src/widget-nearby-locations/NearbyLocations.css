@@ -61,13 +61,15 @@
 
 /* ── Grid ───────────────────────────────────────────────────────────────── */
 
+/* stretch (not start): every card in the row takes the height of the tallest, so
+   a property with a longer name or fewer spaces doesn't leave a short card. */
 .nl-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 24px;
   width: 100%;
   max-width: 1314px;
-  align-items: start;
+  align-items: stretch;
 }
 
 /* ── Property card ──────────────────────────────────────────────────────── */
@@ -178,11 +180,15 @@
 
 /* ── Card body ──────────────────────────────────────────────────────────── */
 
+/* flex:1 + the footer's margin-top:auto are what make the equal-height cards look
+   deliberate: the body absorbs the extra height and the footer stays pinned to the
+   bottom edge instead of floating mid-card. */
 .nl-card-body {
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 24px;
+  flex: 1 1 auto;
 }
 
 .nl-promo {
@@ -330,6 +336,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  margin-top: auto;
 }
 
 .nl-admin-fee {
@@ -515,3 +522,44 @@
     padding: 24px;
   }
 }
+
+/* ===========================================================================
+   SKELETON LOADER — shown while the properties/spaces calls are in flight
+   =========================================================================== */
+/* Same shimmer as widget #05's skeleton so the two read as one system. */
+.nl-skeleton-line,
+.nl-skeleton-block {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 600px 100%;
+  animation: nl-shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+
+@keyframes nl-shimmer {
+  0%   { background-position: -300px 0; }
+  100% { background-position: 300px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nl-skeleton-line,
+  .nl-skeleton-block { animation: none; }
+}
+
+.nl-skeleton-card { pointer-events: none; }
+/* Overrides the image block's own gradient background, keeping its 234px height */
+.nl-skeleton-card .nl-card-image { border-radius: 0; }
+
+.nl-skeleton-space-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.nl-skeleton-lines { display: flex; flex-direction: column; gap: 6px; }
+.nl-skeleton-promo   { height: 44px; width: 100%; border-radius: 8px; }
+.nl-skeleton-size    { height: 18px; width: 72px; }
+.nl-skeleton-subtype { height: 14px; width: 108px; }
+.nl-skeleton-price   { height: 34px; width: 96px; }
+.nl-skeleton-btn     { height: 40px; width: 84px; border-radius: 8px; }
+.nl-skeleton-fee     { height: 14px; width: 140px; }
+.nl-skeleton-seeall  { height: 14px; width: 96px; }

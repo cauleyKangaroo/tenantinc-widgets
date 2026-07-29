@@ -1,6 +1,9 @@
 // ===========================================================================
 // Blog posts from the Duda `BlogPosts` collection.
 //
+// Shared by #12 blogs-listing and the #05 space-list "Storage Blogs" accordion
+// section, so both read the same collection through the same mapping.
+//
 // Columns (site d0aa72e3): postId, title, path, status, authorName,
 // description, metaTitle, tags, noIndex, mainImage, thumbnail, publishDate,
 // creationDate, content.

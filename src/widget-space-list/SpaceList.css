@@ -879,6 +879,148 @@
 }
 
 /* ===========================================================================
+   DEFAULT LAYOUT — one horizontal card per unit (Figma 7112-47133)
+   =========================================================================== */
+/* Same size-group accordions as the grid layout, but each group stacks full-width
+   rows instead of a card grid. Below the wrapper's mobile breakpoint SpaceList
+   renders GridView instead, so there is no mobile frame for this card. */
+.sl-wrapper .sl-default-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.sl-wrapper .sl-dv-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.sl-wrapper .sl-default-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  box-sizing: border-box;
+}
+
+/* ── Display panel (white): image + "See what fits" | size + amenities ── */
+/* Hard 55/45 split, NOT content-sized: the white/grey seam must land on the same
+   x for every card in the list, so neither panel may size to its own contents
+   (that is what made the seam wander card to card). */
+.sl-wrapper .sl-dv-display {
+  background: #ffffff;
+  flex: 0 0 55%;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 30px;
+  box-sizing: border-box;
+}
+/* Self-sizing (no fixed width): the column is as wide as its widest child, so the
+   nowrap "See what fits" link can never paint over the amenity list — which a
+   fixed 100–130px column let it do, and would let it do again on any Duda theme
+   whose font is wider than Montserrat. The image cap below is what bounds it. */
+.sl-wrapper .sl-dv-image-col {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+/* Figma's column is 162 but its image leaf is only 96.6 x 119 inside it, so the
+   caps here carry the same visual weight on far less width. Capping the HEIGHT is
+   what keeps the card slim: the demo photos vary in aspect, and a width-only cap
+   let tall ones drive the whole row's height. */
+.sl-wrapper .sl-dv-img {
+  width: auto;
+  max-width: 136px;
+  height: auto;
+  max-height: 119px;
+  object-fit: contain;
+  display: block;
+}
+.sl-wrapper .sl-dv-see-fits {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color_1, #f45f30);
+  text-decoration: none;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sl-wrapper .sl-dv-see-fits:hover { text-decoration: underline; }
+.sl-wrapper .sl-dv-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.sl-wrapper .sl-dv-heading { display: flex; flex-direction: column; }
+.sl-wrapper .sl-dv-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+}
+.sl-wrapper .sl-dv-subtype {
+  font-size: 16px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 20px;
+}
+
+/* ── Action panel (grey): promo + price + CTA, bottom-right at 323px ── */
+.sl-wrapper .sl-dv-action {
+  background: #f9fafb;
+  flex: 0 0 45%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 30px;
+  box-sizing: border-box;
+}
+/* Figma's Actions frame is 323, but its price block renders ~165 + 16 gap + the
+   146 CTA = 327 — i.e. 323 is a few px short of holding its own contents, and a
+   site whose Duda theme font is wider needs more still. 348 keeps the price and
+   the CTA on one row, which is the arrangement that actually matters. */
+.sl-wrapper .sl-dv-actions {
+  width: 100%;
+  max-width: 348px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* wrap is the safety valve: an unusually long price (five figures, say) drops the
+   CTA below the price instead of overflowing into the card's clipped edge. */
+.sl-wrapper .sl-dv-price-button {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+.sl-wrapper .sl-dv-price { flex: 1 1 auto; min-width: 0; }
+.sl-wrapper .sl-dv-btn-col {
+  flex: 0 1 146px;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.sl-wrapper .sl-dv-urgency {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fb4c4c;
+  text-align: right;
+}
+
+/* ===========================================================================
    RESPONSIVE — overall shell (viewport based)
    =========================================================================== */
 @media (max-width: 1024px) {
@@ -946,6 +1088,42 @@
   .sl-wrapper .sl-lc-promo { flex: 1 1 100%; }
   .sl-wrapper .sl-lc-price-button { flex: 1 1 100%; justify-content: space-between; }
   .sl-wrapper .sl-lc-action { justify-content: stretch; }
+}
+
+/* Default-layout card. The row must SURVIVE the squeezed Duda listing column
+   (~800px once the accordion panel takes its 422) — the whole point of this
+   layout is white panel beside grey panel, so narrowing steps give width back
+   from the image and the paddings before anything is allowed to stack. */
+/* Below ~907px of listing, 45% stops being enough for the full-size price row and
+   CTA to share a line (408 = 60 padding + the 348 box). Trim the paddings, the
+   image (to the Figma leaf's own ~97px), the CTA basis and the price size to buy
+   that back — the split itself stays 55/45, since a per-card min-width floor is
+   exactly what would make the seam wander again. */
+@container (max-width: 907px) {
+  .sl-wrapper .sl-dv-display { padding: 20px; gap: 12px; }
+  .sl-wrapper .sl-dv-img { max-width: 100px; }
+  /* 13px keeps the link narrower than the 100px image, so the column stays put */
+  .sl-wrapper .sl-dv-see-fits { font-size: 13px; gap: 4px; }
+  .sl-wrapper .sl-dv-action { padding: 20px; }
+  .sl-wrapper .sl-dv-actions { max-width: 312px; }
+  .sl-wrapper .sl-dv-price-button { gap: 12px; }
+  .sl-wrapper .sl-dv-btn-col { flex: 0 1 120px; min-width: 110px; }
+  /* 22px (vs Figma's 24) is the last few px the price row needs to stay on ONE
+     row with the CTA here — the list card drops to 20px at its narrow step. */
+  .sl-wrapper .sl-dv-price .sl-main-price { font-size: 22px; }
+}
+
+/* Genuinely out of room for two columns. Only reachable in Duda, where the
+   accordion panel can squeeze the listing well below the wrapper's 640px mobile
+   breakpoint — on a real phone the wrapper is narrow too, so SpaceList has
+   already swapped in the grid layout. */
+/* Both panels must drop the 55/45 basis here: the card is a COLUMN now, so a
+   percentage basis would be read against its height. */
+@container (max-width: 600px) {
+  .sl-wrapper .sl-default-card { flex-direction: column; }
+  .sl-wrapper .sl-dv-display { flex: 0 0 auto; }
+  .sl-wrapper .sl-dv-action { flex: 0 0 auto; align-items: stretch; }
+  .sl-wrapper .sl-dv-actions { max-width: none; }
 }
 
 @container (max-width: 480px) {
@@ -2197,6 +2375,27 @@
   overflow: hidden;
 }
 
+/* ── Skeleton (shown while the nearby calls are in flight) ── */
+/* Reuses the card's own geometry classes; only the shimmer bars are new. Same
+   gradient/timing as the listing skeleton above. */
+.sl-wrapper .sl-nb2-skeleton { pointer-events: none; }
+.sl-wrapper .sl-nb2-sk-line,
+.sl-wrapper .sl-nb2-sk-block {
+  display: block;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 600px 100%;
+  animation: sl-shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+.sl-wrapper .sl-nb2-skeleton .sl-nb2-img { border-radius: 0; }
+.sl-wrapper .sl-nb2-sk-promo  { height: 44px; width: 100%; border-radius: 8px; margin-bottom: 12px; }
+.sl-wrapper .sl-nb2-sk-dims   { height: 18px; width: 68px; }
+.sl-wrapper .sl-nb2-sk-type   { height: 13px; width: 104px; margin-top: 5px; }
+.sl-wrapper .sl-nb2-sk-price  { height: 32px; width: 88px; }
+.sl-wrapper .sl-nb2-sk-btn    { height: 38px; width: 76px; border-radius: 8px; }
+.sl-wrapper .sl-nb2-sk-fee    { height: 13px; width: 132px; }
+.sl-wrapper .sl-nb2-sk-seeall { height: 13px; width: 92px; }
+
 /* Image */
 .sl-wrapper .sl-nb2-img {
   height: 234px;
@@ -3087,6 +3286,66 @@
   border-radius: 16px;
   overflow: hidden;
 }
+
+/* The title is the card's link; keep it looking like the plain title it replaced */
+.sl-wrapper .sl-blog2-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+.sl-wrapper .sl-blog2-title-link:hover { text-decoration: underline; }
+
+.sl-wrapper .sl-blog2-empty {
+  margin: 0;
+  padding: 24px 0;
+  font-size: 15px;
+  color: #637381;
+  text-align: center;
+}
+
+/* ── Skeleton (while the BlogPosts collection read is in flight) ── */
+.sl-wrapper .sl-blog2-skeleton { pointer-events: none; }
+.sl-wrapper .sl-blog2-sk-line,
+.sl-wrapper .sl-blog2-sk-block {
+  display: block;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 600px 100%;
+  animation: sl-shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+.sl-wrapper .sl-blog2-skeleton .sl-blog2-image { border-radius: 0; }
+.sl-wrapper .sl-blog2-sk-title          { height: 22px; width: 100%; }
+.sl-wrapper .sl-blog2-sk-title--short   { width: 62%; }
+.sl-wrapper .sl-blog2-sk-byline         { height: 13px; width: 46%; }
+.sl-wrapper .sl-blog2-sk-excerpt        { height: 15px; width: 100%; }
+.sl-wrapper .sl-blog2-sk-excerpt--short { width: 78%; }
+.sl-wrapper .sl-blog2-sk-readmore       { height: 15px; width: 88px; }
+.sl-wrapper .sl-blog2-sk-share          { height: 15px; width: 68px; }
+
+/* ===========================================================================
+   RICH TEXT — authored HTML from the Duda content menu / API text fields
+   =========================================================================== */
+/* RichText (@shared/richText) parses authored HTML instead of printing the tags,
+   so these containers can hold whatever an editor typed. The rules only tidy
+   spacing — the surrounding class supplies font/colour. */
+.sl-wrapper .sl-rich > *:first-child { margin-top: 0; }
+.sl-wrapper .sl-rich > *:last-child  { margin-bottom: 0; }
+.sl-wrapper .sl-rich p               { margin: 0 0 12px; }
+.sl-wrapper .sl-rich ul,
+.sl-wrapper .sl-rich ol              { margin: 0 0 12px; padding-left: 22px; }
+.sl-wrapper .sl-rich li              { margin-bottom: 4px; }
+.sl-wrapper .sl-rich a               { color: var(--color_1, #f45f30); }
+.sl-wrapper .sl-rich h1,
+.sl-wrapper .sl-rich h2,
+.sl-wrapper .sl-rich h3,
+.sl-wrapper .sl-rich h4              { margin: 0 0 8px; font-weight: 700; line-height: 1.3; }
+.sl-wrapper .sl-rich h1 { font-size: 22px; }
+.sl-wrapper .sl-rich h2 { font-size: 20px; }
+.sl-wrapper .sl-rich h3 { font-size: 18px; }
+.sl-wrapper .sl-rich h4 { font-size: 16px; }
+.sl-wrapper .sl-rich img             { max-width: 100%; height: auto; }
+.sl-wrapper .sl-rich table           { width: 100%; border-collapse: collapse; }
+.sl-wrapper .sl-rich td,
+.sl-wrapper .sl-rich th              { border: 1px solid #dfe3e8; padding: 6px 8px; text-align: left; }
 
 /* Hero image placeholder */
 .sl-wrapper .sl-blog2-image {

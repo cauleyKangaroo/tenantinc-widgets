@@ -5,6 +5,7 @@ import {
   fetchPropertySpaces as sharedFetchPropertySpaces,
   getUserLocation,
   haversineMiles,
+  formatDistance,
   type NearbyBaseProperty,
   type NearbySpace,
 } from '@shared/nearbyProperties';
@@ -12,7 +13,7 @@ import {
 // Thin widget adapter: binds the shared nearby-properties layer to this widget's
 // own API credentials (config.json). The shared module holds all the logic.
 
-export { getUserLocation, haversineMiles };
+export { getUserLocation, haversineMiles, formatDistance };
 export type { NearbySpace };
 
 export const CURRENT_PROPERTY_ID = cfg.propertyId;

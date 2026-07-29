@@ -148,6 +148,10 @@ export interface SectionAccordionProps {
   aboutContent?: string;
   /** Body copy for the Notes section. */
   notesContent?: string;
+  /** Duda collection the Storage Blogs section reads. Default 'BlogPosts'. */
+  blogCollection?: string;
+  /** Path the blog post slugs hang off, e.g. "/blog". */
+  blogBasePath?: string;
 }
 
 // ── Single accordion row ──────────────────────────────────────────────────────
@@ -183,6 +187,8 @@ export function SectionAccordion({
   aboutTitle,
   aboutContent,
   notesContent,
+  blogCollection,
+  blogBasePath,
 }: SectionAccordionProps) {
   // Only one section open at a time — opening one closes the currently-open one.
   const [openKey, setOpenKey] = useState<AccordionKey | null>(null);
@@ -204,6 +210,7 @@ export function SectionAccordion({
       : key === 'store'   ? <StoreSection phones={propertyExtras?.phones} socials={propertyExtras?.socials} hours={propertyExtras?.hours} schedule={propertyExtras?.schedule} scheduleSections={propertyExtras?.scheduleSections} facilityName={propertyExtras?.name} />
       : key === 'faq'     ? <FaqsSection faqs={propertyExtras?.faqs} />
       : key === 'features' ? <FeaturesSection amenities={propertyExtras?.amenities} />
+      : key === 'blog'    ? <BlogSection collection={blogCollection} blogBasePath={blogBasePath} />
       : key === 'notes'   ? <NotesSection content={notesContent} />
       : key === 'about'   ? <AboutSection content={aboutContent} />
       : VISUALS[key].content,
