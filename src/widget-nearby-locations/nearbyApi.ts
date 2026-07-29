@@ -25,7 +25,10 @@ export interface NearbyProperty extends NearbyBaseProperty {
   spaces: NearbySpace[];
 }
 
-export const fetchProperties = (): Promise<unknown> => sharedFetchProperties(cfg);
+// requirePropertyId: only trust the Duda collection if it actually contains the
+// property this widget is configured for (i.e. it's bound to our company).
+export const fetchProperties = (): Promise<unknown> =>
+  sharedFetchProperties(cfg, { requirePropertyId: cfg.propertyId });
 
 export const extractProperties = (raw: unknown): NearbyBaseProperty[] =>
   extractNearbyProperties(raw, cfg.appId);

@@ -1,4 +1,5 @@
 import cfg from './config.json';
+import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
 
 // Pulls the property's FAQ list from the properties endpoint (faq expansion).
 
@@ -33,7 +34,18 @@ export interface FaqItem {
   answer: string;
 }
 
+/**
+ * Duda's "Properties" collection when it's bound to our company, else the keyed
+ * REST call. Same envelope either way, so extractFaqs below is unchanged.
+ * See @shared/propertiesSource.
+ */
 export async function fetchProperties(): Promise<unknown> {
+  return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, {
+    requirePropertyId: PROPERTY_ID,
+  });
+}
+
+async function fetchPropertiesFromApi(): Promise<unknown> {
   const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties?faq=true`;
 
   const res = await fetch(url, {
