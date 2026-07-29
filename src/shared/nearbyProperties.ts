@@ -8,6 +8,11 @@
 //   • haversineMiles()       – great-circle distance
 //   • fetchPropertySpaces()  – per-property spaces + promo via the space-groups calls
 
+import {
+  fetchPropertiesPreferCollection,
+  type PropertiesSourceOptions,
+} from './propertiesSource';
+
 export interface NearbyApiConfig {
   baseUrl: string;
   appId: string;
@@ -165,10 +170,17 @@ export function getUserLocation(timeoutMs = 8000): Promise<{ lat: number; lng: n
 // Fetches
 // ---------------------------------------------------------------------------
 
-export async function fetchProperties(cfg: NearbyApiConfig): Promise<unknown> {
-  const res = await fetch(`${companyBase(cfg)}/properties?unit_type_counts=true`, { headers: headers(cfg) });
-  if (!res.ok) throw new Error(`fetchProperties failed: ${res.status} ${res.statusText}`);
-  return res.json();
+export async function fetchProperties(
+  cfg: NearbyApiConfig,
+  opts: PropertiesSourceOptions = {},
+): Promise<unknown> {
+  // Duda's "Properties" collection first (no API key, no round trip); the keyed
+  // call is the fallback. Same envelope either way — see @shared/propertiesSource.
+  return fetchPropertiesPreferCollection(cfg.appId, async () => {
+    const res = await fetch(`${companyBase(cfg)}/properties?unit_type_counts=true`, { headers: headers(cfg) });
+    if (!res.ok) throw new Error(`fetchProperties failed: ${res.status} ${res.statusText}`);
+    return res.json();
+  }, opts);
 }
 
 /** All properties with usable coordinates, mapped to the base card shape. */

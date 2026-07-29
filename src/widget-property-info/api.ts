@@ -4,6 +4,7 @@ import {
   type AccessHoursSection, type HoursStatus, type ScheduleRow,
 } from '@shared/accessHours';
 import { createLead as submitLead, type LeadInput } from '@shared/leadsApi';
+import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
 
 export type { LeadInput };
 
@@ -114,7 +115,18 @@ export function formatPhone(rawNumber: string): string {
 // Fetch + filter
 // ---------------------------------------------------------------------------
 
+/**
+ * Duda's "Properties" collection when it's bound to our company, else the keyed
+ * REST call. Same envelope either way, so findProperty below is unchanged.
+ * See @shared/propertiesSource.
+ */
 export async function fetchProperties(): Promise<unknown> {
+  return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, {
+    requirePropertyId: PROPERTY_ID,
+  });
+}
+
+async function fetchPropertiesFromApi(): Promise<unknown> {
   // Expansion flags pull in the nested sections the widget renders.
   const params = 'access_hours=true&amenities=true&unit_type_counts=true&faq=true&social_media=true';
   const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties?${params}`;

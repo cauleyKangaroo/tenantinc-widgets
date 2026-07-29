@@ -9,6 +9,7 @@ import {
 // The primary call (space-groups) still lives in ./api.ts.
 
 import { createLead as submitLead, type LeadInput } from '@shared/leadsApi';
+import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
 
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
@@ -134,7 +135,20 @@ export function formatPhone(rawNumber: string): string {
 // Fetch + extract
 // ---------------------------------------------------------------------------
 
+/**
+ * Properties for the sidebar (FAQ / phones / socials / hours / amenities).
+ *
+ * Reads Duda's "Properties" collection when it's bound to our company, else the
+ * keyed REST call — both return the same envelope, so extractPropertyExtras below
+ * is unchanged. See @shared/propertiesSource.
+ */
 export async function fetchProperties(): Promise<unknown> {
+  return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, {
+    requirePropertyId: PROPERTY_ID,
+  });
+}
+
+async function fetchPropertiesFromApi(): Promise<unknown> {
   const params = 'access_hours=true&amenities=true&unit_type_counts=true&faq=true&social_media=true';
   const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties?${params}`;
 

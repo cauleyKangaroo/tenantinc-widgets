@@ -246,7 +246,10 @@ export function NearbySection() {
 
     (async () => {
       try {
-        const [raw, userLoc] = await Promise.all([fetchProperties(cfg), getUserLocation()]);
+        const [raw, userLoc] = await Promise.all([
+          fetchProperties(cfg, { requirePropertyId: cfg.propertyId }),
+          getUserLocation(),
+        ]);
         const all = extractNearbyProperties(raw, cfg.appId);
 
         const current = all.find((p) => p.id === cfg.propertyId);
