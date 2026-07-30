@@ -592,35 +592,23 @@
   justify-content: center;
 }
 .sl-wrapper .sl-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
-.sl-wrapper .sl-call-btn {
-  background: #ffffff;
-  color: var(--color_1, #f45f30);
-  border: 2px solid var(--color_1, #f45f30);
-  border-radius: 8px;
-  height: 50px;
-  width: 100%;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s;
-  font-family: 'Montserrat', sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-/* Rendered as an <a href="tel:…"> on sold-out units — kill the link underline. */
-.sl-wrapper a.sl-call-btn { text-decoration: none; }
-.sl-wrapper .sl-call-btn:hover { background: #fff5f2; }
+/* Call / Waitlist are the OUTLINE variant of .sl-select-btn (Figma 7112-47044):
+   white fill, 2px CTA-coloured border, #101318 label — same 50px height, 8px
+   radius and 16px/700 type as Select, so the three read as one button family.
+   The border uses the SAME `--color_2` slot Select fills with, so they track the
+   Duda theme together. Previously Call used --color_1 and Waitlist hardcoded
+   #101318, which is exactly why neither matched Select. */
+.sl-wrapper .sl-call-btn,
 .sl-wrapper .sl-waitlist-btn {
   background: #ffffff;
   color: #101318;
-  border: 2px solid #101318;
+  border: 2px solid var(--color_2, #509e2f);
   border-radius: 8px;
   height: 50px;
   width: 100%;
   font-size: 16px;
   font-weight: 700;
+  line-height: 16px;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
@@ -629,18 +617,29 @@
   align-items: center;
   justify-content: center;
 }
-.sl-wrapper .sl-waitlist-btn:hover { background: #f9f9f9; }
+
+/* Rendered as an <a href="tel:…"> on sold-out units — kill the link underline. */
+.sl-wrapper a.sl-call-btn { text-decoration: none; }
+
+.sl-wrapper .sl-call-btn:hover,
+.sl-wrapper .sl-waitlist-btn:hover {
+  background: color-mix(in srgb, var(--color_2, #509e2f) 8%, #ffffff);
+}
 .sl-wrapper .sl-cta-group {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   width: 100%;
 }
+/* "Limited Availability" under the Call/Waitlist button — Figma 7112-47044 has
+   it 12px/16px SemiBold #fb4c4c, right-aligned, matching the "Only 1 left"
+   urgency line under Select rather than the old centred 11px #d32f2f. */
 .sl-wrapper .sl-limited-label {
-  font-size: 11px;
-  color: #d32f2f;
-  font-weight: 700;
-  text-align: center;
+  font-size: 12px;
+  line-height: 16px;
+  color: #fb4c4c;
+  font-weight: 600;
+  text-align: right;
   margin-top: 4px;
 }
 /* Figma 7112-47056: the price small print is BLACK 12px/16px, and it must wrap

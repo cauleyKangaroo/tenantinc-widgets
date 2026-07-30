@@ -6,7 +6,6 @@ import {
   ChevronRight,
   PhoneIcon,
   MessageAiIcon,
-  MessageDefaultIcon,
   CreditCardIcon,
   UsFlagIcon,
   UserCircleIcon,
@@ -218,9 +217,8 @@ export interface NavigationBarProps {
   showLanguage?: boolean;
   phone?: string;
   phoneHref?: string;
-  /** Second (text/SMS) number shown in the top bar. */
-  smsPhone?: string;
-  smsPhoneHref?: string;
+  /* The smsPhone / smsPhoneHref props were removed with the "message" utility
+     item. Anything the Duda JS tab still passes for them is simply ignored. */
   liveChatLabel?: string;
   liveChatUrl?: string;
   /** Language label for the top-bar selector, e.g. "EN". */
@@ -248,8 +246,6 @@ export function NavigationBar({
   showLanguage = true,
   phone = '(800) 874-9487',
   phoneHref,
-  smsPhone = '(800) 874-9487',
-  smsPhoneHref,
   liveChatLabel = 'Live Chat',
   liveChatUrl = '#',
   language = 'EN',
@@ -289,7 +285,9 @@ export function NavigationBar({
 
   const displayPhone = livePhone?.phone || phone;
   const telHref = phoneHref ?? `tel:${(livePhone?.digits || displayPhone).replace(/[^0-9+]/g, '')}`;
-  const smsHref = smsPhoneHref ?? `tel:${smsPhone.replace(/[^0-9+]/g, '')}`;
+  // The SMS / "message" utility item was removed at the client's request — the
+  // phone entry above is the only contact number in the bar now. (Live Chat is a
+  // separate item, still controlled by `showChat`.)
   // Full override via `links`, else the default nav. Either way the two
   // hardcoded destinations are re-applied so a Duda-supplied editor URL can't
   // replace them.
@@ -414,12 +412,6 @@ export function NavigationBar({
         <a className="nav-top-item" href={telHref}>
           <PhoneIcon size={24} />
           <span>{displayPhone}</span>
-        </a>
-      )}
-      {showPhone && smsPhone && (
-        <a className="nav-top-item" href={smsHref}>
-          <MessageDefaultIcon size={24} />
-          <span>{smsPhone}</span>
         </a>
       )}
       {showChat && (

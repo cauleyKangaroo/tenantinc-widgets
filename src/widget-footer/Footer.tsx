@@ -74,6 +74,9 @@ export function Footer({
   }, [propertyId]);
 
   const displayPhone = contact?.phone || phone;
+  // "Follow <name>" takes the property name from the collection; the copyright
+  // line below deliberately keeps the `companyName` prop (see note there).
+  const displayFollowName = contact?.name || companyName;
   const telHref = `tel:${(contact?.phoneDigits || displayPhone).replace(/[^0-9+]/g, '')}`;
 
   // With live data, show only the platforms this property actually has, linked.
@@ -122,7 +125,7 @@ export function Footer({
 
       <div className="ft-inner ft-follow">
         <div className="ft-follow-left">
-          <span className="ft-follow-label">Follow {companyName}</span>
+          <span className="ft-follow-label">Follow {displayFollowName}</span>
           <div className="ft-socials">
             {socialLinks.map(({ key, label, Icon, href }) => (
               <a key={key} className="ft-social" href={href} aria-label={label} title={label}>
@@ -139,6 +142,9 @@ export function Footer({
 
       <div className="ft-bottom">
         <div className="ft-inner ft-bottom-row">
+          {/* Left on the prop on purpose: the collection's `name` is the FACILITY
+              ("Storelocal Dove Mountain"), and a copyright line should name the
+              company. Swap to displayFollowName if that's wanted. */}
           <span className="ft-copy">© {year}, {companyName}. All Rights Reserved.</span>
           <span className="ft-session">Session: {sessionId}</span>
         </div>
