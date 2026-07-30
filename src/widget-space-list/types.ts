@@ -84,6 +84,9 @@ export interface WidgetConfig {
   sortBy: SortBy;
   /** Which category accordion renders first. */
   categoryOrdering: CategoryOrdering;
+  /** Whether sold-out units appear in the listing at all. */
+  showUnavailableUnits: boolean;
+  /** For a shown sold-out unit: true → "Join waitlist" CTA, false → "Call". */
   enableWaitlist: boolean;
   callOnLimitedAvailability: boolean;
   ctaButtonCopy: string;
@@ -97,9 +100,10 @@ export interface WidgetConfig {
    * in-store price alone.
    */
   instorePriceAmount: number;
-  /* Sold-out tiers are governed by `enableWaitlist` alone now: off hides them,
-     on shows them with a "Join waitlist" CTA. The former showWishlist toggle
-     (and its "Add to Wishlist" popup) has been removed. */
+  /* Sold-out tiers are governed by TWO toggles: `showUnavailableUnits` decides
+     whether they appear at all (default: hidden), and `enableWaitlist` then picks
+     the CTA — "Join waitlist" when on, "Call" when off. The former showWishlist
+     toggle (and its "Add to Wishlist" popup) has been removed. */
   /** Live property phone — kept available to the cards; no longer used by the CTA. */
   contactPhone: string;
   /** Live property name — kept available to the cards. */
@@ -201,7 +205,16 @@ export interface SpaceListProps {
   sortBy?: SortBy;
   /** Radio in the content panel: show Spaces or Parking first. Default 'spaces'. */
   categoryOrdering?: CategoryOrdering;
-  /** Toggle: show "Waitlist" CTA + "Limited Availability" label on waitlisted units. Default false. */
+  /**
+   * Toggle: show sold-out units in the listing at all. Default false (hidden).
+   * When on, `enableWaitlist` decides their CTA — "Join waitlist" or "Call".
+   */
+  showUnavailableUnits?: boolean;
+  /**
+   * Toggle: for sold-out units that ARE shown, use a "Join waitlist" CTA instead
+   * of "Call". Default false. Has no effect while `showUnavailableUnits` is off,
+   * since nothing sold out is rendered.
+   */
   enableWaitlist?: boolean;
   /** Toggle: show "Call" CTA on units flagged as call-only. Default false. */
   callOnLimitedAvailability?: boolean;

@@ -60,6 +60,7 @@ export function SpaceList({
   urgencyThreshold = 5,
   sortBy = 'sizeAsc',
   categoryOrdering = 'spaces',
+  showUnavailableUnits = false,
   enableWaitlist = false,
   callOnLimitedAvailability = false,
   ctaButtonCopy = 'Select',
@@ -115,6 +116,7 @@ export function SpaceList({
       ? (sortBy as WidgetConfig['sortBy'])
       : 'sizeAsc',
     categoryOrdering: categoryOrdering === 'parking' ? 'parking' : 'spaces',
+    showUnavailableUnits,
     enableWaitlist,
     callOnLimitedAvailability,
     ctaButtonCopy,
@@ -248,10 +250,12 @@ export function SpaceList({
     let filtered = filterUnits(units, filters, searchTerm);
     // Cross-widget promo filter: only units allocated to the selected promotion.
     if (promoId) filtered = filtered.filter((u) => u.promoId === promoId);
-    // Waitlist off → hide unavailable units entirely; on → keep them, and the
-    // CTA becomes "Join waitlist" (see CtaButton).
-    return enableWaitlist ? filtered : filtered.filter((u) => !isUnavailable(u));
-  }, [units, filters, searchTerm, enableWaitlist, promoId]);
+    // Sold-out units are hidden unless showUnavailableUnits is on. Visibility is
+    // this toggle's job ALONE — enableWaitlist no longer hides anything, it only
+    // picks the CTA ("Join waitlist" vs "Call") for whatever is shown. So
+    // showUnavailableUnits off + waitlist on still shows nothing sold out.
+    return showUnavailableUnits ? filtered : filtered.filter((u) => !isUnavailable(u));
+  }, [units, filters, searchTerm, showUnavailableUnits, promoId]);
   const badge = activeFilterCount(filters);
   const totalVacant = units.reduce((sum, u) => sum + (u.vacantCount ?? 0), 0);
 
