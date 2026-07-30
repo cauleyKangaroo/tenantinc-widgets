@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import './FAQs.css';
 import { SearchIcon, ChevronDown, ChevronRight } from './icons';
 import { fetchProperties, extractFaqs } from './faqApi';
+import { RichText } from '@shared/richText';
+import { withLineBreaks } from '@shared/lineBreaks';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -51,12 +53,16 @@ function FaqItem({ faq, open, onToggle }: { faq: Faq; open: boolean; onToggle: (
   return (
     <div className="faq-item">
       <button className="faq-q" onClick={onToggle} aria-expanded={open}>
-        <span className="faq-q-text">{faq.question}</span>
+        <span className="faq-q-text">{withLineBreaks(faq.question)}</span>
         <ChevronDown className={`faq-chevron${open ? ' open' : ''}`} size={24} />
       </button>
       {open && (
         <div className="faq-a">
-          <p className="faq-a-text">{faq.answer}</p>
+          {/* Answers can carry authored markup — line breaks especially, which Duda
+              stores as a literal `<br>`. RichText parses (and sanitises) it, the
+              same treatment the Space List FAQ accordion gives this same data.
+              htmlClassName is cleared because `sl-rich` is space-list-only CSS. */}
+          <RichText value={faq.answer} className="faq-a-text" htmlClassName="" />
           {faq.link && (
             <a className="faq-link" href={faq.link.href}>
               <ChevronRight size={24} />

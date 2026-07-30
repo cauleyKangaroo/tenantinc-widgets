@@ -560,20 +560,12 @@
   white-space: normal;
   overflow-wrap: break-word;
 }
-/* "Only X left - Rent soon!" — Figma 7112-47400: 12px/16px SemiBold #fb4c4c,
-   right-aligned. Brought in line with .sl-lc-urgency / .sl-dv-urgency, which
-   already matched; this one was still 11px-era #d32f2f at weight 700. */
-.sl-wrapper .sl-urgency {
-  font-size: 12px;
-  line-height: 16px;
-  color: #fb4c4c;
-  font-weight: 600;
-  text-align: right;
-  margin-top: 2px;
-}
 .sl-wrapper .sl-cta-col {
   flex: 1;
-  min-width: 0;
+  /* max-content rather than 0 so the one-line CTA note reserves its width; with
+     min-width:0 the column collapsed under it and the card's overflow:hidden
+     clipped the text at narrow grid widths. */
+  min-width: max-content;
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -636,9 +628,12 @@
   align-items: stretch;
   width: 100%;
 }
-/* "Limited Availability" under the Call/Waitlist button — Figma 7112-47044 has
-   it 12px/16px SemiBold #fb4c4c, right-aligned, matching the "Only 1 left"
-   urgency line under Select rather than the old centred 11px #d32f2f. */
+/* The note under the CTA — "Limited Availability" (sold out, copy configurable
+   via limitedAvailabilityCopy) or "Only X left - Rent soon!" (scarcity). One rule
+   for both: Figma 7112-47044 and 7112-47400 specify the same 12px/16px SemiBold
+   #fb4c4c right-aligned treatment, and the two messages share a slot under the
+   button, so they must be pixel-identical. Replaces the old per-layout
+   .sl-urgency / .sl-lc-urgency / .sl-dv-urgency rules. */
 .sl-wrapper .sl-limited-label {
   font-size: 12px;
   line-height: 16px;
@@ -646,6 +641,10 @@
   font-weight: 600;
   text-align: right;
   margin-top: 4px;
+  /* One line, always. "Only 125 left - Rent soon!" is ~160px at this size and was
+     wrapping in the narrow CTA columns; the columns below use min-width:max-content
+     so they widen to fit this instead of breaking it. */
+  white-space: nowrap;
 }
 /* Figma 7112-47056: the price small print is BLACK 12px/16px, and it must wrap
    rather than run on — it used to be grey and, being nowrap-wide, got clipped by
@@ -862,17 +861,15 @@
 }
 .sl-wrapper .sl-lc-btn-col {
   flex: 0 1 140px;
-  min-width: 120px;
+  /* max-content, not a fixed px floor: the note under the button must stay on one
+     line, and its length varies (vacancy digits, plus configurable
+     limitedAvailabilityCopy). The price column is flex:1 1 auto with min-width:0,
+     so it absorbs the difference. */
+  min-width: max-content;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 4px;
-}
-.sl-wrapper .sl-lc-urgency {
-  font-size: 12px;
-  font-weight: 600;
-  color: #fb4c4c;
-  text-align: right;
 }
 .sl-wrapper .sl-select-full { width: 100%; }
 .sl-wrapper .sl-empty-msg {
@@ -1013,17 +1010,12 @@
 .sl-wrapper .sl-dv-price { flex: 1 1 auto; min-width: 0; }
 .sl-wrapper .sl-dv-btn-col {
   flex: 0 1 146px;
-  min-width: 120px;
+  /* See .sl-lc-btn-col — sized to keep the CTA note on one line. */
+  min-width: max-content;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 4px;
-}
-.sl-wrapper .sl-dv-urgency {
-  font-size: 12px;
-  font-weight: 600;
-  color: #fb4c4c;
-  text-align: right;
 }
 
 /* ===========================================================================
@@ -1113,7 +1105,7 @@
   .sl-wrapper .sl-dv-action { padding: 20px; }
   .sl-wrapper .sl-dv-actions { max-width: 312px; }
   .sl-wrapper .sl-dv-price-button { gap: 12px; }
-  .sl-wrapper .sl-dv-btn-col { flex: 0 1 120px; min-width: 110px; }
+  .sl-wrapper .sl-dv-btn-col { flex: 0 1 120px; min-width: max-content; }
   /* 22px (vs Figma's 24) is the last few px the price row needs to stay on ONE
      row with the CTA here — the list card drops to 20px at its narrow step. */
   .sl-wrapper .sl-dv-price .sl-main-price { font-size: 22px; }

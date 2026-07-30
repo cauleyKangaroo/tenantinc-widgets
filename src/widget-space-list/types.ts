@@ -87,12 +87,16 @@ export interface WidgetConfig {
   enableWaitlist: boolean;
   callOnLimitedAvailability: boolean;
   ctaButtonCopy: string;
-  /** When true, the main price label reads `promoRateLabel` instead of `startingAtLabel`. */
-  showPromoRate: boolean;
-  /** Label above the main price in normal mode. Default 'Starting at'. */
+  /** Copy for the note under a sold-out unit's CTA. Empty = render nothing. */
+  limitedAvailabilityCopy: string;
+  /** Label above the main price. Default 'Starting at'. */
   startingAtLabel: string;
-  /** Label above the main price when `showPromoRate` is on. Default 'Promo rate'. */
-  promoRateLabel: string;
+  /**
+   * The number `instorePriceMode` applies to the web price — a percentage for the
+   * percent modes, currency for the addition mode. 0 = leave the API's own
+   * in-store price alone.
+   */
+  instorePriceAmount: number;
   /* Sold-out tiers are governed by `enableWaitlist` alone now: off hides them,
      on shows them with a "Join waitlist" CTA. The former showWishlist toggle
      (and its "Add to Wishlist" popup) has been removed. */
@@ -156,12 +160,19 @@ export interface SpaceListProps {
   instorePriceLabel?: string;
   /** Dropdown: how the in-store price is derived from the web price. Default 'percentOfWeb'. */
   instorePriceMode?: InstorePriceMode;
-  /** Toggle: swap the main price label to `promoRateLabel`. Default false. */
-  showPromoRate?: boolean;
-  /** Text label above the main price (normal mode). Default 'Starting at'. */
+  /**
+   * Number field: the amount `instorePriceMode` applies. Duda number fields can
+   * arrive as strings, so this is coerced in SpaceList; blank/0/negative means
+   * "use the API's in-store price unchanged".
+   */
+  instorePriceAmount?: number | string;
+  /** Text label above the main price. Default 'Starting at'. */
   startingAtLabel?: string;
-  /** Text label above the main price when promo rate is on. Default 'Promo rate'. */
-  promoRateLabel?: string;
+  /**
+   * Text field: copy for the note under a sold-out unit's CTA. Blank/omitted
+   * falls back to 'Limited Availability'.
+   */
+  limitedAvailabilityCopy?: string;
   /** Toggle: show video thumbnails inside the Size Guide accordion. Default true. */
   showSizeGuideVideos?: boolean;
   /** Toggle: show a junk-fee disclaimer below unit pricing. Default false. */

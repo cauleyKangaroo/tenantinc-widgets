@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Unit, UnitSize, WidgetConfig } from '../types';
-import { PriceBlock, CtaButton, FeatureList, CheckIcon, JunkFeeDisclaimer, PromoTagIcon, urgencyMessage } from './Pricing';
+import { PriceBlock, CtaButton, FeatureList, CheckIcon, JunkFeeDisclaimer, PromoTagIcon } from './Pricing';
 import defaultImg from '../assets/tenantinc-default.png';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
@@ -96,14 +96,11 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
         )}
         <div className="sl-lc-price-button">
           <div className="sl-lc-price">
-            <PriceBlock unit={selected} config={config} hideUrgency />
+            <PriceBlock unit={selected} config={config} />
             {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
           </div>
           <div className="sl-lc-btn-col">
             <CtaButton unit={selected} config={config} full />
-            {urgencyMessage(selected, config) && (
-              <div className="sl-lc-urgency">{urgencyMessage(selected, config)}</div>
-            )}
           </div>
         </div>
       </div>

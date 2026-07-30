@@ -58,7 +58,11 @@
   gap: 32px;
   width: 100%;
   max-width: 1330px;
-  align-items: start;
+  /* stretch (not the old `start`) so every card in a row takes the height of the
+     tallest — excerpts vary in length, and self-sized cards left the row ragged.
+     `1fr` rows keep that true when the grid wraps to 2 or 1 column. */
+  align-items: stretch;
+  grid-auto-rows: 1fr;
 }
 
 /* ── Blog card ──────────────────────────────────────────────────────────── */
@@ -125,6 +129,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  /* Now that cards are equal height, pin Read more / Share to the bottom so a
+     card with no excerpt doesn't leave its footer floating mid-card. */
+  margin-top: auto;
 }
 
 .blog-readmore {
