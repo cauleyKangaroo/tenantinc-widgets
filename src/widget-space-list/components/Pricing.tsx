@@ -143,14 +143,16 @@ export function JunkFeeDisclaimer({ config }: { config: WidgetConfig }) {
 export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetConfig; full?: boolean }) {
   const fullClass = full ? ' sl-select-full' : '';
 
-  // Unavailable (no vacancy, or flagged waitlist) → "Join waitlist". Unconditional
-  // rather than gated on config.enableWaitlist: with the waitlist off these units
-  // are filtered out of the listing entirely, so reaching here means it's on — and
-  // guarding this way means a sold-out unit can never fall through to "Select".
+  // Unavailable = no vacancy, or flagged waitlist. Reaching here means
+  // showUnavailableUnits is on (it's the only thing that lets these into the
+  // listing), and enableWaitlist then picks the CTA: "Join waitlist" when on,
+  // "Call" when off. Either way a sold-out unit can never fall through to
+  // "Select" — it's the first branch.
   const unavailable = isUnavailable(unit);
+  const waitlistCta = unavailable && config.enableWaitlist;
 
-  // Separate feature: tiers flagged call-only still show "Call" when the client
-  // has that switched on.
+  // Separate feature, for units that ARE available: tiers flagged call-only show
+  // "Call" when the client has that switched on.
   const callOnly = !unavailable && unit.availability === 'call' && config.callOnLimitedAvailability;
 
   // Sold out states the fact; anything else can only offer scarcity.
@@ -158,9 +160,9 @@ export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetCo
 
   return (
     <div className="sl-cta-group">
-      {unavailable ? (
+      {waitlistCta ? (
         <button className={`sl-waitlist-btn${fullClass}`}>Join waitlist</button>
-      ) : callOnly ? (
+      ) : unavailable || callOnly ? (
         <button className={`sl-call-btn${fullClass}`}>Call</button>
       ) : (
         <button className={`sl-select-btn${fullClass}`}>{config.ctaButtonCopy}</button>

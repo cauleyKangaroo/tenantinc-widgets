@@ -134,6 +134,7 @@
         <label>Limited avail. copy:
           <input id="sl-limited-copy" type="text" placeholder="Limited Availability" style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
         </label>
+        <label class="checkbox"><input type="checkbox" id="sl-show-unavailable" onchange="reinitSpaceList()"> Show unavailable units</label>
         <label class="checkbox"><input type="checkbox" id="sl-enable-waitlist" onchange="reinitSpaceList()"> Enable waitlist</label>
         <label class="checkbox"><input type="checkbox" id="sl-show-urgency" checked onchange="reinitSpaceList()"> Show urgency msg</label>
         <label>Urgency threshold:
@@ -311,6 +312,7 @@
         isFAQ:       document.getElementById('sl-is-faq').checked,
         isHours:     document.getElementById('sl-is-hours').checked,
         startingAtLabel:     document.getElementById('sl-starting-label').value,
+        showUnavailableUnits: document.getElementById('sl-show-unavailable').checked,
         enableWaitlist:      document.getElementById('sl-enable-waitlist').checked,
         showUrgencyMessage:  document.getElementById('sl-show-urgency').checked,
         urgencyThreshold:    document.getElementById('sl-urgency-threshold').value,
