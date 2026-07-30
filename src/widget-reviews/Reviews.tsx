@@ -22,8 +22,22 @@ interface Review {
   timeAgo: string;
 }
 
+/**
+ * Label for the mobile source pills. These must name the PLATFORM, not the
+ * business — `source.name` holds the business name from the collection
+ * (`placeName` / `businessName`), so the pills read "Storage Outlet" /
+ * "Storelocal Self Storage" on live data. It only ever looked right because the
+ * demo sources happen to be named "Google" and "Yelp".
+ */
+const PLATFORM_LABEL: Record<Platform, string> = {
+  google: 'Google',
+  yelp: 'Yelp',
+  reviews: 'Reviews',
+};
+
 interface ReviewSource {
   key: Platform;
+  /** Business name from the collection — used for the link's accessible name. */
   name: string;
   score: number;
   count: number;
@@ -239,7 +253,7 @@ export function Reviews({
               className={`rw-mobile-tab${mobileSourceIdx === idx ? ' active' : ''}`}
               onClick={() => switchMobileSource(idx)}
             >
-              {source.name}
+              {PLATFORM_LABEL[source.key]}
             </button>
           ))}
         </div>

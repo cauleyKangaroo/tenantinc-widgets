@@ -394,16 +394,21 @@
   /* Bottom padding was 48px to clear the promo badge, which now lives in the grey
      action panel — even padding avoids a stranded gap where it used to sit. */
   padding: 30px;
-  flex-shrink: 0;
+  /* The WHITE panel absorbs the slack when cards are stretched to a common row
+     height. It used to be the grey panel that grew (flex: 1 + justify-content:
+     flex-end), which meant a card with a short feature list got a tall grey box
+     with its price stranded at the bottom under a big empty gap — the grey panels
+     ended up visibly different heights across a row. Growing the white side keeps
+     every grey panel snug to its own content instead. */
+  flex: 1 1 auto;
 }
 .sl-wrapper .sl-card-action-panel {
   background: #f9fafb;
   padding: 30px;
-  flex-shrink: 0;
-  flex: 1;
+  /* Content-sized, never stretched — see the note above. */
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   /* Separates the promo badge from the price + CTA row below it. */
   gap: 16px;
 }
