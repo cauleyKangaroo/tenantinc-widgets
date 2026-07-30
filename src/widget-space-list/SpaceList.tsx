@@ -50,6 +50,7 @@ function useIsMobile(breakpoint: number) {
 export function SpaceList({
   layoutMode = 'grid',
   apLocation = 'right',
+  showSideAccordions = true,
   showInstorePrice = true,
   instorePriceLabel = 'IN-STORE',
   instorePriceMode = 'percentOfWeb',
@@ -120,8 +121,10 @@ export function SpaceList({
     enableWaitlist,
     callOnLimitedAvailability,
     ctaButtonCopy,
-    // Same '' trap as the other Duda text fields — blank means "untouched".
-    limitedAvailabilityCopy: limitedAvailabilityCopy.trim() || 'Limited Availability',
+    // Deliberately NO fallback: blank means the editor wants no note at all, so a
+    // sold-out unit shows its CTA with nothing underneath. (The junk-fee field
+    // still falls back — that one has standard legal wording worth defaulting to.)
+    limitedAvailabilityCopy: limitedAvailabilityCopy.trim(),
     startingAtLabel,
     // Percent/currency amount for the in-store calc. Duda number fields arrive as
     // strings; anything unusable (blank, NaN, negative) means "don't calculate".
@@ -320,7 +323,7 @@ export function SpaceList({
         <p className="sl-page-title">Storage Units in {propertyExtras?.name || cfg.propertyName}</p>
       </div>
       <div className="sl-row">
-        {apLocation === 'left' && sectionPanel}
+        {showSideAccordions && apLocation === 'left' && sectionPanel}
         <main className="sl-listing-area">
           {topBar}
           {promoId && (
@@ -348,7 +351,7 @@ export function SpaceList({
             <GridView units={visibleUnits} config={config} />
           )}
         </main>
-        {apLocation === 'right' && sectionPanel}
+        {showSideAccordions && apLocation === 'right' && sectionPanel}
       </div>
       {reorderOpen && (
         <ReorderModal

@@ -391,7 +391,9 @@
 }
 .sl-wrapper .sl-card-display-panel {
   background: #ffffff;
-  padding: 30px 30px 48px;
+  /* Bottom padding was 48px to clear the promo badge, which now lives in the grey
+     action panel — even padding avoids a stranded gap where it used to sit. */
+  padding: 30px;
   flex-shrink: 0;
 }
 .sl-wrapper .sl-card-action-panel {
@@ -402,6 +404,8 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  /* Separates the promo badge from the price + CTA row below it. */
+  gap: 16px;
 }
 .sl-wrapper .sl-card-top {
   display: flex;
@@ -2093,6 +2097,7 @@
 /* ===========================================================================
    NOTES SECTION  (.sl-notes-*)  — Figma 10199-55239
    =========================================================================== */
+/* Still used by the About section (the Notes section dropped its card wrapper). */
 .sl-wrapper .sl-notes-card {
   background: #f9fafb;
   border-radius: 12px;
@@ -2107,22 +2112,6 @@
   line-height: 1.25;
   color: #000000;
 }
-.sl-wrapper .sl-notes-block { display: flex; flex-direction: column; gap: 4px; }
-.sl-wrapper .sl-notes-heading {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.25;
-  color: #000000;
-}
-.sl-wrapper .sl-notes-link {
-  font-size: 16px;
-  line-height: 1.25;
-  color: #306fb6;
-  text-decoration: none;
-  word-break: break-word;
-}
-.sl-wrapper .sl-notes-link:hover { text-decoration: underline; }
 
 /* ===========================================================================
    REVIEWS SECTION v2  (.sl-rv2-*)
