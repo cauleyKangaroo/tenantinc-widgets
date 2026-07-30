@@ -120,6 +120,7 @@
           <input id="sl-promo-label" type="text" value="Promo rate" style="width:110px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
         </label>
         <label class="checkbox"><input type="checkbox" id="sl-enable-waitlist" onchange="reinitSpaceList()"> Enable waitlist</label>
+        <label class="checkbox"><input type="checkbox" id="sl-show-wishlist" onchange="reinitSpaceList()"> Show Wishlist</label>
         <label class="checkbox"><input type="checkbox" id="sl-sg-videos" checked onchange="reinitSpaceList()"> Size Guide videos</label>
         <label>In-store price fn:
           <select id="sl-instore-mode" onchange="reinitSpaceList()">
@@ -286,6 +287,7 @@
         startingAtLabel:     document.getElementById('sl-starting-label').value,
         promoRateLabel:      document.getElementById('sl-promo-label').value,
         enableWaitlist:      document.getElementById('sl-enable-waitlist').checked,
+        showWishlist:        document.getElementById('sl-show-wishlist').checked,
         showSizeGuideVideos: document.getElementById('sl-sg-videos').checked,
         instorePriceMode:    document.getElementById('sl-instore-mode').value,
         inEditor:    document.getElementById('sl-in-editor').checked,

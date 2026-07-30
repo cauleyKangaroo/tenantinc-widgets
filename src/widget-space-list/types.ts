@@ -79,6 +79,15 @@ export interface WidgetConfig {
   startingAtLabel: string;
   /** Label above the main price when `showPromoRate` is on. Default 'Promo rate'. */
   promoRateLabel: string;
+  /**
+   * Sold-out tiers (vacant.count === 0): when true the CTA becomes
+   * "Add to Wishlist" (opens the message popup); when false it becomes "Call".
+   */
+  showWishlist: boolean;
+  /** Number the sold-out "Call" CTA dials — same as "Call our Storage Experts". */
+  contactPhone: string;
+  /** Property name, shown in the wishlist popup. */
+  facilityName: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +162,11 @@ export interface SpaceListProps {
   callOnLimitedAvailability?: boolean;
   /** Text for the primary CTA button. Default 'Select'. */
   ctaButtonCopy?: string;
+  /**
+   * Toggle: on sold-out tiers (no vacancy) show "Add to Wishlist" (opens the
+   * message popup) instead of "Call". Default false → sold-out shows "Call".
+   */
+  showWishlist?: boolean;
 
   // ── Editable accordion copy (Duda text inputs) ─────────────────────────────
   /** Heading of the "About" accordion. Default 'About Storage Units in Irvine'. */

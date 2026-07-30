@@ -609,6 +609,8 @@
   align-items: center;
   justify-content: center;
 }
+/* Rendered as an <a href="tel:…"> on sold-out units — kill the link underline. */
+.sl-wrapper a.sl-call-btn { text-decoration: none; }
 .sl-wrapper .sl-call-btn:hover { background: #fff5f2; }
 .sl-wrapper .sl-waitlist-btn {
   background: #ffffff;

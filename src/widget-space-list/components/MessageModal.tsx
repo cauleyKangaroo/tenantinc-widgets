@@ -56,12 +56,21 @@ function Field({
 }
 
 export function MessageModal({
-  open, onClose, facilities, termsHref = '#',
+  open, onClose, facilities, termsHref = '#', title = 'Send Message', context, lockFacility = false,
 }: {
   open: boolean;
   onClose: () => void;
   facilities: Facility[];
   termsHref?: string;
+  /** Header text — e.g. "Add to Wait List" when opened from a sold-out unit. */
+  title?: string;
+  /** Unit this enquiry is about; prefixed to the lead so staff know the space. */
+  context?: string;
+  /**
+   * Skip the "Select Facility" dropdown and just show the facility name — used
+   * by the Wait List popup, where the visitor is already on that property's page.
+   */
+  lockFacility?: boolean;
 }) {
   const [selected, setSelected] = useState<Facility | null>(null);
   const [listOpen, setListOpen] = useState(false);
@@ -75,7 +84,8 @@ export function MessageModal({
 
   useEffect(() => {
     if (!open) return;
-    setSelected(null);
+    // Locked: pin to the current facility so the dropdown never appears.
+    setSelected(lockFacility ? facilities[0] ?? null : null);
     setListOpen(false);
     setForm({ first: '', last: '', email: '', mobile: '', message: '' });
     setConsent(false);
@@ -86,6 +96,9 @@ export function MessageModal({
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+    // Deliberately keyed on `open` only (plus onClose): `facilities` is built
+    // inline by callers, so adding it would re-run this on every parent render
+    // and wipe what the visitor has typed.
   }, [open, onClose]);
 
   async function handleSubmit() {
@@ -103,7 +116,8 @@ export function MessageModal({
 
     setStatus('submitting');
     try {
-      await createLead({ first, last, email, phone: mobile, message });
+      // Prefix the unit context so staff see which space the enquiry is about.
+      await createLead({ first, last, email, phone: mobile, message: context ? `[${context}] ${message}` : message });
       setStatus('success');
     } catch (err) {
       console.error('[SpaceList MessageModal] createLead error:', err);
@@ -115,13 +129,14 @@ export function MessageModal({
   if (!open) return null;
 
   const facilityName = selected?.name ?? 'STORAGE FACILITY';
-  const canReselect = facilities.length > 1;
+  // Locked popups (Wait List) never offer a re-pick, whatever the list length.
+  const canReselect = !lockFacility && facilities.length > 1;
 
   return (
     <div className="sl-msg-overlay" onMouseDown={onClose}>
-      <div className="sl-msg-modal" role="dialog" aria-modal="true" aria-label="Send Message" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="sl-msg-modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.stopPropagation()}>
         <div className="sl-msg-head">
-          <span className="sl-msg-title"><EnvelopeIcon /><span>Send Message</span></span>
+          <span className="sl-msg-title"><EnvelopeIcon /><span>{title}</span></span>
           <button type="button" className="sl-msg-close" aria-label="Close" onClick={onClose}><CloseIcon /></button>
         </div>
 
@@ -138,9 +153,16 @@ export function MessageModal({
           </div>
         ) : (
         <div className="sl-msg-body">
-          {/* Facility: dropdown (unselected) or name + address (selected) */}
+          {/* Facility: locked name (Wait List), or dropdown → name + address */}
           <div className="sl-msg-facility-area">
-            {selected ? (
+            {lockFacility && selected ? (
+              <div className="sl-msg-facility">
+                <span className="sl-msg-facility-name">{selected.name}</span>
+                {selected.address && (
+                  <span className="sl-msg-facility-addr"><MapPinIcon /><span>{selected.address}</span></span>
+                )}
+              </div>
+            ) : selected ? (
               <button
                 type="button"
                 className={`sl-msg-facility${canReselect ? ' sl-msg-facility--btn' : ''}`}

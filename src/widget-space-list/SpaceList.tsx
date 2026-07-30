@@ -57,6 +57,7 @@ export function SpaceList({
   enableWaitlist = false,
   callOnLimitedAvailability = false,
   ctaButtonCopy = 'Select',
+  showWishlist = false,
   showPromoRate = false,
   startingAtLabel = 'Starting at',
   promoRateLabel = 'Promo rate',
@@ -72,8 +73,21 @@ export function SpaceList({
   configApiUrl,
   configCollection = 'accordionConfig',
 }: SpaceListProps) {
+  const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // The default layout has no mobile frame of its own — below MOBILE_BP it falls
+  // back to the grid layout, which does.
+  const { ref: wrapperRef, isMobile } = useIsMobile(MOBILE_BP);
+
+  // Second API call: property FAQ / phone / socials for the sidebar accordion.
+  // Null until loaded (or on failure) → sections fall back to their demo data.
+  const [propertyExtras, setPropertyExtras] = useState<PropertyExtras | null>(null);
+
   // Section visibility + order are managed entirely in the "Manage accordions"
   // modal (persisted to the collection), not via content-panel isX toggles.
+  // Declared after propertyExtras so the sold-out "Call" CTA can carry the same
+  // number as the "Call our Storage Experts" card.
   const config: WidgetConfig = {
     showInstorePrice,
     instorePriceLabel,
@@ -86,17 +100,10 @@ export function SpaceList({
     showPromoRate,
     startingAtLabel,
     promoRateLabel,
+    showWishlist,
+    contactPhone: propertyExtras?.phones[0]?.number ?? '',
+    facilityName: propertyExtras?.name ?? '',
   };
-  const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // The default layout has no mobile frame of its own — below MOBILE_BP it falls
-  // back to the grid layout, which does.
-  const { ref: wrapperRef, isMobile } = useIsMobile(MOBILE_BP);
-
-  // Second API call: property FAQ / phone / socials for the sidebar accordion.
-  // Null until loaded (or on failure) → sections fall back to their demo data.
-  const [propertyExtras, setPropertyExtras] = useState<PropertyExtras | null>(null);
 
   useEffect(() => {
     fetchSpaceGroups()
