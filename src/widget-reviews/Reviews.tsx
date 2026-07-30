@@ -74,13 +74,15 @@ const REVIEWS_PER_PAGE = 2;
 function SourceHeader({ source }: { source: ReviewSource }) {
   return (
     <div className="rw-source-header">
-      {/* The whole logo + score + stars block is the link to the platform's
-          reviews. `reviewsUrl` is empty until the real destinations land; the
-          attribute is omitted rather than left as href="" so a stray click
-          can't reload the page in the meantime. */}
+      {/* The whole logo + score + stars block links to the platform's reviews,
+          from the collection's `reviewsUrl`. When it's absent the href attribute
+          is omitted rather than left as href="" — an empty href reloads the page
+          on click. Opens in a new tab since it leaves the customer's site. */}
       <a
         className="rw-source-meta"
         href={source.reviewsUrl || undefined}
+        target={source.reviewsUrl ? '_blank' : undefined}
+        rel={source.reviewsUrl ? 'noopener noreferrer' : undefined}
         aria-label={`See ${source.name} reviews`}
       >
         <PlatformLogo platform={source.key} />

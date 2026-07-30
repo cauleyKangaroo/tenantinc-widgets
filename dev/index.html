@@ -128,12 +128,11 @@
 
       <div class="controls-group">
         <span class="controls-group-label">Client config (test)</span>
-        <label class="checkbox"><input type="checkbox" id="sl-show-promo" onchange="reinitSpaceList()"> Show promo rate</label>
         <label>Starting label:
           <input id="sl-starting-label" type="text" value="Starting at" style="width:110px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
         </label>
-        <label>Promo label:
-          <input id="sl-promo-label" type="text" value="Promo rate" style="width:110px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
+        <label>Limited avail. copy:
+          <input id="sl-limited-copy" type="text" placeholder="Limited Availability" style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
         </label>
         <label class="checkbox"><input type="checkbox" id="sl-enable-waitlist" onchange="reinitSpaceList()"> Enable waitlist</label>
         <label class="checkbox"><input type="checkbox" id="sl-show-urgency" checked onchange="reinitSpaceList()"> Show urgency msg</label>
@@ -151,6 +150,9 @@
             <option value="percentDiff">Percentage difference</option>
             <option value="additionOfWeb">Addition of web price</option>
           </select>
+        </label>
+        <label>In-store amount:
+          <input id="sl-instore-amount" type="number" min="0" step="any" value="0" style="width:70px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
         </label>
       </div>
 
@@ -308,9 +310,7 @@
         isNotes:     document.getElementById('sl-is-notes').checked,
         isFAQ:       document.getElementById('sl-is-faq').checked,
         isHours:     document.getElementById('sl-is-hours').checked,
-        showPromoRate:       document.getElementById('sl-show-promo').checked,
         startingAtLabel:     document.getElementById('sl-starting-label').value,
-        promoRateLabel:      document.getElementById('sl-promo-label').value,
         enableWaitlist:      document.getElementById('sl-enable-waitlist').checked,
         showUrgencyMessage:  document.getElementById('sl-show-urgency').checked,
         urgencyThreshold:    document.getElementById('sl-urgency-threshold').value,
@@ -318,6 +318,8 @@
         junkFeeCopy:           document.getElementById('sl-junk-copy').value,
         showSizeGuideVideos: document.getElementById('sl-sg-videos').checked,
         instorePriceMode:    document.getElementById('sl-instore-mode').value,
+        instorePriceAmount:  document.getElementById('sl-instore-amount').value,
+        limitedAvailabilityCopy: document.getElementById('sl-limited-copy').value,
         inEditor:    document.getElementById('sl-in-editor').checked,
         elementId:   'dev-element-001',
         siteId:      'dev-site',

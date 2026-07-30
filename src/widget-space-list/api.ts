@@ -71,12 +71,26 @@ interface ApiResponse {
 // Size classification — width × length area (sq ft) → UnitSize
 // ---------------------------------------------------------------------------
 
+/**
+ * Area (sq ft) → size bucket, per the client's guide (2026-07-30):
+ *
+ *   Small        ≤ 50    5×5, 5×10
+ *   Medium    51–150     8×10, 8×12, 10×10, 10×15
+ *   Large    151–300     10×20, 10×22, 10×25, 10×30, 15×20 (and 20×15, also 300)
+ *   Extra Large  > 300   15×30, 20×30
+ *
+ * The previous thresholds (24 / 76 / 151) put every live tier but the two largest
+ * in the wrong bucket — 5×10 read as Medium, 10×10 as Large, 10×20 as Extra Large.
+ *
+ * `other` is kept for a tier whose width/length don't parse (area 0), so it can't
+ * silently land in Small. `extra_small` is no longer produced — it stays in the
+ * UnitSize union because the label/open-state maps are keyed on the full union.
+ */
 export function classifySize(area: number): UnitSize {
-  if (area === 0) return 'other';
-  if (area === 1) return 'extra_small';
-  if (area <= 24) return 'small';
-  if (area <= 76) return 'medium';
-  if (area <= 151) return 'large';
+  if (area <= 0) return 'other';
+  if (area <= 50) return 'small';
+  if (area <= 150) return 'medium';
+  if (area <= 300) return 'large';
   return 'extra_large';
 }
 
@@ -129,9 +143,29 @@ export function mapApiToUnits(raw: unknown): Unit[] {
             .map(amenityLabel)
         ));
 
-        const startingPrice = tier.sell_rate ?? tier.units?.min_price ?? 0;
-        const inStorePrice = tier.set_rate ?? tier.units?.max_price ?? 0;
         const vacantCount = tier.vacant?.count ?? 0;
+
+        // Which min_price to quote (per Jaweed, 2026-07-30): a tier with vacancy is
+        // quoted from `vacant.min_price` — the cheapest unit a customer can actually
+        // rent — and only a tier with nothing vacant falls back to the whole-tier
+        // `units.min_price`.
+        //
+        // Not cosmetic: 10'x10' reports units.min_price 0 across all 267 units (some
+        // occupied at a legacy/zero rate) while its 125 vacant units start at 70, so
+        // the card was advertising $0.00.
+        //
+        // `>= 1`, not `> 1`: the spec said "more than 1" / "0 or less" and left 1
+        // unstated — one vacant unit still has a real vacant price. No live tier is
+        // affected either way (the single vacant.count === 1 tier, 8'x12', reports
+        // 116 in both objects).
+        const availableMinPrice =
+          vacantCount >= 1 ? tier.vacant?.min_price : tier.units?.min_price;
+
+        // sell_rate stays the leading preference for when the API starts setting it;
+        // it is null on every tier today, so the rule above governs in practice.
+        const startingPrice =
+          tier.sell_rate ?? availableMinPrice ?? tier.units?.min_price ?? 0;
+        const inStorePrice = tier.set_rate ?? tier.units?.max_price ?? 0;
 
         // Promotion allocated to this tier (matched against the Promotions widget).
         const promo = tier.allocated_promo && 'id' in tier.allocated_promo ? tier.allocated_promo : null;

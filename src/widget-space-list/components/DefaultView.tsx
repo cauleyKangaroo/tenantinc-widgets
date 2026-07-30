@@ -8,7 +8,6 @@ import {
   PromoBadge,
   JunkFeeDisclaimer,
   PlayCircleIcon,
-  urgencyMessage,
 } from './Pricing';
 import defaultImg from '../assets/tenantinc-default.png';
 
@@ -75,14 +74,11 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
           {unit.promo && <PromoBadge text={unit.promo} />}
           <div className="sl-dv-price-button">
             <div className="sl-dv-price">
-              <PriceBlock unit={unit} config={config} hideUrgency />
+              <PriceBlock unit={unit} config={config} />
               {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
             </div>
             <div className="sl-dv-btn-col">
               <CtaButton unit={unit} config={config} full />
-              {urgencyMessage(unit, config) && (
-                <div className="sl-dv-urgency">{urgencyMessage(unit, config)}</div>
-              )}
             </div>
           </div>
         </div>

@@ -53,6 +53,7 @@ export function SpaceList({
   showInstorePrice = true,
   instorePriceLabel = 'IN-STORE',
   instorePriceMode = 'percentOfWeb',
+  instorePriceAmount = 0,
   showJunkFeeDisclaimer = false,
   junkFeeCopy = '',
   showUrgencyMessage = true,
@@ -62,9 +63,8 @@ export function SpaceList({
   enableWaitlist = false,
   callOnLimitedAvailability = false,
   ctaButtonCopy = 'Select',
-  showPromoRate = false,
+  limitedAvailabilityCopy = '',
   startingAtLabel = 'Starting at',
-  promoRateLabel = 'Promo rate',
   showSizeGuideVideos = true,
   aboutTitle,
   aboutContent,
@@ -118,9 +118,15 @@ export function SpaceList({
     enableWaitlist,
     callOnLimitedAvailability,
     ctaButtonCopy,
-    showPromoRate,
+    // Same '' trap as the other Duda text fields — blank means "untouched".
+    limitedAvailabilityCopy: limitedAvailabilityCopy.trim() || 'Limited Availability',
     startingAtLabel,
-    promoRateLabel,
+    // Percent/currency amount for the in-store calc. Duda number fields arrive as
+    // strings; anything unusable (blank, NaN, negative) means "don't calculate".
+    instorePriceAmount: (() => {
+      const n = Number(instorePriceAmount);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    })(),
     contactPhone: propertyExtras?.phones[0]?.number ?? '',
     facilityName: propertyExtras?.name ?? '',
   };

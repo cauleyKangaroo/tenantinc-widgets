@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import type { Unit, WidgetConfig } from '../types';
 import { isUnavailable } from '../filters';
+import { withLineBreaks } from '@shared/lineBreaks';
 
 const fmt = (n: number) =>
   `$${n.toFixed(2).replace(/\.00$/, '.00')}`;
@@ -25,28 +26,44 @@ export function urgencyMessage(unit: Unit, config: WidgetConfig): string | null 
   return `Only ${left} left - Rent soon!`;
 }
 
-export function PriceBlock({ unit, config, hideUrgency }: { unit: Unit; config: WidgetConfig; hideUrgency?: boolean }) {
+/**
+ * The struck-through "IN-STORE" price, derived from the web price by
+ * `instorePriceMode` + `instorePriceAmount`.
+ *
+ *   percentOfWeb   → web + amount%      (100 @ 10 → 110)
+ *   additionOfWeb  → web + amount       (100 @ 10 → 110)
+ *   percentDiff    → same as percentOfWeb for now; the intended distinction was
+ *                    never specified, so it deliberately mirrors A rather than
+ *                    inventing behaviour.
+ *
+ * With no amount set we fall back to the API's own `inStorePrice`
+ * (`set_rate ?? units.max_price`), which is what shipped before this was wired —
+ * so an instance that never fills the field in keeps its current numbers.
+ */
+export function instorePrice(unit: Unit, config: WidgetConfig): number {
+  const amount = config.instorePriceAmount;
+  if (!amount) return unit.inStorePrice;
+  if (config.instorePriceMode === 'additionOfWeb') return unit.startingPrice + amount;
+  return unit.startingPrice * (1 + amount / 100);
+}
+
+export function PriceBlock({ unit, config }: { unit: Unit; config: WidgetConfig }) {
   return (
     <div className="sl-prices-row">
       {config.showInstorePrice && (
         <>
           <div className="sl-price-left">
             <div className="sl-instore-label">{config.instorePriceLabel}</div>
-            <div className="sl-strike">{fmt(unit.inStorePrice)}</div>
+            <div className="sl-strike">{fmt(instorePrice(unit, config))}</div>
           </div>
           <div className="sl-price-divider" />
         </>
       )}
       <div className="sl-price-main">
-        <div className="sl-starting-label">
-          {config.showPromoRate ? config.promoRateLabel : config.startingAtLabel}
-        </div>
+        <div className="sl-starting-label">{config.startingAtLabel}</div>
         <div className="sl-main-price">{fmt(unit.startingPrice)}</div>
         {unit.adminFee != null && (
           <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
-        )}
-        {!hideUrgency && urgencyMessage(unit, config) && (
-          <div className="sl-urgency">{urgencyMessage(unit, config)}</div>
         )}
       </div>
     </div>
@@ -109,10 +126,20 @@ export function FeatureList({ features }: { features: string[] }) {
  */
 export function JunkFeeDisclaimer({ config }: { config: WidgetConfig }) {
   if (!config.junkFeeCopy) return null;
-  return <div className="sl-junk-disclaimer">{config.junkFeeCopy}</div>;
+  return <div className="sl-junk-disclaimer">{withLineBreaks(config.junkFeeCopy)}</div>;
 }
 
-/** Primary CTA button — renders Select / Call / Waitlist based on unit availability and config flags. */
+/**
+ * Primary CTA — Select / Call / Waitlist by unit availability and config flags,
+ * with the scarcity note directly beneath it.
+ *
+ * The note lives here rather than in PriceBlock so that "Limited Availability"
+ * and "Only 3 left - Rent soon!" occupy the SAME slot with the same styling —
+ * they're two readings of the same signal and never appear together, so having
+ * one under the button and the other under the price looked like a bug. This
+ * also replaces three per-layout urgency slots (.sl-urgency, .sl-lc-urgency,
+ * .sl-dv-urgency) with one.
+ */
 export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetConfig; full?: boolean }) {
   const fullClass = full ? ' sl-select-full' : '';
 
@@ -120,24 +147,25 @@ export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetCo
   // rather than gated on config.enableWaitlist: with the waitlist off these units
   // are filtered out of the listing entirely, so reaching here means it's on — and
   // guarding this way means a sold-out unit can never fall through to "Select".
-  if (isUnavailable(unit)) {
-    return (
-      <div className="sl-cta-group">
-        <button className={`sl-waitlist-btn${fullClass}`}>Join waitlist</button>
-        <div className="sl-limited-label">Limited Availability</div>
-      </div>
-    );
-  }
+  const unavailable = isUnavailable(unit);
 
   // Separate feature: tiers flagged call-only still show "Call" when the client
   // has that switched on.
-  if (unit.availability === 'call' && config.callOnLimitedAvailability) {
-    return (
-      <button className={`sl-call-btn${fullClass}`}>Call</button>
-    );
-  }
+  const callOnly = !unavailable && unit.availability === 'call' && config.callOnLimitedAvailability;
+
+  // Sold out states the fact; anything else can only offer scarcity.
+  const note = unavailable ? config.limitedAvailabilityCopy : urgencyMessage(unit, config);
 
   return (
-    <button className={`sl-select-btn${fullClass}`}>{config.ctaButtonCopy}</button>
+    <div className="sl-cta-group">
+      {unavailable ? (
+        <button className={`sl-waitlist-btn${fullClass}`}>Join waitlist</button>
+      ) : callOnly ? (
+        <button className={`sl-call-btn${fullClass}`}>Call</button>
+      ) : (
+        <button className={`sl-select-btn${fullClass}`}>{config.ctaButtonCopy}</button>
+      )}
+      {note && <div className="sl-limited-label">{note}</div>}
+    </div>
   );
 }

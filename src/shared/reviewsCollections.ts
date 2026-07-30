@@ -128,7 +128,10 @@ export async function fetchReviewSource(
     count: platform === 'google'
       ? num(head.userRatingsTotal, reviews.length)
       : num(head.ratedReviews, reviews.length),
-    reviewsUrl: platform === 'google' ? str(head.authorUrl && '') : str(head.businessUrl),
+    // Both collections now carry an explicit `reviewsUrl` — the destination for
+    // the whole score block. Yelp's older `businessUrl` stays as a fallback;
+    // Google never had one, so an empty value there just means "don't link".
+    reviewsUrl: str(head.reviewsUrl) || str(head.businessUrl),
     reviews,
   };
 
