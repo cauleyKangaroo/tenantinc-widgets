@@ -1,5 +1,6 @@
-﻿import React from 'react';
+﻿import React, { useState } from 'react';
 import type { Unit, WidgetConfig } from '../types';
+import { MessageModal } from './MessageModal';
 
 const fmt = (n: number) =>
   `$${n.toFixed(2).replace(/\.00$/, '.00')}`;
@@ -92,6 +93,33 @@ export function JunkFeeDisclaimer() {
 /** Primary CTA button — renders Select / Call / Waitlist based on unit availability and config flags. */
 export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetConfig; full?: boolean }) {
   const fullClass = full ? ' sl-select-full' : '';
+  const [wishlistOpen, setWishlistOpen] = useState(false);
+
+  // Sold out (API vacant.count === 0): "Add to Wishlist" when the client has
+  // the wishlist enabled, otherwise "Call" on the storage-experts number.
+  if ((unit.vacantCount ?? 0) === 0) {
+    if (config.showWishlist) {
+      return (
+        <>
+          <button className={`sl-waitlist-btn${fullClass}`} onClick={() => setWishlistOpen(true)}>
+            Add to Wait List
+          </button>
+          <MessageModal
+            open={wishlistOpen}
+            onClose={() => setWishlistOpen(false)}
+            facilities={[{ name: config.facilityName || 'This Facility' }]}
+            title="Add to Wait List"
+            context={`Wait List: ${unit.dimensions}${unit.subtype ? ` — ${unit.subtype}` : ''}`}
+            lockFacility
+          />
+        </>
+      );
+    }
+    const tel = config.contactPhone.replace(/[^0-9+]/g, '');
+    return (
+      <a className={`sl-call-btn${fullClass}`} href={tel ? `tel:${tel}` : '#'}>Call</a>
+    );
+  }
 
   if (unit.availability === 'call' && config.callOnLimitedAvailability) {
     return (
