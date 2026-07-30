@@ -70,6 +70,8 @@ export interface WidgetConfig {
   instorePriceMode: InstorePriceMode;
   showJunkFeeDisclaimer: boolean;
   showUrgencyMessage: boolean;
+  /** Vacancy at or below which the urgency message shows. Always a positive int. */
+  urgencyThreshold: number;
   enableWaitlist: boolean;
   callOnLimitedAvailability: boolean;
   ctaButtonCopy: string;
@@ -79,14 +81,12 @@ export interface WidgetConfig {
   startingAtLabel: string;
   /** Label above the main price when `showPromoRate` is on. Default 'Promo rate'. */
   promoRateLabel: string;
-  /**
-   * Sold-out tiers (vacant.count === 0): when true the CTA becomes
-   * "Add to Wishlist" (opens the message popup); when false it becomes "Call".
-   */
-  showWishlist: boolean;
-  /** Number the sold-out "Call" CTA dials — same as "Call our Storage Experts". */
+  /* Sold-out tiers are governed by `enableWaitlist` alone now: off hides them,
+     on shows them with a "Join waitlist" CTA. The former showWishlist toggle
+     (and its "Add to Wishlist" popup) has been removed. */
+  /** Live property phone — kept available to the cards; no longer used by the CTA. */
   contactPhone: string;
-  /** Property name, shown in the wishlist popup. */
+  /** Live property name — kept available to the cards. */
   facilityName: string;
 }
 
@@ -156,17 +156,18 @@ export interface SpaceListProps {
   showJunkFeeDisclaimer?: boolean;
   /** Toggle: show "Only X left" urgency messages on eligible units. Default true. */
   showUrgencyMessage?: boolean;
+  /**
+   * Show the urgency message when a tier has this many units vacant or fewer.
+   * Default 5. Duda content-menu number fields can arrive as strings, so this is
+   * coerced to a positive integer in SpaceList (bad input falls back to 5).
+   */
+  urgencyThreshold?: number | string;
   /** Toggle: show "Waitlist" CTA + "Limited Availability" label on waitlisted units. Default false. */
   enableWaitlist?: boolean;
   /** Toggle: show "Call" CTA on units flagged as call-only. Default false. */
   callOnLimitedAvailability?: boolean;
   /** Text for the primary CTA button. Default 'Select'. */
   ctaButtonCopy?: string;
-  /**
-   * Toggle: on sold-out tiers (no vacancy) show "Add to Wishlist" (opens the
-   * message popup) instead of "Call". Default false → sold-out shows "Call".
-   */
-  showWishlist?: boolean;
 
   // ── Editable accordion copy (Duda text inputs) ─────────────────────────────
   /** Heading of the "About" accordion. Default 'About Storage Units in Irvine'. */

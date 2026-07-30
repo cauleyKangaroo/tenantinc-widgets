@@ -8,6 +8,7 @@ import {
   PromoBadge,
   JunkFeeDisclaimer,
   PlayCircleIcon,
+  urgencyMessage,
 } from './Pricing';
 import defaultImg from '../assets/tenantinc-default.png';
 
@@ -79,8 +80,8 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
             </div>
             <div className="sl-dv-btn-col">
               <CtaButton unit={unit} config={config} full />
-              {config.showUrgencyMessage && unit.urgency && (
-                <div className="sl-dv-urgency">{unit.urgency}</div>
+              {urgencyMessage(unit, config) && (
+                <div className="sl-dv-urgency">{urgencyMessage(unit, config)}</div>
               )}
             </div>
           </div>

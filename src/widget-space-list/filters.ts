@@ -61,6 +61,22 @@ export function filterUnits(units: Unit[], f: FilterState, searchTerm = ''): Uni
 }
 
 /** Group units by size, preserving the canonical small→large order. */
+/**
+ * A unit with nothing available to rent — either the API reports zero vacancy or
+ * it's explicitly flagged as waitlist.
+ *
+ * Single source of truth for "unavailable", used by BOTH the listing filter and
+ * the CTA button so they can't disagree (they previously used different tests:
+ * the filter looked at `availability`, the button at `vacantCount`).
+ *
+ * Note the strict `=== 0`: the API mapper always sets vacantCount, but the demo
+ * units in data.ts don't set it at all. Treating `undefined` as zero would mark
+ * every demo unit unavailable and empty the listing whenever the waitlist is off.
+ */
+export function isUnavailable(u: Unit): boolean {
+  return u.vacantCount === 0 || u.availability === 'waitlist';
+}
+
 export function groupBySize(units: Unit[]): { size: UnitSize; units: Unit[] }[] {
   return SIZE_ORDER.map((size) => ({
     size,

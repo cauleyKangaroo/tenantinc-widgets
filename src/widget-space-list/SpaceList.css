@@ -560,10 +560,15 @@
   white-space: normal;
   overflow-wrap: break-word;
 }
+/* "Only X left - Rent soon!" — Figma 7112-47400: 12px/16px SemiBold #fb4c4c,
+   right-aligned. Brought in line with .sl-lc-urgency / .sl-dv-urgency, which
+   already matched; this one was still 11px-era #d32f2f at weight 700. */
 .sl-wrapper .sl-urgency {
   font-size: 12px;
-  color: #d32f2f;
-  font-weight: 700;
+  line-height: 16px;
+  color: #fb4c4c;
+  font-weight: 600;
+  text-align: right;
   margin-top: 2px;
 }
 .sl-wrapper .sl-cta-col {
