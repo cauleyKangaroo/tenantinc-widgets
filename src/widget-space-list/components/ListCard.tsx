@@ -97,7 +97,7 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
         <div className="sl-lc-price-button">
           <div className="sl-lc-price">
             <PriceBlock unit={selected} config={config} hideUrgency />
-            {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer />}
+            {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
           </div>
           <div className="sl-lc-btn-col">
             <CtaButton unit={selected} config={config} full />

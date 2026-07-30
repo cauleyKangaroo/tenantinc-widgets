@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Unit, SpaceType, WidgetConfig } from '../types';
-import { groupBySize } from '../filters';
+import { groupBySizeSorted, sortUnits, orderTypes } from '../filters';
 import { ListCard } from './ListCard';
 
 const TYPE_LABEL: Partial<Record<SpaceType, string>> = {
@@ -27,7 +27,7 @@ function TypeAccordion({ spaceType, units, config }: { spaceType: SpaceType; uni
       </div>
       {open && (
         <div className="sl-accordion-body">
-          {units.map((u) => (
+          {sortUnits(units, config.sortBy).map((u) => (
             <ListCard key={u.id} size={u.size} units={[u]} config={config} />
           ))}
         </div>
@@ -43,14 +43,17 @@ export function ListView({ units, config }: { units: Unit[]; config: WidgetConfi
     return <div className="sl-empty-msg">No spaces match your filters.</div>;
   }
 
-  const orderedTypes = Array.from(new Set(units.map((u) => u.type))) as SpaceType[];
+  const orderedTypes = orderTypes(
+    Array.from(new Set(units.map((u) => u.type))) as SpaceType[],
+    config.categoryOrdering,
+  );
 
   return (
     <div className="sl-list-view">
       {orderedTypes.map((spaceType) => {
         const typeUnits = units.filter((u) => u.type === spaceType);
         if (spaceType === 'storage') {
-          return groupBySize(typeUnits).map(({ size, units: groupUnits }) => (
+          return groupBySizeSorted(typeUnits, config.sortBy).map(({ size, units: groupUnits }) => (
             <ListCard key={size} size={size} units={groupUnits} config={config} />
           ));
         }

@@ -1,4 +1,4 @@
-import type { Unit, SpaceType, UnitSize } from './types';
+import type { Unit, SpaceType, UnitSize, SortBy, CategoryOrdering } from './types';
 import { SIZE_ORDER } from './data';
 
 // ---------------------------------------------------------------------------
@@ -60,7 +60,6 @@ export function filterUnits(units: Unit[], f: FilterState, searchTerm = ''): Uni
   });
 }
 
-/** Group units by size, preserving the canonical small→large order. */
 /**
  * A unit with nothing available to rent — either the API reports zero vacancy or
  * it's explicitly flagged as waitlist.
@@ -77,11 +76,80 @@ export function isUnavailable(u: Unit): boolean {
   return u.vacantCount === 0 || u.availability === 'waitlist';
 }
 
+/** Group units by size, preserving the canonical small→large order. */
 export function groupBySize(units: Unit[]): { size: UnitSize; units: Unit[] }[] {
   return SIZE_ORDER.map((size) => ({
     size,
     units: units.filter((u) => u.size === size),
   })).filter((group) => group.units.length > 0);
+}
+
+// ---------------------------------------------------------------------------
+// Ordering — `sortBy` (units within a group) + `categoryOrdering` (which
+// category accordion comes first). Both come from Duda radio buttons.
+// ---------------------------------------------------------------------------
+
+/**
+ * Floor area in sq ft, parsed from the unit's dimensions ("10' x 20'" → 200).
+ *
+ * Dimensions come straight from the API's tier description, so they're free text.
+ * When they don't parse we fall back to the coarse size band's index, which keeps
+ * ordering deterministic instead of arbitrary — note this mixes scales, so a
+ * dimension-less unit sorts as if it were tiny. Every live tier we've seen parses.
+ */
+function unitArea(u: Unit): number {
+  const m = u.dimensions.match(/(\d+(?:\.\d+)?)\s*['’]?\s*[x×]\s*(\d+(?:\.\d+)?)/i);
+  if (m) return parseFloat(m[1]) * parseFloat(m[2]);
+  const idx = SIZE_ORDER.indexOf(u.size);
+  return idx >= 0 ? idx : 0;
+}
+
+/** Order units by the editor's `sortBy` choice. Returns a new array. */
+export function sortUnits(units: Unit[], sortBy: SortBy): Unit[] {
+  const sorted = [...units];
+  switch (sortBy) {
+    case 'sizeDesc':
+      return sorted.sort((a, b) => unitArea(b) - unitArea(a));
+    case 'priceAsc':
+      return sorted.sort((a, b) => a.startingPrice - b.startingPrice);
+    case 'priceDesc':
+      return sorted.sort((a, b) => b.startingPrice - a.startingPrice);
+    case 'sizeAsc':
+    default:
+      return sorted.sort((a, b) => unitArea(a) - unitArea(b));
+  }
+}
+
+/**
+ * `groupBySize` + `sortBy` in one call — sorts the units, then groups them.
+ *
+ * Grouping preserves input order within each band, so sorting first is what
+ * orders the cards inside an accordion. 'sizeDesc' additionally reverses the
+ * bands so Extra Large leads; price sorts keep the canonical small→large bands.
+ */
+export function groupBySizeSorted(
+  units: Unit[],
+  sortBy: SortBy,
+): { size: UnitSize; units: Unit[] }[] {
+  const groups = groupBySize(sortUnits(units, sortBy));
+  return sortBy === 'sizeDesc' ? groups.reverse() : groups;
+}
+
+/**
+ * Order the top-level category accordions. `first` names the category the editor
+ * wants to lead; the other follows.
+ *
+ * Any type we don't name (the API also returns 'commercial') keeps its relative
+ * position at the end — Array#sort is stable, so unnamed types stay in the order
+ * they appeared in the data.
+ */
+export function orderTypes(types: SpaceType[], first: CategoryOrdering): SpaceType[] {
+  const preferred: string[] = first === 'parking' ? ['parking', 'storage'] : ['storage', 'parking'];
+  const rank = (t: SpaceType) => {
+    const i = preferred.indexOf(t);
+    return i === -1 ? preferred.length : i;
+  };
+  return [...types].sort((a, b) => rank(a) - rank(b));
 }
 
 /** Badge count = number of active filter selections. */

@@ -37,7 +37,7 @@ export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig })
             <CtaButton unit={unit} config={config} />
           </div>
         </div>
-        {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer />}
+        {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
       </div>
     </div>
   );
