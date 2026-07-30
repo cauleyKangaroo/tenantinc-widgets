@@ -62,6 +62,12 @@ export interface Unit {
 /** How the in-store strike price is derived from the web price. */
 export type InstorePriceMode = 'percentOfWeb' | 'percentDiff' | 'additionOfWeb';
 
+/** Ordering applied to the units inside every group/accordion. */
+export type SortBy = 'sizeAsc' | 'sizeDesc' | 'priceAsc' | 'priceDesc';
+
+/** Which top-level category renders first. */
+export type CategoryOrdering = 'spaces' | 'parking';
+
 export interface WidgetConfig {
   showInstorePrice: boolean;
   /** Label shown above the in-store strike price ("IN-STORE", "WAS", etc.) */
@@ -69,9 +75,15 @@ export interface WidgetConfig {
   /** How the in-store price relates to the web price (calc wired with real data). */
   instorePriceMode: InstorePriceMode;
   showJunkFeeDisclaimer: boolean;
+  /** Disclaimer copy shown when `showJunkFeeDisclaimer` is on. Empty = render nothing. */
+  junkFeeCopy: string;
   showUrgencyMessage: boolean;
   /** Vacancy at or below which the urgency message shows. Always a positive int. */
   urgencyThreshold: number;
+  /** Ordering of the units within each size group / category accordion. */
+  sortBy: SortBy;
+  /** Which category accordion renders first. */
+  categoryOrdering: CategoryOrdering;
   enableWaitlist: boolean;
   callOnLimitedAvailability: boolean;
   ctaButtonCopy: string;
@@ -154,6 +166,11 @@ export interface SpaceListProps {
   showSizeGuideVideos?: boolean;
   /** Toggle: show a junk-fee disclaimer below unit pricing. Default false. */
   showJunkFeeDisclaimer?: boolean;
+  /**
+   * Text field: the disclaimer copy. Blank/omitted falls back to the standard
+   * taxes-and-admin-fees wording, so existing instances read the same as before.
+   */
+  junkFeeCopy?: string;
   /** Toggle: show "Only X left" urgency messages on eligible units. Default true. */
   showUrgencyMessage?: boolean;
   /**
@@ -162,6 +179,17 @@ export interface SpaceListProps {
    * coerced to a positive integer in SpaceList (bad input falls back to 5).
    */
   urgencyThreshold?: number | string;
+  /**
+   * Radio in the content panel: how units are ordered inside every size group
+   * and category accordion. Default 'sizeAsc'.
+   *
+   * 'sizeDesc' also flips the size-band order so Extra Large leads; the price
+   * sorts leave the canonical small→large band order alone (a band's position
+   * has no price meaning).
+   */
+  sortBy?: SortBy;
+  /** Radio in the content panel: show Spaces or Parking first. Default 'spaces'. */
+  categoryOrdering?: CategoryOrdering;
   /** Toggle: show "Waitlist" CTA + "Limited Availability" label on waitlisted units. Default false. */
   enableWaitlist?: boolean;
   /** Toggle: show "Call" CTA on units flagged as call-only. Default false. */

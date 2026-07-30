@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Unit, SpaceType, UnitSize, WidgetConfig } from '../types';
-import { groupBySize } from '../filters';
+import { groupBySizeSorted, sortUnits, orderTypes } from '../filters';
 import {
   PriceBlock,
   CtaButton,
@@ -76,7 +76,7 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
           <div className="sl-dv-price-button">
             <div className="sl-dv-price">
               <PriceBlock unit={unit} config={config} hideUrgency />
-              {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer />}
+              {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
             </div>
             <div className="sl-dv-btn-col">
               <CtaButton unit={unit} config={config} full />
@@ -109,7 +109,7 @@ function StorageAccordions({ units, config }: { units: Unit[]; config: WidgetCon
 
   return (
     <>
-      {groupBySize(units).map(({ size, units: groupUnits }) => {
+      {groupBySizeSorted(units, config.sortBy).map(({ size, units: groupUnits }) => {
         const isOpen = open[size];
         return (
           <div key={size} className={`sl-accordion${isOpen ? ' expanded' : ''}`}>
@@ -143,7 +143,7 @@ function TypeAccordion({ spaceType, units, config }: { spaceType: SpaceType; uni
       </div>
       {open && (
         <div className="sl-accordion-body">
-          <CardRows units={units} config={config} />
+          <CardRows units={sortUnits(units, config.sortBy)} config={config} />
         </div>
       )}
     </div>
@@ -157,8 +157,11 @@ export function DefaultView({ units, config }: { units: Unit[]; config: WidgetCo
     return <div className="sl-empty-msg">No spaces match your filters.</div>;
   }
 
-  // Derive unique types in the order they appear
-  const orderedTypes = Array.from(new Set(units.map((u) => u.type))) as SpaceType[];
+  // Unique types, then reordered so the editor's chosen category leads.
+  const orderedTypes = orderTypes(
+    Array.from(new Set(units.map((u) => u.type))) as SpaceType[],
+    config.categoryOrdering,
+  );
 
   return (
     <div className="sl-default-view">

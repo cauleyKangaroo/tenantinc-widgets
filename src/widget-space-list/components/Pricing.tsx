@@ -102,12 +102,14 @@ export function FeatureList({ features }: { features: string[] }) {
   );
 }
 
-export function JunkFeeDisclaimer() {
-  return (
-    <div className="sl-junk-disclaimer">
-      * Prices shown exclude applicable taxes and admin fees. Final price confirmed at checkout.
-    </div>
-  );
+/**
+ * Editor-authored disclaimer under the price. Copy comes from `junkFeeCopy`,
+ * which SpaceList has already defaulted — so an empty string here means the
+ * editor deliberately cleared it, and we render nothing rather than an empty box.
+ */
+export function JunkFeeDisclaimer({ config }: { config: WidgetConfig }) {
+  if (!config.junkFeeCopy) return null;
+  return <div className="sl-junk-disclaimer">{config.junkFeeCopy}</div>;
 }
 
 /** Primary CTA button — renders Select / Call / Waitlist based on unit availability and config flags. */

@@ -89,6 +89,22 @@
           </select>
         </label>
         <label>
+          Sort by:
+          <select id="sl-sort-by" onchange="reinitSpaceList()">
+            <option value="sizeAsc">Size Ascending</option>
+            <option value="sizeDesc">Size Descending</option>
+            <option value="priceAsc">Price Ascending</option>
+            <option value="priceDesc">Price Descending</option>
+          </select>
+        </label>
+        <label>
+          Show first:
+          <select id="sl-category-ordering" onchange="reinitSpaceList()">
+            <option value="spaces">Spaces</option>
+            <option value="parking">Parking</option>
+          </select>
+        </label>
+        <label>
           Accordion side:
           <select id="sl-ap-location" onchange="reinitSpaceList()">
             <option value="right">right</option>
@@ -123,6 +139,10 @@
         <label class="checkbox"><input type="checkbox" id="sl-show-urgency" checked onchange="reinitSpaceList()"> Show urgency msg</label>
         <label>Urgency threshold:
           <input id="sl-urgency-threshold" type="number" min="1" value="5" style="width:70px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
+        </label>
+        <label class="checkbox"><input type="checkbox" id="sl-show-junk" onchange="reinitSpaceList()"> Show junk fee</label>
+        <label>Junk fee copy:
+          <input id="sl-junk-copy" type="text" placeholder="(default wording)" style="width:200px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
         </label>
         <label class="checkbox"><input type="checkbox" id="sl-sg-videos" checked onchange="reinitSpaceList()"> Size Guide videos</label>
         <label>In-store price fn:
@@ -276,6 +296,8 @@
     function getSpaceListProps() {
       return {
         layoutMode:    document.getElementById('sl-layout').value,
+        sortBy:          document.getElementById('sl-sort-by').value,
+        categoryOrdering: document.getElementById('sl-category-ordering').value,
         apLocation:    document.getElementById('sl-ap-location').value,
         isReviews:   document.getElementById('sl-is-reviews').checked,
         isFeatures:  document.getElementById('sl-is-features').checked,
@@ -292,6 +314,8 @@
         enableWaitlist:      document.getElementById('sl-enable-waitlist').checked,
         showUrgencyMessage:  document.getElementById('sl-show-urgency').checked,
         urgencyThreshold:    document.getElementById('sl-urgency-threshold').value,
+        showJunkFeeDisclaimer: document.getElementById('sl-show-junk').checked,
+        junkFeeCopy:           document.getElementById('sl-junk-copy').value,
         showSizeGuideVideos: document.getElementById('sl-sg-videos').checked,
         instorePriceMode:    document.getElementById('sl-instore-mode').value,
         inEditor:    document.getElementById('sl-in-editor').checked,

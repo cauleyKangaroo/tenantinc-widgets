@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Unit, SpaceType, UnitSize, WidgetConfig } from '../types';
-import { groupBySize } from '../filters';
+import { groupBySizeSorted, sortUnits, orderTypes } from '../filters';
 import { UnitCard } from './UnitCard';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
@@ -41,7 +41,7 @@ function StorageAccordions({ units, config }: { units: Unit[]; config: WidgetCon
 
   return (
     <>
-      {groupBySize(units).map(({ size, units: groupUnits }) => {
+      {groupBySizeSorted(units, config.sortBy).map(({ size, units: groupUnits }) => {
         const isOpen = open[size];
         return (
           <div key={size} className={`sl-accordion${isOpen ? ' expanded' : ''}`}>
@@ -80,7 +80,7 @@ function TypeAccordion({ spaceType, units, config }: { spaceType: SpaceType; uni
       {open && (
         <div className="sl-accordion-body">
           <div className="sl-cards-grid">
-            {units.map((u) => (
+            {sortUnits(units, config.sortBy).map((u) => (
               <UnitCard key={u.id} unit={u} config={config} />
             ))}
           </div>
@@ -97,8 +97,11 @@ export function GridView({ units, config }: { units: Unit[]; config: WidgetConfi
     return <div className="sl-empty-msg">No spaces match your filters.</div>;
   }
 
-  // Derive unique types in the order they appear
-  const orderedTypes = Array.from(new Set(units.map((u) => u.type))) as SpaceType[];
+  // Unique types, then reordered so the editor's chosen category leads.
+  const orderedTypes = orderTypes(
+    Array.from(new Set(units.map((u) => u.type))) as SpaceType[],
+    config.categoryOrdering,
+  );
 
   return (
     <div className="sl-grid-view">

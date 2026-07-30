@@ -54,8 +54,11 @@ export function SpaceList({
   instorePriceLabel = 'IN-STORE',
   instorePriceMode = 'percentOfWeb',
   showJunkFeeDisclaimer = false,
+  junkFeeCopy = '',
   showUrgencyMessage = true,
   urgencyThreshold = 5,
+  sortBy = 'sizeAsc',
+  categoryOrdering = 'spaces',
   enableWaitlist = false,
   callOnLimitedAvailability = false,
   ctaButtonCopy = 'Select',
@@ -94,6 +97,11 @@ export function SpaceList({
     instorePriceLabel,
     instorePriceMode,
     showJunkFeeDisclaimer,
+    // Duda text fields arrive as '' until the editor types something, which a
+    // default parameter won't catch — so fall back here to the standard wording.
+    junkFeeCopy:
+      junkFeeCopy.trim() ||
+      '* Prices shown exclude applicable taxes and admin fees. Final price confirmed at checkout.',
     showUrgencyMessage,
     // Duda content-menu numbers can arrive as strings ("5") or blank, so floor it
     // to a positive integer and fall back to 5 on anything unusable.
@@ -101,6 +109,12 @@ export function SpaceList({
       const n = Math.floor(Number(urgencyThreshold));
       return Number.isFinite(n) && n > 0 ? n : 5;
     })(),
+    // Radio values arrive as strings, and an untouched Duda control sends '' —
+    // which a default parameter won't catch — so whitelist instead of trusting it.
+    sortBy: (['sizeAsc', 'sizeDesc', 'priceAsc', 'priceDesc'] as const).includes(sortBy as never)
+      ? (sortBy as WidgetConfig['sortBy'])
+      : 'sizeAsc',
+    categoryOrdering: categoryOrdering === 'parking' ? 'parking' : 'spaces',
     enableWaitlist,
     callOnLimitedAvailability,
     ctaButtonCopy,
