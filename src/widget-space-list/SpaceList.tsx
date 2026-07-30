@@ -9,6 +9,7 @@ import {
   FilterState,
   filterUnits,
   activeFilterCount,
+  isUnavailable,
 } from './filters';
 import { readFiltersFromUrl, writeFiltersToUrl } from './urlFilters';
 import { PROMOTION_OPTIONS } from './data';
@@ -54,10 +55,10 @@ export function SpaceList({
   instorePriceMode = 'percentOfWeb',
   showJunkFeeDisclaimer = false,
   showUrgencyMessage = true,
+  urgencyThreshold = 5,
   enableWaitlist = false,
   callOnLimitedAvailability = false,
   ctaButtonCopy = 'Select',
-  showWishlist = false,
   showPromoRate = false,
   startingAtLabel = 'Starting at',
   promoRateLabel = 'Promo rate',
@@ -94,13 +95,18 @@ export function SpaceList({
     instorePriceMode,
     showJunkFeeDisclaimer,
     showUrgencyMessage,
+    // Duda content-menu numbers can arrive as strings ("5") or blank, so floor it
+    // to a positive integer and fall back to 5 on anything unusable.
+    urgencyThreshold: (() => {
+      const n = Math.floor(Number(urgencyThreshold));
+      return Number.isFinite(n) && n > 0 ? n : 5;
+    })(),
     enableWaitlist,
     callOnLimitedAvailability,
     ctaButtonCopy,
     showPromoRate,
     startingAtLabel,
     promoRateLabel,
-    showWishlist,
     contactPhone: propertyExtras?.phones[0]?.number ?? '',
     facilityName: propertyExtras?.name ?? '',
   };
@@ -222,9 +228,9 @@ export function SpaceList({
     let filtered = filterUnits(units, filters, searchTerm);
     // Cross-widget promo filter: only units allocated to the selected promotion.
     if (promoId) filtered = filtered.filter((u) => u.promoId === promoId);
-    // Unavailable (waitlist) units are hidden unless the waitlist feature is on;
-    // when on they render with a "Join waitlist" CTA (see Pricing/CtaButton).
-    return enableWaitlist ? filtered : filtered.filter((u) => u.availability !== 'waitlist');
+    // Waitlist off → hide unavailable units entirely; on → keep them, and the
+    // CTA becomes "Join waitlist" (see CtaButton).
+    return enableWaitlist ? filtered : filtered.filter((u) => !isUnavailable(u));
   }, [units, filters, searchTerm, enableWaitlist, promoId]);
   const badge = activeFilterCount(filters);
   const totalVacant = units.reduce((sum, u) => sum + (u.vacantCount ?? 0), 0);
