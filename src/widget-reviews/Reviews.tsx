@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './Reviews.css';
 import {
   Stars,
@@ -8,6 +8,7 @@ import {
   WriteReviewIcon,
   type Platform,
 } from './icons';
+import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,7 +36,7 @@ interface ReviewSource {
 // Demo data — replace with live API data when available
 // ---------------------------------------------------------------------------
 
-const SOURCES: ReviewSource[] = [
+const DEMO_SOURCES: ReviewSource[] = [
   {
     key: 'google',
     name: 'Google',
@@ -144,12 +145,41 @@ export function Reviews({
   heading = 'Customer Reviews',
   subheading = 'Read what our customers have to say about their storage experience with us.',
 }: ReviewsProps) {
-  const totalDesktopPages = Math.max(...SOURCES.map((s) => Math.ceil(s.reviews.length / REVIEWS_PER_PAGE)));
+  // Google + Yelp reviews from their Duda collections; DEMO_SOURCES stays as the
+  // fallback (dev harness, Duda editor, or a missing/empty collection).
+  const [sources, setSources] = useState<ReviewSource[]>(DEMO_SOURCES);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAllReviewSources('#09 reviews')
+      .then(({ google, yelp }) => {
+        if (cancelled) return;
+        const live = [google, yelp]
+          .filter((s): s is ReviewSourceData => !!s && s.reviews.length > 0)
+          .map((s) => ({
+            key: s.platform as Platform,
+            name: s.name,
+            score: s.score,
+            count: s.count,
+            reviewsUrl: s.reviewsUrl,
+            reviews: s.reviews.map((r) => ({
+              id: r.id, author: r.author, rating: r.rating, text: r.text, timeAgo: r.timeAgo,
+            })),
+          }));
+        // Only swap when at least one platform answered, so a partial outage
+        // can't blank the widget.
+        if (live.length) setSources(live);
+      })
+      .catch((err) => console.error('[Reviews] collection read error:', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  const totalDesktopPages = Math.max(1, ...sources.map((s) => Math.ceil(s.reviews.length / REVIEWS_PER_PAGE)));
   const [desktopPage, setDesktopPage] = useState(0);
   const [mobileSourceIdx, setMobileSourceIdx] = useState(0);
   const [mobilePage, setMobilePage] = useState(0);
 
-  const mobileSource = SOURCES[mobileSourceIdx];
+  const mobileSource = sources[Math.min(mobileSourceIdx, sources.length - 1)] ?? sources[0];
   const totalMobilePages = mobileSource.reviews.length;
 
   function switchMobileSource(idx: number) {
@@ -168,7 +198,7 @@ export function Reviews({
         </div>
 
         <div className="rw-columns">
-          {SOURCES.map((source) => {
+          {sources.map((source) => {
             const start = desktopPage * REVIEWS_PER_PAGE;
             const pageReviews = source.reviews.slice(start, start + REVIEWS_PER_PAGE);
             return (
@@ -201,7 +231,7 @@ export function Reviews({
         </div>
 
         <div className="rw-mobile-tabs">
-          {SOURCES.map((source, idx) => (
+          {sources.map((source, idx) => (
             <button
               key={source.key}
               className={`rw-mobile-tab${mobileSourceIdx === idx ? ' active' : ''}`}

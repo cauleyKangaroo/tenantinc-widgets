@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './NavigationBar.css';
 import storelocalLogo from './Storelocal_logo.png';
 import {
@@ -24,6 +24,7 @@ import {
   KeyIcon,
   SearchIcon,
 } from './icons';
+import { fetchPropertyContact, DEFAULT_PROPERTY_ID } from '@shared/propertyContact';
 
 // ---------------------------------------------------------------------------
 // Types + defaults
@@ -195,6 +196,9 @@ export interface NavigationBarProps {
      The former lagunaBeachUrl + bowlingDrUrl props were removed: Duda's link
      picker supplied editor URLs through them, which sent visitors into the
      website builder. Anything the JS tab still passes is simply ignored. */
+  /** Property whose phone number is pulled from the `Properties` collection.
+   *  The `phone` prop/default remains the fallback. */
+  propertyId?: string;
   /** Colour of the raised logo tile. Default storelocal green. */
   logoBg?: string;
   /** Primary-bar height. 'narrow' = 100px, 'wide' = 180px. Default 'narrow'. */
@@ -255,6 +259,7 @@ export function NavigationBar({
   accountUrl = '#',
   logoLink = '#',
   links,
+  propertyId = DEFAULT_PROPERTY_ID,
 }: NavigationBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   // Desktop hover mega-menu: which top-level link is open, and which of its
@@ -268,7 +273,22 @@ export function NavigationBar({
   const [mobileOpen, setMobileOpen] = useState<Record<string, boolean>>({});
   const toggleMobile = (key: string) =>
     setMobileOpen((prev) => ({ ...prev, [key]: !prev[key] }));
-  const telHref = phoneHref ?? `tel:${phone.replace(/[^0-9+]/g, '')}`;
+  // Phone from the Duda `Properties` collection when available; the prop/default
+  // stays as the fallback (this bundle holds no API key — collection only).
+  const [livePhone, setLivePhone] = useState<{ phone: string; digits: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPropertyContact('#02 nav', propertyId)
+      .then((c) => {
+        if (!cancelled && c?.phone) setLivePhone({ phone: c.phone, digits: c.phoneDigits });
+      })
+      .catch((err) => console.error('[NavigationBar] property contact error:', err));
+    return () => { cancelled = true; };
+  }, [propertyId]);
+
+  const displayPhone = livePhone?.phone || phone;
+  const telHref = phoneHref ?? `tel:${(livePhone?.digits || displayPhone).replace(/[^0-9+]/g, '')}`;
   const smsHref = smsPhoneHref ?? `tel:${smsPhone.replace(/[^0-9+]/g, '')}`;
   // Full override via `links`, else the default nav. Either way the two
   // hardcoded destinations are re-applied so a Duda-supplied editor URL can't
@@ -393,7 +413,7 @@ export function NavigationBar({
       {showPhone && (
         <a className="nav-top-item" href={telHref}>
           <PhoneIcon size={24} />
-          <span>{phone}</span>
+          <span>{displayPhone}</span>
         </a>
       )}
       {showPhone && smsPhone && (
@@ -436,7 +456,7 @@ export function NavigationBar({
       {showPhone && (
         <a className="nav-phone" href={telHref}>
           <PhoneIcon size={24} />
-          <span>{phone}</span>
+          <span>{displayPhone}</span>
         </a>
       )}
       {showPayBill && <a className="nav-paybill" href={payBillUrl}>{payBillLabel}</a>}

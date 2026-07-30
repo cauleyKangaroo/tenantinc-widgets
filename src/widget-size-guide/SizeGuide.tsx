@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './SizeGuide.css';
 import { ChevronRight, PlayButton } from './icons';
 import { SIZE_IMAGES, cover } from '@shared/demoImages';
+import { fetchSizes, groupSizesByLabel } from '@shared/sizesCollection';
 import storageLocker from './assets/storage-locker.png';
 
 // ---------------------------------------------------------------------------
@@ -110,8 +111,35 @@ export function SizeGuide({
   const [page, setPage] = useState(0);
   const [mobileIdx, setMobileIdx] = useState(0);
 
-  const category = CATEGORIES[catIdx];
-  const totalPages = Math.ceil(category.units.length / CARDS_PER_PAGE);
+  // Sizes from the Duda `Sizes` collection; CATEGORIES is the fallback.
+  // Bands come from `sizeLabel`, so the tab set is live too.
+  const [live, setLive] = useState<Category[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSizes('#11 size guide')
+      .then((sizes) => {
+        if (cancelled || !sizes) return;
+        const bands: Category[] = groupSizesByLabel(sizes).map((b) => ({
+          key: b.category || b.label.toLowerCase().replace(/\s+/g, '_'),
+          label: b.label,
+          units: b.items.map((s, i) => ({
+            id: s.id,
+            title: s.name || s.dimensionsLabel,
+            // thumbnailImage is empty on every row so far, so fall back to the
+            // bundled demo art rather than rendering an empty tile.
+            image: s.thumbnail ? cover(s.thumbnail) : (CATEGORIES[0].units[i % CATEGORIES[0].units.length]?.image ?? ''),
+          })),
+        }));
+        if (bands.length) setLive(bands);
+      })
+      .catch((err) => console.error('[SizeGuide] Sizes read error:', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  const cats = live ?? CATEGORIES;
+  const category = cats[Math.min(catIdx, cats.length - 1)] ?? cats[0];
+  const totalPages = Math.max(1, Math.ceil(category.units.length / CARDS_PER_PAGE));
 
   function selectCategory(i: number) {
     setCatIdx(i);
@@ -126,7 +154,7 @@ export function SizeGuide({
 
   const tabs = (
     <div className="sg-tabs">
-      {CATEGORIES.map((c, i) => (
+      {cats.map((c, i) => (
         <button key={c.key} className={`sg-tab${i === catIdx ? ' active' : ''}`} onClick={() => selectCategory(i)}>
           {c.label}
         </button>

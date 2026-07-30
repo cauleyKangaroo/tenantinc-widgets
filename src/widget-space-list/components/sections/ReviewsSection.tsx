@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
 
 type Platform = 'google' | 'yelp';
 
@@ -103,8 +104,37 @@ export function ReviewsSection() {
   const [platform, setPlatform] = useState<Platform>('google');
   const [page, setPage] = useState(0);
 
-  const meta = PLATFORM_META[platform];
-  const reviews = ALL_REVIEWS.filter((r) => r.platform === platform);
+  // Google + Yelp from their Duda collections — both the review list AND the
+  // summary score/count. ALL_REVIEWS + PLATFORM_META stay as the fallback (dev
+  // harness, Duda editor, or missing/empty collections).
+  const [live, setLive] = useState<Partial<Record<Platform, ReviewSourceData>> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAllReviewSources('#05 reviews accordion')
+      .then(({ google, yelp }) => {
+        if (cancelled) return;
+        const next: Partial<Record<Platform, ReviewSourceData>> = {};
+        if (google?.reviews.length) next.google = google;
+        if (yelp?.reviews.length) next.yelp = yelp;
+        if (Object.keys(next).length) setLive(next);
+      })
+      .catch((err) => console.error('[ReviewsSection] collection read error:', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  const liveSource = live?.[platform];
+  const fallbackMeta = PLATFORM_META[platform];
+  // Live score/count when this platform came back, else the static summary.
+  const meta = liveSource
+    ? { ...fallbackMeta, score: liveSource.score, count: liveSource.count }
+    : fallbackMeta;
+
+  const reviews: ReviewData[] = liveSource
+    ? liveSource.reviews.map((r, i) => ({
+        id: i + 1, platform, author: r.author, rating: r.rating, text: r.text, timeAgo: r.timeAgo,
+      }))
+    : ALL_REVIEWS.filter((r) => r.platform === platform);
   const currentReview = reviews[page] ?? reviews[0];
   const total = reviews.length;
 
