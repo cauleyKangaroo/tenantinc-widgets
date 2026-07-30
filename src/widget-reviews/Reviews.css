@@ -74,10 +74,18 @@
   min-width: 0;
 }
 
+/* Real reviews vary wildly in length, so equalise them ROW-wise across both
+   columns: the column stretches to the taller of the two (grid default), this
+   fills that height, and `grid-auto-rows: 1fr` splits it into equal rows. So
+   Google's first card matches Yelp's first card, and so on.
+   `1fr` resolves to minmax(auto, 1fr), so a row still grows rather than clipping
+   if its content needs more than an equal share. */
 .rw-column-cards {
-  display: flex;
-  flex-direction: column;
+  flex: 1 1 auto;
+  display: grid;
+  grid-auto-rows: 1fr;
   gap: 24px;
+  min-height: 0;
 }
 
 /* ── Source header ──────────────────────────────────────────────────────── */
