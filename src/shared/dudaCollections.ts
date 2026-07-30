@@ -110,6 +110,37 @@ export function str(v: unknown): string {
 }
 
 /**
+ * NATIVE collections return every column as a string — `rating: "4.8"`,
+ * `active: "true"`, `length: "5"` — so numbers and booleans need coercing.
+ * (External collections like Properties give real types; these are no-ops there.)
+ */
+export function num(v: unknown, fallback = 0): number {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : fallback;
+  const n = parseFloat(str(v));
+  return Number.isFinite(n) ? n : fallback;
+}
+
+export function bool(v: unknown, fallback = false): boolean {
+  if (typeof v === 'boolean') return v;
+  const s = str(v).toLowerCase();
+  if (s === 'true' || s === '1' || s === 'yes') return true;
+  if (s === 'false' || s === '0' || s === 'no') return false;
+  return fallback;
+}
+
+/**
+ * One-line trace of where a widget's data actually came from, so it's obvious in
+ * the console whether a collection was used or the fallback kicked in.
+ *   [collections] #09 google reviews ← collection (GoogleReviews, 5 rows)
+ *   [collections] #09 google reviews ← fallback (no dmAPI — not in Duda)
+ */
+export function logSource(widget: string, what: string, fromCollection: boolean, detail = ''): void {
+  const via = fromCollection ? 'collection' : 'fallback';
+  // eslint-disable-next-line no-console
+  console.info(`[collections] ${widget} ${what} ← ${via}${detail ? ` (${detail})` : ''}`);
+}
+
+/**
  * Flatten a rich-text column to plain text.
  *
  * Duda's rich-text columns return HTML, not text — an `authorName` of

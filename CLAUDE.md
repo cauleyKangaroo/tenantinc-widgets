@@ -70,6 +70,87 @@ Details:
 
 ---
 
+## Where widget data comes from — Duda collections vs the Hummingbird API
+
+Widgets used to call the Hummingbird (Tenant/`edge.tenant.dev`) API directly with a
+key baked into each `config.json`. Property data now comes from a Duda
+**external collection** first, with the keyed REST call kept as a fallback.
+
+### Reading a collection at runtime
+
+- `window.dmAPI.loadCollectionsAPI().data('<Name>').get()` — **no auth**. The API is
+  read-only and implicitly scoped to the site it runs on, and the data is public by
+  construction (it renders on a public page). The bundle is served from public
+  GitHub Pages, so it could never hold a secret anyway.
+- Wrapped in `src/shared/dudaCollections.ts` — the only place that touches `dmAPI`.
+  It fails **soft** everywhere: no `dmAPI`, missing collection, network error → `[]`.
+- **`window.dmAPI` is PUBLISHED-SITE ONLY.** It is `undefined` in the Duda editor and
+  in the dev harness. Anything collection-backed therefore needs a sensible
+  editor-time story (demo data, or the REST fallback below) or it will look broken
+  while an editor is working on the page.
+- The envelope varies; the reader normalises all of it. Verified live:
+  `{ name, values: [...rows], fields, filters, language, search, sortBy,
+  page: { pageSize: 100, pageNumber: 0, totalPages } }`.
+  **`pageSize` is 100** while a collection can hold 1000 rows — one `get()` is not
+  guaranteed to be the whole collection. Fine for small ones; anything that could
+  exceed 100 rows must walk `page`.
+- Rows arrive either flat or nested under `data` (with a row-level `id`);
+  `readCollection` flattens both and exposes the row id as `__rowId`.
+
+### Value shapes: external vs native collections (the trap)
+
+The Duda UI labels every column "Rich Text", but the two collection kinds behave
+differently:
+
+- **External** collections (e.g. `Properties`) pass values through **as parsed JSON** —
+  `Address` is an object, `Phones`/`Emails`/`AccessHours`/`unit_type_counts` are
+  arrays, `occupancy` is a number, `is_day_closed` is a boolean. No unwrapping needed.
+- **Native** collections (e.g. `BlogPosts`) wrap editor-authored text as
+  `<p class="rteBlock">…</p>`, because a human authors it in a WYSIWYG. Those fields
+  must go through `plainText()` (strip to text) or `RichText` (render as markup).
+
+That difference is why the blogs mapper needs `plainText()` and `propertiesSource`
+does not. Get it wrong and you either print tags on the page or strip real content.
+
+### The `Properties` external collection
+
+- Points at the same Hummingbird endpoint the widgets used to call, with the
+  collection path set to `applicationData.<appId>[0].data.properties`, so **each row
+  IS a property object** — the exact shape the existing extractors already parse.
+- `src/shared/propertiesSource.ts` wraps rows back into the REST envelope
+  (`{applicationData: {<appId>: [{data: {properties}}]}}`), so callers can feed either
+  source to the same extractor and nothing downstream changed.
+- `fetchPropertiesPreferCollection(appId, directFetch, opts)` = collection when
+  available **and trustworthy**, else `directFetch`.
+- **`requirePropertyId`** is the trust check: if the collection has rows but none
+  matching this widget's configured property id, it's bound to a different
+  company/property set — log a warning and use REST instead. All three per-property
+  widgets pass it; `nearbyProperties` deliberately does not (it wants *all* rows).
+
+### Who uses what
+
+| Consumer | Endpoint | Source |
+|---|---|---|
+| `widget-property-info/api.ts` (#03) | `/properties` | collection-first |
+| `widget-space-list/propertyApi.ts` (#05) | `/properties` | collection-first |
+| `shared/nearbyProperties.ts` (#07, #05 nearby) | `/properties` | collection-first |
+| `widget-faqs/faqApi.ts` (#10) | `/properties?faq=true` | collection-first |
+| `widget-space-list/api.ts` (#05) | `/space-groups/…/groups` | **REST only** |
+| `widget-promotions/api.ts` (#06) | `/space-groups/…/groups` | **REST only** |
+| `shared/leadsApi.ts` | `POST /leads/` | **REST only** |
+
+The last three are deliberate, not leftovers: space-groups (units, promotions) has no
+collection, and leads is a **write** — the Collections JS API is read-only, so writes
+always need credentials and therefore a server-side proxy (see `accordion-sync.php`).
+
+### Other collections on the site
+
+`Properties` (external), `BlogPosts` (native, read by `@shared/blogPosts`),
+`accordionConfig` (native, read client-side + written via the PHP proxy).
+Collection names are **case-sensitive** — they're the lookup key.
+
+---
+
 ## CURRENT WORK IN PROGRESS — Sidebar accordion reordering
 
 **Branch:** `space-list-ordering` (off `master`). **Status (2026-06-29): working
@@ -106,7 +187,10 @@ sections are always candidates — the widget **no longer reads the content-menu
 ### Duda collection REST API (hard-won reference)
 - Auth: HTTP Basic `base64(apiuser:apipass)` (Partner API). Base `https://api.duda.co`
   (EU accounts: `api.eu.duda.co`).
-- GET `/api/sites/multiscreen/{siteId}/collection/{name}` is **public** (no auth).
+- GET `/api/sites/multiscreen/{siteId}/collection/{name}` **needs the same Basic auth**
+  as writes. (Previously documented here as public — that's wrong: it returns **401**
+  unauthenticated on both `api.duda.co` and `api.eu.duda.co`, tested 2026-07-30.
+  The no-auth read path is the in-page **JS** API, `window.dmAPI`, not this REST one.)
 - Write body is a **BARE ARRAY**, not `{"values":[...]}`:
   - Create: `POST .../collection/{name}/row` body `[{"data":{...fields...}}]`
   - Update: `PUT .../collection/{name}/row` body `[{"id":"<rowId>","data":{...}}]`

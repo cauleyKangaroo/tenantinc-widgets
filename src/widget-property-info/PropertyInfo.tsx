@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './PropertyInfo.css';
 import { fetchProperties, findProperty, type PropertyDetails } from './api';
+import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
   MapPinIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
@@ -178,6 +179,22 @@ export function PropertyInfo(props: PropertyInfoProps) {
   // answers in ~570ms, so a delay would just add a third visible state.
   const [loading, setLoading] = useState(true);
 
+  // Google rating average + total from the `GoogleReviews` collection; the
+  // rating/reviewCount props stay as the fallback.
+  const [googleRating, setGoogleRating] = useState<{ score: number; count: number } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchReviewSource('google', '#03 property-info')
+      .then((src) => {
+        if (!cancelled && src && src.score > 0) {
+          setGoogleRating({ score: src.score, count: src.count });
+        }
+      })
+      .catch((err) => console.error('[PropertyInfo] GoogleReviews read error:', err));
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     fetchProperties()
@@ -191,6 +208,10 @@ export function PropertyInfo(props: PropertyInfoProps) {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // Google rating: collection first, then the prop/DEFAULT.
+  const displayRating = googleRating?.score ?? rating;
+  const displayReviewCount = googleRating?.count ?? reviewCount;
 
   // Precedence: API value -> prop -> DEFAULT (empty API strings/arrays don't win).
   const displayName = property?.name || name;
@@ -389,9 +410,9 @@ export function PropertyInfo(props: PropertyInfoProps) {
             <p className="pi-hero-name">{displayName}</p>
             <div className="pi-hero-meta">
               <div className="pi-hero-rating">
-                <span className="pi-hero-score">{rating}</span>
-                <Stars rating={rating} width={77} />
-                <a className="pi-reviews pi-hero-reviews" href={reviewsUrl}>{reviewCount} Reviews</a>
+                <span className="pi-hero-score">{displayRating}</span>
+                <Stars rating={displayRating} width={77} />
+                <a className="pi-reviews pi-hero-reviews" href={reviewsUrl}>{displayReviewCount} Reviews</a>
               </div>
               <a className="pi-hero-address" href={mapsHref}>
                 <MapPinIcon size={24} />
@@ -416,9 +437,9 @@ export function PropertyInfo(props: PropertyInfoProps) {
         <p className="pi-name">{displayName}</p>
 
         <div className="pi-rating">
-          <span className="pi-rating-score">{rating}</span>
-          <Stars rating={rating} width={77} />
-          <a className="pi-reviews" href={reviewsUrl}>{reviewCount} Reviews</a>
+          <span className="pi-rating-score">{displayRating}</span>
+          <Stars rating={displayRating} width={77} />
+          <a className="pi-reviews" href={reviewsUrl}>{displayReviewCount} Reviews</a>
         </div>
 
         <div className="pi-contact">
@@ -567,9 +588,9 @@ export function PropertyInfo(props: PropertyInfoProps) {
         <div className="pi-m-hero-content">
           <p className="pi-m-name">{displayName}</p>
           <div className="pi-m-rating">
-            <span className="pi-m-score">{rating}</span>
-            <Stars rating={rating} width={77} />
-            <a className="pi-reviews pi-m-reviews" href={reviewsUrl}>{reviewCount} Reviews</a>
+            <span className="pi-m-score">{displayRating}</span>
+            <Stars rating={displayRating} width={77} />
+            <a className="pi-reviews pi-m-reviews" href={reviewsUrl}>{displayReviewCount} Reviews</a>
           </div>
           <a className="pi-m-address" href={mapsHref}>
             <MapPinIcon size={16} />

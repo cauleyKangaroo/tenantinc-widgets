@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './Footer.css';
 import tenantLogo from './tenant-logo.svg';
 import { SOCIALS, PhoneIcon, AiSparkleIcon } from './icons';
+import { fetchPropertyContact, DEFAULT_PROPERTY_ID, type PropertyContact } from '@shared/propertyContact';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -47,6 +48,9 @@ export interface FooterProps {
   description?: string;
   sessionId?: string;
   year?: number;
+  /** Property whose phone + social links come from the `Properties` collection.
+   *  The static values below remain the fallback. */
+  propertyId?: string;
 }
 
 export function Footer({
@@ -55,7 +59,31 @@ export function Footer({
   description = 'Storage Outlet, headquartered in Irvine, owns and operates 15 self storage properties across Southern California. Our locations offer a wide range of secure and conveniently located storage solutions, including personal storage, business storage, and vehicle storage options. We are committed to providing affordable, reliable, and professional storage experiences in every community we serve. With a focus on convenience, security, and customer service, Storage Outlet continues to grow as a trusted neighborhood storage provider.',
   sessionId = '24e6fb82-a285-4a73-b4dc-546500c76981',
   year = 2026,
+  propertyId = DEFAULT_PROPERTY_ID,
 }: FooterProps) {
+  // Phone + social links from the Duda `Properties` collection; the static values
+  // above remain the fallback (this bundle holds no API key of its own).
+  const [contact, setContact] = useState<PropertyContact | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPropertyContact('#13 footer', propertyId)
+      .then((c) => { if (!cancelled) setContact(c); })
+      .catch((err) => console.error('[Footer] property contact error:', err));
+    return () => { cancelled = true; };
+  }, [propertyId]);
+
+  const displayPhone = contact?.phone || phone;
+  const telHref = `tel:${(contact?.phoneDigits || displayPhone).replace(/[^0-9+]/g, '')}`;
+
+  // With live data, show only the platforms this property actually has, linked.
+  // Without it, keep the full static row (unlinked) exactly as before.
+  const socialLinks = contact?.socials.length
+    ? SOCIALS
+        .filter((s) => contact.socials.some((c) => c.platform === s.key))
+        .map((s) => ({ ...s, href: contact.socials.find((c) => c.platform === s.key)!.url }))
+    : SOCIALS.map((s) => ({ ...s, href: '#' }));
+
   return (
     <div className="ft-wrapper">
       <div className="ft-inner ft-top">
@@ -77,9 +105,9 @@ export function Footer({
         <div className="ft-aside">
           <div className="ft-help">
             <p className="ft-help-heading">Need Help?</p>
-            <a className="ft-help-row" href={`tel:${phone}`}>
+            <a className="ft-help-row" href={telHref}>
               <PhoneIcon size={24} />
-              <span>{phone}</span>
+              <span>{displayPhone}</span>
             </a>
             <button className="ft-help-row ft-help-chat" type="button">
               <AiSparkleIcon size={24} />
@@ -96,8 +124,8 @@ export function Footer({
         <div className="ft-follow-left">
           <span className="ft-follow-label">Follow {companyName}</span>
           <div className="ft-socials">
-            {SOCIALS.map(({ key, label, Icon }) => (
-              <a key={key} className="ft-social" href="#" aria-label={label} title={label}>
+            {socialLinks.map(({ key, label, Icon, href }) => (
+              <a key={key} className="ft-social" href={href} aria-label={label} title={label}>
                 <Icon />
               </a>
             ))}
