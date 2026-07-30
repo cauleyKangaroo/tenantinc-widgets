@@ -138,6 +138,12 @@ export interface SpaceListProps {
   filterPosition?: 'left' | 'top' | 'right';
   /** Dropdown in the content panel: which side the accordion panel sits on. Default 'right'. */
   apLocation?: 'left' | 'right';
+  /**
+   * Toggle: render the side accordion panel at all. Default true. When off the
+   * whole panel goes — including the editor-only "Manage accordions" button,
+   * which lives inside it — and the listing takes the full width.
+   */
+  showSideAccordions?: boolean;
 
   // ── Duda runtime context (forwarded from `data` in the Duda JS tab, NOT
   //    content-panel inputs). Used to gate the editor-only reorder UI and to

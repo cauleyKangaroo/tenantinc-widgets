@@ -27,10 +27,13 @@ export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig })
             </a>
           </div>
         </div>
-        {unit.promo && <PromoBadge text={unit.promo} />}
       </div>
 
       <div className="sl-card-action-panel">
+        {/* Promo sits inside the grey action panel, above the price + CTA — same
+            arrangement as the default layout. It used to hang in the white display
+            panel above the divider. */}
+        {unit.promo && <PromoBadge text={unit.promo} />}
         <div className="sl-card-pricing">
           <PriceBlock unit={unit} config={config} />
           <div className="sl-cta-col">

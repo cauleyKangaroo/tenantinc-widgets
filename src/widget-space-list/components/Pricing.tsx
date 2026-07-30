@@ -3,8 +3,10 @@ import type { Unit, WidgetConfig } from '../types';
 import { isUnavailable } from '../filters';
 import { withLineBreaks } from '@shared/lineBreaks';
 
-const fmt = (n: number) =>
-  `$${n.toFixed(2).replace(/\.00$/, '.00')}`;
+// Prices round DOWN to whole dollars: 145.20 → $145.00, 147.99 → $147.00. The
+// cents only ever come from the in-store calculation (a percentage of the web
+// price), and quoting a price below the real one is the safe direction to err.
+const fmt = (n: number) => `$${Math.floor(n).toFixed(2)}`;
 
 /**
  * "Only 3 left - Rent soon!" (Figma 7112-47400) — or null when it shouldn't show.
