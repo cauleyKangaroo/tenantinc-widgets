@@ -44,6 +44,15 @@ interface ApiTier {
   vacant: { count: number; min_price: number | null; max_price: number | null };
   amenities: ApiAmenity[];
   space_type_associations: ApiSpaceTypeAssociation[];
+  /**
+   * Promotion(s) on this tier. The API moved shapes (seen 2026-07-31): it used
+   * to send a single `allocated_promo` OBJECT and now sends a `promo` ARRAY,
+   * with `allocated_promo` left as `{}` on every tier. Both are read so the
+   * promo badge — and the #06 "See Qualifying Units" hand-off, which matches on
+   * `promoId` — keep working whichever way the API goes. Mirrors
+   * `tierPromos` in widget-promotions/api.ts.
+   */
+  promo?: Array<{ id?: string; name?: string }>;
   allocated_promo?: { id?: string; name?: string } | Record<string, never>;
 }
 
@@ -100,6 +109,19 @@ function amenityLabel(a: ApiAmenity): string {
   return a.type === 'boolean' || a.value === 'Yes' || a.value === 'No'
     ? a.name
     : a.value;
+}
+
+/**
+ * The tier's promotion, or null when it has none — reading the current `promo`
+ * array first and falling back to the legacy `allocated_promo` object (see the
+ * note on ApiTier). Empty tiers send `promo: []` / `allocated_promo: {}`,
+ * neither of which counts; only an entry with an id does.
+ */
+function tierPromo(tier: ApiTier): { id?: string; name?: string } | null {
+  const fromArray = tier.promo?.find((p) => p && p.id);
+  if (fromArray) return fromArray;
+  const legacy = tier.allocated_promo;
+  return legacy && 'id' in legacy ? legacy : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -167,8 +189,9 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           tier.sell_rate ?? availableMinPrice ?? tier.units?.min_price ?? 0;
         const inStorePrice = tier.set_rate ?? tier.units?.max_price ?? 0;
 
-        // Promotion allocated to this tier (matched against the Promotions widget).
-        const promo = tier.allocated_promo && 'id' in tier.allocated_promo ? tier.allocated_promo : null;
+        // Promotion allocated to this tier (matched against the Promotions
+        // widget by id). A tier carries at most one today, so take the first.
+        const promo = tierPromo(tier);
 
         units.push({
           id: tier.id,
