@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
+import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { fetchProperties, findProperty, type PropertyDetails } from './api';
 import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
@@ -41,6 +43,16 @@ export interface PropertyInfoProps {
   callCenterNote?: string;
   reservationUrl?: string;
   breadcrumb?: string[];
+  /**
+   * Mobile: pin the contact row (Phone/Email/Billpay/Map/Locations) to the top of
+   * the page once it scrolls out of view. It shares one fixed stack with #05's
+   * filter bar, which pins beneath it — see @shared/stickyStack.
+   */
+  stickyContactRow?: boolean;
+  /** Height of the theme's own fixed header, so the stack clears it. */
+  stickyOffsetTop?: number;
+  /** Duda editor flag — pinning is skipped in the editor. */
+  inEditor?: boolean;
 }
 
 /**
@@ -163,7 +175,22 @@ export function PropertyInfo(props: PropertyInfoProps) {
     callCenterNote = 'Closes 8:30pm',
     reservationUrl = '#',
     breadcrumb = DEFAULTS.breadcrumb,
+    stickyContactRow = true,
+    stickyOffsetTop = 0,
+    inEditor = false,
   } = props;
+
+  // Pin the mobile contact row to the shared stack (order 10 — above #05's
+  // filter bar). Viewport query, not container width: it has to agree with the
+  // `@media (max-width: 768px)` desktop/mobile switch in the CSS.
+  const isMobileViewport = useMediaQuery(MOBILE_STICKY_QUERY);
+  const circles = useStickySlot({
+    id: 'pi-contact-row',
+    order: 10,
+    enabled: stickyContactRow && isMobileViewport && !inEditor,
+    offsetTop: stickyOffsetTop,
+    className: 'pi-m-circles-pinned',
+  });
 
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
@@ -599,28 +626,40 @@ export function PropertyInfo(props: PropertyInfoProps) {
         </div>
       </div>
 
-      <div className="pi-m-circles">
-        <a className="pi-m-circle-item" href={phoneHref}>
-          <span className="pi-m-circle"><PhoneIcon size={24} /></span>
-          <span className="pi-m-circle-label">Phone</span>
-        </a>
-        <a className="pi-m-circle-item" href={messageHref}
-          onClick={(e) => { e.preventDefault(); setMessageOpen(true); }}>
-          <span className="pi-m-circle"><EnvelopeIcon size={24} /></span>
-          <span className="pi-m-circle-label">Email</span>
-        </a>
-        <a className="pi-m-circle-item" href="#">
-          <span className="pi-m-circle"><CreditCardIcon size={24} /></span>
-          <span className="pi-m-circle-label">Billpay</span>
-        </a>
-        <a className="pi-m-circle-item" href={mapsHref}>
-          <span className="pi-m-circle"><MapPinIcon size={24} /></span>
-          <span className="pi-m-circle-label">Map</span>
-        </a>
-        <a className="pi-m-circle-item" href="#">
-          <span className="pi-m-circle"><LocationsIcon size={24} /></span>
-          <span className="pi-m-circle-label">Locations</span>
-        </a>
+      {/* Zero-height marker at the row's natural position — the stack pins the
+          row once this passes under the top of the viewport. */}
+      <div ref={circles.sentinelRef} className="pi-m-sticky-sentinel" />
+      {/* The slot holds the row's space in the page while it's pinned, so
+          nothing jumps. Its height is frozen by the hook on pin. */}
+      <div ref={circles.slotRef} className="pi-m-circles-slot">
+        {(() => {
+          const row = (
+            <div className="pi-m-circles">
+              <a className="pi-m-circle-item" href={phoneHref}>
+                <span className="pi-m-circle"><PhoneIcon size={24} /></span>
+                <span className="pi-m-circle-label">Phone</span>
+              </a>
+              <a className="pi-m-circle-item" href={messageHref}
+                onClick={(e) => { e.preventDefault(); setMessageOpen(true); }}>
+                <span className="pi-m-circle"><EnvelopeIcon size={24} /></span>
+                <span className="pi-m-circle-label">Email</span>
+              </a>
+              <a className="pi-m-circle-item" href="#">
+                <span className="pi-m-circle"><CreditCardIcon size={24} /></span>
+                <span className="pi-m-circle-label">Billpay</span>
+              </a>
+              <a className="pi-m-circle-item" href={mapsHref}>
+                <span className="pi-m-circle"><MapPinIcon size={24} /></span>
+                <span className="pi-m-circle-label">Map</span>
+              </a>
+              <a className="pi-m-circle-item" href="#">
+                <span className="pi-m-circle"><LocationsIcon size={24} /></span>
+                <span className="pi-m-circle-label">Locations</span>
+              </a>
+            </div>
+          );
+          return circles.target ? createPortal(row, circles.target) : row;
+        })()}
       </div>
 
       <div className="pi-m-hours">

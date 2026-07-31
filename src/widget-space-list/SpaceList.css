@@ -3599,6 +3599,33 @@
   padding: 0;
 }
 
+/* ── Sticky filter bar (mobile) ──────────────────────────────────────────── */
+/* Once scrolled past, the bar is portaled into the shared #ti-sticky-stack on
+   <body>, below #03's contact row (see @shared/stickyStack).
+   The pinned wrapper deliberately carries `sl-wrapper` so every existing
+   `.sl-wrapper .sl-top-bar*` rule still matches outside the widget's tree — these
+   overrides just neutralise the page-container styling that comes with it. */
+.sl-wrapper.sl-top-bar-pinned {
+  min-height: 0;
+  max-width: none;
+  gap: 0;
+  padding: 8px clamp(12px, 4vw, 20px);
+  /* The bar's responsive rules are @container queries, which resolved against
+     .sl-listing-area. Out here that ancestor is gone, so the pinned wrapper
+     becomes the container itself — otherwise none of them would apply and the
+     search field would reappear mid-pin. */
+  container-type: inline-size;
+}
+
+/* Out of flow: as a plain flex child of .sl-listing-area (gap: 20px) a
+   zero-height sentinel would still add a 20px gap to the page. */
+.sl-sticky-sentinel {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 .sl-wrapper .sl-top-bar-left {
   display: flex;
   align-items: center;

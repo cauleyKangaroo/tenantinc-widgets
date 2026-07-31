@@ -895,6 +895,33 @@ span.pi-lb-img {
   padding: 24px 12px;
 }
 
+/* ── Sticky contact row (mobile) ─────────────────────────────────────────── */
+/* The row is portaled into the shared #ti-sticky-stack on <body> once scrolled
+   past (see @shared/stickyStack). The sentinel marks its natural position and the
+   slot keeps that space in the page, so nothing jumps when it pins. */
+.pi-m-sticky-sentinel {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+/* Tighter vertically when pinned — 24px of padding is a lot of screen to give up
+   on a phone, and the labels still read fine at 12px. */
+.pi-m-circles-pinned .pi-m-circles {
+  padding: 10px 12px;
+}
+.pi-m-circles-pinned .pi-m-circle {
+  width: 40px;
+  height: 40px;
+}
+.pi-m-circles-pinned .pi-m-circle svg {
+  width: 20px;
+  height: 20px;
+}
+.pi-m-circles-pinned .pi-m-circle-label {
+  font-size: 11px;
+}
+
 /* Items share the row equally and can shrink to 0, so 5 fixed circles can never
    push the row wider than the screen (was overflowing at 5×61px + gaps). */
 .pi-m-circle-item {

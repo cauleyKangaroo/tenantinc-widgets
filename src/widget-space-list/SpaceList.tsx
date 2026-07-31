@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import cfg from './config.json';
@@ -24,6 +25,7 @@ import { SkeletonLoader } from './components/SkeletonLoader';
 import { ACCORDION_SECTIONS, type AccordionConfig } from './accordionSections';
 import { instanceKey, readAccordionConfig, saveAccordionConfig } from './accordionConfigApi';
 import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, type PromoSelection } from '@shared/promoBus';
+import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 
 // Wrapper-width breakpoint below which we count as mobile. Keyed off the widget's
 // own width, not the viewport, for the same reason as the CSS container queries:
@@ -73,6 +75,8 @@ export function SpaceList({
   notesContent,
   blogCollection,
   blogBasePath,
+  stickyFilterBar = true,
+  stickyOffsetTop = 0,
   inEditor    = false,
   elementId,
   siteId,
@@ -85,6 +89,21 @@ export function SpaceList({
   // The default layout has no mobile frame of its own — below MOBILE_BP it falls
   // back to the grid layout, which does.
   const { ref: wrapperRef, isMobile } = useIsMobile(MOBILE_BP);
+
+  // Mobile: pin the filter bar to the shared stack, BELOW #03's contact row
+  // (order 20 vs 10). Viewport query rather than the container width above,
+  // because it has to agree with #03 about what "mobile" means.
+  const isMobileViewport = useMediaQuery(MOBILE_STICKY_QUERY);
+  const filterSticky = useStickySlot({
+    // Per instance: two space lists on one page must not share a slot.
+    id: `sl-filter-bar-${elementId || 'default'}`,
+    order: 20,
+    enabled: stickyFilterBar && isMobileViewport && !inEditor,
+    offsetTop: stickyOffsetTop,
+    // `sl-wrapper` comes along so the bar's existing scoped CSS still matches
+    // once it's portaled out of the widget's tree.
+    className: 'sl-wrapper sl-top-bar-pinned',
+  });
 
   // Second API call: property FAQ / phone / socials for the sidebar accordion.
   // Null until loaded (or on failure) → sections fall back to their demo data.
@@ -283,20 +302,29 @@ export function SpaceList({
     />
   );
 
+  const filterBar = (
+    <TopFilterBar
+      filters={filters}
+      onChange={setFilters}
+      featureOptions={featureOptions}
+      searchTerm={searchTerm}
+      onSearchChange={setSearchTerm}
+      panelOpen={panelOpen}
+      onTogglePanel={() => setPanelOpen((o) => !o)}
+      activeCount={badge}
+    />
+  );
+
   // Filters always render as a top bar inside the main content column so they
-  // line up with the title and the listing below them.
+  // line up with the title and the listing below them. On mobile the bar pins to
+  // the shared sticky stack (below #03's contact row) once scrolled past; the
+  // modal deliberately stays put — it's already a fixed overlay.
   const topBar = (
     <>
-      <TopFilterBar
-        filters={filters}
-        onChange={setFilters}
-        featureOptions={featureOptions}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        panelOpen={panelOpen}
-        onTogglePanel={() => setPanelOpen((o) => !o)}
-        activeCount={badge}
-      />
+      <div ref={filterSticky.sentinelRef} className="sl-sticky-sentinel" />
+      <div ref={filterSticky.slotRef} className="sl-top-bar-slot">
+        {filterSticky.target ? createPortal(filterBar, filterSticky.target) : filterBar}
+      </div>
       {panelOpen && (
         <FilterModal
           filters={filters}
