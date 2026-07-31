@@ -1115,8 +1115,17 @@ span.pi-lb-img {
 .pi-msg-rows { display: flex; flex-direction: column; gap: 16px; }
 .pi-msg-row { display: flex; gap: 16px; }
 .pi-msg-row > * { flex: 1 1 0; min-width: 0; }
-.pi-msg-field { position: relative; display: block; height: 56px; box-sizing: border-box; border: 1px solid #a5b4bf; border-radius: 8px; background: #fff; }
-.pi-msg-field--area { height: 200px; }
+/* display + height are !important because this is a <label>, and a host
+   stylesheet that sets `label { display: inline }` makes the box ignore height
+   entirely: the field collapses to a text line and the absolutely-positioned
+   input and floating label pile on top of each other (seen on the live Duda
+   site — the fields rendered as overlapping struck-through lines).
+   min-height is the belt-and-braces: even if `height` is overridden, the field
+   cannot collapse. */
+.pi-msg-field { position: relative; display: block !important; height: 56px !important; min-height: 56px; box-sizing: border-box; border: 1px solid #a5b4bf; border-radius: 8px; background: #fff; }
+/* !important is required to beat the forced height on .pi-msg-field above —
+   without it the message textarea collapsed to the 56px single-line height. */
+.pi-msg-field--area { height: 200px !important; min-height: 200px; }
 .pi-msg-field-input {
   position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
   padding: 20px 16px 0; border: none; background: transparent; outline: none;

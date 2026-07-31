@@ -132,6 +132,22 @@ const RESOURCES_MENU: NavMenuItem[] = [
 // forceHardcodedLinks() below re-applies these no matter where the nav data came
 // from, so nothing Duda passes can win.
 const IRVINE_URL = 'https://mariposa26-testing.multiscreensite.com/';
+/** Canonical site home — where the logo (both bars and the drawer) must point. */
+const HOME_URL = 'https://mariposa26-testing.multiscreensite.com/';
+
+/**
+ * Duda's link picker hands the JS tab an EDITOR url
+ * (mariposa.responsivewebsitebuilder.io/home/site/<id>/home), which sent anyone
+ * clicking the logo into the editor. Same trap `forceHardcodedLinks` exists for,
+ * so the logo gets the same treatment: an editor url (or an unset '#') falls back
+ * to the live home page, while a genuine custom link still wins.
+ */
+const EDITOR_URL_RE = /responsivewebsitebuilder\.io|\/home\/site\//i;
+
+function resolveLogoLink(link?: string): string {
+  if (!link || link === '#' || EDITOR_URL_RE.test(link)) return HOME_URL;
+  return link;
+}
 const FACILITY_URL = 'https://mariposa26-testing.multiscreensite.com/property-landing-page';
 const IRVINE_LABEL = 'Irvine';
 const FACILITY_LABEL = '5281 California';
@@ -189,7 +205,10 @@ function buildDefaultLinks(): NavLink[] {
 export interface NavigationBarProps {
   /** Override the bundled storelocal logo with a custom image URL. */
   logoUrl?: string;
-  /** Click destination for the logo (Duda link picker). Default '#'. */
+  /**
+   * Click destination for the logo (Duda link picker). An editor url or '#' is
+   * ignored in favour of the live home page — see resolveLogoLink.
+   */
   logoLink?: string;
   /* Irvine / 5281 California are hardcoded (see IRVINE_URL / FACILITY_URL).
      The former lagunaBeachUrl + bowlingDrUrl props were removed: Duda's link
@@ -253,10 +272,13 @@ export function NavigationBar({
   payBillUrl = '#',
   accountLabel = 'My Account',
   accountUrl = '#',
-  logoLink = '#',
+  logoLink,
   links,
   propertyId = DEFAULT_PROPERTY_ID,
 }: NavigationBarProps) {
+  // Logo destination, with Duda's editor url filtered out (see resolveLogoLink).
+  const homeLink = resolveLogoLink(logoLink);
+
   const [menuOpen, setMenuOpen] = useState(false);
   // Desktop hover mega-menu: which top-level link is open, and which of its
   // rows is currently hovered (plus that row's vertical offset so the city
@@ -498,7 +520,7 @@ export function NavigationBar({
       <div className="nav-primary">
         <div className="nav-inner">
           {logoMode === 'inline' && (
-            <a className="nav-logo-inline" href={logoLink} aria-label="Home">
+            <a className="nav-logo-inline" href={homeLink} aria-label="Home">
               <img className="nav-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
             </a>
           )}
@@ -516,7 +538,7 @@ export function NavigationBar({
           protrudes below. Space is reserved via padding-left on the bar inners
           so it never overlaps the nav content. Only in 'banner' mode. */}
       {logoMode === 'banner' && (
-        <a className="nav-logo" href={logoLink} style={{ background: logoBg }} aria-label="Home">
+        <a className="nav-logo" href={homeLink} style={{ background: logoBg }} aria-label="Home">
           <img className="nav-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
         </a>
       )}
@@ -527,7 +549,7 @@ export function NavigationBar({
         <div className="nav-mm-overlay" onClick={() => setMenuOpen(false)} />
         <div className="nav-mm-panel">
           <div className="nav-mm-header">
-            <a className="nav-mm-logo" href={logoLink} aria-label="Home">
+            <a className="nav-mm-logo" href={homeLink} aria-label="Home">
               <img className="nav-mm-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
             </a>
             <button className="nav-mm-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">

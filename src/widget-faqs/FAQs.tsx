@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import './FAQs.css';
 import { SearchIcon, ChevronDown, ChevronRight } from './icons';
 import { fetchProperties, extractFaqs } from './faqApi';
+import { Shimmer } from '@shared/Shimmer';
 import { RichText } from '@shared/richText';
 import { withLineBreaks } from '@shared/lineBreaks';
 
@@ -94,6 +95,9 @@ export function FAQs({
   // Property FAQs from the API; empty until loaded (or on failure), when we fall
   // back to the demo set.
   const [apiFaqs, setApiFaqs] = useState<Faq[]>([]);
+  // True until the fetch settles. Without it the demo FAQS painted first and were
+  // then swapped for the property's real ones — a visible flash of wrong content.
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,10 +107,12 @@ export function FAQs({
         const items = extractFaqs(raw).map((f, i) => ({ id: `api-${i}`, question: f.question, answer: f.answer }));
         setApiFaqs(items);
       })
-      .catch((err) => console.error('[FAQs] fetchProperties error:', err));
+      .catch((err) => console.error('[FAQs] fetchProperties error:', err))
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
+  // Demo set is the fallback for an EMPTY result only (also covers the harness).
   const source = apiFaqs.length ? apiFaqs : FAQS;
 
   const filtered = useMemo(() => {
@@ -146,7 +152,12 @@ export function FAQs({
       </div>
 
       <div className="faq-list">
-        {filtered.length === 0 ? (
+        {loading ? (
+          // One bar per collapsed row, so the swap to real questions barely shifts.
+          Array.from({ length: 6 }, (_, i) => (
+            <Shimmer key={i} h={64} r={8} mb={12} />
+          ))
+        ) : filtered.length === 0 ? (
           <p className="faq-empty">No questions match “{query}”.</p>
         ) : (
           filtered.map((faq) => (

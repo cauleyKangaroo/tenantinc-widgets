@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSwipe } from '@shared/useSwipe';
+import { Shimmer } from '@shared/Shimmer';
 import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
 
 type Platform = 'google' | 'yelp';
@@ -109,6 +110,8 @@ export function ReviewsSection() {
   // summary score/count. ALL_REVIEWS + PLATFORM_META stay as the fallback (dev
   // harness, Duda editor, or missing/empty collections).
   const [live, setLive] = useState<Partial<Record<Platform, ReviewSourceData>> | null>(null);
+  // True until the read settles, so the demo reviews never paint first.
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,7 +123,8 @@ export function ReviewsSection() {
         if (yelp?.reviews.length) next.yelp = yelp;
         if (Object.keys(next).length) setLive(next);
       })
-      .catch((err) => console.error('[ReviewsSection] collection read error:', err));
+      .catch((err) => console.error('[ReviewsSection] collection read error:', err))
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -146,6 +150,26 @@ export function ReviewsSection() {
   function handlePlatform(p: Platform) {
     setPlatform(p);
     setPage(0);
+  }
+
+  // The score/count summary is live too, so the whole block waits rather than
+  // showing the static summary and then correcting it.
+  if (loading) {
+    return (
+      <div className="sl-rv2">
+        <div className="sl-rv2-tabs">
+          <Shimmer w={96} h={38} r={100} />
+          <Shimmer w={80} h={38} r={100} />
+        </div>
+        <Shimmer h={52} r={8} style={{ marginBottom: 12 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Shimmer w="50%" h={18} />
+          <Shimmer w={92} h={14} />
+          <Shimmer h={14} />
+          <Shimmer w="78%" h={14} />
+        </div>
+      </div>
+    );
   }
 
   return (

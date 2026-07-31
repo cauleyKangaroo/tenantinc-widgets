@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
+import { scrollToSpaceList } from '@shared/promoBus';
 import { fetchProperties, findProperty, type PropertyDetails } from './api';
 import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
@@ -690,7 +691,13 @@ export function PropertyInfo(props: PropertyInfoProps) {
                 <span className="pi-m-circle"><MapPinIcon size={24} /></span>
                 <span className="pi-m-circle-label">Map</span>
               </a>
-              <a className="pi-m-circle-item" href="#">
+              {/* Scrolls to the space list rather than navigating — same helper
+                  the Promotions widget uses for "See Qualifying Units". */}
+              <a
+                className="pi-m-circle-item"
+                href="#"
+                onClick={(e) => { e.preventDefault(); scrollToSpaceList(); }}
+              >
                 <span className="pi-m-circle"><LocationsIcon size={24} /></span>
                 <span className="pi-m-circle-label">Locations</span>
               </a>

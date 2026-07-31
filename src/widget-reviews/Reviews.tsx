@@ -8,6 +8,7 @@ import {
   type Platform,
 } from './icons';
 import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
+import { Shimmer } from '@shared/Shimmer';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -163,6 +164,10 @@ export function Reviews({
   // Google + Yelp reviews from their Duda collections; DEMO_SOURCES stays as the
   // fallback (dev harness, Duda editor, or a missing/empty collection).
   const [sources, setSources] = useState<ReviewSource[]>(DEMO_SOURCES);
+  // True until the collection read settles. Without it DEMO_SOURCES rendered
+  // straight away — real-looking authors, ratings and quotes that were then
+  // swapped for the property's actual reviews.
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -185,7 +190,8 @@ export function Reviews({
         // can't blank the widget.
         if (live.length) setSources(live);
       })
-      .catch((err) => console.error('[Reviews] collection read error:', err));
+      .catch((err) => console.error('[Reviews] collection read error:', err))
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -200,6 +206,50 @@ export function Reviews({
   function switchMobileSource(idx: number) {
     setMobileSourceIdx(idx);
     setMobilePage(0);
+  }
+
+  // Skeleton until the collections answer: two source columns of cards, matching
+  // the real geometry so the swap barely shifts. The heading is static copy, so it
+  // paints straight away.
+  if (loading) {
+    return (
+      <div className="rw-wrapper">
+        <div className="rw-desktop">
+          <div className="rw-heading-block">
+            <div className="rw-title">{heading}</div>
+            <p className="rw-subtitle">{subheading}</p>
+          </div>
+          <div className="rw-columns">
+            {[0, 1].map((col) => (
+              <div className="rw-column" key={col}>
+                <Shimmer h={64} r={8} mb={16} />
+                <div className="rw-column-cards">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                      <Shimmer w="45%" h={18} />
+                      <Shimmer w={96} h={14} />
+                      <Shimmer h={14} />
+                      <Shimmer w="80%" h={14} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rw-mobile">
+          <div className="rw-mobile-titlebar">
+            <span className="rw-mobile-heading">Reviews</span>
+          </div>
+          <div style={{ padding: '0 31px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Shimmer w="45%" h={18} />
+            <Shimmer w={96} h={14} />
+            <Shimmer h={14} />
+            <Shimmer w="80%" h={14} />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SIZE_IMAGES, cover } from '@shared/demoImages';
 import { fetchSizes, groupSizesByLabel } from '@shared/sizesCollection';
+import { Shimmer } from '@shared/Shimmer';
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,9 @@ export function SizeGuideSection({ showVideos = true }: { showVideos?: boolean }
   // Sizes from the Duda `Sizes` collection; CATEGORIES is the fallback. The
   // collection's `sizeLabel` supplies the tab set, so the tabs are live too.
   const [live, setLive] = useState<SizeCategory[] | null>(null);
+  // True until the read settles — otherwise the demo tabs/card paint first and are
+  // then replaced by the real bands.
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,12 +82,26 @@ export function SizeGuideSection({ showVideos = true }: { showVideos?: boolean }
         });
         if (bands.length) setLive(bands);
       })
-      .catch((err) => console.error('[SizeGuideSection] Sizes read error:', err));
+      .catch((err) => console.error('[SizeGuideSection] Sizes read error:', err))
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
+  // Demo bands are the fallback for an EMPTY/failed read only.
   const cats = live ?? CATEGORIES;
   const category = cats.find((c) => c.tab === activeTab) ?? cats[0];
+
+  if (loading) {
+    return (
+      <div className="sl-sg2">
+        <div className="sl-sg2-tabs">
+          {[70, 86, 74, 92].map((w, i) => <Shimmer key={i} w={w} h={38} r={100} />)}
+        </div>
+        <Shimmer h={0} style={{ aspectRatio: '16 / 10', height: 'auto' }} r={12} />
+        <Shimmer w="55%" h={22} style={{ marginTop: 12 }} />
+      </div>
+    );
+  }
 
   return (
     <div className="sl-sg2">
