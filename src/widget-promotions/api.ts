@@ -8,21 +8,30 @@ const PROPERTY_ID = cfg.propertyId;
 const SPACE_GROUP_ID = cfg.spaceGroupId;
 
 // ---------------------------------------------------------------------------
-// Raw API response types — only what we read. Promotions live on each tier's
-// `allocated_promo`; many tiers share one promo, so we dedupe by id.
+// Raw API response types — only what we read. Many tiers share one promo, so we
+// dedupe by id.
+//
+// The promo moved fields upstream (seen 2026-07-31): it used to arrive as a
+// single `allocated_promo` OBJECT, and now arrives as a `promo` ARRAY, with
+// `allocated_promo` left as `{}` on every tier. Both are read below so the
+// widget survives the API going either way. `type` also changed from
+// 'fixed' | 'percent' to 'regular'; nothing here keys off it.
 // ---------------------------------------------------------------------------
 
 interface ApiAllocatedPromo {
   id: string;
   name: string;          // e.g. "50% OFF FIRST MONTH"
-  type: 'fixed' | 'percent' | string;
+  type: string;          // 'regular' (was 'fixed' | 'percent')
   label: string;         // "promotion"
   value: number;         // 1 (fixed $) or 50 (percent)
-  channel: string;       // "online"
+  channel?: string;      // "online" — absent from the array-shaped payload
   description: string;
 }
 
 interface ApiTier {
+  /** Current shape. Empty array when the tier has no promotion. */
+  promo?: ApiAllocatedPromo[];
+  /** Legacy shape — an empty object when unset. */
   allocated_promo?: ApiAllocatedPromo | Record<string, never>;
 }
 
@@ -72,7 +81,20 @@ export async function fetchSpaceGroups(): Promise<unknown> {
   return res.json();
 }
 
-/** Walk every tier, collect the unique allocated promos (skipping empty {}). */
+/**
+ * Every promotion attached to a tier, newest field shape first. Returns [] for
+ * a tier with no promo — `promo` is an empty array and `allocated_promo` an
+ * empty object in that case, neither of which yields an entry.
+ */
+function tierPromos(tier: ApiTier): ApiAllocatedPromo[] {
+  if (Array.isArray(tier.promo)) return tier.promo.filter((p) => p && p.id);
+  // `in` doesn't narrow away Record<string, never> (every key is optional-never),
+  // so assert once the id check has passed.
+  const legacy = tier.allocated_promo;
+  return legacy && 'id' in legacy ? [legacy as ApiAllocatedPromo] : [];
+}
+
+/** Walk every tier, collect the unique promos. */
 export function extractPromos(raw: unknown): ApiPromo[] {
   const response = raw as ApiResponse;
   const appEntries = response?.applicationData?.[APP_ID];
@@ -84,14 +106,14 @@ export function extractPromos(raw: unknown): ApiPromo[] {
   for (const profile of Object.values(spaceGroupProfile)) {
     for (const group of profile.groups ?? []) {
       for (const tier of group.tiers ?? []) {
-        const promo = tier.allocated_promo;
-        // Empty tiers send `allocated_promo: {}` — only objects with an id count.
-        if (!promo || !('id' in promo) || seen.has(promo.id)) continue;
-        seen.set(promo.id, {
-          id: promo.id,
-          title: promo.name,
-          info: promo.description || undefined,
-        });
+        for (const promo of tierPromos(tier)) {
+          if (seen.has(promo.id)) continue;
+          seen.set(promo.id, {
+            id: promo.id,
+            title: promo.name,
+            info: promo.description || undefined,
+          });
+        }
       }
     }
   }
