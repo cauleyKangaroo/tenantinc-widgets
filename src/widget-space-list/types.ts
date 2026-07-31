@@ -241,6 +241,17 @@ export interface SpaceListProps {
   blogCollection?: string;
   /** Path the blog post slugs hang off, e.g. "/blog". Default '/blog'. */
   blogBasePath?: string;
+  /**
+   * Mobile: pin the filter bar to the top of the page once it scrolls out of
+   * view. It shares one fixed stack with #03's contact row and sits below it —
+   * see @shared/stickyStack. Default true.
+   */
+  stickyFilterBar?: boolean;
+  /**
+   * Height of the theme's own fixed header, so the stack clears it. Must match
+   * the value given to #03 or the two bars will disagree. Default 0.
+   */
+  stickyOffsetTop?: number;
 
   // ── AP section visibility toggles ──────────────────────────────────────────
   // Vestigial: SectionAccordion treats every registered section as a candidate
