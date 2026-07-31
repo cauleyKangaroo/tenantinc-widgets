@@ -3,6 +3,7 @@ import './SizeGuide.css';
 import { ChevronRight, PlayButton } from './icons';
 import { SIZE_IMAGES, cover } from '@shared/demoImages';
 import { fetchSizes, groupSizesByLabel } from '@shared/sizesCollection';
+import { Shimmer } from '@shared/Shimmer';
 import storageLocker from './assets/storage-locker.png';
 
 // ---------------------------------------------------------------------------
@@ -114,6 +115,9 @@ export function SizeGuide({
   // Sizes from the Duda `Sizes` collection; CATEGORIES is the fallback.
   // Bands come from `sizeLabel`, so the tab set is live too.
   const [live, setLive] = useState<Category[] | null>(null);
+  // True until the collection read settles. Without it the demo CATEGORIES painted
+  // first and were then replaced by the real bands — a visible flash.
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,10 +137,12 @@ export function SizeGuide({
         }));
         if (bands.length) setLive(bands);
       })
-      .catch((err) => console.error('[SizeGuide] Sizes read error:', err));
+      .catch((err) => console.error('[SizeGuide] Sizes read error:', err))
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
+  // Demo bands are the fallback for an EMPTY/failed read only.
   const cats = live ?? CATEGORIES;
   const category = cats[Math.min(catIdx, cats.length - 1)] ?? cats[0];
   const totalPages = Math.max(1, Math.ceil(category.units.length / CARDS_PER_PAGE));
@@ -161,6 +167,33 @@ export function SizeGuide({
       ))}
     </div>
   );
+
+  // The band names come from the collection too, so the tabs are skeletons as
+  // well — otherwise the demo tab labels would flash before the real ones.
+  if (loading) {
+    return (
+      <div className="sg-wrapper">
+        <div className="sg-header">
+          <div className="sg-heading-block">
+            <div className="sg-title">{heading}</div>
+            <p className="sg-subtitle">{subheading}</p>
+          </div>
+          <div className="sg-tabs">
+            {[92, 108, 84, 100].map((w, i) => <Shimmer key={i} w={w} h={44} r={100} />)}
+          </div>
+        </div>
+        <div className="sg-grid">
+          {[0, 1, 2].map((i) => (
+            <div className="sg-card" key={i}>
+              <Shimmer h={0} style={{ aspectRatio: '283 / 184', height: 'auto' }} r={16} />
+              <Shimmer w="60%" h={28} style={{ margin: '0 auto' }} />
+              <Shimmer w={120} h={18} style={{ margin: '0 auto' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="sg-wrapper">

@@ -3016,8 +3016,13 @@
 .sl-msg-note { margin: 0; font-size: 16px; color: #101318; }
 .sl-msg-row { display: flex; gap: 12px; }
 .sl-msg-row > * { flex: 1 1 0; min-width: 0; }
-.sl-msg-field { position: relative; display: block; height: 56px; box-sizing: border-box; border: 1px solid #a5b4bf; border-radius: 8px; background: #fff; }
-.sl-msg-field--area { height: 200px; }
+/* See the matching .pi-msg-field note: this is a <label>, and a host rule like
+   `label { display: inline }` collapses it so the input and floating label
+   overlap. Forced display/height, plus min-height as a floor. */
+.sl-msg-field { position: relative; display: block !important; height: 56px !important; min-height: 56px; box-sizing: border-box; border: 1px solid #a5b4bf; border-radius: 8px; background: #fff; }
+/* !important to beat the forced height on .sl-msg-field above — otherwise the
+   message textarea collapses to the 56px single-line height. */
+.sl-msg-field--area { height: 200px !important; min-height: 200px; }
 .sl-msg-field-input {
   position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
   padding: 20px 16px 0; border: none; background: transparent; outline: none;
