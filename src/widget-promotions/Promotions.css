@@ -337,6 +337,15 @@ button.promo-bar-info {
   .promo-dot { transition: none; }
 }
 
+@keyframes promo-slide-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-bars-carousel .promo-bars { animation: none; }
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 /* Three or four across is too tight on tablets — wrap to two per row and take
@@ -355,6 +364,20 @@ button.promo-bar-info {
 
 /* Single column on phones — everything back to the Figma 2-across scale. */
 @media (max-width: 560px) {
+  /* PromoBars switches to one bar per slide here (see the 560px media query it
+     mirrors in Promotions.tsx), so multiple promos are a swipeable carousel
+     instead of a vertical stack. The arrows go: at phone width they'd take room
+     from the bar, and swiping replaces them. */
+  .promo-bar-arrow {
+    display: none;
+  }
+
+  /* Each slide swaps rather than sliding — a transform track would be clipped by
+     Duda's overflow:hidden row wrappers. A quick fade covers the swap. */
+  .promo-bars-carousel .promo-bars {
+    animation: promo-slide-in 120ms ease-out;
+  }
+
   .promo-bars[data-cols='2'] .promo-bar,
   .promo-bars[data-cols='3'] .promo-bar,
   .promo-bars[data-cols='4'] .promo-bar {

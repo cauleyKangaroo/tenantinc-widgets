@@ -284,15 +284,17 @@
 .rw-mobile-titlebar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   padding: 23px 31px 0;
 }
 
+/* Standard widget mobile title: 36px / 1.2 / 700, centred, no icon — matches
+   .faq-title in #10, the reference all widget titles follow. */
 .rw-mobile-heading {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 36px;
+  font-weight: 700;
   color: #101318;
-  line-height: 36px;
+  line-height: 1.2;
 }
 
 .rw-mobile-tabs {

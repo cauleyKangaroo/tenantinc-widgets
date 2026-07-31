@@ -90,10 +90,12 @@ function ensureStyle() {
   style.textContent = `
 #${STACK_ID} { position: fixed; top: 0; left: 0; right: 0; display: flex;
   flex-direction: column; pointer-events: none; z-index: ${STACK_Z_INDEX}; }
+/* Fades in place — no transform. A slide-down reads as the bar travelling from
+   somewhere it never was, and at this size it just looks restless. */
 #${STACK_ID} > .ti-sticky-slot { pointer-events: auto; background: #ffffff;
   box-shadow: 0 2px 6px rgba(71, 84, 116, 0.12);
-  animation: ti-sticky-in 180ms ease-out; }
-@keyframes ti-sticky-in { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+  animation: ti-sticky-in 90ms ease-out; }
+@keyframes ti-sticky-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   #${STACK_ID} > .ti-sticky-slot { animation: none; }
 }`;

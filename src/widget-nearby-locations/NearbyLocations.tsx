@@ -6,7 +6,6 @@ import {
   PhoneIcon,
   TagIcon,
   MapPinIcon,
-  BuildingIcon,
   ChevronRight,
 } from './icons';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
@@ -341,7 +340,6 @@ export function NearbyLocations({
       {/* ── Mobile ──────────────────────────────────────────────────────── */}
       <div className="nl-mobile">
         <div className="nl-mobile-title">
-          <BuildingIcon size={24} />
           <span>Nearby Storage</span>
         </div>
 

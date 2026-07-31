@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './BlogsListing.css';
-import { ShareIcon, FileTextIcon, ChevronRight, SOCIALS } from './icons';
+import { ShareIcon, ChevronRight, SOCIALS } from './icons';
 import { BLOG_IMAGES, cover } from '@shared/demoImages';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { fetchBlogPosts, type BlogPostData } from '@shared/blogPosts';
@@ -215,7 +215,6 @@ export function BlogsListing({
       {/* ── Mobile ──────────────────────────────────────────────────────── */}
       <div className="blog-mobile">
         <div className="blog-mobile-title">
-          <FileTextIcon size={24} />
           <span>Storage Blogs</span>
         </div>
         <BlogCard key={`m-${mobileCurrent}`} post={posts[mobileCurrent]} />

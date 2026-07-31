@@ -1044,13 +1044,10 @@
      width from its content and collapses to ~min-content. */
   .sl-wrapper .sl-row { flex-direction: column; align-items: stretch; }
   .sl-wrapper .sl-listing-area { width: 100%; }
-  /* Header → "Select a Space" (28px) over the location subtitle (16px), centred */
-  .sl-wrapper .sl-heading { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .sl-wrapper .sl-select-heading {
-    display: block; margin: 0; font-family: 'Montserrat', sans-serif;
-    font-size: 28px; font-weight: 700; line-height: 1.2; color: #101318; text-align: center;
-  }
-  .sl-wrapper .sl-page-title { font-size: 16px; line-height: 1.2; text-align: center; }
+  /* Both headings are hidden on mobile — the page's own H1 already says where you
+     are, and the vacancy count reads as noise above the fold on a phone.
+     (Desktop keeps the 32px page title; the whole .sl-heading block just goes.) */
+  .sl-wrapper .sl-heading { display: none; }
   .sl-wrapper .sl-filter-panel,
   .sl-wrapper .sl-additional-panel.ap-left,
   .sl-wrapper .sl-additional-panel.ap-right { width: 100% !important; }

@@ -569,18 +569,25 @@ export function NavigationBar({
               </button>
             </form>
 
-            {/* Account / utility links */}
-            <ul className="nav-mm-account">
-              <li><a href="#"><LoginIcon size={24} /><span>Login</span></a></li>
-              <li><a href={accountUrl}><UserCircleIcon size={24} /><span>{accountLabel}</span></a></li>
-              <li><a href={liveChatUrl}><MessageAiIcon size={24} /><span>{liveChatLabel}</span></a></li>
-              <li><a href="#"><KeyIcon size={24} /><span>Get Gatecode</span></a></li>
-              <li><a href="#"><CreditCardIcon size={24} /><span>Find my Reservation</span></a></li>
-            </ul>
+            {/* Account / utility links — inset on the wrapping div, see below */}
+            <div className="nav-mm-account-inset">
+              <ul className="nav-mm-account">
+                <li><a href="#"><LoginIcon size={24} /><span>Login</span></a></li>
+                <li><a href={accountUrl}><UserCircleIcon size={24} /><span>{accountLabel}</span></a></li>
+                <li><a href={liveChatUrl}><MessageAiIcon size={24} /><span>{liveChatLabel}</span></a></li>
+                <li><a href="#"><KeyIcon size={24} /><span>Get Gatecode</span></a></li>
+                <li><a href="#"><CreditCardIcon size={24} /><span>Find my Reservation</span></a></li>
+              </ul>
+            </div>
 
             <div className="nav-mm-divider" />
 
-            {/* Nav accordion — recurses into nested state › city › facility levels. */}
+            {/* Nav accordion — recurses into nested state › city › facility levels.
+                The inset lives on the wrapping div, not the <ul>: Duda's global
+                stylesheet resets list padding from an id-scoped selector, which
+                outranks any single class of ours, so a padded <ul> collapsed flush
+                to the drawer's left edge on a live site. */}
+            <div className="nav-mm-nav-inset">
             <ul className="nav-mm-nav">
               {linkList.map((link) => {
                 const expandable = !!link.menu?.length;
@@ -612,6 +619,7 @@ export function NavigationBar({
                 );
               })}
             </ul>
+            </div>
           </div>
         </div>
       </div>

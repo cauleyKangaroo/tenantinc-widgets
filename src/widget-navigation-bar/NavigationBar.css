@@ -656,11 +656,17 @@
   height: 20px;
 }
 
-/* Account / utility links */
-.nav-mm-account {
-  list-style: none;
-  margin: 0;
+/* Account / utility links — inset on the wrapper div for the same reason as
+   .nav-mm-nav-inset below: an id-scoped list reset in Duda's own stylesheet beats
+   a padded <ul> of ours and slams the links to the drawer's left edge. */
+.nav-mm-account-inset {
   padding: 8px 48px 24px;
+}
+
+.nav-mm-account {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -692,10 +698,21 @@
 }
 
 /* Nav accordion */
-.nav-mm-nav {
-  list-style: none;
-  margin: 0;
+/* The drawer's link inset lives HERE, on a div, not on the <ul> below.
+   Duda's stylesheet zeroes list padding/margin from an id-scoped selector
+   (`#dm ul` and friends), which beats any single-class rule of ours no matter how
+   correct — on a live site the list collapsed flush to the drawer's left edge
+   while the div-based blocks above it (quick actions, search) kept their spacing.
+   A div can't be caught by a list reset, so this is immune rather than merely
+   more specific. `!important` on the ul is belt-and-braces for the same fight. */
+.nav-mm-nav-inset {
   padding: 4px 48px 40px;
+}
+
+.nav-mm-nav {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .nav-mm-nav-row {

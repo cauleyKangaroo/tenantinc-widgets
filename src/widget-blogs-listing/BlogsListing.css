@@ -356,14 +356,15 @@
     padding: 24px;
   }
 
+  /* Standard widget mobile title: 36px / 1.2 / 700, centred, no icon — matches
+     .faq-title in #10, the reference all widget titles follow. */
   .blog-mobile-title {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    font-size: 28px;
+    font-size: 36px;
     font-weight: 700;
-    line-height: 36px;
+    line-height: 1.2;
     color: #101318;
   }
 

@@ -5,7 +5,6 @@ import {
   PlatformLogo,
   UserAvatar,
   ChevronRight,
-  WriteReviewIcon,
   type Platform,
 } from './icons';
 import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
@@ -242,7 +241,6 @@ export function Reviews({
       {/* ── Mobile layout ───────────────────────────────────────────────── */}
       <div className="rw-mobile">
         <div className="rw-mobile-titlebar">
-          <WriteReviewIcon />
           <span className="rw-mobile-heading">Reviews</span>
         </div>
 
