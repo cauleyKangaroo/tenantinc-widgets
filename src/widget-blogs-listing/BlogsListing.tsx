@@ -4,6 +4,7 @@ import { ShareIcon, ChevronRight, SOCIALS } from './icons';
 import { BLOG_IMAGES, cover } from '@shared/demoImages';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { fetchBlogPosts, type BlogPostData } from '@shared/blogPosts';
+import { useSwipe } from '@shared/useSwipe';
 
 // ---------------------------------------------------------------------------
 // Posts come from the Duda `BlogPosts` collection (see @shared/blogPosts). The set
@@ -162,6 +163,10 @@ export function BlogsListing({
   const current = Math.min(page, totalPages - 1);
   const pagePosts = posts.slice(current * CARDS_PER_PAGE, current * CARDS_PER_PAGE + CARDS_PER_PAGE);
   const mobileCurrent = Math.min(mobileIdx, Math.max(0, posts.length - 1));
+  const mobileSwipe = useSwipe({
+    onSwipeLeft: () => setMobileIdx((i) => Math.min(posts.length - 1, i + 1)),
+    onSwipeRight: () => setMobileIdx((i) => Math.max(0, i - 1)),
+  });
 
   const headingBlock = (
     <div className="blog-heading-block">
@@ -217,7 +222,10 @@ export function BlogsListing({
         <div className="blog-mobile-title">
           <span>Storage Blogs</span>
         </div>
-        <BlogCard key={`m-${mobileCurrent}`} post={posts[mobileCurrent]} />
+        {/* Dots indicate position, swiping moves — no arrows in this view. */}
+        <div {...mobileSwipe.handlers}>
+          <BlogCard key={`m-${mobileCurrent}`} post={posts[mobileCurrent]} />
+        </div>
         {posts.length > 1 && (
           <div className="blog-pagination blog-pagination-dots">
             <Dots count={posts.length} active={mobileCurrent} onPick={setMobileIdx} />

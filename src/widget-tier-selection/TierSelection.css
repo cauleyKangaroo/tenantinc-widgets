@@ -105,7 +105,7 @@
   height: 116px;
   overflow: hidden;
   background: #fff;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   border-radius: 16px;
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
   cursor: pointer;

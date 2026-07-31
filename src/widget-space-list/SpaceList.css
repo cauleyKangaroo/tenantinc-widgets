@@ -1588,7 +1588,7 @@
 .sl-wrapper .sl-sg-tab {
   padding: 10px 22px;
   border-radius: 100px;
-  border: 1.5px solid #d1d5db;
+  border: 1px solid #d1d5db;
   background: #ffffff;
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
@@ -1804,7 +1804,7 @@
   align-items: center;
   max-width: 600px;
   margin: 0 auto 36px;
-  border: 1.5px solid #d1d5db;
+  border: 1px solid #d1d5db;
   border-radius: 100px;
   overflow: hidden;
   background: #ffffff;
@@ -2141,7 +2141,7 @@
   font-weight: 600;
   cursor: pointer;
   background: #ffffff;
-  border: 2px solid #101318;
+  border: 1px solid #101318;
   color: #101318;
   line-height: 1;
   transition: background 0.15s, color 0.15s;
@@ -2326,7 +2326,7 @@
   font-weight: 600;
   cursor: pointer;
   background: #ffffff;
-  border: 0.7px solid #101318;
+  border: 1px solid #101318;
   color: #101318;
   line-height: 1;
   transition: background 0.15s, color 0.15s;
@@ -3110,7 +3110,7 @@
 .sl-wrapper .sl-pi-reservation-input {
   flex: 1;
   height: 50px;
-  border: 0.926px solid #101318;
+  border: 1px solid #101318;
   border-radius: 7px;
   padding: 0 18px;
   font-size: 16px;
@@ -3483,7 +3483,7 @@
 .sl-wrapper .sl-sg2-tab {
   padding: 11px 17px;
   border-radius: 100px;
-  border: 2px solid #101318;
+  border: 1px solid #101318;
   background: #ffffff;
   font-size: 14px;
   font-weight: 400;
@@ -3671,7 +3671,7 @@
   height: 44px;
   padding: 0 21px;
   border-radius: 100px;
-  border: 2px solid #101318;
+  border: 1px solid #101318;
   background: #ffffff;
   font-size: 14px;
   font-weight: 400;
@@ -3737,7 +3737,7 @@
 .sl-wrapper .sl-top-bar-search-input {
   width: 100%;
   height: 100%;
-  border: 2px solid #101318;
+  border: 1px solid #101318;
   border-radius: 100px;
   padding: 0 60px 0 21px;
   font-size: 16px;
@@ -3908,7 +3908,7 @@
 .sl-wrapper .sl-modal-search-input {
   width: 100%;
   height: 100%;
-  border: 2px solid #101318;
+  border: 1px solid #101318;
   border-radius: 100px;
   padding: 0 56px 0 21px;
   font-size: 16px;
@@ -4175,3 +4175,18 @@
 .sl-wrapper .sl-reorder-save:hover { background: #468a29; }
 .sl-wrapper .sl-reorder-cancel:disabled,
 .sl-wrapper .sl-reorder-save:disabled { opacity: 0.6; cursor: default; }
+
+/* ===========================================================================
+   MOBILE PAGINATION — dots only
+   =========================================================================== */
+/* The sidebar carousels are the only pagination chevrons that reach a phone (the
+   other widgets keep theirs inside desktop-only wrappers). On mobile they go and
+   swiping takes over — see the useSwipe handlers in each section component. The
+   dots stay: they're the position indicator, not the control. */
+@media (max-width: 767px) {
+  .sl-wrapper .sl-nb2-arrow,
+  .sl-wrapper .sl-blog2-arrow,
+  .sl-wrapper .sl-rv2-arrow {
+    display: none;
+  }
+}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BLOG_IMAGES, cover } from '@shared/demoImages';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { fetchBlogPosts, type BlogPostData } from '@shared/blogPosts';
+import { useSwipe } from '@shared/useSwipe';
 
 // ---------------------------------------------------------------------------
 // Posts come from the Duda `BlogPosts` collection via @shared/blogPosts — the
@@ -89,6 +90,14 @@ export function BlogSection({ collection = 'BlogPosts', blogBasePath = '/blog' }
     return () => { cancelled = true; };
   }, [collection, blogBasePath]);
 
+  // Declared BEFORE the early returns below — a hook after a conditional return
+  // breaks the Rules of Hooks and throws on the render where the branch differs.
+  // Clamping happens inside the updater so it reads the live list length.
+  const swipe = useSwipe({
+    onSwipeLeft: () => setPage((p) => Math.min(posts.length - 1, p + 1)),
+    onSwipeRight: () => setPage((p) => Math.max(0, p - 1)),
+  });
+
   if (loading) return <SkeletonCard />;
 
   // Published collection empty → say so rather than render an empty card.
@@ -109,8 +118,9 @@ export function BlogSection({ collection = 'BlogPosts', blogBasePath = '/blog' }
   return (
     <div className="sl-blog2">
 
-      {/* Gray background zone with card */}
-      <div className="sl-blog2-bg">
+      {/* Gray background zone with card. Swipeable: the arrows are hidden on
+          mobile (see SpaceList.css), so this is how you move between posts. */}
+      <div className="sl-blog2-bg" {...swipe.handlers}>
         <div className="sl-blog2-card">
 
           {/* Hero image */}
