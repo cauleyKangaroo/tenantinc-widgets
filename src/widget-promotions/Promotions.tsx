@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useMediaQuery } from '@shared/stickyStack';
+import { useSwipe } from '@shared/useSwipe';
 import './Promotions.css';
 import { fetchSpaceGroups, extractPromos, type ApiPromo } from './api';
 import { emitShowPromo, scrollToSpaceList } from '@shared/promoBus';
@@ -18,7 +20,12 @@ import promoBannerMobile from './assets/promo-banner-mobile.png';
 interface BarItem { id: string; title: string; info?: string; url: string; ctaLabel: string; }
 
 /** Max bars shown at once; also the carousel's page size. */
-const PAGE_SIZE = 4;
+/**
+ * Bars per desktop page: 1 fills the row, 2 split 50/50, 3 split 33/33/33, and
+ * from FOUR promos the row becomes a paged carousel of three rather than
+ * squeezing to quarter-width.
+ */
+const PAGE_SIZE = 3;
 
 /**
  * Hold off on the skeleton for this long. A fast API response then renders the
@@ -91,15 +98,28 @@ function PromoBarItem({ item }: { item: BarItem }) {
 function PromoBars({ items }: { items: BarItem[] }) {
   const [page, setPage] = useState(0);
 
-  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  const paged = items.length > PAGE_SIZE;
+  // 560px is where the CSS used to drop every bar to flex-basis: 100% and stack
+  // them vertically — the thing this carousel replaces — so JS and CSS agree on
+  // the boundary. One bar per slide on a phone; desktop keeps its columns.
+  const isMobile = useMediaQuery('(max-width: 560px)');
+  const pageSize = isMobile ? 1 : PAGE_SIZE;
+
+  const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+  const paged = items.length > pageSize;
   // Clamp rather than store-and-correct, so a shrinking `items` (API load
   // replacing demo data) can't leave us on a page that no longer exists.
   const current = Math.min(page, pageCount - 1);
-  const visible = paged ? items.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE) : items;
+  const visible = paged ? items.slice(current * pageSize, current * pageSize + pageSize) : items;
   // Column count drives the width + type scale in CSS.
-  const cols = Math.min(items.length, PAGE_SIZE);
+  const cols = Math.min(items.length, pageSize);
   const go = (i: number) => setPage((i + pageCount) % pageCount);
+
+  // Mobile has no arrows (hidden in CSS — they'd eat the width), so swipe is the
+  // only way through.
+  const swipe = useSwipe({
+    onSwipeLeft: () => go(current + 1),
+    onSwipeRight: () => go(current - 1),
+  });
 
   const row = (
     <div className="promo-bars" data-cols={cols}>
@@ -112,7 +132,7 @@ function PromoBars({ items }: { items: BarItem[] }) {
   if (!paged) return row;
 
   return (
-    <div className="promo-bars-carousel">
+    <div className="promo-bars-carousel" {...swipe.handlers}>
       <div className="promo-bars-track">
         <button
           className="promo-bar-arrow promo-bar-arrow--prev"

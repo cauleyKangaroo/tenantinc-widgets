@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
+import { useSwipe } from '@shared/useSwipe';
 import { fetchProperties, findProperty, type PropertyDetails } from './api';
 import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
@@ -90,11 +91,17 @@ function PropertySkeleton() {
  * Fills its box with either a real image (URL) or a CSS gradient placeholder.
  * Gradient strings contain "gradient(" — anything else is treated as an image src.
  */
-function ImageFill({ src, className, alt = '' }: { src: string; className?: string; alt?: string }) {
+function ImageFill({ src, className, alt = '', onClick }: {
+  src: string;
+  className?: string;
+  alt?: string;
+  /** Used by the lightbox so a click on the photo doesn't close the overlay. */
+  onClick?: React.MouseEventHandler;
+}) {
   if (src && src.includes('gradient(')) {
-    return <span className={className} style={{ background: src }} aria-hidden="true" />;
+    return <span className={className} style={{ background: src }} aria-hidden="true" onClick={onClick} />;
   }
-  return <img className={className} src={src} alt={alt} />;
+  return <img className={className} src={src} alt={alt} onClick={onClick} />;
 }
 
 // Demo "See all Hours" data (real values come from Duda later, like the other
@@ -341,8 +348,21 @@ export function PropertyInfo(props: PropertyInfoProps) {
       if (e.key === 'ArrowRight') next();
     }
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    // Lock the page behind the overlay, so a swipe that isn't quite horizontal
+    // scrolls nothing underneath.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [lightbox]);
+
+  // The arrows are display:none under 768px, so swiping is the ONLY way to move
+  // between photos on a phone. ignoreAfterSwipe stops the click that ends a swipe
+  // from also closing the overlay.
+  const lbSwipe = useSwipe({ onSwipeLeft: () => next(), onSwipeRight: () => prev() });
+  const closeLightbox = lbSwipe.ignoreAfterSwipe(() => setLightbox(false));
 
   // Hours modal: Esc closes; lock background scroll while open.
   useEffect(() => {
@@ -408,19 +428,35 @@ export function PropertyInfo(props: PropertyInfoProps) {
   );
 
   const lightboxEl = lightbox && (
-    <div className="pi-lightbox" onClick={() => setLightbox(false)}>
+    <div
+      className="pi-lightbox"
+      onClick={closeLightbox}
+      {...lbSwipe.handlers}
+    >
+      <button
+        type="button"
+        className="pi-lb-close"
+        aria-label="Close gallery"
+        onClick={(e) => { e.stopPropagation(); setLightbox(false); }}
+      >
+        <CloseIcon size={20} />
+      </button>
       <span className="pi-lb-arrow pi-lb-arrow--prev" role="button" tabIndex={0} aria-label="Previous photo"
         onClick={(e) => { e.stopPropagation(); prev(); }}>
         <ChevronRight size={44} />
       </span>
-      <span className="pi-lb-img-wrap" onClick={(e) => e.stopPropagation()}>
-        <ImageFill className="pi-lb-img" src={current} />
+      {/* The wrap deliberately does NOT swallow clicks: it's 90vw x 80vh, so on a
+          phone it was almost the whole screen and left nowhere to tap to close.
+          Only the photo itself is exempt. */}
+      <span className="pi-lb-img-wrap">
+        <ImageFill className="pi-lb-img" src={current} onClick={(e) => e.stopPropagation()} />
       </span>
       <span className="pi-lb-arrow" role="button" tabIndex={0} aria-label="Next photo"
         onClick={(e) => { e.stopPropagation(); next(); }}>
         <ChevronRight size={44} />
       </span>
-      <span className="pi-lb-counter" onClick={(e) => e.stopPropagation()}>{index + 1} / {slides.length}</span>
+      {/* No stopPropagation: a tap on the counter should close like anywhere else */}
+      <span className="pi-lb-counter">{index + 1} / {slides.length}</span>
     </div>
   );
 

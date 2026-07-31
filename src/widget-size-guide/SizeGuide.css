@@ -228,9 +228,11 @@
     padding-right: 16px;
   }
 
+  /* Standard widget mobile title: 36px / 1.2 — matches .faq-title in #10, the
+     reference all widget titles follow. */
   .sg-title {
-    font-size: 28px;
-    line-height: 36px;
+    font-size: 36px;
+    line-height: 1.2;
   }
 
   .sg-subtitle {

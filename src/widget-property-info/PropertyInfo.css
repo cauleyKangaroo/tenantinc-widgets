@@ -504,6 +504,31 @@ span.pi-lb-img {
   display: block;
 }
 
+/* Explicit close affordance. Tap-anywhere still works, but on a phone the photo
+   fills most of the screen, so "anywhere" isn't obvious enough on its own. */
+.pi-lb-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pi-lb-close:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
 .pi-lb-arrow {
   color: #fff;
   display: flex;
@@ -757,8 +782,25 @@ span.pi-lb-img {
     font-size: 28px;
   }
 
+  /* Arrows are dropped on mobile — swiping moves between photos instead (see the
+     touch handlers in PropertyInfo.tsx). Give the photo the full width back and
+     drop the flex gap that was reserving space for them. */
   .pi-lb-arrow {
     display: none;
+  }
+
+  .pi-lightbox {
+    gap: 0;
+    padding: 12px;
+  }
+
+  .pi-lb-img-wrap {
+    width: 100%;
+    height: min(74vh, 620px);
+  }
+
+  .pi-lb-counter {
+    bottom: 18px;
   }
 }
 
