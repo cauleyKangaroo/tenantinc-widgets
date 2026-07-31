@@ -8,6 +8,7 @@ import {
   fetchPropertySpaces,
   formatDistance,
 } from '@shared/nearbyProperties';
+import { useSwipe } from '@shared/useSwipe';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
 import cfg from '../../config.json';
 
@@ -325,6 +326,11 @@ export function NearbySection() {
   const safePage = Math.min(page, total - 1);
   const property = properties[safePage];
 
+  const swipe = useSwipe({
+    onSwipeLeft: () => setPage(Math.min(total - 1, safePage + 1)),
+    onSwipeRight: () => setPage(Math.max(0, safePage - 1)),
+  });
+
   // Map pins from the live nearby list (price = cheapest starting rate).
   const mapPoints: MapPoint[] = (apiProps ?? []).map((p, i) => ({
     id: p.id,
@@ -347,7 +353,8 @@ export function NearbySection() {
       </div>
 
       {/* Content */}
-      <div className="sl-nb2-content">
+      {/* Swipeable: the arrows are hidden on mobile (see SpaceList.css). */}
+      <div className="sl-nb2-content" {...swipe.handlers}>
         {loading && view === 'list' ? (
           <SkeletonCard />
         ) : view === 'map' ? (

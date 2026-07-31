@@ -9,6 +9,7 @@ import {
   ChevronRight,
 } from './icons';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
+import { useSwipe } from '@shared/useSwipe';
 import {
   fetchProperties,
   extractProperties,
@@ -288,6 +289,11 @@ export function NearbyLocations({
   const safePage = Math.min(page, Math.max(0, totalPages - 1));
   const pageCards = properties.slice(safePage * CARDS_PER_PAGE, safePage * CARDS_PER_PAGE + CARDS_PER_PAGE);
 
+  const mobileSwipe = useSwipe({
+    onSwipeLeft: () => setMobileIdx((i) => Math.min(properties.length - 1, i + 1)),
+    onSwipeRight: () => setMobileIdx((i) => Math.max(0, i - 1)),
+  });
+
   // Map pins from the live properties (price = cheapest starting rate).
   const mapPoints: MapPoint[] = (apiProperties ?? []).map((p, i) => ({
     id: p.id,
@@ -357,7 +363,11 @@ export function NearbyLocations({
                 <SkeletonCard />
               ) : (
                 <>
-                  <PropertyCard property={properties[Math.min(mobileIdx, properties.length - 1)]} />
+                  {/* Dots are the indicator, swiping is the control — this view
+                      never had arrows to begin with. */}
+                  <div {...mobileSwipe.handlers}>
+                    <PropertyCard property={properties[Math.min(mobileIdx, properties.length - 1)]} />
+                  </div>
                   <div className="nl-pagination nl-pagination-dots">
                     <Dots count={properties.length} active={Math.min(mobileIdx, properties.length - 1)} onPick={setMobileIdx} />
                   </div>

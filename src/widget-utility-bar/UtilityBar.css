@@ -291,21 +291,30 @@
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 @media (max-width: 767px) {
+  /* Left-aligned on mobile. Centring needs the message to be shorter than the
+     bar; on a phone it usually wraps to two or three lines, and centred wrapped
+     text reads as ragged. Three things have to change together: the text
+     alignment, the flex centring that holds the message block, and the empty
+     left spacer that only exists to balance the close button. */
   .ub-message {
     font-size: 18px;
+    text-align: left;
+  }
+
+  .ub-message-wrap {
+    justify-content: flex-start;
+  }
+
+  .ub-spacer {
+    display: none;
   }
 
   .ub-inner {
     padding: 10px;
   }
 
-  .ub-spacer,
   .ub-close-wrap {
     flex-basis: 28px;
-  }
-
-  .ub-message-wrap {
-    gap: 8px;
   }
 
   .ub-tooltip {

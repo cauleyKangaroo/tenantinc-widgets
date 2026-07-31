@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSwipe } from '@shared/useSwipe';
 import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
 
 type Platform = 'google' | 'yelp';
@@ -137,6 +138,10 @@ export function ReviewsSection() {
     : ALL_REVIEWS.filter((r) => r.platform === platform);
   const currentReview = reviews[page] ?? reviews[0];
   const total = reviews.length;
+  const swipe = useSwipe({
+    onSwipeLeft: () => setPage((p) => Math.min(total - 1, p + 1)),
+    onSwipeRight: () => setPage((p) => Math.max(0, p - 1)),
+  });
 
   function handlePlatform(p: Platform) {
     setPlatform(p);
@@ -172,9 +177,9 @@ export function ReviewsSection() {
         </div>
       </div>
 
-      {/* Review card */}
+      {/* Review card — swipeable: the arrows are hidden on mobile. */}
       {currentReview && (
-        <div className="sl-rv2-card">
+        <div className="sl-rv2-card" {...swipe.handlers}>
           <div className="sl-rv2-card-header">
             <UserCircleIcon />
             <div className="sl-rv2-author-info">
