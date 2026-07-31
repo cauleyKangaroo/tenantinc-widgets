@@ -189,7 +189,9 @@ export function PropertyInfo(props: PropertyInfoProps) {
     order: 10,
     enabled: stickyContactRow && isMobileViewport && !inEditor,
     offsetTop: stickyOffsetTop,
-    className: 'pi-m-circles-pinned',
+    // `pi-wrapper` comes along so the row keeps the widget's inherited font,
+    // colour and box-sizing once it's portaled out of the widget's tree.
+    className: 'pi-wrapper pi-m-circles-pinned',
   });
 
   const [index, setIndex] = useState(0);

@@ -905,21 +905,14 @@ span.pi-lb-img {
   height: 0;
   overflow: hidden;
 }
-/* Tighter vertically when pinned — 24px of padding is a lot of screen to give up
-   on a phone, and the labels still read fine at 12px. */
-.pi-m-circles-pinned .pi-m-circles {
-  padding: 10px 12px;
-}
-.pi-m-circles-pinned .pi-m-circle {
-  width: 40px;
-  height: 40px;
-}
-.pi-m-circles-pinned .pi-m-circle svg {
-  width: 20px;
-  height: 20px;
-}
-.pi-m-circles-pinned .pi-m-circle-label {
-  font-size: 11px;
+/* The pinned wrapper carries `pi-wrapper` so the row renders IDENTICALLY to its
+   inline self: that class is where font-family, colour and the `.pi-wrapper *`
+   border-box rule come from, none of which are inherited once the row is portaled
+   to <body> (without it the labels fell back to the browser's serif default).
+   These two overrides only strip the page-container geometry that comes along. */
+.pi-wrapper.pi-m-circles-pinned {
+  max-width: none;
+  padding-inline: 0;
 }
 
 /* Items share the row equally and can shrink to 0, so 5 fixed circles can never
