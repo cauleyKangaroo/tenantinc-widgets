@@ -1,0 +1,4197 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* All rules are prefixed with .sl- and live under the .sl-wrapper root, so
+   they don't leak into the host Duda page. Every selector is also scoped under
+   .sl-wrapper to raise specificity to (0,2,0) and beat Duda's single-class
+   overrides without resorting to !important. */
+
+.sl-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  /* Fluid side gutter keeps the column contained on small-desktop; max-width
+     bumped so the large-screen content width is preserved. */
+  padding: 20px clamp(20px, 4vw, 64px);
+  min-height: 600px;
+  box-sizing: border-box;
+  /* Centred max-width container so the title, filter bar, listing and sidebar
+     all line up within a contained width instead of spanning the whole page. */
+  max-width: 1448px;
+  width: 100%;
+  margin: 0 auto;
+}
+.sl-wrapper *,
+.sl-wrapper *::before,
+.sl-wrapper *::after { box-sizing: border-box; }
+
+/* The listing and the accordion panel sit side by side while there's room, and
+   the panel drops below the listing when there isn't. This MUST key off the
+   widget's own width, not the viewport: in Duda the widget often gets a narrow
+   column inside a wide window, so the old viewport @media breakpoints never
+   fired and the rigid 422px panel starved the listing to zero width.
+   flex-wrap + the lopsided grow factors below do it with no query at all. */
+.sl-wrapper .sl-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.sl-wrapper .sl-additional-panel { flex-shrink: 0; }
+.sl-wrapper .sl-additional-panel.ap-left,
+.sl-wrapper .sl-additional-panel.ap-right { width: 280px; }
+.sl-wrapper .sl-additional-panel.ap-bottom { width: 100%; }
+
+.sl-wrapper .sl-section {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
+  box-sizing: border-box;
+}
+.sl-wrapper .sl-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #101318;
+  margin-bottom: 6px;
+}
+.sl-wrapper .sl-section-body { font-size: 13px; color: #637381; }
+.sl-wrapper .sl-section-accordion { display: flex; flex-direction: column; gap: 12px; }
+
+/* ===========================================================================
+   FILTER PANEL
+   =========================================================================== */
+.sl-wrapper .sl-filter-panel {
+  background: #ffffff;
+  border: 1px solid #f4f6f8;
+  border-radius: 16px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.sl-wrapper.filter-left .sl-filter-panel,
+.sl-wrapper.filter-right .sl-filter-panel { width: 422px; }
+
+.sl-wrapper.filter-top .sl-filter-panel { width: 100%; }
+
+/* ── TOP MODE ── */
+.sl-wrapper.filter-top .sl-filter-body {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  align-items: flex-start;
+}
+.sl-wrapper.filter-top .sl-filter-left-group {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+.sl-wrapper.filter-top .sl-list-card { width: 100%; }
+.sl-wrapper.filter-top .sl-filter-right-group {
+  flex-shrink: 0;
+  border-left: 1px solid #dfe3e8;
+  margin-left: 24px;
+  padding-left: 24px;
+  display: block;
+}
+.sl-wrapper.filter-top .sl-checkboxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 20px;
+}
+
+.sl-wrapper .sl-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 22px 18px;
+  cursor: pointer;
+  user-select: none;
+}
+.sl-wrapper .sl-filter-header-right { display: flex; align-items: center; gap: 10px; }
+.sl-wrapper .sl-filter-chevron {
+  font-size: 12px;
+  color: #637381;
+  transition: transform 0.2s;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+.sl-wrapper .sl-filter-panel.collapsed .sl-filter-chevron { transform: rotate(180deg); }
+
+.sl-wrapper .sl-filter-separator {
+  height: 1px;
+  background: #dfe3e8;
+  margin: 0;
+}
+.sl-wrapper .sl-filter-panel.collapsed .sl-filter-separator { display: none; }
+
+.sl-wrapper .sl-filter-body {
+  overflow: hidden;
+  pointer-events: auto;
+  user-select: text;
+  padding: 19px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+}
+.sl-wrapper .sl-filter-panel.collapsed .sl-filter-body { display: none; }
+.sl-wrapper .sl-filter-panel.collapsed .sl-filter-header { padding-bottom: 28px; }
+
+.sl-wrapper .sl-filter-title-row { display: flex; align-items: center; gap: 6px; }
+.sl-wrapper .sl-filter-icon {
+  display: flex;
+  align-items: center;
+  color: #101318;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-filter-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #101318;
+  line-height: 1;
+}
+.sl-wrapper .sl-filter-badge {
+  background: #509e2f;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.sl-wrapper .sl-reset-btn {
+  background: #ffffff;
+  border: 2px solid #509e2f;
+  border-radius: 4px;
+  font-size: 14px;
+  padding: 4px 12px;
+  height: 31px;
+  cursor: pointer;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  line-height: 1;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+}
+.sl-wrapper .sl-reset-btn:hover { background: #f0f9eb; }
+
+.sl-wrapper .sl-filter-left-group,
+.sl-wrapper .sl-filter-right-group { display: contents; }
+
+.sl-wrapper .sl-filter-section {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 10px 30px 25px;
+  width: 100%;
+}
+.sl-wrapper .sl-filter-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #101318;
+  line-height: 36px;
+  margin-bottom: 2px;
+}
+
+.sl-wrapper .sl-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.sl-wrapper .sl-pills.sl-pills-wrap { gap: 12px 8px; }
+.sl-wrapper .sl-pill {
+  background: #ffffff;
+  border: 1px solid #101318;
+  border-radius: 100px;
+  font-size: 14px;
+  color: #101318;
+  padding: 0 15px;
+  height: 36px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+}
+.sl-wrapper .sl-pill:hover { background: #f9fafb; }
+.sl-wrapper .sl-pill.active {
+  background: #101318;
+  color: #ffffff;
+  border-color: #101318;
+  font-weight: 600;
+}
+
+.sl-wrapper .sl-checkboxes { display: flex; flex-direction: column; gap: 12px; }
+.sl-wrapper .sl-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #101318;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  font-weight: 400;
+  line-height: 18px;
+}
+.sl-wrapper .sl-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #509e2f;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+/* ===========================================================================
+   LISTING AREA
+   =========================================================================== */
+/* grow:999 vs the panel's grow:1 — while both share a line, essentially all the
+   free space goes to the listing so the panel stays at its 422px basis; once the
+   panel wraps onto its own line it is the only item there and grows to fill.
+   The 520px basis is the wrap trigger: below 520 + 24 + 422 the panel drops. */
+.sl-wrapper .sl-listing-area {
+  flex: 999 1 520px;
+  min-width: 0;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Active-promo banner (set by the Promotions widget's "See Qualifying Units"). */
+.sl-wrapper .sl-promo-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #eef7ea;
+  border: 1px solid #cfe6c4;
+}
+.sl-wrapper .sl-promo-banner-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #101318;
+}
+.sl-wrapper .sl-promo-banner-tag svg { color: #509e2f; flex: 0 0 auto; }
+.sl-wrapper .sl-promo-banner-text {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+}
+.sl-wrapper .sl-promo-banner-text strong { font-weight: 700; }
+.sl-wrapper .sl-promo-banner-clear {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #101318;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px 6px;
+  flex: 0 0 auto;
+}
+.sl-wrapper .sl-promo-banner-clear:hover { color: var(--color_1, #f45f30); }
+.sl-wrapper .sl-page-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 40px;
+  color: #101318;
+  margin: 0;
+  /* Guard against host themes restyling bare <h2> (e.g. uppercasing it) */
+  text-transform: none;
+  letter-spacing: normal;
+}
+/* "Select a Space" is a mobile-only heading. On desktop .sl-heading collapses
+   (display:contents) so only the page title shows — desktop is unchanged. */
+.sl-wrapper .sl-heading { display: contents; }
+.sl-wrapper .sl-select-heading { display: none; }
+
+/* ===========================================================================
+   GRID VIEW — ACCORDIONS
+   =========================================================================== */
+/* Sections are separated by full-width divider lines: one above each section
+   and a closing line at the very bottom (border-bottom on the container). */
+.sl-wrapper .sl-grid-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-bottom: 1px solid #dfe3e8;
+}
+.sl-wrapper .sl-accordion { width: 100%; border-top: 1px solid #dfe3e8; }
+.sl-wrapper .sl-accordion-header {
+  background: transparent;
+  padding: 20px 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+/* The section name is a pill: transparent with black text by default; on hover,
+   and whenever the section is open, it becomes white text on a black pill. */
+.sl-wrapper .sl-accordion-title {
+  font-size: 30px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+  padding: 6px 24px;
+  border-radius: 100px;
+  transition: background 0.15s, color 0.15s;
+}
+.sl-wrapper .sl-accordion-header:hover .sl-accordion-title,
+.sl-wrapper .sl-accordion.expanded .sl-accordion-title {
+  background: #101318;
+  color: #ffffff;
+}
+/* Chevron: points right when collapsed, rotates down when the section opens. */
+.sl-wrapper .sl-chevron {
+  display: flex;
+  align-items: center;
+  color: #101318;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+  transform: rotate(-90deg);
+}
+.sl-wrapper .sl-accordion.expanded .sl-chevron { transform: rotate(0deg); }
+.sl-wrapper .sl-accordion-body { padding: 8px 0 32px; }
+
+.sl-wrapper .sl-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 24px;
+}
+
+.sl-wrapper .sl-unit-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.sl-wrapper .sl-card-display-panel {
+  background: #ffffff;
+  /* Bottom padding was 48px to clear the promo badge, which now lives in the grey
+     action panel — even padding avoids a stranded gap where it used to sit. */
+  padding: 30px;
+  /* The WHITE panel absorbs the slack when cards are stretched to a common row
+     height. It used to be the grey panel that grew (flex: 1 + justify-content:
+     flex-end), which meant a card with a short feature list got a tall grey box
+     with its price stranded at the bottom under a big empty gap — the grey panels
+     ended up visibly different heights across a row. Growing the white side keeps
+     every grey panel snug to its own content instead. */
+  flex: 1 1 auto;
+}
+.sl-wrapper .sl-card-action-panel {
+  background: #f9fafb;
+  padding: 30px;
+  /* Content-sized, never stretched — see the note above. */
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  /* Separates the promo badge from the price + CTA row below it. */
+  gap: 16px;
+}
+.sl-wrapper .sl-card-top {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+}
+.sl-wrapper .sl-card-info {
+  flex-shrink: 0;
+  width: 171px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sl-wrapper .sl-unit-heading { display: flex; flex-direction: column; }
+.sl-wrapper .sl-unit-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+}
+.sl-wrapper .sl-unit-subtype {
+  font-size: 16px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 20px;
+}
+.sl-wrapper .sl-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sl-wrapper .sl-features li {
+  font-size: 14px;
+  color: #637381;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  line-height: 16px;
+  font-weight: 400;
+}
+.sl-wrapper .sl-check { color: #509e2f; font-weight: 700; flex-shrink: 0; }
+.sl-wrapper .sl-card-image-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.sl-wrapper .sl-unit-img {
+  width: 100%;
+  max-width: 162px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+.sl-wrapper .sl-see-fits {
+  font-size: 15px;
+  color: var(--color_1, #f45f30);
+  text-decoration: none;
+  white-space: nowrap;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sl-wrapper .sl-see-fits:hover { text-decoration: underline; }
+
+.sl-wrapper .sl-promo-badge {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px dashed #509e2f;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 16px;
+  color: #101318;
+  font-weight: 700;
+  margin-top: 12px;
+}
+.sl-wrapper .sl-promo-icon { display: flex; align-items: center; flex-shrink: 0; }
+
+.sl-wrapper .sl-card-pricing {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.sl-wrapper .sl-prices-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 50px;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-price-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 45px;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-instore-label {
+  font-size: 10px;
+  color: #637381;
+  font-weight: 500;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+.sl-wrapper .sl-strike {
+  font-size: 16px;
+  color: #637381;
+  text-decoration: line-through;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.sl-wrapper .sl-price-divider {
+  width: 1px;
+  height: 37px;
+  background: #dfe3e8;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-price-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-starting-label {
+  font-size: 10px;
+  color: #101318;
+  font-weight: 700;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+.sl-wrapper .sl-main-price {
+  font-size: 24px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+}
+/* Figma: "+ Plus $20 Admin Fee" is 12px/16px black, same small print as above. */
+.sl-wrapper .sl-admin-fee {
+  font-size: 12px;
+  color: #000000;
+  margin-top: 2px;
+  font-weight: 400;
+  line-height: 16px;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.sl-wrapper .sl-cta-col {
+  flex: 1;
+  /* max-content rather than 0 so the one-line CTA note reserves its width; with
+     min-width:0 the column collapsed under it and the card's overflow:hidden
+     clipped the text at narrow grid widths. */
+  min-width: max-content;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.sl-wrapper .sl-select-btn {
+  background: var(--color_2, #509e2f);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  height: 50px;
+  width: 100%;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sl-wrapper .sl-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
+/* Call / Waitlist are the OUTLINE variant of .sl-select-btn (Figma 7112-47044):
+   white fill, 2px CTA-coloured border, #101318 label — same 50px height, 8px
+   radius and 16px/700 type as Select, so the three read as one button family.
+   The border uses the SAME `--color_2` slot Select fills with, so they track the
+   Duda theme together. Previously Call used --color_1 and Waitlist hardcoded
+   #101318, which is exactly why neither matched Select. */
+.sl-wrapper .sl-call-btn,
+.sl-wrapper .sl-waitlist-btn {
+  background: #ffffff;
+  color: #101318;
+  border: 2px solid var(--color_2, #509e2f);
+  border-radius: 8px;
+  height: 50px;
+  width: 100%;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Rendered as an <a href="tel:…"> on sold-out units — kill the link underline. */
+.sl-wrapper a.sl-call-btn { text-decoration: none; }
+
+.sl-wrapper .sl-call-btn:hover,
+.sl-wrapper .sl-waitlist-btn:hover {
+  background: color-mix(in srgb, var(--color_2, #509e2f) 8%, #ffffff);
+}
+.sl-wrapper .sl-cta-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+/* The note under the CTA — "Limited Availability" (sold out, copy configurable
+   via limitedAvailabilityCopy) or "Only X left - Rent soon!" (scarcity). One rule
+   for both: Figma 7112-47044 and 7112-47400 specify the same 12px/16px SemiBold
+   #fb4c4c right-aligned treatment, and the two messages share a slot under the
+   button, so they must be pixel-identical. Replaces the old per-layout
+   .sl-urgency / .sl-lc-urgency / .sl-dv-urgency rules. */
+.sl-wrapper .sl-limited-label {
+  font-size: 12px;
+  line-height: 16px;
+  color: #fb4c4c;
+  font-weight: 600;
+  text-align: right;
+  margin-top: 4px;
+  /* One line, always. "Only 125 left - Rent soon!" is ~160px at this size and was
+     wrapping in the narrow CTA columns; the columns below use min-width:max-content
+     so they widen to fit this instead of breaking it. */
+  white-space: nowrap;
+}
+/* Figma 7112-47056: the price small print is BLACK 12px/16px, and it must wrap
+   rather than run on — it used to be grey and, being nowrap-wide, got clipped by
+   the card's overflow:hidden. */
+.sl-wrapper .sl-junk-disclaimer {
+  font-size: 12px;
+  color: #000000;
+  margin-top: 8px;
+  font-weight: 400;
+  line-height: 16px;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* ===========================================================================
+   LIST VIEW
+   =========================================================================== */
+/* One card per row; fills the main content column, which is itself bounded by
+   the widget's max-width container so rows never span the whole page. */
+.sl-wrapper .sl-list-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.sl-wrapper .sl-list-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
+  overflow: hidden;
+  margin-bottom: 24px;
+  box-sizing: border-box;
+}
+.sl-wrapper .sl-list-card:last-child { margin-bottom: 0; }
+
+/* ── Display panel (white): image + amenities | size grid ── */
+/* nowrap is deliberate: the size grid must stay BESIDE the info (Figma
+   7112-47056), shrinking to fewer pill columns rather than wrapping underneath
+   it. Wrapping only returns at the narrow container query further down. */
+.sl-wrapper .sl-lc-display {
+  background: #ffffff;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px 40px;
+  flex-wrap: nowrap;
+  padding: 30px;
+}
+.sl-wrapper .sl-lc-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 50px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sl-wrapper .sl-lc-image-col {
+  width: 162px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.sl-wrapper .sl-lc-img {
+  width: 100%;
+  max-width: 162px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+.sl-wrapper .sl-lc-see-fits {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color_1, #f45f30);
+  text-decoration: none;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sl-wrapper .sl-lc-see-fits:hover { text-decoration: underline; }
+.sl-wrapper .sl-lc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.sl-wrapper .sl-lc-size-label {
+  font-size: 24px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+}
+.sl-wrapper .sl-lc-subtype {
+  align-self: flex-start;
+  background: #f4f6f8;
+  border-radius: 4px;
+  padding: 4px 5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #101318;
+  line-height: 16px;
+}
+
+/* ── Size grid (dimension pills) ── */
+/* 352px = four 82px pills + three 8px gaps. Shrinkable (0 1) so a narrow
+   container drops to 3/2/1 pill columns instead of pushing the whole grid onto
+   its own line; 82px floor keeps one full-width pill legible. */
+.sl-wrapper .sl-lc-sizes {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  flex: 0 1 352px;
+  min-width: 82px;
+  max-width: 352px;
+}
+/* The dimension label must never wrap. Two things used to make it: the browser's
+   default button padding (1px 6px) and the selected state's 4px border, which
+   together left the selected pill ~12px less inner width than its siblings — so
+   the same label fitted on one line everywhere except when selected.
+   padding:0 reclaims that, nowrap guarantees it, and min-width lets a genuinely
+   long label widen the pill instead of overflowing it. */
+.sl-wrapper .sl-lc-size {
+  position: relative;
+  min-width: 82px;
+  height: 40px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #ffffff;
+  border: 2px solid #a5b4bf;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #242627;
+  white-space: nowrap;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-lc-size:hover:not(.selected) { border-color: #509e2f; }
+.sl-wrapper .sl-lc-size.selected { border: 4px solid #509e2f; font-weight: 600; }
+.sl-wrapper .sl-lc-size.unavail {
+  border-style: dashed;
+  border-width: 2.5px;
+  color: #a5b4bf;
+}
+/* The badge straddles the pill's border, so it needs a white keyline to still
+   read as a separate label rather than merging into the border. Stacked 0-blur
+   drop-shadows trace the tag's actual silhouette (notch and all) and paint
+   behind it — no SVG stroke, so nothing can clip against the viewBox. */
+.sl-wrapper .sl-lc-size-tag {
+  position: absolute;
+  top: -7px;
+  right: -5px;
+  display: flex;
+  line-height: 0;
+  /* Four 0-blur offsets, chained: each pass filters the previous result, so the
+     silhouette dilates 1px in every direction (diagonals included) — a crisp
+     keyline rather than the soft halo a blurred shadow would give. */
+  filter:
+    drop-shadow(1px 0 0 #ffffff)
+    drop-shadow(-1px 0 0 #ffffff)
+    drop-shadow(0 1px 0 #ffffff)
+    drop-shadow(0 -1px 0 #ffffff);
+}
+
+/* ── Action panel (grey): promo + price + CTA ── */
+.sl-wrapper .sl-lc-action {
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 30px;
+}
+.sl-wrapper .sl-lc-promo {
+  flex: 1 1 220px;
+  min-width: 200px;
+  border: 2px dashed #509e2f;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 16px;
+}
+.sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; }
+.sl-wrapper .sl-lc-price-button {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex: 0 1 334px;
+  min-width: 0;
+  max-width: 100%;
+}
+/* The price column absorbs the shrinking (its .sl-prices-row is shrink:0, so it
+   never squashes below the figures — the small print wraps instead). Previously
+   this was shrink:0 and the button column was min-width:0, so any shortfall
+   collapsed the button to zero width and it vanished entirely. */
+.sl-wrapper .sl-lc-price {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sl-wrapper .sl-lc-btn-col {
+  flex: 0 1 140px;
+  /* max-content, not a fixed px floor: the note under the button must stay on one
+     line, and its length varies (vacancy digits, plus configurable
+     limitedAvailabilityCopy). The price column is flex:1 1 auto with min-width:0,
+     so it absorbs the difference. */
+  min-width: max-content;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.sl-wrapper .sl-select-full { width: 100%; }
+.sl-wrapper .sl-empty-msg {
+  padding: 40px 20px;
+  text-align: center;
+  color: #637381;
+  font-size: 15px;
+  background: #ffffff;
+  border-radius: 16px;
+}
+
+/* ===========================================================================
+   DEFAULT LAYOUT — one horizontal card per unit (Figma 7112-47133)
+   =========================================================================== */
+/* Same size-group accordions as the grid layout, but each group stacks full-width
+   rows instead of a card grid. Below the wrapper's mobile breakpoint SpaceList
+   renders GridView instead, so there is no mobile frame for this card. */
+.sl-wrapper .sl-default-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.sl-wrapper .sl-dv-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.sl-wrapper .sl-default-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  box-sizing: border-box;
+}
+
+/* ── Display panel (white): image + "See what fits" | size + amenities ── */
+/* Hard 55/45 split, NOT content-sized: the white/grey seam must land on the same
+   x for every card in the list, so neither panel may size to its own contents
+   (that is what made the seam wander card to card). */
+.sl-wrapper .sl-dv-display {
+  background: #ffffff;
+  flex: 0 0 55%;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 30px;
+  box-sizing: border-box;
+}
+/* Self-sizing (no fixed width): the column is as wide as its widest child, so the
+   nowrap "See what fits" link can never paint over the amenity list — which a
+   fixed 100–130px column let it do, and would let it do again on any Duda theme
+   whose font is wider than Montserrat. The image cap below is what bounds it. */
+.sl-wrapper .sl-dv-image-col {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+/* Figma's column is 162 but its image leaf is only 96.6 x 119 inside it, so the
+   caps here carry the same visual weight on far less width. Capping the HEIGHT is
+   what keeps the card slim: the demo photos vary in aspect, and a width-only cap
+   let tall ones drive the whole row's height. */
+.sl-wrapper .sl-dv-img {
+  width: auto;
+  max-width: 136px;
+  height: auto;
+  max-height: 119px;
+  object-fit: contain;
+  display: block;
+}
+.sl-wrapper .sl-dv-see-fits {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color_1, #f45f30);
+  text-decoration: none;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sl-wrapper .sl-dv-see-fits:hover { text-decoration: underline; }
+.sl-wrapper .sl-dv-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.sl-wrapper .sl-dv-heading { display: flex; flex-direction: column; }
+.sl-wrapper .sl-dv-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+}
+.sl-wrapper .sl-dv-subtype {
+  font-size: 16px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 20px;
+}
+
+/* ── Action panel (grey): promo + price + CTA, bottom-right at 323px ── */
+.sl-wrapper .sl-dv-action {
+  background: #f9fafb;
+  flex: 0 0 45%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 30px;
+  box-sizing: border-box;
+}
+/* Figma's Actions frame is 323, but its price block renders ~165 + 16 gap + the
+   146 CTA = 327 — i.e. 323 is a few px short of holding its own contents, and a
+   site whose Duda theme font is wider needs more still. 348 keeps the price and
+   the CTA on one row, which is the arrangement that actually matters. */
+.sl-wrapper .sl-dv-actions {
+  width: 100%;
+  max-width: 348px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* wrap is the safety valve: an unusually long price (five figures, say) drops the
+   CTA below the price instead of overflowing into the card's clipped edge. */
+.sl-wrapper .sl-dv-price-button {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+.sl-wrapper .sl-dv-price { flex: 1 1 auto; min-width: 0; }
+.sl-wrapper .sl-dv-btn-col {
+  flex: 0 1 146px;
+  /* See .sl-lc-btn-col — sized to keep the CTA note on one line. */
+  min-width: max-content;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+/* ===========================================================================
+   RESPONSIVE — overall shell (viewport based)
+   =========================================================================== */
+@media (max-width: 1024px) {
+  .sl-wrapper.filter-left .sl-row,
+  .sl-wrapper.filter-right .sl-row { flex-direction: column; }
+  .sl-wrapper.filter-left .sl-filter-panel,
+  .sl-wrapper.filter-right .sl-filter-panel { width: 100%; }
+}
+
+@media (max-width: 767px) {
+  .sl-wrapper { padding: 12px; gap: 14px; }
+  /* Stack the columns and stretch them full-width. Without align-items:stretch
+     the listing area (which has container-type:inline-size) can't derive a
+     width from its content and collapses to ~min-content. */
+  .sl-wrapper .sl-row { flex-direction: column; align-items: stretch; }
+  .sl-wrapper .sl-listing-area { width: 100%; }
+  /* Both headings are hidden on mobile — the page's own H1 already says where you
+     are, and the vacancy count reads as noise above the fold on a phone.
+     (Desktop keeps the 32px page title; the whole .sl-heading block just goes.) */
+  .sl-wrapper .sl-heading { display: none; }
+  .sl-wrapper .sl-filter-panel,
+  .sl-wrapper .sl-additional-panel.ap-left,
+  .sl-wrapper .sl-additional-panel.ap-right { width: 100% !important; }
+}
+
+/* Small-desktop grid: keep TWO (scaled-down) cards instead of collapsing to one
+   wide card. The cards get narrow, so stack each card's info above its image so
+   they don't cramp. Below 1181 drop to a single column. */
+@media (min-width: 1182px) and (max-width: 1360px) {
+  .sl-wrapper .sl-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sl-wrapper .sl-card-top { flex-direction: column; gap: 20px; }
+  .sl-wrapper .sl-card-info { width: 100%; }
+  .sl-wrapper .sl-card-image-col { width: 100%; align-items: flex-start; }
+}
+@media (max-width: 1181px) {
+  .sl-wrapper .sl-cards-grid { grid-template-columns: 1fr; }
+}
+
+/* ===========================================================================
+   RESPONSIVE — listing content (CONTAINER based)
+   =========================================================================== */
+/* Squeezed listing column (the Duda case — the accordion panel takes width, so
+   the container is far narrower than in the dev harness). Tighten the left group
+   so the size grid keeps 2–3 pill columns beside the info instead of being
+   starved down to a single tall column. */
+@container (max-width: 900px) {
+  .sl-wrapper .sl-lc-left { gap: 24px; }
+  .sl-wrapper .sl-lc-image-col { width: 130px; }
+  .sl-wrapper .sl-lc-img { max-width: 130px; }
+}
+
+/* The full 4-column grid needs roughly 800px of listing to coexist with the
+   info column. Below that, cap it at two pill columns (172px = 2x82 + 8) so the
+   feature text keeps room to breathe — the grid still sits BESIDE the info,
+   which is the point of the fix. */
+@container (max-width: 820px) {
+  .sl-wrapper .sl-lc-sizes { flex-basis: 172px; max-width: 172px; }
+}
+
+@container (max-width: 680px) {
+  /* Action panel: promo + price/CTA stack and go full width */
+  .sl-wrapper .sl-lc-promo { flex: 1 1 100%; }
+  .sl-wrapper .sl-lc-price-button { flex: 1 1 100%; justify-content: space-between; }
+  .sl-wrapper .sl-lc-action { justify-content: stretch; }
+}
+
+/* Default-layout card. The row must SURVIVE the squeezed Duda listing column
+   (~800px once the accordion panel takes its 422) — the whole point of this
+   layout is white panel beside grey panel, so narrowing steps give width back
+   from the image and the paddings before anything is allowed to stack. */
+/* Below ~907px of listing, 45% stops being enough for the full-size price row and
+   CTA to share a line (408 = 60 padding + the 348 box). Trim the paddings, the
+   image (to the Figma leaf's own ~97px), the CTA basis and the price size to buy
+   that back — the split itself stays 55/45, since a per-card min-width floor is
+   exactly what would make the seam wander again. */
+@container (max-width: 907px) {
+  .sl-wrapper .sl-dv-display { padding: 20px; gap: 12px; }
+  .sl-wrapper .sl-dv-img { max-width: 100px; }
+  /* 13px keeps the link narrower than the 100px image, so the column stays put */
+  .sl-wrapper .sl-dv-see-fits { font-size: 13px; gap: 4px; }
+  .sl-wrapper .sl-dv-action { padding: 20px; }
+  .sl-wrapper .sl-dv-actions { max-width: 312px; }
+  .sl-wrapper .sl-dv-price-button { gap: 12px; }
+  .sl-wrapper .sl-dv-btn-col { flex: 0 1 120px; min-width: max-content; }
+  /* 22px (vs Figma's 24) is the last few px the price row needs to stay on ONE
+     row with the CTA here — the list card drops to 20px at its narrow step. */
+  .sl-wrapper .sl-dv-price .sl-main-price { font-size: 22px; }
+}
+
+/* Genuinely out of room for two columns. Only reachable in Duda, where the
+   accordion panel can squeeze the listing well below the wrapper's 640px mobile
+   breakpoint — on a real phone the wrapper is narrow too, so SpaceList has
+   already swapped in the grid layout. */
+/* Both panels must drop the 55/45 basis here: the card is a COLUMN now, so a
+   percentage basis would be read against its height. */
+@container (max-width: 600px) {
+  .sl-wrapper .sl-default-card { flex-direction: column; }
+  .sl-wrapper .sl-dv-display { flex: 0 0 auto; }
+  .sl-wrapper .sl-dv-action { flex: 0 0 auto; align-items: stretch; }
+  .sl-wrapper .sl-dv-actions { max-width: none; }
+}
+
+@container (max-width: 480px) {
+  /* Genuinely too narrow for side-by-side — re-enable wrapping (the base rule is
+     nowrap) so the size grid drops below the info at full width. */
+  .sl-wrapper .sl-lc-display { flex-wrap: wrap; }
+  .sl-wrapper .sl-lc-left { flex-direction: column; gap: 20px; align-items: flex-start; }
+  .sl-wrapper .sl-lc-image-col { width: 100%; align-items: flex-start; }
+  .sl-wrapper .sl-lc-img { max-width: 162px; }
+  .sl-wrapper .sl-lc-sizes { flex: 1 1 100%; max-width: 100%; }
+  .sl-wrapper .sl-lc-price-button { flex-direction: column; align-items: stretch; }
+  .sl-wrapper .sl-lc-price { align-self: flex-start; }
+  .sl-wrapper .sl-main-price { font-size: 20px; }
+  .sl-wrapper .sl-lc-display { padding: 20px; }
+  .sl-wrapper .sl-lc-action { padding: 20px; }
+  .sl-wrapper .sl-unit-img { width: 100%; max-width: 100%; }
+
+  /* Grid unit card → mobile (Figma node 9697-48905): one column; the image sits
+     beside the info as a compact 132px thumbnail (not stacked full-width), and
+     "See what fits" is dropped. */
+  .sl-wrapper .sl-cards-grid { grid-template-columns: 1fr; gap: 16px; }
+  .sl-wrapper .sl-card-display-panel { padding: 16px; }
+  .sl-wrapper .sl-card-action-panel { padding: 16px; }
+  .sl-wrapper .sl-card-top { gap: 16px; align-items: flex-start; }
+  .sl-wrapper .sl-card-info { width: auto; flex: 1 1 auto; min-width: 0; }
+  .sl-wrapper .sl-card-image-col { flex: 0 0 auto; width: 132px; }
+  .sl-wrapper .sl-unit-img { max-width: 132px; }
+  .sl-wrapper .sl-see-fits { display: none; }
+
+  /* Size-group dropdown headers */
+  .sl-wrapper .sl-accordion-header { padding: 14px 0 12px; }
+  .sl-wrapper .sl-accordion-title { font-size: 22px; padding: 5px 18px; }
+  .sl-wrapper .sl-accordion-body { padding: 6px 0 24px; }
+
+  /* Filter bar → two rows on mobile: [icon + search] on the first row, and the
+     horizontally-scrollable tag pills wrap onto the second. */
+  .sl-wrapper .sl-top-bar { flex-wrap: wrap; }
+  .sl-wrapper .sl-top-bar-search {
+    order: 0; flex: 1 1 auto; width: auto; min-width: 0; margin-left: 0; height: 44px;
+  }
+  .sl-wrapper .sl-top-bar-pills { order: 1; flex-basis: 100%; }
+}
+
+/* ===========================================================================
+   SKELETON LOADER
+   =========================================================================== */
+@keyframes sl-shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+.sl-wrapper .sl-skeleton-card .sl-card-display-panel,
+.sl-wrapper .sl-skeleton-card .sl-card-action-panel {
+  pointer-events: none;
+}
+
+.sl-wrapper .sl-skeleton-line,
+.sl-wrapper .sl-skeleton-image,
+.sl-wrapper .sl-skeleton-btn {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 600px 100%;
+  animation: sl-shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+
+.sl-wrapper .sl-skeleton-title        { height: 28px; width: 90px; margin-bottom: 8px; }
+.sl-wrapper .sl-skeleton-subtitle     { height: 18px; width: 120px; margin-bottom: 12px; }
+.sl-wrapper .sl-skeleton-feature      { height: 14px; width: 100%; margin-bottom: 6px; }
+.sl-wrapper .sl-skeleton-feature--short { width: 70%; }
+.sl-wrapper .sl-skeleton-image        { width: 100%; height: 120px; border-radius: 8px; }
+.sl-wrapper .sl-skeleton-price        { height: 40px; width: 120px; }
+.sl-wrapper .sl-skeleton-btn          { height: 50px; flex: 1; border-radius: 8px; }
+.sl-wrapper .sl-skeleton-accordion-title { height: 26px; width: 140px; }
+
+.sl-wrapper .sl-skeleton .sl-accordion-header { cursor: default; }
+.sl-wrapper .sl-skeleton .sl-accordion-body   { padding-top: 24px; display: block; }
+
+/* ===========================================================================
+   AP SECTIONS — below-content area
+   =========================================================================== */
+.sl-wrapper .sl-ap-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  width: 100%;
+}
+
+/* ===========================================================================
+   REVIEWS SECTION
+   =========================================================================== */
+.sl-wrapper .sl-ap-title {
+  font-size: 40px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+}
+
+.sl-wrapper .sl-section--reviews {
+  width: 100%;
+  padding: 40px;
+}
+
+.sl-wrapper .sl-rv-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+.sl-wrapper .sl-rv-subtitle {
+  font-size: 15px;
+  color: #637381;
+  max-width: 640px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Platform row */
+.sl-wrapper .sl-rv-platforms {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 32px;
+}
+.sl-wrapper .sl-rv-platform {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sl-wrapper .sl-rv-platform-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.sl-wrapper .sl-rv-platform-top svg { flex-shrink: 0; }
+.sl-wrapper .sl-rv-platform-score {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sl-wrapper .sl-rv-platform-number {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+}
+.sl-wrapper .sl-rv-score-val {
+  font-size: 32px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1;
+}
+.sl-wrapper .sl-rv-score-denom {
+  font-size: 16px;
+  color: #637381;
+}
+.sl-wrapper .sl-rv-platform-right {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sl-wrapper .sl-rv-stars {
+  display: flex;
+  gap: 2px;
+  font-size: 18px;
+  line-height: 1;
+}
+.sl-wrapper .sl-rv-star { opacity: 0.25; }
+.sl-wrapper .sl-rv-star.filled { opacity: 1; }
+.sl-wrapper .sl-rv-count {
+  font-size: 12px;
+  color: #637381;
+}
+.sl-wrapper .sl-rv-more {
+  font-size: 14px;
+  color: #101318;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sl-wrapper .sl-rv-more:hover { color: #509e2f; }
+
+/* Review cards grid */
+.sl-wrapper .sl-rv-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.sl-wrapper .sl-rv-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sl-wrapper .sl-rv-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sl-wrapper .sl-rv-avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.sl-wrapper .sl-rv-avatar svg { width: 100%; height: 100%; }
+.sl-wrapper .sl-rv-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sl-wrapper .sl-rv-author {
+  font-size: 14px;
+  font-weight: 700;
+  color: #101318;
+}
+.sl-wrapper .sl-rv-card .sl-rv-stars { font-size: 14px; }
+.sl-wrapper .sl-rv-text {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.6;
+  flex: 1;
+  margin: 0;
+}
+.sl-wrapper .sl-rv-time {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* ===========================================================================
+   NEARBY SECTION
+   =========================================================================== */
+.sl-wrapper .sl-section--nearby {
+  width: 100%;
+  padding: 40px;
+}
+
+.sl-wrapper .sl-nb-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+/* Card */
+.sl-wrapper .sl-nb-card {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Image */
+.sl-wrapper .sl-nb-image {
+  position: relative;
+  height: 210px;
+  overflow: hidden;
+}
+.sl-wrapper .sl-nb-image-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #6b7280 0%, #374151 100%);
+}
+.sl-wrapper .sl-nb-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.1) 55%, transparent 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 14px 16px;
+  color: #ffffff;
+}
+.sl-wrapper .sl-nb-distance {
+  align-self: flex-end;
+  font-size: 16px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+.sl-wrapper .sl-nb-info { display: flex; flex-direction: column; gap: 4px; }
+.sl-wrapper .sl-nb-name {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.sl-wrapper .sl-nb-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.sl-wrapper .sl-nb-rating-val { font-weight: 700; }
+.sl-wrapper .sl-nb-stars {
+  display: flex;
+  gap: 1px;
+  color: #FBBC05;
+  font-size: 13px;
+}
+.sl-wrapper .sl-nb-stars .half,
+.sl-wrapper .sl-nb-stars span:not(.filled):not(.half) { opacity: 0.35; }
+.sl-wrapper .sl-nb-reviews {
+  color: #ffffff;
+  text-decoration: underline;
+  font-size: 12px;
+}
+.sl-wrapper .sl-nb-meta { display: flex; flex-direction: column; gap: 3px; }
+.sl-wrapper .sl-nb-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+.sl-wrapper .sl-nb-meta-row a { color: #ffffff; text-decoration: underline; }
+
+/* Body */
+.sl-wrapper .sl-nb-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+/* Promo badge */
+.sl-wrapper .sl-nb-promo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px dashed #509e2f;
+  border-radius: 100px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #101318;
+}
+.sl-wrapper .sl-nb-promo-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #509e2f;
+  flex-shrink: 0;
+}
+
+/* Unit rows */
+.sl-wrapper .sl-nb-units { display: flex; flex-direction: column; gap: 8px; }
+.sl-wrapper .sl-nb-unit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sl-wrapper .sl-nb-unit-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.sl-wrapper .sl-nb-unit-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sl-wrapper .sl-nb-unit-dims   { font-size: 13px; font-weight: 700; color: #101318; }
+.sl-wrapper .sl-nb-unit-subtype { font-size: 11px; color: #637381; }
+.sl-wrapper .sl-nb-unit-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-nb-price-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+}
+.sl-wrapper .sl-nb-instore-label  { font-size: 9px; color: #637381; font-weight: 600; }
+.sl-wrapper .sl-nb-instore-price  { font-size: 12px; color: #637381; text-decoration: line-through; }
+.sl-wrapper .sl-nb-starting-label { font-size: 9px; color: #101318; font-weight: 600; }
+.sl-wrapper .sl-nb-starting-price { font-size: 16px; font-weight: 700; color: #101318; }
+.sl-wrapper .sl-nb-select-btn {
+  background: var(--color_2, #509e2f);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: 'Montserrat', sans-serif;
+}
+.sl-wrapper .sl-nb-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
+
+/* Footer */
+.sl-wrapper .sl-nb-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+.sl-wrapper .sl-nb-admin-fee { font-size: 12px; color: #637381; }
+.sl-wrapper .sl-nb-see-all   { font-size: 13px; font-weight: 600; color: var(--color_2, #509e2f); text-decoration: none; }
+.sl-wrapper .sl-nb-see-all:hover { text-decoration: underline; }
+
+/* Pagination */
+.sl-wrapper .sl-nb-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.sl-wrapper .sl-nb-arrow {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #101318;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+.sl-wrapper .sl-nb-arrow:hover:not(:disabled) { background: #f0f0f0; }
+.sl-wrapper .sl-nb-arrow:disabled { color: #d1d5db; cursor: default; }
+.sl-wrapper .sl-nb-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  background: #d1d5db;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s;
+}
+.sl-wrapper .sl-nb-dot.active { background: #101318; }
+
+/* Responsive */
+/* ===========================================================================
+   SIZE GUIDE SECTION
+   =========================================================================== */
+.sl-wrapper .sl-section--sizeguide {
+  width: 100%;
+  padding: 40px;
+}
+
+/* Tabs */
+.sl-wrapper .sl-sg-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+
+.sl-wrapper .sl-sg-tab {
+  padding: 10px 22px;
+  border-radius: 100px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #101318;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.sl-wrapper .sl-sg-tab:hover { border-color: #101318; }
+.sl-wrapper .sl-sg-tab.active {
+  background: #101318;
+  border-color: #101318;
+  color: #ffffff;
+}
+
+/* Grid */
+.sl-wrapper .sl-sg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  margin-bottom: 28px;
+}
+
+/* Card */
+.sl-wrapper .sl-sg-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Thumbnail */
+.sl-wrapper .sl-sg-thumb {
+  position: relative;
+  height: 220px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.sl-wrapper .sl-sg-thumb-bg {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f0ede8 0%, #d9d4cc 100%);
+}
+.sl-wrapper .sl-sg-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Card body */
+.sl-wrapper .sl-sg-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sl-wrapper .sl-sg-card-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+}
+.sl-wrapper .sl-sg-card-desc {
+  font-size: 13px;
+  color: #101318;
+  line-height: 1.6;
+  margin: 0;
+}
+.sl-wrapper .sl-sg-bullets {
+  list-style: disc;
+  padding-left: 18px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sl-wrapper .sl-sg-bullets li {
+  font-size: 13px;
+  color: #101318;
+}
+.sl-wrapper .sl-sg-cta {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color_1, #f45f30);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sl-wrapper .sl-sg-cta:hover { color: color-mix(in srgb, var(--color_1, #f45f30) 80%, black); }
+
+/* ===========================================================================
+   BLOG SECTION
+   =========================================================================== */
+.sl-wrapper .sl-section--blog {
+  width: 100%;
+  padding: 40px;
+}
+
+.sl-wrapper .sl-bl-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+/* Card */
+.sl-wrapper .sl-bl-card {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Image */
+.sl-wrapper .sl-bl-image {
+  height: 200px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* Body */
+.sl-wrapper .sl-bl-body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.sl-wrapper .sl-bl-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.3;
+}
+.sl-wrapper .sl-bl-meta {
+  font-size: 12px;
+  color: #637381;
+}
+.sl-wrapper .sl-bl-excerpt {
+  font-size: 13px;
+  color: #101318;
+  line-height: 1.5;
+  margin: 0;
+  flex: 1;
+}
+
+/* Social icons (share expanded) */
+.sl-wrapper .sl-bl-social {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  padding: 4px 0;
+}
+.sl-wrapper .sl-bl-social-icon {
+  width: 26px;
+  height: 26px;
+  color: #101318;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.sl-wrapper .sl-bl-social-icon:hover { color: var(--color_1, #f45f30); }
+.sl-wrapper .sl-bl-social-icon svg { width: 100%; height: 100%; }
+
+/* Footer */
+.sl-wrapper .sl-bl-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+  margin-top: auto;
+}
+.sl-wrapper .sl-bl-read-more {
+  font-size: 13px;
+  font-weight: 500;
+  color: #101318;
+  text-decoration: underline;
+}
+.sl-wrapper .sl-bl-read-more:hover { color: var(--color_1, #f45f30); }
+.sl-wrapper .sl-bl-share-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #101318;
+  text-decoration: underline;
+  padding: 0;
+}
+.sl-wrapper .sl-bl-share-btn:hover { color: var(--color_1, #f45f30); }
+
+/* ===========================================================================
+   FAQ SECTION
+   =========================================================================== */
+.sl-wrapper .sl-section--faqs {
+  width: 100%;
+  padding: 40px;
+}
+
+/* Search */
+.sl-wrapper .sl-faq-search-wrap {
+  display: flex;
+  align-items: center;
+  max-width: 600px;
+  margin: 0 auto 36px;
+  border: 1px solid #d1d5db;
+  border-radius: 100px;
+  overflow: hidden;
+  background: #ffffff;
+}
+.sl-wrapper .sl-faq-search {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 12px 20px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: #101318;
+  background: transparent;
+}
+.sl-wrapper .sl-faq-search::placeholder { color: #9ca3af; }
+.sl-wrapper .sl-faq-search-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: #101318;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin: 3px 3px 3px 0;
+  transition: background 0.15s;
+}
+.sl-wrapper .sl-faq-search-btn:hover { background: #374151; }
+
+/* List */
+.sl-wrapper .sl-faq-list {
+  border-top: 1px solid #e5e7eb;
+}
+.sl-wrapper .sl-faq-item {
+  border-bottom: 1px solid #e5e7eb;
+}
+.sl-wrapper .sl-faq-question {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: #101318;
+  transition: color 0.15s;
+}
+.sl-wrapper .sl-faq-question:hover { color: var(--color_1, #f45f30); }
+.sl-wrapper .sl-faq-item.open .sl-faq-question { color: #101318; }
+
+.sl-wrapper .sl-faq-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  color: #637381;
+}
+.sl-wrapper .sl-faq-item.open .sl-faq-chevron { transform: rotate(180deg); }
+
+/* Answer */
+.sl-wrapper .sl-faq-answer {
+  padding: 0 4px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sl-wrapper .sl-faq-answer p {
+  font-size: 13px;
+  color: #637381;
+  line-height: 1.7;
+  margin: 0;
+}
+.sl-wrapper .sl-faq-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: #101318;
+  text-decoration: underline;
+}
+.sl-wrapper .sl-faq-link:hover { color: var(--color_1, #f45f30); }
+
+.sl-wrapper .sl-faq-no-results {
+  padding: 24px 4px;
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .sl-wrapper .sl-rv-platforms { grid-template-columns: repeat(2, 1fr); }
+  .sl-wrapper .sl-rv-grid      { grid-template-columns: repeat(2, 1fr); }
+  .sl-wrapper .sl-nb-grid      { grid-template-columns: repeat(2, 1fr); }
+  .sl-wrapper .sl-sg-grid      { grid-template-columns: repeat(2, 1fr); }
+  .sl-wrapper .sl-bl-grid      { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 767px) {
+  .sl-wrapper .sl-section--reviews   { padding: 24px 16px; }
+  .sl-wrapper .sl-section--nearby    { padding: 24px 16px; }
+  .sl-wrapper .sl-section--sizeguide { padding: 24px 16px; }
+  .sl-wrapper .sl-section--blog      { padding: 24px 16px; }
+  .sl-wrapper .sl-section--faqs      { padding: 24px 16px; }
+  .sl-wrapper .sl-rv-platforms { grid-template-columns: 1fr; }
+  .sl-wrapper .sl-rv-grid      { grid-template-columns: 1fr; }
+  .sl-wrapper .sl-nb-grid      { grid-template-columns: 1fr; }
+  .sl-wrapper .sl-sg-grid      { grid-template-columns: 1fr; }
+  .sl-wrapper .sl-bl-grid      { grid-template-columns: 1fr; }
+  .sl-wrapper .sl-ap-title     { font-size: 28px; }
+  .sl-wrapper .sl-sa-panel     { width: 100%; }
+  .sl-wrapper .sl-sa-title     { font-size: 18px; }
+}
+
+/* ===========================================================================
+   SECTION ACCORDION SIDEBAR  (.sl-sa-*)
+   =========================================================================== */
+
+.sl-wrapper .sl-sa-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  /* 422px is the design width when beside the listing; grow:1 only takes effect
+     once it has wrapped onto its own line, where it fills the width. */
+  flex: 1 1 422px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sl-wrapper .sl-sa-item {
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
+}
+
+.sl-wrapper .sl-sa-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 82px;
+  padding: 0 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  gap: 12px;
+  text-align: left;
+}
+
+.sl-wrapper .sl-sa-header:hover {
+  background: #fafafa;
+}
+
+.sl-wrapper .sl-sa-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sl-wrapper .sl-sa-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: #101318;
+}
+
+.sl-wrapper .sl-sa-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+}
+
+.sl-wrapper .sl-sa-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 99px;
+  background: var(--color_1, #f45f30);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
+  flex-shrink: 0;
+}
+
+.sl-wrapper .sl-sa-chevron {
+  flex-shrink: 0;
+  color: #101318;
+  transition: transform 0.2s ease;
+}
+
+.sl-wrapper .sl-sa-item.open .sl-sa-chevron {
+  transform: rotate(180deg);
+}
+
+.sl-wrapper .sl-sa-body {
+  border-top: 1px solid #f4f6f8;
+  padding: 0;
+}
+
+/* When section components render inside an accordion body, strip their outer padding */
+.sl-wrapper .sl-sa-body .sl-section--nearby,
+.sl-wrapper .sl-sa-body .sl-section--sizeguide,
+.sl-wrapper .sl-sa-body .sl-section--blog,
+.sl-wrapper .sl-sa-body .sl-section--faqs,
+.sl-wrapper .sl-sa-body .sl-section--features,
+.sl-wrapper .sl-sa-body .sl-section--notes {
+  padding: 24px;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+/* Mobile: the "side" accordions become full-width bottom accordions. These
+   overrides must live AFTER the base .sl-sa-* rules above — @container/@media
+   add no specificity, so an earlier override would lose the source-order tie
+   (which is why the width:422px base was still winning). */
+@media (max-width: 767px) {
+  /* Side accordion sidebar is desktop/tablet only — hidden on mobile. */
+  .sl-wrapper .sl-sa-panel { display: none; }
+  .sl-wrapper .sl-sa-item { max-width: 100%; }
+  .sl-wrapper .sl-sa-header { padding: 0 16px; min-height: 64px; gap: 8px; }
+  .sl-wrapper .sl-sa-header-left { gap: 12px; }
+  .sl-wrapper .sl-sa-title { font-size: 18px; }
+  .sl-wrapper .sl-sa-body { padding: 0; }
+  .sl-wrapper .sl-sa-body .sl-section--nearby,
+  .sl-wrapper .sl-sa-body .sl-section--sizeguide,
+  .sl-wrapper .sl-sa-body .sl-section--blog,
+  .sl-wrapper .sl-sa-body .sl-section--faqs,
+  .sl-wrapper .sl-sa-body .sl-section--features,
+  .sl-wrapper .sl-sa-body .sl-section--notes { padding: 16px; }
+}
+
+/* ===========================================================================
+   FEATURES & AMENITIES SECTION  (.sl-feat-*)  — Figma 6411-130529
+   =========================================================================== */
+.sl-wrapper .sl-feat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+}
+.sl-wrapper .sl-feat-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  background-color: #f26500;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  transition: transform 0.25s ease;
+}
+.sl-wrapper .sl-feat-tile:hover {
+  transform: scale(1.04);
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-wrapper .sl-feat-tile { transition: none; }
+}
+.sl-wrapper .sl-feat-tile-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+.sl-wrapper .sl-feat-tile-label {
+  position: relative;
+  z-index: 1;
+  padding: 12px 14px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* ===========================================================================
+   NOTES SECTION  (.sl-notes-*)  — Figma 10199-55239
+   =========================================================================== */
+/* Still used by the About section (the Notes section dropped its card wrapper). */
+.sl-wrapper .sl-notes-card {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sl-wrapper .sl-notes-text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.25;
+  color: #000000;
+}
+
+/* ===========================================================================
+   REVIEWS SECTION v2  (.sl-rv2-*)
+   =========================================================================== */
+
+.sl-wrapper .sl-rv2 {
+  padding: 20px 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Platform tabs */
+.sl-wrapper .sl-rv2-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sl-wrapper .sl-rv2-tab {
+  border-radius: 100px;
+  padding: 11px 17px;
+  font-size: 14px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  background: #ffffff;
+  border: 1px solid #101318;
+  color: #101318;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sl-wrapper .sl-rv2-tab.active {
+  background: #101318;
+  color: #ffffff;
+}
+
+.sl-wrapper .sl-rv2-tab:hover:not(.active) {
+  background: #f9fafb;
+}
+
+/* Rating summary */
+.sl-wrapper .sl-rv2-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sl-wrapper .sl-rv2-summary-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sl-wrapper .sl-rv2-score {
+  font-size: 42px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.sl-wrapper .sl-rv2-out-of {
+  font-size: 17px;
+  font-weight: 700;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.sl-wrapper .sl-rv2-summary-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.sl-wrapper .sl-rv2-stars {
+  display: flex;
+  gap: 4px;
+}
+
+.sl-wrapper .sl-rv2-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Review card */
+.sl-wrapper .sl-rv2-card {
+  background: #f9fafb;
+  border-radius: 16px;
+  padding: 23px 31px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sl-wrapper .sl-rv2-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sl-wrapper .sl-rv2-author-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sl-wrapper .sl-rv2-author {
+  font-size: 18px;
+  font-weight: 600;
+  color: #101318;
+  line-height: 20px;
+  font-family: 'Montserrat', sans-serif;
+  margin: 0;
+}
+
+.sl-wrapper .sl-rv2-text {
+  font-size: 16px;
+  font-weight: 400;
+  color: #637381;
+  line-height: 20px;
+  font-family: 'Montserrat', sans-serif;
+  margin: 0;
+}
+
+.sl-wrapper .sl-rv2-time {
+  font-size: 14px;
+  font-weight: 400;
+  color: #101318;
+  line-height: 20px;
+  font-family: 'Montserrat', sans-serif;
+  margin: 0;
+}
+
+/* Pagination */
+.sl-wrapper .sl-rv2-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.sl-wrapper .sl-rv2-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #101318;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.sl-wrapper .sl-rv2-arrow:disabled {
+  color: #a5b4bf;
+  cursor: default;
+}
+
+.sl-wrapper .sl-rv2-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #a5b4bf;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.sl-wrapper .sl-rv2-dot.active {
+  background: #101318;
+}
+
+.sl-wrapper .sl-rv2-dot:hover:not(.active) {
+  background: #637381;
+}
+
+/* ===========================================================================
+   NEARBY SECTION v2  (.sl-nb2-*)
+   =========================================================================== */
+
+.sl-wrapper .sl-nb2 {
+  background: #f4f6f8;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* View toggle */
+.sl-wrapper .sl-nb2-view-tabs {
+  display: flex;
+  gap: 10px;
+  padding: 18px 21px;
+}
+
+.sl-wrapper .sl-nb2-view-tab {
+  border-radius: 70px;
+  padding: 11px 17px;
+  font-size: 14px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  background: #ffffff;
+  border: 1px solid #101318;
+  color: #101318;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sl-wrapper .sl-nb2-view-tab.active {
+  background: #101318;
+  color: #ffffff;
+}
+
+.sl-wrapper .sl-nb2-view-tab:hover:not(.active) {
+  background: #f0f0f0;
+}
+
+/* Content area */
+.sl-wrapper .sl-nb2-content {
+  padding: 0 23px;
+}
+
+.sl-wrapper .sl-nb2-map-placeholder {
+  height: 300px;
+  background: #dfe3e8;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #637381;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Property card */
+.sl-wrapper .sl-nb2-card {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* ── Skeleton (shown while the nearby calls are in flight) ── */
+/* Reuses the card's own geometry classes; only the shimmer bars are new. Same
+   gradient/timing as the listing skeleton above. */
+.sl-wrapper .sl-nb2-skeleton { pointer-events: none; }
+.sl-wrapper .sl-nb2-sk-line,
+.sl-wrapper .sl-nb2-sk-block {
+  display: block;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 600px 100%;
+  animation: sl-shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+.sl-wrapper .sl-nb2-skeleton .sl-nb2-img { border-radius: 0; }
+.sl-wrapper .sl-nb2-sk-promo  { height: 44px; width: 100%; border-radius: 8px; margin-bottom: 12px; }
+.sl-wrapper .sl-nb2-sk-dims   { height: 18px; width: 68px; }
+.sl-wrapper .sl-nb2-sk-type   { height: 13px; width: 104px; margin-top: 5px; }
+.sl-wrapper .sl-nb2-sk-price  { height: 32px; width: 88px; }
+.sl-wrapper .sl-nb2-sk-btn    { height: 38px; width: 76px; border-radius: 8px; }
+.sl-wrapper .sl-nb2-sk-fee    { height: 13px; width: 132px; }
+.sl-wrapper .sl-nb2-sk-seeall { height: 13px; width: 92px; }
+
+/* Image */
+.sl-wrapper .sl-nb2-img {
+  height: 234px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sl-wrapper .sl-nb2-img-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1;
+}
+
+.sl-wrapper .sl-nb2-distance {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 2;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 700;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1.1;
+}
+
+.sl-wrapper .sl-nb2-prop-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  padding: 0 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sl-wrapper .sl-nb2-prop-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: 'Montserrat', sans-serif;
+  margin: 0;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sl-wrapper .sl-nb2-prop-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sl-wrapper .sl-nb2-prop-score {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.sl-wrapper .sl-nb2-stars {
+  display: flex;
+  gap: 4px;
+}
+
+.sl-wrapper .sl-nb2-prop-reviews {
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  font-family: 'Montserrat', sans-serif;
+  text-decoration: underline;
+}
+
+.sl-wrapper .sl-nb2-prop-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 0;
+}
+
+.sl-wrapper .sl-nb2-prop-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sl-wrapper .sl-nb2-prop-meta-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  font-family: 'Montserrat', sans-serif;
+  text-decoration: underline;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Available spaces */
+.sl-wrapper .sl-nb2-spaces {
+  background: #ffffff;
+  padding: 24px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Promo banner */
+.sl-wrapper .sl-nb2-promo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 2px dashed #509e2f;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.sl-wrapper .sl-nb2-promo-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Unit rows */
+.sl-wrapper .sl-nb2-units {
+  display: flex;
+  flex-direction: column;
+}
+
+.sl-wrapper .sl-nb2-unit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid #f4f6f8;
+  gap: 8px;
+}
+
+.sl-wrapper .sl-nb2-units .sl-nb2-unit-row:first-child {
+  border-top: none;
+}
+
+.sl-wrapper .sl-nb2-unit-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sl-wrapper .sl-nb2-unit-dims {
+  font-size: 16px;
+  font-weight: 600;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  white-space: nowrap;
+}
+
+.sl-wrapper .sl-nb2-unit-type {
+  font-size: 12px;
+  font-weight: 400;
+  color: #637381;
+  font-family: 'Montserrat', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+
+.sl-wrapper .sl-nb2-unit-pricing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* In-store price (strikethrough) */
+.sl-wrapper .sl-nb2-instore {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+}
+
+.sl-wrapper .sl-nb2-instore-label {
+  font-size: 8px;
+  font-weight: 500;
+  color: #637381;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1.5;
+}
+
+.sl-wrapper .sl-nb2-instore-price {
+  font-size: 16px;
+  font-weight: 400;
+  color: #637381;
+  font-family: 'Montserrat', sans-serif;
+  text-decoration: line-through;
+  line-height: 1.5;
+}
+
+/* Vertical divider */
+.sl-wrapper .sl-nb2-vdivider {
+  width: 1px;
+  height: 29px;
+  background: #dfe3e8;
+  flex-shrink: 0;
+}
+
+/* Starting at price */
+.sl-wrapper .sl-nb2-starting {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+}
+
+.sl-wrapper .sl-nb2-starting-label {
+  font-size: 8px;
+  font-weight: 700;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1.4;
+}
+
+.sl-wrapper .sl-nb2-starting-price {
+  font-size: 20px;
+  font-weight: 700;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1.2;
+}
+
+/* Select button */
+.sl-wrapper .sl-nb2-select {
+  background: var(--color_2, #509e2f);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Montserrat', sans-serif;
+  border: none;
+  border-radius: 4px;
+  height: 33px;
+  width: 78px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.sl-wrapper .sl-nb2-select:hover {
+  background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black);
+}
+
+/* Footer */
+.sl-wrapper .sl-nb2-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f4f6f8;
+}
+
+.sl-wrapper .sl-nb2-admin-fee {
+  font-size: 12px;
+  font-weight: 600;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.sl-wrapper .sl-nb2-see-all {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color_2, #509e2f);
+  font-family: 'Montserrat', sans-serif;
+  text-decoration: underline;
+  gap: 2px;
+}
+
+.sl-wrapper .sl-nb2-see-all:hover {
+  color: color-mix(in srgb, var(--color_2, #509e2f) 80%, black);
+}
+
+/* Pagination */
+.sl-wrapper .sl-nb2-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px 0 24px;
+}
+
+.sl-wrapper .sl-nb2-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #101318;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.sl-wrapper .sl-nb2-arrow:disabled {
+  color: #a5b4bf;
+  cursor: default;
+}
+
+.sl-wrapper .sl-nb2-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #a5b4bf;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.sl-wrapper .sl-nb2-dot.active {
+  background: #101318;
+}
+
+.sl-wrapper .sl-nb2-dot:hover:not(.active) {
+  background: #637381;
+}
+
+/* ===========================================================================
+   PROPERTY INFORMATION SECTION  (.sl-pi-*)
+   =========================================================================== */
+
+.sl-wrapper .sl-pi {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Cards */
+.sl-wrapper .sl-pi-card {
+  background: #f9fafb;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.sl-wrapper .sl-pi-card--action {
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s;
+}
+
+.sl-wrapper .sl-pi-card--action:hover {
+  background: #f0f2f4;
+}
+
+.sl-wrapper .sl-pi-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 20px;
+}
+
+/* Header icons stay dark — they must NOT inherit the host page's accent
+   (--color_1). Email only looked right by accident (it's a <button>, which
+   resets color); pin the rest explicitly to match. */
+.sl-wrapper .sl-pi-card-header svg { color: #101318; }
+
+.sl-wrapper .sl-pi-card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Card body — indented to align with text after icon */
+.sl-wrapper .sl-pi-card-body {
+  padding: 0 20px 18px 52px; /* 20px left + 24px icon + 8px gap */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sl-wrapper .sl-pi-card-body--stars {
+  padding-bottom: 14px;
+}
+
+.sl-wrapper .sl-pi-card-body--reservation {
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+  padding-bottom: 18px;
+}
+
+/* Phone */
+.sl-wrapper .sl-pi-phone-row {
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sl-wrapper .sl-pi-phone-link {
+  color: #101318;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.sl-wrapper .sl-pi-phone-link:hover {
+  color: var(--color_1, #f45f30);
+}
+
+.sl-wrapper .sl-pi-phone-label {
+  color: #101318;
+  font-weight: 400;
+}
+
+/* Hours */
+.sl-wrapper .sl-pi-hours-status {
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sl-wrapper .sl-pi-status--open {
+  font-weight: 600;
+  color: #028a0c;
+}
+
+.sl-wrapper .sl-pi-status--closed {
+  font-weight: 600;
+  color: #e53935;
+}
+
+.sl-wrapper .sl-pi-status-detail {
+  font-weight: 400;
+}
+
+.sl-wrapper .sl-pi-hours-detail {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sl-wrapper .sl-pi-hours-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 24px;
+  margin: 0;
+}
+
+.sl-wrapper .sl-pi-hours-line {
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 24px;
+  margin: 0;
+}
+
+.sl-wrapper .sl-pi-see-hours {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  text-decoration: underline;
+  padding: 4px 0 0;
+}
+
+.sl-wrapper .sl-pi-see-hours:hover {
+  color: var(--color_1, #f45f30);
+}
+
+/* ── "See all Hours" popup ─────────────────────────────────────────────── */
+.sl-hours-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(16, 19, 24, 0.55);
+  animation: sl-hours-fade 0.15s ease-out;
+}
+.sl-hours-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
+  font-family: 'Montserrat', sans-serif;
+  animation: sl-hours-pop 0.15s ease-out;
+}
+@keyframes sl-hours-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sl-hours-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.sl-hours-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 20px 24px;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.sl-hours-title { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; color: #101318; }
+.sl-hours-title svg { flex: 0 0 auto; color: #101318; }
+.sl-hours-close {
+  flex: 0 0 auto;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; border: none; background: none; border-radius: 6px;
+  color: #101318; cursor: pointer;
+}
+.sl-hours-close:hover { background: #f4f6f8; }
+.sl-hours-body { padding: 28px 24px; display: flex; gap: 30px; flex-wrap: wrap; }
+.sl-hours-col { flex: 1 1 180px; min-width: 0; }
+.sl-hours-col-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; line-height: 26px; color: #101318; }
+.sl-hours-line { margin: 0; font-size: 15px; font-weight: 400; line-height: 26px; color: #101318; }
+
+/* ── "Send us a Message" popup — clone of the property-info modal ───────── */
+.sl-msg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(16, 19, 24, 0.55);
+  animation: sl-hours-fade 0.15s ease-out;
+}
+.sl-msg-modal {
+  width: min(695px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  box-shadow: 0 8px 9px 0 rgba(71, 84, 116, 0.2);
+  font-family: 'Montserrat', sans-serif;
+  animation: sl-hours-pop 0.15s ease-out;
+}
+.sl-msg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 23px 24px;
+  background: #fffaf7;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.sl-msg-title { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 600; color: #101318; }
+.sl-msg-title svg { flex: 0 0 auto; }
+.sl-msg-close {
+  flex: 0 0 auto; width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; border: none; background: none; border-radius: 6px;
+  color: #101318; cursor: pointer;
+}
+.sl-msg-close:hover { background: #f4f6f8; }
+
+.sl-msg-body { background: #fff; padding: 30px 24px; display: flex; flex-direction: column; gap: 24px; }
+.sl-msg-req { color: #e53935; margin-left: 2px; }
+
+/* Facility area */
+.sl-msg-facility-area { position: relative; display: flex; flex-direction: column; gap: 12px; }
+.sl-msg-facility-heading { margin: 0; font-size: 18px; font-weight: 600; color: #101318; }
+.sl-msg-dd-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; height: 56px; padding: 0 16px;
+  background: #fff; border: 1px solid #a5b4bf; border-radius: 8px;
+  color: #637381; font: 400 16px 'Montserrat', sans-serif; cursor: pointer;
+}
+.sl-msg-dd-btn svg { flex: 0 0 auto; color: #101318; }
+.sl-msg-facility { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 0; border: none; background: none; text-align: left; }
+.sl-msg-facility--btn { cursor: pointer; }
+.sl-msg-facility-name { font-size: 18px; font-weight: 600; color: #101318; }
+.sl-msg-facility-addr { display: flex; align-items: center; gap: 8px; font-size: 16px; color: #637381; }
+.sl-msg-facility-addr svg { flex: 0 0 auto; color: #637381; }
+.sl-msg-dd-list {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 2;
+  margin: 4px 0 0; padding: 4px; list-style: none;
+  background: #fff; border: 1px solid #a5b4bf; border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(71, 84, 116, 0.2);
+}
+.sl-msg-dd-list li button {
+  display: block; width: 100%; text-align: left; padding: 10px 12px;
+  border: none; background: none; border-radius: 6px;
+  font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer;
+}
+.sl-msg-dd-list li button:hover { background: #f4f6f8; }
+
+/* Form fields (floating label) */
+.sl-msg-form { display: flex; flex-direction: column; gap: 12px; }
+.sl-msg-note { margin: 0; font-size: 16px; color: #101318; }
+.sl-msg-row { display: flex; gap: 12px; }
+.sl-msg-row > * { flex: 1 1 0; min-width: 0; }
+/* See the matching .pi-msg-field note: this is a <label>, and a host rule like
+   `label { display: inline }` collapses it so the input and floating label
+   overlap. Forced display/height, plus min-height as a floor. */
+.sl-msg-field { position: relative; display: block !important; height: 56px !important; min-height: 56px; box-sizing: border-box; border: 1px solid #a5b4bf; border-radius: 8px; background: #fff; }
+/* !important to beat the forced height on .sl-msg-field above — otherwise the
+   message textarea collapses to the 56px single-line height. */
+.sl-msg-field--area { height: 200px !important; min-height: 200px; }
+.sl-msg-field-input {
+  position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
+  padding: 20px 16px 0; border: none; background: transparent; outline: none;
+  font: 400 16px/20px 'Montserrat', sans-serif; color: #101318; resize: none;
+}
+.sl-msg-field--area .sl-msg-field-input { padding-top: 36px; resize: vertical; }
+.sl-msg-field-label {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+  font: 400 16px/20px 'Montserrat', sans-serif; color: #637381; pointer-events: none;
+  transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
+}
+.sl-msg-field--area .sl-msg-field-label { top: 16px; transform: none; }
+.sl-msg-field:focus-within .sl-msg-field-label,
+.sl-msg-field--filled .sl-msg-field-label { top: 9px; transform: none; font-size: 12px; line-height: 15px; }
+
+/* Footer */
+.sl-msg-foot { background: #f9fafb; padding: 19px 24px; display: flex; flex-direction: column; gap: 16px; }
+.sl-msg-consent { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+.sl-msg-consent input { position: absolute; width: 0; height: 0; opacity: 0; }
+.sl-msg-check {
+  flex: 0 0 auto; width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; border: 2px solid #c4cdd5; border-radius: 6px;
+}
+.sl-msg-check--on { background: #101318; border-color: #101318; }
+.sl-msg-consent-text { font-size: 16px; line-height: 20px; color: #101318; }
+.sl-msg-terms { align-self: center; padding: 0 32px; font-size: 16px; line-height: 20px; color: #000; text-decoration: underline; }
+
+.sl-msg-actions { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.sl-msg-captcha {
+  width: 236px; height: 60px; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 12px; padding: 0 12px;
+  background: #f9fafb; border: 1px solid #d3d3d3; border-radius: 4px;
+}
+.sl-msg-captcha-box { flex: 0 0 auto; width: 24px; height: 24px; background: #fff; border: 2px solid #c4cdd5; border-radius: 2px; }
+.sl-msg-captcha-label { flex: 1 1 auto; font-size: 14px; color: #3c4043; }
+.sl-msg-captcha-brand { font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; color: #9aa0a6; }
+.sl-msg-buttons { display: flex; align-items: center; gap: 16px; }
+.sl-msg-cancel { border: none; background: none; font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer; }
+.sl-msg-submit {
+  width: 127px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 8px;
+  background: var(--color_1, #f45f30); color: #fff;
+  font: 700 16px 'Montserrat', sans-serif; cursor: pointer;
+}
+.sl-msg-submit:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black); }
+.sl-msg-submit:disabled, .sl-msg-cancel:disabled { opacity: 0.6; cursor: default; }
+
+.sl-msg-error { margin: 0 32px; color: #e53935; font: 500 15px 'Montserrat', sans-serif; }
+
+.sl-msg-success { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 24px 16px 8px; }
+.sl-msg-success-icon { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #e7f5e8; }
+.sl-msg-success-title { margin: 4px 0 0; font: 700 22px 'Montserrat', sans-serif; color: #101318; }
+.sl-msg-success-text { margin: 0 0 12px; max-width: 420px; font: 400 16px 'Montserrat', sans-serif; line-height: 1.5; color: #55606b; }
+.sl-msg-success .sl-msg-submit { width: auto; padding: 0 28px; }
+
+@media (max-width: 640px) {
+  .sl-msg-head { padding: 18px 20px; }
+  .sl-msg-body { padding: 20px; }
+  .sl-msg-foot { padding: 16px 20px; }
+  .sl-msg-row { flex-direction: column; }
+  .sl-msg-actions { flex-direction: column-reverse; align-items: stretch; }
+  .sl-msg-buttons { justify-content: flex-end; }
+  .sl-msg-captcha { width: 100%; }
+}
+
+/* Star rating */
+.sl-wrapper .sl-pi-stars {
+  display: flex;
+  gap: 4px;
+}
+
+.sl-wrapper .sl-pi-star-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  line-height: 0;
+  transition: transform 0.1s;
+}
+
+.sl-wrapper .sl-pi-star-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Reservation */
+.sl-wrapper .sl-pi-reservation-input {
+  flex: 1;
+  height: 50px;
+  border: 1px solid #101318;
+  border-radius: 7px;
+  padding: 0 18px;
+  font-size: 16px;
+  font-weight: 400;
+  color: #637381;
+  font-family: 'Montserrat', sans-serif;
+  background: #ffffff;
+  min-width: 0;
+}
+
+.sl-wrapper .sl-pi-reservation-input::placeholder {
+  color: #a5b4bf;
+}
+
+.sl-wrapper .sl-pi-reservation-go {
+  height: 50px;
+  padding: 0 20px;
+  background: #101318;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.sl-wrapper .sl-pi-reservation-go:hover {
+  background: #2d3748;
+}
+
+/* Social icons */
+.sl-wrapper .sl-pi-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+
+.sl-wrapper .sl-pi-social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #101318;
+  transition: opacity 0.15s;
+}
+
+.sl-wrapper .sl-pi-social-link:hover {
+  color: var(--color_1, #f45f30);
+}
+
+/* ===========================================================================
+   FAQ ACCORDION (sl-faq2)
+   =========================================================================== */
+
+.sl-wrapper .sl-faq2 {
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 8px 28px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: #a5b4bf transparent;
+}
+
+.sl-wrapper .sl-faq2::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sl-wrapper .sl-faq2::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sl-wrapper .sl-faq2::-webkit-scrollbar-thumb {
+  background: #a5b4bf;
+  border-radius: 2px;
+}
+
+.sl-wrapper .sl-faq2-item {
+  border-bottom: 1px solid #dfe3e8;
+}
+
+.sl-wrapper .sl-faq2-item--last {
+  border-bottom: none;
+}
+
+.sl-wrapper .sl-faq2-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 18px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: #101318;
+}
+
+.sl-wrapper .sl-faq2-question {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1.4;
+}
+
+.sl-wrapper .sl-faq2-chevron {
+  flex-shrink: 0;
+  color: #101318;
+  transition: transform 0.2s ease;
+}
+
+.sl-wrapper .sl-faq2-chevron.open {
+  transform: rotate(180deg);
+}
+
+.sl-wrapper .sl-faq2-answer {
+  padding: 0 0 18px;
+}
+
+.sl-wrapper .sl-faq2-answer-text {
+  font-size: 15px;
+  font-weight: 400;
+  color: #637381;
+  line-height: 1.6;
+  margin: 0 0 8px;
+}
+
+.sl-wrapper .sl-faq2-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color_1, #f45f30);
+  text-decoration: underline;
+}
+
+.sl-wrapper .sl-faq2-link:hover {
+  color: color-mix(in srgb, var(--color_1, #f45f30) 80%, black);
+}
+
+/* ===========================================================================
+   BLOG SECTION v2  (.sl-blog2-*)
+   =========================================================================== */
+
+.sl-wrapper .sl-blog2 {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Gray background zone */
+.sl-wrapper .sl-blog2-bg {
+  background: #f4f6f8;
+  padding: 21px 28px 24px;
+}
+
+/* White card */
+.sl-wrapper .sl-blog2-card {
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* The title is the card's link; keep it looking like the plain title it replaced */
+.sl-wrapper .sl-blog2-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+.sl-wrapper .sl-blog2-title-link:hover { text-decoration: underline; }
+
+.sl-wrapper .sl-blog2-empty {
+  margin: 0;
+  padding: 24px 0;
+  font-size: 15px;
+  color: #637381;
+  text-align: center;
+}
+
+/* ── Skeleton (while the BlogPosts collection read is in flight) ── */
+.sl-wrapper .sl-blog2-skeleton { pointer-events: none; }
+.sl-wrapper .sl-blog2-sk-line,
+.sl-wrapper .sl-blog2-sk-block {
+  display: block;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 600px 100%;
+  animation: sl-shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+.sl-wrapper .sl-blog2-skeleton .sl-blog2-image { border-radius: 0; }
+.sl-wrapper .sl-blog2-sk-title          { height: 22px; width: 100%; }
+.sl-wrapper .sl-blog2-sk-title--short   { width: 62%; }
+.sl-wrapper .sl-blog2-sk-byline         { height: 13px; width: 46%; }
+.sl-wrapper .sl-blog2-sk-excerpt        { height: 15px; width: 100%; }
+.sl-wrapper .sl-blog2-sk-excerpt--short { width: 78%; }
+.sl-wrapper .sl-blog2-sk-readmore       { height: 15px; width: 88px; }
+.sl-wrapper .sl-blog2-sk-share          { height: 15px; width: 68px; }
+
+/* ===========================================================================
+   RICH TEXT — authored HTML from the Duda content menu / API text fields
+   =========================================================================== */
+/* RichText (@shared/richText) parses authored HTML instead of printing the tags,
+   so these containers can hold whatever an editor typed. The rules only tidy
+   spacing — the surrounding class supplies font/colour. */
+.sl-wrapper .sl-rich > *:first-child { margin-top: 0; }
+.sl-wrapper .sl-rich > *:last-child  { margin-bottom: 0; }
+.sl-wrapper .sl-rich p               { margin: 0 0 12px; }
+.sl-wrapper .sl-rich ul,
+.sl-wrapper .sl-rich ol              { margin: 0 0 12px; padding-left: 22px; }
+.sl-wrapper .sl-rich li              { margin-bottom: 4px; }
+.sl-wrapper .sl-rich a               { color: var(--color_1, #f45f30); }
+.sl-wrapper .sl-rich h1,
+.sl-wrapper .sl-rich h2,
+.sl-wrapper .sl-rich h3,
+.sl-wrapper .sl-rich h4              { margin: 0 0 8px; font-weight: 700; line-height: 1.3; }
+.sl-wrapper .sl-rich h1 { font-size: 22px; }
+.sl-wrapper .sl-rich h2 { font-size: 20px; }
+.sl-wrapper .sl-rich h3 { font-size: 18px; }
+.sl-wrapper .sl-rich h4 { font-size: 16px; }
+.sl-wrapper .sl-rich img             { max-width: 100%; height: auto; }
+.sl-wrapper .sl-rich table           { width: 100%; border-collapse: collapse; }
+.sl-wrapper .sl-rich td,
+.sl-wrapper .sl-rich th              { border: 1px solid #dfe3e8; padding: 6px 8px; text-align: left; }
+
+/* Hero image placeholder */
+.sl-wrapper .sl-blog2-image {
+  height: 234px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* Card content area */
+.sl-wrapper .sl-blog2-body {
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+  padding: 20px 32px 28px;
+}
+
+.sl-wrapper .sl-blog2-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 30px;
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.sl-wrapper .sl-blog2-byline {
+  font-size: 14px;
+  font-weight: 400;
+  color: #637381;
+  line-height: 24px;
+  margin: 0;
+}
+
+.sl-wrapper .sl-blog2-excerpt {
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  line-height: 24px;
+  margin: 0;
+}
+
+.sl-wrapper .sl-blog2-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sl-wrapper .sl-blog2-read-more {
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-position: from-font;
+}
+
+.sl-wrapper .sl-blog2-read-more:hover {
+  color: #637381;
+}
+
+.sl-wrapper .sl-blog2-share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #101318;
+}
+
+.sl-wrapper .sl-blog2-share-link {
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-position: from-font;
+}
+
+.sl-wrapper .sl-blog2-share-link:hover {
+  color: #637381;
+}
+
+/* Pagination */
+.sl-wrapper .sl-blog2-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 0 22px;
+}
+
+.sl-wrapper .sl-blog2-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #101318;
+  border-radius: 50%;
+  padding: 0;
+  transition: background 0.15s;
+}
+
+.sl-wrapper .sl-blog2-arrow:hover:not(:disabled) {
+  background: #f4f6f8;
+}
+
+.sl-wrapper .sl-blog2-arrow:disabled {
+  color: #a5b4bf;
+  cursor: default;
+}
+
+.sl-wrapper .sl-blog2-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #c4cdd5;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.sl-wrapper .sl-blog2-dot.active {
+  background: #637381;
+}
+
+/* ===========================================================================
+   SIZE GUIDE v2  (.sl-sg2-*)
+   =========================================================================== */
+
+.sl-wrapper .sl-sg2 {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Category pills */
+.sl-wrapper .sl-sg2-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  padding: 21px 28px;
+}
+
+.sl-wrapper .sl-sg2-tab {
+  padding: 11px 17px;
+  border-radius: 100px;
+  border: 1px solid #101318;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 400;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sl-wrapper .sl-sg2-tab.active {
+  background: #101318;
+  color: #ffffff;
+  font-weight: 600;
+  border-color: #101318;
+}
+
+.sl-wrapper .sl-sg2-tab:hover:not(.active) {
+  background: #f4f6f8;
+}
+
+/* Scrollable content area */
+/* Video, then just the title and the CTA — both centred beneath it. The body
+   copy that used to fill this panel was removed. */
+.sl-wrapper .sl-sg2-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+  padding: 4px 32px 32px;
+  max-height: 560px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #a5b4bf transparent;
+}
+
+.sl-wrapper .sl-sg2-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sl-wrapper .sl-sg2-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sl-wrapper .sl-sg2-content::-webkit-scrollbar-thumb {
+  background: #a5b4bf;
+  border-radius: 2px;
+}
+
+/* Video image thumbnail */
+.sl-wrapper .sl-sg2-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 283 / 184;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Play button overlay */
+.sl-wrapper .sl-sg2-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Unit title */
+.sl-wrapper .sl-sg2-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #101318;
+  line-height: 1.2;
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* CTA link */
+.sl-wrapper .sl-sg2-cta {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color_2, #509e2f);
+  text-decoration: underline;
+  text-underline-position: from-font;
+  white-space: nowrap;
+}
+
+.sl-wrapper .sl-sg2-cta:hover {
+  color: color-mix(in srgb, var(--color_2, #509e2f) 80%, black);
+}
+
+/* ===========================================================================
+   TOP FILTER BAR  (.sl-top-bar-*)
+   Used when filterPosition === 'top'
+   =========================================================================== */
+
+.sl-wrapper .sl-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 0;
+}
+
+/* ── Sticky filter bar (mobile) ──────────────────────────────────────────── */
+/* Once scrolled past, the bar is portaled into the shared #ti-sticky-stack on
+   <body>, below #03's contact row (see @shared/stickyStack).
+   The pinned wrapper deliberately carries `sl-wrapper` so every existing
+   `.sl-wrapper .sl-top-bar*` rule still matches outside the widget's tree — these
+   overrides just neutralise the page-container styling that comes with it. */
+.sl-wrapper.sl-top-bar-pinned {
+  min-height: 0;
+  max-width: none;
+  gap: 0;
+  padding: 8px clamp(12px, 4vw, 20px);
+  /* The bar's responsive rules are @container queries, which resolved against
+     .sl-listing-area. Out here that ancestor is gone, so the pinned wrapper
+     becomes the container itself — otherwise none of them would apply and the
+     search field would reappear mid-pin. */
+  container-type: inline-size;
+}
+
+/* Out of flow: as a plain flex child of .sl-listing-area (gap: 20px) a
+   zero-height sentinel would still add a 20px gap to the page. */
+.sl-sticky-sentinel {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.sl-wrapper .sl-top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Abacus / filter icon button — 44px circle */
+.sl-wrapper .sl-top-bar-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 125px;
+  border: 2px solid #101318;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  color: #101318;
+  transition: background 0.15s;
+  padding: 0;
+}
+
+.sl-wrapper .sl-top-bar-icon-btn:hover,
+.sl-wrapper .sl-top-bar-icon-btn.active {
+  background: #f4f6f8;
+}
+
+/* Quick filter pill group — a single row that scrolls horizontally when the
+   (dynamic) tags overflow. */
+.sl-wrapper .sl-top-bar-pills {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;              /* Firefox */
+}
+.sl-wrapper .sl-top-bar-pills::-webkit-scrollbar { display: none; }  /* WebKit */
+
+.sl-wrapper .sl-top-bar-pill {
+  height: 44px;
+  padding: 0 21px;
+  border-radius: 100px;
+  border: 1px solid #101318;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 400;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sl-wrapper .sl-top-bar-pill.active {
+  background: #101318;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 6px;    /* seat the remove icon on the left (matches the panel) */
+  padding-right: 16px;
+}
+
+.sl-wrapper .sl-top-bar-pill:hover:not(.active) {
+  background: #f4f6f8;
+}
+
+/* White circle-cross on an active top pill (matches the filter panel chip). */
+.sl-wrapper .sl-top-bar-pill-x {
+  display: inline-flex;
+  align-items: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+/* Active-filter count bubble on the filter icon button. */
+.sl-wrapper .sl-top-bar-icon-btn { position: relative; }
+.sl-wrapper .sl-top-bar-icon-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 99px;
+  background: var(--color_1, #f45f30);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 18px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+/* Search input wrapper — pushed to the right of the bar on desktop. */
+.sl-wrapper .sl-top-bar-search {
+  position: relative;
+  width: 250px;
+  height: 56px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.sl-wrapper .sl-top-bar-search-input {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #101318;
+  border-radius: 100px;
+  padding: 0 60px 0 21px;
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  background: #ffffff;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.sl-wrapper .sl-top-bar-search-input::placeholder {
+  color: #637381;
+}
+
+.sl-wrapper .sl-top-bar-search-input:focus {
+  border-color: #101318;
+}
+
+/* Dark search button inside the input */
+.sl-wrapper .sl-top-bar-search-btn {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 100px;
+  background: #101318;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s;
+}
+
+.sl-wrapper .sl-top-bar-search-btn:hover {
+  background: #2d3748;
+}
+
+/* Top filter bar (mobile): single row — filter icon on the left, the
+   side-swipeable pills filling the rest. The search bar is hidden.
+   NOTE: this block must come AFTER the base .sl-top-bar-* rules above —
+   @container adds no specificity, so a later source rule would otherwise win. */
+@container (max-width: 600px) {
+  .sl-wrapper .sl-top-bar { flex-wrap: nowrap; align-items: center; }
+  .sl-wrapper .sl-top-bar-search { display: none; }
+  /* .sl-top-bar-pills already flex:1 + overflow-x:auto, so it takes the
+     remaining width and scrolls horizontally. */
+}
+
+/* Above mobile: show only the first two tags plus a "More" pill (opens the
+   filters panel); hide the remaining tags. Mobile shows all + no More. */
+.sl-wrapper .sl-top-bar-more { display: none; }
+
+@container (min-width: 601px) {
+  .sl-wrapper .sl-top-bar-more { display: inline-flex; align-items: center; }
+  .sl-wrapper .sl-top-bar-pills > .sl-top-bar-pill:not(.sl-top-bar-more):nth-of-type(n+3) {
+    display: none;
+  }
+}
+
+/* When FilterPanel drops down below the top bar, make it full-width */
+.sl-wrapper.filter-top .sl-filter-panel {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+/* ===========================================================================
+   FILTER MODAL — lightbox  (.sl-modal-*)
+   Opened from the top filter bar's abacus icon / "More" button
+   =========================================================================== */
+
+.sl-wrapper .sl-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 19, 24, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  z-index: 2147483000;
+  animation: sl-modal-fade 0.15s ease;
+}
+
+@keyframes sl-modal-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.sl-wrapper .sl-filter-modal {
+  background: #ffffff;
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 436px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(16, 19, 24, 0.25);
+  overflow: hidden;
+  animation: sl-modal-pop 0.18s ease;
+}
+
+@keyframes sl-modal-pop {
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Header */
+.sl-wrapper .sl-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px 16px;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-modal-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sl-wrapper .sl-modal-reset {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  color: #101318;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sl-wrapper .sl-modal-reset:hover { color: #509e2f; }
+.sl-wrapper .sl-modal-close {
+  background: none;
+  border: none;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  color: #101318;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-modal-close:hover { color: #509e2f; }
+
+/* Body — scrolls internally when content exceeds the viewport */
+.sl-wrapper .sl-modal-body {
+  padding: 21px 22px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+}
+
+/* Search */
+.sl-wrapper .sl-modal-search {
+  position: relative;
+  width: 100%;
+  height: 54px;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-modal-search-input {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #101318;
+  border-radius: 100px;
+  padding: 0 56px 0 21px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  background: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+}
+.sl-wrapper .sl-modal-search-input::placeholder { color: #637381; }
+.sl-wrapper .sl-modal-search-btn {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border-radius: 100px;
+  background: #101318;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s;
+}
+.sl-wrapper .sl-modal-search-btn:hover { background: #2d3748; }
+
+/* Amenities/Promotions checkboxes: single column (override the filter-top
+   2-column grid that would otherwise leak into the modal) + dark fill per Figma */
+.sl-wrapper .sl-filter-modal .sl-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sl-wrapper .sl-filter-modal .sl-checkbox { accent-color: #101318; }
+
+/* Filter-modal pills use a heavier 2px border. */
+.sl-wrapper .sl-filter-modal .sl-pill { border-width: 2px; }
+
+/* Active (selected) pill renders as a removable chip — circle-X icon to the
+   left of the label, with tighter left padding to seat the icon (per Figma) */
+.sl-wrapper .sl-filter-modal .sl-pill.active { padding-left: 6px; padding-right: 16px; }
+.sl-wrapper .sl-pill-x {
+  display: flex;
+  align-items: center;
+  margin-right: 4px;
+  color: #ffffff;
+}
+
+/* On phones let the lightbox use the full width comfortably */
+@media (max-width: 480px) {
+  .sl-wrapper .sl-modal-overlay { padding: 12px; align-items: flex-start; }
+  .sl-wrapper .sl-filter-modal { max-height: calc(100vh - 24px); }
+}
+
+/* ===========================================================================
+   REORDER — editor-only "Reorder sections" button + drag-to-reorder modal
+   (.sl-sa-reorder-btn, .sl-reorder-*)
+   The button only renders when the widget runs inside the Duda editor
+   (data.inEditor). Orange to read clearly as an editor affordance.
+   =========================================================================== */
+
+.sl-wrapper .sl-sa-reorder-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f45f30;
+  background: #ffffff;
+  border: 1.5px dashed #f45f30;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sl-wrapper .sl-sa-reorder-btn:hover { background: #fff4f0; }
+
+/* ── Modal ──────────────────────────────────────────────────────────────── */
+.sl-wrapper .sl-reorder-modal {
+  background: #ffffff;
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 436px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(16, 19, 24, 0.25);
+  overflow: hidden;
+}
+
+.sl-wrapper .sl-reorder-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sl-wrapper .sl-reorder-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #101318;
+}
+.sl-wrapper .sl-reorder-subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8a9099;
+}
+
+.sl-wrapper .sl-reorder-list {
+  list-style: none;
+  margin: 0;
+  padding: 12px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sl-wrapper .sl-reorder-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  user-select: none;
+}
+.sl-wrapper .sl-reorder-row.is-hidden { opacity: 0.5; }
+
+/* Visibility toggle switch (replaces the native checkbox) */
+.sl-wrapper .sl-reorder-toggle {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: #cfd4da;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.sl-wrapper .sl-reorder-toggle.on { background: #509e2f; }
+.sl-wrapper .sl-reorder-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 19, 24, 0.25);
+  transition: transform 0.18s ease;
+}
+.sl-wrapper .sl-reorder-toggle.on .sl-reorder-toggle-knob { transform: translateX(18px); }
+
+.sl-wrapper .sl-reorder-pos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: #f1f3f5;
+  color: #6b7280;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+.sl-wrapper .sl-reorder-label {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #101318;
+}
+
+.sl-wrapper .sl-reorder-arrows {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-reorder-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d6dade;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #101318;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.sl-wrapper .sl-reorder-arrow:hover:not(:disabled) {
+  background: #f0f7ec;
+  border-color: #509e2f;
+  color: #509e2f;
+}
+.sl-wrapper .sl-reorder-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.sl-wrapper .sl-reorder-error {
+  margin: 0 16px;
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+  color: #b91c1c;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+}
+
+.sl-wrapper .sl-reorder-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #f0f2f4;
+  flex-shrink: 0;
+}
+.sl-wrapper .sl-reorder-count {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  color: #8a9099;
+}
+.sl-wrapper .sl-reorder-actions { display: flex; gap: 10px; }
+.sl-wrapper .sl-reorder-cancel,
+.sl-wrapper .sl-reorder-save {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+.sl-wrapper .sl-reorder-cancel {
+  background: #ffffff;
+  border: 1px solid #d6dade;
+  color: #101318;
+}
+.sl-wrapper .sl-reorder-cancel:hover { background: #f6f7f8; }
+.sl-wrapper .sl-reorder-save {
+  background: #509e2f;
+  border: 1px solid #509e2f;
+  color: #ffffff;
+}
+.sl-wrapper .sl-reorder-save:hover { background: #468a29; }
+.sl-wrapper .sl-reorder-cancel:disabled,
+.sl-wrapper .sl-reorder-save:disabled { opacity: 0.6; cursor: default; }
+
+/* ===========================================================================
+   MOBILE PAGINATION — dots only
+   =========================================================================== */
+/* The sidebar carousels are the only pagination chevrons that reach a phone (the
+   other widgets keep theirs inside desktop-only wrappers). On mobile they go and
+   swiping takes over — see the useSwipe handlers in each section component. The
+   dots stay: they're the position indicator, not the control. */
+@media (max-width: 767px) {
+  .sl-wrapper .sl-nb2-arrow,
+  .sl-wrapper .sl-blog2-arrow,
+  .sl-wrapper .sl-rv2-arrow {
+    display: none;
+  }
+}

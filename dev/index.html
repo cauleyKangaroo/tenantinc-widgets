@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tenantinc Widget Dev Harness</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; background: #f9fafb; font-family: sans-serif; }
+    @media (max-width: 768px) { body { padding: 0; } }
+    h1 { font-size: 18px; color: #374151; margin: 0 0 4px; }
+    .subtitle { font-size: 13px; color: #9ca3af; margin: 0 0 32px; }
+    .widget-section { margin-bottom: 40px; }
+    .widget-section h2 { font-size: 13px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .05em; color: #6b7280; margin: 0 0 8px; }
+    .widget-container { min-height: 60px; }
+    .controls { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .controls-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; }
+    .controls-group-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; width: 100%; margin-bottom: 2px; }
+    button { padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 6px;
+      background: #fff; font-size: 13px; cursor: pointer; }
+    button:hover { background: #f3f4f6; }
+    button.danger { border-color: #fca5a5; color: #dc2626; }
+    button.danger:hover { background: #fef2f2; }
+    select { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 13px; background: #fff; }
+    label { font-size: 13px; color: #374151; display: flex; align-items: center; gap: 6px; }
+    label.checkbox { cursor: pointer; }
+    input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: #f45f30; }
+    /* Harness page switcher */
+    .page-nav { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid #e5e7eb; }
+    .page-tab { border: none; border-bottom: 2px solid transparent; border-radius: 0;
+      background: none; padding: 10px 16px; font-size: 14px; font-weight: 600; color: #6b7280; cursor: pointer; }
+    .page-tab:hover { background: none; color: #374151; }
+    .page-tab.active { color: #f45f30; border-bottom-color: #f45f30; }
+  </style>
+</head>
+<body>
+
+  <h1>Tenantinc Widget Dev Harness</h1>
+  <p class="subtitle">
+    Bundles are loaded via require.js exactly as Duda does — AMD modules at
+    <code>/dist/widget-*.js</code>. Run <code>npm run dev</code> to start.
+  </p>
+
+  <!-- Harness page switcher (dev-only) -->
+  <div class="page-nav">
+    <button class="page-tab active" data-page="property" onclick="showPage('property')">Property Landing Page</button>
+    <button class="page-tab" data-page="value-tiers" onclick="showPage('value-tiers')">Value Tiers page</button>
+    <button class="page-tab" data-page="rental-flow" onclick="showPage('rental-flow')">Rental Flow</button>
+  </div>
+
+  <div id="page-property" class="page">
+
+  <!-- ── widget-utility-bar ──────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-utility-bar (#01)</h2>
+    <div id="utility-bar-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-navigation-bar ────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-navigation-bar (#02)</h2>
+    <div id="navigation-bar-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-property-info ─────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-property-info (#03)</h2>
+    <div id="property-info-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-space-list ────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-space-list</h2>
+
+    <div id="space-list-container" class="widget-container"></div>
+
+    <div class="controls">
+
+      <div class="controls-group">
+        <span class="controls-group-label">Layout</span>
+        <label>
+          Mode:
+          <select id="sl-layout" onchange="reinitSpaceList()">
+            <option value="grid">grid</option>
+            <option value="list">list</option>
+            <option value="default">default</option>
+          </select>
+        </label>
+        <label>
+          Sort by:
+          <select id="sl-sort-by" onchange="reinitSpaceList()">
+            <option value="sizeAsc">Size Ascending</option>
+            <option value="sizeDesc">Size Descending</option>
+            <option value="priceAsc">Price Ascending</option>
+            <option value="priceDesc">Price Descending</option>
+          </select>
+        </label>
+        <label>
+          Show first:
+          <select id="sl-category-ordering" onchange="reinitSpaceList()">
+            <option value="spaces">Spaces</option>
+            <option value="parking">Parking</option>
+          </select>
+        </label>
+        <label class="checkbox"><input type="checkbox" id="sl-show-accordions" checked onchange="reinitSpaceList()"> Side accordions</label>
+        <label>
+          Accordion side:
+          <select id="sl-ap-location" onchange="reinitSpaceList()">
+            <option value="right">right</option>
+            <option value="left">left</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="controls-group">
+        <span class="controls-group-label">Sections</span>
+        <label class="checkbox"><input type="checkbox" id="sl-is-reviews"   onchange="reinitSpaceList()"> Reviews</label>
+        <label class="checkbox"><input type="checkbox" id="sl-is-features"  onchange="reinitSpaceList()"> Features</label>
+        <label class="checkbox"><input type="checkbox" id="sl-is-nearby"    onchange="reinitSpaceList()"> Nearby</label>
+        <label class="checkbox"><input type="checkbox" id="sl-is-sizeguide" onchange="reinitSpaceList()"> Size Guide</label>
+        <label class="checkbox"><input type="checkbox" id="sl-is-blog"      onchange="reinitSpaceList()"> Blog</label>
+        <label class="checkbox"><input type="checkbox" id="sl-is-store"     onchange="reinitSpaceList()"> Store</label>
+        <label class="checkbox"><input type="checkbox" id="sl-is-notes"     onchange="reinitSpaceList()"> Notes</label>
+        <label class="checkbox"><input type="checkbox" id="sl-is-faq"       onchange="reinitSpaceList()"> FAQ</label>
+        <label class="checkbox"><input type="checkbox" id="sl-is-hours"     onchange="reinitSpaceList()"> Hours</label>
+      </div>
+
+      <div class="controls-group">
+        <span class="controls-group-label">Client config (test)</span>
+        <label>Starting label:
+          <input id="sl-starting-label" type="text" value="Starting at" style="width:110px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
+        </label>
+        <label>Limited avail. copy:
+          <input id="sl-limited-copy" type="text" placeholder="Limited Availability" style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
+        </label>
+        <label class="checkbox"><input type="checkbox" id="sl-show-unavailable" onchange="reinitSpaceList()"> Show unavailable units</label>
+        <label class="checkbox"><input type="checkbox" id="sl-enable-waitlist" onchange="reinitSpaceList()"> Enable waitlist</label>
+        <label class="checkbox"><input type="checkbox" id="sl-show-urgency" checked onchange="reinitSpaceList()"> Show urgency msg</label>
+        <label>Urgency threshold:
+          <input id="sl-urgency-threshold" type="number" min="1" value="5" style="width:70px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
+        </label>
+        <label class="checkbox"><input type="checkbox" id="sl-show-junk" onchange="reinitSpaceList()"> Show junk fee</label>
+        <label>Junk fee copy:
+          <input id="sl-junk-copy" type="text" placeholder="(default wording)" style="width:200px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
+        </label>
+        <label class="checkbox"><input type="checkbox" id="sl-sg-videos" checked onchange="reinitSpaceList()"> Size Guide videos</label>
+        <label>In-store price fn:
+          <select id="sl-instore-mode" onchange="reinitSpaceList()">
+            <option value="percentOfWeb">Percentage of web price</option>
+            <option value="percentDiff">Percentage difference</option>
+            <option value="additionOfWeb">Addition of web price</option>
+          </select>
+        </label>
+        <label>In-store amount:
+          <input id="sl-instore-amount" type="number" min="0" step="any" value="0" style="width:70px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
+        </label>
+      </div>
+
+      <div class="controls-group">
+        <span class="controls-group-label">Duda runtime</span>
+        <label class="checkbox"><input type="checkbox" id="sl-in-editor" onchange="reinitSpaceList()"> inEditor (show Reorder button)</label>
+      </div>
+
+      <button class="danger" onclick="cleanSpaceList()">clean()</button>
+    </div>
+  </div>
+
+  <!-- ── widget-promotions ────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-promotions (#06)</h2>
+    <div id="promotions-container" class="widget-container"></div>
+
+    <div class="controls">
+      <div class="controls-group">
+        <span class="controls-group-label">Promotions</span>
+        <label>
+          Mode:
+          <select id="pr-mode" onchange="reinitPromotions()">
+            <option value="banner">banner</option>
+            <option value="bar" selected>bar</option>
+          </select>
+        </label>
+        <label>
+          Banner image URL:
+          <input id="pr-banner" type="text" placeholder="(blank = bundled default)"
+            style="width: 240px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;"
+            oninput="reinitPromotions()" />
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── widget-nearby-locations ──────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-nearby-locations (#07)</h2>
+    <div id="nearby-locations-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-reviews ───────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-reviews (#09)</h2>
+    <div id="reviews-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-faqs ──────────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-faqs (#10)</h2>
+    <div id="faqs-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-size-guide ────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-size-guide (#11)</h2>
+    <div id="size-guide-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-blogs-listing ─────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-blogs-listing (#12)</h2>
+    <div id="blogs-listing-container" class="widget-container"></div>
+  </div>
+
+  <!-- ── widget-footer ────────────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-footer (#13)</h2>
+    <div id="footer-container" class="widget-container"></div>
+  </div>
+
+  </div><!-- /#page-property -->
+
+  <div id="page-value-tiers" class="page" hidden>
+
+  <!-- ── widget-tier-selection ────────────────────────────────────────── -->
+  <div class="widget-section">
+    <h2>widget-tier-selection (#14)</h2>
+    <div id="tier-selection-container" class="widget-container"></div>
+
+    <div class="controls">
+      <div class="controls-group">
+        <span class="controls-group-label">Layout</span>
+        <label>
+          Option:
+          <select id="ts-variant" onchange="reinitTierSelection()">
+            <option value="option1">Option 1 — selector + table + card</option>
+            <option value="option2">Option 2 — Good/Better/Best cards</option>
+            <option value="option3">Option 3 — cards + comparison table</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /#page-value-tiers -->
+
+  <div id="page-rental-flow" class="page" hidden>
+
+    <!-- ── widget-rental-flow-2step ─────────────────────────────────────── -->
+    <div class="widget-section">
+      <h2>widget-rental-flow-2step — Rental flow (2 Step) (#99 TBD)</h2>
+      <div id="rental-flow-2step-container" class="widget-container"></div>
+    </div>
+
+  </div><!-- /#page-rental-flow -->
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
+  <script>
+    // Dev bundles are large and served uncompressed, so the default 7s require.js
+    // timeout can fire before the biggest ones (tier-selection, rental-flow) load.
+    // 0 = wait indefinitely. Harness-only — Duda loads the production bundles.
+    require.config({ waitSeconds: 0 });
+  </script>
+  <script>
+    // Harness page switcher — all widgets stay initialised; we just show/hide pages.
+    // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
+    var PAGES = ['property', 'value-tiers', 'rental-flow'];
+
+    function showPage(name, skipUrl) {
+      if (PAGES.indexOf(name) === -1) name = 'property';
+      for (var p = 0; p < PAGES.length; p++) {
+        document.getElementById('page-' + PAGES[p]).hidden = (PAGES[p] !== name);
+      }
+      var tabs = document.querySelectorAll('.page-tab');
+      for (var i = 0; i < tabs.length; i++) {
+        tabs[i].classList.toggle('active', tabs[i].getAttribute('data-page') === name);
+      }
+      if (!skipUrl) {
+        var url = new URL(window.location.href);
+        url.searchParams.set('page', name);
+        window.history.replaceState(null, '', url);
+      }
+    }
+
+    // Restore the tab from ?page=… on load (defaults to 'property').
+    showPage(new URLSearchParams(window.location.search).get('page') || 'property', true);
+
+    var spaceListWidget = null;
+
+    function getSpaceListProps() {
+      return {
+        layoutMode:    document.getElementById('sl-layout').value,
+        sortBy:          document.getElementById('sl-sort-by').value,
+        categoryOrdering: document.getElementById('sl-category-ordering').value,
+        apLocation:    document.getElementById('sl-ap-location').value,
+        showSideAccordions: document.getElementById('sl-show-accordions').checked,
+        isReviews:   document.getElementById('sl-is-reviews').checked,
+        isFeatures:  document.getElementById('sl-is-features').checked,
+        isNearby:    document.getElementById('sl-is-nearby').checked,
+        isSizeGuide: document.getElementById('sl-is-sizeguide').checked,
+        isBlog:      document.getElementById('sl-is-blog').checked,
+        isStore:     document.getElementById('sl-is-store').checked,
+        isNotes:     document.getElementById('sl-is-notes').checked,
+        isFAQ:       document.getElementById('sl-is-faq').checked,
+        isHours:     document.getElementById('sl-is-hours').checked,
+        startingAtLabel:     document.getElementById('sl-starting-label').value,
+        showUnavailableUnits: document.getElementById('sl-show-unavailable').checked,
+        enableWaitlist:      document.getElementById('sl-enable-waitlist').checked,
+        showUrgencyMessage:  document.getElementById('sl-show-urgency').checked,
+        urgencyThreshold:    document.getElementById('sl-urgency-threshold').value,
+        showJunkFeeDisclaimer: document.getElementById('sl-show-junk').checked,
+        junkFeeCopy:           document.getElementById('sl-junk-copy').value,
+        showSizeGuideVideos: document.getElementById('sl-sg-videos').checked,
+        instorePriceMode:    document.getElementById('sl-instore-mode').value,
+        instorePriceAmount:  document.getElementById('sl-instore-amount').value,
+        limitedAvailabilityCopy: document.getElementById('sl-limited-copy').value,
+        inEditor:    document.getElementById('sl-in-editor').checked,
+        elementId:   'dev-element-001',
+        siteId:      'dev-site',
+      };
+    }
+
+    function reinitSpaceList() {
+      if (spaceListWidget) {
+        spaceListWidget.init({
+          container: document.getElementById('space-list-container'),
+          props: getSpaceListProps(),
+        });
+      }
+    }
+
+    function cleanSpaceList() {
+      if (spaceListWidget) spaceListWidget.clean();
+    }
+
+    var promotionsWidget = null;
+
+    // Bar content is API-only — no static promo props here on purpose.
+    function getPromotionsProps() {
+      var url = document.getElementById('pr-banner').value.trim();
+      return {
+        mode: document.getElementById('pr-mode').value,
+        bannerImage: url || undefined,
+      };
+    }
+
+    function reinitPromotions() {
+      if (promotionsWidget) {
+        promotionsWidget.init({
+          container: document.getElementById('promotions-container'),
+          props: getPromotionsProps(),
+        });
+      }
+    }
+
+    require(['/dist/widget-space-list.js'], function (widget) {
+      spaceListWidget = widget;
+      widget.init({
+        container: document.getElementById('space-list-container'),
+        props: getSpaceListProps(),
+      });
+    });
+
+    require(['/dist/widget-utility-bar.js'], function (widget) {
+      widget.init({ container: document.getElementById('utility-bar-container'), props: { inEditor: true } });
+    });
+    require(['/dist/widget-navigation-bar.js'], function (widget) {
+      widget.init({ container: document.getElementById('navigation-bar-container'), props: {} });
+    });
+    require(['/dist/widget-property-info.js'], function (widget) {
+      widget.init({ container: document.getElementById('property-info-container'), props: {} });
+    });
+    require(['/dist/widget-promotions.js'], function (widget) {
+      promotionsWidget = widget;
+      widget.init({ container: document.getElementById('promotions-container'), props: getPromotionsProps() });
+    });
+    require(['/dist/widget-nearby-locations.js'], function (widget) {
+      widget.init({ container: document.getElementById('nearby-locations-container'), props: {} });
+    });
+    require(['/dist/widget-reviews.js'], function (widget) {
+      widget.init({ container: document.getElementById('reviews-container'), props: {} });
+    });
+    require(['/dist/widget-faqs.js'], function (widget) {
+      widget.init({ container: document.getElementById('faqs-container'), props: {} });
+    });
+    require(['/dist/widget-size-guide.js'], function (widget) {
+      widget.init({ container: document.getElementById('size-guide-container'), props: {} });
+    });
+    require(['/dist/widget-blogs-listing.js'], function (widget) {
+      widget.init({ container: document.getElementById('blogs-listing-container'), props: {} });
+    });
+    require(['/dist/widget-footer.js'], function (widget) {
+      widget.init({ container: document.getElementById('footer-container'), props: {} });
+    });
+    var tierSelectionWidget = null;
+
+    function getTierSelectionProps() {
+      return { variant: document.getElementById('ts-variant').value };
+    }
+
+    function reinitTierSelection() {
+      if (tierSelectionWidget) {
+        tierSelectionWidget.init({
+          container: document.getElementById('tier-selection-container'),
+          props: getTierSelectionProps(),
+        });
+      }
+    }
+
+    require(['/dist/widget-tier-selection.js'], function (widget) {
+      tierSelectionWidget = widget;
+      widget.init({
+        container: document.getElementById('tier-selection-container'),
+        props: getTierSelectionProps(),
+      });
+    });
+
+    require(['/dist/widget-rental-flow-2step.js'], function (widget) {
+      widget.init({ container: document.getElementById('rental-flow-2step-container'), props: {} });
+    });
+  </script>
+
+</body>
+</html>

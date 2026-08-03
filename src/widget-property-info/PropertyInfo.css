@@ -1,0 +1,1210 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* ── Root ──────────────────────────────────────────────────────────────── */
+
+.pi-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  /* max-width bumped by 2×max-gutter so the large-screen content stays ~1330px */
+  max-width: 1458px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding-inline: clamp(16px, 4vw, 64px);
+  color: #101318;
+}
+
+.pi-wrapper *,
+.pi-wrapper *::before,
+.pi-wrapper *::after {
+  box-sizing: border-box;
+}
+
+.pi-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+/* ── Info column ────────────────────────────────────────────────────────── */
+
+.pi-info {
+  flex: 1 1 0;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pi-name {
+  font-size: 35px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 4px;
+  color: #101318;
+}
+
+.pi-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pi-rating-score {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.pi-reviews {
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pi-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.pi-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #101318;
+  text-decoration: none;
+}
+
+.pi-contact-row svg {
+  flex-shrink: 0;
+  color: #101318;
+}
+
+.pi-contact-row--indent {
+  padding-left: 32px;
+}
+
+.pi-underline {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pi-link:hover .pi-underline,
+.pi-contact-row:hover .pi-underline {
+  color: var(--color_1, #f45f30);
+}
+
+/* Phone + hours are grouped blocks — their rows sit tight together, while
+   .pi-contact's 12px gap separates the four blocks (location / phone / email /
+   hours), per the Figma. */
+.pi-phones,
+.pi-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pi-status--open {
+  color: #028a0c;
+  font-weight: 600;
+}
+
+.pi-status--closed {
+  color: #e53935;
+  font-weight: 600;
+}
+
+.pi-see-hours {
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Media column ───────────────────────────────────────────────────────── */
+
+.pi-media {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.pi-breadcrumb {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 22px;
+  color: #101318;
+}
+
+.pi-breadcrumb a {
+  color: #101318;
+}
+
+.pi-breadcrumb a:hover {
+  color: var(--color_1, #f45f30);
+}
+
+.pi-cards {
+  display: flex;
+  gap: 24px;
+}
+
+.pi-card-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 422px;
+  max-width: 100%;
+}
+
+/* ── Gallery ────────────────────────────────────────────────────────────── */
+
+.pi-gallery {
+  position: relative;
+  width: 100%;
+  height: 317px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: block;
+}
+
+.pi-gallery-img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pi-gallery-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.pi-gallery-expand {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: #fff;
+  display: flex;
+}
+
+.pi-gallery-nav {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pi-gallery-arrow {
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pi-gallery-arrow--prev {
+  transform: rotate(180deg);
+}
+
+.pi-gallery-dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pi-gallery-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+
+.pi-gallery-dot.active {
+  background: #fff;
+}
+
+/* Now a <button> (it toggles the lookup rather than navigating), so the anchor
+   styling needs the usual button resets to keep looking identical. */
+.pi-reservation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #101318;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pi-reservation svg {
+  flex-shrink: 0;
+}
+
+/* ── Loading skeleton ──────────────────────────────────────────────────────
+   Shown until the property fetch settles, so the placeholder name/address/
+   phones are never painted and then swapped. Mirrors .pi-row's shape (info
+   column beside the 317px media cards) to keep the swap from shifting layout. */
+
+.pi-skel {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.pi-skel-info {
+  flex: 1 1 0;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pi-skel-media {
+  flex: 2 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pi-skel-cards {
+  display: flex;
+  gap: 24px;
+}
+
+.pi-skel-bar,
+.pi-skel-block {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e7eaee 25%, #f1f3f5 37%, #e7eaee 63%);
+  background-size: 400% 100%;
+  animation: pi-skel-shimmer 1.4s ease-in-out infinite;
+}
+
+.pi-skel-name { height: 40px; width: 72%; }
+.pi-skel-rating { height: 28px; width: 46%; margin-bottom: 4px; }
+.pi-skel-line { height: 20px; width: 88%; }
+.pi-skel-line.short { width: 62%; }
+.pi-skel-crumb { height: 18px; width: 60%; }
+
+/* Matches .pi-gallery's height so the real cards drop straight in. */
+.pi-skel-block {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 317px;
+  border-radius: 16px;
+}
+
+@keyframes pi-skel-shimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pi-skel-bar,
+  .pi-skel-block { animation: none; }
+}
+
+/* Single column on the mobile frame, matching the real layout. */
+@media (max-width: 900px) {
+  .pi-skel { flex-direction: column; }
+  .pi-skel-cards { flex-direction: column; }
+  .pi-skel-block { height: 220px; }
+}
+
+/* Visually hidden, still announced. */
+.pi-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Reservation lookup (Figma 9697-22507) ───────────────────────────────── */
+
+.pi-res-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 306px is the design width, as a flex-basis rather than a hard width so it
+   shrinks instead of overflowing the gallery column. */
+.pi-res-input {
+  flex: 0 1 306px;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 56px;
+  padding: 0 16px;
+  border: 1px solid #a5b4bf;
+  border-radius: 8px;
+  background: #ffffff;
+  font: 400 16px/20px 'Montserrat', sans-serif;
+  color: #101318;
+  outline: none;
+}
+
+.pi-res-input::placeholder {
+  color: #637381;
+}
+
+.pi-res-input:focus {
+  border-color: #101318;
+}
+
+/* align-self: stretch mirrors the design's self-stretch — the button tracks the
+   input's 56px height rather than hard-coding it. */
+.pi-res-go {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #000000;
+  color: #ffffff;
+  font: 600 16px/16px 'Montserrat', sans-serif;
+  text-align: center;
+  cursor: pointer;
+}
+
+.pi-res-go:hover {
+  background: #101318;
+}
+
+/* ── Map (placeholder) ──────────────────────────────────────────────────── */
+
+.pi-map {
+  position: relative;
+  width: 100%;
+  height: 317px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #eef1f4 url('./assets/dummy-map.jpg') center / cover no-repeat;
+}
+
+/* The dummy map image includes its own marker, so the CSS pin is hidden. */
+.pi-map-pin {
+  display: none;
+}
+
+/* Real embedded map (rendered when the API provides lat/lng). */
+.pi-map-iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+}
+
+/* ── Socials ────────────────────────────────────────────────────────────── */
+
+.pi-socials {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.pi-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #101318;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.pi-social:hover {
+  color: var(--color_1, #f45f30);
+}
+
+/* ── Lightbox ───────────────────────────────────────────────────────────── */
+
+.pi-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 24px;
+  cursor: zoom-out;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.pi-lb-img-wrap {
+  width: min(90vw, 1000px);
+  height: min(80vh, 680px);
+  max-width: 100%;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Real photo: contain within the wrap. `!important` + width/height:auto beats
+   host resets like `img { width: 100% !important }` that would otherwise blow
+   the image up to its natural size (stretched + offscreen on mobile). */
+img.pi-lb-img {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  display: block;
+}
+
+/* Gradient placeholder (span) has no intrinsic size — fill the wrap. */
+span.pi-lb-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  display: block;
+}
+
+/* Explicit close affordance. Tap-anywhere still works, but on a phone the photo
+   fills most of the screen, so "anywhere" isn't obvious enough on its own. */
+.pi-lb-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pi-lb-close:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.pi-lb-arrow {
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
+.pi-lb-arrow:hover {
+  opacity: 1;
+}
+
+.pi-lb-arrow--prev {
+  transform: rotate(180deg);
+}
+
+.pi-lb-counter {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+/* ── "See all Hours" modal (lightbox) ───────────────────────────────────── */
+.pi-hours-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(16, 19, 24, 0.55);
+  animation: pi-hours-fade 0.15s ease-out;
+}
+.pi-hours-modal {
+  width: min(660px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
+  font-family: 'Montserrat', sans-serif;
+  animation: pi-hours-pop 0.15s ease-out;
+}
+@keyframes pi-hours-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pi-hours-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.pi-hours-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 23px 33px;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.pi-hours-title { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 600; color: #101318; }
+.pi-hours-title svg { flex: 0 0 auto; }
+.pi-hours-close {
+  flex: 0 0 auto;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  border: none; background: none; border-radius: 6px;
+  color: #101318; cursor: pointer;
+}
+.pi-hours-close:hover { background: #f4f6f8; }
+
+.pi-hours-body { padding: 42px; }
+.pi-hours-cols { display: flex; gap: 30px; }
+.pi-hours-col { flex: 1 1 0; min-width: 0; }
+.pi-hours-summary { display: none; }
+.pi-hours-group + .pi-hours-group { margin-top: 4px; }
+.pi-hours-col-title { margin: 0; font-size: 16px; font-weight: 600; line-height: 28px; color: #101318; }
+.pi-hours-line { margin: 0; font-size: 16px; font-weight: 400; line-height: 28px; color: #101318; }
+
+/* Mobile: condensed summary, header kept (per request) */
+@media (max-width: 768px) {
+  .pi-hours-modal { max-width: 360px; border-radius: 16px; }
+  .pi-hours-head { padding: 18px 20px; }
+  .pi-hours-body { padding: 20px; }
+  .pi-hours-cols { display: none; }
+  .pi-hours-summary { display: block; }
+  .pi-hours-summary .pi-hours-line { line-height: 24px; }
+  .pi-hours-summary .pi-hours-col-title { line-height: 24px; }
+}
+
+/* ── Desktop / mobile visibility switch ─────────────────────────────────── */
+
+.pi-mobile {
+  display: none;
+}
+
+/* ── Hero (image-led) view ──────────────────────────────────────────────── */
+
+.pi-hero-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.pi-hero-row {
+  display: flex;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.pi-hero-card {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 302px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #dfe3e8;
+}
+
+.pi-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pi-hero-overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.pi-hero-expand {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #fff;
+}
+
+.pi-hero-content {
+  position: absolute;
+  left: 40px;
+  right: 40px;
+  top: 91px;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+}
+
+.pi-hero-name {
+  margin: 0 0 8px;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 50px;
+  color: #fff;
+}
+
+.pi-hero-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pi-hero-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pi-hero-score {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 40px;
+  color: #fff;
+}
+
+.pi-hero-reviews {
+  color: #fff;
+}
+
+.pi-hero-address {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #fff;
+  text-decoration: none;
+}
+
+.pi-hero-address svg {
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.pi-hero-map {
+  flex-shrink: 0;
+  width: 422px;
+  max-width: 100%;
+  height: 302px;
+}
+
+.pi-hero-map .pi-map {
+  height: 302px;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1180px) {
+  .pi-row {
+    flex-direction: column;
+  }
+
+  .pi-cards {
+    flex-wrap: wrap;
+  }
+
+  .pi-card-col {
+    flex: 1 1 360px;
+    width: auto;
+  }
+
+  .pi-hero-row {
+    flex-direction: column;
+  }
+
+  .pi-hero-map {
+    width: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .pi-name {
+    font-size: 28px;
+  }
+
+  /* Arrows are dropped on mobile — swiping moves between photos instead (see the
+     touch handlers in PropertyInfo.tsx). Give the photo the full width back and
+     drop the flex gap that was reserving space for them. */
+  .pi-lb-arrow {
+    display: none;
+  }
+
+  .pi-lightbox {
+    gap: 0;
+    padding: 12px;
+  }
+
+  .pi-lb-img-wrap {
+    width: 100%;
+    height: min(74vh, 620px);
+  }
+
+  .pi-lb-counter {
+    bottom: 18px;
+  }
+}
+
+/* ── Mobile layout (single, replaces both desktop modes) ────────────────── */
+
+@media (max-width: 768px) {
+  .pi-desktop {
+    display: none;
+  }
+
+  .pi-mobile {
+    display: block;
+  }
+
+  .pi-wrapper {
+    max-width: 100%;
+    padding-inline: 0;   /* mobile hero is full-bleed */
+  }
+}
+
+/* TRIAL: small-desktop uniform scale-down (stepped zoom) for the 1181–1515 band. */
+@media (min-width: 1421px) and (max-width: 1515px) { .pi-wrapper { zoom: 0.95; } }
+@media (min-width: 1301px) and (max-width: 1420px) { .pi-wrapper { zoom: 0.90; } }
+@media (min-width: 1182px) and (max-width: 1300px) { .pi-wrapper { zoom: 0.85; } }
+
+.pi-m-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 27px 24px;
+  color: #fff;
+}
+
+.pi-m-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  z-index: 0;
+}
+
+.pi-m-hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.pi-m-hero-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pi-m-breadcrumb {
+  font-size: 14px;
+  line-height: 22px;
+  color: #fff;
+}
+
+.pi-m-breadcrumb a {
+  color: #fff;
+}
+
+.pi-m-expand {
+  flex-shrink: 0;
+  display: flex;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #fff;
+}
+
+.pi-m-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pi-m-name {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+}
+
+.pi-m-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pi-m-score {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.pi-m-reviews {
+  color: #fff;
+  font-size: 16px;
+}
+
+.pi-m-address {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  text-decoration: none;
+}
+
+.pi-m-address svg {
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.pi-m-circles {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 24px 12px;
+}
+
+/* ── Sticky contact row (mobile) ─────────────────────────────────────────── */
+/* The row is portaled into the shared #ti-sticky-stack on <body> once scrolled
+   past (see @shared/stickyStack). The sentinel marks its natural position and the
+   slot keeps that space in the page, so nothing jumps when it pins. */
+.pi-m-sticky-sentinel {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+/* The pinned wrapper carries `pi-wrapper` so the row renders IDENTICALLY to its
+   inline self: that class is where font-family, colour and the `.pi-wrapper *`
+   border-box rule come from, none of which are inherited once the row is portaled
+   to <body> (without it the labels fell back to the browser's serif default).
+   These two overrides only strip the page-container geometry that comes along. */
+.pi-wrapper.pi-m-circles-pinned {
+  max-width: none;
+  padding-inline: 0;
+}
+
+/* Items share the row equally and can shrink to 0, so 5 fixed circles can never
+   push the row wider than the screen (was overflowing at 5×61px + gaps). */
+.pi-m-circle-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
+  text-decoration: none;
+  color: #101318;
+}
+
+.pi-m-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #101318;
+  border-radius: 50%;
+  color: #101318;
+}
+
+.pi-m-circle-label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.pi-m-hours {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px 24px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+}
+
+.pi-m-hours p {
+  margin: 0;
+}
+
+.pi-m-seehours {
+  margin-top: 8px;
+  font-size: 16px;
+  color: #101318;
+  text-decoration: underline;
+}
+
+/* ── Duda host-style resilience ─────────────────────────────────────────── */
+/* The property name renders as <p>, but Duda's scoped heading/paragraph rules
+   can still override colour + size. Force ours so it matches local. */
+.pi-name {
+  color: #101318 !important;
+  font-size: 35px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+}
+
+.pi-hero-name {
+  color: #fff !important;
+  font-size: 40px !important;
+  font-weight: 700 !important;
+  line-height: 50px !important;
+}
+
+.pi-m-name {
+  color: #fff !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+}
+
+/* ── "Send Message" modal (lightbox) — Figma 10199-60873 / 10199-67707 ──── */
+.pi-msg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(16, 19, 24, 0.55);
+  animation: pi-hours-fade 0.15s ease-out;
+}
+.pi-msg-modal {
+  width: min(695px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
+  font-family: 'Montserrat', sans-serif;
+  animation: pi-hours-pop 0.15s ease-out;
+}
+.pi-msg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 23px 42px;
+  background: #ffffff;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.pi-msg-title { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 600; line-height: 36px; color: #101318; }
+.pi-msg-title svg { flex: 0 0 auto; }
+.pi-msg-close {
+  flex: 0 0 auto; width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; border: none; background: none; border-radius: 6px;
+  color: #101318; cursor: pointer;
+}
+.pi-msg-close:hover { background: #f4f6f8; }
+
+.pi-msg-body { background: #fff; padding: 30px 42px; display: flex; flex-direction: column; gap: 16px; }
+.pi-req { color: #e53935; margin-left: 2px; }
+
+/* Facility area */
+.pi-msg-facility-area { position: relative; display: flex; flex-direction: column; gap: 12px; }
+.pi-msg-dd-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; height: 56px; padding: 0 16px;
+  background: #fff; border: 1px solid #a5b4bf; border-radius: 8px;
+  color: #637381; font: 400 16px 'Montserrat', sans-serif; cursor: pointer;
+}
+.pi-msg-dd-btn svg { flex: 0 0 auto; color: #101318; }
+.pi-msg-facility { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 0; border: none; background: none; text-align: left; }
+.pi-msg-facility--btn { cursor: pointer; }
+.pi-msg-facility-name { font-size: 18px; font-weight: 600; color: #101318; }
+.pi-msg-facility-addr { display: flex; align-items: center; gap: 8px; font-size: 16px; color: #637381; }
+.pi-msg-facility-addr svg { flex: 0 0 auto; color: #637381; }
+.pi-msg-dd-list {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 2;
+  margin: 4px 0 0; padding: 4px; list-style: none;
+  background: #fff; border: 1px solid #a5b4bf; border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(71, 84, 116, 0.2);
+}
+.pi-msg-dd-list li button {
+  display: block; width: 100%; text-align: left; padding: 10px 12px;
+  border: none; background: none; border-radius: 6px;
+  font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer;
+}
+.pi-msg-dd-list li button:hover { background: #f4f6f8; }
+
+/* Form fields (floating label) */
+.pi-msg-form { display: flex; flex-direction: column; gap: 24px; }
+.pi-msg-rows { display: flex; flex-direction: column; gap: 16px; }
+.pi-msg-row { display: flex; gap: 16px; }
+.pi-msg-row > * { flex: 1 1 0; min-width: 0; }
+/* display + height are !important because this is a <label>, and a host
+   stylesheet that sets `label { display: inline }` makes the box ignore height
+   entirely: the field collapses to a text line and the absolutely-positioned
+   input and floating label pile on top of each other (seen on the live Duda
+   site — the fields rendered as overlapping struck-through lines).
+   min-height is the belt-and-braces: even if `height` is overridden, the field
+   cannot collapse. */
+.pi-msg-field { position: relative; display: block !important; height: 56px !important; min-height: 56px; box-sizing: border-box; border: 1px solid #a5b4bf; border-radius: 8px; background: #fff; }
+/* !important is required to beat the forced height on .pi-msg-field above —
+   without it the message textarea collapsed to the 56px single-line height. */
+.pi-msg-field--area { height: 200px !important; min-height: 200px; }
+.pi-msg-field-input {
+  position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
+  padding: 20px 16px 0; border: none; background: transparent; outline: none;
+  font: 400 16px/20px 'Montserrat', sans-serif; color: #101318; resize: none;
+}
+.pi-msg-field--area .pi-msg-field-input { padding-top: 36px; resize: vertical; }
+.pi-msg-field-label {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+  font: 400 16px/20px 'Montserrat', sans-serif; color: #637381; pointer-events: none;
+  transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
+}
+.pi-msg-field--area .pi-msg-field-label { top: 16px; transform: none; }
+.pi-msg-field:focus-within .pi-msg-field-label,
+.pi-msg-field--filled .pi-msg-field-label { top: 9px; transform: none; font-size: 12px; line-height: 15px; }
+
+/* Footer */
+.pi-msg-foot { background: #f9fafb; padding: 19px 42px; display: flex; flex-direction: column; gap: 16px; }
+.pi-msg-consent { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+.pi-msg-consent input { position: absolute; width: 0; height: 0; opacity: 0; }
+.pi-msg-check {
+  flex: 0 0 auto; width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; border: 2px solid #c4cdd5; border-radius: 6px;
+}
+.pi-msg-check--on { background: #101318; border-color: #101318; }
+.pi-msg-consent-text { font-size: 16px; line-height: 20px; color: #101318; }
+.pi-msg-terms { align-self: center; padding: 0 32px; font-size: 16px; line-height: 20px; color: #000; text-decoration: underline; }
+
+.pi-msg-actions { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.pi-msg-captcha {
+  width: 236px; height: 60px; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 12px; padding: 0 12px;
+  background: #f9fafb; border: 1px solid #d3d3d3; border-radius: 4px;
+}
+.pi-msg-captcha-box { flex: 0 0 auto; width: 24px; height: 24px; background: #fff; border: 2px solid #c4cdd5; border-radius: 2px; }
+.pi-msg-captcha-label { flex: 1 1 auto; font-size: 14px; color: #3c4043; }
+.pi-msg-captcha-brand { font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; color: #9aa0a6; }
+.pi-msg-buttons { display: flex; align-items: center; gap: 16px; }
+.pi-msg-cancel { border: none; background: none; font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer; }
+.pi-msg-submit {
+  width: 127px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 8px;
+  background: var(--color_1, #f45f30); color: #fff;
+  font: 700 16px 'Montserrat', sans-serif; cursor: pointer;
+}
+.pi-msg-submit:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black); }
+.pi-msg-submit:disabled, .pi-msg-cancel:disabled { opacity: 0.6; cursor: default; }
+
+.pi-msg-error {
+  margin: 0 32px;
+  color: #e53935;
+  font: 500 15px 'Montserrat', sans-serif;
+}
+
+.pi-msg-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 24px 16px 8px;
+}
+.pi-msg-success-icon {
+  width: 56px; height: 56px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: #e7f5e8;
+}
+.pi-msg-success-title { margin: 4px 0 0; font: 700 22px 'Montserrat', sans-serif; color: #101318; }
+.pi-msg-success-text { margin: 0 0 12px; max-width: 420px; font: 400 16px 'Montserrat', sans-serif; line-height: 1.5; color: #55606b; }
+.pi-msg-success .pi-msg-submit { width: auto; padding: 0 28px; }
+
+@media (max-width: 640px) {
+  .pi-msg-head { padding: 18px 20px; }
+  .pi-msg-body { padding: 20px; }
+  .pi-msg-foot { padding: 16px 20px; }
+  .pi-msg-row { flex-direction: column; }
+  .pi-msg-actions { flex-direction: column-reverse; align-items: stretch; }
+  .pi-msg-buttons { justify-content: flex-end; }
+  .pi-msg-captcha { width: 100%; }
+}

@@ -1,0 +1,888 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+
+/* ── Root ──────────────────────────────────────────────────────────────── */
+
+.nav-bar {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+  position: relative;
+}
+
+/* ── Bottom separator (content-menu: Separator) ─────────────────────────── */
+.nav-bar.sep-shadow {
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+.nav-bar.sep-line {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* .nav-bar.sep-none → no shadow, no border. */
+
+.nav-bar *,
+.nav-bar *::before,
+.nav-bar *::after {
+  box-sizing: border-box;
+}
+
+/* Both bars cap their content at 1314px and reserve room on the left for the
+   raised logo tile, so right-aligned content can never slide under it. */
+
+/* ── Secondary (top) utility bar ────────────────────────────────────────── */
+
+.nav-topbar {
+  width: 100%;
+  background: #f4f6f8;
+}
+
+.nav-topbar-inner {
+  max-width: 1314px;
+  margin: 0 auto;
+  min-height: 46px;
+  padding: 10px 24px 10px 285px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.nav-top-items {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.nav-top-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  text-decoration: none;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.nav-top-item:hover {
+  color: var(--color_1, #f45f30);
+}
+
+.nav-top-item svg {
+  flex-shrink: 0;
+}
+
+.nav-lang {
+  gap: 6px;
+}
+
+/* ── Primary bar ────────────────────────────────────────────────────────── */
+
+.nav-primary {
+  width: 100%;
+  background: #fff;
+}
+
+.nav-inner {
+  position: relative;
+  max-width: 1314px;
+  margin: 0 auto;
+  min-height: 100px;
+  padding: 0 24px 0 285px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Height (content-menu: Height) — Narrow 100px (default) / Wide 180px. */
+.nav-bar.is-wide .nav-inner {
+  min-height: 180px;
+}
+
+/* Inline logo (content-menu: Logo = Inline) — no overlapping banner, so the
+   bars reserve no left gutter and the logo renders inline at the left. */
+.nav-bar.logo-inline .nav-inner {
+  padding-left: 24px;
+  justify-content: space-between;
+}
+
+.nav-bar.logo-inline .nav-topbar-inner {
+  padding-left: 24px;
+}
+
+.nav-logo-inline {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+/* The bundled logo is a white knockout (built for the green banner tile). Inline,
+   it sits on the white bar, so render it solid dark to stay visible. Supply a
+   colour logo via `logoUrl` if the brand-coloured mark is wanted here. */
+/* Bundled logo is already full-colour — show it as-is. */
+.nav-logo-inline .nav-logo-img {
+  filter: none;
+}
+
+/* ── Logo (raised green tile that spans both bars + protrudes below) ─────── */
+
+.nav-logo {
+  position: absolute;
+  top: 0;
+  left: max(24px, calc((100% - 1314px) / 2 + 24px));
+  width: 264px;
+  height: 150px;
+  display: flex;
+  align-items: flex-start;   /* logo butts up flush to the top edge (per Figma) */
+  justify-content: center;
+  /* No badge/tile by default — the brand logo is full-colour and sits directly
+     on the nav. A coloured tile only appears if a `logoBg` is passed in. */
+  border-radius: 0 0 4px 4px;
+  text-decoration: none;
+  z-index: 5;
+}
+
+/* Single-bar mode (top bar off): shorter nav → smaller tile. */
+.nav-bar:not(.has-topbar) .nav-logo {
+  top: 0;
+  width: 210px;
+  height: 104px;
+}
+
+/* Wide height → taller banner tile. */
+.nav-bar.is-wide .nav-logo {
+  height: 200px;
+}
+
+.nav-bar.is-wide:not(.has-topbar) .nav-logo {
+  height: 150px;
+}
+
+/* The logo SVG uses preserveAspectRatio="none" (viewBox ~205x57 ≈ 3.6:1), so it
+   stretches to whatever box it's given. We pin BOTH dimensions at that exact
+   ratio — !important beats host resets like `img { width: 100% }`. */
+.nav-logo-img {
+  display: block;
+  width: 160px !important;
+  height: auto !important;   /* PNG logo (~2.25:1) — keep natural aspect, don't squish */
+  max-width: none !important;
+}
+
+/* In the banner tile the logo should fill the green badge, not float small in
+   it — size to the tile width (a little breathing room), height follows aspect. */
+/* Fill the logo block width (~264px) so it spans both nav bars like the Figma. */
+.nav-logo .nav-logo-img {
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* ── Right cluster (nav links + optional inline actions) ────────────────── */
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 50px;
+}
+
+.nav-links {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Each top-level link is a full-height hover target so its dropdown can anchor
+   to the bottom edge of the bar. */
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  color: var(--color_1, #f45f30);
+}
+
+.nav-link-chevron {
+  color: #111;
+}
+
+/* ── Two-level hover mega-menu ───────────────────────────────────────────── */
+
+/* Wrapper anchored to the bottom of the bar. The transparent top padding
+   bridges the gap so the mouse can travel from the link into the panel. */
+.nav-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  padding-top: 10px;
+  z-index: 50;
+}
+
+/* First-level (states), second-level (cities) and third-level (facilities)
+   panels share a look. */
+.nav-dd-panel,
+.nav-subpanel,
+.nav-subsubpanel {
+  list-style: none;
+  margin: 0;
+  /* 4px white spacers top/bottom, matching the Figma frame. */
+  padding: 4px 0;
+  min-width: 270px;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+/* The first-level panel and the leaf third-level panel clip their own rows; the
+   middle panel must stay visible so its third-level flyout can escape right. */
+.nav-dd-panel,
+.nav-subsubpanel {
+  overflow: hidden;
+}
+
+/* Second-level panel sits flush to the right edge of the first, aligned to the
+   hovered row (top set inline). */
+.nav-subpanel {
+  position: absolute;
+  left: 100%;
+}
+
+.nav-dd-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 15px;
+  box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
+  cursor: pointer;
+}
+
+.nav-dd-item.is-active,
+.nav-dd-item:hover {
+  background: #f9fafb;
+}
+
+.nav-dd-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-dd-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: #101318;
+}
+
+.nav-dd-arrow {
+  flex-shrink: 0;
+  color: #000;
+}
+
+.nav-sub-item {
+  position: relative;
+  padding: 10px 15px;
+  box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
+}
+
+.nav-sub-item:hover {
+  background: #f9fafb;
+  /* Lift above later sibling rows so the third-level flyout isn't overpainted. */
+  z-index: 3;
+}
+
+.nav-sub-item a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #000;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-sub-arrow {
+  flex-shrink: 0;
+  color: #000;
+}
+
+/* Third-level flyout (a city's facilities), revealed on hover, aligned so its
+   first row lines up with the hovered city. It opens to the LEFT of the cities
+   column: the nav links are right-aligned, so a rightward cascade would run off
+   the right edge of the viewport on wide screens. A left flyout is always
+   on-screen and paints above the (now-behind) first-level panel. */
+.nav-subsubpanel {
+  position: absolute;
+  right: 100%;
+  top: -4px;
+  min-width: 220px;
+  z-index: 10;
+  display: none;
+}
+
+.nav-sub-item:hover > .nav-subsubpanel {
+  display: block;
+}
+
+/* ── Inline actions — single-bar mode only (top bar toggled off) ─────────── */
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-phone {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-phone svg {
+  color: #111;
+  flex-shrink: 0;
+}
+
+.nav-paybill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+  padding: 0 20px;
+  background: #000;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 16px;
+  border-radius: 4px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.nav-paybill:hover {
+  background: #222;
+}
+
+.nav-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #111;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.nav-icon-btn:hover {
+  color: var(--color_1, #f45f30);
+}
+
+/* ── Mobile burger (hidden on desktop) ──────────────────────────────────── */
+
+.nav-burger {
+  display: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #111;
+}
+
+/* ── Mobile full-screen menu (hamburger) ────────────────────────────────── */
+
+.nav-mobile-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  font-family: 'Montserrat', sans-serif;
+  /* Hidden until open. Delay the visibility flip on close so the panel can
+     finish sliding out before the layer leaves the hit/a11y tree. */
+  visibility: hidden;
+  transition: visibility 0s linear 0.32s;
+}
+
+.nav-mobile-menu.is-open {
+  visibility: visible;
+  transition: visibility 0s linear 0s;
+}
+
+/* Darkened page behind the drawer — the visible ~10% strip on the left. */
+.nav-mm-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 19, 24, 0.5);
+  opacity: 0;
+  transition: opacity 0.32s ease;
+  cursor: pointer;
+}
+
+.nav-mobile-menu.is-open .nav-mm-overlay {
+  opacity: 1;
+}
+
+/* The drawer: fills the right 90%, slides in from the right edge. */
+.nav-mm-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 90%;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  /* Clip any horizontal spill — a fixed element's overflowing child otherwise
+     extends the document scroll width (the white gap down the right). */
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-shadow: -8px 0 24px rgba(16, 19, 24, 0.12);
+  transform: translateX(100%);
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.nav-mobile-menu.is-open .nav-mm-panel {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-mm-overlay,
+  .nav-mm-panel {
+    transition-duration: 0.01ms;
+  }
+}
+
+.nav-mm-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0 20px 10px;
+  flex-shrink: 0;
+}
+
+.nav-mm-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.nav-mm-logo-img {
+  display: block;
+  width: 146px !important;
+  height: auto !important;
+  max-width: none !important;
+}
+
+.nav-mm-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #101318;
+}
+
+.nav-mm-body {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Quick actions grid — minmax(0, 1fr) columns can't force the row wider than
+   the menu (equal columns that shrink to 0), so it never overflows. */
+.nav-mm-quick {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  background: #f9fafb;
+  padding: 32px 16px;
+}
+
+.nav-mm-quick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  text-decoration: none;
+  color: #101318;
+}
+
+.nav-mm-quick-label {
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.nav-mm-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #101318;
+  border-radius: 50%;
+  color: #101318;
+}
+
+.nav-mm-quick-label {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #101318;
+}
+
+/* Location search */
+.nav-mm-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 50px;
+  margin: 0 34px 20px;
+  padding: 0 6px 0 16px;
+  background: #fefefe;
+  border: 1px solid #101318;
+  border-radius: 100px;
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+.nav-mm-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: #101318;
+}
+
+.nav-mm-search-input::placeholder {
+  color: #637381;
+}
+
+.nav-mm-search-divider {
+  width: 1px;
+  height: 27px;
+  background: #c4cdd5;
+  flex-shrink: 0;
+}
+
+.nav-mm-search-type {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0 2px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: #637381;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nav-mm-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: var(--color_1, #f45f30);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #fff;
+}
+
+/* Keep the magnifying glass its full size — flexbox was shrinking the SVG's
+   width to ~8px. */
+.nav-mm-search-btn svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+/* Account / utility links — inset on the wrapper div for the same reason as
+   .nav-mm-nav-inset below: an id-scoped list reset in Duda's own stylesheet beats
+   a padded <ul> of ours and slams the links to the drawer's left edge. */
+.nav-mm-account-inset {
+  padding: 8px 48px 24px;
+}
+
+.nav-mm-account {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nav-mm-account a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  color: #000;
+}
+
+.nav-mm-account svg {
+  /* Leading title icons removed on mobile per client request. */
+  display: none;
+}
+
+.nav-mm-account span {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.nav-mm-divider {
+  height: 1px;
+  background: #c4cdd5;
+  margin: 0 48px;
+}
+
+/* Nav accordion */
+/* The drawer's link inset lives HERE, on a div, not on the <ul> below.
+   Duda's stylesheet zeroes list padding/margin from an id-scoped selector
+   (`#dm ul` and friends), which beats any single-class rule of ours no matter how
+   correct — on a live site the list collapsed flush to the drawer's left edge
+   while the div-based blocks above it (quick actions, search) kept their spacing.
+   A div can't be caught by a list reset, so this is immune rather than merely
+   more specific. `!important` on the ul is belt-and-braces for the same fight. */
+.nav-mm-nav-inset {
+  padding: 4px 48px 40px;
+}
+
+.nav-mm-nav {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.nav-mm-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 11px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
+}
+
+.nav-mm-nav-row.is-open {
+  color: var(--color_1, #f45f30);
+}
+
+.nav-mm-chevron {
+  transition: transform 0.15s ease;
+}
+
+.nav-mm-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.nav-mm-sub {
+  background: #f9fafb;
+  box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
+}
+
+.nav-mm-sub-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  box-shadow: inset 0px -1px 0px 0px rgba(142, 142, 143, 0.15);
+}
+
+.nav-mm-sub-item:last-child {
+  box-shadow: none;
+}
+
+.nav-mm-sub-icon {
+  /* Leading submenu icons removed on mobile per client request. */
+  display: none;
+}
+
+/* Nested accordion toggle rows (state › city) reuse the sub-item look but need
+   button resets and the open-state accent, matching the top-level rows. */
+.nav-mm-sub-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.nav-mm-sub-toggle.is-open {
+  color: var(--color_1, #f45f30);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+/* Tablet / small-desktop: shrink the utility bar + nav links so they don't
+   collide with the raised logo tile before the layout snaps to the hamburger.
+   (Text + gaps are the width drivers; icons are left alone so the flag keeps
+   its aspect ratio.) */
+@media (max-width: 1300px) {
+  .nav-top-items {
+    gap: 18px;
+  }
+
+  .nav-top-item {
+    font-size: 14px;
+    gap: 6px;
+  }
+
+  .nav-lang {
+    gap: 4px;
+  }
+
+  .nav-right {
+    gap: 32px;
+  }
+
+  .nav-links {
+    gap: 12px;
+  }
+
+  .nav-link {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .nav-top-items {
+    gap: 12px;
+  }
+
+  .nav-top-item {
+    font-size: 12.5px;
+    gap: 5px;
+  }
+
+  .nav-lang {
+    gap: 3px;
+  }
+
+  .nav-links {
+    gap: 8px;
+  }
+
+  .nav-link {
+    font-size: 15px;
+  }
+
+  /* Reclaim room: a slightly smaller tile + narrower reserved gutter. Banner
+     mode only — inline mode reserves no gutter. */
+  .nav-bar.logo-banner .nav-logo {
+    width: 200px;
+  }
+
+  .nav-bar.logo-banner .nav-topbar-inner,
+  .nav-bar.logo-banner .nav-inner {
+    padding-left: 236px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .nav-topbar {
+    display: none;
+  }
+
+  .nav-right {
+    display: none;
+  }
+
+  .nav-burger {
+    display: flex;
+  }
+
+  .nav-inner {
+    justify-content: flex-end;
+    min-height: 88px;
+    padding: 0 24px;
+  }
+
+  .nav-bar .nav-logo,
+  .nav-bar:not(.has-topbar) .nav-logo {
+    top: 0;
+    width: 150px;
+    height: 92px;
+  }
+
+  .nav-logo-img {
+    width: 120px !important;
+    height: auto !important;
+  }
+}

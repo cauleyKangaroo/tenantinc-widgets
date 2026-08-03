@@ -1,0 +1,154 @@
+import React, { useEffect, useState } from 'react';
+import './Footer.css';
+import tenantLogo from './tenant-logo.svg';
+import { SOCIALS, PhoneIcon, AiSparkleIcon } from './icons';
+import { fetchPropertyContact, DEFAULT_PROPERTY_ID, type PropertyContact } from '@shared/propertyContact';
+
+// ---------------------------------------------------------------------------
+// Types + demo data
+// ---------------------------------------------------------------------------
+
+interface LinkColumn {
+  heading: string;
+  links: { label: string; href: string }[];
+}
+
+const COLUMNS: LinkColumn[] = [
+  {
+    heading: 'Company Information',
+    links: [
+      { label: 'Why Choose Storage Outlet', href: '#' },
+      { label: 'Supplies', href: '#' },
+      { label: 'What is Storage Outlet', href: '#' },
+      { label: 'What does Storage Outlet do', href: '#' },
+      { label: 'Tenant Protection Plan', href: '#' },
+      { label: 'SMS Terms', href: '#' },
+    ],
+  },
+  {
+    heading: 'Connect',
+    links: [
+      { label: 'Login', href: '#' },
+      { label: 'Contact us', href: '#' },
+      { label: 'Online Privacy Opt-Out', href: '#' },
+      { label: 'Accessibility', href: '#' },
+      { label: 'Privacy Policy and Terms', href: '#' },
+      { label: 'Sitemap', href: '#' },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export interface FooterProps {
+  companyName?: string;
+  phone?: string;
+  description?: string;
+  sessionId?: string;
+  year?: number;
+  /** Property whose phone + social links come from the `Properties` collection.
+   *  The static values below remain the fallback. */
+  propertyId?: string;
+}
+
+export function Footer({
+  companyName = 'Storage Outlet',
+  phone = '(800) 645-9876',
+  description = 'Storage Outlet, headquartered in Irvine, owns and operates 15 self storage properties across Southern California. Our locations offer a wide range of secure and conveniently located storage solutions, including personal storage, business storage, and vehicle storage options. We are committed to providing affordable, reliable, and professional storage experiences in every community we serve. With a focus on convenience, security, and customer service, Storage Outlet continues to grow as a trusted neighborhood storage provider.',
+  sessionId = '24e6fb82-a285-4a73-b4dc-546500c76981',
+  year = 2026,
+  propertyId = DEFAULT_PROPERTY_ID,
+}: FooterProps) {
+  // Phone + social links from the Duda `Properties` collection; the static values
+  // above remain the fallback (this bundle holds no API key of its own).
+  const [contact, setContact] = useState<PropertyContact | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPropertyContact('#13 footer', propertyId)
+      .then((c) => { if (!cancelled) setContact(c); })
+      .catch((err) => console.error('[Footer] property contact error:', err));
+    return () => { cancelled = true; };
+  }, [propertyId]);
+
+  const displayPhone = contact?.phone || phone;
+  // "Follow <name>" takes the property name from the collection; the copyright
+  // line below deliberately keeps the `companyName` prop (see note there).
+  const displayFollowName = contact?.name || companyName;
+  const telHref = `tel:${(contact?.phoneDigits || displayPhone).replace(/[^0-9+]/g, '')}`;
+
+  // With live data, show only the platforms this property actually has, linked.
+  // Without it, keep the full static row (unlinked) exactly as before.
+  const socialLinks = contact?.socials.length
+    ? SOCIALS
+        .filter((s) => contact.socials.some((c) => c.platform === s.key))
+        .map((s) => ({ ...s, href: contact.socials.find((c) => c.platform === s.key)!.url }))
+    : SOCIALS.map((s) => ({ ...s, href: '#' }));
+
+  return (
+    <div className="ft-wrapper">
+      <div className="ft-inner ft-top">
+        <div className="ft-links">
+          {COLUMNS.map((col) => (
+            <nav key={col.heading} className="ft-col" aria-label={col.heading}>
+              <p className="ft-col-heading">{col.heading}</p>
+              <ul className="ft-list">
+                {col.links.map((link) => (
+                  <li key={link.label}>
+                    <a className="ft-link" href={link.href}>{link.label}</a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
+        </div>
+
+        <div className="ft-aside">
+          <div className="ft-help">
+            <p className="ft-help-heading">Need Help?</p>
+            <a className="ft-help-row" href={telHref}>
+              <PhoneIcon size={24} />
+              <span>{displayPhone}</span>
+            </a>
+            <button className="ft-help-row ft-help-chat" type="button">
+              <AiSparkleIcon size={24} />
+              <span>Live Chat</span>
+            </button>
+          </div>
+          <p className="ft-desc">{description}</p>
+        </div>
+      </div>
+
+      <div className="ft-divider" />
+
+      <div className="ft-inner ft-follow">
+        <div className="ft-follow-left">
+          <span className="ft-follow-label">Follow {displayFollowName}</span>
+          <div className="ft-socials">
+            {socialLinks.map(({ key, label, Icon, href }) => (
+              <a key={key} className="ft-social" href={href} aria-label={label} title={label}>
+                <Icon />
+              </a>
+            ))}
+          </div>
+        </div>
+        <div className="ft-powered">
+          <span className="ft-powered-label">powered by</span>
+          <img className="ft-tenant" src={tenantLogo} alt="Tenant" />
+        </div>
+      </div>
+
+      <div className="ft-bottom">
+        <div className="ft-inner ft-bottom-row">
+          {/* Left on the prop on purpose: the collection's `name` is the FACILITY
+              ("Storelocal Dove Mountain"), and a copyright line should name the
+              company. Swap to displayFollowName if that's wanted. */}
+          <span className="ft-copy">© {year}, {companyName}. All Rights Reserved.</span>
+          <span className="ft-session">Session: {sessionId}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
