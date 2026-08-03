@@ -57,6 +57,7 @@ export function SpaceList({
   instorePriceLabel = 'IN-STORE',
   instorePriceMode = 'percentOfWeb',
   instorePriceAmount = 0,
+  enablePromoLogic = false,
   showJunkFeeDisclaimer = false,
   junkFeeCopy = '',
   showUrgencyMessage = true,
@@ -151,6 +152,9 @@ export function SpaceList({
       const n = Number(instorePriceAmount);
       return Number.isFinite(n) && n > 0 ? n : 0;
     })(),
+    // Duda toggles can arrive as the strings 'true'/'false', so coerce rather than
+    // trusting truthiness ('false' is truthy).
+    enablePromoLogic: enablePromoLogic === true || enablePromoLogic === 'true',
     contactPhone: propertyExtras?.phones[0]?.number ?? '',
     facilityName: propertyExtras?.name ?? '',
   };

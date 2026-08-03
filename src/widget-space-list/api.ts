@@ -52,8 +52,21 @@ interface ApiTier {
    * `promoId` — keep working whichever way the API goes. Mirrors
    * `tierPromos` in widget-promotions/api.ts.
    */
-  promo?: Array<{ id?: string; name?: string }>;
-  allocated_promo?: { id?: string; name?: string } | Record<string, never>;
+  promo?: ApiPromoEntry[];
+  allocated_promo?: ApiPromoEntry | Record<string, never>;
+}
+
+/**
+ * A tier's promotion. `value` is the discount amount, but `type` is 'regular' on
+ * every promo the API returns (it used to be 'fixed' | 'percent'), so type alone
+ * CANNOT tell us whether value is a percentage or an amount in dollars — see
+ * promoKindFromName below.
+ */
+interface ApiPromoEntry {
+  id?: string;
+  name?: string;
+  type?: string;
+  value?: number;
 }
 
 interface ApiGroup {
@@ -117,7 +130,32 @@ function amenityLabel(a: ApiAmenity): string {
  * note on ApiTier). Empty tiers send `promo: []` / `allocated_promo: {}`,
  * neither of which counts; only an entry with an id does.
  */
-function tierPromo(tier: ApiTier): { id?: string; name?: string } | null {
+/**
+ * Is the promo's `value` a percentage or a flat move-in price?
+ *
+ * The API can't tell us: `type` is 'regular' on every promo, and the two live
+ * shapes are "$1 MOVE IN SPECIAL" (value 1 = one dollar) and "50% OFF FIRST
+ * MONTH" (value 50 = fifty percent). The NAME is the only signal that survives,
+ * so we read the symbol out of it:
+ *
+ *   name contains '%' → 'percent'  → rate = starting x (1 - value/100)
+ *   name contains '$' → 'fixed'    → rate = value  (the promo IS the price)
+ *   neither           → null       → no promo rate; the card shows the normal
+ *                                    single price rather than inventing a number.
+ *
+ * Deliberately conservative: mis-reading a $1 move-in as 1% off would print a
+ * wrong price on a live site, which is worse than showing no promo rate at all.
+ * The proper fix is upstream — `promotion_sell_rate` is null on every tier today;
+ * once the API populates it we use that and this heuristic stops mattering.
+ */
+function promoKindFromName(name: string | undefined): 'percent' | 'fixed' | null {
+  if (!name) return null;
+  if (name.includes('%')) return 'percent';
+  if (name.includes('$')) return 'fixed';
+  return null;
+}
+
+function tierPromo(tier: ApiTier): ApiPromoEntry | null {
   const fromArray = tier.promo?.find((p) => p && p.id);
   if (fromArray) return fromArray;
   const legacy = tier.allocated_promo;
@@ -210,6 +248,13 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           startingPrice,
           promoId: promo?.id,
           promo: promo?.name || undefined,
+          // Promo pricing inputs for `enablePromoLogic` (see promoRate in
+          // components/Pricing.tsx). promotionPrice is the API's own computed
+          // figure and wins when present — it's null on every tier today, which
+          // is why the value/kind pair exists as the fallback.
+          promotionPrice: tier.promotion_sell_rate ?? undefined,
+          promoValue: typeof promo?.value === 'number' ? promo.value : undefined,
+          promoKind: promoKindFromName(promo?.name) ?? undefined,
         });
       }
     }

@@ -46,6 +46,21 @@ export interface Unit {
   promo?: string;
   /** Allocated promotion id — matches the Promotions widget's promo id for cross-widget filtering */
   promoId?: string;
+  /**
+   * The API's own promo-applied sell rate (`promotion_sell_rate`). Authoritative
+   * when present — but null on every tier as of 2026-08-03, hence the two fields
+   * below. See promoRate() in components/Pricing.tsx.
+   */
+  promotionPrice?: number;
+  /** The promotion's discount amount (`value`): 50 for "50% off", 1 for "$1 move in". */
+  promoValue?: number;
+  /**
+   * How to read `promoValue`, inferred from the promo NAME because the API's own
+   * `type` field is 'regular' for everything. 'percent' → % off the starting
+   * price; 'fixed' → the promo IS the price. Undefined when neither could be
+   * determined, in which case no promo rate is shown at all.
+   */
+  promoKind?: 'percent' | 'fixed';
   /** Promotion categories this unit qualifies for — matched against the Promotions filter checkboxes */
   promotions?: string[];
   /** Optional urgency line, e.g. "Only 1 left · Rent soon!" */
@@ -100,6 +115,13 @@ export interface WidgetConfig {
    * in-store price alone.
    */
   instorePriceAmount: number;
+  /**
+   * Promo pricing mode. When on, the price pair becomes "Online" (the starting
+   * rate, struck through) beside "Promo rate" (the starting rate with the unit's
+   * promotion applied), and `instorePriceMode` / `instorePriceAmount` are ignored
+   * entirely. A unit with no resolvable promotion shows its starting price alone.
+   */
+  enablePromoLogic: boolean;
   /* Sold-out tiers are governed by TWO toggles: `showUnavailableUnits` decides
      whether they appear at all (default: hidden), and `enableWaitlist` then picks
      the CTA — "Join waitlist" when on, "Call" when off. The former showWishlist
@@ -176,6 +198,12 @@ export interface SpaceListProps {
    * "use the API's in-store price unchanged".
    */
   instorePriceAmount?: number | string;
+  /**
+   * Duda toggle `enablePromoLogic`: swap the in-store/starting pair for
+   * Online/Promo rate. Overrides the two instore-price settings above.
+   * Typed to accept a string because Duda toggles can arrive as 'true'/'false'.
+   */
+  enablePromoLogic?: boolean | string;
   /** Text label above the main price. Default 'Starting at'. */
   startingAtLabel?: string;
   /**

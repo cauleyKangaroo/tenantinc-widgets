@@ -49,10 +49,68 @@ export function instorePrice(unit: Unit, config: WidgetConfig): number {
   return unit.startingPrice * (1 + amount / 100);
 }
 
+/** Labels used by the promo-logic pair. Lift these into the content menu if the
+ *  client ever wants them editable; the spec asked for fixed wording. */
+const ONLINE_LABEL = 'Online';
+const PROMO_RATE_LABEL = 'Promo rate';
+
+/**
+ * The unit's price with its promotion applied, or null when we can't work one out.
+ *
+ * Precedence:
+ *  1. `promotionPrice` — the API's own `promotion_sell_rate`. Authoritative, but
+ *     null on every live tier as of 2026-08-03, so 2 is what actually runs.
+ *  2. `promoValue` + `promoKind`, where the kind was inferred from the promo name
+ *     because the API's `type` is 'regular' for every promo (see api.ts):
+ *       percent → starting x (1 - value/100)   e.g. 150 @ "20% OFF"        → 120
+ *       fixed   → value                        e.g. any @ "$1 MOVE IN"     → 1
+ *  3. Otherwise null — the card falls back to showing the starting price alone.
+ *
+ * Sanity-checked before returning: a promo rate that is <= 0, or not actually
+ * cheaper than the starting price, is treated as unusable rather than displayed.
+ * Quoting a wrong price is worse than quoting no promo.
+ */
+export function promoRate(unit: Unit): number | null {
+  const usable = (n: number) => (n > 0 && n < unit.startingPrice ? n : null);
+
+  if (typeof unit.promotionPrice === 'number') return usable(unit.promotionPrice);
+  if (typeof unit.promoValue !== 'number' || !unit.promoKind) return null;
+  if (unit.promoKind === 'percent') return usable(unit.startingPrice * (1 - unit.promoValue / 100));
+  return usable(unit.promoValue);
+}
+
 export function PriceBlock({ unit, config }: { unit: Unit; config: WidgetConfig }) {
+  // Promo mode replaces the in-store pair entirely: "Online" (the starting rate,
+  // struck through) beside "Promo rate" (the discounted one). instorePriceMode /
+  // instorePriceAmount are deliberately not consulted here.
+  const promo = config.enablePromoLogic ? promoRate(unit) : null;
+
+  if (promo !== null) {
+    return (
+      <div className="sl-prices-row">
+        <div className="sl-price-left">
+          <div className="sl-instore-label">{ONLINE_LABEL}</div>
+          <div className="sl-strike">{fmt(unit.startingPrice)}</div>
+        </div>
+        <div className="sl-price-divider" />
+        <div className="sl-price-main">
+          <div className="sl-starting-label">{PROMO_RATE_LABEL}</div>
+          <div className="sl-main-price">{fmt(promo)}</div>
+          {unit.adminFee != null && (
+            <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // With promo logic on but no promotion on this unit, the in-store column stays
+  // hidden — showing it would be the very calculation this mode replaces.
+  const showInstore = config.showInstorePrice && !config.enablePromoLogic;
+
   return (
     <div className="sl-prices-row">
-      {config.showInstorePrice && (
+      {showInstore && (
         <>
           <div className="sl-price-left">
             <div className="sl-instore-label">{config.instorePriceLabel}</div>
