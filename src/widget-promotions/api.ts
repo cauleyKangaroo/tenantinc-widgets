@@ -64,8 +64,17 @@ export interface ApiPromo {
 // Fetch + extract
 // ---------------------------------------------------------------------------
 
-export async function fetchSpaceGroups(): Promise<unknown> {
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties/${PROPERTY_ID}/space-groups/${SPACE_GROUP_ID}/groups`;
+/**
+ * Promotions for one property's space group. Both ids are overridable so a Duda
+ * DYNAMIC PAGE can bind `propertyId` to `Properties > id`; the space group is not a
+ * column on that collection, so it is either supplied explicitly or resolved from
+ * the property's "Website Group" (see #05 `fetchWebsiteSpaceGroupId`).
+ */
+export async function fetchSpaceGroups(
+  propertyId: string = PROPERTY_ID,
+  spaceGroupId: string = SPACE_GROUP_ID,
+): Promise<unknown> {
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
 
   const res = await fetch(url, {
     headers: {

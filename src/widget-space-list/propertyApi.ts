@@ -142,10 +142,8 @@ export function formatPhone(rawNumber: string): string {
  * keyed REST call — both return the same envelope, so extractPropertyExtras below
  * is unchanged. See @shared/propertiesSource.
  */
-export async function fetchProperties(): Promise<unknown> {
-  return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, {
-    requirePropertyId: PROPERTY_ID,
-  });
+export async function fetchProperties(requirePropertyId: string | undefined = PROPERTY_ID): Promise<unknown> {
+  return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, { requirePropertyId });
 }
 
 async function fetchPropertiesFromApi(): Promise<unknown> {

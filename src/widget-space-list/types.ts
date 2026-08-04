@@ -204,6 +204,20 @@ export interface SpaceListProps {
    * Typed to accept a string because Duda toggles can arrive as 'true'/'false'.
    */
   enablePromoLogic?: boolean | string;
+  /**
+   * DYNAMIC PAGES — content-menu field connected to `Properties > id` via Duda's
+   * "Connect to data". Selects which property's units, sidebar details and nearby
+   * list this instance renders. Unset = the config.json property, i.e. the old
+   * static behaviour. See @shared/propertyBinding.
+   */
+  propertyId?: string;
+  /**
+   * The property's space group (unit list). NOT bindable from the Properties
+   * collection — it isn't a column there, and each property has several groups of
+   * which only "Website Group" is public. Leave EMPTY on a dynamic page and the
+   * widget resolves that property's Website Group itself; set it to pin one group.
+   */
+  spaceGroupId?: string;
   /** Text label above the main price. Default 'Starting at'. */
   startingAtLabel?: string;
   /**

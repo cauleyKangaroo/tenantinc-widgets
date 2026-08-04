@@ -1,5 +1,10 @@
 import cfg from './config.json';
-import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
+import { fetchPropertiesPreferCollection, asPropertiesResponse } from '@shared/propertiesSource';
+import {
+  resolveBoundProperty, resolvePropertyId, resolveRequireId, type BoundPropertyProps,
+} from '@shared/propertyBinding';
+
+export type { BoundPropertyProps };
 
 // Pulls the property's FAQ list from the properties endpoint (faq expansion).
 
@@ -39,10 +44,31 @@ export interface FaqItem {
  * REST call. Same envelope either way, so extractFaqs below is unchanged.
  * See @shared/propertiesSource.
  */
-export async function fetchProperties(): Promise<unknown> {
-  return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, {
-    requirePropertyId: PROPERTY_ID,
-  });
+export async function fetchProperties(requirePropertyId: string | undefined = PROPERTY_ID): Promise<unknown> {
+  return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, { requirePropertyId });
+}
+
+/**
+ * FAQs for the property this instance is bound to — the dynamic-page equivalent of
+ * `fetchProperties` + `extractFaqs`. With `propertyId` connected to `Properties > id`
+ * the row comes straight from the collection (its `Faq` array arrives parsed);
+ * otherwise this falls back to the collection-then-REST fetch, with the trust check
+ * using the EFFECTIVE id rather than the stale config.json one.
+ *
+ * Note there is no `propertyFaq` content-menu binding: `Faq` is an array of
+ * localized {question, answer} maps, which a text field cannot carry usefully.
+ * FAQs need the `propertyId` route.
+ */
+export async function fetchFaqsForProperty(bound: BoundPropertyProps = {}): Promise<FaqItem[]> {
+  const effectiveId = resolvePropertyId(bound, PROPERTY_ID);
+  const row = await resolveBoundProperty('#10 faqs', bound, { configPropertyId: PROPERTY_ID });
+
+  if (row) {
+    const faqs = extractFaqs(asPropertiesResponse([row], APP_ID), String(row.id ?? effectiveId));
+    if (faqs.length) return faqs;
+  }
+
+  return extractFaqs(await fetchProperties(resolveRequireId(bound, PROPERTY_ID)), effectiveId);
 }
 
 async function fetchPropertiesFromApi(): Promise<unknown> {

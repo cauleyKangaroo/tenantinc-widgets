@@ -67,6 +67,30 @@
   <!-- ── widget-property-info ─────────────────────────────────────────── -->
   <div class="widget-section">
     <h2>widget-property-info (#03)</h2>
+
+    <!-- Stands in for a Duda DYNAMIC PAGE: on the real site `propertyId` is a
+         content-menu field connected to `Properties > id`, and the page dropdown
+         picks the row. There's no dmAPI here, so the widget takes its REST path —
+         which still exercises the whole binding (name/address/phones/email/hours/
+         socials/map/unit counts/breadcrumb all follow the id). -->
+    <div class="controls">
+      <div class="controls-group">
+        <label>Dynamic page property (propertyId):
+          <select id="pi-property-id" onchange="reinitPropertyInfo()">
+            <option value="">(config.json default)</option>
+            <option value="nBmVbh63vV">Storelocal Dove Mountain — Irvine, CA</option>
+            <option value="6v1yLtonvy">Storelocal Delano — Delano, CA</option>
+            <option value="gj8pWfoRjJ">Storelocal Fontana — Fontana, CA</option>
+            <option value="Nv4eJtYR2e">Storelocal Yucca Valley — Yucca Valley, CA</option>
+            <option value="OBq8RU37j9">Storelocal YV West — Yucca Valley, CA</option>
+            <option value="eBneQU1gjA">Storelocal L8 — Lancaster, CA (no AccessHours)</option>
+            <option value="6jyJ1irgBq">Storelocal Lancaster — Lancaster, CA</option>
+            <option value="lBNDWS8N2g">Storelocal Waikele — Waipahu, HI</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
     <div id="property-info-container" class="widget-container"></div>
   </div>
 
@@ -343,6 +367,24 @@
       if (spaceListWidget) spaceListWidget.clean();
     }
 
+    var propertyInfoWidget = null;
+
+    // Only propertyId — everything else on #03 derives from it, which is the point
+    // of the dynamic-page binding.
+    function getPropertyInfoProps() {
+      var id = document.getElementById('pi-property-id').value;
+      return id ? { propertyId: id } : {};
+    }
+
+    function reinitPropertyInfo() {
+      if (propertyInfoWidget) {
+        propertyInfoWidget.init({
+          container: document.getElementById('property-info-container'),
+          props: getPropertyInfoProps(),
+        });
+      }
+    }
+
     var promotionsWidget = null;
 
     // Bar content is API-only — no static promo props here on purpose.
@@ -378,7 +420,8 @@
       widget.init({ container: document.getElementById('navigation-bar-container'), props: {} });
     });
     require(['/dist/widget-property-info.js'], function (widget) {
-      widget.init({ container: document.getElementById('property-info-container'), props: {} });
+      propertyInfoWidget = widget;
+      widget.init({ container: document.getElementById('property-info-container'), props: getPropertyInfoProps() });
     });
     require(['/dist/widget-promotions.js'], function (widget) {
       promotionsWidget = widget;

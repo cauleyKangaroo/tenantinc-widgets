@@ -3,6 +3,9 @@ import { useMediaQuery } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
 import './Promotions.css';
 import { fetchSpaceGroups, extractPromos, type ApiPromo } from './api';
+import cfg from './config.json';
+import { fetchWebsiteSpaceGroupId } from '@shared/spaceGroups';
+import { resolvePropertyId } from '@shared/propertyBinding';
 import { emitShowPromo, scrollToSpaceList } from '@shared/promoBus';
 import { TagIcon, InfoIcon, ChevronRight } from './icons';
 import promoBanner from './assets/promo-banner.png';
@@ -186,6 +189,19 @@ export interface PromotionsProps {
   barCtaLabel?: string;
   /** Optional fine-print shown on the info icon's tooltip. */
   barInfo?: string;
+
+  // ── Dynamic pages ──
+  /**
+   * Content-menu field connected to `Properties > id` — whose promotions to show.
+   * Unset = the config.json property (static behaviour). See @shared/propertyBinding.
+   */
+  propertyId?: string;
+  /**
+   * The property's space group. Not a column on the Properties collection, so it
+   * can't be bound; leave empty on a dynamic page to auto-resolve that property's
+   * "Website Group", or set it to pin one.
+   */
+  spaceGroupId?: string;
 }
 
 export function Promotions({
@@ -197,10 +213,15 @@ export function Promotions({
   barUrl = '#',
   barCtaLabel = 'See Qualifying Units',
   barInfo,
+  propertyId,
+  spaceGroupId,
 }: PromotionsProps) {
   // Only two modes. Anything else from Duda (including the retired 'cards')
   // falls through to the bars, which absorbed the old cards layout.
   const view: 'banner' | 'bar' = mode === 'banner' ? 'banner' : 'bar';
+
+  // Effective property for this instance: the dynamic-page binding, else config.json.
+  const effectivePropertyId = resolvePropertyId({ propertyId }, cfg.propertyId);
 
   // The bars are API-driven — every tier's `allocated_promo` from the
   // space-groups API, deduped. There is no static demo set: until the fetch
@@ -216,7 +237,12 @@ export function Promotions({
     let cancelled = false;
     const timer = setTimeout(() => { if (!cancelled) setPastDelay(true); }, SKELETON_DELAY_MS);
 
-    fetchSpaceGroups()
+    // Dynamic page: a bound propertyId that isn't the configured one means the
+    // configured space group belongs to a different property, so resolve this
+    // property's own "Website Group" rather than listing another's promotions.
+    const needsLookup = !spaceGroupId && effectivePropertyId !== cfg.propertyId;
+    (needsLookup ? fetchWebsiteSpaceGroupId(cfg, effectivePropertyId) : Promise.resolve(spaceGroupId || null))
+      .then((sg) => fetchSpaceGroups(effectivePropertyId, sg || cfg.spaceGroupId))
       .then((raw) => {
         if (!cancelled) setApiPromos(extractPromos(raw));
       })
@@ -224,7 +250,7 @@ export function Promotions({
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [view]);
+  }, [view, effectivePropertyId, spaceGroupId]);
 
   // ── Mode 1: banner ────────────────────────────────────────────────────
   if (view === 'banner') {

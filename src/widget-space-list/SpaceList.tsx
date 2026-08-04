@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import cfg from './config.json';
-import { fetchSpaceGroups, mapApiToUnits } from './api';
+import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
+import { resolvePropertyId } from '@shared/propertyBinding';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
   DEFAULT_FILTERS,
@@ -58,6 +59,9 @@ export function SpaceList({
   instorePriceMode = 'percentOfWeb',
   instorePriceAmount = 0,
   enablePromoLogic = false,
+  // Dynamic-page bindings — see types.ts and @shared/propertyBinding.
+  propertyId,
+  spaceGroupId,
   showJunkFeeDisclaimer = false,
   junkFeeCopy = '',
   showUrgencyMessage = true,
@@ -159,25 +163,35 @@ export function SpaceList({
     facilityName: propertyExtras?.name ?? '',
   };
 
-  useEffect(() => {
-    fetchSpaceGroups()
-      .then((raw) => {
-        const mapped = mapApiToUnits(raw);
-        setLiveUnits(mapped);
-      })
-      .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
-      .finally(() => setLoading(false));
-  }, []);
+  // Effective property for this instance: the dynamic-page binding if the editor
+  // connected one, else the config.json default.
+  const effectivePropertyId = resolvePropertyId({ propertyId }, cfg.propertyId);
 
   useEffect(() => {
     let cancelled = false;
-    fetchProperties()
+    setLoading(true);
+    // The space group is per-property and isn't on the Properties collection, so
+    // when the page is dynamic (a bound propertyId that isn't the configured one)
+    // resolve the property's own "Website Group" instead of reusing the configured
+    // id — which belongs to a different property and would list its units.
+    const needsLookup = !spaceGroupId && effectivePropertyId !== cfg.propertyId;
+    (needsLookup ? fetchWebsiteSpaceGroupId(effectivePropertyId) : Promise.resolve(spaceGroupId || null))
+      .then((sg) => fetchSpaceGroups(effectivePropertyId, sg || cfg.spaceGroupId))
+      .then((raw) => { if (!cancelled) setLiveUnits(mapApiToUnits(raw)); })
+      .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [effectivePropertyId, spaceGroupId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchProperties(effectivePropertyId || undefined)
       .then((raw) => {
-        if (!cancelled) setPropertyExtras(extractPropertyExtras(raw));
+        if (!cancelled) setPropertyExtras(extractPropertyExtras(raw, effectivePropertyId));
       })
       .catch((err) => console.error('[SpaceList] fetchProperties error:', err));
     return () => { cancelled = true; };
-  }, []);
+  }, [effectivePropertyId]);
 
   const units = liveUnits;
 

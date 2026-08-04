@@ -4,7 +4,7 @@ import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
 import { scrollToSpaceList } from '@shared/promoBus';
-import { fetchProperties, findProperty, type PropertyDetails } from './api';
+import { fetchPropertyDetails, propertyBreadcrumb, type PropertyDetails, type BoundPropertyProps } from './api';
 import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
   MapPinIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
@@ -56,6 +56,14 @@ export interface PropertyInfoProps {
   /** Duda editor flag — pinning is skipped in the editor. */
   inEditor?: boolean;
 }
+
+/**
+ * Props = the widget's own settings plus the dynamic-page bindings. Everything in
+ * `BoundPropertyProps` (`propertyId`, `propertyName`, `propertyAddress`, …) is a
+ * content-menu field the editor connects to a `Properties` column with "Connect to
+ * data"; see @shared/propertyBinding. All optional — unbound behaves as before.
+ */
+type Props = PropertyInfoProps & BoundPropertyProps;
 
 /**
  * Loading state for the whole widget. Mirrors the full-desktop shape (info
@@ -161,7 +169,7 @@ const DEFAULTS: Required<Pick<PropertyInfoProps, 'name' | 'rating' | 'reviewCoun
 // Component
 // ---------------------------------------------------------------------------
 
-export function PropertyInfo(props: PropertyInfoProps) {
+export function PropertyInfo(props: Props) {
   const {
     displayMode = 'full',
     heroImage,
@@ -186,6 +194,16 @@ export function PropertyInfo(props: PropertyInfoProps) {
     stickyContactRow = true,
     stickyOffsetTop = 0,
     inEditor = false,
+    // Dynamic-page bindings (content menu → "Connect to data" → Properties > …).
+    propertyId,
+    propertyName,
+    propertyAddress,
+    propertyPhones,
+    propertyEmails,
+    propertyAccessHours,
+    propertySocials,
+    propertyUnitCounts,
+    propertyTimezone,
   } = props;
 
   // Pin the mobile contact row to the shared stack (order 10 — above #05's
@@ -232,19 +250,27 @@ export function PropertyInfo(props: PropertyInfoProps) {
     return () => { cancelled = true; };
   }, []);
 
+  // Re-runs whenever a binding changes, so switching row in the dynamic-page
+  // dropdown (or connecting a field in the editor) repaints with the new property
+  // instead of keeping whatever loaded first.
   useEffect(() => {
     let cancelled = false;
-    fetchProperties()
-      .then((raw) => {
-        const found = findProperty(raw);
-        if (!cancelled && found) setProperty(found);
-      })
-      .catch((err) => console.error('[PropertyInfo] fetchProperties error:', err))
+    const bound: BoundPropertyProps = {
+      propertyId, propertyName, propertyAddress, propertyPhones, propertyEmails,
+      propertyAccessHours, propertySocials, propertyUnitCounts, propertyTimezone,
+    };
+    setLoading(true);
+    fetchPropertyDetails(bound)
+      .then((found) => { if (!cancelled && found) setProperty(found); })
+      .catch((err) => console.error('[PropertyInfo] fetchPropertyDetails error:', err))
       // Skeleton stays up until the request settles, so the widget never paints
       // the placeholder name/address/phones and then swap them for live values.
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [
+    propertyId, propertyName, propertyAddress, propertyPhones, propertyEmails,
+    propertyAccessHours, propertySocials, propertyUnitCounts, propertyTimezone,
+  ]);
 
   // Google rating: collection first, then the prop/DEFAULT.
   const displayRating = googleRating?.score ?? rating;
@@ -254,6 +280,11 @@ export function PropertyInfo(props: PropertyInfoProps) {
   const displayName = property?.name || name;
   const displayAddress = property?.address || address;
   const displayPhones = property?.phones.length ? property.phones : phones;
+  // Breadcrumb follows the property's own state/city/street, so a dynamic page
+  // doesn't render Irvine's trail above a Fontana facility. An explicitly set
+  // `breadcrumb` prop still wins; the DEFAULT is the last resort.
+  const displayBreadcrumb =
+    props.breadcrumb ?? propertyBreadcrumb(property) ?? breadcrumb;
   // "Send us a Message" -> explicit prop wins, else mailto: the API email.
   const messageHref = messageUrl !== '#' ? messageUrl : property?.email ? `mailto:${property.email}` : '#';
 
@@ -419,10 +450,10 @@ export function PropertyInfo(props: PropertyInfoProps) {
 
   const breadcrumbNav = (
     <nav className="pi-breadcrumb" aria-label="Breadcrumb">
-      {breadcrumb.map((crumb, i) => (
+      {displayBreadcrumb.map((crumb, i) => (
         <span key={crumb}>
-          {i < breadcrumb.length - 1 ? <a className="pi-underline" href="#">{crumb}</a> : <span>{crumb}</span>}
-          {i < breadcrumb.length - 1 && <span className="pi-crumb-sep"> / </span>}
+          {i < displayBreadcrumb.length - 1 ? <a className="pi-underline" href="#">{crumb}</a> : <span>{crumb}</span>}
+          {i < displayBreadcrumb.length - 1 && <span className="pi-crumb-sep"> / </span>}
         </span>
       ))}
     </nav>
@@ -635,10 +666,10 @@ export function PropertyInfo(props: PropertyInfoProps) {
         <span className="pi-m-hero-overlay" style={{ background: `rgba(16, 19, 24, ${overlay})` }} />
         <div className="pi-m-hero-top">
           <nav className="pi-breadcrumb pi-m-breadcrumb" aria-label="Breadcrumb">
-            {breadcrumb.map((crumb, i) => {
-              const last = i === breadcrumb.length - 1;
+            {displayBreadcrumb.map((crumb, i) => {
+              const last = i === displayBreadcrumb.length - 1;
               // On mobile, collapse everything except the final two crumbs to "…".
-              const label = i < breadcrumb.length - 2 ? '...' : crumb;
+              const label = i < displayBreadcrumb.length - 2 ? '...' : crumb;
               return (
                 <span key={crumb}>
                   {last ? <span>{label}</span> : <a href="#">{label}</a>}

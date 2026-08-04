@@ -126,6 +126,129 @@ does not. Get it wrong and you either print tags on the page or strip real conte
   matching this widget's configured property id, it's bound to a different
   company/property set — log a warning and use REST instead. All three per-property
   widgets pass it; `nearbyProperties` deliberately does not (it wants *all* rows).
+  **On a dynamic page this MUST be the bound id, not the config.json one** — see
+  `resolveRequireId` below.
+
+---
+
+## Dynamic pages — one widget instance, any property (`dynamic-page-logic`)
+
+**Branch:** `dynamic-page-logic` (off `promo-logic`). **Status (2026-08-04): code
+complete, typecheck + build green, verified against the REST path in the dev
+harness. NOT yet tested on a real Duda dynamic page.**
+
+The new site drives property pages from a Duda **dynamic page** bound to the
+`Properties` collection — the editor picks the row from the page dropdown (Apex
+Storage / Storage Outlet - Chino / …). One widget instance therefore has to render a
+different property per page, which the old hardcoded `cfg.propertyId` cannot do.
+
+**The new site also points its external collection at a DIFFERENT `companyId`** than
+the one baked into every `config.json`. So the keyed REST fallback is not merely
+stale here, it returns another company's properties — which is exactly why the trust
+check had to start using the *effective* id.
+
+### How the widget learns which property
+
+The editor adds a **content-menu field** and uses Duda's **"Connect to data"** on it
+(right-click widget → Connect to data → `Properties > <column>`). The bound value
+lands in `data.config.<fieldName>` and is forwarded as a prop like any other field.
+
+`src/shared/propertyBinding.ts` is the single place that interprets those props.
+
+**Two strategies, and the first is much better:**
+
+1. **Bind `propertyId` to `Properties > id`** — one field, and the widget then reads
+   the whole row from the collection itself. Every nested field arrives as **parsed
+   JSON**, so `Address` stays an object and `Phones`/`AccessHours`/`SocialMedia`/
+   `unit_type_counts` stay arrays. **Prefer this.**
+2. **Bind each field individually** (`propertyName`, `propertyAddress`, …) — fine for
+   scalars, but a content-menu field is a **text input**, so Duda must flatten the
+   value. Objects/arrays may arrive as a JSON string, a display string, or
+   `"[object Object]"`. `boundJson()` accepts the first two and returns null for the
+   rest, so the widget falls through instead of rendering garbage.
+
+**Precedence:** individually-bound field → row found via `propertyId` → the widget's
+existing props/DEFAULTS. An unbound widget behaves **exactly** as before.
+
+### Key functions (`@shared/propertyBinding`)
+
+- `boundText(v)` — treats `''`, unsubstituted `{{handlebars}}`, `"[object Object]"`,
+  `"undefined"`/`"null"` as *not set*, so a failed binding never outranks real data.
+- `boundJson<T>(v)` — already-parsed object OR JSON string → `T`; anything else null.
+- `resolvePropertyId(bound, configId)` — the effective property id.
+- `resolveRequireId(bound, configId)` — what to hand `requirePropertyId`. **Using the
+  stale config id here rejects the very collection the page is built on, falls back
+  to REST against the wrong company, and renders another company's property.**
+- `readPropertyRow(tag, id)` / `resolveBoundProperty(tag, bound, opts)` — the row,
+  with individually-bound fields layered on top. Fails soft to null (no dmAPI in the
+  Duda editor or the dev harness).
+
+### Content-menu fields to create in Duda
+
+Add these to a widget's content menu, then "Connect to data" each one. **`propertyId`
+alone is enough for #03 and #10.**
+
+| Field name (variable) | Connect to | Needed? |
+|---|---|---|
+| `propertyId` | `Properties > id` | **Yes — the only required one** |
+| `propertyName` | `Properties > name` | optional override |
+| `propertyAddress` | `Properties > Address` | optional; loses lat/lng if flattened |
+| `propertyPhones` | `Properties > Phones` | optional; array — prefer `propertyId` |
+| `propertyEmails` | `Properties > Emails` | optional; array |
+| `propertyAccessHours` | `Properties > AccessHours` | optional; array |
+| `propertySocials` | `Properties > SocialMedia` | optional; array |
+| `propertyUnitCounts` | `Properties > unit_type_counts` | optional; array |
+| `propertyTimezone` | `Properties > utc_offset` | optional |
+| `spaceGroupId` | **nothing — plain text or leave empty** | #05/#06 only, see below |
+
+### Per-widget state
+
+| # | Widget | Binding | Notes |
+|---|---|---|---|
+| 03 | property-info | `propertyId` (+ all overrides) | **fully wired.** name, address, phones, email, hours, "See all Hours", socials, map, unit counts and the **breadcrumb** all follow the id |
+| 10 | faqs | `propertyId` | `fetchFaqsForProperty()`. `Faq` is an array of localized maps — no text-field binding possible, needs the id route |
+| 05 | space-list | `propertyId` + `spaceGroupId` | units, sidebar and nearby follow the id; space group auto-resolved (below) |
+| 06 | promotions | `propertyId` + `spaceGroupId` | same |
+| 02 / 13 | nav / footer | `propertyId` | already accepted one before this work (`DEFAULT_PROPERTY_ID`) |
+
+### `spaceGroupId` — the one thing that CANNOT be bound
+
+#05's units and #06's promotions come from
+`properties/{propertyId}/space-groups/{spaceGroupId}/groups` — **REST only, no
+collection**. And `spaceGroupId` is **not a column on `Properties`**, so
+"Connect to data" cannot supply it. Worse, each property has 2–4 groups and only one
+is the public list.
+
+`@shared/spaceGroups.ts` resolves it: `fetchWebsiteSpaceGroupId(creds, propertyId)`
+lists the property's groups and picks the one whose **name** matches `/website/i`.
+
+- The name is the only usable signal, and **"take the first" is wrong** — verified
+  live 2026-08-04: Lancaster's groups are `INSIDE UNITS`, `HIGH CEILINGS`,
+  `Closet to Office/ Entrance`, `Website Group` — the website one is **last**.
+- Returns **null rather than guessing** when nothing matches. Picking `Trade Show
+  Group` or `Rev Management Groups` would publish wrong prices on a live site.
+- #05/#06 only do the lookup when a bound `propertyId` differs from the configured
+  one (i.e. the page really is dynamic) — a static page keeps its configured group
+  and makes no extra request.
+- Leave the `spaceGroupId` content-menu field **empty** to auto-resolve; set it to
+  pin one group explicitly.
+
+### Still to verify / do
+
+- **Untested on a real Duda dynamic page.** Specifically unknown: whether a
+  collection-bound content-menu field reaches `data.config.<name>` for an
+  **external app** widget (`renderExternalApp`) without the value also being
+  referenced as `{{handlebars}}` in the widget's HTML tab. If it doesn't, the
+  fallback is to put `{{propertyId}}` in a hidden element in the HTML tab and read it
+  from the DOM. `boundText()` already discards an unsubstituted `{{…}}` token, so a
+  half-working binding degrades to the old behaviour instead of printing the token.
+- **`companyId` / `apiKey` are still build-time** (`config.json` per widget). The new
+  site's collection uses a different company, so the REST fallback is wrong there —
+  which means the Duda **editor** view (no `dmAPI`) will show the wrong/absent
+  property until those credentials are updated or made props.
+- **Gallery images and rating/reviews do NOT follow `propertyId`.** Images are
+  gradient placeholders (the API's `Images` field is declared but never mapped);
+  rating/review count come from the separate `GoogleReviews` collection.
 
 ### Who uses what
 
