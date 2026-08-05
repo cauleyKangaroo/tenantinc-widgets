@@ -298,7 +298,12 @@ export async function fetchSpaceGroups(
   });
 
   if (!res.ok) {
-    throw new Error(`fetchSpaceGroups failed: ${res.status} ${res.statusText}`);
+    // Include the ids: a 404 here almost always means company/property/space-group
+    // are out of step with each other, and the status alone can't show that.
+    throw new Error(
+      `fetchSpaceGroups failed: ${res.status} ${res.statusText} — ` +
+      `company=${companyId} property=${propertyId} spaceGroup=${spaceGroupId}`,
+    );
   }
 
   return res.json();

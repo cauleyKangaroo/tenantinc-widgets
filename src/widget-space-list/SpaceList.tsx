@@ -184,9 +184,12 @@ export function SpaceList({
     // spaceGroupId pins it, otherwise we list the property's groups and take the one
     // named "Website Group" (see @shared/spaceGroups — the public list is not always
     // first, and picking "Revenue Management"/"test" would publish wrong prices).
+    // An EMPTY cfg.spaceGroupId also triggers discovery, so config.json can simply
+    // omit it rather than carrying a value that has to be kept in step with
+    // propertyId by hand (getting that pair out of step 404s the whole widget).
     const resolveGroup = spaceGroupId
       ? Promise.resolve(spaceGroupId)
-      : isDynamicTarget
+      : isDynamicTarget || !cfg.spaceGroupId
         ? fetchWebsiteSpaceGroupId(effectivePropertyId, effectiveCompanyId)
         : Promise.resolve(cfg.spaceGroupId);
 
