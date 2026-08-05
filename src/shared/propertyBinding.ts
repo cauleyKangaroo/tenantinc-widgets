@@ -52,6 +52,13 @@ import { PROPERTIES_COLLECTION } from './propertiesSource';
 export interface BoundPropertyProps {
   /** `Properties > id` — the single most useful binding. Unlocks everything else. */
   propertyId?: string;
+  /**
+   * The company the bound property belongs to. NOT a `Properties` column — it is a
+   * plain content-menu text field, because a property id is only meaningful inside
+   * its company and the new site's properties live under a different company than
+   * the one baked into `config.json`. Empty = the configured company.
+   */
+  companyId?: string;
   /** `Properties > name` */
   propertyName?: unknown;
   /** `Properties > Address` — object with address/city/state/zip and lat/lng. */
@@ -128,6 +135,20 @@ export function boundJson<T>(v: unknown): T | null {
  */
 export function resolvePropertyId(bound: BoundPropertyProps, configPropertyId = ''): string {
   return boundText(bound.propertyId) || configPropertyId;
+}
+
+/**
+ * The company id for this instance's REST calls, or the config.json default.
+ *
+ * A property id is only unique WITHIN a company: `properties/{id}/…` under the wrong
+ * company 404s (or, worse, matches nothing and renders empty). So any widget that
+ * accepts a bound `propertyId` has to accept the company alongside it — verified
+ * live 2026-08-05 that the two live sites are different companies:
+ * `QZxjPop2lA` (Storelocal, the configured one) and `kQoBXA8vpn` (Storage Outlet /
+ * Apex — the new dynamic-page site).
+ */
+export function resolveCompanyId(bound: BoundPropertyProps, configCompanyId = ''): string {
+  return boundText(bound.companyId) || configCompanyId;
 }
 
 /**

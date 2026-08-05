@@ -212,6 +212,13 @@ export interface SpaceListProps {
    */
   propertyId?: string;
   /**
+   * The company that owns `propertyId`. A plain content-menu text field — it is NOT
+   * a `Properties` column, so it can't be "connected to data". Required whenever the
+   * bound property belongs to a different company than `config.json`, because
+   * `properties/{id}/…` only resolves inside its own company. Empty = configured.
+   */
+  companyId?: string;
+  /**
    * The property's space group (unit list). NOT bindable from the Properties
    * collection — it isn't a column there, and each property has several groups of
    * which only "Website Group" is public. Leave EMPTY on a dynamic page and the

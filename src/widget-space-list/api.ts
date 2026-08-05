@@ -272,18 +272,23 @@ export function mapApiToUnits(raw: unknown): Unit[] {
  * Unit tiers for one property's space group.
  *
  * DYNAMIC PAGES: this endpoint is REST-only (there is no space-groups collection),
- * and it needs BOTH ids. `propertyId` can be bound to `Properties > id`, but
+ * and it needs ALL THREE ids. `propertyId` can be bound to `Properties > id`, but
  * `spaceGroupId` CANNOT — it is not a column on the properties collection, and
  * every property has a different one (plus 2–4 non-website groups to choose
  * wrongly from). So on a dynamic page `spaceGroupId` has to come from its own
  * content-menu field, or be discovered with `fetchWebsiteSpaceGroupId` below.
- * Defaults keep the pre-dynamic-page behaviour for static pages.
+ *
+ * `companyId` is a parameter for the same reason: a property id only resolves
+ * within its company, and the dynamic-page site's properties belong to a different
+ * company than the configured one. Defaults keep the pre-dynamic-page behaviour for
+ * static pages.
  */
 export async function fetchSpaceGroups(
   propertyId: string = PROPERTY_ID,
   spaceGroupId: string = SPACE_GROUP_ID,
+  companyId: string = COMPANY_ID,
 ): Promise<unknown> {
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${companyId}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
 
   const res = await fetch(url, {
     headers: {
@@ -303,9 +308,12 @@ export async function fetchSpaceGroups(
  * The property's public ("Website Group") space group, bound to this widget's own
  * credentials. See @shared/spaceGroups for why the name is the only usable signal.
  */
-export function fetchWebsiteSpaceGroupId(propertyId: string): Promise<string | null> {
+export function fetchWebsiteSpaceGroupId(
+  propertyId: string,
+  companyId: string = COMPANY_ID,
+): Promise<string | null> {
   return findWebsiteSpaceGroupId(
-    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: COMPANY_ID },
+    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId },
     propertyId,
   );
 }

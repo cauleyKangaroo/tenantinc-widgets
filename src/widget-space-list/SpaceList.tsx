@@ -4,7 +4,7 @@ import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import cfg from './config.json';
 import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
-import { resolvePropertyId } from '@shared/propertyBinding';
+import { resolveCompanyId, resolvePropertyId } from '@shared/propertyBinding';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
   DEFAULT_FILTERS,
@@ -61,6 +61,7 @@ export function SpaceList({
   enablePromoLogic = false,
   // Dynamic-page bindings — see types.ts and @shared/propertyBinding.
   propertyId,
+  companyId,
   spaceGroupId,
   showJunkFeeDisclaimer = false,
   junkFeeCopy = '',
@@ -163,35 +164,58 @@ export function SpaceList({
     facilityName: propertyExtras?.name ?? '',
   };
 
-  // Effective property for this instance: the dynamic-page binding if the editor
-  // connected one, else the config.json default.
+  // Effective property/company for this instance: the dynamic-page bindings if the
+  // editor connected them, else the config.json defaults.
   const effectivePropertyId = resolvePropertyId({ propertyId }, cfg.propertyId);
+  const effectiveCompanyId = resolveCompanyId({ companyId }, cfg.companyId);
+
+  // Is this instance pointed somewhere other than the configured facility? Then the
+  // configured space group belongs to a DIFFERENT property and must never be used —
+  // it would list another facility's units and prices.
+  const isDynamicTarget =
+    effectivePropertyId !== cfg.propertyId || effectiveCompanyId !== cfg.companyId;
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    // The space group is per-property and isn't on the Properties collection, so
-    // when the page is dynamic (a bound propertyId that isn't the configured one)
-    // resolve the property's own "Website Group" instead of reusing the configured
-    // id — which belongs to a different property and would list its units.
-    const needsLookup = !spaceGroupId && effectivePropertyId !== cfg.propertyId;
-    (needsLookup ? fetchWebsiteSpaceGroupId(effectivePropertyId) : Promise.resolve(spaceGroupId || null))
-      .then((sg) => fetchSpaceGroups(effectivePropertyId, sg || cfg.spaceGroupId))
-      .then((raw) => { if (!cancelled) setLiveUnits(mapApiToUnits(raw)); })
+
+    // Resolve the space group before asking for units. It is per-property, REST-only
+    // and not on the Properties collection, so it can't be bound: an explicit
+    // spaceGroupId pins it, otherwise we list the property's groups and take the one
+    // named "Website Group" (see @shared/spaceGroups — the public list is not always
+    // first, and picking "Revenue Management"/"test" would publish wrong prices).
+    const resolveGroup = spaceGroupId
+      ? Promise.resolve(spaceGroupId)
+      : isDynamicTarget
+        ? fetchWebsiteSpaceGroupId(effectivePropertyId, effectiveCompanyId)
+        : Promise.resolve(cfg.spaceGroupId);
+
+    resolveGroup
+      .then((sg) => {
+        // No website group and nothing configured for THIS property: render empty
+        // rather than falling back to the configured group, which belongs to another
+        // facility. spaceGroups.ts has already logged why it found none.
+        if (!sg) {
+          if (!cancelled) setLiveUnits([]);
+          return null;
+        }
+        return fetchSpaceGroups(effectivePropertyId, sg, effectiveCompanyId);
+      })
+      .then((raw) => { if (raw && !cancelled) setLiveUnits(mapApiToUnits(raw)); })
       .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [effectivePropertyId, spaceGroupId]);
+  }, [effectivePropertyId, effectiveCompanyId, spaceGroupId, isDynamicTarget]);
 
   useEffect(() => {
     let cancelled = false;
-    fetchProperties(effectivePropertyId || undefined)
+    fetchProperties(effectivePropertyId || undefined, effectiveCompanyId)
       .then((raw) => {
         if (!cancelled) setPropertyExtras(extractPropertyExtras(raw, effectivePropertyId));
       })
       .catch((err) => console.error('[SpaceList] fetchProperties error:', err));
     return () => { cancelled = true; };
-  }, [effectivePropertyId]);
+  }, [effectivePropertyId, effectiveCompanyId]);
 
   const units = liveUnits;
 

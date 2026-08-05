@@ -19,10 +19,24 @@ const PROPERTY_ID = cfg.propertyId;
 
 export type { LeadInput };
 
-/** "Send us a Message" → create an inquiry lead (shared logic, this widget's creds). */
-export function createLead(input: LeadInput): Promise<unknown> {
+/**
+ * "Send us a Message" → create an inquiry lead (shared logic, this widget's creds).
+ *
+ * The lead must be filed against the property the visitor is actually looking at, so
+ * on a dynamic page the caller passes the bound ids; both fall back to config.json.
+ */
+export function createLead(
+  input: LeadInput,
+  ids: { propertyId?: string; companyId?: string } = {},
+): Promise<unknown> {
   return submitLead(
-    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: COMPANY_ID, propertyId: PROPERTY_ID },
+    {
+      baseUrl: BASE_URL,
+      appId: APP_ID,
+      apiKey: API_KEY,
+      companyId: ids.companyId || COMPANY_ID,
+      propertyId: ids.propertyId || PROPERTY_ID,
+    },
     input,
   );
 }
@@ -142,13 +156,20 @@ export function formatPhone(rawNumber: string): string {
  * keyed REST call — both return the same envelope, so extractPropertyExtras below
  * is unchanged. See @shared/propertiesSource.
  */
-export async function fetchProperties(requirePropertyId: string | undefined = PROPERTY_ID): Promise<unknown> {
-  return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, { requirePropertyId });
+export async function fetchProperties(
+  requirePropertyId: string | undefined = PROPERTY_ID,
+  companyId: string = COMPANY_ID,
+): Promise<unknown> {
+  return fetchPropertiesPreferCollection(
+    APP_ID,
+    () => fetchPropertiesFromApi(companyId),
+    { requirePropertyId },
+  );
 }
 
-async function fetchPropertiesFromApi(): Promise<unknown> {
+async function fetchPropertiesFromApi(companyId: string = COMPANY_ID): Promise<unknown> {
   const params = 'access_hours=true&amenities=true&unit_type_counts=true&faq=true&social_media=true';
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties?${params}`;
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${companyId}/properties?${params}`;
 
   const res = await fetch(url, {
     headers: {

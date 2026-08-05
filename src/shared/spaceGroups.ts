@@ -67,7 +67,14 @@ export async function fetchWebsiteSpaceGroupId(
 
     const json = await res.json() as SpaceGroupsResponse;
     const groups = json?.applicationData?.[cfg.appId]?.[0]?.data?.spaceGroups ?? [];
-    const website = groups.find((g) => /website/i.test(g.name ?? ''));
+    // Exact "Website Group" first (what the real data uses), then a looser
+    // case/whitespace-tolerant match for "Website group" and friends. Never a
+    // substring of something else — "Available Space by Attribute", "Residential"
+    // and "test" all sit in the same list and must not win.
+    const website =
+      groups.find((g) => (g.name ?? '').trim() === 'Website Group')
+      ?? groups.find((g) => /^website\s+group$/i.test((g.name ?? '').trim()))
+      ?? groups.find((g) => /website/i.test(g.name ?? ''));
 
     if (!website?.id) {
       // eslint-disable-next-line no-console
