@@ -24,6 +24,7 @@ import {
   SearchIcon,
 } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID } from '@shared/propertyContact';
+import { imageUrl } from '@shared/dudaCollections';
 
 // ---------------------------------------------------------------------------
 // Types + defaults
@@ -203,7 +204,14 @@ function buildDefaultLinks(): NavLink[] {
 // ---------------------------------------------------------------------------
 
 export interface NavigationBarProps {
-  /** Override the bundled storelocal logo with a custom image URL. */
+  /**
+   * Content-menu IMAGE input (`logoImage`) — the way an editor sets the logo.
+   * Typed `unknown` because Duda doesn't hand images over in one shape: it may be
+   * a plain URL string or an object keyed `image` / `url` / `src`, so it goes
+   * through `imageUrl()` rather than being trusted. Wins over `logoUrl`.
+   */
+  logoImage?: unknown;
+  /** Override the bundled storelocal logo with a custom image URL (plain string). */
   logoUrl?: string;
   /**
    * Click destination for the logo (Duda link picker). An editor url or '#' is
@@ -252,6 +260,7 @@ export interface NavigationBarProps {
 }
 
 export function NavigationBar({
+  logoImage,
   logoUrl,
   logoBg = 'transparent',
   height = 'narrow',
@@ -278,6 +287,11 @@ export function NavigationBar({
 }: NavigationBarProps) {
   // Logo destination, with Duda's editor url filtered out (see resolveLogoLink).
   const homeLink = resolveLogoLink(logoLink);
+
+  // Logo source: the content-menu image input first, then the plain-url prop, then
+  // the bundled mark. `||` not `??` on purpose — Duda leaves an untouched field as
+  // '', which `??` would happily pass to <img src=""> and render as broken.
+  const logoSrc = imageUrl(logoImage) || (logoUrl ?? '').trim() || storelocalLogo;
 
   const [menuOpen, setMenuOpen] = useState(false);
   // Desktop hover mega-menu: which top-level link is open, and which of its
@@ -521,7 +535,7 @@ export function NavigationBar({
         <div className="nav-inner">
           {logoMode === 'inline' && (
             <a className="nav-logo-inline" href={homeLink} aria-label="Home">
-              <img className="nav-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
+              <img className="nav-logo-img" src={logoSrc} alt="storelocal storage" />
             </a>
           )}
           <div className="nav-right">
@@ -539,7 +553,7 @@ export function NavigationBar({
           so it never overlaps the nav content. Only in 'banner' mode. */}
       {logoMode === 'banner' && (
         <a className="nav-logo" href={homeLink} style={{ background: logoBg }} aria-label="Home">
-          <img className="nav-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
+          <img className="nav-logo-img" src={logoSrc} alt="storelocal storage" />
         </a>
       )}
 
@@ -550,7 +564,7 @@ export function NavigationBar({
         <div className="nav-mm-panel">
           <div className="nav-mm-header">
             <a className="nav-mm-logo" href={homeLink} aria-label="Home">
-              <img className="nav-mm-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
+              <img className="nav-mm-logo-img" src={logoSrc} alt="storelocal storage" />
             </a>
             <button className="nav-mm-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
               <CloseIcon size={24} />
