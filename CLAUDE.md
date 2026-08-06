@@ -266,6 +266,38 @@ The last three are deliberate, not leftovers: space-groups (units, promotions) h
 collection, and leads is a **write** — the Collections JS API is read-only, so writes
 always need credentials and therefore a server-side proxy (see `accordion-sync.php`).
 
+### `propertyId` — Duda passes it; config.json is NOT a real property
+
+Duda supplies `propertyId` as a prop from the JS tab, per page. Which widgets:
+
+| Widget | propertyId |
+|---|---|
+| #03 property-info, #05 space-list, #06 promotions, #10 faqs | **passed by Duda** |
+| #02 nav, #13 footer | not needed — site-wide contact details |
+| #07 nearby, #11 size guide, #12 blogs | not needed |
+| #09 reviews | work in progress |
+
+`cfg.propertyId` is a **dev-harness / editor fallback only**. On this site it names a
+property of the OLD company that does not exist, so it must never be treated as a
+real property:
+
+- **`resolveRequireId` returns the BOUND id only**, never the config one. Handing the
+  trust check a stale id makes it look for a property the collection cannot contain,
+  declare the site's own collection untrustworthy, and fall back to REST — the exact
+  thing the check exists to prevent. Unbound ⇒ `undefined` ⇒ no check.
+- **Never give those parameters a `= PROPERTY_ID` default.** `resolveRequireId`
+  returning `undefined` would silently re-apply it. Caught by test, twice.
+- #05's sidebar sections get the id from `PropertyIdProvider` / `usePropertyId()`
+  (`propertyContext.tsx`), because `SectionAccordion`'s `VISUALS` map is a
+  module-level record of pre-built elements with nowhere to pass a prop. Its default
+  is `''`, deliberately not `cfg.propertyId`.
+- #07 takes an **optional** `propertyId` used only to anchor distances and exclude
+  the page's own facility. With none it lists every location **without distances**
+  rather than rendering empty — the old code blanked the widget whenever geolocation
+  was declined and the configured id wasn't in the list, which is the live case now.
+- Unbound, #03 resolves to no property and keeps its DEFAULTS: on a multi-property
+  site it cannot know which one to show, and guessing would be worse.
+
 ### `companyId` — the `Company` collection is the source of truth
 
 **Every** outbound request is scoped to the company id from the one-row **`Company`**

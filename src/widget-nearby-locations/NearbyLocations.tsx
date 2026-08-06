@@ -17,7 +17,6 @@ import {
   haversineMiles,
   fetchPropertySpaces,
   formatDistance,
-  CURRENT_PROPERTY_ID,
   type NearbyProperty,
   type NearbySpace,
 } from './nearbyApi';
@@ -207,6 +206,13 @@ export interface NearbyLocationsProps {
   radiusMiles?: number;
   /** Fixed admin fee shown on each card (not per-property in the API). */
   adminFee?: number;
+  /**
+   * The page's own property, if Duda passes one — used to anchor distances when
+   * the visitor declines geolocation, and to leave that facility out of its own
+   * "nearby" list. Optional: this widget is normally site-wide, and it must NOT
+   * fall back to config.json's build-time id, which belongs to another company.
+   */
+  propertyId?: string;
 }
 
 export function NearbyLocations({
@@ -214,6 +220,7 @@ export function NearbyLocations({
   subheading = 'Browse other storage facilities in the area and compare available spaces and prices.',
   radiusMiles = 0,
   adminFee = 20,
+  propertyId = '',
 }: NearbyLocationsProps) {
   const [page, setPage] = useState(0);
   const [mobileIdx, setMobileIdx] = useState(0);
@@ -233,21 +240,31 @@ export function NearbyLocations({
         const [raw, userLoc] = await Promise.all([fetchProperties(), getUserLocation()]);
         const all = extractProperties(raw);
 
-        // Reference point: the visitor's location, else the current property's.
-        const current = all.find((p) => p.id === CURRENT_PROPERTY_ID);
+        // Reference point: the visitor's location, else this page's own property
+        // when Duda passed one. Often there is neither — geolocation is declined and
+        // the widget is site-wide — and that must NOT blank the list: showing every
+        // location without distances is still the useful thing to show.
+        const current = propertyId ? all.find((p) => p.id === propertyId) : undefined;
         const ref = userLoc
           ? { ...userLoc, source: 'user' as const }
           : current
             ? { lat: current.lat, lng: current.lng, source: 'property' as const }
             : null;
-        if (!ref) { if (!cancelled) setApiProperties([]); return; }
 
-        // Distance to every other property, nearest first; optional radius filter.
-        let ranked = all
-          .filter((p) => p.id !== CURRENT_PROPERTY_ID)
-          .map((p) => ({ ...p, distanceMiles: haversineMiles(ref, p) }))
-          .sort((a, b) => (a.distanceMiles ?? Infinity) - (b.distanceMiles ?? Infinity));
-        if (radiusMiles > 0) ranked = ranked.filter((p) => (p.distanceMiles ?? Infinity) <= radiusMiles);
+        // Never exclude by a property id we weren't given — with none, nothing is
+        // "the current facility" and every location belongs in the list.
+        const others = propertyId ? all.filter((p) => p.id !== propertyId) : all;
+
+        let ranked = ref
+          ? others
+              .map((p) => ({ ...p, distanceMiles: haversineMiles(ref, p) }))
+              .sort((a, b) => (a.distanceMiles ?? Infinity) - (b.distanceMiles ?? Infinity))
+          : others.map((p) => ({ ...p, distanceMiles: null as number | null }));
+        // A radius is meaningless without a reference point; applying it then would
+        // filter everything out, which is how this used to render empty.
+        if (ref && radiusMiles > 0) {
+          ranked = ranked.filter((p) => (p.distanceMiles ?? Infinity) <= radiusMiles);
+        }
 
         const top = ranked.slice(0, MAX_NEARBY);
 
@@ -256,7 +273,7 @@ export function NearbyLocations({
         const base: Property[] = top.map((p, i) => ({
           ...p, spaces: [], image: propertyImage(p.imageUrl, i), adminFee,
         }));
-        if (!cancelled) { setRefLoc({ lat: ref.lat, lng: ref.lng }); setApiProperties(base); }
+        if (!cancelled) { if (ref) setRefLoc({ lat: ref.lat, lng: ref.lng }); setApiProperties(base); }
 
         // Stage 2: enrich each card with spaces + promo, patching them in as each
         // property resolves (parallel, fail-soft — one failure can't block others).
@@ -275,7 +292,7 @@ export function NearbyLocations({
     })();
 
     return () => { cancelled = true; };
-  }, [radiusMiles, adminFee]);
+  }, [radiusMiles, adminFee, propertyId]);
 
   // While loading we render skeleton cards — showing DEMO_PROPERTIES here meant
   // real-looking names/prices flashed up and were then replaced. Demo data is

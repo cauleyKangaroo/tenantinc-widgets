@@ -12,6 +12,7 @@ import { useSwipe } from '@shared/useSwipe';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
 import cfg from '../../config.json';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { usePropertyId } from '../../propertyContext';
 
 type ViewMode = 'list' | 'map';
 
@@ -233,6 +234,11 @@ function SkeletonCard() {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function NearbySection() {
+  // Which facility this Space List is showing — from Duda via SpaceList, '' when
+  // unbound. Deliberately NOT cfg.propertyId: that build-time value belongs to a
+  // different company on this site, so using it would anchor "nearby" to a
+  // property that isn't in the list and exclude nothing.
+  const currentPropertyId = usePropertyId();
   const [view, setView] = useState<ViewMode>('list');
   const [page, setPage] = useState(0);
 
@@ -255,12 +261,14 @@ export function NearbySection() {
           companyId: await resolveCompanyIdFromSources('#05 nearby', {}, cfg.companyId),
         };
         const [raw, userLoc] = await Promise.all([
-          fetchProperties(creds, { requirePropertyId: cfg.propertyId }),
+          // No requirePropertyId: this section wants ALL the company's properties,
+          // and the collection is the site's own data — nothing to distrust.
+          fetchProperties(creds, {}),
           getUserLocation(),
         ]);
         const all = extractNearbyProperties(raw, cfg.appId);
 
-        const current = all.find((p) => p.id === cfg.propertyId);
+        const current = currentPropertyId ? all.find((p) => p.id === currentPropertyId) : undefined;
         const ref = userLoc
           ? { ...userLoc, source: 'user' as const }
           : current
@@ -269,7 +277,7 @@ export function NearbySection() {
         if (!ref) { if (!cancelled) setApiProps([]); return; }
 
         const ranked = all
-          .filter((p) => p.id !== cfg.propertyId)
+          .filter((p) => p.id !== currentPropertyId)
           .map((p) => ({ p, distanceMiles: haversineMiles(ref, p) }))
           .sort((a, b) => a.distanceMiles - b.distanceMiles)
           .slice(0, MAX_NEARBY);
@@ -321,7 +329,7 @@ export function NearbySection() {
     })();
 
     return () => { cancelled = true; };
-  }, []);
+  }, [currentPropertyId]);
 
   // While loading we render a skeleton card — showing DEMO_PROPERTIES here meant
   // real-looking names/prices flashed up and were then replaced. Demo data is

@@ -45,7 +45,8 @@ export interface FaqItem {
  * REST call. Same envelope either way, so extractFaqs below is unchanged.
  * See @shared/propertiesSource.
  */
-export async function fetchProperties(requirePropertyId: string | undefined = PROPERTY_ID): Promise<unknown> {
+export async function fetchProperties(requirePropertyId?: string): Promise<unknown> {
+  // No PROPERTY_ID default — see the note in #03's api.ts.
   return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, { requirePropertyId });
 }
 

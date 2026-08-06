@@ -161,9 +161,11 @@ export function formatPhone(rawNumber: string): string {
  * is unchanged. See @shared/propertiesSource.
  */
 export async function fetchProperties(
-  requirePropertyId: string | undefined = PROPERTY_ID,
+  requirePropertyId?: string,
   companyId?: string,
 ): Promise<unknown> {
+  // No PROPERTY_ID default — undefined must mean "no trust check", not "use the
+  // build-time id", which belongs to a different company on this site.
   return fetchPropertiesPreferCollection(
     APP_ID,
     () => fetchPropertiesFromApi(companyId),

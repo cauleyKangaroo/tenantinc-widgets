@@ -18,8 +18,6 @@ import { resolveCompanyIdFromSources } from '@shared/companySource';
 export { getUserLocation, haversineMiles, formatDistance };
 export type { NearbySpace };
 
-export const CURRENT_PROPERTY_ID = cfg.propertyId;
-
 /** A card-ready property once distance/spaces/promo are attached. */
 export interface NearbyProperty extends NearbyBaseProperty {
   distanceMiles: number | null;
@@ -39,10 +37,16 @@ async function creds(): Promise<NearbyApiConfig> {
   return { ...cfg, companyId: await resolveCompanyIdFromSources('#07 nearby', {}, cfg.companyId) };
 }
 
-// requirePropertyId: only trust the Duda collection if it actually contains the
-// property this widget is configured for (i.e. it's bound to our company).
+/**
+ * Every property in the company — this widget lists locations, so it wants them all.
+ *
+ * No `requirePropertyId`: that trust check needs a property we actually expect to
+ * be there, and this widget is given none. Passing config.json's build-time id
+ * would look for a property from a DIFFERENT company, declare the site's own
+ * collection untrustworthy and fall back to REST — the opposite of the intent.
+ */
 export const fetchProperties = async (): Promise<unknown> =>
-  sharedFetchProperties(await creds(), { requirePropertyId: cfg.propertyId });
+  sharedFetchProperties(await creds(), {});
 
 export const extractProperties = (raw: unknown): NearbyBaseProperty[] =>
   extractNearbyProperties(raw, cfg.appId);

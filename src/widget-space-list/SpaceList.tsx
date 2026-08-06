@@ -4,8 +4,9 @@ import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import cfg from './config.json';
 import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
-import { resolvePropertyId } from '@shared/propertyBinding';
+import { resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { PropertyIdProvider } from './propertyContext';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
   DEFAULT_FILTERS,
@@ -235,7 +236,8 @@ export function SpaceList({
   useEffect(() => {
     if (effectiveCompanyId === null) return;
     let cancelled = false;
-    fetchProperties(effectivePropertyId || undefined, effectiveCompanyId)
+    // Trust-check only against a Duda-bound id; see resolveRequireId.
+    fetchProperties(resolveRequireId({ propertyId }, cfg.propertyId), effectiveCompanyId)
       .then((raw) => {
         if (!cancelled) setPropertyExtras(extractPropertyExtras(raw, effectivePropertyId));
       })
@@ -413,6 +415,7 @@ export function SpaceList({
   // Filters are always a top bar inside the listing column; the accordion panel
   // sits on whichever side apLocation specifies.
   return (
+    <PropertyIdProvider propertyId={effectivePropertyId}>
     <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
       <div className="sl-heading">
         <p className="sl-select-heading">Select a Space {totalVacant > 0 && `— ${totalVacant} Available`}</p>
@@ -460,5 +463,6 @@ export function SpaceList({
         />
       )}
     </div>
+    </PropertyIdProvider>
   );
 }

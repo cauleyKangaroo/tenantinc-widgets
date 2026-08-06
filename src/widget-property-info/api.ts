@@ -179,7 +179,10 @@ export function formatPhone(rawNumber: string): string {
  * REST call. Same envelope either way, so findProperty below is unchanged.
  * See @shared/propertiesSource.
  */
-export async function fetchProperties(requirePropertyId: string | undefined = PROPERTY_ID): Promise<unknown> {
+export async function fetchProperties(requirePropertyId?: string): Promise<unknown> {
+  // NO default of PROPERTY_ID here: callers pass `resolveRequireId(...)`, which is
+  // undefined when Duda bound nothing, and a default would quietly put the stale
+  // config id back — rejecting the site's own collection.
   return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, { requirePropertyId });
 }
 
