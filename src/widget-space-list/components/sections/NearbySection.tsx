@@ -11,6 +11,7 @@ import {
 import { useSwipe } from '@shared/useSwipe';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
 import cfg from '../../config.json';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
 
 type ViewMode = 'list' | 'map';
 
@@ -247,8 +248,14 @@ export function NearbySection() {
 
     (async () => {
       try {
+        // Company comes from the `Company` collection, not config.json — see
+        // @shared/companySource. Cached, so this shares the page's single read.
+        const creds = {
+          ...cfg,
+          companyId: await resolveCompanyIdFromSources('#05 nearby', {}, cfg.companyId),
+        };
         const [raw, userLoc] = await Promise.all([
-          fetchProperties(cfg, { requirePropertyId: cfg.propertyId }),
+          fetchProperties(creds, { requirePropertyId: cfg.propertyId }),
           getUserLocation(),
         ]);
         const all = extractNearbyProperties(raw, cfg.appId);

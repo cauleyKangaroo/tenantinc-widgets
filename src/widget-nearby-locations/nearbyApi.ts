@@ -6,9 +6,11 @@ import {
   getUserLocation,
   haversineMiles,
   formatDistance,
+  type NearbyApiConfig,
   type NearbyBaseProperty,
   type NearbySpace,
 } from '@shared/nearbyProperties';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
 
 // Thin widget adapter: binds the shared nearby-properties layer to this widget's
 // own API credentials (config.json). The shared module holds all the logic.
@@ -25,13 +27,25 @@ export interface NearbyProperty extends NearbyBaseProperty {
   spaces: NearbySpace[];
 }
 
+/**
+ * This widget's credentials, with the company from the `Company` collection.
+ *
+ * The company is site data, not build output — config.json's value is only the
+ * fallback for the Duda editor, the dev harness, and sites with no `Company`
+ * collection yet. The read is cached in @shared/companySource, so resolving it per
+ * call costs one collection read for the whole page.
+ */
+async function creds(): Promise<NearbyApiConfig> {
+  return { ...cfg, companyId: await resolveCompanyIdFromSources('#07 nearby', {}, cfg.companyId) };
+}
+
 // requirePropertyId: only trust the Duda collection if it actually contains the
 // property this widget is configured for (i.e. it's bound to our company).
-export const fetchProperties = (): Promise<unknown> =>
-  sharedFetchProperties(cfg, { requirePropertyId: cfg.propertyId });
+export const fetchProperties = async (): Promise<unknown> =>
+  sharedFetchProperties(await creds(), { requirePropertyId: cfg.propertyId });
 
 export const extractProperties = (raw: unknown): NearbyBaseProperty[] =>
   extractNearbyProperties(raw, cfg.appId);
 
-export const fetchPropertySpaces = (propertyId: string) =>
-  sharedFetchPropertySpaces(cfg, propertyId);
+export const fetchPropertySpaces = async (propertyId: string) =>
+  sharedFetchPropertySpaces(await creds(), propertyId);

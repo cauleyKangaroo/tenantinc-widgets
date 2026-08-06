@@ -9,6 +9,7 @@ import {
   resolveBoundProperty, resolvePropertyId, resolveRequireId, boundText,
   type BoundPropertyProps,
 } from '@shared/propertyBinding';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
 
 export type { LeadInput };
 export type { BoundPropertyProps };
@@ -221,10 +222,22 @@ function withAddressFallback(details: PropertyDetails, row: Record<string, unkno
   return text ? { ...details, address: text } : details;
 }
 
+/**
+ * The company every request here is scoped to.
+ *
+ * The `Company` collection is the source of truth — config.json's value is only
+ * the fallback for the Duda editor, the dev harness, and sites without the
+ * collection. Cached in @shared/companySource, so calling this per request costs
+ * one collection read for the whole page.
+ */
+function companyId(bound: BoundPropertyProps = {}): Promise<string> {
+  return resolveCompanyIdFromSources('#03 property-info', bound, COMPANY_ID);
+}
+
 async function fetchPropertiesFromApi(): Promise<unknown> {
   // Expansion flags pull in the nested sections the widget renders.
   const params = 'access_hours=true&amenities=true&unit_type_counts=true&faq=true&social_media=true';
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties?${params}`;
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${await companyId()}/properties?${params}`;
 
   const res = await fetch(url, {
     headers: {
@@ -240,11 +253,23 @@ async function fetchPropertiesFromApi(): Promise<unknown> {
   return res.json();
 }
 
-// Lead creation ("Send us a Message") — delegates to the shared leads API,
-// bound to this widget's own credentials.
-export function createLead(input: LeadInput): Promise<unknown> {
+/**
+ * Lead creation ("Send us a Message") — delegates to the shared leads API.
+ *
+ * The lead must be filed against the company AND property the visitor is actually
+ * looking at, so both come from the live sources rather than config.json: the
+ * company from the `Company` collection, the property from the dynamic-page
+ * binding when there is one.
+ */
+export async function createLead(input: LeadInput, bound: BoundPropertyProps = {}): Promise<unknown> {
   return submitLead(
-    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: COMPANY_ID, propertyId: PROPERTY_ID },
+    {
+      baseUrl: BASE_URL,
+      appId: APP_ID,
+      apiKey: API_KEY,
+      companyId: await companyId(bound),
+      propertyId: resolvePropertyId(bound, PROPERTY_ID),
+    },
     input,
   );
 }

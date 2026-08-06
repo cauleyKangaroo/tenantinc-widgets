@@ -1,4 +1,6 @@
 import cfg from './config.json';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
+import type { BoundPropertyProps } from '@shared/propertyBinding';
 
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
@@ -65,16 +67,29 @@ export interface ApiPromo {
 // ---------------------------------------------------------------------------
 
 /**
- * Promotions for one property's space group. Both ids are overridable so a Duda
- * DYNAMIC PAGE can bind `propertyId` to `Properties > id`; the space group is not a
- * column on that collection, so it is either supplied explicitly or resolved from
- * the property's "Website Group" (see #05 `fetchWebsiteSpaceGroupId`).
+ * The company this widget is scoped to — `Company` collection first, config.json
+ * only as the editor/harness fallback. See @shared/companySource.
+ *
+ * This endpoint has NO collection fallback (space-groups is REST-only), so getting
+ * the company wrong here doesn't degrade to stale data — it returns nothing at all.
+ */
+export function companyId(bound: BoundPropertyProps = {}): Promise<string> {
+  return resolveCompanyIdFromSources('#06 promotions', bound, COMPANY_ID);
+}
+
+/**
+ * Promotions for one property's space group. All three ids are overridable so a
+ * Duda DYNAMIC PAGE can bind `propertyId` to `Properties > id`; the space group is
+ * not a column on that collection, so it is either supplied explicitly or resolved
+ * from the property's "Website Group" (see @shared/spaceGroups).
  */
 export async function fetchSpaceGroups(
   propertyId: string = PROPERTY_ID,
   spaceGroupId: string = SPACE_GROUP_ID,
+  company?: string,
 ): Promise<unknown> {
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
+  const co = company || await companyId();
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${co}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
 
   const res = await fetch(url, {
     headers: {

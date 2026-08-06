@@ -3,6 +3,7 @@ import { fetchPropertiesPreferCollection, asPropertiesResponse } from '@shared/p
 import {
   resolveBoundProperty, resolvePropertyId, resolveRequireId, type BoundPropertyProps,
 } from '@shared/propertyBinding';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
 
 export type { BoundPropertyProps };
 
@@ -71,8 +72,16 @@ export async function fetchFaqsForProperty(bound: BoundPropertyProps = {}): Prom
   return extractFaqs(await fetchProperties(resolveRequireId(bound, PROPERTY_ID)), effectiveId);
 }
 
+/**
+ * The company this widget is scoped to — `Company` collection first, config.json
+ * only as the editor/harness fallback. See @shared/companySource.
+ */
+function companyId(bound: BoundPropertyProps = {}): Promise<string> {
+  return resolveCompanyIdFromSources('#10 faqs', bound, COMPANY_ID);
+}
+
 async function fetchPropertiesFromApi(): Promise<unknown> {
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties?faq=true`;
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${await companyId()}/properties?faq=true`;
 
   const res = await fetch(url, {
     headers: {

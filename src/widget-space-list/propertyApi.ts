@@ -10,6 +10,7 @@ import {
 
 import { createLead as submitLead, type LeadInput } from '@shared/leadsApi';
 import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
 
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
@@ -25,7 +26,7 @@ export type { LeadInput };
  * The lead must be filed against the property the visitor is actually looking at, so
  * on a dynamic page the caller passes the bound ids; both fall back to config.json.
  */
-export function createLead(
+export async function createLead(
   input: LeadInput,
   ids: { propertyId?: string; companyId?: string } = {},
 ): Promise<unknown> {
@@ -34,7 +35,10 @@ export function createLead(
       baseUrl: BASE_URL,
       appId: APP_ID,
       apiKey: API_KEY,
-      companyId: ids.companyId || COMPANY_ID,
+      // Caller's resolved id if it has one, else the `Company` collection —
+      // config.json only as the editor/harness fallback. Filing a lead against the
+      // wrong company would lose the enquiry entirely.
+      companyId: ids.companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID),
       propertyId: ids.propertyId || PROPERTY_ID,
     },
     input,
@@ -158,7 +162,7 @@ export function formatPhone(rawNumber: string): string {
  */
 export async function fetchProperties(
   requirePropertyId: string | undefined = PROPERTY_ID,
-  companyId: string = COMPANY_ID,
+  companyId?: string,
 ): Promise<unknown> {
   return fetchPropertiesPreferCollection(
     APP_ID,
@@ -167,9 +171,11 @@ export async function fetchProperties(
   );
 }
 
-async function fetchPropertiesFromApi(companyId: string = COMPANY_ID): Promise<unknown> {
+async function fetchPropertiesFromApi(companyId?: string): Promise<unknown> {
+  // Omitted → the `Company` collection; config.json is only the last resort.
+  const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
   const params = 'access_hours=true&amenities=true&unit_type_counts=true&faq=true&social_media=true';
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${companyId}/properties?${params}`;
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${company}/properties?${params}`;
 
   const res = await fetch(url, {
     headers: {

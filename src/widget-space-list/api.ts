@@ -2,6 +2,7 @@ import type { Unit, UnitSize } from './types';
 import cfg from './config.json';
 import { spaceImageFor } from './spaceImages';
 import { fetchWebsiteSpaceGroupId as findWebsiteSpaceGroupId } from '@shared/spaceGroups';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
 
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
@@ -286,9 +287,12 @@ export function mapApiToUnits(raw: unknown): Unit[] {
 export async function fetchSpaceGroups(
   propertyId: string = PROPERTY_ID,
   spaceGroupId: string = SPACE_GROUP_ID,
-  companyId: string = COMPANY_ID,
+  companyId?: string,
 ): Promise<unknown> {
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${companyId}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
+  // Omitted → the `Company` collection, never config.json directly. SpaceList
+  // passes its already-resolved id; anything else gets it from the same source.
+  const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${company}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
 
   const res = await fetch(url, {
     headers: {
@@ -313,12 +317,15 @@ export async function fetchSpaceGroups(
  * The property's public ("Website Group") space group, bound to this widget's own
  * credentials. See @shared/spaceGroups for why the name is the only usable signal.
  */
-export function fetchWebsiteSpaceGroupId(
+export async function fetchWebsiteSpaceGroupId(
   propertyId: string,
-  companyId: string = COMPANY_ID,
+  companyId?: string,
 ): Promise<string | null> {
+  // Callers that already resolved the company pass it; anyone else gets it from
+  // the `Company` collection rather than config.json.
+  const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
   return findWebsiteSpaceGroupId(
-    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId },
+    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: company },
     propertyId,
   );
 }

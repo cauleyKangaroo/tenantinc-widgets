@@ -266,9 +266,42 @@ The last three are deliberate, not leftovers: space-groups (units, promotions) h
 collection, and leads is a **write** — the Collections JS API is read-only, so writes
 always need credentials and therefore a server-side proxy (see `accordion-sync.php`).
 
+### `companyId` — the `Company` collection is the source of truth
+
+**Every** outbound request is scoped to the company id from the one-row **`Company`**
+collection, read via `@shared/companySource`. `config.json`'s `companyId` is now
+only a fallback.
+
+Why: the company id was build-time, so a new customer site meant a new build of the
+bundles. It is site DATA. Each site spun up from this template gets its own
+`Company` row and reuses the **same published bundles** — no rebuild.
+
+- **`Company` is a NATIVE collection**, unlike `Properties`. The cell is authored in
+  a WYSIWYG, so Duda returns `<p class="rteBlock">kQoBXA8vpn</p>`. Used raw that
+  goes straight into the request URL and every call 404s — hence `plainText()`.
+- Rows can arrive as `{id: <rowId>, data: {id: …}}`: the **column** `id` must win
+  over Duda's own row id (`readCollection` already flattens it that way).
+- Only the **first** row is read; a second logs a warning rather than being guessed
+  between.
+- The read is **promise-cached** per collection, so every widget on the page shares
+  one request.
+- **Precedence:** explicit `companyId` prop → `Company` collection → `config.json`
+  (Duda editor, dev harness, sites without the collection).
+
+Wired through: #03 (properties + createLead), #05 (space-groups, website-group
+lookup, sidebar properties, nearby, createLead), #06 (space-groups), #07 (properties
++ property spaces), #10 (faqs). `@shared/leadsApi`, `@shared/nearbyProperties` and
+`@shared/spaceGroups` take a creds object — callers pass the resolved id, which is
+why `cfg.companyId` still appears inside them.
+
+**#05 holds the resolved id as state (`null` = resolving) and its data effects wait
+for it.** Starting from `cfg.companyId` and correcting later would fire a request
+against the wrong company on every load and briefly render its units.
+
 ### Other collections on the site
 
-`Properties` (external), `BlogPosts` (native, read by `@shared/blogPosts`),
+`Properties` (external), `Company` (native, one row — see above), `BlogPosts`
+(native, read by `@shared/blogPosts`), `GoogleReviews` (native, ratings for #03/#09),
 `accordionConfig` (native, read client-side + written via the PHP proxy).
 Collection names are **case-sensitive** — they're the lookup key.
 
