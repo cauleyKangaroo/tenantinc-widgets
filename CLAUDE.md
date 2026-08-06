@@ -298,6 +298,33 @@ real property:
 - Unbound, #03 resolves to no property and keeps its DEFAULTS: on a multi-property
   site it cannot know which one to show, and guessing would be worse.
 
+### #02 nav — "Find Storage" is built from the `Properties` collection
+
+`@shared/propertyNav.ts` groups every property's **`slug`** into the nav's three
+levels. A slug is `state/city/property-name-<id>`, e.g.
+`california/bellflower/storage-outlet-bellflower-340079517` →
+**California › Bellflower › Storage Outlet - Bellflower**.
+
+- Grouping is on the **slug**, not `Address`, because the slug IS the page URL —
+  group by anything else and the links stop matching the pages beneath them.
+- **The two disagree in the live data** (verified 2026-08-06): Chula Vista and
+  Escondido are Californian but their slugs say `arizona/...`, and Gardena's slug
+  says `california/irvine/storage-outlet-escondido-…`. So the nav renders an
+  **Arizona** branch for a California-only portfolio. That's an upstream data fix;
+  the parser renders the slugs faithfully rather than "correcting" them into links
+  to pages that don't exist.
+- The **leaf label** is the exception: it uses the property's real `name`, falling
+  back to the slug tail. That stops a stale slug mislabelling a facility (Gardena
+  would otherwise read "Storage Outlet Escondido").
+- A row with a missing or <3-segment slug is **skipped**, never rendered blank.
+- State and city rows are `href: '#'` — there are no state/city pages.
+- `locationBasePath` prefixes the property links (default `''` → `/california/…`).
+- Empty tree (no dmAPI in the editor/harness, collection missing) → the hardcoded
+  `FIND_STORAGE_MENU` stays, so the nav never renders empty.
+- **`forceHardcodedLinks` is deliberately NOT applied to the collection-built
+  menu.** It matches on LABEL, and the live data contains a city called "Irvine" —
+  it would rewrite that city's link to the hardcoded testing URL.
+
 ### `companyId` — the `Company` collection is the source of truth
 
 **Every** outbound request is scoped to the company id from the one-row **`Company`**
