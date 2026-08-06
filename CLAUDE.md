@@ -318,7 +318,11 @@ levels. A slug is `state/city/property-name-<id>`, e.g.
   would otherwise read "Storage Outlet Escondido").
 - A row with a missing or <3-segment slug is **skipped**, never rendered blank.
 - State and city rows are `href: '#'` — there are no state/city pages.
-- `locationBasePath` prefixes the property links (default `''` → `/california/…`).
+- `locationBasePath` prefixes the property links. Default **`/storage-units`** — the
+  path the Duda dynamic property pages live under — giving
+  `/storage-units/california/bellflower/…`. Normalised, so a missing leading slash
+  or a trailing one can't produce a relative or double-slashed URL. Pass `''` for
+  links off the site root.
 - Empty tree (no dmAPI in the editor/harness, collection missing) → the hardcoded
   `FIND_STORAGE_MENU` stays, so the nav never renders empty.
 - **`forceHardcodedLinks` is deliberately NOT applied to the collection-built

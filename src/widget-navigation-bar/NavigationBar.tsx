@@ -151,6 +151,8 @@ function resolveLogoLink(link?: string): string {
   return link;
 }
 const FACILITY_URL = 'https://mariposa26-testing.multiscreensite.com/property-landing-page';
+/** The Duda dynamic property pages live under this path — see locationBasePath. */
+const DEFAULT_LOCATION_BASE_PATH = '/storage-units';
 /** Where the pinned "All Locations" row points. */
 const ALL_LOCATIONS_URL = '#';
 const IRVINE_LABEL = 'Irvine';
@@ -283,9 +285,10 @@ export interface NavigationBarProps {
   accountUrl?: string;
   links?: NavLink[];
   /**
-   * Prefix for the Find Storage links built from each property's `slug`.
-   * '' (default) gives "/california/bellflower/…". Set it if the Duda dynamic
-   * pages live under a sub-path.
+   * Path the property pages live under, prefixed to each Find Storage link built
+   * from a property's `slug`. Defaults to the live layout, `/storage-units`, so
+   * a link reads "/storage-units/california/bellflower/…". Pass '' for links off
+   * the site root. Leading/trailing slashes are normalised.
    */
   locationBasePath?: string;
 }
@@ -315,7 +318,7 @@ export function NavigationBar({
   logoLink,
   links,
   propertyId = DEFAULT_PROPERTY_ID,
-  locationBasePath = '',
+  locationBasePath = DEFAULT_LOCATION_BASE_PATH,
 }: NavigationBarProps) {
   // Logo destination, with Duda's editor url filtered out (see resolveLogoLink).
   const homeLink = resolveLogoLink(logoLink);

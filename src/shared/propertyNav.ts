@@ -96,10 +96,22 @@ export function parseSlug(slug: unknown): ParsedSlug | null {
 
 export interface BuildTreeOptions {
   /**
-   * Prefix for property links. '' (default) gives "/california/bellflower/…".
-   * Set it when the Duda dynamic pages live under a sub-path.
+   * Path the property pages live under, prefixed to every slug. The Duda dynamic
+   * pages sit at `/storage-units/<slug>`, which is #02's default.
+   *
+   * Normalised before use, so `storage-units`, `/storage-units` and
+   * `/storage-units/` all behave the same — a missing leading slash would make the
+   * href relative to the current page, and a trailing one would double up into
+   * `/storage-units//california/…`.
    */
   basePath?: string;
+}
+
+/** '' | 'x' | '/x' | '/x/' → '' | '/x'. */
+export function normaliseBasePath(basePath: string): string {
+  const trimmed = basePath.trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
 }
 
 /** Row shape this module needs — a subset of a `Properties` collection row. */
@@ -119,7 +131,7 @@ export function buildLocationTree(
   rows: PropertyRowLike[],
   opts: BuildTreeOptions = {},
 ): NavState[] {
-  const { basePath = '' } = opts;
+  const base = normaliseBasePath(opts.basePath ?? '');
   const states = new Map<string, { label: string; cities: Map<string, { label: string; properties: NavProperty[] }> }>();
 
   for (const row of rows) {
@@ -143,7 +155,7 @@ export function buildLocationTree(
       id: str(row.id),
       // Real name first — see the header note on stale slugs.
       label: str(row.name) || propertySlugLabel(parsed.property),
-      href: `${basePath}/${slug}`,
+      href: `${base}/${slug}`,
       slug,
     });
   }
