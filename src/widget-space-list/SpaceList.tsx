@@ -3,7 +3,10 @@ import { createPortal } from 'react-dom';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import cfg from './config.json';
-import { fetchSpaceGroups, mapApiToUnits } from './api';
+import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
+import { resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { PropertyIdProvider } from './propertyContext';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
   DEFAULT_FILTERS,
@@ -57,6 +60,11 @@ export function SpaceList({
   instorePriceLabel = 'IN-STORE',
   instorePriceMode = 'percentOfWeb',
   instorePriceAmount = 0,
+  enablePromoLogic = false,
+  // Dynamic-page bindings — see types.ts and @shared/propertyBinding.
+  propertyId,
+  companyId,
+  spaceGroupId,
   showJunkFeeDisclaimer = false,
   junkFeeCopy = '',
   showUrgencyMessage = true,
@@ -151,29 +159,91 @@ export function SpaceList({
       const n = Number(instorePriceAmount);
       return Number.isFinite(n) && n > 0 ? n : 0;
     })(),
+    // Duda toggles can arrive as the strings 'true'/'false', so coerce rather than
+    // trusting truthiness ('false' is truthy).
+    enablePromoLogic: enablePromoLogic === true || enablePromoLogic === 'true',
     contactPhone: propertyExtras?.phones[0]?.number ?? '',
     facilityName: propertyExtras?.name ?? '',
   };
 
-  useEffect(() => {
-    fetchSpaceGroups()
-      .then((raw) => {
-        const mapped = mapApiToUnits(raw);
-        setLiveUnits(mapped);
-      })
-      .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
-      .finally(() => setLoading(false));
-  }, []);
+  // Effective property for this instance: the dynamic-page binding if the editor
+  // connected one, else the config.json default.
+  const effectivePropertyId = resolvePropertyId({ propertyId }, cfg.propertyId);
+
+  // The company id is site DATA, not build output: it comes from the one-row
+  // `Company` collection so this same bundle can serve every site we spin up from
+  // the template. Async (a collection read), hence state rather than a plain call.
+  // null = not resolved yet; the data effects below wait for it rather than firing
+  // against config.json's company and then re-firing against the real one.
+  const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetchProperties()
+    resolveCompanyIdFromSources('#05 space-list', { companyId }, cfg.companyId)
+      .then((id) => { if (!cancelled) setEffectiveCompanyId(id); })
+      .catch((err) => {
+        console.error('[SpaceList] company id resolve error:', err);
+        // Never leave the widget stuck on the skeleton — fall back to the build-time id.
+        if (!cancelled) setEffectiveCompanyId(cfg.companyId);
+      });
+    return () => { cancelled = true; };
+  }, [companyId]);
+
+  // Is this instance pointed somewhere other than the configured facility? Then the
+  // configured space group belongs to a DIFFERENT property and must never be used —
+  // it would list another facility's units and prices.
+  const isDynamicTarget =
+    effectivePropertyId !== cfg.propertyId || effectiveCompanyId !== cfg.companyId;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    // Wait for the Company collection read; the skeleton stays up meanwhile, which
+    // is why this can't just fall back to cfg.companyId and correct itself later.
+    if (effectiveCompanyId === null) return;
+
+    // Resolve the space group before asking for units. It is per-property, REST-only
+    // and not on the Properties collection, so it can't be bound: an explicit
+    // spaceGroupId pins it, otherwise we list the property's groups and take the one
+    // named "Website Group" (see @shared/spaceGroups — the public list is not always
+    // first, and picking "Revenue Management"/"test" would publish wrong prices).
+    // An EMPTY cfg.spaceGroupId also triggers discovery, so config.json can simply
+    // omit it rather than carrying a value that has to be kept in step with
+    // propertyId by hand (getting that pair out of step 404s the whole widget).
+    const resolveGroup = spaceGroupId
+      ? Promise.resolve(spaceGroupId)
+      : isDynamicTarget || !cfg.spaceGroupId
+        ? fetchWebsiteSpaceGroupId(effectivePropertyId, effectiveCompanyId)
+        : Promise.resolve(cfg.spaceGroupId);
+
+    resolveGroup
+      .then((sg) => {
+        // No website group and nothing configured for THIS property: render empty
+        // rather than falling back to the configured group, which belongs to another
+        // facility. spaceGroups.ts has already logged why it found none.
+        if (!sg) {
+          if (!cancelled) setLiveUnits([]);
+          return null;
+        }
+        return fetchSpaceGroups(effectivePropertyId, sg, effectiveCompanyId);
+      })
+      .then((raw) => { if (raw && !cancelled) setLiveUnits(mapApiToUnits(raw)); })
+      .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [effectivePropertyId, effectiveCompanyId, spaceGroupId, isDynamicTarget]);
+
+  useEffect(() => {
+    if (effectiveCompanyId === null) return;
+    let cancelled = false;
+    // Trust-check only against a Duda-bound id; see resolveRequireId.
+    fetchProperties(resolveRequireId({ propertyId }, cfg.propertyId), effectiveCompanyId)
       .then((raw) => {
-        if (!cancelled) setPropertyExtras(extractPropertyExtras(raw));
+        if (!cancelled) setPropertyExtras(extractPropertyExtras(raw, effectivePropertyId));
       })
       .catch((err) => console.error('[SpaceList] fetchProperties error:', err));
     return () => { cancelled = true; };
-  }, []);
+  }, [effectivePropertyId, effectiveCompanyId]);
 
   const units = liveUnits;
 
@@ -345,6 +415,7 @@ export function SpaceList({
   // Filters are always a top bar inside the listing column; the accordion panel
   // sits on whichever side apLocation specifies.
   return (
+    <PropertyIdProvider propertyId={effectivePropertyId}>
     <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
       <div className="sl-heading">
         <p className="sl-select-heading">Select a Space {totalVacant > 0 && `— ${totalVacant} Available`}</p>
@@ -392,5 +463,6 @@ export function SpaceList({
         />
       )}
     </div>
+    </PropertyIdProvider>
   );
 }

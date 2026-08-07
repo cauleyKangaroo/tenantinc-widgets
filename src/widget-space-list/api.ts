@@ -1,6 +1,8 @@
 import type { Unit, UnitSize } from './types';
 import cfg from './config.json';
 import { spaceImageFor } from './spaceImages';
+import { fetchWebsiteSpaceGroupId as findWebsiteSpaceGroupId } from '@shared/spaceGroups';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
 
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
@@ -52,8 +54,21 @@ interface ApiTier {
    * `promoId` — keep working whichever way the API goes. Mirrors
    * `tierPromos` in widget-promotions/api.ts.
    */
-  promo?: Array<{ id?: string; name?: string }>;
-  allocated_promo?: { id?: string; name?: string } | Record<string, never>;
+  promo?: ApiPromoEntry[];
+  allocated_promo?: ApiPromoEntry | Record<string, never>;
+}
+
+/**
+ * A tier's promotion. `value` is the discount amount, but `type` is 'regular' on
+ * every promo the API returns (it used to be 'fixed' | 'percent'), so type alone
+ * CANNOT tell us whether value is a percentage or an amount in dollars — see
+ * promoKindFromName below.
+ */
+interface ApiPromoEntry {
+  id?: string;
+  name?: string;
+  type?: string;
+  value?: number;
 }
 
 interface ApiGroup {
@@ -117,7 +132,32 @@ function amenityLabel(a: ApiAmenity): string {
  * note on ApiTier). Empty tiers send `promo: []` / `allocated_promo: {}`,
  * neither of which counts; only an entry with an id does.
  */
-function tierPromo(tier: ApiTier): { id?: string; name?: string } | null {
+/**
+ * Is the promo's `value` a percentage or a flat move-in price?
+ *
+ * The API can't tell us: `type` is 'regular' on every promo, and the two live
+ * shapes are "$1 MOVE IN SPECIAL" (value 1 = one dollar) and "50% OFF FIRST
+ * MONTH" (value 50 = fifty percent). The NAME is the only signal that survives,
+ * so we read the symbol out of it:
+ *
+ *   name contains '%' → 'percent'  → rate = starting x (1 - value/100)
+ *   name contains '$' → 'fixed'    → rate = value  (the promo IS the price)
+ *   neither           → null       → no promo rate; the card shows the normal
+ *                                    single price rather than inventing a number.
+ *
+ * Deliberately conservative: mis-reading a $1 move-in as 1% off would print a
+ * wrong price on a live site, which is worse than showing no promo rate at all.
+ * The proper fix is upstream — `promotion_sell_rate` is null on every tier today;
+ * once the API populates it we use that and this heuristic stops mattering.
+ */
+function promoKindFromName(name: string | undefined): 'percent' | 'fixed' | null {
+  if (!name) return null;
+  if (name.includes('%')) return 'percent';
+  if (name.includes('$')) return 'fixed';
+  return null;
+}
+
+function tierPromo(tier: ApiTier): ApiPromoEntry | null {
   const fromArray = tier.promo?.find((p) => p && p.id);
   if (fromArray) return fromArray;
   const legacy = tier.allocated_promo;
@@ -210,6 +250,13 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           startingPrice,
           promoId: promo?.id,
           promo: promo?.name || undefined,
+          // Promo pricing inputs for `enablePromoLogic` (see promoRate in
+          // components/Pricing.tsx). promotionPrice is the API's own computed
+          // figure and wins when present — it's null on every tier today, which
+          // is why the value/kind pair exists as the fallback.
+          promotionPrice: tier.promotion_sell_rate ?? undefined,
+          promoValue: typeof promo?.value === 'number' ? promo.value : undefined,
+          promoKind: promoKindFromName(promo?.name) ?? undefined,
         });
       }
     }
@@ -222,8 +269,30 @@ export function mapApiToUnits(raw: unknown): Unit[] {
 // Fetch
 // ---------------------------------------------------------------------------
 
-export async function fetchSpaceGroups(): Promise<unknown> {
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties/${PROPERTY_ID}/space-groups/${SPACE_GROUP_ID}/groups`;
+/**
+ * Unit tiers for one property's space group.
+ *
+ * DYNAMIC PAGES: this endpoint is REST-only (there is no space-groups collection),
+ * and it needs ALL THREE ids. `propertyId` can be bound to `Properties > id`, but
+ * `spaceGroupId` CANNOT — it is not a column on the properties collection, and
+ * every property has a different one (plus 2–4 non-website groups to choose
+ * wrongly from). So on a dynamic page `spaceGroupId` has to come from its own
+ * content-menu field, or be discovered with `fetchWebsiteSpaceGroupId` below.
+ *
+ * `companyId` is a parameter for the same reason: a property id only resolves
+ * within its company, and the dynamic-page site's properties belong to a different
+ * company than the configured one. Defaults keep the pre-dynamic-page behaviour for
+ * static pages.
+ */
+export async function fetchSpaceGroups(
+  propertyId: string = PROPERTY_ID,
+  spaceGroupId: string = SPACE_GROUP_ID,
+  companyId?: string,
+): Promise<unknown> {
+  // Omitted → the `Company` collection, never config.json directly. SpaceList
+  // passes its already-resolved id; anything else gets it from the same source.
+  const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${company}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
 
   const res = await fetch(url, {
     headers: {
@@ -233,8 +302,30 @@ export async function fetchSpaceGroups(): Promise<unknown> {
   });
 
   if (!res.ok) {
-    throw new Error(`fetchSpaceGroups failed: ${res.status} ${res.statusText}`);
+    // Include the ids: a 404 here almost always means company/property/space-group
+    // are out of step with each other, and the status alone can't show that.
+    throw new Error(
+      `fetchSpaceGroups failed: ${res.status} ${res.statusText} — ` +
+      `company=${companyId} property=${propertyId} spaceGroup=${spaceGroupId}`,
+    );
   }
 
   return res.json();
+}
+
+/**
+ * The property's public ("Website Group") space group, bound to this widget's own
+ * credentials. See @shared/spaceGroups for why the name is the only usable signal.
+ */
+export async function fetchWebsiteSpaceGroupId(
+  propertyId: string,
+  companyId?: string,
+): Promise<string | null> {
+  // Callers that already resolved the company pass it; anyone else gets it from
+  // the `Company` collection rather than config.json.
+  const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
+  return findWebsiteSpaceGroupId(
+    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: company },
+    propertyId,
+  );
 }

@@ -10,6 +10,7 @@ import {
 
 import { createLead as submitLead, type LeadInput } from '@shared/leadsApi';
 import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
 
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
@@ -19,10 +20,27 @@ const PROPERTY_ID = cfg.propertyId;
 
 export type { LeadInput };
 
-/** "Send us a Message" → create an inquiry lead (shared logic, this widget's creds). */
-export function createLead(input: LeadInput): Promise<unknown> {
+/**
+ * "Send us a Message" → create an inquiry lead (shared logic, this widget's creds).
+ *
+ * The lead must be filed against the property the visitor is actually looking at, so
+ * on a dynamic page the caller passes the bound ids; both fall back to config.json.
+ */
+export async function createLead(
+  input: LeadInput,
+  ids: { propertyId?: string; companyId?: string } = {},
+): Promise<unknown> {
   return submitLead(
-    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: COMPANY_ID, propertyId: PROPERTY_ID },
+    {
+      baseUrl: BASE_URL,
+      appId: APP_ID,
+      apiKey: API_KEY,
+      // Caller's resolved id if it has one, else the `Company` collection —
+      // config.json only as the editor/harness fallback. Filing a lead against the
+      // wrong company would lose the enquiry entirely.
+      companyId: ids.companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID),
+      propertyId: ids.propertyId || PROPERTY_ID,
+    },
     input,
   );
 }
@@ -142,15 +160,24 @@ export function formatPhone(rawNumber: string): string {
  * keyed REST call — both return the same envelope, so extractPropertyExtras below
  * is unchanged. See @shared/propertiesSource.
  */
-export async function fetchProperties(): Promise<unknown> {
-  return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, {
-    requirePropertyId: PROPERTY_ID,
-  });
+export async function fetchProperties(
+  requirePropertyId?: string,
+  companyId?: string,
+): Promise<unknown> {
+  // No PROPERTY_ID default — undefined must mean "no trust check", not "use the
+  // build-time id", which belongs to a different company on this site.
+  return fetchPropertiesPreferCollection(
+    APP_ID,
+    () => fetchPropertiesFromApi(companyId),
+    { requirePropertyId },
+  );
 }
 
-async function fetchPropertiesFromApi(): Promise<unknown> {
+async function fetchPropertiesFromApi(companyId?: string): Promise<unknown> {
+  // Omitted → the `Company` collection; config.json is only the last resort.
+  const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
   const params = 'access_hours=true&amenities=true&unit_type_counts=true&faq=true&social_media=true';
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties?${params}`;
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${company}/properties?${params}`;
 
   const res = await fetch(url, {
     headers: {

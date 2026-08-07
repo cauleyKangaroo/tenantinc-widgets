@@ -164,14 +164,19 @@ export function plainText(v: unknown): string {
 }
 
 /**
- * Coax an image column into a URL. Duda image fields have been seen as a plain
- * string and as an object ({url}/{src}/{path}), so handle both.
+ * Coax an image column OR a content-menu image field into a URL.
+ *
+ * Duda hands images over in several shapes: a plain string, and objects keyed
+ * `url` / `src` / `path` — plus **`image`**, which is what a content-menu image
+ * input and the "Other Images" list actually use (`[{ image: url }, …]`). That key
+ * was missing here, so an image picked in the content menu coerced to '' and the
+ * widget silently fell back to its bundled default.
  */
 export function imageUrl(v: unknown): string {
   if (typeof v === 'string') return v.trim();
   if (v && typeof v === 'object') {
     const o = v as Record<string, unknown>;
-    for (const k of ['url', 'src', 'href', 'path', 'original']) {
+    for (const k of ['image', 'url', 'src', 'href', 'path', 'original']) {
       const hit = o[k];
       if (typeof hit === 'string' && hit.trim()) return hit.trim();
     }

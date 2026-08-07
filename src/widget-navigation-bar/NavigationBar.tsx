@@ -24,6 +24,8 @@ import {
   SearchIcon,
 } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID } from '@shared/propertyContact';
+import { fetchLocationTree, type NavState } from '@shared/propertyNav';
+import { imageUrl } from '@shared/dudaCollections';
 
 // ---------------------------------------------------------------------------
 // Types + defaults
@@ -149,6 +151,10 @@ function resolveLogoLink(link?: string): string {
   return link;
 }
 const FACILITY_URL = 'https://mariposa26-testing.multiscreensite.com/property-landing-page';
+/** The Duda dynamic property pages live under this path — see locationBasePath. */
+const DEFAULT_LOCATION_BASE_PATH = '/storage-units';
+/** Where the pinned "All Locations" row points. */
+const ALL_LOCATIONS_URL = '#';
 const IRVINE_LABEL = 'Irvine';
 const FACILITY_LABEL = '5281 California';
 
@@ -170,6 +176,28 @@ function forceHardcodedLinks<T extends { label: string; href?: string; children?
       ...(item.menu ? { menu: forceHardcodedLinks(item.menu) } : null),
     };
   });
+}
+
+/**
+ * Turn the collection-derived location tree into Find Storage's menu.
+ *
+ * state → first-level row, city → second level, property → third. State and city
+ * rows are not links: there are no state or city pages, and giving them a real
+ * href would 404. "All Locations" stays pinned to the top.
+ */
+function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
+  return [
+    { label: 'All Locations', href: ALL_LOCATIONS_URL },
+    ...tree.map((state) => ({
+      label: state.label,
+      href: '#',
+      children: state.cities.map((city) => ({
+        label: city.label,
+        href: '#',
+        children: city.properties.map((prop) => ({ label: prop.label, href: prop.href })),
+      })),
+    })),
+  ];
 }
 
 /** Build the default nav, injecting Irvine + its "5281 California" facility
@@ -203,7 +231,14 @@ function buildDefaultLinks(): NavLink[] {
 // ---------------------------------------------------------------------------
 
 export interface NavigationBarProps {
-  /** Override the bundled storelocal logo with a custom image URL. */
+  /**
+   * Content-menu IMAGE input (`logoImage`) — the way an editor sets the logo.
+   * Typed `unknown` because Duda doesn't hand images over in one shape: it may be
+   * a plain URL string or an object keyed `image` / `url` / `src`, so it goes
+   * through `imageUrl()` rather than being trusted. Wins over `logoUrl`.
+   */
+  logoImage?: unknown;
+  /** Override the bundled storelocal logo with a custom image URL (plain string). */
   logoUrl?: string;
   /**
    * Click destination for the logo (Duda link picker). An editor url or '#' is
@@ -249,9 +284,17 @@ export interface NavigationBarProps {
   /** External URL for the My Account item (from the "Enable external URLs" group). */
   accountUrl?: string;
   links?: NavLink[];
+  /**
+   * Path the property pages live under, prefixed to each Find Storage link built
+   * from a property's `slug`. Defaults to the live layout, `/storage-units`, so
+   * a link reads "/storage-units/california/bellflower/…". Pass '' for links off
+   * the site root. Leading/trailing slashes are normalised.
+   */
+  locationBasePath?: string;
 }
 
 export function NavigationBar({
+  logoImage,
   logoUrl,
   logoBg = 'transparent',
   height = 'narrow',
@@ -275,9 +318,15 @@ export function NavigationBar({
   logoLink,
   links,
   propertyId = DEFAULT_PROPERTY_ID,
+  locationBasePath = DEFAULT_LOCATION_BASE_PATH,
 }: NavigationBarProps) {
   // Logo destination, with Duda's editor url filtered out (see resolveLogoLink).
   const homeLink = resolveLogoLink(logoLink);
+
+  // Logo source: the content-menu image input first, then the plain-url prop, then
+  // the bundled mark. `||` not `??` on purpose — Duda leaves an untouched field as
+  // '', which `??` would happily pass to <img src=""> and render as broken.
+  const logoSrc = imageUrl(logoImage) || (logoUrl ?? '').trim() || storelocalLogo;
 
   const [menuOpen, setMenuOpen] = useState(false);
   // Desktop hover mega-menu: which top-level link is open, and which of its
@@ -305,15 +354,42 @@ export function NavigationBar({
     return () => { cancelled = true; };
   }, [propertyId]);
 
+  // Find Storage, built from the `Properties` collection: state › city › facility,
+  // grouped off each property's `slug`. Empty until it loads, and empty for good in
+  // the Duda editor and the dev harness (no dmAPI) — both keep the hardcoded menu.
+  const [locationTree, setLocationTree] = useState<NavState[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchLocationTree('#02 nav', { basePath: locationBasePath })
+      .then((tree) => { if (!cancelled) setLocationTree(tree); })
+      .catch((err) => console.error('[NavigationBar] location tree error:', err));
+    return () => { cancelled = true; };
+  }, [locationBasePath]);
+
   const displayPhone = livePhone?.phone || phone;
   const telHref = phoneHref ?? `tel:${(livePhone?.digits || displayPhone).replace(/[^0-9+]/g, '')}`;
   // The SMS / "message" utility item was removed at the client's request — the
   // phone entry above is the only contact number in the bar now. (Live Chat is a
   // separate item, still controlled by `showChat`.)
-  // Full override via `links`, else the default nav. Either way the two
-  // hardcoded destinations are re-applied so a Duda-supplied editor URL can't
-  // replace them.
-  const linkList = forceHardcodedLinks(links ?? buildDefaultLinks());
+  // Full override via `links`, else the default nav. The two hardcoded
+  // destinations are re-applied so a Duda-supplied editor URL can't replace them.
+  //
+  // Deliberately NOT applied to the collection-built menu below: those hrefs come
+  // from property slugs, not from Duda, so there is no editor URL to defend
+  // against — and forceHardcodedLinks matches on LABEL, so a real city called
+  // "Irvine" would have its link rewritten to the hardcoded testing URL. The live
+  // data contains exactly that city.
+  const baseLinks = forceHardcodedLinks(links ?? buildDefaultLinks());
+
+  // Swap Find Storage's menu for the live one once the collection answers. An
+  // explicit `links` override still wins — that's the caller taking full control.
+  const linkList: NavLink[] =
+    locationTree.length && !links
+      ? baseLinks.map((l) =>
+          l.label === 'Find Storage' ? { ...l, menu: locationTreeToMenu(locationTree) } : l,
+        )
+      : baseLinks;
 
   // Recursively render mobile sub-levels: a leaf is a link; a node with children
   // becomes a nested accordion toggle. Each deeper level indents 16px.
@@ -521,7 +597,7 @@ export function NavigationBar({
         <div className="nav-inner">
           {logoMode === 'inline' && (
             <a className="nav-logo-inline" href={homeLink} aria-label="Home">
-              <img className="nav-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
+              <img className="nav-logo-img" src={logoSrc} alt="storelocal storage" />
             </a>
           )}
           <div className="nav-right">
@@ -539,7 +615,7 @@ export function NavigationBar({
           so it never overlaps the nav content. Only in 'banner' mode. */}
       {logoMode === 'banner' && (
         <a className="nav-logo" href={homeLink} style={{ background: logoBg }} aria-label="Home">
-          <img className="nav-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
+          <img className="nav-logo-img" src={logoSrc} alt="storelocal storage" />
         </a>
       )}
 
@@ -550,7 +626,7 @@ export function NavigationBar({
         <div className="nav-mm-panel">
           <div className="nav-mm-header">
             <a className="nav-mm-logo" href={homeLink} aria-label="Home">
-              <img className="nav-mm-logo-img" src={logoUrl ?? storelocalLogo} alt="storelocal storage" />
+              <img className="nav-mm-logo-img" src={logoSrc} alt="storelocal storage" />
             </a>
             <button className="nav-mm-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
               <CloseIcon size={24} />
