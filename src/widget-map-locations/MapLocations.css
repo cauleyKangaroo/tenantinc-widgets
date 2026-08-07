@@ -1,0 +1,153 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* ── Root ──────────────────────────────────────────────────────────────── */
+
+.ml-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  max-width: 1330px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  color: #101318;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding-inline: clamp(16px, 4vw, 40px);
+}
+
+.ml-wrapper *,
+.ml-wrapper *::before,
+.ml-wrapper *::after {
+  box-sizing: border-box;
+}
+
+/* ── Heading ───────────────────────────────────────────────────────────── */
+
+.ml-heading-block {
+  text-align: center;
+  width: 100%;
+}
+
+.ml-title {
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0 0 13px;
+  text-wrap: balance;
+}
+
+.ml-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.4;
+  margin: 0;
+  color: #101318;
+}
+
+/* ── Map + list ────────────────────────────────────────────────────────── */
+
+/* Map takes the slack, the list keeps a readable fixed column. */
+.ml-row {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.ml-map {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.ml-list {
+  flex: 0 0 380px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* Long city = long list; keep it beside the map rather than pushing the page.
+     Tracks the map's height via the custom property the component sets, so the
+     two columns stay level whatever `mapHeight` is. */
+  max-height: var(--ml-map-h, 420px);
+  overflow-y: auto;
+}
+
+/* ── Location card ─────────────────────────────────────────────────────── */
+
+.ml-card {
+  background: #fff;
+  border: 1px solid #dfe3e8;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ml-card.is-active {
+  border-color: #101318;
+  box-shadow: 0 4px 10px rgba(71, 84, 116, 0.12);
+}
+
+.ml-card-name {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+  color: #101318;
+}
+
+.ml-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #637381;
+  text-decoration: none;
+}
+
+.ml-card-row svg { flex-shrink: 0; margin-top: 2px; }
+.ml-card-row:hover { color: #101318; }
+
+.ml-card-cta {
+  align-self: flex-start;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color_1, #f45f30);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ml-empty {
+  text-align: center;
+  font-size: 16px;
+  color: #637381;
+  margin: 0;
+  padding: 40px 0;
+}
+
+/* ── Mobile ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .ml-wrapper { gap: 24px; }
+
+  /* Standard widget mobile title: 36px / 1.2 / 700 — matches .faq-title in #10,
+     the reference every widget title follows. */
+  .ml-title { font-size: 36px; line-height: 1.2; }
+  .ml-subtitle { font-size: 15px; }
+
+  /* Map above the list, both full width. */
+  .ml-row { flex-direction: column; }
+  .ml-map { width: 100%; }
+  .ml-list {
+    flex: 1 1 auto;
+    width: 100%;
+    max-height: none;
+    overflow-y: visible;
+  }
+}

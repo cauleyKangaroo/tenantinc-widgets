@@ -12,6 +12,7 @@ const widgetEntries = {
   'widget-space-list':       './src/widget-space-list/index.tsx',       // #05
   'widget-promotions':       './src/widget-promotions/index.tsx',       // #06
   'widget-nearby-locations': './src/widget-nearby-locations/index.tsx', // #07
+  'widget-map-locations':    './src/widget-map-locations/index.tsx',    // #08
   'widget-reviews':          './src/widget-reviews/index.tsx',          // #09
   'widget-faqs':             './src/widget-faqs/index.tsx',             // #10
   'widget-size-guide':       './src/widget-size-guide/index.tsx',       // #11

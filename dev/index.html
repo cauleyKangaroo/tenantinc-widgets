@@ -48,6 +48,7 @@
     <button class="page-tab active" data-page="property" onclick="showPage('property')">Property Landing Page</button>
     <button class="page-tab" data-page="value-tiers" onclick="showPage('value-tiers')">Value Tiers page</button>
     <button class="page-tab" data-page="rental-flow" onclick="showPage('rental-flow')">Rental Flow</button>
+    <button class="page-tab" data-page="city" onclick="showPage('city')">City page</button>
   </div>
 
   <div id="page-property" class="page">
@@ -288,6 +289,40 @@
 
   </div><!-- /#page-rental-flow -->
 
+  <div id="page-city" class="page" hidden>
+
+    <!-- ── widget-map-locations ─────────────────────────────────────────── -->
+    <div class="widget-section">
+      <h2>widget-map-locations (#08)</h2>
+      <div id="map-locations-container" class="widget-container"></div>
+
+      <div class="controls">
+        <div class="controls-group">
+          <span class="controls-group-label">City page</span>
+          <label>
+            City filter:
+            <input id="ml-city" type="text" placeholder="(blank = all facilities)"
+              style="width:170px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+              oninput="reinitMapLocations()" />
+          </label>
+          <label>
+            Heading:
+            <input id="ml-heading" type="text" value="Our Locations"
+              style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+              oninput="reinitMapLocations()" />
+          </label>
+          <label>
+            Map height:
+            <input id="ml-map-height" type="number" value="420" min="200" step="20"
+              style="width:80px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+              oninput="reinitMapLocations()" />
+          </label>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /#page-city -->
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
   <script>
     // Dev bundles are large and served uncompressed, so the default 7s require.js
@@ -298,7 +333,7 @@
   <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
     // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
-    var PAGES = ['property', 'value-tiers', 'rental-flow'];
+    var PAGES = ['property', 'value-tiers', 'rental-flow', 'city'];
 
     function showPage(name, skipUrl) {
       if (PAGES.indexOf(name) === -1) name = 'property';
@@ -470,6 +505,34 @@
 
     require(['/dist/widget-rental-flow-2step.js'], function (widget) {
       widget.init({ container: document.getElementById('rental-flow-2step-container'), props: {} });
+    });
+
+    // ── City page: #08 map-locations ─────────────────────────────────────
+    var mapLocationsWidget = null;
+
+    function getMapLocationsProps() {
+      return {
+        city:      document.getElementById('ml-city').value,
+        heading:   document.getElementById('ml-heading').value,
+        mapHeight: Number(document.getElementById('ml-map-height').value) || 420,
+      };
+    }
+
+    function reinitMapLocations() {
+      if (!mapLocationsWidget) return;
+      mapLocationsWidget.clean();
+      mapLocationsWidget.init({
+        container: document.getElementById('map-locations-container'),
+        props: getMapLocationsProps(),
+      });
+    }
+
+    require(['/dist/widget-map-locations.js'], function (widget) {
+      mapLocationsWidget = widget;
+      widget.init({
+        container: document.getElementById('map-locations-container'),
+        props: getMapLocationsProps(),
+      });
     });
   </script>
 

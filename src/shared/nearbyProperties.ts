@@ -34,6 +34,9 @@ export interface NearbyBaseProperty {
   lat: number;
   lng: number;
   address: string;
+  /** Raw city/state off the Address object — for filtering (see #08 map-locations). */
+  city?: string;
+  state?: string;
   phone: string;
   /** First facility photo URL from the API, if any (else undefined → placeholder). */
   imageUrl?: string;
@@ -199,6 +202,10 @@ export function extractNearbyProperties(raw: unknown, appId: string): NearbyBase
       lat: addr.lat,
       lng: addr.lng,
       address: buildAddress(addr),
+      // Kept separate from the formatted address so a city page can filter on it
+      // exactly, rather than substring-matching "…, Irvine, CA 92620".
+      city: (addr.city ?? '').trim(),
+      state: (addr.state ?? '').trim(),
       phone: firstPhone ? formatPhone(firstPhone.phone ?? firstPhone.number ?? '') : '',
       imageUrl: firstImageUrl(p.Images),
     });
