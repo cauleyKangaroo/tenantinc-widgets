@@ -981,7 +981,8 @@
 .ts-pill-strike { display: block; font-size: 13px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.2; }
 .ts-pill-promo { display: block; font-size: 18px; font-weight: 700; color: #101318; line-height: 1.3; }
 .ts-cell-strike { font-size: 15px; font-weight: 400; text-decoration: line-through; color: #637381; }
-.ts-o2-price--promo, .ts-o3-price--promo { display: flex; align-items: flex-end; justify-content: center; gap: 16px; }
-.ts-o2-promo-label, .ts-o3-promo-label { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; color: #637381; text-transform: uppercase; }
-.ts-o2-strike, .ts-o3-strike { display: block; font-size: 18px; font-weight: 400; text-decoration: line-through; color: #637381; }
+.ts-o2-price--promo, .ts-o3-price--promo { display: flex; align-items: stretch; justify-content: center; gap: 20px; }
+.ts-o2-promo-std, .ts-o2-promo-rate, .ts-o3-promo-std, .ts-o3-promo-rate { display: flex; flex-direction: column; justify-content: space-between; text-align: center; }
+.ts-o2-promo-label, .ts-o3-promo-label { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; color: #637381; text-transform: uppercase; line-height: 1.5; }
+.ts-o2-strike, .ts-o3-strike { display: block; font-size: 18px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.2; }
 .ts-o2m-strike { font-size: 14px; font-weight: 400; text-decoration: line-through; color: #637381; }
