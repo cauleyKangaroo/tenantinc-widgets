@@ -6,8 +6,8 @@ import {
   type TierContext,
 } from './api';
 import { Shimmer } from '@shared/Shimmer';
-import { resolvePropertyId } from '@shared/propertyBinding';
-import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { resolveCompanyId, resolvePropertyId } from '@shared/propertyBinding';
+import { hasCollectionsApi } from '@shared/dudaCollections';
 import {
   CheckIcon,
   CheckCircle,
@@ -121,7 +121,7 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
   const tiers: Tier[] = slots.map((k) => {
     const b = bySlot[k];
     if (!b) {
-      return { key: k, name: soldOutLabel.get(k) ?? k[0].toUpperCase() + k.slice(1), tagline: TAGLINES[k], price: 0, hours: '', online: 0, inStore: 0, summary: 'Sold Out', features: [], soldOut: true };
+      return { key: k, name: soldOutLabel.get(k) ?? k[0].toUpperCase() + k.slice(1), tagline: TAGLINES[k], price: 0, hours: '', summary: 'Sold Out', features: [], soldOut: true };
     }
     return {
       key: k,
@@ -129,8 +129,7 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
       tagline: TAGLINES[k],
       price: b.price,
       hours: b.features.some((f) => HOURS_24_RE.test(f)) ? '24 Hours' : facilityHours ?? '',
-      online: b.online,
-      inStore: b.inStore,
+      promoRate: b.promoRate,
       summary: b.features[0] ?? TAGLINES[k],
       promo: b.promo,
       features: b.features.slice(0, 6),
@@ -162,6 +161,7 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
     name: t.name,
     tagline: t.tagline,
     price: t.price,
+    promoRate: t.promoRate,
     popular: i === popularIdx,
     promo: t.promo,
     soldOut: t.soldOut,
@@ -173,6 +173,7 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
     name: t.name,
     tagline: t.tagline,
     price: t.price,
+    promoRate: t.promoRate,
     popular: i === popularIdx,
     promo: t.promo,
     soldOut: t.soldOut,
@@ -391,23 +392,17 @@ export function TierSelection({
   const sizeProp = mode === 'modal' ? modalSize : sizeRaw;
   const authoritativeGroupId = mode === 'modal' ? modalUnitGroupId : unitGroupIdProp;
 
-  const cfgDefaults = React.useMemo(() => defaultContext(), []);
-  const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp }, cfgDefaults.propertyId);
-  const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    resolveCompanyIdFromSources('#14 tier-selection', { companyId: companyIdProp }, cfgDefaults.companyId)
-      .then((id) => { if (!cancelled) setEffectiveCompanyId(id); })
-      .catch((err) => {
-        console.error('[TierSelection] company id resolve error:', err);
-        if (!cancelled) setEffectiveCompanyId(cfgDefaults.companyId);
-      });
-    return () => { cancelled = true; };
-  }, [companyIdProp, cfgDefaults.companyId]);
-  const ctx: TierContext = React.useMemo(
-    () => ({ propertyId: effectivePropertyId, companyId: effectiveCompanyId ?? '' }),
-    [effectivePropertyId, effectiveCompanyId],
-  );
+  // One resolved facility context for every proxy call (config defaults,
+  // prop overrides) — same facility context for every call.
+  const ctx: TierContext = React.useMemo(() => {
+    const d = defaultContext();
+    const bound = { propertyId: propertyIdProp, companyId: companyIdProp };
+    const fallback = hasCollectionsApi() ? { propertyId: '', companyId: '' } : d;
+    return {
+      propertyId: resolvePropertyId(bound, fallback.propertyId),
+      companyId: resolveCompanyId(bound, fallback.companyId),
+    };
+  }, [propertyIdProp, companyIdProp]);
 
   // Modal open requests from the Space List — validated and scoped to this
   // widget's property; accepting acknowledges the sender.
@@ -462,9 +457,10 @@ export function TierSelection({
     requested.current.clear();
     setSelected('better');
     setPastDelay(false);
-    if (effectiveCompanyId === null) return () => { cancelled = true; };
+    // Fail visibly if the Duda shim didn't supply the runtime config —
+    // no localhost fallback, no default facility.
     if (!ctx.propertyId || !ctx.companyId) {
-      console.error('[TierSelection] not configured — propertyId and companyId are required');
+      console.error('[TierSelection] not configured — propertyId and companyId are required (bind them on a published page)');
       setStatus('unavailable');
       return () => { cancelled = true; };
     }
@@ -538,7 +534,7 @@ export function TierSelection({
     // changes when a different card is clicked. The proxy's own ~15s offers
     // cache may still serve a very recent response — the uncached move-in quote
     // is the authoritative money figure.
-  }, [mode, inEditor, siteId, elementId, sizeProp, authoritativeGroupId, openGen, ctx, tierProp, defaultTier, effectiveCompanyId]);
+  }, [mode, inEditor, siteId, elementId, sizeProp, authoritativeGroupId, openGen, ctx, tierProp, defaultTier]);
 
   useEffect(() => {
     if (status === 'live' && variant === 'option1') ensureQuote(selected);
@@ -692,6 +688,7 @@ function QuoteStateNote({ state }: { state: { status: string } }) {
 }
 
 const lineAmt = (n: number) => (n < 0 ? `−$ ${Math.abs(n).toFixed(2)}` : `$ ${n.toFixed(2)}`);
+const priceFmt = (n: number) => (Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`);
 
 function BreakdownRows({ tierKey }: { tierKey: TierKey }) {
   const state = useTierData().quotes?.[tierKey];
@@ -760,7 +757,16 @@ function Pills({ selected, setSelected, tiers: tiersProp }: { selected: TierKey;
           <span className="ts-pill-name">{t.name}</span>
           <span className="ts-pill-tag">{t.soldOut ? 'Sold Out' : t.tagline}</span>
           <span className="ts-pill-divider" />
-          <span className="ts-pill-price">{t.soldOut ? '—' : `$${t.price}/mo.`}</span>
+          {t.soldOut ? (
+            <span className="ts-pill-price">—</span>
+          ) : t.promoRate != null ? (
+            <span className="ts-pill-price">
+              <span className="ts-pill-strike">{priceFmt(t.price)}/mo.</span>
+              <span className="ts-pill-promo">{priceFmt(t.promoRate)}</span>
+            </span>
+          ) : (
+            <span className="ts-pill-price">{priceFmt(t.price)}/mo.</span>
+          )}
         </button>
       ))}
     </div>
@@ -800,7 +806,7 @@ function PricingDetails({ price, className, tierKey }: { price: number; classNam
           <div className="ts-pd-inner">
             <div className="ts-pd-row">
               <span className="ts-pd-label"><span>Monthly Rent</span><InfoCircle size={15} className="ts-pd-info" /></span>
-              <span className="ts-pd-amt">$ {price}.00</span>
+              <span className="ts-pd-amt">$ {price.toFixed(2)}</span>
             </div>
             {quote ? (
               <>
@@ -846,7 +852,11 @@ function PricingDetails({ price, className, tierKey }: { price: number; classNam
 // Desktop comparison-table cell (large price, starred hours, 24px ticks).
 function Cell({ row, tier }: { row: FeatureRow; tier: Tier }) {
   if (tier.soldOut) return row.type === 'price' ? <span className="ts-cell-price ts-cell-soldout">Sold Out</span> : null;
-  if (row.type === 'price') return <span className="ts-cell-price">${tier.price}/mo</span>;
+  if (row.type === 'price') {
+    return tier.promoRate != null ? (
+      <span className="ts-cell-price"><span className="ts-cell-strike">{priceFmt(tier.price)}/mo</span> {priceFmt(tier.promoRate)}</span>
+    ) : <span className="ts-cell-price">{priceFmt(tier.price)}/mo</span>;
+  }
   if (row.type === 'hours') {
     return (
       <span className="ts-cell-hours">
@@ -1016,19 +1026,23 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, promo
             <div className="ts-card-top-right">
               <a className="ts-card-change" href="#">Change Space</a>
               <div className="ts-card-prices">
-                {tier.inStore > tier.online && (
+                {tier.promoRate != null ? (
                   <>
                     <div className="ts-price-instore">
-                      <span className="ts-price-label">IN-STORE</span>
-                      <span className="ts-price-strike">${tier.inStore}</span>
+                      <span className="ts-price-label">STANDARD</span>
+                      <span className="ts-price-strike">{priceFmt(tier.price)}</span>
                     </div>
                     <span className="ts-price-sep" />
+                    <div className="ts-price-online">
+                      <span className="ts-price-label">PROMO RATE</span>
+                      <span className="ts-price-amount">{priceFmt(tier.promoRate)}</span>
+                    </div>
                   </>
+                ) : (
+                  <div className="ts-price-online">
+                    <span className="ts-price-amount">{priceFmt(tier.price)}</span>
+                  </div>
                 )}
-                <div className="ts-price-online">
-                  <span className="ts-price-label">ONLINE</span>
-                  <span className="ts-price-amount">${tier.online}</span>
-                </div>
               </div>
             </div>
           </div>
@@ -1125,16 +1139,16 @@ function MobileLayout({
 
       <button type="button" className="ts-select-btn ts-m-select" onClick={() => selectTier?.(selected)}>{ctaLabel ?? 'Select'}</button>
 
-      {tier.inStore > tier.online && (
+      {tier.promoRate != null && (
         <div className="ts-m-rates">
           <div className="ts-price-instore">
-            <span className="ts-price-label">IN-STORE</span>
-            <span className="ts-price-strike">${tier.inStore}</span>
+            <span className="ts-price-label">STANDARD</span>
+            <span className="ts-price-strike">{priceFmt(tier.price)}</span>
           </div>
           <span className="ts-price-sep" />
           <div className="ts-price-online">
-            <span className="ts-price-label">ONLINE</span>
-            <span className="ts-price-amount">${tier.online}</span>
+            <span className="ts-price-label">PROMO RATE</span>
+            <span className="ts-price-amount">{priceFmt(tier.promoRate)}</span>
           </div>
         </div>
       )}
@@ -1197,7 +1211,11 @@ function MobileLayout({
 // Mobile comparison-table cell (compact 12px text, no star, 22px ticks).
 function MobileCell({ row, tier }: { row: FeatureRow; tier: Tier }) {
   if (tier.soldOut) return row.type === 'price' ? <span className="ts-mt-text ts-cell-soldout">Sold Out</span> : null;
-  if (row.type === 'price') return <span className="ts-mt-text">${tier.price}</span>;
+  if (row.type === 'price') {
+    return tier.promoRate != null ? (
+      <span className="ts-mt-text"><span className="ts-cell-strike">{priceFmt(tier.price)}</span> {priceFmt(tier.promoRate)}</span>
+    ) : <span className="ts-mt-text">{priceFmt(tier.price)}</span>;
+  }
   if (row.type === 'hours') return <span className="ts-mt-text">{tier.hours}</span>;
   return row[tier.key] ? <CheckIcon size={22} className="ts-mt-check" /> : null;
 }
@@ -1278,10 +1296,23 @@ function O2Card({ card }: { card: O2Tier }) {
 
       <div className="ts-o2-foot">
         <div className="ts-o2-foot-top">
-          <div className="ts-o2-price">
-            <span className="ts-o2-amt">${card.price}</span>
-            <span className="ts-o2-per">/MONTH</span>
-          </div>
+          {card.promoRate != null ? (
+            <div className="ts-o2-price ts-o2-price--promo">
+              <div className="ts-o2-promo-std">
+                <span className="ts-o2-promo-label">STANDARD</span>
+                <span className="ts-o2-strike">{priceFmt(card.price)}/mo.</span>
+              </div>
+              <div className="ts-o2-promo-rate">
+                <span className="ts-o2-promo-label">PROMO RATE</span>
+                <span className="ts-o2-amt">{priceFmt(card.promoRate)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="ts-o2-price">
+              <span className="ts-o2-amt">{priceFmt(card.price)}</span>
+              <span className="ts-o2-per">/MONTH</span>
+            </div>
+          )}
           <PricingDetails price={card.price} tierKey={card.key} className="ts-o2-details" />
         </div>
         <div className="ts-o2-foot-bottom">
@@ -1355,7 +1386,11 @@ function O2MHead({ card }: { card: O2Tier }) {
         <span className="ts-o2m-name">{card.name}</span>
         <span className="ts-o2m-tag">{card.tagline}</span>
       </div>
-      <span className="ts-o2m-price">${card.price}/mo.</span>
+      {card.promoRate != null ? (
+        <span className="ts-o2m-price"><span className="ts-o2m-strike">{priceFmt(card.price)}/mo.</span> {priceFmt(card.promoRate)}</span>
+      ) : (
+        <span className="ts-o2m-price">{priceFmt(card.price)}/mo.</span>
+      )}
     </div>
   );
 }
@@ -1466,9 +1501,20 @@ function O3Column({ card }: { card: O3Tier }) {
             <div className="ts-o3-price">
               {card.soldOut ? (
                 <span className="ts-o3-amt">—</span>
+              ) : card.promoRate != null ? (
+                <div className="ts-o3-price--promo">
+                  <div className="ts-o3-promo-std">
+                    <span className="ts-o3-promo-label">STANDARD</span>
+                    <span className="ts-o3-strike">{priceFmt(card.price)}/mo.</span>
+                  </div>
+                  <div className="ts-o3-promo-rate">
+                    <span className="ts-o3-promo-label">PROMO RATE</span>
+                    <span className="ts-o3-amt">{priceFmt(card.promoRate)}</span>
+                  </div>
+                </div>
               ) : (
                 <>
-                  <span className="ts-o3-amt">${card.price}</span>
+                  <span className="ts-o3-amt">{priceFmt(card.price)}</span>
                   <span className="ts-o3-per">/ MONTH</span>
                 </>
               )}

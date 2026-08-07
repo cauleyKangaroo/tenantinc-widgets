@@ -11,8 +11,7 @@ export interface Tier {
   tagline: string;
   price: number;
   hours: string;
-  online: number;
-  inStore: number;
+  promoRate?: number;
   summary: string;
   promo?: string;
   /** Card amenity lines — the tier's own bundle. */
@@ -39,6 +38,7 @@ export interface O2Tier {
   name: string;
   tagline: string;
   price: number;
+  promoRate?: number;
   popular?: boolean;
   promo?: string;
   soldOut?: boolean;
@@ -50,6 +50,7 @@ export interface O3Tier {
   name: string;
   tagline: string;
   price: number;
+  promoRate?: number;
   popular?: boolean;
   promo?: string;
   soldOut?: boolean;

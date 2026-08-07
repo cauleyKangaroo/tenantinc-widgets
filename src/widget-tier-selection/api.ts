@@ -90,9 +90,8 @@ export interface ValueTierBundle {
   key: TierKey;          // server-assigned value_tier.type — also the handoff ?tier=
   label?: string;        // operator display name (value_tier.label)
   unitId: string;        // the offer's unit — quoted directly and passed as ?unitId=
-  price: number;
-  online: number;
-  inStore: number;
+  price: number;         // standard monthly rate
+  promoRate?: number;    // discounted monthly rate when a promo applies (< price)
   promo?: string;        // display name of the first promotion, if any
   promotionIds: string[]; // promotion ids sent to the move-in quote (configure)
   features: string[];
@@ -157,7 +156,7 @@ export function resolveUnitGroupId(groups: UnitGroup[], requestedSize?: string, 
 
 interface AvailableOfferDto {
   type: string; label?: string; availability: 'available';
-  unitId: string; price: number; spaceMixId?: string;
+  unitId: string; price: number; promoRate?: number; spaceMixId?: string;
   promotions?: Array<{ id?: string; name?: string }>;
   amenities?: Array<{ name?: string; value?: string }>;
 }
@@ -167,13 +166,25 @@ type OfferDto = AvailableOfferDto | SoldOutOfferDto;
 export interface OffersResult { offers: OfferDto[]; soldOut: boolean; showTierPricing: boolean }
 
 interface RawAmenity { name?: string; value?: string; sort_order?: number; show_in_website?: number }
+interface RawDiscount { value?: number; type?: string }
 interface RawOffer {
   unit_id?: string; price?: number; space_mix_id?: string;
   value_tier?: { type?: string; label?: string };
   promotions?: Array<{ id?: string; name?: string }>;
+  costs?: { Discounts?: RawDiscount[] };
   amenities?: RawAmenity[];
 }
 const VALID_TIER_TYPES = new Set(['good', 'better', 'best']);
+
+/** Discounted monthly rate from the offer's costs.Discounts, or undefined.
+ *  Only returned when it computes to a positive rate strictly below the
+ *  standard price — a mis-read must never invent a higher/equal "promo". */
+function computePromoRate(price: number, discounts?: RawDiscount[]): number | undefined {
+  const d = (discounts ?? []).find((x) => typeof x.value === 'number' && x.value > 0);
+  if (!d || typeof d.value !== 'number') return undefined;
+  const rate = d.type === 'percent' ? price * (1 - d.value / 100) : price - d.value;
+  return rate > 0 && rate < price ? rate : undefined;
+}
 
 /** An available tier: real unit + usable price, display amenities only. */
 function toAvailableOffer(o: RawOffer): AvailableOfferDto {
@@ -187,6 +198,7 @@ function toAvailableOffer(o: RawOffer): AvailableOfferDto {
     availability: 'available',
     unitId: o.unit_id as string,
     price: o.price as number,
+    promoRate: computePromoRate(o.price as number, o.costs?.Discounts),
     spaceMixId: o.space_mix_id,
     promotions: (o.promotions ?? []).map((p) => ({ id: p.id, name: p.name })),
     amenities,
@@ -237,7 +249,6 @@ export async function fetchOffers(ctx: TierContext, unitGroupId: string, opts?: 
 const TIER_ORDER: Record<string, number> = { good: 0, better: 1, best: 2 };
 const VALID_TIERS = new Set<string>(['good', 'better', 'best']);
 const FEATURE_MAX = 6;
-const INSTORE_SURCHARGE = 10;
 
 /** Human feature label: a boolean amenity ("Yes") shows its name; "No" is
  *  dropped; anything else shows its value ("Roll-Up Door", "Ground Level"). */
@@ -274,8 +285,7 @@ export function mapOffersToTiers(offers: OfferDto[], requestedSize?: string): Va
     label: o.label,
     unitId: o.unitId,
     price: o.price,
-    online: o.price,
-    inStore: o.price + INSTORE_SURCHARGE,
+    promoRate: o.promoRate,
     promo: o.promotions?.find((p) => p?.name)?.name,
     promotionIds: (o.promotions ?? []).map((p) => p.id).filter((x): x is string => !!x),
     features: (o.amenities ?? []).map(amenityLabel).filter((x): x is string => !!x).slice(0, FEATURE_MAX),
