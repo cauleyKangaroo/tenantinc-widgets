@@ -1,10 +1,11 @@
 // Filter panel — what the header's Filter button opens. Figma 10557:146492.
 //
-// A card anchored under the button (its own border + shadow in the frame say
-// dropdown, not full-screen modal). Selections are real local state so the panel
+// Centred lightbox over a dark overlay, same pattern as #05's FilterModal
+// (`.sl-modal-overlay`): fixed overlay, click-away to close, Esc, host-page
+// scroll locked while open. Selections are real local state so the panel
 // demonstrates properly, but nothing is filtered yet: #08 is still static.
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   type FilterState,
   TYPE_OPTIONS, SIZE_OPTIONS, FEATURE_OPTIONS, AMENITY_OPTIONS, PROMOTION_OPTIONS,
@@ -96,88 +97,107 @@ export function FilterPanel({
   onReset: () => void;
   onApply: () => void;
 }) {
+  // Close on Escape; lock host-page scroll while the lightbox is open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
   const set = <K extends keyof FilterState>(key: K, value: FilterState[K]) =>
     onChange({ ...filters, [key]: value });
 
   const count = activeFilterCount(filters);
 
   return (
-    <div className="ml-fp" role="dialog" aria-label="Filter spaces" onClick={(e) => e.stopPropagation()}>
-      {/* Header */}
-      <div className="ml-fp-head">
-        <div className="ml-fp-title">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M3 6h18M6 12h12M10 18h4" />
-          </svg>
-          <span>Filter Spaces</span>
-          {count > 0 && <span className="ml-fp-count">{count}</span>}
-        </div>
-        <div className="ml-fp-head-actions">
-          <button type="button" className="ml-fp-reset" onClick={onReset}>Reset</button>
-          <button type="button" className="ml-fp-close" aria-label="Close" onClick={onClose}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M6 6l12 12M18 6L6 18" />
+    <div className="ml-fp-overlay" onClick={onClose}>
+      <div
+        className="ml-fp"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Filter spaces"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="ml-fp-head">
+          <div className="ml-fp-title">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 6h18M6 12h12M10 18h4" />
             </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="ml-fp-body">
-        <div className="ml-fp-search">
-          <input type="text" placeholder="Filter Spaces by... " aria-label="Filter spaces by" />
-          <span className="ml-fp-search-btn" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z" />
-              <path d="M18 15l.8 2.2 2.2.8-2.2.8L18 21l-.8-2.2-2.2-.8 2.2-.8L18 15Z" />
-            </svg>
-          </span>
+            <span>Filter Spaces</span>
+            {count > 0 && <span className="ml-fp-count">{count}</span>}
+          </div>
+          <div className="ml-fp-head-actions">
+            <button type="button" className="ml-fp-reset" onClick={onReset}>Reset</button>
+            <button type="button" className="ml-fp-close" aria-label="Close" onClick={onClose}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <section className="ml-fp-section">
-          <p className="ml-fp-section-title">Type:</p>
-          <PillGroup options={TYPE_OPTIONS} selected={filters.types} onToggle={(v) => set('types', toggle(filters.types, v))} />
-        </section>
-
-        <section className="ml-fp-section">
-          <p className="ml-fp-section-title">Size:</p>
-          <PillGroup options={SIZE_OPTIONS} selected={filters.sizes} onToggle={(v) => set('sizes', toggle(filters.sizes, v))} />
-        </section>
-
-        <section className="ml-fp-section">
-          <p className="ml-fp-section-title">Price:</p>
-          <div className="ml-fp-fields">
-            <FieldSelect label="Min Price" value={filters.minPrice} options={PRICE_OPTIONS} onChange={(v) => set('minPrice', v)} />
-            <FieldSelect label="Max Price" value={filters.maxPrice} options={PRICE_OPTIONS} onChange={(v) => set('maxPrice', v)} />
+        {/* Body */}
+        <div className="ml-fp-body">
+          <div className="ml-fp-search">
+            <input type="text" placeholder="Filter Spaces by... " aria-label="Filter spaces by" />
+            <span className="ml-fp-search-btn" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z" />
+                <path d="M18 15l.8 2.2 2.2.8-2.2.8L18 21l-.8-2.2-2.2-.8 2.2-.8L18 15Z" />
+              </svg>
+            </span>
           </div>
-        </section>
 
-        <section className="ml-fp-section">
-          <p className="ml-fp-section-title">Distance:</p>
-          <div className="ml-fp-fields">
-            <FieldSelect label="Max Distance" value={filters.maxDistance} options={DISTANCE_OPTIONS} onChange={(v) => set('maxDistance', v)} />
-          </div>
-        </section>
+          <section className="ml-fp-section">
+            <p className="ml-fp-section-title">Type:</p>
+            <PillGroup options={TYPE_OPTIONS} selected={filters.types} onToggle={(v) => set('types', toggle(filters.types, v))} />
+          </section>
 
-        <section className="ml-fp-section">
-          <p className="ml-fp-section-title">Space Features:</p>
-          <PillGroup options={FEATURE_OPTIONS} selected={filters.features} onToggle={(v) => set('features', toggle(filters.features, v))} />
-        </section>
+          <section className="ml-fp-section">
+            <p className="ml-fp-section-title">Size:</p>
+            <PillGroup options={SIZE_OPTIONS} selected={filters.sizes} onToggle={(v) => set('sizes', toggle(filters.sizes, v))} />
+          </section>
 
-        <section className="ml-fp-section">
-          <p className="ml-fp-section-title">Amenities</p>
-          <CheckList options={AMENITY_OPTIONS} selected={filters.amenities} onToggle={(v) => set('amenities', toggle(filters.amenities, v))} />
-        </section>
+          <section className="ml-fp-section">
+            <p className="ml-fp-section-title">Price:</p>
+            <div className="ml-fp-fields">
+              <FieldSelect label="Min Price" value={filters.minPrice} options={PRICE_OPTIONS} onChange={(v) => set('minPrice', v)} />
+              <FieldSelect label="Max Price" value={filters.maxPrice} options={PRICE_OPTIONS} onChange={(v) => set('maxPrice', v)} />
+            </div>
+          </section>
 
-        <section className="ml-fp-section">
-          <p className="ml-fp-section-title">Promotions</p>
-          <CheckList options={PROMOTION_OPTIONS} selected={filters.promotions} onToggle={(v) => set('promotions', toggle(filters.promotions, v))} />
-        </section>
-      </div>
+          <section className="ml-fp-section">
+            <p className="ml-fp-section-title">Distance:</p>
+            <div className="ml-fp-fields">
+              <FieldSelect label="Max Distance" value={filters.maxDistance} options={DISTANCE_OPTIONS} onChange={(v) => set('maxDistance', v)} />
+            </div>
+          </section>
 
-      {/* Footer */}
-      <div className="ml-fp-foot">
-        <button type="button" className="ml-fp-apply" onClick={onApply}>Apply Filters</button>
+          <section className="ml-fp-section">
+            <p className="ml-fp-section-title">Space Features:</p>
+            <PillGroup options={FEATURE_OPTIONS} selected={filters.features} onToggle={(v) => set('features', toggle(filters.features, v))} />
+          </section>
+
+          <section className="ml-fp-section">
+            <p className="ml-fp-section-title">Amenities</p>
+            <CheckList options={AMENITY_OPTIONS} selected={filters.amenities} onToggle={(v) => set('amenities', toggle(filters.amenities, v))} />
+          </section>
+
+          <section className="ml-fp-section">
+            <p className="ml-fp-section-title">Promotions</p>
+            <CheckList options={PROMOTION_OPTIONS} selected={filters.promotions} onToggle={(v) => set('promotions', toggle(filters.promotions, v))} />
+          </section>
+        </div>
+
+        {/* Footer */}
+        <div className="ml-fp-foot">
+          <button type="button" className="ml-fp-apply" onClick={onApply}>Apply Filters</button>
+        </div>
       </div>
     </div>
   );

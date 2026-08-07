@@ -13,7 +13,7 @@
 // STATIC for now: everything comes from ./data.ts. See the note there.
 // ===========================================================================
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import './MapLocations.css';
 import { NearbyMap, type MapPoint, type PositionedPoint } from '@shared/NearbyMap';
 import { RichText } from '@shared/richText';
@@ -234,26 +234,11 @@ export function MapLocations({
   /** Which bubble has its popup open. Null = none. */
   const [openId, setOpenId] = useState<string | null>(null);
 
-  // Filter panel (Figma 10557:146492). Selections are live state so the panel
-  // behaves, but nothing is filtered yet — #08's data is still static.
+  // Filter panel (Figma 10557:146492) — a centred lightbox, like #05's.
+  // Selections are live state so the panel behaves, but nothing is filtered
+  // yet: #08's data is still static.
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
-  const filterWrapRef = useRef<HTMLDivElement | null>(null);
-
-  // Click-away / Esc close, the usual dropdown contract.
-  useEffect(() => {
-    if (!filtersOpen) return undefined;
-    const onDown = (e: MouseEvent) => {
-      if (!filterWrapRef.current?.contains(e.target as Node)) setFiltersOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFiltersOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [filtersOpen]);
 
   const filterCount = activeFilterCount(filters);
 
@@ -346,30 +331,15 @@ export function MapLocations({
           {facilities.length} Storage {facilities.length === 1 ? 'Facility' : 'Facilities'} in {cityLabel}
         </p>
         <div className="ml-controls">
-          <div className="ml-filter-wrap" ref={filterWrapRef}>
-            <button
-              type="button"
-              className={`ml-pill${filtersOpen ? ' ml-pill--on' : ''}`}
-              aria-expanded={filtersOpen}
-              onClick={() => setFiltersOpen((o) => !o)}
-            >
-              {Icon.filter}<span>Filter</span>
-              {filterCount > 0 && <span className="ml-pill-count">{filterCount}</span>}
-            </button>
-
-            {filtersOpen && (
-              <FilterPanel
-                filters={filters}
-                onChange={setFilters}
-                onClose={() => setFiltersOpen(false)}
-                onReset={() => setFilters({
-                  types: [], sizes: [], features: [], amenities: [], promotions: [],
-                  minPrice: '$0', maxPrice: '$2,000', maxDistance: '20 miles',
-                })}
-                onApply={() => setFiltersOpen(false)}
-              />
-            )}
-          </div>
+          <button
+            type="button"
+            className={`ml-pill${filtersOpen ? ' ml-pill--on' : ''}`}
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen(true)}
+          >
+            {Icon.filter}<span>Filter</span>
+            {filterCount > 0 && <span className="ml-pill-count">{filterCount}</span>}
+          </button>
 
           <button type="button" className="ml-pill">
             {Icon.sort}<span className="ml-pill-sort">{sort}</span>{Icon.chevron}
@@ -408,6 +378,20 @@ export function MapLocations({
           <p className="ml-seo-heading">{seoHeading?.trim() || `Self Storage Units in ${cityLabel}`}</p>
           <RichText value={seoContent} className="ml-seo-body" />
         </div>
+      )}
+
+      {/* Filter lightbox — its overlay is fixed, so where it sits here is moot. */}
+      {filtersOpen && (
+        <FilterPanel
+          filters={filters}
+          onChange={setFilters}
+          onClose={() => setFiltersOpen(false)}
+          onReset={() => setFilters({
+            types: [], sizes: [], features: [], amenities: [], promotions: [],
+            minPrice: '$0', maxPrice: '$2,000', maxDistance: '20 miles',
+          })}
+          onApply={() => setFiltersOpen(false)}
+        />
       )}
     </div>
   );

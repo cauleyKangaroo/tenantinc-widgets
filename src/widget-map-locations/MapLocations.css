@@ -85,28 +85,45 @@
 
 /* ── Filter panel (Figma 10557:146492) ─────────────────────────────────── */
 
-/* Anchors the dropdown to the Filter button. */
-.ml-filter-wrap { position: relative; }
+/* Centred lightbox over a dark overlay — same pattern as #05's filter modal
+   (`.sl-modal-overlay`), so the two widgets feel like one site. */
+.ml-fp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 19, 24, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  z-index: 2147483000;
+  animation: ml-fp-fade 0.15s ease;
+}
+
+@keyframes ml-fp-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 
 .ml-fp {
-  position: absolute;
-  z-index: 5;
-  top: calc(100% + 12px);
-  /* Right-aligned: the Filter button sits at the right of a full-width header,
-     so hanging the panel off its left edge would push it past the viewport. */
-  right: 0;
-  width: 542px;
-  max-width: calc(100vw - 32px);
-  max-height: min(720px, calc(100vh - 120px));
+  width: 100%;
+  max-width: 542px;
+  max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
   background: #fff;
   /* 1px everywhere per the site-wide rule (the frame draws 2px). */
   border: 1px solid #dfe3e8;
   border-radius: 16px;
-  filter: drop-shadow(0px 4px 5px rgba(71, 84, 116, 0.1));
+  box-shadow: 0 20px 60px rgba(16, 19, 24, 0.25);
+  overflow: hidden;
   text-align: left;
   cursor: default;
+  animation: ml-fp-pop 0.18s ease;
+}
+
+@keyframes ml-fp-pop {
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 /* Header */
@@ -788,19 +805,10 @@
   .ml-header { align-items: flex-start; }
   .ml-controls { width: 100%; }
   .ml-pill { flex: 1 1 auto; justify-content: center; }
-  .ml-filter-wrap { flex: 1 1 auto; display: flex; }
-  .ml-filter-wrap > .ml-pill { width: 100%; }
 
-  /* No room to hang a 542px dropdown off the button — make it a sheet. */
-  .ml-fp {
-    position: fixed;
-    top: 16px;
-    left: 16px;
-    right: 16px;
-    width: auto;
-    max-width: none;
-    max-height: calc(100vh - 32px);
-  }
+  /* Nearly full-bleed on a phone, but still a centred lightbox. */
+  .ml-fp-overlay { padding: 16px 12px; }
+  .ml-fp { max-height: calc(100vh - 32px); }
 
   .ml-fp-head,
   .ml-fp-body,
