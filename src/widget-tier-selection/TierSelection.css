@@ -72,7 +72,8 @@
 .ts-unit-img {
   width: 130px;
   height: 178px;
-  object-fit: contain;
+  object-fit: cover;
+  border-radius: 12px;
 }
 .ts-seewhatfits {
   display: inline-flex;
@@ -226,7 +227,7 @@
 }
 .ts-thead, .ts-tr {
   display: grid;
-  grid-template-columns: 1.05fr 1fr 1fr 1fr;
+  grid-template-columns: 1.05fr repeat(var(--ts-cols, 3), 1fr);
 }
 .ts-th {
   height: 52px;
@@ -490,6 +491,8 @@
 .ts-m-select:hover { background: #d95a00; }
 
 /* Collapsible move-in total */
+.ts-m-rates { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 16px; }
+.ts-m-rates .ts-price-amount { font-size: 20px; }
 .ts-m-total { margin-top: 20px; }
 .ts-m-total-row {
   display: flex;
@@ -515,7 +518,7 @@
   border-radius: 8px;
   overflow: hidden;
 }
-.ts-mt-row { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; }
+.ts-mt-row { display: grid; grid-template-columns: 1.6fr repeat(var(--ts-cols, 3), 1fr); }
 .ts-mt-cell {
   min-height: 30px;
   display: flex;
@@ -563,10 +566,10 @@
 
 .ts-o2-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 422px));
+  grid-template-columns: repeat(var(--ts-cols, 3), minmax(0, 422px));
   gap: 28px;
   justify-content: center;
-  align-items: start;
+  align-items: stretch; /* all cards equal height (tallest wins) */
   padding-top: 16px; /* room for the Most Popular badge */
 }
 
@@ -580,7 +583,10 @@
   display: flex;
   flex-direction: column;
 }
-.ts-o2-card--popular { border-color: #101318; }
+.ts-o2-card { cursor: pointer; }
+/* "Most Popular" is indicated by the badge only — the black border is reserved
+   for the SELECTED card, so only ever one card reads as highlighted. */
+.ts-o2-card--selected { border-color: #101318; box-shadow: 0 0 0 3px rgba(16, 19, 24, 0.18), 0 4px 10px 3px rgba(71, 84, 116, 0.1); }
 
 .ts-o2-badge {
   position: absolute;
@@ -781,7 +787,7 @@
 .ts-o3-scroll { overflow-x: auto; }
 .ts-o3-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  grid-template-columns: 1.5fr repeat(var(--ts-cols, 3), 1fr);
   column-gap: 16px;
   align-items: stretch;
   padding-top: 16px; /* room for the Most Popular badge */
@@ -798,7 +804,7 @@
 
 /* Label column */
 .ts-o3-unit { align-items: center; justify-content: center; gap: 22px; padding: 8px 0 24px; }
-.ts-o3-unit-img { width: 180px; height: auto; max-height: 230px; object-fit: contain; }
+.ts-o3-unit-img { width: 180px; height: 150px; object-fit: cover; border-radius: 12px; }
 .ts-o3-lrow {
   height: 48px;
   display: flex;
@@ -820,11 +826,13 @@
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
   overflow: hidden;
 }
+.ts-o3-tier { cursor: pointer; }
 .ts-o3-col--popular {
   position: relative;
-  border-color: #101318;
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
 }
+/* Selected column carries the border (single highlight); popular = badge only. */
+.ts-o3-col--selected { position: relative; border-color: #101318; box-shadow: 0 0 0 3px rgba(16, 19, 24, 0.18), 0 4px 10px 3px rgba(71, 84, 116, 0.1); }
 .ts-o3-col--popular .ts-o3-card { border-top-left-radius: 14px; border-top-right-radius: 14px; }
 .ts-o3-col--popular .ts-o3-vrow--last { border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
 .ts-o3-badge { z-index: 2; }
@@ -899,3 +907,71 @@
 .ts-pd-total { margin-top: 20px; align-items: flex-end; }
 .ts-pd-total > span:first-child { font-size: 14px; font-weight: 700; }
 .ts-pd-total-amt { font-size: 16px; font-weight: 700; white-space: nowrap; }
+
+/* Visitor-facing notice (e.g. requested size unavailable — showing others). */
+.ts-notice {
+  max-width: 1320px;
+  margin: 0 auto 20px;
+  padding: 12px 16px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  color: #9a3412;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Quote-state notes — money never shows demo numbers (2026-08-03) */
+.ts-quote-note { font-size: 13px; color: #5c6370; line-height: 1.5; margin: 6px 0; }
+.ts-quote-note--pending { color: #8a919c; font-style: italic; }
+.ts-pd-note { font-size: 12px; color: #d5d8dd; line-height: 1.5; margin: 8px 0 0; max-width: 220px; }
+
+/* Neutral facility-image placeholder — never another facility's photo. */
+.ts-card-hero-img--placeholder { background: #e3e5e9; }
+
+/* Neutral size-illustration placeholder (no demo asset shipped). */
+.ts-unit-img--placeholder, .ts-o3-unit-img--placeholder { background: #eef0f3; }
+
+/* Sold-out tier pill — non-selectable placeholder */
+.ts-pill--soldout { opacity: 0.55; cursor: not-allowed; }
+.ts-pill--soldout .ts-pill-tag { color: #b3261e; font-weight: 600; }
+
+/* Modal presentation (mode="modal") — overlay opened from the Space List. */
+.ts-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 19, 24, 0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+.ts-modal {
+  position: relative;
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 1100px;
+  padding: 32px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+.ts-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: 0;
+  font-size: 28px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+.ts-modal-close:hover { color: #101318; background: #f3f4f6; }
+@media (max-width: 640px) {
+  .ts-modal-backdrop { padding: 0; }
+  .ts-modal { border-radius: 0; min-height: 100%; padding: 48px 16px 24px; max-width: none; }
+}
