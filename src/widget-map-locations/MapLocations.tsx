@@ -13,12 +13,14 @@
 // STATIC for now: everything comes from ./data.ts. See the note there.
 // ===========================================================================
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './MapLocations.css';
 import { NearbyMap, type MapPoint, type PositionedPoint } from '@shared/NearbyMap';
 import { RichText } from '@shared/richText';
 import { CITY_FACILITIES, type CityFacility, type CityUnit } from './data';
 import { PROPERTY_IMAGES } from '@shared/demoImages';
+import { FilterPanel } from './FilterPanel';
+import { INITIAL_FILTERS, activeFilterCount, type FilterState } from './filters';
 
 // ── Icons (inline SVG — the AMD bundle can't load remote assets) ─────────────
 
@@ -229,6 +231,31 @@ export function MapLocations({
   // Which card/bubble is highlighted. Starts on the featured one, matching the
   // Figma where a card and its bubble share the orange outline.
   const [activeId, setActiveId] = useState<string>(facilities[1]?.id ?? facilities[0]?.id ?? '');
+  /** Which bubble has its popup open. Null = none. */
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  // Filter panel (Figma 10557:146492). Selections are live state so the panel
+  // behaves, but nothing is filtered yet — #08's data is still static.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
+  const filterWrapRef = useRef<HTMLDivElement | null>(null);
+
+  // Click-away / Esc close, the usual dropdown contract.
+  useEffect(() => {
+    if (!filtersOpen) return undefined;
+    const onDown = (e: MouseEvent) => {
+      if (!filterWrapRef.current?.contains(e.target as Node)) setFiltersOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFiltersOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [filtersOpen]);
+
+  const filterCount = activeFilterCount(filters);
 
   const points: MapPoint[] = facilities.map((f) => ({
     id: f.id,
@@ -241,21 +268,73 @@ export function MapLocations({
 
   const center = { lat: facilities[0].lat, lng: facilities[0].lng };
 
-  // Figma bubble: white pill, 3px dark border — or 4px orange + shadow when it's
-  // the active one, with a star ahead of the price.
+  // Figma bubble: white pill, dark border — orange + shadow when active, with a
+  // star ahead of the price. Clicking one opens the popup above it
+  // (Figma 10626:79939); the pin render-prop draws both, since NearbyMap only
+  // gives us this one hook inside the map box.
   const renderPin = (p: PositionedPoint) => {
     const isActive = p.id === activeId;
+    const facility = facilities.find((f) => f.id === p.id);
+    const isOpen = p.id === openId;
+
     return (
-      <button
-        type="button"
-        className={`ml-bubble${isActive ? ' ml-bubble--active' : ''}`}
-        style={{ left: p.left, top: p.top }}
-        onClick={() => setActiveId(p.id)}
-        title={p.name}
-      >
-        {isActive && <Star size={24} color="#101318" />}
-        <span>{p.label}</span>
-      </button>
+      <>
+        <button
+          type="button"
+          className={`ml-bubble${isActive ? ' ml-bubble--active' : ''}`}
+          style={{ left: p.left, top: p.top }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setActiveId(p.id);
+            setOpenId((cur) => (cur === p.id ? null : p.id));
+          }}
+          title={p.name}
+        >
+          {isActive && <Star size={24} color="#101318" />}
+          <span>{p.label}</span>
+        </button>
+
+        {isOpen && facility && (
+          <div
+            className="ml-popup"
+            style={{ left: p.left, top: p.top }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              className="ml-popup-photo"
+              src={PROPERTY_IMAGES[facilities.indexOf(facility) % PROPERTY_IMAGES.length]}
+              alt=""
+            />
+            <div className="ml-popup-body">
+              <p className="ml-popup-name">{facility.name}</p>
+              <a
+                className="ml-popup-address"
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(facility.address)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {facility.address}
+              </a>
+              <div className="ml-popup-rating">
+                <Star size={16} />
+                <span className="ml-popup-score">{facility.rating}</span>
+                <a className="ml-popup-reviews" href="#">{facility.reviewCount} Reviews</a>
+              </div>
+              <span className="ml-popup-from">Units starting at {facility.priceLabel}</span>
+            </div>
+            <button
+              type="button"
+              className="ml-popup-close"
+              aria-label="Close"
+              onClick={(e) => { e.stopPropagation(); setOpenId(null); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </>
     );
   };
 
@@ -267,9 +346,31 @@ export function MapLocations({
           {facilities.length} Storage {facilities.length === 1 ? 'Facility' : 'Facilities'} in {cityLabel}
         </p>
         <div className="ml-controls">
-          <button type="button" className="ml-pill">
-            {Icon.filter}<span>Filter</span>
-          </button>
+          <div className="ml-filter-wrap" ref={filterWrapRef}>
+            <button
+              type="button"
+              className={`ml-pill${filtersOpen ? ' ml-pill--on' : ''}`}
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((o) => !o)}
+            >
+              {Icon.filter}<span>Filter</span>
+              {filterCount > 0 && <span className="ml-pill-count">{filterCount}</span>}
+            </button>
+
+            {filtersOpen && (
+              <FilterPanel
+                filters={filters}
+                onChange={setFilters}
+                onClose={() => setFiltersOpen(false)}
+                onReset={() => setFilters({
+                  types: [], sizes: [], features: [], amenities: [], promotions: [],
+                  minPrice: '$0', maxPrice: '$2,000', maxDistance: '20 miles',
+                })}
+                onApply={() => setFiltersOpen(false)}
+              />
+            )}
+          </div>
+
           <button type="button" className="ml-pill">
             {Icon.sort}<span className="ml-pill-sort">{sort}</span>{Icon.chevron}
           </button>

@@ -66,6 +66,320 @@
 
 .ml-pill:hover { background: #f4f6f8; }
 .ml-pill-sort { font-weight: 400; }
+.ml-pill--on { background: #f4f6f8; }
+
+.ml-pill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 100px;
+  background: #509e2f;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ── Filter panel (Figma 10557:146492) ─────────────────────────────────── */
+
+/* Anchors the dropdown to the Filter button. */
+.ml-filter-wrap { position: relative; }
+
+.ml-fp {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 12px);
+  /* Right-aligned: the Filter button sits at the right of a full-width header,
+     so hanging the panel off its left edge would push it past the viewport. */
+  right: 0;
+  width: 542px;
+  max-width: calc(100vw - 32px);
+  max-height: min(720px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  /* 1px everywhere per the site-wide rule (the frame draws 2px). */
+  border: 1px solid #dfe3e8;
+  border-radius: 16px;
+  filter: drop-shadow(0px 4px 5px rgba(71, 84, 116, 0.1));
+  text-align: left;
+  cursor: default;
+}
+
+/* Header */
+.ml-fp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #dfe3e8;
+}
+
+.ml-fp-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 30px;
+  color: #101318;
+}
+
+.ml-fp-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 100px;
+  background: #509e2f;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ml-fp-head-actions { display: flex; align-items: center; gap: 16px; }
+
+.ml-fp-reset {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #101318;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ml-fp-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #101318;
+  cursor: pointer;
+}
+
+/* Body — the scrolling part; the header and Apply footer stay put. */
+.ml-fp-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ml-fp-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 50px;
+  padding: 0 8px 0 16px;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+}
+
+.ml-fp-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  font-family: inherit;
+  font-size: 16px;
+  color: #101318;
+}
+
+.ml-fp-search input::placeholder { color: #919eab; }
+
+.ml-fp-search-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--color_1, #f45f30);
+}
+
+/* Section card */
+.ml-fp-section {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 10px 30px 25px;
+}
+
+.ml-fp-section-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #101318;
+}
+
+/* Pills */
+.ml-fp-pills { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.ml-fp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 8px 20px;
+  border: 1px solid #101318;
+  border-radius: 100px;
+  background: #fff;
+  color: #101318;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ml-fp-pill:hover { background: #f4f6f8; }
+
+/* Selected inverts and shows a clear (x), as the frame's chips do. */
+.ml-fp-pill--on {
+  background: #101318;
+  border-color: #101318;
+  color: #fff;
+}
+
+.ml-fp-pill--on:hover { background: #22272f; }
+.ml-fp-pill svg { flex-shrink: 0; }
+
+/* Selects */
+.ml-fp-fields { display: flex; flex-wrap: wrap; gap: 16px; }
+
+.ml-fp-field {
+  position: relative;
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 56px;
+  padding: 7px 40px 7px 12px;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ml-fp-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #637381;
+}
+
+.ml-fp-field-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  outline: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #101318;
+  cursor: pointer;
+}
+
+.ml-fp-field-chevron {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #101318;
+  pointer-events: none;
+}
+
+/* Checkbox lists — two columns, like the frame's amenities grid. */
+.ml-fp-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+}
+
+.ml-fp-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #101318;
+  cursor: pointer;
+}
+
+/* The real input stays focusable but invisible; .ml-fp-box is the visual. */
+.ml-fp-check input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.ml-fp-box {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #919eab;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.ml-fp-check input:checked + .ml-fp-box {
+  background: #101318;
+  border-color: #101318;
+}
+
+.ml-fp-check input:focus-visible + .ml-fp-box { outline: 2px solid #f26500; outline-offset: 2px; }
+
+.ml-fp-check-label { min-width: 0; }
+
+/* Footer */
+.ml-fp-foot {
+  padding: 16px 24px;
+  border-top: 1px solid #dfe3e8;
+}
+
+.ml-fp-apply {
+  width: 100%;
+  height: 50px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color_1, #f26500);
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.ml-fp-apply:hover { filter: brightness(0.94); }
 
 /* ── Map + cards row ───────────────────────────────────────────────────── */
 
@@ -328,7 +642,9 @@
   justify-content: center;
   gap: 8px;
   padding: 7px 28px;
-  border: 3px solid #101318;
+  /* 1px like every other pill on the site (the Figma's 3px/4px predates that
+     rule) — the active state carries its weight with colour + shadow instead. */
+  border: 1px solid #101318;
   border-radius: 100px;
   background: #fff;
   color: #000;
@@ -341,9 +657,91 @@
 }
 
 .ml-bubble--active {
-  border: 4px solid #f26500;
+  border: 1px solid #f26500;
   box-shadow: 0px 8px 18px rgba(71, 84, 116, 0.2);
   z-index: 1;
+}
+
+/* ── Map popup (Figma 10626:79939) ─────────────────────────────────────── */
+
+/* Opens above the clicked bubble. 357x156 in the frame; capped to the map's
+   width so a bubble near an edge can't push it out of the clipped box. */
+.ml-popup {
+  position: absolute;
+  z-index: 3;
+  transform: translate(-50%, calc(-100% - 14px));
+  display: flex;
+  width: 357px;
+  max-width: calc(100% - 24px);
+  height: 156px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+  text-align: left;
+}
+
+.ml-popup-photo {
+  flex: 0 0 156px;
+  width: 156px;
+  height: 156px;
+  object-fit: cover;
+  display: block;
+}
+
+.ml-popup-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.ml-popup-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #101318;
+}
+
+.ml-popup-address {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #101318;
+  text-decoration: underline;
+}
+
+.ml-popup-rating { display: flex; align-items: center; gap: 8px; }
+.ml-popup-score { font-size: 14px; font-weight: 600; color: #101318; line-height: 1.5; }
+
+.ml-popup-reviews {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #101318;
+  text-decoration: underline;
+}
+
+.ml-popup-from { font-size: 14px; font-weight: 600; line-height: 1.5; color: #101318; }
+
+.ml-popup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: #101318;
+  cursor: pointer;
 }
 
 /* ── SEO copy ──────────────────────────────────────────────────────────── */
@@ -390,4 +788,24 @@
   .ml-header { align-items: flex-start; }
   .ml-controls { width: 100%; }
   .ml-pill { flex: 1 1 auto; justify-content: center; }
+  .ml-filter-wrap { flex: 1 1 auto; display: flex; }
+  .ml-filter-wrap > .ml-pill { width: 100%; }
+
+  /* No room to hang a 542px dropdown off the button — make it a sheet. */
+  .ml-fp {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100vh - 32px);
+  }
+
+  .ml-fp-head,
+  .ml-fp-body,
+  .ml-fp-foot { padding-inline: 16px; }
+
+  .ml-fp-section { padding: 10px 16px 20px; }
+  .ml-fp-checks { grid-template-columns: minmax(0, 1fr); }
 }
