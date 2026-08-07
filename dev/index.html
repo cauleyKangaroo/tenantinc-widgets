@@ -300,20 +300,20 @@
         <div class="controls-group">
           <span class="controls-group-label">City page</span>
           <label>
-            City filter:
-            <input id="ml-city" type="text" placeholder="(blank = all facilities)"
-              style="width:170px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
-              oninput="reinitMapLocations()" />
-          </label>
-          <label>
-            Heading:
-            <input id="ml-heading" type="text" value="Our Locations"
+            City:
+            <input id="ml-city" type="text" value="Fullerton, CA"
               style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
               oninput="reinitMapLocations()" />
           </label>
           <label>
-            Map height:
-            <input id="ml-map-height" type="number" value="420" min="200" step="20"
+            Sort label:
+            <input id="ml-sort" type="text" value="Closest Distance"
+              style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+              oninput="reinitMapLocations()" />
+          </label>
+          <label>
+            Row height:
+            <input id="ml-row-height" type="number" value="900" min="400" step="50"
               style="width:80px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
               oninput="reinitMapLocations()" />
           </label>
@@ -513,8 +513,8 @@
     function getMapLocationsProps() {
       return {
         city:      document.getElementById('ml-city').value,
-        heading:   document.getElementById('ml-heading').value,
-        mapHeight: Number(document.getElementById('ml-map-height').value) || 420,
+        sortLabel: document.getElementById('ml-sort').value,
+        rowHeight: Number(document.getElementById('ml-row-height').value) || 900,
       };
     }
 
