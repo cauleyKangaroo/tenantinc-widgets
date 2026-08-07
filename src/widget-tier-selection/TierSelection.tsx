@@ -6,8 +6,8 @@ import {
   type TierContext,
 } from './api';
 import { Shimmer } from '@shared/Shimmer';
-import { resolveCompanyId, resolvePropertyId } from '@shared/propertyBinding';
-import { hasCollectionsApi } from '@shared/dudaCollections';
+import { resolvePropertyId } from '@shared/propertyBinding';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
 import {
   CheckIcon,
   CheckCircle,
@@ -392,17 +392,23 @@ export function TierSelection({
   const sizeProp = mode === 'modal' ? modalSize : sizeRaw;
   const authoritativeGroupId = mode === 'modal' ? modalUnitGroupId : unitGroupIdProp;
 
-  // One resolved facility context for every proxy call (config defaults,
-  // prop overrides) — same facility context for every call.
-  const ctx: TierContext = React.useMemo(() => {
-    const d = defaultContext();
-    const bound = { propertyId: propertyIdProp, companyId: companyIdProp };
-    const fallback = hasCollectionsApi() ? { propertyId: '', companyId: '' } : d;
-    return {
-      propertyId: resolvePropertyId(bound, fallback.propertyId),
-      companyId: resolveCompanyId(bound, fallback.companyId),
-    };
-  }, [propertyIdProp, companyIdProp]);
+  const cfgDefaults = React.useMemo(() => defaultContext(), []);
+  const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp }, cfgDefaults.propertyId);
+  const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    resolveCompanyIdFromSources('#14 tier-selection', { companyId: companyIdProp }, cfgDefaults.companyId)
+      .then((id) => { if (!cancelled) setEffectiveCompanyId(id); })
+      .catch((err) => {
+        console.error('[TierSelection] company id resolve error:', err);
+        if (!cancelled) setEffectiveCompanyId(cfgDefaults.companyId);
+      });
+    return () => { cancelled = true; };
+  }, [companyIdProp, cfgDefaults.companyId]);
+  const ctx: TierContext = React.useMemo(
+    () => ({ propertyId: effectivePropertyId, companyId: effectiveCompanyId ?? '' }),
+    [effectivePropertyId, effectiveCompanyId],
+  );
 
   // Modal open requests from the Space List — validated and scoped to this
   // widget's property; accepting acknowledges the sender.
@@ -457,10 +463,9 @@ export function TierSelection({
     requested.current.clear();
     setSelected('better');
     setPastDelay(false);
-    // Fail visibly if the Duda shim didn't supply the runtime config —
-    // no localhost fallback, no default facility.
+    if (effectiveCompanyId === null) return () => { cancelled = true; };
     if (!ctx.propertyId || !ctx.companyId) {
-      console.error('[TierSelection] not configured — propertyId and companyId are required (bind them on a published page)');
+      console.error('[TierSelection] not configured — propertyId and companyId are required');
       setStatus('unavailable');
       return () => { cancelled = true; };
     }
@@ -534,7 +539,7 @@ export function TierSelection({
     // changes when a different card is clicked. The proxy's own ~15s offers
     // cache may still serve a very recent response — the uncached move-in quote
     // is the authoritative money figure.
-  }, [mode, inEditor, siteId, elementId, sizeProp, authoritativeGroupId, openGen, ctx, tierProp, defaultTier]);
+  }, [mode, inEditor, siteId, elementId, sizeProp, authoritativeGroupId, openGen, ctx, tierProp, defaultTier, effectiveCompanyId]);
 
   useEffect(() => {
     if (status === 'live' && variant === 'option1') ensureQuote(selected);
