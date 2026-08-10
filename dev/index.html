@@ -46,6 +46,9 @@
   <!-- Harness page switcher (dev-only) -->
   <div class="page-nav">
     <button class="page-tab active" data-page="property" onclick="showPage('property')">Property Landing Page</button>
+    <button class="page-tab" data-page="blogs-listing" onclick="showPage('blogs-listing')">Blog Listing Page</button>
+    <button class="page-tab" data-page="blog-post" onclick="showPage('blog-post')">Blog Post Page</button>
+    <button class="page-tab" data-page="login" onclick="showPage('login')">Login Page</button>
     <button class="page-tab" data-page="value-tiers" onclick="showPage('value-tiers')">Value Tiers page</button>
     <button class="page-tab" data-page="rental-flow" onclick="showPage('rental-flow')">Rental Flow</button>
   </div>
@@ -254,6 +257,149 @@
 
   </div><!-- /#page-property -->
 
+  <div id="page-blogs-listing" class="page" hidden>
+
+    <!-- ── widget-navigation-bar (shared instance, re-mounted on tab switch) ── -->
+    <div class="widget-section">
+      <h2>widget-navigation-bar (#02)</h2>
+      <div id="navigation-bar-container-blog" class="widget-container"></div>
+    </div>
+
+    <!-- ── widget-blogs-page (main content of this page) ─────────────────── -->
+    <div class="widget-section">
+      <h2>widget-blogs-page (#15) — full page blog listing</h2>
+      <div id="blogs-page-container" class="widget-container"></div>
+
+      <div class="controls">
+        <div class="controls-group">
+          <span class="controls-group-label">Lazy load</span>
+          <label>
+            Cards per batch:
+            <select id="bp-batch" onchange="reinitBlogsPage()">
+              <option value="3">3 — easiest to watch load</option>
+              <option value="6">6</option>
+              <option value="9" selected>9 — Figma default (3×3)</option>
+            </select>
+          </label>
+        </div>
+        <div class="controls-group">
+          <span class="controls-group-label">Filter bar</span>
+          <label>
+            Inline chips:
+            <select id="bp-visible-tags" onchange="reinitBlogsPage()">
+              <option value="2">2</option>
+              <option value="3" selected>3 — Figma default</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── widget-footer (shared instance, re-mounted on tab switch) ─── -->
+    <div class="widget-section">
+      <h2>widget-footer (#13)</h2>
+      <div id="footer-container-blog" class="widget-container"></div>
+    </div>
+
+  </div><!-- /#page-blogs-listing -->
+
+  <div id="page-blog-post" class="page" hidden>
+
+    <!-- ── widget-navigation-bar (shared instance, re-mounted on tab switch) ── -->
+    <div class="widget-section">
+      <h2>widget-navigation-bar (#02)</h2>
+      <div id="navigation-bar-container-post" class="widget-container"></div>
+    </div>
+
+    <!-- ── widget-blog-post (main content of this page) ──────────────────── -->
+    <div class="widget-section">
+      <h2>widget-blog-post (#16) — single article</h2>
+      <div id="blog-post-container" class="widget-container"></div>
+
+      <div class="controls">
+        <div class="controls-group">
+          <span class="controls-group-label">Which post</span>
+          <!-- On a real site the slug comes from the dynamic page's own URL
+               (/blogs/{slug}). The harness has no such URL, so this passes the
+               `slug` prop directly — the same override an editor can set. -->
+          <label>
+            Slug:
+            <select id="bpp-slug" onchange="reinitBlogPost()">
+              <option value="spring-cleaning-made-simple">spring-cleaning-made-simple (long body)</option>
+              <option value="packing-a-storage-unit">packing-a-storage-unit</option>
+              <option value="got-boxes">got-boxes</option>
+              <option value="no-such-post">no-such-post — not-found state</option>
+            </select>
+          </label>
+        </div>
+        <div class="controls-group">
+          <span class="controls-group-label">Options</span>
+          <label class="checkbox"><input type="checkbox" id="bpp-crumbs" checked onchange="reinitBlogPost()"> Breadcrumb</label>
+          <label>
+            Featured cards:
+            <select id="bpp-featured" onchange="reinitBlogPost()">
+              <option value="0">0 — hide section</option>
+              <option value="2">2</option>
+              <option value="3" selected>3 — Figma default</option>
+            </select>
+          </label>
+          <label>Instagram URL:
+            <input id="bpp-instagram" type="text" placeholder="(blank = icon hidden)"
+              style="width: 200px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;"
+              oninput="reinitBlogPost()" />
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── widget-footer (shared instance, re-mounted on tab switch) ─── -->
+    <div class="widget-section">
+      <h2>widget-footer (#13)</h2>
+      <div id="footer-container-post" class="widget-container"></div>
+    </div>
+
+  </div><!-- /#page-blog-post -->
+
+  <div id="page-login" class="page" hidden>
+
+    <!-- ── widget-account-login ─────────────────────────────────────────── -->
+    <div class="widget-section">
+      <h2>widget-account-login (#17)</h2>
+      <div id="account-login-container" class="widget-container"></div>
+
+      <div class="controls">
+        <div class="controls-group">
+          <span class="controls-group-label">Figma scenario</span>
+          <label>
+            Flow:
+            <select id="al-scenario" onchange="reinitAccountLogin()">
+              <option value="2fa">1 — 2FA, phone or email (9451:55590)</option>
+              <option value="phone">1b — phone only, + Login with Email (9503:122933)</option>
+              <option value="email">1c — email only (9503:132254)</option>
+              <option value="thirdparty">3 — property select / 3rd-party URL (10550:80208)</option>
+            </select>
+          </label>
+        </div>
+        <div class="controls-group">
+          <span class="controls-group-label">Handoffs</span>
+          <label>Bypass code:
+            <input id="al-code" type="text" value="000000" style="width:90px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitAccountLogin()" />
+          </label>
+        </div>
+      </div>
+      <p class="subtitle" style="margin-top:12px">
+        Enter <strong>000000</strong> at the code step to pass; anything else is rejected.
+        Outside Duda there is no <code>dmAPI</code>, so the property dropdown falls back
+        to the demo locations from #02's Find Storage menu — on the published site it
+        reads the <code>Properties</code> collection instead. Picking
+        <strong>Storage Outlet Seattle</strong> exercises the 3rd-party branch, so
+        Continue redirects off-site rather than sending a code.
+      </p>
+    </div>
+
+  </div><!-- /#page-login -->
+
   <div id="page-value-tiers" class="page" hidden>
 
   <!-- ── widget-tier-selection ────────────────────────────────────────── -->
@@ -288,7 +434,15 @@
 
   </div><!-- /#page-rental-flow -->
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
+  <!-- crossorigin="anonymous" is load-bearing for debugging, not decoration.
+       require.js is cross-origin, and every widget bundle is executed through
+       it, so without CORS the browser strips the details off anything that
+       throws in a bundle and window.onerror only ever sees "Script error." with
+       no file, line, or stack — which is what webpack-dev-server's overlay then
+       reports (attributed to whichever bundle's dev-client handler caught it,
+       not to the actual source). cdnjs sends Access-Control-Allow-Origin: *,
+       so this gets real stack traces back. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js" crossorigin="anonymous"></script>
   <script>
     // Dev bundles are large and served uncompressed, so the default 7s require.js
     // timeout can fire before the biggest ones (tier-selection, rental-flow) load.
@@ -298,7 +452,37 @@
   <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
     // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
-    var PAGES = ['property', 'value-tiers', 'rental-flow'];
+    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'value-tiers', 'rental-flow'];
+
+    // Per-page container ids for the widgets that appear on more than one page.
+    var NAV_CONTAINERS = {
+      'blogs-listing': 'navigation-bar-container-blog',
+      'blog-post':     'navigation-bar-container-post',
+    };
+    var FOOTER_CONTAINERS = {
+      'blogs-listing': 'footer-container-blog',
+      'blog-post':     'footer-container-post',
+    };
+    function navContainerId(page)    { return NAV_CONTAINERS[page]    || 'navigation-bar-container'; }
+    function footerContainerId(page) { return FOOTER_CONTAINERS[page] || 'footer-container'; }
+    function activePage() { return new URLSearchParams(window.location.search).get('page') || 'property'; }
+
+    // Shared singleton widgets (createWidget binds each module to a single
+    // container). When the visible page changes we re-init them onto the
+    // container that belongs to the newly-active page.
+    // Only the nav and footer need this — they're the two widgets that render on
+    // both the property page and the blog page. #12 blogs-listing lives on the
+    // property page only; the blog page's listing is #15 widget-blogs-page.
+    var navigationBarWidget = null;
+    var footerWidget        = null;
+
+    function mountSharedWidgets(name) {
+      var navEl    = document.getElementById(navContainerId(name));
+      var footerEl = document.getElementById(footerContainerId(name));
+
+      if (navigationBarWidget && navEl)    navigationBarWidget.init({ container: navEl,    props: {} });
+      if (footerWidget        && footerEl) footerWidget.init({        container: footerEl, props: {} });
+    }
 
     function showPage(name, skipUrl) {
       if (PAGES.indexOf(name) === -1) name = 'property';
@@ -309,6 +493,8 @@
       for (var i = 0; i < tabs.length; i++) {
         tabs[i].classList.toggle('active', tabs[i].getAttribute('data-page') === name);
       }
+      // Re-mount shared singletons onto the visible page's containers.
+      mountSharedWidgets(name);
       if (!skipUrl) {
         var url = new URL(window.location.href);
         url.searchParams.set('page', name);
@@ -417,7 +603,8 @@
       widget.init({ container: document.getElementById('utility-bar-container'), props: { inEditor: true } });
     });
     require(['/dist/widget-navigation-bar.js'], function (widget) {
-      widget.init({ container: document.getElementById('navigation-bar-container'), props: {} });
+      navigationBarWidget = widget;
+      widget.init({ container: document.getElementById(navContainerId(activePage())), props: {} });
     });
     require(['/dist/widget-property-info.js'], function (widget) {
       propertyInfoWidget = widget;
@@ -443,8 +630,82 @@
       widget.init({ container: document.getElementById('blogs-listing-container'), props: {} });
     });
     require(['/dist/widget-footer.js'], function (widget) {
-      widget.init({ container: document.getElementById('footer-container'), props: {} });
+      footerWidget = widget;
+      widget.init({ container: document.getElementById(footerContainerId(activePage())), props: {} });
     });
+    var blogsPageWidget = null;
+
+    function getBlogsPageProps() {
+      return {
+        batchSize:       Number(document.getElementById('bp-batch').value),
+        visibleTagCount: Number(document.getElementById('bp-visible-tags').value),
+      };
+    }
+
+    function reinitBlogsPage() {
+      if (blogsPageWidget) {
+        blogsPageWidget.init({
+          container: document.getElementById('blogs-page-container'),
+          props: getBlogsPageProps(),
+        });
+      }
+    }
+
+    require(['/dist/widget-blogs-page.js'], function (widget) {
+      blogsPageWidget = widget;
+      widget.init({ container: document.getElementById('blogs-page-container'), props: getBlogsPageProps() });
+    });
+
+    var blogPostWidget = null;
+
+    function getBlogPostProps() {
+      return {
+        slug:          document.getElementById('bpp-slug').value,
+        showBreadcrumb: document.getElementById('bpp-crumbs').checked,
+        featuredCount: Number(document.getElementById('bpp-featured').value),
+        instagramUrl:  document.getElementById('bpp-instagram').value.trim() || undefined,
+      };
+    }
+
+    function reinitBlogPost() {
+      if (blogPostWidget) {
+        blogPostWidget.init({
+          container: document.getElementById('blog-post-container'),
+          props: getBlogPostProps(),
+        });
+      }
+    }
+
+    require(['/dist/widget-blog-post.js'], function (widget) {
+      blogPostWidget = widget;
+      widget.init({ container: document.getElementById('blog-post-container'), props: getBlogPostProps() });
+    });
+
+    var accountLoginWidget = null;
+
+    function getAccountLoginProps() {
+      var scenario = document.getElementById('al-scenario').value;
+      return {
+        identifierMode: scenario === 'thirdparty' ? 'phoneOrEmail' : scenario === '2fa' ? 'phoneOrEmail' : scenario,
+        showPropertySelect: scenario === 'thirdparty',
+        bypassCode: document.getElementById('al-code').value || '000000',
+      };
+    }
+
+    function reinitAccountLogin() {
+      if (accountLoginWidget) {
+        accountLoginWidget.init({
+          container: document.getElementById('account-login-container'),
+          props: getAccountLoginProps(),
+        });
+      }
+    }
+
+    require(['/dist/widget-account-login.js'], function (widget) {
+      accountLoginWidget = widget;
+      widget.init({ container: document.getElementById('account-login-container'), props: getAccountLoginProps() });
+    });
+
     var tierSelectionWidget = null;
 
     function getTierSelectionProps() {
