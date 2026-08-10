@@ -235,6 +235,7 @@ export function mapApiToUnits(raw: unknown): Unit[] {
 
         units.push({
           id: tier.id,
+          unitGroupId: tier.tier_id,
           type,
           size,
           dimensions: tier.description,

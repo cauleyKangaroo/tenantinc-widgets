@@ -75,6 +75,9 @@ export function SpaceList({
   enableWaitlist = false,
   callOnLimitedAvailability = false,
   ctaButtonCopy = 'Select',
+  enableValueTiers = false,
+  valueTiersChannel,
+  valueTiersFallbackUrl,
   limitedAvailabilityCopy = '',
   startingAtLabel = 'Starting at',
   showSizeGuideVideos = true,
@@ -148,6 +151,9 @@ export function SpaceList({
     enableWaitlist,
     callOnLimitedAvailability,
     ctaButtonCopy,
+    enableValueTiers,
+    valueTiersChannel,
+    valueTiersFallbackUrl,
     // Deliberately NO fallback: blank means the editor wants no note at all, so a
     // sold-out unit shows its CTA with nothing underneath. (The junk-fee field
     // still falls back — that one has standard legal wording worth defaulting to.)
