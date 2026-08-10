@@ -21,6 +21,7 @@ import { CITY_FACILITIES, type CityFacility, type CityUnit } from './data';
 import { PROPERTY_IMAGES } from '@shared/demoImages';
 import { FilterPanel } from './FilterPanel';
 import { INITIAL_FILTERS, activeFilterCount, type FilterState } from './filters';
+import { useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 
 // ── Icons (inline SVG — the AMD bundle can't load remote assets) ─────────────
 
@@ -38,6 +39,25 @@ const Icon = {
   chevron: (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polyline points="6 9 12 15 18 9" />
+    </svg>
+  ),
+  search: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.6-3.6" />
+    </svg>
+  ),
+  /** map/map-location — the "Map View" toggle. */
+  mapView: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  ),
+  /** list/list-default — the "List View" toggle. */
+  listView: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18M3 12h18M3 18h18" />
     </svg>
   ),
   pin: (
@@ -118,11 +138,14 @@ function PropertyCard({
   facility,
   index,
   active,
+  compact,
   onActivate,
 }: {
   facility: CityFacility;
   index: number;
   active: boolean;
+  /** Mobile card: unit rows collapse to one "Units starting at $X" button. */
+  compact: boolean;
   onActivate: () => void;
 }) {
   const cls = [
@@ -180,14 +203,22 @@ function PropertyCard({
           </div>
         )}
 
-        <div className="ml-units">
-          {facility.units.map((u) => <UnitRow key={u.id} unit={u} />)}
-        </div>
+        {compact ? (
+          <button type="button" className="ml-cta">
+            Units starting at {facility.priceLabel}
+          </button>
+        ) : (
+          <>
+            <div className="ml-units">
+              {facility.units.map((u) => <UnitRow key={u.id} unit={u} />)}
+            </div>
 
-        <div className="ml-card-foot">
-          <span className="ml-admin-fee">+ Plus ${facility.adminFee} Admin Fee</span>
-          <a className="ml-see-all" href="#">See All Spaces</a>
-        </div>
+            <div className="ml-card-foot">
+              <span className="ml-admin-fee">+ Plus ${facility.adminFee} Admin Fee</span>
+              <a className="ml-see-all" href="#">See All Spaces</a>
+            </div>
+          </>
+        )}
       </div>
     </article>
   );
@@ -242,6 +273,16 @@ export function MapLocations({
 
   const filterCount = activeFilterCount(filters);
 
+  // Mobile is a different composition, not just a reflow: a search field, a
+  // Map/List toggle and "Filter & Sort" replace the desktop header, and only
+  // one of the map or the list is on screen at a time (Figma 10609:72429 /
+  // 10609:72649). That's DOM structure, so it needs a JS breakpoint rather
+  // than the media queries the rest of the layout uses.
+  const isMobile = useMediaQuery(MOBILE_STICKY_QUERY);
+  const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
+  const showMap = !isMobile || mobileView === 'map';
+  const showCards = !isMobile || mobileView === 'list';
+
   const points: MapPoint[] = facilities.map((f) => ({
     id: f.id,
     lat: f.lat,
@@ -279,10 +320,20 @@ export function MapLocations({
           <span>{p.label}</span>
         </button>
 
+        {/* "Selected Location" tab under the active bubble — mobile only. */}
+        {isMobile && isActive && (
+          <span className="ml-bubble-tag" style={{ left: p.left, top: p.top }}>
+            Selected Location
+          </span>
+        )}
+
         {isOpen && facility && (
           <div
-            className="ml-popup"
-            style={{ left: p.left, top: p.top }}
+            /* On a phone the frame parks the popup across the top of the map
+               rather than over its bubble, which also keeps it from being
+               clipped when the bubble sits near an edge. */
+            className={`ml-popup${isMobile ? ' ml-popup--centred' : ''}`}
+            style={isMobile ? undefined : { left: p.left, top: p.top }}
             onClick={(e) => e.stopPropagation()}
           >
             <img
@@ -306,6 +357,8 @@ export function MapLocations({
                 <a className="ml-popup-reviews" href="#">{facility.reviewCount} Reviews</a>
               </div>
               <span className="ml-popup-from">Units starting at {facility.priceLabel}</span>
+              {/* The mobile frame adds a CTA here; the desktop one doesn't. */}
+              {isMobile && <button type="button" className="ml-cta">See All Units</button>}
             </div>
             <button
               type="button"
@@ -325,56 +378,108 @@ export function MapLocations({
 
   return (
     <div className="ml-wrapper" style={{ ['--ml-row-h' as string]: typeof rowHeight === 'number' ? `${rowHeight}px` : rowHeight }}>
-      {/* Header — count + controls */}
-      <div className="ml-header">
-        <p className="ml-heading">
-          {facilities.length} Storage {facilities.length === 1 ? 'Facility' : 'Facilities'} in {cityLabel}
-        </p>
-        <div className="ml-controls">
-          <button
-            type="button"
-            className={`ml-pill${filtersOpen ? ' ml-pill--on' : ''}`}
-            aria-expanded={filtersOpen}
-            onClick={() => setFiltersOpen(true)}
-          >
-            {Icon.filter}<span>Filter</span>
-            {filterCount > 0 && <span className="ml-pill-count">{filterCount}</span>}
-          </button>
+      {isMobile ? (
+        /* Mobile — search, then a Map/List toggle beside "Filter & Sort",
+           then the count. Figma 10609:72429 / 10609:72649. */
+        <>
+          <div className="ml-mcontrols">
+            <div className="ml-search">
+              <input
+                className="ml-search-input"
+                type="text"
+                placeholder="Enter ZIP, City, State"
+                aria-label="Search by ZIP, city or state"
+              />
+              <button type="button" className="ml-search-btn" aria-label="Search">
+                {Icon.search}
+              </button>
+            </div>
 
-          <button type="button" className="ml-pill">
-            {Icon.sort}<span className="ml-pill-sort">{sort}</span>{Icon.chevron}
-          </button>
+            <div className="ml-mtoggles">
+              {/* Names the view you'd switch TO, as the frames do. */}
+              <button
+                type="button"
+                className="ml-pill"
+                onClick={() => setMobileView((v) => (v === 'map' ? 'list' : 'map'))}
+              >
+                {mobileView === 'map' ? Icon.listView : Icon.mapView}
+                <span>{mobileView === 'map' ? 'List View' : 'Map View'}</span>
+              </button>
+
+              <button
+                type="button"
+                className="ml-pill ml-pill--dark"
+                aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen(true)}
+              >
+                {Icon.filter}<span>Filter &amp; Sort</span>
+                {filterCount > 0 && <span className="ml-pill-badge">{filterCount}</span>}
+              </button>
+            </div>
+          </div>
+
+          <p className="ml-heading">
+            {facilities.length} Self Storage {facilities.length === 1 ? 'Facility' : 'Facilities'} in {cityLabel}
+          </p>
+        </>
+      ) : (
+        /* Desktop — count on the left, Filter + sort pills on the right. */
+        <div className="ml-header">
+          <p className="ml-heading">
+            {facilities.length} Storage {facilities.length === 1 ? 'Facility' : 'Facilities'} in {cityLabel}
+          </p>
+          <div className="ml-controls">
+            <button
+              type="button"
+              className={`ml-pill${filtersOpen ? ' ml-pill--on' : ''}`}
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen(true)}
+            >
+              {Icon.filter}<span>Filter</span>
+              {filterCount > 0 && <span className="ml-pill-count">{filterCount}</span>}
+            </button>
+
+            <button type="button" className="ml-pill">
+              {Icon.sort}<span className="ml-pill-sort">{sort}</span>{Icon.chevron}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* The cards travel with the page; the map pins beside them until the
-          last card clears, then the widget releases. See .ml-row in the CSS. */}
+      {/* Desktop: the cards travel with the page while the map pins beside them
+          until the last card clears. Mobile: one or the other. */}
       <div className="ml-row">
-        <div className="ml-cards">
-          {facilities.map((f, i) => (
-            <PropertyCard
-              key={f.id}
-              facility={f}
-              index={i}
-              active={f.id === activeId}
-              onActivate={() => setActiveId(f.id)}
-            />
-          ))}
-        </div>
+        {showCards && (
+          <div className="ml-cards">
+            {facilities.map((f, i) => (
+              <PropertyCard
+                key={f.id}
+                facility={f}
+                index={i}
+                active={f.id === activeId}
+                compact={isMobile}
+                onActivate={() => setActiveId(f.id)}
+              />
+            ))}
+          </div>
+        )}
 
-        <div className="ml-map">
-          <NearbyMap
-            center={center}
-            points={points}
-            height="100%"
-            renderPin={renderPin}
-            hideCenterMarker
-          />
-        </div>
+        {showMap && (
+          <div className="ml-map">
+            <NearbyMap
+              center={center}
+              points={points}
+              height="100%"
+              renderPin={renderPin}
+              hideCenterMarker
+            />
+          </div>
+        )}
       </div>
 
-      {/* City SEO copy */}
-      {seoContent && (
+      {/* City SEO copy. The mobile map view is a full-screen map, so the frame
+          drops the copy there — it comes back with the list. */}
+      {seoContent && showCards && (
         <div className="ml-seo">
           <p className="ml-seo-heading">{seoHeading?.trim() || `Self Storage Units in ${cityLabel}`}</p>
           <RichText value={seoContent} className="ml-seo-body" />

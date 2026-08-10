@@ -47,6 +47,7 @@
 /* Canonical pill, same geometry as #11's .sg-tab — 1px border per the
    site-wide rule (the Figma shows 2px, which predates that decision). */
 .ml-pill {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -67,6 +68,33 @@
 .ml-pill:hover { background: #f4f6f8; }
 .ml-pill-sort { font-weight: 400; }
 .ml-pill--on { background: #f4f6f8; }
+
+/* "Filter & Sort" on mobile — the same pill, filled. */
+.ml-pill--dark {
+  background: #101318;
+  color: #fff;
+  font-weight: 500;
+}
+
+.ml-pill--dark:hover { background: #22272f; }
+
+/* Count clipped to the pill's top-right corner, per the frame. */
+.ml-pill-badge {
+  position: absolute;
+  top: -8px;
+  right: -3px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 100px;
+  background: #509e2f;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
 
 .ml-pill-count {
   display: inline-flex;
@@ -204,16 +232,19 @@
   gap: 19px;
 }
 
-/* Search — Figma 10557:146418. Pill field with the dark round AI button sunk
-   into its right end, same as #05's .sl-modal-search. */
-.ml-fp-search {
+/* Search — a pill field with a dark round button sunk into its right end.
+   Shared by the mobile header (56/40, Figma 10609:72666) and the filter panel
+   (54/38, Figma 10557:146418), which is the --sm size. */
+.ml-search {
   position: relative;
   width: 100%;
-  height: 54px;
+  height: 56px;
   flex-shrink: 0;
 }
 
-.ml-fp-search-input {
+.ml-search--sm { height: 54px; }
+
+.ml-search-input {
   width: 100%;
   height: 100%;
   padding: 0 56px 0 21px;
@@ -227,15 +258,15 @@
   color: #101318;
 }
 
-.ml-fp-search-input::placeholder { color: #637381; }
+.ml-search-input::placeholder { color: #637381; }
 
-.ml-fp-search-btn {
+.ml-search-btn {
   position: absolute;
   right: 7px;
   top: 50%;
   transform: translateY(-50%);
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   display: flex;
   align-items: center;
@@ -243,11 +274,14 @@
   border: none;
   border-radius: 100px;
   background: #101318;
+  color: #fff;
   cursor: pointer;
   transition: background 0.15s;
 }
 
-.ml-fp-search-btn:hover { background: #2d3748; }
+.ml-search--sm .ml-search-btn { width: 38px; height: 38px; }
+
+.ml-search-btn:hover { background: #2d3748; }
 
 /* Section card */
 .ml-fp-section {
@@ -426,6 +460,37 @@
 }
 
 .ml-fp-apply:hover { filter: brightness(0.94); }
+
+/* ── Mobile controls (Figma 10609:72429 / 10609:72649) ─────────────────── */
+
+.ml-mcontrols {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.ml-mtoggles { display: flex; gap: 12px; align-items: center; }
+
+/* ── Orange CTA — mobile card body + map popup ─────────────────────────── */
+
+.ml-cta {
+  width: 100%;
+  height: 33px;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  background: var(--color_1, #f45f30);
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.ml-cta:hover { filter: brightness(0.94); }
 
 /* ── Map + cards row ───────────────────────────────────────────────────── */
 
@@ -716,6 +781,27 @@
   z-index: 1;
 }
 
+/* Little dark tab under the active bubble — mobile map view only. */
+.ml-bubble-tag {
+  position: absolute;
+  z-index: 2;
+  /* Half the bubble's 50px height, so it seats just under it. */
+  transform: translate(-50%, 27px);
+  height: 21px;
+  padding: 0 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 100px;
+  background: #111;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* ── Map popup (Figma 10626:79939) ─────────────────────────────────────── */
 
 /* Opens above the clicked bubble. 357x156 in the frame; capped to the map's
@@ -755,6 +841,8 @@
 
 .ml-popup-name {
   margin: 0;
+  /* Clears the absolutely-positioned close button. */
+  padding-right: 28px;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
@@ -817,29 +905,72 @@
 /* ── Mobile ────────────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
-  /* The side-by-side split can't work on a phone: stack the map above the list
-     and let the page scroll normally. Pinning it here would eat most of the
-     screen and fight the sticky bars #03/#05 already put at the top. */
-  .ml-row { flex-direction: column; }
+  /* Only one of the map or the list is rendered here, so the row is a plain
+     column and nothing pins — pinning would eat the screen and fight the
+     sticky bars #03/#05 already put at the top. */
+  /* Back to stretch: in a column, the desktop's flex-start would shrink the
+     map to its (zero) intrinsic width and it would vanish. */
+  .ml-row { flex-direction: column; align-items: stretch; }
 
   .ml-cards {
     flex: 1 1 auto;
     width: 100%;
   }
 
-  .ml-map {
-    position: static;
-    width: 100%;
-    height: 320px;
-    flex: 0 0 320px;
-    border-radius: 16px;
+  /* 24px gutters, so a 393px screen gives the 345px card the frame draws. */
+  .ml-wrapper { padding-inline: 24px; gap: 16px; }
+
+  .ml-heading {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 22.5px;
+    color: #141a2b;
   }
 
-  .ml-heading { font-size: 24px; line-height: 1.2; }
-  .ml-seo-heading { font-size: 24px; }
+  .ml-seo-heading { font-size: 28px; line-height: 1.25; }
   .ml-header { align-items: flex-start; }
   .ml-controls { width: 100%; }
-  .ml-pill { flex: 1 1 auto; justify-content: center; }
+
+  /* The two toggles share the row evenly rather than sizing to their labels. */
+  .ml-mtoggles .ml-pill {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .ml-mtoggles .ml-pill span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Map view is the whole screen's worth of map (616px in the frame), bled to
+     the wrapper's edges. */
+  .ml-map {
+    position: static;
+    width: auto;
+    height: min(616px, 70vh);
+    flex: 0 0 auto;
+    margin-inline: -24px;
+    border-radius: 0;
+  }
+
+  /* Popup: 371x156 in the frame, but a phone can be narrower than that — let
+     it shrink and keep the photo square. */
+  .ml-popup { width: 371px; height: auto; min-height: 156px; }
+
+  /* Parked across the top of the map instead of over its bubble. */
+  .ml-popup--centred {
+    left: 50%;
+    top: 16px;
+    transform: translateX(-50%);
+  }
+  .ml-popup-photo { flex: 0 0 130px; width: 130px; height: auto; align-self: stretch; }
+  .ml-popup-body { gap: 4px; padding: 12px; }
+  .ml-popup-name { font-size: 14px; }
+  .ml-popup-from { font-size: 14px; }
 
   /* Nearly full-bleed on a phone, but still a centred lightbox. */
   .ml-fp-overlay { padding: 16px 12px; }

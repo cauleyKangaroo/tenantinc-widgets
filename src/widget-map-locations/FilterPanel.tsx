@@ -167,15 +167,16 @@ export function FilterPanel({
 
         {/* Body */}
         <div className="ml-fp-body">
-          {/* Figma 10557:146418 — 54px pill, dark circular AI button inset right. */}
-          <div className="ml-fp-search">
+          {/* Figma 10557:146418 — 54px pill, dark circular AI button inset right.
+              Same .ml-search block the mobile header uses, one size down. */}
+          <div className="ml-search ml-search--sm">
             <input
-              className="ml-fp-search-input"
+              className="ml-search-input"
               type="text"
               placeholder="Filter Spaces by... "
               aria-label="Filter spaces by"
             />
-            <button type="button" className="ml-fp-search-btn" aria-label="Search">
+            <button type="button" className="ml-search-btn" aria-label="Search">
               <SparkleIcon />
             </button>
           </div>
