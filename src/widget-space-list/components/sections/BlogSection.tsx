@@ -62,11 +62,14 @@ function SkeletonCard() {
 export interface BlogSectionProps {
   /** Duda collection name (case-sensitive). Default 'BlogPosts'. */
   collection?: string;
-  /** Path of the blog page the post slugs hang off, e.g. "/blog". */
+  /**
+   * Path of the blog page the post slugs hang off. Posts link at
+   * `${blogBasePath}/${slug}`, the URL #16 blog-post reads back.
+   */
   blogBasePath?: string;
 }
 
-export function BlogSection({ collection = 'BlogPosts', blogBasePath = '/blog' }: BlogSectionProps) {
+export function BlogSection({ collection = 'BlogPosts', blogBasePath = '/blogs' }: BlogSectionProps) {
   const [posts, setPosts] = useState<BlogPostData[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);

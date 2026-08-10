@@ -18,6 +18,9 @@ const widgetEntries = {
   'widget-blogs-listing':    './src/widget-blogs-listing/index.tsx',    // #12
   'widget-footer':           './src/widget-footer/index.tsx',           // #13
   'widget-tier-selection':   './src/widget-tier-selection/index.tsx',   // #14
+  'widget-blogs-page':       './src/widget-blogs-page/index.tsx',       // #15
+  'widget-blog-post':        './src/widget-blog-post/index.tsx',        // #16
+  'widget-account-login':    './src/widget-account-login/index.tsx',    // #17
   'widget-rental-flow-2step':'./src/widget-rental-flow-2step/index.tsx',// #99 (TBD)
 };
 
