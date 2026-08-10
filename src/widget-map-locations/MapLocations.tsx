@@ -202,7 +202,7 @@ export interface MapLocationsProps {
   seoHeading?: string;
   /** SEO copy. HTML is parsed (see @shared/richText); blank hides the block. */
   seoContent?: string;
-  /** Height of the map / card-scroll row. */
+  /** Height of the pinned map. Capped to the viewport so it can't overflow it. */
   rowHeight?: number | string;
   sortLabel?: string;
 }
@@ -347,7 +347,8 @@ export function MapLocations({
         </div>
       </div>
 
-      {/* Cards scroll; the map does not. */}
+      {/* The cards travel with the page; the map pins beside them until the
+          last card clears, then the widget releases. See .ml-row in the CSS. */}
       <div className="ml-row">
         <div className="ml-cards">
           {facilities.map((f, i) => (

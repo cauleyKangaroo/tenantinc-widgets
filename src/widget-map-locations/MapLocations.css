@@ -317,6 +317,11 @@
   border-radius: 8px;
   background: #fff;
   cursor: pointer;
+  /* Label and value hug the left edge. Stated on all three elements because a
+     host page that centres text inside its containers would otherwise win —
+     and <select> takes text-align from whatever wins. */
+  align-items: stretch;
+  text-align: left;
 }
 
 .ml-fp-field-label {
@@ -324,6 +329,7 @@
   font-weight: 400;
   line-height: 15px;
   color: #637381;
+  text-align: left;
 }
 
 .ml-fp-field-select {
@@ -339,6 +345,7 @@
   line-height: 20px;
   color: #101318;
   cursor: pointer;
+  text-align: left;
 }
 
 .ml-fp-field-chevron {
@@ -422,15 +429,19 @@
 
 /* ── Map + cards row ───────────────────────────────────────────────────── */
 
-/* The row is a fixed height so the map can fill it while the cards scroll
-   inside their own column — the behaviour asked for, and what the Figma shows
-   (map is `self-stretch` beside a taller card stack). */
+/* The card column is NOT its own scrollbox — it flows at full height and the
+   map is `position: sticky` beside it. So the page's own scroll does the work:
+   the map pins as soon as the row reaches the top, the cards travel past it,
+   and when the last card clears, the row ends and the whole widget releases
+   into the content below. No wheel hijacking, so trackpads, keyboards and
+   screen readers all behave normally.
+   `align-items: flex-start` is load-bearing — a stretched map would be as tall
+   as the row and sticky would have nothing to travel through. */
 .ml-row {
   display: flex;
   gap: 24px;
-  align-items: stretch;
+  align-items: flex-start;
   width: 100%;
-  height: var(--ml-row-h, 900px);
 }
 
 .ml-cards {
@@ -439,16 +450,20 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  overflow-y: auto;
-  /* Room for the card outline + shadow so neither is clipped by the scrollbox. */
+  /* Room for the card outline + shadow so neither is clipped. */
   padding: 4px;
   margin: -4px;
 }
 
 .ml-map {
+  position: sticky;
+  top: 16px;
   flex: 1 1 auto;
   min-width: 0;
-  border-radius: 16px 16px 0 0;
+  /* Never taller than the viewport, or the pinned map's lower half would be
+     permanently off-screen. */
+  height: min(var(--ml-row-h, 900px), calc(100vh - 32px));
+  border-radius: 16px;
   overflow: hidden;
 }
 
@@ -802,20 +817,18 @@
 /* ── Mobile ────────────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
-  /* The fixed-height split can't work on a phone: stack the map above a list
-     that grows with the page instead of scrolling inside itself. */
-  .ml-row {
-    flex-direction: column;
-    height: auto;
-  }
+  /* The side-by-side split can't work on a phone: stack the map above the list
+     and let the page scroll normally. Pinning it here would eat most of the
+     screen and fight the sticky bars #03/#05 already put at the top. */
+  .ml-row { flex-direction: column; }
 
   .ml-cards {
     flex: 1 1 auto;
     width: 100%;
-    overflow-y: visible;
   }
 
   .ml-map {
+    position: static;
     width: 100%;
     height: 320px;
     flex: 0 0 320px;
