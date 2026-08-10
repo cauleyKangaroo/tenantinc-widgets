@@ -16,6 +16,34 @@ function toggle(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 
+// ── Icons ───────────────────────────────────────────────────────────────────
+// Same glyphs as #05's FilterModal (inline, because the AMD bundle can't load
+// remote assets). Duplicated rather than imported: widgets are separate bundles
+// and only `@shared` crosses between them.
+
+/** Circle-with-X inside a selected (removable) pill. */
+function PillRemoveIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="8" fill="currentColor" />
+      <line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** The AI sparkle in the search button (Figma "ai/ai-01"). Same paths as #05's,
+ *  but the viewBox is cropped to the drawing so the glyph fills its box the way
+ *  the frame's 24px icon fills the 40px button — #05's leaves it looking tiny. */
+function SparkleIcon() {
+  return (
+    <svg width="22" height="22" viewBox="6 2 16 18" fill="white" aria-hidden="true">
+      <path d="M12 2.5c.4 3.9 1.6 5.1 5.5 5.5-3.9.4-5.1 1.6-5.5 5.5-.4-3.9-1.6-5.1-5.5-5.5 3.9-.4 5.1-1.6 5.5-5.5Z" />
+      <path d="M18.5 13.5c.2 2 .8 2.6 2.8 2.8-2 .2-2.6.8-2.8 2.8-.2-2-.8-2.6-2.8-2.8 2-.2 2.6-.8 2.8-2.8Z" />
+    </svg>
+  );
+}
+
 /** Pill row — a selected pill inverts and grows a clear (x) button, per the frame. */
 function PillGroup({
   options, selected, onToggle,
@@ -32,11 +60,7 @@ function PillGroup({
             onClick={() => onToggle(opt)}
             aria-pressed={on}
           >
-            {on && (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm3.5 12.1-1.4 1.4L12 13.4l-2.1 2.1-1.4-1.4L10.6 12 8.5 9.9l1.4-1.4L12 10.6l2.1-2.1 1.4 1.4L13.4 12l2.1 2.1Z" />
-              </svg>
-            )}
+            {on && <PillRemoveIcon />}
             <span>{opt}</span>
           </button>
         );
@@ -143,14 +167,17 @@ export function FilterPanel({
 
         {/* Body */}
         <div className="ml-fp-body">
+          {/* Figma 10557:146418 — 54px pill, dark circular AI button inset right. */}
           <div className="ml-fp-search">
-            <input type="text" placeholder="Filter Spaces by... " aria-label="Filter spaces by" />
-            <span className="ml-fp-search-btn" aria-hidden="true">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z" />
-                <path d="M18 15l.8 2.2 2.2.8-2.2.8L18 21l-.8-2.2-2.2-.8 2.2-.8L18 15Z" />
-              </svg>
-            </span>
+            <input
+              className="ml-fp-search-input"
+              type="text"
+              placeholder="Filter Spaces by... "
+              aria-label="Filter spaces by"
+            />
+            <button type="button" className="ml-fp-search-btn" aria-label="Search">
+              <SparkleIcon />
+            </button>
           </div>
 
           <section className="ml-fp-section">

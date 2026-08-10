@@ -106,7 +106,8 @@
 
 .ml-fp {
   width: 100%;
-  max-width: 542px;
+  /* 436px, the same as #05's filter lightbox — the Figma frame is ~423px. */
+  max-width: 436px;
   max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
@@ -136,13 +137,15 @@
   border-bottom: 1px solid #dfe3e8;
 }
 
+/* 20px/600, not the frame's 24px/700 — every other widget's modal title is
+   20/600 (see #05's .sl-filter-title) and this one sat noticeably larger. */
 .ml-fp-title {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 30px;
+  gap: 6px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
   color: #101318;
 }
 
@@ -150,18 +153,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 8px;
-  border-radius: 100px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   background: #509e2f;
   color: #fff;
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   line-height: 1;
 }
 
-.ml-fp-head-actions { display: flex; align-items: center; gap: 16px; }
+.ml-fp-head-actions { display: flex; align-items: center; gap: 12px; }
 
 .ml-fp-reset {
   border: none;
@@ -175,6 +177,9 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+.ml-fp-reset:hover,
+.ml-fp-close:hover { color: #509e2f; }
 
 .ml-fp-close {
   width: 32px;
@@ -193,45 +198,56 @@
 .ml-fp-body {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 21px 22px 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 19px;
 }
 
+/* Search — Figma 10557:146418. Pill field with the dark round AI button sunk
+   into its right end, same as #05's .sl-modal-search. */
 .ml-fp-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 50px;
-  padding: 0 8px 0 16px;
-  border: 1px solid #dfe3e8;
-  border-radius: 8px;
+  position: relative;
+  width: 100%;
+  height: 54px;
+  flex-shrink: 0;
 }
 
-.ml-fp-search input {
-  flex: 1 1 auto;
-  min-width: 0;
-  border: none;
+.ml-fp-search-input {
+  width: 100%;
+  height: 100%;
+  padding: 0 56px 0 21px;
+  border: 1px solid #101318;
+  border-radius: 100px;
+  background: #fff;
   outline: none;
-  background: none;
   font-family: inherit;
   font-size: 16px;
+  font-weight: 500;
   color: #101318;
 }
 
-.ml-fp-search input::placeholder { color: #919eab; }
+.ml-fp-search-input::placeholder { color: #637381; }
 
 .ml-fp-search-btn {
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  background: var(--color_1, #f45f30);
+  border: none;
+  border-radius: 100px;
+  background: #101318;
+  cursor: pointer;
+  transition: background 0.15s;
 }
+
+.ml-fp-search-btn:hover { background: #2d3748; }
 
 /* Section card */
 .ml-fp-section {
@@ -241,67 +257,72 @@
 }
 
 .ml-fp-section-title {
-  margin: 0 0 12px;
+  margin: 0 0 2px;
   font-size: 16px;
-  font-weight: 700;
-  line-height: 1.5;
+  font-weight: 600;
+  line-height: 36px;
   color: #101318;
 }
 
-/* Pills */
-.ml-fp-pills { display: flex; flex-wrap: wrap; gap: 12px; }
+/* Pills — the site's canonical pill (#05's .sl-pill): 36px tall, 14px regular. */
+.ml-fp-pills { display: flex; flex-wrap: wrap; gap: 12px 8px; }
 
 .ml-fp-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 40px;
-  padding: 8px 20px;
+  gap: 4px;
+  height: 36px;
+  padding: 0 15px;
   border: 1px solid #101318;
   border-radius: 100px;
   background: #fff;
   color: #101318;
   font-family: inherit;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.2;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
   white-space: nowrap;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .ml-fp-pill:hover { background: #f4f6f8; }
 
-/* Selected inverts and shows a clear (x), as the frame's chips do. */
+/* Selected reads as a removable chip: dark fill, circle-X, tighter left pad. */
 .ml-fp-pill--on {
   background: #101318;
   border-color: #101318;
   color: #fff;
+  font-weight: 600;
+  padding: 0 16px 0 6px;
 }
 
 .ml-fp-pill--on:hover { background: #22272f; }
 .ml-fp-pill svg { flex-shrink: 0; }
 
-/* Selects */
-.ml-fp-fields { display: flex; flex-wrap: wrap; gap: 16px; }
+/* Selects — the frame's ".Form 2.0" control, which no other widget uses yet. */
+.ml-fp-fields { display: flex; flex-wrap: wrap; gap: 12px; }
 
 .ml-fp-field {
   position: relative;
-  flex: 1 1 200px;
-  min-width: 0;
+  /* 0 basis so Min/Max Price stay side by side, as the frame has them. */
+  flex: 1 1 0;
+  min-width: 120px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: center;
   height: 56px;
-  padding: 7px 40px 7px 12px;
-  border: 1px solid #dfe3e8;
+  padding: 0 44px 0 16px;
+  border: 1px solid #a5b4bf;
   border-radius: 8px;
   background: #fff;
+  cursor: pointer;
 }
 
 .ml-fp-field-label {
   font-size: 12px;
-  font-weight: 500;
-  line-height: 1.5;
+  font-weight: 400;
+  line-height: 15px;
   color: #637381;
 }
 
@@ -314,35 +335,36 @@
   padding: 0;
   font-family: inherit;
   font-size: 16px;
-  font-weight: 500;
-  line-height: 1.5;
+  font-weight: 400;
+  line-height: 20px;
   color: #101318;
   cursor: pointer;
 }
 
 .ml-fp-field-chevron {
   position: absolute;
-  right: 10px;
+  right: 16px;
   top: 50%;
   transform: translateY(-50%);
   color: #101318;
   pointer-events: none;
 }
 
-/* Checkbox lists — two columns, like the frame's amenities grid. */
+/* Checkbox lists — one column, like #05's modal (the wider two-column grid was
+   mine, and it made the panel read differently from every other widget). */
 .ml-fp-checks {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .ml-fp-check {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-size: 14px;
-  font-weight: 500;
-  line-height: 1.5;
+  font-weight: 400;
+  line-height: 18px;
   color: #101318;
   cursor: pointer;
 }
@@ -815,5 +837,4 @@
   .ml-fp-foot { padding-inline: 16px; }
 
   .ml-fp-section { padding: 10px 16px 20px; }
-  .ml-fp-checks { grid-template-columns: minmax(0, 1fr); }
 }
