@@ -188,8 +188,10 @@ function computePromoRate(price: number, discounts?: RawDiscount[]): number | un
 
 /** An available tier: real unit + usable price, display amenities only. */
 function toAvailableOffer(o: RawOffer): AvailableOfferDto {
+  // show_in_website is a filter-bar flag, NOT a display gate — do not filter on
+  // it here (Storage Outlet returns show_in_website:0 on all amenities, which
+  // wrongly hid every one). Show the tier's amenities as returned.
   const amenities = (o.amenities ?? [])
-    .filter((a) => a.show_in_website === 1)
     .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
     .map((a) => ({ name: a.name, value: a.value }));
   return {

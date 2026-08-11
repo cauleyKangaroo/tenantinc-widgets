@@ -1525,12 +1525,11 @@ function O3Column({ card }: { card: O3Tier }) {
               {card.soldOut ? (
                 <span className="ts-o3-amt ts-o3-amt--soldout">Sold Out</span>
               ) : card.promoRate != null ? (
-                <div className="ts-o3-price--promo">
-                  <span className="ts-o3-promo-label ts-o3-promo-label--std">STANDARD</span>
-                  <span className="ts-o3-promo-label ts-o3-promo-label--promo">PROMO RATE</span>
-                  <span className="ts-o3-strike">{priceFmt(card.price)}/mo.</span>
+                <>
+                  <span className="ts-o3-strike-inline">{priceFmt(card.price)}</span>
                   <span className="ts-o3-amt">{priceFmt(card.promoRate)}</span>
-                </div>
+                  <span className="ts-o3-per">/ MONTH</span>
+                </>
               ) : (
                 <>
                   <span className="ts-o3-amt">{priceFmt(card.price)}</span>
