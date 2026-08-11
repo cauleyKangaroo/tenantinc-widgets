@@ -2,6 +2,9 @@ import React, { useCallback, useRef, useState } from 'react';
 import './RentalFlow2Step.css';
 import { CheckTick } from './icons';
 import { MoveInDateModal } from './MoveInDateModal';
+import { ProcessingModal } from './ProcessingModal';
+import { SuccessStep } from './SuccessStep';
+import './screens.css';
 import { Step2 } from './Step2';
 
 const startOfToday = () => {
@@ -19,6 +22,14 @@ const startOfToday = () => {
 // ---------------------------------------------------------------------------
 
 export interface RentalFlow2StepProps {
+  /** Move-in total shown on the Pay Now buttons. Static until billing is wired. */
+  total?: number;
+  /** Protection-plan brochure PDF for the "Learn More" modal. */
+  brochureUrl?: string;
+  /** Facility name in the processing lightbox copy. */
+  facilityName?: string;
+  /** How long the simulated payment wrap-up runs, ms. */
+  processingMs?: number;
   eyebrow?: string;
   heading?: string;
   /** Underlined link at the end of the SMS-consent paragraph. */
@@ -124,14 +135,21 @@ export function RentalFlow2Step({
   eyebrow = 'Great choice!',
   heading = 'Secure your space now',
   termsHref = '#',
+  total = 120,
+  brochureUrl,
+  facilityName,
+  processingMs,
 }: RentalFlow2StepProps) {
-  const [step, setStep] = useState<1 | 2>(1);
+  // 3 = the post-purchase "You've got your space!" screen (Figma 8507-25408).
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  // Payment in flight — the processing lightbox owns the transition to step 3.
+  const [processing, setProcessing] = useState(false);
   const [phase, setPhase] = useState<'in' | 'out'>('in');
   const [dateModalOpen, setDateModalOpen] = useState(false);
   const [moveIn, setMoveIn] = useState<Date>(startOfToday);
   const timer = useRef<number | undefined>(undefined);
 
-  const goToStep = useCallback((next: 1 | 2) => {
+  const goToStep = useCallback((next: 1 | 2 | 3) => {
     setPhase('out');
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
@@ -150,10 +168,29 @@ export function RentalFlow2Step({
             termsHref={termsHref}
             onRent={() => setDateModalOpen(true)}
           />
+        ) : step === 2 ? (
+          <Step2
+            moveIn={moveIn}
+            onEditDate={() => setDateModalOpen(true)}
+            total={total}
+            brochureUrl={brochureUrl}
+            // Any Pay Now (card, bank, or a wallet) raises the lightbox.
+            onPay={() => setProcessing(true)}
+          />
         ) : (
-          <Step2 moveIn={moveIn} onEditDate={() => setDateModalOpen(true)} />
+          <SuccessStep />
         )}
       </div>
+
+      <ProcessingModal
+        open={processing}
+        facilityName={facilityName}
+        durationMs={processingMs}
+        onDone={() => {
+          setProcessing(false);
+          goToStep(3);
+        }}
+      />
 
       <MoveInDateModal
         open={dateModalOpen}

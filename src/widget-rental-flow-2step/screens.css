@@ -1,0 +1,440 @@
+/* ===========================================================================
+   Rental flow — the five Figma screens added on top of steps 1 & 2:
+     8509-36480  Protection Plan "Learn More" modal
+     10080-28749 Pay by Bank
+     10080-30277 Credit / Debit
+     8509-35122  Processing lightbox
+     8507-25408  Post-purchase success screen
+
+   Kept separate from RentalFlow2Step.css so the original two steps stay
+   reviewable on their own.
+
+   Values reference `@shared/ui/tokens.css` wherever the design reuses the form
+   and button system, so a site rebrand reaches them; only genuinely local
+   geometry (12px panel radius, 64px pay button) is literal.
+   =========================================================================== */
+
+.rf-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ── Shared lightbox shell ────────────────────────────────────────────────── */
+
+.rf-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(16, 19, 24, 0.55);
+  overflow-y: auto;
+}
+/* The processing overlay covers a payment in flight — heavier scrim, and no
+   click-to-close handler at all (see ProcessingModal). */
+.rf-overlay--solid { background: rgba(16, 19, 24, 0.72); }
+
+/* ── Protection plan modal (8509-36480) ──────────────────────────────────── */
+
+.rf-pp-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 320px;
+  padding: 24px 24px 20px;
+  background: var(--hb-white, #fff);
+  border: 1px solid #dfe3e8;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+  font-family: var(--hb-font);
+}
+
+.rf-pp-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  padding: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--hb-grayscale-medium, #637381);
+  cursor: pointer;
+}
+.rf-pp-close:hover { background: #f4f6f8; }
+
+.rf-pp-head { display: flex; flex-direction: column; gap: 8px; }
+.rf-pp-title { margin: 0; color: var(--hb-text-night, #101318); font-size: 14px; font-weight: 600; }
+.rf-pp-sub { margin: 0; color: var(--hb-text-night, #101318); font-size: 12px; line-height: 1.4; }
+
+.rf-pp-list { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.rf-pp-row { display: flex; align-items: center; gap: 8px; }
+.rf-pp-ico {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--hb-text-night, #101318);
+}
+.rf-pp-text { color: var(--hb-text-night, #101318); font-size: 12px; line-height: 1.35; }
+
+.rf-pp-brochure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 52px;
+  padding: 2px 10px 2px 4px;
+  border: 2px solid var(--hb-secondary, #509e2f);
+  border-radius: 8px;
+  background: var(--hb-white, #fff);
+  color: var(--hb-text-night, #101318);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.rf-pp-brochure:hover:not(:disabled) { background: #f4f6f8; }
+.rf-pp-brochure:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Processing lightbox (8509-35122) ────────────────────────────────────── */
+
+.rf-proc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  max-width: 708px;
+  padding: 72px 40px;
+  background: var(--hb-white, #fff);
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
+  font-family: var(--hb-font);
+  text-align: center;
+}
+
+.rf-proc-title {
+  margin: 0;
+  max-width: 463px;
+  color: var(--hb-text-night, #101318);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.rf-proc-name { color: var(--hb-secondary, #509e2f); }
+
+.rf-proc-bar {
+  width: 225px;
+  height: 10px;
+  border-radius: 100px;
+  background: #dfe3e8;
+  overflow: hidden;
+}
+.rf-proc-bar-fill {
+  height: 100%;
+  border-radius: 100px;
+  background: var(--hb-secondary, #509e2f);
+  /* Matches the component's tick interval so the bar glides rather than steps. */
+  transition: width 60ms linear;
+}
+
+.rf-proc-copy { margin: 0; color: var(--hb-text-night, #101318); font-size: 16px; line-height: 1.5; }
+
+@media (max-width: 640px) {
+  .rf-proc { padding: 48px 24px; gap: 24px; }
+  .rf-proc-title { font-size: 24px; }
+}
+
+/* ── Payment section (10080-28749 / 10080-30277) ─────────────────────────── */
+
+.rf-payment {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 30px;
+  border-radius: 12px;
+  background: #f4f6f8;
+  font-family: var(--hb-font);
+}
+
+.rf-payment-title { margin: 0; color: #000; font-size: 20px; font-weight: 700; }
+
+.rf-autopay-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 64px;
+  padding: 0 30px;
+  border-radius: 10px;
+  background: var(--hb-white, #fff);
+}
+.rf-autopay-line { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.rf-autopay-line input { position: absolute; opacity: 0; width: 0; height: 0; }
+.rf-autopay-text { color: var(--hb-text-night, #101318); font-size: 16px; font-weight: 600; }
+.rf-autopay-i { color: var(--hb-text-night, #101318); flex-shrink: 0; }
+
+.rf-wallets { display: flex; gap: 18px; }
+.rf-wallet {
+  display: flex;
+  flex: 1 0 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 64px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--hb-text-night, #101318);
+  color: var(--hb-white, #fff);
+  cursor: pointer;
+}
+.rf-wallet:hover { filter: brightness(1.15); }
+.rf-wallet-label { font-family: var(--hb-font); font-size: 26px; font-weight: 500; }
+.rf-wallet-apple { font-size: 26px; line-height: 1; }
+/* Four-colour ring standing in for the Google mark. The real wordmark is a
+   registered logo; `GooglePayMark` in icons.tsx is the asset used elsewhere in
+   this widget, and should replace this once the brand kit is confirmed. */
+.rf-wallet-mark--g {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: conic-gradient(#ea4335 0 25%, #fbbc04 0 50%, #34a853 0 75%, #4285f4 0);
+  -webkit-mask: radial-gradient(circle, transparent 40%, #000 41%);
+  mask: radial-gradient(circle, transparent 40%, #000 41%);
+}
+
+/* Collapsed method button — 2px dark outline. */
+.rf-method {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  height: 64px;
+  border: 2px solid var(--hb-text-night, #101318);
+  border-radius: 12px;
+  background: transparent;
+  color: #000;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+}
+.rf-method:hover { background: rgba(16, 19, 24, 0.04); }
+
+/* Expanded panel — 2px CTA border. */
+.rf-method-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 30px;
+  border: 2px solid var(--hb-cta, #f45f30);
+  border-radius: 12px;
+  background: #f9fafb;
+}
+.rf-method-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #000;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+/* Two-up field grid; collapses on narrow widths. */
+.rf-pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+.rf-paynow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 64px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--hb-cta, #f45f30);
+  color: var(--hb-white, #fff);
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+}
+.rf-paynow:hover { filter: brightness(0.94); }
+
+@media (max-width: 720px) {
+  .rf-pay-grid { grid-template-columns: 1fr; }
+  .rf-payment, .rf-method-panel { padding: 20px; }
+  .rf-wallets { flex-direction: column; }
+  .rf-autopay-card { padding: 0 16px; }
+}
+
+/* ── Select: native control layered over a FormField "face" ──────────────── */
+
+.rf-select { position: relative; }
+/* The real control sits transparent and on top, so the native picker (and the
+   mobile wheel) still does the work; the visual is the FormField underneath. */
+.rf-select-native { position: absolute; inset: 0; z-index: 2; }
+.rf-select-native select {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  font-size: 16px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.rf-select-native select:focus { outline: none; }
+/* Options still need to be readable in the open dropdown. */
+.rf-select-native select option { color: var(--hb-text-night, #101318); }
+.rf-select-face { position: relative; pointer-events: none; }
+.rf-select-chev {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: var(--hb-grayscale-medium, #637381);
+  transform: rotate(90deg);
+}
+/* Focus lands on the hidden select, so mirror the ring onto the visible face. */
+.rf-select:focus-within .rf-select-face .hb-field__box {
+  border-color: var(--hb-field-border-active, #101318);
+  box-shadow: var(--hb-focus-ring);
+}
+
+/* ── Card number / expiry / CVV row (10080-30277) ────────────────────────── */
+
+.rf-cardrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--hb-field-height, 56px);
+  padding: 0 15px;
+  border: var(--hb-field-border-width, 1px) solid var(--hb-field-border, #a5b4bf);
+  border-radius: var(--hb-field-radius, 8px);
+  background: var(--hb-white, #fff);
+}
+.rf-cardrow:focus-within {
+  border-color: var(--hb-field-border-active, #101318);
+  box-shadow: var(--hb-focus-ring);
+}
+.rf-cardrow-ico { flex-shrink: 0; color: var(--hb-grayscale-medium, #637381); }
+.rf-cardrow-input {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--hb-field-text, #101318);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 16px;
+}
+.rf-cardrow-input::placeholder { color: var(--hb-grayscale-medium, #637381); opacity: 1; }
+.rf-cardrow-number { flex: 1 1 auto; }
+.rf-cardrow-exp { flex: 0 0 88px; }
+.rf-cardrow-cvv { flex: 0 0 58px; }
+
+/* ── Success screen (8507-25408) ─────────────────────────────────────────── */
+
+.rf-sx { display: flex; flex-direction: column; gap: 24px; font-family: var(--hb-font); }
+.rf-sx-head { display: flex; flex-direction: column; gap: 12px; }
+.rf-sx-eyebrow { margin: 0; color: var(--hb-secondary, #509e2f); font-size: 30px; font-weight: 600; }
+.rf-sx-heading { margin: 0; color: var(--hb-text-night, #101318); font-size: 30px; font-weight: 600; line-height: 1.1; }
+
+.rf-sx-idv { padding: 30px; border-radius: 12px; background: #f4f6f8; }
+.rf-sx-idv-title { margin: 0 0 16px; color: var(--hb-text-night, #101318); font-size: 20px; font-weight: 600; }
+.rf-sx-idv-body { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.rf-sx-idv-actions { display: flex; flex: 1 1 300px; flex-direction: column; gap: 14px; }
+
+.rf-sx-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+  padding: 8px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 16px;
+  cursor: pointer;
+}
+.rf-sx-btn--solid { border: 0; background: var(--hb-secondary, #509e2f); color: var(--hb-white, #fff); }
+.rf-sx-btn--outline { border: 2px solid var(--hb-secondary, #509e2f); background: #fefefe; color: var(--hb-text-night, #101318); }
+.rf-sx-btn:hover { filter: brightness(0.95); }
+
+.rf-sx-idv-note {
+  margin: 20px 0 0;
+  color: var(--hb-text-night, #101318);
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.4;
+}
+.rf-sx-idv-note a { color: inherit; text-decoration: underline; }
+
+/* Layered line art. Percentage positions keep the layers registered to one
+   another as the box scales. */
+.rf-sx-illus { position: relative; flex: 0 0 260px; height: 110px; }
+.rf-sx-illus-l { position: absolute; display: block; }
+.rf-sx-illus-phoneB   { left: 10%; top: 0;   width: 37%; }
+.rf-sx-illus-phoneA   { left: 10%; top: 0;   width: 37%; }
+.rf-sx-illus-screen   { left: 25%; top: 16%; width: 15%; }
+.rf-sx-illus-thumbA   { left: 11%; top: 87%; width: 11%; }
+.rf-sx-illus-thumbB   { left: 17%; top: 88%; width: 5%; }
+.rf-sx-illus-handcard { left: 60%; top: 3%;  width: 34%; }
+.rf-sx-illus-cardface { left: 60%; top: 18%; width: 14%; }
+/* Stands in for the un-bundled portrait photo — see IdIllustration in
+   SuccessStep.tsx for why it isn't the real asset. */
+.rf-sx-illus-portrait {
+  position: absolute;
+  left: 48%;
+  top: 14%;
+  width: 17%;
+  height: 33%;
+  border: 1px solid var(--hb-text-night, #101318);
+  border-radius: 4px;
+  background: #dfe3e8;
+}
+
+.rf-sx-extra { display: flex; flex-direction: column; gap: 20px; }
+.rf-sx-extra-title { margin: 0; color: var(--hb-text-night, #101318); font-size: 20px; font-weight: 700; }
+.rf-sx-group { display: flex; flex-direction: column; gap: 20px; }
+.rf-sx-fields { display: flex; flex-direction: column; gap: 20px; }
+
+.rf-sx-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.rf-sx-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.rf-sx-toggle-text { color: var(--hb-text-night, #101318); font-size: 16px; line-height: 18px; }
+
+.rf-sx-access {
+  align-self: center;
+  width: 100%;
+  max-width: 400px;
+  height: 50px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--hb-cta, #f45f30);
+  color: var(--hb-white, #fff);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rf-sx-access:hover { filter: brightness(0.94); }
+
+@media (max-width: 640px) {
+  .rf-sx-eyebrow, .rf-sx-heading { font-size: 24px; }
+  .rf-sx-idv { padding: 20px; }
+  .rf-sx-illus { flex: 1 1 100%; }
+}
