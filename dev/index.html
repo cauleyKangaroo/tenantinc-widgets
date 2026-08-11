@@ -48,6 +48,7 @@
     <button class="page-tab active" data-page="property" onclick="showPage('property')">Property Landing Page</button>
     <button class="page-tab" data-page="value-tiers" onclick="showPage('value-tiers')">Value Tiers page</button>
     <button class="page-tab" data-page="rental-flow" onclick="showPage('rental-flow')">Rental Flow</button>
+    <button class="page-tab" data-page="ui-kit" onclick="showPage('ui-kit')">UI Kit (forms &amp; buttons)</button>
   </div>
 
   <div id="page-property" class="page">
@@ -288,6 +289,19 @@
 
   </div><!-- /#page-rental-flow -->
 
+  <!-- ── Shared UI kit styleguide ─────────────────────────────────────────── -->
+  <div id="page-ui-kit" class="page" hidden>
+    <div class="widget-section">
+      <h2>@shared/ui — forms &amp; buttons</h2>
+      <p style="max-width:70ch;color:#637381;font-size:14px;line-height:1.6;">
+        Built from Figma <code>8753-47700</code> (forms) and <code>9215-57188</code>
+        (buttons). Import from <code>@shared/ui</code> — do not re-style inputs or
+        buttons inside a widget.
+      </p>
+      <div id="ui-kit-container" class="widget-container"></div>
+    </div>
+  </div><!-- /#page-ui-kit -->
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
   <script>
     // Dev bundles are large and served uncompressed, so the default 7s require.js
@@ -298,7 +312,7 @@
   <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
     // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
-    var PAGES = ['property', 'value-tiers', 'rental-flow'];
+    var PAGES = ['property', 'value-tiers', 'rental-flow', 'ui-kit'];
 
     function showPage(name, skipUrl) {
       if (PAGES.indexOf(name) === -1) name = 'property';
@@ -418,6 +432,9 @@
     });
     require(['/dist/widget-navigation-bar.js'], function (widget) {
       widget.init({ container: document.getElementById('navigation-bar-container'), props: {} });
+    });
+    require(['/dist/ui-kit.js'], function (widget) {
+      widget.init({ container: document.getElementById('ui-kit-container'), props: {} });
     });
     require(['/dist/widget-property-info.js'], function (widget) {
       propertyInfoWidget = widget;
