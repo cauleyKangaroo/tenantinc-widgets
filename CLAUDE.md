@@ -70,6 +70,34 @@ Details:
 
 ---
 
+## Shared UI kit (`@shared/ui`) — forms + buttons
+
+**All inputs and buttons come from `@shared/ui`.** Built from Figma
+`8753-47700` (forms) and `9215-57188` (buttons). Full dev-facing docs are in
+`README.md`; live styleguide is the **UI Kit** tab of the dev harness
+(`src/ui-kit/`, webpack entry `ui-kit`, deliberately unnumbered — it is NOT a
+Duda widget and must never be added to a page).
+
+- `tokens.css` holds every value as a CSS custom property named after the Figma
+  variable (`--hb-text-night`, `--hb-ada-red`, `--hb-cloud-darker`). A site
+  rebrands by overriding **`--hb-cta`** and **`--hb-secondary`** on `:root` —
+  no rebuild.
+- **Field resting/active state is CSS (`:focus-within`), not a prop**, so the
+  border can never disagree with the caret. Only `success`/`error` are props.
+  `error` implies the error state, so a red border always has a message.
+- **The floating label is CSS-only** (`:placeholder-shown`). Deliberate: it keeps
+  working with browser autofill, which fires no React event.
+- Buttons compose `tone` × `fill` × `shape` × `darkText` rather than nine
+  hardcoded classes; a new tone is one 3-line block.
+- The 7 icons are **inline SVG** (`icons.tsx`), traced from the Figma exports —
+  the AMD bundle can't load remote assets and Figma's URLs expire in ~7 days.
+  24×24 frames with per-icon translate offsets derived from the Figma insets; no
+  scaling, so strokes stay a true 2px. Strokes are `currentColor`.
+- Focus rings, hover/active, disabled and `busy` are **additions** — the Figma
+  frames only describe resting states.
+
+---
+
 ## Where widget data comes from — Duda collections vs the Hummingbird API
 
 Widgets used to call the Hummingbird (Tenant/`edge.tenant.dev`) API directly with a

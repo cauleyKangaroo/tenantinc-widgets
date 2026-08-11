@@ -51,6 +51,7 @@
     <button class="page-tab" data-page="login" onclick="showPage('login')">Login Page</button>
     <button class="page-tab" data-page="value-tiers" onclick="showPage('value-tiers')">Value Tiers page</button>
     <button class="page-tab" data-page="rental-flow" onclick="showPage('rental-flow')">Rental Flow</button>
+    <button class="page-tab" data-page="ui-kit" onclick="showPage('ui-kit')">UI Kit (forms &amp; buttons)</button>
   </div>
 
   <div id="page-property" class="page">
@@ -434,6 +435,19 @@
 
   </div><!-- /#page-rental-flow -->
 
+  <!-- ── Shared UI kit styleguide ─────────────────────────────────────────── -->
+  <div id="page-ui-kit" class="page" hidden>
+    <div class="widget-section">
+      <h2>@shared/ui — forms &amp; buttons</h2>
+      <p style="max-width:70ch;color:#637381;font-size:14px;line-height:1.6;">
+        Built from Figma <code>8753-47700</code> (forms) and <code>9215-57188</code>
+        (buttons). Import from <code>@shared/ui</code> — do not re-style inputs or
+        buttons inside a widget.
+      </p>
+      <div id="ui-kit-container" class="widget-container"></div>
+    </div>
+  </div><!-- /#page-ui-kit -->
+
   <!-- crossorigin="anonymous" is load-bearing for debugging, not decoration.
        require.js is cross-origin, and every widget bundle is executed through
        it, so without CORS the browser strips the details off anything that
@@ -452,7 +466,7 @@
   <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
     // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
-    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'value-tiers', 'rental-flow'];
+    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'value-tiers', 'rental-flow', 'ui-kit'];
 
     // Per-page container ids for the widgets that appear on more than one page.
     var NAV_CONTAINERS = {
@@ -605,6 +619,9 @@
     require(['/dist/widget-navigation-bar.js'], function (widget) {
       navigationBarWidget = widget;
       widget.init({ container: document.getElementById(navContainerId(activePage())), props: {} });
+    });
+    require(['/dist/ui-kit.js'], function (widget) {
+      widget.init({ container: document.getElementById('ui-kit-container'), props: {} });
     });
     require(['/dist/widget-property-info.js'], function (widget) {
       propertyInfoWidget = widget;

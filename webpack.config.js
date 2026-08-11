@@ -22,6 +22,9 @@ const widgetEntries = {
   'widget-blog-post':        './src/widget-blog-post/index.tsx',        // #16
   'widget-account-login':    './src/widget-account-login/index.tsx',    // #17
   'widget-rental-flow-2step':'./src/widget-rental-flow-2step/index.tsx',// #99 (TBD)
+  // Living styleguide for @shared/ui — DEV HARNESS ONLY, never a Duda widget.
+  // Deliberately unnumbered so it can't be mistaken for one.
+  'ui-kit':                  './src/ui-kit/index.tsx',
 };
 
 module.exports = (_env, argv) => {
