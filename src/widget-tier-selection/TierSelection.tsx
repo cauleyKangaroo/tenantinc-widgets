@@ -152,7 +152,6 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
 
   const rows: FeatureRow[] = [
     { label: 'Monthly Rent', type: 'price', bold: true },
-    { label: 'Access Hours', type: 'hours', bold: true },
     ...checkRows.map((r) => ({ ...r, type: 'check' as RowType })),
   ];
 
@@ -180,7 +179,6 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
   }));
 
   const rows3: O3Row[] = [
-    { label: 'Access Hours', type: 'hours', weight: 'bold', gray: true },
     ...checkRows.map((r, i) => ({
       label: r.label,
       type: 'check' as const,
@@ -222,6 +220,9 @@ export interface TierSelectionProps {
   heading?: string;
   subheading?: string;
   headingMobile?: string;
+  /** Operator-overridable heading color (Duda content field). Defaults to
+   *  #101318 (black) and always wins over the host theme. */
+  titleColor?: string;
   urgency?: string;
   promo?: string;
   /** Which unit size this instance sells, e.g. "10' x 10'" or "10x10".
@@ -331,6 +332,7 @@ export function TierSelection({
   heading: headingProp,
   subheading = 'Choose a package that gives you features and flexibility.',
   headingMobile: headingMobileProp,
+  titleColor,
   urgency: urgencyProp,
   promo: promoProp,
   size: sizeRaw,
@@ -389,15 +391,21 @@ export function TierSelection({
   };
   // The size actually priced: the modal's requested size in modal mode, else the
   // prop. In modal mode the group id is authoritative (from the clicked card).
-  const sizeProp = mode === 'modal' ? modalSize : sizeRaw;
-  const authoritativeGroupId = mode === 'modal' ? modalUnitGroupId : unitGroupIdProp;
+  // Page (inline) mode: fall back to the ?size / ?unitGroupId that the Space List
+  // passes when it navigates here, so a dedicated Value-Tiers page works without
+  // custom Duda initWidget glue.
+  const urlParam = (k: string): string | undefined => {
+    try { return new URLSearchParams(window.location.search).get(k) || undefined; } catch { return undefined; }
+  };
+  const sizeProp = mode === 'modal' ? modalSize : (sizeRaw || urlParam('size'));
+  const authoritativeGroupId = mode === 'modal' ? modalUnitGroupId : (unitGroupIdProp || urlParam('unitGroupId'));
 
   const cfgDefaults = React.useMemo(() => defaultContext(), []);
-  const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp }, cfgDefaults.propertyId);
+  const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp || urlParam('propertyId') }, cfgDefaults.propertyId);
   const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
-    resolveCompanyIdFromSources('#14 tier-selection', { companyId: companyIdProp }, cfgDefaults.companyId)
+    resolveCompanyIdFromSources('#14 tier-selection', { companyId: companyIdProp || urlParam('companyId') }, cfgDefaults.companyId)
       .then((id) => { if (!cancelled) setEffectiveCompanyId(id); })
       .catch((err) => {
         console.error('[TierSelection] company id resolve error:', err);
@@ -478,9 +486,10 @@ export function TierSelection({
       setStatus('unavailable');
     };
 
-    // A published page must be told which size to show; only the editor may
-    // auto-pick a group for preview.
-    if (!sizeProp && !inEditor) { unavailable('no size configured for this placement'); return () => { cancelled = true; clearTimeout(timer); }; }
+    // No handoff size/unitGroup (standalone page, editor, or a direct visit):
+    // fall through and auto-pick the property's most-vacant size so real tiers
+    // still render. When reached via Select, the authoritative size/unitGroupId
+    // from the URL are used instead.
 
     // unit-groups → the size's unitGroupId; offers → the tiers + showTierPricing
     // gate (all server-computed).
@@ -490,7 +499,7 @@ export function TierSelection({
       // resolve the group from the size (inline / legacy).
       const groupReq = authoritativeGroupId
         ? Promise.resolve({ unitGroupId: authoritativeGroupId, size: sizeProp ?? '' })
-        : fetchUnitGroups(ctx).then((groups) => resolveUnitGroupId(groups, sizeProp, inEditor));
+        : fetchUnitGroups(ctx).then((groups) => resolveUnitGroupId(groups, sizeProp, true));
       // Bypass the browser GET cache on a modal open so a reopen never shows a
       // client-cached offer set (the proxy still applies its own short cache).
       const freshOffers = mode === 'modal';
@@ -565,7 +574,10 @@ export function TierSelection({
   // ResizeObserver — which then reports 0 width and forces the mobile layout.
   let body: React.ReactNode;
   if (status === 'loading') {
-    body = (pastDelay || mode === 'modal') ? <TierSkeleton variant={variant} /> : null;
+    // In the Duda editor (no handoff params) keep a visible skeleton so the
+    // widget doesn't collapse to zero height and "vanish" — otherwise it can't
+    // be seen or placed on the page.
+    body = (pastDelay || mode === 'modal' || inEditor) ? <TierSkeleton variant={variant} /> : null;
   } else if (status === 'disabled') {
     // Business rule §1: Use Value Pricing = No → render nothing (operator
     // places the standard unit-selection widget instead).
@@ -592,10 +604,10 @@ export function TierSelection({
     body = isMobile ? (
       <Option2Mobile heading={headingMobile} urgency={urgency} />
     ) : (
-      <Option2Layout heading={heading} subheading={subheading} />
+      <Option2Layout heading={heading} subheading={subheading} urgency={urgency} />
     );
   } else if (variant === 'option3') {
-    body = <Option3Layout heading={heading} subheading={subheading} />;
+    body = <Option3Layout heading={heading} subheading={subheading} urgency={urgency} />;
   } else {
     body = isMobile ? (
       <MobileLayout
@@ -638,7 +650,7 @@ export function TierSelection({
   };
 
   const inner = (
-    <div className="ts-wrapper" ref={ref}>
+    <div className="ts-wrapper" ref={ref} style={{ ['--ts-title-color']: titleColor || '#101318' } as React.CSSProperties}>
       {live && data.notice && <div className="ts-notice">{data.notice}</div>}
       {body}
     </div>
@@ -922,16 +934,12 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, promo
                 // Live: the SELECTED tier's own amenity bundle (so Best really
                 // shows the most features). Demo: the static 5x5 amenity pair.
                 const feats = tier.features ?? [];
-                const mid = Math.ceil((feats.length + 1) / 2);
-                const left = feats.slice(0, mid - 1);
-                const right = feats.slice(mid - 1);
+                const mid = Math.ceil(feats.length / 2);
+                const left = feats.slice(0, mid);
+                const right = feats.slice(mid);
                 return (
                   <>
                     <div className="ts-feat-col">
-                      <div className="ts-feat ts-feat--chip">
-                        <CheckIcon size={16} className="ts-feat-check" />
-                        <span>{live ? tier.hours : 'Access Hours'}</span>
-                      </div>
                       {left.map((a) => (
                         <div className="ts-feat" key={a}>
                           <CheckIcon size={16} className="ts-feat-check" />
@@ -1227,10 +1235,11 @@ function MobileCell({ row, tier }: { row: FeatureRow; tier: Tier }) {
 
 // ── Option 2 — Good/Better/Best pricing cards ───────────────────────────────
 
-function Option2Layout({ heading, subheading }: { heading: string; subheading?: string }) {
+function Option2Layout({ heading, subheading, urgency }: { heading: string; subheading?: string; urgency?: string }) {
   const { o2 } = useTierData();
   return (
     <div className="ts-o2">
+      {urgency && <p className="ts-o2-urgency">{urgency}</p>}
       <div className="ts-o2-header">
         <h2 className="ts-title ts-o2-title">{heading}</h2>
         <p className="ts-subtitle ts-o2-subtitle">{subheading}</p>
@@ -1259,12 +1268,22 @@ function O2Card({ card }: { card: O2Tier }) {
         <div className="ts-o2-card-top">
           <div className="ts-o2-card-head">
             <p className="ts-o2-name">{card.name}</p>
-            <p className="ts-o2-tag ts-cell-soldout">Sold Out</p>
+            <p className="ts-o2-tag">{card.tagline}</p>
           </div>
+          <ul className="ts-o2-features ts-o2-features--soldout" aria-hidden="true">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <li className="ts-o2-skel" key={i} />
+            ))}
+          </ul>
         </div>
         <div className="ts-o2-foot">
-          <div className="ts-o2-price"><span className="ts-o2-amt">—</span></div>
-          <button type="button" className="ts-o2-select" disabled>Unavailable</button>
+          <div className="ts-o2-foot-top">
+            <div className="ts-o2-price"><span className="ts-o2-amt ts-o2-amt--soldout">Sold Out</span></div>
+          </div>
+          <div className="ts-o2-foot-bottom">
+            <div className="ts-o2-promo-slot" />
+            <button type="button" className="ts-o2-select ts-o2-select--soldout" disabled>{ctaLabel ?? 'Select'}</button>
+          </div>
         </div>
       </div>
     );
@@ -1303,14 +1322,10 @@ function O2Card({ card }: { card: O2Tier }) {
         <div className="ts-o2-foot-top">
           {card.promoRate != null ? (
             <div className="ts-o2-price ts-o2-price--promo">
-              <div className="ts-o2-promo-std">
-                <span className="ts-o2-promo-label">STANDARD</span>
-                <span className="ts-o2-strike">{priceFmt(card.price)}/mo.</span>
-              </div>
-              <div className="ts-o2-promo-rate">
-                <span className="ts-o2-promo-label">PROMO RATE</span>
-                <span className="ts-o2-amt">{priceFmt(card.promoRate)}</span>
-              </div>
+              <span className="ts-o2-promo-label ts-o2-promo-label--std">STANDARD</span>
+              <span className="ts-o2-promo-label ts-o2-promo-label--promo">PROMO RATE</span>
+              <span className="ts-o2-strike">{priceFmt(card.price)}/mo.</span>
+              <span className="ts-o2-amt">{priceFmt(card.promoRate)}</span>
             </div>
           ) : (
             <div className="ts-o2-price">
@@ -1321,12 +1336,14 @@ function O2Card({ card }: { card: O2Tier }) {
           <PricingDetails price={card.price} tierKey={card.key} className="ts-o2-details" />
         </div>
         <div className="ts-o2-foot-bottom">
-          {card.promo && (
-            <div className="ts-promo ts-o2-promo">
-              <TagIcon size={16} className="ts-promo-icon" />
-              <span className="ts-promo-text">{card.promo}</span>
-            </div>
-          )}
+          <div className="ts-o2-promo-slot">
+            {card.promo && (
+              <div className="ts-promo ts-o2-promo">
+                <TagIcon size={16} className="ts-promo-icon" />
+                <span className="ts-promo-text">{card.promo}</span>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             className={`ts-o2-select${isSelected ? ' ts-o2-select--accent' : ''}`}
@@ -1433,10 +1450,11 @@ function O2MExpanded({ card }: { card: O2Tier }) {
 
 // ── Option 3 — pricing cards fused with comparison table ────────────────────
 
-function Option3Layout({ heading, subheading }: { heading: string; subheading?: string }) {
+function Option3Layout({ heading, subheading, urgency }: { heading: string; subheading?: string; urgency?: string }) {
   const { o3, rows3, sizeImage, sizeAlt } = useTierData();
   return (
     <div className="ts-o3">
+      {urgency && <p className="ts-o3-urgency">{urgency}</p>}
       <div className="ts-o3-header">
         <div className="ts-o3-headings">
           <h2 className="ts-title ts-o3-title">{heading}</h2>
@@ -1499,23 +1517,19 @@ function O3Column({ card }: { card: O3Tier }) {
       <div className="ts-o3-head ts-o3-card">
         <div className="ts-o3-cardhead">
           <p className="ts-o3-name">{card.name}</p>
-          <p className="ts-o3-tag">{card.soldOut ? <span className="ts-cell-soldout">Sold Out</span> : card.tagline}</p>
+          <p className="ts-o3-tag">{card.tagline}</p>
         </div>
         <div className="ts-o3-foot">
           <div className="ts-o3-foot-top">
             <div className="ts-o3-price">
               {card.soldOut ? (
-                <span className="ts-o3-amt">—</span>
+                <span className="ts-o3-amt ts-o3-amt--soldout">Sold Out</span>
               ) : card.promoRate != null ? (
                 <div className="ts-o3-price--promo">
-                  <div className="ts-o3-promo-std">
-                    <span className="ts-o3-promo-label">STANDARD</span>
-                    <span className="ts-o3-strike">{priceFmt(card.price)}/mo.</span>
-                  </div>
-                  <div className="ts-o3-promo-rate">
-                    <span className="ts-o3-promo-label">PROMO RATE</span>
-                    <span className="ts-o3-amt">{priceFmt(card.promoRate)}</span>
-                  </div>
+                  <span className="ts-o3-promo-label ts-o3-promo-label--std">STANDARD</span>
+                  <span className="ts-o3-promo-label ts-o3-promo-label--promo">PROMO RATE</span>
+                  <span className="ts-o3-strike">{priceFmt(card.price)}/mo.</span>
+                  <span className="ts-o3-amt">{priceFmt(card.promoRate)}</span>
                 </div>
               ) : (
                 <>
@@ -1536,7 +1550,7 @@ function O3Column({ card }: { card: O3Tier }) {
               )}
             </div>
             {card.soldOut ? (
-              <button type="button" className="ts-o2-select" disabled>Unavailable</button>
+              <button type="button" className="ts-o2-select ts-o2-select--soldout" disabled>{ctaLabel ?? 'Select'}</button>
             ) : (
               <button
                 type="button"

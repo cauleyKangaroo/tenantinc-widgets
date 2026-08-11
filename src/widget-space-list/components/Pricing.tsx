@@ -226,20 +226,30 @@ export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetCo
       size: unit.dimensions,
       unitGroupId: unit.unitGroupId,
       unitId: unit.id,
-      propertyId: cfg.propertyId || undefined,
+      propertyId: config.propertyId || cfg.propertyId || undefined,
       channel: config.valueTiersChannel || undefined,
     });
     if (handled) return;
-    if (config.valueTiersFallbackUrl) {
+    if (config.valueTiersPageUrl) {
       try {
-        const url = new URL(config.valueTiersFallbackUrl, window.location.origin);
+        const url = new URL(config.valueTiersPageUrl, window.location.origin);
         if (url.origin === window.location.origin) {
           url.searchParams.set('size', unit.dimensions);
           if (unit.unitGroupId) url.searchParams.set('unitGroupId', unit.unitGroupId);
-          window.location.assign(url.toString());
+          // Carry the ACTUAL property + company so the value-tiers page prices
+          // the same unit group (critical on dynamic property pages).
+          if (config.propertyId) url.searchParams.set('propertyId', config.propertyId);
+          if (config.companyId) url.searchParams.set('companyId', config.companyId);
+          // Duda's dmAPI (page global) tells us the environment. On 'live' route on
+          // the real origin; in editor/preview keep it relative so Duda's preview
+          // routing handles it. dmAPI is absent off-platform (e.g. dev harness).
+          const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
+          const isLive = typeof dm !== 'undefined' && dm?.getCurrentEnvironment?.() === 'live';
+          const path = url.pathname + url.search;
+          window.location.href = isLive ? window.location.origin + path : path;
           return;
         }
-        console.error('[SpaceList] valueTiersFallbackUrl blocked — cross-origin:', config.valueTiersFallbackUrl);
+        console.error('[SpaceList] valueTiersPageUrl blocked — cross-origin:', config.valueTiersPageUrl);
       } catch { /* malformed URL → fall through to the message */ }
     }
     console.warn('[SpaceList] Value Tiers enabled but no modal handled the Select — place a mode="modal" #14 on this page.');
@@ -247,12 +257,28 @@ export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetCo
     window.setTimeout(() => setTiersError(false), 4000);
   }
 
+  // Page mode: a real anchor so Duda's router handles the nav in preview AND
+  // published — window.location bypasses Duda's preview routing (→ my.duda.co
+  // 404). Carries the same params the modal handoff does.
+  const valueTiersHref = (() => {
+    if (!config.enableValueTiers || !config.valueTiersPageUrl) return undefined;
+    const p = new URLSearchParams({ size: unit.dimensions });
+    if (unit.unitGroupId) p.set('unitGroupId', unit.unitGroupId);
+    if (config.propertyId) p.set('propertyId', config.propertyId);
+    if (config.companyId) p.set('companyId', config.companyId);
+    return `${config.valueTiersPageUrl}?${p.toString()}`;
+  })();
+
   return (
     <div className="sl-cta-group">
       {waitlistCta ? (
         <button className={`sl-waitlist-btn${fullClass}`}>Join waitlist</button>
       ) : unavailable || callOnly ? (
         <button className={`sl-call-btn${fullClass}`}>Call</button>
+      ) : valueTiersHref ? (
+        <a className={`sl-select-btn${fullClass}`} href={valueTiersHref}>
+          {config.ctaButtonCopy}
+        </a>
       ) : (
         <button
           className={`sl-select-btn${fullClass}`}

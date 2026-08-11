@@ -34,9 +34,9 @@
 .ts-wrapper .ts-title {
   font-size: 40px;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.0;
   margin: 0 0 14px;
-  color: #101318;
+  color: var(--ts-title-color, #101318) !important; /* operator-overridable; defaults black; beats host theme */
   text-transform: none;
   letter-spacing: normal;
 }
@@ -83,7 +83,7 @@
   border: 0;
   padding: 0;
   cursor: pointer;
-  color: #509E2F;
+  color: var(--color_1, #509E2F);
   font-family: inherit;
   font-size: 18px;
   font-weight: 700;
@@ -103,10 +103,9 @@
 .ts-pill {
   flex: 1 1 0;
   min-width: 0;
-  height: 116px;
-  overflow: hidden;
+  min-height: 116px;
   background: #fff;
-  border: 1px solid transparent;
+  border: 4px solid transparent; /* 4pt outline (Figma); transparent keeps box model equal */
   border-radius: 16px;
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
   cursor: pointer;
@@ -114,7 +113,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 18px 12px 0;
+  padding: 16px;
   transition: border-color 0.15s ease;
 }
 .ts-pill--active { border-color: #101318; }
@@ -132,9 +131,10 @@
   font-weight: 400;
   line-height: 1.2;
   letter-spacing: 1px;
-  color: #509E2F;
+  color: var(--color_1, #509E2F);
   text-transform: uppercase;
   text-align: center;
+  white-space: nowrap;
 }
 .ts-pill-divider {
   width: 100%;
@@ -258,7 +258,7 @@
 .ts-td--bold { font-weight: 700; }
 .ts-td--value { justify-content: center; }
 
-.ts-cell-price { font-size: 20px; font-weight: 700; color: #101318; }
+.ts-cell-price { font-size: 16px; font-weight: 700; color: #101318; }
 .ts-cell-hours {
   display: inline-flex;
   align-items: center;
@@ -439,7 +439,7 @@
   border-radius: 3px;
 }
 .ts-pay-box--amex { background: #006FCF; border-color: #006FCF; }
-.ts-pay-mark { display: inline-flex; align-items: center; }
+.ts-pay-mark { display: inline-flex; align-items: center; justify-content: center; width: 39px; height: 24px; padding: 3px 5px; background: #fff; border: 0.7px solid #101318; border-radius: 3px; }
 /* Keep every brand mark inside its chip regardless of intrinsic svg width. */
 .ts-pay-box svg,
 .ts-pay-mark svg { display: block; max-width: 100%; height: auto; }
@@ -469,7 +469,7 @@
   font-size: 26px;
   font-weight: 700;
   line-height: 1.2;
-  color: #101318;
+  color: var(--ts-title-color, #101318) !important; /* operator-overridable; defaults black; beats host theme */
   text-transform: none;
   letter-spacing: normal;
 }
@@ -552,6 +552,7 @@
 
 /* ═══ Option 2 — Good/Better/Best pricing cards ═════════════════════════════ */
 .ts-o2 { max-width: 1320px; margin: 0 auto; }
+.ts-o2-urgency, .ts-o3-urgency { margin: 0 0 8px; text-align: right; font-size: 16px; font-weight: 700; color: #e53935; }
 .ts-o2-header { text-align: center; margin-bottom: 28px; }
 .ts-wrapper .ts-o2-title {
   font-size: 40px;
@@ -577,7 +578,7 @@
   position: relative;
   min-height: 521px;
   background: #fff;
-  border: 2px solid transparent;
+  border: 4px solid transparent; /* 4pt outline (Figma); transparent keeps box model equal */
   border-radius: 16px;
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
   display: flex;
@@ -586,7 +587,7 @@
 .ts-o2-card { cursor: pointer; }
 /* "Most Popular" is indicated by the badge only — the black border is reserved
    for the SELECTED card, so only ever one card reads as highlighted. */
-.ts-o2-card--selected { border-color: #101318; box-shadow: 0 0 0 3px rgba(16, 19, 24, 0.18), 0 4px 10px 3px rgba(71, 84, 116, 0.1); }
+.ts-o2-card--selected { border-color: #101318; box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1); }
 
 .ts-o2-badge {
   position: absolute;
@@ -610,14 +611,14 @@
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  padding: 30px 44px 24px;
+  padding: 24px;
 }
 .ts-o2-card-head { text-align: center; }
 .ts-o2-name {
   margin: 0;
   font-size: 28px;
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.2;
   color: #000;
   text-transform: uppercase;
 }
@@ -625,10 +626,11 @@
   margin: 0;
   font-size: 24px;
   font-weight: 400;
-  line-height: 1.4;
+  line-height: 1.2;
   letter-spacing: 3px;
-  color: #509e2f;
+  color: var(--color_1, #509e2f);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .ts-o2-features {
   list-style: none;
@@ -656,7 +658,8 @@
   padding: 16px 52px 32px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 12px;
   border-bottom-left-radius: 12px;
   border-bottom-right-radius: 12px;
 }
@@ -672,12 +675,13 @@
   color: #101318;
   text-decoration: underline;
 }
-.ts-o2-foot-bottom { display: flex; flex-direction: column; }
-.ts-o2-promo { margin-top: 0; margin-bottom: 12px; }
+.ts-o2-foot-bottom { display: flex; flex-direction: column; gap: 12px; }
+.ts-o2-promo-slot { min-height: 44px; }
+.ts-o2-promo { margin: 0; }
 .ts-o2-select {
   width: 100%;
   height: 52px;
-  border: 2px solid #f45f30;
+  border: 2px solid var(--color_2, #509e2f);
   border-radius: 8px;
   background: #fff;
   color: #101318;
@@ -686,9 +690,9 @@
   font-weight: 700;
   cursor: pointer;
 }
-.ts-o2-select:hover { background: #fff5f1; }
-.ts-o2-select--accent { background: #f26500; color: #fff; }
-.ts-o2-select--accent:hover { background: #d95a00; }
+.ts-o2-select:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 8%, #fff); }
+.ts-o2-select--accent { background: var(--color_2, #509e2f); color: #fff; }
+.ts-o2-select--accent:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
 
 .ts-o2-admin {
   display: flex;
@@ -731,7 +735,7 @@
   font-weight: 400;
   line-height: 1.4;
   letter-spacing: 3px;
-  color: #509e2f;
+  color: var(--color_1, #509e2f);
   text-transform: uppercase;
 }
 .ts-o2m-price { font-size: 20px; font-weight: 700; color: #101318; white-space: nowrap; }
@@ -787,7 +791,7 @@
 .ts-o3-scroll { overflow-x: auto; }
 .ts-o3-grid {
   display: grid;
-  grid-template-columns: 1.5fr repeat(var(--ts-cols, 3), 1fr);
+  grid-template-columns: minmax(230px, 1.5fr) repeat(var(--ts-cols, 3), minmax(220px, 1fr));
   column-gap: 16px;
   align-items: stretch;
   padding-top: 16px; /* room for the Most Popular badge */
@@ -796,7 +800,7 @@
 .ts-o3-col {
   display: flex;
   flex-direction: column;
-  border: 2px solid transparent; /* keeps box model equal to the popular col */
+  border: 4px solid transparent; /* 4pt outline (Figma); transparent keeps box model equal across cols */
   border-radius: 16px;
 }
 .ts-o3-head { flex: 1 1 auto; display: flex; flex-direction: column; }
@@ -809,9 +813,10 @@
   height: 48px;
   display: flex;
   align-items: center;
-  padding: 0 16px 0 38px;
-  font-size: 18px;
+  padding: 0 12px 0 20px;
+  font-size: 16px;
   color: #101318;
+  white-space: nowrap;
   box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
 }
 .ts-o3-w-bold { font-weight: 700; }
@@ -832,14 +837,22 @@
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
 }
 /* Selected column carries the border (single highlight); popular = badge only. */
-.ts-o3-col--selected { position: relative; border-color: #101318; box-shadow: 0 0 0 3px rgba(16, 19, 24, 0.18), 0 4px 10px 3px rgba(71, 84, 116, 0.1); }
+.ts-o3-col--selected { position: relative; border-color: #101318; box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1); }
+/* Sold-out: "Sold Out" in the price slot + greyed Select (Figma) */
+.ts-o3-amt--soldout { color: #637381; }
+.ts-o2-amt--soldout { color: #637381; }
+/* Sold-out card: greyed skeleton bars where features would be (Figma "reservation closed") */
+.ts-o2-features--soldout { list-style: none; margin: 24px 0 0; padding: 0; align-self: stretch; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.ts-o2-skel { width: 100%; height: 12px; border-radius: 6px; background: #eef0f2; }
+.ts-o2-select--soldout { color: #c4cdd5; border-color: #c4cdd5; background: #fff; cursor: not-allowed; }
+.ts-o2-select--soldout:hover { background: #fff; }
 .ts-o3-col--popular .ts-o3-card { border-top-left-radius: 14px; border-top-right-radius: 14px; }
 .ts-o3-col--popular .ts-o3-vrow--last { border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
 .ts-o3-badge { z-index: 2; }
 
 .ts-o3-cardhead { text-align: center; padding: 30px 16px 0; }
 .ts-o3-name { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.2; color: #000; text-transform: uppercase; }
-.ts-o3-tag { margin: 4px 0 0; font-size: 21px; font-weight: 400; line-height: 1.35; letter-spacing: 3px; color: #509e2f; text-transform: uppercase; }
+.ts-o3-tag { margin: 4px 0 0; font-size: 24px; font-weight: 400; line-height: 1.35; letter-spacing: 3px; color: var(--color_1, #509e2f); text-transform: uppercase; white-space: nowrap; }
 
 .ts-o3-foot {
   margin-top: auto;
@@ -853,8 +866,8 @@
 .ts-o3-amt { font-size: 30px; font-weight: 700; color: #101318; line-height: 1.5; }
 .ts-o3-per { font-size: 16px; font-weight: 700; color: #101318; }
 .ts-o3-details { display: inline-block; margin-top: 2px; font-size: 14px; font-weight: 400; color: #101318; text-decoration: underline; }
-.ts-o3-foot-bottom { margin-top: 14px; display: flex; flex-direction: column; }
-.ts-o3-promo-slot { min-height: 46px; margin-bottom: 11px; }
+.ts-o3-foot-bottom { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+.ts-o3-promo-slot { min-height: 44px; }
 .ts-o3-promo { margin: 0; border-color: #101318; }
 .ts-o3-promo .ts-promo-text { font-size: 16px; }
 
@@ -980,9 +993,17 @@
 .ts-price-strike { color: #637381; }
 .ts-pill-strike { display: block; font-size: 13px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.2; }
 .ts-pill-promo { display: block; font-size: 18px; font-weight: 700; color: #101318; line-height: 1.3; }
-.ts-cell-strike { font-size: 15px; font-weight: 400; text-decoration: line-through; color: #637381; }
-.ts-o2-price--promo, .ts-o3-price--promo { display: flex; align-items: stretch; justify-content: center; gap: 20px; }
-.ts-o2-promo-std, .ts-o2-promo-rate, .ts-o3-promo-std, .ts-o3-promo-rate { display: flex; flex-direction: column; justify-content: space-between; text-align: center; }
-.ts-o2-promo-label, .ts-o3-promo-label { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; color: #637381; text-transform: uppercase; line-height: 1.5; }
-.ts-o2-strike, .ts-o3-strike { display: block; font-size: 18px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.2; }
+.ts-cell-strike { font-size: 12px; font-weight: 400; text-decoration: line-through; color: #637381; }
+.ts-o2-price--promo, .ts-o3-price--promo {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 20px;
+  row-gap: 2px;
+  justify-content: center;
+  align-items: baseline;
+}
+.ts-o2-promo-label, .ts-o3-promo-label { font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; line-height: 1.4; text-align: center; }
+.ts-o2-promo-label--std, .ts-o3-promo-label--std { font-weight: 500; color: #637381; }
+.ts-o2-promo-label--promo, .ts-o3-promo-label--promo { font-weight: 700; color: #101318; }
+.ts-o2-strike, .ts-o3-strike { font-size: 24px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.2; text-align: center; }
 .ts-o2m-strike { font-size: 14px; font-weight: 400; text-decoration: line-through; color: #637381; }

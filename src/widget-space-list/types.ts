@@ -135,7 +135,12 @@ export interface WidgetConfig {
   /** Select opens the #14 value-tiers modal (via tierBus) instead of nothing. */
   enableValueTiers: boolean;
   valueTiersChannel?: string;
-  valueTiersFallbackUrl?: string;
+  valueTiersPageUrl?: string;
+  /** Resolved property + company this widget is showing — carried into the
+   *  value-tiers handoff so the target page prices the same unit group
+   *  (dynamic pages vary both; the target can't infer them). */
+  propertyId?: string;
+  companyId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -285,7 +290,7 @@ export interface SpaceListProps {
   /** Select opens the #14 value-tiers modal via tierBus. Default false. */
   enableValueTiers?: boolean;
   valueTiersChannel?: string;
-  valueTiersFallbackUrl?: string;
+  valueTiersPageUrl?: string;
 
   // ── Editable accordion copy (Duda text inputs) ─────────────────────────────
   /** Heading of the "About" accordion. Default 'About Storage Units in Irvine'. */
