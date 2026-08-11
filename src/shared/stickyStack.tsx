@@ -246,13 +246,27 @@ export function useStickySlot({
 
     const io = new IntersectionObserver(
       ([entry]) => {
+        const reg = shared().slots.get(id);
+        if (!reg) return;
+
+        // Hidden ancestor (a `display: none` container up the tree — e.g. the
+        // dev harness's tab switcher, a feature-flagged section, or Duda's own
+        // page-visibility toggling). The sentinel has no layout box, so its
+        // bounding rect collapses to {0,0,0,0} and the "scrolled past" check
+        // below would fire against an invisible widget, pinning its bar on top
+        // of an unrelated page. Treat no-box as unpinned instead.
+        if (entry.target.getClientRects().length === 0) {
+          setActive(id, false);
+          setTarget(null);
+          if (slotRef.current) slotRef.current.style.height = '';
+          return;
+        }
+
         // Direction matters: pin only when the sentinel has gone ABOVE the line.
         // Without this check a bar that's still below the fold also reads as
         // "not intersecting", so both bars would render pinned on page load.
         const rootTop = entry.rootBounds?.top ?? triggerLine;
         const scrolledPast = !entry.isIntersecting && entry.boundingClientRect.top <= rootTop;
-        const reg = shared().slots.get(id);
-        if (!reg) return;
 
         if (scrolledPast) {
           // Freeze the inline gap at the bar's current height BEFORE it leaves,

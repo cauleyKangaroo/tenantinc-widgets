@@ -1,0 +1,396 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* ===========================================================================
+   Widget #17 — Account Login
+   Measured from Figma 9451:55590 (card), 9503:123840 (code step),
+   10550:80208 (property select), 10640:67357 (mobile).
+
+   Every rule is prefixed .al-* and scoped under .al-wrapper — there's no CSS
+   module isolation here, and the bundle injects this stylesheet into the host
+   page. The field pattern (56px, #a5b4bf, floating label, #028a0c when valid)
+   is the same one #99 rental-flow uses, so the two forms read as one system.
+   =========================================================================== */
+
+/* ── Root ──────────────────────────────────────────────────────────────────── */
+
+.al-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+  color: #101318;
+}
+
+.al-wrapper *,
+.al-wrapper *::before,
+.al-wrapper *::after {
+  box-sizing: border-box;
+}
+
+.al-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  max-width: 540px;
+  padding: 50px;
+  background: #fff;
+  border: 1px solid #f4f6f8;
+  border-radius: 16px;
+}
+
+/* ── Heading ───────────────────────────────────────────────────────────────── */
+
+.al-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  text-align: center;
+}
+
+.al-title {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 38px;
+  color: #000;
+}
+
+/* The code step moves focus here on entry; that must not draw a focus ring on
+   what is visually just a heading. */
+.al-title:focus {
+  outline: none;
+}
+
+.al-sub {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #101318;
+}
+
+/* ── Form column ───────────────────────────────────────────────────────────── */
+
+.al-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  /* Figma's inner column is 360px inside the 440px content box. */
+  width: 100%;
+  max-width: 360px;
+}
+
+.al-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+/* ── Field (Figma .Form 2.0 — 9451:65106) ──────────────────────────────────── */
+
+.al-field {
+  position: relative;
+  height: 56px;
+  background: #fff;
+  border: 1px solid #a5b4bf;
+  border-radius: 8px;
+}
+
+.al-field:focus-within {
+  border-color: #101318;
+}
+
+.al-field--valid,
+.al-field--valid:focus-within {
+  border-color: #028a0c;
+}
+
+.al-field-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Right padding clears the tick / caret. */
+  padding: 20px 44px 0 16px;
+  border: none;
+  background: transparent;
+  outline: none;
+  font: 400 16px/20px 'Montserrat', sans-serif;
+  color: #101318;
+  /* Matches the field's own rounding. Invisible while the background is
+     transparent, but load-bearing once autofill fills it: the override below
+     paints with an inset shadow, and a square one would cover the rounded
+     corners of the border drawn by .al-field. */
+  border-radius: inherit;
+}
+
+/* The label starts centred as a placeholder and rises on focus/fill — one
+   element doing both jobs, so the field never shows label and placeholder at
+   once (Figma draws only the risen state once there's a value). */
+.al-field-label {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font: 400 16px/20px 'Montserrat', sans-serif;
+  color: #637381;
+  pointer-events: none;
+  transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
+}
+
+.al-field:focus-within .al-field-label,
+.al-field--filled .al-field-label,
+/* Autofill belt-and-braces: React drives .al-field--filled off the change
+   event, which Chrome does fire on autofill — but Safari and some password
+   managers fill the field silently, leaving the label sitting over the value.
+   `:-webkit-autofill` is the only signal in that case, and it only reaches the
+   label because the label is the input's NEXT sibling (see the JSX note). */
+.al-field-input:-webkit-autofill + .al-field-label {
+  top: 9px;
+  transform: none;
+  font-size: 12px;
+  line-height: 15px;
+}
+
+/* Chrome paints autofilled fields with an opaque pale-blue background that
+   isn't overridable by `background` — only this inset-shadow trick beats it.
+   Without it the field stops looking like the rest of the form the moment it's
+   autofilled. The absurd transition delay is the standard way to stop Chrome
+   re-applying its colour on focus.
+   Both selectors carry a border-radius (inherited on .al-field-input, explicit
+   on .al-otp-box) so the shadow is clipped to the rounded shape. */
+.al-field-input:-webkit-autofill,
+.al-field-input:-webkit-autofill:hover,
+.al-field-input:-webkit-autofill:focus,
+.al-field-input:-webkit-autofill:active,
+.al-otp-box:-webkit-autofill,
+.al-otp-box:-webkit-autofill:hover,
+.al-otp-box:-webkit-autofill:focus,
+.al-otp-box:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  box-shadow: 0 0 0 1000px #fff inset;
+  -webkit-text-fill-color: #101318;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+.al-field-check {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #028a0c;
+  pointer-events: none;
+}
+
+/* ── Property select ───────────────────────────────────────────────────────── */
+
+.al-select {
+  /* A native select is deliberate: it gets the platform picker on mobile and
+     keyboard support for free, which a div-based menu would have to rebuild. */
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.al-field-caret {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #101318;
+  pointer-events: none;
+  display: flex;
+}
+
+/* ── CTA (Figma 9451:55598) ────────────────────────────────────────────────── */
+
+.al-cta {
+  width: 100%;
+  height: 52px;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 4px;
+  background: var(--color_1, #f26500);
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.al-cta:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.al-cta:disabled {
+  /* Figma's disabled fill is a solid grey, not a dimmed orange. */
+  background: #dfe3e8;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+/* ── OR divider ────────────────────────────────────────────────────────────── */
+
+.al-or {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.al-or-rule {
+  flex: 1;
+  height: 1px;
+  background: #dfe3e8;
+}
+
+.al-or-text {
+  font-size: 14px;
+  color: #a5b4bf;
+}
+
+/* ── Social buttons ────────────────────────────────────────────────────────── */
+
+.al-social {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.al-social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 52px;
+  padding: 8px 24px;
+  border: 1px solid #000;
+  border-radius: 8px;
+  background: #fff;
+  color: #000;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.al-social-btn:hover {
+  background: #f4f6f8;
+}
+
+/* ── One-time code (Figma 9503:123845) ─────────────────────────────────────── */
+
+.al-otp {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.al-otp-box {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 52px;
+  padding: 2px;
+  border: 1px solid #dfe3e8;
+  border-radius: 4px;
+  background: #fff;
+  outline: none;
+  text-align: center;
+  font: 400 24px/1 'Montserrat', sans-serif;
+  color: #000;
+}
+
+.al-otp-box:focus {
+  border-color: #101318;
+}
+
+.al-otp--invalid .al-otp-box {
+  border-color: #d02a1e;
+}
+
+/* ── Messages ──────────────────────────────────────────────────────────────── */
+
+.al-error {
+  margin: 0;
+  font-size: 14px;
+  line-height: 18px;
+  color: #d02a1e;
+  text-align: center;
+}
+
+.al-note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 18px;
+  color: #028a0c;
+  text-align: center;
+}
+
+/* ── Resend ────────────────────────────────────────────────────────────────── */
+
+.al-resend {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.al-resend:hover:not(:disabled) {
+  color: var(--color_1, #f26500);
+}
+
+.al-resend:disabled {
+  color: #a5b4bf;
+  cursor: default;
+  text-decoration: none;
+}
+
+/* ── Mobile (Figma 10640:67357 — a 350px card) ─────────────────────────────── */
+
+@media (max-width: 560px) {
+  .al-wrapper {
+    padding: 0;
+  }
+
+  .al-card {
+    gap: 24px;
+    padding: 32px 24px;
+    /* Full-bleed on a phone: the 16px radius on a card that spans the viewport
+       reads as a rendering artifact rather than a card. */
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .al-title {
+    font-size: 28px;
+    line-height: 32px;
+  }
+
+  .al-otp {
+    gap: 8px;
+  }
+
+  .al-otp-box {
+    height: 48px;
+    font-size: 20px;
+  }
+}
