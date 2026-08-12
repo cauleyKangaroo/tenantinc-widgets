@@ -1962,11 +1962,32 @@
   max-width: 100%;
 }
 
+/* Figma 9403-48439. Three states: flat by default, grey outline on hover,
+   outline + shadow when open. The shadow used to be permanent, which left
+   nothing to distinguish the open section from the closed ones.
+   20px radius, 1px Primary/Cloud-Light #F4F6F8, and hb-elevation-large
+   (0 8px 18px 0 rgba(71,84,116,.20)). Literals rather than
+   var(--Primary-Cloud-Light, …): this file does not import tokens.css, so a
+   named var would silently render as its fallback anyway.
+   The resting border is TRANSPARENT rather than absent: it reserves the 1px the
+   hover and open states occupy, so gaining the outline can't nudge the row or
+   reflow the column. */
 .sl-wrapper .sl-sa-item {
   background: #ffffff;
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
+  border: 1px solid transparent;
+}
+
+.sl-wrapper .sl-sa-item:hover {
+  border-color: #F4F6F8;
+}
+
+/* After :hover on purpose — equal specificity, so source order decides, and an
+   open section must keep its shadow while the pointer is over it. */
+.sl-wrapper .sl-sa-item.open {
+  border-color: #F4F6F8;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
 }
 
 .sl-wrapper .sl-sa-header {
@@ -1983,9 +2004,8 @@
   text-align: left;
 }
 
-.sl-wrapper .sl-sa-header:hover {
-  background: #fafafa;
-}
+/* No hover fill — hover is the grey outline on .sl-sa-item above. Leaving the
+   #fafafa tint here would show both at once. */
 
 .sl-wrapper .sl-sa-header-left {
   display: flex;
