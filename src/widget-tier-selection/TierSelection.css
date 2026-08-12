@@ -17,6 +17,20 @@
 .ts-wrapper *::before,
 .ts-wrapper *::after { box-sizing: border-box; }
 
+/* Reserve the loaded layout height while loading so the page doesn't collapse
+   (footer under the header) and then expand when data lands. Breakpoint matches
+   the widget's own mobile switch (MOBILE_BP = 640). Desktop measured: option1
+   select+table+card ~1012px, option2/3 cards ~736px. Mobile (stacked) reserves
+   a floor sized to the mobile skeleton. */
+@media (min-width: 640px) {
+  .ts-wrapper--loading { min-height: 736px; }
+  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 1012px; }
+}
+@media (max-width: 639px) {
+  .ts-wrapper--loading { min-height: 640px; }
+  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 700px; }
+}
+
 .ts-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 422px;
@@ -137,9 +151,9 @@
   white-space: nowrap;
 }
 .ts-pill-divider {
-  width: 100%;
+  width: 77px;
   height: 1px;
-  background: #DFE3E8;
+  background: #C4CDD5;
   margin: 12px 0 8px;
 }
 .ts-pill-price {
@@ -208,7 +222,7 @@
   width: 100%;
   height: 50px;
   margin-top: 19px;
-  background: var(--color_2, #509e2f);
+  background: var(--color_2, #F26500);
   border: 0;
   border-radius: 8px;
   cursor: pointer;
@@ -217,7 +231,8 @@
   font-weight: 700;
   color: #fff;
 }
-.ts-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
+.ts-select-btn:hover { background: color-mix(in srgb, var(--color_2, #F26500) 85%, black); }
+
 
 /* ── Comparison table ──────────────────────────────────────────────────── */
 .ts-table {
@@ -467,8 +482,8 @@
 .ts-wrapper .ts-m-title {
   margin: 0;
   font-size: 26px;
-  font-weight: 700;
-  line-height: 1.2;
+  font-weight: 600;
+  line-height: 1.23;
   color: var(--ts-title-color, #101318) !important; /* operator-overridable; defaults black; beats host theme */
   text-transform: none;
   letter-spacing: normal;
@@ -485,10 +500,10 @@
   margin-top: 16px;
   height: 52px;
   font-size: 20px;
-  background: #f26500;
-  border: 2px solid #f45f30;
+  background: var(--color_2, #F26500);
+  border: 2px solid var(--color_2, #F45F30);
 }
-.ts-m-select:hover { background: #d95a00; }
+.ts-m-select:hover { background: color-mix(in srgb, var(--color_2, #F26500) 85%, black); }
 
 /* Collapsible move-in total */
 .ts-m-rates { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 16px; }
@@ -534,7 +549,7 @@
 .ts-mt-value { justify-content: center; }
 .ts-mt-head .ts-mt-cell { min-height: 41px; background: #f9fafb; }
 .ts-mt-hcell { justify-content: center; font-weight: 600; }
-.ts-mt-text { font-size: 12px; font-weight: 600; color: #000; text-align: center; }
+.ts-mt-text { font-size: 11px; font-weight: 600; color: #000; text-align: center; }
 .ts-mt-check { color: #509e2f; }
 
 /* Selected-column highlight box (2px) */
@@ -993,7 +1008,7 @@
 
 /* Promo two-price (STANDARD struck + PROMO RATE) */
 .ts-price-strike { color: #637381; }
-.ts-pill-strike { display: block; font-size: 13px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.2; }
+.ts-pill-strike { display: block; font-size: 18px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.3; }
 .ts-pill-promo { display: block; font-size: 18px; font-weight: 700; color: #101318; line-height: 1.3; }
 .ts-cell-strike { font-size: 12px; font-weight: 400; text-decoration: line-through; color: #637381; }
 .ts-o2-price--promo, .ts-o3-price--promo {
