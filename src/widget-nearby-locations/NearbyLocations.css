@@ -105,16 +105,19 @@
   line-height: 1.1;
 }
 
-/* 8px rather than 2px: the reviews / address / phone links stack here, and at
-   2px adjacent tap targets sat far closer than the 24px WCAG 2.5.8 minimum.
-   With the 24px min-height on each link below, centres are ~32px apart. */
+/* 2px per Figma 9357-54692. This was held at 8px out of a WCAG 2.5.8 concern, but
+   that requirement is carried by the min-height: 24px on each link below, NOT by
+   this gap: those links are full-size 24px targets, so the spacing exception —
+   which only applies to UNDERSIZED targets — never governed them. Tightening here
+   is therefore safe as long as that min-height stays; remove it and this gap does
+   start to matter. */
 .nl-card-data {
   position: absolute;
   left: 24px;
   bottom: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
   max-width: calc(100% - 48px);
 }
 
