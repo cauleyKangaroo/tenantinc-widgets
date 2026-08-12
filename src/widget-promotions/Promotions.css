@@ -157,7 +157,6 @@ img.promo-banner-img {
 .promo-bars[data-cols='3'] .promo-bar-title { font-size: clamp(18px, 1.8vw, 26px); }
 .promo-bars[data-cols='3'] .promo-bar-titlewrap svg { width: 30px; height: 30px; }
 .promo-bars[data-cols='3'] .promo-bar-info svg { width: 30px; height: 30px; }
-.promo-bars[data-cols='3'] .promo-bar-cta { font-size: 17px; }
 
 .promo-bars[data-cols='4'] .promo-bar { padding: 22px; }
 .promo-bars[data-cols='4'] .promo-bar-inner { gap: 12px; }
@@ -166,7 +165,6 @@ img.promo-banner-img {
 .promo-bars[data-cols='4'] .promo-bar-titlewrap { gap: 6px; }
 .promo-bars[data-cols='4'] .promo-bar-titlewrap svg { width: 26px; height: 26px; }
 .promo-bars[data-cols='4'] .promo-bar-info svg { width: 26px; height: 26px; }
-.promo-bars[data-cols='4'] .promo-bar-cta { font-size: 15px; }
 
 .promo-bar-info {
   flex-shrink: 0;
@@ -189,12 +187,17 @@ button.promo-bar-info {
   opacity: 1;
 }
 
+/* 18px at every column count and width. The size used to step 20/17/15px with
+   the bar count (and back up again on narrow screens); a single value is the
+   design, so those per-column overrides are gone rather than left to fight this
+   rule. The link is inline-flex with no nowrap, so a narrow 4-up bar wraps the
+   label instead of overflowing. */
 .promo-bar-cta {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: #fff;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 400;
   text-decoration: none;
 }
@@ -359,7 +362,6 @@ button.promo-bar-info {
   .promo-bars[data-cols='4'] .promo-bar-title { font-size: clamp(18px, 1.8vw, 26px); }
   .promo-bars[data-cols='4'] .promo-bar-titlewrap svg,
   .promo-bars[data-cols='4'] .promo-bar-info svg { width: 30px; height: 30px; }
-  .promo-bars[data-cols='4'] .promo-bar-cta { font-size: 17px; }
 }
 
 /* Single column on phones — everything back to the Figma 2-across scale. */
@@ -390,8 +392,6 @@ button.promo-bar-info {
   .promo-bars[data-cols='4'] .promo-bar-titlewrap svg,
   .promo-bars[data-cols='3'] .promo-bar-info svg,
   .promo-bars[data-cols='4'] .promo-bar-info svg { width: 36px; height: 36px; }
-  .promo-bars[data-cols='3'] .promo-bar-cta,
-  .promo-bars[data-cols='4'] .promo-bar-cta { font-size: 20px; }
 
   .promo-bar-arrow { width: 32px; }
 }

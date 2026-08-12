@@ -316,7 +316,8 @@
   line-height: 40px;
   color: #101318;
   margin: 0;
-  /* Guard against host themes restyling bare <h2> (e.g. uppercasing it) */
+  /* Guard against host themes restyling bare <h1> (e.g. uppercasing it). The
+     size/weight/margin above also override the browser's own h1 defaults. */
   text-transform: none;
   letter-spacing: normal;
 }
@@ -490,10 +491,14 @@
 }
 .sl-wrapper .sl-see-fits:hover { text-decoration: underline; }
 
+/* Border + icon follow Duda's primary (--color_1), matching "See what fits". The
+   label stays #101318 — only the framing is themed. PromoTagIcon is currentColor,
+   so .sl-promo-icon must set the colour: without it the icon would inherit the
+   badge's dark label colour. */
 .sl-wrapper .sl-promo-badge {
   width: 100%;
   box-sizing: border-box;
-  border: 2px dashed #509e2f;
+  border: 2px dashed var(--color_1, #f45f30);
   border-radius: 8px;
   padding: 12px;
   background: #ffffff;
@@ -506,7 +511,7 @@
   font-weight: 700;
   margin-top: 12px;
 }
-.sl-wrapper .sl-promo-icon { display: flex; align-items: center; flex-shrink: 0; }
+.sl-wrapper .sl-promo-icon { display: flex; align-items: center; flex-shrink: 0; color: var(--color_1, #f45f30); }
 
 .sl-wrapper .sl-card-pricing {
   display: flex;
@@ -845,10 +850,12 @@
   flex-wrap: wrap;
   padding: 30px;
 }
+/* The list layout's copy of the promo badge — themed to match .sl-promo-badge so
+   the same promo is not green here and primary-coloured in the other layouts. */
 .sl-wrapper .sl-lc-promo {
   flex: 1 1 220px;
   min-width: 200px;
-  border: 2px dashed #509e2f;
+  border: 2px dashed var(--color_1, #f45f30);
   border-radius: 8px;
   padding: 12px;
   background: #ffffff;
@@ -860,7 +867,7 @@
   color: #101318;
   line-height: 16px;
 }
-.sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; }
+.sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-lc-price-button {
   display: flex;
   gap: 16px;
@@ -935,7 +942,9 @@
   min-width: 0;
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  /* 30px inset and a 24px column gap between the image and the text — Figma
+     9417-86254. Both hold at every width; see the 907px step below. */
+  gap: 24px;
   padding: 30px;
   box-sizing: border-box;
 }
@@ -1017,8 +1026,11 @@
   flex-direction: column;
   gap: 12px;
 }
-/* wrap is the safety valve: an unusually long price (five figures, say) drops the
-   CTA below the price instead of overflowing into the card's clipped edge. */
+/* CTA sits to the RIGHT of the price (Figma 9417-86253). wrap is the safety valve,
+   not the intent: an unusually long price (five figures, say) drops the CTA below
+   rather than overflowing into the card's clipped edge. The ≤907px step trims the
+   CTA basis and price size so the pair keeps its one row down to the widths a
+   squeezed Duda listing column actually reaches. */
 .sl-wrapper .sl-dv-price-button {
   display: flex;
   flex-wrap: wrap;
@@ -1108,16 +1120,19 @@
    layout is white panel beside grey panel, so narrowing steps give width back
    from the image and the paddings before anything is allowed to stack. */
 /* Below ~907px of listing, 45% stops being enough for the full-size price row and
-   CTA to share a line (408 = 60 padding + the 348 box). Trim the paddings, the
-   image (to the Figma leaf's own ~97px), the CTA basis and the price size to buy
-   that back — the split itself stays 55/45, since a per-card min-width floor is
-   exactly what would make the seam wander again. */
+   CTA to share a line (408 = 60 padding + the 348 box). Trim the image (to the
+   Figma leaf's own ~97px), the CTA basis and the price size to buy that back — the
+   split itself stays 55/45, since a per-card min-width floor is exactly what would
+   make the seam wander again.
+   The 30px paddings and the 24px display gap are NOT trimmed here any more: they
+   are the design's own values, and the CTA/price trims below recover more width
+   than the 20px paddings did. Between ~600 and ~750 the pair still exceeds the
+   panel and wrap drops the CTA below the price — the safety valve doing its job,
+   at widths only a squeezed Duda column reaches. */
 @container (max-width: 907px) {
-  .sl-wrapper .sl-dv-display { padding: 20px; gap: 12px; }
   .sl-wrapper .sl-dv-img { max-width: 100px; }
   /* 13px keeps the link narrower than the 100px image, so the column stays put */
   .sl-wrapper .sl-dv-see-fits { font-size: 13px; gap: 4px; }
-  .sl-wrapper .sl-dv-action { padding: 20px; }
   .sl-wrapper .sl-dv-actions { max-width: 312px; }
   .sl-wrapper .sl-dv-price-button { gap: 12px; }
   .sl-wrapper .sl-dv-btn-col { flex: 0 1 120px; min-width: max-content; }
@@ -3666,6 +3681,17 @@
   background: #f4f6f8;
 }
 
+/* Filters applied → solid black with a white icon (the icon is currentColor).
+   MUST stay after the :hover/.active rule above: same specificity, so source
+   order decides, and otherwise hovering an applied filter would wash it back
+   out to grey. .active here means the PANEL is open, not that filters are set. */
+.sl-wrapper .sl-top-bar-icon-btn.has-filters,
+.sl-wrapper .sl-top-bar-icon-btn.has-filters:hover,
+.sl-wrapper .sl-top-bar-icon-btn.has-filters.active {
+  background: #101318;
+  color: #ffffff;
+}
+
 /* Quick filter pill group — a single row that scrolls horizontally when the
    (dynamic) tags overflow. */
 .sl-wrapper .sl-top-bar-pills {
@@ -3681,11 +3707,13 @@
 }
 .sl-wrapper .sl-top-bar-pills::-webkit-scrollbar { display: none; }  /* WebKit */
 
+/* 2px to match the pills inside the filter modal (.sl-filter-modal .sl-pill),
+   so the same control is not thinner outside the popup than in it. */
 .sl-wrapper .sl-top-bar-pill {
   height: 44px;
   padding: 0 21px;
   border-radius: 100px;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   background: #ffffff;
   font-size: 14px;
   font-weight: 400;
@@ -3751,7 +3779,7 @@
 .sl-wrapper .sl-top-bar-search-input {
   width: 100%;
   height: 100%;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   border-radius: 100px;
   padding: 0 60px 0 21px;
   font-size: 16px;
@@ -3922,7 +3950,7 @@
 .sl-wrapper .sl-modal-search-input {
   width: 100%;
   height: 100%;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   border-radius: 100px;
   padding: 0 56px 0 21px;
   font-size: 16px;
