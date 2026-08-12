@@ -92,6 +92,13 @@
             <option value="lBNDWS8N2g">Storelocal Waikele — Waipahu, HI</option>
           </select>
         </label>
+        <label>
+          Display mode:
+          <select id="pi-display-mode" onchange="reinitPropertyInfo()">
+            <option value="full">Full — detailed layout</option>
+            <option value="hero">Hero — image-led banner</option>
+          </select>
+        </label>
       </div>
     </div>
 
@@ -577,7 +584,11 @@
     // of the dynamic-page binding.
     function getPropertyInfoProps() {
       var id = document.getElementById('pi-property-id').value;
-      return id ? { propertyId: id } : {};
+      var props = { displayMode: document.getElementById('pi-display-mode').value };
+      // propertyId is OMITTED when blank rather than passed as '', so the widget
+      // keeps its config.json fallback instead of being handed an empty id.
+      if (id) props.propertyId = id;
+      return props;
     }
 
     function reinitPropertyInfo() {
