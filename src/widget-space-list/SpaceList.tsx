@@ -4,7 +4,7 @@ import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import cfg from './config.json';
 import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
-import { resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
+import { boundText, resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { PropertyIdProvider } from './propertyContext';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
@@ -56,6 +56,7 @@ export function SpaceList({
   layoutMode = 'grid',
   apLocation = 'right',
   showSideAccordions = true,
+  propertyHeader,
   showInstorePrice = true,
   instorePriceLabel = 'IN-STORE',
   instorePriceMode = 'percentOfWeb',
@@ -419,7 +420,9 @@ export function SpaceList({
     <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
       <div className="sl-heading">
         <p className="sl-select-heading">Select a Space {totalVacant > 0 && `— ${totalVacant} Available`}</p>
-        <p className="sl-page-title">Storage Units in {propertyExtras?.name || cfg.propertyName}</p>
+        <h1 className="sl-page-title">
+          {boundText(propertyHeader) || `Storage Units in ${propertyExtras?.name || cfg.propertyName}`}
+        </h1>
       </div>
       <div className="sl-row">
         {showSideAccordions && apLocation === 'left' && sectionPanel}

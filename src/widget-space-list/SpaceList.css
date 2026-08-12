@@ -316,7 +316,8 @@
   line-height: 40px;
   color: #101318;
   margin: 0;
-  /* Guard against host themes restyling bare <h2> (e.g. uppercasing it) */
+  /* Guard against host themes restyling bare <h1> (e.g. uppercasing it). The
+     size/weight/margin above also override the browser's own h1 defaults. */
   text-transform: none;
   letter-spacing: normal;
 }

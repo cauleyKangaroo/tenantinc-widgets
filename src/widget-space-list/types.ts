@@ -186,6 +186,17 @@ export interface SpaceListProps {
   configCollection?: string;
 
   // ── General widget properties ───────────────────────────────────────────
+  /**
+   * Text field "Property Landing Page Header": the page's <h1>. Set it and it
+   * renders verbatim, so an editor can write the whole heading rather than only
+   * the property name. Blank/omitted keeps the previous computed heading
+   * ("Storage Units in {property name}"), so existing instances are unchanged.
+   *
+   * Run through `boundText`, so this can also be connected to a Properties
+   * column — a binding that fails to resolve falls back to the computed heading
+   * instead of printing "{{propertyHeader}}".
+   */
+  propertyHeader?: string;
   /** Toggle: show or hide the in-store strike-through price block. Default true. */
   showInstorePrice?: boolean;
   /** Text label above the in-store strike price. Default 'IN-STORE'. */
