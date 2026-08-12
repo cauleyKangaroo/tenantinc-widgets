@@ -23,6 +23,12 @@ const COLUMNS: LinkColumn[] = [
       { label: 'What does Storage Outlet do', href: '#' },
       { label: 'Tenant Protection Plan', href: '#' },
       { label: 'SMS Terms', href: '#' },
+      // The four legal/utility links live here rather than under Connect, which
+      // is now just the two account actions.
+      { label: 'Online Privacy Opt-Out', href: '#' },
+      { label: 'Accessibility', href: '#' },
+      { label: 'Privacy Policy and Terms', href: '#' },
+      { label: 'Sitemap', href: '#' },
     ],
   },
   {
@@ -30,10 +36,6 @@ const COLUMNS: LinkColumn[] = [
     links: [
       { label: 'Login', href: '#' },
       { label: 'Contact us', href: '#' },
-      { label: 'Online Privacy Opt-Out', href: '#' },
-      { label: 'Accessibility', href: '#' },
-      { label: 'Privacy Policy and Terms', href: '#' },
-      { label: 'Sitemap', href: '#' },
     ],
   },
 ];

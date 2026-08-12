@@ -20,7 +20,7 @@
 
 /* ── Title ─────────────────────────────────────────────────────────────── */
 .rf-title { display: flex; flex-direction: column; gap: 14px; margin-bottom: 26px; }
-.rf-eyebrow { margin: 0; font-size: 24px; font-weight: 600; line-height: 1; color: var(--color_2, #509e2f); }
+.rf-eyebrow { margin: 0; font-size: 24px; font-weight: 600; line-height: 1; color: var(--color_1, #509e2f); }
 .rf-heading { margin: 0; font-size: 36px; font-weight: 600; line-height: 1.05; color: #101318; }
 
 /* ── "Renting as a business" checkbox ──────────────────────────────────── */
@@ -94,10 +94,17 @@
   font: 16px 'Montserrat', sans-serif;
   cursor: pointer;
 }
-.rf-btn--rent { border: none; background: var(--color_1, #f45f30); color: #fff; font-weight: 700; }
-.rf-btn--rent:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black); }
-.rf-btn--reserve { background: #fff; border: 2px solid var(--color_1, #f45f30); color: #101318; font-weight: 600; }
+.rf-btn--rent { border: none; background: var(--color_2, #509e2f); color: #fff; font-weight: 700; }
+.rf-btn--rent:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 88%, black); }
+.rf-btn--reserve { background: #fff; border: 2px solid var(--color_2, #509e2f); color: #101318; font-weight: 600; }
 .rf-btn--reserve:hover { background: #fff6f2; }
+.rf-hold-expired {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  margin: 0 0 20px; padding: 14px 16px;
+  background: #fff4f4; border: 1px solid #f3b0b0; border-radius: 8px;
+  color: #991b1b; font-size: 14px; font-weight: 600;
+}
+.rf-hold-expired .hb-btn { width: auto; flex: 0 0 auto; }
 .rf-or { display: flex; align-items: center; gap: 24px; width: 100%; margin: 11px 0; color: #637381; font-size: 16px; }
 .rf-or::before, .rf-or::after { content: ''; flex: 1 1 0; height: 1px; background: #c4cdd5; }
 
@@ -191,6 +198,13 @@
 .rf2-link {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 16px; color: #101318; text-decoration: underline; cursor: pointer;
+}
+/* "Learn More" is a real <button> (it opens the protection-plan lightbox) but
+   has to read as the link beside it — so strip the native button chrome. A
+   button is correct here for keyboard/AT semantics; an <a href="#"> was not. */
+.rf2-link--btn {
+  appearance: none; background: none; border: 0; padding: 0;
+  font: inherit; line-height: inherit;
 }
 
 /* Contact form (label-above fields) */
@@ -315,3 +329,265 @@
   .rf2-agree-doc { margin: 0 16px; }
   .rf2-paygrid { grid-template-columns: 1fr; }
 }
+
+/* ── Two-column layout: flow + order-summary rail (Figma 01–13) ─────────── */
+.rf-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 28px;
+  max-width: 1100px;
+  margin: 0 auto;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .rf-layout { grid-template-columns: minmax(0, 1fr); }
+}
+.rfr-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px rgba(16, 19, 24, .08);
+  overflow: hidden;
+  position: sticky;
+  top: 16px;
+}
+.rfr-hero { position: relative; }
+.rfr-hero-img { display: block; width: 100%; height: 170px; object-fit: cover; }
+.rfr-hero-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 20%, rgba(0,0,0,.72)); }
+.rfr-hero-content { position: absolute; left: 16px; right: 16px; bottom: 12px; color: #fff; }
+.rfr-storename { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
+.rfr-line { display: block; font-size: 12px; color: #fff; text-decoration: underline; }
+.rfr-body { padding: 16px; }
+.rfr-top { display: flex; justify-content: space-between; gap: 12px; }
+.rfr-size { margin: 0; font-size: 20px; font-weight: 800; }
+.rfr-sub { margin: 2px 0 8px; font-weight: 700; font-size: 13px; }
+.rfr-feats { display: flex; flex-direction: column; gap: 4px; }
+.rfr-feat { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7280; }
+.rfr-top-right { text-align: right; }
+.rfr-change { font-size: 13px; font-weight: 700; text-decoration: underline; color: inherit; }
+.rfr-prices { margin-top: 10px; display: flex; flex-direction: row; gap: 16px; align-items: flex-end; justify-content: flex-end; }
+.rfr-instore, .rfr-online { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.rfr-instore span, .rfr-online span { font-size: 10px; font-weight: 700; letter-spacing: .04em; color: #9ca3af; }
+.rfr-instore s { color: #9ca3af; font-size: 16px; }
+.rfr-online b { font-size: 26px; line-height: 1; }
+.rfr-promo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  border: 1.5px dashed #16a34a;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #166534;
+}
+.rfr-promo-ico { flex: none; color: #16a34a; }
+.rfr-breakdown { margin-top: 16px; border-top: 1px solid #eef0f3; padding-top: 12px; }
+.rfr-bd-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; gap: 10px; }
+.rfr-bd-label em { display: block; font-style: normal; font-size: 11px; color: #6b7280; }
+.rfr-bd-strong { font-weight: 700; }
+.rfr-bd-total { font-weight: 800; font-size: 15px; border-top: 1px solid #eef0f3; padding-top: 10px; }
+.rfr-payments { display: flex; gap: 6px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.rfr-pay-box { border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 5px; display: inline-flex; }
+.rfr-pay-mark { display: inline-flex; }
+
+/* ── Confirmation / failure pages ───────────────────────────────────────── */
+/* Confirmation page: content (left) + shared order rail (right) */
+.rfc-layout { display: flex; gap: 24px; align-items: flex-start; }
+.rfc-card { flex: 1 1 auto; max-width: 660px; }
+@media (max-width: 900px) { .rfc-layout { flex-direction: column; } }
+/* Confirmation name eyebrow is 36px (Figma 8507-24998), not the 24px Step-1 one. */
+.rfc-card .rf-eyebrow { font-size: 36px; }
+
+.rfc-sent {
+  display: flex; align-items: center; gap: 10px;
+  background: #eaf6e3; border-radius: 8px; padding: 12px 16px;
+  margin-bottom: 20px;
+}
+.rfc-sent-icon { flex: 0 0 auto; display: inline-flex; color: var(--color_1, #509e2f); }
+.rfc-sent-txt { flex: 1 1 auto; font-size: 18px; font-weight: 600; color: #101318; }
+.rfc-resend { border: none; background: none; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
+.rfc-panel { background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.rfc-space-head { font-size: 28px; font-weight: 600; color: #101318; margin-bottom: 14px; }
+.rfc-cols { display: flex; gap: 20px; flex-wrap: wrap; }
+.rfc-code-card {
+  border: 2px dashed #9ca3af; border-radius: 10px; padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 8px; align-items: center;
+  min-width: 220px; background: #fff; text-align: center;
+}
+.rfc-code-label { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; color: #101318; }
+.rfc-code { font-size: 30px; font-weight: 600; color: #101318; }
+.rfc-code-note { font-size: 13px; color: #637381; }
+/* Wallet */
+.rfc-wallet { margin-top: 8px; padding-top: 10px; border-top: 1px solid #eef0f3; width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.rfc-wallet-title { font-size: 16px; font-weight: 600; color: #101318; }
+.rfc-wallet-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.rfc-wallet-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #101318; color: #fff; border-radius: 6px; padding: 6px 10px;
+  font-size: 12px; font-weight: 700; line-height: 1.1;
+}
+.rfc-wallet-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; font-size: 12px; font-weight: 700; }
+.rfc-wallet-txt { display: flex; flex-direction: column; text-align: left; }
+.rfc-wallet-txt small { font-size: 8px; font-weight: 500; opacity: .8; }
+.rfc-details { font-size: 16px; line-height: 1.5; color: #101318; }
+.rfc-details p { margin: 0 0 10px; }
+.rfc-details p b { font-weight: 600; }
+.rfc-rentnow {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin-top: 16px; flex-wrap: wrap; font-weight: 600; font-size: 18px; color: #101318;
+}
+.rfc-rentnow .hb-btn { width: auto; flex: 0 0 auto; }
+/* Review card */
+.rfc-review {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 20px;
+}
+.rfc-review-q { margin: 0; font-size: 24px; font-weight: 600; color: #101318; max-width: 320px; }
+.rfc-review-accent { color: var(--color_1, #509e2f); }
+.rfc-review-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.rfc-review-stars { display: inline-flex; align-items: center; gap: 4px; }
+.rfc-review-link { font-size: 16px; font-weight: 600; text-decoration: underline; color: #101318; cursor: pointer; }
+.rfc-next .rf2-h { font-size: 22px; font-weight: 600; }
+.rfc-next { background: #f9fafb; border-radius: 12px; padding: 20px; }
+.rfc-next-item {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: #fff; border-radius: 8px; padding: 14px 16px; margin-top: 10px;
+  font-size: 16px; color: #101318; box-shadow: 0 1px 2px rgba(16,19,24,.05);
+}
+.rfc-next-check { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--color_1, #509e2f); color: #fff; }
+.rfc-next-check svg { color: #fff; }
+.rfc-error-eyebrow { color: #dc2626; }
+.rfc-error-panel {
+  background: #fef2f2; border: 1px solid #fca5a5; border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 18px;
+}
+.rfc-error-msg { font-weight: 700; margin: 0 0 8px; color: #991b1b; }
+.rfc-error-sub { font-size: 13px; margin: 0; color: #7f1d1d; }
+.rfc-retry { width: auto; padding: 12px 28px; }
+
+/* Conditional field groups expanding under step-2 checkboxes (Figma 12-13).
+   Nested groups indent to align with the checkbox LABEL (box 22px + 6px gap);
+   the top-level business group spans full width like the contact rows. */
+.rf2-expand { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 12px 28px; }
+.rf2-expand--top { margin: 14px 0 18px 0; }
+.rf2-expand .rf2-row { display: flex; gap: 12px; }
+.rf2-expand .rf2-row > * { flex: 1; }
+select.rf2-field-input { appearance: auto; background: #fff; height: 46px; }
+
+/* --- Global Payments Hosted Fields (Credit / Debit panel) --------------- */
+.rf2-pay--selected { border: 2px solid #101318; }
+.rf2-gp { margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+.rf2-gp-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+/* GP injects an iframe into each frame div; size the box, GP fills it. */
+.rf2-gp-frame {
+  height: 46px; border: 1px solid #d0d3d8; border-radius: 8px;
+  background: #fff; padding: 0 6px; overflow: hidden;
+}
+.rf2-gp-frame iframe { width: 100%; height: 100%; border: 0; }
+.rf2-gp-submit { max-width: 260px; }
+.rf2-gp-submit iframe { border: 0; width: 100%; height: 52px; }
+.rf2-gp-note { font-size: 14px; color: #5c6370; margin: 0; }
+.rf2-gp-note--error { color: #b3261e; }
+.rf2-gp--unconfigured {
+  font-size: 14px; color: #5c6370; background: #f5f6f8;
+  border: 1px dashed #d0d3d8; border-radius: 8px; padding: 14px 16px;
+}
+.rf2-gp--done {
+  flex-direction: row; align-items: center; gap: 10px;
+  font-size: 15px; color: #101318; background: #f0f9f1;
+  border: 1px solid #3ba55c; border-radius: 8px; padding: 12px 16px;
+}
+.rf2-gp-change { background: none; border: 0; padding: 0; margin-left: auto; }
+@media (max-width: 640px) {
+  .rf2-gp-grid { grid-template-columns: 1fr; }
+  .rf2-gp-submit { max-width: none; }
+}
+
+/* --- Hold countdown header on the order rail ---------------------------- */
+.rfr-holdbar {
+  padding: 14px 20px; font-size: 16px; color: #101318;
+  background: #f7f8fa; border-bottom: 1px solid #e3e5e9;
+  border-radius: 12px 12px 0 0;
+}
+.rfr-holdtime { color: #e03e2f; font-variant-numeric: tabular-nums; }
+
+/* --- Validation states --------------------------------------------------- */
+.rf-field--error .rf-field-input { border-color: #b3261e; }
+.rf-field--error .rf-field-label { color: #b3261e; }
+.rf-form-error { font-size: 14px; color: #b3261e; margin: 4px 0 0; }
+.rf2-field--error .rf2-field-input { border-color: #b3261e; }
+.rf2-field--error .rf2-field-label { color: #b3261e; }
+.rf2-agree-bar--error { outline: 2px solid #b3261e; outline-offset: 2px; border-radius: 6px; }
+
+/* --- Payment finalizing interstitial (screen 10 / m06) ------------------- */
+.rf-interstitial-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(16, 19, 24, 0.45);
+  display: flex; align-items: flex-start; justify-content: center;
+}
+.rf-interstitial {
+  margin-top: 12vh; background: #fff; border-radius: 12px;
+  padding: 40px 48px; max-width: 420px; width: calc(100% - 32px);
+  text-align: center; box-shadow: 0 12px 40px rgba(16, 19, 24, 0.25);
+}
+.rf-interstitial-h { font-size: 22px; font-weight: 700; color: #101318; margin: 0 0 22px; line-height: 1.35; }
+.rf-interstitial-name { color: #3ba55c; }
+.rf-interstitial-bar {
+  height: 6px; border-radius: 3px; background: #e3e5e9;
+  overflow: hidden; margin: 0 auto 22px; max-width: 240px;
+}
+.rf-interstitial-fill {
+  height: 100%; width: 35%; border-radius: 3px; background: #3ba55c;
+  animation: rf-interstitial-progress 3s ease-in-out forwards;
+}
+@keyframes rf-interstitial-progress {
+  0% { width: 12%; } 60% { width: 55%; } 100% { width: 92%; }
+}
+.rf-interstitial-p { font-size: 14px; color: #101318; margin: 0; line-height: 1.5; }
+
+/* --- Mobile: sticky top cost bar + drop-down rail sheet ------------------ */
+.rfm-top { position: sticky; top: 0; z-index: 50; }
+.rfm-bar {
+  display: flex; width: 100%; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 12px 16px; background: #fff;
+  border: none; border-bottom: 1px solid #e3e5e9; border-radius: 0;
+  box-shadow: 0 2px 10px rgba(16, 19, 24, 0.08);
+  font-family: inherit; cursor: pointer; text-align: left;
+}
+.rfm-bar-left { display: flex; flex-direction: column; gap: 2px; }
+.rfm-bar-title { font-size: 16px; font-weight: 700; color: #101318; }
+.rfm-bar-hold { font-size: 13px; color: #101318; }
+.rfm-bar-hold b { color: #e03e2f; font-variant-numeric: tabular-nums; }
+.rfm-bar-right { display: flex; align-items: center; gap: 10px; }
+.rfm-bar-total { font-size: 18px; font-weight: 700; color: #101318; }
+.rfm-bar-chev { font-size: 14px; color: #5c6370; transition: transform 0.15s ease; }
+.rfm-bar-chev--up { transform: rotate(180deg); }
+.rfm-sheet {
+  position: absolute; left: 0; right: 0; top: 100%;
+  max-height: 75vh; overflow-y: auto;
+  background: #fff; box-shadow: 0 16px 32px rgba(16, 19, 24, 0.25);
+}
+.rfm-sheet .rfr-card { width: 100%; max-width: none; border-radius: 0; box-shadow: none; }
+/* Stacked layout: the main column takes the full width on mobile. */
+.rf-wrapper--mobile .rf-layout { display: block; }
+.rf-wrapper--mobile .rf-main { width: 100%; }
+
+/* Payment schedule (spec-04: Next Month(s) / Ongoing) */
+.rfr-schedule { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.rfr-sched-head {
+  font-size: 13px; font-weight: 700; color: #101318;
+  background: #f5f6f8; border-radius: 4px; padding: 6px 10px; margin-bottom: 6px;
+}
+.rfr-sched-row span:first-child { color: #5c6370; }
+
+/* Rail money note — no demo figures, ever */
+.rfr-money-note { font-size: 13px; color: #5c6370; line-height: 1.5; margin: 4px 0 10px; }
+.rf2-plan--pending { padding: 16px; font-size: 14px; color: #5c6370; }
+
+/* Demo-preview banner — visible while the transaction bridge is simulated */
+.rf-demo-banner {
+  margin: 18px 0 0; padding: 10px 14px; font-size: 13px; font-weight: 700;
+  color: #7a4d00; background: #fff4dc; border: 1px solid #e8c26a; border-radius: 8px;
+}
+.rf-demo-banner--page { margin: 0 0 16px; text-align: center; }

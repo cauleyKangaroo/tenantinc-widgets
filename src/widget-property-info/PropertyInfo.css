@@ -685,11 +685,17 @@ span.pi-lb-img {
   color: #fff;
 }
 
+/* Anchored to the BOTTOM at the same 40px as the sides, so the inset is uniform
+   on all three edges the content actually touches. This was top: 91px — a fixed
+   offset measured against the 302px card, which left the block sitting upper-mid
+   rather than bottom-aligned, and pushed it toward the lower edge whenever the
+   name wrapped to a second line. Growing upward from the bottom keeps the inset
+   constant at any content height. */
 .pi-hero-content {
   position: absolute;
   left: 40px;
   right: 40px;
-  top: 91px;
+  bottom: 40px;
   display: flex;
   flex-direction: column;
   color: #fff;

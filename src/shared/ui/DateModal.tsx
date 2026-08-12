@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react';
-import { CalendarIcon, CloseIcon } from './icons';
-
-// ---------------------------------------------------------------------------
-// "Confirm your Move-In Date" lightbox — opens over the rental-flow form.
+// ===========================================================================
+// <DateModal /> — month-grid date picker in a lightbox (two months, past days
+// disabled, selected day filled). Promoted into the kit from the rental-flow
+// widget so rent / reserve / move-in and any future widget share one calendar.
 // Figma: Mariposa — Duda — 8507-23637.
-// Two month calendars (current + next). Past dates are disabled/greyed; the
-// selected date shows a filled dark circle (defaults to today).
-// ---------------------------------------------------------------------------
+// ===========================================================================
+
+import React, { useEffect } from 'react';
+import './DateModal.css';
+import { CalendarIcon, CloseIcon } from './icons';
+import { Button } from './Button';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTHS = [
@@ -41,14 +43,14 @@ function MonthCalendar({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   return (
-    <div className="rf-cal">
-      <div className="rf-cal-head">{MONTHS[month]}</div>
-      <div className="rf-cal-grid">
+    <div className="hb-cal">
+      <div className="hb-cal-head">{MONTHS[month]}</div>
+      <div className="hb-cal-grid">
         {WEEKDAYS.map((w, i) => (
-          <span className="rf-cal-dow" key={`dow-${i}`}>{w}</span>
+          <span className="hb-cal-dow" key={`dow-${i}`}>{w}</span>
         ))}
         {cells.map((d, i) => {
-          if (d === null) return <span className="rf-cal-cell rf-cal-cell--empty" key={`e-${i}`} />;
+          if (d === null) return <span className="hb-cal-cell hb-cal-cell--empty" key={`e-${i}`} />;
           const date = new Date(year, month, d);
           const disabled = date < minDate;
           const isSel = sameDay(date, selected);
@@ -57,7 +59,7 @@ function MonthCalendar({
               type="button"
               key={`d-${d}`}
               disabled={disabled}
-              className={`rf-cal-cell${disabled ? ' rf-cal-cell--disabled' : ''}${isSel ? ' rf-cal-cell--selected' : ''}`}
+              className={`hb-cal-cell${disabled ? ' hb-cal-cell--disabled' : ''}${isSel ? ' hb-cal-cell--selected' : ''}`}
               onClick={() => onSelect(date)}
             >
               {d}
@@ -69,19 +71,29 @@ function MonthCalendar({
   );
 }
 
-export function MoveInDateModal({
-  open, onClose, selected, onSelect, onConfirm,
-  title = 'Confirm your Move-In Date',
-  ctaLabel = 'Rent Today',
-}: {
+export interface DateModalProps {
   open: boolean;
   onClose: () => void;
   selected: Date | null;
   onSelect: (d: Date) => void;
   onConfirm: () => void;
+  /** Header text + dialog aria-label. */
   title?: string;
+  /** Confirm button label (shows a busy label while `busy`). */
   ctaLabel?: string;
-}) {
+  /** Blocks the confirm button + shows a spinner while an async submit runs. */
+  busy?: boolean;
+  /** Earliest selectable day. Defaults to today; days before are disabled. */
+  minDate?: Date;
+}
+
+export function DateModal({
+  open, onClose, selected, onSelect, onConfirm,
+  title = 'Confirm your Move-In Date',
+  ctaLabel = 'Rent Today',
+  busy = false,
+  minDate,
+}: DateModalProps) {
   // Esc to close + lock background scroll while open.
   useEffect(() => {
     if (!open) return;
@@ -97,39 +109,39 @@ export function MoveInDateModal({
 
   if (!open) return null;
 
-  const today = startOfDay(new Date());
-  const y0 = today.getFullYear();
-  const m0 = today.getMonth();
+  const floor = startOfDay(minDate ?? new Date());
+  const y0 = floor.getFullYear();
+  const m0 = floor.getMonth();
   const nextYear = m0 === 11 ? y0 + 1 : y0;
   const nextMonth = m0 === 11 ? 0 : m0 + 1;
 
   return (
-    <div className="rf-overlay" onMouseDown={onClose}>
+    <div className="hb-datemodal-overlay" onMouseDown={onClose}>
       <div
-        className="rf-modal"
+        className="hb-datemodal"
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="rf-modal-head">
-          <div className="rf-modal-title">
+        <div className="hb-datemodal-head">
+          <div className="hb-datemodal-title">
             <CalendarIcon size={24} />
             <span>{title}</span>
           </div>
-          <button type="button" className="rf-modal-close" aria-label="Close" onClick={onClose}>
+          <button type="button" className="hb-datemodal-close" aria-label="Close" onClick={onClose}>
             <CloseIcon size={18} />
           </button>
         </div>
 
-        <div className="rf-modal-body">
-          <div className="rf-cals">
-            <MonthCalendar year={y0} month={m0} selected={selected} minDate={today} onSelect={onSelect} />
-            <MonthCalendar year={nextYear} month={nextMonth} selected={selected} minDate={today} onSelect={onSelect} />
+        <div className="hb-datemodal-body">
+          <div className="hb-datemodal-cals">
+            <MonthCalendar year={y0} month={m0} selected={selected} minDate={floor} onSelect={onSelect} />
+            <MonthCalendar year={nextYear} month={nextMonth} selected={selected} minDate={floor} onSelect={onSelect} />
           </div>
-          <button type="button" className="rf-btn rf-btn--rent rf-modal-cta" onClick={onConfirm}>
-            {ctaLabel}
-          </button>
+          <div className="hb-datemodal-cta">
+            <Button tone="cta" block busy={busy} onClick={onConfirm}>{ctaLabel}</Button>
+          </div>
         </div>
       </div>
     </div>
