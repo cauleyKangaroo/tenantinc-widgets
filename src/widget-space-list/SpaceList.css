@@ -329,14 +329,17 @@
    GRID VIEW — ACCORDIONS
    =========================================================================== */
 /* Sections are separated by full-width divider lines: one above each section
-   and a closing line at the very bottom (border-bottom on the container). */
+   and a closing line at the very bottom (border-bottom on the container).
+   Black (#101318, the widget's black — not pure #000) rather than the old
+   #dfe3e8 grey. Both lines change together: they are the same divider, and
+   leaving the closing one grey would make the list look unfinished. */
 .sl-wrapper .sl-grid-view {
   display: flex;
   flex-direction: column;
   gap: 0;
-  border-bottom: 1px solid #dfe3e8;
+  border-bottom: 2px solid #101318;
 }
-.sl-wrapper .sl-accordion { width: 100%; border-top: 1px solid #dfe3e8; }
+.sl-wrapper .sl-accordion { width: 100%; border-top: 2px solid #101318; }
 .sl-wrapper .sl-accordion-header {
   background: transparent;
   padding: 20px 0 16px;
@@ -362,12 +365,17 @@
   background: #101318;
   color: #ffffff;
 }
-/* Chevron: points right when collapsed, rotates down when the section opens. */
+/* Chevron: points right when collapsed, rotates down when the section opens.
+   margin-right insets it 26px from the right edge. On the chevron rather than as
+   padding on the header, so the divider lines above and below stay full width —
+   padding there would pull the header's contents in but leave the borders, which
+   sit on .sl-accordion, untouched anyway. */
 .sl-wrapper .sl-chevron {
   display: flex;
   align-items: center;
   color: #101318;
   flex-shrink: 0;
+  margin-right: 26px;
   transition: transform 0.2s;
   transform: rotate(-90deg);
 }
