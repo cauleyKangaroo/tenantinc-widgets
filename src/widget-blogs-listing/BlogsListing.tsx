@@ -5,6 +5,8 @@ import { BLOG_IMAGES, cover } from '@shared/demoImages';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { fetchBlogPosts, type BlogPostData } from '@shared/blogPosts';
 import { useSwipe } from '@shared/useSwipe';
+import { absolutePostUrl, shareTargets, type SocialProfiles } from '@shared/shareLinks';
+import { useSocialProfiles } from '@shared/useSocialProfiles';
 
 // ---------------------------------------------------------------------------
 // Posts come from the Duda `BlogPosts` collection (see @shared/blogPosts). The set
@@ -13,10 +15,10 @@ import { useSwipe } from '@shared/useSwipe';
 // ---------------------------------------------------------------------------
 
 const DEMO_POSTS: BlogPostData[] = [
-  { id: 'b1', title: 'Spring Cleaning Made Simple: Storage Outlet Has Your Back', author: 'Storage Outlet', date: 'Mar 15, 2026 @ 4:30pm', timestamp: 4, excerpt: "Don't start the year off with overflowing closets, stuffed garages, and just too much clutter. Here's how a storage unit can help you reset.", image: BLOG_IMAGES[0], href: '#' },
-  { id: 'b2', title: '5 Tips for Packing a Storage Unit Efficiently', author: 'Storage Outlet', date: 'Mar 10, 2026 @ 1:15pm', timestamp: 3, excerpt: 'Make the most of every square foot. These simple packing strategies help you fit more and keep your belongings easy to reach.', image: BLOG_IMAGES[1], href: '#' },
-  { id: 'b3', title: 'How to Choose the Right Storage Unit Size', author: 'Storage Outlet', date: 'Mar 4, 2026 @ 9:00am', timestamp: 2, excerpt: 'From lockers to large drive-up units, picking the right size saves money and hassle. Our guide breaks down what fits where.', image: BLOG_IMAGES[2], href: '#' },
-  { id: 'b4', title: 'Climate-Controlled Storage: Is It Worth It?', author: 'Storage Outlet', date: 'Feb 26, 2026 @ 11:45am', timestamp: 1, excerpt: "Temperature swings can damage furniture, electronics, and documents. Here's when climate control is worth the upgrade.", image: BLOG_IMAGES[3], href: '#' },
+  { id: 'b1', title: 'Spring Cleaning Made Simple: Storage Outlet Has Your Back', author: 'Storage Outlet', date: 'Mar 15, 2026 @ 4:30pm', timestamp: 4, excerpt: "Don't start the year off with overflowing closets, stuffed garages, and just too much clutter. Here's how a storage unit can help you reset.", image: BLOG_IMAGES[0], href: '/blogs/spring-cleaning-made-simple', slug: 'spring-cleaning-made-simple' },
+  { id: 'b2', title: '5 Tips for Packing a Storage Unit Efficiently', author: 'Storage Outlet', date: 'Mar 10, 2026 @ 1:15pm', timestamp: 3, excerpt: 'Make the most of every square foot. These simple packing strategies help you fit more and keep your belongings easy to reach.', image: BLOG_IMAGES[1], href: '/blogs/packing-a-storage-unit', slug: 'packing-a-storage-unit' },
+  { id: 'b3', title: 'How to Choose the Right Storage Unit Size', author: 'Storage Outlet', date: 'Mar 4, 2026 @ 9:00am', timestamp: 2, excerpt: 'From lockers to large drive-up units, picking the right size saves money and hassle. Our guide breaks down what fits where.', image: BLOG_IMAGES[2], href: '/blogs/choosing-a-unit-size', slug: 'choosing-a-unit-size' },
+  { id: 'b4', title: 'Climate-Controlled Storage: Is It Worth It?', author: 'Storage Outlet', date: 'Feb 26, 2026 @ 11:45am', timestamp: 1, excerpt: "Temperature swings can damage furniture, electronics, and documents. Here's when climate control is worth the upgrade.", image: BLOG_IMAGES[3], href: '/blogs/climate-controlled-storage', slug: 'climate-controlled-storage' },
 ];
 
 const CARDS_PER_PAGE = 3;
@@ -31,7 +33,42 @@ const NO_IMAGE = 'linear-gradient(135deg, #dfe3e8 0%, #c4cdd5 100%)';
 // Blog card
 // ---------------------------------------------------------------------------
 
-function BlogCard({ post }: { post: BlogPostData }) {
+/** Icon per share key, so the shared target list stays markup-free. */
+const ICON_BY_KEY = Object.fromEntries(SOCIALS.map((s) => [s.key, s.Icon]));
+
+/**
+ * The card's share popover — all six brand glyphs (Figma 9340:23554).
+ *
+ * These used to be rendered at `href="#"`, so every one was a dead click. See
+ * @shared/shareLinks for what each of the six now resolves to.
+ */
+function SharePopover({ post, profiles }: { post: BlogPostData; profiles: SocialProfiles }) {
+  const url = absolutePostUrl(post.href);
+
+  return (
+    <div className="blog-share-pop" role="menu">
+      {shareTargets(url, post.title, profiles).map(({ key, label, href }) => {
+        const Icon = ICON_BY_KEY[key];
+        return (
+          <a
+            key={key}
+            className="blog-social"
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={label}
+            title={label}
+            role="menuitem"
+          >
+            <Icon />
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
+function BlogCard({ post, profiles }: { post: BlogPostData; profiles: SocialProfiles }) {
   const [shareOpen, setShareOpen] = useState(false);
 
   // authorName / publishDate can both be blank on a row — build the byline from
@@ -67,15 +104,7 @@ function BlogCard({ post }: { post: BlogPostData }) {
         </div>
       </div>
 
-      {shareOpen && (
-        <div className="blog-share-pop" role="menu">
-          {SOCIALS.map(({ key, label, Icon }) => (
-            <a key={key} className="blog-social" href="#" aria-label={label} title={label}>
-              <Icon />
-            </a>
-          ))}
-        </div>
-      )}
+      {shareOpen && <SharePopover post={post} profiles={profiles} />}
     </article>
   );
 }
@@ -121,7 +150,11 @@ export interface BlogsListingProps {
   subheading?: string;
   /** Duda collection name (case-sensitive). */
   collection?: string;
-  /** Path of the blog page the post slugs hang off, e.g. "/blog". */
+  /**
+   * Path of the blog page the post slugs hang off. Cards link at
+   * `${blogBasePath}/${slug}`, which is the URL #16 blog-post reads back — keep
+   * the two in step or the cards will link past the article page.
+   */
   blogBasePath?: string;
 }
 
@@ -129,13 +162,16 @@ export function BlogsListing({
   heading = 'Self Storage Blog',
   subheading = 'Tips, guides, and news to help you store smarter — from packing hacks to choosing the right unit.',
   collection = 'BlogPosts',
-  blogBasePath = '/blog',
+  blogBasePath = '/blogs',
 }: BlogsListingProps) {
   const [posts, setPosts] = useState<BlogPostData[]>([]);
   const [loading, setLoading] = useState(true);
   const [pastDelay, setPastDelay] = useState(false);
   const [page, setPage] = useState(0);
   const [mobileIdx, setMobileIdx] = useState(0);
+
+  // Brand profile links for the three glyphs that can't carry a share URL.
+  const profiles = useSocialProfiles('#12');
 
   useEffect(() => {
     // No dmAPI means we're not in Duda (dev harness) — show the demo set rather
@@ -200,7 +236,7 @@ export function BlogsListing({
 
         <div className="blog-grid">
           {pagePosts.map((post) => (
-            <BlogCard key={post.id} post={post} />
+            <BlogCard key={post.id} post={post} profiles={profiles} />
           ))}
         </div>
 
@@ -224,7 +260,7 @@ export function BlogsListing({
         </div>
         {/* Dots indicate position, swiping moves — no arrows in this view. */}
         <div {...mobileSwipe.handlers}>
-          <BlogCard key={`m-${mobileCurrent}`} post={posts[mobileCurrent]} />
+          <BlogCard key={`m-${mobileCurrent}`} post={posts[mobileCurrent]} profiles={profiles} />
         </div>
         {posts.length > 1 && (
           <div className="blog-pagination blog-pagination-dots">

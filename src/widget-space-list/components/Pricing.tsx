@@ -1,7 +1,9 @@
-﻿import React from 'react';
+﻿import React, { useState } from 'react';
 import type { Unit, WidgetConfig } from '../types';
 import { isUnavailable } from '../filters';
 import { withLineBreaks } from '@shared/lineBreaks';
+import { emitOpenTiers } from '@shared/tierBus';
+import cfg from '../config.json';
 
 // Prices round DOWN to whole dollars: 145.20 → $145.00, 147.99 → $147.00. The
 // cents only ever come from the in-store calculation (a percentage of the web
@@ -218,16 +220,77 @@ export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetCo
   // Sold out states the fact; anything else can only offer scarcity.
   const note = unavailable ? config.limitedAvailabilityCopy : urgencyMessage(unit, config);
 
+  const [tiersError, setTiersError] = useState(false);
+  function openValueTiers() {
+    const handled = emitOpenTiers({
+      size: unit.dimensions,
+      unitGroupId: unit.unitGroupId,
+      unitId: unit.id,
+      propertyId: config.propertyId || cfg.propertyId || undefined,
+      channel: config.valueTiersChannel || undefined,
+    });
+    if (handled) return;
+    if (config.valueTiersPageUrl) {
+      try {
+        const url = new URL(config.valueTiersPageUrl, window.location.origin);
+        if (url.origin === window.location.origin) {
+          url.searchParams.set('size', unit.dimensions);
+          if (unit.unitGroupId) url.searchParams.set('unitGroupId', unit.unitGroupId);
+          // Carry the ACTUAL property + company so the value-tiers page prices
+          // the same unit group (critical on dynamic property pages).
+          if (config.propertyId) url.searchParams.set('propertyId', config.propertyId);
+          if (config.companyId) url.searchParams.set('companyId', config.companyId);
+          // Duda's dmAPI (page global) tells us the environment. On 'live' route on
+          // the real origin; in editor/preview keep it relative so Duda's preview
+          // routing handles it. dmAPI is absent off-platform (e.g. dev harness).
+          const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
+          const isLive = typeof dm !== 'undefined' && dm?.getCurrentEnvironment?.() === 'live';
+          const path = url.pathname + url.search;
+          window.location.href = isLive ? window.location.origin + path : path;
+          return;
+        }
+        console.error('[SpaceList] valueTiersPageUrl blocked — cross-origin:', config.valueTiersPageUrl);
+      } catch { /* malformed URL → fall through to the message */ }
+    }
+    console.warn('[SpaceList] Value Tiers enabled but no modal handled the Select — place a mode="modal" #14 on this page.');
+    setTiersError(true);
+    window.setTimeout(() => setTiersError(false), 4000);
+  }
+
+  // Page mode: a real anchor so Duda's router handles the nav in preview AND
+  // published — window.location bypasses Duda's preview routing (→ my.duda.co
+  // 404). Carries the same params the modal handoff does.
+  const valueTiersHref = (() => {
+    if (!config.enableValueTiers || !config.valueTiersPageUrl) return undefined;
+    const p = new URLSearchParams({ size: unit.dimensions });
+    if (unit.unitGroupId) p.set('unitGroupId', unit.unitGroupId);
+    if (config.propertyId) p.set('propertyId', config.propertyId);
+    if (config.companyId) p.set('companyId', config.companyId);
+    return `${config.valueTiersPageUrl}?${p.toString()}`;
+  })();
+
   return (
     <div className="sl-cta-group">
       {waitlistCta ? (
         <button className={`sl-waitlist-btn${fullClass}`}>Join waitlist</button>
       ) : unavailable || callOnly ? (
         <button className={`sl-call-btn${fullClass}`}>Call</button>
+      ) : valueTiersHref ? (
+        <a className={`sl-select-btn${fullClass}`} href={valueTiersHref}>
+          {config.ctaButtonCopy}
+        </a>
       ) : (
-        <button className={`sl-select-btn${fullClass}`}>{config.ctaButtonCopy}</button>
+        <button
+          className={`sl-select-btn${fullClass}`}
+          onClick={config.enableValueTiers ? openValueTiers : undefined}
+          disabled={tiersError}
+        >
+          {config.ctaButtonCopy}
+        </button>
       )}
-      {note && <div className="sl-limited-label">{note}</div>}
+      {tiersError
+        ? <div className="sl-limited-label" role="alert">Pricing is temporarily unavailable — please try again.</div>
+        : note && <div className="sl-limited-label">{note}</div>}
     </div>
   );
 }

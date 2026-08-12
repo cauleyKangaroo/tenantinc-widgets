@@ -76,6 +76,9 @@ export function SpaceList({
   enableWaitlist = false,
   callOnLimitedAvailability = false,
   ctaButtonCopy = 'Select',
+  enableValueTiers = false,
+  valueTiersChannel,
+  valueTiersPageUrl,
   limitedAvailabilityCopy = '',
   startingAtLabel = 'Starting at',
   showSizeGuideVideos = true,
@@ -149,6 +152,15 @@ export function SpaceList({
     enableWaitlist,
     callOnLimitedAvailability,
     ctaButtonCopy,
+    enableValueTiers,
+    valueTiersChannel,
+    valueTiersPageUrl,
+    // The ACTUAL property + company this widget is showing (dynamic pages vary
+    // both) — passed through the value-tiers handoff so the target page prices
+    // the same unit group. companyId is the bound content field (per-property on
+    // dynamic pages); the target page can't infer it from its own collection.
+    propertyId: resolvePropertyId({ propertyId }, cfg.propertyId),
+    companyId,
     // Deliberately NO fallback: blank means the editor wants no note at all, so a
     // sold-out unit shows its CTA with nothing underneath. (The junk-fee field
     // still falls back — that one has standard legal wording worth defaulting to.)

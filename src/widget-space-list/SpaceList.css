@@ -597,6 +597,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  text-decoration: none; /* the value-tiers Select renders as an <a> (Duda-routable) */
 }
 .sl-wrapper .sl-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
 /* Call / Waitlist are the OUTLINE variant of .sl-select-btn (Figma 7112-47044):

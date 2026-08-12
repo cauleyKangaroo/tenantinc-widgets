@@ -1,0 +1,19 @@
+/* ===========================================================================
+   <MoneyBreakdown /> — the move-in cost line items (Rent (Prorated) / fees /
+   discounts / Total Tax / Total Cost to Move-In). Shared by the value-tiers
+   card breakdown and the rental-flow order rail. Neutral styling that inherits
+   font/colour from its wrapper so it blends into either context.
+   =========================================================================== */
+@import './tokens.css';
+
+.hb-money { display: flex; flex-direction: column; gap: 10px; }
+.hb-money-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.hb-money-label { display: inline-flex; flex-direction: column; }
+.hb-money-dates { color: var(--hb-grayscale-medium); font-size: 0.85em; }
+.hb-money-strong { font-weight: var(--hb-font-weight-bold); }
+.hb-money-total {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(142, 142, 143, 0.2);
+  font-weight: var(--hb-font-weight-bold);
+}
