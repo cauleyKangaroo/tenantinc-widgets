@@ -928,7 +928,9 @@
   min-width: 0;
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  /* 30px inset and a 24px column gap between the image and the text — Figma
+     9417-86254. Both hold at every width; see the 907px step below. */
+  gap: 24px;
   padding: 30px;
   box-sizing: border-box;
 }
@@ -1010,8 +1012,11 @@
   flex-direction: column;
   gap: 12px;
 }
-/* wrap is the safety valve: an unusually long price (five figures, say) drops the
-   CTA below the price instead of overflowing into the card's clipped edge. */
+/* CTA sits to the RIGHT of the price (Figma 9417-86253). wrap is the safety valve,
+   not the intent: an unusually long price (five figures, say) drops the CTA below
+   rather than overflowing into the card's clipped edge. The ≤907px step trims the
+   CTA basis and price size so the pair keeps its one row down to the widths a
+   squeezed Duda listing column actually reaches. */
 .sl-wrapper .sl-dv-price-button {
   display: flex;
   flex-wrap: wrap;
@@ -1101,16 +1106,19 @@
    layout is white panel beside grey panel, so narrowing steps give width back
    from the image and the paddings before anything is allowed to stack. */
 /* Below ~907px of listing, 45% stops being enough for the full-size price row and
-   CTA to share a line (408 = 60 padding + the 348 box). Trim the paddings, the
-   image (to the Figma leaf's own ~97px), the CTA basis and the price size to buy
-   that back — the split itself stays 55/45, since a per-card min-width floor is
-   exactly what would make the seam wander again. */
+   CTA to share a line (408 = 60 padding + the 348 box). Trim the image (to the
+   Figma leaf's own ~97px), the CTA basis and the price size to buy that back — the
+   split itself stays 55/45, since a per-card min-width floor is exactly what would
+   make the seam wander again.
+   The 30px paddings and the 24px display gap are NOT trimmed here any more: they
+   are the design's own values, and the CTA/price trims below recover more width
+   than the 20px paddings did. Between ~600 and ~750 the pair still exceeds the
+   panel and wrap drops the CTA below the price — the safety valve doing its job,
+   at widths only a squeezed Duda column reaches. */
 @container (max-width: 907px) {
-  .sl-wrapper .sl-dv-display { padding: 20px; gap: 12px; }
   .sl-wrapper .sl-dv-img { max-width: 100px; }
   /* 13px keeps the link narrower than the 100px image, so the column stays put */
   .sl-wrapper .sl-dv-see-fits { font-size: 13px; gap: 4px; }
-  .sl-wrapper .sl-dv-action { padding: 20px; }
   .sl-wrapper .sl-dv-actions { max-width: 312px; }
   .sl-wrapper .sl-dv-price-button { gap: 12px; }
   .sl-wrapper .sl-dv-btn-col { flex: 0 1 120px; min-width: max-content; }
