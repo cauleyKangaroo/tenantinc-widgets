@@ -3688,11 +3688,13 @@
 }
 .sl-wrapper .sl-top-bar-pills::-webkit-scrollbar { display: none; }  /* WebKit */
 
+/* 2px to match the pills inside the filter modal (.sl-filter-modal .sl-pill),
+   so the same control is not thinner outside the popup than in it. */
 .sl-wrapper .sl-top-bar-pill {
   height: 44px;
   padding: 0 21px;
   border-radius: 100px;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   background: #ffffff;
   font-size: 14px;
   font-weight: 400;
@@ -3758,7 +3760,7 @@
 .sl-wrapper .sl-top-bar-search-input {
   width: 100%;
   height: 100%;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   border-radius: 100px;
   padding: 0 60px 0 21px;
   font-size: 16px;
@@ -3929,7 +3931,7 @@
 .sl-wrapper .sl-modal-search-input {
   width: 100%;
   height: 100%;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   border-radius: 100px;
   padding: 0 56px 0 21px;
   font-size: 16px;
