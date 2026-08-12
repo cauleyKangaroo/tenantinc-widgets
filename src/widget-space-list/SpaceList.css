@@ -3673,6 +3673,17 @@
   background: #f4f6f8;
 }
 
+/* Filters applied → solid black with a white icon (the icon is currentColor).
+   MUST stay after the :hover/.active rule above: same specificity, so source
+   order decides, and otherwise hovering an applied filter would wash it back
+   out to grey. .active here means the PANEL is open, not that filters are set. */
+.sl-wrapper .sl-top-bar-icon-btn.has-filters,
+.sl-wrapper .sl-top-bar-icon-btn.has-filters:hover,
+.sl-wrapper .sl-top-bar-icon-btn.has-filters.active {
+  background: #101318;
+  color: #ffffff;
+}
+
 /* Quick filter pill group — a single row that scrolls horizontally when the
    (dynamic) tags overflow. */
 .sl-wrapper .sl-top-bar-pills {
