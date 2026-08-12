@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import type { SpaceType, UnitSize } from '../types';
 import type { FilterState } from '../filters';
 import { TYPE_OPTIONS, SIZE_OPTIONS } from '../data';
+import { SearchIcon } from './TopFilterBar';
 
 interface FilterModalProps {
   filters: FilterState;
@@ -46,15 +47,6 @@ function PillRemoveIcon() {
       <circle cx="8" cy="8" r="8" fill="currentColor" />
       <line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
       <line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function SparkleIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2.5c.4 3.9 1.6 5.1 5.5 5.5-3.9.4-5.1 1.6-5.5 5.5-.4-3.9-1.6-5.1-5.5-5.5 3.9-.4 5.1-1.6 5.5-5.5Z" />
-      <path d="M18.5 13.5c.2 2 .8 2.6 2.8 2.8-2 .2-2.6.8-2.8 2.8-.2-2-.8-2.6-2.8-2.8 2-.2 2.6-.8 2.8-2.8Z" />
     </svg>
   );
 }
@@ -122,12 +114,12 @@ export function FilterModal({
             <input
               className="sl-modal-search-input"
               type="text"
-              placeholder="Filter Spaces by..."
+              placeholder="Search Spaces"
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
             />
             <button className="sl-modal-search-btn" aria-label="Search">
-              <SparkleIcon />
+              <SearchIcon />
             </button>
           </div>
 

@@ -330,14 +330,17 @@
    GRID VIEW — ACCORDIONS
    =========================================================================== */
 /* Sections are separated by full-width divider lines: one above each section
-   and a closing line at the very bottom (border-bottom on the container). */
+   and a closing line at the very bottom (border-bottom on the container).
+   Black (#101318, the widget's black — not pure #000) rather than the old
+   #dfe3e8 grey. Both lines change together: they are the same divider, and
+   leaving the closing one grey would make the list look unfinished. */
 .sl-wrapper .sl-grid-view {
   display: flex;
   flex-direction: column;
   gap: 0;
-  border-bottom: 1px solid #dfe3e8;
+  border-bottom: 2px solid #101318;
 }
-.sl-wrapper .sl-accordion { width: 100%; border-top: 1px solid #dfe3e8; }
+.sl-wrapper .sl-accordion { width: 100%; border-top: 2px solid #101318; }
 .sl-wrapper .sl-accordion-header {
   background: transparent;
   padding: 20px 0 16px;
@@ -363,12 +366,17 @@
   background: #101318;
   color: #ffffff;
 }
-/* Chevron: points right when collapsed, rotates down when the section opens. */
+/* Chevron: points right when collapsed, rotates down when the section opens.
+   margin-right insets it 26px from the right edge. On the chevron rather than as
+   padding on the header, so the divider lines above and below stay full width —
+   padding there would pull the header's contents in but leave the borders, which
+   sit on .sl-accordion, untouched anyway. */
 .sl-wrapper .sl-chevron {
   display: flex;
   align-items: center;
   color: #101318;
   flex-shrink: 0;
+  margin-right: 26px;
   transition: transform 0.2s;
   transform: rotate(-90deg);
 }
@@ -3673,6 +3681,17 @@
   background: #f4f6f8;
 }
 
+/* Filters applied → solid black with a white icon (the icon is currentColor).
+   MUST stay after the :hover/.active rule above: same specificity, so source
+   order decides, and otherwise hovering an applied filter would wash it back
+   out to grey. .active here means the PANEL is open, not that filters are set. */
+.sl-wrapper .sl-top-bar-icon-btn.has-filters,
+.sl-wrapper .sl-top-bar-icon-btn.has-filters:hover,
+.sl-wrapper .sl-top-bar-icon-btn.has-filters.active {
+  background: #101318;
+  color: #ffffff;
+}
+
 /* Quick filter pill group — a single row that scrolls horizontally when the
    (dynamic) tags overflow. */
 .sl-wrapper .sl-top-bar-pills {
@@ -3688,11 +3707,13 @@
 }
 .sl-wrapper .sl-top-bar-pills::-webkit-scrollbar { display: none; }  /* WebKit */
 
+/* 2px to match the pills inside the filter modal (.sl-filter-modal .sl-pill),
+   so the same control is not thinner outside the popup than in it. */
 .sl-wrapper .sl-top-bar-pill {
   height: 44px;
   padding: 0 21px;
   border-radius: 100px;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   background: #ffffff;
   font-size: 14px;
   font-weight: 400;
@@ -3758,7 +3779,7 @@
 .sl-wrapper .sl-top-bar-search-input {
   width: 100%;
   height: 100%;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   border-radius: 100px;
   padding: 0 60px 0 21px;
   font-size: 16px;
@@ -3929,7 +3950,7 @@
 .sl-wrapper .sl-modal-search-input {
   width: 100%;
   height: 100%;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   border-radius: 100px;
   padding: 0 56px 0 21px;
   font-size: 16px;
