@@ -18,7 +18,26 @@ export type { FormFieldProps, FieldState, FieldType } from './FormField';
 export { Button } from './Button';
 export type { ButtonProps, ButtonTone, ButtonFill, ButtonShape } from './Button';
 
+export { Checkbox } from './Checkbox';
+export type { CheckboxProps } from './Checkbox';
+
+export { DateModal } from './DateModal';
+export type { DateModalProps } from './DateModal';
+
+export { MoneyBreakdown } from './MoneyBreakdown';
+export type { MoneyBreakdownProps, MoneyBreakdownData, MoneyLine } from './MoneyBreakdown';
+
+export { SummaryRail } from './SummaryRail';
+export type { SummaryRailProps } from './SummaryRail';
+
+export { formatPrice } from './format';
+
 export {
-  SearchIcon, CalendarIcon, CheckIcon, AlertIcon, InfoIcon, EyeOnIcon, EyeOffIcon,
+  VisaMark, MastercardMark, AmexMark, DiscoverMark, ApplePayMark, GooglePayMark,
+} from './paymentIcons';
+
+export {
+  SearchIcon, CalendarIcon, CheckIcon, AlertIcon, InfoIcon, EyeOnIcon, EyeOffIcon, CloseIcon,
+  TagIcon, MapPinIcon, PhoneIcon,
 } from './icons';
 export type { IconProps } from './icons';
