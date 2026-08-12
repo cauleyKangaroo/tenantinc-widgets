@@ -762,7 +762,12 @@
     });
 
     require(['/dist/widget-rental-flow-2step.js'], function (widget) {
-      widget.init({ container: document.getElementById('rental-flow-2step-container'), props: {} });
+      // processingMs kept short in the harness so the loading lightbox and the
+      // success screen are quick to reach while iterating.
+      widget.init({
+        container: document.getElementById('rental-flow-2step-container'),
+        props: { total: 120, facilityName: 'Storelocal Storage', processingMs: 2200 },
+      });
     });
   </script>
 
