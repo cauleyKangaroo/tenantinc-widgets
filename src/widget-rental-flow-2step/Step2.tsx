@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CheckTick, CalendarIcon, FileArrowIcon, ChevronIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
 import { mountGpHostedFields, GpTokenResult, GpFieldValidity } from './gpHostedFields';
+import { ProtectionPlanModal } from './ProtectionPlanModal';
+// The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
+// rather than the shell because Step2 is now the only screen that mounts it.
+import './screens.css';
 import { FormField, Button, Checkbox, type FieldType } from '@shared/ui';
 
 // ---------------------------------------------------------------------------
@@ -159,10 +163,14 @@ function CardFieldsPanel({
 
 export function Step2({
   moveIn, plan, leaseDocName, onEditDate, gpApiKey, gpEnvironment = 'test', payNowTotal, onPaymentComplete,
+  brochureUrl,
 }: {
   moveIn: Date;
   /** First protection plan from the API; card falls back to demo values without it. */
   plan?: import('./api').ProtectionPlan;
+  /** Protection-plan brochure PDF for the "Learn More" lightbox. Absent → the
+   *  modal's download button is inert rather than a dead link. */
+  brochureUrl?: string;
   /** Lease template name from the documents API. */
   leaseDocName?: string;
   onEditDate: () => void;
@@ -203,6 +211,10 @@ export function Step2({
   const [vehState, setVehState] = useState('');
   const [agree, setAgree] = useState(false);
   const [autopay, setAutopay] = useState(false);
+  // "Learn More" brochure lightbox for the protection plan (Figma via master's
+  // rental-flow work). The plan CARD is API-driven (see `plan`); this modal is
+  // the explanatory content behind it.
+  const [planOpen, setPlanOpen] = useState(false);
 
   // Payment method + Hosted Fields tokenization result. The temporary
   // token is single-use with a 30-minute expiry — comfortably inside the
@@ -287,7 +299,7 @@ export function Step2({
         <section className="rf2-panel">
           <div className="rf2-rowhead">
             <span className="rf2-h">Select Protection Plan</span>
-            <a className="rf2-link" href="#" onClick={noop}>Learn More</a>
+            <button type="button" className="rf2-link rf2-link--btn" onClick={() => setPlanOpen(true)}>Learn More</button>
           </div>
           {plan?.coverage != null && plan.premium != null ? (
             <div className="rf2-plan">
@@ -464,6 +476,12 @@ export function Step2({
           )}
         </section>
       </div>
+
+      <ProtectionPlanModal
+        open={planOpen}
+        onClose={() => setPlanOpen(false)}
+        brochureUrl={brochureUrl}
+      />
     </div>
   );
 }

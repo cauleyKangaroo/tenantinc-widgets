@@ -58,6 +58,8 @@ export interface RentalFlow2StepProps {
   proxyBaseUrl?: string;
   /** "Change Space" link target on the order rail (the value-tiers page). */
   changeSpaceUrl?: string;
+  /** Protection-plan brochure PDF, opened from step 2's "Learn More" lightbox. */
+  brochureUrl?: string;
   /** Global Payments CLIENT-side (publishable) key for Hosted Fields card
    *  tokenization. The server-side key must NEVER be passed here. */
   gpApiKey?: string;
@@ -379,6 +381,7 @@ export function RentalFlow2Step({
   eyebrow = 'Great choice!',
   heading = 'Secure your space now',
   termsHref = '#',
+  brochureUrl,
   size: sizeArg,
   tier: tierArg,
   propertyId: propertyIdArg,
@@ -760,6 +763,7 @@ export function RentalFlow2Step({
             moveIn={moveIn}
             plan={plans[0]}
             leaseDocName={leaseDoc?.name}
+            brochureUrl={brochureUrl}
             onEditDate={() => setDateModalOpen(true)}
             gpApiKey={gpApiKey}
             gpEnvironment={gpEnvironment}

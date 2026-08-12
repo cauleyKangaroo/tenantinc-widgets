@@ -199,6 +199,13 @@
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 16px; color: #101318; text-decoration: underline; cursor: pointer;
 }
+/* "Learn More" is a real <button> (it opens the protection-plan lightbox) but
+   has to read as the link beside it — so strip the native button chrome. A
+   button is correct here for keyboard/AT semantics; an <a href="#"> was not. */
+.rf2-link--btn {
+  appearance: none; background: none; border: 0; padding: 0;
+  font: inherit; line-height: inherit;
+}
 
 /* Contact form (label-above fields) */
 .rf2-form { display: flex; flex-direction: column; gap: 13px; margin-bottom: 30px; }
