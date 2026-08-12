@@ -483,10 +483,14 @@
 }
 .sl-wrapper .sl-see-fits:hover { text-decoration: underline; }
 
+/* Border + icon follow Duda's primary (--color_1), matching "See what fits". The
+   label stays #101318 — only the framing is themed. PromoTagIcon is currentColor,
+   so .sl-promo-icon must set the colour: without it the icon would inherit the
+   badge's dark label colour. */
 .sl-wrapper .sl-promo-badge {
   width: 100%;
   box-sizing: border-box;
-  border: 2px dashed #509e2f;
+  border: 2px dashed var(--color_1, #f45f30);
   border-radius: 8px;
   padding: 12px;
   background: #ffffff;
@@ -499,7 +503,7 @@
   font-weight: 700;
   margin-top: 12px;
 }
-.sl-wrapper .sl-promo-icon { display: flex; align-items: center; flex-shrink: 0; }
+.sl-wrapper .sl-promo-icon { display: flex; align-items: center; flex-shrink: 0; color: var(--color_1, #f45f30); }
 
 .sl-wrapper .sl-card-pricing {
   display: flex;
@@ -838,10 +842,12 @@
   flex-wrap: wrap;
   padding: 30px;
 }
+/* The list layout's copy of the promo badge — themed to match .sl-promo-badge so
+   the same promo is not green here and primary-coloured in the other layouts. */
 .sl-wrapper .sl-lc-promo {
   flex: 1 1 220px;
   min-width: 200px;
-  border: 2px dashed #509e2f;
+  border: 2px dashed var(--color_1, #f45f30);
   border-radius: 8px;
   padding: 12px;
   background: #ffffff;
@@ -853,7 +859,7 @@
   color: #101318;
   line-height: 16px;
 }
-.sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; }
+.sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-lc-price-button {
   display: flex;
   gap: 16px;
