@@ -1,0 +1,51 @@
+/* ===========================================================================
+   <Checkbox /> — token-styled square checkbox with a label to the right.
+   Matches the form kit (Mariposa — Duda). Brand fill when checked.
+   =========================================================================== */
+@import './tokens.css';
+
+.hb-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--hb-font);
+}
+.hb-check--disabled { cursor: default; opacity: 0.6; }
+
+/* The real input is visually hidden but stays in the DOM for a11y + focus. */
+.hb-check__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  margin: 0;
+}
+
+.hb-check__box {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--hb-field-radius);
+  border: 2px solid var(--hb-cloud-darker);
+  background: var(--hb-field-bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--hb-white);
+  transition: background var(--hb-transition), border-color var(--hb-transition);
+}
+.hb-check--on .hb-check__box {
+  background: var(--hb-cta);
+  border-color: var(--hb-cta);
+}
+.hb-check__input:focus-visible + .hb-check__box { box-shadow: var(--hb-focus-ring); }
+.hb-check__tick { color: var(--hb-white); }
+
+.hb-check__label {
+  font-size: var(--hb-font-size-value);
+  line-height: var(--hb-line-height-value);
+  color: var(--hb-text-night);
+}
+.hb-check__required { color: var(--hb-ada-red); margin-left: 2px; }

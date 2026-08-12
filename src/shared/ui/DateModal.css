@@ -1,0 +1,83 @@
+/* ===========================================================================
+   <DateModal /> — month-grid date picker in a lightbox. Two months (current +
+   next), past days disabled. Promoted from the rental-flow widget into the kit.
+   Figma: Mariposa — Duda — 8507-23637.
+   =========================================================================== */
+@import './tokens.css';
+
+.hb-datemodal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(16, 19, 24, 0.55);
+  animation: hb-datemodal-overlay-in 0.15s ease-out;
+  font-family: var(--hb-font);
+}
+.hb-datemodal {
+  width: 100%;
+  max-width: 782px;
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  background: var(--hb-white);
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
+  animation: hb-datemodal-in 0.15s ease-out;
+}
+@keyframes hb-datemodal-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hb-datemodal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.hb-datemodal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 23px 33px;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.hb-datemodal-title { display: flex; align-items: center; gap: 8px; font-size: 24px; font-weight: 600; color: var(--hb-text-night); }
+.hb-datemodal-title svg { flex: 0 0 auto; }
+.hb-datemodal-close {
+  flex: 0 0 auto;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; border-radius: 6px;
+  color: var(--hb-text-night); cursor: pointer;
+}
+.hb-datemodal-close:hover { background: #f4f6f8; }
+
+.hb-datemodal-body { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 42px; }
+.hb-datemodal-cals { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+.hb-datemodal-cta { width: 100%; max-width: 343px; }
+
+/* Month calendar */
+.hb-cal-head { padding: 10px; text-align: center; font-size: 17px; font-weight: 700; color: var(--hb-text-night); }
+.hb-cal-grid { display: grid; grid-template-columns: repeat(7, 30px); gap: 10px; justify-content: center; }
+.hb-cal-dow { display: flex; align-items: center; justify-content: center; height: 30px; font-size: 15px; color: var(--hb-grayscale-medium); }
+.hb-cal-cell {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  border: none; background: none; border-radius: 50%;
+  font: 500 15px var(--hb-font);
+  color: var(--hb-text-night);
+  cursor: pointer;
+}
+.hb-cal-cell--empty { visibility: hidden; }
+.hb-cal-cell--disabled { color: #c4cdd5; cursor: default; }
+.hb-cal-cell:not(.hb-cal-cell--disabled):not(.hb-cal-cell--selected):hover { background: #f4f6f8; }
+.hb-cal-cell--selected { background: var(--hb-text-night); color: var(--hb-white); }
+
+@media (max-width: 640px) {
+  .hb-datemodal-head { padding: 18px 20px; }
+  .hb-datemodal-title { font-size: 20px; }
+  .hb-datemodal-body { padding: 24px 16px; }
+  .hb-datemodal-cals { gap: 16px; }
+}

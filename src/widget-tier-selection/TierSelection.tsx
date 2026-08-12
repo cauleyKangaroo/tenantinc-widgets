@@ -6,6 +6,7 @@ import {
   type TierContext,
 } from './api';
 import { Shimmer } from '@shared/Shimmer';
+import { MoneyBreakdown, SummaryRail, formatPrice } from '@shared/ui';
 import { resolvePropertyId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import {
@@ -16,17 +17,7 @@ import {
   TagIcon,
   PlayCircle,
   ChevronDown,
-  MapPinIcon,
-  PhoneIcon,
 } from './icons';
-import {
-  VisaMark,
-  MastercardMark,
-  AmexMark,
-  DiscoverMark,
-  ApplePayMark,
-  GooglePayMark,
-} from './paymentIcons';
 
 // ---------------------------------------------------------------------------
 // Widget #14 — Tier Selection ("Value Tiers" page).
@@ -104,7 +95,10 @@ const HOURS_24_RE = /24[\s-]?hour/i;
  *  else the facility's gate hours, else blank (no demo hours). */
 const TIER_SLOTS: TierKey[] = ['good', 'better', 'best'];
 
-function buildTierData(data: import('./api').ValueTierData, facilityHours?: string): TierData {
+// Scarcity threshold — matches the Space List's default urgencyThreshold.
+const URGENCY_THRESHOLD = 5;
+
+function buildTierData(data: import('./api').ValueTierData, facilityHours?: string, vacant?: number): TierData {
   // Assign each offer to its OWN authoritative tier slot — never relocate an
   // offer between keys; the key is its selection + rental-flow handoff identity.
   const bySlot: Partial<Record<TierKey, import('./api').ValueTierBundle>> = {};
@@ -197,9 +191,11 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
     tiers, rows, o2, o3, rows3, o3Hours,
     live: true,
     size: data.size,
-    // No fabricated scarcity — offers carries no per-tier vacancy. The
-    // operator can still set an urgency line via the `urgency` prop.
-    urgency: undefined,
+    // Real scarcity from the size's live vacancy (same rule + wording as the
+    // Space List): show "Only N left" only when vacancy is known and low.
+    urgency: vacant != null && vacant > 0 && vacant <= URGENCY_THRESHOLD
+      ? `Only ${vacant} left - Rent soon!`
+      : undefined,
     sizeImage: sizeCategoryImage(data.size),
     sizeAlt: `${data.size} storage unit`,
   };
@@ -450,6 +446,7 @@ export function TierSelection({
 
   const bundlesRef = useRef<import('./api').ValueTierBundle[]>([]);
   const tzRef = useRef<string | undefined>(undefined);
+  const groupIdRef = useRef<string | undefined>(undefined);
   const requested = useRef<Set<TierKey>>(new Set());
   const ensureQuote = useCallback((key: TierKey) => {
     if (requested.current.has(key)) return;
@@ -498,14 +495,22 @@ export function TierSelection({
       // that product, no ambiguous re-resolution by display size. Otherwise
       // resolve the group from the size (inline / legacy).
       const groupReq = authoritativeGroupId
-        ? Promise.resolve({ unitGroupId: authoritativeGroupId, size: sizeProp ?? '' })
+        // Handoff group id: still fetch groups to read the size's live vacancy
+        // (for the "Only N left" line) — matched by exact id, so no ambiguous
+        // re-resolution. Falls back gracefully if the groups call fails.
+        ? fetchUnitGroups(ctx)
+            .then((groups) => {
+              const g = groups.find((x) => x.unitGroupId === authoritativeGroupId);
+              return { unitGroupId: authoritativeGroupId, size: g?.size ?? sizeProp ?? '', vacant: g?.vacant };
+            })
+            .catch(() => ({ unitGroupId: authoritativeGroupId, size: sizeProp ?? '', vacant: undefined }))
         : fetchUnitGroups(ctx).then((groups) => resolveUnitGroupId(groups, sizeProp, true));
       // Bypass the browser GET cache on a modal open so a reopen never shows a
       // client-cached offer set (the proxy still applies its own short cache).
       const freshOffers = mode === 'modal';
       const tiersReq = groupReq
         .then((grp) => (grp
-          ? fetchOffers(ctx, grp.unitGroupId, { fresh: freshOffers }).then((res) => ({ showTierPricing: res.showTierPricing, soldOut: res.soldOut, value: mapOffersToTiers(res.offers, grp.size), unitGroupId: grp.unitGroupId }))
+          ? fetchOffers(ctx, grp.unitGroupId, { fresh: freshOffers }).then((res) => ({ showTierPricing: res.showTierPricing, soldOut: res.soldOut, value: mapOffersToTiers(res.offers, grp.size), unitGroupId: grp.unitGroupId, vacant: grp.vacant }))
           : undefined));
       const propReq = fetchProperty(ctx).catch((err) => {
         console.error('[TierSelection] fetchProperty error:', err);
@@ -527,10 +532,11 @@ export function TierSelection({
         // available bundle — defensive; treated as sold out.
         if (!tiers.value) { console.info('[TierSelection] all configured tiers sold out'); setStatus('soldout'); return; }
         const value = tiers.value;
-        setData({ ...buildTierData(value, property?.gateHours), property });
+        setData({ ...buildTierData(value, property?.gateHours, tiers.vacant), property });
         setStatus('live');
         bundlesRef.current = value.bundles;
         tzRef.current = property?.timezone;
+        groupIdRef.current = tiers.unitGroupId;
         // Default selection: the handoff tier if valid, else a real (not
         // sold-out) tier — never land the selector on a sold-out slot.
         const realKeys = value.bundles.map((b) => b.key);
@@ -646,6 +652,12 @@ export function TierSelection({
     if (data.size) url.searchParams.set('size', data.size);
     if (t?.unitId) url.searchParams.set('unitId', t.unitId);
     url.searchParams.set('tier', key);
+    // Carry the facility + group so the rental page queries the right property
+    // (not its config default) and the reserve write passes the ownership check.
+    if (effectivePropertyId) url.searchParams.set('propertyId', effectivePropertyId);
+    if (effectiveCompanyId) url.searchParams.set('companyId', effectiveCompanyId);
+    const gid = authoritativeGroupId ?? groupIdRef.current;
+    if (gid) url.searchParams.set('unitGroupId', gid);
     window.location.assign(url.toString());
   };
 
@@ -705,7 +717,7 @@ function QuoteStateNote({ state }: { state: { status: string } }) {
 }
 
 const lineAmt = (n: number) => (n < 0 ? `−$ ${Math.abs(n).toFixed(2)}` : `$ ${n.toFixed(2)}`);
-const priceFmt = (n: number) => (Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`);
+const priceFmt = formatPrice;
 
 function BreakdownRows({ tierKey }: { tierKey: TierKey }) {
   const state = useTierData().quotes?.[tierKey];
@@ -716,23 +728,15 @@ function BreakdownRows({ tierKey }: { tierKey: TierKey }) {
   if (!q.lines.length) {
     return <div className="ts-bd-row"><span className="ts-bd-plain">Itemized breakdown unavailable.</span></div>;
   }
+  // Shared line-item renderer; CardBreakdown adds the "Total Cost to Move-In" row.
   return (
-    <>
-      {q.unitNumber && (
-        <div className="ts-bd-row"><span className="ts-bd-plain">Unit</span><span className="ts-bd-amt ts-bd-amt--strong">#{q.unitNumber}</span></div>
-      )}
-      {q.lines.map((l) => (
-        <div className="ts-bd-row" key={l.name + l.cost}>
-          {l.name === 'Rent' && l.startDate ? (
-            <div className="ts-bd-label">Rent (Prorated)<span className="ts-bd-dates">({l.startDate} – {l.endDate ?? ''})</span></div>
-          ) : (
-            <span className="ts-bd-plain">{l.name}</span>
-          )}
-          <span className={`ts-bd-amt${l.name === 'Rent' ? ' ts-bd-amt--strong' : ''}`}>{lineAmt(l.cost)}</span>
-        </div>
-      ))}
-      <div className="ts-bd-row"><span className="ts-bd-plain">Total Tax</span><span className="ts-bd-amt">$ {q.totalTax.toFixed(2)}</span></div>
-    </>
+    <MoneyBreakdown
+      totalDue={q.totalDue}
+      totalTax={q.totalTax}
+      unitNumber={q.unitNumber}
+      lines={q.lines}
+      showTotal={false}
+    />
   );
 }
 
@@ -999,86 +1003,24 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, promo
         </div>
       </div>
 
-      {/* RIGHT: order-summary card */}
-      <aside className="ts-card">
-        <div className="ts-card-hero">
-          {property?.imageUrl
-            ? <img className="ts-card-hero-img" src={property.imageUrl} alt={property.name ?? 'Storage facility'} onError={onHeroImgError} />
-            : <div className="ts-card-hero-img ts-card-hero-img--placeholder" aria-hidden="true" />}
-          <div className="ts-card-hero-overlay" />
-          <div className="ts-card-hero-content">
-            {property?.name && <p className="ts-card-storename">{property.name}</p>}
-            {property?.address && (
-              <span className="ts-card-line">
-                <MapPinIcon size={24} className="ts-card-line-icon" />
-                <span>{property.address}</span>
-              </span>
-            )}
-            {property?.phone && (
-              <a className="ts-card-line" href={`tel:${property.phone.replace(/\D/g, '')}`}>
-                <PhoneIcon size={24} className="ts-card-line-icon" />
-                <span>{property.phone}</span>
-              </a>
-            )}
-          </div>
-        </div>
-
-        <div className="ts-card-body">
-          <div className="ts-card-top">
-            <div className="ts-card-top-left">
-              <p className="ts-card-size">
-                {displaySize} <span className="ts-card-bar">|</span> {tier.name.toUpperCase()}
-              </p>
-              <p className="ts-card-sub">{tier.summary}</p>
-              <div className="ts-card-amenities">
-                {(tier.features ?? ['24 Hour Access', 'Drive Up']).slice(1, 3).map((f) => (
-                  <div className="ts-feat" key={f}><CheckIcon size={16} className="ts-feat-check" /><span>{f}</span></div>
-                ))}
-              </div>
-            </div>
-            <div className="ts-card-top-right">
-              <a className="ts-card-change" href="#">Change Space</a>
-              <div className="ts-card-prices">
-                {tier.promoRate != null ? (
-                  <>
-                    <div className="ts-price-instore">
-                      <span className="ts-price-label">STANDARD</span>
-                      <span className="ts-price-strike">{priceFmt(tier.price)}</span>
-                    </div>
-                    <span className="ts-price-sep" />
-                    <div className="ts-price-online">
-                      <span className="ts-price-label">PROMO RATE</span>
-                      <span className="ts-price-amount">{priceFmt(tier.promoRate)}</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="ts-price-online">
-                    <span className="ts-price-amount">{priceFmt(tier.price)}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {cardPromo && (
-            <div className="ts-card-promo">
-              <TagIcon size={16} className="ts-promo-icon" />
-              <span className="ts-promo-text">{cardPromo}</span>
-            </div>
-          )}
-
-          <CardBreakdown tierKey={tier.key} />
-
-          <div className="ts-card-payments">
-            <span className="ts-pay-box"><VisaMark /></span>
-            <span className="ts-pay-box"><MastercardMark /></span>
-            <span className="ts-pay-box ts-pay-box--amex"><AmexMark /></span>
-            <span className="ts-pay-box"><DiscoverMark /></span>
-            <span className="ts-pay-mark"><ApplePayMark /></span>
-            <span className="ts-pay-mark"><GooglePayMark /></span>
-          </div>
-        </div>
-      </aside>
+      {/* RIGHT: order-summary card (shared with rent-or-reserve) */}
+      <SummaryRail
+        imageUrl={property?.imageUrl}
+        onImgError={onHeroImgError}
+        name={property?.name}
+        address={property?.address}
+        phone={property?.phone}
+        size={displaySize}
+        tierName={tier.name.toUpperCase()}
+        summary={tier.summary}
+        amenities={(tier.features ?? ['24 Hour Access', 'Drive Up']).slice(1, 3)}
+        changeSpaceUrl="#"
+        standardPrice={tier.price}
+        promoPrice={tier.promoRate ?? undefined}
+        promo={cardPromo}
+      >
+        <CardBreakdown tierKey={tier.key} />
+      </SummaryRail>
     </div>
   );
 }

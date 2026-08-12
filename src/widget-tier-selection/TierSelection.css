@@ -208,7 +208,7 @@
   width: 100%;
   height: 50px;
   margin-top: 19px;
-  background: #F45F30;
+  background: var(--color_2, #509e2f);
   border: 0;
   border-radius: 8px;
   cursor: pointer;
@@ -217,7 +217,7 @@
   font-weight: 700;
   color: #fff;
 }
-.ts-select-btn:hover { background: #e5501f; }
+.ts-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
 
 /* ── Comparison table ──────────────────────────────────────────────────── */
 .ts-table {

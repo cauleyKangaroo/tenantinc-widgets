@@ -1,0 +1,202 @@
+/* ===========================================================================
+   <SummaryRail /> — order-summary card, shared by value-tiers + rental-flow.
+   Moved verbatim from the value-tiers stylesheet so both widgets render the
+   identical card; atoms (.ts-feat, .ts-promo-*) are duplicated here so the
+   rail is self-contained in either bundle.
+   =========================================================================== */
+
+.ts-card {
+  width: 422px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+/* Hold countdown (rental flow) */
+.ts-card-holdbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #f2f8ee;
+  border-bottom: 1px solid #e2ecd9;
+  font-size: 14px;
+  font-weight: 600;
+  color: #101318;
+}
+.ts-card-holdtime { color: #d64545; font-weight: 700; }
+
+/* Hero */
+.ts-card-hero { position: relative; height: 208px; }
+.ts-card-hero-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ts-card-hero-img--placeholder { background: #e3e5e9; }
+.ts-card-hero-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); }
+.ts-card-hero-content {
+  position: absolute;
+  left: 0; right: 0; bottom: 19px;
+  padding: 0 29px;
+  color: #fff;
+}
+.ts-card-storename {
+  margin: 0 0 7px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+}
+.ts-card-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: underline;
+}
+.ts-card-line-icon { flex: 0 0 auto; color: #fff; }
+
+/* Body */
+.ts-card-body { padding: 20px 30px 24px; }
+
+.ts-card-top { display: flex; justify-content: space-between; gap: 20px; }
+.ts-card-top-left { min-width: 0; }
+.ts-card-size {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #101318;
+}
+.ts-card-bar { font-weight: 300; }
+.ts-card-sub {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 20px;
+  color: #101318;
+}
+.ts-card-amenities {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ts-card-top-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 24px;
+  flex: 0 0 auto;
+}
+.ts-card-change {
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.ts-card-prices { display: flex; align-items: center; gap: 8px; height: 50px; }
+.ts-price-instore, .ts-price-online {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.ts-price-instore { color: #637381; }
+.ts-price-label { font-size: 10px; line-height: 1.5; }
+.ts-price-instore .ts-price-label { font-weight: 500; }
+.ts-price-online .ts-price-label { font-weight: 700; line-height: 16px; color: #101318; }
+.ts-price-strike {
+  font-size: 16px;
+  font-weight: 400;
+  text-decoration: line-through;
+  line-height: 1.5;
+  color: #637381;
+}
+.ts-price-online { color: #101318; }
+.ts-price-amount { font-size: 24px; font-weight: 700; line-height: 1.2; }
+.ts-price-sep { width: 1px; height: 37px; background: #DFE3E8; }
+
+/* Amenity atom */
+.ts-feat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 16px;
+  color: #637381;
+}
+.ts-feat-check { color: #212B36; flex: 0 0 auto; }
+
+/* Card promo banner */
+.ts-card-promo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 24px;
+  padding: 12px;
+  background: #fff;
+  border: 2px dashed #509E2F;
+  border-radius: 8px;
+}
+.ts-promo-icon { color: #509E2F; flex: 0 0 auto; }
+.ts-promo-text {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 16px;
+  color: #101318;
+}
+
+/* Breakdown */
+.ts-card-breakdown { margin-top: 20px; }
+.ts-bd-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ts-bd-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  color: #333;
+}
+.ts-bd-dates { font-weight: 500; }
+.ts-bd-plain { font-size: 14px; font-weight: 400; color: #000; }
+.ts-bd-amt { font-size: 14px; font-weight: 400; color: #000; white-space: nowrap; }
+.ts-bd-amt--strong { font-size: 14px; font-weight: 600; color: #333; }
+.ts-bd-row--total { margin-top: 8px; margin-bottom: 0; align-items: center; }
+.ts-bd-total-label { font-size: 18px; font-weight: 700; color: #101318; }
+.ts-bd-total-amt { font-size: 18px; font-weight: 700; color: #101318; white-space: nowrap; }
+.ts-bd-note { font-size: 13px; line-height: 1.5; color: #637381; margin: 0 0 12px; }
+
+/* Payment methods */
+.ts-card-payments {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 24px;
+}
+.ts-pay-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 39px;
+  height: 24px;
+  padding: 3px 5px;
+  background: #fff;
+  border: 0.7px solid #101318;
+  border-radius: 3px;
+}
+.ts-pay-box--amex { background: #006FCF; border-color: #006FCF; }
+.ts-pay-mark { display: inline-flex; align-items: center; justify-content: center; width: 39px; height: 24px; padding: 3px 5px; background: #fff; border: 0.7px solid #101318; border-radius: 3px; }
+/* Keep every brand mark inside its chip regardless of intrinsic svg width. */
+.ts-pay-box svg,
+.ts-pay-mark svg { display: block; max-width: 100%; height: auto; }
