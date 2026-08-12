@@ -18,7 +18,7 @@
   /* ── Brand ───────────────────────────────────────────────────────────────
      The two action colours. These are the ones a new site is most likely to
      change; everything else is neutral or semantic. */
-  --hb-cta: #f45f30;             /* CTA Buttons — the primary action on a page */
+  --hb-cta: var(--color_2, #509e2f);  /* CTA Buttons — follows the Duda theme's --color_2 (same convention + fallback as the Space List) */
   --hb-secondary: #509e2f;       /* Secondary Buttons — the alternate action   */
 
   /* ── Greyscale ───────────────────────────────────────────────────────── */

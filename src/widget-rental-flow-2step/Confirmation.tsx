@@ -1,0 +1,244 @@
+import React from 'react';
+import { Button, CheckIcon } from '@shared/ui';
+
+// ---------------------------------------------------------------------------
+// Confirmation & failure pages (Figma: Reservation Confirmation 8507-24998,
+// rental 8507-24218, no gate code 8509-35881, Smart Entry 8507-24706). Rendered
+// on the thank-you page from a one-time confirmation payload (see
+// stashConfirmation/readConfirmationPayload in RentalFlow2Step). The order-
+// summary rail (right column) is composed by the caller from the shared
+// <SummaryRail>; this file is the left column.
+// ---------------------------------------------------------------------------
+
+export type EntryMode = 'gate' | 'none' | 'smart';
+
+export interface ConfirmationProps {
+  kind: 'rental' | 'reservation';
+  errorMessage?: string;
+  name?: string;
+  phone?: string;
+  unitNumber?: string;
+  code?: string;
+  entry?: EntryMode;
+  moveInDate?: string;
+  reservationDate?: string;
+  facilityPhone?: string;
+  officeHours?: string[];
+  gateHours?: string[];
+  /** "Rent Online Now" target (reservation → rental). Hidden if absent. */
+  rentUrl?: string;
+  /** Failure page "Try again" handler. */
+  onRetry?: () => void;
+  /** Operator's review link — the review card renders only when set. */
+  reviewUrl?: string;
+  /** Backend confirmed an SMS was sent — only then do we claim it + show Resend. */
+  smsSent?: boolean;
+  /** Real resend handler — the Resend control renders only when provided. */
+  onResend?: () => void;
+  /** Wallet-pass URLs — the wallet buttons render only when provided. */
+  appleWalletUrl?: string;
+  googleWalletUrl?: string;
+  /** Backend confirmed the id is a customer-facing code (else "Reference"). */
+  codeIsPublic?: boolean;
+}
+
+const WHATS_NEXT = [
+  'Show up at your facility on or before your move-in date.',
+  'A lock is required and is available at your facility.',
+  'Bring your government-issued ID to complete your rental.',
+  'Moving supplies are available at the facility.',
+  'Call your facility manager with any questions you may have.',
+  'If you decide you need a different unit, we can easily make that change for you.',
+];
+
+function ChatIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"
+        stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function BarcodeIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 5v14M8 5v14M11 5v14M15 5v14M17 5v14M20 5v14"
+        stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+function GoogleG() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17Z" />
+      <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7A22 22 0 0 0 24 46Z" />
+      <path fill="#FBBC05" d="M11.69 28.18A13.2 13.2 0 0 1 11 24c0-1.45.25-2.86.69-4.18v-5.7H4.34A22 22 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7Z" />
+      <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.94 4.34 14.12l7.35 5.7C13.42 14.62 18.27 10.75 24 10.75Z" />
+    </svg>
+  );
+}
+function Star() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="m12 3 2.7 5.47 6.04.88-4.37 4.26 1.03 6.02L12 17.77 6.6 19.63l1.03-6.02L3.26 9.35l6.04-.88L12 3Z"
+        stroke="#c4cdd5" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function WalletButton({ brand, href }: { brand: 'apple' | 'google'; href: string }) {
+  return (
+    <a className="rfc-wallet-btn" href={href} target="_blank" rel="noreferrer"
+      aria-label={`Add to ${brand === 'apple' ? 'Apple' : 'Google'} Wallet`}>
+      <span className="rfc-wallet-badge" aria-hidden="true">{brand === 'apple' ? '' : 'G'}</span>
+      <span className="rfc-wallet-txt"><small>Add to</small>{brand === 'apple' ? 'Apple Wallet' : 'Google Wallet'}</span>
+    </a>
+  );
+}
+
+export function Confirmation({
+  kind,
+  errorMessage,
+  name,
+  phone,
+  unitNumber,
+  code,
+  entry = 'gate',
+  moveInDate,
+  reservationDate,
+  facilityPhone,
+  officeHours,
+  gateHours,
+  rentUrl,
+  onRetry,
+  reviewUrl,
+  smsSent,
+  onResend,
+  appleWalletUrl,
+  googleWalletUrl,
+  codeIsPublic,
+}: ConfirmationProps) {
+  const isReservation = kind === 'reservation';
+  const codeLabel = isReservation
+    ? (codeIsPublic ? 'Reservation Code' : 'Reservation Reference')
+    : 'Access Code';
+  const hasWallet = !!(appleWalletUrl || googleWalletUrl);
+
+  if (errorMessage) {
+    return (
+      <div className="rf-card rfc-card">
+        <div className="rf-title">
+          {name && <p className="rf-eyebrow rfc-error-eyebrow">{name},</p>}
+          <h2 className="rf-heading">We couldn&rsquo;t complete your {kind}</h2>
+        </div>
+        <div className="rfc-error-panel">
+          <p className="rfc-error-msg">{errorMessage}</p>
+          <p className="rfc-error-sub">
+            Your card was not charged. You can try again{facilityPhone ? (
+              <>, or call the facility at <a href={`tel:${facilityPhone.replace(/\D/g, '')}`}>{facilityPhone}</a> and we&rsquo;ll finish it together</>
+            ) : ''}.
+          </p>
+        </div>
+        {onRetry && <Button tone="cta" className="rfc-retry" onClick={onRetry}>Try again</Button>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rf-card rfc-card">
+      <div className="rf-title">
+        {name && <p className="rf-eyebrow">{name},</p>}
+        <h2 className="rf-heading">
+          {isReservation ? 'Your reservation is confirmed!' : 'Your Space is ready!'}
+        </h2>
+      </div>
+
+      {smsSent && phone && (
+        <div className="rfc-sent">
+          <span className="rfc-sent-icon"><ChatIcon /></span>
+          <span className="rfc-sent-txt">We&rsquo;ve sent your {isReservation ? 'reservation' : 'access'} code to {phone}</span>
+          {onResend && <button type="button" className="rfc-resend" onClick={onResend}>Resend</button>}
+        </div>
+      )}
+
+      <section className="rfc-panel">
+        {unitNumber && <div className="rfc-space-head">Space {unitNumber}</div>}
+        <div className="rfc-cols">
+          <div className="rfc-code-card">
+            {entry === 'smart' ? (
+              <>
+                <span className="rfc-code-label">Smart Entry System</span>
+                <span className="rfc-code">App access enabled</span>
+                <span className="rfc-code-note">Doors unlock from the mobile app — no code needed.</span>
+              </>
+            ) : entry === 'none' ? (
+              <>
+                <span className="rfc-code-label">Access</span>
+                <span className="rfc-code-note">See the facility manager at move-in for your access details.</span>
+              </>
+            ) : (
+              <>
+                <span className="rfc-code-label"><BarcodeIcon />{codeLabel}</span>
+                {code
+                  ? <span className="rfc-code">{isReservation ? code : `#${code}*`}</span>
+                  : <span className="rfc-code-note">Shown at the facility on move-in.</span>}
+                {code && hasWallet && (
+                  <div className="rfc-wallet">
+                    <span className="rfc-wallet-title">Add to your Wallet</span>
+                    <div className="rfc-wallet-row">
+                      {appleWalletUrl && <WalletButton brand="apple" href={appleWalletUrl} />}
+                      {googleWalletUrl && <WalletButton brand="google" href={googleWalletUrl} />}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="rfc-details">
+            {isReservation && reservationDate && (
+              <p><b>Reservation Date:</b> {reservationDate}</p>
+            )}
+            {moveInDate && <p><b>Move-in Date:</b> {moveInDate}</p>}
+            {officeHours && officeHours.length > 0 && (
+              <p><b>Office Hours</b>{officeHours.map((l) => <React.Fragment key={l}><br />{l}</React.Fragment>)}</p>
+            )}
+            {gateHours && gateHours.length > 0 && (
+              <p><b>Gate Hours</b>{gateHours.map((l) => <React.Fragment key={l}><br />{l}</React.Fragment>)}</p>
+            )}
+          </div>
+        </div>
+        {isReservation && rentUrl && (
+          <div className="rfc-rentnow">
+            <span>Want to save time &amp; money on the move-in day?</span>
+            <Button tone="cta" href={rentUrl}>Rent Online Now</Button>
+          </div>
+        )}
+      </section>
+
+      {reviewUrl && (
+        <section className="rfc-review">
+          <p className="rfc-review-q">
+            Our goal is to simplify the move-in process.{' '}
+            <span className="rfc-review-accent">How are we doing?</span>
+          </p>
+          <div className="rfc-review-right">
+            <div className="rfc-review-stars">
+              <GoogleG />
+              {[0, 1, 2, 3, 4].map((i) => <Star key={i} />)}
+            </div>
+            <a className="rfc-review-link" href={reviewUrl} target="_blank" rel="noreferrer">Write a Review</a>
+          </div>
+        </section>
+      )}
+
+      <section className="rfc-next">
+        <div className="rf2-h">What&rsquo;s Next?</div>
+        {WHATS_NEXT.map((item) => (
+          <div className="rfc-next-item" key={item}>
+            <span className="rfc-next-check"><CheckIcon size={16} /></span>
+            <span>{facilityPhone ? item.replace('facility manager', `facility manager ${facilityPhone}`) : item}</span>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}
