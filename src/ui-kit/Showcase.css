@@ -1,0 +1,54 @@
+/* Styleguide chrome only — dev harness, never shipped to a Duda page.
+   Nothing here styles the components themselves; those own their CSS. */
+
+.uik {
+  font-family: var(--hb-font);
+  color: var(--hb-text-night);
+}
+
+.uik__heading {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: var(--hb-font-weight-bold);
+}
+
+.uik__note {
+  margin: 0 0 20px;
+  max-width: 70ch;
+  color: var(--hb-grayscale-medium);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.uik__note code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #eef1f3;
+  font-size: 13px;
+}
+
+.uik-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 32px;
+  margin-bottom: 40px;
+}
+
+.uik-col__title {
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 15px;
+  font-weight: var(--hb-font-weight-bold);
+}
+
+.uik-state { margin-bottom: 22px; }
+
+.uik-state__label {
+  margin: 0 0 6px;
+  color: #5e55cc;   /* the annotation purple from the Figma frames */
+  font-size: 12px;
+  font-weight: var(--hb-font-weight-bold);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}

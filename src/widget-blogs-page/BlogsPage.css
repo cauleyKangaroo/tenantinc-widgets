@@ -1,0 +1,793 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* ===========================================================================
+   Widget #15 — Blogs Page
+   Measured from Figma: desktop bar 9340:23520 / card 9340:23540,
+   mobile bar 10640:65983 / card stack 10640:65681.
+
+   Every rule is prefixed .bpg-* and scoped under .bpg-wrapper — there's no CSS
+   module isolation here, and the bundle injects this stylesheet into the host
+   page. Card values are #12's verbatim so the two listings look like one system;
+   the two intentional differences are flagged inline.
+   =========================================================================== */
+
+/* ── Root ──────────────────────────────────────────────────────────────────── */
+
+.bpg-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  max-width: 1330px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  color: #101318;
+}
+
+.bpg-wrapper *,
+.bpg-wrapper *::before,
+.bpg-wrapper *::after {
+  box-sizing: border-box;
+}
+
+/* ── Filter / search bar ───────────────────────────────────────────────────── */
+
+.bpg-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.bpg-bar-left {
+  display: flex;
+  align-items: center;
+  /* Figma: 8px between the icon button and the first chip. */
+  gap: 8px;
+  min-width: 0;
+}
+
+.bpg-filter-btn {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 2px solid #101318;
+  border-radius: 100px;
+  background: #fff;
+  color: #101318;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.bpg-filter-btn:hover {
+  background: #f4f6f8;
+}
+
+.bpg-filter-btn.active {
+  background: #101318;
+  color: #fff;
+}
+
+.bpg-filter-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 80px;
+  background: var(--color_2, #509e2f);
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* ── Chips ─────────────────────────────────────────────────────────────────── */
+
+.bpg-chips {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  /* Chips scroll rather than wrap: the bar is one row in the design, and a
+     second row would push the grid down unevenly as tags come and go. */
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.bpg-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.bpg-chip {
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 21px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* Figma uses a 2px border on this page's chips, unlike the 1px pills in #05. */
+  border: 2px solid #101318;
+  border-radius: 100px;
+  background: #fff;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.bpg-chip:hover {
+  background: #f4f6f8;
+}
+
+.bpg-chip.active {
+  background: #101318;
+  color: #fff;
+}
+
+.bpg-chip.active:hover {
+  background: #22262d;
+}
+
+.bpg-chip-x {
+  display: flex;
+  align-items: center;
+  /* The glyph is a white disc with a dark cross, so it inherits the active
+     chip's text colour. */
+  color: #fff;
+  margin-left: -6px;
+}
+
+/* ── Search field ──────────────────────────────────────────────────────────── */
+
+.bpg-search {
+  position: relative;
+  flex-shrink: 0;
+  width: 351px;
+  height: 56px;
+  border: 2px solid #101318;
+  border-radius: 100px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.bpg-search-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: none;
+  outline: none;
+  padding: 0 56px 0 21px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+}
+
+.bpg-search-input::placeholder {
+  color: #637381;
+}
+
+.bpg-search-btn {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 100px;
+  background: #101318;
+  color: #fff;
+  cursor: pointer;
+}
+
+.bpg-search-btn:hover {
+  background: #22262d;
+}
+
+/* ── All-categories popup (Figma 10630:52147) ──────────────────────────────
+   A lightbox, not an inline strip. Desktop deliberately mirrors the property
+   landing page's filter lightbox (SpaceList's .sl-filter-modal): 436px wide,
+   centred, 20px radius, internally scrolling body. Mobile goes full screen —
+   see the 900px block at the foot of this file.                             */
+
+.bpg-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 19, 24, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  z-index: 2147483000;
+  animation: bpg-modal-fade 0.15s ease;
+}
+
+@keyframes bpg-modal-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.bpg-filter-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 436px;
+  max-height: calc(100vh - 48px);
+  background: #fff;
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(16, 19, 24, 0.25);
+  animation: bpg-modal-pop 0.18s ease;
+}
+
+@keyframes bpg-modal-pop {
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bpg-modal-overlay,
+  .bpg-filter-modal { animation: none; }
+}
+
+/* Header */
+
+.bpg-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 22px 24px 16px;
+  flex-shrink: 0;
+}
+
+.bpg-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bpg-modal-icon {
+  display: flex;
+  align-items: center;
+  color: #101318;
+}
+
+.bpg-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #101318;
+}
+
+.bpg-modal-badge {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 80px;
+  background: var(--color_2, #509e2f);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.bpg-modal-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.bpg-modal-reset {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.bpg-modal-reset:hover {
+  color: var(--color_1, #f45f30);
+}
+
+.bpg-modal-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #101318;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.bpg-modal-close:hover {
+  color: var(--color_1, #f45f30);
+}
+
+.bpg-modal-separator {
+  height: 1px;
+  background: #e4e7eb;
+  flex-shrink: 0;
+}
+
+/* Body — scrolls internally once the category list outgrows the lightbox. */
+
+.bpg-modal-body {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* The Figma side panel's tinted card. */
+.bpg-modal-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 20px 25px;
+  border-radius: 12px;
+  background: #f9fafb;
+}
+
+.bpg-modal-group-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 36px;
+  color: #101318;
+}
+
+.bpg-modal-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Popup chips are the smaller side-panel variant: 36px tall, 1px border, 14px
+   label — not the 44px/2px/16px chips the bar uses. */
+.bpg-filter-modal .bpg-chip {
+  height: 36px;
+  padding: 0 15px;
+  gap: 6px;
+  border-width: 1px;
+  font-size: 14px;
+  line-height: 18px;
+  white-space: normal;
+  text-align: left;
+}
+
+.bpg-filter-modal .bpg-chip.active {
+  padding-left: 6px;
+}
+
+.bpg-filter-modal .bpg-chip-x {
+  margin-left: 0;
+}
+
+/* ── Grid ──────────────────────────────────────────────────────────────────── */
+
+.bpg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  width: 100%;
+  /* stretch so every card in a row takes the height of the tallest — excerpts
+     vary in length, and self-sized cards leave the row ragged. */
+  align-items: stretch;
+  grid-auto-rows: 1fr;
+}
+
+/* ── Blog card ─────────────────────────────────────────────────────────────── */
+
+.bpg-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+.bpg-card-img {
+  width: 100%;
+  height: 234px;
+  flex-shrink: 0;
+}
+
+.bpg-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+  padding: 24px;
+  flex: 1;
+}
+
+.bpg-card-title {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 30px;
+  color: #101318;
+  margin: 0;
+  display: -webkit-box;
+  /* 3 lines here, not #12's 2 — the page cards are drawn with an 86px title box
+     (Figma 9340:23544) and its titles run three lines. */
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bpg-card-byline {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #637381;
+  margin: 0;
+}
+
+.bpg-card-excerpt {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #101318;
+  margin: 0;
+  display: -webkit-box;
+  /* 2 lines, not #12's 3 — Figma's excerpt box is 48px tall (9340:23546). */
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  /* NO `flex: 1` here, and max-height is doing real work. Cards are equal
+     height, so a flex-grown excerpt gets a box taller than its clamped text —
+     `overflow: hidden` then stops cropping and a third line leaks out below the
+     clamp's own ellipsis. The footer is already pinned by its margin-top:auto,
+     so nothing needs to grow; capping at 2 x line-height keeps the crop honest
+     (and enforces it at all where -webkit-line-clamp isn't supported). */
+  max-height: 48px;
+}
+
+.bpg-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  /* Cards are equal height, so pin Read more / Share to the bottom rather than
+     letting a short excerpt float the footer mid-card. */
+  margin-top: auto;
+}
+
+.bpg-readmore {
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bpg-readmore:hover {
+  color: var(--color_1, #f45f30);
+}
+
+/* ── Whole-card link ────────────────────────────────────────────────────────
+   The card can't be wrapped in an <a> — it contains the Share button and its
+   popover, and nesting interactive content inside a link is invalid and would
+   swallow the Share click. Instead the title anchor stretches its hit area over
+   the card, and the share controls are raised above it. That keeps exactly one
+   real link per card for screen readers and crawlers.                        */
+
+.bpg-card-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.bpg-card-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.bpg-card-link:hover {
+  color: var(--color_1, #f45f30);
+}
+
+/* ── Share ─────────────────────────────────────────────────────────────────── */
+
+.bpg-share {
+  /* Above the stretched overlay so Share stays clickable. */
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bpg-share:hover {
+  color: var(--color_1, #f45f30);
+}
+
+.bpg-share svg {
+  text-decoration: none;
+}
+
+/* "Read more" points at the same URL, so it's decorative for assistive tech
+   (tabIndex={-1} in the JSX) — it sits under the overlay and needs no z-index. */
+
+.bpg-share-pop {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.18);
+  padding: 16px 22px;
+  z-index: 3;
+}
+
+.bpg-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #101318;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.bpg-social:hover {
+  color: var(--color_1, #f45f30);
+}
+
+
+/* ── Lazy-load sentinel ────────────────────────────────────────────────────── */
+
+.bpg-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
+/* ── Empty state ───────────────────────────────────────────────────────────── */
+
+.bpg-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 64px 24px;
+  text-align: center;
+}
+
+.bpg-empty-text {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 400;
+  color: #637381;
+}
+
+.bpg-empty-reset {
+  height: 44px;
+  padding: 0 21px;
+  border: 2px solid #101318;
+  border-radius: 100px;
+  background: #fff;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+}
+
+.bpg-empty-reset:hover {
+  background: #f4f6f8;
+}
+
+/* ── Skeletons ─────────────────────────────────────────────────────────────── */
+
+.bpg-card--skeleton {
+  pointer-events: none;
+}
+
+.bpg-card--skeleton .bpg-card-img {
+  background: #eceef1;
+}
+
+.bpg-card--skeleton .bpg-card-body {
+  gap: 12px;
+}
+
+.bpg-skel {
+  display: block;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #e4e7eb 25%, #eef0f3 37%, #e4e7eb 63%);
+  background-size: 400% 100%;
+  animation: bpg-skel-shimmer 1.4s ease-in-out infinite;
+}
+
+.bpg-skel--title { height: 30px; width: 90%; }
+.bpg-skel--byline { height: 16px; width: 60%; }
+.bpg-skel--text { height: 16px; width: 100%; }
+.bpg-skel--text.short { width: 75%; }
+.bpg-skel--pill { height: 44px; border-radius: 100px; flex-shrink: 0; }
+.bpg-skel--field { height: 56px; width: 351px; border-radius: 100px; flex-shrink: 0; }
+
+@keyframes bpg-skel-shimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bpg-skel { animation: none; }
+}
+
+/* Visually hidden, still announced — carries the "showing N of M" count so the
+   grid growing under the reader isn't a silent change. */
+.bpg-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Narrow desktop / tablet ───────────────────────────────────────────────── */
+
+/* The widget can sit in a column narrower than the 1330px canvas, so give it
+   gutters and drop to two columns before the cards get too tight. */
+@media (max-width: 1378px) {
+  .bpg-wrapper {
+    padding: 0 24px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .bpg-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Mobile (Figma 10640:65677) ────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .bpg-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .bpg-bar {
+    gap: 12px;
+  }
+
+  /* Search first and full-width, dark filter pill beside it. The inline chip
+     row is absent from the mobile design — the panel is the only way to tags. */
+  .bpg-bar-left {
+    order: 2;
+    gap: 0;
+  }
+
+  .bpg-chips {
+    display: none;
+  }
+
+  .bpg-search {
+    order: 1;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .bpg-filter-btn {
+    width: 64px;
+    height: 44px;
+    background: #101318;
+    color: #fff;
+  }
+
+  .bpg-filter-btn:hover,
+  .bpg-filter-btn.active {
+    background: #22262d;
+    color: #fff;
+  }
+
+  .bpg-filter-badge {
+    top: -8px;
+    right: -3px;
+  }
+
+  /* Full screen. The inline chip row is hidden at this width, so the popup is
+     the only route to the categories and gets the whole viewport. dvh keeps it
+     honest as mobile browser chrome collapses; vh is the fallback. */
+  .bpg-modal-overlay {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .bpg-filter-modal {
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    animation: none;
+  }
+
+  .bpg-modal-header {
+    padding: 18px 20px 14px;
+  }
+
+  /* Let the tinted card run to the bottom of the screen rather than hugging a
+     short chip list at the top (the Figma side panel is full-height). */
+  .bpg-modal-body {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .bpg-modal-group {
+    flex: 1;
+  }
+
+  /* Figma's mobile card insets the body 20px rather than 24px. */
+  .bpg-card-body {
+    padding: 20px;
+  }
+
+  .bpg-skel--field {
+    width: 100%;
+  }
+}

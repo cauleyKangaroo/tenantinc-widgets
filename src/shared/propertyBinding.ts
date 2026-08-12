@@ -152,19 +152,29 @@ export function resolveCompanyId(bound: BoundPropertyProps, configCompanyId = ''
 }
 
 /**
- * The id to hand `propertiesSource`'s `requirePropertyId` trust check.
+ * The id to hand `propertiesSource`'s `requirePropertyId` trust check —
+ * **the BOUND id only**, never the config.json one.
  *
- * That check exists to stop a collection bound to ANOTHER company silently
- * replacing good REST data. On a dynamic page the effective id comes from the
- * bound field, so the check has to use that — passing the stale config.json id
- * would reject the very collection the page is built on, fall back to REST
- * against the wrong company, and render another company's property.
+ * That check exists to stop a collection bound to another company silently
+ * replacing good REST data. It is only meaningful when we actually know which
+ * property we want, and Duda is the one that knows: the id is passed in from the
+ * JS tab per page.
  *
- * Returns undefined (i.e. "skip the check") when nothing is bound and there is no
- * config default, since there is then no id to be trusted about.
+ * Handing it the configured id instead is actively harmful. That value is a
+ * build-time default which on this site belongs to a DIFFERENT company, so the
+ * check would look for a property the collection cannot contain, declare the
+ * site's own collection untrustworthy, and fall back to a REST call — the exact
+ * outcome the check exists to prevent.
+ *
+ * Unbound therefore means undefined = "no check": use the collection if it has
+ * rows. The collection is the site's own data; there is nothing to distrust.
+ *
+ * The `configPropertyId` parameter is accepted and ignored so call sites read
+ * consistently with `resolvePropertyId` beside them.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function resolveRequireId(bound: BoundPropertyProps, configPropertyId = ''): string | undefined {
-  return resolvePropertyId(bound, configPropertyId) || undefined;
+  return boundText(bound.propertyId) || undefined;
 }
 
 // ---------------------------------------------------------------------------

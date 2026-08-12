@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { CheckTick, CalendarIcon, FileArrowIcon, ChevronIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
+import { CheckTick, CalendarIcon, FileArrowIcon, ChevronIcon } from './icons';
+import { ProtectionPlanModal } from './ProtectionPlanModal';
+import { PaymentSection, type PayMethod } from './PaymentSection';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space today" (Figma 8507-23329).
@@ -47,11 +49,17 @@ function Check({
 }
 
 export function Step2({
-  moveIn, onEditDate,
+  moveIn, onEditDate, total = 120, brochureUrl, onPay,
 }: {
   moveIn: Date;
   onEditDate: () => void;
+  /** Move-in total shown on the Pay Now button. */
+  total?: number;
+  brochureUrl?: string;
+  /** Bubbles up so the shell can show the processing lightbox. */
+  onPay?: (method: PayMethod) => void;
 }) {
+  const [planOpen, setPlanOpen] = useState(false);
   const [business, setBusiness] = useState(false);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -101,7 +109,7 @@ export function Step2({
         <section className="rf2-panel">
           <div className="rf2-rowhead">
             <span className="rf2-h">Select Protection Plan</span>
-            <a className="rf2-link" href="#" onClick={noop}>Learn More</a>
+            <button type="button" className="rf2-link rf2-link--btn" onClick={() => setPlanOpen(true)}>Learn More</button>
           </div>
           <div className="rf2-plan">
             <div className="rf2-plan-body">
@@ -162,23 +170,21 @@ export function Step2({
           </label>
         </section>
 
-        {/* Payment */}
-        <section className="rf2-panel rf2-payment">
-          <span className="rf2-h">Payment</span>
-          <div className="rf2-autopay">
-            <Check checked={autopay} onChange={setAutopay}>
-              <span className="rf2-autopay-label">Autopay Enrollment</span>
-            </Check>
-            <InfoIcon size={16} className="rf2-autopay-info" />
-          </div>
-          <div className="rf2-paygrid">
-            <button type="button" className="rf2-pay rf2-pay--dark"><GooglePayMark /></button>
-            <button type="button" className="rf2-pay rf2-pay--dark"><ApplePayMark /></button>
-            <button type="button" className="rf2-pay rf2-pay--outline"><CreditCardIcon size={24} />Credit / Debit</button>
-            <button type="button" className="rf2-pay rf2-pay--outline"><BankIcon size={24} />Pay by Bank</button>
-          </div>
-        </section>
+        {/* Payment — method selection expands into its own form panel.
+            Figma 10080-28749 (bank) / 10080-30277 (card). */}
+        <PaymentSection
+          total={total}
+          autopay={autopay}
+          onAutopay={setAutopay}
+          onPay={(m) => onPay?.(m)}
+        />
       </div>
+
+      <ProtectionPlanModal
+        open={planOpen}
+        onClose={() => setPlanOpen(false)}
+        brochureUrl={brochureUrl}
+      />
     </div>
   );
 }

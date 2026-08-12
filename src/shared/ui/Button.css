@@ -1,0 +1,125 @@
+/* ===========================================================================
+   Buttons — Figma "CTA / Secondary / Black & White" (node 9215-57188).
+
+   The design enumerates three tones, each with the same three fills, plus two
+   shapes. Rather than nine hardcoded classes, that is composed:
+
+     tone   .hb-btn--cta | --secondary | --dark      (what colour)
+     fill   (default solid) | .hb-btn--outline       (filled or bordered)
+     text   (default) | .hb-btn--text-dark           (white or black label)
+     shape  (default 4px) | .hb-btn--pill            (100px)
+
+   So "CTA Color (Black Text)" is `hb-btn hb-btn--cta hb-btn--text-dark`, and
+   "CTA Color Outline (Black Text)" is `hb-btn hb-btn--cta hb-btn--outline`.
+
+   Each tone sets a single `--hb-btn-tone` and the shared rules below read it.
+   Adding a fourth tone is one 3-line block, not nine new rules.
+   =========================================================================== */
+
+@import './tokens.css';
+
+.hb-btn {
+  /* Defaults, overridden per tone. */
+  --hb-btn-tone: var(--hb-text-night);
+  --hb-btn-label: var(--hb-white);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: var(--hb-button-height);
+  padding: 8px var(--hb-button-padding-x);
+  border: var(--hb-button-border-width) solid transparent;
+  border-radius: var(--hb-button-radius);
+  background: var(--hb-btn-tone);
+  color: var(--hb-btn-label);
+  font-family: var(--hb-font);
+  font-size: var(--hb-font-size-button);
+  font-weight: var(--hb-font-weight-bold);
+  line-height: var(--hb-line-height-button);
+  text-align: center;
+  text-decoration: none;   /* so <a class="hb-btn"> matches <button> */
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--hb-transition), border-color var(--hb-transition),
+              color var(--hb-transition), box-shadow var(--hb-transition);
+}
+
+/* ── Tones ────────────────────────────────────────────────────────────────── */
+
+.hb-btn--cta       { --hb-btn-tone: var(--hb-cta); }
+.hb-btn--secondary { --hb-btn-tone: var(--hb-secondary); }
+.hb-btn--dark      { --hb-btn-tone: var(--hb-text-night); }
+.hb-btn--light {
+  --hb-btn-tone: var(--hb-white);
+  --hb-btn-label: var(--hb-text-night);
+  border-color: var(--hb-text-night);
+}
+
+/* ── Fills ────────────────────────────────────────────────────────────────── */
+
+/* Black label on the brand fill — Figma's "(Black Text)" option. */
+.hb-btn--text-dark { --hb-btn-label: var(--hb-text-night); }
+
+/* Outline: white box, 2px tone border, black label. */
+.hb-btn--outline {
+  background: var(--hb-white);
+  border-color: var(--hb-btn-tone);
+  color: var(--hb-text-night);
+}
+
+/* ── Shapes ───────────────────────────────────────────────────────────────── */
+
+.hb-btn--pill { border-radius: var(--hb-button-radius-pill); }
+
+/* Fill the container — the common case inside a widget card. */
+.hb-btn--block { display: flex; width: 100%; }
+
+/* ── Interaction ──────────────────────────────────────────────────────────────
+   The Figma frames show resting state only. Hover/active/focus are derived so
+   the buttons feel like controls: a brightness shift keeps the relationship to
+   the brand colour whatever a site rebrands it to, which a hardcoded darker hex
+   would not. */
+
+.hb-btn:hover:not(:disabled)  { filter: brightness(0.92); }
+.hb-btn:active:not(:disabled) { filter: brightness(0.85); }
+
+/* Outline buttons invert into the tone on hover rather than dimming a white box. */
+.hb-btn--outline:hover:not(:disabled) {
+  filter: none;
+  background: var(--hb-btn-tone);
+  color: var(--hb-white);
+}
+.hb-btn--outline.hb-btn--text-dark:hover:not(:disabled) { color: var(--hb-text-night); }
+
+.hb-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--hb-focus-ring);
+}
+
+.hb-btn:disabled,
+.hb-btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* ── Busy state ───────────────────────────────────────────────────────────────
+   A submit button that fires a lead needs to say it is working, or the visitor
+   clicks it again and files the enquiry twice. */
+
+.hb-btn__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: hb-btn-spin 0.6s linear infinite;
+}
+
+@keyframes hb-btn-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hb-btn__spinner { animation-duration: 2s; }
+}

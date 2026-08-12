@@ -6,6 +6,7 @@ import { fetchSpaceGroups, extractPromos, type ApiPromo } from './api';
 import cfg from './config.json';
 import { fetchWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolvePropertyId } from '@shared/propertyBinding';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { emitShowPromo, scrollToSpaceList } from '@shared/promoBus';
 import { TagIcon, InfoIcon, ChevronRight } from './icons';
 import promoBanner from './assets/promo-banner.png';
@@ -197,6 +198,11 @@ export interface PromotionsProps {
    */
   propertyId?: string;
   /**
+   * Per-instance company override. Normally unset — the company comes from the
+   * one-row `Company` collection, which is the source of truth for the whole site.
+   */
+  companyId?: string;
+  /**
    * The property's space group. Not a column on the Properties collection, so it
    * can't be bound; leave empty on a dynamic page to auto-resolve that property's
    * "Website Group", or set it to pin one.
@@ -214,6 +220,7 @@ export function Promotions({
   barCtaLabel = 'See Qualifying Units',
   barInfo,
   propertyId,
+  companyId,
   spaceGroupId,
 }: PromotionsProps) {
   // Only two modes. Anything else from Duda (including the retired 'cards')
@@ -237,20 +244,39 @@ export function Promotions({
     let cancelled = false;
     const timer = setTimeout(() => { if (!cancelled) setPastDelay(true); }, SKELETON_DELAY_MS);
 
-    // Dynamic page: a bound propertyId that isn't the configured one means the
-    // configured space group belongs to a different property, so resolve this
-    // property's own "Website Group" rather than listing another's promotions.
-    const needsLookup = !spaceGroupId && effectivePropertyId !== cfg.propertyId;
-    (needsLookup ? fetchWebsiteSpaceGroupId(cfg, effectivePropertyId) : Promise.resolve(spaceGroupId || null))
-      .then((sg) => fetchSpaceGroups(effectivePropertyId, sg || cfg.spaceGroupId))
-      .then((raw) => {
-        if (!cancelled) setApiPromos(extractPromos(raw));
-      })
+    (async () => {
+      // The `Company` collection is the source of truth; cfg.companyId is only the
+      // editor/harness fallback. This endpoint is REST-only with no collection to
+      // degrade to, so a wrong company here means no promotions at all.
+      const company = await resolveCompanyIdFromSources('#06 promotions', { companyId }, cfg.companyId);
+      if (cancelled) return;
+
+      // Pointed at a different facility than the one config.json was built for?
+      // Then the configured space group belongs to ANOTHER property and must never
+      // be used — it would show a different facility's promotions.
+      const isDynamicTarget =
+        effectivePropertyId !== cfg.propertyId || company !== cfg.companyId;
+
+      const sg = spaceGroupId
+        ? spaceGroupId
+        : isDynamicTarget || !cfg.spaceGroupId
+          ? await fetchWebsiteSpaceGroupId({ ...cfg, companyId: company }, effectivePropertyId)
+          : cfg.spaceGroupId;
+      if (cancelled) return;
+
+      // No website group for THIS property and nothing pinned: render nothing rather
+      // than falling back to a group belonging to another facility. spaceGroups.ts
+      // has already logged why it found none.
+      if (!sg) { setApiPromos([]); return; }
+
+      const raw = await fetchSpaceGroups(effectivePropertyId, sg, company);
+      if (!cancelled) setApiPromos(extractPromos(raw));
+    })()
       .catch((err) => console.error('[Promotions] fetchSpaceGroups error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [view, effectivePropertyId, spaceGroupId]);
+  }, [view, effectivePropertyId, companyId, spaceGroupId]);
 
   // ── Mode 1: banner ────────────────────────────────────────────────────
   if (view === 'banner') {

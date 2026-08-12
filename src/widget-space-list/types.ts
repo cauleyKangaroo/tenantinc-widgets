@@ -67,6 +67,8 @@ export interface Unit {
   urgency?: string;
   /** CTA state: absent = normal Select, 'call' = Call button, 'waitlist' = Waitlist button */
   availability?: 'call' | 'waitlist';
+  /** Offer tier id (= tier_id) — the authoritative product identity handed to #14 */
+  unitGroupId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +132,15 @@ export interface WidgetConfig {
   contactPhone: string;
   /** Live property name — kept available to the cards. */
   facilityName: string;
+  /** Select opens the #14 value-tiers modal (via tierBus) instead of nothing. */
+  enableValueTiers: boolean;
+  valueTiersChannel?: string;
+  valueTiersPageUrl?: string;
+  /** Resolved property + company this widget is showing — carried into the
+   *  value-tiers handoff so the target page prices the same unit group
+   *  (dynamic pages vary both; the target can't infer them). */
+  propertyId?: string;
+  companyId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -275,6 +286,11 @@ export interface SpaceListProps {
   callOnLimitedAvailability?: boolean;
   /** Text for the primary CTA button. Default 'Select'. */
   ctaButtonCopy?: string;
+
+  /** Select opens the #14 value-tiers modal via tierBus. Default false. */
+  enableValueTiers?: boolean;
+  valueTiersChannel?: string;
+  valueTiersPageUrl?: string;
 
   // ── Editable accordion copy (Duda text inputs) ─────────────────────────────
   /** Heading of the "About" accordion. Default 'About Storage Units in Irvine'. */

@@ -70,6 +70,34 @@ Details:
 
 ---
 
+## Shared UI kit (`@shared/ui`) — forms + buttons
+
+**All inputs and buttons come from `@shared/ui`.** Built from Figma
+`8753-47700` (forms) and `9215-57188` (buttons). Full dev-facing docs are in
+`README.md`; live styleguide is the **UI Kit** tab of the dev harness
+(`src/ui-kit/`, webpack entry `ui-kit`, deliberately unnumbered — it is NOT a
+Duda widget and must never be added to a page).
+
+- `tokens.css` holds every value as a CSS custom property named after the Figma
+  variable (`--hb-text-night`, `--hb-ada-red`, `--hb-cloud-darker`). A site
+  rebrands by overriding **`--hb-cta`** and **`--hb-secondary`** on `:root` —
+  no rebuild.
+- **Field resting/active state is CSS (`:focus-within`), not a prop**, so the
+  border can never disagree with the caret. Only `success`/`error` are props.
+  `error` implies the error state, so a red border always has a message.
+- **The floating label is CSS-only** (`:placeholder-shown`). Deliberate: it keeps
+  working with browser autofill, which fires no React event.
+- Buttons compose `tone` × `fill` × `shape` × `darkText` rather than nine
+  hardcoded classes; a new tone is one 3-line block.
+- The 7 icons are **inline SVG** (`icons.tsx`), traced from the Figma exports —
+  the AMD bundle can't load remote assets and Figma's URLs expire in ~7 days.
+  24×24 frames with per-icon translate offsets derived from the Figma insets; no
+  scaling, so strokes stay a true 2px. Strokes are `currentColor`.
+- Focus rings, hover/active, disabled and `busy` are **additions** — the Figma
+  frames only describe resting states.
+
+---
+
 ## Where widget data comes from — Duda collections vs the Hummingbird API
 
 Widgets used to call the Hummingbird (Tenant/`edge.tenant.dev`) API directly with a
@@ -266,9 +294,105 @@ The last three are deliberate, not leftovers: space-groups (units, promotions) h
 collection, and leads is a **write** — the Collections JS API is read-only, so writes
 always need credentials and therefore a server-side proxy (see `accordion-sync.php`).
 
+### `propertyId` — Duda passes it; config.json is NOT a real property
+
+Duda supplies `propertyId` as a prop from the JS tab, per page. Which widgets:
+
+| Widget | propertyId |
+|---|---|
+| #03 property-info, #05 space-list, #06 promotions, #10 faqs | **passed by Duda** |
+| #02 nav, #13 footer | not needed — site-wide contact details |
+| #07 nearby, #11 size guide, #12 blogs | not needed |
+| #09 reviews | work in progress |
+
+`cfg.propertyId` is a **dev-harness / editor fallback only**. On this site it names a
+property of the OLD company that does not exist, so it must never be treated as a
+real property:
+
+- **`resolveRequireId` returns the BOUND id only**, never the config one. Handing the
+  trust check a stale id makes it look for a property the collection cannot contain,
+  declare the site's own collection untrustworthy, and fall back to REST — the exact
+  thing the check exists to prevent. Unbound ⇒ `undefined` ⇒ no check.
+- **Never give those parameters a `= PROPERTY_ID` default.** `resolveRequireId`
+  returning `undefined` would silently re-apply it. Caught by test, twice.
+- #05's sidebar sections get the id from `PropertyIdProvider` / `usePropertyId()`
+  (`propertyContext.tsx`), because `SectionAccordion`'s `VISUALS` map is a
+  module-level record of pre-built elements with nowhere to pass a prop. Its default
+  is `''`, deliberately not `cfg.propertyId`.
+- #07 takes an **optional** `propertyId` used only to anchor distances and exclude
+  the page's own facility. With none it lists every location **without distances**
+  rather than rendering empty — the old code blanked the widget whenever geolocation
+  was declined and the configured id wasn't in the list, which is the live case now.
+- Unbound, #03 resolves to no property and keeps its DEFAULTS: on a multi-property
+  site it cannot know which one to show, and guessing would be worse.
+
+### #02 nav — "Find Storage" is built from the `Properties` collection
+
+`@shared/propertyNav.ts` groups every property's **`slug`** into the nav's three
+levels. A slug is `state/city/property-name-<id>`, e.g.
+`california/bellflower/storage-outlet-bellflower-340079517` →
+**California › Bellflower › Storage Outlet - Bellflower**.
+
+- Grouping is on the **slug**, not `Address`, because the slug IS the page URL —
+  group by anything else and the links stop matching the pages beneath them.
+- **The two disagree in the live data** (verified 2026-08-06): Chula Vista and
+  Escondido are Californian but their slugs say `arizona/...`, and Gardena's slug
+  says `california/irvine/storage-outlet-escondido-…`. So the nav renders an
+  **Arizona** branch for a California-only portfolio. That's an upstream data fix;
+  the parser renders the slugs faithfully rather than "correcting" them into links
+  to pages that don't exist.
+- The **leaf label** is the exception: it uses the property's real `name`, falling
+  back to the slug tail. That stops a stale slug mislabelling a facility (Gardena
+  would otherwise read "Storage Outlet Escondido").
+- A row with a missing or <3-segment slug is **skipped**, never rendered blank.
+- State and city rows are `href: '#'` — there are no state/city pages.
+- `locationBasePath` prefixes the property links. Default **`/storage-units`** — the
+  path the Duda dynamic property pages live under — giving
+  `/storage-units/california/bellflower/…`. Normalised, so a missing leading slash
+  or a trailing one can't produce a relative or double-slashed URL. Pass `''` for
+  links off the site root.
+- Empty tree (no dmAPI in the editor/harness, collection missing) → the hardcoded
+  `FIND_STORAGE_MENU` stays, so the nav never renders empty.
+- **`forceHardcodedLinks` is deliberately NOT applied to the collection-built
+  menu.** It matches on LABEL, and the live data contains a city called "Irvine" —
+  it would rewrite that city's link to the hardcoded testing URL.
+
+### `companyId` — the `Company` collection is the source of truth
+
+**Every** outbound request is scoped to the company id from the one-row **`Company`**
+collection, read via `@shared/companySource`. `config.json`'s `companyId` is now
+only a fallback.
+
+Why: the company id was build-time, so a new customer site meant a new build of the
+bundles. It is site DATA. Each site spun up from this template gets its own
+`Company` row and reuses the **same published bundles** — no rebuild.
+
+- **`Company` is a NATIVE collection**, unlike `Properties`. The cell is authored in
+  a WYSIWYG, so Duda returns `<p class="rteBlock">kQoBXA8vpn</p>`. Used raw that
+  goes straight into the request URL and every call 404s — hence `plainText()`.
+- Rows can arrive as `{id: <rowId>, data: {id: …}}`: the **column** `id` must win
+  over Duda's own row id (`readCollection` already flattens it that way).
+- Only the **first** row is read; a second logs a warning rather than being guessed
+  between.
+- The read is **promise-cached** per collection, so every widget on the page shares
+  one request.
+- **Precedence:** explicit `companyId` prop → `Company` collection → `config.json`
+  (Duda editor, dev harness, sites without the collection).
+
+Wired through: #03 (properties + createLead), #05 (space-groups, website-group
+lookup, sidebar properties, nearby, createLead), #06 (space-groups), #07 (properties
++ property spaces), #10 (faqs). `@shared/leadsApi`, `@shared/nearbyProperties` and
+`@shared/spaceGroups` take a creds object — callers pass the resolved id, which is
+why `cfg.companyId` still appears inside them.
+
+**#05 holds the resolved id as state (`null` = resolving) and its data effects wait
+for it.** Starting from `cfg.companyId` and correcting later would fire a request
+against the wrong company on every load and briefly render its units.
+
 ### Other collections on the site
 
-`Properties` (external), `BlogPosts` (native, read by `@shared/blogPosts`),
+`Properties` (external), `Company` (native, one row — see above), `BlogPosts`
+(native, read by `@shared/blogPosts`), `GoogleReviews` (native, ratings for #03/#09),
 `accordionConfig` (native, read client-side + written via the PHP proxy).
 Collection names are **case-sensitive** — they're the lookup key.
 
