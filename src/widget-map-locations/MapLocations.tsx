@@ -22,7 +22,7 @@ import { PROPERTY_IMAGES } from '@shared/demoImages';
 import { FilterPanel } from './FilterPanel';
 import { INITIAL_FILTERS, activeFilterCount, type FilterState } from './filters';
 import { useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
-import { FilterIcon, ChevronDownIcon } from './icons';
+import { FilterIcon, ChevronDownIcon, SortIcon, StarIcon, TagIcon } from './icons';
 
 // ── Icons (inline SVG — the AMD bundle can't load remote assets) ─────────────
 
@@ -57,36 +57,15 @@ const Icon = {
       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z" />
     </svg>
   ),
-  tag: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="#509e2f" aria-hidden="true">
-      <path d="M5.5 2h7.1c.5 0 1 .2 1.4.6l7.4 7.4c.8.8.8 2 0 2.8l-7.1 7.1c-.8.8-2 .8-2.8 0L4.1 12.5c-.4-.4-.6-.9-.6-1.4V4A2 2 0 0 1 5.5 2Zm2.5 3.5A1.5 1.5 0 1 0 8 8.5 1.5 1.5 0 0 0 8 5.5Z" />
-    </svg>
-  ),
 };
-
-function Star({ size = 16, half = false, color = '#FFD000' }: { size?: number; half?: boolean; color?: string }) {
-  const d = 'M12 2.5l2.9 5.9 6.5.95-4.7 4.58 1.11 6.47L12 17.35l-5.81 3.05 1.11-6.47-4.7-4.58 6.5-.95L12 2.5z';
-  if (!half) return <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true"><path d={d} /></svg>;
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-      <defs>
-        <linearGradient id="ml-half">
-          <stop offset="50%" stopColor={color} />
-          <stop offset="50%" stopColor="rgba(255,255,255,0.45)" />
-        </linearGradient>
-      </defs>
-      <path d={d} fill="url(#ml-half)" />
-    </svg>
-  );
-}
 
 function Stars({ rating }: { rating: number }) {
   const full = Math.floor(rating);
   const half = rating - full >= 0.5;
   return (
     <span className="ml-stars">
-      {Array.from({ length: full }, (_, i) => <Star key={`f${i}`} />)}
-      {half && <Star half />}
+      {Array.from({ length: full }, (_, i) => <StarIcon key={`f${i}`} />)}
+      {half && <StarIcon half />}
     </span>
   );
 }
@@ -102,7 +81,7 @@ function UnitRow({ unit }: { unit: CityUnit }) {
       </div>
 
       <div className="ml-unit-prices">
-        <span className="ml-unit-tag">{Icon.tag}</span>
+        <span className="ml-unit-tag"><TagIcon size={16} /></span>
         <div className="ml-price-strike">
           <span className="ml-price-label">IN-STORE</span>
           <span className="ml-price-was">${unit.inStorePrice}</span>
@@ -149,7 +128,7 @@ function PropertyCard({
 
         {facility.featured && (
           <div className="ml-featured">
-            <Star size={16} color="#fff" />
+            <StarIcon size={16} color="#fff" />
             <span>Featured Property</span>
           </div>
         )}
@@ -184,7 +163,7 @@ function PropertyCard({
       <div className="ml-card-body">
         {facility.promo && (
           <div className="ml-promo">
-            {Icon.tag}
+            <TagIcon size={16} />
             <span className="ml-promo-text">{facility.promo}</span>
           </div>
         )}
@@ -356,7 +335,7 @@ export function MapLocations({
           }}
           title={p.name}
         >
-          {isActive && <Star size={24} color="#101318" />}
+          {isActive && <StarIcon size={24} color="#101318" />}
           <span>{p.label}</span>
         </button>
 
@@ -392,7 +371,7 @@ export function MapLocations({
                 {facility.address}
               </a>
               <div className="ml-popup-rating">
-                <Star size={16} />
+                <StarIcon size={16} />
                 <span className="ml-popup-score">{facility.rating}</span>
                 <a className="ml-popup-reviews" href="#">{facility.reviewCount} Reviews</a>
               </div>
@@ -490,7 +469,7 @@ export function MapLocations({
                 aria-expanded={sortOpen}
                 onClick={() => setSortOpen((o) => !o)}
               >
-                <FilterIcon size={24} />
+                <SortIcon size={24} />
                 <span className="ml-pill-sort">{sortLabelText}</span>
                 <ChevronDownIcon size={24} className="ml-pill-chev" />
               </button>
