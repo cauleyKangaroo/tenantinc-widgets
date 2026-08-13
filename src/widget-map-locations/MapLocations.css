@@ -232,6 +232,8 @@
   gap: 16px;
   padding: 20px 24px;
   border-bottom: 1px solid #dfe3e8;
+  /* Header and footer stay put; only the body scrolls. */
+  flex-shrink: 0;
 }
 
 /* 20px/600, not the frame's 24px/700 — every other widget's modal title is
@@ -294,7 +296,13 @@
 /* Body — the scrolling part; the header and Apply footer stay put. */
 .ml-fp-body {
   flex: 1 1 auto;
+  /* Required for the scroll to work at all: a flex item defaults to
+     `min-height: auto`, which refuses to shrink below its content, so the panel
+     grew instead of the body scrolling. */
+  min-height: 0;
   overflow-y: auto;
+  /* Momentum scrolling on iOS. */
+  -webkit-overflow-scrolling: touch;
   padding: 21px 22px 24px;
   display: flex;
   flex-direction: column;
@@ -514,6 +522,7 @@
 .ml-fp-foot {
   padding: 16px 24px;
   border-top: 1px solid #dfe3e8;
+  flex-shrink: 0;
 }
 
 .ml-fp-apply {
@@ -1078,10 +1087,20 @@
 .ml-fp--full {
   width: 100%;
   max-width: none;
-  max-height: none;
-  height: 100%;
   border-radius: 0;
   border: 0;
+  /* `100dvh`, NOT `100vh` and NOT `max-height: none`:
+     - `max-height: none` let the panel grow past the viewport, and because the
+       overlay centres its child, the overflow spilled off BOTH ends where it
+       could not be scrolled to. The header and the Apply button both left the
+       screen.
+     - `100vh` on mobile measures the viewport with the browser chrome
+       COLLAPSED, so the footer sits under the URL bar until you scroll. `dvh`
+       tracks the visible area. `vh` first as the fallback for older browsers. */
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
 }
 
 /* Sort / Distance select, styled as the Form 2.0 box the frame uses. */
@@ -1131,8 +1150,10 @@
 }
 
 @media (max-width: 768px) {
-  /* The panel fills the screen, so its overlay carries no padding. */
-  .ml-fp-overlay { padding: 0; }
+  /* No padding, and `stretch` rather than `center` — a centred flex child that
+     is taller than the overlay overflows equally top and bottom, and neither
+     end can be reached. Stretch pins it to the top so the body scrolls instead. */
+  .ml-fp-overlay { padding: 0; align-items: stretch; }
   /* Price stacks on mobile — the frame puts Min above Max, full width each. */
   .ml-fp-fields { grid-template-columns: 1fr; flex-direction: column; }
 }
