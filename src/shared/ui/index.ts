@@ -12,8 +12,11 @@
 //   buttons node 9215-57188
 // ===========================================================================
 
-export { FormField, formatDateMask } from './FormField';
+export { FormField, formatDateMask, formatPhoneMask } from './FormField';
 export type { FormFieldProps, FieldState, FieldType } from './FormField';
+
+export { formatPhoneInput, normalizePhone, isPossiblePhone } from './phone';
+export type { PhoneCountry } from './phone';
 
 export { Button } from './Button';
 export type { ButtonProps, ButtonTone, ButtonFill, ButtonShape } from './Button';

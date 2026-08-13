@@ -13,7 +13,7 @@ import { Confirmation, type EntryMode } from './Confirmation';
 import { GP_BRIDGE_IS_PROTOTYPE } from './gpHostedFields';
 import { OrderRail } from './OrderRail';
 import { Shimmer } from '@shared/Shimmer';
-import { FormField, Button, Checkbox, DateModal, type FieldType } from '@shared/ui';
+import { FormField, Button, Checkbox, DateModal, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 
@@ -76,13 +76,12 @@ export interface RentalFlow2StepProps {
 }
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
-const isValidPhone = (v: string) => v.replace(/\D/g, '').length >= 10;
 
 // A single labelled field — now the shared @shared/ui <FormField>. `valid`
 // drives the green success state; `error` (submit attempted while invalid)
 // turns it red with a concise message. Resting/focus states are the kit's CSS.
 function Field({
-  id, label, type = 'text', value, valid, error, onChange,
+  id, label, type = 'text', value, valid, error, onChange, phoneCountry,
 }: {
   id: string;
   label: string;
@@ -92,6 +91,8 @@ function Field({
   /** Submit was attempted while this field is invalid — red state. */
   error?: boolean;
   onChange: (v: string) => void;
+  /** Opt in libphonenumber as-you-type formatting for a tel field. */
+  phoneCountry?: PhoneCountry;
 }) {
   const errorMsg = error
     ? type === 'email'
@@ -110,6 +111,7 @@ function Field({
       required
       state={valid ? 'success' : 'default'}
       error={errorMsg}
+      phoneCountry={phoneCountry}
     />
   );
 }
@@ -240,7 +242,7 @@ function Step1Form({
   // requires — Rent/Reserve don't proceed until they're present.
   const checks: Array<[string, boolean]> = [
     ['rf-email', isValidEmail(email)],
-    ['rf-phone', isValidPhone(phone)],
+    ['rf-phone', isPossiblePhone(phone, 'US')],
     ['rf-first', first.trim().length > 0],
     ['rf-last', last.trim().length > 0],
   ];
@@ -270,16 +272,18 @@ function Step1Form({
         <div className="rf-row">
           <Field id="rf-email" label="Email" type="email" value={email}
             valid={isValidEmail(email)} error={bad('rf-email')} onChange={setEmail} />
-          <Field id="rf-phone" label="Phone" type="tel" value={phone}
-            valid={isValidPhone(phone)} error={bad('rf-phone')} onChange={setPhone} />
+          <Field id="rf-phone" label="Phone" type="tel" value={phone} phoneCountry="US"
+            valid={isPossiblePhone(phone, 'US')} error={bad('rf-phone')} onChange={setPhone} />
         </div>
 
-        <p className="rf-consent">
-          By providing your mobile number, you agree to receive text messages from
-          {' '}{brandName}. Message frequency may vary. Standard rates apply. Reply HELP
-          for assistance or STOP to unsubscribe.{' '}
-          <a href={termsHref}>See Terms and Privacy Policy.</a>
-        </p>
+        {phone.trim().length > 0 && (
+          <p className="rf-consent">
+            By providing your mobile number, you agree to receive text messages from
+            {' '}{brandName}. Message frequency may vary. Standard rates apply. Reply HELP
+            for assistance or STOP to unsubscribe.{' '}
+            <a href={termsHref}>See Terms and Privacy Policy.</a>
+          </p>
+        )}
 
         <div className="rf-row">
           <Field id="rf-first" label="First Name" value={first}
