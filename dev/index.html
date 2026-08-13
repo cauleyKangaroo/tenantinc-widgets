@@ -43,29 +43,20 @@
       background: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
       box-shadow: 0 2px 6px rgba(0,0,0,.12); }
     .mobile-btn:hover { background: #f3f4f6; }
-    .mobile-wrap { position: fixed; inset: 0; z-index: 99998; display: none;
-      background: rgba(16,19,24,.55); }
-    .mobile-wrap.on { display: flex; align-items: center; justify-content: center; gap: 16px; flex-direction: column; }
-    .mobile-frame { width: 393px; height: 844px; max-height: calc(100vh - 96px);
-      border: 0; border-radius: 24px; background: #fff; box-shadow: 0 12px 48px rgba(0,0,0,.4); }
+    .mobile-btn.on { background: #101318; border-color: #101318; color: #fff; }
+    /* Sits in normal flow, centred — not an overlay. */
+    .mobile-stage { display: none; flex-direction: column; align-items: center; gap: 12px; padding: 8px 0 40px; }
+    .mobile-stage.on { display: flex; }
+    .mobile-frame { width: 393px; height: 844px; border: 1px solid #d1d5db;
+      border-radius: 24px; background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,.14); }
     .mobile-size { display: flex; gap: 8px; }
     .mobile-size button { padding: 5px 10px; font-size: 12px; }
-    .mobile-hint { color: #fff; font-size: 12px; opacity: .8; }
+    .mobile-size button.on { background: #101318; border-color: #101318; color: #fff; }
   </style>
 </head>
 <body>
 
   <button class="mobile-btn" id="mobile-btn" onclick="toggleMobile()">Mobile</button>
-
-  <div class="mobile-wrap" id="mobile-wrap" onclick="if(event.target===this)toggleMobile()">
-    <div class="mobile-size">
-      <button onclick="setMobileWidth(393)">393 iPhone</button>
-      <button onclick="setMobileWidth(360)">360 Android</button>
-      <button onclick="setMobileWidth(768)">768 Tablet</button>
-    </div>
-    <iframe class="mobile-frame" id="mobile-frame" title="Mobile preview"></iframe>
-    <p class="mobile-hint">Click the backdrop or press Esc to close. Reopen to reload.</p>
-  </div>
 
   <h1>Tenantinc Widget Dev Harness</h1>
   <p class="subtitle">
@@ -83,6 +74,15 @@
     <button class="page-tab" data-page="rental-flow" onclick="showPage('rental-flow')">Rental Flow</button>
     <button class="page-tab" data-page="city" onclick="showPage('city')">City page</button>
     <button class="page-tab" data-page="ui-kit" onclick="showPage('ui-kit')">UI Kit (forms &amp; buttons)</button>
+  </div>
+
+  <div class="mobile-stage" id="mobile-stage">
+    <div class="mobile-size">
+      <button data-w="393" class="on" onclick="setMobileWidth(393)">393 iPhone</button>
+      <button data-w="360" onclick="setMobileWidth(360)">360 Android</button>
+      <button data-w="768" onclick="setMobileWidth(768)">768 Tablet</button>
+    </div>
+    <iframe class="mobile-frame" id="mobile-frame" title="Mobile preview"></iframe>
   </div>
 
   <div id="page-property" class="page">
@@ -573,36 +573,45 @@
       if (footerWidget        && footerEl) footerWidget.init({        container: footerEl, props: {} });
     }
 
-    // Mobile preview. `frame=1` stops the iframe rendering its own button and
-    // nesting previews; it also keeps whichever tab is open so you land on the
-    // same page you were looking at.
+    // Mobile preview. Sits inline and centred; the harness pages are hidden
+    // while it's on, so you see the phone rather than a modal over the desktop
+    // layout. `frame=1` stops the iframe rendering its own button and nesting
+    // previews, and carries the open tab so you land where you were.
+    var mobileOn = false;
+
     function toggleMobile() {
-      var wrap = document.getElementById('mobile-wrap');
-      var on = !wrap.classList.contains('on');
-      wrap.classList.toggle('on', on);
-      document.body.style.overflow = on ? 'hidden' : '';
-      var frame = document.getElementById('mobile-frame');
-      // Set src only while open, and clear on close, so the widgets inside are
-      // torn down rather than left running behind the backdrop.
-      frame.src = on
-        ? location.pathname + '?frame=1&page=' + encodeURIComponent(currentPage())
-        : 'about:blank';
+      mobileOn = !mobileOn;
+      document.getElementById('mobile-stage').classList.toggle('on', mobileOn);
+      document.getElementById('mobile-btn').classList.toggle('on', mobileOn);
+      // Hide the desktop pages while previewing; showPage owns them otherwise.
+      for (var p = 0; p < PAGES.length; p++) {
+        var el = document.getElementById('page-' + PAGES[p]);
+        if (mobileOn) el.hidden = true;
+      }
+      if (mobileOn) loadMobileFrame(); else {
+        // Clear the src so the widgets inside are torn down, not left running.
+        document.getElementById('mobile-frame').src = 'about:blank';
+        showPage(currentPage(), true);
+      }
+    }
+
+    function loadMobileFrame() {
+      document.getElementById('mobile-frame').src =
+        location.pathname + '?frame=1&page=' + encodeURIComponent(currentPage());
     }
 
     function setMobileWidth(px) {
       document.getElementById('mobile-frame').style.width = px + 'px';
+      var btns = document.querySelectorAll('.mobile-size button');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].classList.toggle('on', Number(btns[i].getAttribute('data-w')) === px);
+      }
     }
 
     function currentPage() {
       var active = document.querySelector('.page-tab.active');
       return active ? active.getAttribute('data-page') : PAGES[0];
     }
-
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && document.getElementById('mobile-wrap').classList.contains('on')) {
-        toggleMobile();
-      }
-    });
 
     // Inside the preview frame: hide the button so it can't nest.
     if (new URLSearchParams(location.search).get('frame') === '1') {
@@ -612,19 +621,23 @@
     function showPage(name, skipUrl) {
       if (PAGES.indexOf(name) === -1) name = 'property';
       for (var p = 0; p < PAGES.length; p++) {
-        document.getElementById('page-' + PAGES[p]).hidden = (PAGES[p] !== name);
+        // While the mobile preview is up the pages stay hidden — the tab change
+        // reloads the frame instead (below).
+        document.getElementById('page-' + PAGES[p]).hidden = mobileOn || (PAGES[p] !== name);
       }
       var tabs = document.querySelectorAll('.page-tab');
       for (var i = 0; i < tabs.length; i++) {
         tabs[i].classList.toggle('active', tabs[i].getAttribute('data-page') === name);
       }
       // Re-mount shared singletons onto the visible page's containers.
-      mountSharedWidgets(name);
+      if (!mobileOn) mountSharedWidgets(name);
       if (!skipUrl) {
         var url = new URL(window.location.href);
         url.searchParams.set('page', name);
         window.history.replaceState(null, '', url);
       }
+      // Follow the tab change inside the preview.
+      if (mobileOn) loadMobileFrame();
     }
 
     // Restore the tab from ?page=… on load (defaults to 'property').
