@@ -234,3 +234,24 @@ export function SortIcon(props: IconProps) {
     </Frame>
   );
 }
+
+/**
+ * chevron-big/chevron-big-down — the SORT PILL's chevron.
+ *
+ * STROKED, and a different glyph from `ChevronDownIcon` above: that one is the
+ * solid wedge the Form 2.0 selects use inside the filter modal. Two chevrons,
+ * two contexts — the pill gets this one.
+ *
+ * 14x8 artwork; the node insets (25% sides, 37.5% top/bottom, less the stroke
+ * bleed) put it at translate(5, 8) in the 24 box.
+ */
+export function ChevronBigDownIcon(props: IconProps) {
+  return (
+    <Frame {...props} tx={5} ty={8}>
+      <path
+        {...STROKE}
+        d="M1.00007 1.00007C2.57708 3.18086 4.42301 5.13648 6.48995 6.81724C6.78974 7.06102 7.2104 7.06102 7.51019 6.81724C9.57714 5.13648 11.4231 3.18086 13.0001 1.00007"
+      />
+    </Frame>
+  );
+}

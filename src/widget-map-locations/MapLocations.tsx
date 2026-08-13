@@ -22,7 +22,7 @@ import { PROPERTY_IMAGES } from '@shared/demoImages';
 import { FilterPanel } from './FilterPanel';
 import { INITIAL_FILTERS, activeFilterCount, type FilterState } from './filters';
 import { useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
-import { FilterIcon, ChevronDownIcon, SortIcon, StarIcon, TagIcon } from './icons';
+import { FilterIcon, ChevronBigDownIcon, SortIcon, StarIcon, TagIcon } from './icons';
 
 // ── Icons (inline SVG — the AMD bundle can't load remote assets) ─────────────
 
@@ -471,7 +471,7 @@ export function MapLocations({
               >
                 <SortIcon size={24} />
                 <span className="ml-pill-sort">{sortLabelText}</span>
-                <ChevronDownIcon size={24} className="ml-pill-chev" />
+                <ChevronBigDownIcon size={24} className="ml-pill-chev" />
               </button>
               {sortOpen && (
                 <ul className="ml-sort-menu" role="listbox" aria-label="Sort facilities">
