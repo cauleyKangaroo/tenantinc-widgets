@@ -1962,11 +1962,32 @@
   max-width: 100%;
 }
 
+/* Figma 9403-48439. Three states: flat by default, grey outline on hover,
+   outline + shadow when open. The shadow used to be permanent, which left
+   nothing to distinguish the open section from the closed ones.
+   20px radius, 1px Primary/Cloud-Light #F4F6F8, and hb-elevation-large
+   (0 8px 18px 0 rgba(71,84,116,.20)). Literals rather than
+   var(--Primary-Cloud-Light, …): this file does not import tokens.css, so a
+   named var would silently render as its fallback anyway.
+   The resting border is TRANSPARENT rather than absent: it reserves the 1px the
+   hover and open states occupy, so gaining the outline can't nudge the row or
+   reflow the column. */
 .sl-wrapper .sl-sa-item {
   background: #ffffff;
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
+  border: 1px solid transparent;
+}
+
+.sl-wrapper .sl-sa-item:hover {
+  border-color: #F4F6F8;
+}
+
+/* After :hover on purpose — equal specificity, so source order decides, and an
+   open section must keep its shadow while the pointer is over it. */
+.sl-wrapper .sl-sa-item.open {
+  border-color: #F4F6F8;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
 }
 
 .sl-wrapper .sl-sa-header {
@@ -1983,9 +2004,8 @@
   text-align: left;
 }
 
-.sl-wrapper .sl-sa-header:hover {
-  background: #fafafa;
-}
+/* No hover fill — hover is the grey outline on .sl-sa-item above. Leaving the
+   #fafafa tint here would show both at once. */
 
 .sl-wrapper .sl-sa-header-left {
   display: flex;
@@ -2181,10 +2201,16 @@
 }
 
 /* Rating summary */
+/* The score and the stars/count read as ONE group on the left. This was
+   space-between, which pinned the stars to the far right edge of the panel and
+   left a gap that grew with the panel width — the two halves stopped looking
+   related. flex-start keeps them a fixed 16px apart at any width.
+   NB: -left / -right below are positional names from that old split; both sit on
+   the left now. */
 .sl-wrapper .sl-rv2-summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
 }
 
@@ -2209,16 +2235,24 @@
   font-family: 'Montserrat', sans-serif;
 }
 
+/* flex-start so the stars and "N ratings" share a left edge. They were flex-end,
+   which only looked right while the block was pinned to the panel's right side;
+   grouped on the left, ragged-right reads as misaligned. */
 .sl-wrapper .sl-rv2-summary-right {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 4px;
 }
 
 .sl-wrapper .sl-rv2-stars {
   display: flex;
   gap: 4px;
+}
+/* Yelp's badged squares sit closer than bare stars: 4px between filled blocks
+   reads as a gappy row, where the same 4px between star outlines looks right. */
+.sl-wrapper .sl-rv2-stars--badged {
+  gap: 2px;
 }
 
 .sl-wrapper .sl-rv2-count {
@@ -2369,6 +2403,12 @@
 .sl-wrapper .sl-nb2-content {
   padding: 0 23px;
 }
+/* The section's bottom padding normally comes from .sl-nb2-pagination's
+   `padding: 20px 0 24px`. Map view has no pager, so the content has to supply
+   that 24px itself or the map sits flush against the accordion's bottom edge. */
+.sl-wrapper .sl-nb2-content--no-pager {
+  padding-bottom: 24px;
+}
 
 .sl-wrapper .sl-nb2-map-placeholder {
   height: 300px;
@@ -2435,6 +2475,10 @@
   line-height: 1.1;
 }
 
+/* 8px, a slight loosening of the rows over the image. Both this and the nested
+   .sl-nb2-prop-meta below move together — they were each 6px, and changing only
+   one would make name→rating and address→phone sit at different rhythms in what
+   reads as a single stack. */
 .sl-wrapper .sl-nb2-prop-info {
   position: absolute;
   bottom: 0;
@@ -2444,7 +2488,7 @@
   padding: 0 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .sl-wrapper .sl-nb2-prop-name {
@@ -2488,7 +2532,7 @@
 .sl-wrapper .sl-nb2-prop-meta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   margin-top: 0;
 }
 
@@ -2519,14 +2563,18 @@
 }
 
 /* Promo banner */
+/* Matches #07's .nl-promo: border AND colour on the primary. The colour is
+   load-bearing now — the tag mark is currentColor, so without it the icon would
+   inherit the dark body text instead of the promo's own colour. */
 .sl-wrapper .sl-nb2-promo {
   display: flex;
   align-items: center;
   gap: 6px;
-  border: 2px dashed #509e2f;
+  border: 2px dashed var(--color_1, #f45f30);
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 16px;
+  color: var(--color_1, #f45f30);
 }
 
 .sl-wrapper .sl-nb2-promo-title {
@@ -2585,6 +2633,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
+}
+/* The tag mark here is the SAME currentColor icon as the promo banner's, but it
+   sits outside .sl-nb2-promo, so it needs its own colour or it would inherit the
+   dark price text. Primary, matching #07's .nl-price-tag. */
+.sl-wrapper .sl-nb2-unit-pricing > svg {
+  color: var(--color_1, #f45f30);
   flex-shrink: 0;
 }
 

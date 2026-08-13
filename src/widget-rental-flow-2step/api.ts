@@ -1,5 +1,6 @@
 import cfg from './config.json';
 import { memoGet, memoInvalidate, MEMO_TTL } from '@shared/requestMemo';
+import { normalizePhone } from '@shared/ui/phone';
 
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
@@ -694,8 +695,17 @@ async function fetchReserveCost(
 
 /** Reserve a held unit. Returns a soft result, never throws. */
 export async function reserveSpace(ctx: RentalCtx, args: ReserveArgs): Promise<ReserveResult> {
-  if (shouldUseProxyWrites(ctx)) return reserveViaProxy(ctx, args);
-  if (writesEnabled(ctx)) return reserveViaEdge(ctx, args);
+  // Canonicalise the pretty display phone to E.164 ONCE. This is the value we
+  // carry INTERNALLY (and in the proxy DTO); it is NOT necessarily the exact
+  // string each backend wants on the wire. The proxy re-formats E.164 for
+  // Hummingbird at its own adapter (it strips to digits); the direct-edge path
+  // below IS the Hummingbird boundary, so it applies the same digit-strip there.
+  // The UI keeps the formatted string; only what leaves for a backend changes.
+  const phoneE164 = normalizePhone(args.contact.phone, 'US');
+  if (!phoneE164) return { ok: false, error: 'Please enter a valid phone number.' };
+  const a: ReserveArgs = { ...args, contact: { ...args.contact, phone: phoneE164 } };
+  if (shouldUseProxyWrites(ctx)) return reserveViaProxy(ctx, a);
+  if (writesEnabled(ctx)) return reserveViaEdge(ctx, a);
   return { ok: false, error: 'Reservations are not configured for this site.' };
 }
 
@@ -732,6 +742,9 @@ async function reserveViaEdge(ctx: RentalCtx, args: ReserveArgs): Promise<Reserv
         first: args.contact.first,
         last: args.contact.last,
         email: args.contact.email,
+        // Hummingbird boundary: send digits only, matching the proxy's HB
+        // adapter output (E.164 "+14155552671" → "14155552671"). Keeps direct
+        // and proxy identical on the wire until HB confirms it accepts "+"/E.164.
         Phones: [{ phone: args.contact.phone.replace(/\D/g, ''), type: 'Cell', sms: true }],
       }],
       platform: args.platform ?? 'website',
@@ -781,7 +794,13 @@ export async function createLease(ctx: RentalCtx, input: LeaseInput): Promise<Le
   if (input.paymentCycle) body.paymentCycle = input.paymentCycle;
   if (input.rent != null) body.rent = input.rent;
   if (input.leadId) body.leadId = input.leadId;
-  else if (input.contact) Object.assign(body, input.contact);
+  else if (input.contact) {
+    // Same API boundary rule as reserve: send canonical E.164, not the display
+    // string. If it isn't a possible number, fail soft rather than post junk.
+    const phoneE164 = normalizePhone(input.contact.phone, 'US');
+    if (!phoneE164) return { ok: false, error: 'Please enter a valid phone number.' };
+    Object.assign(body, { ...input.contact, phone: phoneE164 });
+  }
   try {
     const res = await fetch(`${apiBase(ctx)}/units/${encodeURIComponent(input.unitId)}/lease`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),

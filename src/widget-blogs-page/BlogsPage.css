@@ -20,6 +20,24 @@
   margin: 0 auto;
   box-sizing: border-box;
   color: #101318;
+
+  /* ── Reserved card geometry (Core Web Vitals / CLS) ────────────────────────
+     Every part of a card gets a FIXED box, so a card's height never depends on
+     how long its title or excerpt happens to be. Two things follow from that:
+
+       1. the skeleton is an exact stand-in — the placeholder grid and the
+          loaded grid occupy the same pixels, so the collection read landing
+          shifts nothing;
+       2. .bpg-card's height is a sum of these values, which is why the
+          skeleton needs no measurements of its own. Edit a token and both the
+          real card and its placeholder move together.                       */
+  --bpg-img-h: 234px;
+  --bpg-body-pad: 24px;
+  --bpg-body-gap: 19px;
+  --bpg-title-h: 90px;    /* 3 x 30px line-height — .bpg-card-title's clamp   */
+  --bpg-byline-h: 24px;   /* 1 line (2 on a narrow phone — see the 480px block) */
+  --bpg-excerpt-h: 48px;  /* 2 x 24px line-height — .bpg-card-excerpt's clamp */
+  --bpg-footer-h: 24px;   /* the 24px Share glyph is the tallest thing in it  */
 }
 
 .bpg-wrapper *,
@@ -422,19 +440,28 @@
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+  /* Sum of the reserved boxes, and the whole trick: every part above is CAPPED at
+     its token, so this floor is also the ceiling — the card is exactly this tall
+     whatever the row contains. A short title, a missing byline, a missing excerpt
+     (all of which happen) give their space back as slack above the pinned footer
+     instead of shortening the card out from under the skeleton. */
+  min-height: calc(
+    var(--bpg-img-h) + 2 * var(--bpg-body-pad) + 3 * var(--bpg-body-gap) +
+    var(--bpg-title-h) + var(--bpg-byline-h) + var(--bpg-excerpt-h) + var(--bpg-footer-h)
+  );
 }
 
 .bpg-card-img {
   width: 100%;
-  height: 234px;
+  height: var(--bpg-img-h);
   flex-shrink: 0;
 }
 
 .bpg-card-body {
   display: flex;
   flex-direction: column;
-  gap: 19px;
-  padding: 24px;
+  gap: var(--bpg-body-gap);
+  padding: var(--bpg-body-pad);
   flex: 1;
 }
 
@@ -450,6 +477,12 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* The ceiling, and the crop where -webkit-line-clamp isn't supported. Capped
+     rather than fixed on purpose: a card whose title runs to one line is held to
+     the full height by .bpg-card's floor instead, which pools the slack above the
+     pinned footer. Reserving it here would open the gap between the title and the
+     byline, which reads as a mistake. */
+  max-height: var(--bpg-title-h);
 }
 
 .bpg-card-byline {
@@ -458,6 +491,11 @@
   line-height: 24px;
   color: #637381;
   margin: 0;
+  /* One line's worth, clipped. The string is "By {author},  {date}" and on a
+     narrow phone it wraps — the 480px block widens the cap there rather than
+     truncating the date away. */
+  max-height: var(--bpg-byline-h);
+  overflow: hidden;
 }
 
 .bpg-card-excerpt {
@@ -471,13 +509,13 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  /* NO `flex: 1` here, and max-height is doing real work. Cards are equal
+  /* NO `flex: 1` here, and the fixed height is doing real work. Cards are equal
      height, so a flex-grown excerpt gets a box taller than its clamped text —
      `overflow: hidden` then stops cropping and a third line leaks out below the
      clamp's own ellipsis. The footer is already pinned by its margin-top:auto,
      so nothing needs to grow; capping at 2 x line-height keeps the crop honest
      (and enforces it at all where -webkit-line-clamp isn't supported). */
-  max-height: 48px;
+  max-height: var(--bpg-excerpt-h);
 }
 
 .bpg-card-footer {
@@ -488,6 +526,9 @@
   /* Cards are equal height, so pin Read more / Share to the bottom rather than
      letting a short excerpt float the footer mid-card. */
   margin-top: auto;
+  /* Naturally this tall from the Share glyph — stated so the skeleton's plain
+     bars, which are shorter, reserve the same strip. */
+  min-height: var(--bpg-footer-h);
 }
 
 .bpg-readmore {
@@ -496,6 +537,11 @@
   color: #101318;
   text-decoration: underline;
   text-underline-offset: 2px;
+  /* Both footer labels are fixed two-word strings, and the footer is one of the
+     reserved boxes — let "Read more" break across two lines in a narrow column
+     and the footer grows to 36px, which is 12px of CLS the skeleton can't know
+     about. Measured: it wraps once a card is under ~150px wide. */
+  white-space: nowrap;
 }
 
 .bpg-readmore:hover {
@@ -544,6 +590,8 @@
   color: #101318;
   text-decoration: underline;
   text-underline-offset: 2px;
+  /* Same reason as .bpg-readmore. */
+  white-space: nowrap;
 }
 
 .bpg-share:hover {
@@ -632,16 +680,20 @@
 
 /* ── Skeletons ─────────────────────────────────────────────────────────────── */
 
+/* The skeleton card reuses .bpg-card / .bpg-card-img / .bpg-card-body /
+   .bpg-card-footer verbatim, so radius, shadow, image height, padding, gap and
+   the pinned footer are the real card's by construction rather than by copy.
+   The only additions are the grey fills and the three .bpg-skel-box wrappers,
+   which stand in for the title / byline / excerpt at exactly their reserved
+   heights. Net effect: a skeleton card and a loaded card are the same box, so
+   swapping one for the other moves nothing. */
+
 .bpg-card--skeleton {
   pointer-events: none;
 }
 
 .bpg-card--skeleton .bpg-card-img {
   background: #eceef1;
-}
-
-.bpg-card--skeleton .bpg-card-body {
-  gap: 12px;
 }
 
 .bpg-skel {
@@ -652,10 +704,39 @@
   animation: bpg-skel-shimmer 1.4s ease-in-out infinite;
 }
 
-.bpg-skel--title { height: 30px; width: 90%; }
-.bpg-skel--byline { height: 16px; width: 60%; }
-.bpg-skel--text { height: 16px; width: 100%; }
-.bpg-skel--text.short { width: 75%; }
+/* One text block's placeholder. Bars share the box out with `flex: 1` instead
+   of carrying hardcoded heights, so the arithmetic can't drift out of step with
+   the --bpg-*-h tokens. */
+.bpg-skel-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.bpg-skel-box .bpg-skel {
+  flex: 1;
+  min-height: 0;
+}
+
+.bpg-skel-box--title { height: var(--bpg-title-h); }
+.bpg-skel-box--excerpt { height: var(--bpg-excerpt-h); }
+
+/* The byline is a single line inside a box that is two lines tall on a narrow
+   phone, so centre the bar rather than stretching it. */
+.bpg-skel-box--byline {
+  height: var(--bpg-byline-h);
+  justify-content: center;
+}
+
+.bpg-skel-box--byline .bpg-skel {
+  flex: 0 0 auto;
+  height: 14px;
+}
+
+.bpg-skel--readmore { height: 16px; width: 86px; }
+.bpg-skel--share { height: 20px; width: 78px; }
 .bpg-skel--pill { height: 44px; border-radius: 100px; flex-shrink: 0; }
 .bpg-skel--field { height: 56px; width: 351px; border-radius: 100px; flex-shrink: 0; }
 
@@ -782,12 +863,24 @@
     flex: 1;
   }
 
-  /* Figma's mobile card insets the body 20px rather than 24px. */
-  .bpg-card-body {
-    padding: 20px;
+  /* Figma's mobile card insets the body 20px rather than 24px. Set as the token,
+     not as `padding` — .bpg-card's min-height is calculated from it, and a card
+     4px shorter than its own floor would leave a strip of dead white at the
+     bottom (and put the skeleton 8px out). */
+  .bpg-wrapper {
+    --bpg-body-pad: 20px;
   }
 
   .bpg-skel--field {
     width: 100%;
+  }
+}
+
+/* Narrow phones: "By {author},  {date}" no longer fits one 14px line here, so
+   give the byline both of them. Widening the box beats `text-overflow: ellipsis`
+   — the part that would be dropped is the publish date. */
+@media (max-width: 480px) {
+  .bpg-wrapper {
+    --bpg-byline-h: 48px;
   }
 }

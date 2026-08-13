@@ -28,6 +28,7 @@ import './FormField.css';
 import {
   SearchIcon, CalendarIcon, CheckIcon, AlertIcon, InfoIcon, EyeOnIcon, EyeOffIcon,
 } from './icons';
+import { formatPhoneInput, type PhoneCountry } from './phone';
 
 export type FieldState = 'default' | 'success' | 'error';
 export type FieldType = 'text' | 'email' | 'tel' | 'search' | 'password' | 'date' | 'number';
@@ -60,6 +61,16 @@ export interface FormFieldProps {
    * slower than typing. The Figma frames call this out explicitly.
    */
   mask?: 'date';
+  /**
+   * Opt-in libphonenumber as-you-type formatting for `type="tel"`. When set, the
+   * displayed value is grouped per this default region (e.g. "(415) 555-2671");
+   * an explicit "+…" number is grouped by its own country. Leave unset to keep
+   * the lightweight built-in `formatPhoneMask` — this is what lets tel fields
+   * migrate to the richer formatter deliberately rather than all at once.
+   * NOTE: the field value stays the DISPLAY string; convert to E.164 with
+   * `normalizePhone` from '@shared/ui' only at your submit boundary.
+   */
+  phoneCountry?: PhoneCountry;
   /** Trailing info icon, for fields that need a "where do I find this?" hint. */
   infoTitle?: string;
   /** Extra class on the wrapper. */
@@ -77,6 +88,31 @@ export function formatDateMask(raw: string): string {
   return parts.join('/');
 }
 
+/**
+ * Phone formatting for `type="tel"`, international-safe:
+ * - If the value starts with `+` (an explicit country code), it's treated as
+ *   international and kept as the customer types it — only invalid characters
+ *   are stripped, never reshaped into a US pattern.
+ * - Otherwise it's treated as a domestic US number and prettied to
+ *   "(XXX) XXX-XXXX" as typed (a leading `1` country code is dropped).
+ * This keeps the nice US experience while never breaking an international entry.
+ * (For per-country as-you-type grouping we'd add libphonenumber-js.)
+ */
+export function formatPhoneMask(raw: string): string {
+  const trimmed = raw.replace(/^\s+/, '');
+  if (trimmed.startsWith('+')) {
+    // International: preserve the caller's grouping; allow + digits space - ( ).
+    return `+${trimmed.slice(1).replace(/[^\d\s()-]/g, '')}`.slice(0, 20);
+  }
+  let d = trimmed.replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('1')) d = d.slice(1);
+  d = d.slice(0, 10);
+  if (!d) return '';
+  if (d.length < 4) return `(${d}`;
+  if (d.length < 7) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
 export function FormField({
   label,
   value,
@@ -92,6 +128,7 @@ export function FormField({
   help,
   state = 'default',
   mask,
+  phoneCountry,
   infoTitle,
   className,
   onBlur,
@@ -114,7 +151,12 @@ export function FormField({
   );
 
   const handleChange = (next: string) => {
-    onChange(mask === 'date' ? formatDateMask(next) : next);
+    onChange(
+      mask === 'date' ? formatDateMask(next)
+        : type === 'tel'
+          ? (phoneCountry ? formatPhoneInput(next, phoneCountry) : formatPhoneMask(next))
+          : next,
+    );
   };
 
   const wrapperClass = [
@@ -148,7 +190,7 @@ export function FormField({
             required={required}
             disabled={disabled}
             autoComplete={autoComplete}
-            inputMode={mask === 'date' ? 'numeric' : undefined}
+            inputMode={mask === 'date' ? 'numeric' : type === 'tel' ? 'tel' : undefined}
             aria-invalid={effectiveState === 'error' || undefined}
             aria-describedby={error || help ? messageId : undefined}
           />

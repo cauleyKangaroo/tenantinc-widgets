@@ -255,12 +255,29 @@ export interface TierSelectionProps {
 const MOBILE_BP = 640;
 
 // Skeleton only appears past this delay, so fast responses never flash it.
-const SKELETON_DELAY_MS = 200;
+// 0 = show the placeholder skeleton from the first frame (paired with the
+// reserved wrapper min-height below) so the page never collapses then expands.
+const SKELETON_DELAY_MS = 0;
 
 // Placeholders reuse the real layout containers (.ts-grid / .ts-o2 geometry)
 // so the skeleton occupies exactly the footprint the content replaces.
 // Shimmer itself is inline-styled by design (shared across bundles, no shared CSS).
-function TierSkeleton({ variant }: { variant: 'option1' | 'option2' | 'option3' }) {
+function TierSkeleton({ variant, isMobile }: { variant: 'option1' | 'option2' | 'option3'; isMobile?: boolean }) {
+  if (isMobile) {
+    // Stacked mobile placeholder — reserves the mobile layout's footprint (both
+    // good/better/best and select+table+card collapse to a single column) so the
+    // footer doesn't jump when data lands.
+    return (
+      <div aria-hidden="true" style={{ maxWidth: 640, margin: '0 auto' }}>
+        <Shimmer w={280} h={30} mb={12} style={{ maxWidth: '80%' }} />
+        <Shimmer w={200} h={16} mb={20} style={{ maxWidth: '60%' }} />
+        <Shimmer h={48} r={24} mb={16} />
+        <Shimmer h={300} r={12} mb={16} />
+        <Shimmer h={52} r={8} mb={16} />
+        <Shimmer h={60} r={8} />
+      </div>
+    );
+  }
   if (variant === 'option1') {
     // Mirrors DesktopLayout: left = header + picker row + comparison table,
     // right = the 422px order-summary card.
@@ -583,7 +600,7 @@ export function TierSelection({
     // In the Duda editor (no handoff params) keep a visible skeleton so the
     // widget doesn't collapse to zero height and "vanish" — otherwise it can't
     // be seen or placed on the page.
-    body = (pastDelay || mode === 'modal' || inEditor) ? <TierSkeleton variant={variant} /> : null;
+    body = (pastDelay || mode === 'modal' || inEditor) ? <TierSkeleton variant={variant} isMobile={isMobile} /> : null;
   } else if (status === 'disabled') {
     // Business rule §1: Use Value Pricing = No → render nothing (operator
     // places the standard unit-selection widget instead).
@@ -662,7 +679,11 @@ export function TierSelection({
   };
 
   const inner = (
-    <div className="ts-wrapper" ref={ref} style={{ ['--ts-title-color']: titleColor || '#101318' } as React.CSSProperties}>
+    <div
+      className={`ts-wrapper${status === 'loading' ? ` ts-wrapper--loading ts-wrapper--${variant}` : ''}`}
+      ref={ref}
+      style={{ ['--ts-title-color']: titleColor || '#101318' } as React.CSSProperties}
+    >
       {live && data.notice && <div className="ts-notice">{data.notice}</div>}
       {body}
     </div>

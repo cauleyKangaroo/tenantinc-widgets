@@ -1,6 +1,6 @@
 import cfg from './config.json';
 import {
-  computeStatus, formatSchedule, formatScheduleByDay,
+  computeStatus, formatSchedule,
   type AccessHoursSection, type HoursStatus, type ScheduleRow,
 } from '@shared/accessHours';
 
@@ -241,7 +241,9 @@ export function extractPropertyExtras(raw: unknown, propertyId: string = PROPERT
   const titleFor = (type: string) =>
     TYPE_LABELS[type] ?? `${type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} Hours`;
   const scheduleSections = access
-    .map((s) => ({ type: s.type, title: titleFor(s.type), rows: formatScheduleByDay(s) }))
+    // Grouped, not one row per day: consecutive days sharing hours collapse to
+    // "Mon – Sat", matching the design and #03's modal.
+    .map((s) => ({ type: s.type, title: titleFor(s.type), rows: formatSchedule(s) }))
     .filter((s) => s.rows.length > 0)
     .sort((a, b) => {
       const ai = TYPE_ORDER.indexOf(a.type); const bi = TYPE_ORDER.indexOf(b.type);

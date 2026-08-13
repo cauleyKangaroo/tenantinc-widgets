@@ -8,3 +8,4 @@ node_modules/
 !README.md
 *.docx
 .idea/
+.tmp-test/

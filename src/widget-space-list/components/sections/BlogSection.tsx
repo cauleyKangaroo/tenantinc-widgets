@@ -3,6 +3,7 @@ import { BLOG_IMAGES, cover } from '@shared/demoImages';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { fetchBlogPosts, type BlogPostData } from '@shared/blogPosts';
 import { useSwipe } from '@shared/useSwipe';
+import { CarouselChevron } from '../chevron';
 
 // ---------------------------------------------------------------------------
 // Posts come from the Duda `BlogPosts` collection via @shared/blogPosts — the
@@ -159,9 +160,7 @@ export function BlogSection({ collection = 'BlogPosts', blogBasePath = '/blogs' 
             onClick={() => setPage(Math.max(0, current - 1))}
             disabled={current === 0}
           >
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="24 12 16 20 24 28"/>
-            </svg>
+            <CarouselChevron dir="left" />
           </button>
           {posts.map((p, i) => (
             <button
@@ -176,9 +175,7 @@ export function BlogSection({ collection = 'BlogPosts', blogBasePath = '/blogs' 
             onClick={() => setPage(Math.min(total - 1, current + 1))}
             disabled={current === total - 1}
           >
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="16 12 24 20 16 28"/>
-            </svg>
+            <CarouselChevron dir="right" />
           </button>
         </div>
       )}
