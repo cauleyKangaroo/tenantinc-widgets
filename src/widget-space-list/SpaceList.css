@@ -2201,10 +2201,16 @@
 }
 
 /* Rating summary */
+/* The score and the stars/count read as ONE group on the left. This was
+   space-between, which pinned the stars to the far right edge of the panel and
+   left a gap that grew with the panel width — the two halves stopped looking
+   related. flex-start keeps them a fixed 16px apart at any width.
+   NB: -left / -right below are positional names from that old split; both sit on
+   the left now. */
 .sl-wrapper .sl-rv2-summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
 }
 
@@ -2229,16 +2235,24 @@
   font-family: 'Montserrat', sans-serif;
 }
 
+/* flex-start so the stars and "N ratings" share a left edge. They were flex-end,
+   which only looked right while the block was pinned to the panel's right side;
+   grouped on the left, ragged-right reads as misaligned. */
 .sl-wrapper .sl-rv2-summary-right {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 4px;
 }
 
 .sl-wrapper .sl-rv2-stars {
   display: flex;
   gap: 4px;
+}
+/* Yelp's badged squares sit closer than bare stars: 4px between filled blocks
+   reads as a gappy row, where the same 4px between star outlines looks right. */
+.sl-wrapper .sl-rv2-stars--badged {
+  gap: 2px;
 }
 
 .sl-wrapper .sl-rv2-count {
