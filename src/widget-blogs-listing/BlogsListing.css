@@ -7,6 +7,21 @@
   width: 100%;
   box-sizing: border-box;
   color: #101318;
+
+  /* ── Reserved card geometry (Core Web Vitals / CLS) ────────────────────────
+     Same scheme as #15 (.bpg-wrapper), with this listing's own clamps: every
+     part of a card gets a FIXED box, so card height never depends on how long a
+     title or excerpt happens to be. That makes the skeleton an exact stand-in —
+     placeholder grid and loaded grid occupy the same pixels — and .blog-card's
+     height a sum of these tokens, so editing one moves both.                */
+  --blog-img-h: 234px;
+  --blog-body-pad: 24px;
+  --blog-body-gap: 19px;
+  --blog-title-h: 60px;   /* 2 x 30px line-height — .blog-card-title's clamp   */
+  --blog-byline-h: 24px;  /* 1 line (2 on a narrow phone — see the 480px block) */
+  --blog-excerpt-h: 72px; /* 3 x 24px line-height — .blog-card-excerpt's clamp */
+  --blog-footer-h: 24px;  /* the 24px Share glyph is the tallest thing in it   */
+  --blog-dot-size: 16px;  /* pagination dot, and so the mobile dots strip       */
 }
 
 .blog-wrapper *,
@@ -75,19 +90,28 @@
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+  /* Sum of the reserved boxes, and the whole trick: every part above is CAPPED at
+     its token, so this floor is also the ceiling — the card is exactly this tall
+     whatever the row contains. A short title, a missing byline, a missing excerpt
+     (all of which happen) give their space back as slack above the pinned footer
+     instead of shortening the card out from under the skeleton. */
+  min-height: calc(
+    var(--blog-img-h) + 2 * var(--blog-body-pad) + 3 * var(--blog-body-gap) +
+    var(--blog-title-h) + var(--blog-byline-h) + var(--blog-excerpt-h) + var(--blog-footer-h)
+  );
 }
 
 .blog-card-img {
   width: 100%;
-  height: 234px;
+  height: var(--blog-img-h);
   flex-shrink: 0;
 }
 
 .blog-card-body {
   display: flex;
   flex-direction: column;
-  gap: 19px;
-  padding: 24px;
+  gap: var(--blog-body-gap);
+  padding: var(--blog-body-pad);
   flex: 1;
 }
 
@@ -101,6 +125,12 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* The ceiling, and the crop where -webkit-line-clamp isn't supported. Capped
+     rather than fixed on purpose: a card whose title runs to one line is held to
+     the full height by .blog-card's floor instead, which pools the slack above the
+     pinned footer. Reserving it here would open the gap between the title and the
+     byline, which reads as a mistake. */
+  max-height: var(--blog-title-h);
 }
 
 .blog-card-byline {
@@ -109,6 +139,11 @@
   line-height: 24px;
   color: #637381;
   margin: 0;
+  /* One line's worth, clipped. The string is "By {author},  {date}" and on a
+     narrow phone it wraps — the 480px block widens the cap there rather than
+     truncating the date away. */
+  max-height: var(--blog-byline-h);
+  overflow: hidden;
 }
 
 .blog-card-excerpt {
@@ -117,11 +152,17 @@
   line-height: 24px;
   color: #101318;
   margin: 0;
-  flex: 1;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* Capped, and NO `flex: 1` (it used to grow). Cards are equal height, so a
+     flex-grown excerpt gets a box taller than its clamped text — `overflow:
+     hidden` then stops cropping and a fourth line leaks out below the clamp's
+     own ellipsis. The footer is pinned by its margin-top:auto, so nothing needs
+     to grow; capping at 3 x line-height keeps the crop honest (and enforces it at
+     all where -webkit-line-clamp isn't supported). */
+  max-height: var(--blog-excerpt-h);
 }
 
 .blog-card-footer {
@@ -132,6 +173,9 @@
   /* Now that cards are equal height, pin Read more / Share to the bottom so a
      card with no excerpt doesn't leave its footer floating mid-card. */
   margin-top: auto;
+  /* Naturally this tall from the Share glyph — stated so the skeleton's plain
+     bars, which are shorter, reserve the same strip. */
+  min-height: var(--blog-footer-h);
 }
 
 .blog-readmore {
@@ -140,6 +184,11 @@
   color: #101318;
   text-decoration: underline;
   text-underline-offset: 2px;
+  /* Both footer labels are fixed two-word strings, and the footer is one of the
+     reserved boxes — let "Read more" break across two lines in a narrow column
+     and the footer grows to 36px, which is 12px of CLS the skeleton can't know
+     about. Measured: it wraps once a card is under ~150px wide. */
+  white-space: nowrap;
 }
 
 .blog-readmore:hover {
@@ -180,18 +229,20 @@
 
 /* ── Skeleton (while the collection read is in flight) ─────────────────────── */
 
+/* The skeleton card reuses .blog-card / .blog-card-img / .blog-card-body /
+   .blog-card-footer verbatim, so radius, shadow, image height, padding, gap and
+   the pinned footer are the real card's by construction rather than by copy. The
+   only additions are the grey fills and the three .blog-skel-box wrappers, which
+   stand in for the title / byline / excerpt at exactly their reserved heights.
+   Net effect: a skeleton card and a loaded card are the same box, so swapping one
+   for the other moves nothing. */
+
 .blog-card--skeleton {
   pointer-events: none;
 }
 
 .blog-card--skeleton .blog-card-img {
   background: #eceef1;
-}
-
-.blog-card--skeleton .blog-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .blog-skel {
@@ -202,10 +253,47 @@
   animation: blog-skel-shimmer 1.4s ease-in-out infinite;
 }
 
-.blog-skel--title { height: 30px; width: 90%; }
-.blog-skel--byline { height: 16px; width: 60%; }
-.blog-skel--text { height: 16px; width: 100%; }
-.blog-skel--text.short { width: 75%; }
+/* One text block's placeholder. Bars share the box out with `flex: 1` instead of
+   carrying hardcoded heights, so the arithmetic can't drift out of step with the
+   --blog-*-h tokens. */
+.blog-skel-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.blog-skel-box .blog-skel {
+  flex: 1;
+  min-height: 0;
+}
+
+.blog-skel-box--title { height: var(--blog-title-h); }
+.blog-skel-box--excerpt { height: var(--blog-excerpt-h); }
+
+/* The byline is a single line inside a box that is two lines tall on a narrow
+   phone, so centre the bar rather than stretching it. */
+.blog-skel-box--byline {
+  height: var(--blog-byline-h);
+  justify-content: center;
+}
+
+.blog-skel-box--byline .blog-skel {
+  flex: 0 0 auto;
+  height: 14px;
+}
+
+.blog-skel--readmore { height: 16px; width: 86px; }
+.blog-skel--share { height: 20px; width: 78px; }
+
+/* Stand-in for a .blog-dot in the mobile skeleton's strip. */
+.blog-skel--dot {
+  width: var(--blog-dot-size);
+  height: var(--blog-dot-size);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 
 @keyframes blog-skel-shimmer {
   from { background-position: 100% 50%; }
@@ -243,6 +331,8 @@
   color: #101318;
   text-decoration: underline;
   text-underline-offset: 2px;
+  /* Same reason as .blog-readmore. */
+  white-space: nowrap;
 }
 
 .blog-share:hover {
@@ -321,9 +411,17 @@
   transform: rotate(180deg);
 }
 
+/* The mobile carousel's dots strip. Its height is stated rather than left to the
+   dots, because the row renders empty for a single post — see BlogsListing.tsx.
+   The dots never wrap (.blog-pagination is nowrap), so the count can't change it
+   and the skeleton can reserve it without knowing how many posts there are. */
+.blog-pagination-dots {
+  min-height: var(--blog-dot-size);
+}
+
 .blog-dot {
-  width: 16px;
-  height: 16px;
+  width: var(--blog-dot-size);
+  height: var(--blog-dot-size);
   border-radius: 50%;
   background: #dfe3e8;
   border: none;
@@ -371,5 +469,14 @@
 
   .blog-mobile .blog-pagination {
     justify-content: center;
+  }
+}
+
+/* Narrow phones: "By {author},  {date}" no longer fits one 14px line here, so
+   give the byline both of them. Widening the box beats `text-overflow: ellipsis`
+   — the part that would be dropped is the publish date. */
+@media (max-width: 480px) {
+  .blog-wrapper {
+    --blog-byline-h: 48px;
   }
 }

@@ -21,6 +21,15 @@ export function ChevronRight({ size = 16, className }: { size?: number; classNam
   );
 }
 
+/** Figma "chevron-big/chevron-big-left" — the mega menu's back control. */
+export function ChevronLeft({ size = 24, className }: { size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function PhoneIcon({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
