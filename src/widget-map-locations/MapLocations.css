@@ -543,6 +543,22 @@
 
 .ml-mtoggles { display: flex; gap: 12px; align-items: center; }
 
+/* Mobile toggles (Figma 10609:72461 / :72455): same 44px pill as desktop but
+   20px side padding rather than 21px, and the "Map View" label is Regular where
+   the pill's default is Medium — "Filter & Sort" keeps Medium. */
+.ml-mtoggles .ml-pill { padding: 8px 20px; }
+.ml-pill--view { font-weight: 400; }
+
+/* Badge overhangs the top-right corner: right -2.5px, top -12px (10609:72459). */
+.ml-mtoggles .ml-pill-badge {
+  top: -12px;
+  right: -2.5px;
+  width: 24px;
+  height: 24px;
+  font-size: 14.4px;
+  font-weight: 600;
+}
+
 /* ── Orange CTA — mobile card body + map popup ─────────────────────────── */
 
 .ml-cta {
@@ -1052,4 +1068,71 @@
   .ml-fp-foot { padding-inline: 16px; }
 
   .ml-fp-section { padding: 10px 16px 20px; }
+}
+
+
+/* ── Mobile filter panel (Figma 10622-2170) ────────────────────────────────
+   Full-bleed sheet rather than the desktop's centred card, and it carries the
+   Sort group the desktop modal doesn't have. */
+
+.ml-fp--full {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  height: 100%;
+  border-radius: 0;
+  border: 0;
+}
+
+/* Sort / Distance select, styled as the Form 2.0 box the frame uses. */
+/* Visually hidden but readable by a screen reader — the select needs a name. */
+.ml-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ml-fp-select {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.ml-fp-select select {
+  width: 100%;
+  height: 56px;
+  padding: 0 48px 0 16px;
+  border: 1px solid var(--hb-cloud-darker, #a5b4bf);
+  border-radius: 8px;
+  background: #fff;
+  color: #101318;
+  font-family: inherit;
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.ml-fp-select select:focus-visible {
+  outline: none;
+  border-color: #101318;
+  box-shadow: 0 0 0 3px rgba(16, 19, 24, 0.18);
+}
+.ml-fp-select-chev {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: #637381;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  /* The panel fills the screen, so its overlay carries no padding. */
+  .ml-fp-overlay { padding: 0; }
+  /* Price stacks on mobile — the frame puts Min above Max, full width each. */
+  .ml-fp-fields { grid-template-columns: 1fr; flex-direction: column; }
 }

@@ -22,7 +22,7 @@ import { PROPERTY_IMAGES } from '@shared/demoImages';
 import { FilterPanel } from './FilterPanel';
 import { INITIAL_FILTERS, activeFilterCount, type FilterState } from './filters';
 import { useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
-import { FilterIcon, ChevronBigDownIcon, SortIcon, StarIcon, TagIcon } from './icons';
+import { FilterIcon, ChevronBigDownIcon, SortIcon, StarIcon, TagIcon, MapLocationIcon } from './icons';
 
 // ── Icons (inline SVG — the AMD bundle can't load remote assets) ─────────────
 
@@ -418,10 +418,10 @@ export function MapLocations({
               {/* Names the view you'd switch TO, as the frames do. */}
               <button
                 type="button"
-                className="ml-pill"
+                className="ml-pill ml-pill--view"
                 onClick={() => setMobileView((v) => (v === 'map' ? 'list' : 'map'))}
               >
-                {mobileView === 'map' ? Icon.listView : Icon.mapView}
+                {mobileView === 'map' ? Icon.listView : <MapLocationIcon size={24} />}
                 <span>{mobileView === 'map' ? 'List View' : 'Map View'}</span>
               </button>
 
@@ -538,6 +538,15 @@ export function MapLocations({
       {/* Filter lightbox — its overlay is fixed, so where it sits here is moot. */}
       {filtersOpen && (
         <FilterPanel
+          // Mobile only: the button says "Filter & Sort", so the sort lives in
+          // the panel. Desktop keeps its own header pill (Figma 10557-146402
+          // has no Sort group).
+          {...(isMobile ? {
+            sortOptions: SORT_OPTIONS,
+            sortBy,
+            onSortChange: (id: string) => setSortBy(id as SortId),
+            fullScreen: true,
+          } : {})}
           filters={filters}
           onChange={setFilters}
           onClose={() => setFiltersOpen(false)}
