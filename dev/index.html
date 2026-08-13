@@ -33,9 +33,39 @@
       background: none; padding: 10px 16px; font-size: 14px; font-weight: 600; color: #6b7280; cursor: pointer; }
     .page-tab:hover { background: none; color: #374151; }
     .page-tab.active { color: #f45f30; border-bottom-color: #f45f30; }
+
+    /* Mobile preview (dev-only). The frame is a real iframe, not a narrowed
+       div: widgets test `(max-width: 768px)` against the VIEWPORT, and an
+       iframe has its own — a narrow div would leave every media query still
+       matching desktop and show the wrong layout. */
+    .mobile-btn { position: fixed; top: 12px; right: 12px; z-index: 99999;
+      padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 8px;
+      background: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+    .mobile-btn:hover { background: #f3f4f6; }
+    .mobile-wrap { position: fixed; inset: 0; z-index: 99998; display: none;
+      background: rgba(16,19,24,.55); }
+    .mobile-wrap.on { display: flex; align-items: center; justify-content: center; gap: 16px; flex-direction: column; }
+    .mobile-frame { width: 393px; height: 844px; max-height: calc(100vh - 96px);
+      border: 0; border-radius: 24px; background: #fff; box-shadow: 0 12px 48px rgba(0,0,0,.4); }
+    .mobile-size { display: flex; gap: 8px; }
+    .mobile-size button { padding: 5px 10px; font-size: 12px; }
+    .mobile-hint { color: #fff; font-size: 12px; opacity: .8; }
   </style>
 </head>
 <body>
+
+  <button class="mobile-btn" id="mobile-btn" onclick="toggleMobile()">Mobile</button>
+
+  <div class="mobile-wrap" id="mobile-wrap" onclick="if(event.target===this)toggleMobile()">
+    <div class="mobile-size">
+      <button onclick="setMobileWidth(393)">393 iPhone</button>
+      <button onclick="setMobileWidth(360)">360 Android</button>
+      <button onclick="setMobileWidth(768)">768 Tablet</button>
+    </div>
+    <iframe class="mobile-frame" id="mobile-frame" title="Mobile preview"></iframe>
+    <p class="mobile-hint">Click the backdrop or press Esc to close. Reopen to reload.</p>
+  </div>
 
   <h1>Tenantinc Widget Dev Harness</h1>
   <p class="subtitle">
@@ -541,6 +571,42 @@
 
       if (navigationBarWidget && navEl)    navigationBarWidget.init({ container: navEl,    props: {} });
       if (footerWidget        && footerEl) footerWidget.init({        container: footerEl, props: {} });
+    }
+
+    // Mobile preview. `frame=1` stops the iframe rendering its own button and
+    // nesting previews; it also keeps whichever tab is open so you land on the
+    // same page you were looking at.
+    function toggleMobile() {
+      var wrap = document.getElementById('mobile-wrap');
+      var on = !wrap.classList.contains('on');
+      wrap.classList.toggle('on', on);
+      document.body.style.overflow = on ? 'hidden' : '';
+      var frame = document.getElementById('mobile-frame');
+      // Set src only while open, and clear on close, so the widgets inside are
+      // torn down rather than left running behind the backdrop.
+      frame.src = on
+        ? location.pathname + '?frame=1&page=' + encodeURIComponent(currentPage())
+        : 'about:blank';
+    }
+
+    function setMobileWidth(px) {
+      document.getElementById('mobile-frame').style.width = px + 'px';
+    }
+
+    function currentPage() {
+      var active = document.querySelector('.page-tab.active');
+      return active ? active.getAttribute('data-page') : PAGES[0];
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && document.getElementById('mobile-wrap').classList.contains('on')) {
+        toggleMobile();
+      }
+    });
+
+    // Inside the preview frame: hide the button so it can't nest.
+    if (new URLSearchParams(location.search).get('frame') === '1') {
+      document.getElementById('mobile-btn').style.display = 'none';
     }
 
     function showPage(name, skipUrl) {
