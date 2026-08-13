@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSwipe } from '@shared/useSwipe';
 import { Shimmer } from '@shared/Shimmer';
 import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
+import { CarouselChevron } from '../chevron';
 
 type Platform = 'google' | 'yelp';
 
@@ -224,9 +225,7 @@ export function ReviewsSection() {
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
           >
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="17 8 11 14 17 20"/>
-            </svg>
+            <CarouselChevron dir="left" />
           </button>
           {reviews.map((_, i) => (
             <button
@@ -240,9 +239,7 @@ export function ReviewsSection() {
             onClick={() => setPage((p) => Math.min(total - 1, p + 1))}
             disabled={page === total - 1}
           >
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="11 8 17 14 11 20"/>
-            </svg>
+            <CarouselChevron dir="right" />
           </button>
         </div>
       )}

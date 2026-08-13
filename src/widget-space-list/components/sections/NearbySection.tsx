@@ -14,6 +14,7 @@ import cfg from '../../config.json';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { usePropertyId } from '../../propertyContext';
 import { PromoTagIcon } from '../Pricing';
+import { CarouselChevron } from '../chevron';
 
 type ViewMode = 'list' | 'map';
 
@@ -62,24 +63,6 @@ const DEMO_PROPERTIES: NearbyProperty[] = [
 // #509e2f fill, so it neither matched the shape nor could be themed.
 const TagIcon = PromoTagIcon;
 
-// Carousel arrows: the SAME Pika chevron the sidebar accordion headers use
-// (SectionAccordion), rotated rather than re-drawn — rotating one path keeps the
-// geometry provably identical, where hand-mirroring the Bézier coordinates could
-// drift. 24x24 with no scaling, so the stroke stays a true 2px like the
-// accordion's; the 40px button centres it.
-// Down-chevron rotated +90deg points left, -90deg points right.
-function CarouselChevron({ dir }: { dir: 'left' | 'right' }) {
-  return (
-    <svg
-      width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-      style={{ transform: `rotate(${dir === 'left' ? 90 : -90}deg)` }}
-      aria-hidden="true"
-    >
-      <path d="M6 9C7.57701 11.1808 9.42293 13.1364 11.4899 14.8172C11.7897 15.0609 12.2103 15.0609 12.5101 14.8172C14.5771 13.1364 16.423 11.1808 18 9" />
-    </svg>
-  );
-}
 
 function MapPinIcon() {
   return (

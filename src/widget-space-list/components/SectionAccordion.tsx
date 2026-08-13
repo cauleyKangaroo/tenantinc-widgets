@@ -8,6 +8,7 @@ import { StoreSection } from './sections/StoreSection';
 import { NotesSection } from './sections/NotesSection';
 import { AboutSection } from './sections/AboutSection';
 import { FeaturesSection } from './sections/FeaturesSection';
+import { CHEVRON_PATH } from './chevron';
 import {
   ACCORDION_SECTIONS,
   resolveVisibleOrder,
@@ -168,7 +169,7 @@ function AccordionRow({ item, open, onToggle }: { item: AccordionItemDef; open: 
           )}
         </div>
         <svg className="sl-sa-chevron" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 9C7.57701 11.1808 9.42293 13.1364 11.4899 14.8172C11.7897 15.0609 12.2103 15.0609 12.5101 14.8172C14.5771 13.1364 16.423 11.1808 18 9" />
+          <path d={CHEVRON_PATH} />
         </svg>
       </button>
       {open && <div className="sl-sa-body">{item.content}</div>}

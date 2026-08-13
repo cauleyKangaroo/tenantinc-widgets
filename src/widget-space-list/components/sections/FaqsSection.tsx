@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { RichText } from '@shared/richText';
+import { CHEVRON_PATH } from '../chevron';
 
 interface Faq {
   id: number;
@@ -39,7 +40,10 @@ function FaqItem({ faq, isLast }: { faq: Faq; isLast: boolean }) {
           fill="none" stroke="currentColor" strokeWidth="2"
           strokeLinecap="round" strokeLinejoin="round"
         >
-          <polyline points="6 9 12 15 18 9"/>
+          {/* Same curve as the outer accordion headers — this is an accordion
+              inside an accordion, so a different chevron read as a different
+              control. .sl-faq2-chevron.open still flips it 180deg. */}
+          <path d={CHEVRON_PATH} />
         </svg>
       </button>
       {open && (
