@@ -5,7 +5,7 @@ import { ProtectionPlanModal } from './ProtectionPlanModal';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
-import { FormField, Button, Checkbox, type FieldType } from '@shared/ui';
+import { FormField, Button, Checkbox, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space today" (Figma 8507-23329).
@@ -18,7 +18,7 @@ const formatDate = (d: Date) => `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}, $
 
 // Label-above text field (empty state, grey border).
 function FieldAbove({
-  label, required, value, onChange, type = 'text', error,
+  label, required, value, onChange, type = 'text', error, phoneCountry,
 }: {
   label: string;
   required?: boolean;
@@ -27,6 +27,8 @@ function FieldAbove({
   type?: FieldType;
   /** Payment was attempted while this required field is empty/invalid. */
   error?: boolean;
+  /** Opt in libphonenumber as-you-type formatting for a tel field. */
+  phoneCountry?: PhoneCountry;
 }) {
   const errorMsg = error
     ? type === 'email'
@@ -43,6 +45,7 @@ function FieldAbove({
       onChange={onChange}
       required={required}
       error={errorMsg}
+      phoneCountry={phoneCountry}
     />
   );
 }
@@ -228,7 +231,7 @@ export function Step2({
   // sections only gate while expanded (their checkbox is optional; the
   // fields inside are not).
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const phoneOk = phone.replace(/\D/g, '').length >= 10;
+  const phoneOk = isPossiblePhone(phone, 'US');
   const required: Array<[key: string, ok: boolean]> = [
     ['email', emailOk],
     ['phone', phoneOk],
@@ -241,7 +244,7 @@ export function Step2({
     ...(military ? [['dob', dob.trim().length > 0]] as Array<[string, boolean]> : []),
     ...(altContact ? [['acFirst', acFirst.trim().length > 0],
       ['acLast', acLast.trim().length > 0],
-      ['acPhone', acPhone.replace(/\D/g, '').length >= 10],
+      ['acPhone', isPossiblePhone(acPhone, 'US')],
       ['acEmail', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(acEmail.trim())],
       ['acAddress', acAddress.trim().length > 0]] as Array<[string, boolean]> : []),
     ...(vehicle ? [['vehType', vehType.trim().length > 0]] as Array<[string, boolean]> : []),
@@ -279,7 +282,7 @@ export function Step2({
       <div className="rf2-form">
         <div className="rf2-row">
           <FieldAbove label="Email" required value={email} onChange={setEmail} type="email" error={bad('email')} />
-          <FieldAbove label="Phone Number" required value={phone} onChange={setPhone} type="tel" error={bad('phone')} />
+          <FieldAbove label="Phone Number" required value={phone} onChange={setPhone} type="tel" phoneCountry="US" error={bad('phone')} />
         </div>
         <div className="rf2-row">
           <FieldAbove label="First Name" required value={first} onChange={setFirst} error={bad('first')} />
@@ -343,7 +346,7 @@ export function Step2({
                   <FieldAbove label="Last Name" required value={acLast} onChange={setAcLast} error={bad('acLast')} />
                 </div>
                 <div className="rf2-row">
-                  <FieldAbove label="Phone" required value={acPhone} onChange={setAcPhone} type="tel" error={bad('acPhone')} />
+                  <FieldAbove label="Phone" required value={acPhone} onChange={setAcPhone} type="tel" phoneCountry="US" error={bad('acPhone')} />
                   <FieldAbove label="Email" required value={acEmail} onChange={setAcEmail} type="email" error={bad('acEmail')} />
                 </div>
                 <FieldAbove label="Address" required value={acAddress} onChange={setAcAddress} error={bad('acAddress')} />
