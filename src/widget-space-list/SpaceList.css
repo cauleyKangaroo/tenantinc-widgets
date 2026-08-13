@@ -2753,12 +2753,16 @@
 }
 
 /* Pagination */
+/* Equal 24px above and below. Was 20/24 — near enough to look intentional but
+   not actually symmetric. The 24px bottom is load-bearing: .sl-nb2-content
+   --no-pager mirrors it so map view (which has no pager) ends at the same
+   offset, so the TOP moved to match rather than the bottom. */
 .sl-wrapper .sl-nb2-pagination {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: 20px 0 24px;
+  padding: 24px 0;
 }
 
 .sl-wrapper .sl-nb2-arrow {
@@ -3342,15 +3346,25 @@
    BLOG SECTION v2  (.sl-blog2-*)
    =========================================================================== */
 
+/* Grey on the WHOLE section, the same way .sl-nb2 does it. Only .sl-blog2-bg
+   was grey before, and the pagination sits outside it, so the carousel controls
+   landed on a white strip below the section while Nearby Storage's sat on grey.
+   .sl-blog2-bg keeps its own background — harmless now that it matches, and it
+   stays correct if the two ever need to differ again. */
 .sl-wrapper .sl-blog2 {
+  background: #f4f6f8;
   display: flex;
   flex-direction: column;
 }
 
 /* Gray background zone */
+/* No BOTTOM padding: it used to be 24px and stacked with the pagination's own
+   top padding below it, putting 40px above the carousel controls against 22px
+   below. The gap above the controls is the pagination's job alone, exactly as
+   .sl-nb2-content leaves it in Nearby Storage. */
 .sl-wrapper .sl-blog2-bg {
   background: #f4f6f8;
-  padding: 21px 28px 24px;
+  padding: 21px 28px 0;
 }
 
 /* White card */
@@ -3498,12 +3512,13 @@
 }
 
 /* Pagination */
+/* Equal 24px above and below, same as .sl-nb2-pagination. */
 .sl-wrapper .sl-blog2-pagination {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px 0 22px;
+  padding: 24px 0;
 }
 
 .sl-wrapper .sl-blog2-arrow {
