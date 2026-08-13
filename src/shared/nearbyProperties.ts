@@ -47,6 +47,12 @@ export interface NearbyBaseProperty {
   /** Raw city/state off the Address object — for filtering (see #08 map-locations). */
   city?: string;
   state?: string;
+  /**
+   * `state/city/property-name-<id>` — the property's page path. Kept because it,
+   * not Address, is what the nav's links are built from; see the note at the
+   * assignment in extractNearbyProperties.
+   */
+  slug?: string;
   phone: string;
   /** First facility photo URL from the API, if any (else undefined → placeholder). */
   imageUrl?: string;
@@ -83,6 +89,8 @@ interface ApiPropertyRaw {
   Address?: ApiAddress | '';
   Phones?: ApiPhone[] | '';
   Images?: unknown[] | '';
+  /** `state/city/property-name-<id>` — the page path. */
+  slug?: string;
 }
 
 interface PropertiesResponse {
@@ -239,6 +247,11 @@ export function extractNearbyProperties(
       // exactly, rather than substring-matching "…, Irvine, CA 92620".
       city: (addr.city ?? '').trim(),
       state: (addr.state ?? '').trim(),
+      // The slug is the PAGE URL, so a /locations/{state}/{city} page has to be
+      // able to match on it — the nav builds those links from the slug, and the
+      // slug and Address disagree on three live properties. Address alone would
+      // leave a nav link resolving to an empty page.
+      slug: typeof p.slug === 'string' ? p.slug.trim() : '',
       phone: firstPhone ? formatPhone(firstPhone.phone ?? firstPhone.number ?? '') : '',
       imageUrl: firstImageUrl(p.Images),
     });

@@ -27,9 +27,11 @@ import {
   INITIAL_FILTERS, activeFilterCount, filterFacilities, deriveFilterOptions, visibleUnits,
   type FilterState,
 } from './filters';
-import { fetchCityProperties, fetchCitySpaces, toCityFacility } from './api';
+import { fetchPlaceProperties, fetchCitySpaces, toCityFacility, type PlaceScope } from './api';
 import { getUserLocation } from '@shared/nearbyProperties';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { stateNameFromCode } from '@shared/usStates';
+import { slugLabel } from '@shared/propertyNav';
 import { fetchGoogleRatingsByPlace, ratingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import cfg from './config.json';
@@ -252,6 +254,18 @@ export interface MapLocationsProps {
    */
   city?: string;
   /**
+   * State page scope, e.g. "california" or "CA". Set on `/locations/{state}`.
+   * Normally omitted — it is read from the URL (see `locationBasePath`).
+   */
+  state?: string;
+  /**
+   * Path the location pages live under. `/locations` by default, matching the
+   * links #02's mega menu builds, so `/locations/{state}` and
+   * `/locations/{state}/{city}` are parsed off the URL with nothing passed from
+   * Duda at all. Set it if the pages move.
+   */
+  locationBasePath?: string;
+  /**
    * Company whose properties to list. Normally omitted — it resolves from the
    * `Company` collection, with config.json as the editor/harness fallback.
    */
@@ -302,23 +316,70 @@ const DEFAULT_SEO = `<p><strong>Storage in Fullerton</strong></p>
 <p><strong>Self Storage Features</strong><br>At our storage facilities, we offer a wide range of features and amenities that make packing and self storage easy. You will find drive-up storage units for simple loading and unloading, delivery receiving services, packing and moving supplies right on site, and long gate access hours.</p>
 <p><strong>Secure Storage Units</strong><br>When you rent storage units in Fullerton, CA, you want total security. Our property is covered with 24/7 video surveillance, electronic gate access, and a manager who is always on site.</p>`;
 
+/**
+ * `/locations/california/fullerton` → { state: 'california', city: 'fullerton' }
+ *
+ * The page URL already says which place it is, so a state or city page needs
+ * NOTHING passed from Duda. Explicit props still win — a static page, the dev
+ * harness, and the Duda editor (where the path is the editor's, not the site's)
+ * all need to be able to say it outright.
+ *
+ * Anything that is not under the base path returns {} and the widget lists the
+ * whole portfolio, which is the same fallback as an unconfigured instance.
+ */
+export function parseLocationPath(pathname: string, basePath = DEFAULT_LOCATION_BASE_PATH): PlaceScope {
+  const base = basePath.trim().replace(/^\/+|\/+$/g, '').toLowerCase();
+  const parts = pathname.split('/').map((v) => v.trim()).filter(Boolean).map(decodeURIComponent);
+  if (base) {
+    // Find the base anywhere in the path — Duda can serve a page from a nested
+    // path, and a leading language segment (/en/locations/...) is common.
+    const at = parts.findIndex((v) => v.toLowerCase() === base);
+    if (at === -1) return {};
+    parts.splice(0, at + 1);
+  }
+  return { state: parts[0] ?? '', city: parts[1] ?? '' };
+}
+
+/** Where the state/city pages live. Matches #02's mega-menu links. */
+const DEFAULT_LOCATION_BASE_PATH = '/locations';
+
 // ── Component ───────────────────────────────────────────────────────────────
 
 export function MapLocations({
-  // TEST DEFAULT: Bakersfield is currently the only city whose properties carry
-  // real coordinates, so it's the one that exercises the map and distances.
-  // The editor sets this per page; it is not a production value.
-  city = 'Bakersfield, CA',
+  city,
+  state,
+  locationBasePath = DEFAULT_LOCATION_BASE_PATH,
   companyId,
   seoHeading,
   seoContent = DEFAULT_SEO,
   rowHeight = 900,
   sortLabel = 'Closest Distance',
 }: MapLocationsProps) {
-  // Duda text fields arrive as '' until the editor types something, and a default
-  // parameter only catches `undefined` — so fall back on blank too, or the
-  // headings read "Storage Facilities in ".
-  const cityLabel = city.trim() || 'Bakersfield, CA';
+  // The page URL is the source of truth on /locations/{state}[/{city}], so a
+  // real page passes nothing. Props override it for static pages, the harness,
+  // and the Duda editor — where the path is the editor's, not the site's.
+  // Duda text fields arrive as '' until the editor types something, and a
+  // default parameter only catches `undefined`, so trim-then-fall-back.
+  const fromUrl = useMemo(
+    () => parseLocationPath(
+      typeof window === 'undefined' ? '' : window.location.pathname,
+      locationBasePath,
+    ),
+    [locationBasePath],
+  );
+  const scope: PlaceScope = {
+    state: (state ?? '').trim() || fromUrl.state || '',
+    city: (city ?? '').trim() || fromUrl.city || '',
+  };
+
+  // Heading reads "… in Fullerton, CA" on a city page and "… in California" on a
+  // state page. Prefer whatever the editor typed — it carries the ", CA" the
+  // slug can't — and title-case a slug segment otherwise.
+  const cityLabel =
+    (city ?? '').trim()
+    || (scope.city ? slugLabel(scope.city) : '')
+    || (scope.state ? stateNameFromCode(scope.state) || slugLabel(scope.state) : '')
+    || 'all locations';
 
   const [sortBy, setSortBy] = useState<SortId>('distance');
   const [sortOpen, setSortOpen] = useState(false);
@@ -369,7 +430,7 @@ export function MapLocations({
         // Not named `props` — eslint-plugin-react reads `props.map(…)` inside a
         // component as prop access and demands prop-types for it.
         const [cityProps, userLoc] = await Promise.all([
-          fetchCityProperties(api, city),
+          fetchPlaceProperties(api, scope),
           // Distances are only meaningful from somewhere. Declined geolocation
           // is normal, not an error: the cards then omit the distance line and
           // "Closest Distance" degrades to the API's own order.
@@ -395,7 +456,7 @@ export function MapLocations({
     })();
 
     return () => { cancelled = true; };
-  }, [resolvedCompanyId, city]);
+  }, [resolvedCompanyId, scope.state, scope.city]);
 
   // Filter panel (Figma 10557:146492) — a centred lightbox, like #05's.
   const [filtersOpen, setFiltersOpen] = useState(false);

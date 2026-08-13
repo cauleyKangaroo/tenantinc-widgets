@@ -30,6 +30,7 @@ import {
   type NearbyApiConfig,
   type NearbyBaseProperty,
 } from '@shared/nearbyProperties';
+import { sameState } from '@shared/usStates';
 import { fetchWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import type { CityFacility, CityUnit } from './data';
 
@@ -128,25 +129,87 @@ function tierPromoName(t: ApiTier): string | undefined {
 // 1. The city's properties
 // ---------------------------------------------------------------------------
 
+/** Slug/label key: lowercase, letters and digits only. "Huntington Beach",
+ *  "huntington-beach" and "HuntingtonBeach" all collapse to the same thing. */
+function placeKey(v: string): string {
+  return v.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** The state / city segments of `state/city/property-name-<id>`. */
+function slugParts(slug: string): { state: string; city: string } {
+  const parts = (slug || '').split('/').filter(Boolean);
+  return { state: parts[0] ?? '', city: parts[1] ?? '' };
+}
+
 /**
- * Every property in `city`, as cards with no spaces attached yet.
+ * Where a page can scope this widget. Both optional:
+ *   {}                              → every property
+ *   { state: 'california' }         → the state page
+ *   { state: 'california', city: 'fullerton' } → the city page
+ */
+export interface PlaceScope {
+  state?: string;
+  city?: string;
+}
+
+/**
+ * Does this property belong on the page for `scope`?
  *
- * `requireCoords: false` — this page lists by city, not by distance, so a
+ * Matched against the SLUG **or** the Address, because the two disagree in the
+ * live data and each is authoritative for something different:
+ *  - the slug is what the nav builds `/locations/{state}/{city}` links from, so
+ *    a link must find its properties;
+ *  - the Address is what a human means when they type "Gardena".
+ * Gardena's slug says `california/irvine`, so matching only one of the two would
+ * either break the nav link or break the obvious search. Accepting either finds
+ * it both ways, and the cost is that a property can appear under two cities
+ * until the upstream slugs are fixed.
+ */
+export function matchesPlace(p: NearbyBaseProperty, scope: PlaceScope): boolean {
+  const slug = slugParts(p.slug ?? '');
+
+  if (scope.state) {
+    const bySlug = sameState(slug.state, scope.state);
+    // Address holds the CODE ("CA") while the URL holds the name — sameState
+    // bridges them either way round.
+    const byAddress = sameState(p.state ?? '', scope.state);
+    if (!bySlug && !byAddress) return false;
+  }
+
+  if (scope.city) {
+    const want = placeKey(cityNameOf(scope.city));
+    if (want && placeKey(slug.city) !== want && placeKey(p.city ?? '') !== want) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Every property for a place, as cards with no spaces attached yet.
+ *
+ * `requireCoords: false` — this page lists by place, not by distance, so a
  * property with no lat/lng still belongs here (and today they ALL lack them;
  * see @shared/nearbyProperties). Callers read `hasCoords` before mapping.
  *
- * An empty `city` returns every property rather than none: an unconfigured
- * widget showing the whole portfolio is a better failure than a blank page.
+ * An empty scope returns every property rather than none: an unconfigured widget
+ * showing the whole portfolio is a better failure than a blank page.
  */
+export async function fetchPlaceProperties(
+  cfg: CityApiConfig,
+  scope: PlaceScope,
+): Promise<NearbyBaseProperty[]> {
+  const raw = await fetchPropertiesShared(cfg);
+  const all = extractNearbyProperties(raw, cfg.appId, { requireCoords: false });
+  if (!scope.state && !scope.city) return all;
+  return all.filter((p) => matchesPlace(p, scope));
+}
+
+/** @deprecated Use `fetchPlaceProperties` — kept so existing callers compile. */
 export async function fetchCityProperties(
   cfg: CityApiConfig,
   city: string,
 ): Promise<NearbyBaseProperty[]> {
-  const raw = await fetchPropertiesShared(cfg);
-  const all = extractNearbyProperties(raw, cfg.appId, { requireCoords: false });
-  const want = cityKey(cityNameOf(city));
-  if (!want) return all;
-  return all.filter((p) => cityKey(p.city ?? '') === want);
+  return fetchPlaceProperties(cfg, { city });
 }
 
 // ---------------------------------------------------------------------------
