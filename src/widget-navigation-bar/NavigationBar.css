@@ -225,8 +225,23 @@
   color: var(--color_1, #f45f30);
 }
 
+/* "Find Storage" is a <button> — it toggles the mega menu rather than navigating,
+   so it must not be a link. Reset the button chrome back to the link's look. */
+.nav-link-trigger {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
 .nav-link-chevron {
   color: #111;
+  transition: transform 0.15s ease;
+}
+
+.nav-link-chevron.is-open {
+  transform: rotate(180deg);
 }
 
 /* ── Two-level hover mega-menu ───────────────────────────────────────────── */

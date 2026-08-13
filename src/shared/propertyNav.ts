@@ -23,8 +23,9 @@
 // facility ("Storage Outlet Escondido" for what is actually Gardena).
 // ===========================================================================
 
-import { readCollection, str, logSource, hasCollectionsApi } from './dudaCollections';
+import { readCollection, str, plainText, logSource, hasCollectionsApi } from './dudaCollections';
 import { PROPERTIES_COLLECTION } from './propertiesSource';
+import { formatPhone } from './propertyContact';
 
 /** One facility — the third level. */
 export interface NavProperty {
@@ -33,6 +34,23 @@ export interface NavProperty {
   href: string;
   /** The raw slug, for callers that build their own URLs. */
   slug: string;
+  /** "8478 3rd Street, Fullerton, CA 02027" — '' when the row carries no Address. */
+  address: string;
+  /**
+   * `Address.city` verbatim, kept alongside the slug-derived city label because
+   * the two disagree in the live data (a row reads "LancasTER", and Gardena's
+   * slug says Irvine). Search matches both so either spelling finds the place.
+   */
+  city: string;
+  /** `Address.zip`, for ZIP search. '' when the row carries no Address. */
+  zip: string;
+  /** Formatted primary phone, e.g. "(888) 888-8888"; '' when the row has none. */
+  phone: string;
+  /** Raw digits for tel: links. */
+  phoneDigits: string;
+  /** Coordinates for distance sorting; null when the Address has none. */
+  lat: number | null;
+  lng: number | null;
 }
 
 /** One city — the second level. */
@@ -41,6 +59,15 @@ export interface NavCity {
   key: string;
   label: string;
   properties: NavProperty[];
+  /**
+   * Where the city name itself points.
+   *
+   * ONE facility in the city → straight to that facility's page: a city page
+   * listing a single property would be a pointless extra click. TWO OR MORE →
+   * the city page, `/locations/<state>/<city>`, because there is nothing to pick
+   * between at the city level otherwise.
+   */
+  href: string;
 }
 
 /** One state — the first level. */
@@ -49,6 +76,8 @@ export interface NavState {
   key: string;
   label: string;
   cities: NavCity[];
+  /** Facilities across every city in the state — the mega menu's count bubble. */
+  propertyCount: number;
 }
 
 /** "huntington-beach" → "Huntington Beach". */
@@ -105,7 +134,19 @@ export interface BuildTreeOptions {
    * `/storage-units//california/…`.
    */
   basePath?: string;
+  /**
+   * Path the CITY pages live under — `/locations/<state>/<city>`, the default.
+   * Only used for cities holding more than one facility (see `NavCity.href`).
+   * Normalised exactly like `basePath`.
+   *
+   * NOTE: those city pages are not built yet. The links are correct by
+   * construction, but they 404 until the pages exist.
+   */
+  cityBasePath?: string;
 }
+
+/** Where the city pages live. */
+export const DEFAULT_CITY_BASE_PATH = '/locations';
 
 /** '' | 'x' | '/x' | '/x/' → '' | '/x'. */
 export function normaliseBasePath(basePath: string): string {
@@ -119,6 +160,69 @@ export interface PropertyRowLike {
   id?: unknown;
   name?: unknown;
   slug?: unknown;
+  /** External collection ⇒ already-parsed object. Anything else is ignored. */
+  Address?: unknown;
+  /** External collection ⇒ already-parsed array. */
+  Phones?: unknown;
+}
+
+/**
+ * A collection value that should be JSON, however it arrives.
+ *
+ * `Properties` is an EXTERNAL collection, so `Address` and `Phones` come through
+ * as a parsed object and array (see @shared/propertiesSource) — that is the normal
+ * path. But Duda's collection editor types EVERY column "Rich Text" regardless,
+ * so a site whose columns went through the rich-text path would hand back the JSON
+ * as a string, possibly wrapped in `<p class="rteBlock">`. Accept all three rather
+ * than silently dropping every address, phone and map pin on such a site.
+ *
+ * Anything that still isn't JSON returns null, so the caller renders a row with no
+ * address instead of "[object Object]".
+ */
+function asJson<T>(v: unknown): T | null {
+  if (v && typeof v === 'object') return v as T;
+  const s = plainText(v).trim();
+  if (!s || (s[0] !== '{' && s[0] !== '[')) return null;
+  try {
+    return JSON.parse(s) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Contact details off a row, for the mega menu's "Nearby Storage Facilities"
+ * column and for the keyword search (which matches on the address line).
+ */
+function rowContact(
+  row: PropertyRowLike,
+): Pick<NavProperty, 'address' | 'city' | 'zip' | 'phone' | 'phoneDigits' | 'lat' | 'lng'> {
+  const addr = asJson<Record<string, unknown>>(row.Address);
+  const address = addr
+    ? [
+        [str(addr.address), str(addr.address2)].filter(Boolean).join(' ').trim(),
+        str(addr.city),
+        `${str(addr.state)} ${str(addr.zip)}`.trim(),
+      ].filter(Boolean).join(', ')
+    : '';
+
+  // Array.isArray after parsing, not before: a JSON string parses to whatever it
+  // held, and `.find` on a non-array would throw right through the widget.
+  const parsedPhones = asJson<unknown>(row.Phones);
+  const phones = Array.isArray(parsedPhones) ? (parsedPhones as Record<string, unknown>[]) : [];
+  // status 0 is a retired number — same rule as @shared/propertyContact.
+  const primary = phones.find((ph) => Number(ph.status) !== 0) ?? phones[0];
+  const rawPhone = str(primary?.phone ?? primary?.number);
+
+  return {
+    address,
+    city: addr ? str(addr.city) : '',
+    zip: addr ? str(addr.zip) : '',
+    phone: rawPhone ? formatPhone(rawPhone) : '',
+    phoneDigits: rawPhone.replace(/\D/g, ''),
+    lat: addr && typeof addr.lat === 'number' ? addr.lat : null,
+    lng: addr && typeof addr.lng === 'number' ? addr.lng : null,
+  };
 }
 
 /**
@@ -132,6 +236,7 @@ export function buildLocationTree(
   opts: BuildTreeOptions = {},
 ): NavState[] {
   const base = normaliseBasePath(opts.basePath ?? '');
+  const cityBase = normaliseBasePath(opts.cityBasePath ?? DEFAULT_CITY_BASE_PATH);
   const states = new Map<string, { label: string; cities: Map<string, { label: string; properties: NavProperty[] }> }>();
 
   for (const row of rows) {
@@ -157,23 +262,33 @@ export function buildLocationTree(
       label: str(row.name) || propertySlugLabel(parsed.property),
       href: `${base}/${slug}`,
       slug,
+      ...rowContact(row),
     });
   }
 
   const byLabel = <T extends { label: string }>(a: T, b: T) => a.label.localeCompare(b.label);
 
   return [...states.entries()]
-    .map(([key, s]) => ({
-      key,
-      label: s.label,
-      cities: [...s.cities.entries()]
-        .map(([cityKey, c]) => ({
-          key: cityKey,
-          label: c.label,
-          properties: [...c.properties].sort(byLabel),
-        }))
-        .sort(byLabel),
-    }))
+    .map(([key, s]) => {
+      const cities = [...s.cities.entries()]
+        .map(([cityKey, c]) => {
+          const properties = [...c.properties].sort(byLabel);
+          return {
+            key: cityKey,
+            label: c.label,
+            properties,
+            // One facility → its own page; several → the city page.
+            href: properties.length === 1 ? properties[0].href : `${cityBase}/${key}/${cityKey}`,
+          };
+        })
+        .sort(byLabel);
+      return {
+        key,
+        label: s.label,
+        cities,
+        propertyCount: cities.reduce((n, c) => n + c.properties.length, 0),
+      };
+    })
     .sort(byLabel);
 }
 
@@ -210,7 +325,7 @@ export async function fetchLocationTree(
   const counts = tree.reduce(
     (acc, s) => {
       acc.cities += s.cities.length;
-      acc.props += s.cities.reduce((n, c) => n + c.properties.length, 0);
+      acc.props += s.propertyCount;
       return acc;
     },
     { cities: 0, props: 0 },
