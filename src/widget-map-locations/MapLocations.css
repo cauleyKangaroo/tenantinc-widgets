@@ -187,6 +187,17 @@
 .ml-fp-overlay {
   position: fixed;
   inset: 0;
+  /* `position: fixed` is only viewport-relative while no ancestor creates a
+     containing block. A `transform` / `filter` / `will-change` anywhere above
+     traps it — which the Duda editor does when it zooms the canvas, and so do
+     resizable preview boxes. When that happens `inset: 0` is that ancestor, not
+     the screen, and the sheet renders wider than the display with its right-hand
+     side (Reset, close, the Apply button) unreachable.
+     Viewport units still measure the real screen, so they cap it either way. */
+  max-width: 100vw;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
   background: rgba(16, 19, 24, 0.55);
   display: flex;
   align-items: center;
@@ -203,8 +214,9 @@
 
 .ml-fp {
   width: 100%;
-  /* 436px, the same as #05's filter lightbox — the Figma frame is ~423px. */
-  max-width: 436px;
+  /* 436px, the same as #05's filter lightbox — the Figma frame is ~423px.
+     `min()` so a narrow or trapped overlay clamps it instead of overflowing. */
+  max-width: min(436px, 100%);
   max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
@@ -1086,7 +1098,9 @@
 
 .ml-fp--full {
   width: 100%;
-  max-width: none;
+  /* NOT `none` — that is what let it grow past the screen when the overlay was
+     trapped by a transformed ancestor. */
+  max-width: 100%;
   border-radius: 0;
   border: 0;
   /* `100dvh`, NOT `100vh` and NOT `max-height: none`:
