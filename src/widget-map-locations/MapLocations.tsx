@@ -450,7 +450,11 @@ export function MapLocations({
           <div className="ml-controls">
             <button
               type="button"
-              className={`ml-pill${filtersOpen ? ' ml-pill--on' : ''}`}
+              // Selected state tracks whether filters ARE APPLIED, not whether
+              // the lightbox happens to be open — the dark pill and its green
+              // count are the design's way of saying "5 filters are on"
+              // (Figma 10629-81025), which stays true after the panel closes.
+              className={`ml-pill${filterCount > 0 ? ' ml-pill--on' : ''}`}
               aria-expanded={filtersOpen}
               onClick={() => setFiltersOpen(true)}
             >
