@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './NavigationBar.css';
 import storelocalLogo from './Storelocal_logo.png';
 import {
@@ -24,8 +24,9 @@ import {
   SearchIcon,
 } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID } from '@shared/propertyContact';
-import { fetchLocationTree, type NavState } from '@shared/propertyNav';
+import { fetchLocationTree, DEFAULT_CITY_BASE_PATH, type NavState } from '@shared/propertyNav';
 import { imageUrl } from '@shared/dudaCollections';
+import { FindStorageMegaMenu, demoLocationTree } from './FindStorageMegaMenu';
 
 // ---------------------------------------------------------------------------
 // Types + defaults
@@ -178,12 +179,21 @@ function forceHardcodedLinks<T extends { label: string; href?: string; children?
   });
 }
 
+/** The one link that opens the mega menu instead of the hover dropdown. */
+const FIND_STORAGE_LABEL = 'Find Storage';
+
 /**
- * Turn the collection-derived location tree into Find Storage's menu.
+ * Turn the collection-derived location tree into Find Storage's MOBILE accordion.
  *
- * state → first-level row, city → second level, property → third. State and city
- * rows are not links: there are no state or city pages, and giving them a real
- * href would 404. "All Locations" stays pinned to the top.
+ * Desktop no longer uses this — that link opens <FindStorageMegaMenu /> — but the
+ * drawer still nests state › city › facility. State rows are not links (there are
+ * no state pages, and a real href would 404); a city follows the same rule as the
+ * mega menu via `city.href`. "All Locations" stays pinned to the top.
+ *
+ * A city holding SEVERAL facilities keeps its third level here rather than
+ * linking to `/locations/<state>/<city>`: those city pages don't exist yet, and
+ * the drawer would otherwise be the only route to a facility and lead nowhere.
+ * Drop the `children` line once the city pages ship to make the two match.
  */
 function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
   return [
@@ -193,8 +203,10 @@ function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
       href: '#',
       children: state.cities.map((city) => ({
         label: city.label,
-        href: '#',
-        children: city.properties.map((prop) => ({ label: prop.label, href: prop.href })),
+        href: city.href,
+        children: city.properties.length > 1
+          ? city.properties.map((prop) => ({ label: prop.label, href: prop.href }))
+          : undefined,
       })),
     })),
   ];
@@ -291,6 +303,12 @@ export interface NavigationBarProps {
    * the site root. Leading/trailing slashes are normalised.
    */
   locationBasePath?: string;
+  /**
+   * Path the CITY pages live under. Default `/locations`, giving
+   * "/locations/california/irvine" for a city holding more than one facility. A
+   * city with exactly one facility always links straight to that facility.
+   */
+  cityBasePath?: string;
 }
 
 export function NavigationBar({
@@ -319,6 +337,7 @@ export function NavigationBar({
   links,
   propertyId = DEFAULT_PROPERTY_ID,
   locationBasePath = DEFAULT_LOCATION_BASE_PATH,
+  cityBasePath = DEFAULT_CITY_BASE_PATH,
 }: NavigationBarProps) {
   // Logo destination, with Duda's editor url filtered out (see resolveLogoLink).
   const homeLink = resolveLogoLink(logoLink);
@@ -329,6 +348,9 @@ export function NavigationBar({
   const logoSrc = imageUrl(logoImage) || (logoUrl ?? '').trim() || storelocalLogo;
 
   const [menuOpen, setMenuOpen] = useState(false);
+  // Desktop "Find Storage" mega menu. Click-to-open: it holds three columns and a
+  // scroll region, which a hover panel loses the moment the pointer clips a gap.
+  const [megaOpen, setMegaOpen] = useState(false);
   // Desktop hover mega-menu: which top-level link is open, and which of its
   // rows is currently hovered (plus that row's vertical offset so the city
   // panel lines up with it).
@@ -361,11 +383,20 @@ export function NavigationBar({
 
   useEffect(() => {
     let cancelled = false;
-    fetchLocationTree('#02 nav', { basePath: locationBasePath })
+    fetchLocationTree('#02 nav', { basePath: locationBasePath, cityBasePath })
       .then((tree) => { if (!cancelled) setLocationTree(tree); })
       .catch((err) => console.error('[NavigationBar] location tree error:', err));
     return () => { cancelled = true; };
-  }, [locationBasePath]);
+  }, [locationBasePath, cityBasePath]);
+
+  // What the mega menu renders. The Duda EDITOR and the dev harness have no
+  // dmAPI, so the tree above stays empty there — the demo tree keeps the panel
+  // populated while someone is working on the page instead of showing an editor
+  // three empty columns.
+  const megaTree = useMemo(
+    () => (locationTree.length ? locationTree : demoLocationTree(locationBasePath, cityBasePath)),
+    [locationTree, locationBasePath, cityBasePath],
+  );
 
   const displayPhone = livePhone?.phone || phone;
   const telHref = phoneHref ?? `tel:${(livePhone?.digits || displayPhone).replace(/[^0-9+]/g, '')}`;
@@ -430,24 +461,57 @@ export function NavigationBar({
     setSubIndex(null);
   };
 
-  // Desktop nav links, including the two-level hover mega-menu.
+  // Desktop nav links. "Find Storage" opens the mega menu; the others keep the
+  // two-level hover dropdown.
+  //
+  // REVERTING TO THE OLD FIND STORAGE MENU: the hover cascade below is untouched
+  // and still drives Storage Types / Resources. Delete the `isFindStorage`
+  // branches here (trigger + `hasMenu`), drop <FindStorageMegaMenu /> from the
+  // markup at the bottom, and Find Storage falls straight back into the same
+  // state › city › facility cascade it used before.
   const navLinks = (
     <ul className="nav-links">
       {linkList.map((link) => {
-        const hasMenu = !!link.menu?.length;
+        const isFindStorage = link.label === FIND_STORAGE_LABEL;
+        const hasMenu = !!link.menu?.length && !isFindStorage;
         const isOpen = hasMenu && openLink === link.label;
         const activeItem = isOpen && subIndex != null ? link.menu![subIndex] : undefined;
         return (
           <li
             key={link.label}
             className="nav-item"
-            onMouseEnter={() => hasMenu && setOpenLink(link.label)}
+            onMouseEnter={() => {
+              if (!hasMenu) return;
+              // A hover dropdown and the mega menu must not overlap on screen.
+              setMegaOpen(false);
+              setOpenLink(link.label);
+            }}
             onMouseLeave={closeMenus}
           >
-            <a className="nav-link" href={link.href}>
-              <span>{link.label}</span>
-              {link.hasDropdown && <ChevronDown size={20} className="nav-link-chevron" />}
-            </a>
+            {isFindStorage ? (
+              <button
+                type="button"
+                className="nav-link nav-link-trigger"
+                data-nav-mega-trigger
+                aria-expanded={megaOpen}
+                onClick={() => {
+                  // Opening the panel closes any hover dropdown, so the two can
+                  // never be on screen at once.
+                  closeMenus();
+                  setMegaOpen((o) => !o);
+                }}
+              >
+                <span>{link.label}</span>
+                {link.hasDropdown && (
+                  <ChevronDown size={20} className={`nav-link-chevron${megaOpen ? ' is-open' : ''}`} />
+                )}
+              </button>
+            ) : (
+              <a className="nav-link" href={link.href}>
+                <span>{link.label}</span>
+                {link.hasDropdown && <ChevronDown size={20} className="nav-link-chevron" />}
+              </a>
+            )}
 
             {isOpen && (
               <div className="nav-dropdown">
@@ -609,6 +673,10 @@ export function NavigationBar({
           </button>
         </div>
       </div>
+
+      {/* Find Storage mega menu — anchored to the bottom edge of the whole bar,
+          so it spans the full width regardless of which link opened it. */}
+      <FindStorageMegaMenu open={megaOpen} onClose={() => setMegaOpen(false)} tree={megaTree} />
 
       {/* Raised logo tile — absolutely positioned so it spans both bars and
           protrudes below. Space is reserved via padding-left on the bar inners
