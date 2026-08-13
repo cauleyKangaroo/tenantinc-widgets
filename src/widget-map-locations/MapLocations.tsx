@@ -13,7 +13,7 @@
 // STATIC for now: everything comes from ./data.ts. See the note there.
 // ===========================================================================
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './MapLocations.css';
 import { NearbyMap, type MapPoint, type PositionedPoint } from '@shared/NearbyMap';
 import { RichText } from '@shared/richText';
@@ -22,25 +22,11 @@ import { PROPERTY_IMAGES } from '@shared/demoImages';
 import { FilterPanel } from './FilterPanel';
 import { INITIAL_FILTERS, activeFilterCount, type FilterState } from './filters';
 import { useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
+import { FilterIcon, ChevronDownIcon } from './icons';
 
 // ── Icons (inline SVG — the AMD bundle can't load remote assets) ─────────────
 
 const Icon = {
-  filter: (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 6h18M6 12h12M10 18h4" />
-    </svg>
-  ),
-  sort: (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 6h10M3 12h7M3 18h4M17 4v16M17 20l-3-3M17 20l3-3" />
-    </svg>
-  ),
-  chevron: (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  ),
   search: (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="11" cy="11" r="7" />
@@ -235,7 +221,39 @@ export interface MapLocationsProps {
   seoContent?: string;
   /** Height of the pinned map. Capped to the viewport so it can't overflow it. */
   rowHeight?: number | string;
+  /** @deprecated The sort is a real control now — see SORT_OPTIONS. */
   sortLabel?: string;
+}
+
+/**
+ * Sort options for the header dropdown.
+ *
+ * PLACEHOLDER SET, pending what the client actually wants. Both reorder for
+ * real rather than being decorative, so swapping in the final list is a data
+ * change, not a rewrite.
+ */
+const SORT_OPTIONS = [
+  { id: 'distance', label: 'Closest Distance' },
+  { id: 'reviews', label: 'Highly Reviewed' },
+] as const;
+
+type SortId = typeof SORT_OPTIONS[number]['id'];
+
+/** Sort a copy — never mutate the source list, which is module-level demo data. */
+function sortFacilities(list: CityFacility[], by: SortId): CityFacility[] {
+  const out = [...list];
+  if (by === 'distance') {
+    // Missing distance sorts LAST, not as 0 — otherwise a facility with no
+    // distance would float to the top of a "Closest Distance" list.
+    const miles = (f: CityFacility) =>
+      Number.isFinite(f.distanceMiles) ? f.distanceMiles : Infinity;
+    return out.sort((a, b) => miles(a) - miles(b));
+  }
+  // Highly Reviewed: rating first, then review count as the tie-break — a 4.5
+  // from 300 people should outrank a 4.5 from 3.
+  const rating = (f: CityFacility) => Number(f.rating ?? 0);
+  const count = (f: CityFacility) => Number(f.reviewCount ?? 0);
+  return out.sort((a, b) => (rating(b) - rating(a)) || (count(b) - count(a)));
 }
 
 const DEFAULT_SEO = `<p><strong>Storage in Fullerton</strong></p>
@@ -256,9 +274,31 @@ export function MapLocations({
   // parameter only catches `undefined` — so fall back on blank too, or the
   // headings read "Storage Facilities in ".
   const cityLabel = city.trim() || 'Fullerton, CA';
-  const sort = sortLabel.trim() || 'Closest Distance';
 
-  const facilities = CITY_FACILITIES;
+  const [sortBy, setSortBy] = useState<SortId>('distance');
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef<HTMLDivElement>(null);
+
+  // Re-sorted on every change; CITY_FACILITIES itself is never mutated.
+  const facilities = useMemo(() => sortFacilities(CITY_FACILITIES, sortBy), [sortBy]);
+  const sortLabelText =
+    SORT_OPTIONS.find((o) => o.id === sortBy)?.label ?? SORT_OPTIONS[0].label;
+
+  // Click-outside closes the dropdown. Pointerdown rather than click so it
+  // closes before the next control receives its own event.
+  useEffect(() => {
+    if (!sortOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) setSortOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSortOpen(false); };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [sortOpen]);
   // Which card/bubble is highlighted. Starts on the featured one, matching the
   // Figma where a card and its bubble share the orange outline.
   const [activeId, setActiveId] = useState<string>(facilities[1]?.id ?? facilities[0]?.id ?? '');
@@ -412,7 +452,7 @@ export function MapLocations({
                 aria-expanded={filtersOpen}
                 onClick={() => setFiltersOpen(true)}
               >
-                {Icon.filter}<span>Filter &amp; Sort</span>
+                <FilterIcon size={24} /><span>Filter &amp; Sort</span>
                 {filterCount > 0 && <span className="ml-pill-badge">{filterCount}</span>}
               </button>
             </div>
@@ -435,13 +475,43 @@ export function MapLocations({
               aria-expanded={filtersOpen}
               onClick={() => setFiltersOpen(true)}
             >
-              {Icon.filter}<span>Filter</span>
+              <FilterIcon size={24} /><span>Filter</span>
               {filterCount > 0 && <span className="ml-pill-count">{filterCount}</span>}
             </button>
 
-            <button type="button" className="ml-pill">
-              {Icon.sort}<span className="ml-pill-sort">{sort}</span>{Icon.chevron}
-            </button>
+            {/* Sort — a real listbox. Figma shows the closed pill only, so the
+                open menu follows the filter modal's surface (white, 12px radius,
+                the same elevation) rather than inventing a new one. */}
+            <div className="ml-sort" ref={sortRef}>
+              <button
+                type="button"
+                className={`ml-pill${sortOpen ? ' ml-pill--open' : ''}`}
+                aria-haspopup="listbox"
+                aria-expanded={sortOpen}
+                onClick={() => setSortOpen((o) => !o)}
+              >
+                <FilterIcon size={24} />
+                <span className="ml-pill-sort">{sortLabelText}</span>
+                <ChevronDownIcon size={24} className="ml-pill-chev" />
+              </button>
+              {sortOpen && (
+                <ul className="ml-sort-menu" role="listbox" aria-label="Sort facilities">
+                  {SORT_OPTIONS.map((o) => (
+                    <li key={o.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={o.id === sortBy}
+                        className={`ml-sort-opt${o.id === sortBy ? ' ml-sort-opt--on' : ''}`}
+                        onClick={() => { setSortBy(o.id); setSortOpen(false); }}
+                      >
+                        {o.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       )}

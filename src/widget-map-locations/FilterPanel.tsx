@@ -5,6 +5,7 @@
 // scroll locked while open. Selections are real local state so the panel
 // demonstrates properly, but nothing is filtered yet: #08 is still static.
 
+import { FilterIcon, CloseIcon, AiSparkleIcon, ChevronDownIcon, ClearCircleIcon, CheckboxIcon } from './icons';
 import React, { useEffect } from 'react';
 import {
   type FilterState,
@@ -17,32 +18,10 @@ function toggle(list: string[], value: string): string[] {
 }
 
 // ── Icons ───────────────────────────────────────────────────────────────────
-// Same glyphs as #05's FilterModal (inline, because the AMD bundle can't load
-// remote assets). Duplicated rather than imported: widgets are separate bundles
-// and only `@shared` crosses between them.
-
-/** Circle-with-X inside a selected (removable) pill. */
-function PillRemoveIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <circle cx="8" cy="8" r="8" fill="currentColor" />
-      <line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/** The AI sparkle in the search button (Figma "ai/ai-01"). Same paths as #05's,
- *  but the viewBox is cropped to the drawing so the glyph fills its box the way
- *  the frame's 24px icon fills the 40px button — #05's leaves it looking tiny. */
-function SparkleIcon() {
-  return (
-    <svg width="22" height="22" viewBox="6 2 16 18" fill="white" aria-hidden="true">
-      <path d="M12 2.5c.4 3.9 1.6 5.1 5.5 5.5-3.9.4-5.1 1.6-5.5 5.5-.4-3.9-1.6-5.1-5.5-5.5 3.9-.4 5.1-1.6 5.5-5.5Z" />
-      <path d="M18.5 13.5c.2 2 .8 2.6 2.8 2.8-2 .2-2.6.8-2.8 2.8-.2-2-.8-2.6-2.8-2.8 2-.2 2.6-.8 2.8-2.8Z" />
-    </svg>
-  );
-}
+// The REAL Figma artwork now (node 10557-146402), not the approximations that
+// used to live here: `filter/filter-horizontal`, `Close` (mdiClose),
+// `ai/ai-01`, `Clear` (mdiCloseCircle) and the design-system checkbox.
+// See ./icons.tsx.
 
 /** Pill row — a selected pill inverts and grows a clear (x) button, per the frame. */
 function PillGroup({
@@ -60,7 +39,7 @@ function PillGroup({
             onClick={() => onToggle(opt)}
             aria-pressed={on}
           >
-            {on && <PillRemoveIcon />}
+            {on && <ClearCircleIcon size={20} />}
             <span>{opt}</span>
           </button>
         );
@@ -80,13 +59,7 @@ function CheckList({
         return (
           <label key={opt} className="ml-fp-check">
             <input type="checkbox" checked={on} onChange={() => onToggle(opt)} />
-            <span className="ml-fp-box" aria-hidden="true">
-              {on && (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
-            </span>
+            <CheckboxIcon checked={on} size={24} className="ml-fp-box" />
             <span className="ml-fp-check-label">{opt}</span>
           </label>
         );
@@ -105,9 +78,7 @@ function FieldSelect({
       <select className="ml-fp-field-select" value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
-      <svg className="ml-fp-field-chevron" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
+      <ChevronDownIcon size={24} className="ml-fp-field-chevron" />
     </label>
   );
 }
@@ -149,18 +120,14 @@ export function FilterPanel({
       >
         <div className="ml-fp-head">
           <div className="ml-fp-title">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M3 6h18M6 12h12M10 18h4" />
-            </svg>
+            <FilterIcon size={24} />
             <span>Filter Spaces</span>
             {count > 0 && <span className="ml-fp-count">{count}</span>}
           </div>
           <div className="ml-fp-head-actions">
             <button type="button" className="ml-fp-reset" onClick={onReset}>Reset</button>
             <button type="button" className="ml-fp-close" aria-label="Close" onClick={onClose}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
+              <CloseIcon size={18} />
             </button>
           </div>
         </div>
@@ -177,7 +144,7 @@ export function FilterPanel({
               aria-label="Filter spaces by"
             />
             <button type="button" className="ml-search-btn" aria-label="Search">
-              <SparkleIcon />
+              <AiSparkleIcon size={24} />
             </button>
           </div>
 

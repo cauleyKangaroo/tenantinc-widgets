@@ -67,7 +67,73 @@
 
 .ml-pill:hover { background: #f4f6f8; }
 .ml-pill-sort { font-weight: 400; }
-.ml-pill--on { background: #f4f6f8; }
+
+/* SELECTED (Figma 10629-81025): the Filter pill inverts to a solid dark fill
+   with a 2px border of the same colour, and the count becomes a green badge
+   clipped to the top-right. The icon rides `currentColor`, so it turns white
+   with the label rather than needing a second asset. */
+.ml-pill--on {
+  border-width: 2px;
+  background: #101318;
+  color: #fff;
+}
+.ml-pill--on:hover { background: #22272f; }
+
+/* Its count sits OUTSIDE the pill, unlike the inline .ml-pill-count. */
+.ml-pill--on .ml-pill-count {
+  position: absolute;
+  top: -9px;
+  right: -6px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 14.4px;
+  font-weight: 600;
+}
+
+/* ── Sort dropdown ─────────────────────────────────────────────────────────
+   Figma draws the closed pill only, so the open menu borrows the filter
+   modal's surface — white, 12px radius, the same elevation — rather than
+   inventing a third surface style for one control. */
+
+.ml-sort { position: relative; }
+.ml-pill--open { background: #f4f6f8; }
+/* Chevron flips to point up while the menu is open. */
+.ml-pill--open .ml-pill-chev { transform: rotate(180deg); }
+.ml-pill-chev { transition: transform 120ms ease-in-out; }
+
+.ml-sort-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  min-width: 100%;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid #dfe3e8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+.ml-sort-opt {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #101318;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ml-sort-opt:hover { background: #f4f6f8; }
+.ml-sort-opt--on { font-weight: 600; background: #f4f6f8; }
 
 /* "Filter & Sort" on mobile — the same pill, filled. */
 .ml-pill--dark {
