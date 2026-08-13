@@ -33,6 +33,16 @@ export interface NearbyBaseProperty {
   name: string;
   lat: number;
   lng: number;
+  /**
+   * Did the API actually give coordinates? **False** → lat/lng are 0
+   * placeholders and must not be plotted or measured; only ever false when the
+   * caller passed `requireCoords: false` (see extractNearbyProperties).
+   *
+   * Optional, and absent means "assume yes": the default extraction drops
+   * coordinate-less rows anyway, and hand-written fixtures shouldn't have to
+   * restate it. Test with `hasCoords !== false`, never a bare truthiness check.
+   */
+  hasCoords?: boolean;
   address: string;
   /** Raw city/state off the Address object — for filtering (see #08 map-locations). */
   city?: string;
@@ -186,21 +196,44 @@ export async function fetchProperties(
   }, opts);
 }
 
-/** All properties with usable coordinates, mapped to the base card shape. */
-export function extractNearbyProperties(raw: unknown, appId: string): NearbyBaseProperty[] {
+/**
+ * Properties mapped to the base card shape.
+ *
+ * By default only those with usable coordinates: #07 and #05's nearby section
+ * rank by distance, so a property that can't be placed can't be ranked.
+ *
+ * `requireCoords: false` keeps the rest, for a consumer that lists by something
+ * other than distance — #08's city page groups by `Address.city`. It matters:
+ * verified live 2026-08-13 that ALL SEVEN properties on the current company have
+ * `lat: null, lng: null`, so the default would drop every one of them and render
+ * an empty page. Coordinate-less rows come back with lat/lng 0 and `hasCoords`
+ * false, so callers can hide the map and distances instead of plotting them off
+ * the coast of Africa.
+ */
+export function extractNearbyProperties(
+  raw: unknown,
+  appId: string,
+  opts: { requireCoords?: boolean } = {},
+): NearbyBaseProperty[] {
+  const { requireCoords = true } = opts;
   const response = raw as PropertiesResponse;
   const list = response?.applicationData?.[appId]?.[0]?.data?.properties ?? [];
   const out: NearbyBaseProperty[] = [];
 
   for (const p of list) {
     const addr = p.Address && typeof p.Address === 'object' ? p.Address : null;
-    if (!addr || typeof addr.lat !== 'number' || typeof addr.lng !== 'number') continue;
+    if (!addr) continue;
+    const hasCoords = typeof addr.lat === 'number' && typeof addr.lng === 'number';
+    if (requireCoords && !hasCoords) continue;
     const firstPhone = Array.isArray(p.Phones) ? p.Phones.find((ph) => ph.status !== 0) : undefined;
     out.push({
       id: p.id,
       name: p.name ?? '',
-      lat: addr.lat,
-      lng: addr.lng,
+      // 0/0 rather than null keeps the type a plain number for the distance and
+      // map maths; `hasCoords` is the flag callers must check first.
+      lat: hasCoords ? (addr.lat as number) : 0,
+      lng: hasCoords ? (addr.lng as number) : 0,
+      hasCoords,
       address: buildAddress(addr),
       // Kept separate from the formatted address so a city page can filter on it
       // exactly, rather than substring-matching "…, Irvine, CA 92620".

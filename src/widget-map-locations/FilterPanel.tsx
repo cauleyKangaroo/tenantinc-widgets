@@ -8,8 +8,7 @@
 import { FilterIcon, CloseIcon, AiSparkleIcon, ChevronDownIcon, ClearCircleIcon, CheckboxIcon } from './icons';
 import React, { useEffect } from 'react';
 import {
-  type FilterState,
-  TYPE_OPTIONS, SIZE_OPTIONS, FEATURE_OPTIONS, AMENITY_OPTIONS, PROMOTION_OPTIONS,
+  type FilterState, type FilterOptions,
   PRICE_OPTIONS, DISTANCE_OPTIONS, activeFilterCount,
 } from './filters';
 
@@ -84,13 +83,19 @@ function FieldSelect({
 }
 
 export function FilterPanel({
-  filters, onChange, onClose, onReset, onApply,
+  filters, options, onChange, onClose, onReset, onApply, resultCount,
 }: {
   filters: FilterState;
+  /** Facets present in the loaded data — see deriveFilterOptions. A section
+   *  with no options hides itself rather than showing an empty heading. */
+  options: FilterOptions;
   onChange: (next: FilterState) => void;
   onClose: () => void;
   onReset: () => void;
   onApply: () => void;
+  /** How many facilities the current selection leaves, shown on Apply so the
+   *  visitor isn't applying a filter blind and landing on an empty page. */
+  resultCount?: number;
 }) {
   // Close on Escape; lock host-page scroll while the lightbox is open.
   useEffect(() => {
@@ -148,15 +153,22 @@ export function FilterPanel({
             </button>
           </div>
 
-          <section className="ml-fp-section">
-            <p className="ml-fp-section-title">Type:</p>
-            <PillGroup options={TYPE_OPTIONS} selected={filters.types} onToggle={(v) => set('types', toggle(filters.types, v))} />
-          </section>
+          {/* Each facet section renders only if the loaded data actually offers
+              it — an empty "Amenities" heading over nothing looks broken, and
+              on a property whose amenity flags aren't set that is the norm. */}
+          {options.types.length > 0 && (
+            <section className="ml-fp-section">
+              <p className="ml-fp-section-title">Type:</p>
+              <PillGroup options={options.types} selected={filters.types} onToggle={(v) => set('types', toggle(filters.types, v))} />
+            </section>
+          )}
 
-          <section className="ml-fp-section">
-            <p className="ml-fp-section-title">Size:</p>
-            <PillGroup options={SIZE_OPTIONS} selected={filters.sizes} onToggle={(v) => set('sizes', toggle(filters.sizes, v))} />
-          </section>
+          {options.sizes.length > 0 && (
+            <section className="ml-fp-section">
+              <p className="ml-fp-section-title">Size:</p>
+              <PillGroup options={options.sizes} selected={filters.sizes} onToggle={(v) => set('sizes', toggle(filters.sizes, v))} />
+            </section>
+          )}
 
           <section className="ml-fp-section">
             <p className="ml-fp-section-title">Price:</p>
@@ -173,25 +185,35 @@ export function FilterPanel({
             </div>
           </section>
 
-          <section className="ml-fp-section">
-            <p className="ml-fp-section-title">Space Features:</p>
-            <PillGroup options={FEATURE_OPTIONS} selected={filters.features} onToggle={(v) => set('features', toggle(filters.features, v))} />
-          </section>
+          {options.features.length > 0 && (
+            <section className="ml-fp-section">
+              <p className="ml-fp-section-title">Space Features:</p>
+              <PillGroup options={options.features} selected={filters.features} onToggle={(v) => set('features', toggle(filters.features, v))} />
+            </section>
+          )}
 
-          <section className="ml-fp-section">
-            <p className="ml-fp-section-title">Amenities</p>
-            <CheckList options={AMENITY_OPTIONS} selected={filters.amenities} onToggle={(v) => set('amenities', toggle(filters.amenities, v))} />
-          </section>
+          {options.amenities.length > 0 && (
+            <section className="ml-fp-section">
+              <p className="ml-fp-section-title">Amenities</p>
+              <CheckList options={options.amenities} selected={filters.amenities} onToggle={(v) => set('amenities', toggle(filters.amenities, v))} />
+            </section>
+          )}
 
-          <section className="ml-fp-section">
-            <p className="ml-fp-section-title">Promotions</p>
-            <CheckList options={PROMOTION_OPTIONS} selected={filters.promotions} onToggle={(v) => set('promotions', toggle(filters.promotions, v))} />
-          </section>
+          {options.promotions.length > 0 && (
+            <section className="ml-fp-section">
+              <p className="ml-fp-section-title">Promotions</p>
+              <CheckList options={options.promotions} selected={filters.promotions} onToggle={(v) => set('promotions', toggle(filters.promotions, v))} />
+            </section>
+          )}
         </div>
 
         {/* Footer */}
         <div className="ml-fp-foot">
-          <button type="button" className="ml-fp-apply" onClick={onApply}>Apply Filters</button>
+          <button type="button" className="ml-fp-apply" onClick={onApply}>
+            {resultCount == null
+              ? 'Apply Filters'
+              : `Show ${resultCount} ${resultCount === 1 ? 'Facility' : 'Facilities'}`}
+          </button>
         </div>
       </div>
     </div>

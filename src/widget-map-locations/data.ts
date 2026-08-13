@@ -16,6 +16,15 @@ export interface CityUnit {
   subtype: string;
   inStorePrice: number;
   startingPrice: number;
+  /** The filter facets below are present on live units (see api.ts CitySpace)
+   *  and absent on the demo rows, so everything that reads them tolerates
+   *  undefined — a demo unit simply never matches a facet. */
+  spaceType?: 'Storage' | 'Parking';
+  sizeBucket?: string;
+  features?: string[];
+  amenities?: string[];
+  promo?: string;
+  vacantCount?: number;
 }
 
 export interface CityFacility {
@@ -25,17 +34,22 @@ export interface CityFacility {
   phone: string;
   lat: number;
   lng: number;
+  /** False → lat/lng are placeholders; don't plot or measure. See api.ts. */
+  hasCoords?: boolean;
+  /** NaN when unknown (no visitor location, or the property has no coords). */
   distanceMiles: number;
   rating: number;
   reviewCount: number;
   /** Dashed promo banner above the unit rows. Empty = no banner. */
   promo?: string;
   adminFee: number;
-  /** Map bubble label, e.g. "$25". */
+  /** Map bubble label, e.g. "$25". Empty when no priced space is available. */
   priceLabel: string;
   /** Green outline + "Featured Property" ribbon. */
   featured?: boolean;
   units: CityUnit[];
+  /** Facility photo from the API's `Images`, if any (else the demo imagery). */
+  imageUrl?: string;
 }
 
 const UNITS: CityUnit[] = [

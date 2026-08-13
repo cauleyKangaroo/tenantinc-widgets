@@ -139,6 +139,121 @@ export async function fetchReviewSource(
   return source;
 }
 
+/** A business-level rating, without the individual reviews. */
+export interface RatingSummary {
+  /** Business/place name the rating belongs to, as the collection spells it. */
+  name: string;
+  score: number;
+  count: number;
+  reviewsUrl: string;
+}
+
+/** Lowercase alphanumerics only, so "Storage Outlet - Bakersfield1" and
+ *  "Storage Outlet Bakersfield 1" reduce to the same key. */
+function nameKey(v: string): string {
+  return v.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Google ratings grouped by PLACE, for a widget showing several properties at
+ * once (#08's city page).
+ *
+ * `fetchReviewSource` above answers "what is this site's rating" by reading
+ * row 0 — right for #03, which renders one property, but it would stamp the
+ * same score on every card of a multi-property city page.
+ *
+ * So this groups the rows by `placeName` instead. Two shapes both work:
+ *   - one business (the common case) → a single entry, and `overall` is it
+ *   - one row-set per facility        → an entry each, matched by name
+ *
+ * `overall` is the row-0 figure, kept as the fallback for a property with no
+ * matching place — better a site-level rating than none, and it's exactly what
+ * #03 would have shown.
+ *
+ * Fails soft to empty (no dmAPI in the editor/harness, collection missing).
+ */
+export async function fetchGoogleRatingsByPlace(widgetTag: string): Promise<{
+  byPlace: Map<string, RatingSummary>;
+  overall: RatingSummary | null;
+}> {
+  const empty = { byPlace: new Map<string, RatingSummary>(), overall: null };
+  if (!hasCollectionsApi()) {
+    logSource(widgetTag, 'google ratings', false, 'no dmAPI — not in Duda');
+    return empty;
+  }
+
+  const rows = await readCollection(GOOGLE_COLLECTION);
+  if (rows.length === 0) {
+    logSource(widgetTag, 'google ratings', false, `${GOOGLE_COLLECTION} empty or missing`);
+    return empty;
+  }
+
+  const byPlace = new Map<string, RatingSummary>();
+  for (const r of rows) {
+    const name = plainText(r.placeName);
+    if (!name) continue;
+    const key = nameKey(name);
+    // First row per place wins; later rows are that place's other reviews and
+    // repeat the same business-level score.
+    if (byPlace.has(key)) continue;
+    const score = num(r.rating);
+    if (!(score > 0)) continue;
+    byPlace.set(key, {
+      name,
+      score,
+      count: num(r.userRatingsTotal),
+      reviewsUrl: str(r.reviewsUrl),
+    });
+  }
+
+  const head = rows[0];
+  const headScore = num(head.rating);
+  const overall: RatingSummary | null = headScore > 0
+    ? {
+      name: plainText(head.placeName) || 'Google',
+      score: headScore,
+      count: num(head.userRatingsTotal, rows.length),
+      reviewsUrl: str(head.reviewsUrl),
+    }
+    : null;
+
+  logSource(
+    widgetTag, 'google ratings', true,
+    `${GOOGLE_COLLECTION}, ${rows.length} rows, ${byPlace.size} place(s)`,
+  );
+  return { byPlace, overall };
+}
+
+/**
+ * The rating for one property, by name.
+ *
+ * Exact key match first, then a containment match either way — the collection's
+ * `placeName` is whatever Google calls the business ("Storage Outlet Bakersfield")
+ * while the API's property name is whatever the operator typed ("Storage Outlet -
+ * Bakersfield1"), and the two rarely agree character for character. Falls back to
+ * the site-wide figure, then null.
+ */
+export function ratingForProperty(
+  propertyName: string,
+  ratings: { byPlace: Map<string, RatingSummary>; overall: RatingSummary | null },
+): RatingSummary | null {
+  const key = nameKey(propertyName);
+  if (!key) return ratings.overall;
+
+  const exact = ratings.byPlace.get(key);
+  if (exact) return exact;
+
+  // Only worth attempting when there are several places to tell apart; with one
+  // business the overall figure IS that business, and a loose match could only
+  // ever agree with it.
+  if (ratings.byPlace.size > 1) {
+    for (const [k, v] of ratings.byPlace) {
+      if (k.includes(key) || key.includes(k)) return v;
+    }
+  }
+  return ratings.overall;
+}
+
 /** Both platforms at once; each is independent, so one failing doesn't hide the other. */
 export async function fetchAllReviewSources(widgetTag: string): Promise<{
   google: ReviewSourceData | null;

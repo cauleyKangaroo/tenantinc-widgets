@@ -1048,3 +1048,35 @@
 
   .ml-fp-section { padding: 10px 16px 20px; }
 }
+
+/* ── Empty state ────────────────────────────────────────────────────────────
+   Shown in the cards column when the city has no facilities, or the visitor's
+   filters excluded them all. Sized to sit where the first card would, so the
+   layout doesn't collapse around the map. */
+.ml-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 24px;
+  border: 1px dashed var(--hb-cloud-darker, #d6dae0);
+  border-radius: 12px;
+  text-align: center;
+}
+.ml-empty-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--hb-text-night, #101318);
+}
+.ml-empty-reset {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--hb-text-night, #101318);
+  text-decoration: underline;
+  cursor: pointer;
+}
