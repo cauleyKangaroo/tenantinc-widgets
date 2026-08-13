@@ -109,25 +109,86 @@ function BlogCard({ post, profiles }: { post: BlogPostData; profiles: SocialProf
   );
 }
 
-/** Placeholder row shown while the collection read is in flight. */
-function CardSkeleton() {
+/**
+ * One placeholder card.
+ *
+ * This mirrors BlogCard's DOM element for element — same .blog-card, same
+ * .blog-card-img, same .blog-card-body, same .blog-card-footer — and the CSS caps
+ * the title, byline and excerpt at the --blog-*-h tokens that .blog-card's
+ * min-height is summed from. So a skeleton card and a loaded card are the same
+ * height to the pixel, and the read landing costs nothing on CLS. Anything added
+ * to BlogCard's body needs a counterpart here, or the two drift apart again.
+ */
+function SkeletonCard() {
   return (
-    <>
-      <div className="blog-grid" aria-hidden="true">
+    <article className="blog-card blog-card--skeleton">
+      <div className="blog-card-img" />
+      <div className="blog-card-body">
+        {/* Two bars for the 2-line title box, three for the 3-line excerpt — the
+            bars divide their box up, so the widths are the only thing chosen here
+            and the heights follow the tokens. */}
+        <div className="blog-skel-box blog-skel-box--title">
+          <span className="blog-skel" />
+          <span className="blog-skel" style={{ width: '55%' }} />
+        </div>
+        <div className="blog-skel-box blog-skel-box--byline">
+          <span className="blog-skel" style={{ width: '60%' }} />
+        </div>
+        <div className="blog-skel-box blog-skel-box--excerpt">
+          <span className="blog-skel" />
+          <span className="blog-skel" />
+          <span className="blog-skel" style={{ width: '80%' }} />
+        </div>
+        <div className="blog-card-footer">
+          <span className="blog-skel blog-skel--readmore" />
+          <span className="blog-skel blog-skel--share" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/**
+ * Desktop placeholder row.
+ *
+ * The count is CARDS_PER_PAGE, deliberately: this listing paginates one row at a
+ * time, so any other number would reserve rows the loaded grid then has to take
+ * back.
+ */
+function DesktopSkeleton() {
+  return (
+    <div className="blog-grid" aria-hidden="true">
+      {Array.from({ length: CARDS_PER_PAGE }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Mobile placeholder — one card, matching the single-card carousel below 900px.
+ *
+ * The desktop frame is `display: none` at this width, so without this the mobile
+ * loading state was blank and the whole card arrived out of nowhere: the widest
+ * shift in the widget, on exactly the viewport CLS is scored hardest on.
+ *
+ * The heading is the real string rather than a grey bar. It's a constant, so
+ * rendering it costs no shift and gives the reader something true to look at.
+ */
+function MobileSkeleton({ title }: { title: React.ReactNode }) {
+  return (
+    <div className="blog-mobile">
+      {title}
+      <SkeletonCard />
+      {/* The dots row is reserved, not guessed: how many posts there are decides
+          how many dots, but not the strip's height (they never wrap). Three is
+          simply what looks right. */}
+      <div className="blog-pagination blog-pagination-dots" aria-hidden="true">
         {[0, 1, 2].map((i) => (
-          <article className="blog-card blog-card--skeleton" key={i}>
-            <div className="blog-card-img" />
-            <div className="blog-card-body">
-              <span className="blog-skel blog-skel--title" />
-              <span className="blog-skel blog-skel--byline" />
-              <span className="blog-skel blog-skel--text" />
-              <span className="blog-skel blog-skel--text short" />
-            </div>
-          </article>
+          <span className="blog-skel blog-skel--dot" key={i} />
         ))}
       </div>
-      <span className="blog-sr-only" role="status">Loading blog posts…</span>
-    </>
+    </div>
   );
 }
 
@@ -211,15 +272,28 @@ export function BlogsListing({
     </div>
   );
 
-  // Still reading: skeleton once past the delay, nothing before it.
+  // Shared with the skeleton, so the loading and loaded mobile frames open with
+  // the identical element — a heading that changed between the two would shift
+  // the card under it.
+  const mobileTitleBlock = (
+    <div className="blog-mobile-title">
+      <span>Storage Blogs</span>
+    </div>
+  );
+
+  // Still reading: skeleton once past the delay, nothing before it. Both frames
+  // render and CSS picks one, exactly as in the loaded branch — the desktop grid
+  // is `display: none` below 900px, so a mobile reader needs its own placeholder.
   if (loading) {
     if (!pastDelay) return null;
     return (
       <div className="blog-wrapper">
         <div className="blog-desktop">
           {headingBlock}
-          <CardSkeleton />
+          <DesktopSkeleton />
         </div>
+        <MobileSkeleton title={mobileTitleBlock} />
+        <span className="blog-sr-only" role="status">Loading blog posts…</span>
       </div>
     );
   }
@@ -255,18 +329,18 @@ export function BlogsListing({
 
       {/* ── Mobile ──────────────────────────────────────────────────────── */}
       <div className="blog-mobile">
-        <div className="blog-mobile-title">
-          <span>Storage Blogs</span>
-        </div>
+        {mobileTitleBlock}
         {/* Dots indicate position, swiping moves — no arrows in this view. */}
         <div {...mobileSwipe.handlers}>
           <BlogCard key={`m-${mobileCurrent}`} post={posts[mobileCurrent]} profiles={profiles} />
         </div>
-        {posts.length > 1 && (
-          <div className="blog-pagination blog-pagination-dots">
-            <Dots count={posts.length} active={mobileCurrent} onPick={setMobileIdx} />
-          </div>
-        )}
+        {/* The strip renders even for a single post (when there are no dots to
+            show): its height is reserved in CSS, and dropping the row outright
+            would make a one-post collection 40px shorter than the skeleton that
+            stood in for it. */}
+        <div className="blog-pagination blog-pagination-dots">
+          {posts.length > 1 && <Dots count={posts.length} active={mobileCurrent} onPick={setMobileIdx} />}
+        </div>
       </div>
 
     </div>
