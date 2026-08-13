@@ -203,8 +203,21 @@ export function Reviews({
   const mobileSource = sources[Math.min(mobileSourceIdx, sources.length - 1)] ?? sources[0];
   const totalMobilePages = mobileSource.reviews.length;
 
+  // Which way the next card slides in from. Tracked rather than derived inside
+  // the setter, because setMobilePage is also called with an absolute index by
+  // the dots — comparing against the current page is what makes tapping dot 4
+  // from dot 1 slide forwards rather than always one fixed direction.
+  const [mobileDir, setMobileDir] = useState<1 | -1>(1);
+
+  function goToMobilePage(next: number) {
+    const clamped = Math.max(0, Math.min(totalMobilePages - 1, next));
+    setMobileDir(clamped >= mobilePage ? 1 : -1);
+    setMobilePage(clamped);
+  }
+
   function switchMobileSource(idx: number) {
     setMobileSourceIdx(idx);
+    setMobileDir(1);
     setMobilePage(0);
   }
 
@@ -308,15 +321,23 @@ export function Reviews({
 
         <div className="rw-mobile-body">
           <SourceHeader source={mobileSource} />
-          <ReviewCard review={mobileSource.reviews[mobilePage]} source={mobileSource} />
+          {/* key by source+page so React REMOUNTS the card on every change —
+              that is what replays the CSS animation. Without the key it would
+              patch the text in place and the slide would only ever run once. */}
+          <div
+            key={`${mobileSource.key}-${mobilePage}`}
+            className={`rw-slide rw-slide--${mobileDir > 0 ? 'next' : 'prev'}`}
+          >
+            <ReviewCard review={mobileSource.reviews[mobilePage]} source={mobileSource} />
+          </div>
         </div>
 
         <Pagination
           page={mobilePage}
           total={totalMobilePages}
-          onPrev={() => setMobilePage((p) => Math.max(0, p - 1))}
-          onNext={() => setMobilePage((p) => Math.min(totalMobilePages - 1, p + 1))}
-          onDot={setMobilePage}
+          onPrev={() => goToMobilePage(mobilePage - 1)}
+          onNext={() => goToMobilePage(mobilePage + 1)}
+          onDot={goToMobilePage}
         />
       </div>
 
