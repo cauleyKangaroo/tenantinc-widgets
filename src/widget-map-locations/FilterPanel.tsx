@@ -84,6 +84,7 @@ function FieldSelect({
 
 export function FilterPanel({
   filters, options, onChange, onClose, onReset, onApply, resultCount,
+  sortOptions, sortBy, onSortChange, fullScreen = false,
 }: {
   filters: FilterState;
   /** Facets present in the loaded data — see deriveFilterOptions. A section
@@ -96,6 +97,17 @@ export function FilterPanel({
   /** How many facilities the current selection leaves, shown on Apply so the
    *  visitor isn't applying a filter blind and landing on an empty page. */
   resultCount?: number;
+  /**
+   * Sort lives INSIDE the panel on mobile (Figma 10622-2170) because the button
+   * that opens it says "Filter & Sort". On desktop the sort is a separate header
+   * pill and the modal has no Sort group at all (10557-146402) — so these are
+   * only passed on mobile, and the group is omitted without them.
+   */
+  sortOptions?: readonly { id: string; label: string }[];
+  sortBy?: string;
+  onSortChange?: (id: string) => void;
+  /** Mobile fills the viewport rather than floating as a centred card. */
+  fullScreen?: boolean;
 }) {
   // Close on Escape; lock host-page scroll while the lightbox is open.
   useEffect(() => {
@@ -117,7 +129,7 @@ export function FilterPanel({
   return (
     <div className="ml-fp-overlay" onClick={onClose}>
       <div
-        className="ml-fp"
+        className={`ml-fp${fullScreen ? ' ml-fp--full' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Filter spaces"
@@ -152,6 +164,20 @@ export function FilterPanel({
               <AiSparkleIcon size={24} />
             </button>
           </div>
+
+          {/* Mobile only — the button that opens this says "Filter & Sort". */}
+          {sortOptions && onSortChange && (
+            <section className="ml-fp-section">
+              <p className="ml-fp-section-title">Sort by:</p>
+              <label className="ml-fp-select">
+                <span className="ml-sr-only">Sort by</span>
+                <select value={sortBy} onChange={(e) => onSortChange(e.target.value)}>
+                  {sortOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                </select>
+                <ChevronDownIcon size={24} className="ml-fp-select-chev" />
+              </label>
+            </section>
+          )}
 
           {/* Each facet section renders only if the loaded data actually offers
               it — an empty "Amenities" heading over nothing looks broken, and
