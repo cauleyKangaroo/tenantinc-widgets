@@ -16,6 +16,15 @@ export interface CityUnit {
   subtype: string;
   inStorePrice: number;
   startingPrice: number;
+  /** The filter facets below are present on live units (see api.ts CitySpace)
+   *  and absent on the demo rows, so everything that reads them tolerates
+   *  undefined — a demo unit simply never matches a facet. */
+  spaceType?: 'Storage' | 'Parking';
+  sizeBucket?: string;
+  features?: string[];
+  amenities?: string[];
+  promo?: string;
+  vacantCount?: number;
 }
 
 export interface CityFacility {
@@ -25,17 +34,22 @@ export interface CityFacility {
   phone: string;
   lat: number;
   lng: number;
+  /** False → lat/lng are placeholders; don't plot or measure. See api.ts. */
+  hasCoords?: boolean;
+  /** NaN when unknown (no visitor location, or the property has no coords). */
   distanceMiles: number;
   rating: number;
   reviewCount: number;
   /** Dashed promo banner above the unit rows. Empty = no banner. */
   promo?: string;
   adminFee: number;
-  /** Map bubble label, e.g. "$25". */
+  /** Map bubble label, e.g. "$25". Empty when no priced space is available. */
   priceLabel: string;
   /** Green outline + "Featured Property" ribbon. */
   featured?: boolean;
   units: CityUnit[];
+  /** Facility photo from the API's `Images`, if any (else the demo imagery). */
+  imageUrl?: string;
 }
 
 const UNITS: CityUnit[] = [
@@ -70,7 +84,7 @@ export const CITY_FACILITIES: CityFacility[] = [
     phone: '(555) 555-5555',
     lat: 33.8847, lng: -117.9089,
     distanceMiles: 0.7,
-    rating: 4.5, reviewCount: 32,
+    rating: 4.8, reviewCount: 214,
     promo: 'Short Promotion Title',
     adminFee: 20,
     priceLabel: '$25',
@@ -83,7 +97,7 @@ export const CITY_FACILITIES: CityFacility[] = [
     phone: '(555) 555-5555',
     lat: 33.8579, lng: -117.9502,
     distanceMiles: 2.5,
-    rating: 4.5, reviewCount: 32,
+    rating: 4.2, reviewCount: 87,
     promo: 'Short Promotion Title',
     adminFee: 20,
     priceLabel: '$40',

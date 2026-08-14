@@ -1,0 +1,544 @@
+/* ===========================================================================
+   "Find Storage" mega menu — Figma nodes 10557-106986 and 10692-83507.
+
+   A POPUP: fixed to the viewport, filling everything below the nav bar (the
+   `top` offset is set inline from the measured bar). The Figma frames show the
+   whole area under the nav going dark, not a card floating on the page.
+
+   Column widths come from the frame's 1322px card — search 440, states 294,
+   cities 294 + 294 — expressed as fractions so they scale with the nav's own
+   1314px content width and stay lined up with the bar above.
+
+   FONTS. The Figma mixes Montserrat and Inter; every widget in this repo is
+   Montserrat, so the Inter runs (the "Nearby Storage Facilities" header) are
+   rendered in Montserrat at the same size/weight.
+   =========================================================================== */
+
+.nav-mega {
+  /* Figma "Primary/Notifications" — the count bubbles and the search button.
+     Follows the Duda theme's --color_1 like the rest of the bar's accents. */
+  --nav-mega-accent: var(--color_1, #f26500);
+  /* NOT a solid fill. Figma node 10557-106993 is a near-black at 90% opacity —
+     rgb(6,4,4) / alpha 230 of 255, read off the frame's own pixels — so the page
+     shows faintly through the popup. Anything opaque here reads as a new page
+     rather than a layer over the current one. */
+  --nav-mega-panel: rgba(6, 4, 4, 0.9);
+  --nav-mega-rule: rgba(255, 255, 255, 0.4);
+
+  position: fixed;
+  /* `top` is set inline — the bar's height varies with its props/breakpoint. */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* One below the mobile drawer's layer. Duda pages stack their own sections
+     high, which is why the drawer already sits at the top of the range. */
+  z-index: 2147483646;
+  background: var(--nav-mega-panel);
+  color: #fff;
+  overflow: hidden;
+  /* Closed state: no layout, no tab stops, no geolocation prompt. */
+  display: none;
+}
+
+.nav-mega.is-open {
+  display: block;
+}
+
+.nav-mega-inner {
+  position: relative;
+  box-sizing: border-box;
+  max-width: 1314px;
+  height: 100%;
+  margin: 0 auto;
+  /* Top padding clears the close ✕, which sits in the popup's own top-right
+     corner. Without it the ✕ lands on the "See all cities" link at the widths
+     where the card fills the viewport. */
+  padding: 64px 24px 32px;
+  /* Anything the columns can't shrink into scrolls inside the popup, never the
+     page behind it (which is locked while this is open). */
+  overflow-y: auto;
+}
+
+/* The Figma puts the ✕ outside the 1322px card, against the viewport's top-right
+   corner. `max()` keeps that gap on wide screens and pulls it back to a 24px
+   inset once the card fills the width. */
+.nav-mega-close {
+  position: absolute;
+  top: 20px;
+  right: max(24px, calc(50% - 731px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+.nav-mega-close:hover {
+  color: var(--nav-mega-accent);
+}
+
+/* ── Three columns ───────────────────────────────────────────────────────── */
+
+/* The Figma card's own proportions (440 / 294 / 588 of 1322). Fixed tracks, not
+   `auto`: the states column must not stretch to fill the space the cities column
+   leaves behind before a state is picked. */
+.nav-mega-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 440fr) minmax(0, 294fr) minmax(0, 588fr);
+  align-items: stretch;
+}
+
+.nav-mega-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 0 32px;
+}
+
+/* Full-height hairlines between the columns, as in the frame. */
+.nav-mega-col--search,
+.nav-mega-col--states {
+  border-right: 1px solid var(--nav-mega-rule);
+}
+
+.nav-mega-col--search {
+  gap: 24px;
+  padding-left: 0;
+}
+
+.nav-mega-block {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nav-mega-rule {
+  height: 1px;
+  background: var(--nav-mega-rule);
+}
+
+.nav-mega-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: normal;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.nav-mega-heading--sm {
+  font-size: 14px;
+}
+
+.nav-mega-heading-count {
+  font-weight: 400;
+}
+
+/* Shared scroll behaviour for the states / cities lists. The scrollbar is styled
+   for the dark panel — the default light one is nearly invisible on #111. */
+.nav-mega-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.45) transparent;
+}
+
+.nav-mega-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nav-mega-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 3px;
+}
+
+.nav-mega-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Column 1: search + nearby facilities ────────────────────────────────── */
+
+.nav-mega-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nav-mega-selects {
+  display: flex;
+  gap: 16px;
+}
+
+/* The shared kit has no Select yet, so these are built from the same Figma
+   ".Form 2.0" box as <FormField> — white, 1px #a5b4bf, 8px radius, 56px tall —
+   with a native <select> inside so the control stays keyboard- and
+   mobile-friendly. Swap them for the kit component when one lands. */
+.nav-mega-select {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  /* Explicit, not the default: this is a <label>, and host stylesheets love to
+     write `label { display: flex; align-items: center }` (the dev harness does,
+     and Duda themes do the same). Inherited into a COLUMN flex, `center` is the
+     horizontal axis — it floated "Type" into the middle of the box while the
+     value below it stayed left. Same class of trap as Duda's `ul` padding reset. */
+  align-items: stretch;
+  text-align: left;
+  gap: 2px;
+  height: 56px;
+  padding: 0 16px;
+  background: #fff;
+  border: 1px solid #a5b4bf;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.nav-mega-select:focus-within {
+  border-color: #101318;
+}
+
+/* Figma: 12px label directly above the 16px value, both flush to the box's 16px
+   left padding. `display: block` so it fills the row and can't be re-centred. */
+.nav-mega-select-label {
+  display: block;
+  width: 100%;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  line-height: 15px;
+  color: #637381;
+  text-align: left;
+}
+
+.nav-mega-select select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding: 0 24px 0 0;
+  border: none;
+  background: transparent;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  line-height: 20px;
+  color: #101318;
+  cursor: pointer;
+  outline: none;
+  text-overflow: ellipsis;
+}
+
+/* Chevron (Figma's caret-down), drawn once as a background so the native
+   select's own arrow can stay hidden. */
+.nav-mega-select::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 12px;
+  height: 8px;
+  transform: translateY(-50%);
+  background: #101318;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  pointer-events: none;
+}
+
+.nav-mega-search-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.nav-mega-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 56×56 icon-only square. The kit's CTA tone follows the Duda theme's green
+   --color_2; the Figma mega menu uses the notification orange instead, the same
+   colour as the count bubbles, so the tone is overridden here rather than by
+   inventing a new Button tone. */
+.nav-mega-search-btn.hb-btn {
+  --hb-btn-tone: var(--nav-mega-accent);
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: 8px;
+}
+
+/* Visually hidden label — the button shows only the magnifier, but a screen
+   reader (and a failed icon render) still gets "Search". */
+.nav-mega-search-btn.hb-btn > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.nav-mega-locations {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* One link per facility, covering the name, address and phone lines. */
+.nav-mega-loc {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  color: #fff;
+  text-decoration: none;
+}
+
+.nav-mega-loc > svg {
+  flex-shrink: 0;
+  color: var(--nav-mega-accent);
+}
+
+.nav-mega-loc-data {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nav-mega-loc-name {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  line-height: 1.1;
+  color: #fff;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Hover belongs to the row now — the name is no longer a link of its own. */
+.nav-mega-loc:hover .nav-mega-loc-name {
+  color: var(--nav-mega-accent);
+}
+
+.nav-mega-loc-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #fff;
+  text-decoration: underline;
+}
+
+.nav-mega-loc-line svg {
+  flex-shrink: 0;
+}
+
+.nav-mega-empty {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Column 2: states (one column) ───────────────────────────────────────── */
+
+.nav-mega-states {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* ~13 rows before it scrolls; capped against the viewport so a laptop-height
+     window doesn't push the panel off-screen. */
+  max-height: min(52vh, 442px);
+  width: 100%;
+}
+
+/* The selected state is a white outline pill (Figma). The 12px padding is on
+   every row and cancelled by the negative margin, so switching state can't nudge
+   the column sideways — only the border colour changes. */
+.nav-mega-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  margin-left: -12px;
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-radius: 100px;
+  background: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  line-height: normal;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-mega-state:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.nav-mega-state.is-active {
+  border-color: #fff;
+}
+
+.nav-mega-bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--nav-mega-accent);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 20px;
+  color: #fff;
+}
+
+/* ── Column 3: cities (two columns) ──────────────────────────────────────── */
+
+.nav-mega-cities-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 20px;
+}
+
+.nav-mega-cities {
+  width: 100%;
+  max-height: min(52vh, 442px);
+}
+
+/* CSS columns, not a grid: the list runs alphabetically DOWN column one and on
+   into column two, which is how the Figma fills it. The scroll lives on the
+   parent, so both columns move together under one scrollbar. */
+.nav-mega-city-cols {
+  column-count: 2;
+  column-gap: 24px;
+}
+
+.nav-mega-city {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 12px 6px 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  line-height: normal;
+  color: #fff;
+  text-decoration: none;
+  /* Never let a row be split across the column break. */
+  break-inside: avoid;
+}
+
+.nav-mega-city:hover .nav-mega-city-name {
+  color: var(--nav-mega-accent);
+  text-decoration: underline;
+}
+
+.nav-mega-city-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sits at the right-hand end of the cities header row (Figma: Montserrat
+   regular 16, underlined, uppercase). Shown only when the list scrolls. */
+.nav-mega-seeall {
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  line-height: normal;
+  color: #fff;
+  text-decoration: underline;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.nav-mega-seeall:hover {
+  color: var(--nav-mega-accent);
+}
+
+/* ── Page 2: every city in one state, four columns ───────────────────────── */
+
+/* No side padding: the header and first city column line up with the search
+   column on page 1, which starts at the card's own edge. */
+.nav-mega-all {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+}
+
+/* The whole header is the back control — chevron + STATE + ( count ). It stays
+   put while the columns scroll underneath, per the Figma's scroll note. */
+.nav-mega-back {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  line-height: normal;
+  color: #fff;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.nav-mega-back:hover {
+  color: var(--nav-mega-accent);
+}
+
+.nav-mega-back-state {
+  font-weight: 700;
+}
+
+.nav-mega-back-count {
+  font-weight: 400;
+}
+
+.nav-mega-all-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.nav-mega-all-cols {
+  column-count: 4;
+  column-gap: 24px;
+}
+
+/* ── Below the hamburger breakpoint the drawer takes over ────────────────── */
+
+@media (max-width: 1024px) {
+  .nav-mega,
+  .nav-mega.is-open {
+    display: none;
+  }
+}

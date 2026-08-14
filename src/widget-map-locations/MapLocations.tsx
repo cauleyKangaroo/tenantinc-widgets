@@ -10,37 +10,37 @@
 // Duda's CSP to block. The Figma bubbles differ from #07's pins, so this widget
 // passes `renderPin` rather than restyling the shared component.
 //
-// STATIC for now: everything comes from ./data.ts. See the note there.
+// DATA: the city's properties come from /properties (collection-first) and each
+// one's spaces from /space-groups/…/groups — the same two-call chain #05's
+// "Nearby Storage" uses, staged the same way. See ./api.ts. ./data.ts is now
+// only the pre-first-response placeholder for the Duda editor and the harness.
 // ===========================================================================
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './MapLocations.css';
 import { NearbyMap, type MapPoint, type PositionedPoint } from '@shared/NearbyMap';
 import { RichText } from '@shared/richText';
 import { CITY_FACILITIES, type CityFacility, type CityUnit } from './data';
 import { PROPERTY_IMAGES } from '@shared/demoImages';
 import { FilterPanel } from './FilterPanel';
-import { INITIAL_FILTERS, activeFilterCount, type FilterState } from './filters';
+import {
+  INITIAL_FILTERS, activeFilterCount, filterFacilities, deriveFilterOptions, visibleUnits,
+  type FilterState,
+} from './filters';
+import { fetchPlaceProperties, fetchCitySpaces, toCityFacility, type PlaceScope } from './api';
+import { getUserLocation } from '@shared/nearbyProperties';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { stateNameFromCode } from '@shared/usStates';
+import { slugLabel } from '@shared/propertyNav';
+import { fetchGoogleRatingsByPlace, ratingForProperty, type RatingSummary } from '@shared/reviewsCollections';
+import { hasCollectionsApi } from '@shared/dudaCollections';
+import cfg from './config.json';
 import { useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
+import { FilterIcon, ChevronBigDownIcon, SortIcon, StarIcon, TagIcon, MapLocationIcon } from './icons';
 
 // ── Icons (inline SVG — the AMD bundle can't load remote assets) ─────────────
 
 const Icon = {
-  filter: (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 6h18M6 12h12M10 18h4" />
-    </svg>
-  ),
-  sort: (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 6h10M3 12h7M3 18h4M17 4v16M17 20l-3-3M17 20l3-3" />
-    </svg>
-  ),
-  chevron: (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  ),
   search: (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="11" cy="11" r="7" />
@@ -71,36 +71,15 @@ const Icon = {
       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z" />
     </svg>
   ),
-  tag: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="#509e2f" aria-hidden="true">
-      <path d="M5.5 2h7.1c.5 0 1 .2 1.4.6l7.4 7.4c.8.8.8 2 0 2.8l-7.1 7.1c-.8.8-2 .8-2.8 0L4.1 12.5c-.4-.4-.6-.9-.6-1.4V4A2 2 0 0 1 5.5 2Zm2.5 3.5A1.5 1.5 0 1 0 8 8.5 1.5 1.5 0 0 0 8 5.5Z" />
-    </svg>
-  ),
 };
-
-function Star({ size = 16, half = false, color = '#FFD000' }: { size?: number; half?: boolean; color?: string }) {
-  const d = 'M12 2.5l2.9 5.9 6.5.95-4.7 4.58 1.11 6.47L12 17.35l-5.81 3.05 1.11-6.47-4.7-4.58 6.5-.95L12 2.5z';
-  if (!half) return <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true"><path d={d} /></svg>;
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-      <defs>
-        <linearGradient id="ml-half">
-          <stop offset="50%" stopColor={color} />
-          <stop offset="50%" stopColor="rgba(255,255,255,0.45)" />
-        </linearGradient>
-      </defs>
-      <path d={d} fill="url(#ml-half)" />
-    </svg>
-  );
-}
 
 function Stars({ rating }: { rating: number }) {
   const full = Math.floor(rating);
   const half = rating - full >= 0.5;
   return (
     <span className="ml-stars">
-      {Array.from({ length: full }, (_, i) => <Star key={`f${i}`} />)}
-      {half && <Star half />}
+      {Array.from({ length: full }, (_, i) => <StarIcon key={`f${i}`} />)}
+      {half && <StarIcon half />}
     </span>
   );
 }
@@ -116,7 +95,7 @@ function UnitRow({ unit }: { unit: CityUnit }) {
       </div>
 
       <div className="ml-unit-prices">
-        <span className="ml-unit-tag">{Icon.tag}</span>
+        <span className="ml-unit-tag"><TagIcon size={16} /></span>
         <div className="ml-price-strike">
           <span className="ml-price-label">IN-STORE</span>
           <span className="ml-price-was">${unit.inStorePrice}</span>
@@ -139,6 +118,8 @@ function PropertyCard({
   index,
   active,
   compact,
+  filters,
+  rating,
   onActivate,
 }: {
   facility: CityFacility;
@@ -146,8 +127,17 @@ function PropertyCard({
   active: boolean;
   /** Mobile card: unit rows collapse to one "Units starting at $X" button. */
   compact: boolean;
+  /** Active filters — the three listed spaces are drawn from the matching
+   *  ones, so the card agrees with what the visitor filtered. */
+  filters: FilterState;
+  /** This property's Google rating, or null when the collection has none
+   *  (and always in the editor/harness, where there is no dmAPI). */
+  rating: RatingSummary | null;
   onActivate: () => void;
 }) {
+  // Three, per the design; "See All Spaces" covers the rest. A live property
+  // has 26–38 tiers, so this is the difference between a card and a wall.
+  const shown = visibleUnits(facility, filters);
   const cls = [
     'ml-card',
     facility.featured ? 'ml-card--featured' : '',
@@ -163,21 +153,45 @@ function PropertyCard({
 
         {facility.featured && (
           <div className="ml-featured">
-            <Star size={16} color="#fff" />
+            <StarIcon size={16} color="#fff" />
             <span>Featured Property</span>
           </div>
         )}
 
-        <span className="ml-distance">{facility.distanceMiles} Miles</span>
+        {/* Only when it's actually known. NaN means no visitor location (or the
+            property has no coordinates), and "NaN Miles" was rendering on the
+            card. One decimal, so 3.4523 doesn't print in full. */}
+        {Number.isFinite(facility.distanceMiles) && (
+          <span className="ml-distance">{facility.distanceMiles.toFixed(1)} Miles</span>
+        )}
 
         <div className="ml-card-data">
           <p className="ml-card-name">{facility.name}</p>
 
-          <div className="ml-rating">
-            <span className="ml-rating-score">{facility.rating}</span>
-            <Stars rating={facility.rating} />
-            <a className="ml-reviews" href="#">{facility.reviewCount} Reviews</a>
-          </div>
+          {/* Rating from the GoogleReviews collection (see `rating` prop).
+              Still conditional: it's absent in the Duda editor and the harness,
+              where dmAPI doesn't exist, and rendering the row regardless printed
+              a bare "0" with no stars — which reads as a one-star facility
+              rather than an unrated one. */}
+          {/* Reads the facility's stamped score, not the collection object
+              directly, so the preview fallback shows here too (see `rated`).
+              `rating` is still consulted for the outbound link, which only a
+              real collection row can supply. */}
+          {facility.rating > 0 && (
+            <div className="ml-rating">
+              <span className="ml-rating-score">{facility.rating}</span>
+              <Stars rating={facility.rating} />
+              {rating?.reviewsUrl ? (
+                <a className="ml-reviews" href={rating.reviewsUrl} target="_blank" rel="noreferrer">
+                  {facility.reviewCount} Reviews
+                </a>
+              ) : (
+                // No destination in the collection — a bare <a href="#"> would
+                // scroll the host page to the top when clicked.
+                <span className="ml-reviews">{facility.reviewCount} Reviews</span>
+              )}
+            </div>
+          )}
 
           <a
             className="ml-card-row"
@@ -198,7 +212,7 @@ function PropertyCard({
       <div className="ml-card-body">
         {facility.promo && (
           <div className="ml-promo">
-            {Icon.tag}
+            <TagIcon size={16} />
             <span className="ml-promo-text">{facility.promo}</span>
           </div>
         )}
@@ -210,12 +224,16 @@ function PropertyCard({
         ) : (
           <>
             <div className="ml-units">
-              {facility.units.map((u) => <UnitRow key={u.id} unit={u} />)}
+              {shown.map((u) => <UnitRow key={u.id} unit={u} />)}
             </div>
 
             <div className="ml-card-foot">
               <span className="ml-admin-fee">+ Plus ${facility.adminFee} Admin Fee</span>
-              <a className="ml-see-all" href="#">See All Spaces</a>
+              {/* Only when there IS more to see — on a property with three or
+                  fewer spaces the link would lead nowhere new. */}
+              {facility.units.length > shown.length && (
+                <a className="ml-see-all" href="#">See All Spaces</a>
+              )}
             </div>
           </>
         )}
@@ -227,15 +245,70 @@ function PropertyCard({
 // ── Props ───────────────────────────────────────────────────────────────────
 
 export interface MapLocationsProps {
-  /** City shown in the heading and the SEO block, e.g. "Fullerton, CA". */
+  /**
+   * City shown in the heading and the SEO block, e.g. "Fullerton, CA".
+   *
+   * ALSO the match key: everything before the first comma is compared against
+   * each property's `Address.city` (case- and spacing-insensitive), so "Fullerton,
+   * CA" and "fullerton" both work. Blank lists every property rather than none.
+   */
   city?: string;
+  /**
+   * State page scope, e.g. "california" or "CA". Set on `/locations/{state}`.
+   * Normally omitted — it is read from the URL (see `locationBasePath`).
+   */
+  state?: string;
+  /**
+   * Path the location pages live under. `/locations` by default, matching the
+   * links #02's mega menu builds, so `/locations/{state}` and
+   * `/locations/{state}/{city}` are parsed off the URL with nothing passed from
+   * Duda at all. Set it if the pages move.
+   */
+  locationBasePath?: string;
+  /**
+   * Company whose properties to list. Normally omitted — it resolves from the
+   * `Company` collection, with config.json as the editor/harness fallback.
+   */
+  companyId?: string;
   /** Heading under the map. */
   seoHeading?: string;
   /** SEO copy. HTML is parsed (see @shared/richText); blank hides the block. */
   seoContent?: string;
   /** Height of the pinned map. Capped to the viewport so it can't overflow it. */
   rowHeight?: number | string;
+  /** @deprecated The sort is a real control now — see SORT_OPTIONS. */
   sortLabel?: string;
+}
+
+/**
+ * Sort options for the header dropdown.
+ *
+ * PLACEHOLDER SET, pending what the client actually wants. Both reorder for
+ * real rather than being decorative, so swapping in the final list is a data
+ * change, not a rewrite.
+ */
+const SORT_OPTIONS = [
+  { id: 'distance', label: 'Closest Distance' },
+  { id: 'reviews', label: 'Highly Reviewed' },
+] as const;
+
+type SortId = typeof SORT_OPTIONS[number]['id'];
+
+/** Sort a copy — never mutate the source list, which is module-level demo data. */
+function sortFacilities(list: CityFacility[], by: SortId): CityFacility[] {
+  const out = [...list];
+  if (by === 'distance') {
+    // Missing distance sorts LAST, not as 0 — otherwise a facility with no
+    // distance would float to the top of a "Closest Distance" list.
+    const miles = (f: CityFacility) =>
+      Number.isFinite(f.distanceMiles) ? f.distanceMiles : Infinity;
+    return out.sort((a, b) => miles(a) - miles(b));
+  }
+  // Highly Reviewed: rating first, then review count as the tie-break — a 4.5
+  // from 300 people should outrank a 4.5 from 3.
+  const rating = (f: CityFacility) => Number(f.rating ?? 0);
+  const count = (f: CityFacility) => Number(f.reviewCount ?? 0);
+  return out.sort((a, b) => (rating(b) - rating(a)) || (count(b) - count(a)));
 }
 
 const DEFAULT_SEO = `<p><strong>Storage in Fullerton</strong></p>
@@ -243,33 +316,223 @@ const DEFAULT_SEO = `<p><strong>Storage in Fullerton</strong></p>
 <p><strong>Self Storage Features</strong><br>At our storage facilities, we offer a wide range of features and amenities that make packing and self storage easy. You will find drive-up storage units for simple loading and unloading, delivery receiving services, packing and moving supplies right on site, and long gate access hours.</p>
 <p><strong>Secure Storage Units</strong><br>When you rent storage units in Fullerton, CA, you want total security. Our property is covered with 24/7 video surveillance, electronic gate access, and a manager who is always on site.</p>`;
 
+/**
+ * `/locations/california/fullerton` → { state: 'california', city: 'fullerton' }
+ *
+ * The page URL already says which place it is, so a state or city page needs
+ * NOTHING passed from Duda. Explicit props still win — a static page, the dev
+ * harness, and the Duda editor (where the path is the editor's, not the site's)
+ * all need to be able to say it outright.
+ *
+ * Anything that is not under the base path returns {} and the widget lists the
+ * whole portfolio, which is the same fallback as an unconfigured instance.
+ */
+export function parseLocationPath(pathname: string, basePath = DEFAULT_LOCATION_BASE_PATH): PlaceScope {
+  const base = basePath.trim().replace(/^\/+|\/+$/g, '').toLowerCase();
+  const parts = pathname.split('/').map((v) => v.trim()).filter(Boolean).map(decodeURIComponent);
+  if (base) {
+    // Find the base anywhere in the path — Duda can serve a page from a nested
+    // path, and a leading language segment (/en/locations/...) is common.
+    const at = parts.findIndex((v) => v.toLowerCase() === base);
+    if (at === -1) return {};
+    parts.splice(0, at + 1);
+  }
+  return { state: parts[0] ?? '', city: parts[1] ?? '' };
+}
+
+/** Where the state/city pages live. Matches #02's mega-menu links. */
+const DEFAULT_LOCATION_BASE_PATH = '/locations';
+
 // ── Component ───────────────────────────────────────────────────────────────
 
 export function MapLocations({
-  city = 'Fullerton, CA',
+  city,
+  state,
+  locationBasePath = DEFAULT_LOCATION_BASE_PATH,
+  companyId,
   seoHeading,
   seoContent = DEFAULT_SEO,
   rowHeight = 900,
   sortLabel = 'Closest Distance',
 }: MapLocationsProps) {
-  // Duda text fields arrive as '' until the editor types something, and a default
-  // parameter only catches `undefined` — so fall back on blank too, or the
-  // headings read "Storage Facilities in ".
-  const cityLabel = city.trim() || 'Fullerton, CA';
-  const sort = sortLabel.trim() || 'Closest Distance';
+  // The page URL is the source of truth on /locations/{state}[/{city}], so a
+  // real page passes nothing. Props override it for static pages, the harness,
+  // and the Duda editor — where the path is the editor's, not the site's.
+  // Duda text fields arrive as '' until the editor types something, and a
+  // default parameter only catches `undefined`, so trim-then-fall-back.
+  const fromUrl = useMemo(
+    () => parseLocationPath(
+      typeof window === 'undefined' ? '' : window.location.pathname,
+      locationBasePath,
+    ),
+    [locationBasePath],
+  );
+  const scope: PlaceScope = {
+    state: (state ?? '').trim() || fromUrl.state || '',
+    city: (city ?? '').trim() || fromUrl.city || '',
+  };
 
-  const facilities = CITY_FACILITIES;
-  // Which card/bubble is highlighted. Starts on the featured one, matching the
-  // Figma where a card and its bubble share the orange outline.
-  const [activeId, setActiveId] = useState<string>(facilities[1]?.id ?? facilities[0]?.id ?? '');
+  // Heading reads "… in Fullerton, CA" on a city page and "… in California" on a
+  // state page. Prefer whatever the editor typed — it carries the ", CA" the
+  // slug can't — and title-case a slug segment otherwise.
+  const cityLabel =
+    (city ?? '').trim()
+    || (scope.city ? slugLabel(scope.city) : '')
+    || (scope.state ? stateNameFromCode(scope.state) || slugLabel(scope.state) : '')
+    || 'all locations';
+
+  const [sortBy, setSortBy] = useState<SortId>('distance');
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef<HTMLDivElement>(null);
+
+  // Live facilities for this city; null until the first load settles, which is
+  // what tells the render to show skeletons rather than an empty-city message.
+  const [liveFacilities, setLiveFacilities] = useState<CityFacility[] | null>(null);
+
+  // The company is site DATA (Company collection), not build output — same
+  // precedence as #05: explicit prop → collection → config.json. Held as state
+  // so the data effect can wait for it instead of firing at the wrong company.
+  const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    resolveCompanyIdFromSources('#08 map-locations', { companyId }, cfg.companyId)
+      .then((id) => { if (!cancelled) setResolvedCompanyId(id); });
+    return () => { cancelled = true; };
+  }, [companyId]);
+
+  // Ratings come from the `GoogleReviews` collection, not the properties API,
+  // so they load independently of everything above and simply appear on the
+  // cards when they arrive. Published-site only (no dmAPI in the editor or the
+  // harness), where it stays empty and the cards show no rating block.
+  const [ratings, setRatings] = useState<{
+    byPlace: Map<string, RatingSummary>; overall: RatingSummary | null;
+  }>({ byPlace: new Map(), overall: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchGoogleRatingsByPlace('#08 map-locations')
+      .then((r) => { if (!cancelled) setRatings(r); })
+      .catch((err) => console.error('[MapLocations] ratings error:', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  // Stage 1: the city's properties paint as soon as /properties returns.
+  // Stage 2: each card fills in its spaces as its space-groups call resolves,
+  // so one slow (or 404ing) property can't hold up the rest. Same shape as
+  // #05's NearbySection.
+  useEffect(() => {
+    if (!resolvedCompanyId) return;
+    let cancelled = false;
+    const api = { ...cfg, companyId: resolvedCompanyId };
+
+    (async () => {
+      try {
+        // Not named `props` — eslint-plugin-react reads `props.map(…)` inside a
+        // component as prop access and demands prop-types for it.
+        const [cityProps, userLoc] = await Promise.all([
+          fetchPlaceProperties(api, scope),
+          // Distances are only meaningful from somewhere. Declined geolocation
+          // is normal, not an error: the cards then omit the distance line and
+          // "Closest Distance" degrades to the API's own order.
+          getUserLocation(),
+        ]);
+        if (cancelled) return;
+
+        const ref = userLoc ?? null;
+        setLiveFacilities(cityProps.map((p) => toCityFacility(p, [], undefined, ref)));
+
+        cityProps.forEach((p) => {
+          fetchCitySpaces(api, p.id).then(({ promo, spaces }) => {
+            if (cancelled) return;
+            setLiveFacilities((prev) => prev
+              ? prev.map((f) => (f.id === p.id ? toCityFacility(p, spaces, promo, ref) : f))
+              : prev);
+          });
+        });
+      } catch (err) {
+        console.error('[MapLocations] load error:', err);
+        if (!cancelled) setLiveFacilities([]);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [resolvedCompanyId, scope.state, scope.city]);
+
+  // Filter panel (Figma 10557:146492) — a centred lightbox, like #05's.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
+
+  const loading = liveFacilities === null;
+  // Demo data stands in ONLY before the first response, so the editor and the
+  // harness aren't looking at an empty frame. Once the load settles, an empty
+  // city is shown as empty — silently falling back to three invented facilities
+  // would look like a working page for a city we have nothing in.
+  const sourceFacilities = liveFacilities ?? CITY_FACILITIES;
+
+  const filtered = useMemo(
+    () => filterFacilities(sourceFacilities, filters),
+    [sourceFacilities, filters],
+  );
+  const filterOptions = useMemo(() => deriveFilterOptions(sourceFacilities), [sourceFacilities]);
+
+  // Stamp the collection's rating onto each facility BEFORE sorting, or
+  // "Highly Reviewed" would sort on the hardcoded 0 every card carries out of
+  // toCityFacility and silently do nothing.
+  //
+  // PREVIEW FALLBACK. Ratings live in the `GoogleReviews` collection, which is
+  // readable only on a PUBLISHED Duda page — there is no dmAPI in the editor or
+  // the dev harness, so the reviews line under the property name would never
+  // render while anyone is designing the page. Outside Duda we therefore show
+  // the demo ratings from data.ts so the row is visible and reviewable.
+  //
+  // Deliberately gated on `hasCollectionsApi()` rather than "no rating found":
+  // on a published site with the collection genuinely empty, a card must show
+  // NO rating rather than an invented one. Printing "4.5 ★ 32 Reviews" for a
+  // facility nobody has reviewed would mislead a customer.
+  const isPreview = !hasCollectionsApi();
+  const rated = useMemo(() => filtered.map((f, i) => {
+    const r = ratingForProperty(f.name, ratings);
+    if (r) return { ...f, rating: r.score, reviewCount: r.count };
+    if (isPreview && !(f.rating > 0)) {
+      const demo = CITY_FACILITIES[i % CITY_FACILITIES.length];
+      return { ...f, rating: demo.rating, reviewCount: demo.reviewCount };
+    }
+    return f;
+  }), [filtered, ratings, isPreview]);
+
+  const facilities = useMemo(() => sortFacilities(rated, sortBy), [rated, sortBy]);
+  const sortLabelText =
+    SORT_OPTIONS.find((o) => o.id === sortBy)?.label ?? SORT_OPTIONS[0].label;
+
+  // Click-outside closes the dropdown. Pointerdown rather than click so it
+  // closes before the next control receives its own event.
+  useEffect(() => {
+    if (!sortOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) setSortOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSortOpen(false); };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [sortOpen]);
+  // Which card/bubble is highlighted — a card and its bubble share the outline.
+  const [activeId, setActiveId] = useState<string>('');
   /** Which bubble has its popup open. Null = none. */
   const [openId, setOpenId] = useState<string | null>(null);
 
-  // Filter panel (Figma 10557:146492) — a centred lightbox, like #05's.
-  // Selections are live state so the panel behaves, but nothing is filtered
-  // yet: #08's data is still static.
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
+  // Kept valid as the list changes. `useState`'s initial value is read once, so
+  // seeding it from `facilities` left it '' forever with async data — nothing was
+  // ever highlighted. Re-seeds only when the current selection has gone from the
+  // list, so filtering or sorting doesn't yank the highlight off the visitor's
+  // chosen card.
+  useEffect(() => {
+    if (facilities.length === 0) { if (activeId) setActiveId(''); return; }
+    if (!facilities.some((f) => f.id === activeId)) setActiveId(facilities[0].id);
+  }, [facilities, activeId]);
 
   const filterCount = activeFilterCount(filters);
 
@@ -283,7 +546,12 @@ export function MapLocations({
   const showMap = !isMobile || mobileView === 'map';
   const showCards = !isMobile || mobileView === 'list';
 
-  const points: MapPoint[] = facilities.map((f) => ({
+  // Only plottable facilities become pins. Live properties can have lat/lng
+  // null (all seven do today), and a 0/0 placeholder would drop a pin in the
+  // Atlantic and drag the map's centre with it.
+  const plottable = facilities.filter((f) => f.hasCoords !== false && (f.lat !== 0 || f.lng !== 0));
+
+  const points: MapPoint[] = plottable.map((f) => ({
     id: f.id,
     lat: f.lat,
     lng: f.lng,
@@ -292,7 +560,13 @@ export function MapLocations({
     active: f.id === activeId,
   }));
 
-  const center = { lat: facilities[0].lat, lng: facilities[0].lng };
+  // Guarded: `facilities[0].lat` threw the moment the list could be empty —
+  // which the static data never was, but a filtered or still-loading live list
+  // is. Centre on the active facility when there is one, else the first
+  // plottable, else nothing renders the map at all (see hasMap below).
+  const centerOf = plottable.find((f) => f.id === activeId) ?? plottable[0];
+  const center = centerOf ? { lat: centerOf.lat, lng: centerOf.lng } : null;
+  const hasMap = center !== null;
 
   // Figma bubble: white pill, dark border — orange + shadow when active, with a
   // star ahead of the price. Clicking one opens the popup above it
@@ -316,7 +590,7 @@ export function MapLocations({
           }}
           title={p.name}
         >
-          {isActive && <Star size={24} color="#101318" />}
+          {isActive && <StarIcon size={24} color="#101318" />}
           <span>{p.label}</span>
         </button>
 
@@ -352,7 +626,7 @@ export function MapLocations({
                 {facility.address}
               </a>
               <div className="ml-popup-rating">
-                <Star size={16} />
+                <StarIcon size={16} />
                 <span className="ml-popup-score">{facility.rating}</span>
                 <a className="ml-popup-reviews" href="#">{facility.reviewCount} Reviews</a>
               </div>
@@ -399,10 +673,10 @@ export function MapLocations({
               {/* Names the view you'd switch TO, as the frames do. */}
               <button
                 type="button"
-                className="ml-pill"
+                className="ml-pill ml-pill--view"
                 onClick={() => setMobileView((v) => (v === 'map' ? 'list' : 'map'))}
               >
-                {mobileView === 'map' ? Icon.listView : Icon.mapView}
+                {mobileView === 'map' ? Icon.listView : <MapLocationIcon size={24} />}
                 <span>{mobileView === 'map' ? 'List View' : 'Map View'}</span>
               </button>
 
@@ -412,7 +686,7 @@ export function MapLocations({
                 aria-expanded={filtersOpen}
                 onClick={() => setFiltersOpen(true)}
               >
-                {Icon.filter}<span>Filter &amp; Sort</span>
+                <FilterIcon size={24} /><span>Filter &amp; Sort</span>
                 {filterCount > 0 && <span className="ml-pill-badge">{filterCount}</span>}
               </button>
             </div>
@@ -431,17 +705,51 @@ export function MapLocations({
           <div className="ml-controls">
             <button
               type="button"
-              className={`ml-pill${filtersOpen ? ' ml-pill--on' : ''}`}
+              // Selected state tracks whether filters ARE APPLIED, not whether
+              // the lightbox happens to be open — the dark pill and its green
+              // count are the design's way of saying "5 filters are on"
+              // (Figma 10629-81025), which stays true after the panel closes.
+              className={`ml-pill${filterCount > 0 ? ' ml-pill--on' : ''}`}
               aria-expanded={filtersOpen}
               onClick={() => setFiltersOpen(true)}
             >
-              {Icon.filter}<span>Filter</span>
+              <FilterIcon size={24} /><span>Filter</span>
               {filterCount > 0 && <span className="ml-pill-count">{filterCount}</span>}
             </button>
 
-            <button type="button" className="ml-pill">
-              {Icon.sort}<span className="ml-pill-sort">{sort}</span>{Icon.chevron}
-            </button>
+            {/* Sort — a real listbox. Figma shows the closed pill only, so the
+                open menu follows the filter modal's surface (white, 12px radius,
+                the same elevation) rather than inventing a new one. */}
+            <div className="ml-sort" ref={sortRef}>
+              <button
+                type="button"
+                className={`ml-pill${sortOpen ? ' ml-pill--open' : ''}`}
+                aria-haspopup="listbox"
+                aria-expanded={sortOpen}
+                onClick={() => setSortOpen((o) => !o)}
+              >
+                <SortIcon size={24} />
+                <span className="ml-pill-sort">{sortLabelText}</span>
+                <ChevronBigDownIcon size={24} className="ml-pill-chev" />
+              </button>
+              {sortOpen && (
+                <ul className="ml-sort-menu" role="listbox" aria-label="Sort facilities">
+                  {SORT_OPTIONS.map((o) => (
+                    <li key={o.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={o.id === sortBy}
+                        className={`ml-sort-opt${o.id === sortBy ? ' ml-sort-opt--on' : ''}`}
+                        onClick={() => { setSortBy(o.id); setSortOpen(false); }}
+                      >
+                        {o.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -458,13 +766,36 @@ export function MapLocations({
                 index={i}
                 active={f.id === activeId}
                 compact={isMobile}
+                filters={filters}
+                rating={ratingForProperty(f.name, ratings)}
                 onActivate={() => setActiveId(f.id)}
               />
             ))}
+            {/* Nothing to show. The two cases read very differently to a
+                visitor — "this city has no facilities" versus "your filters
+                excluded them all" — and only the second one is recoverable, so
+                it gets the reset. */}
+            {!loading && facilities.length === 0 && (
+              <div className="ml-empty" role="status">
+                {filterCount > 0 ? (
+                  <>
+                    <p className="ml-empty-title">No facilities match these filters</p>
+                    <button type="button" className="ml-empty-reset" onClick={() => setFilters(INITIAL_FILTERS)}>
+                      Clear all filters
+                    </button>
+                  </>
+                ) : (
+                  <p className="ml-empty-title">No storage facilities in {cityLabel} yet.</p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {showMap && (
+        {/* The map needs at least one property with real coordinates. Without
+            any it is omitted entirely rather than rendered blank or centred on
+            null island — the list is still perfectly usable. */}
+        {showMap && hasMap && (
           <div className="ml-map">
             <NearbyMap
               center={center}
@@ -489,13 +820,24 @@ export function MapLocations({
       {/* Filter lightbox — its overlay is fixed, so where it sits here is moot. */}
       {filtersOpen && (
         <FilterPanel
+          // Mobile only: the button says "Filter & Sort", so the sort lives in
+          // the panel. Desktop keeps its own header pill (Figma 10557-146402
+          // has no Sort group).
+          {...(isMobile ? {
+            sortOptions: SORT_OPTIONS,
+            sortBy,
+            onSortChange: (id: string) => setSortBy(id as SortId),
+            fullScreen: true,
+          } : {})}
           filters={filters}
+          options={filterOptions}
+          resultCount={filtered.length}
           onChange={setFilters}
           onClose={() => setFiltersOpen(false)}
-          onReset={() => setFilters({
-            types: [], sizes: [], features: [], amenities: [], promotions: [],
-            minPrice: '$0', maxPrice: '$2,000', maxDistance: '20 miles',
-          })}
+          // Reset means "no filters", which is now also the opening state —
+          // it used to reset to the Figma's pre-selected pills, i.e. clearing
+          // the filters would have applied five of them.
+          onReset={() => setFilters(INITIAL_FILTERS)}
           onApply={() => setFiltersOpen(false)}
         />
       )}

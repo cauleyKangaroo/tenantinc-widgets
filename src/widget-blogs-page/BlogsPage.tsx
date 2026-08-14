@@ -65,6 +65,21 @@ const NO_IMAGE = 'linear-gradient(135deg, #dfe3e8 0%, #c4cdd5 100%)';
 const DEFAULT_BATCH_SIZE = 9;
 const DEFAULT_VISIBLE_TAGS = 3;
 
+/**
+ * Floor for the number of placeholder cards on the first paint.
+ *
+ * The count is otherwise the batch size, because that is how many cards actually
+ * land — a 3-card skeleton followed by a 9-card grid is a three-row jump, which
+ * was the bulk of this widget's CLS. The floor covers a small configured
+ * `batchSize`, so the placeholder always reserves more than a single row.
+ *
+ * It is a guess in one direction only: a collection holding fewer posts than
+ * this still collapses the grid on arrival. Nothing can be known about the row
+ * count before the read, and under-reserving (the old behaviour) shifts the rest
+ * of the page down, which is the more expensive mistake.
+ */
+const MIN_SKELETON_CARDS = 6;
+
 // ---------------------------------------------------------------------------
 // Blog card
 // ---------------------------------------------------------------------------
@@ -148,18 +163,42 @@ function BlogCard({ post, profiles, shareOpen, onToggleShare }: BlogCardProps) {
   );
 }
 
-/** Placeholder cards shown while the collection read is in flight. */
+/**
+ * Placeholder cards shown while the collection read is in flight.
+ *
+ * This mirrors BlogCard's DOM element for element — same .bpg-card, same
+ * .bpg-card-img, same .bpg-card-body, same .bpg-card-footer — and the CSS
+ * reserves a fixed box for the title, byline and excerpt (the --bpg-*-h tokens).
+ * So a skeleton card and a loaded card are the same height to the pixel, and the
+ * read landing costs nothing on CLS. Anything added to BlogCard's body needs a
+ * counterpart here, or the two drift apart again.
+ */
 function CardSkeletons({ count }: { count: number }) {
   return (
     <>
       {Array.from({ length: count }).map((_, i) => (
-        <article className="bpg-card bpg-card--skeleton" key={i}>
+        <article className="bpg-card bpg-card--skeleton" key={i} aria-hidden="true">
           <div className="bpg-card-img" />
           <div className="bpg-card-body">
-            <span className="bpg-skel bpg-skel--title" />
-            <span className="bpg-skel bpg-skel--byline" />
-            <span className="bpg-skel bpg-skel--text" />
-            <span className="bpg-skel bpg-skel--text short" />
+            {/* Three bars for the 3-line title box, two for the 2-line excerpt —
+                the bars divide their box up, so the widths are the only thing
+                chosen here and the heights follow the tokens. */}
+            <div className="bpg-skel-box bpg-skel-box--title">
+              <span className="bpg-skel" />
+              <span className="bpg-skel" />
+              <span className="bpg-skel" style={{ width: '55%' }} />
+            </div>
+            <div className="bpg-skel-box bpg-skel-box--byline">
+              <span className="bpg-skel" style={{ width: '60%' }} />
+            </div>
+            <div className="bpg-skel-box bpg-skel-box--excerpt">
+              <span className="bpg-skel" />
+              <span className="bpg-skel" style={{ width: '80%' }} />
+            </div>
+            <div className="bpg-card-footer">
+              <span className="bpg-skel bpg-skel--readmore" />
+              <span className="bpg-skel bpg-skel--share" />
+            </div>
           </div>
         </article>
       ))}
@@ -482,7 +521,7 @@ export function BlogsPage({
       <div className="bpg-wrapper">
         <BarSkeleton />
         <div className="bpg-grid">
-          <CardSkeletons count={3} />
+          <CardSkeletons count={Math.max(MIN_SKELETON_CARDS, perBatch)} />
         </div>
         <span className="bpg-sr-only" role="status">Loading blog posts…</span>
       </div>

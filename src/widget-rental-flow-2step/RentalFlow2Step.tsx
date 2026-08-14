@@ -3,7 +3,7 @@ import './RentalFlow2Step.css';
 import { Step2 } from './Step2';
 import {
   fetchProperty, fetchSpaceGroups, extractProtectionPlans, fetchLeaseDocument,
-  extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote,
+  extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitNumber,
   holdUnit, releaseHold, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
@@ -13,7 +13,7 @@ import { Confirmation, type EntryMode } from './Confirmation';
 import { GP_BRIDGE_IS_PROTOTYPE } from './gpHostedFields';
 import { OrderRail } from './OrderRail';
 import { Shimmer } from '@shared/Shimmer';
-import { FormField, Button, Checkbox, DateModal, type FieldType } from '@shared/ui';
+import { FormField, Button, Checkbox, DateModal, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 
@@ -42,6 +42,13 @@ export interface RentalFlow2StepProps {
   heading?: string;
   /** Underlined link at the end of the SMS-consent paragraph. */
   termsHref?: string;
+  /** Operator-editable copy shown under the Reserve button when the reservation
+   *  API call fails. Kept generic on purpose — raw status codes / backend text
+   *  stay in the console, never in front of the shopper. */
+  reserveFailedMessage?: string;
+  /** Operator-editable confirmation-page headings (reservation vs rental). */
+  reservationHeading?: string;
+  rentalHeading?: string;
   /** Selection handed off from the value-tiers page (?size= / ?tier=) —
    *  display context only; the transaction re-resolves server-side. */
   size?: string;
@@ -76,13 +83,12 @@ export interface RentalFlow2StepProps {
 }
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
-const isValidPhone = (v: string) => v.replace(/\D/g, '').length >= 10;
 
 // A single labelled field — now the shared @shared/ui <FormField>. `valid`
 // drives the green success state; `error` (submit attempted while invalid)
 // turns it red with a concise message. Resting/focus states are the kit's CSS.
 function Field({
-  id, label, type = 'text', value, valid, error, onChange,
+  id, label, type = 'text', value, valid, error, onChange, phoneCountry,
 }: {
   id: string;
   label: string;
@@ -92,6 +98,8 @@ function Field({
   /** Submit was attempted while this field is invalid — red state. */
   error?: boolean;
   onChange: (v: string) => void;
+  /** Opt in libphonenumber as-you-type formatting for a tel field. */
+  phoneCountry?: PhoneCountry;
 }) {
   const errorMsg = error
     ? type === 'email'
@@ -110,6 +118,7 @@ function Field({
       required
       state={valid ? 'success' : 'default'}
       error={errorMsg}
+      phoneCountry={phoneCountry}
     />
   );
 }
@@ -240,7 +249,7 @@ function Step1Form({
   // requires — Rent/Reserve don't proceed until they're present.
   const checks: Array<[string, boolean]> = [
     ['rf-email', isValidEmail(email)],
-    ['rf-phone', isValidPhone(phone)],
+    ['rf-phone', isPossiblePhone(phone, 'US')],
     ['rf-first', first.trim().length > 0],
     ['rf-last', last.trim().length > 0],
   ];
@@ -270,16 +279,18 @@ function Step1Form({
         <div className="rf-row">
           <Field id="rf-email" label="Email" type="email" value={email}
             valid={isValidEmail(email)} error={bad('rf-email')} onChange={setEmail} />
-          <Field id="rf-phone" label="Phone" type="tel" value={phone}
-            valid={isValidPhone(phone)} error={bad('rf-phone')} onChange={setPhone} />
+          <Field id="rf-phone" label="Phone" type="tel" value={phone} phoneCountry="US"
+            valid={isPossiblePhone(phone, 'US')} error={bad('rf-phone')} onChange={setPhone} />
         </div>
 
-        <p className="rf-consent">
-          By providing your mobile number, you agree to receive text messages from
-          {' '}{brandName}. Message frequency may vary. Standard rates apply. Reply HELP
-          for assistance or STOP to unsubscribe.{' '}
-          <a href={termsHref}>See Terms and Privacy Policy.</a>
-        </p>
+        {phone.trim().length > 0 && (
+          <p className="rf-consent">
+            By providing your mobile number, you agree to receive text messages from
+            {' '}{brandName}. Message frequency may vary. Standard rates apply. Reply HELP
+            for assistance or STOP to unsubscribe.{' '}
+            <a href={termsHref}>See Terms and Privacy Policy.</a>
+          </p>
+        )}
 
         <div className="rf-row">
           <Field id="rf-first" label="First Name" value={first}
@@ -382,6 +393,9 @@ export function RentalFlow2Step({
   heading = 'Secure your space now',
   termsHref = '#',
   brochureUrl,
+  reserveFailedMessage = 'We couldn’t complete your reservation right now. Please try again in a moment — if it keeps happening, contact the facility and we’ll be glad to help.',
+  reservationHeading = 'Your reservation is confirmed!',
+  rentalHeading = 'Your Space is ready!',
   size: sizeArg,
   tier: tierArg,
   propertyId: propertyIdArg,
@@ -471,6 +485,11 @@ export function RentalFlow2Step({
   // units/available, so recovery is re-pick → re-quote → re-hold once.
   const [hold, setHold] = useState<UnitHold | undefined>(undefined);
   const [finalizing, setFinalizing] = useState<{ firstName: string } | undefined>(undefined);
+  // Office/Gate hours fallback for the confirmation page: the immutable success
+  // snapshot occasionally predates propertyInfo loading, so it can lack hours.
+  // Hours are read-only + non-sensitive (unlike the money block), so it's safe
+  // to refetch them here when the snapshot is missing them. Fail-soft.
+  const [confHours, setConfHours] = useState<{ officeHours?: string[]; gateHours?: string[] } | undefined>(undefined);
 
   // Mobile mode is CONTAINER-width based (widgets embed at any width).
   // Observer attaches to the persistent wrapper — both the skeleton and
@@ -622,8 +641,10 @@ export function RentalFlow2Step({
           } else if (sel) {
             setSelection(sel);
           }
-          const resolveUnit = unitIdProp
-            ? Promise.resolve<{ id: string; number?: string } | undefined>({ id: unitIdProp })
+          const resolveUnit: Promise<{ id: string; number?: string } | undefined> = unitIdProp
+            // Handoff gives only a unitId; resolve its number so the rail and the
+            // confirmation can show "Space #…" (the reserve response omits it).
+            ? fetchUnitNumber(ctx, unitIdProp).then((number) => ({ id: unitIdProp, number }))
             : sel
               ? findUnitForSelection(ctx, sel.size, sel.price)
               : Promise.resolve(undefined);
@@ -663,6 +684,21 @@ export function RentalFlow2Step({
   const confirmationRef = useRef<ConfirmationData | undefined | 'unread'>('unread');
   if (confirmationRef.current === 'unread') confirmationRef.current = readConfirmationPayload(inEditor);
   const confirmation = confirmationRef.current;
+
+  // Fill missing office/gate hours on the confirmation page (snapshot may predate
+  // the property load). Read-only, fail-soft; runs only when hours are absent.
+  useEffect(() => {
+    const conf = confirmationRef.current;
+    if (!conf || conf === 'unread') return;
+    const p = conf.rail?.property;
+    if ((p?.officeHours?.length ?? 0) > 0 || (p?.gateHours?.length ?? 0) > 0) return;
+    if (!effectiveCompanyId) return;
+    let cancelled = false;
+    fetchProperty(ctx)
+      .then((info) => { if (!cancelled && info) setConfHours({ officeHours: info.officeHours, gateHours: info.gateHours }); })
+      .catch(() => { /* fail-soft: hours just stay hidden */ });
+    return () => { cancelled = true; };
+  }, [ctx, effectiveCompanyId]);
   if (confirmation) {
     // Reservations are REAL (hold + reserve POSTs exist), so they show real
     // response data and NO demo banner. The prototype banner stays only for
@@ -696,9 +732,10 @@ export function RentalFlow2Step({
         <div className="rfc-layout">
           <Confirmation
             {...confirmation}
+            confirmedHeading={confirmation.kind === 'reservation' ? reservationHeading : rentalHeading}
             facilityPhone={fmtPhone}
-            officeHours={snapProp?.officeHours}
-            gateHours={snapProp?.gateHours}
+            officeHours={snapProp?.officeHours?.length ? snapProp.officeHours : confHours?.officeHours}
+            gateHours={snapProp?.gateHours?.length ? snapProp.gateHours : confHours?.gateHours}
             rentUrl={confirmation.kind === 'reservation' ? checkoutUrl : undefined}
             onRetry={goToCheckout}
           />
@@ -867,8 +904,11 @@ export function RentalFlow2Step({
                 url.searchParams.set('c', nonce);
                 window.location.assign(url.toString());
               } else {
+                // Keep the raw API detail (status codes, backend text) in the
+                // console for debugging, but never show it to the shopper — the
+                // UI gets a calm, professional message instead.
                 console.error(`${logTag} reserve failed:`, result.error);
-                setReserveError(result.error);
+                setReserveError(reserveFailedMessage);
               }
             } catch (err) {
               console.error(`${logTag} reserve error:`, err);
