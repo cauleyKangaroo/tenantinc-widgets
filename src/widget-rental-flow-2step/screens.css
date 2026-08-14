@@ -251,6 +251,26 @@
   letter-spacing: 0.2px;
 }
 
+/* Skeleton stand-in while a static payment form "loads" (Figma 8507-24610).
+   Same 20px rhythm and two-up rows as the real form it replaces, so the panel
+   doesn't change height when the fields arrive. */
+.rf-pay-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rf-pay-skeleton-row {
+  display: flex;
+  gap: 20px;
+}
+
+.rf-pay-skeleton-row > * { flex: 1 1 0; min-width: 0; }
+
+@media (max-width: 640px) {
+  .rf-pay-skeleton-row { flex-direction: column; }
+}
+
 /* Two-up field grid; collapses on narrow widths. */
 .rf-pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
