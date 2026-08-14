@@ -404,28 +404,52 @@
 }
 .rf-sx-idv-note a { color: inherit; text-decoration: underline; }
 
-/* Layered line art. Percentage positions keep the layers registered to one
-   another as the box scales. */
-.rf-sx-illus { position: relative; flex: 0 0 260px; height: 110px; }
+/* Layered line art (Figma 10078-25475). Every layer is a percentage of that
+   frame's 292.25 x 119.43 artboard, so they stay registered to one another at
+   any size; the box carries the same aspect ratio so nothing skews. */
+.rf-sx-illus {
+  position: relative;
+  flex: 0 0 260px;
+  aspect-ratio: 292.25 / 119.43;
+}
+
 .rf-sx-illus-l { position: absolute; display: block; }
-.rf-sx-illus-phoneB   { left: 10%; top: 0;   width: 37%; }
-.rf-sx-illus-phoneA   { left: 10%; top: 0;   width: 37%; }
-.rf-sx-illus-screen   { left: 25%; top: 16%; width: 15%; }
-.rf-sx-illus-thumbA   { left: 11%; top: 87%; width: 11%; }
-.rf-sx-illus-thumbB   { left: 17%; top: 88%; width: 5%; }
-.rf-sx-illus-handcard { left: 60%; top: 3%;  width: 34%; }
-.rf-sx-illus-cardface { left: 60%; top: 18%; width: 14%; }
-/* Stands in for the un-bundled portrait photo — see IdIllustration in
-   SuccessStep.tsx for why it isn't the real asset. */
-.rf-sx-illus-portrait {
-  position: absolute;
-  left: 48%;
-  top: 14%;
-  width: 17%;
-  height: 33%;
-  border: 1px solid var(--hb-text-night, #101318);
-  border-radius: 4px;
-  background: #dfe3e8;
+
+/* Right hand + ID card */
+.rf-sx-illus-handcard { left: 59.62%; top: 2.94%;  width: 40.38%; height: 88.19%; }
+.rf-sx-illus-cardface { left: 59.91%; top: 16.79%; width: 16.23%; height: 50.24%; }
+
+/* The card is one rounded rect drawn three times: white fill, the photo
+   clipped to it (this is the frame's mask, done with radius + cover), and the
+   keyline on top. */
+.rf-sx-illus-cardbg,
+.rf-sx-illus-portrait,
+.rf-sx-illus-cardline {
+  left: 45.58%;
+  top: 12.84%;
+  width: 19.79%;
+  height: 30.27%;
+  border-radius: 5px;
+}
+
+.rf-sx-illus-cardbg { background: #fff; }
+.rf-sx-illus-portrait { object-fit: cover; }
+.rf-sx-illus-cardline { border: 1px solid var(--hb-text-night, #101318); }
+
+/* Left hand + phone */
+.rf-sx-illus-phoneA { left: 0.13%;  top: 0.23%;  width: 43.75%; height: 82.29%; }
+.rf-sx-illus-phoneB { left: 0;      top: 0;      width: 43.99%; height: 82.49%; }
+.rf-sx-illus-screen { left: 17.50%; top: 14.99%; width: 17.41%; height: 26.25%; }
+.rf-sx-illus-thumbA { left: 0.94%;  top: 80.07%; width: 12.64%; height: 19.93%; }
+.rf-sx-illus-thumbB { left: 7.83%;  top: 80.83%; width: 5.93%;  height: 18.37%; }
+
+/* Highlight nick on the phone's edge. */
+.rf-sx-illus-glint {
+  left: 15.22%;
+  top: 7.51%;
+  width: 2.54%;
+  height: 0.6%;
+  background: #fff;
 }
 
 .rf-sx-extra { display: flex; flex-direction: column; gap: 20px; }
