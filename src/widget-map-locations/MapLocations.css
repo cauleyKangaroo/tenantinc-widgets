@@ -44,8 +44,11 @@
 
 .ml-controls { display: flex; gap: 16px; align-items: center; }
 
-/* Canonical pill, same geometry as #11's .sg-tab — 1px border per the
-   site-wide rule (the Figma shows 2px, which predates that decision). */
+/* Canonical pill, same geometry as #11's .sg-tab. 2px border per Figma
+   10622:77655 / :77659 — reverted from the 1px site-wide rule on request, so
+   this widget now matches its design rather than the other widgets' pills.
+   NOTE the filter PANEL's option pills are genuinely 1px in the same file
+   (10557:146427) — the two are different components, not an inconsistency. */
 .ml-pill {
   position: relative;
   display: flex;
@@ -53,7 +56,7 @@
   gap: 10px;
   height: 44px;
   padding: 8px 21px;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   border-radius: 100px;
   background: #fff;
   color: #000;
@@ -184,6 +187,17 @@
 .ml-fp-overlay {
   position: fixed;
   inset: 0;
+  /* `position: fixed` is only viewport-relative while no ancestor creates a
+     containing block. A `transform` / `filter` / `will-change` anywhere above
+     traps it — which the Duda editor does when it zooms the canvas, and so do
+     resizable preview boxes. When that happens `inset: 0` is that ancestor, not
+     the screen, and the sheet renders wider than the display with its right-hand
+     side (Reset, close, the Apply button) unreachable.
+     Viewport units still measure the real screen, so they cap it either way. */
+  max-width: 100vw;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
   background: rgba(16, 19, 24, 0.55);
   display: flex;
   align-items: center;
@@ -200,8 +214,9 @@
 
 .ml-fp {
   width: 100%;
-  /* 436px, the same as #05's filter lightbox — the Figma frame is ~423px. */
-  max-width: 436px;
+  /* 436px, the same as #05's filter lightbox — the Figma frame is ~423px.
+     `min()` so a narrow or trapped overlay clamps it instead of overflowing. */
+  max-width: min(436px, 100%);
   max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
@@ -229,6 +244,8 @@
   gap: 16px;
   padding: 20px 24px;
   border-bottom: 1px solid #dfe3e8;
+  /* Header and footer stay put; only the body scrolls. */
+  flex-shrink: 0;
 }
 
 /* 20px/600, not the frame's 24px/700 — every other widget's modal title is
@@ -291,7 +308,13 @@
 /* Body — the scrolling part; the header and Apply footer stay put. */
 .ml-fp-body {
   flex: 1 1 auto;
+  /* Required for the scroll to work at all: a flex item defaults to
+     `min-height: auto`, which refuses to shrink below its content, so the panel
+     grew instead of the body scrolling. */
+  min-height: 0;
   overflow-y: auto;
+  /* Momentum scrolling on iOS. */
+  -webkit-overflow-scrolling: touch;
   padding: 21px 22px 24px;
   display: flex;
   flex-direction: column;
@@ -314,7 +337,9 @@
   width: 100%;
   height: 100%;
   padding: 0 56px 0 21px;
-  border: 1px solid #101318;
+  /* 2px, confirmed against the filter-panel variant (Figma 10557:146418). The
+     mobile header uses the same design-system pill, so it follows. */
+  border: 2px solid #101318;
   border-radius: 100px;
   background: #fff;
   outline: none;
@@ -509,6 +534,7 @@
 .ml-fp-foot {
   padding: 16px 24px;
   border-top: 1px solid #dfe3e8;
+  flex-shrink: 0;
 }
 
 .ml-fp-apply {
@@ -537,6 +563,22 @@
 }
 
 .ml-mtoggles { display: flex; gap: 12px; align-items: center; }
+
+/* Mobile toggles (Figma 10609:72461 / :72455): same 44px pill as desktop but
+   20px side padding rather than 21px, and the "Map View" label is Regular where
+   the pill's default is Medium — "Filter & Sort" keeps Medium. */
+.ml-mtoggles .ml-pill { padding: 8px 20px; }
+.ml-pill--view { font-weight: 400; }
+
+/* Badge overhangs the top-right corner: right -2.5px, top -12px (10609:72459). */
+.ml-mtoggles .ml-pill-badge {
+  top: -12px;
+  right: -2.5px;
+  width: 24px;
+  height: 24px;
+  font-size: 14.4px;
+  font-weight: 600;
+}
 
 /* ── Orange CTA — mobile card body + map popup ─────────────────────────── */
 
@@ -1047,4 +1089,116 @@
   .ml-fp-foot { padding-inline: 16px; }
 
   .ml-fp-section { padding: 10px 16px 20px; }
+}
+
+/* ── Empty state ────────────────────────────────────────────────────────────
+   Shown in the cards column when the city has no facilities, or the visitor's
+   filters excluded them all. Sized to sit where the first card would, so the
+   layout doesn't collapse around the map. */
+.ml-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 24px;
+  border: 1px dashed var(--hb-cloud-darker, #d6dae0);
+  border-radius: 12px;
+  text-align: center;
+}
+.ml-empty-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--hb-text-night, #101318);
+}
+.ml-empty-reset {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--hb-text-night, #101318);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ── Mobile filter panel (Figma 10622-2170) ────────────────────────────────
+   Full-bleed sheet rather than the desktop's centred card, and it carries the
+   Sort group the desktop modal doesn't have. */
+
+.ml-fp--full {
+  width: 100%;
+  /* NOT `none` — that is what let it grow past the screen when the overlay was
+     trapped by a transformed ancestor. */
+  max-width: 100%;
+  border-radius: 0;
+  border: 0;
+  /* `100dvh`, NOT `100vh` and NOT `max-height: none`:
+     - `max-height: none` let the panel grow past the viewport, and because the
+       overlay centres its child, the overflow spilled off BOTH ends where it
+       could not be scrolled to. The header and the Apply button both left the
+       screen.
+     - `100vh` on mobile measures the viewport with the browser chrome
+       COLLAPSED, so the footer sits under the URL bar until you scroll. `dvh`
+       tracks the visible area. `vh` first as the fallback for older browsers. */
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+/* Sort / Distance select, styled as the Form 2.0 box the frame uses. */
+/* Visually hidden but readable by a screen reader — the select needs a name. */
+.ml-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ml-fp-select {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.ml-fp-select select {
+  width: 100%;
+  height: 56px;
+  padding: 0 48px 0 16px;
+  border: 1px solid var(--hb-cloud-darker, #a5b4bf);
+  border-radius: 8px;
+  background: #fff;
+  color: #101318;
+  font-family: inherit;
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.ml-fp-select select:focus-visible {
+  outline: none;
+  border-color: #101318;
+  box-shadow: 0 0 0 3px rgba(16, 19, 24, 0.18);
+}
+.ml-fp-select-chev {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: #637381;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  /* No padding, and `stretch` rather than `center` — a centred flex child that
+     is taller than the overlay overflows equally top and bottom, and neither
+     end can be reached. Stretch pins it to the top so the body scrolls instead. */
+  .ml-fp-overlay { padding: 0; align-items: stretch; }
+  /* Price stacks on mobile — the frame puts Min above Max, full width each. */
+  .ml-fp-fields { grid-template-columns: 1fr; flex-direction: column; }
 }

@@ -189,21 +189,56 @@ export function mapApiToUnits(raw: unknown): Unit[] {
         const primaryAssoc = tier.space_type_associations?.find((a) => a.is_primary === 1);
         const type: Unit['type'] = primaryAssoc?.unit_type_name === 'parking' ? 'parking' : 'storage';
 
-        // Storage: only show_in_website:1 amenities. Parking: all amenities
-        // (parking data rarely sets show_in_website:1, so the filter would leave cards empty).
-        const sortedUnique = [...(tier.amenities ?? [])]
-          .filter((a) => type === 'parking' || a.show_in_website === 1)
-          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-          .filter((a, i, arr) => arr.findIndex((x) => x.name === a.name) === i);
+        const bySortOrder = (a: ApiAmenity, b: ApiAmenity) => (a.sort_order ?? 0) - (b.sort_order ?? 0);
+        const uniqueByName = (a: ApiAmenity, i: number, arr: ApiAmenity[]) =>
+          arr.findIndex((x) => x.name === a.name) === i;
 
-        const subtype = sortedUnique[0] ? amenityLabel(sortedUnique[0]) : group.name;
-        const features = sortedUnique.slice(1, 5).map(amenityLabel);
-        const amenityNames = sortedUnique.map(amenityLabel);
+        // Three lists off the same tier, each answering a different question.
+        // They deliberately use different flags — see each block.
+
+        // 1. THE CARD (`features`): every amenity, sorted and de-duped, no flag
+        //    check at all. `show_in_website` is not a display gate: it was
+        //    blanking the cards outright on properties that never set it (all
+        //    of Storage Outlet), while parking cards listed the same data.
+        const displayAmenities = [...(tier.amenities ?? [])].sort(bySortOrder).filter(uniqueByName);
+
+        // 2. THE FILTER POPUP → "Amenities" checkboxes (`amenities`). NEVER
+        //    rendered on a card; it only populates that list and matches
+        //    against it. This IS where show_in_website belongs — it's the
+        //    operator's choice of which amenities are worth filtering on.
+        const amenityNames = [...(tier.amenities ?? [])]
+          .filter((a) => a.show_in_website === 1)
+          .sort(bySortOrder)
+          .filter(uniqueByName)
+          .map(amenityLabel);
+
+        // 3. THE FILTER POPUP → "Space Features" pills (`filterBarFeatures`),
+        //    on show_in_filter_bar. `available_units > 0` keeps a pill from
+        //    filtering to nothing; `?? 1` treats an absent count as available.
         const filterBarFeatures = Array.from(new Set(
           (tier.amenities ?? [])
             .filter((a) => a.show_in_filter_bar === 1 && (a.available_units ?? 1) > 0)
             .map(amenityLabel)
         ));
+
+        // The card SUBTITLE still consults show_in_website, because it needs ONE
+        // amenity that describes the unit and only the curated ordering reliably
+        // leads with one. Ungated, the first entry is whatever sorts first —
+        // "ID Verification" on Storage Outlet, a facility policy that reads
+        // badly as a unit subtitle. Verified unchanged on all 291 live tiers.
+        const subtypeSource = [...(tier.amenities ?? [])]
+          .filter((a) => type === 'parking' || a.show_in_website === 1)
+          .sort(bySortOrder)
+          .filter(uniqueByName);
+        const subtype = subtypeSource[0] ? amenityLabel(subtypeSource[0]) : group.name;
+
+        // Four bullets, as before. Whichever label became the subtitle is
+        // dropped so the card never prints it twice; without the gate that
+        // entry is now usually still in the list.
+        const features = displayAmenities
+          .map(amenityLabel)
+          .filter((l) => l !== subtype)
+          .slice(0, 4);
 
         const vacantCount = tier.vacant?.count ?? 0;
 
