@@ -448,24 +448,34 @@ export function FindStorageMegaMenu({
               )}
               <div className="nav-mega-scroll nav-mega-states">
                 {filteredTree.map((state) => (
-                  <button
+                  // A LINK to the state page that opens the city list in place
+                  // on the first click. Two jobs, one row: the row has to reveal
+                  // its cities (that is what the panel beside it is for), but a
+                  // state is also a real page and must be reachable, keyboard-
+                  // focusable and middle-clickable. So the first click selects
+                  // and stays put; clicking the already-open state follows the
+                  // link. Modified clicks (⌘/ctrl/middle) always navigate.
+                  //
+                  // Still CLICK ONLY, never hover — opening on hover made the
+                  // panel twitchy, since the pointer has to cross other state
+                  // rows on its way to the cities.
+                  <a
                     key={state.key}
-                    type="button"
+                    href={state.href}
                     className={`nav-mega-state${state.key === activeKey ? ' is-active' : ''}`}
                     aria-expanded={state.key === activeKey}
-                    // CLICK ONLY, deliberately. Opening the city list on hover
-                    // made the panel twitchy: the pointer has to cross other
-                    // state rows on its way to the cities, swapping the list out
-                    // from under it. Keyboard gets the same behaviour for free —
-                    // Enter/Space on the button is a click; merely tabbing past a
-                    // state does not change the panel.
-                    onClick={() => setActiveKey(state.key)}
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                      if (state.key === activeKey) return;
+                      e.preventDefault();
+                      setActiveKey(state.key);
+                    }}
                   >
                     <span className="nav-mega-state-name">{state.label}</span>
                     {state.propertyCount > 1 && (
                       <span className="nav-mega-bubble">{state.propertyCount}</span>
                     )}
-                  </button>
+                  </a>
                 ))}
               </div>
             </section>

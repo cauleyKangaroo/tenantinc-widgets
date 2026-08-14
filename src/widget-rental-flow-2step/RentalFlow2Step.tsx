@@ -12,6 +12,8 @@ import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
 import { GP_BRIDGE_IS_PROTOTYPE } from './gpHostedFields';
 import { OrderRail } from './OrderRail';
+import { ProcessingModal } from './ProcessingModal';
+import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
 import { FormField, Button, Checkbox, DateModal, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId } from '@shared/propertyBinding';
@@ -485,6 +487,10 @@ export function RentalFlow2Step({
   // units/available, so recovery is re-pick → re-quote → re-hold once.
   const [hold, setHold] = useState<UnitHold | undefined>(undefined);
   const [finalizing, setFinalizing] = useState<{ firstName: string } | undefined>(undefined);
+  /** Static payment path (no GP key): the lightbox has finished, show the
+   *  post-purchase form rather than navigating to the confirmation page. */
+  const [staticPaid, setStaticPaid] = useState(false);
+  const staticPay = !gpApiKey;
   // Office/Gate hours fallback for the confirmation page: the immutable success
   // snapshot occasionally predates propertyInfo loading, so it can lack hours.
   // Hours are read-only + non-sensitive (unlike the money block), so it's safe
@@ -751,6 +757,16 @@ export function RentalFlow2Step({
     return <div className="rf-wrapper" ref={wrapRef}>{pastDelay ? <RfSkeleton /> : null}</div>;
   }
 
+  // Static payment finished — the post-purchase form (Figma 8507-25408) takes
+  // over the whole screen, the same slot the confirmation page would occupy.
+  if (staticPaid) {
+    return (
+      <div className="rf-wrapper" ref={wrapRef}>
+        <SuccessStep />
+      </div>
+    );
+  }
+
   const rail = (
     <OrderRail
       property={propertyInfo}
@@ -807,6 +823,9 @@ export function RentalFlow2Step({
             payNowTotal={quote?.totalDue}
             onPaymentComplete={(info) => {
               setFinalizing(info);
+              // Static path: the lightbox's onDone swaps in the post-purchase
+              // form. No nonce, no navigation — nothing was charged.
+              if (staticPay) return;
               // Prototype bridge: no server-side sale endpoint yet (B4), so
               // after the finalizing beat, land on the confirmation page with
               // the REAL held unit number.
@@ -833,7 +852,22 @@ export function RentalFlow2Step({
         {!isMobile && rail}
       </div>
 
-      {finalizing && <PaymentInterstitial firstName={finalizing.firstName} brandName={brandName} />}
+      {/* Two finalizing beats, one per payment path. With a Global Payments key
+          the real flow runs and navigates to the confirmation page, so it keeps
+          the inline interstitial. Without one, payment is the static forms, and
+          the lightbox (Figma 8509-35122) hands to the post-purchase form
+          (8507-25408) in place — no navigation, nothing was really charged. */}
+      {finalizing && !staticPay && (
+        <PaymentInterstitial firstName={finalizing.firstName} brandName={brandName} />
+      )}
+      {finalizing && staticPay && (
+        <ProcessingModal
+          open
+          firstName={finalizing.firstName}
+          facilityName={brandName}
+          onDone={() => setStaticPaid(true)}
+        />
+      )}
 
       <DateModal
         open={dateModalOpen}

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { CheckTick, CalendarIcon, FileArrowIcon, ChevronIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
 import { mountGpHostedFields, GpTokenResult, GpFieldValidity } from './gpHostedFields';
 import { ProtectionPlanModal } from './ProtectionPlanModal';
+import { BankForm, CardForm, PaymentFormSkeleton } from './PaymentSection';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
@@ -12,6 +13,9 @@ import { FormField, Button, Checkbox, isPossiblePhone, type FieldType, type Phon
 // Contact form + selected move-in date, Protection Plan, Additional Info
 // toggles, Rental Agreement (+ "I agree"), and Payment method selection.
 // ---------------------------------------------------------------------------
+
+/** How long the static payment form's skeleton shows before the form. */
+const FORM_SKELETON_MS = 700;
 
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 const formatDate = (d: Date) => `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
@@ -226,6 +230,8 @@ export function Step2({
   const [payMethod, setPayMethod] = useState<'gpay' | 'apple' | 'card' | 'bank' | null>(null);
   const [cardToken, setCardToken] = useState<GpTokenResult | undefined>(undefined);
   const [payAttempted, setPayAttempted] = useState(false);
+  /** Skeleton beat before a static payment form appears (Figma 8507-24610). */
+  const [formLoading, setFormLoading] = useState(false);
 
   // Everything the lease POST / payment step requires. Conditional
   // sections only gate while expanded (their checkbox is optional; the
@@ -251,11 +257,24 @@ export function Step2({
   ];
   const formComplete = required.every(([, ok]) => ok);
   const bad = (key: string) => payAttempted && !(required.find(([k]) => k === key)?.[1] ?? true);
+  /** No GP key ⇒ the static forms stand in for hosted fields. */
+  const staticPay = !gpApiKey;
+
   const selectPayMethod = (m: 'gpay' | 'apple' | 'card' | 'bank') => {
     if (!formComplete) { setPayAttempted(true); return; }
-    setPayMethod(payMethod === m ? null : m);
+    const next = payMethod === m ? null : m;
+    setPayMethod(next);
     setCardToken(undefined);
+    // Skeleton beat when opening a static panel. Real hosted fields do their
+    // own loading, so this only stands in for them.
+    if (staticPay && next && (next === 'card' || next === 'bank')) {
+      setFormLoading(true);
+      window.setTimeout(() => setFormLoading(false), FORM_SKELETON_MS);
+    }
   };
+
+  /** Static "Pay Now" — hands straight to the parent's finalizing sequence. */
+  const payStatically = () => onPaymentComplete?.({ firstName: first.trim() || 'there' });
 
   const noop = (e: React.MouseEvent) => e.preventDefault();
 
@@ -452,7 +471,32 @@ export function Step2({
               Complete the highlighted fields (and accept the rental agreement) to continue to payment.
             </p>
           )}
-          {payMethod === 'card' && !cardToken && (
+          {/* No Global Payments key on this site yet, so card and bank are the
+              static forms from Figma 10080-30277 / 10080-28749 rather than the
+              hosted-fields iframes. With a key set, the real GP path below runs
+              untouched. Either way the form is preceded by a brief skeleton
+              (8507-24610) so the panel doesn't snap in. */}
+          {staticPay && (payMethod === 'card' || payMethod === 'bank') && (
+            <section
+              className="rf-method-panel"
+              aria-label={payMethod === 'card' ? 'Credit / Debit' : 'Pay by Bank'}
+            >
+              <header className="rf-method-panel-head">
+                {payMethod === 'card' ? <CreditCardIcon size={24} /> : <BankIcon size={24} />}
+                <span>{payMethod === 'card' ? 'Credit / Debit' : 'Pay by Bank'}</span>
+              </header>
+
+              {formLoading ? (
+                <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
+              ) : payMethod === 'card' ? (
+                <CardForm total={payNowTotal ?? 0} onPay={payStatically} />
+              ) : (
+                <BankForm total={payNowTotal ?? 0} onPay={payStatically} />
+              )}
+            </section>
+          )}
+
+          {!staticPay && payMethod === 'card' && !cardToken && (
             <CardFieldsPanel
               gpApiKey={gpApiKey}
               gpEnvironment={gpEnvironment}

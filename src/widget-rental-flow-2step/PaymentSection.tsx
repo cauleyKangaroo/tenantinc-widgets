@@ -19,6 +19,7 @@
 
 import React, { useState } from 'react';
 import { FormField } from '@shared/ui';
+import { Shimmer } from '@shared/Shimmer';
 import { BankIcon, CreditCardIcon, CheckTick, InfoIcon } from './icons';
 import { ChevronBig } from './planIcons';
 
@@ -68,7 +69,30 @@ function SelectField({
   );
 }
 
-function BankForm({ total, onPay }: { total: number; onPay: () => void }) {
+/**
+ * Skeleton stood in for a payment form while it "loads" — Figma 8507-24610.
+ * The frame is grey blocks at `rgba(0,0,0,.08)` / 4px radius: a 24px heading
+ * pair, then 50px field blocks two-up with 20px gaps. Built from the shared
+ * `Shimmer` primitive so the sweep matches every other skeleton on the site
+ * rather than shipping a second animation.
+ */
+export function PaymentFormSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="rf-pay-skeleton" aria-hidden="true">
+      <Shimmer w={318} h={24} mb={12} r={4} />
+      <Shimmer w="100%" h={24} mb={20} r={4} />
+      {Array.from({ length: rows }, (_, i) => (
+        <div className="rf-pay-skeleton-row" key={i}>
+          <Shimmer w="100%" h={50} r={4} />
+          <Shimmer w="100%" h={50} r={4} />
+        </div>
+      ))}
+      <Shimmer w="100%" h={50} r={4} />
+    </div>
+  );
+}
+
+export function BankForm({ total, onPay }: { total: number; onPay: () => void }) {
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [accountType, setAccountType] = useState('');
@@ -118,7 +142,7 @@ function BankForm({ total, onPay }: { total: number; onPay: () => void }) {
   );
 }
 
-function CardForm({ total, onPay }: { total: number; onPay: () => void }) {
+export function CardForm({ total, onPay }: { total: number; onPay: () => void }) {
   const [number, setNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');

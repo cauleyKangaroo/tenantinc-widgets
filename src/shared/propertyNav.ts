@@ -60,12 +60,15 @@ export interface NavCity {
   label: string;
   properties: NavProperty[];
   /**
-   * Where the city name itself points.
+   * The city page, `/locations/<state>/<city>` — always, however many facilities
+   * the city holds.
    *
-   * ONE facility in the city → straight to that facility's page: a city page
-   * listing a single property would be a pointless extra click. TWO OR MORE →
-   * the city page, `/locations/<state>/<city>`, because there is nothing to pick
-   * between at the city level otherwise.
+   * This used to shortcut a single-facility city straight to that facility's
+   * page (4ae71d7), on the reasoning that a city page listing one property is a
+   * pointless extra click. Reverted deliberately: a nav level that sometimes
+   * lands on a listing and sometimes on a property is unpredictable, and the
+   * city page is a real page either way. Restore the shortcut here if the
+   * extra click turns out to matter more than the consistency.
    */
   href: string;
 }
@@ -78,6 +81,15 @@ export interface NavState {
   cities: NavCity[];
   /** Facilities across every city in the state — the mega menu's count bubble. */
   propertyCount: number;
+  /**
+   * The state page, `/locations/<state>`.
+   *
+   * Root-relative on purpose: Duda serves every page from the site root on both
+   * the preview host (`*.multiscreensite.com`) and the live domain, so one path
+   * is correct in both without knowing either. An absolute URL would pin the
+   * links to whichever domain was current when the bundle was built.
+   */
+  href: string;
 }
 
 /** "huntington-beach" → "Huntington Beach". */
@@ -277,8 +289,7 @@ export function buildLocationTree(
             key: cityKey,
             label: c.label,
             properties,
-            // One facility → its own page; several → the city page.
-            href: properties.length === 1 ? properties[0].href : `${cityBase}/${key}/${cityKey}`,
+            href: `${cityBase}/${key}/${cityKey}`,
           };
         })
         .sort(byLabel);
@@ -287,6 +298,7 @@ export function buildLocationTree(
         label: s.label,
         cities,
         propertyCount: cities.reduce((n, c) => n + c.properties.length, 0),
+        href: `${cityBase}/${key}`,
       };
     })
     .sort(byLabel);

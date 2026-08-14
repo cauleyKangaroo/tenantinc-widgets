@@ -186,21 +186,21 @@ const FIND_STORAGE_LABEL = 'Find Storage';
  * Turn the collection-derived location tree into Find Storage's MOBILE accordion.
  *
  * Desktop no longer uses this — that link opens <FindStorageMegaMenu /> — but the
- * drawer still nests state › city › facility. State rows are not links (there are
- * no state pages, and a real href would 404); a city follows the same rule as the
- * mega menu via `city.href`. "All Locations" stays pinned to the top.
+ * drawer still nests state › city › facility. State and city rows both carry
+ * their real hrefs (`/locations/<state>` and `/locations/<state>/<city>`), so the
+ * drawer and the mega menu now point at the same places. "All Locations" stays
+ * pinned to the top.
  *
- * A city holding SEVERAL facilities keeps its third level here rather than
- * linking to `/locations/<state>/<city>`: those city pages don't exist yet, and
- * the drawer would otherwise be the only route to a facility and lead nowhere.
- * Drop the `children` line once the city pages ship to make the two match.
+ * A city holding SEVERAL facilities keeps its third level: the accordion is the
+ * quickest route to a specific facility on a phone, and tapping the city name
+ * itself still goes to the city page.
  */
 function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
   return [
     { label: 'All Locations', href: ALL_LOCATIONS_URL },
     ...tree.map((state) => ({
       label: state.label,
-      href: '#',
+      href: state.href,
       children: state.cities.map((city) => ({
         label: city.label,
         href: city.href,
