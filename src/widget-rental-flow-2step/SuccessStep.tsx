@@ -28,6 +28,7 @@ import idPhoneB from './assets/id-g27.svg';
 import idScreen from './assets/id-rect.svg';
 import idThumbA from './assets/id-p19.svg';
 import idThumbB from './assets/id-p18.svg';
+import idPortrait from './assets/id-portrait.png';
 
 /** Reveal toggle — the design's dark-fill checkbox above each field group. */
 function Toggle({
@@ -75,28 +76,33 @@ function Select({
 /**
  * The hand-holding-phone-and-ID line drawing from the ID Verification card.
  *
- * Seven exported SVG layers, positioned at the coordinates the Figma frame gives
- * them (the numbers below are its absolute lefts/tops, scaled by the card width).
+ * The exported layers, positioned at the coordinates Figma 10078-25475 gives
+ * them. Every layer is a percentage of the 292.25 × 119.43 artboard those
+ * coordinates live in, so the whole thing scales with the card.
  *
- * ONE ASSET IS MISSING ON PURPOSE. The design also masks a 1 MB photograph into
- * the ID card's portrait window — a 1 MB source for something that renders at
- * 58×36 px. Webpack inlines every image as base64 (`asset/inline`), so bundling
- * it would add ~1.35 MB to a widget that is currently 172 KB. The portrait window
- * is filled with a flat tint instead, and the photo needs re-exporting at display
- * size before it can be included. Everything else here is the real artwork.
+ * The licence photo IS included now. Figma exports it at 920×589 (1 MB) for
+ * something that renders ~60×38, and webpack inlines images as base64
+ * (`asset/inline`), so the export is resampled to 180×115 — 3× the display size,
+ * enough for retina — which costs ~57 KB instead of ~1.35 MB inlined.
  */
 function IdIllustration() {
   return (
     <div className="rf-sx-illus" aria-hidden="true">
-      <img className="rf-sx-illus-l rf-sx-illus-phoneB" src={idPhoneB} alt="" />
+      {/* Painter's order, exactly as the frame stacks them. Right hand and its
+          ID card first: hand, white card, licence photo, keyline, fingers. */}
+      <img className="rf-sx-illus-l rf-sx-illus-handcard" src={idHandCard} alt="" />
+      <span className="rf-sx-illus-l rf-sx-illus-cardbg" />
+      <img className="rf-sx-illus-l rf-sx-illus-portrait" src={idPortrait} alt="" />
+      <span className="rf-sx-illus-l rf-sx-illus-cardline" />
+      <img className="rf-sx-illus-l rf-sx-illus-cardface" src={idCardFace} alt="" />
+
+      {/* Then the left hand and its phone. */}
       <img className="rf-sx-illus-l rf-sx-illus-phoneA" src={idPhoneA} alt="" />
+      <span className="rf-sx-illus-l rf-sx-illus-glint" />
+      <img className="rf-sx-illus-l rf-sx-illus-phoneB" src={idPhoneB} alt="" />
       <img className="rf-sx-illus-l rf-sx-illus-screen" src={idScreen} alt="" />
       <img className="rf-sx-illus-l rf-sx-illus-thumbA" src={idThumbA} alt="" />
       <img className="rf-sx-illus-l rf-sx-illus-thumbB" src={idThumbB} alt="" />
-      <img className="rf-sx-illus-l rf-sx-illus-handcard" src={idHandCard} alt="" />
-      {/* Portrait window — stands in for the un-bundled photo (see above). */}
-      <span className="rf-sx-illus-portrait" />
-      <img className="rf-sx-illus-l rf-sx-illus-cardface" src={idCardFace} alt="" />
     </div>
   );
 }
