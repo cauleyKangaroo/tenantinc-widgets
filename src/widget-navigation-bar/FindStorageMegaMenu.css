@@ -387,6 +387,10 @@
   line-height: normal;
   color: #fff;
   text-align: left;
+  /* This row is an <a> (the state page) that also opens its city list, so it
+     needs the link decoration stripped back to the button it looks like. */
+  text-decoration: none;
+  box-sizing: border-box;
   cursor: pointer;
 }
 
