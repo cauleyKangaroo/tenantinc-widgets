@@ -1,7 +1,11 @@
 /* Widget #99 (TBD) — Rental Flow (2 Step), first screen. Figma 8507-23264. */
 .rf-wrapper {
   container-type: inline-size;
-  font-family: 'Montserrat', sans-serif;
+  /* Follow the Duda theme's font (Duda sets fonts per element, not via a var),
+     and make the shared @shared/ui components inside this widget follow it too
+     by pointing their --hb-font token at the inherited theme font. */
+  font-family: inherit;
+  --hb-font: inherit;
   color: #101318;
 }
 
@@ -393,9 +397,24 @@
 
 /* ── Confirmation / failure pages ───────────────────────────────────────── */
 /* Confirmation page: content (left) + shared order rail (right) */
-.rfc-layout { display: flex; gap: 24px; align-items: flex-start; }
-.rfc-card { flex: 1 1 auto; max-width: 660px; }
-@media (max-width: 900px) { .rfc-layout { flex-direction: column; } }
+/* Identical grid to the step-1/2 .rf-layout so the money-block rail is the SAME
+   360px width on every step, and the content column + overall width match too. */
+.rfc-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 28px;
+  /* Left-aligned (not margin:0 auto) so the content starts at the container's
+     left edge instead of floating centered with white space on both sides on
+     wide screens — this also gives the content column more room for text. */
+  max-width: 1400px;
+  margin: 0;
+  align-items: start;
+}
+/* Trim .rf-card's oversized 56/72 padding + drop its 920/margin-auto centering
+   (grid handles width) so the heading has room and there's no side white-space. */
+.rfc-card { max-width: none; min-width: 0; margin: 0; padding: 24px 18px; }
+.rfc-card .rf-title { margin-bottom: 16px; }
+@media (max-width: 900px) { .rfc-layout { grid-template-columns: minmax(0, 1fr); } }
 /* Confirmation name eyebrow is 36px (Figma 8507-24998), not the 24px Step-1 one. */
 .rfc-card .rf-eyebrow { font-size: 36px; }
 
@@ -407,37 +426,68 @@
 .rfc-sent-icon { flex: 0 0 auto; display: inline-flex; color: var(--color_1, #509e2f); }
 .rfc-sent-txt { flex: 1 1 auto; font-size: 18px; font-weight: 600; color: #101318; }
 .rfc-resend { border: none; background: none; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
-.rfc-panel { background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.rfc-panel { background: #f4f6f8; border-radius: 12px; padding: 16px 12px; margin-bottom: 20px; }
 .rfc-space-head { font-size: 28px; font-weight: 600; color: #101318; margin-bottom: 14px; }
-.rfc-cols { display: flex; gap: 20px; flex-wrap: wrap; }
+
+/* Code card (fixed 300, left) + details (right). GRID, not flex-wrap, so the
+   details always stay in the second column beside the card and never drop under
+   it; minmax(0,1fr) lets the date text wrap internally on a narrow container
+   instead of pushing the whole block down. Stacks only when the widget's own
+   container is genuinely narrow (container query on .rf-wrapper). */
+.rfc-cols { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
+@container (max-width: 640px) { .rfc-cols { grid-template-columns: 1fr; } }
+.rfc-details { min-width: 0; }
+/* Dates: calendar icon + a column of one-line date rows (never wrap "…, 2026"). */
+.rfc-info-dates { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+.rfc-info-cal { flex: 0 0 auto; width: 20px; height: 20px; color: #101318; margin-top: 1px; }
+/* Values regular, only the labels bold — gives hierarchy and stops the whole
+   column reading as bold (matches the money-block rail on the right). */
+.rfc-details p { margin: 0 0 6px; font-size: 16px; font-weight: 400; color: #101318; line-height: 1.4; }
+.rfc-details b { font-weight: 600; }
+.rfc-info-dates p { white-space: nowrap; }
+.rfc-info-dates p:last-child { margin-bottom: 0; }
+/* Hours: clock icon + Office/Gate blocks, with clear spacing before Gate. */
+.rfc-info-hours { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; }
+.rfc-hours { color: #000 !important; line-height: 24px !important; margin: 0 !important; }
+.rfc-hours--gate { margin-top: 14px !important; }
+
+/* Code card — fixed width (Figma 328), dashed night border, grey wallet strip. */
 .rfc-code-card {
-  border: 2px dashed #9ca3af; border-radius: 10px; padding: 16px 20px;
-  display: flex; flex-direction: column; gap: 8px; align-items: center;
-  min-width: 220px; background: #fff; text-align: center;
+  width: 280px; max-width: 100%;
+  border: 2px dashed #101318; border-radius: 16px;
+  background: #fff; overflow: hidden;
+  display: flex; flex-direction: column;
 }
+.rfc-code-top { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px; text-align: center; }
 .rfc-code-label { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; color: #101318; }
-.rfc-code { font-size: 30px; font-weight: 600; color: #101318; }
+.rfc-code { font-size: 30px; font-weight: 600; color: #101318; word-break: break-word; line-height: 1.1; }
 .rfc-code-note { font-size: 13px; color: #637381; }
-/* Wallet */
-.rfc-wallet { margin-top: 8px; padding-top: 10px; border-top: 1px solid #eef0f3; width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.rfc-qr { margin-top: 4px; display: inline-flex; padding: 6px; background: #fff; border-radius: 8px; }
+.rfc-qr svg { display: block; width: 116px; height: 116px; }
+
+/* Wallet strip (grey, Figma #DFE3E8) — badges shown even before pass URLs exist. */
+.rfc-wallet { background: #dfe3e8; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .rfc-wallet-title { font-size: 16px; font-weight: 600; color: #101318; }
-.rfc-wallet-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-.rfc-wallet-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: #101318; color: #fff; border-radius: 6px; padding: 6px 10px;
-  font-size: 12px; font-weight: 700; line-height: 1.1;
+.rfc-wallet-row { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: center; }
+.rfc-wb {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 38px; padding: 0 6px; border-radius: 8px;
+  background: #000; color: #fff; text-decoration: none;
 }
-.rfc-wallet-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; font-size: 12px; font-weight: 700; }
-.rfc-wallet-txt { display: flex; flex-direction: column; text-align: left; }
-.rfc-wallet-txt small { font-size: 8px; font-weight: 500; opacity: .8; }
-.rfc-details { font-size: 16px; line-height: 1.5; color: #101318; }
-.rfc-details p { margin: 0 0 10px; }
-.rfc-details p b { font-weight: 600; }
+.rfc-wb--google { background: #101318; }
+.rfc-wb-logo { display: inline-flex; align-items: center; }
+.rfc-wb-logo svg { width: 16px; height: 16px; }
+.rfc-wb-txt { display: flex; flex-direction: column; line-height: 1.05; text-align: left; }
+.rfc-wb-txt small { font-size: 8px; opacity: .9; }
+.rfc-wb-txt b { font-size: 11px; font-weight: 600; white-space: nowrap; }
+/* Full-width row under the code card: prompt (left) + Rent Online Now button
+   spanning the rest of the row (right). */
 .rfc-rentnow {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  margin-top: 16px; flex-wrap: wrap; font-weight: 600; font-size: 18px; color: #101318;
+  display: flex; flex-direction: row; align-items: center; gap: 16px;
+  margin-top: 20px; font-weight: 600; font-size: 18px; color: #101318;
 }
-.rfc-rentnow .hb-btn { width: auto; flex: 0 0 auto; }
+.rfc-rentnow > span { flex: 0 0 auto; }
+.rfc-rentnow .hb-btn { flex: 1 1 auto; width: auto; }
 /* Review card */
 .rfc-review {
   display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
