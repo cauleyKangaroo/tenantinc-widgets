@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMediaQuery } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
 import './Promotions.css';
@@ -8,6 +9,7 @@ import { fetchWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolvePropertyId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { emitShowPromo, scrollToSpaceList } from '@shared/promoBus';
+import { DisclaimerModal } from './DisclaimerModal';
 import { TagIcon, InfoIcon, ChevronRight } from './icons';
 import promoBanner from './assets/promo-banner.png';
 import promoBannerMobile from './assets/promo-banner-mobile.png';
@@ -59,10 +61,30 @@ function PromoBarsSkeleton() {
   );
 }
 
+/**
+ * Shown in the disclaimer modal when a promo has no `description`. The live data
+ * currently has one promo with description: "" — an empty string, not a missing
+ * field — so without this the (i) renders an inert icon that does nothing.
+ * PLACEHOLDER: swap for the real fine print once it is authored in Hummingbird.
+ */
+const PLACEHOLDER_INFO =
+  'Dorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam eu turpis molestie, ' +
+  'dictum est a, mattis tellus. Sed dignissim, metus nec fringilla accumsan, risus sem ' +
+  'sollicitudin lacus, ut interdum tellus elit sed risus. Maecenas eget condimentum ' +
+  'velit, sit amet feugiat lectus.\n\n' +
+  'Curabitur tempor quis eros tempus lacinia. Nam bibendum pellentesque quam a ' +
+  'convallis. Sed ut vulputate nisi. Integer in felis sed leo vestibulum venenatis. ' +
+  'Suspendisse quis arcu sem.';
+
 function PromoBarItem({ item }: { item: BarItem }) {
   // A bar with no explicit link filters the Space List to this promo's
   // qualifying units and scrolls to it; a real URL is left to navigate.
   const isFilterCta = !item.url || item.url === '#';
+
+  // The (i) control opens the disclaimer modal (Figma 7158:80964). Per bar, not
+  // lifted to PromoBars, so each bar owns its own copy and closing one cannot
+  // affect another.
+  const [infoOpen, setInfoOpen] = useState(false);
 
   return (
     <div className="promo-bar">
@@ -73,13 +95,17 @@ function PromoBarItem({ item }: { item: BarItem }) {
             <TagIcon size={36} />
             <span className="promo-bar-title">{item.title}</span>
           </div>
-          {item.info ? (
-            <button className="promo-bar-info" aria-label="More information" title={item.info}>
-              <InfoIcon size={36} />
-            </button>
-          ) : (
-            <span className="promo-bar-info"><InfoIcon size={36} /></span>
-          )}
+          {/* Always a button now: with the placeholder fallback there is always
+              something to show, so the icon never renders as an inert span. */}
+          <button
+            type="button"
+            className="promo-bar-info"
+            aria-label={`More information about ${item.title}`}
+            aria-haspopup="dialog"
+            onClick={() => setInfoOpen(true)}
+          >
+            <InfoIcon size={36} />
+          </button>
         </div>
         <a
           className="promo-bar-cta"
@@ -95,6 +121,18 @@ function PromoBarItem({ item }: { item: BarItem }) {
           <span>{item.ctaLabel}</span>
         </a>
       </div>
+
+      {/* Portalled to <body>: the bar sets overflow:hidden and Duda's row
+          wrappers add their own stacking contexts, either of which would clip a
+          modal rendered in place. */}
+      {infoOpen && createPortal(
+        <DisclaimerModal
+          title={item.title}
+          body={item.info || PLACEHOLDER_INFO}
+          onClose={() => setInfoOpen(false)}
+        />,
+        document.body,
+      )}
     </div>
   );
 }
