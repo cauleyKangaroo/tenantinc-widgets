@@ -463,6 +463,17 @@ export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?
   return { id: pick.id, number: pick.number };
 }
 
+/** Resolve a unit's display number by id (from units/available). The value-tiers
+ *  handoff passes only a unitId, and the reserve response carries no unit_number,
+ *  so this is how "Space #…" gets populated on the confirmation. Fails soft. */
+export async function fetchUnitNumber(ctx: RentalCtx, unitId: string): Promise<string | undefined> {
+  try {
+    const data = unwrap(await getJsonV1(`companies/${ctx.companyId}/properties/${ctx.propertyId}/units/available`));
+    const units = (data?.units as ApiUnitRow[] | undefined) ?? [];
+    return units.find((u) => u.id === unitId)?.number;
+  } catch { return undefined; }
+}
+
 interface ApiQuoteDetail { name?: string; total_cost?: number; start_date?: string; end_date?: string }
 interface ApiQuoteInvoice { total_due?: number; total_tax?: number; Detail?: ApiQuoteDetail[] }
 
@@ -753,10 +764,19 @@ async function reserveViaEdge(ctx: RentalCtx, args: ReserveArgs): Promise<Reserv
     });
     if (inner.status !== 200) return { ok: false, error: inner.msg || `Reservation failed (${inner.status}).` };
     memoInvalidate('units/available');
-    const d = inner.data ?? {};
+    // Verified shape (2026-08-13): the ids are nested under `data.reservation`:
+    //   { reservation: { reservation_id, lease_id, tenants } }
+    // The response carries NO unit_number, so that falls back to the held unit.
+    const d = (inner.data ?? {}) as Record<string, unknown>;
+    const r = (d.reservation ?? d) as Record<string, unknown>;
     // Return the authoritative quote we just submitted so the confirmation shows
     // exactly the reserved amount, not the earlier step-2 quote.
-    return { ok: true, reservationId: (d.id ?? d.reservation_id) as string | undefined, unitNumber: (d.unit_number as string | undefined) ?? args.unit.number, quote };
+    return {
+      ok: true,
+      reservationId: (r.reservation_id ?? r.id ?? d.reservation_id ?? d.id) as string | undefined,
+      unitNumber: ((r.unit_number ?? d.unit_number) as string | undefined) ?? args.unit.number,
+      quote,
+    };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }

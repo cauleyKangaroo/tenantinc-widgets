@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button, CheckIcon } from '@shared/ui';
+import QRCode from 'react-qr-code';
+import { Button, CheckIcon, CalendarIcon } from '@shared/ui';
 
 // ---------------------------------------------------------------------------
 // Confirmation & failure pages (Figma: Reservation Confirmation 8507-24998,
@@ -40,6 +41,9 @@ export interface ConfirmationProps {
   googleWalletUrl?: string;
   /** Backend confirmed the id is a customer-facing code (else "Reference"). */
   codeIsPublic?: boolean;
+  /** Operator-editable success heading (already resolved for this kind by the
+   *  parent). Falls back to the built-in reservation/rental copy. */
+  confirmedHeading?: string;
 }
 
 const WHATS_NEXT = [
@@ -67,6 +71,14 @@ function BarcodeIcon() {
     </svg>
   );
 }
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 7.5V12l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 function GoogleG() {
   return (
     <svg width="26" height="26" viewBox="0 0 48 48" aria-hidden="true">
@@ -85,14 +97,28 @@ function Star() {
     </svg>
   );
 }
-function WalletButton({ brand, href }: { brand: 'apple' | 'google'; href: string }) {
+function AppleLogo() {
   return (
-    <a className="rfc-wallet-btn" href={href} target="_blank" rel="noreferrer"
-      aria-label={`Add to ${brand === 'apple' ? 'Apple' : 'Google'} Wallet`}>
-      <span className="rfc-wallet-badge" aria-hidden="true">{brand === 'apple' ? '' : 'G'}</span>
-      <span className="rfc-wallet-txt"><small>Add to</small>{brand === 'apple' ? 'Apple Wallet' : 'Google Wallet'}</span>
-    </a>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 8.62 7.33c1.28.07 2.17.72 2.94.74.72-.14 1.63-.66 2.98-.72 2.06-.14 3.34.78 4.02 2.13-3.4 2.04-2.55 6.6.36 7.86-.65 1.02-1.5 2.03-2.87 2.94ZM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25Z" />
+    </svg>
   );
+}
+// Apple/Google Wallet badges. Shown on every gate-code confirmation even before
+// the backend can mint passes — non-interactive until a pass URL is supplied
+// (Apple .pkpass / Google Save JWT), at which point it becomes a real link.
+function WalletBadge({ brand, href }: { brand: "apple" | "google"; href?: string }) {
+  const label = brand === "apple" ? "Apple Wallet" : "Google Wallet";
+  const inner = (
+    <>
+      <span className="rfc-wb-logo">{brand === "apple" ? <AppleLogo /> : <GoogleG />}</span>
+      <span className="rfc-wb-txt"><small>Add to</small><b>{label}</b></span>
+    </>
+  );
+  const cls = `rfc-wb rfc-wb--${brand}`;
+  return href
+    ? <a className={cls} href={href} target="_blank" rel="noreferrer" aria-label={`Add to ${label}`}>{inner}</a>
+    : <span className={cls} role="img" aria-label={`Add to ${label} — coming soon`}>{inner}</span>;
 }
 
 export function Confirmation({
@@ -115,13 +141,10 @@ export function Confirmation({
   onResend,
   appleWalletUrl,
   googleWalletUrl,
-  codeIsPublic,
+  confirmedHeading,
 }: ConfirmationProps) {
   const isReservation = kind === 'reservation';
-  const codeLabel = isReservation
-    ? (codeIsPublic ? 'Reservation Code' : 'Reservation Reference')
-    : 'Access Code';
-  const hasWallet = !!(appleWalletUrl || googleWalletUrl);
+  const codeLabel = isReservation ? 'Reservation Code' : 'Access Code';
 
   if (errorMessage) {
     return (
@@ -148,7 +171,7 @@ export function Confirmation({
       <div className="rf-title">
         {name && <p className="rf-eyebrow">{name},</p>}
         <h2 className="rf-heading">
-          {isReservation ? 'Your reservation is confirmed!' : 'Your Space is ready!'}
+          {confirmedHeading ?? (isReservation ? 'Your reservation is confirmed!' : 'Your Space is ready!')}
         </h2>
       </div>
 
@@ -162,53 +185,81 @@ export function Confirmation({
 
       <section className="rfc-panel">
         {unitNumber && <div className="rfc-space-head">Space {unitNumber}</div>}
+
+        {/* Code card on the left, details (dates/hours + rent nudge) beside it
+            on the right — the code card is a fixed 328px so the details column
+            keeps enough width that "Reservation Date: …, 2026" never wraps. */}
         <div className="rfc-cols">
           <div className="rfc-code-card">
             {entry === 'smart' ? (
-              <>
+              <div className="rfc-code-top">
                 <span className="rfc-code-label">Smart Entry System</span>
                 <span className="rfc-code">App access enabled</span>
                 <span className="rfc-code-note">Doors unlock from the mobile app — no code needed.</span>
-              </>
+              </div>
             ) : entry === 'none' ? (
-              <>
+              <div className="rfc-code-top">
                 <span className="rfc-code-label">Access</span>
                 <span className="rfc-code-note">See the facility manager at move-in for your access details.</span>
-              </>
+              </div>
             ) : (
               <>
-                <span className="rfc-code-label"><BarcodeIcon />{codeLabel}</span>
-                {code
-                  ? <span className="rfc-code">{isReservation ? code : `#${code}*`}</span>
-                  : <span className="rfc-code-note">Shown at the facility on move-in.</span>}
-                {code && hasWallet && (
-                  <div className="rfc-wallet">
-                    <span className="rfc-wallet-title">Add to your Wallet</span>
-                    <div className="rfc-wallet-row">
-                      {appleWalletUrl && <WalletButton brand="apple" href={appleWalletUrl} />}
-                      {googleWalletUrl && <WalletButton brand="google" href={googleWalletUrl} />}
-                    </div>
+                <div className="rfc-code-top">
+                  <span className="rfc-code-label"><BarcodeIcon />{codeLabel}</span>
+                  {code
+                    ? <span className="rfc-code">{isReservation ? code : `#${code}*`}</span>
+                    : <span className="rfc-code-note">Shown at the facility on move-in.</span>}
+                  {code && (
+                    // Scannable QR of the actual code — strictly black-on-white
+                    // (never themed) so it reads reliably; SVG stays crisp.
+                    <span className="rfc-qr">
+                      <QRCode value={code} size={116} bgColor="#ffffff" fgColor="#101318" level="M" aria-label={`${codeLabel} QR`} />
+                    </span>
+                  )}
+                </div>
+                {/* Wallet strip — shown even before pass URLs exist (Figma). */}
+                <div className="rfc-wallet">
+                  <span className="rfc-wallet-title">Add to your Wallet</span>
+                  <div className="rfc-wallet-row">
+                    <WalletBadge brand="apple" href={appleWalletUrl} />
+                    <WalletBadge brand="google" href={googleWalletUrl} />
                   </div>
-                )}
+                </div>
               </>
             )}
           </div>
+
           <div className="rfc-details">
-            {isReservation && reservationDate && (
-              <p><b>Reservation Date:</b> {reservationDate}</p>
-            )}
-            {moveInDate && <p><b>Move-in Date:</b> {moveInDate}</p>}
-            {officeHours && officeHours.length > 0 && (
-              <p><b>Office Hours</b>{officeHours.map((l) => <React.Fragment key={l}><br />{l}</React.Fragment>)}</p>
-            )}
-            {gateHours && gateHours.length > 0 && (
-              <p><b>Gate Hours</b>{gateHours.map((l) => <React.Fragment key={l}><br />{l}</React.Fragment>)}</p>
+            <div className="rfc-info-dates">
+              <CalendarIcon className="rfc-info-cal" />
+              <div>
+                {isReservation && reservationDate && (
+                  <p><b>Reservation Date:</b> {reservationDate}</p>
+                )}
+                {moveInDate && <p><b>Move-in Date:</b> {moveInDate}</p>}
+              </div>
+            </div>
+            {((officeHours && officeHours.length > 0) || (gateHours && gateHours.length > 0)) && (
+              <div className="rfc-info-hours">
+                <ClockIcon className="rfc-info-cal" />
+                <div>
+                  {officeHours && officeHours.length > 0 && (
+                    <p className="rfc-hours"><b>Office Hours</b>{officeHours.map((l) => <React.Fragment key={l}><br />{l}</React.Fragment>)}</p>
+                  )}
+                  {gateHours && gateHours.length > 0 && (
+                    <p className="rfc-hours rfc-hours--gate"><b>Gate Hours</b>{gateHours.map((l) => <React.Fragment key={l}><br />{l}</React.Fragment>)}</p>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
+
+        {/* Full-width row under the code card: prompt on the left, Rent Online
+            Now button spanning the rest of the row on the right. */}
         {isReservation && rentUrl && (
           <div className="rfc-rentnow">
-            <span>Want to save time &amp; money on the move-in day?</span>
+            <span>Want to save time &amp; money<br />on the move-in day?</span>
             <Button tone="cta" href={rentUrl}>Rent Online Now</Button>
           </div>
         )}
