@@ -221,6 +221,9 @@ export interface TierSelectionProps {
   titleColor?: string;
   urgency?: string;
   promo?: string;
+  /** Operator-editable admin-fee note shown in the header (Options 1 & 2) and
+   *  on Option-2 mobile. The fee varies per facility, so it's configurable. */
+  adminFeeText?: string;
   /** Which unit size this instance sells, e.g. "10' x 10'" or "10x10".
    *  Set per page in the Duda content panel; unset = dev auto-pick. An
    *  unknown size shows the fallback + logs — never a different product. */
@@ -348,6 +351,7 @@ export function TierSelection({
   titleColor,
   urgency: urgencyProp,
   promo: promoProp,
+  adminFeeText = '$30 Admin fee applied to all transactions',
   size: sizeRaw,
   unitGroupId: unitGroupIdProp,
   propertyId: propertyIdProp,
@@ -625,12 +629,12 @@ export function TierSelection({
     );
   } else if (variant === 'option2') {
     body = isMobile ? (
-      <Option2Mobile heading={headingMobile} urgency={urgency} />
+      <Option2Mobile heading={headingMobile} urgency={urgency} adminFeeText={adminFeeText} />
     ) : (
-      <Option2Layout heading={heading} subheading={subheading} urgency={urgency} />
+      <Option2Layout heading={heading} subheading={subheading} urgency={urgency} adminFeeText={adminFeeText} />
     );
   } else if (variant === 'option3') {
-    body = <Option3Layout heading={heading} subheading={subheading} urgency={urgency} />;
+    body = <Option3Layout heading={heading} subheading={subheading} urgency={urgency} adminFeeText={adminFeeText} />;
   } else {
     body = isMobile ? (
       <MobileLayout
@@ -649,6 +653,7 @@ export function TierSelection({
         heading={heading}
         subheading={subheading}
         urgency={urgency}
+        adminFeeText={adminFeeText}
         promo={promo}
       />
     );
@@ -929,10 +934,11 @@ interface LayoutProps {
   heading: string;
   subheading?: string;
   urgency?: string;
+  adminFeeText?: string;
   promo: string;
 }
 
-function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgency, promo }: LayoutProps) {
+function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgency, adminFeeText, promo }: LayoutProps) {
   const { tiers, rows, sizeImage, sizeAlt, size, live, property, selectTier, ctaLabel } = useTierData();
   const displaySize = size ? size.replace(/'/g, '\u2019') : '5\u2019 x 5\u2019';
   const cardPromo = live ? tier.promo : 'First Full Month FREE';
@@ -947,7 +953,7 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgen
         <div className="ts-o2-topright">
           {urgency && <p className="ts-o2-urgency">{urgency}</p>}
           <p className="ts-o2-admin">
-            $30 Admin fee applied to all transactions
+            {adminFeeText}
             <InfoCircle size={22} className="ts-o2-admin-info" />
           </p>
         </div>
@@ -1221,7 +1227,7 @@ function MobileCell({ row, tier }: { row: FeatureRow; tier: Tier }) {
 
 // ── Option 2 — Good/Better/Best pricing cards ───────────────────────────────
 
-function Option2Layout({ heading, subheading, urgency }: { heading: string; subheading?: string; urgency?: string }) {
+function Option2Layout({ heading, subheading, urgency, adminFeeText }: { heading: string; subheading?: string; urgency?: string; adminFeeText?: string }) {
   const { o2 } = useTierData();
   return (
     <div className="ts-o2">
@@ -1233,7 +1239,7 @@ function Option2Layout({ heading, subheading, urgency }: { heading: string; subh
         <div className="ts-o2-topright">
           {urgency && <p className="ts-o2-urgency">{urgency}</p>}
           <p className="ts-o2-admin">
-            $30 Admin fee applied to all transactions
+            {adminFeeText}
             <InfoCircle size={22} className="ts-o2-admin-info" />
           </p>
         </div>
@@ -1348,7 +1354,7 @@ function O2Card({ card }: { card: O2Tier }) {
 
 // ── Option 2 mobile — accordion (one expanded, others collapsed) ────────────
 
-function Option2Mobile({ heading, urgency }: { heading: string; urgency: string }) {
+function Option2Mobile({ heading, urgency, adminFeeText }: { heading: string; urgency: string; adminFeeText?: string }) {
   const { o2 } = useTierData();
   // Mobile has no room for sold-out placeholders — show real tiers only.
   const cards = o2.filter((c) => !c.soldOut);
@@ -1366,6 +1372,10 @@ function Option2Mobile({ heading, urgency }: { heading: string; urgency: string 
       <div className="ts-m-headwrap">
         <h2 className="ts-m-title">{heading}</h2>
         {urgency && <p className="ts-m-urgency">{urgency}</p>}
+        <p className="ts-o2m-admin">
+          {adminFeeText}
+          <InfoCircle size={20} className="ts-o2-admin-info" />
+        </p>
       </div>
 
       <div className="ts-o2m-cards">
@@ -1439,7 +1449,7 @@ function O2MExpanded({ card }: { card: O2Tier }) {
 
 // ── Option 3 — pricing cards fused with comparison table ────────────────────
 
-function Option3Layout({ heading, subheading, urgency }: { heading: string; subheading?: string; urgency?: string }) {
+function Option3Layout({ heading, subheading, urgency, adminFeeText }: { heading: string; subheading?: string; urgency?: string; adminFeeText?: string }) {
   const { o3, rows3, sizeImage, sizeAlt } = useTierData();
   return (
     <div className="ts-o3">
@@ -1450,7 +1460,7 @@ function Option3Layout({ heading, subheading, urgency }: { heading: string; subh
           <p className="ts-subtitle">{subheading}</p>
         </div>
         <p className="ts-o3-admin">
-          {'Admin fee applied to all transactions'}
+          {adminFeeText}
           <InfoCircle size={22} className="ts-o3-admin-info" />
         </p>
       </div>

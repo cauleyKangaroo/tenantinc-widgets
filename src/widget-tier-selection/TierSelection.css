@@ -758,6 +758,7 @@
   text-transform: uppercase;
 }
 .ts-o2m-price { font-size: 20px; font-weight: 700; color: #101318; white-space: nowrap; }
+.ts-o2m-admin { display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin: 10px 0 0; font-size: 14px; font-weight: 400; color: #101318; }
 
 /* Collapsed summary bar */
 .ts-o2m-bar {
@@ -1047,4 +1048,4 @@
 .ts-o2-promo-label--std, .ts-o3-promo-label--std { font-weight: 500; color: #637381; }
 .ts-o2-promo-label--promo, .ts-o3-promo-label--promo { font-weight: 700; color: #101318; }
 .ts-o2-strike, .ts-o3-strike { font-size: 24px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.2; text-align: center; }
-.ts-o2m-strike { font-size: 14px; font-weight: 400; text-decoration: line-through; color: #637381; }
+.ts-o2m-strike { font-size: 18px; font-weight: 400; text-decoration: line-through; color: #637381; }
