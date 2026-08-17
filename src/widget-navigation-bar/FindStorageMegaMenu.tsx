@@ -39,8 +39,7 @@
 // Picking a state REPLACES the panel with page 2 (desktop only fills a third
 // column); the chevron goes back. No "see all cities" — page 2 already is the
 // whole list — and no nearby column, neither of which the mobile frames show.
-// A city resolves exactly as it does on desktop (single facility → its page,
-// several → the city page).
+// A city resolves exactly as it does on desktop — its city page.
 //
 // SEE ALL CITIES appears only when the two-column list actually overflows —
 // measured, not guessed from a row count, exactly as the designer's "Data
@@ -48,11 +47,12 @@
 // the link appears"). The panel height follows the viewport, so a row count would
 // be wrong on half the screens it runs on.
 //
-// WHERE A CITY GOES. One facility in the city → straight to that facility's
-// page; two or more → the city page `/locations/<state>/<city>`. The rule lives
-// in @shared/propertyNav (`NavCity.href`) so the mobile drawer resolves it the
-// same way. Those city pages do not exist yet — the links are right, they just
-// 404 until the pages are built.
+// WHERE A CITY GOES. Always its city page, `/locations/<state>/<city>`, however
+// many facilities it holds — a nav level that sometimes lands on a listing and
+// sometimes on a property is unpredictable. A state row goes to
+// `/locations/<state>`. Both rules live in @shared/propertyNav (`NavCity.href`
+// / `NavState.href`) so the mobile drawer resolves them the same way. Those
+// pages do not exist yet — the links are right, they just 404 until they do.
 //
 // THE SEARCH FIELD filters the state and city columns as it is typed — against
 // the city name, each facility's name, and its full address line (street, city,
