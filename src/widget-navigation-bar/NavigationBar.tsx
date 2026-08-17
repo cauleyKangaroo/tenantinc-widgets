@@ -195,9 +195,9 @@ const FIND_STORAGE_LABEL = 'Find Storage';
  * drawer and the mega menu now point at the same places. "All Locations" stays
  * pinned to the top.
  *
- * A city holding SEVERAL facilities keeps its third level: the accordion is the
- * quickest route to a specific facility on a phone, and tapping the city name
- * itself still goes to the city page.
+ * Every city keeps its third level, however few facilities it holds — the
+ * accordion is the quickest route to a specific facility on a phone, and
+ * tapping the city name itself still goes to the city page.
  */
 function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
   return [
@@ -208,9 +208,12 @@ function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
       children: state.cities.map((city) => ({
         label: city.label,
         href: city.href,
-        children: city.properties.length > 1
-          ? city.properties.map((prop) => ({ label: prop.label, href: prop.href }))
-          : undefined,
+        // EVERY city expands to its facilities, including a city holding just
+        // one. Hiding the third level there made a single-facility city a
+        // dead end: the cascade stopped at the city and the only way to the
+        // property page was the city page itself. The levels now mean the same
+        // thing everywhere — state › city › facility.
+        children: city.properties.map((prop) => ({ label: prop.label, href: prop.href })),
       })),
     })),
   ];

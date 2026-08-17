@@ -136,6 +136,8 @@ export interface WidgetConfig {
   enableValueTiers: boolean;
   valueTiersChannel?: string;
   valueTiersPageUrl?: string;
+  /** Where Select goes when there is no value-tiers step. Default '/rental'. */
+  rentalPageUrl?: string;
   /** Resolved property + company this widget is showing — carried into the
    *  value-tiers handoff so the target page prices the same unit group
    *  (dynamic pages vary both; the target can't infer them). */
@@ -302,6 +304,12 @@ export interface SpaceListProps {
   enableValueTiers?: boolean;
   valueTiersChannel?: string;
   valueTiersPageUrl?: string;
+  /**
+   * Where Select goes when no value-tiers step is configured. Default
+   * '/rental'. The chosen unit rides in localStorage, not the URL — see
+   * @shared/unitHandoff.
+   */
+  rentalPageUrl?: string;
 
   // ── Editable accordion copy (Duda text inputs) ─────────────────────────────
   /** Heading of the "About" accordion. Default 'About Storage Units in Irvine'. */

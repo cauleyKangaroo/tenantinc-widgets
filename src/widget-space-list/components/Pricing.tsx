@@ -3,6 +3,7 @@ import type { Unit, WidgetConfig } from '../types';
 import { isUnavailable } from '../filters';
 import { withLineBreaks } from '@shared/lineBreaks';
 import { emitOpenTiers } from '@shared/tierBus';
+import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import cfg from '../config.json';
 
 // Prices round DOWN to whole dollars: 145.20 → $145.00, 147.99 → $147.00. The
@@ -282,14 +283,33 @@ export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetCo
         <a className={`sl-select-btn${fullClass}`} href={valueTiersHref}>
           {config.ctaButtonCopy}
         </a>
-      ) : (
+      ) : config.enableValueTiers ? (
         <button
           className={`sl-select-btn${fullClass}`}
-          onClick={config.enableValueTiers ? openValueTiers : undefined}
+          onClick={openValueTiers}
           disabled={tiersError}
         >
           {config.ctaButtonCopy}
         </button>
+      ) : (
+        // No value-tiers step configured: Select goes straight to the rental
+        // page. An anchor, not a button — Duda's router handles a real link in
+        // preview and published alike, and it keeps middle-click and "open in
+        // new tab" working. The unit travels in localStorage (see
+        // @shared/unitHandoff), so the href stays a clean /rental.
+        <a
+          className={`sl-select-btn${fullClass}`}
+          href={rentalHref(config.rentalPageUrl)}
+          onClick={() => saveUnitSelection({
+            unitId: unit.id,
+            unitGroupId: unit.unitGroupId,
+            size: unit.dimensions,
+            propertyId: config.propertyId || cfg.propertyId || undefined,
+            companyId: config.companyId || undefined,
+          })}
+        >
+          {config.ctaButtonCopy}
+        </a>
       )}
       {tiersError
         ? <div className="sl-limited-label" role="alert">Pricing is temporarily unavailable — please try again.</div>
