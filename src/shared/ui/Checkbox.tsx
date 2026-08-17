@@ -16,10 +16,16 @@ export interface CheckboxProps {
   required?: boolean;
   className?: string;
   id?: string;
+  /**
+   * Replaces the tick mark. The kit's default is the Pika check — a curved,
+   * stroked glyph — but some designs specify a solid geometric tick, and the
+   * mark cannot be swapped from CSS. Omit for the default.
+   */
+  tick?: React.ReactNode;
 }
 
 export function Checkbox({
-  checked, onChange, children, disabled = false, required = false, className, id,
+  checked, onChange, children, disabled = false, required = false, className, id, tick,
 }: CheckboxProps) {
   const reactId = useId();
   const inputId = id ?? `hb-check-${reactId}`;
@@ -42,7 +48,7 @@ export function Checkbox({
         onChange={(e) => onChange(e.target.checked)}
       />
       <span className="hb-check__box" aria-hidden="true">
-        {checked && <CheckIcon size={18} className="hb-check__tick" />}
+        {checked && (tick ?? <CheckIcon size={18} className="hb-check__tick" />)}
       </span>
       <span className="hb-check__label">
         {children}
