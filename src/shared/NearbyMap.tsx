@@ -27,6 +27,12 @@ interface NearbyMapProps {
   points: MapPoint[];
   height?: number;
   className?: string;
+  /**
+   * The dark dot at the map's centre — "you are here". Pass false when the centre
+   * is only a computed midpoint (e.g. the average of the pins) rather than a real
+   * place: a marker there tells the viewer something untrue.
+   */
+  showCenterMarker?: boolean;
 }
 
 const TILE = 256;
@@ -56,7 +62,13 @@ function fitZoom(center: { lat: number; lng: number }, points: MapPoint[], w: nu
   return 1;
 }
 
-export function NearbyMap({ center, points, height = 317, className }: NearbyMapProps) {
+export function NearbyMap({
+  center,
+  points,
+  height = 317,
+  className,
+  showCenterMarker = true,
+}: NearbyMapProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -102,11 +114,13 @@ export function NearbyMap({ center, points, height = 317, className }: NearbyMap
       />
 
       {/* Reference marker (viewer / current property) at the map centre. */}
-      <span style={{
-        position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
-        width: 14, height: 14, borderRadius: '50%', background: '#101318',
-        border: '3px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
-      }} />
+      {showCenterMarker && (
+        <span style={{
+          position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+          width: 14, height: 14, borderRadius: '50%', background: '#101318',
+          border: '3px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+        }} />
+      )}
 
       {/* Price pins — clickable (the iframe below is pointer-events:none). */}
       {width > 0 && positioned.map((p) => {

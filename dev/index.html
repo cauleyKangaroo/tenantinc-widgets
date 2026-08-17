@@ -73,6 +73,12 @@
             <option value="dropdown">Normal dropdown (hover cascade)</option>
           </select>
         </label>
+        <label>Demo portfolio:
+          <select id="nav-demo-portfolio" onchange="reinitNavigationBar()">
+            <option value="full">Full (many facilities)</option>
+            <option value="small">3 facilities (map frame)</option>
+          </select>
+        </label>
       </div>
     </div>
     <div id="navigation-bar-container" class="widget-container"></div>
@@ -502,7 +508,11 @@
 
     function getNavProps() {
       var el = document.getElementById('nav-find-storage-style');
-      return { findStorageStyle: el ? el.value : 'mega' };
+      var demo = document.getElementById('nav-demo-portfolio');
+      return {
+        findStorageStyle: el ? el.value : 'mega',
+        demoPortfolio: demo ? demo.value : 'full',
+      };
     }
 
     function reinitNavigationBar() {

@@ -44,6 +44,14 @@ export interface NavProperty {
   city: string;
   /** `Address.zip`, for ZIP search. '' when the row carries no Address. */
   zip: string;
+  /**
+   * Just the street line — "736 Orange Avenue" (address + address2). The mega
+   * menu's map cards print it under the city, where the full `address` line would
+   * repeat the city and state already in the heading above it.
+   */
+  street: string;
+  /** `Address.state`, e.g. "CA". '' when the row carries no Address. */
+  state: string;
   /** Formatted primary phone, e.g. "(888) 888-8888"; '' when the row has none. */
   phone: string;
   /** Raw digits for tel: links. */
@@ -196,11 +204,12 @@ function asJson<T>(v: unknown): T | null {
  */
 function rowContact(
   row: PropertyRowLike,
-): Pick<NavProperty, 'address' | 'city' | 'zip' | 'phone' | 'phoneDigits' | 'lat' | 'lng'> {
+): Pick<NavProperty, 'address' | 'city' | 'zip' | 'street' | 'state' | 'phone' | 'phoneDigits' | 'lat' | 'lng'> {
   const addr = asJson<Record<string, unknown>>(row.Address);
+  const street = addr ? [str(addr.address), str(addr.address2)].filter(Boolean).join(' ').trim() : '';
   const address = addr
     ? [
-        [str(addr.address), str(addr.address2)].filter(Boolean).join(' ').trim(),
+        street,
         str(addr.city),
         `${str(addr.state)} ${str(addr.zip)}`.trim(),
       ].filter(Boolean).join(', ')
@@ -218,6 +227,8 @@ function rowContact(
     address,
     city: addr ? str(addr.city) : '',
     zip: addr ? str(addr.zip) : '',
+    street,
+    state: addr ? str(addr.state) : '',
     phone: rawPhone ? formatPhone(rawPhone) : '',
     phoneDigits: rawPhone.replace(/\D/g, ''),
     lat: addr && typeof addr.lat === 'number' ? addr.lat : null,
