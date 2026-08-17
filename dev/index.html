@@ -911,7 +911,10 @@
       // success screen are quick to reach while iterating.
       widget.init({
         container: document.getElementById('rental-flow-2step-container'),
-        props: { total: 120, facilityName: 'Storelocal Storage', processingMs: 2200 },
+        // previewRail fills the order rail with the Figma 8507-23233 sample when
+        // no value-tiers handoff has resolved a selection/quote. HARNESS ONLY —
+        // never set it in the Duda JS tab (see the prop's doc comment).
+        props: { previewRail: true },
       });
     });
 
