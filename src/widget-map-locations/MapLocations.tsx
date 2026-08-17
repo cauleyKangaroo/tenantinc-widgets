@@ -30,7 +30,7 @@ import {
 import { fetchPlaceProperties, fetchCitySpaces, toCityFacility, type PlaceScope } from './api';
 import { getUserLocation } from '@shared/nearbyProperties';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { stateNameFromCode } from '@shared/usStates';
+import { stateNameFromCode, stateCodeFromName } from '@shared/usStates';
 import { slugLabel } from '@shared/propertyNav';
 import { fetchGoogleRatingsByPlace, ratingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
@@ -311,10 +311,61 @@ function sortFacilities(list: CityFacility[], by: SortId): CityFacility[] {
   return out.sort((a, b) => (rating(b) - rating(a)) || (count(b) - count(a)));
 }
 
-const DEFAULT_SEO = `<p><strong>Storage in Fullerton</strong></p>
-<p>If you are looking for high quality self storage in Fullerton, CA, we can help. We provide customers with a high quality, well-maintained self storage facility at a great price. A friendly, professional on-site manager is always here to help you.</p>
+/**
+ * SEO copy, written with placeholders rather than a place name.
+ *
+ * `{city}` and `{city}, {state}` are filled from the page's own scope, so one
+ * body of copy serves every city page. On a STATE page (`/locations/{state}`,
+ * no city segment) there is no city to name, so both resolve to the state —
+ * "Storage in California", not "Storage in , California".
+ *
+ * Editors get the same tokens: anything typed into the `seoContent` field runs
+ * through the same substitution, so operator-written copy stays portable
+ * between pages instead of being pinned to one town.
+ */
+const DEFAULT_SEO = `<p><strong>Storage in {city}</strong></p>
+<p>If you are looking for high quality self storage in {city}, {state}, we can help. We provide customers with a high quality, well-maintained self storage facility at a great price. A friendly, professional on-site manager is always here to help you.</p>
 <p><strong>Self Storage Features</strong><br>At our storage facilities, we offer a wide range of features and amenities that make packing and self storage easy. You will find drive-up storage units for simple loading and unloading, delivery receiving services, packing and moving supplies right on site, and long gate access hours.</p>
-<p><strong>Secure Storage Units</strong><br>When you rent storage units in Fullerton, CA, you want total security. Our property is covered with 24/7 video surveillance, electronic gate access, and a manager who is always on site.</p>`;
+<p><strong>Secure Storage Units</strong><br>When you rent storage units in {city}, {state}, you want total security. Our property is covered with 24/7 video surveillance, electronic gate access, and a manager who is always on site.</p>`;
+
+/**
+ * Fill `{city}` / `{state}` in a body of copy.
+ *
+ * `{city}, {state}` is matched as ONE unit before the tokens are handled
+ * separately, because a state page has to collapse the whole pair to the state
+ * name — replacing the tokens independently would leave the comma stranded.
+ *
+ * Unknown tokens are left alone rather than blanked: `{foo}` on the page is a
+ * visible, fixable mistake, whereas silently deleting it hides it.
+ */
+/**
+ * A state in whatever form — "CA", "california", "north-carolina" — as its
+ * proper name: "California", "North Carolina".
+ *
+ * `stateNameFromCode` alone is not enough: it passes anything it doesn't
+ * recognise as a CODE straight back, so a URL slug returns lowercase and the
+ * page reads "Storage in california". Round-tripping through the code fixes
+ * that, and an unknown value still title-cases rather than printing raw.
+ */
+export function stateDisplayName(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const code = stateCodeFromName(trimmed)
+    || (trimmed.length === 2 ? trimmed.toUpperCase() : '');
+  return code ? stateNameFromCode(code) : slugLabel(trimmed);
+}
+
+export function fillPlaceTokens(copy: string, place: { city: string; state: string }): string {
+  const city = place.city.trim();
+  const state = place.state.trim();
+  // No city ⇒ a state page: the pair and the bare {city} both become the state.
+  const pair = city && state ? `${city}, ${state}` : city || state;
+
+  return copy
+    .replace(/\{city\}\s*,\s*\{state\}/gi, pair)
+    .replace(/\{city\}/gi, city || state)
+    .replace(/\{state\}/gi, state);
+}
 
 /**
  * `/locations/california/fullerton` → { state: 'california', city: 'fullerton' }
@@ -378,8 +429,31 @@ export function MapLocations({
   const cityLabel =
     (city ?? '').trim()
     || (scope.city ? slugLabel(scope.city) : '')
-    || (scope.state ? stateNameFromCode(scope.state) || slugLabel(scope.state) : '')
+    || stateDisplayName(scope.state ?? '')
     || 'all locations';
+
+  // Values behind {city} / {state} in the SEO copy.
+  //
+  // {state} is the CODE ("CA") because it reads inside "Fullerton, CA" — the
+  // form the copy actually uses it in. A state page has no city, so the copy
+  // falls back to the state standing alone, and there the full name reads
+  // properly ("Storage in California"), which is what `cityLabel` already holds.
+  //
+  // The `city` prop may arrive as "Fullerton, CA" — it doubles as the display
+  // label — so the part before the comma is the city and anything after it is
+  // a state the editor has spelled out. Otherwise the slug supplies both.
+  const [typedCity, typedState] = (city ?? '').split(',').map((v) => v.trim());
+  const placeTokens = useMemo(() => {
+    const cityName = typedCity || (scope.city ? slugLabel(scope.city) : '');
+    const rawState = typedState || scope.state;
+    const stateCode = rawState
+      ? (stateCodeFromName(rawState) || rawState.toUpperCase())
+      : '';
+    // No city ⇒ state page ⇒ both tokens become the state's full name.
+    return cityName
+      ? { city: cityName, state: stateCode }
+      : { city: '', state: cityLabel };
+  }, [typedCity, typedState, scope.city, scope.state, cityLabel]);
 
   const [sortBy, setSortBy] = useState<SortId>('distance');
   const [sortOpen, setSortOpen] = useState(false);
@@ -812,8 +886,12 @@ export function MapLocations({
           drops the copy there — it comes back with the list. */}
       {seoContent && showCards && (
         <div className="ml-seo">
-          <p className="ml-seo-heading">{seoHeading?.trim() || `Self Storage Units in ${cityLabel}`}</p>
-          <RichText value={seoContent} className="ml-seo-body" />
+          {/* The heading takes the tokens too, so an editor-typed heading can
+              travel between pages the same way the body does. */}
+          <p className="ml-seo-heading">
+            {fillPlaceTokens(seoHeading?.trim() || `Self Storage Units in ${cityLabel}`, placeTokens)}
+          </p>
+          <RichText value={fillPlaceTokens(seoContent, placeTokens)} className="ml-seo-body" />
         </div>
       )}
 

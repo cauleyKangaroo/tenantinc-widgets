@@ -51,6 +51,15 @@ export interface RentalFlow2StepProps {
   /** Operator-editable confirmation-page headings (reservation vs rental). */
   reservationHeading?: string;
   rentalHeading?: string;
+  /**
+   * Where "Write a Review" points — the operator's Google review link.
+   *
+   * The confirmation and access screens show the review card ONLY when this is
+   * set. The Figma frames draw it, but a review link is per-facility operator
+   * data with no sensible default: a made-up or empty link would send people
+   * nowhere, so the card stays hidden until someone supplies one.
+   */
+  reviewUrl?: string;
   /** Selection handed off from the value-tiers page (?size= / ?tier=) —
    *  display context only; the transaction re-resolves server-side. */
   size?: string;
@@ -315,6 +324,25 @@ function Step1Form({
 // Quick crossfade between steps.
 const FADE_MS = 160;
 
+/**
+ * Access code shown on the STATIC path only.
+ *
+ * PLACEHOLDER. Nothing was rented, so there is no gate code to read — this is
+ * the Figma's own sample value (8507-24349), kept obviously fake rather than
+ * generated, so it can't be mistaken for a real one. The keyed path reads the
+ * genuine code off the rental response and never reaches this.
+ *
+ * Bare digits, like a real code: <Confirmation> adds the "#…*" itself, and the
+ * QR encodes this value verbatim — punctuation here would be scanned as part of
+ * the code and printed twice on screen.
+ */
+const STATIC_ACCESS_CODE = '87368976';
+
+/** "17604567890" → "(760) 456-7890". Leaves anything else untouched. */
+function formatUsPhone(phone?: string): string | undefined {
+  return phone ? phone.replace(/^1?(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3') : undefined;
+}
+
 /** thank-you page params (?type=…): confirmation mode instead of the flow. */
 export interface ConfirmationData {
   kind: 'rental' | 'reservation';
@@ -398,6 +426,7 @@ export function RentalFlow2Step({
   reserveFailedMessage = 'We couldn’t complete your reservation right now. Please try again in a moment — if it keeps happening, contact the facility and we’ll be glad to help.',
   reservationHeading = 'Your reservation is confirmed!',
   rentalHeading = 'Your Space is ready!',
+  reviewUrl,
   size: sizeArg,
   tier: tierArg,
   propertyId: propertyIdArg,
@@ -490,6 +519,8 @@ export function RentalFlow2Step({
   /** Static payment path (no GP key): the lightbox has finished, show the
    *  post-purchase form rather than navigating to the confirmation page. */
   const [staticPaid, setStaticPaid] = useState(false);
+  /** "Get Access" pressed on the static post-purchase form. */
+  const [accessGranted, setAccessGranted] = useState(false);
   const staticPay = !gpApiKey;
   // Office/Gate hours fallback for the confirmation page: the immutable success
   // snapshot occasionally predates propertyInfo loading, so it can lack hours.
@@ -715,9 +746,7 @@ export function RentalFlow2Step({
     // preview has no snapshot and falls back to whatever live state exists.
     const snap = confirmation.rail;
     const snapProp = snap?.property ?? propertyInfo;
-    const fmtPhone = snapProp?.phone
-      ? snapProp.phone.replace(/^1?(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')
-      : undefined;
+    const fmtPhone = formatUsPhone(snapProp?.phone);
     // Drop the confirmation params so "Rent Online Now"/"Try again" re-enter the
     // flow (checkout) for the SAME unit instead of replaying the confirmation.
     const checkoutUrl = (() => {
@@ -744,6 +773,7 @@ export function RentalFlow2Step({
             gateHours={snapProp?.gateHours?.length ? snapProp.gateHours : confHours?.gateHours}
             rentUrl={confirmation.kind === 'reservation' ? checkoutUrl : undefined}
             onRetry={goToCheckout}
+            reviewUrl={reviewUrl}
           />
           {/* Right column is the SAME shared order-summary rail (via OrderRail),
               fed from the immutable success snapshot. */}
@@ -759,10 +789,43 @@ export function RentalFlow2Step({
 
   // Static payment finished — the post-purchase form (Figma 8507-25408) takes
   // over the whole screen, the same slot the confirmation page would occupy.
+  // "Get Access" then hands to the access screen (Figma 8507-24349), which is
+  // the same <Confirmation> the real flow lands on: sent-code bar, access code,
+  // wallet badges, move-in date, office/gate hours, review card, What's Next.
+  // Composing that screen a second time would be a near-duplicate that drifts.
   if (staticPaid) {
+    // The held unit is real even on the static path — the hold and quote both
+    // come from the live API. The access CODE is the one invented value: there
+    // is no lease and therefore no gate code to read, so it is a placeholder
+    // and must be replaced the moment the rental call exists.
+    const heldUnit = hold?.unitNumber ?? quote?.unitNumber;
+    const staticUnitNumber = heldUnit ? `#${heldUnit}` : undefined;
+
     return (
       <div className="rf-wrapper" ref={wrapRef}>
-        <SuccessStep />
+        {accessGranted ? (
+          <div className="rfc-layout">
+            <Confirmation
+              kind="rental"
+              name={finalizing?.firstName}
+              phone={contact?.phone}
+              unitNumber={staticUnitNumber}
+              code={STATIC_ACCESS_CODE}
+              entry="gate"
+              moveInDate={fmtDisplayDate(moveIn)}
+              confirmedHeading={rentalHeading}
+              facilityPhone={formatUsPhone(propertyInfo?.phone)}
+              // Same fallback the real confirmation page uses: the property may
+              // carry no hours, in which case they're fetched separately.
+              officeHours={propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours}
+              gateHours={propertyInfo?.gateHours?.length ? propertyInfo.gateHours : confHours?.gateHours}
+              reviewUrl={reviewUrl}
+            />
+            <OrderRail property={propertyInfo} selection={selection} quote={quote} />
+          </div>
+        ) : (
+          <SuccessStep onGetAccess={() => setAccessGranted(true)} />
+        )}
       </div>
     );
   }
