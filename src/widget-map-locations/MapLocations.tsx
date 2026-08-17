@@ -32,6 +32,7 @@ import { getUserLocation } from '@shared/nearbyProperties';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { stateNameFromCode, stateCodeFromName } from '@shared/usStates';
 import { slugLabel } from '@shared/propertyNav';
+import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { fetchGoogleRatingsByPlace, ratingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import cfg from './config.json';
@@ -86,7 +87,16 @@ function Stars({ rating }: { rating: number }) {
 
 // ── Unit row ────────────────────────────────────────────────────────────────
 
-function UnitRow({ unit }: { unit: CityUnit }) {
+function UnitRow({
+  unit, facility, rentalPageUrl, companyId,
+}: {
+  unit: CityUnit;
+  /** The facility this unit belongs to — its id is what makes the handoff
+   *  unambiguous on a city page listing several properties. */
+  facility: CityFacility;
+  rentalPageUrl?: string;
+  companyId?: string;
+}) {
   return (
     <div className="ml-unit">
       <div className="ml-unit-info">
@@ -105,7 +115,21 @@ function UnitRow({ unit }: { unit: CityUnit }) {
           <span className="ml-price-label ml-price-label--dark">STARTING AT</span>
           <span className="ml-price-now">${unit.startingPrice}</span>
         </div>
-        <button type="button" className="ml-select">Select</button>
+        {/* Straight to the rental page, with the unit handed over in
+            localStorage (see @shared/unitHandoff). An anchor so Duda's router
+            handles it in preview and published, and middle-click still works. */}
+        <a
+          className="ml-select"
+          href={rentalHref(rentalPageUrl)}
+          onClick={() => saveUnitSelection({
+            unitId: unit.id,
+            size: unit.dimensions,
+            propertyId: facility.id,
+            companyId,
+          })}
+        >
+          Select
+        </a>
       </div>
     </div>
   );
@@ -120,6 +144,8 @@ function PropertyCard({
   compact,
   filters,
   rating,
+  rentalPageUrl,
+  companyId,
   onActivate,
 }: {
   facility: CityFacility;
@@ -133,6 +159,9 @@ function PropertyCard({
   /** This property's Google rating, or null when the collection has none
    *  (and always in the editor/harness, where there is no dmAPI). */
   rating: RatingSummary | null;
+  /** Passed down to each unit's Select — see @shared/unitHandoff. */
+  rentalPageUrl?: string;
+  companyId?: string;
   onActivate: () => void;
 }) {
   // Three, per the design; "See All Spaces" covers the rest. A live property
@@ -224,7 +253,15 @@ function PropertyCard({
         ) : (
           <>
             <div className="ml-units">
-              {shown.map((u) => <UnitRow key={u.id} unit={u} />)}
+              {shown.map((u) => (
+                <UnitRow
+                  key={u.id}
+                  unit={u}
+                  facility={facility}
+                  rentalPageUrl={rentalPageUrl}
+                  companyId={companyId}
+                />
+              ))}
             </div>
 
             <div className="ml-card-foot">
@@ -276,6 +313,11 @@ export interface MapLocationsProps {
   seoContent?: string;
   /** Height of the pinned map. Capped to the viewport so it can't overflow it. */
   rowHeight?: number | string;
+  /**
+   * Where a unit's Select goes. Default '/rental'. The chosen unit rides in
+   * localStorage rather than the URL — see @shared/unitHandoff.
+   */
+  rentalPageUrl?: string;
   /** @deprecated The sort is a real control now — see SORT_OPTIONS. */
   sortLabel?: string;
 }
@@ -404,6 +446,7 @@ export function MapLocations({
   seoHeading,
   seoContent = DEFAULT_SEO,
   rowHeight = 900,
+  rentalPageUrl,
   sortLabel = 'Closest Distance',
 }: MapLocationsProps) {
   // The page URL is the source of truth on /locations/{state}[/{city}], so a
@@ -842,6 +885,8 @@ export function MapLocations({
                 compact={isMobile}
                 filters={filters}
                 rating={ratingForProperty(f.name, ratings)}
+                rentalPageUrl={rentalPageUrl}
+                companyId={resolvedCompanyId ?? undefined}
                 onActivate={() => setActiveId(f.id)}
               />
             ))}

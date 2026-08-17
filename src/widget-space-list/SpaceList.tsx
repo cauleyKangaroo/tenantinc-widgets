@@ -79,6 +79,7 @@ export function SpaceList({
   enableValueTiers = false,
   valueTiersChannel,
   valueTiersPageUrl,
+  rentalPageUrl,
   limitedAvailabilityCopy = '',
   startingAtLabel = 'Starting at',
   showSizeGuideVideos = true,
@@ -155,6 +156,7 @@ export function SpaceList({
     enableValueTiers,
     valueTiersChannel,
     valueTiersPageUrl,
+    rentalPageUrl,
     // The ACTUAL property + company this widget is showing (dynamic pages vary
     // both) — passed through the value-tiers handoff so the target page prices
     // the same unit group. companyId is the bound content field (per-property on
