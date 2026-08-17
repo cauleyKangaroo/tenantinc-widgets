@@ -825,8 +825,16 @@
 
 .ml-price-divider { width: 1px; height: 29px; background: #dfe3e8; flex-shrink: 0; }
 
+/* Renders as an <a> (Duda-routable — see UnitRow), so it needs everything a
+   bare <button> got for free: a block-level box for width/height to apply at
+   all, its own centring, and the link decoration stripped. The colour is stated
+   again after `background` because a host page's `a { color }` outranks the
+   inherited value and would otherwise tint the label. */
 .ml-select {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 78px;
   height: 33px;
   border: none;
@@ -837,8 +845,17 @@
   font-size: 14px;
   font-weight: 700;
   line-height: 16px;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
 }
+
+.ml-select:hover,
+.ml-select:focus,
+.ml-select:visited { color: #fff; text-decoration: none; }
+
+.ml-select:hover { filter: brightness(0.94); }
 
 .ml-card-foot {
   display: flex;
