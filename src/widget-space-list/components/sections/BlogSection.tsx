@@ -34,8 +34,9 @@ function ShareIcon() {
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 /** Shown while the collection read is in flight, so the panel never shows a
- *  half-empty card or a flash of demo copy. */
-function SkeletonCard() {
+ *  half-empty card or a flash of demo copy. Shared with the Local Blogs
+ *  section, which reads the same collection through the same card. */
+export function BlogSkeletonCard() {
   return (
     <div className="sl-blog2" aria-hidden="true">
       <div className="sl-blog2-bg">
@@ -58,56 +59,30 @@ function SkeletonCard() {
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Carousel ──────────────────────────────────────────────────────────────────
 
-export interface BlogSectionProps {
-  /** Duda collection name (case-sensitive). Default 'BlogPosts'. */
-  collection?: string;
-  /**
-   * Path of the blog page the post slugs hang off. Posts link at
-   * `${blogBasePath}/${slug}`, the URL #16 blog-post reads back.
-   */
-  blogBasePath?: string;
+export interface BlogCarouselProps {
+  /** Non-empty; the callers own the loading and empty states. */
+  posts: BlogPostData[];
+  /** Rendered under the pagination — the Local Blogs section's "See all blogs". */
+  footer?: React.ReactNode;
 }
 
-export function BlogSection({ collection = 'BlogPosts', blogBasePath = '/blogs' }: BlogSectionProps) {
-  const [posts, setPosts] = useState<BlogPostData[]>([]);
-  const [loading, setLoading] = useState(true);
+/**
+ * One post at a time, one dot per post — the card itself, with no opinion about
+ * where the posts came from.
+ *
+ * Shared by this section (every post) and Local Blogs (this property's posts),
+ * so the two can never drift into looking like different cards.
+ */
+export function BlogCarousel({ posts, footer }: BlogCarouselProps) {
   const [page, setPage] = useState(0);
 
-  // This section only mounts when its accordion is opened, so the read is lazy.
-  useEffect(() => {
-    // No dmAPI means we're not in Duda (dev harness) — show the demo set rather
-    // than an empty card, and skip the read entirely.
-    if (!hasCollectionsApi()) {
-      setPosts(DEMO_POSTS);
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    fetchBlogPosts(collection, blogBasePath)
-      .then((live) => { if (!cancelled) setPosts(live); })
-      .catch((err) => console.error('[BlogSection] fetchBlogPosts error:', err))
-      .finally(() => { if (!cancelled) setLoading(false); });
-
-    return () => { cancelled = true; };
-  }, [collection, blogBasePath]);
-
-  // Declared BEFORE the early returns below — a hook after a conditional return
-  // breaks the Rules of Hooks and throws on the render where the branch differs.
   // Clamping happens inside the updater so it reads the live list length.
   const swipe = useSwipe({
     onSwipeLeft: () => setPage((p) => Math.min(posts.length - 1, p + 1)),
     onSwipeRight: () => setPage((p) => Math.max(0, p - 1)),
   });
-
-  if (loading) return <SkeletonCard />;
-
-  // Published collection empty → say so rather than render an empty card.
-  if (!posts.length) {
-    return <p className="sl-blog2-empty">No blog posts published yet.</p>;
-  }
 
   // Clamp rather than store-and-correct, so a shrinking list can't leave us on a
   // page that no longer exists.
@@ -116,7 +91,7 @@ export function BlogSection({ collection = 'BlogPosts', blogBasePath = '/blogs' 
   const post = posts[current];
   // authorName / publishDate can both be blank on a row — build the byline from
   // whichever parts exist so it never reads "By ,".
-  const byline = [post.author && `By ${post.author}`, post.date].filter(Boolean).join(',  ');
+  const byline = [post.author && `By ${post.author}`, post.date].filter(Boolean).join(',  ');
   const linked = !!post.href && post.href !== '#';
 
   return (
@@ -180,6 +155,53 @@ export function BlogSection({ collection = 'BlogPosts', blogBasePath = '/blogs' 
         </div>
       )}
 
+      {footer}
+
     </div>
   );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export interface BlogSectionProps {
+  /** Duda collection name (case-sensitive). Default 'BlogPosts'. */
+  collection?: string;
+  /**
+   * Path of the blog page the post slugs hang off. Posts link at
+   * `${blogBasePath}/${slug}`, the URL #16 blog-post reads back.
+   */
+  blogBasePath?: string;
+}
+
+export function BlogSection({ collection = 'BlogPosts', blogBasePath = '/blogs' }: BlogSectionProps) {
+  const [posts, setPosts] = useState<BlogPostData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // This section only mounts when its accordion is opened, so the read is lazy.
+  useEffect(() => {
+    // No dmAPI means we're not in Duda (dev harness) — show the demo set rather
+    // than an empty card, and skip the read entirely.
+    if (!hasCollectionsApi()) {
+      setPosts(DEMO_POSTS);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    fetchBlogPosts(collection, blogBasePath)
+      .then((live) => { if (!cancelled) setPosts(live); })
+      .catch((err) => console.error('[BlogSection] fetchBlogPosts error:', err))
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [collection, blogBasePath]);
+
+  if (loading) return <BlogSkeletonCard />;
+
+  // Published collection empty → say so rather than render an empty card.
+  if (!posts.length) {
+    return <p className="sl-blog2-empty">No blog posts published yet.</p>;
+  }
+
+  return <BlogCarousel posts={posts} />;
 }
