@@ -13,6 +13,7 @@ import { Confirmation, type EntryMode } from './Confirmation';
 import { GP_BRIDGE_IS_PROTOTYPE } from './gpHostedFields';
 import { OrderRail } from './OrderRail';
 import { RfCheckbox } from './RfCheckbox';
+import { readUnitSelection, clearUnitSelection } from '@shared/unitHandoff';
 import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
@@ -519,12 +520,22 @@ export function RentalFlow2Step({
   const urlParam = (k: string): string | undefined => {
     try { return new URLSearchParams(window.location.search).get(k) || undefined; } catch { return undefined; }
   };
-  const sizeProp = sizeArg ?? urlParam('size');
+  // A "Select" on #05 or #08 links here as a bare /rental and leaves the picked
+  // unit in localStorage (@shared/unitHandoff), so read that too. Read ONCE per
+  // mount: it must not change under the flow mid-rental if another tab writes a
+  // different pick.
+  const storedRef = useRef<ReturnType<typeof readUnitSelection> | undefined>(undefined);
+  if (storedRef.current === undefined) storedRef.current = readUnitSelection();
+  const stored = storedRef.current;
+
+  // The URL still wins everywhere — existing links and the value-tiers handoff
+  // behave exactly as before; the stored pick only fills what the URL omits.
+  const sizeProp = sizeArg ?? urlParam('size') ?? stored?.size;
   const tierProp = tierArg ?? urlParam('tier');
-  const propertyIdProp = propertyIdArg ?? urlParam('propertyId');
-  const companyIdProp = companyIdArg ?? urlParam('companyId');
-  const unitGroupIdProp = unitGroupIdArg ?? urlParam('unitGroupId');
-  const unitIdProp = urlParam('unitId');
+  const propertyIdProp = propertyIdArg ?? urlParam('propertyId') ?? stored?.propertyId;
+  const companyIdProp = companyIdArg ?? urlParam('companyId') ?? stored?.companyId;
+  const unitGroupIdProp = unitGroupIdArg ?? urlParam('unitGroupId') ?? stored?.unitGroupId;
+  const unitIdProp = urlParam('unitId') ?? stored?.unitId;
   // "Change Space" returns to the value-tiers page the shopper came from.
   const backToSpacesUrl = (() => {
     try {
@@ -972,6 +983,9 @@ export function RentalFlow2Step({
             payNowTotal={quote?.totalDue}
             onPaymentComplete={(info) => {
               setFinalizing(info);
+              // The pick has been acted on — drop it so returning to /rental
+              // later starts clean instead of silently re-selecting it.
+              clearUnitSelection();
               // Static path: the lightbox's onDone swaps in the post-purchase
               // form. No nonce, no navigation — nothing was charged.
               if (staticPay) return;

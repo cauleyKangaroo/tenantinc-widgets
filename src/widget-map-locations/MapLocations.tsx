@@ -32,6 +32,7 @@ import { getUserLocation } from '@shared/nearbyProperties';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { stateNameFromCode, stateCodeFromName } from '@shared/usStates';
 import { slugLabel } from '@shared/propertyNav';
+import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { fetchGoogleRatingsByPlace, ratingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import cfg from './config.json';
@@ -86,7 +87,16 @@ function Stars({ rating }: { rating: number }) {
 
 // ── Unit row ────────────────────────────────────────────────────────────────
 
-function UnitRow({ unit }: { unit: CityUnit }) {
+function UnitRow({
+  unit, facility, rentalPageUrl, companyId,
+}: {
+  unit: CityUnit;
+  /** The facility this unit belongs to — its id is what makes the handoff
+   *  unambiguous on a city page listing several properties. */
+  facility: CityFacility;
+  rentalPageUrl?: string;
+  companyId?: string;
+}) {
   return (
     <div className="ml-unit">
       <div className="ml-unit-info">
@@ -105,7 +115,21 @@ function UnitRow({ unit }: { unit: CityUnit }) {
           <span className="ml-price-label ml-price-label--dark">STARTING AT</span>
           <span className="ml-price-now">${unit.startingPrice}</span>
         </div>
-        <button type="button" className="ml-select">Select</button>
+        {/* Straight to the rental page, with the unit handed over in
+            localStorage (see @shared/unitHandoff). An anchor so Duda's router
+            handles it in preview and published, and middle-click still works. */}
+        <a
+          className="ml-select"
+          href={rentalHref(rentalPageUrl)}
+          onClick={() => saveUnitSelection({
+            unitId: unit.id,
+            size: unit.dimensions,
+            propertyId: facility.id,
+            companyId,
+          })}
+        >
+          Select
+        </a>
       </div>
     </div>
   );
@@ -120,6 +144,9 @@ function PropertyCard({
   compact,
   filters,
   rating,
+  rentalPageUrl,
+  companyId,
+  propertyBasePath,
   onActivate,
 }: {
   facility: CityFacility;
@@ -133,11 +160,20 @@ function PropertyCard({
   /** This property's Google rating, or null when the collection has none
    *  (and always in the editor/harness, where there is no dmAPI). */
   rating: RatingSummary | null;
+  /** Passed down to each unit's Select — see @shared/unitHandoff. */
+  rentalPageUrl?: string;
+  companyId?: string;
+  /** Where the property pages live, e.g. '/storage-units'. */
+  propertyBasePath: string;
   onActivate: () => void;
 }) {
   // Three, per the design; "See All Spaces" covers the rest. A live property
   // has 26–38 tiers, so this is the difference between a card and a wall.
   const shown = visibleUnits(facility, filters);
+  // The slug IS the property page's path — same base #02's nav links under.
+  const propertyHref = facility.slug
+    ? `${propertyBasePath}/${facility.slug.replace(/^\/+/, '')}`
+    : undefined;
   const cls = [
     'ml-card',
     facility.featured ? 'ml-card--featured' : '',
@@ -224,15 +260,25 @@ function PropertyCard({
         ) : (
           <>
             <div className="ml-units">
-              {shown.map((u) => <UnitRow key={u.id} unit={u} />)}
+              {shown.map((u) => (
+                <UnitRow
+                  key={u.id}
+                  unit={u}
+                  facility={facility}
+                  rentalPageUrl={rentalPageUrl}
+                  companyId={companyId}
+                />
+              ))}
             </div>
 
             <div className="ml-card-foot">
               <span className="ml-admin-fee">+ Plus ${facility.adminFee} Admin Fee</span>
-              {/* Only when there IS more to see — on a property with three or
-                  fewer spaces the link would lead nowhere new. */}
-              {facility.units.length > shown.length && (
-                <a className="ml-see-all" href="#">See All Spaces</a>
+              {/* Always offered, however few spaces the card lists — the link
+                  goes to the property's own page, not just "more of this list",
+                  so it is worth having even when nothing is hidden. Absent only
+                  when the row carries no slug and there is nowhere to point. */}
+              {propertyHref && (
+                <a className="ml-see-all" href={propertyHref}>See All Spaces</a>
               )}
             </div>
           </>
@@ -276,6 +322,25 @@ export interface MapLocationsProps {
   seoContent?: string;
   /** Height of the pinned map. Capped to the viewport so it can't overflow it. */
   rowHeight?: number | string;
+  /**
+   * Where a unit's Select goes. Default '/rental'. The chosen unit rides in
+   * localStorage rather than the URL — see @shared/unitHandoff.
+   */
+  rentalPageUrl?: string;
+  /**
+   * Where the property pages live — '/storage-units' by default, the same base
+   * #02's nav links under, so "See All Spaces" and the nav agree.
+   */
+  propertyBasePath?: string;
+  /**
+   * The property to feature: its id or its slug. That card takes the green
+   * outline and the "Featured Property" ribbon, and is pinned to the top of the
+   * list whatever the sort or the filters.
+   *
+   * Nothing in the properties API marks a property as featured — it is an
+   * operator decision — so without this no card is featured on live data.
+   */
+  featuredPropertyId?: string;
   /** @deprecated The sort is a real control now — see SORT_OPTIONS. */
   sortLabel?: string;
 }
@@ -297,18 +362,27 @@ type SortId = typeof SORT_OPTIONS[number]['id'];
 /** Sort a copy — never mutate the source list, which is module-level demo data. */
 function sortFacilities(list: CityFacility[], by: SortId): CityFacility[] {
   const out = [...list];
+
+  // A featured property is PINNED TO THE TOP, whatever the sort or the filters.
+  // That is the whole point of featuring one: it is a placement the operator
+  // has chosen, not a ranking the data earned, so it must not drift down the
+  // list when someone sorts by distance or filters the spaces.
+  const featuredFirst = (a: CityFacility, b: CityFacility) =>
+    Number(!!b.featured) - Number(!!a.featured);
+
   if (by === 'distance') {
     // Missing distance sorts LAST, not as 0 — otherwise a facility with no
     // distance would float to the top of a "Closest Distance" list.
     const miles = (f: CityFacility) =>
       Number.isFinite(f.distanceMiles) ? f.distanceMiles : Infinity;
-    return out.sort((a, b) => miles(a) - miles(b));
+    return out.sort((a, b) => featuredFirst(a, b) || (miles(a) - miles(b)));
   }
   // Highly Reviewed: rating first, then review count as the tie-break — a 4.5
   // from 300 people should outrank a 4.5 from 3.
   const rating = (f: CityFacility) => Number(f.rating ?? 0);
   const count = (f: CityFacility) => Number(f.reviewCount ?? 0);
-  return out.sort((a, b) => (rating(b) - rating(a)) || (count(b) - count(a)));
+  return out.sort((a, b) =>
+    featuredFirst(a, b) || (rating(b) - rating(a)) || (count(b) - count(a)));
 }
 
 /**
@@ -394,6 +468,9 @@ export function parseLocationPath(pathname: string, basePath = DEFAULT_LOCATION_
 /** Where the state/city pages live. Matches #02's mega-menu links. */
 const DEFAULT_LOCATION_BASE_PATH = '/locations';
 
+/** Where the property pages live. Matches #02's `locationBasePath`. */
+const DEFAULT_PROPERTY_BASE_PATH = '/storage-units';
+
 // ── Component ───────────────────────────────────────────────────────────────
 
 export function MapLocations({
@@ -404,6 +481,9 @@ export function MapLocations({
   seoHeading,
   seoContent = DEFAULT_SEO,
   rowHeight = 900,
+  rentalPageUrl,
+  propertyBasePath = DEFAULT_PROPERTY_BASE_PATH,
+  featuredPropertyId,
   sortLabel = 'Closest Distance',
 }: MapLocationsProps) {
   // The page URL is the source of truth on /locations/{state}[/{city}], so a
@@ -454,6 +534,15 @@ export function MapLocations({
       ? { city: cityName, state: stateCode }
       : { city: '', state: cityLabel };
   }, [typedCity, typedState, scope.city, scope.state, cityLabel]);
+
+  // Normalised like #02's base paths: a missing leading slash would make the
+  // link relative to the current /locations/... page, and a trailing one would
+  // double up into '/storage-units//california/...'.
+  const normalisedPropertyBase = useMemo(() => {
+    const t = propertyBasePath.trim().replace(/\/+$/, '');
+    if (!t) return '';
+    return t.startsWith('/') ? t : `/${t}`;
+  }, [propertyBasePath]);
 
   const [sortBy, setSortBy] = useState<SortId>('distance');
   const [sortOpen, setSortOpen] = useState(false);
@@ -574,7 +663,19 @@ export function MapLocations({
     return f;
   }), [filtered, ratings, isPreview]);
 
-  const facilities = useMemo(() => sortFacilities(rated, sortBy), [rated, sortBy]);
+  // Featuring is an operator choice, and nothing in the properties API carries
+  // it — so it comes from a prop naming the property (its id or its slug). The
+  // demo rows keep their own `featured` flag for the editor and the harness.
+  const flagged = useMemo(() => {
+    const want = (featuredPropertyId ?? '').trim().toLowerCase();
+    if (!want) return rated;
+    return rated.map((f) => ({
+      ...f,
+      featured: f.id.toLowerCase() === want || (f.slug ?? '').toLowerCase() === want,
+    }));
+  }, [rated, featuredPropertyId]);
+
+  const facilities = useMemo(() => sortFacilities(flagged, sortBy), [flagged, sortBy]);
   const sortLabelText =
     SORT_OPTIONS.find((o) => o.id === sortBy)?.label ?? SORT_OPTIONS[0].label;
 
@@ -842,6 +943,9 @@ export function MapLocations({
                 compact={isMobile}
                 filters={filters}
                 rating={ratingForProperty(f.name, ratings)}
+                rentalPageUrl={rentalPageUrl}
+                companyId={resolvedCompanyId ?? undefined}
+                propertyBasePath={normalisedPropertyBase}
                 onActivate={() => setActiveId(f.id)}
               />
             ))}

@@ -47,6 +47,12 @@ export interface CityFacility {
   priceLabel: string;
   /** Green outline + "Featured Property" ribbon. */
   featured?: boolean;
+  /**
+   * "california/bellflower/storage-outlet-bellflower-340079517" — the property
+   * page's own path under `propertyBasePath`. Empty when the API row carries no
+   * slug, in which case "See All Spaces" has nowhere to go and is not rendered.
+   */
+  slug?: string;
   units: CityUnit[];
   /** Facility photo from the API's `Images`, if any (else the demo imagery). */
   imageUrl?: string;
