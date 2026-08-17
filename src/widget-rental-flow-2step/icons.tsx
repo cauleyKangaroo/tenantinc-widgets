@@ -48,13 +48,23 @@ export function CalendarIcon({ size = 24, className }: { size?: number; classNam
 }
 
 // Close (×) — modal dismiss button.
+/**
+ * Close (mdiClose). Figma draws a 14px mark inside a 24px button
+ * (8507-23575), so `size` here has to mean the size of the X you actually see.
+ *
+ * The viewBox is cropped to the glyph's own bounds rather than left at
+ * 0 0 24 24: the cross spans only 6→18, i.e. HALF the 24 box, so a 24-box
+ * viewBox made `size` render at half its value — size={14} drew a 7px mark.
+ * Bounds are 6→18 grown by half the 2.2 stroke at each end (round caps), giving
+ * 4.9 → 19.1 = 14.2.
+ */
 export function CloseIcon({ size = 18, className }: { size?: number; className?: string }) {
   return (
     <svg
       className={className}
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox="4.9 4.9 14.2 14.2"
       fill="none"
       aria-hidden="true"
     >
@@ -106,6 +116,57 @@ export function ChevronIcon({ size = 14, className }: { size?: number; className
   return (
     <svg className={className} width={(size * 8) / 14} height={size} viewBox="0 0 8 14" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
       <path d="M1 13C3.18079 11.423 5.13641 9.57707 6.81717 7.51013C7.06095 7.21033 7.06095 6.78968 6.81717 6.48988C5.13641 4.42294 3.18079 2.57701 1 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/**
+ * Solid checkbox tick (Figma 8507-25446). The kit's default CheckIcon is the
+ * Pika check — a CURVED, STROKED glyph — where this design's mark is a sharp
+ * filled tick, so they are different shapes, not different weights.
+ *
+ * Lifted from the checked-state vector, which draws the box and carves the tick
+ * out of it with fill-rule evenodd; this is that carved sub-path on its own.
+ *
+ * The viewBox is cropped to the tick's own bounds so `size` is its real WIDTH,
+ * and the height follows the mark's 13.41:10.12 ratio rather than being forced
+ * square — squaring it would stretch the tick.
+ */
+export function CheckTickSolid({ size = 13, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={(size * 10.1214) / 13.4143}
+      viewBox="10.293 11.7928 13.4143 10.1214"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M15 21.9142L23.7073 13.207L22.293 11.7928L15 19.0857L11.7073 15.7928L10.293 17.207L15 21.9142Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+/**
+ * SOLID chevron — the "Style=Solid" variant of chevron-big-right
+ * (Figma 8508-32282), used by the protection-plan dropdown. The outline
+ * ChevronIcon above is the stroke variant and is a visibly lighter mark, so the
+ * two are not interchangeable.
+ *
+ * Same 8x14 viewBox as its stroke sibling, so `size` means the same thing in
+ * both and callers can swap without resizing. Points RIGHT as drawn; the
+ * caller rotates.
+ */
+export function ChevronSolidIcon({ size = 14, className }: { size?: number; className?: string }) {
+  return (
+    <svg className={className} width={(size * 8) / 14} height={size} viewBox="0 0 8 14" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <path
+        d="M1.58599 0.189675C1.26945 -0.0392302 0.84859 -0.0628562 0.508414 0.129182C0.168238 0.321219 -0.0289727 0.693759 0.00346815 1.08305C0.331619 5.02086 0.331619 8.97915 0.00346815 12.917C-0.0289726 13.3062 0.168238 13.6788 0.508414 13.8708C0.84859 14.0629 1.26945 14.0392 1.58599 13.8103C3.837 12.1825 5.8566 10.2764 7.59304 8.14103C8.13567 7.47372 8.13567 6.52629 7.59304 5.85898C5.8566 3.72356 3.837 1.81746 1.58599 0.189675Z"
+        fill="currentColor"
+      />
     </svg>
   );
 }

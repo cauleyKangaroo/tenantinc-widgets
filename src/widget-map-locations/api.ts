@@ -383,5 +383,7 @@ export function toCityFacility(
     priceLabel: Number.isFinite(cheapest) ? `$${Math.round(cheapest)}` : '',
     units: spaces,
     imageUrl: p.imageUrl,
+    // The slug IS the property page's URL — "See All Spaces" links to it.
+    slug: p.slug ?? '',
   };
 }

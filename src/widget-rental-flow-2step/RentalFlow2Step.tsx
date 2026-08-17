@@ -12,10 +12,12 @@ import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
 import { GP_BRIDGE_IS_PROTOTYPE } from './gpHostedFields';
 import { OrderRail } from './OrderRail';
+import { RfCheckbox } from './RfCheckbox';
+import { readUnitSelection, clearUnitSelection } from '@shared/unitHandoff';
 import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
-import { FormField, Button, Checkbox, DateModal, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, DateModal, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 
@@ -83,6 +85,18 @@ export interface RentalFlow2StepProps {
   gpApiKey?: string;
   /** GP environment; keep 'test' until launch cutover. */
   gpEnvironment?: 'test' | 'prod';
+  /**
+   * DEV HARNESS ONLY — fills the designed surfaces with their Figma samples when
+   * no live data has resolved, so the frames can be reviewed:
+   *   • the order rail (8507-23233) without a value-tiers handoff
+   *   • step 2's protection plans (8507-23352 / 8508-32894), which no API
+   *     currently exposes pre-lease at all
+   *
+   * Never set this in Duda. Both surfaces carry a NO-DEMO-MONEY policy because
+   * invented figures would show shoppers prices that are not real; this prop is
+   * the one deliberate, opt-in exception, and live data always wins over it.
+   */
+  previewContent?: boolean;
   /** Duda runtime trio, passed by the Widget Builder shim (see #05's shim
    *  for the pattern). inEditor gates editor-vs-published behavior — in
    *  this widget it SUPPRESSES real writes (no unit holds while an editor
@@ -94,6 +108,64 @@ export interface RentalFlow2StepProps {
 }
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
+// ---------------------------------------------------------------------------
+// PREVIEW-ONLY rail content (Figma 8507-23233).
+//
+// This exists so the dev harness can show the rail as designed — with no
+// value-tiers handoff there is no `?size=`/`?tier=`, so no selection resolves,
+// no unit resolves, and therefore no quote: the rail correctly renders its
+// empty state and the frame can't be reviewed.
+//
+// It is gated behind the `previewContent` prop and NOTHING sets that except
+// dev/index.html. That gate is the point, not ceremony: OrderRail carries an
+// explicit NO-DEMO-MONEY policy (Raymond, 2026-08-03) because a rail that
+// invents figures when the quote pipeline fails would quote real shoppers
+// prices that are not real. Live sites keep the honest empty state.
+// ---------------------------------------------------------------------------
+const PREVIEW_PROPERTY: import('./api').PropertyInfo = {
+  name: '3rd Street Storage',
+  address: '1301 E. Mission Ave, Fullerton, CA 02027',
+  // Unformatted digits — OrderRail applies the (xxx) xxx-xxxx formatting itself,
+  // so pre-formatting here would bypass the code path being previewed.
+  phone: '8776577465',
+};
+
+const PREVIEW_SELECTION: SelectionContext = {
+  size: '5’ x 7’',
+  inStore: 86,
+  online: 64,
+  promo: 'First Full Month FREE',
+  // features[0] is the bold sub-line, the rest are the ticked list.
+  features: ['Climate Controlled', '24 Hour Access', 'Drive Up', 'Near Entrances', 'No Late Fees'],
+};
+
+const PREVIEW_QUOTE: MoveInQuote = {
+  unitId: 'preview',
+  // Deliberately no unitNumber: MoneyBreakdown would add a "Unit #111" ROW, and
+  // the frame shows the unit in the header line instead.
+  totalDue: 99.68,
+  totalTax: 0,
+  lines: [
+    // name 'Rent' + startDate is what makes MoneyBreakdown render
+    // "Rent (Prorated)" with the date range beneath it.
+    { name: 'Rent', cost: 53.68, startDate: '05/06/2026', endDate: '05/31/2026' },
+    { name: 'Admin Fee', cost: 29 },
+    { name: 'Protection', cost: 17 },
+  ],
+};
+
+/**
+ * Sample protection plans (Figma 8508-32894). Same gate, and the same reason
+ * squared: api.ts notes the insurance rows come back `[]` on every tenant we can
+ * read, so step 2's plan card has never had anything real to show — which is why
+ * it renders "confirmed at checkout" rather than inventing $2,000/$12.
+ */
+const PREVIEW_PLANS: ProtectionPlan[] = [
+  { id: 'preview-1000', coverage: 1000, premium: 11 },
+  { id: 'preview-2000', coverage: 2000, premium: 12, name: 'Best Value' },
+  { id: 'preview-3000', coverage: 3000, premium: 13 },
+];
 
 // A single labelled field — now the shared @shared/ui <FormField>. `valid`
 // drives the green success state; `error` (submit attempted while invalid)
@@ -282,9 +354,9 @@ function Step1Form({
         <h2 className="rf-heading">{heading}</h2>
       </div>
 
-      <Checkbox checked={business} onChange={setBusiness} className="rf-business">
+      <RfCheckbox checked={business} onChange={setBusiness} className="rf-business">
         I am renting as a business
-      </Checkbox>
+      </RfCheckbox>
 
       <div className="rf-form">
         <div className="rf-row">
@@ -436,6 +508,7 @@ export function RentalFlow2Step({
   changeSpaceUrl,
   gpApiKey,
   gpEnvironment = 'test',
+  previewContent = false,
   inEditor = false,
   siteId,
   elementId,
@@ -447,12 +520,22 @@ export function RentalFlow2Step({
   const urlParam = (k: string): string | undefined => {
     try { return new URLSearchParams(window.location.search).get(k) || undefined; } catch { return undefined; }
   };
-  const sizeProp = sizeArg ?? urlParam('size');
+  // A "Select" on #05 or #08 links here as a bare /rental and leaves the picked
+  // unit in localStorage (@shared/unitHandoff), so read that too. Read ONCE per
+  // mount: it must not change under the flow mid-rental if another tab writes a
+  // different pick.
+  const storedRef = useRef<ReturnType<typeof readUnitSelection> | undefined>(undefined);
+  if (storedRef.current === undefined) storedRef.current = readUnitSelection();
+  const stored = storedRef.current;
+
+  // The URL still wins everywhere — existing links and the value-tiers handoff
+  // behave exactly as before; the stored pick only fills what the URL omits.
+  const sizeProp = sizeArg ?? urlParam('size') ?? stored?.size;
   const tierProp = tierArg ?? urlParam('tier');
-  const propertyIdProp = propertyIdArg ?? urlParam('propertyId');
-  const companyIdProp = companyIdArg ?? urlParam('companyId');
-  const unitGroupIdProp = unitGroupIdArg ?? urlParam('unitGroupId');
-  const unitIdProp = urlParam('unitId');
+  const propertyIdProp = propertyIdArg ?? urlParam('propertyId') ?? stored?.propertyId;
+  const companyIdProp = companyIdArg ?? urlParam('companyId') ?? stored?.companyId;
+  const unitGroupIdProp = unitGroupIdArg ?? urlParam('unitGroupId') ?? stored?.unitGroupId;
+  const unitIdProp = urlParam('unitId') ?? stored?.unitId;
   // "Change Space" returns to the value-tiers page the shopper came from.
   const backToSpacesUrl = (() => {
     try {
@@ -830,11 +913,22 @@ export function RentalFlow2Step({
     );
   }
 
+  // Live data ALWAYS wins; the preview only fills gaps, and only in the harness.
+  // Per-field rather than all-or-nothing so a real property still shows its own
+  // name and address while the selection is still resolving.
+  const railProperty = propertyInfo ?? (previewContent ? PREVIEW_PROPERTY : undefined);
+  const railSelection = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
+  const railQuote = quote ?? (previewContent ? PREVIEW_QUOTE : undefined);
+
   const rail = (
     <OrderRail
-      property={propertyInfo}
-      selection={selection}
-      quote={quote}
+      property={railProperty}
+      selection={railSelection}
+      quote={railQuote}
+      // The frame shows "#111 | 5’ x 7’" — the unit number leads, then the size.
+      // SummaryRail composes that as `size | tierName`, so the preview passes the
+      // unit as `size`. Real selections have no unit number here (see note below).
+      unitLabel={previewContent && !selection ? '#111' : undefined}
       changeSpaceUrl={changeSpaceUrl ?? backToSpacesUrl}
       holdRemaining={isMobile ? undefined : holdRemaining}
       quoteFailed={quoteFailed}
@@ -877,7 +971,10 @@ export function RentalFlow2Step({
         ) : (
           <Step2
             moveIn={moveIn}
-            plan={plans[0]}
+            // The whole list, not plans[0]: the card is a dropdown now, so it
+            // needs every option. Live plans win; the sample only fills an empty
+            // list, and only in the harness.
+            plans={plans.length ? plans : (previewContent ? PREVIEW_PLANS : [])}
             leaseDocName={leaseDoc?.name}
             brochureUrl={brochureUrl}
             onEditDate={() => setDateModalOpen(true)}
@@ -886,6 +983,9 @@ export function RentalFlow2Step({
             payNowTotal={quote?.totalDue}
             onPaymentComplete={(info) => {
               setFinalizing(info);
+              // The pick has been acted on — drop it so returning to /rental
+              // later starts clean instead of silently re-selecting it.
+              clearUnitSelection();
               // Static path: the lightbox's onDone swaps in the post-purchase
               // form. No nonce, no navigation — nothing was charged.
               if (staticPay) return;
@@ -938,7 +1038,28 @@ export function RentalFlow2Step({
         selected={moveIn}
         onSelect={setMoveIn}
         title={intent === 'reserve' ? 'Select your Move-In Date' : undefined}
-        ctaLabel={intent === 'reserve' ? 'Reserve Now' : undefined}
+        // Rent: the button names the chosen day once it is not today, so the
+        // commitment is explicit before it is made ("Rent Sep 28, 2026").
+        // Today keeps the shorter "Rent Today" — a date there would just restate
+        // the default. Reserve stays label-only per its frame.
+        ctaLabel={
+          intent === 'reserve'
+            ? 'Reserve'
+            : moveIn.getTime() > startOfToday().getTime()
+              ? `Rent ${fmtDisplayDate(moveIn)}`
+              : undefined
+        }
+        // Outline for reserve: the softer commitment gets the softer control.
+        ctaFill={intent === 'reserve' ? 'outline' : 'solid'}
+        footer={intent === 'reserve' ? (
+          <>
+            Save Time and Money!{' '}
+            {/* Switches the OPEN modal to the rent flow — title, button fill and
+                label all key off `intent`, so the chosen date survives the
+                switch and the shopper does not restart. */}
+            <button type="button" onClick={() => setIntent('rent')}>Rent Now</button>
+          </>
+        ) : undefined}
         busy={reserving}
         onConfirm={async () => {
           if (intent === 'reserve') {

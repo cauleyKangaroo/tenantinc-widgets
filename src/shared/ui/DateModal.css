@@ -57,6 +57,32 @@
 .hb-datemodal-cals { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
 .hb-datemodal-cta { width: 100%; max-width: 343px; }
 
+/* Optional nudge under the confirm button (Figma 8507-23907). Centred to the
+   button's own width, not the modal's, so it stays visually tied to it. */
+.hb-datemodal-foot {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--hb-text-night);
+}
+
+/* The action inside reads as a link, not a second button — it is a change of
+   mind, not a second call to action. Styled as a button element so it is
+   keyboard-reachable and announced as an action. */
+.hb-datemodal-foot button {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.hb-datemodal-foot button:hover { color: var(--hb-cta); }
+
 /* Month calendar */
 .hb-cal-head { padding: 10px; text-align: center; font-size: 17px; font-weight: 700; color: var(--hb-text-night); }
 .hb-cal-grid { display: grid; grid-template-columns: repeat(7, 30px); gap: 10px; justify-content: center; }

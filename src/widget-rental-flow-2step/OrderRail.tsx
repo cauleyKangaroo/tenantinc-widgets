@@ -27,6 +27,7 @@ export function OrderRail({
   property,
   selection,
   quote,
+  unitLabel,
   changeSpaceUrl,
   holdRemaining,
   quoteFailed = false,
@@ -36,6 +37,10 @@ export function OrderRail({
   property?: PropertyInfo;
   selection?: SelectionContext;
   quote?: MoveInQuote;
+  /** Unit number shown BEFORE the size, e.g. "#111 | 5’ x 7’". SummaryRail
+   *  composes `size | tierName`, so when this is set the unit leads and the size
+   *  moves into the trailing slot. */
+  unitLabel?: string;
   changeSpaceUrl?: string;
   /** Seconds left on the real unit hold; renders the countdown header. */
   holdRemaining?: number;
@@ -62,7 +67,8 @@ export function OrderRail({
       name={property?.name}
       address={property?.address}
       phone={phone}
-      size={selection ? selection.size.replace(/'/g, '’') : ''}
+      size={unitLabel ?? (selection ? selection.size.replace(/'/g, '’') : '')}
+      tierName={unitLabel ? selection?.size.replace(/'/g, '’') : undefined}
       summary={selection?.features?.[0]}
       amenities={selection?.features?.slice(1)}
       changeSpaceUrl={changeSpaceUrl}
