@@ -545,7 +545,7 @@ export function FindStorageMegaMenu({
   // purpose: `GoogleReviews` holds ONE site-wide business score, not a score per
   // property, so those stars would be the same invented number three times.
   const nearbyBlock = (
-    <div className="nav-mega-block">
+    <div className="nav-mega-block nav-mega-block--nearby">
       <h3 className="nav-mega-heading nav-mega-heading--sm">Nearby Storage Facilities</h3>
       {nearby.length ? (
         <div className="nav-mega-locations">
