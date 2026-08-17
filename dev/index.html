@@ -96,6 +96,22 @@
   <!-- ── widget-navigation-bar ────────────────────────────────────────── -->
   <div class="widget-section">
     <h2>widget-navigation-bar (#02)</h2>
+    <div class="controls">
+      <div class="controls-group">
+        <label>Find Storage style:
+          <select id="nav-find-storage-style" onchange="reinitNavigationBar()">
+            <option value="mega">Mega menu (popup)</option>
+            <option value="dropdown">Normal dropdown (hover cascade)</option>
+          </select>
+        </label>
+        <label>Demo portfolio:
+          <select id="nav-demo-portfolio" onchange="reinitNavigationBar()">
+            <option value="full">Full (many facilities)</option>
+            <option value="small">3 facilities (map frame)</option>
+          </select>
+        </label>
+      </div>
+    </div>
     <div id="navigation-bar-container" class="widget-container"></div>
   </div>
 
@@ -565,11 +581,26 @@
     var navigationBarWidget = null;
     var footerWidget        = null;
 
+    function getNavProps() {
+      var el = document.getElementById('nav-find-storage-style');
+      var demo = document.getElementById('nav-demo-portfolio');
+      return {
+        findStorageStyle: el ? el.value : 'mega',
+        demoPortfolio: demo ? demo.value : 'full',
+      };
+    }
+
+    function reinitNavigationBar() {
+      if (!navigationBarWidget) return;
+      var navEl = document.getElementById(navContainerId(activePage()));
+      if (navEl) navigationBarWidget.init({ container: navEl, props: getNavProps() });
+    }
+
     function mountSharedWidgets(name) {
       var navEl    = document.getElementById(navContainerId(name));
       var footerEl = document.getElementById(footerContainerId(name));
 
-      if (navigationBarWidget && navEl)    navigationBarWidget.init({ container: navEl,    props: {} });
+      if (navigationBarWidget && navEl)    navigationBarWidget.init({ container: navEl,    props: getNavProps() });
       if (footerWidget        && footerEl) footerWidget.init({        container: footerEl, props: {} });
     }
 
@@ -747,7 +778,7 @@
     });
     require(['/dist/widget-navigation-bar.js'], function (widget) {
       navigationBarWidget = widget;
-      widget.init({ container: document.getElementById(navContainerId(activePage())), props: {} });
+      widget.init({ container: document.getElementById(navContainerId(activePage())), props: getNavProps() });
     });
     require(['/dist/ui-kit.js'], function (widget) {
       widget.init({ container: document.getElementById('ui-kit-container'), props: {} });

@@ -29,6 +29,43 @@ export function InfoIcon({ size = 24 }: { size?: number }) {
   );
 }
 
+/** Hollow/outline tag — the "Stroke" variant of the tag component, used in the
+ *  disclaimer modal header (Figma 7158:80967). Same outline as TagIcon above,
+ *  drawn as a stroke instead of a fill.
+ *  strokeWidth 3, not 2: the path lives in a 36 viewBox but renders at 24, so
+ *  3 x (24/36) is the 2px the design actually asks for. */
+export function TagOutlineIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" aria-hidden="true">
+      <path
+        d="M12.848 3.10276C15.0079 2.98876 16.3651 2.91713 17.6679 3.17961C18.8207 3.41187 19.9262 3.83611 20.9384 4.43464C22.0824 5.11108 23.0433 6.07225 24.5724 7.60183L28.5632 11.5926C30.3339 13.3624 31.4791 14.507 32.128 15.7803C33.4359 18.3473 33.4359 21.3852 32.128 23.9522C31.4791 25.2256 30.334 26.3701 28.5633 28.1399L28.1399 28.5633C26.3701 30.334 25.2256 31.4791 23.9522 32.128C21.3852 33.4359 18.3473 33.4359 15.7803 32.128C14.5069 31.4791 13.3624 30.334 11.5926 28.5633L7.60183 24.5724C6.07226 23.0433 5.11109 22.0824 4.43464 20.9384C3.83611 19.9262 3.41187 18.8207 3.17961 17.6679C2.91713 16.3651 2.98876 15.0079 3.10276 12.848L3.18157 11.3511C3.23914 10.2569 3.28685 9.35005 3.384 8.60917C3.48528 7.83679 3.65256 7.12932 4.01037 6.46216C4.56853 5.42141 5.42141 4.56853 6.46216 4.01037C7.12932 3.65256 7.83679 3.48528 8.60917 3.384C9.35005 3.28685 10.2569 3.23914 11.3511 3.18157L12.848 3.10276Z"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <circle cx="12.7343" cy="12.7317" r="3" stroke="currentColor" strokeWidth="3" />
+    </svg>
+  );
+}
+
+/** mdiClose — the disclaimer modal's close control (Figma 6103:14869). The
+ *  design sets an 18px glyph inside a 32px button, so the button owns the box
+ *  and this owns only the mark.
+ *  viewBox is the glyph's own bounds (5,5 14x14), NOT 0 0 24 24: the mdi path
+ *  only occupies the middle 58% of a 24 box, so a 24-box viewBox would render
+ *  `size` 18 as a ~10px mark — visibly smaller than the design. Cropping to the
+ *  bounds makes `size` mean the size of the X you actually see. */
+export function CloseIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="5 5 14 14" fill="none" aria-hidden="true">
+      <path
+        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 export function ChevronRight({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">

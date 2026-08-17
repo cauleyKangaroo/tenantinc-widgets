@@ -221,6 +221,9 @@ export interface TierSelectionProps {
   titleColor?: string;
   urgency?: string;
   promo?: string;
+  /** Operator-editable admin-fee note shown in the header (Options 1 & 2) and
+   *  on Option-2 mobile. The fee varies per facility, so it's configurable. */
+  adminFeeText?: string;
   /** Which unit size this instance sells, e.g. "10' x 10'" or "10x10".
    *  Set per page in the Duda content panel; unset = dev auto-pick. An
    *  unknown size shows the fallback + logs — never a different product. */
@@ -348,6 +351,7 @@ export function TierSelection({
   titleColor,
   urgency: urgencyProp,
   promo: promoProp,
+  adminFeeText = '$30 Admin fee applied to all transactions',
   size: sizeRaw,
   unitGroupId: unitGroupIdProp,
   propertyId: propertyIdProp,
@@ -625,12 +629,12 @@ export function TierSelection({
     );
   } else if (variant === 'option2') {
     body = isMobile ? (
-      <Option2Mobile heading={headingMobile} urgency={urgency} />
+      <Option2Mobile heading={headingMobile} urgency={urgency} adminFeeText={adminFeeText} />
     ) : (
-      <Option2Layout heading={heading} subheading={subheading} urgency={urgency} />
+      <Option2Layout heading={heading} subheading={subheading} urgency={urgency} adminFeeText={adminFeeText} />
     );
   } else if (variant === 'option3') {
-    body = <Option3Layout heading={heading} subheading={subheading} urgency={urgency} />;
+    body = <Option3Layout heading={heading} subheading={subheading} urgency={urgency} adminFeeText={adminFeeText} />;
   } else {
     body = isMobile ? (
       <MobileLayout
@@ -648,6 +652,8 @@ export function TierSelection({
         setSelected={setSelected}
         heading={heading}
         subheading={subheading}
+        urgency={urgency}
+        adminFeeText={adminFeeText}
         promo={promo}
       />
     );
@@ -707,8 +713,17 @@ export function TierSelection({
               onKeyDown={trapFocus}
             >
               <button type="button" className="ts-modal-close" aria-label="Close" onClick={() => setModalOpen(false)}>&times;</button>
-              {inner}
+              <div className="ts-modal-scroll">{inner}</div>
             </div>
+          </div>
+        ) : inEditor ? (
+          // A closed modal renders nothing on the live site — but in the Duda
+          // editor that makes it a zero-height, unselectable element. Show a
+          // labelled placeholder so it can be selected and configured.
+          <div className="ts-modal-editor-hint" role="note">
+            <b>Value Tiers — Modal mode.</b> Hidden on the live site; opens as a
+            popup when a shopper clicks “Select” in the Space List. To show it on
+            a page instead, set this widget’s <b>mode</b> to <b>inline</b>.
           </div>
         ) : null
       ) : (
@@ -918,23 +933,36 @@ interface LayoutProps {
   setSelected: (k: TierKey) => void;
   heading: string;
   subheading?: string;
+  urgency?: string;
+  adminFeeText?: string;
   promo: string;
 }
 
-function DesktopLayout({ tier, selected, setSelected, heading, subheading, promo }: LayoutProps) {
+function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgency, adminFeeText, promo }: LayoutProps) {
   const { tiers, rows, sizeImage, sizeAlt, size, live, property, selectTier, ctaLabel } = useTierData();
   const displaySize = size ? size.replace(/'/g, '\u2019') : '5\u2019 x 5\u2019';
   const cardPromo = live ? tier.promo : 'First Full Month FREE';
   return (
-    <div className="ts-grid">
-      {/* LEFT: selector + comparison table */}
-      <div className="ts-left">
-        <div className="ts-header">
+    <>
+      {/* Header row (Figma): heading + subheading left, urgency + $30 admin fee right */}
+      <div className="ts-o2-headrow">
+        <div className="ts-o2-header">
           <h2 className="ts-title">{heading}</h2>
           <p className="ts-subtitle">{subheading}</p>
         </div>
-        <hr className="ts-rule" />
+        <div className="ts-o2-topright">
+          {urgency && <p className="ts-o2-urgency">{urgency}</p>}
+          <p className="ts-o2-admin">
+            {adminFeeText}
+            <InfoCircle size={22} className="ts-o2-admin-info" />
+          </p>
+        </div>
+      </div>
+      <hr className="ts-rule" />
 
+      <div className="ts-grid">
+      {/* LEFT: selector + comparison table */}
+      <div className="ts-left">
         <div className="ts-picker-row">
           <div className="ts-unit">
             {sizeImage ? <img className="ts-unit-img" src={sizeImage} alt={sizeAlt} onError={onSizeImgError} /> : <div className="ts-unit-img ts-unit-img--placeholder" aria-hidden="true" />}
@@ -1042,7 +1070,8 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, promo
       >
         <CardBreakdown tierKey={tier.key} />
       </SummaryRail>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -1198,14 +1227,22 @@ function MobileCell({ row, tier }: { row: FeatureRow; tier: Tier }) {
 
 // ── Option 2 — Good/Better/Best pricing cards ───────────────────────────────
 
-function Option2Layout({ heading, subheading, urgency }: { heading: string; subheading?: string; urgency?: string }) {
+function Option2Layout({ heading, subheading, urgency, adminFeeText }: { heading: string; subheading?: string; urgency?: string; adminFeeText?: string }) {
   const { o2 } = useTierData();
   return (
     <div className="ts-o2">
-      {urgency && <p className="ts-o2-urgency">{urgency}</p>}
-      <div className="ts-o2-header">
-        <h2 className="ts-title ts-o2-title">{heading}</h2>
-        <p className="ts-subtitle ts-o2-subtitle">{subheading}</p>
+      <div className="ts-o2-headrow">
+        <div className="ts-o2-header">
+          <h2 className="ts-title ts-o2-title">{heading}</h2>
+          <p className="ts-subtitle ts-o2-subtitle">{subheading}</p>
+        </div>
+        <div className="ts-o2-topright">
+          {urgency && <p className="ts-o2-urgency">{urgency}</p>}
+          <p className="ts-o2-admin">
+            {adminFeeText}
+            <InfoCircle size={22} className="ts-o2-admin-info" />
+          </p>
+        </div>
       </div>
 
       <div className="ts-o2-cards" style={{ ['--ts-cols']: o2.length } as React.CSSProperties}>
@@ -1213,11 +1250,6 @@ function Option2Layout({ heading, subheading, urgency }: { heading: string; subh
           <O2Card key={card.key} card={card} />
         ))}
       </div>
-
-      <p className="ts-o2-admin">
-        {'Admin fee applied to all transactions'}
-        <InfoCircle size={22} className="ts-o2-admin-info" />
-      </p>
     </div>
   );
 }
@@ -1322,7 +1354,7 @@ function O2Card({ card }: { card: O2Tier }) {
 
 // ── Option 2 mobile — accordion (one expanded, others collapsed) ────────────
 
-function Option2Mobile({ heading, urgency }: { heading: string; urgency: string }) {
+function Option2Mobile({ heading, urgency, adminFeeText }: { heading: string; urgency: string; adminFeeText?: string }) {
   const { o2 } = useTierData();
   // Mobile has no room for sold-out placeholders — show real tiers only.
   const cards = o2.filter((c) => !c.soldOut);
@@ -1340,6 +1372,10 @@ function Option2Mobile({ heading, urgency }: { heading: string; urgency: string 
       <div className="ts-m-headwrap">
         <h2 className="ts-m-title">{heading}</h2>
         {urgency && <p className="ts-m-urgency">{urgency}</p>}
+        <p className="ts-o2m-admin">
+          {adminFeeText}
+          <InfoCircle size={20} className="ts-o2-admin-info" />
+        </p>
       </div>
 
       <div className="ts-o2m-cards">
@@ -1413,7 +1449,7 @@ function O2MExpanded({ card }: { card: O2Tier }) {
 
 // ── Option 3 — pricing cards fused with comparison table ────────────────────
 
-function Option3Layout({ heading, subheading, urgency }: { heading: string; subheading?: string; urgency?: string }) {
+function Option3Layout({ heading, subheading, urgency, adminFeeText }: { heading: string; subheading?: string; urgency?: string; adminFeeText?: string }) {
   const { o3, rows3, sizeImage, sizeAlt } = useTierData();
   return (
     <div className="ts-o3">
@@ -1424,7 +1460,7 @@ function Option3Layout({ heading, subheading, urgency }: { heading: string; subh
           <p className="ts-subtitle">{subheading}</p>
         </div>
         <p className="ts-o3-admin">
-          {'Admin fee applied to all transactions'}
+          {adminFeeText}
           <InfoCircle size={22} className="ts-o3-admin-info" />
         </p>
       </div>

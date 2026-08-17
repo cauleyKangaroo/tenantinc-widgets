@@ -297,8 +297,13 @@
   line-height: 1.2;
 }
 
+/* Centred to sit under the centred "Reviews" heading — left-aligned, the pills
+   hung off-axis from it. Safe to set on the base rule: .rw-mobile is
+   display:none until the 900px breakpoint, so this only ever renders on mobile.
+   With flex-wrap, a wrapped second row centres too. */
 .rw-mobile-tabs {
   display: flex;
+  justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
   padding: 12px 23px;
@@ -353,5 +358,40 @@
 
   .rw-mobile .rw-pagination {
     justify-content: center;
+  }
+
+  /* No arrows on mobile — the dots are the control. NB this leaves the dots as
+     the ONLY way to change review here: #09 has no swipe handler, unlike the
+     space-list carousels. */
+  .rw-mobile .rw-page-btn {
+    display: none;
+  }
+}
+
+/* ── Mobile review slide ─────────────────────────────────────────────────── */
+
+/* The card animates in from whichever side matches the direction of travel, so
+   moving forward and back feel different. Remounted per page via a React key
+   (see Reviews.tsx), which is what replays the animation each time.
+   translate + opacity only: both are compositor-friendly, so this does not
+   trigger layout on a phone. .rw-mobile already clips overflow, so the offset
+   start position can't widen the page. */
+@keyframes rw-slide-next {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes rw-slide-prev {
+  from { opacity: 0; transform: translateX(-28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.rw-slide--next { animation: rw-slide-next 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.rw-slide--prev { animation: rw-slide-prev 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rw-slide--next,
+  .rw-slide--prev {
+    animation: none;
   }
 }

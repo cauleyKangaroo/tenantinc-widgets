@@ -166,6 +166,11 @@ img.promo-banner-img {
 .promo-bars[data-cols='4'] .promo-bar-titlewrap svg { width: 26px; height: 26px; }
 .promo-bars[data-cols='4'] .promo-bar-info svg { width: 26px; height: 26px; }
 
+/* The ICON alone lightens to white on hover — no opacity fade on the whole
+   button, which dimmed the hit area rather than highlighting the mark. Colour
+   on the element, so the currentColor glyph follows it.
+   pointer, always: this opens the disclaimer modal, and it is a real <button>
+   in every case now. */
 .promo-bar-info {
   flex-shrink: 0;
   display: flex;
@@ -174,17 +179,36 @@ img.promo-banner-img {
   background: none;
   border: none;
   padding: 0;
-  color: inherit;
-  cursor: default;
-  opacity: 0.85;
-}
-
-button.promo-bar-info {
-  cursor: help;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: color 0.15s;
 }
 
 .promo-bar-info:hover {
-  opacity: 1;
+  color: #ffffff;
+}
+
+/* HOST-THEME GUARD. A bare `button:hover { background: … }` on the host page
+   (the dev harness has exactly that, and Duda themes do too) is 0,1,1 and beats
+   the 0,1,0 `background: none` above, painting a grey chip behind the icon.
+   Every interactive state is pinned instead, and `background` is shorthand so it
+   also clears any image/gradient a theme sets. `!important` matches how this
+   file already defends .promo-banner-img from host `img` rules.
+   The icon's colour is the only hover feedback this control has. */
+.promo-bar-info,
+.promo-bar-info:hover,
+.promo-bar-info:focus,
+.promo-bar-info:active {
+  background: none !important;
+  box-shadow: none;
+  border: none;
+}
+
+/* Keyboard focus still needs to be visible — it just must not be a background.
+   :focus-visible so a mouse click doesn't leave a ring behind. */
+.promo-bar-info:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
 }
 
 /* 18px at every column count and width. The size used to step 20/17/15px with
@@ -394,4 +418,159 @@ button.promo-bar-info {
   .promo-bars[data-cols='4'] .promo-bar-info svg { width: 36px; height: 36px; }
 
   .promo-bar-arrow { width: 32px; }
+
+  /* Figma mobile spec: 16px top/bottom + 20px left/right inset, 20px heading,
+     14px link, 24px tag and info icons.
+     ONE set of values for every data-cols variant — at phone width the carousel
+     shows a single bar per slide regardless of how many promos there are, so the
+     1/2/3/4-across scales above stop being meaningful here.
+     Written as [data-cols] (not a bare .promo-bar) to match the specificity of
+     the [data-cols='N'] rules it supersedes, and placed LAST in this block so
+     source order settles the ties. */
+  .promo-bars[data-cols] .promo-bar {
+    padding: 16px 20px;
+  }
+  .promo-bars[data-cols] .promo-bar-title {
+    font-size: 20px;
+  }
+  /* 8px between the heading row and the link (was the base 16px). */
+  .promo-bars[data-cols] .promo-bar-inner {
+    gap: 8px;
+  }
+  .promo-bars[data-cols] .promo-bar-cta {
+    font-size: 14px;
+  }
+  .promo-bars[data-cols] .promo-bar-titlewrap svg,
+  .promo-bars[data-cols] .promo-bar-info svg {
+    width: 24px;
+    height: 24px;
+  }
+  /* The LINK's chevron is 16px, not 24 like the tag/info pair above (Figma
+     7158:80163). Sized here rather than via the `size` prop so it only shrinks
+     on mobile — ChevronRight is shared with the desktop carousel arrows. */
+  .promo-bars[data-cols] .promo-bar-cta svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* ── Disclaimer modal (Figma 7158:80964) ─────────────────────────────────── */
+
+/* Mirrors #05's "See all Hours" modal (.sl-hours-*) — same radius, elevation,
+   header divider and close-button box — so the two read as one component.
+   Duplicated rather than imported: each widget is its own AMD bundle and cannot
+   reach another's CSS. */
+
+/* Overlay is #454F5B at 40%, the design's Old/Night-Light token. Fixed +
+   centred so it covers the host page rather than the widget's own box, and a
+   high z-index because Duda rows stack their own contexts above the widget. */
+/* The modal is portalled to <body>, so it sits OUTSIDE .promo-wrapper and
+   inherits none of its resets — hence the explicit box-sizing here and the
+   explicit font-family on the text rules below. */
+.promo-modal-overlay,
+.promo-modal-overlay *,
+.promo-modal-overlay *::before,
+.promo-modal-overlay *::after {
+  box-sizing: border-box;
+}
+
+.promo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(69, 79, 91, 0.4);
+}
+
+.promo-modal {
+  width: min(659px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
+  overflow: hidden;
+}
+
+/* Inner shadow rather than a border-bottom: it is the design's own
+   Inner Divider/Bottom token, and it cannot add to the header's height. */
+.promo-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 23px 33px;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+  flex-shrink: 0;
+}
+
+.promo-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 36px;
+  color: #101318;
+}
+
+.promo-modal-title svg {
+  flex: 0 0 auto;
+  color: #101318;
+}
+
+/* 32px button holding an 18px glyph, per the design. */
+.promo-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #101318;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.promo-modal-close:hover {
+  background: #f4f6f8;
+}
+
+/* Scrolls rather than growing: `info` is free text from the API, so it has no
+   length the layout can rely on. */
+.promo-modal-body {
+  padding: 42px;
+  overflow-y: auto;
+}
+
+.promo-modal-text {
+  margin: 0 0 24px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #000000;
+}
+
+.promo-modal-text:last-child {
+  margin-bottom: 0;
+}
+
+/* Phone: the desktop 33px/42px insets leave too little measure for 14px copy. */
+@media (max-width: 560px) {
+  .promo-modal-overlay { padding: 16px; }
+  .promo-modal-head { padding: 16px 20px; }
+  .promo-modal-title { font-size: 18px; line-height: 28px; }
+  .promo-modal-body { padding: 20px; }
 }

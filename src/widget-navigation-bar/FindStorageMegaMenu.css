@@ -36,6 +36,11 @@
   background: var(--nav-mega-panel);
   color: #fff;
   overflow: hidden;
+  /* The document is NOT frozen while this is open (freezing it breaks the bar's
+     sticky positioning — see FindStorageMegaMenu.tsx), so the popup refuses the
+     scroll itself. This stops the chaining browsers do natively; the JS handler
+     covers the rest. */
+  overscroll-behavior: contain;
   /* Closed state: no layout, no tab stops, no geolocation prompt. */
   display: none;
 }
@@ -55,8 +60,9 @@
      where the card fills the viewport. */
   padding: 64px 24px 32px;
   /* Anything the columns can't shrink into scrolls inside the popup, never the
-     page behind it (which is locked while this is open). */
+     page behind it. */
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* The Figma puts the ✕ outside the 1322px card, against the viewport's top-right
@@ -110,6 +116,69 @@
 .nav-mega-col--search {
   gap: 24px;
   padding-left: 0;
+}
+
+/* ── Three facilities or fewer: one map card each ─────────────────────────
+   Figma 10630-54517 ("Storage Locations 3"). A centred block — the frame's cards
+   run 448…1238 of a 1600px canvas, i.e. ~790px in the middle — holding the row of
+   cards with the search field beneath it. */
+
+.nav-mega-small {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 798px;
+  margin: 0 auto;
+}
+
+/* Three across in the frame; `auto-fit` so one or two facilities centre instead
+   of hugging the left edge with a hole beside them. */
+.nav-mega-locmaps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 249px));
+  justify-content: center;
+  gap: 21px;
+}
+
+.nav-mega-locmap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.nav-mega-locmap-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.nav-mega-locmap-head:hover .nav-mega-locmap-city {
+  color: var(--nav-mega-accent);
+  text-decoration: underline;
+}
+
+.nav-mega-locmap-city {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.nav-mega-locmap-street {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* The map itself is a plain rectangle in the frame — the 16px radius NearbyMap
+   applies inline is softened to the 4px the card uses. */
+.nav-mega-locmap-canvas {
+  border-radius: 4px !important;
 }
 
 .nav-mega-block {
@@ -538,11 +607,85 @@
   column-gap: 24px;
 }
 
-/* ── Below the hamburger breakpoint the drawer takes over ────────────────── */
+/* ── Mobile: Figma 10692-81757 (search + states) and 10692-82124 (cities) ──
+   One column at a time. The markup for these two pages is chosen in JS at the
+   same 1024px breakpoint (see useIsMobile), so a rule here only ever has the
+   mobile pages to style — but it stays inside the media query anyway, so the two
+   can never disagree about which layout is on screen. */
+
+.nav-mega-m {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: 100%;
+}
+
+/* Heading (or the back control) on the left, ✕ on the right — both frames. */
+.nav-mega-m-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.nav-mega-m-close {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* Page 1's body: search rule → nearby facilities → rule → states, scrolling as
+   ONE column below the fixed header (Figma 10692-81165). */
+.nav-mega-m-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 0;
+}
+
+/* The states / cities list: one column filling whatever is left below the
+   header. On page 2 it is the scrollport itself; on page 1 it rides inside
+   .nav-mega-m-page and grows instead. */
+.nav-mega-m-list {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Full width on a phone — the desktop rows reserve room for a second column. */
+.nav-mega-m-list .nav-mega-city {
+  padding-right: 0;
+}
+
+/* The Figma draws the picked state as a FILLED white pill. `:active`, not
+   `.is-active`: a tap goes straight to the city list, so a persistent selection
+   would never be seen — this is the touch feedback on the way there. */
+.nav-mega-m .nav-mega-state:active {
+  border-color: #fff;
+  background: #fff;
+  color: #101318;
+}
 
 @media (max-width: 1024px) {
-  .nav-mega,
-  .nav-mega.is-open {
+  /* Figma's 440px frame has 36px gutters and 40px above the header row, clamped
+     so they don't eat a 360px phone alive. */
+  .nav-mega-inner {
+    max-width: none;
+    padding: 32px clamp(20px, 6vw, 36px) 24px;
+  }
+
+  /* The ✕ moves INTO the header row on mobile (both frames); the desktop one is
+     parked against the viewport's corner, past the card's edge. */
+  .nav-mega-close {
     display: none;
   }
 }

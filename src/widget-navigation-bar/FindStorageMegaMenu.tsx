@@ -9,21 +9,38 @@
 // drives Storage Types / Resources — see the revert note there.
 //
 // A POPUP, NOT A DROPDOWN. The panel is `position: fixed`, filling the viewport
-// from the bottom edge of the bar down, with page scrolling locked while it is
-// open. The Figma frames show the whole area under the nav going dark, and a
-// document-flow panel would slide away under a scroll — the offset it is pinned
-// to comes from measuring the bar, so it has to stay put.
+// from the bottom edge of the bar down. The Figma frames show the whole area under
+// the nav going dark, and a document-flow panel would slide away under a scroll.
+// The offset it is pinned to comes from measuring the bar, and is re-measured on
+// scroll. Only the popup's own lists scroll while it is open — but that is done by
+// refusing the wheel/touch/key gesture, NOT by an overflow-hidden body, which
+// kills the bar's own `position: sticky` (see both effects below).
 //
-// PAGE 1 — four columns inside the 1322px card (search 440 | states 294 |
+// DESKTOP PAGE 1 — four columns inside the 1322px card (search 440 | states 294 |
 // cities 294 + 294):
 //
 //   SEARCH LOCATION      | SELECT STATE (50) | CALIFORNIA      SEE ALL CITIES
 //   ─────────────────────|  one column,      |  two columns, alphabetical DOWN
 //   Nearby facilities    |  scrolls          |  column 1 then into column 2
 //
-// PAGE 2 — "See all cities": the card is replaced by that state's whole city
-// list in FOUR columns under a "‹ CALIFORNIA ( 110 )" header that stays put while
-// the list scrolls beneath it. Clicking that header goes back to page 1.
+// DESKTOP PAGE 2 — "See all cities": the card is replaced by that state's whole
+// city list in FOUR columns under a "‹ CALIFORNIA ( 110 )" header that stays put
+// while the list scrolls beneath it. Clicking that header goes back to page 1.
+//
+// MOBILE (≤1024px, the bar's own hamburger breakpoint) — Figma 10692-81757 and
+// 10692-82124. The same popup, one thing at a time:
+//
+//   PAGE 1  SEARCH LOCATION ✕ | Type/Size | City, ZIP, Address 🔍
+//           ───────────────────────────────────────────────────
+//           SELECT STATE ( 22 ) — one column, scrolls
+//   PAGE 2  ‹ CALIFORNIA ( 110 )                              ✕
+//           that state's cities, one column, scrolls
+//
+// Picking a state REPLACES the panel with page 2 (desktop only fills a third
+// column); the chevron goes back. No "see all cities" — page 2 already is the
+// whole list — and no nearby column, neither of which the mobile frames show.
+// A city resolves exactly as it does on desktop (single facility → its page,
+// several → the city page).
 //
 // SEE ALL CITIES appears only when the two-column list actually overflows —
 // measured, not guessed from a row count, exactly as the designer's "Data
@@ -54,10 +71,58 @@ import './FindStorageMegaMenu.css';
 import { ChevronLeft, CloseIcon, MapPinIcon, PhoneIcon, SearchIcon } from './icons';
 import { FormField, Button } from '@shared/ui';
 import { getUserLocation, haversineMiles } from '@shared/nearbyProperties';
+import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
 import { buildLocationTree, type NavState, type NavProperty } from '@shared/propertyNav';
 
 /** Facilities listed under "Nearby Storage Facilities" (the Figma shows three). */
 const NEARBY_COUNT = 3;
+
+/**
+ * A company with no more than this many facilities gets the MAP CARDS frame
+ * (Figma 10630-54517, "Storage Locations 3") instead of the search/state/city
+ * columns — desktop only.
+ *
+ * Below four, those columns are busywork: one state, two or three cities, each a
+ * single click away from the same handful of pages. The frame replaces them with
+ * one map per facility — city + street over a map zoomed to that address — above
+ * a single "Enter city, state or ZIP" field.
+ */
+const MAP_MAX_FACILITIES = 3;
+
+/** Each map card in the frame is 249 × 278. */
+const CARD_MAP_HEIGHT = 278;
+
+/**
+ * Below this the popup switches to the MOBILE frames (Figma 10692-81757 /
+ * 10692-82124). Same breakpoint as the bar's hamburger, so the panel and the bar
+ * change character together.
+ */
+const MOBILE_QUERY = '(max-width: 1024px)';
+
+/**
+ * Which layout to render. A media QUERY, not a width in state: it is the same
+ * condition the stylesheets use, so the JS branch and the CSS can't drift apart.
+ */
+function useIsMobile(): boolean {
+  const supported = typeof window !== 'undefined' && typeof window.matchMedia === 'function';
+  const [isMobile, setIsMobile] = useState(() => supported && window.matchMedia(MOBILE_QUERY).matches);
+
+  useEffect(() => {
+    if (!supported) return;
+    const mq = window.matchMedia(MOBILE_QUERY);
+    const onChange = () => setIsMobile(mq.matches);
+    onChange();
+    // Safari < 14 only has the deprecated add/removeListener pair.
+    if (mq.addEventListener) {
+      mq.addEventListener('change', onChange);
+      return () => mq.removeEventListener('change', onChange);
+    }
+    mq.addListener(onChange);
+    return () => mq.removeListener(onChange);
+  }, [supported]);
+
+  return isMobile;
+}
 
 export interface FindStorageMegaMenuProps {
   open: boolean;
@@ -129,6 +194,7 @@ export function FindStorageMegaMenu({
 }: FindStorageMegaMenuProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const cityListRef = useRef<HTMLDivElement | null>(null);
+  const isMobile = useIsMobile();
 
   // Which state's cities are showing, and whether the panel has been swapped for
   // that state's full city grid ("See all cities").
@@ -168,10 +234,14 @@ export function FindStorageMegaMenu({
   // Keep the selection honest against the filter. While searching, land on the
   // first state that has a hit so the matching cities are visible without a
   // second click; with no query, stay on "nothing picked yet" as the Figma does.
+  //
+  // NOT on mobile: there, picking a state REPLACES the panel with that state's
+  // cities, so auto-selecting would throw the visitor onto the city page in the
+  // middle of typing. Desktop only fills a third column, so it still helps.
   useEffect(() => {
     if (activeKey && filteredTree.some((s) => s.key === activeKey)) return;
-    setActiveKey(q && filteredTree.length ? filteredTree[0].key : null);
-  }, [q, filteredTree, activeKey]);
+    setActiveKey(!isMobile && q && filteredTree.length ? filteredTree[0].key : null);
+  }, [q, filteredTree, activeKey, isMobile]);
 
   // ── Nearby facilities ────────────────────────────────────────────────────
   const allProperties = useMemo(
@@ -206,6 +276,34 @@ export function FindStorageMegaMenu({
     return items.slice(0, NEARBY_COUNT);
   }, [coords, allProperties]);
 
+  // ── Small portfolio: one map card per facility ───────────────────────────
+  // Desktop only — the mobile frames are the two pages built above, and a row of
+  // map cards under them would leave no room for either.
+  //
+  // A facility with no Address.lat/lng cannot be drawn, so EVERY one of them has
+  // to carry coordinates before this frame replaces the columns: a row silently
+  // missing a location is worse than the list it displaced.
+  const showMap = !isMobile
+    && allProperties.length > 0
+    && allProperties.length <= MAP_MAX_FACILITIES
+    && allProperties.every((p) => p.lat != null && p.lng != null);
+
+  // The field filters the cards, the way it filters the columns in the big
+  // layout — with three facilities that's near-instant, but a search box that
+  // ignores what you type is worse than no search box.
+  // Carries the city's own label along: it comes from the SLUG, and the live
+  // Address.city disagrees with it (a row reads "LancasTER") — the heading should
+  // read the way every other city label in this menu reads.
+  const cardProperties = useMemo(
+    () => (showMap
+      ? filteredTree.flatMap((s) => s.cities.flatMap(
+        (c) => c.properties.map((property) => ({ property, cityLabel: c.label })),
+      ))
+      : []),
+    [showMap, filteredTree],
+  );
+
+
   // ── Open / close plumbing ────────────────────────────────────────────────
   // Reset to the "nothing picked yet" frame each time the menu is dismissed, so
   // reopening it doesn't drop the visitor back into a state they left behind.
@@ -226,21 +324,104 @@ export function FindStorageMegaMenu({
     if (bar) setTopOffset(Math.max(0, bar.getBoundingClientRect().bottom));
   }, []);
 
+  // Re-measured on scroll, NOT locked in place. This used to set
+  // `document.body.style.overflow = 'hidden'` while the popup was up, which broke
+  // the sticky bar: an overflow-hidden ancestor becomes the sticky element's
+  // scrollport, and that box never scrolls, so the bar dropped back to its
+  // document position (off-screen, on a scrolled page) the moment the menu opened.
+  // Following the bar instead keeps the panel pinned to its bottom edge whether the
+  // bar is sticky or scrolls away with the page.
   useLayoutEffect(() => {
     if (!open) return;
     measureTop();
-    window.addEventListener('resize', measureTop);
-    return () => window.removeEventListener('resize', measureTop);
+
+    let frame = 0;
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => { frame = 0; measureTop(); });
+    };
+
+    window.addEventListener('resize', schedule);
+    // Capture, because on a Duda page the scrolling box may be a container rather
+    // than the window — a scroll event there doesn't bubble, but it is captured.
+    window.addEventListener('scroll', schedule, { capture: true, passive: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', schedule, { capture: true });
+    };
   }, [open, measureTop]);
 
-  // Page scroll is locked while the popup is up. It covers everything under the
-  // bar, so there is nothing to scroll to — and scrolling would move the bar out
-  // from under the offset the panel is pinned to.
+  // Nothing behind the popup scrolls while it is open — only the popup's own
+  // lists do. The gesture is REFUSED rather than the page being frozen with
+  // `body { overflow: hidden }`: that would break the bar's sticky positioning
+  // (see the note on the measuring effect above), which is the whole reason this
+  // is done the hard way.
   useEffect(() => {
     if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = previous; };
+    const root = rootRef.current;
+    if (!root) return;
+
+    // Walk from the event's target up to the popup root looking for a scroller
+    // that can still take `dy` (negative = up). One that is already at its end
+    // can't, and letting the event through there is exactly how a scroll chains
+    // out to the document. A target outside the popup never finds one.
+    const canScroll = (target: EventTarget | null, dy: number): boolean => {
+      let el: Element | null = target instanceof Element ? target : null;
+      while (el && root.contains(el)) {
+        const style = getComputedStyle(el);
+        if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) {
+          const atTop = el.scrollTop <= 0;
+          const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+          if (!((dy <= 0 && atTop) || (dy >= 0 && atBottom))) return true;
+        }
+        el = el.parentElement;
+      }
+      return false;
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.cancelable && !canScroll(e.target, e.deltaY)) e.preventDefault();
+    };
+
+    // Touch has no delta of its own — it comes from the distance moved since the
+    // last frame, sign-flipped (finger up = content scrolls down).
+    let lastY = 0;
+    const onTouchStart = (e: TouchEvent) => { lastY = e.touches[0]?.clientY ?? 0; };
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY ?? lastY;
+      const dy = lastY - y;
+      lastY = y;
+      // Multi-touch is a pinch/zoom, not a scroll — leave it alone.
+      if (e.touches.length > 1) return;
+      if (e.cancelable && !canScroll(e.target, dy)) e.preventDefault();
+    };
+
+    // Space/PageDown/… scroll the document too, and the popup is a dialog: the
+    // keys belong to whatever is scrollable inside it, or to nothing.
+    const SCROLL_KEYS: Record<string, number> = {
+      ArrowDown: 1, PageDown: 1, End: 1, ' ': 1, Spacebar: 1,
+      ArrowUp: -1, PageUp: -1, Home: -1,
+    };
+    const onScrollKey = (e: KeyboardEvent) => {
+      const dir = SCROLL_KEYS[e.key];
+      if (!dir || e.defaultPrevented) return;
+      const target = e.target as Element | null;
+      // Typing in the search field, or driving a <select>, is not scrolling.
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (!canScroll(target, dir)) e.preventDefault();
+    };
+
+    document.addEventListener('wheel', onWheel, { passive: false });
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('keydown', onScrollKey);
+    return () => {
+      document.removeEventListener('wheel', onWheel);
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('keydown', onScrollKey);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -311,6 +492,243 @@ export function FindStorageMegaMenu({
     </a>
   );
 
+  // A LINK, not a button, and used by BOTH the desktop column and the mobile
+  // menu — a state is a real page, so the row has to be reachable, keyboard-
+  // focusable and middle-clickable. But the row also has to reveal its cities,
+  // which is what the panel beside it is for. So: the first click selects and
+  // stays put; clicking the already-open state follows the link; a modified
+  // click (⌘/ctrl/shift/middle) always navigates.
+  //
+  // CLICK ONLY, never hover. Opening the city list on hover made the panel
+  // twitchy: the pointer has to cross other state rows on its way to the cities,
+  // swapping the list out from under it. Keyboard behaves the same for free —
+  // Enter on the link is a click, while merely tabbing past changes nothing.
+  const stateButton = (state: NavState) => (
+    <a
+      key={state.key}
+      href={state.href}
+      className={`nav-mega-state${state.key === activeKey ? ' is-active' : ''}`}
+      aria-expanded={state.key === activeKey}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        if (state.key === activeKey) return;
+        e.preventDefault();
+        setActiveKey(state.key);
+      }}
+    >
+      <span className="nav-mega-state-name">{state.label}</span>
+      {state.propertyCount > 1 && (
+        <span className="nav-mega-bubble">{state.propertyCount}</span>
+      )}
+    </a>
+  );
+
+  const noMatches = !filteredTree.length && (
+    <p className="nav-mega-empty">No locations match “{query.trim()}”.</p>
+  );
+
+  // The field + magnifier. Nothing to submit: the lists filter as the visitor
+  // types, and there is no results page to post to.
+  const searchRow = (
+    <div className="nav-mega-search-row">
+      <FormField
+        label="City, ZIP, Address"
+        value={query}
+        onChange={setQuery}
+        className="nav-mega-field"
+      />
+      {/* Icon-only by design; the label stays for screen readers. */}
+      <Button
+        type="submit"
+        tone="cta"
+        className="nav-mega-search-btn"
+        icon={<SearchIcon size={28} />}
+      >
+        Search
+      </Button>
+    </div>
+  );
+
+  // "Nearby Storage Facilities" — the desktop search column and mobile page 1
+  // show the identical block (Figma 10557-106986 and 10692-81165).
+  //
+  // The frames put a star rating and a review count on each row. Left out on
+  // purpose: `GoogleReviews` holds ONE site-wide business score, not a score per
+  // property, so those stars would be the same invented number three times.
+  const nearbyBlock = (
+    <div className="nav-mega-block">
+      <h3 className="nav-mega-heading nav-mega-heading--sm">Nearby Storage Facilities</h3>
+      {nearby.length ? (
+        <div className="nav-mega-locations">
+          {/* The WHOLE row is one link to the facility's landing page. The
+              address and phone lines used to be their own links (maps and tel:),
+              which meant two of the three things a visitor is likely to click in
+              a nav menu took them off the site instead of to the facility. Maps
+              and click-to-call belong on the property page, which is where this
+              now goes. */}
+          {nearby.map(({ property, miles }) => (
+            <a
+              className="nav-mega-loc"
+              key={property.id || property.slug}
+              href={property.href}
+            >
+              <MapPinIcon size={24} />
+              <span className="nav-mega-loc-data">
+                <span className="nav-mega-loc-name">
+                  {property.label}
+                  {miles != null && ` - ${milesLabel(miles)}`}
+                </span>
+                {property.address && (
+                  <span className="nav-mega-loc-line">
+                    <MapPinIcon size={16} />
+                    <span>{property.address}</span>
+                  </span>
+                )}
+                {property.phone && (
+                  <span className="nav-mega-loc-line">
+                    <PhoneIcon size={16} />
+                    <span>{property.phone}</span>
+                  </span>
+                )}
+              </span>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p className="nav-mega-empty">No locations to show yet.</p>
+      )}
+    </div>
+  );
+
+  // Shared by the desktop columns and both mobile pages.
+  const searchForm = (
+    <form className="nav-mega-form" onSubmit={(e) => e.preventDefault()}>
+      <div className="nav-mega-selects">
+        <label className="nav-mega-select">
+          <span className="nav-mega-select-label">Type</span>
+          <select value={type} onChange={(e) => setType(e.target.value)}>
+            {TYPE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </label>
+        <label className="nav-mega-select">
+          <span className="nav-mega-select-label">Size</span>
+          <select value={size} onChange={(e) => setSize(e.target.value)}>
+            {SIZE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </label>
+      </div>
+      {searchRow}
+    </form>
+  );
+
+  // ── Small portfolio (desktop, ≤3 facilities) — Figma 10630-54517 ─────────
+  // A centred 800px block: one map card per facility across the top — CITY, ST
+  // in bold over the street line, above a map zoomed to that address — and the
+  // search field beneath, spanning the row. No Type/Size (the frame has one
+  // field), no state or city columns, no nearby list: with three facilities the
+  // cards ARE the whole portfolio.
+  const mapCardsPanel = (
+    <div className="nav-mega-small">
+      {cardProperties.length ? (
+        <div className="nav-mega-locmaps">
+          {cardProperties.map(({ property: p, cityLabel }) => {
+            const point: MapPoint = {
+              id: p.id || p.slug,
+              lat: p.lat!,
+              lng: p.lng!,
+              // The frame labels the pin with the street, as Google's own embed
+              // does for a searched address.
+              label: p.street || undefined,
+              name: p.label,
+              address: p.address,
+            };
+            return (
+              <div className="nav-mega-locmap" key={p.id || p.slug}>
+                {/* The heading is the link — the map below it holds the pin's
+                    own buttons, and a <button> inside an <a> is invalid. */}
+                <a className="nav-mega-locmap-head" href={p.href}>
+                  <span className="nav-mega-locmap-city">
+                    {[cityLabel || p.city || p.label, p.state].filter(Boolean).join(', ')}
+                  </span>
+                  {p.street && <span className="nav-mega-locmap-street">{p.street}</span>}
+                </a>
+                <NearbyMap
+                  center={{ lat: p.lat!, lng: p.lng! }}
+                  points={[point]}
+                  height={CARD_MAP_HEIGHT}
+                  className="nav-mega-locmap-canvas"
+                  // The centre IS the facility, already marked by its own pin.
+                  showCenterMarker={false}
+                />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="nav-mega-empty">No locations match “{query.trim()}”.</p>
+      )}
+      <form className="nav-mega-small-form" onSubmit={(e) => e.preventDefault()}>
+        {searchRow}
+      </form>
+    </div>
+  );
+
+  // ── Mobile (≤1024px) — Figma 10692-81165 / 10692-81757 and 10692-82124 ───
+  // ONE thing at a time, because there is no room for three columns: page 1 is
+  // the search form, then Nearby Storage Facilities, then the state list; picking
+  // a state REPLACES the whole panel with that state's cities, and the chevron in
+  // the header is the way back. There is no "see all cities" here — page 2
+  // already IS the whole list.
+  //
+  // A city still resolves the same way it does on desktop (`city.href` from
+  // buildLocationTree): one facility → that facility's page, several → the city
+  // page.
+  const mobileClose = (
+    <button className="nav-mega-m-close" type="button" onClick={onClose} aria-label="Close menu">
+      <CloseIcon size={24} />
+    </button>
+  );
+
+  const mobilePanel = activeState ? (
+    <div className="nav-mega-m">
+      <div className="nav-mega-m-head">
+        <button className="nav-mega-back" type="button" onClick={() => setActiveKey(null)}>
+          <ChevronLeft size={24} />
+          <span className="nav-mega-back-state">{activeState.label}</span>
+          <span className="nav-mega-back-count">( {activeState.cities.length} )</span>
+        </button>
+        {mobileClose}
+      </div>
+      <div className="nav-mega-scroll nav-mega-m-list">
+        {activeState.cities.map(cityLink)}
+      </div>
+    </div>
+  ) : (
+    <div className="nav-mega-m">
+      <div className="nav-mega-m-head">
+        <h3 className="nav-mega-heading">Search Location</h3>
+        {mobileClose}
+      </div>
+      {searchForm}
+      {/* Page 1 scrolls as ONE column below the header — search, facilities and
+          the states all move together, as the frame's 852px column does. The
+          states list keeping its own scrollport would have pinned the facilities
+          in place and left the states a ~100px porthole to read them through. */}
+      <div className="nav-mega-scroll nav-mega-m-page">
+        <div className="nav-mega-rule" />
+        {nearbyBlock}
+        <div className="nav-mega-rule" />
+        <div className="nav-mega-block">
+          {heading('Select State', filteredTree.length)}
+          {noMatches}
+          <div className="nav-mega-m-list">
+            {filteredTree.map(stateButton)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div
       className={`nav-mega${open ? ' is-open' : ''}`}
@@ -330,7 +748,7 @@ export function FindStorageMegaMenu({
       </button>
 
       <div className="nav-mega-inner">
-        {showAllCities && activeState ? (
+        {isMobile ? mobilePanel : showMap ? mapCardsPanel : showAllCities && activeState ? (
           // ── Page 2: every city in the state, four columns under a header that
           // stays put while the list scrolls beneath it. ────────────────────────
           <div className="nav-mega-all">
@@ -357,126 +775,20 @@ export function FindStorageMegaMenu({
             <section className="nav-mega-col nav-mega-col--search">
               <div className="nav-mega-block">
                 <h3 className="nav-mega-heading">Search Location</h3>
-                {/* Nothing to submit: the columns filter as the visitor types,
-                    and there is no results page to post to. */}
-                <form className="nav-mega-form" onSubmit={(e) => e.preventDefault()}>
-                  <div className="nav-mega-selects">
-                    <label className="nav-mega-select">
-                      <span className="nav-mega-select-label">Type</span>
-                      <select value={type} onChange={(e) => setType(e.target.value)}>
-                        {TYPE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </label>
-                    <label className="nav-mega-select">
-                      <span className="nav-mega-select-label">Size</span>
-                      <select value={size} onChange={(e) => setSize(e.target.value)}>
-                        {SIZE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </label>
-                  </div>
-                  <div className="nav-mega-search-row">
-                    <FormField
-                      label="City, ZIP, Address"
-                      value={query}
-                      onChange={setQuery}
-                      className="nav-mega-field"
-                    />
-                    {/* Icon-only by design; the label stays for screen readers. */}
-                    <Button
-                      type="submit"
-                      tone="cta"
-                      className="nav-mega-search-btn"
-                      icon={<SearchIcon size={28} />}
-                    >
-                      Search
-                    </Button>
-                  </div>
-                </form>
+                {searchForm}
               </div>
 
               <div className="nav-mega-rule" />
 
-              <div className="nav-mega-block">
-                <h3 className="nav-mega-heading nav-mega-heading--sm">Nearby Storage Facilities</h3>
-                {nearby.length ? (
-                  <div className="nav-mega-locations">
-                    {/* The WHOLE row is one link to the facility's landing page.
-                        The address and phone lines used to be their own links (maps
-                        and tel:), which meant two of the three things a visitor is
-                        likely to click in a nav menu took them off the site instead
-                        of to the facility. Maps and click-to-call belong on the
-                        property page, which is where this now goes. */}
-                    {nearby.map(({ property, miles }) => (
-                      <a
-                        className="nav-mega-loc"
-                        key={property.id || property.slug}
-                        href={property.href}
-                      >
-                        <MapPinIcon size={24} />
-                        <span className="nav-mega-loc-data">
-                          <span className="nav-mega-loc-name">
-                            {property.label}
-                            {miles != null && ` - ${milesLabel(miles)}`}
-                          </span>
-                          {property.address && (
-                            <span className="nav-mega-loc-line">
-                              <MapPinIcon size={16} />
-                              <span>{property.address}</span>
-                            </span>
-                          )}
-                          {property.phone && (
-                            <span className="nav-mega-loc-line">
-                              <PhoneIcon size={16} />
-                              <span>{property.phone}</span>
-                            </span>
-                          )}
-                        </span>
-                      </a>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="nav-mega-empty">No locations to show yet.</p>
-                )}
-              </div>
+              {nearbyBlock}
             </section>
 
             {/* ── States: one column, scrolls ─────────────────────────────── */}
             <section className="nav-mega-col nav-mega-col--states">
               {heading('Select State', filteredTree.length)}
-              {!filteredTree.length && (
-                <p className="nav-mega-empty">No locations match “{query.trim()}”.</p>
-              )}
+              {noMatches}
               <div className="nav-mega-scroll nav-mega-states">
-                {filteredTree.map((state) => (
-                  // A LINK to the state page that opens the city list in place
-                  // on the first click. Two jobs, one row: the row has to reveal
-                  // its cities (that is what the panel beside it is for), but a
-                  // state is also a real page and must be reachable, keyboard-
-                  // focusable and middle-clickable. So the first click selects
-                  // and stays put; clicking the already-open state follows the
-                  // link. Modified clicks (⌘/ctrl/middle) always navigate.
-                  //
-                  // Still CLICK ONLY, never hover — opening on hover made the
-                  // panel twitchy, since the pointer has to cross other state
-                  // rows on its way to the cities.
-                  <a
-                    key={state.key}
-                    href={state.href}
-                    className={`nav-mega-state${state.key === activeKey ? ' is-active' : ''}`}
-                    aria-expanded={state.key === activeKey}
-                    onClick={(e) => {
-                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-                      if (state.key === activeKey) return;
-                      e.preventDefault();
-                      setActiveKey(state.key);
-                    }}
-                  >
-                    <span className="nav-mega-state-name">{state.label}</span>
-                    {state.propertyCount > 1 && (
-                      <span className="nav-mega-bubble">{state.propertyCount}</span>
-                    )}
-                  </a>
-                ))}
+                {filteredTree.map(stateButton)}
               </div>
             </section>
 
@@ -601,9 +913,47 @@ const DEMO_ROWS = Object.entries(DEMO_CITIES).flatMap(([state, cities]) =>
 );
 
 /**
+ * A THREE-facility company, for the small-portfolio frame (map instead of the
+ * state/city columns). Coordinates are real Southern California ones, because the
+ * map is the whole point of this variant and `buildLocationTree` only carries a
+ * `lat`/`lng` through when `Address` actually has them — a demo without them would
+ * fall back to the columns and show nothing of what it exists to show.
+ */
+const DEMO_SMALL_ROWS = [
+  {
+    id: 'demo-small-irvine',
+    name: 'Storage Outlet - Irvine',
+    slug: 'california/irvine/storage-outlet-irvine-1',
+    Address: { address: '5281 California Ave', city: 'Irvine', state: 'CA', zip: '92617', lat: 33.6797, lng: -117.8311 },
+    Phones: [{ phone: '8008749487', status: 1 }],
+  },
+  {
+    id: 'demo-small-bellflower',
+    name: 'Storage Outlet - Bellflower',
+    slug: 'california/bellflower/storage-outlet-bellflower-2',
+    Address: { address: '9525 Somerset Blvd', city: 'Bellflower', state: 'CA', zip: '90706', lat: 33.8817, lng: -118.1170 },
+    Phones: [{ phone: '8008749487', status: 1 }],
+  },
+  {
+    id: 'demo-small-chino',
+    name: 'Storage Outlet - Chino',
+    slug: 'california/chino/storage-outlet-chino-3',
+    Address: { address: '12750 Pipeline Ave', city: 'Chino', state: 'CA', zip: '91710', lat: 34.0122, lng: -117.6889 },
+    Phones: [{ phone: '8008749487', status: 1 }],
+  },
+];
+
+/**
  * Stand-in tree for the Duda editor and the dev harness. Takes the same base
  * paths as the live tree so the demo links match the ones a visitor would get.
+ *
+ * `portfolio: 'small'` swaps in the three-facility set above so the map frame can
+ * be seen somewhere other than a live three-property site.
  */
-export function demoLocationTree(basePath: string, cityBasePath?: string): NavState[] {
-  return buildLocationTree(DEMO_ROWS, { basePath, cityBasePath });
+export function demoLocationTree(
+  basePath: string,
+  cityBasePath?: string,
+  portfolio: 'full' | 'small' = 'full',
+): NavState[] {
+  return buildLocationTree(portfolio === 'small' ? DEMO_SMALL_ROWS : DEMO_ROWS, { basePath, cityBasePath });
 }
