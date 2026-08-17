@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+/* 500 is here for the mega menu's address/phone lines, which the Figma sets in
+   Montserrat MEDIUM. Without it the browser synthesises the weight off 400 and
+   those lines render visibly lighter and narrower than the frame. */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
