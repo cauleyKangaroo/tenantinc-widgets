@@ -156,6 +156,10 @@ const FACILITY_URL = 'https://mariposa26-testing.multiscreensite.com/property-la
 const DEFAULT_LOCATION_BASE_PATH = '/storage-units';
 /** Where the pinned "All Locations" row points. */
 const ALL_LOCATIONS_URL = '#';
+/** The blogs listing page (#12). Site-relative on purpose — an absolute URL would
+ *  pin the nav to one Duda site, and the link picker only ever hands back editor
+ *  URLs (see EDITOR_URL_RE). Override the whole nav via `links` to move it. */
+const BLOG_URL = '/blogs';
 const IRVINE_LABEL = 'Irvine';
 const FACILITY_LABEL = '5281 California';
 
@@ -235,6 +239,7 @@ function buildDefaultLinks(): NavLink[] {
     { label: 'Storage Types', href: '#', hasDropdown: true, menu: STORAGE_TYPES_MENU },
     { label: 'Resources', href: '#', hasDropdown: true, menu: RESOURCES_MENU },
     { label: 'Size Guide', href: '#' },
+    { label: 'Blog', href: BLOG_URL },
   ];
 }
 
@@ -309,6 +314,21 @@ export interface NavigationBarProps {
    * city with exactly one facility always links straight to that facility.
    */
   cityBasePath?: string;
+  /**
+   * Which UI the Find Storage link opens.
+   * - 'mega'     — full-viewport popup (search + states + cities + nearby). Default.
+   * - 'dropdown' — the old three-level hover cascade (state › city › facility),
+   *                the same one Storage Types and Resources use.
+   * Duda editors toggle between the two from the content menu.
+   */
+  findStorageStyle?: 'mega' | 'dropdown';
+  /**
+   * Which DEMO portfolio the mega menu falls back to where there is no `dmAPI`
+   * (the Duda editor and the dev harness). `'small'` is a three-facility company,
+   * which is what triggers the map frame. Has NO effect on a published page — the
+   * collection answers there and the demo tree is never built.
+   */
+  demoPortfolio?: 'full' | 'small';
 }
 
 export function NavigationBar({
@@ -338,7 +358,12 @@ export function NavigationBar({
   propertyId = DEFAULT_PROPERTY_ID,
   locationBasePath = DEFAULT_LOCATION_BASE_PATH,
   cityBasePath = DEFAULT_CITY_BASE_PATH,
+  findStorageStyle = 'mega',
+  demoPortfolio = 'full',
 }: NavigationBarProps) {
+  // Normalise so an unknown value from Duda falls back to the popup rather than
+  // a link that does nothing.
+  const useMega = findStorageStyle !== 'dropdown';
   // Logo destination, with Duda's editor url filtered out (see resolveLogoLink).
   const homeLink = resolveLogoLink(logoLink);
 
@@ -394,9 +419,41 @@ export function NavigationBar({
   // populated while someone is working on the page instead of showing an editor
   // three empty columns.
   const megaTree = useMemo(
-    () => (locationTree.length ? locationTree : demoLocationTree(locationBasePath, cityBasePath)),
-    [locationTree, locationBasePath, cityBasePath],
+    () => (locationTree.length
+      ? locationTree
+      : demoLocationTree(locationBasePath, cityBasePath, demoPortfolio)),
+    [locationTree, locationBasePath, cityBasePath, demoPortfolio],
   );
+
+  // Public window-event hook so ANY element on the Duda page — a Text link, an
+  // HTML/Embed widget, another button — can open, close, or toggle the Find
+  // Storage mega menu without reaching into React state or the trigger DOM.
+  //
+  //   window.dispatchEvent(new Event('tenantinc:find-storage:open'))
+  //   window.dispatchEvent(new Event('tenantinc:find-storage:close'))
+  //   window.dispatchEvent(new Event('tenantinc:find-storage:toggle'))
+  //
+  // Wired in BOTH mega and dropdown modes: even when the in-bar Find Storage
+  // link is the hover cascade, an external text/HTML element can still pop the
+  // mega panel. The mega menu component is always mounted below for the same
+  // reason.
+  //
+  // The panel has its own mobile layout now, so these work at every width. The
+  // drawer is closed on the way in: the two are full-screen layers and would
+  // otherwise stack.
+  useEffect(() => {
+    const open = () => { setMenuOpen(false); setMegaOpen(true); };
+    const close = () => setMegaOpen(false);
+    const toggle = () => { setMenuOpen(false); setMegaOpen((o) => !o); };
+    window.addEventListener('tenantinc:find-storage:open', open);
+    window.addEventListener('tenantinc:find-storage:close', close);
+    window.addEventListener('tenantinc:find-storage:toggle', toggle);
+    return () => {
+      window.removeEventListener('tenantinc:find-storage:open', open);
+      window.removeEventListener('tenantinc:find-storage:close', close);
+      window.removeEventListener('tenantinc:find-storage:toggle', toggle);
+    };
+  }, []);
 
   const displayPhone = livePhone?.phone || phone;
   const telHref = phoneHref ?? `tel:${(livePhone?.digits || displayPhone).replace(/[^0-9+]/g, '')}`;
@@ -472,7 +529,10 @@ export function NavigationBar({
   const navLinks = (
     <ul className="nav-links">
       {linkList.map((link) => {
-        const isFindStorage = link.label === FIND_STORAGE_LABEL;
+        // Only claim Find Storage for the mega popup when the editor has actually
+        // opted into it — otherwise Find Storage falls into the same hover cascade
+        // Storage Types / Resources use, driven by `link.menu`.
+        const isFindStorage = useMega && link.label === FIND_STORAGE_LABEL;
         const hasMenu = !!link.menu?.length && !isFindStorage;
         const isOpen = hasMenu && openLink === link.label;
         const activeItem = isOpen && subIndex != null ? link.menu![subIndex] : undefined;
@@ -674,8 +734,11 @@ export function NavigationBar({
         </div>
       </div>
 
-      {/* Find Storage mega menu — anchored to the bottom edge of the whole bar,
-          so it spans the full width regardless of which link opened it. */}
+      {/* Find Storage mega menu — always mounted so an external element (a
+          Duda Text link, an HTML/Embed widget) can pop it via the
+          `tenantinc:find-storage:*` window events even when the in-bar Find
+          Storage link is the hover cascade ('dropdown' mode). Below 1024px this
+          panel is display:none and those events open the drawer instead. */}
       <FindStorageMegaMenu open={megaOpen} onClose={() => setMegaOpen(false)} tree={megaTree} />
 
       {/* Raised logo tile — absolutely positioned so it spans both bars and
@@ -722,9 +785,24 @@ export function NavigationBar({
               </a>
             </div>
 
-            {/* Location search (visual only for now) */}
-            <form className="nav-mm-search" onSubmit={(e) => e.preventDefault()}>
-              <input className="nav-mm-search-input" type="text" placeholder="City, ZIP or Address" aria-label="Search location" />
+            {/* Location search — the whole bar is the way into the full-screen
+                Find Storage panel, which is where the real search field, the
+                state list and the city list live. Tapping ANY part of it (field,
+                type, magnifier) swaps the drawer for that panel; nothing is typed
+                here, hence `readOnly` — a keyboard would slide up over a field
+                that is about to be replaced. */}
+            <form
+              className="nav-mm-search"
+              onSubmit={(e) => e.preventDefault()}
+              onClick={() => { setMenuOpen(false); setMegaOpen(true); }}
+            >
+              <input
+                className="nav-mm-search-input"
+                type="text"
+                placeholder="City, ZIP or Address"
+                aria-label="Search location"
+                readOnly
+              />
               <span className="nav-mm-search-divider" />
               <button className="nav-mm-search-type" type="button">
                 <span>Storage</span>

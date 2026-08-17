@@ -39,7 +39,18 @@ interface NearbyMapProps {
    * byte-for-byte, so #05 and #07 are untouched.
    */
   renderPin?: (point: PositionedPoint) => React.ReactNode;
-  /** Hide the centre "you are here" dot — a city page has no reference point. */
+  /**
+   * The dark dot at the map's centre — "you are here". Pass false when the centre
+   * is only a computed midpoint (e.g. the average of the pins) rather than a real
+   * place: a marker there tells the viewer something untrue.
+   */
+  showCenterMarker?: boolean;
+  /**
+   * The same switch, inverted. Both exist because #08 and the nav's map arrived
+   * at it independently and each has live call sites; renaming either would break
+   * the other's. `showCenterMarker={false}` and `hideCenterMarker` are equivalent
+   * — either one hides the dot (see the render below).
+   */
   hideCenterMarker?: boolean;
 }
 
@@ -70,7 +81,15 @@ function fitZoom(center: { lat: number; lng: number }, points: MapPoint[], w: nu
   return 1;
 }
 
-export function NearbyMap({ center, points, height = 317, className, renderPin, hideCenterMarker }: NearbyMapProps) {
+export function NearbyMap({
+  center,
+  points,
+  height = 317,
+  className,
+  renderPin,
+  showCenterMarker = true,
+  hideCenterMarker,
+}: NearbyMapProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   // Measured, not the `height` prop: that may be a CSS string ('100%') when the
@@ -123,11 +142,14 @@ export function NearbyMap({ center, points, height = 317, className, renderPin, 
       />
 
       {/* Reference marker (viewer / current property) at the map centre. */}
-      {!hideCenterMarker && <span style={{
-        position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
-        width: 14, height: 14, borderRadius: '50%', background: '#101318',
-        border: '3px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
-      }} />}
+      {/* Either switch hides it; the dot only shows when neither says otherwise. */}
+      {showCenterMarker && !hideCenterMarker && (
+        <span style={{
+          position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+          width: 14, height: 14, borderRadius: '50%', background: '#101318',
+          border: '3px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+        }} />
+      )}
 
       {/* Price pins — clickable (the iframe below is pointer-events:none). */}
       {width > 0 && renderPin && positioned.map((p) => (

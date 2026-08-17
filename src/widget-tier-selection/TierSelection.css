@@ -47,15 +47,15 @@
    specificity. */
 .ts-wrapper .ts-title {
   font-size: 40px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.0;
-  margin: 0 0 14px;
+  margin: 0 0 10px;
   color: var(--ts-title-color, #101318) !important; /* operator-overridable; defaults black; beats host theme */
   text-transform: none;
   letter-spacing: normal;
 }
 .ts-subtitle {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 400;
   line-height: 28px;
   margin: 0;
@@ -567,18 +567,22 @@
 
 /* ═══ Option 2 — Good/Better/Best pricing cards ═════════════════════════════ */
 .ts-o2 { max-width: 1320px; margin: 0 auto; }
-.ts-o2-urgency, .ts-o3-urgency { margin: 0 0 8px; text-align: right; font-size: 16px; font-weight: 700; color: #e53935; }
-.ts-o2-header { text-align: center; margin-bottom: 28px; }
+.ts-o2-urgency, .ts-o3-urgency { margin: 0; text-align: right; font-size: 24px; font-weight: 700; color: #e53935; }
+/* Header row (Figma): heading + subheading on the left, urgency + $30 admin fee
+   stacked on the right, sharing one row. */
+.ts-o2-headrow { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; margin-bottom: 28px; }
+.ts-o2-topright { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; }
+.ts-o2-header { text-align: left; }
 .ts-wrapper .ts-o2-title {
   font-size: 40px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.15;
   margin: 0 0 10px;
   color: #101318;
   text-transform: none;
   letter-spacing: normal;
 }
-.ts-o2-subtitle { font-size: 18px; font-weight: 400; line-height: 28px; color: #000; margin: 0; }
+.ts-o2-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; color: #000; margin: 0; }
 
 .ts-o2-cards {
   display: grid;
@@ -712,11 +716,11 @@
 .ts-o2-admin {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 8px;
-  margin: 40px 0 0;
+  margin: 0;
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 400;
   color: #101318;
 }
 .ts-o2-admin-info { color: #101318; flex: 0 0 auto; }
@@ -754,6 +758,7 @@
   text-transform: uppercase;
 }
 .ts-o2m-price { font-size: 20px; font-weight: 700; color: #101318; white-space: nowrap; }
+.ts-o2m-admin { display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin: 10px 0 0; font-size: 14px; font-weight: 400; color: #101318; }
 
 /* Collapsed summary bar */
 .ts-o2m-bar {
@@ -972,38 +977,58 @@
   inset: 0;
   background: rgba(16, 19, 24, 0.55);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 40px 16px;
-  overflow-y: auto;
+  padding: 24px 16px;
   z-index: 1000;
 }
+/* Fixed-height popup (Figma: 747 tall, radius 20). The CONTENT scrolls inside
+   (.ts-modal-scroll) — not the whole popup — so the close stays put. */
 .ts-modal {
   position: relative;
   background: #fff;
-  border-radius: 16px;
+  border-radius: 20px;
   width: 100%;
-  max-width: 1100px;
-  padding: 32px;
+  max-width: 1470px; /* Figma "Facility Page" popup width */
+  max-height: min(747px, 90vh);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
+.ts-modal-scroll { overflow-y: auto; padding: 32px; }
+/* Close: 40×40 dark circle with a white ✕ (Figma). Absolute to the fixed popup
+   frame, so it never scrolls away. */
 .ts-modal-close {
   position: absolute;
   top: 12px;
   right: 16px;
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
+  color: #101318;
   border: 0;
-  font-size: 28px;
+  font-size: 48px;
   line-height: 1;
-  color: #6b7280;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
+  z-index: 3;
 }
-.ts-modal-close:hover { color: #101318; background: #f3f4f6; }
+.ts-modal-close:hover { color: #000; }
+/* Editor-only placeholder for a closed modal (invisible on the live site) so it
+   can be selected and configured in the Duda editor. */
+.ts-modal-editor-hint {
+  border: 2px dashed #c4cdd5; border-radius: 8px; padding: 16px 20px;
+  background: #f9fafb; color: #637381; font-size: 14px; line-height: 1.5;
+  font-family: 'Montserrat', sans-serif;
+}
+.ts-modal-editor-hint b { color: #101318; }
 @media (max-width: 640px) {
   .ts-modal-backdrop { padding: 0; }
-  .ts-modal { border-radius: 0; min-height: 100%; padding: 48px 16px 24px; max-width: none; }
+  .ts-modal { border-radius: 0; max-height: 100vh; height: 100%; max-width: none; }
+  .ts-modal-scroll { padding: 48px 16px 24px; }
 }
 
 /* Promo two-price (STANDARD struck + PROMO RATE) */
@@ -1023,4 +1048,4 @@
 .ts-o2-promo-label--std, .ts-o3-promo-label--std { font-weight: 500; color: #637381; }
 .ts-o2-promo-label--promo, .ts-o3-promo-label--promo { font-weight: 700; color: #101318; }
 .ts-o2-strike, .ts-o3-strike { font-size: 24px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.2; text-align: center; }
-.ts-o2m-strike { font-size: 14px; font-weight: 400; text-decoration: line-through; color: #637381; }
+.ts-o2m-strike { font-size: 18px; font-weight: 400; text-decoration: line-through; color: #637381; }
