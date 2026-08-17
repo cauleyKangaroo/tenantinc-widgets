@@ -255,16 +255,13 @@ export function FindStorageMegaMenu({
   // for a panel most of them never open.
   const askedRef = useRef(false);
 
-  // The mobile frames carry no nearby column, so on a phone there is nothing to
-  // spend a permission prompt on. Rotating/resizing up to the desktop layout
-  // still asks, because the flag is only set once a request actually goes out.
   useEffect(() => {
-    if (!open || isMobile || askedRef.current) return;
+    if (!open || askedRef.current) return;
     askedRef.current = true;
     getUserLocation()
       .then(setCoords)
       .catch(() => { /* denied / unavailable — the list falls back below */ });
-  }, [open, isMobile]);
+  }, [open]);
 
   const nearby: NearbyItem[] = useMemo(() => {
     const withCoords = coords
@@ -541,6 +538,57 @@ export function FindStorageMegaMenu({
     </div>
   );
 
+  // "Nearby Storage Facilities" — the desktop search column and mobile page 1
+  // show the identical block (Figma 10557-106986 and 10692-81165).
+  //
+  // The frames put a star rating and a review count on each row. Left out on
+  // purpose: `GoogleReviews` holds ONE site-wide business score, not a score per
+  // property, so those stars would be the same invented number three times.
+  const nearbyBlock = (
+    <div className="nav-mega-block">
+      <h3 className="nav-mega-heading nav-mega-heading--sm">Nearby Storage Facilities</h3>
+      {nearby.length ? (
+        <div className="nav-mega-locations">
+          {/* The WHOLE row is one link to the facility's landing page. The
+              address and phone lines used to be their own links (maps and tel:),
+              which meant two of the three things a visitor is likely to click in
+              a nav menu took them off the site instead of to the facility. Maps
+              and click-to-call belong on the property page, which is where this
+              now goes. */}
+          {nearby.map(({ property, miles }) => (
+            <a
+              className="nav-mega-loc"
+              key={property.id || property.slug}
+              href={property.href}
+            >
+              <MapPinIcon size={24} />
+              <span className="nav-mega-loc-data">
+                <span className="nav-mega-loc-name">
+                  {property.label}
+                  {miles != null && ` - ${milesLabel(miles)}`}
+                </span>
+                {property.address && (
+                  <span className="nav-mega-loc-line">
+                    <MapPinIcon size={16} />
+                    <span>{property.address}</span>
+                  </span>
+                )}
+                {property.phone && (
+                  <span className="nav-mega-loc-line">
+                    <PhoneIcon size={16} />
+                    <span>{property.phone}</span>
+                  </span>
+                )}
+              </span>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p className="nav-mega-empty">No locations to show yet.</p>
+      )}
+    </div>
+  );
+
   // Shared by the desktop columns and both mobile pages.
   const searchForm = (
     <form className="nav-mega-form" onSubmit={(e) => e.preventDefault()}>
@@ -614,12 +662,12 @@ export function FindStorageMegaMenu({
     </div>
   );
 
-  // ── Mobile (≤1024px) — Figma 10692-81757 and 10692-82124 ─────────────────
+  // ── Mobile (≤1024px) — Figma 10692-81165 / 10692-81757 and 10692-82124 ───
   // ONE thing at a time, because there is no room for three columns: page 1 is
-  // the search form over the state list, and picking a state REPLACES the whole
-  // panel with that state's cities. The chevron in the header is the way back.
-  // There is no "see all cities" here — page 2 already IS the whole list — and
-  // no nearby column; neither appears in the mobile frames.
+  // the search form, then Nearby Storage Facilities, then the state list; picking
+  // a state REPLACES the whole panel with that state's cities, and the chevron in
+  // the header is the way back. There is no "see all cities" here — page 2
+  // already IS the whole list.
   //
   // A city still resolves the same way it does on desktop (`city.href` from
   // buildLocationTree): one facility → that facility's page, several → the city
@@ -651,11 +699,21 @@ export function FindStorageMegaMenu({
         {mobileClose}
       </div>
       {searchForm}
-      <div className="nav-mega-rule" />
-      {heading('Select State', filteredTree.length)}
-      {noMatches}
-      <div className="nav-mega-scroll nav-mega-m-list">
-        {filteredTree.map(stateButton)}
+      {/* Page 1 scrolls as ONE column below the header — search, facilities and
+          the states all move together, as the frame's 852px column does. The
+          states list keeping its own scrollport would have pinned the facilities
+          in place and left the states a ~100px porthole to read them through. */}
+      <div className="nav-mega-scroll nav-mega-m-page">
+        <div className="nav-mega-rule" />
+        {nearbyBlock}
+        <div className="nav-mega-rule" />
+        <div className="nav-mega-block">
+          {heading('Select State', filteredTree.length)}
+          {noMatches}
+          <div className="nav-mega-m-list">
+            {filteredTree.map(stateButton)}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -711,48 +769,7 @@ export function FindStorageMegaMenu({
 
               <div className="nav-mega-rule" />
 
-              <div className="nav-mega-block">
-                <h3 className="nav-mega-heading nav-mega-heading--sm">Nearby Storage Facilities</h3>
-                {nearby.length ? (
-                  <div className="nav-mega-locations">
-                    {/* The WHOLE row is one link to the facility's landing page.
-                        The address and phone lines used to be their own links (maps
-                        and tel:), which meant two of the three things a visitor is
-                        likely to click in a nav menu took them off the site instead
-                        of to the facility. Maps and click-to-call belong on the
-                        property page, which is where this now goes. */}
-                    {nearby.map(({ property, miles }) => (
-                      <a
-                        className="nav-mega-loc"
-                        key={property.id || property.slug}
-                        href={property.href}
-                      >
-                        <MapPinIcon size={24} />
-                        <span className="nav-mega-loc-data">
-                          <span className="nav-mega-loc-name">
-                            {property.label}
-                            {miles != null && ` - ${milesLabel(miles)}`}
-                          </span>
-                          {property.address && (
-                            <span className="nav-mega-loc-line">
-                              <MapPinIcon size={16} />
-                              <span>{property.address}</span>
-                            </span>
-                          )}
-                          {property.phone && (
-                            <span className="nav-mega-loc-line">
-                              <PhoneIcon size={16} />
-                              <span>{property.phone}</span>
-                            </span>
-                          )}
-                        </span>
-                      </a>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="nav-mega-empty">No locations to show yet.</p>
-                )}
-              </div>
+              {nearbyBlock}
             </section>
 
             {/* ── States: one column, scrolls ─────────────────────────────── */}

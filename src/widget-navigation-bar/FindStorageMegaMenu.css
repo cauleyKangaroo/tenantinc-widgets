@@ -639,8 +639,19 @@
   cursor: pointer;
 }
 
+/* Page 1's body: search rule → nearby facilities → rule → states, scrolling as
+   ONE column below the fixed header (Figma 10692-81165). */
+.nav-mega-m-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 0;
+}
+
 /* The states / cities list: one column filling whatever is left below the
-   header, scrolling on its own. */
+   header. On page 2 it is the scrollport itself; on page 1 it rides inside
+   .nav-mega-m-page and grows instead. */
 .nav-mega-m-list {
   flex: 1 1 auto;
   min-height: 0;
