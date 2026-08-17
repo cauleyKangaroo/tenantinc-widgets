@@ -650,13 +650,23 @@
   border: 4px solid transparent;
 }
 
+/* FEATURED is the only card that gets a coloured outline. It pairs with the
+   "Featured Property" ribbon, and together they mean "the operator chose this
+   one" — a meaning that must belong to exactly one card on the page. */
 .ml-card--featured { border-color: #509e2f; }
 
-/* Active/hovered card pairs with its map bubble — same orange, same shadow. */
+/* ACTIVE is the card paired with the hovered/open map bubble. It deliberately
+   does NOT take a coloured border: doing so made every card look featured in
+   turn as the pointer moved down the list, which is the one thing the featured
+   outline is supposed to say. A lift and a neutral edge are enough to show the
+   pairing without borrowing that meaning. */
 .ml-card--active {
-  border-color: #f26500;
+  border-color: #dfe3e8;
   filter: drop-shadow(0px 8px 9px rgba(71, 84, 116, 0.2));
 }
+
+/* Featured stays green even while it is the active card. */
+.ml-card--featured.ml-card--active { border-color: #509e2f; }
 
 /* Photo header */
 .ml-card-head {
