@@ -309,6 +309,14 @@ export interface NavigationBarProps {
    * city with exactly one facility always links straight to that facility.
    */
   cityBasePath?: string;
+  /**
+   * Which UI the Find Storage link opens.
+   * - 'mega'     — full-viewport popup (search + states + cities + nearby). Default.
+   * - 'dropdown' — the old three-level hover cascade (state › city › facility),
+   *                the same one Storage Types and Resources use.
+   * Duda editors toggle between the two from the content menu.
+   */
+  findStorageStyle?: 'mega' | 'dropdown';
 }
 
 export function NavigationBar({
@@ -338,7 +346,11 @@ export function NavigationBar({
   propertyId = DEFAULT_PROPERTY_ID,
   locationBasePath = DEFAULT_LOCATION_BASE_PATH,
   cityBasePath = DEFAULT_CITY_BASE_PATH,
+  findStorageStyle = 'mega',
 }: NavigationBarProps) {
+  // Normalise so an unknown value from Duda falls back to the popup rather than
+  // a link that does nothing.
+  const useMega = findStorageStyle !== 'dropdown';
   // Logo destination, with Duda's editor url filtered out (see resolveLogoLink).
   const homeLink = resolveLogoLink(logoLink);
 
@@ -397,6 +409,32 @@ export function NavigationBar({
     () => (locationTree.length ? locationTree : demoLocationTree(locationBasePath, cityBasePath)),
     [locationTree, locationBasePath, cityBasePath],
   );
+
+  // Public window-event hook so ANY element on the Duda page — a Text link, an
+  // HTML/Embed widget, another button — can open, close, or toggle the Find
+  // Storage mega menu without reaching into React state or the trigger DOM.
+  //
+  //   window.dispatchEvent(new Event('tenantinc:find-storage:open'))
+  //   window.dispatchEvent(new Event('tenantinc:find-storage:close'))
+  //   window.dispatchEvent(new Event('tenantinc:find-storage:toggle'))
+  //
+  // Wired in BOTH mega and dropdown modes: even when the in-bar Find Storage
+  // link is the hover cascade, an external text/HTML element can still pop the
+  // mega panel. The mega menu component is always mounted below for the same
+  // reason.
+  useEffect(() => {
+    const open = () => setMegaOpen(true);
+    const close = () => setMegaOpen(false);
+    const toggle = () => setMegaOpen((o) => !o);
+    window.addEventListener('tenantinc:find-storage:open', open);
+    window.addEventListener('tenantinc:find-storage:close', close);
+    window.addEventListener('tenantinc:find-storage:toggle', toggle);
+    return () => {
+      window.removeEventListener('tenantinc:find-storage:open', open);
+      window.removeEventListener('tenantinc:find-storage:close', close);
+      window.removeEventListener('tenantinc:find-storage:toggle', toggle);
+    };
+  }, []);
 
   const displayPhone = livePhone?.phone || phone;
   const telHref = phoneHref ?? `tel:${(livePhone?.digits || displayPhone).replace(/[^0-9+]/g, '')}`;
@@ -472,7 +510,10 @@ export function NavigationBar({
   const navLinks = (
     <ul className="nav-links">
       {linkList.map((link) => {
-        const isFindStorage = link.label === FIND_STORAGE_LABEL;
+        // Only claim Find Storage for the mega popup when the editor has actually
+        // opted into it — otherwise Find Storage falls into the same hover cascade
+        // Storage Types / Resources use, driven by `link.menu`.
+        const isFindStorage = useMega && link.label === FIND_STORAGE_LABEL;
         const hasMenu = !!link.menu?.length && !isFindStorage;
         const isOpen = hasMenu && openLink === link.label;
         const activeItem = isOpen && subIndex != null ? link.menu![subIndex] : undefined;
@@ -674,8 +715,10 @@ export function NavigationBar({
         </div>
       </div>
 
-      {/* Find Storage mega menu — anchored to the bottom edge of the whole bar,
-          so it spans the full width regardless of which link opened it. */}
+      {/* Find Storage mega menu — always mounted so an external element (a
+          Duda Text link, an HTML/Embed widget) can pop it via the
+          `tenantinc:find-storage:*` window events even when the in-bar Find
+          Storage link is the hover cascade ('dropdown' mode). */}
       <FindStorageMegaMenu open={megaOpen} onClose={() => setMegaOpen(false)} tree={megaTree} />
 
       {/* Raised logo tile — absolutely positioned so it spans both bars and
