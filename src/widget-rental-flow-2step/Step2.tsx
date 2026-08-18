@@ -611,10 +611,17 @@ export function Step2({
           <RfCheckbox
             checked={agree}
             onChange={setAgree}
-            className={`rf2-agree-bar${bad('agree') ? ' rf2-agree-bar--error' : ''}`}
+            className="rf2-agree-bar"
           >
             <span className="rf2-agree-text"><b>I agree</b> to the terms and conditions as set out by the rental agreement.</span>
           </RfCheckbox>
+          {/* Says what is wrong instead of ringing the row in red. role="alert"
+              so it is announced when it appears, not silently drawn. */}
+          {bad('agree') && (
+            <p className="rf2-agree-error" role="alert">
+              You must accept the rental agreement to continue.
+            </p>
+          )}
         </section>
 
         {/* Payment */}

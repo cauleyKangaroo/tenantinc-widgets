@@ -897,7 +897,18 @@
 .rf-form-error { font-size: 14px; color: #b3261e; margin: 4px 0 0; }
 .rf2-field--error .rf2-field-input { border-color: #b3261e; }
 .rf2-field--error .rf2-field-label { color: #b3261e; }
-.rf2-agree-bar--error { outline: 2px solid #b3261e; outline-offset: 2px; border-radius: 6px; }
+/* Required-agreement message. Replaces a 2px red outline that used to ring the
+   whole row: it flagged that something was wrong without ever saying what, and
+   a box drawn around a single checkbox reads as a container, not an error.
+   Inset to 24px to match .rf2-agree-bar's gutter, so it lines up under the
+   label rather than under the checkbox. Colour is the same #b3261e the other
+   validation messages use (.rf-form-error). */
+.rf2-agree-error {
+  margin: 0 24px 16px;
+  font-size: 14px;
+  line-height: 18px;
+  color: #b3261e;
+}
 
 /* --- Payment finalizing interstitial (screen 10 / m06) ------------------- */
 .rf-interstitial-overlay {
