@@ -28,19 +28,11 @@
 .rf-heading { margin: 0; font-size: 36px; font-weight: 600; line-height: 1.05; color: #101318; }
 
 /* ── "Renting as a business" checkbox ──────────────────────────────────── */
+/* Layout only. The box's own skin comes from .rf-check (see RfCheckbox).
+   The old .rf-checkbox / .rf-business--checked / .rf-business-label rules are
+   gone: this row renders the shared Checkbox now, so they matched nothing and
+   were quietly describing an orange box no one could see. */
 .rf-business { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; cursor: pointer; user-select: none; }
-.rf-business input { position: absolute; width: 0; height: 0; opacity: 0; }
-.rf-checkbox {
-  flex: 0 0 auto;
-  width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  border: 2px solid #c4cdd5;
-  border-radius: 4px;
-  color: #fff;
-}
-.rf-business--checked .rf-checkbox { background: var(--color_1, #f45f30); border-color: var(--color_1, #f45f30); }
-.rf-business input:focus-visible + .rf-checkbox { outline: 2px solid var(--color_1, #f45f30); outline-offset: 2px; }
-.rf-business-label { font-size: 16px; line-height: 18px; color: #101318; }
 
 /* ── Form ──────────────────────────────────────────────────────────────── */
 .rf-form { display: flex; flex-direction: column; gap: 20px; }
@@ -254,14 +246,31 @@
 .rf2-rowhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
 /* Protection plan option */
+/* Anchors the dropdown; the menu is absolute against this. */
+.rf2-plan-wrap { position: relative; }
+
 .rf2-plan {
   display: flex; align-items: stretch;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   background: #fff;
   border: 2px solid var(--color_2, #509e2f);
   border-radius: 4px;
   box-shadow: 0 4px 5px rgba(71, 84, 116, 0.1);
   overflow: hidden;
 }
+/* HOST-THEME GUARD: the control is a <button> now, and a bare
+   `button:hover { background }` on the host page (the dev harness has one, and
+   Duda themes do too) is 0,1,1 — it would beat this 0,1,0 rule and tint the
+   whole card on hover. Same defence as #06's info icon. */
+.rf2-plan,
+.rf2-plan:hover,
+.rf2-plan:focus,
+.rf2-plan:active { background: #fff !important; }
+.rf2-plan:focus-visible { outline: 2px solid var(--color_2, #509e2f); outline-offset: 2px; }
 .rf2-plan-body { flex: 1 1 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 20px; min-width: 0; }
 .rf2-plan-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .rf2-plan-cov { font-size: 18px; color: #101318; white-space: nowrap; }
@@ -270,16 +279,132 @@
 .rf2-plan-price { display: flex; align-items: baseline; gap: 2px; white-space: nowrap; }
 .rf2-plan-price b { font-size: 20px; font-weight: 600; }
 .rf2-plan-price span { font-size: 14px; font-weight: 600; }
+/* The chevron cell's width is shared with the dropdown below, which stops at
+   this cell's left edge rather than running the full control width. */
+.rf2-plan-wrap { --rf2-chev-cell: 52px; }
+
 .rf2-plan-drop {
-  flex: 0 0 auto; width: 52px;
+  flex: 0 0 auto; width: var(--rf2-chev-cell);
   display: flex; align-items: center; justify-content: center;
-  background: #fff; border: none; border-left: 1px solid #dfe3e8;
+  background: #fff; border: none;
+  /* GREEN, matching the control's own border — the frame draws this divider in
+     #509E2F (Figma 8508-32281), not the grey hairline used between list rows. */
+  border-left: 2px solid var(--color_2, #509e2f);
   color: #101318; cursor: pointer;
 }
-.rf2-chev-down { transform: rotate(90deg); }
+.rf2-chev-down { transform: rotate(90deg); transition: transform 0.15s; }
+.rf2-chev-up { transform: rotate(-90deg); }
+/* Shown in the closed control when "I have my own insurance" is the choice. */
+.rf2-plan-own-sel { font-size: 18px; font-weight: 600; color: #101318; }
+
+/* ── Plan dropdown (Figma 8508-32894) ──────────────────────────────────── */
+/* Absolute + z-index so the list overlays what follows instead of pushing the
+   rest of the form down each time it opens. */
+.rf2-plan-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  /* Stops at the chevron cell's left edge, not the control's right edge — the
+     list is as wide as the CONTENT area only. +2px for the control's own
+     border, which sits outside the cell. */
+  right: calc(var(--rf2-chev-cell) + 2px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  box-shadow: 0 4px 5px rgba(71, 84, 116, 0.1);
+}
+
+.rf2-plan-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 4px 8px;
+  font: inherit;
+  text-align: left;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+/* Divider as its own row in the gap-8 column, matching the frame — so there is
+   8px above AND below each line. Drawing it as a border-top on the next option
+   instead put the line flush against that row and, because it needed
+   `border-radius: 0` to avoid a kinked corner, silently removed the 4px radius
+   from the Best Value row. */
+.rf2-plan-sep {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: #dfe3e8;
+}
+
+/* The operator's flagged plan sits on the brand tint at 8%, with its own 8px
+   inset and 4px radius (the plain rows are 4px 8px and square). */
+.rf2-plan-opt--best { background: #f1f7ee; padding: 8px; border-radius: 4px; }
+
+.rf2-plan-opt:hover { background: #f4f6f8; }
+.rf2-plan-opt--best:hover { background: #e9f2e4; }
+
+.rf2-plan-opt-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* 16px/14px here, against the closed control's 18px — the frame sizes the list
+   smaller than the summary it collapses into. */
+.rf2-plan-opt-cov { font-size: 14px; color: #101318; white-space: nowrap; }
+.rf2-plan-opt-cov b { font-size: 16px; font-weight: 700; }
+.rf2-plan-best--sm { font-size: 12px; padding: 8px; }
+
+/* "I have my own insurance" — a declaration, not a product, so it stacks and
+   carries no price. */
+.rf2-plan-opt--own { flex-direction: column; align-items: flex-start; gap: 4px; }
+.rf2-plan-own-t { font-size: 16px; font-weight: 600; color: #101318; }
+.rf2-plan-own-d { font-size: 12px; font-weight: 400; line-height: 1.4; color: #101318; white-space: normal; }
 
 /* Additional Information toggles */
+/* 4px is the frame's own gap (8507-23354) and was already correct — the rows
+   read tight because of the BOX, not the gap. Figma draws an 18px box inside a
+   24px row, leaving ~3px above and below it, so consecutive boxes are ~10px
+   apart. The shared Checkbox's box is 24px and fills its row edge to edge,
+   leaving only the 4px gap between them.
+   Shrinking the box rather than widening the gap keeps the frame's 28px row
+   pitch — a bigger gap would have matched the whitespace but pushed the section
+   taller than the design. */
 .rf2-checks { display: flex; flex-direction: column; gap: 4px; }
+
+/* Step-2 checkbox skin (Figma 8507-23354). The shared Checkbox is built for the
+   form kit — an 8px radius, an #a5b4bf resting border and a GREEN (--hb-cta)
+   fill when on. This design wants a near-square, lighter-outlined box that
+   fills NEAR-BLACK, which is what the Check helper's "dark-fill" name has
+   always claimed. Scoped to .rf2-check, so the shared component is unchanged
+   for every other widget. */
+.rf-check .hb-check__box {
+  border-radius: 2px;
+  border-color: #dfe3e8;
+}
+/* Both classes sit on the same root element, hence the compound selector. */
+.rf-check.hb-check--on .hb-check__box {
+  background: #101318;
+  border-color: #101318;
+}
+
+/* 18px box for EVERY checkbox in the flow — the Additional Information size
+   (8507-23354), not the kit's 24px. Merged into .rf-check rather than kept as a
+   --sm variant: one size everywhere is the point.
+   The 3px margin preserves a 24px footprint, so shrinking the box does not move
+   label baselines or change the 28px row pitch. */
+.rf-check .hb-check__box {
+  width: 18px;
+  height: 18px;
+  margin: 3px;
+}
+/* No CSS sizing for the tick: RfCheckbox passes it in already sized, and the
+   design's mark is 13.41x10.12 — not square. Forcing width == height here would
+   stretch it. */
 .rf2-checkline { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .rf2-checkline input { position: absolute; width: 0; height: 0; opacity: 0; }
 .rf2-box {
@@ -305,9 +430,68 @@
 
 /* Payment */
 .rf2-payment { gap: 22px; }
-.rf2-autopay { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 10px; padding: 20px 30px; }
+/* Enrolled → 2px green outline (Figma 8508-34363).
+   The border is always PRESENT and merely transparent when off, with the
+   padding reduced by the same 2px, so selecting it recolours the outline
+   without changing the row's size or nudging the label across. */
+.rf2-autopay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 18px 28px;
+}
+.rf2-autopay--on { border-color: var(--color_2, #509e2f); }
 .rf2-autopay-label { font-size: 16px; font-weight: 600; color: #101318; }
-.rf2-autopay-info { color: #101318; flex: 0 0 auto; }
+/* The (i) is a real button now (it opens the tooltip), so it needs the button
+   reset AND the host-theme guard — a bare `button:hover { background }` on the
+   host page is 0,1,1 and would put a grey chip behind the icon. */
+.rf2-autopay-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  color: #101318;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.rf2-autopay-info,
+.rf2-autopay-info:hover,
+.rf2-autopay-info:focus,
+.rf2-autopay-info:active { background: none !important; }
+.rf2-autopay-info:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
+
+/* ── Autopay tooltip (Figma 8509-34934) ─────────────────────────────────── */
+/* The anchor is the ICON's box, so the tooltip can be placed against the icon's
+   centre rather than the row. inline-flex keeps it from adding line-box height. */
+.rf2-tip-anchor {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* Positioned per the brief: the tooltip's BOTTOM-LEFT corner sits at the middle
+   of the (i). bottom/left 50% of the anchor is the icon's centre, so the box
+   grows up and to the right from that point. */
+.rf2-tip {
+  position: absolute;
+  bottom: 50%;
+  left: 50%;
+  z-index: 30;
+  width: 200px;              /* 176px text column + the 12px side padding */
+  padding: 8px 12px;
+  background: #101318;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.3;
+  /* Elevation / 2 - Dropdown, both layers. */
+  box-shadow: 0 1.5px 2px -1px rgba(0, 0, 0, 0.5), 0 1px 2px 1px rgba(11, 11, 11, 0.05);
+}
 .rf2-paygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .rf2-pay {
   height: 64px;
@@ -328,7 +512,8 @@
   .rf2-row { flex-direction: column; }
   .rf2-movein { max-width: none; }
   .rf2-panel, .rf2-payment { padding: 20px; }
-  .rf2-autopay { padding: 16px 20px; }
+  /* Also less the 2px border, matching the base rule. */
+  .rf2-autopay { padding: 14px 18px; }
   .rf2-agree-head { padding: 20px 20px 16px; }
   .rf2-agree-doc { margin: 0 16px; }
   .rf2-paygrid { grid-template-columns: 1fr; }

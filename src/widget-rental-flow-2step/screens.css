@@ -482,3 +482,106 @@
   .rf-sx-idv { padding: 20px; }
   .rf-sx-illus { flex: 1 1 100%; }
 }
+
+/* ── Rental Agreement lightbox (Figma 8507-23558) ───────────────────────── */
+/* Sits in the shared .rf-overlay, same as the protection-plan lightbox. */
+.rf2-lease {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(752px, 100%);
+  max-height: calc(100vh - 48px);
+  background: #f4f6f8;
+  border: 1px solid #dfe3e8;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.rf2-lease-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 30px 38px 20px;
+}
+.rf2-lease-title { margin: 0; font-size: 20px; font-weight: 700; color: #000; }
+.rf2-lease-close {
+  flex: 0 0 auto;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; border: none; background: none; border-radius: 4px;
+  color: #101318; cursor: pointer;
+}
+/* Host themes style bare `button:hover` at 0,1,1 and would tint this; same
+   guard as the widget's other icon buttons. */
+.rf2-lease-close,
+.rf2-lease-close:hover,
+.rf2-lease-close:focus,
+.rf2-lease-close:active { background: none !important; }
+.rf2-lease-close:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
+
+/* The scrolling viewport. The document is the only thing that scrolls — the
+   header and the agree bar stay put, so the checkbox is always reachable. */
+.rf2-lease-view {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 0 38px 24px;
+  background: #f4f6f8;
+}
+.rf2-lease-doc {
+  /* top center: zooming grows the page downward rather than drifting it out
+     of the viewport sideways. */
+  transform-origin: top center;
+  transition: transform 0.12s ease-out;
+  background: #fff;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  padding: 40px;
+}
+
+/* Floating zoom pill, bottom-left of the card. */
+.rf2-lease-zoom {
+  position: absolute;
+  left: 19px;
+  bottom: 94px;              /* clears the 78px agree bar */
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 40px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #f4f6f8;
+  border-radius: 99px;
+  box-shadow: 0 4px 5px rgba(71, 84, 116, 0.1);
+}
+.rf2-lease-zoom button {
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; border: none; background: none;
+  font-size: 20px; line-height: 1; color: #101318; cursor: pointer;
+}
+.rf2-lease-zoom button:disabled { color: #c4cdd5; cursor: default; }
+.rf2-lease-zoom button,
+.rf2-lease-zoom button:hover,
+.rf2-lease-zoom button:focus,
+.rf2-lease-zoom button:active { background: none !important; }
+
+/* Agree bar — pinned, 78px, rounded to the card's bottom corners. */
+.rf2-lease-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  min-height: 78px;
+  padding: 16px 30px;
+  background: #f4f6f8;
+  border-top: 1px solid #dfe3e8;
+}
+
+@media (max-width: 640px) {
+  .rf2-lease-head { padding: 20px 20px 12px; }
+  .rf2-lease-view { padding: 0 16px 16px; }
+  .rf2-lease-doc { padding: 20px; }
+  .rf2-lease-foot { padding: 12px 16px; }
+  .rf2-lease-zoom { left: 12px; bottom: 88px; }
+}

@@ -35,6 +35,7 @@ import { slugLabel } from '@shared/propertyNav';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { fetchGoogleRatingsByPlace, ratingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
+import { Shimmer } from '@shared/Shimmer';
 import cfg from './config.json';
 import { useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { FilterIcon, ChevronBigDownIcon, SortIcon, StarIcon, TagIcon, MapLocationIcon } from './icons';
@@ -285,6 +286,93 @@ function PropertyCard({
         )}
       </div>
     </article>
+  );
+}
+
+// ── Loading placeholders ────────────────────────────────────────────────────
+
+/**
+ * One card-shaped placeholder.
+ *
+ * It reuses PropertyCard's OWN class names rather than approximating the layout
+ * with free-standing bars. That is what keeps the swap free of layout shift:
+ * every container contributes its real geometry from the stylesheet — the head's
+ * fixed 234px, the body's 24px padding and 16px gap, each row's 10px padding and
+ * 1px rule — so only the leaf blocks need a height, and those are taken from the
+ * type they stand in for rather than guessed:
+ *
+ *   .ml-unit-info    19 (dims, 16px/normal) + 16 (subtype, 12px/16px)  = 35
+ *   .ml-unit-prices  max(12 + 24 price stack, 33 select)               = 36
+ *   .ml-unit         10 + max(35, 36) + 10 + 1px rule                  = 57
+ *   .ml-card-foot    19 ("See All Spaces", 16px/normal)                = 19
+ *   card             234 + 48 + 16 + 3x57 + 19 + 8px border            = 496
+ *
+ * An earlier version sized these by eye and ran ~22px tall per card, which is
+ * the shift this replaces. If the card's type scale changes, the numbers above
+ * are the ones to revisit.
+ *
+ * Composed from @shared/Shimmer rather than new CSS, per that module's header:
+ * each widget is its own bundle, so a skeleton carrying its own class names would
+ * need the same rules copied into every stylesheet. It also inherits Shimmer's
+ * `prefers-reduced-motion` handling, which MapLocations.css has nowhere of its own.
+ */
+function CardSkeleton({ compact }: { compact: boolean }) {
+  return (
+    <article className="ml-card" aria-hidden="true">
+      {/* `.ml-card-head` is a fixed 234px and clips to the card's 16px radius. */}
+      <div className="ml-card-head">
+        <Shimmer w="100%" h="100%" r={0} />
+      </div>
+      <div className="ml-card-body">
+        {compact ? (
+          /* The mobile card collapses its rows into one CTA (33px), so the
+             placeholder has to as well or the phone layout jumps instead. */
+          <Shimmer w="100%" h={33} r={4} />
+        ) : (
+          <>
+            <div className="ml-units">
+              {[0, 1, 2].map((i) => (
+                <div className="ml-unit" key={i}>
+                  <div className="ml-unit-info">
+                    <Shimmer w={86} h={19} />
+                    <Shimmer w={104} h={16} />
+                  </div>
+                  <div className="ml-unit-prices">
+                    <Shimmer w={64} h={36} />
+                    <Shimmer w={78} h={33} r={4} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="ml-card-foot">
+              <Shimmer w={132} h={19} />
+              <Shimmer w={92} h={19} />
+            </div>
+          </>
+        )}
+      </div>
+    </article>
+  );
+}
+
+/**
+ * The listing column while the first /properties call is in flight.
+ *
+ * THREE cards, deliberately more than a small city returns: per the note in #15
+ * blogs-page, over-reserving collapses the column on arrival while
+ * under-reserving pushes the rest of the page down, and the second is the more
+ * expensive mistake.
+ *
+ * No initial-delay grace period (unlike #06/#12/#15): this widget's properties
+ * call measures ~430ms, so holding the skeleton back 200ms would only add a
+ * third visible state — the same reasoning #03 records for its own load.
+ */
+function CitySkeleton({ compact, count = 3 }: { compact: boolean; count?: number }) {
+  return (
+    <>
+      {Array.from({ length: count }, (_, i) => <CardSkeleton key={i} compact={compact} />)}
+      <span className="ml-sr-only" role="status">Loading storage facilities…</span>
+    </>
   );
 }
 
@@ -579,10 +667,19 @@ export function MapLocations({
     return () => { cancelled = true; };
   }, []);
 
-  // Stage 1: the city's properties paint as soon as /properties returns.
-  // Stage 2: each card fills in its spaces as its space-groups call resolves,
-  // so one slow (or 404ing) property can't hold up the rest. Same shape as
-  // #05's NearbySection.
+  // Both calls complete before anything paints: a card is rendered whole or not
+  // at all.
+  //
+  // This used to be staged — properties first, then each card's spaces filling in
+  // behind it (the shape #05's NearbySection still uses). That painted a card
+  // with its photo, name and address but no unit rows, which then grew by ~171px
+  // when its own space-groups call landed, seconds later. The skeleton removed
+  // the demo-data flash but not that expansion, because `loading` was already
+  // false by then.
+  //
+  // The cost is a longer skeleton: `/space-groups/…/groups` measures 1.0–3.6s per
+  // property (2026-08-17). They run in parallel, so the slowest one gates the
+  // paint rather than the sum. The benefit is that nothing moves once it appears.
   useEffect(() => {
     if (!resolvedCompanyId) return;
     let cancelled = false;
@@ -602,16 +699,16 @@ export function MapLocations({
         if (cancelled) return;
 
         const ref = userLoc ?? null;
-        setLiveFacilities(cityProps.map((p) => toCityFacility(p, [], undefined, ref)));
 
-        cityProps.forEach((p) => {
-          fetchCitySpaces(api, p.id).then(({ promo, spaces }) => {
-            if (cancelled) return;
-            setLiveFacilities((prev) => prev
-              ? prev.map((f) => (f.id === p.id ? toCityFacility(p, spaces, promo, ref) : f))
-              : prev);
-          });
-        });
+        // `fetchCitySpaces` never rejects — every failure path inside it returns
+        // `{ spaces: [] }` — so one property 404ing yields a card with no unit
+        // rows rather than failing the whole batch here.
+        const withSpaces = await Promise.all(
+          cityProps.map((p) => fetchCitySpaces(api, p.id)
+            .then(({ promo, spaces }) => toCityFacility(p, spaces, promo, ref))),
+        );
+        if (cancelled) return;
+        setLiveFacilities(withSpaces);
       } catch (err) {
         console.error('[MapLocations] load error:', err);
         if (!cancelled) setLiveFacilities([]);
@@ -626,11 +723,14 @@ export function MapLocations({
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
 
   const loading = liveFacilities === null;
-  // Demo data stands in ONLY before the first response, so the editor and the
-  // harness aren't looking at an empty frame. Once the load settles, an empty
-  // city is shown as empty — silently falling back to three invented facilities
-  // would look like a working page for a city we have nothing in.
-  const sourceFacilities = liveFacilities ?? CITY_FACILITIES;
+  // Nothing stands in before the first response — the column renders skeletons
+  // instead (see CitySkeleton). Demo facilities used to fill this gap, but they
+  // carry invented names, addresses, prices and coordinates, so the page painted
+  // a plausible-looking city and then replaced it wholesale a few hundred
+  // milliseconds later. That is the exact swap @shared/Shimmer's header rules
+  // out: skeletons while loading, real constants only as an EMPTY-result
+  // fallback. Once the load settles an empty city is still shown as empty.
+  const sourceFacilities = liveFacilities ?? [];
 
   const filtered = useMemo(
     () => filterFacilities(sourceFacilities, filters),
@@ -868,14 +968,22 @@ export function MapLocations({
           </div>
 
           <p className="ml-heading">
-            {facilities.length} Self Storage {facilities.length === 1 ? 'Facility' : 'Facilities'} in {cityLabel}
+            {/* The count is unknown until the response lands; "0 Self Storage
+                Facilities in Fullerton" reads as a finished, empty page. */}
+            {loading
+              ? <Shimmer w={28} h={20} style={{ display: 'inline-block', verticalAlign: '-3px' }} />
+              : facilities.length}
+            {' '}Self Storage {facilities.length === 1 ? 'Facility' : 'Facilities'} in {cityLabel}
           </p>
         </>
       ) : (
         /* Desktop — count on the left, Filter + sort pills on the right. */
         <div className="ml-header">
           <p className="ml-heading">
-            {facilities.length} Storage {facilities.length === 1 ? 'Facility' : 'Facilities'} in {cityLabel}
+            {loading
+              ? <Shimmer w={28} h={20} style={{ display: 'inline-block', verticalAlign: '-3px' }} />
+              : facilities.length}
+            {' '}Storage {facilities.length === 1 ? 'Facility' : 'Facilities'} in {cityLabel}
           </p>
           <div className="ml-controls">
             <button
@@ -934,7 +1042,7 @@ export function MapLocations({
       <div className="ml-row">
         {showCards && (
           <div className="ml-cards">
-            {facilities.map((f, i) => (
+            {loading ? <CitySkeleton compact={isMobile} /> : facilities.map((f, i) => (
               <PropertyCard
                 key={f.id}
                 facility={f}
@@ -972,16 +1080,29 @@ export function MapLocations({
 
         {/* The map needs at least one property with real coordinates. Without
             any it is omitted entirely rather than rendered blank or centred on
-            null island — the list is still perfectly usable. */}
-        {showMap && hasMap && (
+            null island — the list is still perfectly usable.
+
+            While loading it holds its place with a placeholder: no facility is
+            plottable yet, so `hasMap` is false and the column would otherwise
+            appear only once the response lands, shifting the whole row. The
+            placeholder fills `.ml-map`, which already owns the height (a min()
+            of `--ml-row-h` and the viewport) and clips to its own 16px radius. */}
+        {showMap && (loading || hasMap) && (
           <div className="ml-map">
-            <NearbyMap
-              center={center}
-              points={points}
-              height="100%"
-              renderPin={renderPin}
-              hideCenterMarker
-            />
+            {/* `!center` rather than `loading` alone so the centre is narrowed
+                to non-null for NearbyMap; the outer guard makes the two
+                equivalent, but only this form proves it. */}
+            {loading || !center ? (
+              <Shimmer w="100%" h="100%" r={0} />
+            ) : (
+              <NearbyMap
+                center={center}
+                points={points}
+                height="100%"
+                renderPin={renderPin}
+                hideCenterMarker
+              />
+            )}
           </div>
         )}
       </div>

@@ -85,6 +85,17 @@ export interface DateModalProps {
   busy?: boolean;
   /** Earliest selectable day. Defaults to today; days before are disabled. */
   minDate?: Date;
+  /**
+   * Confirm button fill. Defaults to 'solid'. The reserve flow uses 'outline'
+   * so the softer commitment reads as the softer control (Figma 8507-23907).
+   */
+  ctaFill?: 'solid' | 'outline';
+  /**
+   * Optional line under the confirm button — e.g. the reserve modal's
+   * "Save Time and Money! Rent Now" nudge across to renting. A node, not a
+   * string, because it carries an interactive control.
+   */
+  footer?: React.ReactNode;
 }
 
 export function DateModal({
@@ -93,6 +104,8 @@ export function DateModal({
   ctaLabel = 'Rent Today',
   busy = false,
   minDate,
+  ctaFill = 'solid',
+  footer,
 }: DateModalProps) {
   // Esc to close + lock background scroll while open.
   useEffect(() => {
@@ -140,7 +153,8 @@ export function DateModal({
             <MonthCalendar year={nextYear} month={nextMonth} selected={selected} minDate={floor} onSelect={onSelect} />
           </div>
           <div className="hb-datemodal-cta">
-            <Button tone="cta" block busy={busy} onClick={onConfirm}>{ctaLabel}</Button>
+            <Button tone="cta" fill={ctaFill} block busy={busy} onClick={onConfirm}>{ctaLabel}</Button>
+            {footer && <div className="hb-datemodal-foot">{footer}</div>}
           </div>
         </div>
       </div>
