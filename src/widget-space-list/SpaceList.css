@@ -3389,6 +3389,35 @@
   text-align: center;
 }
 
+/* ── "See all blogs" (Local Blogs section only) ──────────────────────────
+   Sits under the pagination and leads to the blog listing page pre-filtered to
+   this property's category. A filled CTA rather than the plain text links used
+   inside the card, because it leaves the property page. */
+.sl-wrapper .sl-blog2-see-all-row {
+  display: flex;
+  justify-content: center;
+  padding: 4px 28px 24px;
+}
+
+.sl-wrapper .sl-blog2-see-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: 8px;
+  background: var(--color_1, #f45f30);
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sl-wrapper .sl-blog2-see-all:hover {
+  background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black);
+  color: #fff;
+}
+
 /* ── Skeleton (while the BlogPosts collection read is in flight) ── */
 .sl-wrapper .sl-blog2-skeleton { pointer-events: none; }
 .sl-wrapper .sl-blog2-sk-line,
