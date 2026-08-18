@@ -18,7 +18,7 @@
 // ===========================================================================
 
 import React, { useState } from 'react';
-import { FormField } from '@shared/ui';
+import { FormField, CheckIcon } from '@shared/ui';
 import { Shimmer } from '@shared/Shimmer';
 import { BankIcon, CreditCardIcon, CheckTick, InfoIcon } from './icons';
 import { ChevronBig } from './planIcons';
@@ -33,6 +33,61 @@ const money = (n: number) => `$${n.toFixed(2)}`;
  * the same box for selects and text inputs, distinguished only by the chevron,
  * so this keeps them visually identical by construction.
  */
+/* ---------------------------------------------------------------------------
+ * Validation (Figma 10080-28126: 1px #028a0c border + a check tick at 24px).
+ *
+ * Two success treatments, deliberately:
+ *   ok()      — green border AND the tick. Plain text fields.
+ *   okQuiet() — green border ONLY. For fields whose icon slot is already
+ *               occupied: the location selects (chevron), and anything with an
+ *               info or search affordance. Two icons in one slot is what put
+ *               the "2 chevrons" on Billing Country.
+ * ------------------------------------------------------------------------ */
+const ok = (valid: boolean) => (valid ? 'success' as const : 'default' as const);
+const okQuiet = (valid: boolean) => (valid ? 'rf-valid' : undefined);
+
+const digits = (v: string) => v.replace(/\D/g, '');
+
+/* Field lengths. Every onChange strips non-digits before it reaches state, so
+   letters can never be typed into the row in the first place — there is no
+   "invalid character" state to render because the character never lands. */
+const CARD_DIGITS = 16;
+const EXPIRY_DIGITS = 4;
+const CVV_DIGITS = 3;
+/** 13–19 digits covers every brand we accept; the row does not brand-detect. */
+const validCard = (v: string) => digits(v).length === CARD_DIGITS;
+const validCvv = (v: string) => digits(v).length === CVV_DIGITS;
+const validRouting = (v: string) => digits(v).length === 9;
+const filled = (v: string) => v.trim().length > 0;
+
+/**
+ * Why an expiry is unusable, or undefined when it is fine — a reason rather
+ * than a bare boolean, so the row can say WHAT is wrong instead of only
+ * turning red.
+ *
+ * Silent until all four digits are in: complaining that "08" is expired while
+ * someone is still typing the year would be wrong on nearly every card.
+ *
+ * A card is valid THROUGH its printed month, so the current month passes and
+ * only an earlier one fails. Two-digit years are read as 20xx, which is the
+ * industry assumption — no card carries a 70-year expiry.
+ */
+function expiryError(v: string): string | undefined {
+  const d = digits(v);
+  if (d.length < EXPIRY_DIGITS) return undefined;
+  const mm = Number(d.slice(0, 2));
+  const yy = Number(d.slice(2));
+  if (mm < 1 || mm > 12) return 'Enter a valid expiry month (01\u201312).';
+  const now = new Date();
+  const curYY = now.getFullYear() % 100;
+  const curMM = now.getMonth() + 1;
+  if (yy < curYY || (yy === curYY && mm < curMM)) {
+    return 'Please check the expiry date on this card.';
+  }
+  return undefined;
+}
+const validExpiry = (v: string) => digits(v).length === EXPIRY_DIGITS && !expiryError(v);
+
 function SelectField({
   label, value, onChange, options, required, state,
 }: {
@@ -56,12 +111,17 @@ function SelectField({
           styling, while the real <select> above sits transparently over it so the
           native picker (and mobile wheel) still does the work. */}
       <div className="rf-select-face" aria-hidden="true">
+        {/* state is NOT forwarded: the kit draws a check tick for 'success',
+            which would land on top of the chevron below — that pair is what
+            read as "two chevrons" on Billing Country. The valid look here is
+            the green border alone, exactly as the frame has it (its Icons slot
+            is empty). */}
         <FormField
           label={label}
           required={required}
           value={value}
           onChange={() => {}}
-          state={state}
+          className={state === 'success' ? 'rf-valid' : undefined}
         />
         <ChevronBig size={24} className="rf-select-chev" />
       </div>
@@ -106,25 +166,38 @@ export function BankForm({ total, onPay }: { total: number; onPay: () => void })
   return (
     <>
       <div className="rf-pay-grid">
-        <FormField label="First Name" required value={first} onChange={setFirst} autoComplete="given-name" />
-        <FormField label="Last Name" required value={last} onChange={setLast} autoComplete="family-name" />
+        <FormField label="First Name" required value={first} onChange={setFirst} autoComplete="given-name" state={ok(filled(first))} />
+        <FormField label="Last Name" required value={last} onChange={setLast} autoComplete="family-name" state={ok(filled(last))} />
 
         <SelectField
           label="Account Type" required value={accountType} onChange={setAccountType}
           options={['Checking', 'Savings']}
+          state={ok(filled(accountType))}
         />
         <FormField
           label="Routing Number" required value={routing} onChange={setRouting}
           infoTitle="The 9-digit number on the bottom left of your cheque"
+          className={okQuiet(validRouting(routing))}
         />
 
-        <FormField label="Account Number" required value={account} onChange={setAccount} />
+        {/* Masked by default with an eye toggle (Figma 10080-28132 / -28133).
+            type="password" is the shared field's own reveal: it starts hidden,
+            swaps the input to text on click, and already ships the frame's exact
+            eye-on / eye-off artwork — the paths are byte-identical to the
+            exports, so there was nothing to re-trace. */}
         <FormField
-          label="Confirm Account Number" required value={confirm} onChange={setConfirm}
+          label="Account Number" required type="password"
+          value={account} onChange={setAccount}
+          state={ok(digits(account).length >= 4)}
+        />
+        <FormField
+          label="Confirm Account Number" required type="password"
+          value={confirm} onChange={setConfirm}
           // Only complain once there's enough typed to be a real mismatch, not on
           // the first keystroke of the second field.
           error={confirm && account && confirm !== account ? 'Account numbers do not match' : undefined}
           infoTitle="Re-enter to confirm"
+          className={okQuiet(digits(account).length >= 4 && confirm === account)}
         />
 
         <SelectField
@@ -132,7 +205,8 @@ export function BankForm({ total, onPay }: { total: number; onPay: () => void })
           options={['United States', 'Canada']}
           state={country ? 'success' : 'default'}
         />
-        <FormField label="Billing Address" required type="search" value={address} onChange={setAddress} autoComplete="street-address" />
+        {/* Search affordance owns the icon slot — border only. */}
+        <FormField label="Billing Address" required type="search" value={address} onChange={setAddress} autoComplete="street-address" className={okQuiet(filled(address))} />
       </div>
 
       <button type="button" className="rf-paynow" onClick={onPay}>
@@ -150,13 +224,18 @@ export function CardForm({ total, onPay }: { total: number; onPay: () => void })
   const [country, setCountry] = useState('United States');
   const [zip, setZip] = useState('');
 
+  /* The row is one bordered box holding three inputs, so it turns green as a
+     unit rather than per-input — there is only one border to turn. */
+  const cardRowValid = validCard(number) && validExpiry(expiry) && validCvv(cvv);
+  const expError = expiryError(expiry);
+
   /** "1234567812345678" → "1234 5678 1234 5678" as it's typed. */
   const onNumber = (v: string) =>
-    setNumber(v.replace(/\D/g, '').slice(0, 19).replace(/(.{4})/g, '$1 ').trim());
+    setNumber(v.replace(/\D/g, '').slice(0, CARD_DIGITS).replace(/(.{4})/g, '$1 ').trim());
 
   /** "1226" → "12 / 26". */
   const onExpiry = (v: string) => {
-    const d = v.replace(/\D/g, '').slice(0, 4);
+    const d = v.replace(/\D/g, '').slice(0, EXPIRY_DIGITS);
     setExpiry(d.length > 2 ? `${d.slice(0, 2)} / ${d.slice(2)}` : d);
   };
 
@@ -168,38 +247,63 @@ export function CardForm({ total, onPay }: { total: number; onPay: () => void })
         would mean fighting its internals. Same tokens, so it sits flush with the
         real form fields above and below it.
       */}
-      <div className="rf-cardrow">
+      <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${expError ? ' rf-cardrow--error' : ''}`}>
         <CreditCardIcon size={24} className="rf-cardrow-ico" />
-        <input
-          className="rf-cardrow-input rf-cardrow-number"
-          value={number}
-          onChange={(e) => onNumber(e.target.value)}
-          placeholder="Card Number *"
-          inputMode="numeric"
-          autoComplete="cc-number"
-          aria-label="Card Number (required)"
-        />
-        <input
-          className="rf-cardrow-input rf-cardrow-exp"
-          value={expiry}
-          onChange={(e) => onExpiry(e.target.value)}
-          placeholder="MM / YY *"
-          inputMode="numeric"
-          autoComplete="cc-exp"
-          aria-label="Card expiry, MM / YY (required)"
-        />
-        <input
-          className="rf-cardrow-input rf-cardrow-cvv"
-          value={cvv}
-          onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
-          placeholder="CVV *"
-          inputMode="numeric"
-          autoComplete="cc-csc"
-          aria-label="Card security code (required)"
-        />
-      </div>
 
-      <FormField label="Name on Card" required value={name} onChange={setName} autoComplete="cc-name" />
+        {/*
+          Each cell floats its own label, the same way the FormFields below do —
+          the label rises and STAYS above the value instead of vanishing on the
+          first keystroke. Input before label in the DOM so the CSS sibling
+          selector can key off :placeholder-shown, and placeholder=" " (a space)
+          so that pseudo-class is reliable. Exactly the kit's mechanism; see
+          FormField.css.
+        */}
+        <span className="rf-cardcell rf-cardcell--number">
+          <input
+            className="rf-cardrow-input"
+            value={number}
+            onChange={(e) => onNumber(e.target.value)}
+            placeholder=" "
+            inputMode="numeric"
+            autoComplete="cc-number"
+            aria-label="Card Number (required)"
+          />
+          <label className="rf-cardcell-label">Card Number<span className="rf-req">*</span></label>
+        </span>
+
+        <span className="rf-cardcell rf-cardcell--exp">
+          <input
+            className="rf-cardrow-input"
+            value={expiry}
+            onChange={(e) => onExpiry(e.target.value)}
+            placeholder=" "
+            inputMode="numeric"
+            autoComplete="cc-exp"
+            aria-label="Card expiry, MM / YY (required)"
+          />
+          <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>
+        </span>
+
+        <span className="rf-cardcell rf-cardcell--cvv">
+          <input
+            className="rf-cardrow-input"
+            value={cvv}
+            onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, CVV_DIGITS))}
+            placeholder=" "
+            inputMode="numeric"
+            autoComplete="cc-csc"
+            aria-label="Card security code (required)"
+          />
+          <label className="rf-cardcell-label">CVV<span className="rf-req">*</span></label>
+        </span>
+
+        {/* One tick for the row, not three: the three inputs share a single
+            border, so they succeed as a unit (Figma 10080-28126). */}
+        {cardRowValid && <CheckIcon className="rf-cardrow-tick" />}
+      </div>
+      {expError && <p className="rf-cardrow-msg" role="alert">{expError}</p>}
+
+      <FormField label="Name on Card" required value={name} onChange={setName} autoComplete="cc-name" state={ok(filled(name))} />
 
       <div className="rf-pay-grid">
         <SelectField
@@ -207,7 +311,7 @@ export function CardForm({ total, onPay }: { total: number; onPay: () => void })
           options={['United States', 'Canada']}
           state={country ? 'success' : 'default'}
         />
-        <FormField label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code" />
+        <FormField label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code" state={ok(zip.trim().length >= 3)} />
       </div>
 
       <button type="button" className="rf-paynow" onClick={onPay}>

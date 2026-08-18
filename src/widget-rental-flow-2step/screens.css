@@ -350,7 +350,24 @@
   box-shadow: var(--hb-focus-ring);
 }
 .rf-cardrow-ico { flex-shrink: 0; color: var(--hb-grayscale-medium, #637381); }
+/* Each cell is its own labelled field inside the shared border. Geometry is
+   the kit's (FormField.css) rather than reinvented — the ask was for "the same
+   effect as the text input boxes", and those offsets are already proven in an
+   identical 56px box. */
+.rf-cardcell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  min-width: 0;
+}
+.rf-cardcell--number { flex: 1 1 auto; }
+.rf-cardcell--exp { flex: 0 0 88px; }
+.rf-cardcell--cvv { flex: 0 0 58px; }
+
 .rf-cardrow-input {
+  width: 100%;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -358,13 +375,54 @@
   background: transparent;
   color: var(--hb-field-text, #101318);
   font-family: inherit;
-  font-size: 16px;
-  line-height: 16px;
+  font-size: var(--hb-font-size-value, 16px);
+  line-height: var(--hb-line-height-value, 20px);
+  /* Value sits on the lower line, leaving room for the floated label above. */
+  margin-top: 15px;
+  text-overflow: ellipsis;
 }
-.rf-cardrow-input::placeholder { color: var(--hb-grayscale-medium, #637381); opacity: 1; }
-.rf-cardrow-number { flex: 1 1 auto; }
-.rf-cardrow-exp { flex: 0 0 88px; }
-.rf-cardrow-cvv { flex: 0 0 58px; }
+/* placeholder=" " must never paint — the label is the placeholder here. */
+.rf-cardrow-input::placeholder { color: transparent; }
+
+.rf-cardcell-label {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  transform-origin: left center;
+  color: var(--hb-field-label, #637381);
+  font-size: var(--hb-font-size-value, 16px);
+  line-height: var(--hb-line-height-value, 20px);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: transform var(--hb-transition, .15s ease), font-size var(--hb-transition, .15s ease);
+}
+/* Floated: focused, or holding a value. `:not(:placeholder-shown)` is what
+   makes autofill work — the browser fills without firing input events, but the
+   placeholder stops showing, so the label lifts anyway. */
+.rf-cardrow-input:focus + .rf-cardcell-label,
+.rf-cardrow-input:not(:placeholder-shown) + .rf-cardcell-label {
+  transform: translateY(-18px);
+  font-size: var(--hb-font-size-label, 12px);
+  line-height: var(--hb-line-height-label, 15px);
+}
+
+/* Valid card row — one border, so it turns green as a unit (Figma 10080-28126). */
+.rf-cardrow--valid { border-color: var(--hb-field-border-success, #028a0c); }
+.rf-cardrow-tick { flex: 0 0 auto; color: var(--hb-ada-green, #028a0c); }
+/* An expiry that is complete but unusable. */
+.rf-cardrow--error { border-color: var(--hb-field-border-error, #e53935); }
+.rf-cardrow-msg {
+  /* .rf-method-panel is a 20px flex column, so these siblings already sit 20px
+     apart; -16px pulls the message back to 4px under the row it belongs to. */
+  margin: -16px 0 0;
+  color: var(--hb-ada-red, #e53935);
+  font-size: var(--hb-font-size-label, 12px);
+  line-height: var(--hb-line-height-label, 15px);
+}
+
+
+.rf-valid .hb-field__box { border-color: var(--hb-field-border-success, #028a0c); }
 
 /* ── Success screen (8507-25408) ─────────────────────────────────────────── */
 

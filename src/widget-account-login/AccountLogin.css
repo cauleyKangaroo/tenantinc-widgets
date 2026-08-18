@@ -217,7 +217,7 @@
   height: 52px;
   padding: 14px 24px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--color_1, #f26500);
   color: #fff;
   font-family: 'Montserrat', sans-serif;

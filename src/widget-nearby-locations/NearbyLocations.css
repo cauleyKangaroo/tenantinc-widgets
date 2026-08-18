@@ -322,7 +322,7 @@
   height: 33px;
   width: 78px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s;

@@ -427,7 +427,7 @@ Pick the tone by **role**, not colour:
 |---|---|
 | `tone` | `cta` (default), `secondary`, `dark`, `light` |
 | `fill` | `solid` (default), `outline` — 2px bordered white box |
-| `shape` | `square` (default, 4px), `pill` (100px) |
+| `shape` | `square` (default, 8px), `pill` (100px) |
 | `darkText` | Black label on the brand fill — Figma's "(Black Text)" option |
 | `block` | Stretch to the container width |
 | `busy` | Spinner + blocks clicks. **Use this on anything that submits** — otherwise visitors double-click and file the lead twice. |

@@ -91,8 +91,27 @@ function FieldAbove({
   );
 }
 
-// Label-above select, visually matched to FieldAbove.
-function SelectAbove({
+/**
+ * Dropdown, built on the shared field's skin (Figma 8507-25490 / 8507-25502).
+ *
+ * The label belongs INSIDE the box, exactly as FieldAbove's <FormField> already
+ * puts it — the old label-above markup was what made these three controls the
+ * odd ones out in a form where every text input floats its label. So this
+ * reuses the kit's own `hb-field` classes rather than restyling a select from
+ * scratch: box, 56px height, 16px gutters, #A5B4BF border, focus ring, floated
+ * label and the red required marker all arrive from @shared/ui and cannot drift
+ * from the inputs sitting beside them.
+ *
+ * Two things a <select> cannot inherit:
+ *  - The kit floats its label off `:placeholder-shown`, which a select never
+ *    matches. `.rf2-sel--filled` stands in for it (see the CSS).
+ *  - The arrow was the BROWSER's, which is why it looked foreign and sat hard
+ *    against the edge. `appearance: none` removes it and ChevronSolidIcon — the
+ *    same mark as the protection-plan dropdown (Figma 8508-32282) — goes into
+ *    the kit's `hb-field__icons` slot, where the box's own 16px padding indents
+ *    it to match the frame without a magic number.
+ */
+function SelectField({
   label, required, value, onChange, options, error,
 }: {
   label: string;
@@ -102,14 +121,41 @@ function SelectAbove({
   options: string[];
   error?: boolean;
 }) {
+  const cls = [
+    'hb-field', 'hb-field--labelled', 'rf2-sel',
+    value ? 'rf2-sel--filled' : '',
+    error ? 'hb-field--error' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <label className={`rf2-field${error ? ' rf2-field--error' : ''}`}>
-      <span className="rf2-field-label">{label}{required && <span className="rf-req">*</span>}</span>
-      <select className="rf2-field-input" value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="" disabled hidden></option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </label>
+    <div className={cls}>
+      <div className="hb-field__box">
+        <div className="hb-field__data">
+          {/* Select before label, matching FormField, so the CSS sibling
+              selector can float the label on focus. */}
+          <select
+            className="hb-field__input hb-field__select"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            /* The visible label is the floating one, which is decorative to AT
+               once it has floated — so name the control explicitly. */
+            aria-label={label}
+            required={required}
+            aria-invalid={error || undefined}
+          >
+            <option value="" disabled hidden />
+            {options.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <label className="hb-field__label">
+            {label}
+            {required && <span className="hb-field__required" aria-hidden="true">*</span>}
+          </label>
+        </div>
+        <div className="hb-field__icons">
+          <ChevronSolidIcon size={14} className="hb-field__icon rf2-sel-chev" />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -345,6 +391,10 @@ export function Step2({
   /** No GP key ⇒ the static forms stand in for hosted fields. */
   const staticPay = !gpApiKey;
 
+  /** A card/bank panel is open, so its button is replaced by the panel and the
+   *  other method relocates beneath it. Wallets are one-tap and never expand. */
+  const methodOpen = staticPay && (payMethod === 'card' || payMethod === 'bank');
+
   const selectPayMethod = (m: 'gpay' | 'apple' | 'card' | 'bank') => {
     if (!formComplete) { setPayAttempted(true); return; }
     const next = payMethod === m ? null : m;
@@ -529,7 +579,7 @@ export function Step2({
             <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
             {vehicle && (
               <div className="rf2-expand">
-                <SelectAbove label="Vehicle Type" required value={vehType} onChange={setVehType} error={bad('vehType')}
+                <SelectField label="Vehicle Type" required value={vehType} onChange={setVehType} error={bad('vehType')}
                   options={['Car', 'Truck', 'Motorcycle', 'RV', 'Boat', 'Trailer', 'Other']} />
                 <div className="rf2-row">
                   <FieldAbove label="Make" value={vehMake} onChange={setVehMake} />
@@ -541,10 +591,10 @@ export function Step2({
                 </div>
                 <div className="rf2-row">
                   <FieldAbove label="License Plate Number" value={vehPlate} onChange={setVehPlate} />
-                  <SelectAbove label="Country" value={vehCountry} onChange={setVehCountry}
+                  <SelectField label="Country" value={vehCountry} onChange={setVehCountry}
                     options={['United States', 'Canada', 'Mexico']} />
                 </div>
-                <SelectAbove label="State" value={vehState} onChange={setVehState}
+                <SelectField label="State" value={vehState} onChange={setVehState}
                   options={['AZ', 'CA', 'NV', 'OR', 'TX', 'WA', 'Other']} />
               </div>
             )}
@@ -565,10 +615,17 @@ export function Step2({
           <RfCheckbox
             checked={agree}
             onChange={setAgree}
-            className={`rf2-agree-bar${bad('agree') ? ' rf2-agree-bar--error' : ''}`}
+            className="rf2-agree-bar"
           >
             <span className="rf2-agree-text"><b>I agree</b> to the terms and conditions as set out by the rental agreement.</span>
           </RfCheckbox>
+          {/* Says what is wrong instead of ringing the row in red. role="alert"
+              so it is announced when it appears, not silently drawn. */}
+          {bad('agree') && (
+            <p className="rf2-agree-error" role="alert">
+              You must accept the rental agreement to continue.
+            </p>
+          )}
         </section>
 
         {/* Payment */}
@@ -597,29 +654,37 @@ export function Step2({
               )}
             </span>
           </div>
-          <div className="rf2-paygrid">
+          {/* Wallets always sit at the top. The two method buttons only share
+              that grid while NEITHER is open — once one is, the open panel
+              takes their place and the other method moves below it
+              (Figma 10080-28749). */}
+          <div className={`rf2-paygrid${methodOpen ? ' rf2-paygrid--wallets' : ''}`}>
             <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('gpay')}><GooglePayMark /></button>
             <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('apple')}><ApplePayMark /></button>
-            <Button
-              tone="dark"
-              fill="outline"
-              block
-              icon={<CreditCardIcon size={24} />}
-              className={`rf2-pay-btn${payMethod === 'card' ? ' rf2-pay--selected' : ''}`}
-              onClick={() => selectPayMethod('card')}
-            >
-              Credit / Debit
-            </Button>
-            <Button
-              tone="dark"
-              fill="outline"
-              block
-              icon={<BankIcon size={24} />}
-              className="rf2-pay-btn"
-              onClick={() => selectPayMethod('bank')}
-            >
-              Pay by Bank
-            </Button>
+            {!methodOpen && (
+              <>
+                <Button
+                  tone="dark"
+                  fill="outline"
+                  block
+                  icon={<CreditCardIcon size={24} />}
+                  className="rf2-pay-btn"
+                  onClick={() => selectPayMethod('card')}
+                >
+                  Credit / Debit
+                </Button>
+                <Button
+                  tone="dark"
+                  fill="outline"
+                  block
+                  icon={<BankIcon size={24} />}
+                  className="rf2-pay-btn"
+                  onClick={() => selectPayMethod('bank')}
+                >
+                  Pay by Bank
+                </Button>
+              </>
+            )}
           </div>
           {payAttempted && !formComplete && (
             <p className="rf2-gp-note rf2-gp-note--error">
@@ -649,6 +714,20 @@ export function Step2({
                 <BankForm total={payNowTotal ?? 0} onPay={payStatically} />
               )}
             </section>
+          )}
+          {/* The method NOT open, relocated below the panel — full width, since
+              it no longer shares a row (Figma 10080-28749). */}
+          {methodOpen && (
+            <Button
+              tone="dark"
+              fill="outline"
+              block
+              icon={payMethod === 'card' ? <BankIcon size={24} /> : <CreditCardIcon size={24} />}
+              className="rf2-pay-btn rf2-pay-btn--alt"
+              onClick={() => selectPayMethod(payMethod === 'card' ? 'bank' : 'card')}
+            >
+              {payMethod === 'card' ? 'Pay by Bank' : 'Credit / Debit'}
+            </Button>
           )}
 
           {!staticPay && payMethod === 'card' && !cardToken && (
