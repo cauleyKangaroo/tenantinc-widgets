@@ -626,6 +626,30 @@
   margin: 0 auto;
   align-items: start;
 }
+/* Sticky order rail — desktop two-column only.
+   Bounded by the SAME 900px breakpoint that collapses the grid, deliberately:
+   the JS hands the rail to a mobile sheet at MOBILE_BP (640px container), so
+   between 640 and 900 it is still a grid child but stacked BELOW the form in a
+   single column. Sticking it there would pin it to the top of the viewport,
+   over the content it is supposed to sit under. */
+@media (min-width: 901px) {
+  .rf-layout > .ts-card,
+  .rfc-layout > .ts-card {
+    position: sticky;
+    /* Clear of the browser chrome instead of flush against it. */
+    top: 24px;
+    /* .rf-layout already sets align-items:start; restated because a stretched
+       grid item is full-height and therefore can never stick, and that failure
+       is silent if the container rule is ever changed. */
+    align-self: start;
+    /* The rail runs ~684px. On a short viewport a plain sticky top pins the
+       header and parks the move-in total permanently off-screen with no way to
+       scroll to it. This engages only when the rail genuinely does not fit. */
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+  }
+}
+
 @media (max-width: 900px) {
   .rf-layout { grid-template-columns: minmax(0, 1fr); }
   /* SummaryRail's .ts-card is a FIXED 422px (shared/ui), which is what the
