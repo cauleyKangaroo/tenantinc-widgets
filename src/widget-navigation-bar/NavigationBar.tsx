@@ -128,22 +128,36 @@ const RESOURCES_MENU: NavMenuItem[] = [
   { label: 'Customer Service', href: '#' },
 ];
 
-// HARDCODED destinations for Find Storage › California › Irvine › 5281
-// California. These are deliberately NOT props: Duda's link picker feeds the JS
-// tab an editor URL (mariposa.responsivewebsitebuilder.io/home/site/<id>/…),
-// which used to override the defaults and send visitors into the editor.
+// Destinations for Find Storage › California › Irvine › 5281 California.
+//
+// SITE-RELATIVE, not absolute. These used to be pinned to one site's preview
+// host (mariposa26-testing.multiscreensite.com), which is wrong for a shared
+// bundle: the same dist/ file is served to every customer site, so a hardcoded
+// host sent visitors to somebody else's site. A path resolves against whichever
+// host is serving the page, so one value is correct on the preview host
+// (*.multiscreensite.com), the live domain and any custom domain without the
+// bundle needing to know which it is. Same reasoning as BLOG_URL below and the
+// hrefs @shared/propertyNav builds.
+//
+// A plain path on a real <a> also keeps Duda's own routing in charge. Building
+// an absolute URL from window.location.origin would break the editor preview
+// (→ my.duda.co 404) — see the note in #05's Pricing.tsx.
+//
+// Still NOT props: Duda's link picker feeds the JS tab an editor URL
+// (mariposa.responsivewebsitebuilder.io/home/site/<id>/…), which used to
+// override the defaults and send visitors into the editor.
 // forceHardcodedLinks() below re-applies these no matter where the nav data came
 // from, so nothing Duda passes can win.
-const IRVINE_URL = 'https://mariposa26-testing.multiscreensite.com/';
+const IRVINE_URL = '/';
 /** Canonical site home — where the logo (both bars and the drawer) must point. */
-const HOME_URL = 'https://mariposa26-testing.multiscreensite.com/';
+const HOME_URL = '/';
 
 /**
  * Duda's link picker hands the JS tab an EDITOR url
  * (mariposa.responsivewebsitebuilder.io/home/site/<id>/home), which sent anyone
  * clicking the logo into the editor. Same trap `forceHardcodedLinks` exists for,
  * so the logo gets the same treatment: an editor url (or an unset '#') falls back
- * to the live home page, while a genuine custom link still wins.
+ * to HOME_URL — the current site's root — while a genuine custom link still wins.
  */
 const EDITOR_URL_RE = /responsivewebsitebuilder\.io|\/home\/site\//i;
 
@@ -151,7 +165,7 @@ function resolveLogoLink(link?: string): string {
   if (!link || link === '#' || EDITOR_URL_RE.test(link)) return HOME_URL;
   return link;
 }
-const FACILITY_URL = 'https://mariposa26-testing.multiscreensite.com/property-landing-page';
+const FACILITY_URL = '/property-landing-page';
 /** The Duda dynamic property pages live under this path — see locationBasePath. */
 const DEFAULT_LOCATION_BASE_PATH = '/storage-units';
 /** Where the pinned "All Locations" row points. */
