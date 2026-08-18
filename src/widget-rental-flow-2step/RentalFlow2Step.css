@@ -251,7 +251,14 @@
 /* Move-in date (populated from the picker; click to re-open) */
 .rf2-movein {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  width: 100%; max-width: 346px; height: 56px;
+  /* Half-width, matching the Email/Phone and First/Last rows above. Those are
+     two .hb-field (width:100%) flex items shrinking equally inside .rf2-row's
+     18px gap, so each settles at (100% - 18px) / 2 — NOT a flat 50%, which
+     would be 9px too wide. The 18px here must track .rf2-row's gap.
+     The old `max-width: 346px` is gone deliberately: the form is ~780px wide
+     now, so half is ~381px and the cap would have held this field 35px
+     narrower than the ones it is meant to line up with. */
+  width: calc((100% - 18px) / 2); height: 56px;
   padding: 0 16px;
   background: #fff;
   border: 1px solid #028a0c;
@@ -548,7 +555,8 @@
      specificity) purely on source order — that block is earlier in the file. */
   .rf2-card { padding-inline: 24px; }
   .rf2-row { flex-direction: column; }
-  .rf2-movein { max-width: none; }
+  /* .rf2-row stacks here, so its fields are full width — match them. */
+  .rf2-movein { width: 100%; }
   .rf2-panel, .rf2-payment { padding: 20px; }
   /* Also less the 2px border, matching the base rule. */
   .rf2-autopay { padding: 14px 18px; }
