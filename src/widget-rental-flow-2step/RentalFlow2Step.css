@@ -1,4 +1,8 @@
 /* Widget #99 (TBD) — Rental Flow (2 Step), first screen. Figma 8507-23264. */
+/* The frame's face. This widget already hardcoded 'Montserrat' in six rules
+   but never imported it, so every one of them was silently falling back to
+   plain sans-serif. All 16 other widgets carry this same import. */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 .rf-wrapper {
   container-type: inline-size;
   /* Follow the Duda theme's font (Duda sets fonts per element, not via a var),
@@ -23,9 +27,27 @@
 }
 
 /* ── Title ─────────────────────────────────────────────────────────────── */
+/* Figma 8507-23230. The frame sets font-size on the TITLE CONTAINER, so both
+   lines are 36px/600 — the eyebrow is NOT the smaller line it was built as
+   (24px); the frame's own render shows the two at matching size.
+   Family is pinned to the frame's Montserrat on EACH line rather than on the
+   container: .rf-heading is an <h2>, and a Duda theme's per-element `h2` rule
+   would outrank an inherited value. Note this makes the title stop following a
+   site's brand font — the frame's match was asked for explicitly.
+
+   Both rules are qualified with .rf-wrapper purely for SPECIFICITY (0,2,0).
+   A bare .rf-heading is (0,1,0) and loses to any host rule of the shape
+   `.something h2` (0,1,1) — the dev harness had exactly that, rendering this
+   heading as a 13px grey uppercase label. letter-spacing/text-transform are
+   declared for the same reason: a property we never state cannot be won, it is
+   simply inherited from whatever the host set. */
 .rf-title { display: flex; flex-direction: column; gap: 14px; margin-bottom: 26px; }
-.rf-eyebrow { margin: 0; font-size: 24px; font-weight: 600; line-height: 1; color: var(--color_1, #509e2f); }
-.rf-heading { margin: 0; font-size: 36px; font-weight: 600; line-height: 1.05; color: #101318; }
+/* --color_1 is Duda's PRIMARY; #509e2f is only the unthemed fallback, which is
+   what the frame happens to render. Line-height is the frame's literal 20px —
+   tighter than the 36px glyphs, which is how the frame trims to cap height. */
+.rf-wrapper .rf-eyebrow { margin: 0; font-family: 'Montserrat', sans-serif; font-size: 36px; font-weight: 600; line-height: 20px; letter-spacing: normal; text-transform: none; color: var(--color_1, #509e2f); }
+/* Hardcoded #101318, per the frame — this line never follows the site theme. */
+.rf-wrapper .rf-heading { margin: 0; font-family: 'Montserrat', sans-serif; font-size: 36px; font-weight: 600; line-height: 38px; letter-spacing: normal; text-transform: none; color: #101318; }
 
 /* ── "Renting as a business" checkbox ──────────────────────────────────── */
 /* Layout only. The box's own skin comes from .rf-check (see RfCheckbox).
@@ -107,7 +129,12 @@
 /* ── Narrow container (mobile / small widget widths) ───────────────────── */
 @container (max-width: 640px) {
   .rf-card { padding: 32px 20px; }
-  .rf-heading { font-size: 28px; }
+  /* Both title lines scale together — they are one size in the frame, and the
+     eyebrow at a base 36px would otherwise outsize the 28px heading here.
+     .rf-wrapper-qualified to match the base rules' (0,2,0); these win on source
+     order, being later in the file. */
+  .rf-wrapper .rf-eyebrow { font-size: 28px; }
+  .rf-wrapper .rf-heading { font-size: 28px; }
   .rf-row { flex-direction: column; }
   .rf-actions { max-width: none; }
 }
@@ -626,7 +653,10 @@
 .rfc-card { max-width: none; min-width: 0; margin: 0; padding: 24px 18px; }
 .rfc-card .rf-title { margin-bottom: 16px; }
 @media (max-width: 900px) { .rfc-layout { grid-template-columns: minmax(0, 1fr); } }
-/* Confirmation name eyebrow is 36px (Figma 8507-24998), not the 24px Step-1 one. */
+/* Confirmation name eyebrow is 36px (Figma 8507-24998). Now the same as the
+   base rule, so this is a no-op on desktop — it is kept because it also
+   outranks the narrow-width 28px above, holding confirmation at 36px there as
+   it was before. Delete it and that screen changes on mobile. */
 .rfc-card .rf-eyebrow { font-size: 36px; }
 
 .rfc-sent {
