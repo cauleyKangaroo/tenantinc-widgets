@@ -3,6 +3,7 @@ import { ReviewsSection } from './sections/ReviewsSection';
 import { NearbySection } from './sections/NearbySection';
 import { SizeGuideSection } from './sections/SizeGuideSection';
 import { BlogSection } from './sections/BlogSection';
+import { LocalBlogSection } from './sections/LocalBlogSection';
 import { FaqsSection } from './sections/FaqsSection';
 import { StoreSection } from './sections/StoreSection';
 import { NotesSection } from './sections/NotesSection';
@@ -62,6 +63,17 @@ function IconFile() {
   );
 }
 
+function IconPin() {
+  // "Local Blogs" — the document icon above with a place marker instead, so the
+  // two blog sections read as related but not interchangeable.
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21C12 21 19 15.5 19 10.2C19 6.22355 15.866 3 12 3C8.13401 3 5 6.22355 5 10.2C5 15.5 12 21 12 21Z" />
+      <path d="M14.5 10C14.5 11.3807 13.3807 12.5 12 12.5C10.6193 12.5 9.5 11.3807 9.5 10C9.5 8.61929 10.6193 7.5 12 7.5C13.3807 7.5 14.5 8.61929 14.5 10Z" />
+    </svg>
+  );
+}
+
 function IconScale() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -115,6 +127,7 @@ const VISUALS: Record<AccordionKey, AccordionVisual> = {
   reviews:   { icon: <IconReview />,   content: <ReviewsSection /> },
   faq:       { icon: <IconQuestion />, content: <FaqsSection /> },
   blog:      { icon: <IconFile />,     content: <BlogSection /> },
+  localblog: { icon: <IconPin />,      content: <LocalBlogSection /> },
   sizeguide: { icon: <IconScale />,    content: <SizeGuideSection /> },
   notes:     { icon: <IconNote />,     content: <NotesSection /> },
   about:     { icon: <IconInfo />,     content: <AboutSection /> },
@@ -212,6 +225,7 @@ export function SectionAccordion({
       : key === 'faq'     ? <FaqsSection faqs={propertyExtras?.faqs} />
       : key === 'features' ? <FeaturesSection amenities={propertyExtras?.amenities} />
       : key === 'blog'    ? <BlogSection collection={blogCollection} blogBasePath={blogBasePath} />
+      : key === 'localblog' ? <LocalBlogSection collection={blogCollection} blogBasePath={blogBasePath} />
       : key === 'notes'   ? <NotesSection content={notesContent} />
       : key === 'about'   ? <AboutSection content={aboutContent} />
       : VISUALS[key].content,

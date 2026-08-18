@@ -347,6 +347,7 @@ export interface SpaceListProps {
   isNearby?:    boolean;
   isSizeGuide?: boolean;
   isBlog?:      boolean;
+  isLocalBlog?: boolean;
   isStore?:     boolean;
   isNotes?:     boolean;
   isFAQ?:       boolean;
