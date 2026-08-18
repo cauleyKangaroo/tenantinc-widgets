@@ -78,8 +78,11 @@ export function CloseIcon({ size = 18, className }: { size?: number; className?:
 // bank (Figma 6766:3585) — "Pay by Bank".
 export function BankIcon({ size = 24, className }: { size?: number; className?: string }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 22 21" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <path d="M1 20H21M3 12L3 17M8 12L8 17M14 12L14 17M19 12V17M21 9H1V8L9.08 1.94C9.76852 1.42361 10.1128 1.16542 10.4909 1.06589C10.8246 0.978037 11.1754 0.978037 11.5091 1.06589C11.8872 1.16542 12.2315 1.42361 12.92 1.94L21 8V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      {/* 24x24 frame with the leaf at its Figma offset (22x21 at 1,1), NOT a 22x21 viewBox stretched to fill it: stretching scaled the mark 9% and pushed the stroke to 2.18px. Translated, it stays a true 2px — same convention as @shared/ui. */}
+      <g transform="translate(1 1)">
+        <path d="M1 20H21M3 12L3 17M8 12L8 17M14 12L14 17M19 12V17M21 9H1V8L9.08 1.94C9.76852 1.42361 10.1128 1.16542 10.4909 1.06589C10.8246 0.978037 11.1754 0.978037 11.5091 1.06589C11.8872 1.16542 12.2315 1.42361 12.92 1.94L21 8V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
     </svg>
   );
 }
@@ -87,8 +90,11 @@ export function BankIcon({ size = 24, className }: { size?: number; className?: 
 // credit-card (Figma 7607:27771) — "Credit / Debit".
 export function CreditCardIcon({ size = 24, className }: { size?: number; className?: string }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 22 18" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <path d="M1 6H21M5 10H8M14.6 17H7.4C5.15979 17 4.03969 17 3.18404 16.564C2.43139 16.1805 1.81947 15.5686 1.43597 14.816C1 13.9603 1 12.8402 1 10.6V7.4C1 5.15979 1 4.03969 1.43597 3.18404C1.81947 2.43139 2.43139 1.81947 3.18404 1.43597C4.03969 1 5.15979 1 7.4 1H14.6C16.8402 1 17.9603 1 18.816 1.43597C19.5686 1.81947 20.1805 2.43139 20.564 3.18404C21 4.03969 21 5.15979 21 7.4V10.6C21 12.8402 21 13.9603 20.564 14.816C20.1805 15.5686 19.5686 16.1805 18.816 16.564C17.9603 17 16.8402 17 14.6 17Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      {/* Leaf 22x18 at (1,3) in the 24x24 frame — see BankIcon above. */}
+      <g transform="translate(1 3)">
+        <path d="M1 6H21M5 10H8M14.6 17H7.4C5.15979 17 4.03969 17 3.18404 16.564C2.43139 16.1805 1.81947 15.5686 1.43597 14.816C1 13.9603 1 12.8402 1 10.6V7.4C1 5.15979 1 4.03969 1.43597 3.18404C1.81947 2.43139 2.43139 1.81947 3.18404 1.43597C4.03969 1 5.15979 1 7.4 1H14.6C16.8402 1 17.9603 1 18.816 1.43597C19.5686 1.81947 20.1805 2.43139 20.564 3.18404C21 4.03969 21 5.15979 21 7.4V10.6C21 12.8402 21 13.9603 20.564 14.816C20.1805 15.5686 19.5686 16.1805 18.816 16.564C17.9603 17 16.8402 17 14.6 17Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
     </svg>
   );
 }
