@@ -391,6 +391,10 @@ export function Step2({
   /** No GP key ⇒ the static forms stand in for hosted fields. */
   const staticPay = !gpApiKey;
 
+  /** A card/bank panel is open, so its button is replaced by the panel and the
+   *  other method relocates beneath it. Wallets are one-tap and never expand. */
+  const methodOpen = staticPay && (payMethod === 'card' || payMethod === 'bank');
+
   const selectPayMethod = (m: 'gpay' | 'apple' | 'card' | 'bank') => {
     if (!formComplete) { setPayAttempted(true); return; }
     const next = payMethod === m ? null : m;
@@ -650,29 +654,37 @@ export function Step2({
               )}
             </span>
           </div>
-          <div className="rf2-paygrid">
+          {/* Wallets always sit at the top. The two method buttons only share
+              that grid while NEITHER is open — once one is, the open panel
+              takes their place and the other method moves below it
+              (Figma 10080-28749). */}
+          <div className={`rf2-paygrid${methodOpen ? ' rf2-paygrid--wallets' : ''}`}>
             <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('gpay')}><GooglePayMark /></button>
             <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('apple')}><ApplePayMark /></button>
-            <Button
-              tone="dark"
-              fill="outline"
-              block
-              icon={<CreditCardIcon size={24} />}
-              className={`rf2-pay-btn${payMethod === 'card' ? ' rf2-pay--selected' : ''}`}
-              onClick={() => selectPayMethod('card')}
-            >
-              Credit / Debit
-            </Button>
-            <Button
-              tone="dark"
-              fill="outline"
-              block
-              icon={<BankIcon size={24} />}
-              className="rf2-pay-btn"
-              onClick={() => selectPayMethod('bank')}
-            >
-              Pay by Bank
-            </Button>
+            {!methodOpen && (
+              <>
+                <Button
+                  tone="dark"
+                  fill="outline"
+                  block
+                  icon={<CreditCardIcon size={24} />}
+                  className="rf2-pay-btn"
+                  onClick={() => selectPayMethod('card')}
+                >
+                  Credit / Debit
+                </Button>
+                <Button
+                  tone="dark"
+                  fill="outline"
+                  block
+                  icon={<BankIcon size={24} />}
+                  className="rf2-pay-btn"
+                  onClick={() => selectPayMethod('bank')}
+                >
+                  Pay by Bank
+                </Button>
+              </>
+            )}
           </div>
           {payAttempted && !formComplete && (
             <p className="rf2-gp-note rf2-gp-note--error">
@@ -702,6 +714,20 @@ export function Step2({
                 <BankForm total={payNowTotal ?? 0} onPay={payStatically} />
               )}
             </section>
+          )}
+          {/* The method NOT open, relocated below the panel — full width, since
+              it no longer shares a row (Figma 10080-28749). */}
+          {methodOpen && (
+            <Button
+              tone="dark"
+              fill="outline"
+              block
+              icon={payMethod === 'card' ? <BankIcon size={24} /> : <CreditCardIcon size={24} />}
+              className="rf2-pay-btn rf2-pay-btn--alt"
+              onClick={() => selectPayMethod(payMethod === 'card' ? 'bank' : 'card')}
+            >
+              {payMethod === 'card' ? 'Pay by Bank' : 'Credit / Debit'}
+            </Button>
           )}
 
           {!staticPay && payMethod === 'card' && !cardToken && (

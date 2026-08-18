@@ -527,6 +527,14 @@
   box-shadow: 0 1.5px 2px -1px rgba(0, 0, 0, 0.5), 0 1px 2px 1px rgba(11, 11, 11, 0.05);
 }
 .rf2-paygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+/* With a panel open the grid holds only the two wallets, and the relocated
+   method button sits outside it, full width, below the panel. */
+/* .rf2-payment is a 22px flex column, so the stack is already spaced — adding
+   margins here previously doubled it to 44px. The frame groups wallets, panel
+   and the alternative button 18px apart (node 10080:30095), so -4px trims the
+   section's 22px to that rather than restructuring the stack. */
+.rf2-payment .rf-method-panel,
+.rf2-payment .rf2-pay-btn--alt { margin-top: -4px; }
 .rf2-pay {
   height: 64px;
   display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -557,7 +565,11 @@
    fill="outline">, which already inverts to black-on-hover; what it does NOT
    do is match this frame's 64px height (the kit button is 52px) or its 12px
    radius. Compound selectors so both beat .hb-btn's own (0,1,0) rules. */
-.rf2-paygrid .rf2-pay-btn {
+/* Scoped to the SECTION, not the grid: when a method opens, the alternative
+   button moves out of .rf2-paygrid to below the panel, and a grid-scoped rule
+   stopped applying — it reverted to the kit's 52px white default. Same
+   specificity (0,2,0), so nothing else about the cascade changes. */
+.rf2-payment .rf2-pay-btn {
   height: 64px;
   border-radius: 12px;
   border-width: 2px;
@@ -577,7 +589,7 @@
 /* Hover: black fill, white label. The icons are currentColor, so they invert
    with the label and need no rule of their own. !important because the host
    `button:hover` would otherwise repaint the background out from under it. */
-.rf2-paygrid .rf2-pay-btn:hover:not(:disabled) {
+.rf2-payment .rf2-pay-btn:hover:not(:disabled) {
   background: #101318 !important;
   color: #fff;
 }
