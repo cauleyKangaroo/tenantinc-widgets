@@ -177,6 +177,11 @@
 .ts-bd-note { font-size: 13px; line-height: 1.5; color: #637381; margin: 0 0 12px; }
 
 /* Payment methods */
+/* Payment marks — Figma 8508-33072 (node 8035:10367).
+   ALL SIX share one footprint. The frame's own leaf sizes disagree wildly
+   (Visa 30.5x9.8, Mastercard 26.8x16.5, Google 45x30.3), and used literally
+   they overflowed the chip — Visa's leaf is 30.5px wide against a 24.9px
+   content area. So the box is fixed and each logo is FITTED inside it. */
 .ts-card-payments {
   display: flex;
   align-items: center;
@@ -184,19 +189,44 @@
   gap: 4px;
   margin-top: 24px;
 }
+.ts-pay-methods { display: inline-flex; align-items: center; gap: 4px; }
+.ts-pay-buttons { display: inline-flex; align-items: center; gap: 5.219px; }
+
+/* The one shared footprint — every mark, no exceptions. */
 .ts-pay-box {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 39px;
-  height: 24px;
-  padding: 3px 5px;
-  background: #fff;
-  border: 0.7px solid #101318;
-  border-radius: 3px;
+  width: 38.607px;
+  height: 24.022px;
+  flex: 0 0 auto;
 }
-.ts-pay-box--amex { background: #006FCF; border-color: #006FCF; }
-.ts-pay-mark { display: inline-flex; align-items: center; justify-content: center; width: 39px; height: 24px; padding: 3px 5px; background: #fff; border: 0.7px solid #101318; border-radius: 3px; }
-/* Keep every brand mark inside its chip regardless of intrinsic svg width. */
-.ts-pay-box svg,
-.ts-pay-mark svg { display: block; max-width: 100%; height: auto; }
+
+/* ONE box for all six. Each brand's own chip was a different shape — Apple's
+   37.186x23.806, Google's 45.015x23.783, the cards' 38.607x24.022 — so letting
+   the artwork supply the chip made a shared size impossible without squashing
+   a brand mark by ~15%. The chip is drawn here instead and the SVGs carry only
+   their lockups. */
+.ts-pay-box {
+  padding: 2px 3px;
+  background: #fff;
+  border: 0.686px solid #101318;
+  border-radius: 2.745px;
+  color: #101318;              /* Apple's lockup is currentColor */
+}
+/* Google's is the one fully-rounded chip (its Figma artwork has a pill
+   outline). Same width and height as the rest — only the radius differs. */
+.ts-pay-box--pill { border-radius: 12.011px; }
+
+/* Fit, never fill: `contain` semantics, so a wide mark (Visa, 3.1:1) and a tall
+   one (Mastercard, 1.6:1) both shrink to fit without distorting. The width and
+   height attributes on each mark supply nothing but the aspect ratio. */
+.ts-pay-box img,
+.ts-pay-box svg {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+}

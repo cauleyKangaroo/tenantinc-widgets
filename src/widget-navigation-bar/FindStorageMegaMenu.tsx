@@ -231,17 +231,18 @@ export function FindStorageMegaMenu({
     [filteredTree, activeKey],
   );
 
-  // Keep the selection honest against the filter. While searching, land on the
-  // first state that has a hit so the matching cities are visible without a
-  // second click; with no query, stay on "nothing picked yet" as the Figma does.
+  // Keep the selection honest against the filter, and on desktop always land on
+  // a state: the first one when the menu opens, and the first with a hit while
+  // searching, so the cities column is never an empty third of the panel.
   //
   // NOT on mobile: there, picking a state REPLACES the panel with that state's
-  // cities, so auto-selecting would throw the visitor onto the city page in the
-  // middle of typing. Desktop only fills a third column, so it still helps.
+  // cities, so auto-selecting would open on a city list nobody asked for (and
+  // would throw the visitor onto it mid-keystroke while typing). Desktop only
+  // fills a third column, so it still helps.
   useEffect(() => {
     if (activeKey && filteredTree.some((s) => s.key === activeKey)) return;
-    setActiveKey(!isMobile && q && filteredTree.length ? filteredTree[0].key : null);
-  }, [q, filteredTree, activeKey, isMobile]);
+    setActiveKey(!isMobile && filteredTree.length ? filteredTree[0].key : null);
+  }, [filteredTree, activeKey, isMobile]);
 
   // ── Nearby facilities ────────────────────────────────────────────────────
   const allProperties = useMemo(

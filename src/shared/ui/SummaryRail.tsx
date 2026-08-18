@@ -153,12 +153,20 @@ export function SummaryRail({
 
         {showPayments && (
           <div className="ts-card-payments">
-            <span className="ts-pay-box"><VisaMark /></span>
-            <span className="ts-pay-box"><MastercardMark /></span>
-            <span className="ts-pay-box ts-pay-box--amex"><AmexMark /></span>
-            <span className="ts-pay-box"><DiscoverMark /></span>
-            <span className="ts-pay-mark"><ApplePayMark /></span>
-            <span className="ts-pay-mark"><GooglePayMark /></span>
+            {/* Two groups, as the frame has them: the four card chips, then the
+                wallet marks. They carry different gaps (4px vs 5.219px). */}
+            <span className="ts-pay-methods">
+              <span className="ts-pay-box"><VisaMark /></span>
+              <span className="ts-pay-box"><MastercardMark /></span>
+              <span className="ts-pay-box"><AmexMark /></span>
+              <span className="ts-pay-box"><DiscoverMark /></span>
+            </span>
+            {/* NOT wrapped in .ts-pay-box: the Apple/Google artwork draws its
+                own rule and fill, so a chip here would double the border. */}
+            <span className="ts-pay-buttons">
+              <span className="ts-pay-box"><ApplePayMark /></span>
+              <span className="ts-pay-box ts-pay-box--pill"><GooglePayMark /></span>
+            </span>
           </div>
         )}
       </div>

@@ -70,7 +70,7 @@
 
   /* ── Buttons ─────────────────────────────────────────────────────────── */
   --hb-button-height: 52px;
-  --hb-button-radius: 4px;       /* the default square-ish shape */
+  --hb-button-radius: 8px;       /* the default shape (was 4px) */
   --hb-button-radius-pill: 100px;
   --hb-button-padding-x: 24px;
   --hb-button-border-width: 2px; /* outline variants are 2px, not 1px */

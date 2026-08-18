@@ -7,7 +7,7 @@
      tone   .hb-btn--cta | --secondary | --dark      (what colour)
      fill   (default solid) | .hb-btn--outline       (filled or bordered)
      text   (default) | .hb-btn--text-dark           (white or black label)
-     shape  (default 4px) | .hb-btn--pill            (100px)
+     shape  (default 8px) | .hb-btn--pill            (100px)
 
    So "CTA Color (Black Text)" is `hb-btn hb-btn--cta hb-btn--text-dark`, and
    "CTA Color Outline (Black Text)" is `hb-btn hb-btn--cta hb-btn--outline`.

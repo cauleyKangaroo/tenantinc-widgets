@@ -11,7 +11,11 @@
     h1 { font-size: 18px; color: #374151; margin: 0 0 4px; }
     .subtitle { font-size: 13px; color: #9ca3af; margin: 0 0 32px; }
     .widget-section { margin-bottom: 40px; }
-    .widget-section h2 { font-size: 13px; font-weight: 600; text-transform: uppercase;
+    /* `>` not a descendant combinator: these are the harness's OWN section
+       labels, which are direct children. Without it the rule also hits every
+       <h2> inside a mounted widget — it was rendering #99's "Secure your space
+       now" as a 13px grey uppercase label. */
+    .widget-section > h2 { font-size: 13px; font-weight: 600; text-transform: uppercase;
       letter-spacing: .05em; color: #6b7280; margin: 0 0 8px; }
     .widget-container { min-height: 60px; }
     .controls { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
