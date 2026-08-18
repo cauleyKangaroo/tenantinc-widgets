@@ -268,23 +268,38 @@ export function NearbyLocations({
 
         const top = ranked.slice(0, MAX_NEARBY);
 
-        // Stage 1: show cards immediately with distance/name/address/phone so the
-        // section paints without waiting on the per-property enrichment calls.
-        const base: Property[] = top.map((p, i) => ({
-          ...p, spaces: [], image: propertyImage(p.imageUrl, i), adminFee,
-        }));
-        if (!cancelled) { if (ref) setRefLoc({ lat: ref.lat, lng: ref.lng }); setApiProperties(base); }
+        // ONE paint: a card arrives complete or not at all.
+        //
+        // This used to be staged — cards were shown at once with `spaces: []` and
+        // each enrichment was patched in as it resolved. But an unenriched card
+        // renders only its image and footer (the promo bar and the space rows are
+        // both conditional), so it was SHORTER than the skeleton above it and
+        // shorter again than the finished card, and the space calls take seconds.
+        // Every card therefore collapsed, sat collapsed, then grew back — and,
+        // because the patches were independent, at a different moment each. Two
+        // layout shifts per card, staggered. Same fix as #08's city page.
+        //
+        // Fail-soft is preserved and is now explicit: a rejected enrichment yields
+        // the bare card instead of an unhandled rejection, so one bad property
+        // can't hold up or blank the rest.
+        const withSpaces: Property[] = await Promise.all(
+          top.map(async (p, i) => {
+            const card: Property = {
+              ...p, spaces: [], image: propertyImage(p.imageUrl, i), adminFee,
+            };
+            try {
+              const { promo, spaces } = await fetchPropertySpaces(p.id);
+              return { ...card, promo, spaces };
+            } catch (err) {
+              console.error('[NearbyLocations] spaces failed for', p.id, err);
+              return card;
+            }
+          }),
+        );
 
-        // Stage 2: enrich each card with spaces + promo, patching them in as each
-        // property resolves (parallel, fail-soft — one failure can't block others).
-        top.forEach((p) => {
-          fetchPropertySpaces(p.id).then(({ promo, spaces }) => {
-            if (cancelled) return;
-            setApiProperties((prev) =>
-              prev ? prev.map((c) => (c.id === p.id ? { ...c, promo, spaces } : c)) : prev,
-            );
-          });
-        });
+        if (cancelled) return;
+        if (ref) setRefLoc({ lat: ref.lat, lng: ref.lng });
+        setApiProperties(withSpaces);
       } catch (err) {
         console.error('[NearbyLocations] load error:', err);
         if (!cancelled) setApiProperties([]);
@@ -325,6 +340,13 @@ export function NearbyLocations({
 
   return (
     <div className="nl-wrapper">
+      {/* One announcement for the whole widget: the desktop and mobile frames are
+          both always in the DOM (one is display:none), so putting this inside each
+          skeleton would queue it twice. The cards themselves are aria-hidden, so
+          without this a screen reader gets silence for the whole load. */}
+      {loading && (
+        <span className="nl-sr-only" role="status">Loading nearby locations…</span>
+      )}
 
       {/* ── Desktop ─────────────────────────────────────────────────────── */}
       <div className="nl-desktop">
@@ -392,6 +414,12 @@ export function NearbyLocations({
               )}
             </>
           )
+        ) : loading ? (
+          /* "Map unavailable" is the RIGHT answer when geolocation was declined and
+             no propertyId anchors us — but it used to be the answer while the fetch
+             was still in flight too, stating something false. Both cases produce
+             refLoc === null, so the loading one has to be tested first. */
+          <div className="nl-map"><span className="nl-skeleton-block nl-skeleton-map" /></div>
         ) : refLoc && mapPoints.length ? (
           <NearbyMap center={refLoc} points={mapPoints} className="nl-map" />
         ) : (
