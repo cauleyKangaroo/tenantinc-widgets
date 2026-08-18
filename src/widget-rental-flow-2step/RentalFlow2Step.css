@@ -535,9 +535,53 @@
   letter-spacing: 0.2px;
   cursor: pointer;
 }
-.rf2-pay--dark { background: #101318; color: #fff; border: none; }
-.rf2-pay--outline { background: #fff; border: 2px solid #101318; color: #000; }
-.rf2-pay--outline svg { flex: 0 0 auto; }
+/* Wallet buttons: FLAT BLACK, no hover state at all (Figma 11337-206114 shows
+   one appearance). The grey tint they were picking up is not ours — it is a
+   host `button:hover { background: #f3f4f6 }`, which at (0,1,1) outranks a bare
+   .rf2-pay--dark (0,1,0). The harness has exactly that rule and a Duda theme
+   may too, so the resting look is pinned across all three interaction states
+   rather than merely restated. */
+.rf2-pay--dark,
+.rf2-pay--dark:hover,
+.rf2-pay--dark:focus,
+.rf2-pay--dark:active {
+  background: #101318 !important;
+  color: #fff;
+  border: none;
+  filter: none;   /* the kit dims :active; these must not move */
+}
+/* Removing the hover affordance must not remove the keyboard one. */
+.rf2-pay--dark:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
+
+/* Credit / Debit and Pay by Bank. These are the shared <Button tone="dark"
+   fill="outline">, which already inverts to black-on-hover; what it does NOT
+   do is match this frame's 64px height (the kit button is 52px) or its 12px
+   radius. Compound selectors so both beat .hb-btn's own (0,1,0) rules. */
+.rf2-paygrid .rf2-pay-btn {
+  height: 64px;
+  border-radius: 12px;
+  border-width: 2px;
+  /* TRANSPARENT, not white. The frame gives these buttons no fill — they let
+     the #f4f6f8 panel show through, and only the 2px rule reads. The shared
+     <Button fill="outline"> defaults to var(--hb-white), which is right for
+     the kit but wrong here, hence the override.
+     `transparent` rather than a literal #f4f6f8 so it tracks .rf2-panel: if
+     the panel is ever recoloured these follow instead of stranding a white
+     rectangle on it. */
+  background: transparent;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+/* Hover: black fill, white label. The icons are currentColor, so they invert
+   with the label and need no rule of their own. !important because the host
+   `button:hover` would otherwise repaint the background out from under it. */
+.rf2-paygrid .rf2-pay-btn:hover:not(:disabled) {
+  background: #101318 !important;
+  color: #fff;
+}
+.rf2-pay svg { flex: 0 0 auto; }
 .rf2-paylogo { display: inline-flex; align-items: center; gap: 6px; }
 .rf2-paylogo svg { display: block; }
 .rf2-paylogo span { color: #fff; font-weight: 500; font-size: 20px; }
