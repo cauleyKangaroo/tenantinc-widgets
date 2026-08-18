@@ -508,7 +508,18 @@
 .rf2-paylogo svg { display: block; }
 .rf2-paylogo span { color: #fff; font-weight: 500; font-size: 20px; }
 
+/* Step 2's card is narrower-gutted than .rf-card's shared 72px (Figma: 50px).
+   `padding-inline` deliberately, not the `padding` shorthand: the vertical 56px
+   is still .rf-card's and restating it here would leave two copies to keep in
+   step. Scoped to .rf2-card, so step 1 / success keep the 72px they were built
+   with. Must stay AHEAD of the 640px block below, which overrides the inline
+   value for narrow widths. */
+.rf2-card { padding-inline: 50px; }
+
 @container (max-width: 640px) {
+  /* 24px gutters on mobile. Beats .rf-card's `padding: 32px 20px` (same 0,1,0
+     specificity) purely on source order — that block is earlier in the file. */
+  .rf2-card { padding-inline: 24px; }
   .rf2-row { flex-direction: column; }
   .rf2-movein { max-width: none; }
   .rf2-panel, .rf2-payment { padding: 20px; }
@@ -705,10 +716,46 @@
    Nested groups indent to align with the checkbox LABEL (box 22px + 6px gap);
    the top-level business group spans full width like the contact rows. */
 .rf2-expand { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 12px 28px; }
-.rf2-expand--top { margin: 14px 0 18px 0; }
+/* Business fields revealed by "I am renting as a business". Ticking the box must
+   not move anything that was already on screen, so this block contributes no
+   spacing of its own beyond the form's own 13px row rhythm:
+     top    — 0, so the gap above stays exactly .rf-business's 20px, checked or
+              not. The old 14px was invisible anyway (it collapsed against the
+              larger 20px), but it made the gap depend on margin collapsing —
+              turn .rf-card into a flex container one day and 20+14 would start
+              ADDING to 34px. At 0 the gap is 20px either way.
+     bottom — 13px to match .rf2-form's row gap, so the revealed fields read as
+              part of the same form. The old 18px was the 5px of "additional
+              padding underneath" that made the block look boxed-off. */
+.rf2-expand--top { margin: 0 0 13px 0; }
 .rf2-expand .rf2-row { display: flex; gap: 12px; }
 .rf2-expand .rf2-row > * { flex: 1; }
-select.rf2-field-input { appearance: auto; background: #fff; height: 46px; }
+/* ── Dropdowns (Figma 8507-25490 Vehicle Type / 8507-25502 Country) ─────── */
+/* These wear @shared/ui's `hb-field` skin, so only what a <select> cannot
+   inherit is restated. The previous rule here set `appearance: auto` on a
+   label-above select — that native arrow was the foreign-looking one, and it
+   sat hard against the field edge with no way to inset it. */
+.hb-field__select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  /* Kills the residual arrow slot Firefox reserves even under appearance:none. */
+  background-image: none;
+  text-overflow: ellipsis;
+}
+/* The kit floats its label with `:placeholder-shown`, which a <select> can never
+   match, so `--filled` stands in for "has a value". Values are copied from
+   .hb-field__input:not(:placeholder-shown) — keep them in step with the kit. */
+.rf2-sel--filled .hb-field__label,
+.rf2-sel .hb-field__select:focus + .hb-field__label {
+  transform: translateY(-18px);
+  font-size: var(--hb-font-size-label);
+  line-height: var(--hb-line-height-label);
+}
+/* ChevronSolidIcon points RIGHT as drawn; a dropdown wants it down. It sits in
+   the kit's icon slot, so the 16px indent is .hb-field__box's own padding —
+   the same gutter as the label, which is what the frame shows. */
+.rf2-sel-chev { transform: rotate(90deg); color: #101318; }
 
 /* --- Global Payments Hosted Fields (Credit / Debit panel) --------------- */
 .rf2-pay--selected { border: 2px solid #101318; }

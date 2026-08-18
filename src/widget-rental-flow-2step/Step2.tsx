@@ -91,8 +91,27 @@ function FieldAbove({
   );
 }
 
-// Label-above select, visually matched to FieldAbove.
-function SelectAbove({
+/**
+ * Dropdown, built on the shared field's skin (Figma 8507-25490 / 8507-25502).
+ *
+ * The label belongs INSIDE the box, exactly as FieldAbove's <FormField> already
+ * puts it — the old label-above markup was what made these three controls the
+ * odd ones out in a form where every text input floats its label. So this
+ * reuses the kit's own `hb-field` classes rather than restyling a select from
+ * scratch: box, 56px height, 16px gutters, #A5B4BF border, focus ring, floated
+ * label and the red required marker all arrive from @shared/ui and cannot drift
+ * from the inputs sitting beside them.
+ *
+ * Two things a <select> cannot inherit:
+ *  - The kit floats its label off `:placeholder-shown`, which a select never
+ *    matches. `.rf2-sel--filled` stands in for it (see the CSS).
+ *  - The arrow was the BROWSER's, which is why it looked foreign and sat hard
+ *    against the edge. `appearance: none` removes it and ChevronSolidIcon — the
+ *    same mark as the protection-plan dropdown (Figma 8508-32282) — goes into
+ *    the kit's `hb-field__icons` slot, where the box's own 16px padding indents
+ *    it to match the frame without a magic number.
+ */
+function SelectField({
   label, required, value, onChange, options, error,
 }: {
   label: string;
@@ -102,14 +121,41 @@ function SelectAbove({
   options: string[];
   error?: boolean;
 }) {
+  const cls = [
+    'hb-field', 'hb-field--labelled', 'rf2-sel',
+    value ? 'rf2-sel--filled' : '',
+    error ? 'hb-field--error' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <label className={`rf2-field${error ? ' rf2-field--error' : ''}`}>
-      <span className="rf2-field-label">{label}{required && <span className="rf-req">*</span>}</span>
-      <select className="rf2-field-input" value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="" disabled hidden></option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </label>
+    <div className={cls}>
+      <div className="hb-field__box">
+        <div className="hb-field__data">
+          {/* Select before label, matching FormField, so the CSS sibling
+              selector can float the label on focus. */}
+          <select
+            className="hb-field__input hb-field__select"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            /* The visible label is the floating one, which is decorative to AT
+               once it has floated — so name the control explicitly. */
+            aria-label={label}
+            required={required}
+            aria-invalid={error || undefined}
+          >
+            <option value="" disabled hidden />
+            {options.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <label className="hb-field__label">
+            {label}
+            {required && <span className="hb-field__required" aria-hidden="true">*</span>}
+          </label>
+        </div>
+        <div className="hb-field__icons">
+          <ChevronSolidIcon size={14} className="hb-field__icon rf2-sel-chev" />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -529,7 +575,7 @@ export function Step2({
             <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
             {vehicle && (
               <div className="rf2-expand">
-                <SelectAbove label="Vehicle Type" required value={vehType} onChange={setVehType} error={bad('vehType')}
+                <SelectField label="Vehicle Type" required value={vehType} onChange={setVehType} error={bad('vehType')}
                   options={['Car', 'Truck', 'Motorcycle', 'RV', 'Boat', 'Trailer', 'Other']} />
                 <div className="rf2-row">
                   <FieldAbove label="Make" value={vehMake} onChange={setVehMake} />
@@ -541,10 +587,10 @@ export function Step2({
                 </div>
                 <div className="rf2-row">
                   <FieldAbove label="License Plate Number" value={vehPlate} onChange={setVehPlate} />
-                  <SelectAbove label="Country" value={vehCountry} onChange={setVehCountry}
+                  <SelectField label="Country" value={vehCountry} onChange={setVehCountry}
                     options={['United States', 'Canada', 'Mexico']} />
                 </div>
-                <SelectAbove label="State" value={vehState} onChange={setVehState}
+                <SelectField label="State" value={vehState} onChange={setVehState}
                   options={['AZ', 'CA', 'NV', 'OR', 'TX', 'WA', 'Other']} />
               </div>
             )}
