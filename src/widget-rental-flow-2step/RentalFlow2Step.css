@@ -531,16 +531,29 @@
 }
 
 /* ── Two-column layout: flow + order-summary rail (Figma 01–13) ─────────── */
+/* The rail track is 422px because that is SummaryRail's own fixed .ts-card
+   width (shared/ui/SummaryRail.css) — #14 sizes its track the same way. It was
+   360px, and a fixed-width grid item does not shrink to a smaller track, so the
+   rail hung 62px out of its column on every screen.
+   1330px is the house container width — the footer, blogs, map-locations and
+   size-guide all use it. This was 1100px, which made the flow the narrowest
+   widget in the repo and left the row (712 + 28 + 422 = 1162px) overflowing the
+   container as well as the column. */
 .rf-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 422px;
   gap: 28px;
-  max-width: 1100px;
+  max-width: 1330px;
   margin: 0 auto;
   align-items: start;
 }
 @media (max-width: 900px) {
   .rf-layout { grid-template-columns: minmax(0, 1fr); }
+  /* SummaryRail's .ts-card is a FIXED 422px (shared/ui), which is what the
+     422px track above is sized to. Once the grid collapses to one column that
+     fixed width has nothing holding it, so it overflows any viewport narrower
+     than 422px. Same guard #14 already carries. */
+  .ts-card { width: 100%; max-width: 422px; }
 }
 .rfr-card {
   background: #fff;
@@ -597,12 +610,14 @@
    360px width on every step, and the content column + overall width match too. */
 .rfc-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 422px;
   gap: 28px;
   /* Left-aligned (not margin:0 auto) so the content starts at the container's
      left edge instead of floating centered with white space on both sides on
      wide screens — this also gives the content column more room for text. */
-  max-width: 1400px;
+  /* 1330px matches .rf-layout and the rest of the site. It was 1400px, which
+     made the confirmation screen 300px wider than the step it follows. */
+  max-width: 1330px;
   margin: 0;
   align-items: start;
 }
