@@ -649,7 +649,14 @@ export function Step2({
           <div className="rf2-agree-head">
             <span className="rf2-h">Rental Agreement <span className="rf-req">*</span></span>
             <button type="button" className="rf2-link rf2-link--btn" onClick={() => setLeaseOpen(true)}>
-              <FileArrowIcon size={24} />View Document
+              <FileArrowIcon size={24} />
+              {/* "View Document" wraps to two lines in the narrow header row on
+                  mobile. Swapped in CSS rather than by state so it responds to
+                  the container, not a re-render; display:none also drops the
+                  unused label from the accessibility tree, so only one is
+                  announced. */}
+              <span className="rf2-link-long">View Document</span>
+              <span className="rf2-link-short">View</span>
             </button>
           </div>
           <div className="rf2-agree-doc">

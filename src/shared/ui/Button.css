@@ -48,11 +48,30 @@
 
 /* ── Tones ────────────────────────────────────────────────────────────────── */
 
-.hb-btn--cta       { --hb-btn-tone: var(--hb-cta); }
-.hb-btn--secondary { --hb-btn-tone: var(--hb-secondary); }
-.hb-btn--dark      { --hb-btn-tone: var(--hb-text-night); }
+/* Each tone carries its own hover/active shade. The DIRECTION differs: brand
+   colours darken, near-black lightens (darkening #101318 does nothing the eye
+   can see) and white darkens. color-mix keeps the relationship to whatever
+   --hb-cta a site rebrands to, which hardcoded hexes would not. */
+.hb-btn--cta {
+  --hb-btn-tone: var(--hb-cta);
+  --hb-btn-tone-hover: color-mix(in srgb, var(--hb-cta) 88%, #000);
+  --hb-btn-tone-active: color-mix(in srgb, var(--hb-cta) 78%, #000);
+}
+.hb-btn--secondary {
+  --hb-btn-tone: var(--hb-secondary);
+  --hb-btn-tone-hover: color-mix(in srgb, var(--hb-secondary) 88%, #000);
+  --hb-btn-tone-active: color-mix(in srgb, var(--hb-secondary) 78%, #000);
+}
+.hb-btn--dark {
+  --hb-btn-tone: var(--hb-text-night);
+  /* Lifts to a dark grey — slight, but visible against #101318. */
+  --hb-btn-tone-hover: color-mix(in srgb, var(--hb-text-night) 82%, #fff);
+  --hb-btn-tone-active: color-mix(in srgb, var(--hb-text-night) 72%, #fff);
+}
 .hb-btn--light {
   --hb-btn-tone: var(--hb-white);
+  --hb-btn-tone-hover: color-mix(in srgb, var(--hb-white) 94%, #000);
+  --hb-btn-tone-active: color-mix(in srgb, var(--hb-white) 88%, #000);
   --hb-btn-label: var(--hb-text-night);
   border-color: var(--hb-text-night);
 }
@@ -77,21 +96,33 @@
 .hb-btn--block { display: flex; width: 100%; }
 
 /* ── Interaction ──────────────────────────────────────────────────────────────
-   The Figma frames show resting state only. Hover/active/focus are derived so
-   the buttons feel like controls: a brightness shift keeps the relationship to
-   the brand colour whatever a site rebrands it to, which a hardcoded darker hex
-   would not. */
+   The Figma frames show resting state only; hover/active/focus are derived.
 
-.hb-btn:hover:not(:disabled)  { filter: brightness(0.92); }
-.hb-btn:active:not(:disabled) { filter: brightness(0.85); }
+   These set a real BACKGROUND rather than `filter: brightness()`. A filter
+   leaves `background` unset, so a host `button:hover { background: #f3f4f6 }`
+   — which at (0,1,1) outranks this single class — painted grey over the tone
+   and the filter merely dimmed THAT. Naming the colour outright is what stops
+   a primary button turning grey and a black one turning light grey. */
+
+.hb-btn:hover:not(:disabled):not([aria-disabled='true']) {
+  filter: none;
+  background: var(--hb-btn-tone-hover);
+}
+.hb-btn:active:not(:disabled):not([aria-disabled='true']) {
+  filter: none;
+  background: var(--hb-btn-tone-active);
+}
 
 /* Outline buttons invert into the tone on hover rather than dimming a white box. */
-.hb-btn--outline:hover:not(:disabled) {
+.hb-btn--outline:hover:not(:disabled):not([aria-disabled='true']) {
   filter: none;
   background: var(--hb-btn-tone);
   color: var(--hb-white);
 }
-.hb-btn--outline.hb-btn--text-dark:hover:not(:disabled) { color: var(--hb-text-night); }
+.hb-btn--outline:active:not(:disabled):not([aria-disabled='true']) {
+  background: var(--hb-btn-tone-active);
+}
+.hb-btn--outline.hb-btn--text-dark:hover:not(:disabled):not([aria-disabled='true']) { color: var(--hb-text-night); }
 
 .hb-btn:focus-visible {
   outline: none;
@@ -103,6 +134,24 @@
   opacity: 0.45;
   cursor: not-allowed;
   filter: none;
+}
+/* No hover at all while disabled or busy. The :not() guards above stop OUR
+   rules applying, but they do not stop a host `button:hover` — so the resting
+   background is pinned here. `busy` sets disabled on <button> and
+   aria-disabled on the <a> variant, hence both selectors. */
+.hb-btn:disabled:hover,
+.hb-btn:disabled:active,
+.hb-btn[aria-disabled='true']:hover,
+.hb-btn[aria-disabled='true']:active {
+  background: var(--hb-btn-tone);
+  filter: none;
+}
+.hb-btn--outline:disabled:hover,
+.hb-btn--outline:disabled:active,
+.hb-btn--outline[aria-disabled='true']:hover,
+.hb-btn--outline[aria-disabled='true']:active {
+  background: var(--hb-white);
+  color: var(--hb-text-night);
 }
 
 /* ── Busy state ───────────────────────────────────────────────────────────────
