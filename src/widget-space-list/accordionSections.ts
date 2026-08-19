@@ -9,7 +9,7 @@
 
 import type { SpaceListProps } from './types';
 
-export type AccordionKey = 'store' | 'nearby' | 'reviews' | 'faq' | 'blog' | 'sizeguide' | 'notes' | 'features' | 'about';
+export type AccordionKey = 'store' | 'nearby' | 'reviews' | 'faq' | 'blog' | 'localblog' | 'sizeguide' | 'notes' | 'features' | 'about';
 
 export interface AccordionSectionMeta {
   key: AccordionKey;
@@ -26,6 +26,8 @@ export const ACCORDION_SECTIONS: AccordionSectionMeta[] = [
   { key: 'reviews',   label: 'Reviews',                enabledBy: 'isReviews' },
   { key: 'faq',       label: 'FAQ',                    enabledBy: 'isFAQ' },
   { key: 'blog',      label: 'Storage Blogs',          enabledBy: 'isBlog' },
+  // Same collection as 'blog', filtered to the posts tagged for this property.
+  { key: 'localblog', label: 'Local Blogs',            enabledBy: 'isLocalBlog' },
   { key: 'sizeguide', label: 'Size Guide',             enabledBy: 'isSizeGuide' },
   { key: 'notes',     label: 'Notes',                  enabledBy: 'isNotes' },
   // Label is overridable per instance via the `aboutTitle` prop; this is the

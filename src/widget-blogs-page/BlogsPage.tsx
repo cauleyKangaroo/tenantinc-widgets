@@ -3,7 +3,7 @@ import './BlogsPage.css';
 import { ShareIcon, FilterHorizontalIcon, SearchIcon, PillRemoveIcon, CloseIcon } from './icons';
 import { BLOG_IMAGES, cover } from '@shared/demoImages';
 import { hasCollectionsApi, logSource } from '@shared/dudaCollections';
-import { fetchBlogPosts, type BlogPostData } from '@shared/blogPosts';
+import { fetchBlogPosts, slugify, type BlogPostData } from '@shared/blogPosts';
 import { SOCIAL_ICONS } from '@shared/socialIcons';
 import { absolutePostUrl, shareTargets, type SocialProfiles } from '@shared/shareLinks';
 import { useSocialProfiles } from '@shared/useSocialProfiles';
@@ -39,17 +39,22 @@ import { useSocialProfiles } from '@shared/useSocialProfiles';
 // Dev-harness fallback. Outside Duda there's no dmAPI to read, so without this
 // the harness would render an empty page. Nine posts so the full 3x3 grid, the
 // chip row and the "More" panel are all exercised.
+//
+// Two of them also carry `storage-outlet-irvine` — the property-slug tag #05's
+// "Local Blogs" section matches on (@shared/localBlogs). It's the demo property
+// that section falls back to, so its "See all blogs" button lands here and
+// actually filters in the harness instead of hitting an unknown category.
 // ---------------------------------------------------------------------------
 
 const DEMO_POSTS: BlogPostData[] = [
-  { id: 'b1', title: 'Spring Cleaning Made Simple: Storage Outlet Has Your Back', author: 'Storage Outlet', date: 'Mar 15, 2026 @ 4:30pm', timestamp: 9, excerpt: "Don't start the year off with overflowing closets, stuffed garages, and just too much clutter. Here's how a storage unit can help you reset.", image: BLOG_IMAGES[0], href: '/blogs/spring-cleaning-made-simple', slug: 'spring-cleaning-made-simple', tags: ['Storage Advice'] },
+  { id: 'b1', title: 'Spring Cleaning Made Simple: Storage Outlet Has Your Back', author: 'Storage Outlet', date: 'Mar 15, 2026 @ 4:30pm', timestamp: 9, excerpt: "Don't start the year off with overflowing closets, stuffed garages, and just too much clutter. Here's how a storage unit can help you reset.", image: BLOG_IMAGES[0], href: '/blogs/spring-cleaning-made-simple', slug: 'spring-cleaning-made-simple', tags: ['Storage Advice', 'storage-outlet-irvine'] },
   { id: 'b2', title: '5 Tips for Packing a Storage Unit Efficiently', author: 'Storage Outlet', date: 'Mar 10, 2026 @ 1:15pm', timestamp: 8, excerpt: 'Make the most of every square foot. These simple packing strategies help you fit more and keep your belongings easy to reach.', image: BLOG_IMAGES[1], href: '/blogs/packing-a-storage-unit', slug: 'packing-a-storage-unit', tags: ['Packing', 'Storage Advice'] },
   { id: 'b3', title: 'How to Choose the Right Storage Unit Size', author: 'Storage Outlet', date: 'Mar 4, 2026 @ 9:00am', timestamp: 7, excerpt: 'From lockers to large drive-up units, picking the right size saves money and hassle. Our guide breaks down what fits where.', image: BLOG_IMAGES[2], href: '/blogs/choosing-a-unit-size', slug: 'choosing-a-unit-size', tags: ['Storage Advice'] },
   { id: 'b4', title: 'Climate-Controlled Storage: Is It Worth It?', author: 'Storage Outlet', date: 'Feb 26, 2026 @ 11:45am', timestamp: 6, excerpt: "Temperature swings can damage furniture, electronics, and documents. Here's when climate control is worth the upgrade.", image: BLOG_IMAGES[3], href: '/blogs/climate-controlled-storage', slug: 'climate-controlled-storage', tags: ['Technology'] },
   { id: 'b5', title: 'Got boxes? Everything you need to know about cardboard.', author: 'Storage Outlet', date: 'Feb 18, 2026 @ 8:20am', timestamp: 5, excerpt: 'Single wall, double wall, wardrobe, dish barrel — a plain-English tour of the boxes worth buying and the ones worth skipping.', image: BLOG_IMAGES[4], href: '/blogs/got-boxes', slug: 'got-boxes', tags: ['Packing'] },
   { id: 'b6', title: 'Storing Business Inventory Without Renting a Warehouse', author: 'Storage Outlet', date: 'Feb 9, 2026 @ 3:05pm', timestamp: 4, excerpt: 'Seasonal stock, sample cases, trade-show kit — how small businesses use self storage as flexible overflow space.', image: BLOG_IMAGES[5], href: '/blogs/storing-business-inventory', slug: 'storing-business-inventory', tags: ['Business'] },
   { id: 'b7', title: 'Smart Locks and 24/7 Access: Storage Tech in 2026', author: 'Storage Outlet', date: 'Jan 30, 2026 @ 10:00am', timestamp: 3, excerpt: 'App-controlled gates, unit-level sensors, and video that actually helps. What the new hardware changes for renters.', image: BLOG_IMAGES[0], href: '/blogs/smart-locks-and-24-7-access', slug: 'smart-locks-and-24-7-access', tags: ['Technology'] },
-  { id: 'b8', title: 'Moving Across Town? Use Storage as a Staging Area', author: 'Storage Outlet', date: 'Jan 21, 2026 @ 2:40pm', timestamp: 2, excerpt: 'Closing dates rarely line up. A short-term unit turns a stressful two-day scramble into a move you can pace.', image: BLOG_IMAGES[1], href: '/blogs/moving-across-town', slug: 'moving-across-town', tags: ['Moving', 'Storage Advice'] },
+  { id: 'b8', title: 'Moving Across Town? Use Storage as a Staging Area', author: 'Storage Outlet', date: 'Jan 21, 2026 @ 2:40pm', timestamp: 2, excerpt: 'Closing dates rarely line up. A short-term unit turns a stressful two-day scramble into a move you can pace.', image: BLOG_IMAGES[1], href: '/blogs/moving-across-town', slug: 'moving-across-town', tags: ['Moving', 'Storage Advice', 'storage-outlet-irvine'] },
   { id: 'b9', title: 'A Landlord’s Guide to Turnover Storage', author: 'Storage Outlet', date: 'Jan 12, 2026 @ 9:30am', timestamp: 1, excerpt: 'Appliances, spare fixtures, and tenant leave-behinds add up fast. Keeping them off-site keeps units rentable.', image: BLOG_IMAGES[2], href: '/blogs/landlords-guide-to-turnover-storage', slug: 'landlords-guide-to-turnover-storage', tags: ['Business', 'Moving'] },
 ];
 
@@ -340,6 +345,70 @@ function positiveInt(v: number | undefined, fallback: number): number {
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : fallback;
 }
 
+// ── ?category= deep link ────────────────────────────────────────────────────
+// `/blogs?category=storage-advice` opens the page with that chip already on, so
+// a category link anywhere on the site (or off it) lands on a filtered grid.
+//
+// The traffic is ONE WAY on purpose: the param is read once on load and deleted
+// when the reader turns the chip off, but toggling a chip never writes one. This
+// widget is a section on a Duda page whose URL it does not own, and a filter bar
+// that rewrites the address on every click would fight the page's own params and
+// make a shared link mean whatever the last click was.
+
+const CATEGORY_PARAM = 'category';
+
+/** The requested category, verbatim ('' when absent). */
+function readCategoryParam(): string {
+  try {
+    return (new URLSearchParams(window.location.search).get(CATEGORY_PARAM) ?? '').trim();
+  } catch {
+    return '';
+  }
+}
+
+/** Drop `?category=` and leave every other param alone. */
+function clearCategoryParam(): void {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    if (!p.has(CATEGORY_PARAM)) return;
+    p.delete(CATEGORY_PARAM);
+    const qs = p.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
+  } catch {
+    // Silently fail if replaceState isn't available (e.g. sandboxed iframe).
+  }
+}
+
+/**
+ * The tag the param names, or null.
+ *
+ * Matched on the slug rather than the raw string, because the value in a link is
+ * written by hand: `Storage Advice`, `storage-advice` and `storage_advice` all
+ * have to find the "Storage Advice" chip. Tag labels are the site's own data, so
+ * two of them colliding on one slug isn't worth guessing between — first wins.
+ */
+function matchCategory(tags: string[], raw: string): string | null {
+  const want = slugify(raw);
+  if (!want) return null;
+  return tags.find((t) => slugify(t) === want) ?? null;
+}
+
+/**
+ * Every tag across the posts, in first-seen order.
+ *
+ * The list is newest-first, so the leading chips are the categories the site is
+ * publishing in right now.
+ */
+function collectTags(posts: BlogPostData[]): string[] {
+  const out: string[] = [];
+  for (const post of posts) {
+    for (const tag of post.tags ?? []) {
+      if (!out.includes(tag)) out.push(tag);
+    }
+  }
+  return out;
+}
+
 export function BlogsPage({
   collection = 'BlogPosts',
   blogBasePath = '/blogs',
@@ -367,14 +436,45 @@ export function BlogsPage({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // The requested category, captured on the first render: reading it later would
+  // race the deletion below and come back empty.
+  const urlCategory = useRef(readCategoryParam()).current;
+  /** The chip `?category=` switched on, while the param is still in the URL. */
+  const [linkedTag, setLinkedTag] = useState<string | null>(null);
+  const linkApplied = useRef(false);
+
   // ── Data ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    /**
+     * Land the posts and, on a `?category=` link, the chip it names — in ONE
+     * state update. Selecting the chip from its own effect instead would commit
+     * the unfiltered grid first and then filter it, so a deep link flashed every
+     * post before settling on the category.
+     *
+     * One shot, whether or not the category matched: re-running it (the effect
+     * re-fires if `collection` changes) would re-select a chip the reader had
+     * since switched off.
+     */
+    const applyPosts = (list: BlogPostData[]) => {
+      setPosts(list);
+      if (linkApplied.current || !urlCategory) return;
+      linkApplied.current = true;
+
+      const match = matchCategory(collectTags(list), urlCategory);
+      // A category no post carries leaves the param in place and the grid
+      // unfiltered — rewriting a URL we never acted on would hide the typo.
+      if (!match) return;
+
+      setLinkedTag(match);
+      setActiveTags([match]);
+    };
+
     // No dmAPI means we're not in Duda (dev harness / site editor) — show the
     // demo set rather than an empty page, and skip the fetch entirely.
     if (!hasCollectionsApi()) {
       logSource('#15', 'blog posts', false, 'no dmAPI — not in Duda');
-      setPosts(DEMO_POSTS);
+      applyPosts(DEMO_POSTS);
       setLoading(false);
       return;
     }
@@ -386,27 +486,26 @@ export function BlogsPage({
       .then((live) => {
         if (cancelled) return;
         logSource('#15', 'blog posts', true, `${collection}, ${live.length} rows`);
-        setPosts(live);
+        applyPosts(live);
       })
       .catch((err) => console.error('[BlogsPage] fetchBlogPosts error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [collection, blogBasePath]);
+  }, [collection, blogBasePath, urlCategory]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
-  // First-seen order across a newest-first list, so the leading chips are the
-  // categories the site is publishing in right now.
-  const allTags = useMemo(() => {
-    const out: string[] = [];
-    for (const post of posts) {
-      for (const tag of post.tags ?? []) {
-        if (!out.includes(tag)) out.push(tag);
-      }
-    }
-    return out;
-  }, [posts]);
+  const allTags = useMemo(() => collectTags(posts), [posts]);
+
+  // Turning the deep-linked chip off (its own X, "Clear all", or the empty
+  // state's reset) drops the param, so a reload doesn't bring the filter back.
+  // `linkedTag` is then forgotten, which is what stops a re-check re-adding it.
+  useEffect(() => {
+    if (!linkedTag || activeTags.includes(linkedTag)) return;
+    clearCategoryParam();
+    setLinkedTag(null);
+  }, [linkedTag, activeTags]);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -427,7 +526,15 @@ export function BlogsPage({
 
   // Chips visible inline; the rest are only reachable through the panel. On
   // mobile the inline row is hidden entirely (CSS) and the panel is the only way in.
-  const inlineTags = allTags.slice(0, inlineTagCount);
+  // An ACTIVE chip is always inline, even when it sits past the cut: a
+  // `?category=` link (or a pick from the panel) can name any tag, and a
+  // filtered grid whose only sign of a filter is the button's badge reads as
+  // broken. Everything else keeps the plain first-N order.
+  const inlineTags = useMemo(() => {
+    const head = allTags.slice(0, inlineTagCount);
+    const promoted = activeTags.filter((t) => allTags.includes(t) && !head.includes(t));
+    return [...head, ...promoted];
+  }, [allTags, inlineTagCount, activeTags]);
   const hasHiddenTags = allTags.length > inlineTags.length;
 
   // ── Filter / search interaction ────────────────────────────────────────────

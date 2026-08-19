@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CheckTick, CalendarIcon, FileArrowIcon, ChevronIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
+import { CheckTick, CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
 import { mountGpHostedFields, GpTokenResult, GpFieldValidity } from './gpHostedFields';
 import { ProtectionPlanModal } from './ProtectionPlanModal';
+import { LeaseModal } from './LeaseModal';
+import { RfCheckbox } from './RfCheckbox';
 import { BankForm, CardForm, PaymentFormSkeleton } from './PaymentSection';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
-import { FormField, Button, Checkbox, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space today" (Figma 8507-23329).
@@ -16,6 +18,41 @@ import { FormField, Button, Checkbox, isPossiblePhone, type FieldType, type Phon
 
 /** How long the static payment form's skeleton shows before the form. */
 const FORM_SKELETON_MS = 700;
+
+/**
+ * The lease body, rendered BOTH in the inline preview and in the "View
+ * Document" lightbox — one definition, so the two can never disagree about
+ * what the shopper is agreeing to.
+ *
+ * Static copy, because the documents API gives us a name/type/signed flag and
+ * NO url (see LeaseDocument in api.ts) — there is nothing to embed yet. When a
+ * document URL exists this becomes an <iframe>/<embed> and both surfaces get it
+ * at once.
+ */
+function LeaseDocBody({ title }: { title?: string }) {
+  return (
+    <div className="rf2-doc-page">
+      <p className="rf2-doc-title">{title ?? 'Self Storage Rental Agreement'}</p>
+      <p className="rf2-doc-h">General Disclosures:</p>
+      <p className="rf2-doc-p">
+        This Rental Agreement is a month-to-month rental agreement which shall commence on the date of
+        execution and shall terminate on the last day of the current month, and each and every month
+        thereafter, unless notice is given ten (10) days prior to the end of the last month of tenancy by
+        either party, subject to all terms and conditions hereafter stated.
+      </p>
+      <p className="rf2-doc-p">
+        If Tenant elects to hold over or for any reason fails to remove his/her property from the Space after
+        the term of this Agreement, then this Agreement shall be automatically renewed, on a month-to-month
+        basis. In the event this Agreement is extended or renewed, it is expressly agreed that the covenants
+        and terms of this Agreement shall remain in full force and effect.
+      </p>
+      <p className="rf2-doc-p">
+        Tenant agrees to pay the monthly rent in advance on the first day of each month during the term of
+        this Agreement. Rent is considered late if not received by the Owner within five (5) days.
+      </p>
+    </div>
+  );
+}
 
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 const formatDate = (d: Date) => `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
@@ -54,8 +91,27 @@ function FieldAbove({
   );
 }
 
-// Label-above select, visually matched to FieldAbove.
-function SelectAbove({
+/**
+ * Dropdown, built on the shared field's skin (Figma 8507-25490 / 8507-25502).
+ *
+ * The label belongs INSIDE the box, exactly as FieldAbove's <FormField> already
+ * puts it — the old label-above markup was what made these three controls the
+ * odd ones out in a form where every text input floats its label. So this
+ * reuses the kit's own `hb-field` classes rather than restyling a select from
+ * scratch: box, 56px height, 16px gutters, #A5B4BF border, focus ring, floated
+ * label and the red required marker all arrive from @shared/ui and cannot drift
+ * from the inputs sitting beside them.
+ *
+ * Two things a <select> cannot inherit:
+ *  - The kit floats its label off `:placeholder-shown`, which a select never
+ *    matches. `.rf2-sel--filled` stands in for it (see the CSS).
+ *  - The arrow was the BROWSER's, which is why it looked foreign and sat hard
+ *    against the edge. `appearance: none` removes it and ChevronSolidIcon — the
+ *    same mark as the protection-plan dropdown (Figma 8508-32282) — goes into
+ *    the kit's `hb-field__icons` slot, where the box's own 16px padding indents
+ *    it to match the frame without a magic number.
+ */
+function SelectField({
   label, required, value, onChange, options, error,
 }: {
   label: string;
@@ -65,30 +121,57 @@ function SelectAbove({
   options: string[];
   error?: boolean;
 }) {
+  const cls = [
+    'hb-field', 'hb-field--labelled', 'rf2-sel',
+    value ? 'rf2-sel--filled' : '',
+    error ? 'hb-field--error' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <label className={`rf2-field${error ? ' rf2-field--error' : ''}`}>
-      <span className="rf2-field-label">{label}{required && <span className="rf-req">*</span>}</span>
-      <select className="rf2-field-input" value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="" disabled hidden></option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </label>
+    <div className={cls}>
+      <div className="hb-field__box">
+        <div className="hb-field__data">
+          {/* Select before label, matching FormField, so the CSS sibling
+              selector can float the label on focus. */}
+          <select
+            className="hb-field__input hb-field__select"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            /* The visible label is the floating one, which is decorative to AT
+               once it has floated — so name the control explicitly. */
+            aria-label={label}
+            required={required}
+            aria-invalid={error || undefined}
+          >
+            <option value="" disabled hidden />
+            {options.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <label className="hb-field__label">
+            {label}
+            {required && <span className="hb-field__required" aria-hidden="true">*</span>}
+          </label>
+        </div>
+        <div className="hb-field__icons">
+          <ChevronSolidIcon size={14} className="hb-field__icon rf2-sel-chev" />
+        </div>
+      </div>
+    </div>
   );
 }
 
-// Dark-fill checkbox used across the step-2 sections.
+// Thin alias kept so the step-2 call sites read as before; RfCheckbox owns the
+// skin, size and tick. No `small` — every checkbox in the flow is one size now.
 function Check({
-  checked, onChange, small, children,
+  checked, onChange, children,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
-  small?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <Checkbox checked={checked} onChange={onChange} className={small ? 'rf2-check--sm' : undefined}>
+    <RfCheckbox checked={checked} onChange={onChange}>
       {children}
-    </Checkbox>
+    </RfCheckbox>
   );
 }
 
@@ -169,12 +252,13 @@ function CardFieldsPanel({
 }
 
 export function Step2({
-  moveIn, plan, leaseDocName, onEditDate, gpApiKey, gpEnvironment = 'test', payNowTotal, onPaymentComplete,
+  moveIn, plans = [], leaseDocName, onEditDate, gpApiKey, gpEnvironment = 'test', payNowTotal, onPaymentComplete,
   brochureUrl,
 }: {
   moveIn: Date;
-  /** First protection plan from the API; card falls back to demo values without it. */
-  plan?: import('./api').ProtectionPlan;
+  /** Protection plans to choose between. Empty → the "confirmed at checkout"
+   *  note, since no API exposes them pre-lease yet. */
+  plans?: import('./api').ProtectionPlan[];
   /** Protection-plan brochure PDF for the "Learn More" lightbox. Absent → the
    *  modal's download button is inert rather than a dead link. */
   brochureUrl?: string;
@@ -222,6 +306,53 @@ export function Step2({
   // rental-flow work). The plan CARD is API-driven (see `plan`); this modal is
   // the explanatory content behind it.
   const [planOpen, setPlanOpen] = useState(false);
+  // "View Document" lightbox. The agree checkbox inside it drives the SAME
+  // `agree` state as the one on the page, so accepting in either place counts.
+  const [leaseOpen, setLeaseOpen] = useState(false);
+
+  // Autopay explainer tooltip (Figma 8509-34934).
+  const [tipOpen, setTipOpen] = useState(false);
+  const tipRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!tipOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (tipRef.current && !tipRef.current.contains(e.target as Node)) setTipOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setTipOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [tipOpen]);
+
+  // Protection-plan dropdown. Defaults to the plan the operator marked (name
+  // "Best Value"), else the first — never nothing, so the card always states a
+  // choice rather than looking unanswered. 'own' is the "I have my own
+  // insurance" branch, which is a decision rather than a product and so is not
+  // in `plans`.
+  const [planListOpen, setPlanListOpen] = useState(false);
+  const [planChoice, setPlanChoice] = useState<string | 'own'>(
+    () => plans.find((p) => /best value/i.test(p.name ?? ''))?.id ?? plans[0]?.id ?? 'own',
+  );
+  const chosenPlan = plans.find((p) => p.id === planChoice);
+
+  // Close on outside click / Escape, like a native select.
+  const planRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!planListOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (planRef.current && !planRef.current.contains(e.target as Node)) setPlanListOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPlanListOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [planListOpen]);
 
   // Payment method + Hosted Fields tokenization result. The temporary
   // token is single-use with a 30-minute expiry — comfortably inside the
@@ -260,6 +391,10 @@ export function Step2({
   /** No GP key ⇒ the static forms stand in for hosted fields. */
   const staticPay = !gpApiKey;
 
+  /** A card/bank panel is open, so its button is replaced by the panel and the
+   *  other method relocates beneath it. Wallets are one-tap and never expand. */
+  const methodOpen = staticPay && (payMethod === 'card' || payMethod === 'bank');
+
   const selectPayMethod = (m: 'gpay' | 'apple' | 'card' | 'bank') => {
     if (!formComplete) { setPayAttempted(true); return; }
     const next = payMethod === m ? null : m;
@@ -276,7 +411,6 @@ export function Step2({
   /** Static "Pay Now" — hands straight to the parent's finalizing sequence. */
   const payStatically = () => onPaymentComplete?.({ firstName: first.trim() || 'there' });
 
-  const noop = (e: React.MouseEvent) => e.preventDefault();
 
   return (
     <div className="rf-card rf2-card">
@@ -285,9 +419,9 @@ export function Step2({
         <h2 className="rf-heading">Secure your space today</h2>
       </div>
 
-      <Checkbox checked={business} onChange={setBusiness} className="rf-business">
+      <RfCheckbox checked={business} onChange={setBusiness} className="rf-business">
         I am renting as a business
-      </Checkbox>
+      </RfCheckbox>
       {business && (
         <div className="rf2-expand rf2-expand--top">
           <FieldAbove label="Business Address" required value={bizAddress} onChange={setBizAddress} error={bad('bizAddress')} />
@@ -323,20 +457,91 @@ export function Step2({
             <span className="rf2-h">Select Protection Plan</span>
             <button type="button" className="rf2-link rf2-link--btn" onClick={() => setPlanOpen(true)}>Learn More</button>
           </div>
-          {plan?.coverage != null && plan.premium != null ? (
-            <div className="rf2-plan">
-              <div className="rf2-plan-body">
-                <div className="rf2-plan-left">
-                  <span className="rf2-plan-cov">
-                    <b>${plan.coverage.toLocaleString()}</b> Coverage
-                  </span>
-                  <span className="rf2-plan-best">{plan.name ?? 'Best Value'}</span>
-                </div>
-                <span className="rf2-plan-price"><b>${plan.premium}</b><span>/mo</span></span>
-              </div>
-              <button type="button" className="rf2-plan-drop" aria-label="More plans">
-                <ChevronIcon size={14} className="rf2-chev-down" />
+          {plans.length ? (
+            <div className="rf2-plan-wrap" ref={planRef}>
+              {/* Closed control (Figma 8507-23352). The chevron is a separate
+                  cell behind a divider, per the frame — but the whole control
+                  toggles, so the small cell is not the only target. */}
+              <button
+                type="button"
+                className="rf2-plan"
+                aria-haspopup="listbox"
+                aria-expanded={planListOpen}
+                onClick={() => setPlanListOpen((o) => !o)}
+              >
+                <span className="rf2-plan-body">
+                  {chosenPlan ? (
+                    <>
+                      <span className="rf2-plan-left">
+                        <span className="rf2-plan-cov">
+                          <b>${chosenPlan.coverage?.toLocaleString()}</b> Coverage
+                        </span>
+                        {/best value/i.test(chosenPlan.name ?? '') && (
+                          <span className="rf2-plan-best">Best Value</span>
+                        )}
+                      </span>
+                      <span className="rf2-plan-price"><b>${chosenPlan.premium}</b><span>/mo</span></span>
+                    </>
+                  ) : (
+                    <span className="rf2-plan-own-sel">I Have My Own Insurance</span>
+                  )}
+                </span>
+                <span className="rf2-plan-drop">
+                  {/* Solid variant (Figma 8508-32282), not the outline
+                      ChevronIcon used elsewhere — a visibly heavier mark. */}
+                  <ChevronSolidIcon size={14} className={`rf2-chev-down${planListOpen ? ' rf2-chev-up' : ''}`} />
+                </span>
               </button>
+
+              {/* Open list (Figma 8508-32894) */}
+              {planListOpen && (
+                <div className="rf2-plan-menu" role="listbox" aria-label="Protection plans">
+                  {plans.map((p, i) => {
+                    const best = /best value/i.test(p.name ?? '');
+                    return (
+                      <React.Fragment key={p.id}>
+                        {/* Divider is a SIBLING of the rows, not a border on them:
+                            the frame draws it as its own child of the gap-8
+                            column, so 8px sits above AND below each line. A
+                            border-top would hug the next row instead. */}
+                        {i > 0 && <span className="rf2-plan-sep" aria-hidden="true" />}
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={planChoice === p.id}
+                          className={`rf2-plan-opt${best ? ' rf2-plan-opt--best' : ''}`}
+                          onClick={() => { setPlanChoice(p.id); setPlanListOpen(false); }}
+                        >
+                          <span className="rf2-plan-opt-left">
+                            <span className="rf2-plan-opt-cov">
+                              <b>${p.coverage?.toLocaleString()}</b> Coverage
+                            </span>
+                            {best && <span className="rf2-plan-best rf2-plan-best--sm">Best Value</span>}
+                          </span>
+                          <span className="rf2-plan-price"><b>${p.premium}</b><span>/month</span></span>
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+                  {plans.length > 0 && <span className="rf2-plan-sep" aria-hidden="true" />}
+                  {/* Not a plan — a declaration that they will supply their own.
+                      Hence no price and its own layout in the frame. */}
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={planChoice === 'own'}
+                    className="rf2-plan-opt rf2-plan-opt--own"
+                    onClick={() => { setPlanChoice('own'); setPlanListOpen(false); }}
+                  >
+                    <span className="rf2-plan-own-t">I Have My Own Insurance</span>
+                    <span className="rf2-plan-own-d">
+                      I’ll provide proof of coverage - I’ll buy the Basic Protection Plan if I
+                      don’t provide proof of coverage through my homeowners or renters insurance
+                      by the end of the month.
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             /* NO-DEMO-MONEY: plans aren't exposed pre-lease by any API we
@@ -351,13 +556,13 @@ export function Step2({
         <section className="rf2-plain">
           <span className="rf2-h">Additional Information</span>
           <div className="rf2-checks">
-            <Check small checked={military} onChange={setMilitary}>I am active military</Check>
+            <Check checked={military} onChange={setMilitary}>I am active military</Check>
             {military && (
               <div className="rf2-expand">
                 <FieldAbove label="Date of Birth" required value={dob} onChange={setDob} error={bad('dob')} />
               </div>
             )}
-            <Check small checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
+            <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
             {altContact && (
               <div className="rf2-expand">
                 <div className="rf2-row">
@@ -371,10 +576,10 @@ export function Step2({
                 <FieldAbove label="Address" required value={acAddress} onChange={setAcAddress} error={bad('acAddress')} />
               </div>
             )}
-            <Check small checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
+            <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
             {vehicle && (
               <div className="rf2-expand">
-                <SelectAbove label="Vehicle Type" required value={vehType} onChange={setVehType} error={bad('vehType')}
+                <SelectField label="Vehicle Type" required value={vehType} onChange={setVehType} error={bad('vehType')}
                   options={['Car', 'Truck', 'Motorcycle', 'RV', 'Boat', 'Trailer', 'Other']} />
                 <div className="rf2-row">
                   <FieldAbove label="Make" value={vehMake} onChange={setVehMake} />
@@ -386,10 +591,10 @@ export function Step2({
                 </div>
                 <div className="rf2-row">
                   <FieldAbove label="License Plate Number" value={vehPlate} onChange={setVehPlate} />
-                  <SelectAbove label="Country" value={vehCountry} onChange={setVehCountry}
+                  <SelectField label="Country" value={vehCountry} onChange={setVehCountry}
                     options={['United States', 'Canada', 'Mexico']} />
                 </div>
-                <SelectAbove label="State" value={vehState} onChange={setVehState}
+                <SelectField label="State" value={vehState} onChange={setVehState}
                   options={['AZ', 'CA', 'NV', 'OR', 'TX', 'WA', 'Other']} />
               </div>
             )}
@@ -400,71 +605,86 @@ export function Step2({
         <section className="rf2-agree">
           <div className="rf2-agree-head">
             <span className="rf2-h">Rental Agreement <span className="rf-req">*</span></span>
-            <a className="rf2-link" href="#" onClick={noop}><FileArrowIcon size={24} />View Document</a>
+            <button type="button" className="rf2-link rf2-link--btn" onClick={() => setLeaseOpen(true)}>
+              <FileArrowIcon size={24} />View Document
+            </button>
           </div>
           <div className="rf2-agree-doc">
-            <div className="rf2-doc-page">
-              <p className="rf2-doc-title">{leaseDocName ?? 'Self Storage Rental Agreement'}</p>
-              <p className="rf2-doc-h">General Disclosures:</p>
-              <p className="rf2-doc-p">
-                This Rental Agreement is a month-to-month rental agreement which shall commence on the date of
-                execution and shall terminate on the last day of the current month, and each and every month
-                thereafter, unless notice is given ten (10) days prior to the end of the last month of tenancy by
-                either party, subject to all terms and conditions hereafter stated.
-              </p>
-              <p className="rf2-doc-p">
-                If Tenant elects to hold over or for any reason fails to remove his/her property from the Space after
-                the term of this Agreement, then this Agreement shall be automatically renewed, on a month-to-month
-                basis. In the event this Agreement is extended or renewed, it is expressly agreed that the covenants
-                and terms of this Agreement shall remain in full force and effect.
-              </p>
-              <p className="rf2-doc-p">
-                Tenant agrees to pay the monthly rent in advance on the first day of each month during the term of
-                this Agreement. Rent is considered late if not received by the Owner within five (5) days.
-              </p>
-            </div>
+            <LeaseDocBody title={leaseDocName} />
           </div>
-          <Checkbox
+          <RfCheckbox
             checked={agree}
             onChange={setAgree}
-            className={`rf2-agree-bar${bad('agree') ? ' rf2-agree-bar--error' : ''}`}
+            className="rf2-agree-bar"
           >
             <span className="rf2-agree-text"><b>I agree</b> to the terms and conditions as set out by the rental agreement.</span>
-          </Checkbox>
+          </RfCheckbox>
+          {/* Says what is wrong instead of ringing the row in red. role="alert"
+              so it is announced when it appears, not silently drawn. */}
+          {bad('agree') && (
+            <p className="rf2-agree-error" role="alert">
+              You must accept the rental agreement to continue.
+            </p>
+          )}
         </section>
 
         {/* Payment */}
         <section className="rf2-panel rf2-payment">
           <span className="rf2-h">Payment</span>
-          <div className="rf2-autopay">
+          <div className={`rf2-autopay${autopay ? ' rf2-autopay--on' : ''}`}>
             <Check checked={autopay} onChange={setAutopay}>
               <span className="rf2-autopay-label">Autopay Enrollment</span>
             </Check>
-            <InfoIcon size={16} className="rf2-autopay-info" />
+            {/* Click, not hover: a hover-only tooltip is unreachable on touch,
+                and this explains a recurring charge. */}
+            <span className="rf2-tip-anchor" ref={tipRef}>
+              <button
+                type="button"
+                className="rf2-autopay-info"
+                aria-label="About autopay enrollment"
+                aria-expanded={tipOpen}
+                onClick={() => setTipOpen((o) => !o)}
+              >
+                <InfoIcon size={16} />
+              </button>
+              {tipOpen && (
+                <span className="rf2-tip" role="tooltip">
+                  Enrolling in autopay automatically charges your payment method each month
+                </span>
+              )}
+            </span>
           </div>
-          <div className="rf2-paygrid">
+          {/* Wallets always sit at the top. The two method buttons only share
+              that grid while NEITHER is open — once one is, the open panel
+              takes their place and the other method moves below it
+              (Figma 10080-28749). */}
+          <div className={`rf2-paygrid${methodOpen ? ' rf2-paygrid--wallets' : ''}`}>
             <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('gpay')}><GooglePayMark /></button>
             <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('apple')}><ApplePayMark /></button>
-            <Button
-              tone="dark"
-              fill="outline"
-              block
-              icon={<CreditCardIcon size={24} />}
-              className={`rf2-pay-btn${payMethod === 'card' ? ' rf2-pay--selected' : ''}`}
-              onClick={() => selectPayMethod('card')}
-            >
-              Credit / Debit
-            </Button>
-            <Button
-              tone="dark"
-              fill="outline"
-              block
-              icon={<BankIcon size={24} />}
-              className="rf2-pay-btn"
-              onClick={() => selectPayMethod('bank')}
-            >
-              Pay by Bank
-            </Button>
+            {!methodOpen && (
+              <>
+                <Button
+                  tone="dark"
+                  fill="outline"
+                  block
+                  icon={<CreditCardIcon size={24} />}
+                  className="rf2-pay-btn"
+                  onClick={() => selectPayMethod('card')}
+                >
+                  Credit / Debit
+                </Button>
+                <Button
+                  tone="dark"
+                  fill="outline"
+                  block
+                  icon={<BankIcon size={24} />}
+                  className="rf2-pay-btn"
+                  onClick={() => selectPayMethod('bank')}
+                >
+                  Pay by Bank
+                </Button>
+              </>
+            )}
           </div>
           {payAttempted && !formComplete && (
             <p className="rf2-gp-note rf2-gp-note--error">
@@ -494,6 +714,20 @@ export function Step2({
                 <BankForm total={payNowTotal ?? 0} onPay={payStatically} />
               )}
             </section>
+          )}
+          {/* The method NOT open, relocated below the panel — full width, since
+              it no longer shares a row (Figma 10080-28749). */}
+          {methodOpen && (
+            <Button
+              tone="dark"
+              fill="outline"
+              block
+              icon={payMethod === 'card' ? <BankIcon size={24} /> : <CreditCardIcon size={24} />}
+              className="rf2-pay-btn rf2-pay-btn--alt"
+              onClick={() => selectPayMethod(payMethod === 'card' ? 'bank' : 'card')}
+            >
+              {payMethod === 'card' ? 'Pay by Bank' : 'Credit / Debit'}
+            </Button>
           )}
 
           {!staticPay && payMethod === 'card' && !cardToken && (
@@ -529,6 +763,14 @@ export function Step2({
         onClose={() => setPlanOpen(false)}
         brochureUrl={brochureUrl}
       />
+      <LeaseModal
+        open={leaseOpen}
+        onClose={() => setLeaseOpen(false)}
+        agree={agree}
+        onAgreeChange={setAgree}
+      >
+        <LeaseDocBody title={leaseDocName} />
+      </LeaseModal>
     </div>
   );
 }

@@ -1,4 +1,8 @@
 /* Widget #99 (TBD) — Rental Flow (2 Step), first screen. Figma 8507-23264. */
+/* The frame's face. This widget already hardcoded 'Montserrat' in six rules
+   but never imported it, so every one of them was silently falling back to
+   plain sans-serif. All 16 other widgets carry this same import. */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 .rf-wrapper {
   container-type: inline-size;
   /* Follow the Duda theme's font (Duda sets fonts per element, not via a var),
@@ -23,24 +27,34 @@
 }
 
 /* ── Title ─────────────────────────────────────────────────────────────── */
+/* Figma 8507-23230. The frame sets font-size on the TITLE CONTAINER, so both
+   lines are 36px/600 — the eyebrow is NOT the smaller line it was built as
+   (24px); the frame's own render shows the two at matching size.
+   Family is pinned to the frame's Montserrat on EACH line rather than on the
+   container: .rf-heading is an <h2>, and a Duda theme's per-element `h2` rule
+   would outrank an inherited value. Note this makes the title stop following a
+   site's brand font — the frame's match was asked for explicitly.
+
+   Both rules are qualified with .rf-wrapper purely for SPECIFICITY (0,2,0).
+   A bare .rf-heading is (0,1,0) and loses to any host rule of the shape
+   `.something h2` (0,1,1) — the dev harness had exactly that, rendering this
+   heading as a 13px grey uppercase label. letter-spacing/text-transform are
+   declared for the same reason: a property we never state cannot be won, it is
+   simply inherited from whatever the host set. */
 .rf-title { display: flex; flex-direction: column; gap: 14px; margin-bottom: 26px; }
-.rf-eyebrow { margin: 0; font-size: 24px; font-weight: 600; line-height: 1; color: var(--color_1, #509e2f); }
-.rf-heading { margin: 0; font-size: 36px; font-weight: 600; line-height: 1.05; color: #101318; }
+/* --color_1 is Duda's PRIMARY; #509e2f is only the unthemed fallback, which is
+   what the frame happens to render. Line-height is the frame's literal 20px —
+   tighter than the 36px glyphs, which is how the frame trims to cap height. */
+.rf-wrapper .rf-eyebrow { margin: 0; font-family: 'Montserrat', sans-serif; font-size: 36px; font-weight: 600; line-height: 20px; letter-spacing: normal; text-transform: none; color: var(--color_1, #509e2f); }
+/* Hardcoded #101318, per the frame — this line never follows the site theme. */
+.rf-wrapper .rf-heading { margin: 0; font-family: 'Montserrat', sans-serif; font-size: 36px; font-weight: 600; line-height: 38px; letter-spacing: normal; text-transform: none; color: #101318; }
 
 /* ── "Renting as a business" checkbox ──────────────────────────────────── */
+/* Layout only. The box's own skin comes from .rf-check (see RfCheckbox).
+   The old .rf-checkbox / .rf-business--checked / .rf-business-label rules are
+   gone: this row renders the shared Checkbox now, so they matched nothing and
+   were quietly describing an orange box no one could see. */
 .rf-business { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; cursor: pointer; user-select: none; }
-.rf-business input { position: absolute; width: 0; height: 0; opacity: 0; }
-.rf-checkbox {
-  flex: 0 0 auto;
-  width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  border: 2px solid #c4cdd5;
-  border-radius: 4px;
-  color: #fff;
-}
-.rf-business--checked .rf-checkbox { background: var(--color_1, #f45f30); border-color: var(--color_1, #f45f30); }
-.rf-business input:focus-visible + .rf-checkbox { outline: 2px solid var(--color_1, #f45f30); outline-offset: 2px; }
-.rf-business-label { font-size: 16px; line-height: 18px; color: #101318; }
 
 /* ── Form ──────────────────────────────────────────────────────────────── */
 .rf-form { display: flex; flex-direction: column; gap: 20px; }
@@ -115,7 +129,12 @@
 /* ── Narrow container (mobile / small widget widths) ───────────────────── */
 @container (max-width: 640px) {
   .rf-card { padding: 32px 20px; }
-  .rf-heading { font-size: 28px; }
+  /* Both title lines scale together — they are one size in the frame, and the
+     eyebrow at a base 36px would otherwise outsize the 28px heading here.
+     .rf-wrapper-qualified to match the base rules' (0,2,0); these win on source
+     order, being later in the file. */
+  .rf-wrapper .rf-eyebrow { font-size: 28px; }
+  .rf-wrapper .rf-heading { font-size: 28px; }
   .rf-row { flex-direction: column; }
   .rf-actions { max-width: none; }
 }
@@ -232,7 +251,14 @@
 /* Move-in date (populated from the picker; click to re-open) */
 .rf2-movein {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  width: 100%; max-width: 346px; height: 56px;
+  /* Half-width, matching the Email/Phone and First/Last rows above. Those are
+     two .hb-field (width:100%) flex items shrinking equally inside .rf2-row's
+     18px gap, so each settles at (100% - 18px) / 2 — NOT a flat 50%, which
+     would be 9px too wide. The 18px here must track .rf2-row's gap.
+     The old `max-width: 346px` is gone deliberately: the form is ~780px wide
+     now, so half is ~381px and the cap would have held this field 35px
+     narrower than the ones it is meant to line up with. */
+  width: calc((100% - 18px) / 2); height: 56px;
   padding: 0 16px;
   background: #fff;
   border: 1px solid #028a0c;
@@ -254,14 +280,31 @@
 .rf2-rowhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
 /* Protection plan option */
+/* Anchors the dropdown; the menu is absolute against this. */
+.rf2-plan-wrap { position: relative; }
+
 .rf2-plan {
   display: flex; align-items: stretch;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   background: #fff;
   border: 2px solid var(--color_2, #509e2f);
   border-radius: 4px;
   box-shadow: 0 4px 5px rgba(71, 84, 116, 0.1);
   overflow: hidden;
 }
+/* HOST-THEME GUARD: the control is a <button> now, and a bare
+   `button:hover { background }` on the host page (the dev harness has one, and
+   Duda themes do too) is 0,1,1 — it would beat this 0,1,0 rule and tint the
+   whole card on hover. Same defence as #06's info icon. */
+.rf2-plan,
+.rf2-plan:hover,
+.rf2-plan:focus,
+.rf2-plan:active { background: #fff !important; }
+.rf2-plan:focus-visible { outline: 2px solid var(--color_2, #509e2f); outline-offset: 2px; }
 .rf2-plan-body { flex: 1 1 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 20px; min-width: 0; }
 .rf2-plan-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .rf2-plan-cov { font-size: 18px; color: #101318; white-space: nowrap; }
@@ -270,16 +313,132 @@
 .rf2-plan-price { display: flex; align-items: baseline; gap: 2px; white-space: nowrap; }
 .rf2-plan-price b { font-size: 20px; font-weight: 600; }
 .rf2-plan-price span { font-size: 14px; font-weight: 600; }
+/* The chevron cell's width is shared with the dropdown below, which stops at
+   this cell's left edge rather than running the full control width. */
+.rf2-plan-wrap { --rf2-chev-cell: 52px; }
+
 .rf2-plan-drop {
-  flex: 0 0 auto; width: 52px;
+  flex: 0 0 auto; width: var(--rf2-chev-cell);
   display: flex; align-items: center; justify-content: center;
-  background: #fff; border: none; border-left: 1px solid #dfe3e8;
+  background: #fff; border: none;
+  /* GREEN, matching the control's own border — the frame draws this divider in
+     #509E2F (Figma 8508-32281), not the grey hairline used between list rows. */
+  border-left: 2px solid var(--color_2, #509e2f);
   color: #101318; cursor: pointer;
 }
-.rf2-chev-down { transform: rotate(90deg); }
+.rf2-chev-down { transform: rotate(90deg); transition: transform 0.15s; }
+.rf2-chev-up { transform: rotate(-90deg); }
+/* Shown in the closed control when "I have my own insurance" is the choice. */
+.rf2-plan-own-sel { font-size: 18px; font-weight: 600; color: #101318; }
+
+/* ── Plan dropdown (Figma 8508-32894) ──────────────────────────────────── */
+/* Absolute + z-index so the list overlays what follows instead of pushing the
+   rest of the form down each time it opens. */
+.rf2-plan-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  /* Stops at the chevron cell's left edge, not the control's right edge — the
+     list is as wide as the CONTENT area only. +2px for the control's own
+     border, which sits outside the cell. */
+  right: calc(var(--rf2-chev-cell) + 2px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  box-shadow: 0 4px 5px rgba(71, 84, 116, 0.1);
+}
+
+.rf2-plan-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 4px 8px;
+  font: inherit;
+  text-align: left;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+/* Divider as its own row in the gap-8 column, matching the frame — so there is
+   8px above AND below each line. Drawing it as a border-top on the next option
+   instead put the line flush against that row and, because it needed
+   `border-radius: 0` to avoid a kinked corner, silently removed the 4px radius
+   from the Best Value row. */
+.rf2-plan-sep {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: #dfe3e8;
+}
+
+/* The operator's flagged plan sits on the brand tint at 8%, with its own 8px
+   inset and 4px radius (the plain rows are 4px 8px and square). */
+.rf2-plan-opt--best { background: #f1f7ee; padding: 8px; border-radius: 4px; }
+
+.rf2-plan-opt:hover { background: #f4f6f8; }
+.rf2-plan-opt--best:hover { background: #e9f2e4; }
+
+.rf2-plan-opt-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* 16px/14px here, against the closed control's 18px — the frame sizes the list
+   smaller than the summary it collapses into. */
+.rf2-plan-opt-cov { font-size: 14px; color: #101318; white-space: nowrap; }
+.rf2-plan-opt-cov b { font-size: 16px; font-weight: 700; }
+.rf2-plan-best--sm { font-size: 12px; padding: 8px; }
+
+/* "I have my own insurance" — a declaration, not a product, so it stacks and
+   carries no price. */
+.rf2-plan-opt--own { flex-direction: column; align-items: flex-start; gap: 4px; }
+.rf2-plan-own-t { font-size: 16px; font-weight: 600; color: #101318; }
+.rf2-plan-own-d { font-size: 12px; font-weight: 400; line-height: 1.4; color: #101318; white-space: normal; }
 
 /* Additional Information toggles */
+/* 4px is the frame's own gap (8507-23354) and was already correct — the rows
+   read tight because of the BOX, not the gap. Figma draws an 18px box inside a
+   24px row, leaving ~3px above and below it, so consecutive boxes are ~10px
+   apart. The shared Checkbox's box is 24px and fills its row edge to edge,
+   leaving only the 4px gap between them.
+   Shrinking the box rather than widening the gap keeps the frame's 28px row
+   pitch — a bigger gap would have matched the whitespace but pushed the section
+   taller than the design. */
 .rf2-checks { display: flex; flex-direction: column; gap: 4px; }
+
+/* Step-2 checkbox skin (Figma 8507-23354). The shared Checkbox is built for the
+   form kit — an 8px radius, an #a5b4bf resting border and a GREEN (--hb-cta)
+   fill when on. This design wants a near-square, lighter-outlined box that
+   fills NEAR-BLACK, which is what the Check helper's "dark-fill" name has
+   always claimed. Scoped to .rf2-check, so the shared component is unchanged
+   for every other widget. */
+.rf-check .hb-check__box {
+  border-radius: 2px;
+  border-color: #dfe3e8;
+}
+/* Both classes sit on the same root element, hence the compound selector. */
+.rf-check.hb-check--on .hb-check__box {
+  background: #101318;
+  border-color: #101318;
+}
+
+/* 18px box for EVERY checkbox in the flow — the Additional Information size
+   (8507-23354), not the kit's 24px. Merged into .rf-check rather than kept as a
+   --sm variant: one size everywhere is the point.
+   The 3px margin preserves a 24px footprint, so shrinking the box does not move
+   label baselines or change the 28px row pitch. */
+.rf-check .hb-check__box {
+  width: 18px;
+  height: 18px;
+  margin: 3px;
+}
+/* No CSS sizing for the tick: RfCheckbox passes it in already sized, and the
+   design's mark is 13.41x10.12 — not square. Forcing width == height here would
+   stretch it. */
 .rf2-checkline { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .rf2-checkline input { position: absolute; width: 0; height: 0; opacity: 0; }
 .rf2-box {
@@ -305,10 +464,77 @@
 
 /* Payment */
 .rf2-payment { gap: 22px; }
-.rf2-autopay { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 10px; padding: 20px 30px; }
+/* Enrolled → 2px green outline (Figma 8508-34363).
+   The border is always PRESENT and merely transparent when off, with the
+   padding reduced by the same 2px, so selecting it recolours the outline
+   without changing the row's size or nudging the label across. */
+.rf2-autopay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 18px 28px;
+}
+.rf2-autopay--on { border-color: var(--color_2, #509e2f); }
 .rf2-autopay-label { font-size: 16px; font-weight: 600; color: #101318; }
-.rf2-autopay-info { color: #101318; flex: 0 0 auto; }
+/* The (i) is a real button now (it opens the tooltip), so it needs the button
+   reset AND the host-theme guard — a bare `button:hover { background }` on the
+   host page is 0,1,1 and would put a grey chip behind the icon. */
+.rf2-autopay-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  color: #101318;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.rf2-autopay-info,
+.rf2-autopay-info:hover,
+.rf2-autopay-info:focus,
+.rf2-autopay-info:active { background: none !important; }
+.rf2-autopay-info:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
+
+/* ── Autopay tooltip (Figma 8509-34934) ─────────────────────────────────── */
+/* The anchor is the ICON's box, so the tooltip can be placed against the icon's
+   centre rather than the row. inline-flex keeps it from adding line-box height. */
+.rf2-tip-anchor {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* Positioned per the brief: the tooltip's BOTTOM-LEFT corner sits at the middle
+   of the (i). bottom/left 50% of the anchor is the icon's centre, so the box
+   grows up and to the right from that point. */
+.rf2-tip {
+  position: absolute;
+  bottom: 50%;
+  left: 50%;
+  z-index: 30;
+  width: 200px;              /* 176px text column + the 12px side padding */
+  padding: 8px 12px;
+  background: #101318;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.3;
+  /* Elevation / 2 - Dropdown, both layers. */
+  box-shadow: 0 1.5px 2px -1px rgba(0, 0, 0, 0.5), 0 1px 2px 1px rgba(11, 11, 11, 0.05);
+}
 .rf2-paygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+/* With a panel open the grid holds only the two wallets, and the relocated
+   method button sits outside it, full width, below the panel. */
+/* .rf2-payment is a 22px flex column, so the stack is already spaced — adding
+   margins here previously doubled it to 44px. The frame groups wallets, panel
+   and the alternative button 18px apart (node 10080:30095), so -4px trims the
+   section's 22px to that rather than restructuring the stack. */
+.rf2-payment .rf-method-panel,
+.rf2-payment .rf2-pay-btn--alt { margin-top: -4px; }
 .rf2-pay {
   height: 64px;
   display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -317,34 +543,132 @@
   letter-spacing: 0.2px;
   cursor: pointer;
 }
-.rf2-pay--dark { background: #101318; color: #fff; border: none; }
-.rf2-pay--outline { background: #fff; border: 2px solid #101318; color: #000; }
-.rf2-pay--outline svg { flex: 0 0 auto; }
+/* Wallet buttons: FLAT BLACK, no hover state at all (Figma 11337-206114 shows
+   one appearance). The grey tint they were picking up is not ours — it is a
+   host `button:hover { background: #f3f4f6 }`, which at (0,1,1) outranks a bare
+   .rf2-pay--dark (0,1,0). The harness has exactly that rule and a Duda theme
+   may too, so the resting look is pinned across all three interaction states
+   rather than merely restated. */
+.rf2-pay--dark,
+.rf2-pay--dark:hover,
+.rf2-pay--dark:focus,
+.rf2-pay--dark:active {
+  background: #101318 !important;
+  color: #fff;
+  border: none;
+  filter: none;   /* the kit dims :active; these must not move */
+}
+/* Removing the hover affordance must not remove the keyboard one. */
+.rf2-pay--dark:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
+
+/* Credit / Debit and Pay by Bank. These are the shared <Button tone="dark"
+   fill="outline">, which already inverts to black-on-hover; what it does NOT
+   do is match this frame's 64px height (the kit button is 52px) or its 12px
+   radius. Compound selectors so both beat .hb-btn's own (0,1,0) rules. */
+/* Scoped to the SECTION, not the grid: when a method opens, the alternative
+   button moves out of .rf2-paygrid to below the panel, and a grid-scoped rule
+   stopped applying — it reverted to the kit's 52px white default. Same
+   specificity (0,2,0), so nothing else about the cascade changes. */
+.rf2-payment .rf2-pay-btn {
+  height: 64px;
+  border-radius: 12px;
+  border-width: 2px;
+  /* TRANSPARENT, not white. The frame gives these buttons no fill — they let
+     the #f4f6f8 panel show through, and only the 2px rule reads. The shared
+     <Button fill="outline"> defaults to var(--hb-white), which is right for
+     the kit but wrong here, hence the override.
+     `transparent` rather than a literal #f4f6f8 so it tracks .rf2-panel: if
+     the panel is ever recoloured these follow instead of stranding a white
+     rectangle on it. */
+  background: transparent;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+/* Hover: black fill, white label. The icons are currentColor, so they invert
+   with the label and need no rule of their own. !important because the host
+   `button:hover` would otherwise repaint the background out from under it. */
+.rf2-payment .rf2-pay-btn:hover:not(:disabled) {
+  background: #101318 !important;
+  color: #fff;
+}
+.rf2-pay svg { flex: 0 0 auto; }
 .rf2-paylogo { display: inline-flex; align-items: center; gap: 6px; }
 .rf2-paylogo svg { display: block; }
 .rf2-paylogo span { color: #fff; font-weight: 500; font-size: 20px; }
 
+/* Step 2's card is narrower-gutted than .rf-card's shared 72px (Figma: 50px).
+   `padding-inline` deliberately, not the `padding` shorthand: the vertical 56px
+   is still .rf-card's and restating it here would leave two copies to keep in
+   step. Scoped to .rf2-card, so step 1 / success keep the 72px they were built
+   with. Must stay AHEAD of the 640px block below, which overrides the inline
+   value for narrow widths. */
+.rf2-card { padding-inline: 50px; }
+
 @container (max-width: 640px) {
+  /* 24px gutters on mobile. Beats .rf-card's `padding: 32px 20px` (same 0,1,0
+     specificity) purely on source order — that block is earlier in the file. */
+  .rf2-card { padding-inline: 24px; }
   .rf2-row { flex-direction: column; }
-  .rf2-movein { max-width: none; }
+  /* .rf2-row stacks here, so its fields are full width — match them. */
+  .rf2-movein { width: 100%; }
   .rf2-panel, .rf2-payment { padding: 20px; }
-  .rf2-autopay { padding: 16px 20px; }
+  /* Also less the 2px border, matching the base rule. */
+  .rf2-autopay { padding: 14px 18px; }
   .rf2-agree-head { padding: 20px 20px 16px; }
   .rf2-agree-doc { margin: 0 16px; }
   .rf2-paygrid { grid-template-columns: 1fr; }
 }
 
 /* ── Two-column layout: flow + order-summary rail (Figma 01–13) ─────────── */
+/* The rail track is 422px because that is SummaryRail's own fixed .ts-card
+   width (shared/ui/SummaryRail.css) — #14 sizes its track the same way. It was
+   360px, and a fixed-width grid item does not shrink to a smaller track, so the
+   rail hung 62px out of its column on every screen.
+   1330px is the house container width — the footer, blogs, map-locations and
+   size-guide all use it. This was 1100px, which made the flow the narrowest
+   widget in the repo and left the row (712 + 28 + 422 = 1162px) overflowing the
+   container as well as the column. */
 .rf-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 422px;
   gap: 28px;
-  max-width: 1100px;
+  max-width: 1330px;
   margin: 0 auto;
   align-items: start;
 }
+/* Sticky order rail — desktop two-column only.
+   Bounded by the SAME 900px breakpoint that collapses the grid, deliberately:
+   the JS hands the rail to a mobile sheet at MOBILE_BP (640px container), so
+   between 640 and 900 it is still a grid child but stacked BELOW the form in a
+   single column. Sticking it there would pin it to the top of the viewport,
+   over the content it is supposed to sit under. */
+@media (min-width: 901px) {
+  .rf-layout > .ts-card,
+  .rfc-layout > .ts-card {
+    position: sticky;
+    /* Clear of the browser chrome instead of flush against it. */
+    top: 24px;
+    /* .rf-layout already sets align-items:start; restated because a stretched
+       grid item is full-height and therefore can never stick, and that failure
+       is silent if the container rule is ever changed. */
+    align-self: start;
+    /* The rail runs ~684px. On a short viewport a plain sticky top pins the
+       header and parks the move-in total permanently off-screen with no way to
+       scroll to it. This engages only when the rail genuinely does not fit. */
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+  }
+}
+
 @media (max-width: 900px) {
   .rf-layout { grid-template-columns: minmax(0, 1fr); }
+  /* SummaryRail's .ts-card is a FIXED 422px (shared/ui), which is what the
+     422px track above is sized to. Once the grid collapses to one column that
+     fixed width has nothing holding it, so it overflows any viewport narrower
+     than 422px. Same guard #14 already carries. */
+  .ts-card { width: 100%; max-width: 422px; }
 }
 .rfr-card {
   background: #fff;
@@ -401,12 +725,14 @@
    360px width on every step, and the content column + overall width match too. */
 .rfc-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 422px;
   gap: 28px;
   /* Left-aligned (not margin:0 auto) so the content starts at the container's
      left edge instead of floating centered with white space on both sides on
      wide screens — this also gives the content column more room for text. */
-  max-width: 1400px;
+  /* 1330px matches .rf-layout and the rest of the site. It was 1400px, which
+     made the confirmation screen 300px wider than the step it follows. */
+  max-width: 1330px;
   margin: 0;
   align-items: start;
 }
@@ -415,7 +741,10 @@
 .rfc-card { max-width: none; min-width: 0; margin: 0; padding: 24px 18px; }
 .rfc-card .rf-title { margin-bottom: 16px; }
 @media (max-width: 900px) { .rfc-layout { grid-template-columns: minmax(0, 1fr); } }
-/* Confirmation name eyebrow is 36px (Figma 8507-24998), not the 24px Step-1 one. */
+/* Confirmation name eyebrow is 36px (Figma 8507-24998). Now the same as the
+   base rule, so this is a no-op on desktop — it is kept because it also
+   outranks the narrow-width 28px above, holding confirmation at 36px there as
+   it was before. Delete it and that screen changes on mobile. */
 .rfc-card .rf-eyebrow { font-size: 36px; }
 
 .rfc-sent {
@@ -520,10 +849,46 @@
    Nested groups indent to align with the checkbox LABEL (box 22px + 6px gap);
    the top-level business group spans full width like the contact rows. */
 .rf2-expand { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 12px 28px; }
-.rf2-expand--top { margin: 14px 0 18px 0; }
+/* Business fields revealed by "I am renting as a business". Ticking the box must
+   not move anything that was already on screen, so this block contributes no
+   spacing of its own beyond the form's own 13px row rhythm:
+     top    — 0, so the gap above stays exactly .rf-business's 20px, checked or
+              not. The old 14px was invisible anyway (it collapsed against the
+              larger 20px), but it made the gap depend on margin collapsing —
+              turn .rf-card into a flex container one day and 20+14 would start
+              ADDING to 34px. At 0 the gap is 20px either way.
+     bottom — 13px to match .rf2-form's row gap, so the revealed fields read as
+              part of the same form. The old 18px was the 5px of "additional
+              padding underneath" that made the block look boxed-off. */
+.rf2-expand--top { margin: 0 0 13px 0; }
 .rf2-expand .rf2-row { display: flex; gap: 12px; }
 .rf2-expand .rf2-row > * { flex: 1; }
-select.rf2-field-input { appearance: auto; background: #fff; height: 46px; }
+/* ── Dropdowns (Figma 8507-25490 Vehicle Type / 8507-25502 Country) ─────── */
+/* These wear @shared/ui's `hb-field` skin, so only what a <select> cannot
+   inherit is restated. The previous rule here set `appearance: auto` on a
+   label-above select — that native arrow was the foreign-looking one, and it
+   sat hard against the field edge with no way to inset it. */
+.hb-field__select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  /* Kills the residual arrow slot Firefox reserves even under appearance:none. */
+  background-image: none;
+  text-overflow: ellipsis;
+}
+/* The kit floats its label with `:placeholder-shown`, which a <select> can never
+   match, so `--filled` stands in for "has a value". Values are copied from
+   .hb-field__input:not(:placeholder-shown) — keep them in step with the kit. */
+.rf2-sel--filled .hb-field__label,
+.rf2-sel .hb-field__select:focus + .hb-field__label {
+  transform: translateY(-18px);
+  font-size: var(--hb-font-size-label);
+  line-height: var(--hb-line-height-label);
+}
+/* ChevronSolidIcon points RIGHT as drawn; a dropdown wants it down. It sits in
+   the kit's icon slot, so the 16px indent is .hb-field__box's own padding —
+   the same gutter as the label, which is what the frame shows. */
+.rf2-sel-chev { transform: rotate(90deg); color: #101318; }
 
 /* --- Global Payments Hosted Fields (Credit / Debit panel) --------------- */
 .rf2-pay--selected { border: 2px solid #101318; }
@@ -568,7 +933,18 @@ select.rf2-field-input { appearance: auto; background: #fff; height: 46px; }
 .rf-form-error { font-size: 14px; color: #b3261e; margin: 4px 0 0; }
 .rf2-field--error .rf2-field-input { border-color: #b3261e; }
 .rf2-field--error .rf2-field-label { color: #b3261e; }
-.rf2-agree-bar--error { outline: 2px solid #b3261e; outline-offset: 2px; border-radius: 6px; }
+/* Required-agreement message. Replaces a 2px red outline that used to ring the
+   whole row: it flagged that something was wrong without ever saying what, and
+   a box drawn around a single checkbox reads as a container, not an error.
+   Inset to 24px to match .rf2-agree-bar's gutter, so it lines up under the
+   label rather than under the checkbox. Colour is the same #b3261e the other
+   validation messages use (.rf-form-error). */
+.rf2-agree-error {
+  margin: 0 24px 16px;
+  font-size: 14px;
+  line-height: 18px;
+  color: #b3261e;
+}
 
 /* --- Payment finalizing interstitial (screen 10 / m06) ------------------- */
 .rf-interstitial-overlay {
