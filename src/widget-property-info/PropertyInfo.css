@@ -96,7 +96,17 @@
 }
 
 .pi-link:hover .pi-underline,
-.pi-contact-row:hover .pi-underline {
+.pi-contact-row:hover .pi-underline,
+/* Same treatment for "Find my Reservation" — it reads as a link and now
+   behaves as one. Only the label changes: the calendar mark beside it keeps
+   its colour, matching how .pi-link leaves everything but .pi-underline. */
+.pi-reservation:hover .pi-underline {
+  color: var(--color_1, #f45f30);
+}
+
+/* "32 Reviews" is a bare <a> with no .pi-underline child — the underline is on
+   the anchor itself — so it takes the colour directly. */
+.pi-reviews:hover {
   color: var(--color_1, #f45f30);
 }
 
@@ -139,6 +149,13 @@
   gap: 16px;
   flex-shrink: 0;
 }
+
+/* Desktop only: the crumb above the gallery and map sits RIGHT. Scoped to the
+   media column with a child combinator, so the hero view's own breadcrumb —
+   which leads a different layout — is untouched. Reverts to left at 1180,
+   where the columns stack; mobile renders .pi-m-breadcrumb instead and never
+   sees this. */
+.pi-media > .pi-breadcrumb { text-align: right; }
 
 .pi-breadcrumb {
   font-size: 16px;
@@ -263,6 +280,17 @@
   text-align: left;
   cursor: pointer;
 }
+
+/* No hover fill. This rule sets background:none at rest but had nothing for
+   :hover, and a host `button:hover { background: #f3f4f6 }` is (0,1,1) against
+   this single class — so the grey was the host's, not ours. Pinned across all
+   three states, because answering only the resting one is what let it back in
+   everywhere else this has come up. */
+.pi-reservation:hover,
+.pi-reservation:focus,
+.pi-reservation:active { background: none; }
+/* Losing the hover box should not lose the keyboard affordance. */
+.pi-reservation:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
 
 .pi-reservation svg {
   flex-shrink: 0;
@@ -471,6 +499,82 @@
   box-sizing: border-box;
 }
 
+/* Image and thumbnail rail stack; the arrows stay either side of the pair. */
+.pi-lb-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* 10 + the rail's 6px padding = the 16px this was before. */
+  gap: 10px;
+  min-width: 0;
+  cursor: default;
+}
+
+/* Thumbnail rail — EIGHT across at desktop, per the design.
+   flex-basis is a share of the rail rather than a fixed px width, so eight fit
+   exactly whatever the image above is sized to, and the count drops at narrower
+   widths instead of the thumbs becoming unreadable slivers. */
+.pi-lb-thumbs {
+  display: flex;
+  gap: 8px;
+  /* `safe` centre: a plain `center` would centre the overflow too, putting the
+     first thumbnails off the left edge with no way to scroll back to them.
+     safe falls back to start-alignment the moment the row overflows, so it is
+     centred only while there is room — which is the ask. */
+  justify-content: safe center;
+  width: min(90vw, 1000px);
+  max-width: 100%;
+  overflow-x: auto;
+  /* Headroom for the hover lift and the focus ring. Setting overflow-x to auto
+     forces overflow-y to compute as auto as well — it cannot stay visible on
+     one axis only — so anything reaching outside the box is clipped. The lift
+     is 2px and the focus outline sits 4px proud, hence 6px. */
+  padding: 6px 0;
+  /* The rail scrolls itself; JS centres the active thumb, which is what makes a
+     ninth image roll the row along rather than fall off the end. */
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.pi-lb-thumbs::-webkit-scrollbar { display: none; }
+
+.pi-lb-thumb {
+  flex: 0 0 calc((100% - 7 * 8px) / 8);
+  /* Square. Capped so that when the row is short — or wide with few images —
+     the thumbs stay thumbnails rather than growing into slabs; the cap is what
+     leaves the spare width for the centring above to take up. */
+  max-width: 112px;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: none;
+  overflow: hidden;
+  cursor: pointer;
+  /* Unselected sit back, so the current one reads without a heavy marker. */
+  opacity: 0.55;
+  transition: opacity 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.pi-lb-thumb:hover { opacity: 0.85; transform: translateY(-2px); }
+.pi-lb-thumb.is-active { opacity: 1; border-color: #fff; }
+.pi-lb-thumb:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.pi-lb-thumb-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* Fewer, larger thumbs rather than eight slivers, and the close comes in from
+   the corner — 70px is a fifth of a tablet's width and most of a phone's
+   margin, so it cannot stay. */
+@media (max-width: 900px) {
+  .pi-lb-thumb { flex-basis: calc((100% - 4 * 8px) / 5); }
+  .pi-lb-close { top: 28px; right: 28px; }
+}
+@media (max-width: 560px) {
+  .pi-lb-thumbs { gap: 6px; }
+  .pi-lb-thumb { flex-basis: calc((100% - 3 * 6px) / 4); }
+  .pi-lb-close { top: 14px; right: 14px; }
+  /* Smaller circles too, so the pair do not crowd the photo on a phone. */
+  .pi-lb-arrow { width: 34px; height: 34px; }
+}
+
 .pi-lb-img-wrap {
   width: min(90vw, 1000px);
   height: min(80vh, 680px);
@@ -508,8 +612,11 @@ span.pi-lb-img {
    fills most of the screen, so "anywhere" isn't obvious enough on its own. */
 .pi-lb-close {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  /* Inset from the corner rather than tucked into it (Figma 9697-21860).
+     Cut right back on smaller screens, where 70px is a real slice of the
+     viewport — see the media queries at the end of this block. */
+  top: 70px;
+  right: 70px;
   z-index: 1;
   display: flex;
   align-items: center;
@@ -519,34 +626,54 @@ span.pi-lb-img {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.14);
+  /* No fill. The frame's close (9697-21860) is the bare mark — the translucent
+     disc here was ours. Pinned across states below, because .pi-lb-close is a
+     <button> and a host `button:hover` would otherwise paint one back. */
+  background: none;
   color: #fff;
   cursor: pointer;
   transition: background 0.15s;
 }
 
-.pi-lb-close:hover {
-  background: rgba(255, 255, 255, 0.26);
+.pi-lb-close:hover,
+.pi-lb-close:focus,
+.pi-lb-close:active {
+  background: none;
 }
 
+/* 40px circle, translucent slate behind a white chevron (Figma 9697-21852).
+   Was a bare chevron floating on the backdrop, which had no hit area to speak
+   of and vanished against a light photo. */
 .pi-lb-arrow {
-  color: #fff;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #fff;
+  background: rgba(69, 79, 91, 0.6);
+  border: 2px solid #fff;
+  border-radius: 50%;
   cursor: pointer;
-  flex-shrink: 0;
-  opacity: 0.85;
-  transition: opacity 0.15s;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
+.pi-lb-arrow:hover { background: rgba(69, 79, 91, 0.85); }
+.pi-lb-arrow:active { transform: scale(0.94); }
+.pi-lb-arrow:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+/* The chevron's own path fills half its viewBox, so 40 renders a 20px-tall
+   mark — the leaf size the frame shows inside this circle. */
+.pi-lb-arrow svg { display: block; }
 
 .pi-lb-arrow:hover {
   opacity: 1;
 }
 
-.pi-lb-arrow--prev {
-  transform: rotate(180deg);
-}
+/* The frame's chevron points LEFT as drawn, so it is the NEXT arrow that
+   turns. Rotating the glyph rather than the button leaves :active's scale on
+   the circle free to work. */
+.pi-lb-arrow:not(.pi-lb-arrow--prev) .pi-lb-chev { transform: rotate(180deg); }
 
 .pi-lb-counter {
   position: absolute;
@@ -633,6 +760,12 @@ span.pi-lb-img {
 
 .pi-mobile {
   display: none;
+  /* White ground for the whole mobile view. .pi-wrapper paints nothing, so
+     until now this showed the host page through — which on a Duda page is
+     whatever the section behind it happens to be, not the white the design
+     assumes. Scoped to .pi-mobile, so desktop and tablet keep inheriting the
+     page as before. */
+  background: #fff;
 }
 
 /* ── Hero (image-led) view ──────────────────────────────────────────────── */
@@ -761,6 +894,10 @@ span.pi-lb-img {
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 @media (max-width: 1180px) {
+  /* Back to the left once the layout stacks — right-aligned over a full-width
+     column reads as stranded rather than placed. */
+  .pi-media > .pi-breadcrumb { text-align: left; }
+
   .pi-row {
     flex-direction: column;
   }
@@ -980,9 +1117,10 @@ span.pi-lb-img {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   width: 44px;
   height: 44px;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   border-radius: 50%;
   color: #101318;
 }
@@ -1213,4 +1351,20 @@ span.pi-lb-img {
   .pi-msg-actions { flex-direction: column-reverse; align-items: stretch; }
   .pi-msg-buttons { justify-content: flex-end; }
   .pi-msg-captcha { width: 100%; }
+}
+
+/* Gallery skeleton — shown only while a property's photos are being looked up
+   (the lookup runs after the property itself resolves, so it outlives the
+   widget's own loading gate). Sits in the gallery's exact footprint so nothing
+   shifts when the real images arrive. */
+.pi-gallery--loading {
+  display: block;
+  cursor: default;
+  overflow: hidden;
+}
+
+.pi-gallery-skel {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
 }

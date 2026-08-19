@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './NearbyLocations.css';
 import { PROPERTY_IMAGES, cover, propertyImage } from '@shared/demoImages';
+import { fetchPropertyHeroImages } from '@shared/propertyImages';
 import {
   StarRating,
   PhoneIcon,
@@ -282,10 +283,17 @@ export function NearbyLocations({
         // Fail-soft is preserved and is now explicit: a rejected enrichment yields
         // the bare card instead of an unhandled rejection, so one bad property
         // can't hold up or blank the rest.
+        // One read for the whole list — the hero photos live in a collection
+        // keyed by property id, and asking per card would repeat the same read.
+        // Fails soft to an empty map, and each card then keeps its old source.
+        const heroes = await fetchPropertyHeroImages().catch(() => new Map<string, string>());
+
         const withSpaces: Property[] = await Promise.all(
           top.map(async (p, i) => {
             const card: Property = {
-              ...p, spaces: [], image: propertyImage(p.imageUrl, i), adminFee,
+              // heroimage wins over the API's own Images field, which is the
+              // one the operator actually chose for this property.
+              ...p, spaces: [], image: propertyImage(heroes.get(p.id) || p.imageUrl, i), adminFee,
             };
             try {
               const { promo, spaces } = await fetchPropertySpaces(p.id);

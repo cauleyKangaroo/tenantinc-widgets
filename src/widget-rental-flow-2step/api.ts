@@ -68,6 +68,8 @@ function unwrap(raw: unknown): Record<string, unknown> | undefined {
 // --- Property (brand name for the SMS consent line, contact phone) ----------
 
 export interface PropertyInfo {
+  /** The property this describes — lets the rail look up its hero photo. */
+  id: string;
   name: string;
   phone?: string;
   address?: string;
@@ -148,6 +150,7 @@ export async function fetchProperty(ctx: RentalCtx): Promise<PropertyInfo | unde
   const gate = prop.AccessHours?.find((a) => a.type === 'gate');
   const a = prop.Address;
   return {
+    id: prop.id,
     name: prop.name,
     phone: prop.Phones?.[0]?.phone,
     address: a?.address

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { propertyImage } from '@shared/demoImages';
+import { fetchPropertyHeroImages } from '@shared/propertyImages';
 import {
   fetchProperties,
   extractNearbyProperties,
@@ -283,13 +284,18 @@ export function NearbySection() {
           .sort((a, b) => a.distanceMiles - b.distanceMiles)
           .slice(0, MAX_NEARBY);
 
+        // Hero photos for the whole list in one read (see @shared/propertyImages).
+        // Fails soft: without it each card keeps the API's own image.
+        const heroes = await fetchPropertyHeroImages().catch(() => new Map<string, string>());
+
         // Stage 1: paint cards with distance/name/address/phone immediately.
         const base: NearbyProperty[] = ranked.map(({ p, distanceMiles }) => ({
           id: p.id,
           name: p.name,
           lat: p.lat,
           lng: p.lng,
-          imageUrl: p.imageUrl,
+          // The operator's chosen hero beats the API's Images field.
+          imageUrl: heroes.get(p.id) || p.imageUrl,
           distanceMiles,
           address: p.address,
           phone: p.phone,

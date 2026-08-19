@@ -353,7 +353,7 @@
 /* The section name is a pill: transparent with black text by default; on hover,
    and whenever the section is open, it becomes white text on a black pill. */
 .sl-wrapper .sl-accordion-title {
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 700;
   color: #101318;
   line-height: 1.2;

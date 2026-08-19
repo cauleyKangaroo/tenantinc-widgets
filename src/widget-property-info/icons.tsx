@@ -49,6 +49,30 @@ export function ClockIcon({ size = 24 }: { size?: number }) {
 }
 
 // Close (×) — mdiClose, used by the Hours modal.
+/**
+ * The design system's Close mark (Figma 6103:14869 / 9697-21860) — FILLED, and
+ * drawn edge to edge in its own 18x18 box.
+ *
+ * CloseIcon below is a 2px STROKE whose glyph occupies only the middle 50% of
+ * its 24x24 frame, so `size={20}` paints a 10px X. Existing callers keep it so
+ * nothing shifts; the lightbox, which is matched to the frames, uses this.
+ */
+export function CloseSolidIcon({ size = 24, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 18 18"
+      fill="currentColor"
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+    >
+      <path d="M18 1.81286L16.1871 0L9 7.18714L1.81286 0L0 1.81286L7.18714 9L0 16.1871L1.81286 18L9 10.8129L16.1871 18L18 16.1871L10.8129 9L18 1.81286Z" />
+    </svg>
+  );
+}
+
 export function CloseIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
@@ -86,6 +110,30 @@ export function LocationsIcon({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="12 12 20 20" {...stroke}>
       <path d="M29.4521 16.2878C29.942 16.4015 30.3738 16.6965 30.6578 17.1173C31 17.6244 31 18.4578 31 20.1246V26.0223C31 26.7402 31 27.0992 30.8907 27.4161C30.794 27.6963 30.6363 27.9516 30.4288 28.1634C30.1943 28.4029 29.8732 28.5634 29.2311 28.8845L26.4311 30.2845C25.9064 30.5468 25.644 30.678 25.3688 30.7297C25.1251 30.7754 24.8749 30.7754 24.6312 30.7297C24.356 30.678 24.0936 30.5468 23.5689 30.2845L20.4164 28.7082C19.9061 28.4531 19.6509 28.3255 19.3837 28.2732C19.1303 28.2237 18.8697 28.2237 18.6163 28.2732C18.3491 28.3255 18.0939 28.4531 17.5836 28.7082C16.0927 29.4537 15.3473 29.8264 14.7407 29.7471C14.1722 29.6727 13.6629 29.358 13.3422 28.8827C13 28.3757 13 27.5422 13 25.8754V19.9777C13 19.2598 13 18.9009 13.1093 18.5839C13.206 18.3037 13.3637 18.0484 13.5712 17.8366C13.749 17.6551 13.9765 17.5189 14.3558 17.3239M22 18H22.01M26.2101 18.4444C26.2101 21.7778 23.0522 24 21.9996 24C20.947 24 17.7891 21.7778 17.7891 18.4444C17.7891 15.1111 20.4206 14 21.9996 14C23.5785 14 26.2101 15.1111 26.2101 18.4444Z" />
+    </svg>
+  );
+}
+
+/**
+ * The lightbox chevron (Figma 9697-21851 / -21852) — a FILLED 12x20 mark, not
+ * the stroked ChevronRight below. Points LEFT as drawn, matching the frame's
+ * prev arrow; the next arrow rotates it.
+ *
+ * Rendered at its own 12x20 so the 40px circle's padding comes out as the
+ * frame has it: 14px either side, 10px top and bottom.
+ */
+export function LightboxChevron({ size = 20, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      className={className}
+      width={(size * 12) / 20}
+      height={size}
+      viewBox="0 0 12 20"
+      fill="currentColor"
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+    >
+      <path d="M12 2L9.9899 0L0 10L10 20L12 18L4 10L12 2Z" />
     </svg>
   );
 }

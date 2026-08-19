@@ -17,7 +17,7 @@
 // composed by hand from the same tokens.
 // ===========================================================================
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { FormField, CheckIcon } from '@shared/ui';
 import { Shimmer } from '@shared/Shimmer';
 import { BankIcon, CreditCardIcon, CheckTick, InfoIcon } from './icons';
@@ -230,13 +230,33 @@ export function CardForm({ total, onPay }: { total: number; onPay: () => void })
   const expError = expiryError(expiry);
 
   /** "1234567812345678" → "1234 5678 1234 5678" as it's typed. */
-  const onNumber = (v: string) =>
-    setNumber(v.replace(/\D/g, '').slice(0, CARD_DIGITS).replace(/(.{4})/g, '$1 ').trim());
+  const expiryRef = useRef<HTMLInputElement>(null);
+  const cvvRef = useRef<HTMLInputElement>(null);
 
-  /** "1226" → "12 / 26". */
+  /*
+   * Auto-advance: filling a field hands focus to the next one, so the whole row
+   * can be typed without reaching for the mouse.
+   *
+   * It fires on the TRANSITION to complete, not merely on being complete —
+   * hence comparing against the previous value. Without that guard, editing a
+   * card number that is already full would rip focus away on every keystroke,
+   * which is worse than not advancing at all.
+   */
+  const onNumber = (v: string) => {
+    const d = v.replace(/\D/g, '').slice(0, CARD_DIGITS);
+    setNumber(d.replace(/(.{4})/g, '$1 ').trim());
+    if (d.length === CARD_DIGITS && digits(number).length < CARD_DIGITS) {
+      expiryRef.current?.focus();
+    }
+  };
+
+  /** "1226" → "12 / 26", then hand focus to the CVV. */
   const onExpiry = (v: string) => {
     const d = v.replace(/\D/g, '').slice(0, EXPIRY_DIGITS);
     setExpiry(d.length > 2 ? `${d.slice(0, 2)} / ${d.slice(2)}` : d);
+    if (d.length === EXPIRY_DIGITS && digits(expiry).length < EXPIRY_DIGITS) {
+      cvvRef.current?.focus();
+    }
   };
 
   return (
@@ -274,6 +294,7 @@ export function CardForm({ total, onPay }: { total: number; onPay: () => void })
         <span className="rf-cardcell rf-cardcell--exp">
           <input
             className="rf-cardrow-input"
+            ref={expiryRef}
             value={expiry}
             onChange={(e) => onExpiry(e.target.value)}
             placeholder=" "
@@ -287,6 +308,7 @@ export function CardForm({ total, onPay }: { total: number; onPay: () => void })
         <span className="rf-cardcell rf-cardcell--cvv">
           <input
             className="rf-cardrow-input"
+            ref={cvvRef}
             value={cvv}
             onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, CVV_DIGITS))}
             placeholder=" "

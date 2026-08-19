@@ -39,6 +39,23 @@ const CATEGORIES: SizeCategory[] = [
   },
 ];
 
+/**
+ * The trailing "All" option — one more card like the size bands, not a summary
+ * of them: its own image, "All Spaces", and the same CTA underneath.
+ *
+ * Deliberately NOT a member of CATEGORIES: that array is only the fallback, and
+ * the tab set is rebuilt from the Duda `Sizes` collection at runtime, so
+ * anything listed there would vanish the moment real data arrives. It is
+ * appended to whichever set is in play instead.
+ */
+const ALL_CATEGORY: SizeCategory = {
+  tab: 'All',
+  title: 'All Spaces',
+  // Borrowed from the Large band — there is no "all sizes" photo, and the
+  // collection's own thumbnailImage is empty on every row so far.
+  imageBg: cover(SIZE_IMAGES['10x20']),
+};
+
 // ── Play button ───────────────────────────────────────────────────────────────
 
 function PlayButton() {
@@ -88,14 +105,16 @@ export function SizeGuideSection({ showVideos = true }: { showVideos?: boolean }
   }, []);
 
   // Demo bands are the fallback for an EMPTY/failed read only.
-  const cats = live ?? CATEGORIES;
+  /* Appended, so it renders through the same tab loop and the same card as
+     every size band — no special case anywhere below. */
+  const cats = [...(live ?? CATEGORIES), ALL_CATEGORY];
   const category = cats.find((c) => c.tab === activeTab) ?? cats[0];
 
   if (loading) {
     return (
       <div className="sl-sg2">
         <div className="sl-sg2-tabs">
-          {[70, 86, 74, 92].map((w, i) => <Shimmer key={i} w={w} h={38} r={100} />)}
+          {[70, 86, 74, 92, 46].map((w, i) => <Shimmer key={i} w={w} h={38} r={100} />)}
         </div>
         <Shimmer h={0} style={{ aspectRatio: '16 / 10', height: 'auto' }} r={12} />
         <Shimmer w="55%" h={22} style={{ marginTop: 12 }} />

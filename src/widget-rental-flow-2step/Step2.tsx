@@ -8,7 +8,7 @@ import { BankForm, CardForm, PaymentFormSkeleton } from './PaymentSection';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
-import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, DateModal, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space today" (Figma 8507-23329).
@@ -59,7 +59,7 @@ const formatDate = (d: Date) => `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}, $
 
 // Label-above text field (empty state, grey border).
 function FieldAbove({
-  label, required, value, onChange, type = 'text', error, phoneCountry,
+  label, required, value, onChange, type = 'text', error, phoneCountry, valid,
 }: {
   label: string;
   required?: boolean;
@@ -70,6 +70,8 @@ function FieldAbove({
   error?: boolean;
   /** Opt in libphonenumber as-you-type formatting for a tel field. */
   phoneCountry?: PhoneCountry;
+  /** Override the type-derived rule when a field validates differently. */
+  valid?: boolean;
 }) {
   const errorMsg = error
     ? type === 'email'
@@ -78,6 +80,27 @@ function FieldAbove({
         ? 'Enter a valid phone number'
         : `${label} is required`
     : undefined;
+
+  /*
+   * Green border + tick as soon as the value is good, matching the payment
+   * panel (Figma 10080-28126).
+   *
+   * Derived here from the field's own TYPE rather than wired at each of the
+   * ~20 call sites: the rules are the same ones the `required` list applies
+   * (a real address for email, a possible number for tel, non-empty
+   * otherwise), so deriving them once keeps the tick and the submit gate from
+   * ever disagreeing. `valid` overrides it where a field needs a rule of its
+   * own.
+   *
+   * Unlike the red state, this does NOT wait for a submit attempt —
+   * confirmation is only useful while the shopper is still in the field.
+   */
+  const autoValid = type === 'email'
+    ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+    : type === 'tel'
+      ? isPossiblePhone(value, phoneCountry ?? 'US')
+      : value.trim().length > 0;
+
   return (
     <FormField
       label={label}
@@ -87,6 +110,7 @@ function FieldAbove({
       required={required}
       error={errorMsg}
       phoneCountry={phoneCountry}
+      state={!errorMsg && (valid ?? autoValid) ? 'success' : 'default'}
     />
   );
 }
@@ -124,6 +148,10 @@ function SelectField({
   const cls = [
     'hb-field', 'hb-field--labelled', 'rf2-sel',
     value ? 'rf2-sel--filled' : '',
+    /* Green border only, never the kit's tick: the chevron already occupies
+       this field's icon slot, and stacking the two is what produced the
+       doubled mark on the payment panel's country select. Same rule here. */
+    value && !error ? 'rf-valid' : '',
     error ? 'hb-field--error' : '',
   ].filter(Boolean).join(' ');
 
@@ -287,6 +315,8 @@ export function Step2({
   const [bizFirst, setBizFirst] = useState('');
   const [bizLast, setBizLast] = useState('');
   const [dob, setDob] = useState('');
+  const [dobOpen, setDobOpen] = useState(false);
+  const [dobDate, setDobDate] = useState<Date | null>(null);
   const [acFirst, setAcFirst] = useState('');
   const [acLast, setAcLast] = useState('');
   const [acPhone, setAcPhone] = useState('');
@@ -441,7 +471,7 @@ export function Step2({
           <FieldAbove label="First Name" required value={first} onChange={setFirst} error={bad('first')} />
           <FieldAbove label="Last Name" required value={last} onChange={setLast} error={bad('last')} />
         </div>
-        <button type="button" className="rf2-movein" onClick={onEditDate}>
+        <button type="button" className="rf2-movein rf2-movein--valid" onClick={onEditDate}>
           <span className="rf2-movein-text">
             <span className="rf2-movein-label">Move-in Date<span className="rf-req">*</span></span>
             <span className="rf2-movein-value">{formatDate(moveIn)}</span>
@@ -559,7 +589,20 @@ export function Step2({
             <Check checked={military} onChange={setMilitary}>I am active military</Check>
             {military && (
               <div className="rf2-expand">
-                <FieldAbove label="Date of Birth" required value={dob} onChange={setDob} error={bad('dob')} />
+                {/* Same shape as the Move-in Date control above: label, value,
+                    calendar affordance, opens a modal. A DOB is decades back,
+                    so a picker that can jump month and year beats stepping. */}
+                <button
+                  type="button"
+                  className={`rf2-movein rf2-movein--full${bad('dob') ? ' rf2-movein--error' : ''}${dob ? ' rf2-movein--valid' : ''}`}
+                  onClick={() => setDobOpen(true)}
+                >
+                  <span className="rf2-movein-text">
+                    <span className="rf2-movein-label">Date of Birth<span className="rf-req">*</span></span>
+                    <span className="rf2-movein-value">{dob || 'Select a date'}</span>
+                  </span>
+                  <CalendarIcon size={24} />
+                </button>
               </div>
             )}
             <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
@@ -606,7 +649,14 @@ export function Step2({
           <div className="rf2-agree-head">
             <span className="rf2-h">Rental Agreement <span className="rf-req">*</span></span>
             <button type="button" className="rf2-link rf2-link--btn" onClick={() => setLeaseOpen(true)}>
-              <FileArrowIcon size={24} />View Document
+              <FileArrowIcon size={24} />
+              {/* "View Document" wraps to two lines in the narrow header row on
+                  mobile. Swapped in CSS rather than by state so it responds to
+                  the container, not a re-render; display:none also drops the
+                  unused label from the accessibility tree, so only one is
+                  announced. */}
+              <span className="rf2-link-long">View Document</span>
+              <span className="rf2-link-short">View</span>
             </button>
           </div>
           <div className="rf2-agree-doc">
@@ -762,6 +812,24 @@ export function Step2({
         open={planOpen}
         onClose={() => setPlanOpen(false)}
         brochureUrl={brochureUrl}
+      />
+      {/* Date-of-birth picker. Browse mode, capped at today — a birth date
+          cannot be in the future — and reaching back 120 years. */}
+      <DateModal
+        open={dobOpen}
+        onClose={() => setDobOpen(false)}
+        selected={dobDate}
+        onSelect={(d) => setDobDate(d)}
+        onConfirm={() => {
+          if (dobDate) setDob(formatDate(dobDate));
+          setDobOpen(false);
+        }}
+        title="Select your Date of Birth"
+        ctaLabel="Confirm Date"
+        browse
+        onReset={() => { setDobDate(null); setDob(''); setDobOpen(false); }}
+        minDate={new Date(new Date().getFullYear() - 120, 0, 1)}
+        maxDate={new Date()}
       />
       <LeaseModal
         open={leaseOpen}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
@@ -10,7 +10,7 @@ import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
   MapPinIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
-  CloseIcon,
+  CloseIcon, CloseSolidIcon, LightboxChevron,
 } from './icons';
 import { MessageModal } from './MessageModal';
 
@@ -142,12 +142,15 @@ const HOURS_MOBILE: { title: string; rows: string[] }[] = [
   { title: 'Gate Hours', rows: ['Mon-Sun: 6:00 AM - 10:00 PM'] },
 ];
 
-// Gradient placeholders stand in for real facility photos.
-const GALLERY = [
-  'linear-gradient(135deg, #8a9bb0 0%, #5b6b80 100%)',
-  'linear-gradient(135deg, #b0967c 0%, #6e5440 100%)',
-  'linear-gradient(135deg, #7c98a8 0%, #4a6675 100%)',
-  'linear-gradient(135deg, #9aa888 0%, #5f6e4d 100%)',
+/**
+ * Shown when a property genuinely has NO photos — not while they load. Loading
+ * is a skeleton (see `imagesLoading`); these appear only once the lookup has
+ * settled empty, so a facility without uploads still looks like a facility
+ * rather than a grey gradient.
+ */
+const DEFAULT_GALLERY = [
+  'https://irp.cdn-website.com/37c2908c/dms3rep/multi/Hallway.png',
+  'https://irp.cdn-website.com/37c2908c/dms3rep/multi/Boxes.png',
 ];
 
 const DEFAULTS: Required<Pick<PropertyInfoProps, 'name' | 'rating' | 'reviewCount' | 'address' | 'phones' | 'gateStatus' | 'gateNote' | 'officeStatus' | 'officeNote' | 'breadcrumb'>> = {
@@ -223,6 +226,7 @@ export function PropertyInfo(props: Props) {
 
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
+  const thumbsRef = useRef<HTMLDivElement>(null);
   const [hoursOpen, setHoursOpen] = useState(false);
   const [reservationOpen, setReservationOpen] = useState(false);
   const [reservationCode, setReservationCode] = useState('');
@@ -278,16 +282,28 @@ export function PropertyInfo(props: Props) {
   // fetchPropertyDetails: that call has a REST fallback and this has none, so a
   // missing collection must not look like a failed property lookup.
   const [collectionImages, setCollectionImages] = useState<string[]>([]);
+  // The photo lookup runs AFTER the property resolves, so it outlives the
+  // widget's own loading gate. Without tracking it separately the gallery would
+  // paint the fallbacks and then swap them for the real photos a moment later —
+  // the flash this skeleton exists to prevent.
+  const [imagesLoading, setImagesLoading] = useState(true);
   useEffect(() => {
     const id = property?.id;
     // Clear first — otherwise switching row in the dynamic-page dropdown shows
     // the previous property's photos until the new ones land.
     setCollectionImages([]);
-    if (!id) return undefined;
+    if (!id) {
+      // Nothing to wait for: an unbound widget resolves no property, so the
+      // props/defaults are already the final answer.
+      setImagesLoading(false);
+      return undefined;
+    }
+    setImagesLoading(true);
     let cancelled = false;
     fetchPropertyImages(id)
       .then((urls) => { if (!cancelled) setCollectionImages(urls); })
-      .catch((err) => console.warn('[PropertyInfo] property images unavailable:', err));
+      .catch((err) => console.warn('[PropertyInfo] property images unavailable:', err))
+      .finally(() => { if (!cancelled) setImagesLoading(false); });
     return () => { cancelled = true; };
   }, [property?.id]);
 
@@ -377,12 +393,27 @@ export function PropertyInfo(props: Props) {
   //      they must beat a single hero image set once on the widget, which would
   //      otherwise show the same photo on every dynamic page;
   //   2. the heroImage/images props (a static page, or the Duda editor);
-  //   3. gradient placeholders, so nothing ever renders blank.
+  //   3. DEFAULT_GALLERY, so a property with no uploads still shows photos.
   const provided = (collectionImages.length
     ? collectionImages
     : [heroImage, ...(images ?? [])]
   ).filter(Boolean) as string[];
-  const slides = provided.length ? provided : GALLERY;
+  /* Keep the active thumbnail centred as the photo changes, so stepping past
+     the eighth image rolls the rail along instead of leaving the marker off
+     screen. scrollLeft rather than scrollIntoView: the latter also scrolls
+     ancestors, and inside a fixed full-screen overlay that drags the page
+     behind it. */
+  useEffect(() => {
+    const rail = thumbsRef.current;
+    const thumb = rail?.children[index] as HTMLElement | undefined;
+    if (!rail || !thumb) return;
+    rail.scrollTo({
+      left: thumb.offsetLeft - (rail.clientWidth - thumb.clientWidth) / 2,
+      behavior: 'smooth',
+    });
+  }, [index, lightbox]);
+
+  const slides = provided.length ? provided : DEFAULT_GALLERY;
   const heroSlide = slides[0];
   const current = slides[index] ?? slides[0];
   const overlay = Math.max(0, Math.min(1, overlayOpacity / 100));
@@ -497,21 +528,41 @@ export function PropertyInfo(props: Props) {
         aria-label="Close gallery"
         onClick={(e) => { e.stopPropagation(); setLightbox(false); }}
       >
-        <CloseIcon size={20} />
+        <CloseSolidIcon size={24} />
       </button>
       <span className="pi-lb-arrow pi-lb-arrow--prev" role="button" tabIndex={0} aria-label="Previous photo"
         onClick={(e) => { e.stopPropagation(); prev(); }}>
-        <ChevronRight size={44} />
+        <LightboxChevron size={20} className="pi-lb-chev" />
       </span>
       {/* The wrap deliberately does NOT swallow clicks: it's 90vw x 80vh, so on a
           phone it was almost the whole screen and left nowhere to tap to close.
           Only the photo itself is exempt. */}
-      <span className="pi-lb-img-wrap">
-        <ImageFill className="pi-lb-img" src={current} onClick={(e) => e.stopPropagation()} />
+      <span className="pi-lb-stage" onClick={(e) => e.stopPropagation()}>
+        <span className="pi-lb-img-wrap">
+          <ImageFill className="pi-lb-img" src={current} onClick={(e) => e.stopPropagation()} />
+        </span>
+        {/* Thumbnail rail. Only drawn when there is more than one photo — a
+            single thumbnail of the picture already on screen is noise. */}
+        {slides.length > 1 && (
+          <div className="pi-lb-thumbs" ref={thumbsRef}>
+            {slides.map((src, i) => (
+              <button
+                key={`${src}-${i}`}
+                type="button"
+                className={`pi-lb-thumb${i === index ? ' is-active' : ''}`}
+                aria-label={`View photo ${i + 1}`}
+                aria-current={i === index || undefined}
+                onClick={(e) => { e.stopPropagation(); setIndex(i); }}
+              >
+                <ImageFill className="pi-lb-thumb-img" src={src} />
+              </button>
+            ))}
+          </div>
+        )}
       </span>
       <span className="pi-lb-arrow" role="button" tabIndex={0} aria-label="Next photo"
         onClick={(e) => { e.stopPropagation(); next(); }}>
-        <ChevronRight size={44} />
+        <LightboxChevron size={20} className="pi-lb-chev" />
       </span>
       {/* No stopPropagation: a tap on the counter should close like anywhere else */}
       <span className="pi-lb-counter">{index + 1} / {slides.length}</span>
@@ -618,6 +669,14 @@ export function PropertyInfo(props: Props) {
         <div className="pi-cards">
           {/* Gallery */}
           <div className="pi-card-col">
+            {imagesLoading ? (
+              // The photos are still resolving. A skeleton in the gallery's own
+              // footprint, so the card keeps its size and nothing shifts when
+              // the real images arrive.
+              <div className="pi-gallery pi-gallery--loading" aria-hidden="true">
+                <span className="pi-skel-block pi-gallery-skel" />
+              </div>
+            ) : (
             <button className="pi-gallery" onClick={() => setLightbox(true)} aria-label="Open photo gallery">
               <ImageFill className="pi-gallery-img" src={current} />
               <span className="pi-gallery-overlay" />
@@ -636,6 +695,7 @@ export function PropertyInfo(props: Props) {
                 </span>
               </span>
             </button>
+            )}
             {/* Clicking the link swaps it for the reservation-code lookup
                 (Figma 9697-22507); Escape puts the link back. */}
             {reservationOpen ? (
