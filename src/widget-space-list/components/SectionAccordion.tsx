@@ -9,6 +9,7 @@ import { StoreSection } from './sections/StoreSection';
 import { NotesSection } from './sections/NotesSection';
 import { AboutSection } from './sections/AboutSection';
 import { FeaturesSection } from './sections/FeaturesSection';
+import { FeatureHighlightsSection } from './sections/FeatureHighlightsSection';
 import { CHEVRON_PATH } from './chevron';
 import {
   ACCORDION_SECTIONS,
@@ -17,6 +18,7 @@ import {
   type AccordionKey,
 } from '../accordionSections';
 import type { PropertyExtras } from '../propertyApi';
+import type { FeatureHighlight } from '../featureHighlights';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 // Real icons from Figma (Mariposa accordion set, node 9417-86779). Stroke-style,
@@ -123,6 +125,10 @@ interface AccordionVisual {
 const VISUALS: Record<AccordionKey, AccordionVisual> = {
   store:     { icon: <IconInfo />,     content: <StoreSection /> },
   features:  { icon: <IconFeatures />, content: <FeaturesSection /> },
+  // Same star as `features`: the Figma's "Feature Highlights" (9321:25263) and
+  // "Features & Amenities" (6513:146326) icons are the same vector. Content is
+  // always supplied by the special case below (it needs the page's callbacks).
+  highlights: { icon: <IconFeatures />, content: null },
   nearby:    { icon: <IconBuilding />, badge: 5, content: <NearbySection /> },
   reviews:   { icon: <IconReview />,   content: <ReviewsSection /> },
   faq:       { icon: <IconQuestion />, content: <FaqsSection /> },
@@ -166,6 +172,12 @@ export interface SectionAccordionProps {
   blogCollection?: string;
   /** Path the blog post slugs hang off, e.g. "/blog". */
   blogBasePath?: string;
+  /** Rows for the Feature Highlights section. Empty hides the section. */
+  featureHighlights?: FeatureHighlight[];
+  /** Slug of the feature the page is locked to, so the row can show as active. */
+  activeFeatureSlug?: string | null;
+  /** Select (or, with null, clear) the feature the page is locked to. */
+  onSelectFeature?: (slug: string | null) => void;
 }
 
 // ── Single accordion row ──────────────────────────────────────────────────────
@@ -203,6 +215,9 @@ export function SectionAccordion({
   notesContent,
   blogCollection,
   blogBasePath,
+  featureHighlights = [],
+  activeFeatureSlug = null,
+  onSelectFeature,
 }: SectionAccordionProps) {
   // Only one section open at a time — opening one closes the currently-open one.
   const [openKey, setOpenKey] = useState<AccordionKey | null>(null);
@@ -224,6 +239,7 @@ export function SectionAccordion({
       : key === 'store'   ? <StoreSection phones={propertyExtras?.phones} socials={propertyExtras?.socials} hours={propertyExtras?.hours} schedule={propertyExtras?.schedule} scheduleSections={propertyExtras?.scheduleSections} facilityName={propertyExtras?.name} />
       : key === 'faq'     ? <FaqsSection faqs={propertyExtras?.faqs} />
       : key === 'features' ? <FeaturesSection amenities={propertyExtras?.amenities} />
+      : key === 'highlights' ? <FeatureHighlightsSection features={featureHighlights} activeSlug={activeFeatureSlug} onSelect={onSelectFeature ?? (() => {})} />
       : key === 'blog'    ? <BlogSection collection={blogCollection} blogBasePath={blogBasePath} />
       : key === 'localblog' ? <LocalBlogSection collection={blogCollection} blogBasePath={blogBasePath} />
       : key === 'notes'   ? <NotesSection content={notesContent} />
