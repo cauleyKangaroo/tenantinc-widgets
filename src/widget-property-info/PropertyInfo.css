@@ -1214,3 +1214,19 @@ span.pi-lb-img {
   .pi-msg-buttons { justify-content: flex-end; }
   .pi-msg-captcha { width: 100%; }
 }
+
+/* Gallery skeleton — shown only while a property's photos are being looked up
+   (the lookup runs after the property itself resolves, so it outlives the
+   widget's own loading gate). Sits in the gallery's exact footprint so nothing
+   shifts when the real images arrive. */
+.pi-gallery--loading {
+  display: block;
+  cursor: default;
+  overflow: hidden;
+}
+
+.pi-gallery-skel {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}

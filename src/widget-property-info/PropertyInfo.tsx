@@ -142,12 +142,15 @@ const HOURS_MOBILE: { title: string; rows: string[] }[] = [
   { title: 'Gate Hours', rows: ['Mon-Sun: 6:00 AM - 10:00 PM'] },
 ];
 
-// Gradient placeholders stand in for real facility photos.
-const GALLERY = [
-  'linear-gradient(135deg, #8a9bb0 0%, #5b6b80 100%)',
-  'linear-gradient(135deg, #b0967c 0%, #6e5440 100%)',
-  'linear-gradient(135deg, #7c98a8 0%, #4a6675 100%)',
-  'linear-gradient(135deg, #9aa888 0%, #5f6e4d 100%)',
+/**
+ * Shown when a property genuinely has NO photos — not while they load. Loading
+ * is a skeleton (see `imagesLoading`); these appear only once the lookup has
+ * settled empty, so a facility without uploads still looks like a facility
+ * rather than a grey gradient.
+ */
+const DEFAULT_GALLERY = [
+  'https://irp.cdn-website.com/37c2908c/dms3rep/multi/Hallway.png',
+  'https://irp.cdn-website.com/37c2908c/dms3rep/multi/Boxes.png',
 ];
 
 const DEFAULTS: Required<Pick<PropertyInfoProps, 'name' | 'rating' | 'reviewCount' | 'address' | 'phones' | 'gateStatus' | 'gateNote' | 'officeStatus' | 'officeNote' | 'breadcrumb'>> = {
@@ -278,16 +281,28 @@ export function PropertyInfo(props: Props) {
   // fetchPropertyDetails: that call has a REST fallback and this has none, so a
   // missing collection must not look like a failed property lookup.
   const [collectionImages, setCollectionImages] = useState<string[]>([]);
+  // The photo lookup runs AFTER the property resolves, so it outlives the
+  // widget's own loading gate. Without tracking it separately the gallery would
+  // paint the fallbacks and then swap them for the real photos a moment later —
+  // the flash this skeleton exists to prevent.
+  const [imagesLoading, setImagesLoading] = useState(true);
   useEffect(() => {
     const id = property?.id;
     // Clear first — otherwise switching row in the dynamic-page dropdown shows
     // the previous property's photos until the new ones land.
     setCollectionImages([]);
-    if (!id) return undefined;
+    if (!id) {
+      // Nothing to wait for: an unbound widget resolves no property, so the
+      // props/defaults are already the final answer.
+      setImagesLoading(false);
+      return undefined;
+    }
+    setImagesLoading(true);
     let cancelled = false;
     fetchPropertyImages(id)
       .then((urls) => { if (!cancelled) setCollectionImages(urls); })
-      .catch((err) => console.warn('[PropertyInfo] property images unavailable:', err));
+      .catch((err) => console.warn('[PropertyInfo] property images unavailable:', err))
+      .finally(() => { if (!cancelled) setImagesLoading(false); });
     return () => { cancelled = true; };
   }, [property?.id]);
 
@@ -382,7 +397,7 @@ export function PropertyInfo(props: Props) {
     ? collectionImages
     : [heroImage, ...(images ?? [])]
   ).filter(Boolean) as string[];
-  const slides = provided.length ? provided : GALLERY;
+  const slides = provided.length ? provided : DEFAULT_GALLERY;
   const heroSlide = slides[0];
   const current = slides[index] ?? slides[0];
   const overlay = Math.max(0, Math.min(1, overlayOpacity / 100));
@@ -618,6 +633,14 @@ export function PropertyInfo(props: Props) {
         <div className="pi-cards">
           {/* Gallery */}
           <div className="pi-card-col">
+            {imagesLoading ? (
+              // The photos are still resolving. A skeleton in the gallery's own
+              // footprint, so the card keeps its size and nothing shifts when
+              // the real images arrive.
+              <div className="pi-gallery pi-gallery--loading" aria-hidden="true">
+                <span className="pi-skel-block pi-gallery-skel" />
+              </div>
+            ) : (
             <button className="pi-gallery" onClick={() => setLightbox(true)} aria-label="Open photo gallery">
               <ImageFill className="pi-gallery-img" src={current} />
               <span className="pi-gallery-overlay" />
@@ -636,6 +659,7 @@ export function PropertyInfo(props: Props) {
                 </span>
               </span>
             </button>
+            )}
             {/* Clicking the link swaps it for the reservation-code lookup
                 (Figma 9697-22507); Escape puts the link back. */}
             {reservationOpen ? (
