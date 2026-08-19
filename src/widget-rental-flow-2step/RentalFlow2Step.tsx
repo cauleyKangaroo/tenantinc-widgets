@@ -12,6 +12,13 @@ import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
 import { GP_BRIDGE_IS_PROTOTYPE } from './gpHostedFields';
 import { OrderRail } from './OrderRail';
+import { ChevronSolidIcon } from './icons';
+/* The ASSET ONLY, deliberately — not the #02 component, its config, its props
+   or any collection data. The rental flow replaces the site header on desktop
+   and needs to look like it, so it borrows the mark and rebuilds the shell
+   locally. Importing NavigationBar would drag in its nav tree, Properties
+   lookups and Duda bindings, none of which belong on a checkout page. */
+import storelocalLogo from '../widget-navigation-bar/Storelocal_logo.png';
 import { RfCheckbox } from './RfCheckbox';
 import { readUnitSelection, clearUnitSelection } from '@shared/unitHandoff';
 import { ProcessingModal } from './ProcessingModal';
@@ -213,8 +220,46 @@ function Field({
 const SKELETON_DELAY_MS = 200;
 
 // Loading skeleton (Figma screen 11): grey blocks mirroring the step-1
-// card + order rail footprint, so nothing demo-looking paints first.
-function RfSkeleton() {
+// footprint, so nothing demo-looking paints first.
+//
+// The mobile shape is genuinely different, not just narrower: there is no rail
+// column at all — the summary collapses into the 80px sticky bar at the top —
+// and the card is a flat, full-width sheet rather than a rounded panel beside
+// an aside. Drawing the desktop two-column skeleton there promised a layout
+// that never arrives, so the page visibly reflowed when the real content
+// landed.
+function RfSkeleton({ mobile = false }: { mobile?: boolean }) {
+  if (mobile) {
+    return (
+      <div aria-hidden="true">
+        {/* The sticky cost bar: two rows in an 80px band, matching .rfm-bar's
+            17px/24px padding so it does not jump when the real one replaces it. */}
+        <div className="rfm-bar-skel">
+          <div className="rfm-bar-skel-row">
+            <Shimmer w={168} h={18} r={4} />
+            <Shimmer w={72} h={18} r={4} />
+          </div>
+          <div className="rfm-bar-skel-row">
+            <Shimmer w={140} h={12} r={4} />
+            <Shimmer w={14} h={8} r={2} />
+          </div>
+        </div>
+        {/* Flat full-width sheet — no card chrome on mobile. */}
+        <div className="rf-card">
+          <Shimmer w={200} h={22} mb={10} />
+          <Shimmer w="88%" h={26} mb={22} />
+          <Shimmer w="100%" h={56} mb={16} r={8} />
+          <Shimmer w="100%" h={56} mb={16} r={8} />
+          <Shimmer w="100%" h={56} mb={16} r={8} />
+          <Shimmer w="100%" h={56} mb={22} r={8} />
+          <Shimmer w="70%" h={14} mb={18} />
+          <Shimmer w="100%" h={50} mb={12} r={8} />
+          <Shimmer w="100%" h={50} r={8} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rf-layout" aria-hidden="true">
       <div className="rf-main">
@@ -271,18 +316,83 @@ function MobileRailBar({
 }) {
   return (
     <button type="button" className="rfm-bar" onClick={onToggle} aria-expanded={expanded}>
-      <span className="rfm-bar-left">
+      {/* Two rows, each space-between (Figma 8509-51290): title | price, then
+          countdown | chevron. */}
+      <span className="rfm-bar-row">
         <span className="rfm-bar-title">Total Cost to Move-In:</span>
-        {holdRemaining != null && (
-          <span className="rfm-bar-hold">Holding Space for <b>{fmtBarCountdown(holdRemaining)}</b></span>
-        )}
+        <span className="rfm-bar-total">{total != null ? `$${total.toFixed(2)}` : '\u2014'}</span>
       </span>
-      <span className="rfm-bar-right">
-        <span className="rfm-bar-total">{total != null ? `$${total.toFixed(2)}` : '—'}</span>
-        <span className={`rfm-bar-chev${expanded ? ' rfm-bar-chev--up' : ''}`} aria-hidden="true">▾</span>
+      <span className="rfm-bar-row">
+        {/* Empty span keeps the chevron hard right when there is no hold. */}
+        {holdRemaining != null
+          ? <span className="rfm-bar-hold">Holding Space for <b>{fmtBarCountdown(holdRemaining)}</b></span>
+          : <span />}
+        {/* Same solid mark as the plan dropdown — the frame's leaf is 8x14 in a
+            24px box, which is this icon's own viewBox. It points RIGHT as
+            drawn, so the caller rotates it. */}
+        <ChevronSolidIcon size={14} className={`rfm-bar-chev${expanded ? ' rfm-bar-chev--up' : ''}`} />
       </span>
     </button>
   );
+}
+
+/**
+ * Desktop checkout header (Figma 8507-23231).
+ *
+ * On this flow the site's own Duda header is hidden and replaced by this, so a
+ * shopper mid-checkout keeps the brand but loses the navigation — there is
+ * nowhere to wander off to. The nav is replaced by the hold countdown, which
+ * is the only thing that matters on the page.
+ *
+ * Rebuilt from #02's design rather than imported: see the logo import above.
+ */
+function RentalHeader({ holdRemaining, homeHref }: { holdRemaining?: number; homeHref: string }) {
+  return (
+    <header className="rf-hdr">
+      {/* #02's structure exactly: the logo is an absolutely positioned banner
+          that overhangs the bar, and .rf-hdr-inner is the white strip whose
+          left gutter is reserved for it. The grey top bar (phone, live chat)
+          is simply not built — checkout has no use for it — which puts this in
+          #02's single-bar mode, hence the 210x104 banner rather than 264x150. */}
+      <a className="rf-hdr-logo" href={homeHref} aria-label="Home">
+        <img className="rf-hdr-logo-img" src={storelocalLogo} alt="storelocal storage" />
+      </a>
+      <div className="rf-hdr-inner">
+        {/* Where #02 puts .nav-links. */}
+        {holdRemaining != null && (
+          <p className="rf-hdr-hold">
+            Holding Space for <b>{fmtBarCountdown(holdRemaining)}</b>
+          </p>
+        )}
+      </div>
+    </header>
+  );
+}
+
+/**
+ * Scroll the window to `top` over ~260ms.
+ *
+ * Hand-rolled rather than `behavior: 'smooth'` because that has no speed
+ * control and its default glide is slow enough to feel like a delay when the
+ * point is to snap back to the summary. Honours prefers-reduced-motion by
+ * jumping straight there.
+ */
+function fastScrollTo(top: number) {
+  const reduce = typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const start = window.scrollY;
+  const delta = top - start;
+  if (reduce || Math.abs(delta) < 2) { window.scrollTo(0, top); return; }
+
+  const DURATION = 260;
+  const t0 = performance.now();
+  const step = (now: number) => {
+    const p = Math.min(1, (now - t0) / DURATION);
+    // easeOutCubic — quick off the mark, settles rather than stopping dead.
+    window.scrollTo(0, start + delta * (1 - (1 - p) ** 3));
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 // Payment interstitial (Figma screen 10 / mobile m06) — modal overlay
@@ -626,6 +736,29 @@ export function RentalFlow2Step({
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
+
+  /**
+   * Tapping the cost bar.
+   *
+   * Pinned (the page has scrolled past the widget), the bar is the only part of
+   * the summary on screen, so a tap means "take me back to it": always OPEN and
+   * scroll the widget's top under the viewport — never close, which would
+   * dismiss the thing being asked for.
+   *
+   * Unpinned it is an ordinary accordion and toggles, because the content it
+   * controls is already in view.
+   *
+   * The scroll targets the WIDGET's top, not the sheet's, so it is unaffected
+   * by the sheet animating open at the same time — a target that grows mid-
+   * scroll would land short.
+   */
+  const onRailToggle = () => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    const pinned = !!rect && rect.top < 0;
+    if (!pinned) { setRailOpen((o) => !o); return; }
+    setRailOpen(true);
+    if (rect) fastScrollTo(window.scrollY + rect.top);
+  };
   useEffect(() => {
     const node = wrapRef.current;
     if (!node) return undefined;
@@ -879,7 +1012,11 @@ export function RentalFlow2Step({
   }
 
   if (loading) {
-    return <div className="rf-wrapper" ref={wrapRef}>{pastDelay ? <RfSkeleton /> : null}</div>;
+    return (
+      <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
+        {pastDelay ? <RfSkeleton mobile={isMobile} /> : null}
+      </div>
+    );
   }
 
   // Static payment finished — the post-purchase form (Figma 8507-25408) takes
@@ -950,15 +1087,37 @@ export function RentalFlow2Step({
 
   return (
     <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
+      {!isMobile && (
+        <RentalHeader
+          holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
+          /* Site root. The logo is the only way back out of checkout, so it
+             must not inherit termsHref or any editor-set '#'. */
+          homeHref="/"
+        />
+      )}
       {isMobile && (
         <div className="rfm-top">
+          {/* A hold only exists after a unit is actually held, so on step 1
+              there is genuinely nothing to count down — which is why the row
+              was invisible. The sample value is harness-only, on the same gate
+              as the rail's preview content: a live page must never claim to be
+              holding a space it has not held. */}
           <MobileRailBar
             total={quote?.totalDue}
-            holdRemaining={holdRemaining}
+            holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
             expanded={railOpen}
-            onToggle={() => setRailOpen((o) => !o)}
+            onToggle={onRailToggle}
           />
-          {railOpen && <div className="rfm-sheet">{rail}</div>}
+        </div>
+      )}
+      {/* OUTSIDE .rfm-top, which is sticky: in there the sheet would stick to
+          the viewport along with the bar. Out here it is normal flow, so
+          opening it pushes the page down instead of covering it.
+          Always mounted, visibility driven by the class — a conditionally
+          rendered element cannot transition, it can only appear. */}
+      {isMobile && (
+        <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
+          <div className="rfm-sheet">{rail}</div>
         </div>
       )}
       <div className="rf-layout">

@@ -636,7 +636,29 @@
   border-top: 1px solid #dfe3e8;
 }
 
+/* A real PDF will arrive as an <iframe>/<embed> in place of the static copy.
+   Sizing it here means the swap is a markup change only — the viewport above
+   already scrolls, so the document scrolls with it. */
+.rf2-lease-doc iframe,
+.rf2-lease-doc embed,
+.rf2-lease-doc object { display: block; width: 100%; border: 0; }
+
 @media (max-width: 640px) {
+  /* Full-bleed sheet. The overlay's 24px gutter is what left the backdrop
+     visible around the edges; --sheet drops it for this modal only, since
+     .rf-overlay is shared with the processing and protection-plan lightboxes,
+     which are small centred dialogs and should stay that way. */
+  .rf-overlay--sheet { padding: 0; align-items: stretch; }
+  .rf2-lease {
+    width: 100%;
+    max-width: none;
+    /* 100% of an `inset: 0` fixed overlay rather than 100vh — vh on mobile
+       measures past the address bar and would push the agree bar off-screen. */
+    height: 100%;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+  }
   .rf2-lease-head { padding: 20px 20px 12px; }
   .rf2-lease-view { padding: 0 16px 16px; }
   .rf2-lease-doc { padding: 20px; }

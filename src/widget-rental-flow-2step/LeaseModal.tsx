@@ -55,7 +55,7 @@ export function LeaseModal({
   const clamp = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number(z.toFixed(2))));
 
   return (
-    <div className="rf-overlay" onClick={onClose} role="presentation">
+    <div className="rf-overlay rf-overlay--sheet" onClick={onClose} role="presentation">
       <div
         className="rf2-lease"
         role="dialog"

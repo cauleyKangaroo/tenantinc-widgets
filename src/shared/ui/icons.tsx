@@ -123,6 +123,31 @@ export function EyeOffIcon(props: IconProps) {
 }
 
 /** close/x — "dismiss, cancel, remove, close dialog". */
+/**
+ * The design system's Close mark (Figma 6103:14869 / 8507-23643) — FILLED, and
+ * drawn edge-to-edge in its own 18x18 box.
+ *
+ * Separate from CloseIcon below, which is a 2px STROKE whose glyph occupies
+ * only the middle 50% of the shared 24x24 frame: at size={18} that renders a
+ * 9px mark, half what the caller asked for. Existing callers are left on it so
+ * nothing shifts; anything matching the frames should use this.
+ */
+export function CloseSolidIcon({ size = 18, className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 18 18"
+      fill="currentColor"
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+    >
+      <path d="M18 1.81286L16.1871 0L9 7.18714L1.81286 0L0 1.81286L7.18714 9L0 16.1871L1.81286 18L9 10.8129L16.1871 18L18 16.1871L10.8129 9L18 1.81286Z" />
+    </svg>
+  );
+}
+
 export function CloseIcon(props: IconProps) {
   return (
     <Frame {...props} tx={5} ty={5}>
