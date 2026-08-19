@@ -13,6 +13,97 @@
   color: #101318;
 }
 
+/* ── Desktop checkout header (Figma 8507-23231) ──────────────────────────
+   #02's navigation brought across, with two changes: the grey top bar (phone,
+   live chat) is not built at all, and the nav links are replaced by the hold
+   countdown. Everything else — the overhanging logo banner, the white strip
+   and its reserved left gutter — is #02's, so the two headers read as the same
+   component. Only the logo ASSET is shared; no component, config or data. */
+.rf-hdr {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+  box-shadow: 0 2px 4px 2px rgba(71, 84, 116, 0.1);
+  font-family: 'Montserrat', sans-serif;
+  /* The Header instance is 140px tall against a 100px white strip (page frame
+     8507-23172, where the card and rail both start at y=140). That remaining
+     40px is the band the content sits below — and the overhanging logo drops
+     into it, so it is clearance as well as spacing. */
+  margin-bottom: 40px;
+}
+.rf-hdr *, .rf-hdr *::before, .rf-hdr *::after { box-sizing: border-box; }
+
+/* NO background. #02 is explicit that the brand logo is full-colour and sits
+   directly on the nav — it only paints a tile when a `logoBg` is passed in.
+   Adding one here put a coded green rectangle behind a PNG that already
+   contains its own. Absolute + z-index so it overhangs the strip without
+   stretching it. */
+.rf-hdr-logo {
+  position: absolute;
+  top: 0;
+  left: max(24px, calc((100% - 1314px) / 2 + 24px));
+  /* Sized from the frame, not from #02: the green block there is 269.265px
+     wide. Height is left to the image so the PNG keeps its ~2.25:1 aspect —
+     about 120px, which overhangs the 100px strip by ~20px into the 40px band
+     below, as the frame shows. A fixed height here would squash it. */
+  width: 269px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  text-decoration: none;
+  z-index: 5;
+}
+.rf-hdr-logo-img { display: block; width: 100%; height: auto; }
+
+/* The white strip. padding-left reserves the gutter the banner occupies. */
+.rf-hdr-inner {
+  position: relative;
+  max-width: 1314px;
+  margin: 0 auto;
+  min-height: 100px;
+  padding: 0 24px 0 285px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.rf-hdr-hold {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 18px;
+  color: #101318;
+  white-space: nowrap;
+}
+/* ada/red, matching the mobile bar's countdown. tabular-nums so the digits do
+   not jitter as it ticks. */
+.rf-hdr-hold b { color: var(--hb-ada-red, #e53935); font-variant-numeric: tabular-nums; }
+
+/* Narrower banner, as #02 does at small widths. */
+/* #02's own breakpoints (1120 / 1024), not a single step at 900. The previous
+   rule never fired across the tablet band at all — between 900 and 1120 the
+   banner stayed at full desktop width and then dropped straight to 190px,
+   below where #02 steps. Widths are scaled from THIS header's 269px base
+   rather than #02's 264px tile, so the proportion carries over. */
+@media (max-width: 1120px) {
+  .rf-hdr-logo { width: 240px; }
+  .rf-hdr-inner { padding-left: 260px; }
+}
+@media (max-width: 1024px) {
+  /* #02 shortens the strip here too. */
+  .rf-hdr-logo { width: 210px; }
+  .rf-hdr-inner { min-height: 88px; padding-left: 232px; }
+}
+
+/* Mobile shows the sticky cost bar instead — the two would be redundant. */
+@container (max-width: 640px) {
+  .rf-hdr { display: none; }
+}
+
 /* Step crossfade — quick fade + slight lift. */
 .rf-step { transition: opacity 0.15s ease, transform 0.15s ease; }
 .rf-step--in { opacity: 1; transform: none; }
@@ -128,6 +219,22 @@
 
 /* ── Narrow container (mobile / small widget widths) ───────────────────── */
 @container (max-width: 640px) {
+  /* Mobile is a flat white sheet. The cards, panels and the agreement box drop
+     their border, radius and shadow and read as plain sections stacked down
+     the page — on a 393px screen the nested rounded boxes cost horizontal room
+     and add chrome that only makes sense when they sit side by side.
+     The sticky .rfm-bar keeps its own elevation: it floats over this content
+     rather than being part of it. */
+  .rf-card,
+  .rf2-panel,
+  .rf2-agree,
+  .rf-method-panel {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: #fff;
+  }
+
   .rf-card { padding: 32px 20px; }
   /* Both title lines scale together — they are one size in the frame, and the
      eyebrow at a base 36px would otherwise outsize the 28px heading here.
@@ -634,8 +741,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 422px;
   gap: 28px;
+  box-sizing: border-box;
   max-width: 1330px;
   margin: 0 auto;
+  /* Gutter so the cards never run to the screen edge below 1330px. Tablet keeps
+     its box styling — border, radius, shadow — and a bordered card touching the
+     viewport edge looks like a rendering fault. Mobile drops this (below), where
+     the boxes go flush and lose their chrome entirely. */
+  padding: 0 24px;
   align-items: start;
 }
 /* Sticky order rail — desktop two-column only.
@@ -664,11 +777,51 @@
 
 @media (max-width: 900px) {
   .rf-layout { grid-template-columns: minmax(0, 1fr); }
-  /* SummaryRail's .ts-card is a FIXED 422px (shared/ui), which is what the
-     422px track above is sized to. Once the grid collapses to one column that
-     fixed width has nothing holding it, so it overflows any viewport narrower
-     than 422px. Same guard #14 already carries. */
-  .ts-card { width: 100%; max-width: 422px; }
+  /* TABLET: once the grid collapses, the rail stops pretending to be a narrow
+     sidebar. It spans the full width and splits internally 50/50 — hero (image,
+     name, address, phone) beside the body (size, amenities, price, breakdown).
+     A 422px card marooned in a 900px column wastes half the row and makes the
+     page much taller than it needs to be.
+     Scoped to the two rental-flow grids: .ts-card is shared with #14, which
+     keeps its own layout. */
+  .rf-layout > .ts-card,
+  .rfc-layout > .ts-card {
+    width: 100%;
+    max-width: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    /* grid's default stretch is what makes the two halves equal height. */
+    align-items: stretch;
+  }
+  /* The hold countdown is a banner across the top, not a third column. */
+  .rf-layout > .ts-card > .ts-card-holdbar,
+  .rfc-layout > .ts-card > .ts-card-holdbar { grid-column: 1 / -1; }
+  /* Released from its fixed 208px so it matches whatever the body needs, but
+     never collapses below it when the body is short. */
+  .rf-layout > .ts-card > .ts-card-hero,
+  .rfc-layout > .ts-card > .ts-card-hero { height: auto; min-height: 208px; }
+  /* Half the width now, so the facility lines wrap rather than push it wide. */
+  .rf-layout > .ts-card .ts-card-line span,
+  .rfc-layout > .ts-card .ts-card-line span { overflow-wrap: anywhere; }
+  /* Wrapping changes what these rows need:
+     - height:auto, because the shared rule pins them to 30px. A two-line
+       address still occupied 30px, so its second line ran into the phone row
+       below — that is the gap that looked too tight, not a missing margin.
+     - flex-start, so the pin/handset tracks the FIRST line. Centred, the icon
+       drifted to the middle of a two-line block and stopped reading as its
+       marker.
+     - an explicit 24px line-height, so the 24px icon aligns to that first line
+       exactly rather than approximately. */
+  .rf-layout > .ts-card .ts-card-line,
+  .rfc-layout > .ts-card .ts-card-line {
+    align-items: flex-start;
+    height: auto;
+    min-height: 30px;
+    line-height: 24px;
+  }
+  /* Clear separation between the address and phone rows once either wraps. */
+  .rf-layout > .ts-card .ts-card-line + .ts-card-line,
+  .rfc-layout > .ts-card .ts-card-line + .ts-card-line { margin-top: 8px; }
 }
 .rfr-card {
   background: #fff;
@@ -732,8 +885,10 @@
      wide screens — this also gives the content column more room for text. */
   /* 1330px matches .rf-layout and the rest of the site. It was 1400px, which
      made the confirmation screen 300px wider than the step it follows. */
+  box-sizing: border-box;
   max-width: 1330px;
   margin: 0;
+  padding: 0 24px;
   align-items: start;
 }
 /* Trim .rf-card's oversized 56/72 padding + drop its 920/margin-auto centering
@@ -975,28 +1130,109 @@
 /* --- Mobile: sticky top cost bar + drop-down rail sheet ------------------ */
 .rfm-top { position: sticky; top: 0; z-index: 50; }
 .rfm-bar {
-  display: flex; width: 100%; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 12px 16px; background: #fff;
-  border: none; border-bottom: 1px solid #e3e5e9; border-radius: 0;
-  box-shadow: 0 2px 10px rgba(16, 19, 24, 0.08);
-  font-family: inherit; cursor: pointer; text-align: left;
+  /* FULL host-button reset. Hosts style bare <button>s — the dev harness uses
+     `button { padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 6px;
+     background: #fff; font-size: 13px }` and a Duda theme will have its own.
+     Every one of those properties has to be answered here or it leaks through:
+     the unreset border-radius is what kept putting 6px corners on this bar.
+     Resetting only some of them is what made this recur. */
+  box-sizing: border-box;
+  border-radius: 0;
+  font-size: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* 345x46 of content inside 393x80 -> 17px/24px, and the two rows butt
+     together (row1 y=0 h=22, row2 y=22 h=24), so no gap. */
+  gap: 0;
+  padding: 17px 24px;
+  border: none;
+  background: #f9fafb;
+  text-align: left;
+  /* Montserrat throughout, per the frame — not the inherited theme font. */
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+  /* Elevation plus the frame's hairline above and below. */
+  box-shadow:
+    0 4px 5px rgba(71, 84, 116, 0.1),
+    inset 0 1px 0 0 rgba(142, 142, 143, 0.15),
+    inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
 }
-.rfm-bar-left { display: flex; flex-direction: column; gap: 2px; }
-.rfm-bar-title { font-size: 16px; font-weight: 700; color: #101318; }
-.rfm-bar-hold { font-size: 13px; color: #101318; }
-.rfm-bar-hold b { color: #e03e2f; font-variant-numeric: tabular-nums; }
-.rfm-bar-right { display: flex; align-items: center; gap: 10px; }
-.rfm-bar-total { font-size: 18px; font-weight: 700; color: #101318; }
-.rfm-bar-chev { font-size: 14px; color: #5c6370; transition: transform 0.15s ease; }
-.rfm-bar-chev--up { transform: rotate(180deg); }
+/* Skeleton stand-in for the sticky cost bar. Same 80px band, same 17px/24px
+   padding and #f9fafb ground as .rfm-bar, so the real bar drops straight into
+   its place with no shift. */
+.rfm-bar-skel {
+  box-sizing: border-box;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 17px 24px;
+  background: #f9fafb;
+  box-shadow:
+    inset 0 1px 0 0 rgba(142, 142, 143, 0.15),
+    inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.rfm-bar-skel-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+.rfm-bar-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+.rfm-bar-title { font-size: 18px; font-weight: 600; line-height: 18px; color: #101318; }
+.rfm-bar-total { font-size: 18px; font-weight: 600; color: #101318; white-space: nowrap; }
+.rfm-bar-hold { font-size: 16px; line-height: 28px; color: #101318; }
+/* ada/red, per the frame. No margin: the markup already has a word space
+   before it, and the frame's 8px on top of that read as a gap rather than a
+   space. tabular-nums so the digits do not jitter as it ticks. */
+.rfm-bar-hold b {
+  font-weight: 600;
+  color: var(--hb-ada-red, #e53935);
+  font-variant-numeric: tabular-nums;
+}
+.rfm-bar-chev { flex: 0 0 auto; color: #101318; transform: rotate(90deg); transition: transform 0.15s ease; }
+.rfm-bar-chev--up { transform: rotate(-90deg); }
+/* Grid 0fr -> 1fr is what lets this animate to its NATURAL height: there is no
+   pixel value to guess, so nothing clips and no scrollbar is needed. The sheet
+   is in normal flow, so opening it pushes the page down rather than covering
+   it. */
+.rfm-sheet-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.rfm-sheet-wrap--open { grid-template-rows: 1fr; }
 .rfm-sheet {
-  position: absolute; left: 0; right: 0; top: 100%;
-  max-height: 75vh; overflow-y: auto;
-  background: #fff; box-shadow: 0 16px 32px rgba(16, 19, 24, 0.25);
+  /* min-height:0 is required — a grid item's default min-height:auto would
+     refuse to shrink below its content and the row would never collapse. */
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
 }
+/* The rail is built for a 422px desktop column; inside the sheet it has to fit
+   a 393px phone, so everything that carried a fixed width goes fluid rather
+   than overflowing the frame. */
+.rfm-sheet .ts-card,
 .rfm-sheet .rfr-card { width: 100%; max-width: none; border-radius: 0; box-shadow: none; }
+.rfm-sheet .ts-card-body { padding: 20px; }
+.rfm-sheet .ts-card-top { flex-wrap: wrap; gap: 12px; }
+.rfm-sheet .ts-card-prices { height: auto; }
+.rfm-sheet .ts-card-line span,
+.rfm-sheet .ts-bd-row span { min-width: 0; overflow-wrap: anywhere; }
+.rfm-sheet .ts-card-storename { overflow-wrap: anywhere; }
 /* Stacked layout: the main column takes the full width on mobile. */
 .rf-wrapper--mobile .rf-layout { display: block; }
+/* Flush to the edge on mobile: with no border or radius left there is nothing
+   for a gutter to hold away from the edge, and 24px each side is real reading
+   width on a 393px screen.
+   Qualified with .rf-wrapper--mobile (0,2,0) rather than repeated inside the
+   640px container block — that earlier attempt was (0,1,0), the same as the
+   base rule, and container queries add no specificity, so the base padding
+   further down the file simply won on source order. */
+.rf-wrapper--mobile .rf-layout,
+.rf-wrapper--mobile .rfc-layout { padding-left: 0; padding-right: 0; }
 .rf-wrapper--mobile .rf-main { width: 100%; }
 
 /* Payment schedule (spec-04: Next Month(s) / Ongoing) */
