@@ -71,6 +71,69 @@
 .hb-datemodal-cals { display: flex; gap: 64px; justify-content: center; flex-wrap: wrap; }
 .hb-datemodal-cta { width: 100%; max-width: 343px; }
 
+/* Browse mode: one month with month/year pickers above it. */
+.hb-datemodal-browse { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.hb-datemodal-jump { display: flex; align-items: center; gap: 12px; }
+.hb-datemodal-jump-sel {
+  /* Full reset — hosts style bare <select>s just as they do <button>s. */
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--hb-cloud-darker, #a5b4bf);
+  border-radius: 8px;
+  background: var(--hb-white, #fff);
+  color: var(--hb-text-night, #101318);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  cursor: pointer;
+}
+.hb-datemodal-jump-sel:focus-visible {
+  outline: none;
+  border-color: var(--hb-text-night, #101318);
+  box-shadow: var(--hb-focus-ring);
+}
+/* Reset sits with the pickers, not with the confirm CTA — it acts on the
+   calendar's state, not on the form's. Plain text, underlined on hover: it
+   undoes a choice rather than making one, so it should not compete with the
+   confirm button for weight.
+   Everything a host might set on a bare <button> is still reset — padding,
+   border, radius, background, appearance — because "plain text" only holds if
+   nothing paints a box around it. */
+.hb-datemodal-reset {
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--hb-text-night, #101318);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+/* background pinned across every interaction state, not just the resting one.
+   A host `button:hover { background: #f3f4f6 }` is (0,1,1) and outranks the
+   single class above, so resetting the base alone left a grey box appearing on
+   hover. Underline is the only thing that should change. */
+.hb-datemodal-reset:hover,
+.hb-datemodal-reset:focus,
+.hb-datemodal-reset:active { background: none; }
+.hb-datemodal-reset:hover { text-decoration: underline; }
+/* Keyboard focus needs a visible marker too, and an outline reads better than
+   a ring on something with no box of its own. */
+.hb-datemodal-reset:focus-visible {
+  outline: 2px solid var(--hb-text-night, #101318);
+  outline-offset: 2px;
+  text-decoration: underline;
+}
+
 /* Optional nudge under the confirm button (Figma 8507-23907). Centred to the
    button's own width, not the modal's, so it stays visually tied to it. */
 .hb-datemodal-foot {
