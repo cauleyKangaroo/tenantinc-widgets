@@ -27,6 +27,9 @@ export interface TierOpenRequest {
   /** Fee/junk-fee disclaimer text mirrored from the sender. Empty string ⇒ hide
    *  it (sender's toggle is off); omitted ⇒ the modal keeps its own fee text. */
   feeText?: string;
+  /** Sender's "show urgency" toggle. false ⇒ hide the modal's urgency line;
+   *  omitted ⇒ the modal keeps its own behaviour. */
+  showUrgency?: boolean;
 }
 
 /** True when the request looks well-formed enough to act on. */

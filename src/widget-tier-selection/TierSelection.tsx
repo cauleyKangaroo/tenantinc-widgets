@@ -387,6 +387,7 @@ export function TierSelection({
   // CTA + fee text mirrored from the Space List over the open event (configure once).
   const [modalCtaLabel, setModalCtaLabel] = useState<string | undefined>(undefined);
   const [modalFeeText, setModalFeeText] = useState<string | undefined>(undefined);
+  const [modalShowUrgency, setModalShowUrgency] = useState<boolean | undefined>(undefined);
   // Bumped on every open so reopening the SAME size still refetches (inventory
   // and pricing can change between opens).
   const [openGen, setOpenGen] = useState(0);
@@ -478,6 +479,7 @@ export function TierSelection({
       setModalUnitGroupId(req.unitGroupId);
       setModalCtaLabel(req.ctaLabel);
       setModalFeeText(req.feeText);
+      setModalShowUrgency(req.showUrgency);
       setOpenGen((g) => g + 1);
       setModalOpen(true);
       return true; // accepted → acknowledge
@@ -756,7 +758,7 @@ export function TierSelection({
                 <TierModalHeader
                   heading={isMobile ? headingMobile : heading}
                   subheading={isMobile ? undefined : subheading}
-                  urgency={urgency}
+                  urgency={modalShowUrgency === false ? '' : urgency}
                   adminFeeText={modalFeeText ?? adminFeeText}
                 />
                 <button type="button" className="ts-modal-close" aria-label="Close" onClick={() => setModalOpen(false)}>&times;</button>

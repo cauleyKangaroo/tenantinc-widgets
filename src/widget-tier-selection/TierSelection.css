@@ -1008,8 +1008,7 @@
   position: relative;
   z-index: 2;
   background: #fff;
-  border-bottom: 1px solid #e5e8eb;
-  padding: 28px 72px 20px 32px; /* right pad reserves room for the close button */
+  padding: 28px 72px 12px 32px; /* right pad reserves room for the close button */
 }
 .ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; }
 .ts-modal-heading-main { text-align: left; }
@@ -1024,7 +1023,7 @@
    the top-right corner and never scrolls away. */
 .ts-modal-close {
   position: absolute;
-  top: 12px;
+  top: 18px;
   right: 16px;
   width: 48px;
   height: 48px;
@@ -1049,10 +1048,31 @@
 }
 .ts-modal-editor-hint b { color: #101318; }
 @media (max-width: 640px) {
-  .ts-modal-backdrop { padding: 0; }
-  .ts-modal { border-radius: 0; max-height: 100vh; height: 100%; max-width: none; }
-  .ts-modal-body { padding: 24px 16px; }
-  .ts-modal-header { padding: 20px 56px 16px 20px; }
+  /* Mobile: fixed-height flex column with the BODY as the single scroll owner.
+     Constrain to 100svh — the SMALL viewport (Safari chrome visible), which is
+     smaller than the content, so the body genuinely overflows and scrolls.
+     100dvh/100vh can equal the full viewport, leaving no overflow to scroll. */
+  .ts-modal-backdrop { padding: 0; align-items: flex-start; overflow: hidden; }
+  .ts-modal {
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;   /* fallback where svh is unsupported */
+    height: 100svh;
+    max-height: 100svh;
+    max-width: none;
+    overflow: hidden;
+  }
+  .ts-modal-header { flex: 0 0 auto; position: relative; padding: 20px 56px 16px 20px; }
+  .ts-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 24px 16px calc(64px + env(safe-area-inset-bottom));
+  }
+  .ts-modal-close { top: 10px; }   /* align with the (smaller, higher) mobile heading */
   .ts-modal-heading { justify-content: center; }
   .ts-modal-heading-main { text-align: center; width: 100%; }
   .ts-modal-meta { align-items: center; text-align: center; width: 100%; }

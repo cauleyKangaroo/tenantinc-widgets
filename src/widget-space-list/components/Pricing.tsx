@@ -235,6 +235,7 @@ export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetCo
       // Mirror the operator's Space List config so #14 doesn't need it re-entered.
       ctaLabel: config.ctaButtonCopy || undefined,
       feeText: config.showJunkFeeDisclaimer ? (config.junkFeeCopy || '') : '',
+      showUrgency: config.showUrgencyMessage,
     });
     if (handled) return;
     if (config.valueTiersPageUrl) {
