@@ -384,6 +384,8 @@ export function TierSelection({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalSize, setModalSize] = useState<string | undefined>(undefined);
   const [modalUnitGroupId, setModalUnitGroupId] = useState<string | undefined>(undefined);
+  // The property the Space List emitted for the clicked product (dynamic pages).
+  const [modalPropertyId, setModalPropertyId] = useState<string | undefined>(undefined);
   // CTA + fee text mirrored from the Space List over the open event (configure once).
   const [modalCtaLabel, setModalCtaLabel] = useState<string | undefined>(undefined);
   const [modalFeeText, setModalFeeText] = useState<string | undefined>(undefined);
@@ -445,6 +447,11 @@ export function TierSelection({
 
   const cfgDefaults = React.useMemo(() => defaultContext(), []);
   const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp || urlParam('propertyId') }, cfgDefaults.propertyId);
+  // On a dynamic page the modal adopts the property Space List emitted (the
+  // authoritative facility for the clicked product) as its API context; inline
+  // and pre-open it falls back to this widget's own config. companyId always
+  // comes from this widget's config — a Duda site is one company.
+  const activePropertyId = mode === 'modal' ? (modalPropertyId ?? effectivePropertyId) : effectivePropertyId;
   const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -457,26 +464,28 @@ export function TierSelection({
     return () => { cancelled = true; };
   }, [companyIdProp, cfgDefaults.companyId]);
   const ctx: TierContext = React.useMemo(
-    () => ({ propertyId: effectivePropertyId, companyId: effectiveCompanyId ?? '' }),
-    [effectivePropertyId, effectiveCompanyId],
+    () => ({ propertyId: activePropertyId, companyId: effectiveCompanyId ?? '' }),
+    [activePropertyId, effectiveCompanyId],
   );
 
-  // Modal open requests from the Space List — validated and scoped to this
-  // widget's property; accepting acknowledges the sender.
+  // Modal open requests from Space List. Channel (if set) is the only routing
+  // gate; the modal adopts the emitted property + unit-group as its API context.
   useEffect(() => {
     if (mode !== 'modal') return;
     return onOpenTiers((req) => {
       if (!isValidTierRequest(req)) return false; // ignore malformed
-      // If EITHER side opts into channel targeting, both must match exactly;
-      // otherwise scope by property. (An unchanneled modal must NOT swallow a
-      // channeled request meant for a specific instance.)
+      // Channel is the ONLY instance-routing gate: if either side sets a channel,
+      // both must match. Property is NOT a gate — an unchanneled modal serves
+      // whatever facility Space List emits and ADOPTS it as the active API context
+      // (see activePropertyId), so all endpoints hit the right property. The site
+      // is one company, so any emitted property is in-tenant; the backend still
+      // validates the property/group pairing.
       if (channel || req.channel) {
         if (!channel || req.channel !== channel) return false;
-      } else if (req.propertyId && ctx.propertyId && req.propertyId !== ctx.propertyId) {
-        return false;
       }
       setModalSize(req.size);
       setModalUnitGroupId(req.unitGroupId);
+      setModalPropertyId(req.propertyId);
       setModalCtaLabel(req.ctaLabel);
       setModalFeeText(req.feeText);
       setModalShowUrgency(req.showUrgency);
@@ -484,7 +493,7 @@ export function TierSelection({
       setModalOpen(true);
       return true; // accepted → acknowledge
     });
-  }, [mode, ctx.propertyId, channel]);
+  }, [mode, channel]);
 
   // Explicit load state machine. There is NO demo data: the layout renders
   // only in 'live' (real tiers). Every other outcome is 'loading' (skeleton),
@@ -712,7 +721,7 @@ export function TierSelection({
     url.searchParams.set('tier', key);
     // Carry the facility + group so the rental page queries the right property
     // (not its config default) and the reserve write passes the ownership check.
-    if (effectivePropertyId) url.searchParams.set('propertyId', effectivePropertyId);
+    if (activePropertyId) url.searchParams.set('propertyId', activePropertyId);
     if (effectiveCompanyId) url.searchParams.set('companyId', effectiveCompanyId);
     const gid = authoritativeGroupId ?? groupIdRef.current;
     if (gid) url.searchParams.set('unitGroupId', gid);
