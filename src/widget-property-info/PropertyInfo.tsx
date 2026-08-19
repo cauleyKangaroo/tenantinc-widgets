@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
@@ -10,7 +10,7 @@ import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
   MapPinIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
-  CloseIcon,
+  CloseIcon, CloseSolidIcon, LightboxChevron,
 } from './icons';
 import { MessageModal } from './MessageModal';
 
@@ -223,6 +223,7 @@ export function PropertyInfo(props: Props) {
 
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
+  const thumbsRef = useRef<HTMLDivElement>(null);
   const [hoursOpen, setHoursOpen] = useState(false);
   const [reservationOpen, setReservationOpen] = useState(false);
   const [reservationCode, setReservationCode] = useState('');
@@ -382,6 +383,21 @@ export function PropertyInfo(props: Props) {
     ? collectionImages
     : [heroImage, ...(images ?? [])]
   ).filter(Boolean) as string[];
+  /* Keep the active thumbnail centred as the photo changes, so stepping past
+     the eighth image rolls the rail along instead of leaving the marker off
+     screen. scrollLeft rather than scrollIntoView: the latter also scrolls
+     ancestors, and inside a fixed full-screen overlay that drags the page
+     behind it. */
+  useEffect(() => {
+    const rail = thumbsRef.current;
+    const thumb = rail?.children[index] as HTMLElement | undefined;
+    if (!rail || !thumb) return;
+    rail.scrollTo({
+      left: thumb.offsetLeft - (rail.clientWidth - thumb.clientWidth) / 2,
+      behavior: 'smooth',
+    });
+  }, [index, lightbox]);
+
   const slides = provided.length ? provided : GALLERY;
   const heroSlide = slides[0];
   const current = slides[index] ?? slides[0];
@@ -497,21 +513,41 @@ export function PropertyInfo(props: Props) {
         aria-label="Close gallery"
         onClick={(e) => { e.stopPropagation(); setLightbox(false); }}
       >
-        <CloseIcon size={20} />
+        <CloseSolidIcon size={24} />
       </button>
       <span className="pi-lb-arrow pi-lb-arrow--prev" role="button" tabIndex={0} aria-label="Previous photo"
         onClick={(e) => { e.stopPropagation(); prev(); }}>
-        <ChevronRight size={44} />
+        <LightboxChevron size={20} className="pi-lb-chev" />
       </span>
       {/* The wrap deliberately does NOT swallow clicks: it's 90vw x 80vh, so on a
           phone it was almost the whole screen and left nowhere to tap to close.
           Only the photo itself is exempt. */}
-      <span className="pi-lb-img-wrap">
-        <ImageFill className="pi-lb-img" src={current} onClick={(e) => e.stopPropagation()} />
+      <span className="pi-lb-stage" onClick={(e) => e.stopPropagation()}>
+        <span className="pi-lb-img-wrap">
+          <ImageFill className="pi-lb-img" src={current} onClick={(e) => e.stopPropagation()} />
+        </span>
+        {/* Thumbnail rail. Only drawn when there is more than one photo — a
+            single thumbnail of the picture already on screen is noise. */}
+        {slides.length > 1 && (
+          <div className="pi-lb-thumbs" ref={thumbsRef}>
+            {slides.map((src, i) => (
+              <button
+                key={`${src}-${i}`}
+                type="button"
+                className={`pi-lb-thumb${i === index ? ' is-active' : ''}`}
+                aria-label={`View photo ${i + 1}`}
+                aria-current={i === index || undefined}
+                onClick={(e) => { e.stopPropagation(); setIndex(i); }}
+              >
+                <ImageFill className="pi-lb-thumb-img" src={src} />
+              </button>
+            ))}
+          </div>
+        )}
       </span>
       <span className="pi-lb-arrow" role="button" tabIndex={0} aria-label="Next photo"
         onClick={(e) => { e.stopPropagation(); next(); }}>
-        <ChevronRight size={44} />
+        <LightboxChevron size={20} className="pi-lb-chev" />
       </span>
       {/* No stopPropagation: a tap on the counter should close like anywhere else */}
       <span className="pi-lb-counter">{index + 1} / {slides.length}</span>
