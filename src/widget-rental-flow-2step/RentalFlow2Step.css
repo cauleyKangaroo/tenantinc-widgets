@@ -661,6 +661,8 @@
 /* Rental Agreement */
 .rf2-agree { background: #f4f6f8; border-radius: 16px; overflow: hidden; }
 .rf2-agree-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 28px 29px 20px; }
+/* Long label by default, short one on mobile — see the note at the call site. */
+.rf2-link-short { display: none; }
 .rf2-agree-doc { margin: 0 24px; height: 300px; overflow: auto; background: #fff; border-radius: 4px; }
 .rf2-doc-page { padding: 24px 28px; }
 .rf2-doc-title { margin: 0 0 14px; font-size: 16px; font-weight: 700; color: #101318; }
@@ -825,6 +827,8 @@
   /* Also less the 2px border, matching the base rule. */
   .rf2-autopay { padding: 14px 18px; }
   .rf2-agree-head { padding: 20px 20px 16px; }
+  .rf2-link-long { display: none; }
+  .rf2-link-short { display: inline; }
   .rf2-agree-doc { margin: 0 16px; }
   .rf2-paygrid { grid-template-columns: 1fr; }
 }
