@@ -123,8 +123,9 @@ function UnitRow({
           className="ml-select"
           href={rentalHref(rentalPageUrl)}
           onClick={() => saveUnitSelection({
-            unitId: unit.id,
+            tierId: unit.id,
             size: unit.dimensions,
+            price: unit.startingPrice,
             propertyId: facility.id,
             companyId,
           })}

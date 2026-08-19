@@ -535,7 +535,12 @@ export function RentalFlow2Step({
   const propertyIdProp = propertyIdArg ?? urlParam('propertyId') ?? stored?.propertyId;
   const companyIdProp = companyIdArg ?? urlParam('companyId') ?? stored?.companyId;
   const unitGroupIdProp = unitGroupIdArg ?? urlParam('unitGroupId') ?? stored?.unitGroupId;
-  const unitIdProp = urlParam('unitId') ?? stored?.unitId;
+  // NOT filled from the stored pick: what the space lists hand over is a
+  // pricing TIER id, and this slot means a rentable unit id. Passing a tier
+  // here sends GET /units/{id}/lease-set-up an id it cannot resolve, so the
+  // rail loses its money breakdown. The tier resolves to a real unit through
+  // size + price below, the same route the value-tiers handoff takes.
+  const unitIdProp = urlParam('unitId');
   // "Change Space" returns to the value-tiers page the shopper came from.
   const backToSpacesUrl = (() => {
     try {
@@ -767,7 +772,11 @@ export function RentalFlow2Step({
             ? fetchUnitNumber(ctx, unitIdProp).then((number) => ({ id: unitIdProp, number }))
             : sel
               ? findUnitForSelection(ctx, sel.size, sel.price)
-              : Promise.resolve(undefined);
+              // No offer matched, but a stored pick still names a size and a
+              // price — enough to find the unit behind the clicked tier.
+              : stored?.size
+                ? findUnitForSelection(ctx, stored.size, stored.price)
+                : Promise.resolve(undefined);
           resolveUnit
             .then((unit) => (unit ? fetchMoveInQuote(ctx, unit) : undefined))
             .then((q) => {

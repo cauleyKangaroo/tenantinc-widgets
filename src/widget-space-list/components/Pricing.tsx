@@ -301,9 +301,12 @@ export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetCo
           className={`sl-select-btn${fullClass}`}
           href={rentalHref(config.rentalPageUrl)}
           onClick={() => saveUnitSelection({
-            unitId: unit.id,
+            tierId: unit.id,
             unitGroupId: unit.unitGroupId,
             size: unit.dimensions,
+            // The rental flow matches a real unit on size AND price, so the
+            // shopper gets the tier they clicked, not the cheapest of that size.
+            price: unit.startingPrice,
             propertyId: config.propertyId || cfg.propertyId || undefined,
             companyId: config.companyId || undefined,
           })}

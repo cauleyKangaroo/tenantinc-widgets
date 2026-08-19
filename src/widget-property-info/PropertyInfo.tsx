@@ -5,6 +5,7 @@ import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stick
 import { useSwipe } from '@shared/useSwipe';
 import { scrollToSpaceList } from '@shared/promoBus';
 import { fetchPropertyDetails, propertyBreadcrumb, type PropertyDetails, type BoundPropertyProps } from './api';
+import { fetchPropertyImages } from '@shared/propertyImages';
 import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
   MapPinIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
@@ -272,6 +273,24 @@ export function PropertyInfo(props: Props) {
     propertyAccessHours, propertySocials, propertyUnitCounts, propertyTimezone,
   ]);
 
+  // Gallery photos from the `PropertiesInternal` collection, for whichever
+  // property this page resolved to. Its own effect rather than part of
+  // fetchPropertyDetails: that call has a REST fallback and this has none, so a
+  // missing collection must not look like a failed property lookup.
+  const [collectionImages, setCollectionImages] = useState<string[]>([]);
+  useEffect(() => {
+    const id = property?.id;
+    // Clear first — otherwise switching row in the dynamic-page dropdown shows
+    // the previous property's photos until the new ones land.
+    setCollectionImages([]);
+    if (!id) return undefined;
+    let cancelled = false;
+    fetchPropertyImages(id)
+      .then((urls) => { if (!cancelled) setCollectionImages(urls); })
+      .catch((err) => console.warn('[PropertyInfo] property images unavailable:', err));
+    return () => { cancelled = true; };
+  }, [property?.id]);
+
   // Google rating: collection first, then the prop/DEFAULT.
   const displayRating = googleRating?.score ?? rating;
   const displayReviewCount = googleRating?.count ?? reviewCount;
@@ -353,9 +372,16 @@ export function PropertyInfo(props: Props) {
   const hoursDesktop = apiHoursColumns.length ? apiHoursColumns : HOURS_COLUMNS;
   const hoursSummary = apiHoursColumns.length ? apiHoursColumns : HOURS_MOBILE;
 
-  // Build the slide list from real images (hero first, then the others),
-  // falling back to gradient placeholders so the editor/demo still shows something.
-  const provided = [heroImage, ...(images ?? [])].filter(Boolean) as string[];
+  // Slide list, in precedence order:
+  //   1. the property's own photos from `PropertiesInternal` — per-property, so
+  //      they must beat a single hero image set once on the widget, which would
+  //      otherwise show the same photo on every dynamic page;
+  //   2. the heroImage/images props (a static page, or the Duda editor);
+  //   3. gradient placeholders, so nothing ever renders blank.
+  const provided = (collectionImages.length
+    ? collectionImages
+    : [heroImage, ...(images ?? [])]
+  ).filter(Boolean) as string[];
   const slides = provided.length ? provided : GALLERY;
   const heroSlide = slides[0];
   const current = slides[index] ?? slides[0];
