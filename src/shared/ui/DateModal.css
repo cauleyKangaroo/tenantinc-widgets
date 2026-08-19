@@ -116,6 +116,26 @@
 .hb-cal-cell--selected { background: var(--hb-text-night); color: var(--hb-white); }
 
 @media (max-width: 640px) {
+  /* Full-bleed sheet (Figma 8509-52040, whose root frame is simply
+     `bg-white size-full` — no radius, border or shadow).
+
+     The overlay's 24px gutter goes: that gutter IS the gap you could see
+     behind the module. With it removed and the sheet stretched, the dimmed
+     backdrop is fully covered, so there is nothing left to show through.
+
+     height:100% of an `inset: 0` fixed overlay, deliberately, rather than
+     100vh — vh on mobile browsers measures past the address bar and would
+     push the footer under it. */
+  .hb-datemodal-overlay { padding: 0; align-items: stretch; }
+  .hb-datemodal {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
   .hb-datemodal-head { padding: 18px 20px; }
   .hb-datemodal-title { font-size: 20px; }
   .hb-datemodal-body { padding: 24px 16px; }
