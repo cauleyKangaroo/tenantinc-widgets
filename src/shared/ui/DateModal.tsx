@@ -7,7 +7,7 @@
 
 import React, { useEffect } from 'react';
 import './DateModal.css';
-import { CalendarIcon, CloseIcon } from './icons';
+import { CalendarIcon, CloseSolidIcon } from './icons';
 import { Button } from './Button';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -143,7 +143,7 @@ export function DateModal({
             <span>{title}</span>
           </div>
           <button type="button" className="hb-datemodal-close" aria-label="Close" onClick={onClose}>
-            <CloseIcon size={18} />
+            <CloseSolidIcon size={18} />
           </button>
         </div>
 

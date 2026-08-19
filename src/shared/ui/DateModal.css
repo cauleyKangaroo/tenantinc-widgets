@@ -46,15 +46,29 @@
 .hb-datemodal-title svg { flex: 0 0 auto; }
 .hb-datemodal-close {
   flex: 0 0 auto;
+  box-sizing: border-box;
   width: 32px; height: 32px;
+  /* padding:0 is load-bearing. Hosts style bare <button>s — the dev harness
+     uses `button { padding: 6px 14px }` — and under a border-box reset that
+     leaves this 32px button just 4px of content width. The 18px mark, being a
+     flex item that shrinks by default, then collapsed to a speck. Border and
+     background are already reset below for the same reason; padding was the
+     one this rule missed. */
+  padding: 0;
   display: flex; align-items: center; justify-content: center;
   border: none; background: none; border-radius: 6px;
   color: var(--hb-text-night); cursor: pointer;
 }
+/* Belt and braces: the glyph keeps its intrinsic size whatever the parent does.
+   .hb-datemodal-title svg already carries this, which is precisely why the
+   calendar mark rendered correctly while the X next to it did not. */
+.hb-datemodal-close svg { flex: 0 0 auto; }
 .hb-datemodal-close:hover { background: #f4f6f8; }
 
 .hb-datemodal-body { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 42px; }
-.hb-datemodal-cals { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+/* 64px between the two months (Figma 8507-23638's frame). Wide on purpose —
+   at 24px the two grids read as one continuous run of dates. */
+.hb-datemodal-cals { display: flex; gap: 64px; justify-content: center; flex-wrap: wrap; }
 .hb-datemodal-cta { width: 100%; max-width: 343px; }
 
 /* Optional nudge under the confirm button (Figma 8507-23907). Centred to the
