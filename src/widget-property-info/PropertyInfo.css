@@ -271,6 +271,17 @@
   cursor: pointer;
 }
 
+/* No hover fill. This rule sets background:none at rest but had nothing for
+   :hover, and a host `button:hover { background: #f3f4f6 }` is (0,1,1) against
+   this single class — so the grey was the host's, not ours. Pinned across all
+   three states, because answering only the resting one is what let it back in
+   everywhere else this has come up. */
+.pi-reservation:hover,
+.pi-reservation:focus,
+.pi-reservation:active { background: none; }
+/* Losing the hover box should not lose the keyboard affordance. */
+.pi-reservation:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
+
 .pi-reservation svg {
   flex-shrink: 0;
 }
