@@ -140,6 +140,13 @@
   flex-shrink: 0;
 }
 
+/* Desktop only: the crumb above the gallery and map sits RIGHT. Scoped to the
+   media column with a child combinator, so the hero view's own breadcrumb —
+   which leads a different layout — is untouched. Reverts to left at 1180,
+   where the columns stack; mobile renders .pi-m-breadcrumb instead and never
+   sees this. */
+.pi-media > .pi-breadcrumb { text-align: right; }
+
 .pi-breadcrumb {
   font-size: 16px;
   font-weight: 400;
@@ -860,6 +867,10 @@ span.pi-lb-img {
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 @media (max-width: 1180px) {
+  /* Back to the left once the layout stacks — right-aligned over a full-width
+     column reads as stranded rather than placed. */
+  .pi-media > .pi-breadcrumb { text-align: left; }
+
   .pi-row {
     flex-direction: column;
   }
