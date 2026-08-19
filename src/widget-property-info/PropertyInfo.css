@@ -96,7 +96,17 @@
 }
 
 .pi-link:hover .pi-underline,
-.pi-contact-row:hover .pi-underline {
+.pi-contact-row:hover .pi-underline,
+/* Same treatment for "Find my Reservation" — it reads as a link and now
+   behaves as one. Only the label changes: the calendar mark beside it keeps
+   its colour, matching how .pi-link leaves everything but .pi-underline. */
+.pi-reservation:hover .pi-underline {
+  color: var(--color_1, #f45f30);
+}
+
+/* "32 Reviews" is a bare <a> with no .pi-underline child — the underline is on
+   the anchor itself — so it takes the colour directly. */
+.pi-reviews:hover {
   color: var(--color_1, #f45f30);
 }
 
