@@ -366,6 +366,32 @@ function RentalHeader({ holdRemaining, homeHref }: { holdRemaining?: number; hom
   );
 }
 
+/**
+ * Scroll the window to `top` over ~260ms.
+ *
+ * Hand-rolled rather than `behavior: 'smooth'` because that has no speed
+ * control and its default glide is slow enough to feel like a delay when the
+ * point is to snap back to the summary. Honours prefers-reduced-motion by
+ * jumping straight there.
+ */
+function fastScrollTo(top: number) {
+  const reduce = typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const start = window.scrollY;
+  const delta = top - start;
+  if (reduce || Math.abs(delta) < 2) { window.scrollTo(0, top); return; }
+
+  const DURATION = 260;
+  const t0 = performance.now();
+  const step = (now: number) => {
+    const p = Math.min(1, (now - t0) / DURATION);
+    // easeOutCubic — quick off the mark, settles rather than stopping dead.
+    window.scrollTo(0, start + delta * (1 - (1 - p) ** 3));
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 // Payment interstitial (Figma screen 10 / mobile m06) — modal overlay
 // while the lease+payment finalize. Purely presentational; the parent
 // decides when to show it and where to go next.
@@ -702,6 +728,29 @@ export function RentalFlow2Step({
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
+
+  /**
+   * Tapping the cost bar.
+   *
+   * Pinned (the page has scrolled past the widget), the bar is the only part of
+   * the summary on screen, so a tap means "take me back to it": always OPEN and
+   * scroll the widget's top under the viewport — never close, which would
+   * dismiss the thing being asked for.
+   *
+   * Unpinned it is an ordinary accordion and toggles, because the content it
+   * controls is already in view.
+   *
+   * The scroll targets the WIDGET's top, not the sheet's, so it is unaffected
+   * by the sheet animating open at the same time — a target that grows mid-
+   * scroll would land short.
+   */
+  const onRailToggle = () => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    const pinned = !!rect && rect.top < 0;
+    if (!pinned) { setRailOpen((o) => !o); return; }
+    setRailOpen(true);
+    if (rect) fastScrollTo(window.scrollY + rect.top);
+  };
   useEffect(() => {
     const node = wrapRef.current;
     if (!node) return undefined;
@@ -1045,7 +1094,7 @@ export function RentalFlow2Step({
             total={quote?.totalDue}
             holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
             expanded={railOpen}
-            onToggle={() => setRailOpen((o) => !o)}
+            onToggle={onRailToggle}
           />
         </div>
       )}
