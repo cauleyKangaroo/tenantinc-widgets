@@ -159,7 +159,7 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
     popular: i === popularIdx,
     promo: t.promo,
     soldOut: t.soldOut,
-    features: (t.features ?? []).slice(0, 5).map((label, fi) => ({ label, star: fi === 0 && i > 0 })),
+    features: (t.features ?? []).slice(0, 5).map((label) => ({ label })),
   }));
 
   const o3: O3Tier[] = tiers.map((t, i) => ({
@@ -384,6 +384,9 @@ export function TierSelection({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalSize, setModalSize] = useState<string | undefined>(undefined);
   const [modalUnitGroupId, setModalUnitGroupId] = useState<string | undefined>(undefined);
+  // CTA + fee text mirrored from the Space List over the open event (configure once).
+  const [modalCtaLabel, setModalCtaLabel] = useState<string | undefined>(undefined);
+  const [modalFeeText, setModalFeeText] = useState<string | undefined>(undefined);
   // Bumped on every open so reopening the SAME size still refetches (inventory
   // and pricing can change between opens).
   const [openGen, setOpenGen] = useState(0);
@@ -473,6 +476,8 @@ export function TierSelection({
       }
       setModalSize(req.size);
       setModalUnitGroupId(req.unitGroupId);
+      setModalCtaLabel(req.ctaLabel);
+      setModalFeeText(req.feeText);
       setOpenGen((g) => g + 1);
       setModalOpen(true);
       return true; // accepted → acknowledge
@@ -724,7 +729,7 @@ export function TierSelection({
   );
 
   return (
-    <TierDataContext.Provider value={data ? { ...data, selectTier, selected, setSelected, quotes, ensureQuote, ctaLabel } : EMPTY_DATA}>
+    <TierDataContext.Provider value={data ? { ...data, selectTier, selected, setSelected, quotes, ensureQuote, ctaLabel: modalCtaLabel ?? ctaLabel } : EMPTY_DATA}>
       {mode === 'modal' ? (
         // Closed → render nothing at all. Open → an overlay the shopper can
         // dismiss (✕, backdrop click, or Esc). The panel stops click bubbling
@@ -752,7 +757,7 @@ export function TierSelection({
                   heading={isMobile ? headingMobile : heading}
                   subheading={isMobile ? undefined : subheading}
                   urgency={urgency}
-                  adminFeeText={adminFeeText}
+                  adminFeeText={modalFeeText ?? adminFeeText}
                 />
                 <button type="button" className="ts-modal-close" aria-label="Close" onClick={() => setModalOpen(false)}>&times;</button>
               </header>

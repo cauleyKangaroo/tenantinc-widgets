@@ -232,6 +232,9 @@ export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetCo
       unitId: unit.id,
       propertyId: config.propertyId || cfg.propertyId || undefined,
       channel: config.valueTiersChannel || undefined,
+      // Mirror the operator's Space List config so #14 doesn't need it re-entered.
+      ctaLabel: config.ctaButtonCopy || undefined,
+      feeText: config.showJunkFeeDisclaimer ? (config.junkFeeCopy || '') : '',
     });
     if (handled) return;
     if (config.valueTiersPageUrl) {
