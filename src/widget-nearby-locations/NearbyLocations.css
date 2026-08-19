@@ -567,3 +567,21 @@
 .nl-skeleton-btn     { height: 40px; width: 84px; border-radius: 8px; }
 .nl-skeleton-fee     { height: 14px; width: 140px; }
 .nl-skeleton-seeall  { height: 14px; width: 96px; }
+/* Fills .nl-map's own 560px box, so the Map View tab reserves the same space
+   loading as loaded. Square corners — the parent already clips to 16px. */
+.nl-skeleton-map     { display: block; width: 100%; height: 100%; border-radius: 0; }
+
+/* Visually hidden, still read aloud — the skeleton cards are aria-hidden, so this
+   is the only thing announcing that the section is loading. Same rule as #08's
+   .ml-sr-only and #03's .pi-sr-only. */
+.nl-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

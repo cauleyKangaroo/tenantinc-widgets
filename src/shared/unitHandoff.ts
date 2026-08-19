@@ -37,14 +37,28 @@ const STORAGE_KEY = 'ti.unitSelection';
 const MAX_AGE_MS = 60 * 60 * 1000;
 
 export interface UnitSelection {
-  /** The unit's id — the one part the rental flow genuinely needs. */
-  unitId: string;
+  /**
+   * The clicked PRICING TIER's id — NOT a rentable unit id.
+   *
+   * The space lists show tiers (from /space-groups/…/groups); an actual unit is
+   * only chosen later, from /units/available. Feeding this to
+   * GET /units/{id}/lease-set-up returns no quote, which is why the rental
+   * rail must resolve a real unit from `size` + `price` instead. Kept because
+   * it identifies exactly which row was clicked.
+   */
+  tierId: string;
   /** Context so a multi-property site resolves the RIGHT unit. */
   propertyId?: string;
   companyId?: string;
   unitGroupId?: string;
-  /** e.g. "10' x 10'" — lets the flow show the size before pricing lands. */
+  /**
+   * e.g. "10' x 10'". Load-bearing, not decoration: with `price` it is how the
+   * rental flow finds a REAL unit for the tier that was clicked.
+   */
   size?: string;
+  /** The tier's online/starting price — ties the resolved unit to the row the
+   *  visitor actually clicked rather than the cheapest of that size. */
+  price?: number;
   /** Epoch ms, for the staleness check. */
   savedAt: number;
 }
@@ -54,7 +68,7 @@ export interface UnitSelection {
  * throw on setItem, and a dead handoff must never break the click that made it.
  */
 export function saveUnitSelection(sel: Omit<UnitSelection, 'savedAt'>): void {
-  if (!sel.unitId) return;
+  if (!sel.tierId) return;
   try {
     const payload: UnitSelection = { ...sel, savedAt: Date.now() };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -73,10 +87,10 @@ export function readUnitSelection(maxAgeMs = MAX_AGE_MS): UnitSelection | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<UnitSelection>;
-    if (!parsed || typeof parsed.unitId !== 'string' || !parsed.unitId) return null;
+    if (!parsed || typeof parsed.tierId !== 'string' || !parsed.tierId) return null;
     const savedAt = typeof parsed.savedAt === 'number' ? parsed.savedAt : 0;
     if (!savedAt || Date.now() - savedAt > maxAgeMs) return null;
-    return { ...parsed, unitId: parsed.unitId, savedAt } as UnitSelection;
+    return { ...parsed, tierId: parsed.tierId, savedAt } as UnitSelection;
   } catch {
     return null;
   }
