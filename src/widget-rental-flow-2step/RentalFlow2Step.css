@@ -395,7 +395,13 @@
 /* Grey panels */
 .rf2-panel { background: #f4f6f8; border-radius: 12px; padding: 30px; display: flex; flex-direction: column; gap: 16px; }
 .rf2-plain { display: flex; flex-direction: column; gap: 16px; }
-.rf2-rowhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+/* Learn More drops BELOW the heading when the two will not sit side by side,
+   instead of the heading wrapping to "Select Protection / Plan" while the link
+   keeps its place. min-width:max-content on the heading is what forces that
+   order: flex items shrink before a row wraps, so without it the heading gives
+   up width first and the link never moves. */
+.rf2-rowhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.rf2-rowhead > :first-child { min-width: max-content; }
 
 /* Protection plan option */
 /* Anchors the dropdown; the menu is absolute against this. */
@@ -423,17 +429,45 @@
 .rf2-plan:focus,
 .rf2-plan:active { background: #fff !important; }
 .rf2-plan:focus-visible { outline: 2px solid var(--color_2, #509e2f); outline-offset: 2px; }
-.rf2-plan-body { flex: 1 1 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 20px; min-width: 0; }
-.rf2-plan-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* One height whatever is selected. Without a floor the control followed its
+   contents — ~51px with the Best Value badge, ~38px without — so it jumped as
+   the selection changed. 51px is the badge case (35px badge + 8px padding
+   twice), so the taller state sets the height and nothing is squashed.
+   flex-wrap is what stops the coverage text and badge sliding UNDER the price
+   as the control narrows: their children are white-space:nowrap, so with no
+   wrapping they overflowed a shrunk box instead of moving down. Wrapped, the
+   price drops to its own line and the control grows — min-height is a floor,
+   not a fixed height. */
+.rf2-plan-body {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 51px;
+  padding: 8px 20px;
+  min-width: 0;
+}
+/* Wraps too, so the badge drops below the coverage line rather than pushing
+   the row wider than the control. */
+.rf2-plan-left { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; }
 .rf2-plan-cov { font-size: 18px; color: #101318; white-space: nowrap; }
 .rf2-plan-cov b { font-weight: 700; }
-.rf2-plan-best { background: #101318; color: #fff; font-weight: 700; font-size: 16px; padding: 8px; border-radius: 4px; white-space: nowrap; }
+/* line-height pinned so the 51px floor above is arithmetic rather than a
+   guess at whatever `normal` resolves to for the inherited font. */
+.rf2-plan-best { background: #101318; color: #fff; font-weight: 700; font-size: 16px; line-height: 19px; padding: 8px; border-radius: 4px; white-space: nowrap; }
 .rf2-plan-price { display: flex; align-items: baseline; gap: 2px; white-space: nowrap; }
 .rf2-plan-price b { font-size: 20px; font-weight: 600; }
 .rf2-plan-price span { font-size: 14px; font-weight: 600; }
 /* The chevron cell's width is shared with the dropdown below, which stops at
    this cell's left edge rather than running the full control width. */
-.rf2-plan-wrap { --rf2-chev-cell: 52px; }
+/* A named container, so the rules below measure THE DROPDOWN rather than the
+   widget. The previous query was on .rf-wrapper, which is the whole flow — a
+   narrow dropdown inside a wide page never triggered it. */
+.rf2-plan-wrap { --rf2-chev-cell: 52px; container-type: inline-size; container-name: rf2plan; }
 
 .rf2-plan-drop {
   flex: 0 0 auto; width: var(--rf2-chev-cell);
@@ -477,7 +511,21 @@
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 4px 8px;
+  /* One height for every row. The Best Value row was ~19px taller than the
+     plain ones — 8px of padding against their 4px, plus a badge with 8px
+     padding of its own — so the list stepped in and out as the eye moved down
+     it. Matching padding and a min-height set to the badge row's natural
+     height (30px badge + 16px padding) levels them without shrinking the one
+     row that has to fit a badge. */
+  box-sizing: border-box;
+  /* Wraps for the same reason the closed control does: coverage label and badge
+     are white-space:nowrap, so without this they overflow a shrinking row and
+     slide under the price instead of dropping below it. min-height stays a
+     floor, so a wrapped row simply grows. */
+  flex-wrap: wrap;
+  align-content: center;
+  min-height: 46px;
+  padding: 8px;
   font: inherit;
   text-align: left;
   border: none;
@@ -499,23 +547,55 @@
 
 /* The operator's flagged plan sits on the brand tint at 8%, with its own 8px
    inset and 4px radius (the plain rows are 4px 8px and square). */
-.rf2-plan-opt--best { background: #f1f7ee; padding: 8px; border-radius: 4px; }
+.rf2-plan-opt--best { background: #f1f7ee; border-radius: 4px; }
 
 .rf2-plan-opt:hover { background: #f4f6f8; }
 .rf2-plan-opt--best:hover { background: #e9f2e4; }
 
-.rf2-plan-opt-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rf2-plan-opt-left { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 /* 16px/14px here, against the closed control's 18px — the frame sizes the list
    smaller than the summary it collapses into. */
 .rf2-plan-opt-cov { font-size: 14px; color: #101318; white-space: nowrap; }
 .rf2-plan-opt-cov b { font-size: 16px; font-weight: 700; }
-.rf2-plan-best--sm { font-size: 12px; padding: 8px; }
+/* line-height stated so the 46px row height above is arithmetic, not a
+   guess at whatever `normal` resolves to for the inherited font. */
+.rf2-plan-best--sm { font-size: 12px; line-height: 14px; padding: 8px; }
 
 /* "I have my own insurance" — a declaration, not a product, so it stacks and
    carries no price. */
-.rf2-plan-opt--own { flex-direction: column; align-items: flex-start; gap: 4px; }
+/* The one exception to the shared height: it carries a description, so it is
+   allowed to be as tall as that needs. */
+.rf2-plan-opt--own { flex-direction: column; align-items: flex-start; gap: 4px; min-height: 0; }
 .rf2-plan-own-t { font-size: 16px; font-weight: 600; color: #101318; }
 .rf2-plan-own-d { font-size: 12px; font-weight: 400; line-height: 1.4; color: #101318; white-space: normal; }
+
+/* Narrow: the list runs the FULL width of the control rather than stopping at
+   the chevron cell's left edge. Giving up 52px of a ~300px control to keep the
+   chevron clear is not a trade worth making — the rows need the room more than
+   the chevron needs the margin. */
+/* Below this the list runs the FULL width of the control instead of stopping
+   at the chevron cell's left edge. 420px is where "$2,000 Coverage [Best Value]
+   $12/month" stops fitting once 52px is handed to the chevron — giving up that
+   much of a narrow control is not a trade worth making. Measured on the
+   dropdown, not the viewport. */
+@container rf2plan (max-width: 420px) {
+  .rf2-plan-menu { right: 0; }
+  .rf2-plan-opt-left { flex: 1 1 auto; }
+  .rf2-plan-opt-cov { white-space: normal; }
+  .rf2-plan-price { flex: 0 0 auto; }
+
+  /* Shrink the closed control's type a step rather than letting it cascade —
+     one line reads better here than a stacked badge and price. Wrapping stays
+     available as the fallback if even this does not fit.
+     min-height drops to match: 27px badge (15px line + 6px padding twice) plus
+     the body's 8px padding twice. */
+  .rf2-plan-body { min-height: 43px; padding: 8px 14px; }
+  .rf2-plan-cov { font-size: 15px; }
+  .rf2-plan-best { font-size: 13px; line-height: 15px; padding: 6px; }
+  .rf2-plan-price b { font-size: 17px; }
+  .rf2-plan-price span { font-size: 12px; }
+  .rf2-plan-own-sel { font-size: 15px; }
+}
 
 /* Additional Information toggles */
 /* 4px is the frame's own gap (8507-23354) and was already correct — the rows
