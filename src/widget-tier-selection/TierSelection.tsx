@@ -1,4 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import './TierSelection.css';
 import {
   fetchUnitGroups, resolveUnitGroupId, fetchOffers, mapOffersToTiers,
@@ -265,15 +266,19 @@ const SKELETON_DELAY_MS = 0;
 // Placeholders reuse the real layout containers (.ts-grid / .ts-o2 geometry)
 // so the skeleton occupies exactly the footprint the content replaces.
 // Shimmer itself is inline-styled by design (shared across bundles, no shared CSS).
-function TierSkeleton({ variant, isMobile }: { variant: 'option1' | 'option2' | 'option3'; isMobile?: boolean }) {
+function TierSkeleton({ variant, isMobile, chromeless }: { variant: 'option1' | 'option2' | 'option3'; isMobile?: boolean; chromeless?: boolean }) {
   if (isMobile) {
     // Stacked mobile placeholder — reserves the mobile layout's footprint (both
     // good/better/best and select+table+card collapse to a single column) so the
     // footer doesn't jump when data lands.
     return (
       <div aria-hidden="true" style={{ maxWidth: 640, margin: '0 auto' }}>
-        <Shimmer w={280} h={30} mb={12} style={{ maxWidth: '80%' }} />
-        <Shimmer w={200} h={16} mb={20} style={{ maxWidth: '60%' }} />
+        {!chromeless && (
+          <>
+            <Shimmer w={280} h={30} mb={12} style={{ maxWidth: '80%' }} />
+            <Shimmer w={200} h={16} mb={20} style={{ maxWidth: '60%' }} />
+          </>
+        )}
         <Shimmer h={48} r={24} mb={16} />
         <Shimmer h={300} r={12} mb={16} />
         <Shimmer h={52} r={8} mb={16} />
@@ -287,8 +292,12 @@ function TierSkeleton({ variant, isMobile }: { variant: 'option1' | 'option2' | 
     return (
       <div className="ts-grid" aria-hidden="true">
         <div>
-          <Shimmer w={480} h={40} mb={14} style={{ maxWidth: '80%' }} />
-          <Shimmer w={340} h={18} mb={28} style={{ maxWidth: '60%' }} />
+          {!chromeless && (
+            <>
+              <Shimmer w={480} h={40} mb={14} style={{ maxWidth: '80%' }} />
+              <Shimmer w={340} h={18} mb={28} style={{ maxWidth: '60%' }} />
+            </>
+          )}
           <div style={{ display: 'flex', gap: 32, marginBottom: 32 }}>
             <Shimmer w={220} h={220} r={12} style={{ flex: '0 0 auto' }} />
             <div style={{ flex: 1 }}>
@@ -306,10 +315,12 @@ function TierSkeleton({ variant, isMobile }: { variant: 'option1' | 'option2' | 
   // option2 / option3: three tier cards, same caps as .ts-o2-cards.
   return (
     <div aria-hidden="true" style={{ maxWidth: 1320, margin: '0 auto' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Shimmer w={420} h={28} mb={10} style={{ maxWidth: '80%' }} />
-        <Shimmer w={300} h={16} mb={28} style={{ maxWidth: '60%' }} />
-      </div>
+      {!chromeless && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Shimmer w={420} h={28} mb={10} style={{ maxWidth: '80%' }} />
+          <Shimmer w={300} h={16} mb={28} style={{ maxWidth: '60%' }} />
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 28, justifyContent: 'center' }}>
         {[0, 1, 2].map((i) => (
           <Shimmer key={i} h={340} r={12} style={{ flex: '0 1 422px' }} />
@@ -389,11 +400,22 @@ export function TierSelection({
   useEffect(() => {
     if (mode !== 'modal' || !modalOpen) return;
     restoreFocusRef.current = (document.activeElement as HTMLElement) ?? null;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    // iOS Safari ignores `overflow:hidden` on <body> for touch scroll, so pin the
+    // body in place (preserving the scroll position) and restore it on close.
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const prev = { overflow: body.style.overflow, position: body.style.position, top: body.style.top, width: body.style.width };
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
     (modalRef.current?.querySelector('.ts-modal-close') as HTMLElement | null)?.focus();
     return () => {
-      document.body.style.overflow = prevOverflow;
+      body.style.overflow = prev.overflow;
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      window.scrollTo(0, scrollY);
       restoreFocusRef.current?.focus?.();
     };
   }, [mode, modalOpen]);
@@ -596,6 +618,10 @@ export function TierSelection({
   const urgency = urgencyProp ?? data?.urgency ?? '';
   const promo = promoProp ?? tier?.promo ?? '';
 
+  // In modal mode the shell owns the header, so the body layouts render
+  // chromeless — their own heading row is suppressed to avoid a duplicate.
+  const chromeless = mode === 'modal';
+
   // Skeleton renders INSIDE the persistent wrapper: an early return with a
   // different tree would remount the wrapper div, detaching useIsMobile's
   // ResizeObserver — which then reports 0 width and forces the mobile layout.
@@ -604,7 +630,7 @@ export function TierSelection({
     // In the Duda editor (no handoff params) keep a visible skeleton so the
     // widget doesn't collapse to zero height and "vanish" — otherwise it can't
     // be seen or placed on the page.
-    body = (pastDelay || mode === 'modal' || inEditor) ? <TierSkeleton variant={variant} isMobile={isMobile} /> : null;
+    body = (pastDelay || mode === 'modal' || inEditor) ? <TierSkeleton variant={variant} isMobile={isMobile} chromeless={chromeless} /> : null;
   } else if (status === 'disabled') {
     // Business rule §1: Use Value Pricing = No → render nothing (operator
     // places the standard unit-selection widget instead).
@@ -629,12 +655,12 @@ export function TierSelection({
     );
   } else if (variant === 'option2') {
     body = isMobile ? (
-      <Option2Mobile heading={headingMobile} urgency={urgency} adminFeeText={adminFeeText} />
+      <Option2Mobile heading={headingMobile} urgency={urgency} adminFeeText={adminFeeText} chromeless={chromeless} />
     ) : (
-      <Option2Layout heading={heading} subheading={subheading} urgency={urgency} adminFeeText={adminFeeText} />
+      <Option2Layout heading={heading} subheading={subheading} urgency={urgency} adminFeeText={adminFeeText} chromeless={chromeless} />
     );
   } else if (variant === 'option3') {
-    body = <Option3Layout heading={heading} subheading={subheading} urgency={urgency} adminFeeText={adminFeeText} />;
+    body = <Option3Layout heading={heading} subheading={subheading} urgency={urgency} adminFeeText={adminFeeText} chromeless={chromeless} />;
   } else {
     body = isMobile ? (
       <MobileLayout
@@ -644,6 +670,7 @@ export function TierSelection({
         heading={headingMobile}
         urgency={urgency}
         promo={promo}
+        chromeless={chromeless}
       />
     ) : (
       <DesktopLayout
@@ -655,6 +682,7 @@ export function TierSelection({
         urgency={urgency}
         adminFeeText={adminFeeText}
         promo={promo}
+        chromeless={chromeless}
       />
     );
   }
@@ -702,6 +730,10 @@ export function TierSelection({
         // dismiss (✕, backdrop click, or Esc). The panel stops click bubbling
         // so clicks inside don't close it.
         modalOpen ? (
+          // Portaled to <body> so the fixed overlay escapes any transformed Duda
+          // ancestor (which would otherwise trap position:fixed inside the page
+          // and let the site's sticky nav paint over the modal).
+          createPortal(
           <div className="ts-modal-backdrop" onClick={() => setModalOpen(false)}>
             <div
               className="ts-modal"
@@ -711,11 +743,24 @@ export function TierSelection({
               ref={modalRef}
               onClick={(e) => e.stopPropagation()}
               onKeyDown={trapFocus}
+              style={{ ['--ts-title-color']: titleColor || '#101318' } as React.CSSProperties}
             >
-              <button type="button" className="ts-modal-close" aria-label="Close" onClick={() => setModalOpen(false)}>&times;</button>
-              <div className="ts-modal-scroll">{inner}</div>
+              {/* Fixed shell header — the single source of the modal's heading, so
+                  the body layouts render chromeless (no duplicate header). */}
+              <header className="ts-modal-header">
+                <TierModalHeader
+                  heading={isMobile ? headingMobile : heading}
+                  subheading={isMobile ? undefined : subheading}
+                  urgency={urgency}
+                  adminFeeText={adminFeeText}
+                />
+                <button type="button" className="ts-modal-close" aria-label="Close" onClick={() => setModalOpen(false)}>&times;</button>
+              </header>
+              <div className="ts-modal-body">{inner}</div>
             </div>
-          </div>
+          </div>,
+          document.body,
+          )
         ) : inEditor ? (
           // A closed modal renders nothing on the live site — but in the Duda
           // editor that makes it a zero-height, unselectable element. Show a
@@ -730,6 +775,33 @@ export function TierSelection({
         inner
       )}
     </TierDataContext.Provider>
+  );
+}
+
+// Modal shell header — the single heading row for modal mode: title + subheading
+// on the left, urgency + admin fee on the right (centered on mobile via CSS). It
+// lives in the fixed .ts-modal-header, so the body layouts render chromeless.
+function TierModalHeader({ heading, subheading, urgency, adminFeeText }: {
+  heading: string; subheading?: string; urgency?: string; adminFeeText?: string;
+}) {
+  return (
+    <div className="ts-modal-heading">
+      <div className="ts-modal-heading-main">
+        <h2 className="ts-modal-title">{heading}</h2>
+        {subheading && <p className="ts-modal-subtitle">{subheading}</p>}
+      </div>
+      {(urgency || adminFeeText) && (
+        <div className="ts-modal-meta">
+          {urgency && <p className="ts-modal-urgency">{urgency}</p>}
+          {adminFeeText && (
+            <p className="ts-modal-admin">
+              {adminFeeText}
+              <InfoCircle size={22} className="ts-modal-admin-info" />
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -936,29 +1008,35 @@ interface LayoutProps {
   urgency?: string;
   adminFeeText?: string;
   promo: string;
+  chromeless?: boolean;
 }
 
-function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgency, adminFeeText, promo }: LayoutProps) {
+function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgency, adminFeeText, promo, chromeless }: LayoutProps) {
   const { tiers, rows, sizeImage, sizeAlt, size, live, property, selectTier, ctaLabel } = useTierData();
   const displaySize = size ? size.replace(/'/g, '\u2019') : '5\u2019 x 5\u2019';
   const cardPromo = live ? tier.promo : 'First Full Month FREE';
   return (
     <>
-      {/* Header row (Figma): heading + subheading left, urgency + $30 admin fee right */}
-      <div className="ts-o2-headrow">
-        <div className="ts-o2-header">
-          <h2 className="ts-title">{heading}</h2>
-          <p className="ts-subtitle">{subheading}</p>
-        </div>
-        <div className="ts-o2-topright">
-          {urgency && <p className="ts-o2-urgency">{urgency}</p>}
-          <p className="ts-o2-admin">
-            {adminFeeText}
-            <InfoCircle size={22} className="ts-o2-admin-info" />
-          </p>
-        </div>
-      </div>
-      <hr className="ts-rule" />
+      {/* Header row (Figma): heading + subheading left, urgency + $30 admin fee
+          right. Suppressed in modal mode — the modal shell renders the header. */}
+      {!chromeless && (
+        <>
+          <div className="ts-o2-headrow">
+            <div className="ts-o2-header">
+              <h2 className="ts-title">{heading}</h2>
+              <p className="ts-subtitle">{subheading}</p>
+            </div>
+            <div className="ts-o2-topright">
+              {urgency && <p className="ts-o2-urgency">{urgency}</p>}
+              <p className="ts-o2-admin">
+                {adminFeeText}
+                <InfoCircle size={22} className="ts-o2-admin-info" />
+              </p>
+            </div>
+          </div>
+          <hr className="ts-rule" />
+        </>
+      )}
 
       <div className="ts-grid">
       {/* LEFT: selector + comparison table */}
@@ -1078,10 +1156,10 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgen
 // ── Mobile (Layout 2) ───────────────────────────────────────────────────────
 
 function MobileLayout({
-  tier, selected, setSelected, heading, urgency, promo,
+  tier, selected, setSelected, heading, urgency, promo, chromeless,
 }: {
   tier: Tier; selected: TierKey; setSelected: (k: TierKey) => void;
-  heading: string; urgency: string; promo: string;
+  heading: string; urgency: string; promo: string; chromeless?: boolean;
 }) {
   const { tiers, rows, live, selectTier, ctaLabel } = useTierData();
   const [open, setOpen] = useState(false);
@@ -1090,10 +1168,12 @@ function MobileLayout({
 
   return (
     <div className="ts-m">
-      <div className="ts-m-headwrap">
-        <h2 className="ts-m-title">{heading}</h2>
-        {urgency && <p className="ts-m-urgency">{urgency}</p>}
-      </div>
+      {!chromeless && (
+        <div className="ts-m-headwrap">
+          <h2 className="ts-m-title">{heading}</h2>
+          {urgency && <p className="ts-m-urgency">{urgency}</p>}
+        </div>
+      )}
 
       <div className="ts-m-pills">
         <Pills selected={selected} setSelected={setSelected} tiers={visibleTiers} />
@@ -1227,23 +1307,25 @@ function MobileCell({ row, tier }: { row: FeatureRow; tier: Tier }) {
 
 // ── Option 2 — Good/Better/Best pricing cards ───────────────────────────────
 
-function Option2Layout({ heading, subheading, urgency, adminFeeText }: { heading: string; subheading?: string; urgency?: string; adminFeeText?: string }) {
+function Option2Layout({ heading, subheading, urgency, adminFeeText, chromeless }: { heading: string; subheading?: string; urgency?: string; adminFeeText?: string; chromeless?: boolean }) {
   const { o2 } = useTierData();
   return (
     <div className="ts-o2">
-      <div className="ts-o2-headrow">
-        <div className="ts-o2-header">
-          <h2 className="ts-title ts-o2-title">{heading}</h2>
-          <p className="ts-subtitle ts-o2-subtitle">{subheading}</p>
+      {!chromeless && (
+        <div className="ts-o2-headrow">
+          <div className="ts-o2-header">
+            <h2 className="ts-title ts-o2-title">{heading}</h2>
+            <p className="ts-subtitle ts-o2-subtitle">{subheading}</p>
+          </div>
+          <div className="ts-o2-topright">
+            {urgency && <p className="ts-o2-urgency">{urgency}</p>}
+            <p className="ts-o2-admin">
+              {adminFeeText}
+              <InfoCircle size={22} className="ts-o2-admin-info" />
+            </p>
+          </div>
         </div>
-        <div className="ts-o2-topright">
-          {urgency && <p className="ts-o2-urgency">{urgency}</p>}
-          <p className="ts-o2-admin">
-            {adminFeeText}
-            <InfoCircle size={22} className="ts-o2-admin-info" />
-          </p>
-        </div>
-      </div>
+      )}
 
       <div className="ts-o2-cards" style={{ ['--ts-cols']: o2.length } as React.CSSProperties}>
         {o2.map((card) => (
@@ -1354,7 +1436,7 @@ function O2Card({ card }: { card: O2Tier }) {
 
 // ── Option 2 mobile — accordion (one expanded, others collapsed) ────────────
 
-function Option2Mobile({ heading, urgency, adminFeeText }: { heading: string; urgency: string; adminFeeText?: string }) {
+function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading: string; urgency: string; adminFeeText?: string; chromeless?: boolean }) {
   const { o2 } = useTierData();
   // Mobile has no room for sold-out placeholders — show real tiers only.
   const cards = o2.filter((c) => !c.soldOut);
@@ -1369,14 +1451,16 @@ function Option2Mobile({ heading, urgency, adminFeeText }: { heading: string; ur
 
   return (
     <div className="ts-m ts-o2m">
-      <div className="ts-m-headwrap">
-        <h2 className="ts-m-title">{heading}</h2>
-        {urgency && <p className="ts-m-urgency">{urgency}</p>}
-        <p className="ts-o2m-admin">
-          {adminFeeText}
-          <InfoCircle size={20} className="ts-o2-admin-info" />
-        </p>
-      </div>
+      {!chromeless && (
+        <div className="ts-m-headwrap">
+          <h2 className="ts-m-title">{heading}</h2>
+          {urgency && <p className="ts-m-urgency">{urgency}</p>}
+          <p className="ts-o2m-admin">
+            {adminFeeText}
+            <InfoCircle size={20} className="ts-o2-admin-info" />
+          </p>
+        </div>
+      )}
 
       <div className="ts-o2m-cards">
         {cards.map((card) =>
@@ -1449,22 +1533,26 @@ function O2MExpanded({ card }: { card: O2Tier }) {
 
 // ── Option 3 — pricing cards fused with comparison table ────────────────────
 
-function Option3Layout({ heading, subheading, urgency, adminFeeText }: { heading: string; subheading?: string; urgency?: string; adminFeeText?: string }) {
+function Option3Layout({ heading, subheading, urgency, adminFeeText, chromeless }: { heading: string; subheading?: string; urgency?: string; adminFeeText?: string; chromeless?: boolean }) {
   const { o3, rows3, sizeImage, sizeAlt } = useTierData();
   return (
     <div className="ts-o3">
-      {urgency && <p className="ts-o3-urgency">{urgency}</p>}
-      <div className="ts-o3-header">
-        <div className="ts-o3-headings">
-          <h2 className="ts-title ts-o3-title">{heading}</h2>
-          <p className="ts-subtitle">{subheading}</p>
-        </div>
-        <p className="ts-o3-admin">
-          {adminFeeText}
-          <InfoCircle size={22} className="ts-o3-admin-info" />
-        </p>
-      </div>
-      <hr className="ts-rule ts-o3-rule" />
+      {!chromeless && (
+        <>
+          {urgency && <p className="ts-o3-urgency">{urgency}</p>}
+          <div className="ts-o3-header">
+            <div className="ts-o3-headings">
+              <h2 className="ts-title ts-o3-title">{heading}</h2>
+              <p className="ts-subtitle">{subheading}</p>
+            </div>
+            <p className="ts-o3-admin">
+              {adminFeeText}
+              <InfoCircle size={22} className="ts-o3-admin-info" />
+            </p>
+          </div>
+          <hr className="ts-rule ts-o3-rule" />
+        </>
+      )}
 
       <div className="ts-o3-scroll">
         <div className="ts-o3-grid" style={{ ['--ts-cols']: o3.length } as React.CSSProperties}>
