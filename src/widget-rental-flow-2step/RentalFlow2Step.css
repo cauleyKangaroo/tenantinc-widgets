@@ -368,7 +368,11 @@
   width: calc((100% - 18px) / 2); height: 56px;
   padding: 0 16px;
   background: #fff;
-  border: 1px solid #028a0c;
+  /* Neutral by default, like every other field — green is a STATE, not the
+     resting look. This was #028a0c because the only user was Move-in Date,
+     which always holds a value; the DOB control shares the class and starts
+     empty, so it was born green. */
+  border: 1px solid var(--hb-field-border, #a5b4bf);
   border-radius: 8px;
   cursor: pointer;
   text-align: left;
@@ -378,6 +382,13 @@
 .rf2-movein-label { font-size: 12px; line-height: 15px; color: #637381; }
 .rf2-movein-value { font-size: 16px; line-height: 20px; color: #101318; }
 .rf2-movein svg { flex: 0 0 auto; color: #101318; }
+/* Same green/red as the form fields, so these controls read as fields rather
+   than as buttons that happen to sit in the row. */
+.rf2-movein--valid { border-color: var(--hb-field-border-success, #028a0c); }
+.rf2-movein--error { border-color: var(--hb-field-border-error, #e53935); }
+/* Full width: the half-width base exists to pair Move-in Date with the fields
+   beside it, and the DOB control has no partner. */
+.rf2-movein--full { width: 100%; }
 
 .rf2-sections { display: flex; flex-direction: column; gap: 30px; }
 
