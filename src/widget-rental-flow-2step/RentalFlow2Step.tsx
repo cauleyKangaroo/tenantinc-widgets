@@ -124,6 +124,9 @@ const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 // prices that are not real. Live sites keep the honest empty state.
 // ---------------------------------------------------------------------------
 const PREVIEW_PROPERTY: import('./api').PropertyInfo = {
+  // Not a real id on purpose: the preview must not resolve a hero photo out of
+  // a live collection and pass it off as this invented property's.
+  id: '',
   name: '3rd Street Storage',
   address: '1301 E. Mission Ave, Fullerton, CA 02027',
   // Unformatted digits — OrderRail applies the (xxx) xxx-xxxx formatting itself,

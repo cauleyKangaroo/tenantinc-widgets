@@ -1,4 +1,6 @@
+import React, { useEffect, useState } from 'react';
 import { PROPERTY_IMAGES } from '@shared/demoImages';
+import { fetchPropertyHeroImage } from '@shared/propertyImages';
 import { MoneyBreakdown, SummaryRail } from '@shared/ui';
 import type { PropertyInfo, SelectionContext, MoveInQuote } from './api';
 
@@ -58,12 +60,27 @@ export function OrderRail({
   const phone = property?.phone
     ? property.phone.replace(/^1?(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')
     : undefined;
+
+  // The selected property's own hero photo. Until it lands (and on any site
+  // without the collection) the rail keeps the demo image it has always shown,
+  // so the card never renders with an empty frame.
+  const [hero, setHero] = useState('');
+  useEffect(() => {
+    const id = property?.id;
+    setHero('');
+    if (!id) return undefined;
+    let cancelled = false;
+    fetchPropertyHeroImage(id)
+      .then((url) => { if (!cancelled) setHero(url); })
+      .catch(() => { /* no collection — the demo image stands in */ });
+    return () => { cancelled = true; };
+  }, [property?.id]);
   const showStrike = selection?.inStore != null && selection?.online != null
     && selection.inStore > selection.online;
 
   return (
     <SummaryRail
-      imageUrl={PROPERTY_IMAGES[0]}
+      imageUrl={hero || PROPERTY_IMAGES[0]}
       name={property?.name}
       address={property?.address}
       phone={phone}

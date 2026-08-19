@@ -13,12 +13,40 @@
 
 import { readCollection, str, imageUrl } from './dudaCollections';
 
+/**
+ * One read per collection per page.
+ *
+ * Three widgets now want these photos — #03's gallery, the nearby lists and the
+ * rental rail — and they can share a page. The PROMISE is cached, not the rows,
+ * so simultaneous callers join the in-flight request instead of each firing
+ * their own. Page-lifetime only; a reload picks up collection edits.
+ */
+const readCache = new Map<string, Promise<Awaited<ReturnType<typeof readCollection>>>>();
+
+function readOnce(collectionName: string) {
+  const hit = readCache.get(collectionName);
+  if (hit) return hit;
+  const p = readCollection(collectionName);
+  readCache.set(collectionName, p);
+  return p;
+}
+
 /** Collection holding the gallery photos. Name is the lookup key, and it is
  *  case-sensitive — see readCollection. */
 export const PROPERTY_IMAGES_COLLECTION = 'PropertiesInternal';
 
-/** Column holding them. Duda's UI labels it "images". */
+/** Column holding the gallery photos. Duda's UI labels it "images". */
 const IMAGES_FIELD = 'images';
+
+/**
+ * Column holding the single lead photo, labelled "heroimage".
+ *
+ * It is the property's face: first slide in #03's gallery, the card photo in
+ * the nearby lists, and the photo on the rental order rail. Kept separate from
+ * `images` so the operator picks it deliberately rather than it being whichever
+ * photo happens to be first in the gallery.
+ */
+const HERO_FIELD = 'heroimage';
 
 /**
  * Coerce whatever the column hands back into a list of URLs.
@@ -86,12 +114,47 @@ export async function fetchPropertyImages(
   const slug = str(opts.slug).trim();
   if (!id && !slug) return [];
 
-  const rows = await readCollection(opts.collectionName ?? PROPERTY_IMAGES_COLLECTION);
+  const rows = await readOnce(opts.collectionName ?? PROPERTY_IMAGES_COLLECTION);
   if (!rows.length) return [];
 
   const row = rows.find((r) => (id && str(r.id) === id))
     ?? (slug ? rows.find((r) => str(r.slug) === slug) : undefined);
   if (!row) return [];
 
-  return toImageList(row[IMAGES_FIELD]);
+  // Hero first — it is the lead photo, so it must be slide one. Any duplicate
+  // of it inside `images` is dropped by toImageList's de-dupe.
+  return toImageList([row[HERO_FIELD], ...toImageList(row[IMAGES_FIELD])]);
+}
+
+/**
+ * Hero photo per property id, for the whole collection, in ONE read.
+ *
+ * The nearby lists render several properties at once; asking per card would be
+ * N reads of the same collection. Returns an empty Map when there is nothing to
+ * read, so every caller can treat "no hero" as the normal case.
+ */
+export async function fetchPropertyHeroImages(
+  collectionName: string = PROPERTY_IMAGES_COLLECTION,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const rows = await readOnce(collectionName);
+  for (const row of rows) {
+    const id = str(row.id).trim();
+    if (!id) continue;
+    // Fall back to the first gallery photo: a property with photos but no hero
+    // chosen should still show a picture rather than a placeholder.
+    const hero = imageUrl(row[HERO_FIELD]) || toImageList(row[IMAGES_FIELD])[0] || '';
+    if (hero) out.set(id, hero);
+  }
+  return out;
+}
+
+/** One property's hero photo, or '' when it has none. */
+export async function fetchPropertyHeroImage(
+  propertyId: string,
+  collectionName: string = PROPERTY_IMAGES_COLLECTION,
+): Promise<string> {
+  const id = str(propertyId).trim();
+  if (!id) return '';
+  return (await fetchPropertyHeroImages(collectionName)).get(id) ?? '';
 }
