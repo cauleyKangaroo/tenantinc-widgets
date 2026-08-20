@@ -284,8 +284,9 @@ export function Step2({
   brochureUrl,
 }: {
   moveIn: Date;
-  /** Protection plans to choose between. Empty → the "confirmed at checkout"
-   *  note, since no API exposes them pre-lease yet. */
+  /** Protection plans to choose between, already narrowed to the space type
+   *  being rented. Empty → the "confirmed at checkout" note, which now means
+   *  the property has no coverage products configured for that type. */
   plans?: import('./api').ProtectionPlan[];
   /** Protection-plan brochure PDF for the "Learn More" lightbox. Absent → the
    *  modal's download button is inert rather than a dead link. */
@@ -574,8 +575,8 @@ export function Step2({
               )}
             </div>
           ) : (
-            /* NO-DEMO-MONEY: plans aren't exposed pre-lease by any API we
-               have yet (Jaweed Q#2) — say so instead of faking $2,000/$12. */
+            /* NO-DEMO-MONEY: the property returned no coverage products for
+               this space type — say so instead of faking $2,000/$12. */
             <div className="rf2-plan rf2-plan--pending">
               Protection plan options and pricing will be confirmed at checkout.
             </div>

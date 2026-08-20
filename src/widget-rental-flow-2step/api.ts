@@ -161,7 +161,15 @@ export async function fetchProperty(ctx: RentalCtx): Promise<PropertyInfo | unde
   };
 }
 
-// --- Protection plans (space-groups → insurance[]) ---------------------------
+// --- Protection plans (space-types → property insurances) --------------------
+//
+// Coverage products are configured PER SPACE TYPE and are served by the
+// property's own `insurances` endpoint (Hummingbird rental-flow guide, APIs 1
+// and 6). They used to be read from `spaceGroupProfile.<type>.insurance` in the
+// space-groups payload, which is `[]` on every tenant — re-verified on Storage
+// Outlet Bellflower 2026-08-20, where the groups payload had three empty
+// insurance arrays while /insurances returned two live plans. That empty read is
+// why step 2 always fell through to "confirmed at checkout".
 
 export interface ProtectionPlan {
   id: string;
@@ -170,20 +178,48 @@ export interface ProtectionPlan {
   /** Monthly premium, e.g. 12. */
   premium?: number;
   name?: string;
+  /** The space type this plan covers. Plans are per type, so a commercial or
+   *  parking rental must never be offered a storage plan — see plansForUnitType().
+   *  Matched by ID: the NAMES disagree across endpoints (a unit row says
+   *  'commercial_storage' where the space type and the plan both say
+   *  'Commercial'), while unit_type_id is identical on all three. */
+  unitTypeId?: string;
+  /** Machine name of that type, for logs and debugging — never a match key. */
+  unitType?: string;
 }
 
-// The insurance rows are [] on every tenant we can read, so the field names
-// below are best guesses across the API's usual vocabulary. Anything
-// unrecognised still surfaces as a plan with just an id + name.
+export interface SpaceType {
+  id: string;
+  /** Machine name, e.g. 'storage' — matches a unit row's `type`. */
+  name: string;
+  displayName?: string;
+  /** Coverage is enabled for this type; only these are worth asking about. */
+  hasCoverage: boolean;
+}
+
+interface ApiSpaceType {
+  unit_type_id?: string;
+  id?: string;
+  unit_type_name?: string;
+  display_name?: string;
+  have_coverage?: number;
+}
+
+// The live shape (verified 2026-08-20): coverage arrives as a STRING
+// ("2000.00"), premium as a number under `premium_value`, and `premium_type`
+// says what that number means — "$" is a flat monthly premium, anything else
+// (e.g. a percentage of rent) cannot be printed as "$N/mo" and is dropped
+// rather than mislabelled.
 interface ApiInsurance {
   id?: string;
   name?: string;
+  description?: string;
   coverage?: number | string;
-  coverage_amount?: number | string;
-  coverage_limit?: number | string;
-  premium?: number | string;
   premium_value?: number | string;
-  price?: number | string;
+  premium_type?: string;
+  unit_type?: string;
+  unit_type_id?: string;
+  status?: number;
 }
 
 const num = (v: number | string | undefined): number | undefined => {
@@ -191,6 +227,75 @@ const num = (v: number | string | undefined): number | undefined => {
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
 };
+
+/** The company's space types. Cached by the GET memo — every widget on the page
+ *  shares one request. Fails soft: no types ⇒ no plans, never an exception. */
+export async function fetchSpaceTypes(ctx: RentalCtx): Promise<SpaceType[]> {
+  const raw = await getJson(`companies/${ctx.companyId}/space-management/space-types`);
+  // This endpoint's `data` is an ARRAY, unlike the object every other read returns.
+  const rows = (unwrap(raw) as unknown as ApiSpaceType[] | undefined) ?? [];
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((t) => ({
+      id: (t.unit_type_id ?? t.id ?? '') as string,
+      name: t.unit_type_name ?? '',
+      displayName: t.display_name,
+      hasCoverage: t.have_coverage === 1,
+    }))
+    .filter((t) => !!t.id);
+}
+
+/**
+ * The property's protection plans, for the given space types (default: every
+ * coverage-enabled type on the company).
+ *
+ * A plan is only offered when it is active AND carries a usable coverage +
+ * flat-dollar premium — the dropdown prints both, so a half-configured row
+ * would render "$undefined Coverage". Cheapest coverage first.
+ */
+export async function fetchProtectionPlans(ctx: RentalCtx, unitTypeIds?: string[]): Promise<ProtectionPlan[]> {
+  let ids = unitTypeIds?.filter(Boolean);
+  if (!ids?.length) ids = (await fetchSpaceTypes(ctx)).filter((t) => t.hasCoverage).map((t) => t.id);
+  if (!ids.length) return [];
+  const q = encodeURIComponent(`[${ids.join(',')}]`);
+  const data = unwrap(await getJson(
+    `companies/${ctx.companyId}/properties/${ctx.propertyId}/insurances?unit_type_ids=${q}`,
+  ));
+  const rows = (data?.insurances as ApiInsurance[] | undefined) ?? [];
+  const plans: ProtectionPlan[] = [];
+  for (const ins of rows) {
+    if (!ins.id || ins.status === 0) continue;
+    if (ins.premium_type && ins.premium_type !== '$') continue;
+    const coverage = num(ins.coverage);
+    const premium = num(ins.premium_value);
+    if (coverage === undefined || premium === undefined) continue;
+    plans.push({
+      id: ins.id,
+      name: ins.name,
+      coverage,
+      premium,
+      unitTypeId: ins.unit_type_id,
+      unitType: ins.unit_type,
+    });
+  }
+  return plans.sort((a, b) => (a.coverage ?? 0) - (b.coverage ?? 0));
+}
+
+/**
+ * Narrow plans to the space type actually being rented. Verified live on
+ * Bellflower 2026-08-20: asking for every coverage-enabled type returns six
+ * plans — two storage and four Commercial — so without this a storage renter is
+ * offered four plans that do not apply to them.
+ *
+ * Falls back to the full list when the type is unknown or nothing matches:
+ * showing a plan that may be for the wrong type is recoverable, showing NO
+ * plans re-creates the very bug this replaced.
+ */
+export function plansForUnitType(plans: ProtectionPlan[], unitTypeId?: string): ProtectionPlan[] {
+  if (!unitTypeId) return plans;
+  const matched = plans.filter((p) => p.unitTypeId === unitTypeId);
+  return matched.length ? matched : plans;
+}
 
 async function resolveSpaceGroupId(ctx: RentalCtx): Promise<string | undefined> {
   if (ctx.spaceGroupId) return ctx.spaceGroupId;
@@ -213,25 +318,6 @@ export async function fetchSpaceGroups(ctx: RentalCtx): Promise<unknown> {
   return getJson(
     `companies/${ctx.companyId}/properties/${ctx.propertyId}/space-groups/${sg}/groups`,
   );
-}
-
-export function extractProtectionPlans(raw: unknown): ProtectionPlan[] {
-  const data = unwrap(raw);
-  const profiles = (data?.spaceGroupProfile as Record<string, { insurance?: ApiInsurance[] }>) ?? {};
-  const seen = new Map<string, ProtectionPlan>();
-  for (const profile of Object.values(profiles)) {
-    for (const ins of profile.insurance ?? []) {
-      const id = ins.id ?? ins.name ?? JSON.stringify(ins);
-      if (seen.has(id)) continue;
-      seen.set(id, {
-        id,
-        name: ins.name,
-        coverage: num(ins.coverage ?? ins.coverage_amount ?? ins.coverage_limit),
-        premium: num(ins.premium ?? ins.premium_value ?? ins.price),
-      });
-    }
-  }
-  return Array.from(seen.values());
 }
 
 // --- Rental agreement document (property documents) --------------------------
@@ -425,6 +511,7 @@ interface ApiUnitRow {
   id: string;
   number?: string;
   type?: string;
+  unit_type_id?: string;
   state?: string;
   price?: number;
   space_mix_id?: string;
@@ -450,7 +537,7 @@ async function getJsonV1(path: string, fresh = false): Promise<unknown> {
 }
 
 /** First Available storage unit matching the selection's size (and price when known). */
-export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?: number, fresh = false): Promise<{ id: string; number?: string } | undefined> {
+export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?: number, fresh = false): Promise<{ id: string; number?: string; unitTypeId?: string } | undefined> {
   const data = unwrap(await getJsonV1(`companies/${ctx.companyId}/properties/${ctx.propertyId}/units/available`, fresh));
   const units = (data?.units as ApiUnitRow[] | undefined) ?? [];
   const wantSize = size ? size.toLowerCase().replace(/[^0-9x.]/g, '') : undefined;
@@ -463,18 +550,21 @@ export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?
   // Exact price match ties the unit to the clicked tier; else cheapest of the size.
   const exact = price != null ? candidates.find((u) => u.price === price) : undefined;
   const pick = exact ?? candidates.sort((a, b) => (a.price ?? 1e9) - (b.price ?? 1e9))[0];
-  return { id: pick.id, number: pick.number };
+  return { id: pick.id, number: pick.number, unitTypeId: pick.unit_type_id };
 }
 
-/** Resolve a unit's display number by id (from units/available). The value-tiers
- *  handoff passes only a unitId, and the reserve response carries no unit_number,
- *  so this is how "Space #…" gets populated on the confirmation. Fails soft. */
-export async function fetchUnitNumber(ctx: RentalCtx, unitId: string): Promise<string | undefined> {
+/** Resolve a unit's display number and space type by id (from units/available).
+ *  The value-tiers handoff passes only a unitId, and the reserve response carries
+ *  no unit_number, so this is how "Space #…" gets populated on the confirmation;
+ *  the type id is what narrows the protection plans to the space type rented.
+ *  Fails soft — an unresolvable unit must never stop the rental. */
+export async function fetchUnitInfo(ctx: RentalCtx, unitId: string): Promise<{ number?: string; unitTypeId?: string }> {
   try {
     const data = unwrap(await getJsonV1(`companies/${ctx.companyId}/properties/${ctx.propertyId}/units/available`));
     const units = (data?.units as ApiUnitRow[] | undefined) ?? [];
-    return units.find((u) => u.id === unitId)?.number;
-  } catch { return undefined; }
+    const u = units.find((x) => x.id === unitId);
+    return { number: u?.number, unitTypeId: u?.unit_type_id };
+  } catch { return {}; }
 }
 
 interface ApiQuoteDetail { name?: string; total_cost?: number; start_date?: string; end_date?: string }

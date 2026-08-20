@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './RentalFlow2Step.css';
 import { Step2 } from './Step2';
 import {
-  fetchProperty, fetchSpaceGroups, extractProtectionPlans, fetchLeaseDocument,
-  extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitNumber,
+  fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
+  extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
@@ -166,10 +166,12 @@ const PREVIEW_QUOTE: MoveInQuote = {
 };
 
 /**
- * Sample protection plans (Figma 8508-32894). Same gate, and the same reason
- * squared: api.ts notes the insurance rows come back `[]` on every tenant we can
- * read, so step 2's plan card has never had anything real to show — which is why
- * it renders "confirmed at checkout" rather than inventing $2,000/$12.
+ * Sample protection plans (Figma 8508-32894), harness/editor preview only.
+ *
+ * Live plans now come from the property's `insurances` endpoint and win
+ * whenever it returns any. These fill the card only when the list is empty AND
+ * previewContent is on, so a property with no coverage configured still shows
+ * the honest "confirmed at checkout" note rather than invented money.
  */
 const PREVIEW_PLANS: ProtectionPlan[] = [
   { id: 'preview-1000', coverage: 1000, premium: 11 },
@@ -706,6 +708,14 @@ export function RentalFlow2Step({
   const [brandName, setBrandName] = useState('UAT Tenant V2');
   const [propertyInfo, setPropertyInfo] = useState<import('./api').PropertyInfo | undefined>(undefined);
   const [plans, setPlans] = useState<ProtectionPlan[]>([]);
+  // Space type ID of the unit being rented, once resolved. Plans are configured
+  // per space type, so this is what keeps a storage rental from being offered
+  // the property's Commercial coverage (Bellflower returns both).
+  const [unitTypeId, setUnitTypeId] = useState<string | undefined>(undefined);
+  // Only the plans for the space type being rented. Before the unit resolves
+  // (or if its type is unknown) this is the full list — showing every plan is
+  // recoverable, showing none would re-create the "confirmed at checkout" bug.
+  const shownPlans = React.useMemo(() => plansForUnitType(plans, unitTypeId), [plans, unitTypeId]);
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
   const [quote, setQuote] = useState<MoveInQuote | undefined>(undefined);
@@ -870,6 +880,7 @@ export function RentalFlow2Step({
     setSelection(undefined);
     setQuote(undefined);
     setQuoteFailed(false);
+    setUnitTypeId(undefined);
     if (holdRef.current) {
       void releaseHold(ctx, holdRef.current);
       setHold(undefined);
@@ -885,10 +896,17 @@ export function RentalFlow2Step({
       })
       .catch((err) => console.error(`${logTag} fetchProperty error:`, err))
       .finally(settle);
+    // Protection plans are their own endpoint (space-types → property
+    // insurances) — deliberately NOT chained to space-groups: they are unrelated
+    // reads, and the plan card should not wait on (or be lost with) the tier
+    // lookup. Outside the settle() gate for the same reason: the rail renders
+    // without plans, so they must not hold up the first paint.
+    fetchProtectionPlans(ctx)
+      .then((list) => { if (!cancelled) setPlans(list); })
+      .catch((err) => console.error(`${logTag} fetchProtectionPlans error:`, err));
     fetchSpaceGroups(ctx)
       .then((raw) => {
         if (cancelled) return;
-        setPlans(extractProtectionPlans(raw));
         if (unitIdProp || unitGroupIdProp || sizeProp) {
           const sel = extractSelectionContext(raw, unitGroupIdProp, sizeProp);
           // Prefer the richer /offers selection (amenities, real promo rate) —
@@ -902,10 +920,11 @@ export function RentalFlow2Step({
           } else if (sel) {
             setSelection(sel);
           }
-          const resolveUnit: Promise<{ id: string; number?: string } | undefined> = unitIdProp
+          const resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string } | undefined> = unitIdProp
             // Handoff gives only a unitId; resolve its number so the rail and the
-            // confirmation can show "Space #…" (the reserve response omits it).
-            ? fetchUnitNumber(ctx, unitIdProp).then((number) => ({ id: unitIdProp, number }))
+            // confirmation can show "Space #…" (the reserve response omits it),
+            // plus its space type to narrow the protection plans.
+            ? fetchUnitInfo(ctx, unitIdProp).then((info) => ({ id: unitIdProp, ...info }))
             : sel
               ? findUnitForSelection(ctx, sel.size, sel.price)
               // No offer matched, but a stored pick still names a size and a
@@ -914,7 +933,10 @@ export function RentalFlow2Step({
                 ? findUnitForSelection(ctx, stored.size, stored.price)
                 : Promise.resolve(undefined);
           resolveUnit
-            .then((unit) => (unit ? fetchMoveInQuote(ctx, unit) : undefined))
+            .then((unit) => {
+              if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
+              return unit ? fetchMoveInQuote(ctx, unit) : undefined;
+            })
             .then((q) => {
               if (cancelled) return;
               if (q) setQuote(q);
@@ -1145,7 +1167,7 @@ export function RentalFlow2Step({
             // The whole list, not plans[0]: the card is a dropdown now, so it
             // needs every option. Live plans win; the sample only fills an empty
             // list, and only in the harness.
-            plans={plans.length ? plans : (previewContent ? PREVIEW_PLANS : [])}
+            plans={shownPlans.length ? shownPlans : (previewContent ? PREVIEW_PLANS : [])}
             leaseDocName={leaseDoc?.name}
             brochureUrl={brochureUrl}
             onEditDate={() => setDateModalOpen(true)}
