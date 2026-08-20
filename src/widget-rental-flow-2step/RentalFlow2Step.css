@@ -1672,3 +1672,12 @@
   color: #7a4d00; background: #fff4dc; border: 1px solid #e8c26a; border-radius: 8px;
 }
 .rf-demo-banner--page { margin: 0 0 16px; text-align: center; }
+
+/* Tenant block on the confirmation — same row shape as the dates and hours
+   above it (icon + column), so the three read as one list rather than three
+   layouts. Only the in-place rental passes these; the nonce page has none. */
+.rfc-info-tenant { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; }
+.rfc-info-tenant p:last-child { margin-bottom: 0; }
+/* An email or a lease id has no spaces to break at, so a long one would push
+   the column wide instead of wrapping. */
+.rfc-info-break { overflow-wrap: anywhere; }

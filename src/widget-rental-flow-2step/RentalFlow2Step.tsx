@@ -704,6 +704,12 @@ export function RentalFlow2Step({
   // units/available, so recovery is re-pick → re-quote → re-hold once.
   const [hold, setHold] = useState<UnitHold | undefined>(undefined);
   const [finalizing, setFinalizing] = useState<{ firstName: string } | undefined>(undefined);
+  // The contact the LEASE was created with. Step 2 seeds from step 1 but is
+  // editable, so this can differ from `contact` — and the confirmation has to
+  // show what was actually filed, not what was typed a screen earlier.
+  const [rentedContact, setRentedContact] = useState<
+    { first: string; last: string; email: string; phone: string } | undefined
+  >(undefined);
   /** Static payment path (no GP key): the lightbox has finished, show the
    *  post-purchase form rather than navigating to the confirmation page. */
   const [staticPaid, setStaticPaid] = useState(false);
@@ -1274,7 +1280,13 @@ export function RentalFlow2Step({
             <Confirmation
               kind="rental"
               name={finalizing?.firstName}
-              phone={contact?.phone}
+              phone={rentedContact?.phone ?? contact?.phone}
+              tenantName={[rentedContact?.first ?? contact?.first, rentedContact?.last ?? contact?.last]
+                .filter(Boolean).join(' ') || undefined}
+              tenantEmail={rentedContact?.email ?? contact?.email}
+              tenantPhone={formatUsPhone(rentedContact?.phone ?? contact?.phone)}
+              // Only after a real lease: there is nothing to reference otherwise.
+              reference={rental?.leaseId}
               unitNumber={staticUnitNumber}
               code={rental ? undefined : STATIC_ACCESS_CODE}
               entry="gate"
@@ -1437,6 +1449,7 @@ export function RentalFlow2Step({
                     }
                     console.log(`${logTag} rental complete — lease ${res.leaseId}`);
                     setRental(res);
+                    if (info.contact) setRentedContact(info.contact);
                     // The unit is LEASED now, so the hold is spent: forget it so
                     // the countdown stops and unmount does not try to release a
                     // hold that no longer exists.
