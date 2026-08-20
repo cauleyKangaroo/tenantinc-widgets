@@ -1263,11 +1263,12 @@ export function RentalFlow2Step({
     // The held unit is real even on the static path — the hold and quote both
     // come from the live API.
     //
-    // The access CODE is a placeholder, and it is shown ONLY when no real lease
-    // was created. After a real rental the money has moved and a made-up gate
-    // code would be a lie the tenant acts on, so the confirmation falls back to
-    // its no-code variant ("see the facility manager at move-in") — the lease
-    // response carries no access code to show instead.
+    // The access code is REAL after a rental: the lease response carries the
+    // tenant's gate PIN at `lease.tenants[].pin` (verified 2026-08-20 — no
+    // other endpoint returns one, and it does not exist before the lease).
+    // Without a lease there is nothing to show, so the placeholder stands in
+    // for the preview path only; a real rental that somehow returned no pin
+    // falls back to the no-code variant rather than inventing one.
     const heldUnit = rental?.unitNumber ?? hold?.unitNumber ?? quote?.unitNumber;
     const staticUnitNumber = heldUnit ? `#${heldUnit}` : undefined;
 
@@ -1312,7 +1313,7 @@ export function RentalFlow2Step({
               // Only after a real lease: there is nothing to reference otherwise.
               reference={rental?.leaseId}
               unitNumber={staticUnitNumber}
-              code={rental ? undefined : STATIC_ACCESS_CODE}
+              code={rental ? rental.accessCode : STATIC_ACCESS_CODE}
               entry="gate"
               moveInDate={fmtDisplayDate(moveIn)}
               confirmedHeading={rentalHeading}

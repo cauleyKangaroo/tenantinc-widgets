@@ -1171,7 +1171,19 @@ export interface RentArgs {
 
 export type RentStage = 'documents' | 'lease' | 'autopay';
 export type RentResult =
-  | { ok: true; leaseId: string; paymentId?: string; paymentMethodId?: string; unitNumber?: string; autopay?: boolean }
+  | {
+    ok: true;
+    leaseId: string;
+    paymentId?: string;
+    paymentMethodId?: string;
+    unitNumber?: string;
+    autopay?: boolean;
+    /** The tenant's gate PIN, from `lease.tenants[0].pin`. THE access code —
+     *  no other endpoint returns one, and it exists only after the lease. */
+    accessCode?: string;
+    /** 'active' on a completed rental. */
+    status?: string;
+  }
   | { ok: false; error: string; stage: RentStage };
 
 /** The `contacts` array both calls take. Phones are E.164 with the type lowercase. */
@@ -1313,7 +1325,7 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
 /** API 10 — finalize the lease and take the move-in payment. */
 async function finalizeLease(
   ctx: RentalCtx, args: RentArgs, documents: LeaseDocumentRef[],
-): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string }> {
+): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string; accessCode?: string; status?: string }> {
   const body: Record<string, unknown> = {
     contacts: rentContacts(args.contact, args.extras),
     documents,
@@ -1334,13 +1346,23 @@ async function finalizeLease(
   if (inner.status !== 200 || !inner.data) {
     throw new Error(inner.msg || `lease failed (${inner.status}).`);
   }
-  const d = inner.data as Record<string, unknown>;
+  // VERIFIED 2026-08-20: the real response nests everything under `lease`,
+  // where the guide's example shows it flat. Both are accepted so a fix at
+  // either end cannot break this.
+  const raw = inner.data as Record<string, unknown>;
+  const d = (raw.lease ?? raw) as Record<string, unknown>;
   const leaseId = (d.lease_id ?? d.id) as string | undefined;
   if (!leaseId) throw new Error('The lease was created but returned no id — please contact the facility before trying again.');
+  // The gate PIN rides on the tenant, not the lease. This is the ONLY place any
+  // endpoint returns an access code — it does not exist before the lease.
+  const tenants = (d.tenants as Array<{ pin?: string | number }> | undefined) ?? [];
+  const pin = tenants.find((t) => t?.pin != null)?.pin;
   return {
     leaseId,
     paymentId: d.payment_id as string | undefined,
     paymentMethodId: d.payment_method_id as string | undefined,
+    accessCode: pin != null ? String(pin) : undefined,
+    status: d.status as string | undefined,
   };
 }
 
@@ -1376,7 +1398,7 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
     return { ok: false, error: err instanceof Error ? err.message : String(err), stage: 'documents' };
   }
 
-  let lease: { leaseId: string; paymentId?: string; paymentMethodId?: string };
+  let lease: Awaited<ReturnType<typeof finalizeLease>>;
   try {
     lease = await finalizeLease(ctx, a, documents);
   } catch (err) {
@@ -1401,6 +1423,8 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
     leaseId: lease.leaseId,
     paymentId: lease.paymentId,
     paymentMethodId: lease.paymentMethodId,
+    accessCode: lease.accessCode,
+    status: lease.status,
     unitNumber: a.unit.number,
     autopay,
   };
