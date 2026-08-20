@@ -161,7 +161,15 @@ export async function fetchProperty(ctx: RentalCtx): Promise<PropertyInfo | unde
   };
 }
 
-// --- Protection plans (space-groups → insurance[]) ---------------------------
+// --- Protection plans (space-types → property insurances) --------------------
+//
+// Coverage products are configured PER SPACE TYPE and are served by the
+// property's own `insurances` endpoint (Hummingbird rental-flow guide, APIs 1
+// and 6). They used to be read from `spaceGroupProfile.<type>.insurance` in the
+// space-groups payload, which is `[]` on every tenant — re-verified on Storage
+// Outlet Bellflower 2026-08-20, where the groups payload had three empty
+// insurance arrays while /insurances returned two live plans. That empty read is
+// why step 2 always fell through to "confirmed at checkout".
 
 export interface ProtectionPlan {
   id: string;
@@ -170,20 +178,48 @@ export interface ProtectionPlan {
   /** Monthly premium, e.g. 12. */
   premium?: number;
   name?: string;
+  /** The space type this plan covers. Plans are per type, so a commercial or
+   *  parking rental must never be offered a storage plan — see plansForUnitType().
+   *  Matched by ID: the NAMES disagree across endpoints (a unit row says
+   *  'commercial_storage' where the space type and the plan both say
+   *  'Commercial'), while unit_type_id is identical on all three. */
+  unitTypeId?: string;
+  /** Machine name of that type, for logs and debugging — never a match key. */
+  unitType?: string;
 }
 
-// The insurance rows are [] on every tenant we can read, so the field names
-// below are best guesses across the API's usual vocabulary. Anything
-// unrecognised still surfaces as a plan with just an id + name.
+export interface SpaceType {
+  id: string;
+  /** Machine name, e.g. 'storage' — matches a unit row's `type`. */
+  name: string;
+  displayName?: string;
+  /** Coverage is enabled for this type; only these are worth asking about. */
+  hasCoverage: boolean;
+}
+
+interface ApiSpaceType {
+  unit_type_id?: string;
+  id?: string;
+  unit_type_name?: string;
+  display_name?: string;
+  have_coverage?: number;
+}
+
+// The live shape (verified 2026-08-20): coverage arrives as a STRING
+// ("2000.00"), premium as a number under `premium_value`, and `premium_type`
+// says what that number means — "$" is a flat monthly premium, anything else
+// (e.g. a percentage of rent) cannot be printed as "$N/mo" and is dropped
+// rather than mislabelled.
 interface ApiInsurance {
   id?: string;
   name?: string;
+  description?: string;
   coverage?: number | string;
-  coverage_amount?: number | string;
-  coverage_limit?: number | string;
-  premium?: number | string;
   premium_value?: number | string;
-  price?: number | string;
+  premium_type?: string;
+  unit_type?: string;
+  unit_type_id?: string;
+  status?: number;
 }
 
 const num = (v: number | string | undefined): number | undefined => {
@@ -191,6 +227,75 @@ const num = (v: number | string | undefined): number | undefined => {
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
 };
+
+/** The company's space types. Cached by the GET memo — every widget on the page
+ *  shares one request. Fails soft: no types ⇒ no plans, never an exception. */
+export async function fetchSpaceTypes(ctx: RentalCtx): Promise<SpaceType[]> {
+  const raw = await getJson(`companies/${ctx.companyId}/space-management/space-types`);
+  // This endpoint's `data` is an ARRAY, unlike the object every other read returns.
+  const rows = (unwrap(raw) as unknown as ApiSpaceType[] | undefined) ?? [];
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((t) => ({
+      id: (t.unit_type_id ?? t.id ?? '') as string,
+      name: t.unit_type_name ?? '',
+      displayName: t.display_name,
+      hasCoverage: t.have_coverage === 1,
+    }))
+    .filter((t) => !!t.id);
+}
+
+/**
+ * The property's protection plans, for the given space types (default: every
+ * coverage-enabled type on the company).
+ *
+ * A plan is only offered when it is active AND carries a usable coverage +
+ * flat-dollar premium — the dropdown prints both, so a half-configured row
+ * would render "$undefined Coverage". Cheapest coverage first.
+ */
+export async function fetchProtectionPlans(ctx: RentalCtx, unitTypeIds?: string[]): Promise<ProtectionPlan[]> {
+  let ids = unitTypeIds?.filter(Boolean);
+  if (!ids?.length) ids = (await fetchSpaceTypes(ctx)).filter((t) => t.hasCoverage).map((t) => t.id);
+  if (!ids.length) return [];
+  const q = encodeURIComponent(`[${ids.join(',')}]`);
+  const data = unwrap(await getJson(
+    `companies/${ctx.companyId}/properties/${ctx.propertyId}/insurances?unit_type_ids=${q}`,
+  ));
+  const rows = (data?.insurances as ApiInsurance[] | undefined) ?? [];
+  const plans: ProtectionPlan[] = [];
+  for (const ins of rows) {
+    if (!ins.id || ins.status === 0) continue;
+    if (ins.premium_type && ins.premium_type !== '$') continue;
+    const coverage = num(ins.coverage);
+    const premium = num(ins.premium_value);
+    if (coverage === undefined || premium === undefined) continue;
+    plans.push({
+      id: ins.id,
+      name: ins.name,
+      coverage,
+      premium,
+      unitTypeId: ins.unit_type_id,
+      unitType: ins.unit_type,
+    });
+  }
+  return plans.sort((a, b) => (a.coverage ?? 0) - (b.coverage ?? 0));
+}
+
+/**
+ * Narrow plans to the space type actually being rented. Verified live on
+ * Bellflower 2026-08-20: asking for every coverage-enabled type returns six
+ * plans — two storage and four Commercial — so without this a storage renter is
+ * offered four plans that do not apply to them.
+ *
+ * Falls back to the full list when the type is unknown or nothing matches:
+ * showing a plan that may be for the wrong type is recoverable, showing NO
+ * plans re-creates the very bug this replaced.
+ */
+export function plansForUnitType(plans: ProtectionPlan[], unitTypeId?: string): ProtectionPlan[] {
+  if (!unitTypeId) return plans;
+  const matched = plans.filter((p) => p.unitTypeId === unitTypeId);
+  return matched.length ? matched : plans;
+}
 
 async function resolveSpaceGroupId(ctx: RentalCtx): Promise<string | undefined> {
   if (ctx.spaceGroupId) return ctx.spaceGroupId;
@@ -213,25 +318,6 @@ export async function fetchSpaceGroups(ctx: RentalCtx): Promise<unknown> {
   return getJson(
     `companies/${ctx.companyId}/properties/${ctx.propertyId}/space-groups/${sg}/groups`,
   );
-}
-
-export function extractProtectionPlans(raw: unknown): ProtectionPlan[] {
-  const data = unwrap(raw);
-  const profiles = (data?.spaceGroupProfile as Record<string, { insurance?: ApiInsurance[] }>) ?? {};
-  const seen = new Map<string, ProtectionPlan>();
-  for (const profile of Object.values(profiles)) {
-    for (const ins of profile.insurance ?? []) {
-      const id = ins.id ?? ins.name ?? JSON.stringify(ins);
-      if (seen.has(id)) continue;
-      seen.set(id, {
-        id,
-        name: ins.name,
-        coverage: num(ins.coverage ?? ins.coverage_amount ?? ins.coverage_limit),
-        premium: num(ins.premium ?? ins.premium_value ?? ins.price),
-      });
-    }
-  }
-  return Array.from(seen.values());
 }
 
 // --- Rental agreement document (property documents) --------------------------
@@ -269,6 +355,14 @@ export interface SelectionContext {
   promo?: string;
   /** Amenity bundle labels, from the group name. */
   features?: string[];
+  /** Promotion ids behind `promo` — lease-set-up needs the IDS, not the name,
+   *  to actually discount the quote. Only the offers source can supply them. */
+  promotionIds?: string[];
+  /** `dossier.token` from the offer: Hummingbird validates the quoted price
+   *  against it. Only the offers source can supply it. */
+  offerToken?: string;
+  /** `space_mix_id` from the offer — required verbatim by documents/finalize. */
+  spaceMixId?: string;
 }
 
 /** "10' x 10'" / "10x10" → "10x10" for comparisons. */
@@ -350,6 +444,8 @@ interface SelOffer {
   promotions?: Array<{ id?: string; name?: string }>;
   costs?: { Discounts?: OfferDiscount[] };
   amenities?: OfferAmenity[];
+  dossier?: { token?: string };
+  space_mix_id?: string;
 }
 
 function offerAmenityLabel(a: OfferAmenity): string | undefined {
@@ -396,6 +492,9 @@ export async function fetchSelectionFromOffers(
     inStore: price,
     promo: pick.promotions?.find((p) => p?.name)?.name,
     features,
+    promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
+    offerToken: pick.dossier?.token,
+    spaceMixId: pick.space_mix_id,
   };
 }
 
@@ -419,12 +518,18 @@ export interface MoveInQuote {
   totalDue: number;
   totalTax: number;
   lines: QuoteLine[];
+  /** `details.bill_day` — required verbatim by the documents/finalize call. */
+  billDay?: number;
+  /** `details.rent` — the NON-prorated monthly rate, which is what
+   *  documents/finalize means by `web_rate`. Not the move-in total. */
+  rent?: number;
 }
 
 interface ApiUnitRow {
   id: string;
   number?: string;
   type?: string;
+  unit_type_id?: string;
   state?: string;
   price?: number;
   space_mix_id?: string;
@@ -450,7 +555,7 @@ async function getJsonV1(path: string, fresh = false): Promise<unknown> {
 }
 
 /** First Available storage unit matching the selection's size (and price when known). */
-export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?: number, fresh = false): Promise<{ id: string; number?: string } | undefined> {
+export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?: number, fresh = false): Promise<{ id: string; number?: string; unitTypeId?: string } | undefined> {
   const data = unwrap(await getJsonV1(`companies/${ctx.companyId}/properties/${ctx.propertyId}/units/available`, fresh));
   const units = (data?.units as ApiUnitRow[] | undefined) ?? [];
   const wantSize = size ? size.toLowerCase().replace(/[^0-9x.]/g, '') : undefined;
@@ -463,50 +568,112 @@ export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?
   // Exact price match ties the unit to the clicked tier; else cheapest of the size.
   const exact = price != null ? candidates.find((u) => u.price === price) : undefined;
   const pick = exact ?? candidates.sort((a, b) => (a.price ?? 1e9) - (b.price ?? 1e9))[0];
-  return { id: pick.id, number: pick.number };
+  return { id: pick.id, number: pick.number, unitTypeId: pick.unit_type_id };
 }
 
-/** Resolve a unit's display number by id (from units/available). The value-tiers
- *  handoff passes only a unitId, and the reserve response carries no unit_number,
- *  so this is how "Space #…" gets populated on the confirmation. Fails soft. */
-export async function fetchUnitNumber(ctx: RentalCtx, unitId: string): Promise<string | undefined> {
+/** Resolve a unit's display number and space type by id (from units/available).
+ *  The value-tiers handoff passes only a unitId, and the reserve response carries
+ *  no unit_number, so this is how "Space #…" gets populated on the confirmation;
+ *  the type id is what narrows the protection plans to the space type rented.
+ *  Fails soft — an unresolvable unit must never stop the rental. */
+export async function fetchUnitInfo(ctx: RentalCtx, unitId: string): Promise<{ number?: string; unitTypeId?: string }> {
   try {
     const data = unwrap(await getJsonV1(`companies/${ctx.companyId}/properties/${ctx.propertyId}/units/available`));
     const units = (data?.units as ApiUnitRow[] | undefined) ?? [];
-    return units.find((u) => u.id === unitId)?.number;
-  } catch { return undefined; }
+    const u = units.find((x) => x.id === unitId);
+    return { number: u?.number, unitTypeId: u?.unit_type_id };
+  } catch { return {}; }
 }
 
 interface ApiQuoteDetail { name?: string; total_cost?: number; start_date?: string; end_date?: string }
 interface ApiQuoteInvoice { total_due?: number; total_tax?: number; Detail?: ApiQuoteDetail[] }
 
 /**
- * Move-in money from lease-set-up. Two modes (verified 2026-08-03):
- * - No hold: plain GET — but the GET 409s once ANYONE holds the unit.
- * - Holding: POST with { hold_token } — the only quote path for a held
- *   unit, and hold-aware (this is what the rail must use after holding).
- * `move_in_date` in the POST body is accepted but IGNORED by the engine.
+ * What the shopper has chosen, as lease-set-up's documented inputs.
+ *
+ * Every field beyond `holdToken` changes the MONEY: coverage adds its own
+ * invoice line, promotions discount the rent, and start_date moves the proration
+ * window. Omitting them (which is what this widget did until 2026-08-20) quotes
+ * bare rent and silently prices a move-in that nobody asked for.
  */
-export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; number?: string }, holdToken?: string): Promise<MoveInQuote | undefined> {
+export interface QuoteOptions {
+  /** Hold token — required for the POST form; without it only the GET works. */
+  holdToken?: string;
+  /** Chosen coverage product (API 6). Adds a "Protection Plan …" line. */
+  insuranceId?: string;
+  /** Promotions to apply, from the offer. */
+  promotionIds?: string[];
+  /** Move-in date, YYYY-MM-DD. This is the documented parameter name —
+   *  `move_in_date`, which this widget used to send, is not one and was
+   *  ignored, which is why the date picker never moved the numbers. */
+  startDate?: string;
+  /** `dossier.token` from the offer — Hummingbird validates the quoted price
+   *  against it. Optional per the guide; sent whenever the offer supplied one. */
+  offerToken?: string;
+}
+
+/** The documented lease-set-up payload, omitting anything not chosen. */
+function leaseSetUpBody(opts: QuoteOptions): Record<string, unknown> {
+  const body: Record<string, unknown> = { hold_token: opts.holdToken };
+  if (opts.insuranceId) body.insurance_id = opts.insuranceId;
+  if (opts.promotionIds?.length) body.promotions = opts.promotionIds.map((id) => ({ promotion_id: id }));
+  if (opts.startDate) body.start_date = opts.startDate;
+  if (opts.offerToken) body.token = opts.offerToken;
+  return body;
+}
+
+/**
+ * POST lease-set-up for a held unit.
+ *
+ * The extra parameters are documented but UNPROVEN on this tenant's v1 endpoint
+ * (the guide describes v2). So a rejection falls back to the hold_token-only
+ * body that has been shipping — a wrong-but-present breakdown beats losing the
+ * money block entirely — and says so loudly in the console.
+ */
+async function postLeaseSetUp(path: string, opts: QuoteOptions): Promise<Record<string, unknown> | undefined> {
+  const body = leaseSetUpBody(opts);
+  try {
+    const inner = await sendV1('POST', path, body);
+    if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
+    return inner.data;
+  } catch (err) {
+    if (Object.keys(body).length === 1) throw err; // nothing extra to blame
+    console.warn('[rental] lease-set-up rejected the documented extras — re-quoting with hold_token only. Coverage/promo/date will NOT be priced:', err);
+    const inner = await sendV1('POST', path, { hold_token: opts.holdToken });
+    if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
+    return inner.data;
+  }
+}
+
+/**
+ * Move-in money from lease-set-up. Two modes (verified 2026-08-03):
+ * - No hold: plain GET — but the GET 409s once ANYONE holds the unit, and it
+ *   carries no chosen coverage/promo/date, so it is a rent-only estimate.
+ * - Holding: POST with the shopper's choices — the only quote path for a held
+ *   unit, and the one the rail must use after holding.
+ */
+export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; number?: string }, opts: QuoteOptions = {}): Promise<MoveInQuote | undefined> {
+  const holdToken = opts.holdToken;
   // Hold-aware quote through the proxy when configured — the only quote path
   // for a held unit, and it keeps the key server-side.
   if (holdToken && shouldUseProxyWrites(ctx)) return fetchHeldQuoteViaProxy(ctx, unit, holdToken);
   const path = `companies/${ctx.companyId}/units/${unit.id}/lease-set-up`;
   let data: Record<string, unknown> | undefined;
   if (holdToken && writesEnabled(ctx)) {
-    const inner = await sendV1('POST', path, { hold_token: holdToken });
-    if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
-    data = inner.data;
+    data = await postLeaseSetUp(path, opts);
   } else {
     data = unwrap(await getJsonV1(path));
   }
-  const inv = ((data?.details as { Invoices?: ApiQuoteInvoice[] } | undefined)?.Invoices ?? [])[0];
+  const details = data?.details as { Invoices?: ApiQuoteInvoice[]; bill_day?: number; rent?: number } | undefined;
+  const inv = (details?.Invoices ?? [])[0];
   if (!inv || typeof inv.total_due !== 'number') return undefined;
   return {
     unitId: unit.id,
     unitNumber: unit.number,
     totalDue: inv.total_due,
     totalTax: inv.total_tax ?? 0,
+    billDay: typeof details?.bill_day === 'number' ? details.bill_day : undefined,
+    rent: typeof details?.rent === 'number' ? details.rent : undefined,
     lines: (inv.Detail ?? [])
       .filter((d) => d.name && typeof d.total_cost === 'number')
       .map((d) => ({
@@ -559,7 +726,7 @@ export interface UnitHold {
 
 interface InnerResult { status?: number; data?: Record<string, unknown>; msg?: string }
 
-async function sendV1(method: 'POST' | 'DELETE', path: string, body?: unknown): Promise<InnerResult> {
+async function sendV1(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<InnerResult> {
   const res = await fetch(`${BASE_URL}/applications/${APP_ID}/v1/${path}`, {
     method,
     headers: { ...headers(), 'Content-Type': 'application/json' },
@@ -882,4 +1049,325 @@ export async function fetchPaymentLink(ctx: RentalCtx, contactId: string): Promi
     if (!res.ok || !json?.data?.url) return undefined;
     return json.data.url;
   } catch { return undefined; }
+}
+
+// --- Rent: documents → lease → autopay (guide APIs 9, 10, 11) ---------------
+//
+// The documented rental transaction, called DIRECTLY against Hummingbird with
+// the config key — the same boundary reserveViaEdge already uses.
+//
+// CARD DATA: APIs 9 and 10 take the raw PAN, CVV and expiry in the request
+// body; the guide describes no tokenized alternative. That is a deliberate,
+// client-directed choice (2026-08-20) and it means the card number passes
+// through this bundle, so this path is only reachable from the static CardForm
+// (no Global Payments key configured). Where a GP key IS set, the hosted-fields
+// path is untouched and no card data exists widget-side.
+//
+// Nothing here is memoised and nothing is retried: these are money writes.
+
+/** Billing/contact address — required by both the contact and the card. */
+export interface RentAddress {
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+}
+
+export interface RentContact extends RentAddress {
+  first: string;
+  last: string;
+  email: string;
+  phone: string;
+}
+
+export interface CardPayment extends RentAddress {
+  /** Digits only. */
+  cardNumber: string;
+  /** "09" */
+  expMonth: string;
+  /** "2027" */
+  expYear: string;
+  cvv: string;
+  nameOnCard: string;
+  /** Enrol this card for recurring rent (drives API 11). */
+  autoCharge?: boolean;
+}
+
+/** A documented cost line. `costType` is a closed set; dates are YYYY-MM-DD. */
+export interface RentCostLine {
+  amount: number;
+  description: string;
+  costType: 'rent' | 'discount' | 'other' | 'tax';
+  start: string;
+  end: string;
+  tax: number;
+  total: number;
+  pmsRaw: null;
+}
+
+/** A signed document, as APIs 9 and 10 exchange them. */
+export interface LeaseDocumentRef {
+  document_type: string;
+  filename: string;
+  src: string;
+  version: string;
+}
+
+export interface RentArgs {
+  unit: { id: string; number?: string };
+  holdToken: string;
+  contact: RentContact;
+  card: CardPayment;
+  /** YYYY-MM-DD. */
+  startDate: string;
+  /** From the offer — documents/finalize rejects the call without it. */
+  spaceMixId?: string;
+  /** From lease-set-up. */
+  billDay?: number;
+  /** Non-prorated monthly rent, from lease-set-up. */
+  webRate?: number;
+  totalPaymentAmount: number;
+  costs: RentCostLine[];
+  promotionIds?: string[];
+  /** Reserve first, then rent: the lease attaches to the reservation. */
+  reservationId?: string;
+  platform?: string;
+}
+
+export type RentStage = 'documents' | 'lease' | 'autopay';
+export type RentResult =
+  | { ok: true; leaseId: string; paymentId?: string; paymentMethodId?: string; unitNumber?: string; autopay?: boolean }
+  | { ok: false; error: string; stage: RentStage };
+
+/** The `contacts` array both calls take. Phones are E.164 with the type lowercase. */
+function rentContacts(c: RentContact): unknown[] {
+  return [{
+    first: c.first,
+    last: c.last,
+    email: c.email,
+    Phones: [{ phone: c.phone, type: 'cell', sms: true }],
+    Addresses: [{
+      Address: { address: c.address, city: c.city, state: c.state, zip: c.zip },
+      type: 'primary',
+    }],
+  }];
+}
+
+/** The `payment_method` object. Card only — ACH is not wired yet. */
+function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<string, unknown> {
+  const parts = card.nameOnCard.trim().split(/\s+/);
+  const body: Record<string, unknown> = {
+    type: 'card',
+    card_number: card.cardNumber.replace(/\D/g, ''),
+    cvv2: card.cvv,
+    exp_mo: card.expMonth,
+    exp_yr: card.expYear,
+    name_on_card: card.nameOnCard,
+    first: parts[0] ?? '',
+    last: parts.slice(1).join(' ') || (parts[0] ?? ''),
+    address: card.address,
+    city: card.city,
+    state: card.state,
+    zip: card.zip,
+    save_to_account: false,
+  };
+  if (autoCharge) body.auto_charge = true;
+  return body;
+}
+
+/** Browser context the clickwrap signature is stamped with. */
+function signingMetadata(): Record<string, unknown> {
+  return {
+    // The guide also wants `ip` and `location`. Neither is knowable in the
+    // browser without calling a third-party geo service, which would leak the
+    // shopper to an unrelated host — so they are sent empty and Hummingbird
+    // records what it sees from the request itself.
+    ip: '',
+    location: '',
+    user_agent: typeof navigator === 'undefined' ? '' : navigator.userAgent,
+  };
+}
+
+interface FinalizeData { documents?: unknown[]; signed?: boolean }
+
+/**
+ * API 9 — generate and sign the lease documents.
+ *
+ * ClickWrap / Super Lease sign internally and return `signed: true` with the
+ * `documents` array the lease call needs. Traditional signing returns
+ * `signed: false` and per-document signing URLs, and the guide then requires
+ * the integrator to host the signed PDF and supply its public URL — which this
+ * widget cannot do. That case fails with a message naming the situation rather
+ * than posting a lease that would be rejected for unsigned documents.
+ */
+async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseDocumentRef[]> {
+  const body: Record<string, unknown> = {
+    contacts: rentContacts(args.contact),
+    payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
+    start_date: args.startDate,
+    space_mix_id: args.spaceMixId,
+    total_payment_amount: args.totalPaymentAmount,
+    bill_day: args.billDay,
+    payment_cycle: 'Monthly',
+    web_rate: args.webRate,
+    costs: args.costs,
+    metadata: signingMetadata(),
+    platform: args.platform ?? 'website',
+  };
+  if (args.promotionIds?.length) body.discount_id = args.promotionIds[0];
+
+  const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/documents/finalize`, body);
+  if (inner.status !== 200 || !inner.data) {
+    throw new Error(inner.msg || `documents/finalize failed (${inner.status}).`);
+  }
+  const data = inner.data as FinalizeData;
+  const docs = (data.documents ?? []) as Array<Record<string, unknown>>;
+  if (data.signed !== true) {
+    console.error(
+      '[rental] documents came back UNSIGNED — this company uses Traditional signing, which needs a signing UI and a hosted PDF. Signing URLs:',
+      docs.map((d) => d.url).filter(Boolean),
+    );
+    throw new Error('This facility requires the lease to be signed in person. Please contact the office to finish your rental.');
+  }
+  // Keep only the four fields the lease call consumes; anything else is noise.
+  return docs.map((d) => ({
+    document_type: String(d.document_type ?? ''),
+    filename: String(d.filename ?? d.document_type ?? 'Document'),
+    src: String(d.src ?? ''),
+    version: String(d.version ?? d.fileId ?? ''),
+  }));
+}
+
+/** API 10 — finalize the lease and take the move-in payment. */
+async function finalizeLease(
+  ctx: RentalCtx, args: RentArgs, documents: LeaseDocumentRef[],
+): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string }> {
+  const body: Record<string, unknown> = {
+    contacts: rentContacts(args.contact),
+    documents,
+    payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
+    start_date: args.startDate,
+    platform: args.platform ?? 'website',
+    additional_months: 0,
+  };
+  // One identifier or the other, never both: reservation_id continues a
+  // reservation, hold_token rents the held unit directly (guide, API 10).
+  if (args.reservationId) body.reservation_id = args.reservationId;
+  else body.hold_token = args.holdToken;
+  if (args.promotionIds?.length) {
+    body.promotions = args.promotionIds.map((id) => ({ promotion_id: id }));
+  }
+
+  const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/lease`, body);
+  if (inner.status !== 200 || !inner.data) {
+    throw new Error(inner.msg || `lease failed (${inner.status}).`);
+  }
+  const d = inner.data as Record<string, unknown>;
+  const leaseId = (d.lease_id ?? d.id) as string | undefined;
+  if (!leaseId) throw new Error('The lease was created but returned no id — please contact the facility before trying again.');
+  return {
+    leaseId,
+    paymentId: d.payment_id as string | undefined,
+    paymentMethodId: d.payment_method_id as string | undefined,
+  };
+}
+
+/** API 11 — enrol the saved card for recurring rent. */
+async function enableAutopay(ctx: RentalCtx, leaseId: string, paymentMethodId: string): Promise<boolean> {
+  const inner = await sendV1(
+    'PUT', `companies/${ctx.companyId}/leases/${leaseId}/payment-methods/${paymentMethodId}/autopay`, {},
+  );
+  return inner.status === 200;
+}
+
+/**
+ * The whole rental: documents → lease → (optional) autopay.
+ *
+ * Returns a soft result and never throws, so the UI branches without
+ * try/catch — and carries the STAGE, because the three failures need different
+ * words: documents means nothing happened, lease means the money may or may not
+ * have moved, autopay means the rental succeeded and only the recurring
+ * enrolment did not.
+ */
+export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentResult> {
+  if (!writesEnabled(ctx)) {
+    return { ok: false, error: 'Rentals are not configured for this site.', stage: 'documents' };
+  }
+  const phoneE164 = normalizePhone(args.contact.phone, 'US');
+  if (!phoneE164) return { ok: false, error: 'Please enter a valid phone number.', stage: 'documents' };
+  const a: RentArgs = { ...args, contact: { ...args.contact, phone: phoneE164 } };
+
+  let documents: LeaseDocumentRef[];
+  try {
+    documents = await finalizeDocuments(ctx, a);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err), stage: 'documents' };
+  }
+
+  let lease: { leaseId: string; paymentId?: string; paymentMethodId?: string };
+  try {
+    lease = await finalizeLease(ctx, a, documents);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err), stage: 'lease' };
+  }
+  memoInvalidate('units/available');
+
+  // The rental is DONE at this point. Autopay is an add-on: a failure here is
+  // reported alongside success, never as a failed rental.
+  let autopay: boolean | undefined;
+  if (a.card.autoCharge && lease.paymentMethodId) {
+    try {
+      autopay = await enableAutopay(ctx, lease.leaseId, lease.paymentMethodId);
+    } catch {
+      autopay = false;
+    }
+    if (!autopay) console.warn('[rental] lease created but autopay enrolment failed — the tenant must enrol from their account.');
+  }
+
+  return {
+    ok: true,
+    leaseId: lease.leaseId,
+    paymentId: lease.paymentId,
+    paymentMethodId: lease.paymentMethodId,
+    unitNumber: a.unit.number,
+    autopay,
+  };
+}
+
+/**
+ * Quote lines → the documented `costs` array.
+ *
+ * `costType` is a closed set, so it is derived from the line rather than passed
+ * through: a negative amount is a discount (that is how the quote encodes a
+ * promotion), and rent/tax are matched by name. Everything else is `other`,
+ * which is where fees and coverage land.
+ */
+export function quoteToCosts(quote: MoveInQuote, startDate: string): RentCostLine[] {
+  const lines: RentCostLine[] = quote.lines.map((l) => {
+    const costType: RentCostLine['costType'] =
+      l.cost < 0 ? 'discount'
+        : /(^|\s)tax(es)?(\s|$)/i.test(l.name) ? 'tax'
+          : /rent/i.test(l.name) ? 'rent'
+            : 'other';
+    const amount = Math.abs(l.cost);
+    return {
+      amount,
+      description: l.name,
+      costType,
+      start: l.startDate ?? startDate,
+      end: l.endDate ?? l.startDate ?? startDate,
+      tax: 0,
+      total: amount,
+      pmsRaw: null,
+    };
+  });
+  // Tax is a total on the quote, not a line, so it is added explicitly — the
+  // guide's example carries a "Total Tax" entry of its own.
+  if (quote.totalTax > 0 && !lines.some((l) => l.costType === 'tax')) {
+    lines.push({
+      amount: 0, description: 'Total Tax', costType: 'tax',
+      start: startDate, end: startDate, tax: quote.totalTax, total: quote.totalTax, pmsRaw: null,
+    });
+  }
+  return lines;
 }

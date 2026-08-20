@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import './RentalFlow2Step.css';
 import { Step2 } from './Step2';
 import {
-  fetchProperty, fetchSpaceGroups, extractProtectionPlans, fetchLeaseDocument,
-  extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitNumber,
-  holdUnit, releaseHold, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace,
+  fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
+  extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
+  holdUnit, releaseHold, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
+  type RentResult,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
 } from './api';
@@ -166,10 +167,12 @@ const PREVIEW_QUOTE: MoveInQuote = {
 };
 
 /**
- * Sample protection plans (Figma 8508-32894). Same gate, and the same reason
- * squared: api.ts notes the insurance rows come back `[]` on every tenant we can
- * read, so step 2's plan card has never had anything real to show — which is why
- * it renders "confirmed at checkout" rather than inventing $2,000/$12.
+ * Sample protection plans (Figma 8508-32894), harness/editor preview only.
+ *
+ * Live plans now come from the property's `insurances` endpoint and win
+ * whenever it returns any. These fill the card only when the list is empty AND
+ * previewContent is on, so a property with no coverage configured still shows
+ * the honest "confirmed at checkout" note rather than invented money.
  */
 const PREVIEW_PLANS: ProtectionPlan[] = [
   { id: 'preview-1000', coverage: 1000, premium: 11 },
@@ -710,6 +713,18 @@ export function RentalFlow2Step({
   const [brandName, setBrandName] = useState('UAT Tenant V2');
   const [propertyInfo, setPropertyInfo] = useState<import('./api').PropertyInfo | undefined>(undefined);
   const [plans, setPlans] = useState<ProtectionPlan[]>([]);
+  // Space type ID of the unit being rented, once resolved. Plans are configured
+  // per space type, so this is what keeps a storage rental from being offered
+  // the property's Commercial coverage (Bellflower returns both).
+  const [unitTypeId, setUnitTypeId] = useState<string | undefined>(undefined);
+  // Coverage chosen in step 2, or undefined for "I have my own insurance".
+  // Lives here rather than in Step2 because it changes the QUOTE, not just the
+  // card: lease-set-up prices the selected plan as its own invoice line.
+  const [insuranceId, setInsuranceId] = useState<string | undefined>(undefined);
+  // Only the plans for the space type being rented. Before the unit resolves
+  // (or if its type is unknown) this is the full list — showing every plan is
+  // recoverable, showing none would re-create the "confirmed at checkout" bug.
+  const shownPlans = React.useMemo(() => plansForUnitType(plans, unitTypeId), [plans, unitTypeId]);
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
   const [quote, setQuote] = useState<MoveInQuote | undefined>(undefined);
@@ -724,6 +739,10 @@ export function RentalFlow2Step({
   /** Static payment path (no GP key): the lightbox has finished, show the
    *  post-purchase form rather than navigating to the confirmation page. */
   const [staticPaid, setStaticPaid] = useState(false);
+  // The real rental (documents → lease → autopay). Present ⇒ money moved.
+  const [rental, setRental] = useState<Extract<RentResult, { ok: true }> | undefined>(undefined);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | undefined>(undefined);
   /** "Get Access" pressed on the static post-purchase form. */
   const [accessGranted, setAccessGranted] = useState(false);
   const staticPay = !gpApiKey;
@@ -860,7 +879,13 @@ export function RentalFlow2Step({
         // the only source. Fail CLOSED: never show another unit's money.
         const held = result.hold;
         setQuote((prev) => (prev && prev.unitId === held.unitId ? prev : undefined));
-        fetchMoveInQuote(ctx, { id: held.unitId, number: held.unitNumber }, held.holdToken)
+        fetchMoveInQuote(ctx, { id: held.unitId, number: held.unitNumber }, {
+          holdToken: held.holdToken,
+          insuranceId,
+          promotionIds: selection?.promotionIds,
+          startDate: ymd(moveIn),
+          offerToken: selection?.offerToken,
+        })
           .then((q) => {
             if (cancelled) return;
             if (q) setQuote(q);
@@ -875,7 +900,38 @@ export function RentalFlow2Step({
       }
     })();
     return () => { cancelled = true; };
-  }, [step, quote, hold, holdExpired, selection, inEditor, logTag, ctx]);
+  }, [step, quote, hold, holdExpired, selection, inEditor, logTag, ctx, insuranceId, moveIn]);
+
+  // Re-quote when a choice that changes the money changes — coverage or the
+  // move-in date. Only while holding: lease-set-up will not price either of them
+  // without a hold token, and the plain GET 409s on a held unit anyway.
+  //
+  // The first run is skipped: the hold effect above has just quoted with these
+  // exact values, and re-firing would double every request for no new number.
+  const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}`;
+  const quotedChoice = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!hold || step !== 2) return undefined;
+    if (quotedChoice.current === undefined || quotedChoice.current === choiceKey) {
+      quotedChoice.current = choiceKey;
+      return undefined;
+    }
+    quotedChoice.current = choiceKey;
+    let cancelled = false;
+    fetchMoveInQuote(ctx, { id: hold.unitId, number: hold.unitNumber }, {
+      holdToken: hold.holdToken,
+      insuranceId,
+      promotionIds: selection?.promotionIds,
+      startDate: ymd(moveIn),
+      offerToken: selection?.offerToken,
+    })
+      .then((q) => { if (!cancelled && q) setQuote(q); })
+      // Keep the previous quote on failure rather than blanking the rail: the
+      // shopper changed a plan, not the unit, and the old total is still the
+      // last figure the API actually stood behind.
+      .catch((err) => console.warn(`${logTag} re-quote after a choice change failed — keeping the previous total:`, err));
+    return () => { cancelled = true; };
+  }, [hold, step, choiceKey, insuranceId, moveIn, selection, ctx, logTag]);
 
   // Countdown driven by the acquisition timestamp, not a decrementing
   // counter — survives re-renders and background-tab throttling.
@@ -917,6 +973,8 @@ export function RentalFlow2Step({
     setSelection(undefined);
     setQuote(undefined);
     setQuoteFailed(false);
+    setUnitTypeId(undefined);
+    setInsuranceId(undefined);
     if (holdRef.current) {
       void releaseHold(ctx, holdRef.current);
       setHold(undefined);
@@ -932,10 +990,17 @@ export function RentalFlow2Step({
       })
       .catch((err) => console.error(`${logTag} fetchProperty error:`, err))
       .finally(settle);
+    // Protection plans are their own endpoint (space-types → property
+    // insurances) — deliberately NOT chained to space-groups: they are unrelated
+    // reads, and the plan card should not wait on (or be lost with) the tier
+    // lookup. Outside the settle() gate for the same reason: the rail renders
+    // without plans, so they must not hold up the first paint.
+    fetchProtectionPlans(ctx)
+      .then((list) => { if (!cancelled) setPlans(list); })
+      .catch((err) => console.error(`${logTag} fetchProtectionPlans error:`, err));
     fetchSpaceGroups(ctx)
       .then((raw) => {
         if (cancelled) return;
-        setPlans(extractProtectionPlans(raw));
         if (unitIdProp || unitGroupIdProp || sizeProp) {
           const sel = extractSelectionContext(raw, unitGroupIdProp, sizeProp);
           // Prefer the richer /offers selection (amenities, real promo rate) —
@@ -949,10 +1014,11 @@ export function RentalFlow2Step({
           } else if (sel) {
             setSelection(sel);
           }
-          const resolveUnit: Promise<{ id: string; number?: string } | undefined> = unitIdProp
+          const resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string } | undefined> = unitIdProp
             // Handoff gives only a unitId; resolve its number so the rail and the
-            // confirmation can show "Space #…" (the reserve response omits it).
-            ? fetchUnitNumber(ctx, unitIdProp).then((number) => ({ id: unitIdProp, number }))
+            // confirmation can show "Space #…" (the reserve response omits it),
+            // plus its space type to narrow the protection plans.
+            ? fetchUnitInfo(ctx, unitIdProp).then((info) => ({ id: unitIdProp, ...info }))
             : sel
               ? findUnitForSelection(ctx, sel.size, sel.price)
               // No offer matched, but a stored pick still names a size and a
@@ -961,7 +1027,10 @@ export function RentalFlow2Step({
                 ? findUnitForSelection(ctx, stored.size, stored.price)
                 : Promise.resolve(undefined);
           resolveUnit
-            .then((unit) => (unit ? fetchMoveInQuote(ctx, unit) : undefined))
+            .then((unit) => {
+              if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
+              return unit ? fetchMoveInQuote(ctx, unit) : undefined;
+            })
             .then((q) => {
               if (cancelled) return;
               if (q) setQuote(q);
@@ -1188,10 +1257,14 @@ export function RentalFlow2Step({
   // Composing that screen a second time would be a near-duplicate that drifts.
   if (staticPaid) {
     // The held unit is real even on the static path — the hold and quote both
-    // come from the live API. The access CODE is the one invented value: there
-    // is no lease and therefore no gate code to read, so it is a placeholder
-    // and must be replaced the moment the rental call exists.
-    const heldUnit = hold?.unitNumber ?? quote?.unitNumber;
+    // come from the live API.
+    //
+    // The access CODE is a placeholder, and it is shown ONLY when no real lease
+    // was created. After a real rental the money has moved and a made-up gate
+    // code would be a lie the tenant acts on, so the confirmation falls back to
+    // its no-code variant ("see the facility manager at move-in") — the lease
+    // response carries no access code to show instead.
+    const heldUnit = rental?.unitNumber ?? hold?.unitNumber ?? quote?.unitNumber;
     const staticUnitNumber = heldUnit ? `#${heldUnit}` : undefined;
 
     return (
@@ -1229,7 +1302,7 @@ export function RentalFlow2Step({
               name={finalizing?.firstName}
               phone={contact?.phone}
               unitNumber={staticUnitNumber}
-              code={STATIC_ACCESS_CODE}
+              code={rental ? undefined : STATIC_ACCESS_CODE}
               entry="gate"
               moveInDate={fmtDisplayDate(moveIn)}
               confirmedHeading={rentalHeading}
@@ -1338,14 +1411,81 @@ export function RentalFlow2Step({
             // The whole list, not plans[0]: the card is a dropdown now, so it
             // needs every option. Live plans win; the sample only fills an empty
             // list, and only in the harness.
-            plans={plans.length ? plans : (previewContent ? PREVIEW_PLANS : [])}
+            plans={shownPlans.length ? shownPlans : (previewContent ? PREVIEW_PLANS : [])}
             leaseDocName={leaseDoc?.name}
             brochureUrl={brochureUrl}
+            onPlanChange={setInsuranceId}
             onEditDate={() => setDateModalOpen(true)}
             gpApiKey={gpApiKey}
             gpEnvironment={gpEnvironment}
             payNowTotal={quote?.totalDue}
+            paying={paying}
+            payError={payError}
             onPaymentComplete={(info) => {
+              // REAL RENTAL. A card plus a live hold and quote means we have
+              // everything the documented flow needs (guide APIs 9→10→11), so
+              // run it instead of the prototype bridge below. Nothing is
+              // cleared or advanced until the lease actually comes back: this
+              // charges the card, and a failure has to leave the shopper on the
+              // form with their details intact.
+              if (info.card && hold && quote) {
+                if (paying) return; // in flight — never double-charge
+                setPaying(true);
+                setPayError(undefined);
+                const start = ymd(moveIn);
+                const c = info.contact;
+                rentSpace(ctx, {
+                  unit: { id: hold.unitId, number: hold.unitNumber },
+                  holdToken: hold.holdToken,
+                  contact: {
+                    first: c?.first ?? '',
+                    last: c?.last ?? '',
+                    email: c?.email ?? '',
+                    phone: c?.phone ?? '',
+                    // The tenant's address is the billing address they just
+                    // typed — the form asks for one address, not two.
+                    address: info.card.address,
+                    city: info.card.city,
+                    state: info.card.state,
+                    zip: info.card.zip,
+                  },
+                  card: { ...info.card, autoCharge: info.autopay },
+                  startDate: start,
+                  spaceMixId: selection?.spaceMixId,
+                  billDay: quote.billDay,
+                  // Non-prorated monthly rate. The quote's own rent is the
+                  // authority; the tier price is the fallback.
+                  webRate: quote.rent ?? selection?.price,
+                  totalPaymentAmount: quote.totalDue,
+                  costs: quoteToCosts(quote, start),
+                  promotionIds: selection?.promotionIds,
+                  platform: 'website',
+                })
+                  .then((res) => {
+                    setPaying(false);
+                    if (!res.ok) {
+                      console.error(`${logTag} rental failed at the ${res.stage} step:`, res.error);
+                      setPayError(res.error);
+                      return;
+                    }
+                    console.log(`${logTag} rental complete — lease ${res.leaseId}`);
+                    setRental(res);
+                    // The unit is LEASED now, so the hold is spent: forget it so
+                    // the countdown stops and unmount does not try to release a
+                    // hold that no longer exists.
+                    setHold(undefined);
+                    clearUnitSelection();
+                    setFinalizing(info);
+                  })
+                  .catch((err) => {
+                    // rentSpace never throws, so reaching here is a bug rather
+                    // than a payment failure — say something honest either way.
+                    setPaying(false);
+                    console.error(`${logTag} rental threw unexpectedly:`, err);
+                    setPayError('Something went wrong completing your rental. Please try again.');
+                  });
+                return;
+              }
               setFinalizing(info);
               // The pick has been acted on — drop it so returning to /rental
               // later starts clean instead of silently re-selecting it.

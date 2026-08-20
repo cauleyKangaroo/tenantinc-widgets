@@ -4,7 +4,7 @@ import { mountGpHostedFields, GpTokenResult, GpFieldValidity } from './gpHostedF
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
-import { BankForm, CardForm, PaymentFormSkeleton } from './PaymentSection';
+import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from './PaymentSection';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
@@ -284,11 +284,12 @@ const PLAN_HOVER_QUERY = '(min-width: 901px) and (hover: hover) and (pointer: fi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, gpApiKey, gpEnvironment = 'test', payNowTotal, onPaymentComplete,
-  brochureUrl,
+  brochureUrl, onPlanChange, paying, payError,
 }: {
   moveIn: Date;
-  /** Protection plans to choose between. Empty → the "confirmed at checkout"
-   *  note, since no API exposes them pre-lease yet. */
+  /** Protection plans to choose between, already narrowed to the space type
+   *  being rented. Empty → the "confirmed at checkout" note, which now means
+   *  the property has no coverage products configured for that type. */
   plans?: import('./api').ProtectionPlan[];
   /** Protection-plan brochure PDF for the "Learn More" lightbox. Absent → the
    *  modal's download button is inert rather than a dead link. */
@@ -296,13 +297,33 @@ export function Step2({
   /** Lease template name from the documents API. */
   leaseDocName?: string;
   onEditDate: () => void;
+  /** The chosen coverage id, or undefined for "I have my own insurance".
+   *  Reported upward because the choice re-prices the move-in quote — it is not
+   *  a display-only toggle. */
+  onPlanChange?: (insuranceId: string | undefined) => void;
   /** Global Payments CLIENT-side (publishable) key — hosted-fields tokenization only. */
   gpApiKey?: string;
   gpEnvironment?: 'test' | 'prod';
   /** Authoritative move-in total (hold-aware quote) — printed on the pay button. */
   payNowTotal?: number;
   /** Card tokenized — parent takes over (interstitial → confirmation). */
-  onPaymentComplete?: (info: { firstName: string }) => void;
+  onPaymentComplete?: (info: {
+    firstName: string;
+    /** Entered card + billing details. Present only on the static card path —
+     *  the hosted-fields path never has card data to give. */
+    card?: CardFormValue;
+    /** Step 2's own contact fields, which the shopper may have edited after
+     *  step 1, so these win over the ones captured there. */
+    contact?: { first: string; last: string; email: string; phone: string };
+    /** Autopay Enrollment checkbox. */
+    autopay?: boolean;
+  }) => void;
+  /** Payment in flight — locks the pay button against a double charge. */
+  paying?: boolean;
+  /** Why the rental could not be completed. Shown by the payment panel so the
+   *  shopper sees it next to the button they pressed, with their details still
+   *  filled in. */
+  payError?: string;
 }) {
   const [business, setBusiness] = useState(false);
   const [email, setEmail] = useState('');
@@ -394,6 +415,25 @@ export function Step2({
     () => plans.find((p) => /best value/i.test(p.name ?? ''))?.id ?? plans[0]?.id ?? 'own',
   );
   const chosenPlan = plans.find((p) => p.id === planChoice);
+  // Plans arrive from the API AFTER first render, so the initializer above
+  // usually runs against an empty list and lands on 'own'. Adopt the real
+  // default once they load — but only until the shopper has chosen for
+  // themselves, so this can never overwrite a deliberate "own insurance".
+  const planTouched = useRef(false);
+  useEffect(() => {
+    if (planTouched.current || !plans.length) return;
+    const preferred = plans.find((p) => /best value/i.test(p.name ?? ''))?.id ?? plans[0]?.id;
+    if (preferred && preferred !== planChoice) setPlanChoice(preferred);
+  }, [plans, planChoice]);
+  const choosePlan = (id: string | 'own') => {
+    planTouched.current = true;
+    setPlanChoice(id);
+    setPlanListOpen(false);
+  };
+  // Report upward whenever the effective coverage changes ('own' = none).
+  useEffect(() => {
+    onPlanChange?.(planChoice === 'own' ? undefined : planChoice);
+  }, [planChoice, onPlanChange]);
 
   // Close on outside click / Escape, like a native select.
   const planRef = useRef<HTMLDivElement>(null);
@@ -465,8 +505,13 @@ export function Step2({
     }
   };
 
-  /** Static "Pay Now" — hands straight to the parent's finalizing sequence. */
-  const payStatically = () => onPaymentComplete?.({ firstName: first.trim() || 'there' });
+  /** Static "Pay Now" — hands the parent everything the rental APIs need. */
+  const payStatically = (card?: CardFormValue) => onPaymentComplete?.({
+    firstName: first.trim() || 'there',
+    card,
+    contact: { first: first.trim(), last: last.trim(), email: email.trim(), phone },
+    autopay,
+  });
 
 
   return (
@@ -591,7 +636,7 @@ export function Step2({
                           role="option"
                           aria-selected={planChoice === p.id}
                           className={`rf2-plan-opt${best ? ' rf2-plan-opt--best' : ''}`}
-                          onClick={() => { setPlanChoice(p.id); setPlanListOpen(false); }}
+                          onClick={() => choosePlan(p.id)}
                         >
                           <span className="rf2-plan-opt-left">
                             <span className="rf2-plan-opt-cov">
@@ -612,7 +657,7 @@ export function Step2({
                     role="option"
                     aria-selected={planChoice === 'own'}
                     className="rf2-plan-opt rf2-plan-opt--own"
-                    onClick={() => { setPlanChoice('own'); setPlanListOpen(false); }}
+                    onClick={() => choosePlan('own')}
                   >
                     <span className="rf2-plan-own-t">I Have My Own Insurance</span>
                     <span className="rf2-plan-own-d">
@@ -625,8 +670,8 @@ export function Step2({
               )}
             </div>
           ) : (
-            /* NO-DEMO-MONEY: plans aren't exposed pre-lease by any API we
-               have yet (Jaweed Q#2) — say so instead of faking $2,000/$12. */
+            /* NO-DEMO-MONEY: the property returned no coverage products for
+               this space type — say so instead of faking $2,000/$12. */
             <div className="rf2-plan rf2-plan--pending">
               Protection plan options and pricing will be confirmed at checkout.
             </div>
@@ -792,6 +837,9 @@ export function Step2({
               Complete the highlighted fields (and accept the rental agreement) to continue to payment.
             </p>
           )}
+          {payError && (
+            <p className="rf2-gp-note rf2-gp-note--error" role="alert">{payError}</p>
+          )}
           {/* No Global Payments key on this site yet, so card and bank are the
               static forms from Figma 10080-30277 / 10080-28749 rather than the
               hosted-fields iframes. With a key set, the real GP path below runs
@@ -810,9 +858,9 @@ export function Step2({
               {formLoading ? (
                 <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
               ) : payMethod === 'card' ? (
-                <CardForm total={payNowTotal ?? 0} onPay={payStatically} />
+                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} />
               ) : (
-                <BankForm total={payNowTotal ?? 0} onPay={payStatically} />
+                <BankForm total={payNowTotal ?? 0} onPay={() => payStatically()} />
               )}
             </section>
           )}
