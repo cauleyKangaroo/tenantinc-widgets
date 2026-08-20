@@ -4,7 +4,8 @@ import { Step2 } from './Step2';
 import {
   fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
-  holdUnit, releaseHold, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace,
+  holdUnit, releaseHold, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
+  type RentResult,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
 } from './api';
@@ -714,6 +715,10 @@ export function RentalFlow2Step({
   /** Static payment path (no GP key): the lightbox has finished, show the
    *  post-purchase form rather than navigating to the confirmation page. */
   const [staticPaid, setStaticPaid] = useState(false);
+  // The real rental (documents → lease → autopay). Present ⇒ money moved.
+  const [rental, setRental] = useState<Extract<RentResult, { ok: true }> | undefined>(undefined);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | undefined>(undefined);
   /** "Get Access" pressed on the static post-purchase form. */
   const [accessGranted, setAccessGranted] = useState(false);
   const staticPay = !gpApiKey;
@@ -1185,10 +1190,14 @@ export function RentalFlow2Step({
   // Composing that screen a second time would be a near-duplicate that drifts.
   if (staticPaid) {
     // The held unit is real even on the static path — the hold and quote both
-    // come from the live API. The access CODE is the one invented value: there
-    // is no lease and therefore no gate code to read, so it is a placeholder
-    // and must be replaced the moment the rental call exists.
-    const heldUnit = hold?.unitNumber ?? quote?.unitNumber;
+    // come from the live API.
+    //
+    // The access CODE is a placeholder, and it is shown ONLY when no real lease
+    // was created. After a real rental the money has moved and a made-up gate
+    // code would be a lie the tenant acts on, so the confirmation falls back to
+    // its no-code variant ("see the facility manager at move-in") — the lease
+    // response carries no access code to show instead.
+    const heldUnit = rental?.unitNumber ?? hold?.unitNumber ?? quote?.unitNumber;
     const staticUnitNumber = heldUnit ? `#${heldUnit}` : undefined;
 
     return (
@@ -1200,7 +1209,7 @@ export function RentalFlow2Step({
               name={finalizing?.firstName}
               phone={contact?.phone}
               unitNumber={staticUnitNumber}
-              code={STATIC_ACCESS_CODE}
+              code={rental ? undefined : STATIC_ACCESS_CODE}
               entry="gate"
               moveInDate={fmtDisplayDate(moveIn)}
               confirmedHeading={rentalHeading}
@@ -1314,7 +1323,73 @@ export function RentalFlow2Step({
             gpApiKey={gpApiKey}
             gpEnvironment={gpEnvironment}
             payNowTotal={quote?.totalDue}
+            paying={paying}
+            payError={payError}
             onPaymentComplete={(info) => {
+              // REAL RENTAL. A card plus a live hold and quote means we have
+              // everything the documented flow needs (guide APIs 9→10→11), so
+              // run it instead of the prototype bridge below. Nothing is
+              // cleared or advanced until the lease actually comes back: this
+              // charges the card, and a failure has to leave the shopper on the
+              // form with their details intact.
+              if (info.card && hold && quote) {
+                if (paying) return; // in flight — never double-charge
+                setPaying(true);
+                setPayError(undefined);
+                const start = ymd(moveIn);
+                const c = info.contact;
+                rentSpace(ctx, {
+                  unit: { id: hold.unitId, number: hold.unitNumber },
+                  holdToken: hold.holdToken,
+                  contact: {
+                    first: c?.first ?? '',
+                    last: c?.last ?? '',
+                    email: c?.email ?? '',
+                    phone: c?.phone ?? '',
+                    // The tenant's address is the billing address they just
+                    // typed — the form asks for one address, not two.
+                    address: info.card.address,
+                    city: info.card.city,
+                    state: info.card.state,
+                    zip: info.card.zip,
+                  },
+                  card: { ...info.card, autoCharge: info.autopay },
+                  startDate: start,
+                  spaceMixId: selection?.spaceMixId,
+                  billDay: quote.billDay,
+                  // Non-prorated monthly rate. The quote's own rent is the
+                  // authority; the tier price is the fallback.
+                  webRate: quote.rent ?? selection?.price,
+                  totalPaymentAmount: quote.totalDue,
+                  costs: quoteToCosts(quote, start),
+                  promotionIds: selection?.promotionIds,
+                  platform: 'website',
+                })
+                  .then((res) => {
+                    setPaying(false);
+                    if (!res.ok) {
+                      console.error(`${logTag} rental failed at the ${res.stage} step:`, res.error);
+                      setPayError(res.error);
+                      return;
+                    }
+                    console.log(`${logTag} rental complete — lease ${res.leaseId}`);
+                    setRental(res);
+                    // The unit is LEASED now, so the hold is spent: forget it so
+                    // the countdown stops and unmount does not try to release a
+                    // hold that no longer exists.
+                    setHold(undefined);
+                    clearUnitSelection();
+                    setFinalizing(info);
+                  })
+                  .catch((err) => {
+                    // rentSpace never throws, so reaching here is a bug rather
+                    // than a payment failure — say something honest either way.
+                    setPaying(false);
+                    console.error(`${logTag} rental threw unexpectedly:`, err);
+                    setPayError('Something went wrong completing your rental. Please try again.');
+                  });
+                return;
+              }
               setFinalizing(info);
               // The pick has been acted on — drop it so returning to /rental
               // later starts clean instead of silently re-selecting it.

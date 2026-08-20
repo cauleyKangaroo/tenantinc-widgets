@@ -4,7 +4,7 @@ import { mountGpHostedFields, GpTokenResult, GpFieldValidity } from './gpHostedF
 import { ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
-import { BankForm, CardForm, PaymentFormSkeleton } from './PaymentSection';
+import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from './PaymentSection';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
@@ -281,7 +281,7 @@ function CardFieldsPanel({
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, gpApiKey, gpEnvironment = 'test', payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange,
+  brochureUrl, onPlanChange, paying, payError,
 }: {
   moveIn: Date;
   /** Protection plans to choose between, already narrowed to the space type
@@ -304,7 +304,23 @@ export function Step2({
   /** Authoritative move-in total (hold-aware quote) — printed on the pay button. */
   payNowTotal?: number;
   /** Card tokenized — parent takes over (interstitial → confirmation). */
-  onPaymentComplete?: (info: { firstName: string }) => void;
+  onPaymentComplete?: (info: {
+    firstName: string;
+    /** Entered card + billing details. Present only on the static card path —
+     *  the hosted-fields path never has card data to give. */
+    card?: CardFormValue;
+    /** Step 2's own contact fields, which the shopper may have edited after
+     *  step 1, so these win over the ones captured there. */
+    contact?: { first: string; last: string; email: string; phone: string };
+    /** Autopay Enrollment checkbox. */
+    autopay?: boolean;
+  }) => void;
+  /** Payment in flight — locks the pay button against a double charge. */
+  paying?: boolean;
+  /** Why the rental could not be completed. Shown by the payment panel so the
+   *  shopper sees it next to the button they pressed, with their details still
+   *  filled in. */
+  payError?: string;
 }) {
   const [business, setBusiness] = useState(false);
   const [email, setEmail] = useState('');
@@ -462,8 +478,13 @@ export function Step2({
     }
   };
 
-  /** Static "Pay Now" — hands straight to the parent's finalizing sequence. */
-  const payStatically = () => onPaymentComplete?.({ firstName: first.trim() || 'there' });
+  /** Static "Pay Now" — hands the parent everything the rental APIs need. */
+  const payStatically = (card?: CardFormValue) => onPaymentComplete?.({
+    firstName: first.trim() || 'there',
+    card,
+    contact: { first: first.trim(), last: last.trim(), email: email.trim(), phone },
+    autopay,
+  });
 
 
   return (
@@ -765,6 +786,9 @@ export function Step2({
               Complete the highlighted fields (and accept the rental agreement) to continue to payment.
             </p>
           )}
+          {payError && (
+            <p className="rf2-gp-note rf2-gp-note--error" role="alert">{payError}</p>
+          )}
           {/* No Global Payments key on this site yet, so card and bank are the
               static forms from Figma 10080-30277 / 10080-28749 rather than the
               hosted-fields iframes. With a key set, the real GP path below runs
@@ -783,9 +807,9 @@ export function Step2({
               {formLoading ? (
                 <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
               ) : payMethod === 'card' ? (
-                <CardForm total={payNowTotal ?? 0} onPay={payStatically} />
+                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} />
               ) : (
-                <BankForm total={payNowTotal ?? 0} onPay={payStatically} />
+                <BankForm total={payNowTotal ?? 0} onPay={() => payStatically()} />
               )}
             </section>
           )}
