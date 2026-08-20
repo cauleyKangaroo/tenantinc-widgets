@@ -216,18 +216,47 @@ export function BankForm({ total, onPay }: { total: number; onPay: () => void })
   );
 }
 
-export function CardForm({ total, onPay }: { total: number; onPay: () => void }) {
+/** What the rental APIs need from this form. `expiry` is split for them. */
+export interface CardFormValue {
+  cardNumber: string;
+  expMonth: string;
+  expYear: string;
+  cvv: string;
+  nameOnCard: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+}
+
+export function CardForm({ total, onPay, busy }: {
+  total: number;
+  /** Receives the entered card when the form is complete. Callers that only
+   *  need the click (the demo/preview path) can ignore the argument. */
+  onPay: (card: CardFormValue) => void;
+  /** Payment in flight — the button locks so a double-tap cannot double-charge. */
+  busy?: boolean;
+}) {
   const [number, setNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
   const [name, setName] = useState('');
   const [country, setCountry] = useState('United States');
   const [zip, setZip] = useState('');
+  // Billing address. Not in the Figma frame, but the rental APIs require a
+  // street/city/state on both the payment method and the tenant contact, and a
+  // card that cannot be billed is worse than one more row of inputs.
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [stateCode, setStateCode] = useState('');
 
   /* The row is one bordered box holding three inputs, so it turns green as a
      unit rather than per-input — there is only one border to turn. */
   const cardRowValid = validCard(number) && validExpiry(expiry) && validCvv(cvv);
   const expError = expiryError(expiry);
+  const [payAttempted, setPayAttempted] = useState(false);
+  const complete = cardRowValid && filled(name) && filled(address) && filled(city)
+    && stateCode.trim().length === 2 && zip.trim().length >= 3;
 
   /** "1234567812345678" → "1234 5678 1234 5678" as it's typed. */
   const expiryRef = useRef<HTMLInputElement>(null);
@@ -327,6 +356,13 @@ export function CardForm({ total, onPay }: { total: number; onPay: () => void })
 
       <FormField label="Name on Card" required value={name} onChange={setName} autoComplete="cc-name" state={ok(filled(name))} />
 
+      <FormField label="Billing Address" required value={address} onChange={setAddress} autoComplete="billing street-address" state={ok(filled(address))} />
+
+      <div className="rf-pay-grid">
+        <FormField label="Billing City" required value={city} onChange={setCity} autoComplete="billing address-level2" state={ok(filled(city))} />
+        <FormField label="Billing State" required value={stateCode} onChange={(v) => setStateCode(v.toUpperCase().slice(0, 2))} autoComplete="billing address-level1" state={ok(stateCode.trim().length === 2)} />
+      </div>
+
       <div className="rf-pay-grid">
         <SelectField
           label="Billing Country" required value={country} onChange={setCountry}
@@ -336,8 +372,34 @@ export function CardForm({ total, onPay }: { total: number; onPay: () => void })
         <FormField label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code" state={ok(zip.trim().length >= 3)} />
       </div>
 
-      <button type="button" className="rf-paynow" onClick={onPay}>
-        {`Pay Now ${money(total)}`}
+      {payAttempted && !complete && (
+        <p className="rf-cardrow-msg" role="alert">Complete the card and billing details to pay.</p>
+      )}
+
+      <button
+        type="button"
+        className="rf-paynow"
+        disabled={busy}
+        onClick={() => {
+          // Validate HERE rather than disabling the button: a disabled control
+          // gives no reason, and the shopper is one field from paying.
+          if (!complete) { setPayAttempted(true); return; }
+          const [mm, yy] = digits(expiry).match(/.{1,2}/g) ?? ['', ''];
+          onPay({
+            cardNumber: digits(number),
+            expMonth: mm,
+            // The row takes MM/YY; the API wants a full year.
+            expYear: yy.length === 2 ? `20${yy}` : yy,
+            cvv,
+            nameOnCard: name.trim(),
+            address: address.trim(),
+            city: city.trim(),
+            state: stateCode.trim(),
+            zip: zip.trim(),
+          });
+        }}
+      >
+        {busy ? 'Processing…' : `Pay Now ${money(total)}`}
       </button>
     </>
   );

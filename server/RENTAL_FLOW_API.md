@@ -56,9 +56,9 @@ only exist on v2, which is the most likely explanation for promotions
 | 6 | `properties/{p}/insurances?unit_type_ids=[…]` | GET | **done** |
 | 7 | `units/{u}/lease-set-up` | POST | **done** (v1, see caveat) |
 | 8 | `units/{u}/reserve` | POST | used (v1) — `move_in_cost` shape wrong |
-| 9 | `units/{u}/documents/finalize` | POST | **not implemented** |
-| 10 | `units/{u}/lease` | POST | **not implemented** |
-| 11 | `leases/{l}/payment-methods/{pm}/autopay` | PUT | **not implemented** |
+| 9 | `units/{u}/documents/finalize` | POST | **done** (ClickWrap / Super Lease only) |
+| 10 | `units/{u}/lease` | POST | **done** |
+| 11 | `leases/{l}/payment-methods/{pm}/autopay` | PUT | **done** |
 
 ---
 
@@ -219,7 +219,7 @@ POST units/{u}/reserve
 `tracking.touchpoints[]` carries attribution (`platform_source`,
 `referrer_channel`, `referrer_request_url`, `referrer_timestamp`). Not sent.
 
-### 9. Document signing — **not implemented**
+### 9. Document signing
 
 `POST units/{u}/documents/finalize`. Three modes:
 
@@ -242,7 +242,23 @@ Optional: `deliveryMethod` (`hand_delivery` | `email` | `mail`), `discount_id`
 (required if a promotion applies), `vehicle_info`, military and relationship
 contacts (alternate / authorized / lien_holder).
 
-### 10. Lease finalization — **not implemented**
+Ours: `finalizeDocuments()`.
+
+> **Traditional signing is NOT supported.** It needs a signing UI and, per the
+> guide, the integrator must then host the signed PDF and hand back a public
+> URL — which a browser widget cannot do. A `signed: false` response therefore
+> fails with a message telling the shopper to contact the office, and logs the
+> signing URLs. **If a company is configured for Traditional signing, online
+> rental does not work for it.**
+
+> `ip` and `location` in `metadata` are sent EMPTY. Neither is knowable in the
+> browser without calling a third-party geolocation service, which would leak
+> the shopper to an unrelated host. Hummingbird sees the real IP on the request.
+
+`vehicle_info`, military details and relationship contacts are not sent — the
+form collects them but they are not yet mapped.
+
+### 10. Lease finalization
 
 `POST units/{u}/lease`. **One endpoint, two flows:**
 
@@ -256,26 +272,71 @@ Plus `contacts[]`, `documents[]` (from API 9), `payment_method`, `start_date`,
 
 **All documents must be signed before this succeeds.**
 
-### 11. Autopay — **not implemented**
+Ours: `finalizeLease()`. We send `hold_token` (direct rental); the
+`reservation_id` branch is implemented but unused, because Reserve and Rent are
+separate journeys in this widget.
+
+### 11. Autopay
 
 `PUT leases/{l}/payment-methods/{pm}/autopay`, empty body. Only when
 auto-charge is enabled, and only after API 10 returns the ids.
+
+Ours: `enableAutopay()`, driven by the "Autopay Enrollment" checkbox. **A
+failure here is reported as a successful rental with a warning**, never as a
+failed one — the lease and the payment are already done by that point.
 
 ---
 
 ## Open questions for TenantInc
 
-1. **Card handling.** APIs 9 and 10 take raw `card_number` / `cvv2` /
-   `exp_mo` / `exp_yr` in the JSON body. This widget uses Global Payments
-   hosted fields, where the PAN never leaves GP's iframes and we hold only a
-   single-use token. Sending a raw PAN from a public bundle pulls the site into
-   a far heavier PCI scope. **Does `payment_method` accept a GP token, or is
-   this call intended to run server-side?** This blocks the payment step.
+1. **Card handling — decided, but still worth asking.** APIs 9 and 10 take raw
+   `card_number` / `cvv2` / `exp_mo` / `exp_yr` in the JSON body, and the guide
+   offers no tokenized alternative. On the client's instruction (2026-08-20) the
+   rental sends the raw card exactly as documented. **This means the card number
+   passes through a bundle served from public GitHub Pages, which puts the site
+   in a materially heavier PCI scope than the hosted-fields design it replaces.**
+   Still worth confirming with TenantInc whether `payment_method` accepts a
+   Global Payments token, or whether these two calls are meant to be made
+   server-side — either answer would let the PAN leave the browser again.
 2. **v1 vs v2** for `hold` / `lease-set-up` / `reserve` — is v1 deprecated, and
    does v1 `lease-set-up` honour `insurance_id` / `promotions` / `start_date`?
 3. **`total_due` vs `balance`** — confirm `balance` is what to charge.
 4. Which signing mode is configured for this company: Traditional, ClickWrap or
    Super Lease? It changes whether we need signing UI at all.
+
+## How the rent path is wired
+
+`rentSpace()` runs 9 → 10 → 11 and returns a soft result carrying the STAGE it
+failed at, because the three failures mean different things:
+
+| stage | what happened |
+|---|---|
+| `documents` | nothing was charged |
+| `lease` | the charge may or may not have gone through — never auto-retry |
+| `autopay` | the rental SUCCEEDED; only recurring enrolment did not |
+
+Inputs and where each comes from:
+
+| field | source |
+|---|---|
+| `hold_token` | API 5, held when step 2 opens |
+| `space_mix_id` | API 4 offer → `SelectionContext.spaceMixId` |
+| `bill_day`, `web_rate` | API 7 → `MoveInQuote.billDay` / `.rent` |
+| `total_payment_amount` | `MoveInQuote.totalDue` |
+| `costs[]` | `quoteToCosts()` — `costType` derived, not passed through |
+| `discount_id`, `promotions` | the offer's promotion ids |
+| card + billing address | the static `CardForm` |
+| contact | step 2's own fields (the shopper may have edited them) |
+
+> **The card path is only reachable when `gpApiKey` is NOT set.** With a Global
+> Payments key the widget mounts hosted fields, which by design never expose a
+> PAN, so there is nothing to put in `payment_method`. To use the documented
+> rental, leave `gpApiKey` empty.
+
+> After a real lease the confirmation no longer shows the placeholder access
+> code — the lease response carries none, and inventing one after a real charge
+> would be a lie the tenant acts on. It falls back to the guide's no-code
+> variant instead.
 
 ## Not in the guide but in our code
 

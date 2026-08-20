@@ -361,6 +361,8 @@ export interface SelectionContext {
   /** `dossier.token` from the offer: Hummingbird validates the quoted price
    *  against it. Only the offers source can supply it. */
   offerToken?: string;
+  /** `space_mix_id` from the offer — required verbatim by documents/finalize. */
+  spaceMixId?: string;
 }
 
 /** "10' x 10'" / "10x10" → "10x10" for comparisons. */
@@ -443,6 +445,7 @@ interface SelOffer {
   costs?: { Discounts?: OfferDiscount[] };
   amenities?: OfferAmenity[];
   dossier?: { token?: string };
+  space_mix_id?: string;
 }
 
 function offerAmenityLabel(a: OfferAmenity): string | undefined {
@@ -491,6 +494,7 @@ export async function fetchSelectionFromOffers(
     features,
     promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
     offerToken: pick.dossier?.token,
+    spaceMixId: pick.space_mix_id,
   };
 }
 
@@ -514,6 +518,11 @@ export interface MoveInQuote {
   totalDue: number;
   totalTax: number;
   lines: QuoteLine[];
+  /** `details.bill_day` — required verbatim by the documents/finalize call. */
+  billDay?: number;
+  /** `details.rent` — the NON-prorated monthly rate, which is what
+   *  documents/finalize means by `web_rate`. Not the move-in total. */
+  rent?: number;
 }
 
 interface ApiUnitRow {
@@ -655,13 +664,16 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
   } else {
     data = unwrap(await getJsonV1(path));
   }
-  const inv = ((data?.details as { Invoices?: ApiQuoteInvoice[] } | undefined)?.Invoices ?? [])[0];
+  const details = data?.details as { Invoices?: ApiQuoteInvoice[]; bill_day?: number; rent?: number } | undefined;
+  const inv = (details?.Invoices ?? [])[0];
   if (!inv || typeof inv.total_due !== 'number') return undefined;
   return {
     unitId: unit.id,
     unitNumber: unit.number,
     totalDue: inv.total_due,
     totalTax: inv.total_tax ?? 0,
+    billDay: typeof details?.bill_day === 'number' ? details.bill_day : undefined,
+    rent: typeof details?.rent === 'number' ? details.rent : undefined,
     lines: (inv.Detail ?? [])
       .filter((d) => d.name && typeof d.total_cost === 'number')
       .map((d) => ({
@@ -714,7 +726,7 @@ export interface UnitHold {
 
 interface InnerResult { status?: number; data?: Record<string, unknown>; msg?: string }
 
-async function sendV1(method: 'POST' | 'DELETE', path: string, body?: unknown): Promise<InnerResult> {
+async function sendV1(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<InnerResult> {
   const res = await fetch(`${BASE_URL}/applications/${APP_ID}/v1/${path}`, {
     method,
     headers: { ...headers(), 'Content-Type': 'application/json' },
@@ -1037,4 +1049,325 @@ export async function fetchPaymentLink(ctx: RentalCtx, contactId: string): Promi
     if (!res.ok || !json?.data?.url) return undefined;
     return json.data.url;
   } catch { return undefined; }
+}
+
+// --- Rent: documents → lease → autopay (guide APIs 9, 10, 11) ---------------
+//
+// The documented rental transaction, called DIRECTLY against Hummingbird with
+// the config key — the same boundary reserveViaEdge already uses.
+//
+// CARD DATA: APIs 9 and 10 take the raw PAN, CVV and expiry in the request
+// body; the guide describes no tokenized alternative. That is a deliberate,
+// client-directed choice (2026-08-20) and it means the card number passes
+// through this bundle, so this path is only reachable from the static CardForm
+// (no Global Payments key configured). Where a GP key IS set, the hosted-fields
+// path is untouched and no card data exists widget-side.
+//
+// Nothing here is memoised and nothing is retried: these are money writes.
+
+/** Billing/contact address — required by both the contact and the card. */
+export interface RentAddress {
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+}
+
+export interface RentContact extends RentAddress {
+  first: string;
+  last: string;
+  email: string;
+  phone: string;
+}
+
+export interface CardPayment extends RentAddress {
+  /** Digits only. */
+  cardNumber: string;
+  /** "09" */
+  expMonth: string;
+  /** "2027" */
+  expYear: string;
+  cvv: string;
+  nameOnCard: string;
+  /** Enrol this card for recurring rent (drives API 11). */
+  autoCharge?: boolean;
+}
+
+/** A documented cost line. `costType` is a closed set; dates are YYYY-MM-DD. */
+export interface RentCostLine {
+  amount: number;
+  description: string;
+  costType: 'rent' | 'discount' | 'other' | 'tax';
+  start: string;
+  end: string;
+  tax: number;
+  total: number;
+  pmsRaw: null;
+}
+
+/** A signed document, as APIs 9 and 10 exchange them. */
+export interface LeaseDocumentRef {
+  document_type: string;
+  filename: string;
+  src: string;
+  version: string;
+}
+
+export interface RentArgs {
+  unit: { id: string; number?: string };
+  holdToken: string;
+  contact: RentContact;
+  card: CardPayment;
+  /** YYYY-MM-DD. */
+  startDate: string;
+  /** From the offer — documents/finalize rejects the call without it. */
+  spaceMixId?: string;
+  /** From lease-set-up. */
+  billDay?: number;
+  /** Non-prorated monthly rent, from lease-set-up. */
+  webRate?: number;
+  totalPaymentAmount: number;
+  costs: RentCostLine[];
+  promotionIds?: string[];
+  /** Reserve first, then rent: the lease attaches to the reservation. */
+  reservationId?: string;
+  platform?: string;
+}
+
+export type RentStage = 'documents' | 'lease' | 'autopay';
+export type RentResult =
+  | { ok: true; leaseId: string; paymentId?: string; paymentMethodId?: string; unitNumber?: string; autopay?: boolean }
+  | { ok: false; error: string; stage: RentStage };
+
+/** The `contacts` array both calls take. Phones are E.164 with the type lowercase. */
+function rentContacts(c: RentContact): unknown[] {
+  return [{
+    first: c.first,
+    last: c.last,
+    email: c.email,
+    Phones: [{ phone: c.phone, type: 'cell', sms: true }],
+    Addresses: [{
+      Address: { address: c.address, city: c.city, state: c.state, zip: c.zip },
+      type: 'primary',
+    }],
+  }];
+}
+
+/** The `payment_method` object. Card only — ACH is not wired yet. */
+function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<string, unknown> {
+  const parts = card.nameOnCard.trim().split(/\s+/);
+  const body: Record<string, unknown> = {
+    type: 'card',
+    card_number: card.cardNumber.replace(/\D/g, ''),
+    cvv2: card.cvv,
+    exp_mo: card.expMonth,
+    exp_yr: card.expYear,
+    name_on_card: card.nameOnCard,
+    first: parts[0] ?? '',
+    last: parts.slice(1).join(' ') || (parts[0] ?? ''),
+    address: card.address,
+    city: card.city,
+    state: card.state,
+    zip: card.zip,
+    save_to_account: false,
+  };
+  if (autoCharge) body.auto_charge = true;
+  return body;
+}
+
+/** Browser context the clickwrap signature is stamped with. */
+function signingMetadata(): Record<string, unknown> {
+  return {
+    // The guide also wants `ip` and `location`. Neither is knowable in the
+    // browser without calling a third-party geo service, which would leak the
+    // shopper to an unrelated host — so they are sent empty and Hummingbird
+    // records what it sees from the request itself.
+    ip: '',
+    location: '',
+    user_agent: typeof navigator === 'undefined' ? '' : navigator.userAgent,
+  };
+}
+
+interface FinalizeData { documents?: unknown[]; signed?: boolean }
+
+/**
+ * API 9 — generate and sign the lease documents.
+ *
+ * ClickWrap / Super Lease sign internally and return `signed: true` with the
+ * `documents` array the lease call needs. Traditional signing returns
+ * `signed: false` and per-document signing URLs, and the guide then requires
+ * the integrator to host the signed PDF and supply its public URL — which this
+ * widget cannot do. That case fails with a message naming the situation rather
+ * than posting a lease that would be rejected for unsigned documents.
+ */
+async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseDocumentRef[]> {
+  const body: Record<string, unknown> = {
+    contacts: rentContacts(args.contact),
+    payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
+    start_date: args.startDate,
+    space_mix_id: args.spaceMixId,
+    total_payment_amount: args.totalPaymentAmount,
+    bill_day: args.billDay,
+    payment_cycle: 'Monthly',
+    web_rate: args.webRate,
+    costs: args.costs,
+    metadata: signingMetadata(),
+    platform: args.platform ?? 'website',
+  };
+  if (args.promotionIds?.length) body.discount_id = args.promotionIds[0];
+
+  const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/documents/finalize`, body);
+  if (inner.status !== 200 || !inner.data) {
+    throw new Error(inner.msg || `documents/finalize failed (${inner.status}).`);
+  }
+  const data = inner.data as FinalizeData;
+  const docs = (data.documents ?? []) as Array<Record<string, unknown>>;
+  if (data.signed !== true) {
+    console.error(
+      '[rental] documents came back UNSIGNED — this company uses Traditional signing, which needs a signing UI and a hosted PDF. Signing URLs:',
+      docs.map((d) => d.url).filter(Boolean),
+    );
+    throw new Error('This facility requires the lease to be signed in person. Please contact the office to finish your rental.');
+  }
+  // Keep only the four fields the lease call consumes; anything else is noise.
+  return docs.map((d) => ({
+    document_type: String(d.document_type ?? ''),
+    filename: String(d.filename ?? d.document_type ?? 'Document'),
+    src: String(d.src ?? ''),
+    version: String(d.version ?? d.fileId ?? ''),
+  }));
+}
+
+/** API 10 — finalize the lease and take the move-in payment. */
+async function finalizeLease(
+  ctx: RentalCtx, args: RentArgs, documents: LeaseDocumentRef[],
+): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string }> {
+  const body: Record<string, unknown> = {
+    contacts: rentContacts(args.contact),
+    documents,
+    payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
+    start_date: args.startDate,
+    platform: args.platform ?? 'website',
+    additional_months: 0,
+  };
+  // One identifier or the other, never both: reservation_id continues a
+  // reservation, hold_token rents the held unit directly (guide, API 10).
+  if (args.reservationId) body.reservation_id = args.reservationId;
+  else body.hold_token = args.holdToken;
+  if (args.promotionIds?.length) {
+    body.promotions = args.promotionIds.map((id) => ({ promotion_id: id }));
+  }
+
+  const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/lease`, body);
+  if (inner.status !== 200 || !inner.data) {
+    throw new Error(inner.msg || `lease failed (${inner.status}).`);
+  }
+  const d = inner.data as Record<string, unknown>;
+  const leaseId = (d.lease_id ?? d.id) as string | undefined;
+  if (!leaseId) throw new Error('The lease was created but returned no id — please contact the facility before trying again.');
+  return {
+    leaseId,
+    paymentId: d.payment_id as string | undefined,
+    paymentMethodId: d.payment_method_id as string | undefined,
+  };
+}
+
+/** API 11 — enrol the saved card for recurring rent. */
+async function enableAutopay(ctx: RentalCtx, leaseId: string, paymentMethodId: string): Promise<boolean> {
+  const inner = await sendV1(
+    'PUT', `companies/${ctx.companyId}/leases/${leaseId}/payment-methods/${paymentMethodId}/autopay`, {},
+  );
+  return inner.status === 200;
+}
+
+/**
+ * The whole rental: documents → lease → (optional) autopay.
+ *
+ * Returns a soft result and never throws, so the UI branches without
+ * try/catch — and carries the STAGE, because the three failures need different
+ * words: documents means nothing happened, lease means the money may or may not
+ * have moved, autopay means the rental succeeded and only the recurring
+ * enrolment did not.
+ */
+export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentResult> {
+  if (!writesEnabled(ctx)) {
+    return { ok: false, error: 'Rentals are not configured for this site.', stage: 'documents' };
+  }
+  const phoneE164 = normalizePhone(args.contact.phone, 'US');
+  if (!phoneE164) return { ok: false, error: 'Please enter a valid phone number.', stage: 'documents' };
+  const a: RentArgs = { ...args, contact: { ...args.contact, phone: phoneE164 } };
+
+  let documents: LeaseDocumentRef[];
+  try {
+    documents = await finalizeDocuments(ctx, a);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err), stage: 'documents' };
+  }
+
+  let lease: { leaseId: string; paymentId?: string; paymentMethodId?: string };
+  try {
+    lease = await finalizeLease(ctx, a, documents);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err), stage: 'lease' };
+  }
+  memoInvalidate('units/available');
+
+  // The rental is DONE at this point. Autopay is an add-on: a failure here is
+  // reported alongside success, never as a failed rental.
+  let autopay: boolean | undefined;
+  if (a.card.autoCharge && lease.paymentMethodId) {
+    try {
+      autopay = await enableAutopay(ctx, lease.leaseId, lease.paymentMethodId);
+    } catch {
+      autopay = false;
+    }
+    if (!autopay) console.warn('[rental] lease created but autopay enrolment failed — the tenant must enrol from their account.');
+  }
+
+  return {
+    ok: true,
+    leaseId: lease.leaseId,
+    paymentId: lease.paymentId,
+    paymentMethodId: lease.paymentMethodId,
+    unitNumber: a.unit.number,
+    autopay,
+  };
+}
+
+/**
+ * Quote lines → the documented `costs` array.
+ *
+ * `costType` is a closed set, so it is derived from the line rather than passed
+ * through: a negative amount is a discount (that is how the quote encodes a
+ * promotion), and rent/tax are matched by name. Everything else is `other`,
+ * which is where fees and coverage land.
+ */
+export function quoteToCosts(quote: MoveInQuote, startDate: string): RentCostLine[] {
+  const lines: RentCostLine[] = quote.lines.map((l) => {
+    const costType: RentCostLine['costType'] =
+      l.cost < 0 ? 'discount'
+        : /(^|\s)tax(es)?(\s|$)/i.test(l.name) ? 'tax'
+          : /rent/i.test(l.name) ? 'rent'
+            : 'other';
+    const amount = Math.abs(l.cost);
+    return {
+      amount,
+      description: l.name,
+      costType,
+      start: l.startDate ?? startDate,
+      end: l.endDate ?? l.startDate ?? startDate,
+      tax: 0,
+      total: amount,
+      pmsRaw: null,
+    };
+  });
+  // Tax is a total on the quote, not a line, so it is added explicitly — the
+  // guide's example carries a "Total Tax" entry of its own.
+  if (quote.totalTax > 0 && !lines.some((l) => l.costType === 'tax')) {
+    lines.push({
+      amount: 0, description: 'Total Tax', costType: 'tax',
+      start: startDate, end: startDate, tax: quote.totalTax, total: quote.totalTax, pmsRaw: null,
+    });
+  }
+  return lines;
 }
