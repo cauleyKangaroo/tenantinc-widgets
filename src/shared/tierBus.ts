@@ -21,6 +21,15 @@ export interface TierOpenRequest {
    *  only the matching modal opens — disambiguates multiple modals on one page.
    *  Omitted ⇒ fall back to propertyId scoping. */
   channel?: string;
+  /** CTA button text mirrored from the sender (Space List), so the operator sets
+   *  it once. Omitted ⇒ the modal keeps its own ctaLabel. */
+  ctaLabel?: string;
+  /** Fee/junk-fee disclaimer text mirrored from the sender. Empty string ⇒ hide
+   *  it (sender's toggle is off); omitted ⇒ the modal keeps its own fee text. */
+  feeText?: string;
+  /** Sender's "show urgency" toggle. false ⇒ hide the modal's urgency line;
+   *  omitted ⇒ the modal keeps its own behaviour. */
+  showUrgency?: boolean;
 }
 
 /** True when the request looks well-formed enough to act on. */

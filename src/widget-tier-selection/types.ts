@@ -71,8 +71,9 @@ export interface O3Row {
 export type TierQuoteState = TierQuoteResult | { status: 'pending' };
 
 export interface TierData {
-  /** Navigate to the rental flow for the given tier key; no-op without rentUrl. */
-  selectTier?: (key: TierKey) => void;
+  /** Root-relative handoff href to the rental flow for the given tier key, for a
+   *  real <a> (Duda intercepts anchors in preview). undefined ⇒ not navigable. */
+  rentHref?: (key: TierKey) => string | undefined;
   /** The currently highlighted tier and a setter — shared so card layouts
    *  (option2/3) can select-on-click like option1's pills. */
   selected?: TierKey;
