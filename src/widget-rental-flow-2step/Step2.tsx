@@ -310,7 +310,10 @@ export function Step2({
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [military, setMilitary] = useState(false);
-  const [altContact, setAltContact] = useState(true);
+  // Off, like every other optional section. On, it opens five REQUIRED fields
+  // (name, phone, email, address) that block the step until they are filled —
+  // so defaulting it to checked made an optional section mandatory.
+  const [altContact, setAltContact] = useState(false);
   const [vehicle, setVehicle] = useState(false);
 
   // Conditional-section fields (Figma 8507-23979 scenarios / screens 12-13).
