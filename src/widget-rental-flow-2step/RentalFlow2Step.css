@@ -1108,7 +1108,11 @@
   gap: 13px;
   box-sizing: border-box;
   min-height: 53px;
-  padding: 12px 32px 12px 25px;
+  /* 30px each side, matching .rfc-panel, .rfc-review and .rfc-next — the four
+     boxes stack down the page and their contents have to start on one line.
+     The frame draws this bar at 25/32 and the panel at 35/37, which is Figma
+     drift rather than intent: the two boxes below it both use 30. */
+  padding: 12px 30px;
   background: #e1efdc;
   border-radius: 12px;
   margin-bottom: 20px;
@@ -1117,7 +1121,7 @@
 .rfc-sent-txt { flex: 1 1 auto; font-size: 16px; font-weight: 600; line-height: 1.35; color: #101318; }
 .rfc-resend { border: none; background: none; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
 /* Figma 8507-24357: #F4F6F8, radius 12, 35px all round. */
-.rfc-panel { background: #f4f6f8; border-radius: 12px; padding: 35px; margin-bottom: 20px; }
+.rfc-panel { background: #f4f6f8; border-radius: 12px; padding: 30px; margin-bottom: 20px; }
 .rfc-space-head { font-size: 28px; font-weight: 600; color: #101318; margin-bottom: 14px; }
 
 /* Code card (fixed 300, left) + details (right). GRID, not flex-wrap, so the
@@ -1165,22 +1169,33 @@
 
 /* Buy the two-up grid some room before giving up on it: tighter box padding and
    gutter keep it viable a couple of hundred pixels further down. */
+/* Both rfmain blocks are .rf-wrapper-qualified purely for SPECIFICITY (0,2,0),
+   the same trick .rf-eyebrow/.rf-heading use higher up. A container query has no
+   specificity of its own, so at (0,1,0) these lose to any base rule declared
+   later — and .rfc-review, .rfc-next and .rf-pay-grid all are, the last one from
+   screens.css, which is bundled after this file entirely. Without this the rules
+   below silently do nothing. */
 @container rfmain (max-width: 780px) {
-  .rfc-panel { padding: 24px; }
-  .rfc-cols { gap: 24px; }
+  /* All four together: tightening one on its own is what let them fall out of
+     line in the first place. */
+  .rf-wrapper .rfc-sent,
+  .rf-wrapper .rfc-panel,
+  .rf-wrapper .rfc-review,
+  .rf-wrapper .rfc-next { padding-inline: 24px; }
+  .rf-wrapper .rfc-panel { padding-block: 24px; }
+  .rf-wrapper .rfc-cols { gap: 24px; }
 }
 
 @container rfmain (max-width: 620px) {
-  /* The frame's 25px/32px insets are desktop figures — on a phone they spend a
-     third of the bar on padding. */
-  .rfc-sent { padding: 14px 18px; gap: 10px; }
+  /* Only the gap here — the inset is handled above, for all four at once. */
+  .rf-wrapper .rfc-sent { gap: 10px; }
   /* Below this the code card cannot hold the wallet badges and the details
      column cannot hold an hours line, so one above the other beats both
      crushed. */
-  .rfc-cols { grid-template-columns: 1fr; }
+  .rf-wrapper .rfc-cols { grid-template-columns: 1fr; }
   /* Step 3's paired form fields, for the same reason. Its own @media (720px)
      rule is viewport-based and left them two-up in a 403px column. */
-  .rf-pay-grid { grid-template-columns: 1fr; }
+  .rf-wrapper .rf-pay-grid { grid-template-columns: 1fr; }
 }
 /* The "Lease Summary" line on the confirmation bar sits where step 2 puts the
    hold countdown: same row, same 16px, but plain — there is nothing ticking. */
@@ -1219,21 +1234,45 @@
 .rfc-qr svg { display: block; width: 116px; height: 116px; }
 
 /* Wallet strip (grey, Figma #DFE3E8) — badges shown even before pass URLs exist. */
-.rfc-wallet { background: #dfe3e8; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+/* Figma 8754-50340: the #DFE3E8 band runs the full width of the card, with the
+   title 19px down, the badge row 12px under it and 24px of clearance below. */
+.rfc-wallet {
+  background: #dfe3e8;
+  padding: 19px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
 .rfc-wallet-title { font-size: 16px; font-weight: 600; color: #101318; }
-/* nowrap so the two scale rather than stack — see .rfc-wb. */
-.rfc-wallet-row { display: flex; gap: 13.61px; flex-wrap: nowrap; justify-content: center; align-items: center; }
+/* An even split, not two intrinsically-sized items sitting side by side.
+   Flex sized each badge from its own artwork, so Apple's 128.378 and Google's
+   139.009 made a lopsided pair that also grew past the design on a wide card.
+   A 1fr 1fr grid gives each exactly half, and max-width caps the row at the
+   frame's own 128.378 + 13.61 + 139.009 = 281 so they can shrink but never
+   inflate. Centred, because the cap leaves slack in a wide card. */
+.rfc-wallet-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13.61px;
+  align-items: center;
+  justify-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 281px;
+  margin: 0 auto;
+}
 /* The badge IS the artwork — no box, no background, no padding of ours. Both
    assets already carry their own black pill and corner radius, so anything
    drawn behind them shows as a halo. */
 .rfc-wb {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  /* Shrinkable, not fixed: in a narrow code card the pair scales down together
-     the way the mobile frame draws them (113/122 against the desktop 128/139)
-     instead of one dropping onto a second line. min-width:0 is what lets a flex
-     item go below its content width at all. */
-  flex: 0 1 auto;
+  justify-content: center;
+  /* Fills its half of the grid. min-width:0 is what lets a grid item go below
+     its content width, without which the intrinsic badge width would force the
+     track wider than 1fr. */
+  width: 100%;
   min-width: 0;
   text-decoration: none;
 }
