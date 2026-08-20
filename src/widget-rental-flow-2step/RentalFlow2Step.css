@@ -715,7 +715,18 @@
 .rf2-agree-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 28px 29px 20px; }
 /* Long label by default, short one on mobile — see the note at the call site. */
 .rf2-link-short { display: none; }
-.rf2-agree-doc { margin: 0 24px; height: 300px; overflow: auto; background: #fff; border-radius: 4px; }
+/* A fixed 250px PREVIEW, not a reader. `overflow: hidden` deliberately: this
+   box used to scroll the whole agreement inline, which competed with the page's
+   own scroll on a phone and put the full document somewhere it was never going
+   to be read. "View Document" opens the lightbox that IS the reader, so this
+   only has to show enough to identify what is being agreed to. */
+.rf2-agree-doc {
+  margin: 0 24px;
+  height: 250px;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 4px;
+}
 .rf2-doc-page { padding: 24px 28px; }
 .rf2-doc-title { margin: 0 0 14px; font-size: 16px; font-weight: 700; color: #101318; }
 .rf2-doc-h { margin: 0 0 6px; font-size: 12px; font-weight: 700; font-style: italic; color: #101318; }
@@ -876,8 +887,51 @@
   /* .rf2-row stacks here, so its fields are full width — match them. */
   .rf2-movein { width: 100%; }
   .rf2-panel, .rf2-payment { padding: 20px; }
-  /* Also less the 2px border, matching the base rule. */
-  .rf2-autopay { padding: 14px 18px; }
+  /* Payment goes flat white and full width on mobile.
+     NOTE this repeats what the "flat white sheet" block near the top of the
+     file already says for .rf2-panel and .rf-method-panel — that block has
+     never actually worked. It is (0,1,0), and BOTH base rules are declared
+     after it: .rf2-panel later in this file, .rf-method-panel over in
+     screens.css, which is bundled after this file entirely. Qualifying with
+     .rf-wrapper takes these to (0,2,0) so source order stops deciding.
+     Scoped to the payment section deliberately — the other panels are still
+     grey today and turning them all white at once is a bigger change than the
+     one asked for. */
+  .rf-wrapper .rf2-payment {
+    background: #fff;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    /* With no box left there is nothing for a side gutter to hold content away
+       from — this is what lets the method panel below span the card. */
+    padding-inline: 0;
+  }
+  /* The method panel KEEPS its box (Figma 8538-21125): #F9FAFB behind a 2px
+     primary border at radius 12. It was in the rule above and should not have
+     been — the grey to remove was the SECTION's, and stripping the panel too
+     left the card/bank fields floating on a white page with nothing marking
+     them as the selected method. Now the section is flat and the panel is the
+     only box, which is the frame. */
+  .rf-wrapper .rf2-payment .rf-method-panel {
+    background: #f9fafb;
+    border: 2px solid var(--hb-cta, #f45f30);
+    border-radius: 12px;
+    /* 20px, matching what screens.css already drops to at 720px. The frame
+       draws 30, but on a phone that spends a sixth of the panel on padding and
+       the card-number row inside needs the width more. */
+    padding: 20px;
+  }
+  /* Figma 8538-22333: on mobile the row inverts — the panel behind it is white
+     now, so a white row would vanish into it. #F4F6F8 fill, radius 10, 64px
+     tall. 28px inline is the frame's 30 less the 2px transparent border the
+     base rule always carries, so enrolling recolours the outline without
+     moving the label. .rf-wrapper-qualified (0,2,0): the base .rf2-autopay is
+     (0,1,0) and this file has bitten us three times today on source order. */
+  .rf-wrapper .rf2-autopay {
+    background: #f4f6f8;
+    min-height: 64px;
+    padding: 0 28px;
+  }
   .rf2-agree-head { padding: 20px 20px 16px; }
   .rf2-link-long { display: none; }
   .rf2-link-short { display: inline; }

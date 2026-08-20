@@ -483,6 +483,10 @@
 /* Valid card row — one border, so it turns green as a unit (Figma 10080-28126). */
 .rf-cardrow--valid { border-color: var(--hb-field-border-success, #028a0c); }
 .rf-cardrow-tick { flex: 0 0 auto; align-self: center; color: var(--hb-ada-green, #028a0c); }
+/* visibility, NOT display — the slot has to keep its width so nothing beside it
+   shifts. It also drops the icon out of the accessibility tree, which display
+   would too but width would not. */
+.rf-cardrow-tick--pending { visibility: hidden; }
 /* An expiry that is complete but unusable. */
 .rf-cardrow--error { border-color: var(--hb-field-border-error, #e53935); }
 .rf-cardrow-msg {

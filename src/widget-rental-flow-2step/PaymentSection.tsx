@@ -355,14 +355,27 @@ export function CardForm({ total, onPay, busy }: {
         </span>
 
         {/* One tick for the row, not three: the three inputs share a single
-            border, so they succeed as a unit (Figma 10080-28126). */}
-        {cardRowValid && <CheckIcon className="rf-cardrow-tick" />}
+            border, so they succeed as a unit (Figma 10080-28126).
+            ALWAYS rendered, only its visibility toggling — mounting it on
+            validity made expiry and CVV jump left by the icon's width the
+            instant the last digit landed, which reads as the field having
+            moved under the cursor. */}
+        <CheckIcon
+          className={`rf-cardrow-tick${cardRowValid ? '' : ' rf-cardrow-tick--pending'}`}
+          aria-hidden="true"
+        />
       </div>
       {expError && <p className="rf-cardrow-msg" role="alert">{expError}</p>}
 
       <FormField label="Name on Card" required value={name} onChange={setName} autoComplete="cc-name" state={ok(filled(name))} />
 
-      <FormField label="Billing Address" required value={address} onChange={setAddress} autoComplete="billing street-address" state={ok(filled(address))} />
+      {/* type="search" for the magnifier — the kit's affordance for a lookup
+          field, ready for address search to be wired to it. The bank form's
+          Billing Address and SuccessStep's Business Address already use it, so
+          this was the odd one out. The icon stays neutral when the field
+          validates (.hb-field__icon--affordance), so it does not compete with
+          the success tick. */}
+      <FormField label="Billing Address" required type="search" value={address} onChange={setAddress} autoComplete="billing street-address" state={ok(filled(address))} />
 
       <div className="rf-pay-grid">
         <FormField label="Billing City" required value={city} onChange={setCity} autoComplete="billing address-level2" state={ok(filled(city))} />
