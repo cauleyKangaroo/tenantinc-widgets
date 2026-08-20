@@ -1113,6 +1113,31 @@ export interface LeaseDocumentRef {
   version: string;
 }
 
+/**
+ * The optional Additional Information sections, mapped to the guide's names.
+ *
+ * NOTE on `business`: the guide's contact example carries `"Business": {}` and
+ * documents no fields for it, so the business details are deliberately NOT sent
+ * — inventing a shape would either be ignored or rejected. Ask TenantInc for it.
+ */
+export interface RentalExtras {
+  business?: boolean;
+  businessAddress?: string;
+  businessFirst?: string;
+  businessLast?: string;
+  military?: boolean;
+  /** YYYY-MM-DD. */
+  dateOfBirth?: string;
+  altContact?: boolean;
+  altFirst?: string;
+  altLast?: string;
+  altPhone?: string;
+  altEmail?: string;
+  altAddress?: string;
+  vehicle?: boolean;
+  vehicleType?: string;
+}
+
 export interface RentArgs {
   unit: { id: string; number?: string };
   holdToken: string;
@@ -1132,6 +1157,8 @@ export interface RentArgs {
   /** Reserve first, then rent: the lease attaches to the reservation. */
   reservationId?: string;
   platform?: string;
+  /** Military / alternate-contact / vehicle sections, when the shopper opened them. */
+  extras?: RentalExtras;
 }
 
 export type RentStage = 'documents' | 'lease' | 'autopay';
@@ -1140,8 +1167,8 @@ export type RentResult =
   | { ok: false; error: string; stage: RentStage };
 
 /** The `contacts` array both calls take. Phones are E.164 with the type lowercase. */
-function rentContacts(c: RentContact): unknown[] {
-  return [{
+function rentContacts(c: RentContact, extras?: RentalExtras): unknown[] {
+  const contact: Record<string, unknown> = {
     first: c.first,
     last: c.last,
     email: c.email,
@@ -1150,7 +1177,42 @@ function rentContacts(c: RentContact): unknown[] {
       Address: { address: c.address, city: c.city, state: c.state, zip: c.zip },
       type: 'primary',
     }],
-  }];
+  };
+
+  // Military. The guide's Military object has ten fields; the form asks only for
+  // a date of birth, so only that is sent. active_military is the flag the guide
+  // says accompanies military details.
+  if (extras?.military && extras.dateOfBirth) {
+    contact.active_military = 1;
+    contact.Military = { active: 1, date_of_birth: extras.dateOfBirth };
+  }
+
+  // Alternate contact — a Relationship, not a second contact. Sent only when the
+  // section is ticked AND has a name, so a half-filled section that the shopper
+  // closed again cannot post an empty person.
+  if (extras?.altContact && (extras.altFirst || extras.altLast)) {
+    const alt: Record<string, unknown> = {
+      first: extras.altFirst ?? '',
+      last: extras.altLast ?? '',
+      email: extras.altEmail ?? '',
+    };
+    const altPhone = extras.altPhone ? normalizePhone(extras.altPhone, 'US') : undefined;
+    if (altPhone) alt.Phones = [{ phone: altPhone, type: 'cell', sms: true }];
+    if (extras.altAddress) {
+      // The form takes one address line; city/state/zip are not asked for, so
+      // they are omitted rather than guessed from it.
+      alt.Addresses = [{ Address: { address: extras.altAddress }, type: 'alternate' }];
+    }
+    contact.Relationships = [{ Contact: alt, is_alternate: 1, type: 'alternate' }];
+  }
+
+  return [contact];
+}
+
+/** `vehicle_info`, when the shopper is storing one. Type is all the form asks. */
+function vehicleInfo(extras?: RentalExtras): Record<string, unknown> | undefined {
+  if (!extras?.vehicle || !extras.vehicleType) return undefined;
+  return { description: extras.vehicleType, vehicle: { type: extras.vehicleType } };
 }
 
 /** The `payment_method` object. Card only — ACH is not wired yet. */
@@ -1202,7 +1264,7 @@ interface FinalizeData { documents?: unknown[]; signed?: boolean }
  */
 async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseDocumentRef[]> {
   const body: Record<string, unknown> = {
-    contacts: rentContacts(args.contact),
+    contacts: rentContacts(args.contact, args.extras),
     payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
     start_date: args.startDate,
     space_mix_id: args.spaceMixId,
@@ -1214,6 +1276,8 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
     metadata: signingMetadata(),
     platform: args.platform ?? 'website',
   };
+  const vehicle = vehicleInfo(args.extras);
+  if (vehicle) body.vehicle_info = vehicle;
   if (args.promotionIds?.length) body.discount_id = args.promotionIds[0];
 
   const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/documents/finalize`, body);
@@ -1243,7 +1307,7 @@ async function finalizeLease(
   ctx: RentalCtx, args: RentArgs, documents: LeaseDocumentRef[],
 ): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string }> {
   const body: Record<string, unknown> = {
-    contacts: rentContacts(args.contact),
+    contacts: rentContacts(args.contact, args.extras),
     documents,
     payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
     start_date: args.startDate,

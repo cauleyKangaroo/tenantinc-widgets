@@ -53,6 +53,13 @@ function LeaseDocBody({ title }: { title?: string }) {
   );
 }
 
+/** YYYY-MM-DD in LOCAL time — toISOString() would shift a date-only value
+ *  across the day boundary for anyone west of UTC. */
+const ymdLocal = (d: Date): string => {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 const formatDate = (d: Date) => `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 
@@ -202,6 +209,25 @@ function Check({
   );
 }
 
+/** The optional Additional Information sections, as the rental APIs want them. */
+export interface RentalExtras {
+  business: boolean;
+  businessAddress?: string;
+  businessFirst?: string;
+  businessLast?: string;
+  military: boolean;
+  /** YYYY-MM-DD — the API's format, not the display one. */
+  dateOfBirth?: string;
+  altContact: boolean;
+  altFirst?: string;
+  altLast?: string;
+  altPhone?: string;
+  altEmail?: string;
+  altAddress?: string;
+  vehicle: boolean;
+  vehicleType?: string;
+}
+
 /** Desktop pointer devices only — mirrored by a @media block in the CSS. */
 const PLAN_HOVER_QUERY = '(min-width: 901px) and (hover: hover) and (pointer: fine)';
 
@@ -237,6 +263,10 @@ export function Step2({
     contact?: { first: string; last: string; email: string; phone: string };
     /** Autopay Enrollment checkbox. */
     autopay?: boolean;
+    /** The Additional Information sections the shopper opened and filled.
+     *  Only the ticked ones carry meaning — an unticked section's fields are
+     *  whatever was typed before it was closed again. */
+    extras?: RentalExtras;
   }) => void;
   /** What the shopper typed in step 1, used as the starting values here so they
    *  do not retype their own name and email one screen later. */
@@ -248,7 +278,9 @@ export function Step2({
    *  filled in. */
   payError?: string;
 }) {
-  const [business, setBusiness] = useState(false);
+  // Ticked when step 1 said this is a business rental, so the shopper does not
+  // answer the same question twice and its fields open ready to fill.
+  const [business, setBusiness] = useState(contact?.business ?? false);
   // Seeded from step 1. Initialisers, not props: these are editable fields, so
   // step 1 supplies the STARTING value and anything typed here wins from then
   // on — re-syncing on every render would fight the shopper's own edits.
@@ -426,12 +458,29 @@ export function Step2({
     }
   };
 
-  /** Static "Pay Now" — hands the parent everything the rental APIs need. */
+  /** "Pay Now" — hands the parent everything the rental APIs need. */
   const payStatically = (card?: CardFormValue) => onPaymentComplete?.({
     firstName: first.trim() || 'there',
     card,
     contact: { first: first.trim(), last: last.trim(), email: email.trim(), phone },
     autopay,
+    extras: {
+      business,
+      businessAddress: bizAddress.trim() || undefined,
+      businessFirst: bizFirst.trim() || undefined,
+      businessLast: bizLast.trim() || undefined,
+      military,
+      // The picker keeps a Date; `dob` is only its display string.
+      dateOfBirth: dobDate ? ymdLocal(dobDate) : undefined,
+      altContact,
+      altFirst: acFirst.trim() || undefined,
+      altLast: acLast.trim() || undefined,
+      altPhone: acPhone.trim() || undefined,
+      altEmail: acEmail.trim() || undefined,
+      altAddress: acAddress.trim() || undefined,
+      vehicle,
+      vehicleType: vehType.trim() || undefined,
+    },
   });
 
 

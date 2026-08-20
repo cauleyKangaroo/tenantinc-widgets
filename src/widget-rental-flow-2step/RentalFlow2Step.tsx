@@ -1222,6 +1222,13 @@ export function RentalFlow2Step({
   // the same <Confirmation> the real flow lands on: sent-code bar, access code,
   // wallet badges, move-in date, office/gate hours, review card, What's Next.
   // Composing that screen a second time would be a near-duplicate that drifts.
+  // Live data ALWAYS wins; the preview only fills gaps, and only in the harness.
+  // Per-field rather than all-or-nothing so a real property still shows its own
+  // name and address while the selection is still resolving.
+  const railProperty = propertyInfo ?? (previewContent ? PREVIEW_PROPERTY : undefined);
+  const railSelection = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
+  const railQuote = quote ?? (previewContent ? PREVIEW_QUOTE : undefined);
+
   if (staticPaid) {
     // The held unit is real even on the static path — the hold and quote both
     // come from the live API.
@@ -1243,7 +1250,7 @@ export function RentalFlow2Step({
         {isMobile && (
           <div className="rfm-top" ref={railBarRef}>
             <MobileLeaseBar
-              total={quote?.totalDue}
+              total={railQuote?.totalDue}
               expanded={railOpen}
               onToggle={onRailToggle}
             />
@@ -1255,7 +1262,7 @@ export function RentalFlow2Step({
             />
             <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
               <div className="rfm-sheet">
-                <OrderRail property={propertyInfo} selection={selection} quote={quote} />
+                <OrderRail property={railProperty} selection={railSelection} quote={railQuote} />
               </div>
             </div>
           </div>
@@ -1280,24 +1287,17 @@ export function RentalFlow2Step({
               gateHours={propertyInfo?.gateHours?.length ? propertyInfo.gateHours : confHours?.gateHours}
               reviewUrl={reviewUrl}
             />
-            {!isMobile && <OrderRail property={propertyInfo} selection={selection} quote={quote} />}
+            {!isMobile && <OrderRail property={railProperty} selection={railSelection} quote={railQuote} />}
           </div>
         ) : (
           <div className="rfc-layout">
             <SuccessStep onGetAccess={() => setAccessGranted(true)} />
-            {!isMobile && <OrderRail property={propertyInfo} selection={selection} quote={quote} />}
+            {!isMobile && <OrderRail property={railProperty} selection={railSelection} quote={railQuote} />}
           </div>
         )}
       </div>
     );
   }
-
-  // Live data ALWAYS wins; the preview only fills gaps, and only in the harness.
-  // Per-field rather than all-or-nothing so a real property still shows its own
-  // name and address while the selection is still resolving.
-  const railProperty = propertyInfo ?? (previewContent ? PREVIEW_PROPERTY : undefined);
-  const railSelection = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
-  const railQuote = quote ?? (previewContent ? PREVIEW_QUOTE : undefined);
 
   const rail = (
     <OrderRail
@@ -1384,7 +1384,7 @@ export function RentalFlow2Step({
             brochureUrl={brochureUrl}
             onPlanChange={setInsuranceId}
             onEditDate={() => setDateModalOpen(true)}
-            payNowTotal={quote?.totalDue}
+            payNowTotal={railQuote?.totalDue}
             paying={paying}
             payError={payError}
             onPaymentComplete={(info) => {
@@ -1426,6 +1426,7 @@ export function RentalFlow2Step({
                   costs: quoteToCosts(quote, start),
                   promotionIds: selection?.promotionIds,
                   platform: 'website',
+                  extras: info.extras,
                 })
                   .then((res) => {
                     setPaying(false);
