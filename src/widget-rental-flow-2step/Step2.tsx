@@ -281,7 +281,7 @@ function CardFieldsPanel({
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, gpApiKey, gpEnvironment = 'test', payNowTotal, onPaymentComplete,
-  brochureUrl,
+  brochureUrl, onPlanChange,
 }: {
   moveIn: Date;
   /** Protection plans to choose between, already narrowed to the space type
@@ -294,6 +294,10 @@ export function Step2({
   /** Lease template name from the documents API. */
   leaseDocName?: string;
   onEditDate: () => void;
+  /** The chosen coverage id, or undefined for "I have my own insurance".
+   *  Reported upward because the choice re-prices the move-in quote — it is not
+   *  a display-only toggle. */
+  onPlanChange?: (insuranceId: string | undefined) => void;
   /** Global Payments CLIENT-side (publishable) key — hosted-fields tokenization only. */
   gpApiKey?: string;
   gpEnvironment?: 'test' | 'prod';
@@ -368,6 +372,25 @@ export function Step2({
     () => plans.find((p) => /best value/i.test(p.name ?? ''))?.id ?? plans[0]?.id ?? 'own',
   );
   const chosenPlan = plans.find((p) => p.id === planChoice);
+  // Plans arrive from the API AFTER first render, so the initializer above
+  // usually runs against an empty list and lands on 'own'. Adopt the real
+  // default once they load — but only until the shopper has chosen for
+  // themselves, so this can never overwrite a deliberate "own insurance".
+  const planTouched = useRef(false);
+  useEffect(() => {
+    if (planTouched.current || !plans.length) return;
+    const preferred = plans.find((p) => /best value/i.test(p.name ?? ''))?.id ?? plans[0]?.id;
+    if (preferred && preferred !== planChoice) setPlanChoice(preferred);
+  }, [plans, planChoice]);
+  const choosePlan = (id: string | 'own') => {
+    planTouched.current = true;
+    setPlanChoice(id);
+    setPlanListOpen(false);
+  };
+  // Report upward whenever the effective coverage changes ('own' = none).
+  useEffect(() => {
+    onPlanChange?.(planChoice === 'own' ? undefined : planChoice);
+  }, [planChoice, onPlanChange]);
 
   // Close on outside click / Escape, like a native select.
   const planRef = useRef<HTMLDivElement>(null);
@@ -541,7 +564,7 @@ export function Step2({
                           role="option"
                           aria-selected={planChoice === p.id}
                           className={`rf2-plan-opt${best ? ' rf2-plan-opt--best' : ''}`}
-                          onClick={() => { setPlanChoice(p.id); setPlanListOpen(false); }}
+                          onClick={() => choosePlan(p.id)}
                         >
                           <span className="rf2-plan-opt-left">
                             <span className="rf2-plan-opt-cov">
@@ -562,7 +585,7 @@ export function Step2({
                     role="option"
                     aria-selected={planChoice === 'own'}
                     className="rf2-plan-opt rf2-plan-opt--own"
-                    onClick={() => { setPlanChoice('own'); setPlanListOpen(false); }}
+                    onClick={() => choosePlan('own')}
                   >
                     <span className="rf2-plan-own-t">I Have My Own Insurance</span>
                     <span className="rf2-plan-own-d">

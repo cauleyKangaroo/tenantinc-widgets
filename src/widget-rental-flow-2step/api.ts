@@ -355,6 +355,12 @@ export interface SelectionContext {
   promo?: string;
   /** Amenity bundle labels, from the group name. */
   features?: string[];
+  /** Promotion ids behind `promo` — lease-set-up needs the IDS, not the name,
+   *  to actually discount the quote. Only the offers source can supply them. */
+  promotionIds?: string[];
+  /** `dossier.token` from the offer: Hummingbird validates the quoted price
+   *  against it. Only the offers source can supply it. */
+  offerToken?: string;
 }
 
 /** "10' x 10'" / "10x10" → "10x10" for comparisons. */
@@ -436,6 +442,7 @@ interface SelOffer {
   promotions?: Array<{ id?: string; name?: string }>;
   costs?: { Discounts?: OfferDiscount[] };
   amenities?: OfferAmenity[];
+  dossier?: { token?: string };
 }
 
 function offerAmenityLabel(a: OfferAmenity): string | undefined {
@@ -482,6 +489,8 @@ export async function fetchSelectionFromOffers(
     inStore: price,
     promo: pick.promotions?.find((p) => p?.name)?.name,
     features,
+    promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
+    offerToken: pick.dossier?.token,
   };
 }
 
@@ -571,22 +580,78 @@ interface ApiQuoteDetail { name?: string; total_cost?: number; start_date?: stri
 interface ApiQuoteInvoice { total_due?: number; total_tax?: number; Detail?: ApiQuoteDetail[] }
 
 /**
- * Move-in money from lease-set-up. Two modes (verified 2026-08-03):
- * - No hold: plain GET — but the GET 409s once ANYONE holds the unit.
- * - Holding: POST with { hold_token } — the only quote path for a held
- *   unit, and hold-aware (this is what the rail must use after holding).
- * `move_in_date` in the POST body is accepted but IGNORED by the engine.
+ * What the shopper has chosen, as lease-set-up's documented inputs.
+ *
+ * Every field beyond `holdToken` changes the MONEY: coverage adds its own
+ * invoice line, promotions discount the rent, and start_date moves the proration
+ * window. Omitting them (which is what this widget did until 2026-08-20) quotes
+ * bare rent and silently prices a move-in that nobody asked for.
  */
-export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; number?: string }, holdToken?: string): Promise<MoveInQuote | undefined> {
+export interface QuoteOptions {
+  /** Hold token — required for the POST form; without it only the GET works. */
+  holdToken?: string;
+  /** Chosen coverage product (API 6). Adds a "Protection Plan …" line. */
+  insuranceId?: string;
+  /** Promotions to apply, from the offer. */
+  promotionIds?: string[];
+  /** Move-in date, YYYY-MM-DD. This is the documented parameter name —
+   *  `move_in_date`, which this widget used to send, is not one and was
+   *  ignored, which is why the date picker never moved the numbers. */
+  startDate?: string;
+  /** `dossier.token` from the offer — Hummingbird validates the quoted price
+   *  against it. Optional per the guide; sent whenever the offer supplied one. */
+  offerToken?: string;
+}
+
+/** The documented lease-set-up payload, omitting anything not chosen. */
+function leaseSetUpBody(opts: QuoteOptions): Record<string, unknown> {
+  const body: Record<string, unknown> = { hold_token: opts.holdToken };
+  if (opts.insuranceId) body.insurance_id = opts.insuranceId;
+  if (opts.promotionIds?.length) body.promotions = opts.promotionIds.map((id) => ({ promotion_id: id }));
+  if (opts.startDate) body.start_date = opts.startDate;
+  if (opts.offerToken) body.token = opts.offerToken;
+  return body;
+}
+
+/**
+ * POST lease-set-up for a held unit.
+ *
+ * The extra parameters are documented but UNPROVEN on this tenant's v1 endpoint
+ * (the guide describes v2). So a rejection falls back to the hold_token-only
+ * body that has been shipping — a wrong-but-present breakdown beats losing the
+ * money block entirely — and says so loudly in the console.
+ */
+async function postLeaseSetUp(path: string, opts: QuoteOptions): Promise<Record<string, unknown> | undefined> {
+  const body = leaseSetUpBody(opts);
+  try {
+    const inner = await sendV1('POST', path, body);
+    if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
+    return inner.data;
+  } catch (err) {
+    if (Object.keys(body).length === 1) throw err; // nothing extra to blame
+    console.warn('[rental] lease-set-up rejected the documented extras — re-quoting with hold_token only. Coverage/promo/date will NOT be priced:', err);
+    const inner = await sendV1('POST', path, { hold_token: opts.holdToken });
+    if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
+    return inner.data;
+  }
+}
+
+/**
+ * Move-in money from lease-set-up. Two modes (verified 2026-08-03):
+ * - No hold: plain GET — but the GET 409s once ANYONE holds the unit, and it
+ *   carries no chosen coverage/promo/date, so it is a rent-only estimate.
+ * - Holding: POST with the shopper's choices — the only quote path for a held
+ *   unit, and the one the rail must use after holding.
+ */
+export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; number?: string }, opts: QuoteOptions = {}): Promise<MoveInQuote | undefined> {
+  const holdToken = opts.holdToken;
   // Hold-aware quote through the proxy when configured — the only quote path
   // for a held unit, and it keeps the key server-side.
   if (holdToken && shouldUseProxyWrites(ctx)) return fetchHeldQuoteViaProxy(ctx, unit, holdToken);
   const path = `companies/${ctx.companyId}/units/${unit.id}/lease-set-up`;
   let data: Record<string, unknown> | undefined;
   if (holdToken && writesEnabled(ctx)) {
-    const inner = await sendV1('POST', path, { hold_token: holdToken });
-    if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
-    data = inner.data;
+    data = await postLeaseSetUp(path, opts);
   } else {
     data = unwrap(await getJsonV1(path));
   }

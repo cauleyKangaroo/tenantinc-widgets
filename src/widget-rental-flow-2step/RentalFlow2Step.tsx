@@ -712,6 +712,10 @@ export function RentalFlow2Step({
   // per space type, so this is what keeps a storage rental from being offered
   // the property's Commercial coverage (Bellflower returns both).
   const [unitTypeId, setUnitTypeId] = useState<string | undefined>(undefined);
+  // Coverage chosen in step 2, or undefined for "I have my own insurance".
+  // Lives here rather than in Step2 because it changes the QUOTE, not just the
+  // card: lease-set-up prices the selected plan as its own invoice line.
+  const [insuranceId, setInsuranceId] = useState<string | undefined>(undefined);
   // Only the plans for the space type being rented. Before the unit resolves
   // (or if its type is unknown) this is the full list — showing every plan is
   // recoverable, showing none would re-create the "confirmed at checkout" bug.
@@ -823,7 +827,13 @@ export function RentalFlow2Step({
         // the only source. Fail CLOSED: never show another unit's money.
         const held = result.hold;
         setQuote((prev) => (prev && prev.unitId === held.unitId ? prev : undefined));
-        fetchMoveInQuote(ctx, { id: held.unitId, number: held.unitNumber }, held.holdToken)
+        fetchMoveInQuote(ctx, { id: held.unitId, number: held.unitNumber }, {
+          holdToken: held.holdToken,
+          insuranceId,
+          promotionIds: selection?.promotionIds,
+          startDate: ymd(moveIn),
+          offerToken: selection?.offerToken,
+        })
           .then((q) => {
             if (cancelled) return;
             if (q) setQuote(q);
@@ -838,7 +848,38 @@ export function RentalFlow2Step({
       }
     })();
     return () => { cancelled = true; };
-  }, [step, quote, hold, holdExpired, selection, inEditor, logTag, ctx]);
+  }, [step, quote, hold, holdExpired, selection, inEditor, logTag, ctx, insuranceId, moveIn]);
+
+  // Re-quote when a choice that changes the money changes — coverage or the
+  // move-in date. Only while holding: lease-set-up will not price either of them
+  // without a hold token, and the plain GET 409s on a held unit anyway.
+  //
+  // The first run is skipped: the hold effect above has just quoted with these
+  // exact values, and re-firing would double every request for no new number.
+  const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}`;
+  const quotedChoice = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!hold || step !== 2) return undefined;
+    if (quotedChoice.current === undefined || quotedChoice.current === choiceKey) {
+      quotedChoice.current = choiceKey;
+      return undefined;
+    }
+    quotedChoice.current = choiceKey;
+    let cancelled = false;
+    fetchMoveInQuote(ctx, { id: hold.unitId, number: hold.unitNumber }, {
+      holdToken: hold.holdToken,
+      insuranceId,
+      promotionIds: selection?.promotionIds,
+      startDate: ymd(moveIn),
+      offerToken: selection?.offerToken,
+    })
+      .then((q) => { if (!cancelled && q) setQuote(q); })
+      // Keep the previous quote on failure rather than blanking the rail: the
+      // shopper changed a plan, not the unit, and the old total is still the
+      // last figure the API actually stood behind.
+      .catch((err) => console.warn(`${logTag} re-quote after a choice change failed — keeping the previous total:`, err));
+    return () => { cancelled = true; };
+  }, [hold, step, choiceKey, insuranceId, moveIn, selection, ctx, logTag]);
 
   // Countdown driven by the acquisition timestamp, not a decrementing
   // counter — survives re-renders and background-tab throttling.
@@ -881,6 +922,7 @@ export function RentalFlow2Step({
     setQuote(undefined);
     setQuoteFailed(false);
     setUnitTypeId(undefined);
+    setInsuranceId(undefined);
     if (holdRef.current) {
       void releaseHold(ctx, holdRef.current);
       setHold(undefined);
@@ -1170,6 +1212,7 @@ export function RentalFlow2Step({
             plans={shownPlans.length ? shownPlans : (previewContent ? PREVIEW_PLANS : [])}
             leaseDocName={leaseDoc?.name}
             brochureUrl={brochureUrl}
+            onPlanChange={setInsuranceId}
             onEditDate={() => setDateModalOpen(true)}
             gpApiKey={gpApiKey}
             gpEnvironment={gpEnvironment}
