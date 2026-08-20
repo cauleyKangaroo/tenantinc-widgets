@@ -1136,7 +1136,10 @@
 }
 
 @media (max-width: 767px) {
-  .sl-wrapper { padding: 12px; gap: 14px; }
+  /* 24px, not 12. The base rule's clamp() floors the gutter at 20px, so mobile
+     was the ONE width where the widget sat tighter to the screen edge than
+     anywhere else — cards ran almost to the bezel. */
+  .sl-wrapper { padding: 24px; gap: 14px; }
   /* Stack the columns and stretch them full-width. Without align-items:stretch
      the listing area (which has container-type:inline-size) can't derive a
      width from its content and collapses to ~min-content. */
