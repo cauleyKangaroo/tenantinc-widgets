@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { EnvelopeIcon, CloseIcon, MapPinIcon } from './icons';
+import { Checkbox } from '@shared/ui/Checkbox';
+import { FormField, type FieldType } from '@shared/ui/FormField';
+import { isPossiblePhone } from '@shared/ui/phone';
+import { EnvelopeIcon, CloseSolidIcon, MapPinIcon } from './icons';
 import { createLead } from './api';
 
 // ---------------------------------------------------------------------------
@@ -19,21 +22,70 @@ function ChevronDown({ size = 24 }: { size?: number }) {
   );
 }
 
+/**
+ * Text inputs are the SHARED FormField, so they behave exactly as the rental
+ * flow's do: floating label driven by :placeholder-shown (so browser autofill
+ * lifts it too), a border that follows the caret via :focus-within, and a
+ * green border plus tick once the value validates.
+ *
+ * The bespoke .pi-msg-field this replaces had a JS-driven `--filled` class, a
+ * static border that never acknowledged focus, and no validated state at all.
+ *
+ * Validation is derived from the field's TYPE, matching how Step 2 does it, so
+ * the tick and any submit gate cannot disagree about what "valid" means.
+ */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function Field({
-  label, required, type = 'text', textarea, value, onChange, disabled,
+  label, required, type = 'text', value, onChange, disabled,
 }: {
-  label: string; required?: boolean; type?: string; textarea?: boolean;
+  label: string; required?: boolean; type?: FieldType;
   value: string; onChange: (v: string) => void; disabled?: boolean;
+}) {
+  const valid = type === 'email'
+    ? EMAIL_RE.test(value.trim())
+    : type === 'tel'
+      ? isPossiblePhone(value, 'US')
+      : value.trim().length > 0;
+
+  return (
+    <FormField
+      label={label}
+      type={type}
+      required={required}
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      phoneCountry={type === 'tel' ? 'US' : undefined}
+      state={valid ? 'success' : 'default'}
+    />
+  );
+}
+
+/**
+ * The message box. The kit has no textarea, so this stays bespoke — but it
+ * borrows the kit's tokens for its border, focus and valid states so it reads
+ * as the same control family rather than a lookalike.
+ */
+function MessageBox({
+  label, required, value, onChange, disabled,
+}: {
+  label: string; required?: boolean; value: string;
+  onChange: (v: string) => void; disabled?: boolean;
 }) {
   const filled = value.trim().length > 0;
   return (
-    <label className={`pi-msg-field${textarea ? ' pi-msg-field--area' : ''}${filled ? ' pi-msg-field--filled' : ''}`}>
-      {textarea ? (
-        <textarea className="pi-msg-field-input" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
-      ) : (
-        <input className="pi-msg-field-input" type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
-      )}
-      <span className="pi-msg-field-label">{label}{required && <span className="pi-req">*</span>}</span>
+    <label className={`pi-msg-area${filled ? ' pi-msg-area--valid' : ''}`}>
+      {/* Input before label, and placeholder=" ", so the same
+          :placeholder-shown rule the kit uses can float it. */}
+      <textarea
+        className="pi-msg-area-input"
+        value={value}
+        placeholder=" "
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <span className="pi-msg-area-label">{label}{required && <span className="pi-req">*</span>}</span>
     </label>
   );
 }
@@ -126,7 +178,7 @@ export function MessageModal({
       <div className="pi-msg-modal" role="dialog" aria-modal="true" aria-label="Send us a Message" onMouseDown={(e) => e.stopPropagation()}>
         <div className="pi-msg-head">
           <span className="pi-msg-title"><EnvelopeIcon size={24} /><span>Send us a Message</span></span>
-          <button type="button" className="pi-msg-close" aria-label="Close" onClick={onClose}><CloseIcon size={18} /></button>
+          <button type="button" className="pi-msg-close" aria-label="Close" onClick={onClose}><CloseSolidIcon size={18} /></button>
         </div>
 
         {status === 'success' ? (
@@ -145,16 +197,27 @@ export function MessageModal({
           {/* Facility: dropdown (unselected) or name + address (selected) */}
           <div className="pi-msg-facility-area">
             {selected ? (
-              <button
-                type="button"
-                className={`pi-msg-facility${canReselect ? ' pi-msg-facility--btn' : ''}`}
-                onClick={() => canReselect && setListOpen((o) => !o)}
-              >
-                <span className="pi-msg-facility-name">{selected.name}</span>
-                {selected.address && (
-                  <span className="pi-msg-facility-addr"><MapPinIcon size={24} /><span>{selected.address}</span></span>
+              <div className="pi-msg-facility">
+                {/* Static, not a button (Figma 10295-76697). Making the whole
+                    block clickable is what gave it a hover fill — and that fill
+                    was the host's `button:hover`, since this rule never declared
+                    one of its own. "Change Property" is the control now. */}
+                <div className="pi-msg-facility-info">
+                  <span className="pi-msg-facility-name">{selected.name}</span>
+                  {selected.address && (
+                    <span className="pi-msg-facility-addr"><MapPinIcon size={24} /><span>{selected.address}</span></span>
+                  )}
+                </div>
+                {canReselect && (
+                  <button
+                    type="button"
+                    className="pi-msg-facility-change"
+                    onClick={() => setListOpen((o) => !o)}
+                  >
+                    Change Property
+                  </button>
                 )}
-              </button>
+              </div>
             ) : (
               /* Figma 10295-76823: a single "Select Property" field, no heading above it. */
               <button type="button" className="pi-msg-dd-btn" onClick={() => setListOpen((o) => !o)}>
@@ -186,25 +249,23 @@ export function MessageModal({
                 <Field label="Mobile" required type="tel" value={form.mobile} onChange={set('mobile')} disabled={submitting} />
               </div>
             </div>
-            <Field label="Leave us a Message" required textarea value={form.message} onChange={set('message')} disabled={submitting} />
+            <MessageBox label="Leave us a Message" required value={form.message} onChange={set('message')} disabled={submitting} />
           </div>
         </div>
         )}
 
         {status !== 'success' && (
         <div className="pi-msg-foot">
-          <label className="pi-msg-consent">
-            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-            <span className={`pi-msg-check${consent ? ' pi-msg-check--on' : ''}`} aria-hidden="true">
-              {consent && (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6.5 9.5 17 4.5 12" /></svg>
-              )}
-            </span>
+          {/* The shared kit's checkbox, so this matches every other one on the
+              site. Imported from its own module rather than the @shared/ui
+              barrel — that would drag in Button, FormField, SummaryRail and
+              paymentIcons' ~39KB of data URIs for a single control. */}
+          <Checkbox checked={consent} onChange={setConsent} className="pi-msg-consent">
             <span className="pi-msg-consent-text">
               By providing your phone number, you consent to receive informational text messages from {facilityName}.
               Message frequency varies. Message &amp; data rates may apply. Reply HELP for help or STOP to unsubscribe at any time.
             </span>
-          </label>
+          </Checkbox>
           <a className="pi-msg-terms" href={termsHref}>Click to see our Terms and Privacy Policy</a>
 
           {error && <p className="pi-msg-error" role="alert">{error}</p>}
