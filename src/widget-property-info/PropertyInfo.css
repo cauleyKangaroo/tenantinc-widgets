@@ -1236,8 +1236,37 @@ span.pi-lb-img {
   color: #637381; font: 400 16px 'Montserrat', sans-serif; cursor: pointer;
 }
 .pi-msg-dd-btn svg { flex: 0 0 auto; color: #101318; }
-.pi-msg-facility { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 0; border: none; background: none; text-align: left; }
-.pi-msg-facility--btn { cursor: pointer; }
+/* Name and address left, "Change Property" right (Figma 10295-76697). A plain
+   div now — no background, no hover, nothing to click except the link. */
+.pi-msg-facility {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  text-align: left;
+}
+.pi-msg-facility-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* Underlined text, no button chrome. Full host reset across every state:
+   .pi-msg-facility used to declare background only at rest, which is exactly
+   how a host `button:hover` painted the block grey in the first place. */
+.pi-msg-facility-change {
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  font: 400 16px 'Montserrat', sans-serif;
+  color: #101318;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.pi-msg-facility-change,
+.pi-msg-facility-change:hover,
+.pi-msg-facility-change:focus,
+.pi-msg-facility-change:active { background: none; }
+.pi-msg-facility-change:hover { color: var(--color_1, #f45f30); }
+.pi-msg-facility-change:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
 .pi-msg-facility-name { font-size: 18px; font-weight: 600; color: #101318; }
 .pi-msg-facility-addr { display: flex; align-items: center; gap: 8px; font-size: 16px; color: #637381; }
 .pi-msg-facility-addr svg { flex: 0 0 auto; color: #637381; }
@@ -1266,46 +1295,108 @@ span.pi-lb-img {
    site — the fields rendered as overlapping struck-through lines).
    min-height is the belt-and-braces: even if `height` is overridden, the field
    cannot collapse. */
-.pi-msg-field { position: relative; display: block !important; height: 56px !important; min-height: 56px; box-sizing: border-box; border: 1px solid #a5b4bf; border-radius: 8px; background: #fff; }
-/* !important is required to beat the forced height on .pi-msg-field above —
-   without it the message textarea collapsed to the 56px single-line height. */
-.pi-msg-field--area { height: 200px !important; min-height: 200px; }
-.pi-msg-field-input {
-  position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
-  padding: 20px 16px 0; border: none; background: transparent; outline: none;
-  font: 400 16px/20px 'Montserrat', sans-serif; color: #101318; resize: none;
+/* The four text inputs are the shared FormField now — the .pi-msg-field rules
+   that were here (static border, JS-driven --filled label, no valid state) are
+   gone with them.
+
+   The message box stays bespoke because the kit has no textarea, but it takes
+   the kit's tokens so it reads as the same control: same border colour, same
+   active border on focus, same focus ring, same green once it holds a value.
+   Label floats off :placeholder-shown, exactly as the kit's does. */
+.pi-msg-area {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  height: 200px;
+  background: var(--hb-field-bg, #fff);
+  border: var(--hb-field-border-width, 1px) solid var(--hb-field-border, #a5b4bf);
+  border-radius: var(--hb-field-radius, 8px);
+  transition: border-color var(--hb-transition, .15s ease), box-shadow var(--hb-transition, .15s ease);
 }
-.pi-msg-field--area .pi-msg-field-input { padding-top: 36px; resize: vertical; }
-.pi-msg-field-label {
-  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
-  font: 400 16px/20px 'Montserrat', sans-serif; color: #637381; pointer-events: none;
-  transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
+.pi-msg-area:focus-within {
+  border-color: var(--hb-field-border-active, #101318);
+  box-shadow: var(--hb-focus-ring);
 }
-.pi-msg-field--area .pi-msg-field-label { top: 16px; transform: none; }
-.pi-msg-field:focus-within .pi-msg-field-label,
-.pi-msg-field--filled .pi-msg-field-label { top: 9px; transform: none; font-size: 12px; line-height: 15px; }
+/* Green once it holds a message. No tick: the kit puts that in an icon slot a
+   200px textarea does not have, and floating one over the text would sit on
+   whatever was typed. */
+.pi-msg-area--valid { border-color: var(--hb-field-border-success, #028a0c); }
+.pi-msg-area--valid:focus-within { border-color: var(--hb-field-border-success, #028a0c); }
+
+.pi-msg-area-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 34px 16px 12px;
+  border: none;
+  background: transparent;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  font-size: var(--hb-font-size-value, 16px);
+  line-height: var(--hb-line-height-value, 20px);
+  color: var(--hb-field-text, #101318);
+}
+.pi-msg-area-input::placeholder { color: transparent; }
+
+.pi-msg-area-label {
+  position: absolute;
+  left: 16px;
+  top: 18px;
+  font-size: var(--hb-font-size-value, 16px);
+  line-height: var(--hb-line-height-value, 20px);
+  color: var(--hb-field-label, #637381);
+  pointer-events: none;
+  transition: transform var(--hb-transition, .15s ease), font-size var(--hb-transition, .15s ease);
+}
+.pi-msg-area-input:focus + .pi-msg-area-label,
+.pi-msg-area-input:not(:placeholder-shown) + .pi-msg-area-label {
+  transform: translateY(-9px);
+  font-size: var(--hb-font-size-label, 12px);
+  line-height: var(--hb-line-height-label, 15px);
+}
 
 /* Footer */
 .pi-msg-foot { background: #f9fafb; padding: 19px 42px; display: flex; flex-direction: column; gap: 16px; }
-.pi-msg-consent { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
-.pi-msg-consent input { position: absolute; width: 0; height: 0; opacity: 0; }
-.pi-msg-check {
-  flex: 0 0 auto; width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  background: #fff; border: 2px solid #c4cdd5; border-radius: 6px;
-}
-.pi-msg-check--on { background: #101318; border-color: #101318; }
+/* The box, its checked state and the hidden input are all the shared
+   Checkbox's now (see MessageModal) — the hand-rolled .pi-msg-check rules that
+   were here are gone. What remains is the one thing the kit's root does not
+   do: this consent line runs to three or four lines, so the box must sit with
+   the FIRST line rather than centred against the whole paragraph. */
+.pi-msg-consent { align-items: flex-start; }
+
 .pi-msg-consent-text { font-size: 16px; line-height: 20px; color: #101318; }
-.pi-msg-terms { align-self: center; padding: 0 32px; font-size: 16px; line-height: 20px; color: #000; text-decoration: underline; }
+/* Left, with the rest of the footer — it was align-self:center inside a
+   32px inset, which read as a caption rather than part of the form. */
+/* Indented to the consent paragraph's text, not the footer's edge, so it reads
+   as the last line of that paragraph rather than a separate item under the
+   checkbox. 32px is the kit checkbox's own geometry: an 18px box with 3px
+   margins (a 24px footprint) plus .hb-check's 8px gap. If that box ever
+   changes size, this needs the same number. */
+.pi-msg-terms {
+  align-self: flex-start;
+  margin-left: 32px;
+  font-size: 16px;
+  line-height: 20px;
+  color: #000;
+  text-decoration: underline;
+}
 
 .pi-msg-actions { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .pi-msg-captcha {
-  width: 236px; height: 60px; flex: 0 0 auto;
-  display: flex; align-items: center; gap: 12px; padding: 0 12px;
+  /* min-width, not width: the mock can grow a little rather than forcing the
+     label to wrap inside a fixed box. */
+  min-width: 236px; height: 60px; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 10px; padding: 0 12px;
   background: #f9fafb; border: 1px solid #d3d3d3; border-radius: 4px;
 }
 .pi-msg-captcha-box { flex: 0 0 auto; width: 24px; height: 24px; background: #fff; border: 2px solid #c4cdd5; border-radius: 2px; }
-.pi-msg-captcha-label { flex: 1 1 auto; font-size: 14px; color: #3c4043; }
+/* One line. At 14px the label needs ~100px, and the box left it ~104 once the
+   checkbox, gaps, padding and brand were taken out — so it wrapped on the
+   slightest change. nowrap plus the wider box below gives it room. */
+.pi-msg-captcha-label { flex: 0 1 auto; font-size: 14px; color: #3c4043; white-space: nowrap; }
 .pi-msg-captcha-brand { font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; color: #9aa0a6; }
 .pi-msg-buttons { display: flex; align-items: center; gap: 16px; }
 .pi-msg-cancel { border: none; background: none; font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer; }
@@ -1348,7 +1439,10 @@ span.pi-lb-img {
   .pi-msg-body { padding: 20px; }
   .pi-msg-foot { padding: 16px 20px; }
   .pi-msg-row { flex-direction: column; }
-  .pi-msg-actions { flex-direction: column-reverse; align-items: stretch; }
+  /* column, not column-reverse: the captcha is first in the DOM, so reversing
+     put the buttons above it. It belongs above them — you tick it before you
+     submit. */
+  .pi-msg-actions { flex-direction: column; align-items: stretch; }
   .pi-msg-buttons { justify-content: flex-end; }
   .pi-msg-captcha { width: 100%; }
 }
