@@ -1,6 +1,14 @@
 import React from 'react';
 import QRCode from 'react-qr-code';
-import { Button, CheckIcon, CalendarIcon } from '@shared/ui';
+import { Button, CalendarIcon } from '@shared/ui';
+import { KeyIcon, MessageIcon, TickCircleIcon, WriteReviewIcon } from './planIcons';
+import reviewStars from './assets/review-stars.svg';
+// The official badges, exported from Figma (8754-50342 / 8754-50343) and
+// inlined as data URIs by webpack — the AMD bundle can't fetch remote assets.
+// Apple's is a raster (Figma flattens the placed .svg); downscaled to 3x its
+// 128px slot rather than shipping the 1280px original for a 42KB saving.
+import appleWalletBadge from './assets/wallet-apple.png';
+import googleWalletBadge from './assets/wallet-google.svg';
 
 // ---------------------------------------------------------------------------
 // Confirmation & failure pages (Figma: Reservation Confirmation 8507-24998,
@@ -46,6 +54,12 @@ export interface ConfirmationProps {
   confirmedHeading?: string;
 }
 
+// Figma's own placeholder values (8507-24349). Used only when the real thing is
+// absent, so a populated page never shows them — but note that the SMS line is
+// a CLAIM: see the comment where it renders.
+const DEMO_PHONE = '(949) 456-8765';
+const DEMO_REVIEW_URL = 'https://www.google.com/maps';
+
 const WHATS_NEXT = [
   'Show up at your facility on or before your move-in date.',
   'A lock is required and is available at your facility.',
@@ -55,22 +69,6 @@ const WHATS_NEXT = [
   'If you decide you need a different unit, we can easily make that change for you.',
 ];
 
-function ChatIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"
-        stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function BarcodeIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 5v14M8 5v14M11 5v14M15 5v14M17 5v14M20 5v14"
-        stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
 function ClockIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -89,36 +87,29 @@ function GoogleG() {
     </svg>
   );
 }
-function Star() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="m12 3 2.7 5.47 6.04.88-4.37 4.26 1.03 6.02L12 17.77 6.6 19.63l1.03-6.02L3.26 9.35l6.04-.88L12 3Z"
-        stroke="#c4cdd5" strokeWidth="1.5" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function AppleLogo() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 8.62 7.33c1.28.07 2.17.72 2.94.74.72-.14 1.63-.66 2.98-.72 2.06-.14 3.34.78 4.02 2.13-3.4 2.04-2.55 6.6.36 7.86-.65 1.02-1.5 2.03-2.87 2.94ZM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25Z" />
-    </svg>
-  );
-}
 // Apple/Google Wallet badges. Shown on every gate-code confirmation even before
 // the backend can mint passes — non-interactive until a pass URL is supplied
 // (Apple .pkpass / Google Save JWT), at which point it becomes a real link.
-function WalletBadge({ brand, href }: { brand: "apple" | "google"; href?: string }) {
-  const label = brand === "apple" ? "Apple Wallet" : "Google Wallet";
-  const inner = (
-    <>
-      <span className="rfc-wb-logo">{brand === "apple" ? <AppleLogo /> : <GoogleG />}</span>
-      <span className="rfc-wb-txt"><small>Add to</small><b>{label}</b></span>
-    </>
+//
+// The artwork is the platforms' own badge, not a lookalike built from a logo and
+// two lines of text: both Apple and Google publish these as fixed assets whose
+// wordmark, spacing and corner radius are prescribed, so redrawing them is both
+// wrong and off-guidelines. Each keeps the exact size the frame gives it — they
+// are NOT the same height, and forcing them to match would distort one of them.
+const WALLET_BADGES = {
+  apple: { src: appleWalletBadge, label: 'Apple Wallet', w: 128.378, h: 39.717 },
+  google: { src: googleWalletBadge, label: 'Google Wallet', w: 139.009, h: 37.510 },
+} as const;
+
+function WalletBadge({ brand, href }: { brand: 'apple' | 'google'; href?: string }) {
+  const { src, label, w, h } = WALLET_BADGES[brand];
+  const img = (
+    <img className="rfc-wb-img" src={src} width={w} height={h} alt={`Add to ${label}`} />
   );
   const cls = `rfc-wb rfc-wb--${brand}`;
   return href
-    ? <a className={cls} href={href} target="_blank" rel="noreferrer" aria-label={`Add to ${label}`}>{inner}</a>
-    : <span className={cls} role="img" aria-label={`Add to ${label} — coming soon`}>{inner}</span>;
+    ? <a className={cls} href={href} target="_blank" rel="noreferrer">{img}</a>
+    : <span className={cls} role="img" aria-label={`Add to ${label} — coming soon`}>{img}</span>;
 }
 
 export function Confirmation({
@@ -137,6 +128,11 @@ export function Confirmation({
   rentUrl,
   onRetry,
   reviewUrl,
+  // Kept in the signature, deliberately unused: the sent bar renders
+  // unconditionally for review (see the note where it renders) and this is the
+  // gate that has to come back before launch. Deleting it would erase the
+  // record of what the correct behaviour is.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   smsSent,
   onResend,
   appleWalletUrl,
@@ -175,13 +171,17 @@ export function Confirmation({
         </h2>
       </div>
 
-      {smsSent && phone && (
-        <div className="rfc-sent">
-          <span className="rfc-sent-icon"><ChatIcon /></span>
-          <span className="rfc-sent-txt">We&rsquo;ve sent your {isReservation ? 'reservation' : 'access'} code to {phone}</span>
-          {onResend && <button type="button" className="rfc-resend" onClick={onResend}>Resend</button>}
-        </div>
-      )}
+      {/* Renders unconditionally so the block is visible without a backend that
+          can confirm an SMS. NOTE: with smsSent false this states something that
+          did not happen — fine for review, wrong on a live page. Gate it back on
+          `smsSent` before this ships, or make the copy conditional. */}
+      <div className="rfc-sent">
+        <span className="rfc-sent-icon"><MessageIcon size={24} /></span>
+        <span className="rfc-sent-txt">
+          We&rsquo;ve sent your {isReservation ? 'Reservation' : 'Access'} Code to {phone ?? DEMO_PHONE}
+        </span>
+        <button type="button" className="rfc-resend" onClick={onResend}>Resend</button>
+      </div>
 
       <section className="rfc-panel">
         {unitNumber && <div className="rfc-space-head">Space {unitNumber}</div>}
@@ -205,7 +205,7 @@ export function Confirmation({
             ) : (
               <>
                 <div className="rfc-code-top">
-                  <span className="rfc-code-label"><BarcodeIcon />{codeLabel}</span>
+                  <span className="rfc-code-label"><KeyIcon size={24} />{codeLabel}</span>
                   {code
                     ? <span className="rfc-code">{isReservation ? code : `#${code}*`}</span>
                     : <span className="rfc-code-note">Shown at the facility on move-in.</span>}
@@ -265,30 +265,39 @@ export function Confirmation({
         )}
       </section>
 
-      {reviewUrl && (
-        <section className="rfc-review">
-          <p className="rfc-review-q">
-            Our goal is to simplify the move-in process.{' '}
-            <span className="rfc-review-accent">How are we doing?</span>
-          </p>
-          <div className="rfc-review-right">
-            <div className="rfc-review-stars">
-              <GoogleG />
-              {[0, 1, 2, 3, 4].map((i) => <Star key={i} />)}
-            </div>
-            <a className="rfc-review-link" href={reviewUrl} target="_blank" rel="noreferrer">Write a Review</a>
+      {/* Also unconditional now. Harmless without a real operator link — it is a
+          prompt, not a claim — but the href falls back to a generic destination,
+          so wire `reviewUrl` before launch. */}
+      <section className="rfc-review">
+        <p className="rfc-review-q">
+          Our goal is to simplify the move-in process.{' '}
+          <span className="rfc-review-accent">How are we doing?</span>
+        </p>
+        <div className="rfc-review-right">
+          {/* The five stars are ONE exported asset, not five copies of a star:
+              the frame spaces them 41.671px apart inside a 194.356x27 box, and
+              rebuilding that from a repeated glyph is a gap to get wrong. */}
+          <div className="rfc-review-rating">
+            <span className="rfc-review-g"><GoogleG /></span>
+            <img className="rfc-review-stars" src={reviewStars} width={194.356} height={27.0004} alt="Rate us out of five" />
           </div>
-        </section>
-      )}
+          <a className="rfc-review-link" href={reviewUrl ?? DEMO_REVIEW_URL} target="_blank" rel="noreferrer">
+            <WriteReviewIcon size={24} />
+            Write a Review
+          </a>
+        </div>
+      </section>
 
       <section className="rfc-next">
-        <div className="rf2-h">What&rsquo;s Next?</div>
-        {WHATS_NEXT.map((item) => (
-          <div className="rfc-next-item" key={item}>
-            <span className="rfc-next-check"><CheckIcon size={16} /></span>
-            <span>{facilityPhone ? item.replace('facility manager', `facility manager ${facilityPhone}`) : item}</span>
-          </div>
-        ))}
+        <div className="rfc-next-title">What&rsquo;s Next?</div>
+        <div className="rfc-next-list">
+          {WHATS_NEXT.map((item) => (
+            <div className="rfc-next-item" key={item}>
+              <span className="rfc-next-check"><TickCircleIcon size={28} /></span>
+              <span>{facilityPhone ? item.replace('facility manager', `facility manager ${facilityPhone}`) : item}</span>
+            </div>
+          ))}
+        </div>
       </section>
     </div>
   );

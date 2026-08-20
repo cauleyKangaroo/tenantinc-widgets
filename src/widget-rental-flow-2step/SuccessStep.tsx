@@ -16,9 +16,8 @@
 // `IdIllustration` for the one asset that isn't.
 // ===========================================================================
 
-import React, { useState } from 'react';
-import { FormField } from '@shared/ui';
-import { CheckTick } from './icons';
+import { useState } from 'react';
+import { Checkbox, FormField } from '@shared/ui';
 import { ChevronBig } from './planIcons';
 
 import idHandCard from './assets/id-g72.svg';
@@ -29,23 +28,6 @@ import idScreen from './assets/id-rect.svg';
 import idThumbA from './assets/id-p19.svg';
 import idThumbB from './assets/id-p18.svg';
 import idPortrait from './assets/id-portrait.png';
-
-/** Reveal toggle — the design's dark-fill checkbox above each field group. */
-function Toggle({
-  checked, onChange, children,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="rf-sx-toggle">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span className={`rf2-box${checked ? ' rf2-box--on' : ''}`}>{checked && <CheckTick size={16} />}</span>
-      <span className="rf-sx-toggle-text">{children}</span>
-    </label>
-  );
-}
 
 function Select({
   label, value, onChange, options, required,
@@ -137,9 +119,13 @@ export function SuccessStep({ onGetAccess }: { onGetAccess?: () => void }) {
 
   return (
     <div className="rf-card rf-sx">
-      <div className="rf-sx-head">
-        <p className="rf-sx-eyebrow">You&rsquo;ve got your space!</p>
-        <h2 className="rf-sx-heading">Finish up below for access</h2>
+      {/* Step 2's own title elements, not a near-copy: .rf-eyebrow is 36px/600
+          in the Duda primary, .rf-heading 36px/600 hardcoded black, both with
+          Montserrat and the host-proofing specificity pinned in one place. The
+          .rf-sx-* pair this replaces had drifted to 30px and --hb-secondary. */}
+      <div className="rf-title">
+        <p className="rf-eyebrow">You&rsquo;ve got your space!</p>
+        <h2 className="rf-heading">Finish up below for access</h2>
       </div>
 
       <section className="rf-sx-idv">
@@ -161,8 +147,11 @@ export function SuccessStep({ onGetAccess }: { onGetAccess?: () => void }) {
       <section className="rf-sx-extra">
         <h3 className="rf-sx-extra-title">Additional Information</h3>
 
+        {/* .rf2-checks is step 2's column — reused rather than matched by eye,
+            so the 4px pitch between checkboxes cannot drift apart again. */}
+        <div className="rf2-checks">
         <div className="rf-sx-group">
-          <Toggle checked={business} onChange={setBusiness}>I am renting as a business</Toggle>
+          <Checkbox checked={business} onChange={setBusiness}>I am renting as a business</Checkbox>
           {business && (
             <div className="rf-sx-fields">
               <FormField label="Business Address" required type="search" value={bizAddress} onChange={setBizAddress} />
@@ -175,7 +164,7 @@ export function SuccessStep({ onGetAccess }: { onGetAccess?: () => void }) {
         </div>
 
         <div className="rf-sx-group">
-          <Toggle checked={military} onChange={setMilitary}>I am active military</Toggle>
+          <Checkbox checked={military} onChange={setMilitary}>I am active military</Checkbox>
           {military && (
             <div className="rf-sx-fields">
               {/* Typed mask, not a picker: scrolling a calendar back decades to a
@@ -186,7 +175,7 @@ export function SuccessStep({ onGetAccess }: { onGetAccess?: () => void }) {
         </div>
 
         <div className="rf-sx-group">
-          <Toggle checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Toggle>
+          <Checkbox checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Checkbox>
           {altContact && (
             <div className="rf-sx-fields">
               <div className="rf-pay-grid">
@@ -201,7 +190,7 @@ export function SuccessStep({ onGetAccess }: { onGetAccess?: () => void }) {
         </div>
 
         <div className="rf-sx-group">
-          <Toggle checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Toggle>
+          <Checkbox checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Checkbox>
           {vehicle && (
             <div className="rf-sx-fields">
               <Select
@@ -221,6 +210,7 @@ export function SuccessStep({ onGetAccess }: { onGetAccess?: () => void }) {
               <Select label="State" value={stateVal} onChange={setStateVal} options={['California', 'Arizona', 'Nevada', 'Texas']} />
             </div>
           )}
+        </div>
         </div>
       </section>
 

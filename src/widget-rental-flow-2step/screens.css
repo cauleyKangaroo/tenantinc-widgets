@@ -149,9 +149,45 @@
 
 .rf-proc-copy { margin: 0; color: var(--hb-text-night, #101318); font-size: 16px; line-height: 1.5; }
 
+/* Desktop keeps the lightbox, so the logo is hidden — the page behind it still
+   shows the sticky header's. */
+.rf-proc-logo { display: none; }
+
+/* Mobile (Figma 8538-21871): a full white page, not a card on a dim.
+   A MEDIA query, not the @container ones used elsewhere in this widget: the
+   screen is portalled to <body> and has no .rf-wrapper ancestor to measure. */
 @media (max-width: 640px) {
-  .rf-proc { padding: 48px 24px; gap: 24px; }
-  .rf-proc-title { font-size: 24px; }
+  .rf-overlay--proc {
+    padding: 0;
+    background: #fff;
+    align-items: stretch;
+  }
+  .rf-proc {
+    max-width: none;
+    min-height: 100%;
+    padding: 0 24px 40px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    /* Content sits from the top under the logo rather than being centred in a
+       box; the gaps below are the frame's own, so `gap` is cleared to stop it
+       adding to every one of them. */
+    justify-content: flex-start;
+    gap: 0;
+  }
+  .rf-proc-logo {
+    display: block;
+    /* Same 269px as the header's banner — it is the same artwork. Height is
+       left to the image so the PNG keeps its ~2.25:1 aspect. */
+    width: 269px;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+  }
+  /* The frame's rhythm below the banner: 71px, then 60px, then 44px. */
+  .rf-proc-title { font-size: 32px; max-width: 292px; margin-top: 71px; }
+  .rf-proc-bar { margin-top: 60px; }
+  .rf-proc-copy { margin-top: 44px; max-width: 240px; line-height: 20px; }
 }
 
 /* ── Payment section (10080-28749 / 10080-30277) ─────────────────────────── */
@@ -289,8 +325,22 @@
   font-weight: 600;
   letter-spacing: 0.2px;
   cursor: pointer;
+  transition: background var(--hb-transition, 0.15s ease);
 }
-.rf-paynow:hover { filter: brightness(0.94); }
+/* The kit's CTA hover model, matched exactly: name a real BACKGROUND, darkened
+   12% toward black (22% on press), rather than dimming with a filter.
+   `filter: brightness()` leaves `background` unset, so a host rule like the dev
+   harness's `button:hover { background: #f3f4f6 }` — (0,1,1), which outranks
+   this single class — paints grey over the CTA and the filter merely dims THAT.
+   `filter: none` clears the old value in case anything else still sets one. */
+.rf-paynow:hover:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--hb-cta, #f45f30) 88%, #000);
+}
+.rf-paynow:active:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--hb-cta, #f45f30) 78%, #000);
+}
 
 @media (max-width: 720px) {
   .rf-pay-grid { grid-template-columns: 1fr; }
@@ -427,9 +477,13 @@
 /* ── Success screen (8507-25408) ─────────────────────────────────────────── */
 
 .rf-sx { display: flex; flex-direction: column; gap: 24px; font-family: var(--hb-font); }
-.rf-sx-head { display: flex; flex-direction: column; gap: 12px; }
-.rf-sx-eyebrow { margin: 0; color: var(--hb-secondary, #509e2f); font-size: 30px; font-weight: 600; }
-.rf-sx-heading { margin: 0; color: var(--hb-text-night, #101318); font-size: 30px; font-weight: 600; line-height: 1.1; }
+/* The title is step 2's .rf-title / .rf-eyebrow / .rf-heading now — size, gap,
+   Montserrat, colours and the host-proofing specificity all live there, in one
+   place, instead of a second set drifting to 30px and --hb-secondary. Only the
+   margin is overridden: .rf-title carries 26px for step 2's static layout,
+   while .rf-sx is a flex column that already spaces its children by 24px, so
+   the two would ADD. */
+.rf-sx > .rf-title { margin-bottom: 0; }
 
 .rf-sx-idv { padding: 30px; border-radius: 12px; background: #f4f6f8; }
 .rf-sx-idv-title { margin: 0 0 16px; color: var(--hb-text-night, #101318); font-size: 20px; font-weight: 600; }
@@ -451,7 +505,29 @@
 }
 .rf-sx-btn--solid { border: 0; background: var(--hb-secondary, #509e2f); color: var(--hb-white, #fff); }
 .rf-sx-btn--outline { border: 2px solid var(--hb-secondary, #509e2f); background: #fefefe; color: var(--hb-text-night, #101318); }
-.rf-sx-btn:hover { filter: brightness(0.95); }
+/* The kit's model on all three buttons below: a real BACKGROUND rather than a
+   brightness filter. A filter leaves `background` unset, so a host rule like
+   the harness's `button:hover { background: #f3f4f6 }` — (0,1,1), outranking a
+   single class — paints grey over the tone and the filter merely dims THAT.
+   Solid tones darken 12% toward black (22% on press); the outline inverts into
+   its tone instead of dimming a white box, exactly as .hb-btn--outline does. */
+.rf-sx-btn { transition: background var(--hb-transition, 0.15s ease), color var(--hb-transition, 0.15s ease); }
+.rf-sx-btn--solid:hover:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--hb-secondary, #509e2f) 88%, #000);
+}
+.rf-sx-btn--solid:active:not(:disabled) {
+  background: color-mix(in srgb, var(--hb-secondary, #509e2f) 78%, #000);
+}
+.rf-sx-btn--outline:hover:not(:disabled) {
+  filter: none;
+  background: var(--hb-secondary, #509e2f);
+  color: var(--hb-white, #fff);
+}
+.rf-sx-btn--outline:active:not(:disabled) {
+  background: color-mix(in srgb, var(--hb-secondary, #509e2f) 78%, #000);
+  color: var(--hb-white, #fff);
+}
 
 .rf-sx-idv-note {
   margin: 20px 0 0;
@@ -467,7 +543,12 @@
    any size; the box carries the same aspect ratio so nothing skews. */
 .rf-sx-illus {
   position: relative;
-  flex: 0 0 260px;
+  /* Shrinkable. `0 0 260px` could not give way, so at a 901px viewport — where
+     the rail leaves the column ~243px of content — it ran straight out of the
+     box. aspect-ratio keeps it in proportion as it narrows. */
+  flex: 0 1 260px;
+  min-width: 0;
+  max-width: 100%;
   aspect-ratio: 292.25 / 119.43;
 }
 
@@ -512,12 +593,15 @@
 
 .rf-sx-extra { display: flex; flex-direction: column; gap: 20px; }
 .rf-sx-extra-title { margin: 0; color: var(--hb-text-night, #101318); font-size: 20px; font-weight: 700; }
-.rf-sx-group { display: flex; flex-direction: column; gap: 20px; }
-.rf-sx-fields { display: flex; flex-direction: column; gap: 20px; }
+/* Matched to step 2's .rf2-expand, which sits 10px under its checkbox inside a
+   4px column (=14px) and leaves 12px below before the next one. The groups
+   themselves are spaced by .rf2-checks in the markup. */
+.rf-sx-group { display: flex; flex-direction: column; gap: 14px; }
+.rf-sx-fields { display: flex; flex-direction: column; gap: 20px; margin-bottom: 12px; }
 
-.rf-sx-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.rf-sx-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
-.rf-sx-toggle-text { color: var(--hb-text-night, #101318); font-size: 16px; line-height: 18px; }
+
+
+
 
 .rf-sx-access {
   align-self: center;
@@ -533,10 +617,17 @@
   font-weight: 700;
   cursor: pointer;
 }
-.rf-sx-access:hover { filter: brightness(0.94); }
+.rf-sx-access { transition: background var(--hb-transition, 0.15s ease); }
+.rf-sx-access:hover:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--hb-cta, #f45f30) 88%, #000);
+}
+.rf-sx-access:active:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--hb-cta, #f45f30) 78%, #000);
+}
 
 @media (max-width: 640px) {
-  .rf-sx-eyebrow, .rf-sx-heading { font-size: 24px; }
   .rf-sx-idv { padding: 20px; }
   .rf-sx-illus { flex: 1 1 100%; }
 }

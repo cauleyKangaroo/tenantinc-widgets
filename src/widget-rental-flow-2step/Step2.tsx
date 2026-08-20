@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CheckTick, CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
 import { mountGpHostedFields, GpTokenResult, GpFieldValidity } from './gpHostedFields';
-import { ProtectionPlanModal } from './ProtectionPlanModal';
+import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
 import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from './PaymentSection';
@@ -279,6 +279,9 @@ function CardFieldsPanel({
   );
 }
 
+/** Desktop pointer devices only — mirrored by a @media block in the CSS. */
+const PLAN_HOVER_QUERY = '(min-width: 901px) and (hover: hover) and (pointer: fine)';
+
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, gpApiKey, gpEnvironment = 'test', payNowTotal, onPaymentComplete,
   brochureUrl, onPlanChange, paying, payError,
@@ -328,7 +331,10 @@ export function Step2({
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [military, setMilitary] = useState(false);
-  const [altContact, setAltContact] = useState(true);
+  // Off, like every other optional section. On, it opens five REQUIRED fields
+  // (name, phone, email, address) that block the step until they are filled —
+  // so defaulting it to checked made an optional section mandatory.
+  const [altContact, setAltContact] = useState(false);
   const [vehicle, setVehicle] = useState(false);
 
   // Conditional-section fields (Figma 8507-23979 scenarios / screens 12-13).
@@ -353,10 +359,31 @@ export function Step2({
   const [vehState, setVehState] = useState('');
   const [agree, setAgree] = useState(false);
   const [autopay, setAutopay] = useState(false);
-  // "Learn More" brochure lightbox for the protection plan (Figma via master's
-  // rental-flow work). The plan CARD is API-driven (see `plan`); this modal is
-  // the explanatory content behind it.
+  // "Learn More" coverage card (Figma 8509-36480). The plan CARD in the page is
+  // API-driven (see `plan`); this is the explanatory content behind it.
+  //
+  // Desktop pointer devices get it as a hover popover; tablet and mobile keep
+  // the tap-to-open lightbox. Gated on hover/pointer as well as width because
+  // hover on a touchscreen fires on tap and then STICKS — the card would sit
+  // there with nothing to dismiss it. The query is duplicated in
+  // RentalFlow2Step.css and the two must stay in step: if they disagree there
+  // is a width at which both the popover and the lightbox fire.
   const [planOpen, setPlanOpen] = useState(false);
+  const [canHover, setCanHover] = useState(
+    // Seeded synchronously rather than in the effect: a desktop user who clicks
+    // in the first frame would otherwise get the lightbox.
+    () => typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia(PLAN_HOVER_QUERY).matches,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+    const mq = window.matchMedia(PLAN_HOVER_QUERY);
+    const sync = () => setCanHover(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
   // "View Document" lightbox. The agree checkbox inside it drives the SAME
   // `agree` state as the one on the page, so accepting in either place counts.
   const [leaseOpen, setLeaseOpen] = useState(false);
@@ -530,7 +557,31 @@ export function Step2({
         <section className="rf2-panel">
           <div className="rf2-rowhead">
             <span className="rf2-h">Select Protection Plan</span>
-            <button type="button" className="rf2-link rf2-link--btn" onClick={() => setPlanOpen(true)}>Learn More</button>
+            {/* The card is a CHILD of the hover target, not a sibling, so
+                moving the pointer onto it keeps :hover true — there is no gap
+                to cross and nothing to flicker. It is also positioned OVER the
+                trigger, so the pointer is already inside the box the moment it
+                appears. :focus-within gives keyboard users the same card. */}
+            <div className="rf2-learn">
+              <button
+                type="button"
+                className="rf2-link rf2-link--btn"
+                aria-haspopup={canHover ? undefined : 'dialog'}
+                // On desktop the click is a no-op: hover and focus both already
+                // show the card, so opening a lightbox as well would be the
+                // very thing this replaced.
+                onClick={() => { if (!canHover) setPlanOpen(true); }}
+              >
+                Learn More
+              </button>
+              {canHover && (
+                <div className="rf2-learn-pop" role="tooltip">
+                  <div className="rf-pp-card">
+                    <PlanCoverageBody brochureUrl={brochureUrl} />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           {plans.length ? (
             <div className="rf2-plan-wrap" ref={planRef}>

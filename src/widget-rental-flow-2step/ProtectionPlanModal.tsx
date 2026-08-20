@@ -1,13 +1,17 @@
 // ===========================================================================
-// "What Does My Plan Cover?" — the Protection Plan "Learn More" lightbox.
+// "What Does My Plan Cover?" — the Protection Plan coverage card.
 // Figma: Mariposa — Duda, node 8509-36480.
 //
-// The Figma node is the CARD only; the brief is that it opens as a modal from
-// step 2's "Learn More", so the card is wrapped in the same overlay shell as
-// MoveInDateModal (focus trap on Escape, click-outside to close, scroll lock).
+// The Figma node is the CARD only, and it now has TWO presentations: a hover
+// popover on desktop, and this lightbox on tablet/mobile where hover does not
+// exist. `PlanCoverageBody` is the card's contents, exported so both render
+// exactly the same thing from one source rather than drifting apart.
 //
-// The five coverage rows and the Download Brochure button are the design; the
-// close button is added because a modal needs a way out that isn't Escape.
+// The lightbox wraps it in the same overlay shell as MoveInDateModal (Escape,
+// click-outside to close, scroll lock). The five coverage rows and the Download
+// Brochure button are the design; the close button is an addition, because a
+// modal needs a way out that isn't Escape — the popover has none, as moving the
+// pointer away is its dismissal.
 // ===========================================================================
 
 import React, { useEffect } from 'react';
@@ -22,6 +26,56 @@ const COVERAGE: { icon: React.ReactNode; text: string }[] = [
   { icon: <WindGlyph />, text: 'Windstorm or Hail' },
   { icon: <SnowGlyph />, text: 'Weight of Ice, Snow or Sleet; Building Collapse' },
 ];
+
+/**
+ * The card's contents: heading, intro, the five covered causes, brochure.
+ *
+ * Everything the Figma frame contains — the close button is NOT here, because
+ * it belongs to the modal shell rather than to the design.
+ */
+export function PlanCoverageBody({
+  brochureUrl, titleId,
+}: {
+  /** Brochure PDF. Absent → the button is inert rather than a dead link. */
+  brochureUrl?: string;
+  /** Set by the modal so its aria-labelledby has something to point at. */
+  titleId?: string;
+}) {
+  return (
+    <>
+      <div className="rf-pp-head">
+        <p className="rf-pp-title" id={titleId}>What Does My Plan Cover?</p>
+        <p className="rf-pp-sub">
+          Our Plan will pay for loss of or damage to your property from many causes including:
+        </p>
+      </div>
+
+      <ul className="rf-pp-list">
+        {COVERAGE.map((row) => (
+          <li className="rf-pp-row" key={row.text}>
+            <span className="rf-pp-ico" aria-hidden="true">{row.icon}</span>
+            <span className="rf-pp-text">{row.text}</span>
+          </li>
+        ))}
+      </ul>
+
+      {/* Anchor when there's a real URL so it downloads properly (and
+          middle-click works); a disabled button when there isn't, rather than
+          an <a href="#"> that looks live and does nothing. */}
+      {brochureUrl ? (
+        <a className="rf-pp-brochure" href={brochureUrl} download target="_blank" rel="noreferrer">
+          <DownloadIcon size={24} />
+          Download Brochure
+        </a>
+      ) : (
+        <button type="button" className="rf-pp-brochure" disabled>
+          <DownloadIcon size={24} />
+          Download Brochure
+        </button>
+      )}
+    </>
+  );
+}
 
 export function ProtectionPlanModal({
   open, onClose, brochureUrl,
@@ -60,36 +114,7 @@ export function ProtectionPlanModal({
           <CloseIcon size={18} />
         </button>
 
-        <div className="rf-pp-head">
-          <p className="rf-pp-title" id="rf-pp-title">What Does My Plan Cover?</p>
-          <p className="rf-pp-sub">
-            Our Plan will pay for loss of or damage to your property from many causes including:
-          </p>
-        </div>
-
-        <ul className="rf-pp-list">
-          {COVERAGE.map((row) => (
-            <li className="rf-pp-row" key={row.text}>
-              <span className="rf-pp-ico" aria-hidden="true">{row.icon}</span>
-              <span className="rf-pp-text">{row.text}</span>
-            </li>
-          ))}
-        </ul>
-
-        {/* Anchor when there's a real URL so it downloads properly (and
-            middle-click works); a disabled button when there isn't, rather than
-            an <a href="#"> that looks live and does nothing. */}
-        {brochureUrl ? (
-          <a className="rf-pp-brochure" href={brochureUrl} download target="_blank" rel="noreferrer">
-            <DownloadIcon size={24} />
-            Download Brochure
-          </a>
-        ) : (
-          <button type="button" className="rf-pp-brochure" disabled>
-            <DownloadIcon size={24} />
-            Download Brochure
-          </button>
-        )}
+        <PlanCoverageBody brochureUrl={brochureUrl} titleId="rf-pp-title" />
       </div>
     </div>
   );
