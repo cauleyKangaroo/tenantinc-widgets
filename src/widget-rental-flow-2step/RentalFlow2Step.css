@@ -19,8 +19,15 @@
    countdown. Everything else — the overhanging logo banner, the white strip
    and its reserved left gutter — is #02's, so the two headers read as the same
    component. Only the logo ASSET is shared; no component, config or data. */
+/* Zero-height sentinel above the header; the IntersectionObserver watches this
+   rather than sampling scroll position. */
+.rf-hdr-sentinel { height: 0; }
+
 .rf-hdr {
-  position: relative;
+  /* Sticky #1. z-index above the rail (sticky #2), which sits below it. */
+  position: sticky;
+  top: 0;
+  z-index: 60;
   width: 100%;
   box-sizing: border-box;
   background: #fff;
@@ -56,12 +63,32 @@
 }
 .rf-hdr-logo-img { display: block; width: 100%; height: auto; }
 
+/* ── Shrunk (pinned and scrolled) ────────────────────────────────────────
+   The strip and the banner contract; the countdown deliberately does NOT —
+   it is the one thing on this header that has to stay readable, and shrinking
+   a ticking timer is exactly the wrong economy. */
+/* A gentler contraction than the first pass (64px / 170px), which took too
+   much off — the banner stopped reading as the site's mark. The strip loses
+   ~22%, the banner the same, so the overhang stays about 18px either side of
+   the change and the header keeps its proportions rather than just getting
+   small. */
+.rf-hdr--shrunk .rf-hdr-inner { min-height: 78px; padding-left: 240px; }
+.rf-hdr--shrunk .rf-hdr-logo { width: 215px; }
+/* A little more separation once it is floating over content. */
+.rf-hdr--shrunk { box-shadow: 0 2px 8px 2px rgba(71, 84, 116, 0.14); }
+.rf-hdr-logo { transition: width 0.2s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-hdr-inner, .rf-hdr-logo { transition: none; }
+}
+
 /* The white strip. padding-left reserves the gutter the banner occupies. */
 .rf-hdr-inner {
   position: relative;
   max-width: 1314px;
   margin: 0 auto;
   min-height: 100px;
+  transition: min-height 0.2s ease;
   padding: 0 24px 0 285px;
   display: flex;
   align-items: center;
@@ -840,16 +867,24 @@
   .rf-layout > .ts-card,
   .rfc-layout > .ts-card {
     position: sticky;
-    /* Clear of the browser chrome instead of flush against it. */
-    top: 24px;
+    /* Sticky #2 — BELOW sticky #1, not behind it. --rf-hdr-h is the header's
+       MEASURED height, republished whenever it shrinks or grows (see the
+       ResizeObserver in RentalFlow2Step.tsx), so this tracks it rather than
+       guessing. Hardcoding breaks in both directions: the tall value leaves a
+       gap once the header shrinks, the short one lets the header cover the rail
+       when you scroll back up and it re-grows. The fallback matches the
+       unshrunk strip, so it stays correct if the observer never runs. */
+    top: calc(var(--rf-hdr-h, 100px) + 24px);
     /* .rf-layout already sets align-items:start; restated because a stretched
        grid item is full-height and therefore can never stick, and that failure
        is silent if the container rule is ever changed. */
     align-self: start;
     /* The rail runs ~684px. On a short viewport a plain sticky top pins the
        header and parks the move-in total permanently off-screen with no way to
-       scroll to it. This engages only when the rail genuinely does not fit. */
-    max-height: calc(100vh - 48px);
+       scroll to it. This engages only when the rail genuinely does not fit.
+       The sticky header eats into the available height too, so subtract it
+       alongside the 24px above and below. */
+    max-height: calc(100vh - var(--rf-hdr-h, 100px) - 48px);
     overflow-y: auto;
   }
 }

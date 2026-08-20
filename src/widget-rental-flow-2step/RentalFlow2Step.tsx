@@ -346,9 +346,15 @@ function MobileRailBar({
  *
  * Rebuilt from #02's design rather than imported: see the logo import above.
  */
-function RentalHeader({ holdRemaining, homeHref }: { holdRemaining?: number; homeHref: string }) {
+function RentalHeader({ holdRemaining, homeHref, shrunk, innerRef }: {
+  holdRemaining?: number;
+  homeHref: string;
+  /** Pinned and scrolled — the strip and banner contract, the countdown does not. */
+  shrunk?: boolean;
+  innerRef?: React.Ref<HTMLElement>;
+}) {
   return (
-    <header className="rf-hdr">
+    <header ref={innerRef} className={`rf-hdr${shrunk ? ' rf-hdr--shrunk' : ''}`}>
       {/* #02's structure exactly: the logo is an absolutely positioned banner
           that overhangs the bar, and .rf-hdr-inner is the white strip whose
           left gutter is reserved for it. The grey top bar (phone, live chat)
@@ -964,6 +970,75 @@ export function RentalFlow2Step({
       .catch(() => { /* fail-soft: hours just stay hidden */ });
     return () => { cancelled = true; };
   }, [ctx, effectiveCompanyId]);
+  /*
+   * Sticky-header plumbing.
+   *
+   * `shrunk` comes from an IntersectionObserver on a zero-height sentinel above
+   * the header, not a scroll listener — the browser reports the crossing itself
+   * rather than us sampling scrollY on every frame.
+   *
+   * The measured height is published as --rf-hdr-h so the order rail can sit
+   * BELOW the header rather than behind it. Measured rather than hardcoded
+   * because the header changes height when it shrinks: two constants would
+   * leave the rail either overlapping (if it used the tall value) or floating
+   * in a gap (if it used the short one), and scrolling back up re-grows the
+   * header while the rail is still pinned.
+   */
+  const hdrRef = useRef<HTMLElement>(null);
+  const hdrSentinelRef = useRef<HTMLDivElement>(null);
+  const [hdrShrunk, setHdrShrunk] = useState(false);
+
+  useEffect(() => {
+    const el = hdrSentinelRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => setHdrShrunk(!e.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const el = hdrRef.current;
+    const wrap = wrapRef.current;
+    if (!el || !wrap) return;
+    const write = () => wrap.style.setProperty('--rf-hdr-h', `${el.offsetHeight}px`);
+    write();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(write);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hdrShrunk]);
+
+  /*
+   * The header is hoisted above every branch and rendered on FIRST paint.
+   *
+   * This widget replaces the site's own header on this page, so until it
+   * appears the page has no header at all — a blank strip where the brand
+   * should be. It depends on nothing that is fetched: the logo is a bundled
+   * data URI and the countdown only appears once a hold exists.
+   *
+   * Deliberately NOT behind `pastDelay`. That 200ms gate stops a skeleton
+   * flashing on fast loads, which is right for the body and wrong here — the
+   * header has real content to show immediately.
+   *
+   * Nor behind `!isMobile`: that is set by a ResizeObserver AFTER mount, so
+   * gating on it would cost the header a frame. CSS hides .rf-hdr under the
+   * same 640px container width instead, which costs nothing at paint.
+   */
+  const header = (
+    <>
+      {/* Zero-height marker: once it scrolls out of view the header is pinned. */}
+      <div ref={hdrSentinelRef} className="rf-hdr-sentinel" aria-hidden="true" />
+      <RentalHeader
+      shrunk={hdrShrunk}
+      innerRef={hdrRef}
+      holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
+      /* Site root. The logo is the only way back out of checkout, so it must
+         not inherit termsHref or any editor-set '#'. */
+      homeHref="/"
+      />
+    </>
+  );
+
   if (confirmation) {
     // Reservations are REAL (hold + reserve POSTs exist), so they show real
     // response data and NO demo banner. The prototype banner stays only for
@@ -987,6 +1062,7 @@ export function RentalFlow2Step({
     const goToCheckout = () => { if (checkoutUrl) window.location.assign(checkoutUrl); };
     return (
       <div className="rf-wrapper">
+        {header}
         {GP_BRIDGE_IS_PROTOTYPE && confirmation.kind === 'rental' && (
           <div className="rf-demo-banner rf-demo-banner--page" role="note">
             Demo preview — no payment or lease was created.
@@ -1014,6 +1090,7 @@ export function RentalFlow2Step({
   if (loading) {
     return (
       <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
+        {header}
         {pastDelay ? <RfSkeleton mobile={isMobile} /> : null}
       </div>
     );
@@ -1087,14 +1164,7 @@ export function RentalFlow2Step({
 
   return (
     <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
-      {!isMobile && (
-        <RentalHeader
-          holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
-          /* Site root. The logo is the only way back out of checkout, so it
-             must not inherit termsHref or any editor-set '#'. */
-          homeHref="/"
-        />
-      )}
+      {header}
       {isMobile && (
         <div className="rfm-top">
           {/* A hold only exists after a unit is actually held, so on step 1
