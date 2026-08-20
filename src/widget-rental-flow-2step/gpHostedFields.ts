@@ -82,46 +82,48 @@ export interface MountGpFieldsOptions {
 export const GP_BRIDGE_IS_PROTOTYPE = true;
 
 /**
- * A Heartland/Portico public key: "pkapi_cert_…" (sandbox) or "pkapi_prod_…".
+ * "pkapi_cert_…" / "pkapi_prod_…" is a Heartland/Portico **SecureSubmit** public
+ * key — a DIFFERENT product from Hosted Fields, not a variant of its key.
  *
- * The key format decides which GATEWAY inside globalpayments.js handles the
- * card, and the two want completely different settings — which is why sending
- * a pkapi_ key as "X-GP-Api-Key" produced "Authentication Failed. Please retry
- * with valid credentials": that name selects the GP-API gateway, which has
- * never heard of this key.
+ * It matters because globalpayments.js bundles both gateways and the setting
+ * name picks which one runs. Configured as `publicApiKey` a pkapi_ key selects
+ * the Heartland gateway, whose sandbox assets come from
+ * `https://hps.github.io/token/gp-<version>/` — a host that now 404s for every
+ * version (checked 2026-08-20), so the field iframes load a 404 page and freeze.
+ * Configured the Hosted Fields way it simply fails to authenticate.
+ *
+ * Neither is fixable here; the answer is the right key. Detect it and say so.
  */
-const isHeartlandKey = (key: string) => /^pkapi_/.test(key.trim());
-
-/** What environment the library will actually use for this key. */
-export function gpEffectiveEnvironment(key: string, declared: 'test' | 'prod'): 'test' | 'prod' {
-  // Heartland ignores any declared environment and derives it from the key
-  // prefix itself (cert → sandbox, anything else → production), so the key is
-  // the only thing that decides whether real money can move.
-  if (isHeartlandKey(key)) return /^pkapi_cert_/.test(key.trim()) ? 'test' : 'prod';
-  return declared;
-}
+const isSecureSubmitKey = (key: string) => /^pkapi_/.test(key.trim());
 
 export async function mountGpHostedFields(opts: MountGpFieldsOptions): Promise<() => void> {
   let form: GpForm | undefined;
-  const heartland = isHeartlandKey(opts.apiKey);
-  // Judge the guard on the EFFECTIVE environment, not the declared one: with a
-  // pkapi_prod_ key the library goes to production whatever the prop says.
-  const env = gpEffectiveEnvironment(opts.apiKey, opts.environment);
-  if (GP_BRIDGE_IS_PROTOTYPE && env === 'prod') {
+  if (GP_BRIDGE_IS_PROTOTYPE && opts.environment === 'prod') {
     opts.onError('Payments are not enabled on this site yet.');
-    console.error('[gpHostedFields] production REFUSED — the transaction bridge is a prototype (no server-side charge exists)');
+    console.error('[gpHostedFields] gpEnvironment="prod" REFUSED — the transaction bridge is a prototype (no server-side charge exists)');
+    return () => {};
+  }
+  // Fail fast and legibly rather than mounting fields that can never work.
+  if (isSecureSubmitKey(opts.apiKey)) {
+    opts.onError('Card entry is not configured correctly for this site.');
+    console.error(
+      '[gpHostedFields] The configured key starts with "pkapi_", which is a Heartland SecureSubmit '
+      + 'public key, not a Hosted Fields CLIENT-SIDE API key. Hosted Fields needs the client-side key '
+      + 'from the Global Payments portal (the one paired with a server-side key for the sale). '
+      + 'See partner.globalpayments.com → Card Not Present → Hosted Fields → Configuration.',
+    );
     return () => {};
   }
   try {
     await loadGpScript();
     const GP = window.GlobalPayments!;
-    GP.configure(heartland
-      // Heartland/Portico: publicApiKey is its one required setting, and it
-      // reads the environment off the key prefix — passing X-GP-Environment
-      // here does nothing.
-      ? { publicApiKey: opts.apiKey.trim(), enableAutocomplete: true }
-      // GP-API style keys keep the header-shaped settings.
-      : { 'X-GP-Api-Key': opts.apiKey, 'X-GP-Environment': opts.environment, enableAutocomplete: true });
+    // Exactly the documented configuration (Hosted Fields → Configuration,
+    // step 3). X-GP-Environment takes 'test' or 'prod'.
+    GP.configure({
+      'X-GP-Api-Key': opts.apiKey.trim(),
+      'X-GP-Environment': opts.environment,
+      enableAutocomplete: true,
+    });
     GP.on?.('error', (err) => {
       console.error('[gpHostedFields] runtime error:', err);
     });
