@@ -284,7 +284,7 @@ const PLAN_HOVER_QUERY = '(min-width: 901px) and (hover: hover) and (pointer: fi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, gpApiKey, gpEnvironment = 'test', payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, paying, payError,
+  brochureUrl, onPlanChange, paying, payError, contact,
 }: {
   moveIn: Date;
   /** Protection plans to choose between, already narrowed to the space type
@@ -318,6 +318,9 @@ export function Step2({
     /** Autopay Enrollment checkbox. */
     autopay?: boolean;
   }) => void;
+  /** What the shopper typed in step 1, used as the starting values here so they
+   *  do not retype their own name and email one screen later. */
+  contact?: { first: string; last: string; email: string; phone: string; business?: boolean };
   /** Payment in flight — locks the pay button against a double charge. */
   paying?: boolean;
   /** Why the rental could not be completed. Shown by the payment panel so the
@@ -326,10 +329,13 @@ export function Step2({
   payError?: string;
 }) {
   const [business, setBusiness] = useState(false);
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [first, setFirst] = useState('');
-  const [last, setLast] = useState('');
+  // Seeded from step 1. Initialisers, not props: these are editable fields, so
+  // step 1 supplies the STARTING value and anything typed here wins from then
+  // on — re-syncing on every render would fight the shopper's own edits.
+  const [email, setEmail] = useState(contact?.email ?? '');
+  const [phone, setPhone] = useState(contact?.phone ?? '');
+  const [first, setFirst] = useState(contact?.first ?? '');
+  const [last, setLast] = useState(contact?.last ?? '');
   const [military, setMilitary] = useState(false);
   // Off, like every other optional section. On, it opens five REQUIRED fields
   // (name, phone, email, address) that block the step until they are filled —

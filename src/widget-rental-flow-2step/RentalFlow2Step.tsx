@@ -1443,6 +1443,7 @@ export function RentalFlow2Step({
             // needs every option. Live plans win; the sample only fills an empty
             // list, and only in the harness.
             plans={shownPlans.length ? shownPlans : (previewContent ? PREVIEW_PLANS : [])}
+            contact={contact}
             leaseDocName={leaseDoc?.name}
             brochureUrl={brochureUrl}
             onPlanChange={setInsuranceId}

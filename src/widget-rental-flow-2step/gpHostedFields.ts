@@ -81,21 +81,47 @@ export interface MountGpFieldsOptions {
  *  exists (B4), completions are SIMULATED — prod is refused outright. */
 export const GP_BRIDGE_IS_PROTOTYPE = true;
 
+/**
+ * A Heartland/Portico public key: "pkapi_cert_…" (sandbox) or "pkapi_prod_…".
+ *
+ * The key format decides which GATEWAY inside globalpayments.js handles the
+ * card, and the two want completely different settings — which is why sending
+ * a pkapi_ key as "X-GP-Api-Key" produced "Authentication Failed. Please retry
+ * with valid credentials": that name selects the GP-API gateway, which has
+ * never heard of this key.
+ */
+const isHeartlandKey = (key: string) => /^pkapi_/.test(key.trim());
+
+/** What environment the library will actually use for this key. */
+export function gpEffectiveEnvironment(key: string, declared: 'test' | 'prod'): 'test' | 'prod' {
+  // Heartland ignores any declared environment and derives it from the key
+  // prefix itself (cert → sandbox, anything else → production), so the key is
+  // the only thing that decides whether real money can move.
+  if (isHeartlandKey(key)) return /^pkapi_cert_/.test(key.trim()) ? 'test' : 'prod';
+  return declared;
+}
+
 export async function mountGpHostedFields(opts: MountGpFieldsOptions): Promise<() => void> {
   let form: GpForm | undefined;
-  if (GP_BRIDGE_IS_PROTOTYPE && opts.environment === 'prod') {
+  const heartland = isHeartlandKey(opts.apiKey);
+  // Judge the guard on the EFFECTIVE environment, not the declared one: with a
+  // pkapi_prod_ key the library goes to production whatever the prop says.
+  const env = gpEffectiveEnvironment(opts.apiKey, opts.environment);
+  if (GP_BRIDGE_IS_PROTOTYPE && env === 'prod') {
     opts.onError('Payments are not enabled on this site yet.');
-    console.error('[gpHostedFields] gpEnvironment="prod" REFUSED — the transaction bridge is a prototype (no server-side charge exists)');
+    console.error('[gpHostedFields] production REFUSED — the transaction bridge is a prototype (no server-side charge exists)');
     return () => {};
   }
   try {
     await loadGpScript();
     const GP = window.GlobalPayments!;
-    GP.configure({
-      'X-GP-Api-Key': opts.apiKey,
-      'X-GP-Environment': opts.environment,
-      enableAutocomplete: true,
-    });
+    GP.configure(heartland
+      // Heartland/Portico: publicApiKey is its one required setting, and it
+      // reads the environment off the key prefix — passing X-GP-Environment
+      // here does nothing.
+      ? { publicApiKey: opts.apiKey.trim(), enableAutocomplete: true }
+      // GP-API style keys keep the header-shaped settings.
+      : { 'X-GP-Api-Key': opts.apiKey, 'X-GP-Environment': opts.environment, enableAutocomplete: true });
     GP.on?.('error', (err) => {
       console.error('[gpHostedFields] runtime error:', err);
     });
