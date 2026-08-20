@@ -385,11 +385,20 @@
 
 /* ── Card number / expiry / CVV row (10080-30277) ────────────────────────── */
 
+/* Wraps rather than crushing. One bordered box still, but at narrow widths the
+   card number keeps the first line to itself and expiry + CVV drop to a second
+   — 16 formatted digits need ~180px to be readable, and in step 2's column at a
+   901px viewport this row had about 60px to offer them. min-height plus a fixed
+   cell height (not height:100%) is what lets the box grow to two lines;
+   align-content stops the extra space being spread between them. */
 .rf-cardrow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  height: var(--hb-field-height, 56px);
+  align-content: center;
+  column-gap: 8px;
+  row-gap: 0;
+  min-height: var(--hb-field-height, 56px);
   padding: 0 15px;
   border: var(--hb-field-border-width, 1px) solid var(--hb-field-border, #a5b4bf);
   border-radius: var(--hb-field-radius, 8px);
@@ -399,7 +408,8 @@
   border-color: var(--hb-field-border-active, #101318);
   box-shadow: var(--hb-focus-ring);
 }
-.rf-cardrow-ico { flex-shrink: 0; color: var(--hb-grayscale-medium, #637381); }
+/* align-self so neither is stretched by a wrapped line taller than itself. */
+.rf-cardrow-ico { flex-shrink: 0; align-self: center; color: var(--hb-grayscale-medium, #637381); }
 /* Each cell is its own labelled field inside the shared border. Geometry is
    the kit's (FormField.css) rather than reinvented — the ask was for "the same
    effect as the text input boxes", and those offsets are already proven in an
@@ -409,10 +419,23 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  height: 100%;
+  /* Fixed, not 100%: once the row can wrap its own height is auto, and a
+     percentage against an auto height resolves to nothing. */
+  height: var(--hb-field-height, 56px);
   min-width: 0;
 }
-.rf-cardcell--number { flex: 1 1 auto; }
+/* 180px is the floor for 16 formatted digits at 16px. Below that the pair
+   beside it goes to the next line rather than the number being squeezed. */
+.rf-cardcell--number { flex: 1 1 180px; min-width: 180px; }
+/* Expiry and CVV wrap as a unit — see the note in PaymentSection.tsx. Fixed
+   widths inside, so they are the size they were designed at on either line. */
+.rf-cardrow-short {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
 .rf-cardcell--exp { flex: 0 0 88px; }
 .rf-cardcell--cvv { flex: 0 0 58px; }
 
@@ -459,7 +482,7 @@
 
 /* Valid card row — one border, so it turns green as a unit (Figma 10080-28126). */
 .rf-cardrow--valid { border-color: var(--hb-field-border-success, #028a0c); }
-.rf-cardrow-tick { flex: 0 0 auto; color: var(--hb-ada-green, #028a0c); }
+.rf-cardrow-tick { flex: 0 0 auto; align-self: center; color: var(--hb-ada-green, #028a0c); }
 /* An expiry that is complete but unusable. */
 .rf-cardrow--error { border-color: var(--hb-field-border-error, #e53935); }
 .rf-cardrow-msg {

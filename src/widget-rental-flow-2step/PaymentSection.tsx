@@ -320,32 +320,38 @@ export function CardForm({ total, onPay, busy }: {
           <label className="rf-cardcell-label">Card Number<span className="rf-req">*</span></label>
         </span>
 
-        <span className="rf-cardcell rf-cardcell--exp">
-          <input
-            className="rf-cardrow-input"
-            ref={expiryRef}
-            value={expiry}
-            onChange={(e) => onExpiry(e.target.value)}
-            placeholder=" "
-            inputMode="numeric"
-            autoComplete="cc-exp"
-            aria-label="Card expiry, MM / YY (required)"
-          />
-          <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>
-        </span>
+        {/* Expiry and CVV are wrapped together so they move to a second line as
+            a PAIR. Left as three loose siblings, flex wraps them one at a time
+            and there is a band of widths where CVV sits alone under a row that
+            still has expiry on it. */}
+        <span className="rf-cardrow-short">
+          <span className="rf-cardcell rf-cardcell--exp">
+            <input
+              className="rf-cardrow-input"
+              ref={expiryRef}
+              value={expiry}
+              onChange={(e) => onExpiry(e.target.value)}
+              placeholder=" "
+              inputMode="numeric"
+              autoComplete="cc-exp"
+              aria-label="Card expiry, MM / YY (required)"
+            />
+            <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>
+          </span>
 
-        <span className="rf-cardcell rf-cardcell--cvv">
-          <input
-            className="rf-cardrow-input"
-            ref={cvvRef}
-            value={cvv}
-            onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, CVV_DIGITS))}
-            placeholder=" "
-            inputMode="numeric"
-            autoComplete="cc-csc"
-            aria-label="Card security code (required)"
-          />
-          <label className="rf-cardcell-label">CVV<span className="rf-req">*</span></label>
+          <span className="rf-cardcell rf-cardcell--cvv">
+            <input
+              className="rf-cardrow-input"
+              ref={cvvRef}
+              value={cvv}
+              onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, CVV_DIGITS))}
+              placeholder=" "
+              inputMode="numeric"
+              autoComplete="cc-csc"
+              aria-label="Card security code (required)"
+            />
+            <label className="rf-cardcell-label">CVV<span className="rf-req">*</span></label>
+          </span>
         </span>
 
         {/* One tick for the row, not three: the three inputs share a single
