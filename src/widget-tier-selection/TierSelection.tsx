@@ -706,15 +706,22 @@ export function TierSelection({
   // Handoff to the rental flow: pass the selection as server-resolvable ids —
   // the chosen unit (authoritative) plus size and the tier type for display;
   // the receiver re-resolves availability. Never a unit id disguised as a tier.
-  const selectTier = (key: TierKey) => {
-    if (!rentUrl || !data) return;
+  //
+  // Returned as a ROOT-RELATIVE href so the CTA can be a real <a>: Duda's router
+  // intercepts an anchor in editor/preview and the browser navigates on publish.
+  // A programmatic window.location bypasses Duda's preview routing and 404s on
+  // my.duda.co (same reason the Space List navigates via anchors). undefined ⇒
+  // not navigable (no rentUrl / cross-origin) ⇒ the CTA renders disabled.
+  const rentHref = (key: TierKey): string | undefined => {
+    if (!rentUrl || !data) return undefined;
     const t = data.tiers.find((x) => x.key === key);
-    const url = new URL(rentUrl, window.location.origin);
-    // Same-origin only: the rent page lives on this site. A cross-origin
-    // rentUrl is a misconfiguration — refuse rather than leak the shopper.
+    let url: URL;
+    try { url = new URL(rentUrl, window.location.origin); } catch { return undefined; }
+    // Same-origin only: the rent page lives on this site. A cross-origin rentUrl
+    // is a misconfiguration — refuse rather than leak the shopper.
     if (url.origin !== window.location.origin) {
-      console.error('[TierSelection] rentUrl blocked — cross-origin navigation refused:', rentUrl);
-      return;
+      console.error('[TierSelection] rentUrl blocked — cross-origin refused:', rentUrl);
+      return undefined;
     }
     if (data.size) url.searchParams.set('size', data.size);
     if (t?.unitId) url.searchParams.set('unitId', t.unitId);
@@ -725,7 +732,11 @@ export function TierSelection({
     if (effectiveCompanyId) url.searchParams.set('companyId', effectiveCompanyId);
     const gid = authoritativeGroupId ?? groupIdRef.current;
     if (gid) url.searchParams.set('unitGroupId', gid);
-    window.location.assign(url.toString());
+    // Root-relative handoff, same as Space List. Note: like Space List, this only
+    // resolves on the PUBLISHED site — in the Duda editor/preview it 404s on
+    // my.duda.co (Duda doesn't route these cross-page links in the editor). Test
+    // the handoff on the published site.
+    return url.pathname + url.search;
   };
 
   const inner = (
@@ -740,7 +751,7 @@ export function TierSelection({
   );
 
   return (
-    <TierDataContext.Provider value={data ? { ...data, selectTier, selected, setSelected, quotes, ensureQuote, ctaLabel: modalCtaLabel ?? ctaLabel } : EMPTY_DATA}>
+    <TierDataContext.Provider value={data ? { ...data, rentHref, selected, setSelected, quotes, ensureQuote, ctaLabel: modalCtaLabel ?? ctaLabel } : EMPTY_DATA}>
       {mode === 'modal' ? (
         // Closed → render nothing at all. Open → an overlay the shopper can
         // dismiss (✕, backdrop click, or Esc). The panel stops click bubbling
@@ -1028,7 +1039,7 @@ interface LayoutProps {
 }
 
 function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgency, adminFeeText, promo, chromeless }: LayoutProps) {
-  const { tiers, rows, sizeImage, sizeAlt, size, live, property, selectTier, ctaLabel } = useTierData();
+  const { tiers, rows, sizeImage, sizeAlt, size, live, property, rentHref, ctaLabel } = useTierData();
   const displaySize = size ? size.replace(/'/g, '\u2019') : '5\u2019 x 5\u2019';
   const cardPromo = live ? tier.promo : 'First Full Month FREE';
   return (
@@ -1107,7 +1118,9 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgen
               })()}
             </div>
 
-            <button type="button" className="ts-select-btn" onClick={() => selectTier?.(selected)}>{ctaLabel ?? 'Select'}</button>
+            {rentHref?.(selected)
+              ? <a className="ts-select-btn" href={rentHref(selected)}>{ctaLabel ?? 'Select'}</a>
+              : <button type="button" className="ts-select-btn" disabled>{ctaLabel ?? 'Select'}</button>}
           </div>
         </div>
 
@@ -1177,7 +1190,7 @@ function MobileLayout({
   tier: Tier; selected: TierKey; setSelected: (k: TierKey) => void;
   heading: string; urgency: string; promo: string; chromeless?: boolean;
 }) {
-  const { tiers, rows, live, selectTier, ctaLabel } = useTierData();
+  const { tiers, rows, live, rentHref, ctaLabel } = useTierData();
   const [open, setOpen] = useState(false);
   // Mobile has no room for sold-out placeholders — show real tiers only.
   const visibleTiers = tiers.filter((t) => !t.soldOut);
@@ -1238,7 +1251,9 @@ function MobileLayout({
         })()}
       </div>
 
-      <button type="button" className="ts-select-btn ts-m-select" onClick={() => selectTier?.(selected)}>{ctaLabel ?? 'Select'}</button>
+      {rentHref?.(selected)
+        ? <a className="ts-select-btn ts-m-select" href={rentHref(selected)}>{ctaLabel ?? 'Select'}</a>
+        : <button type="button" className="ts-select-btn ts-m-select" disabled>{ctaLabel ?? 'Select'}</button>}
 
       {tier.promoRate != null && (
         <div className="ts-m-rates">
@@ -1353,7 +1368,7 @@ function Option2Layout({ heading, subheading, urgency, adminFeeText, chromeless 
 }
 
 function O2Card({ card }: { card: O2Tier }) {
-  const { selectTier, selected, setSelected, ctaLabel } = useTierData();
+  const { rentHref, selected, setSelected, ctaLabel } = useTierData();
   const isSelected = selected === card.key;
   if (card.soldOut) {
     return (
@@ -1437,13 +1452,19 @@ function O2Card({ card }: { card: O2Tier }) {
               </div>
             )}
           </div>
-          <button
-            type="button"
-            className={`ts-o2-select${isSelected ? ' ts-o2-select--accent' : ''}`}
-            onClick={(e) => { e.stopPropagation(); selectTier?.(card.key); }}
-          >
-            {ctaLabel ?? 'Select'}
-          </button>
+          {rentHref?.(card.key) ? (
+            <a
+              className={`ts-o2-select${isSelected ? ' ts-o2-select--accent' : ''}`}
+              href={rentHref(card.key)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {ctaLabel ?? 'Select'}
+            </a>
+          ) : (
+            <button type="button" className={`ts-o2-select${isSelected ? ' ts-o2-select--accent' : ''}`} disabled>
+              {ctaLabel ?? 'Select'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -1517,7 +1538,7 @@ function O2MHead({ card }: { card: O2Tier }) {
 }
 
 function O2MExpanded({ card }: { card: O2Tier }) {
-  const { ctaLabel } = useTierData();
+  const { ctaLabel, rentHref } = useTierData();
   return (
     <div className={`ts-o2m-card${card.popular ? ' ts-o2m-card--popular' : ''}`}>
       {card.popular && <span className="ts-o2-badge ts-o2m-badge">Most Popular</span>}
@@ -1540,9 +1561,15 @@ function O2MExpanded({ card }: { card: O2Tier }) {
           <span className="ts-promo-text">{card.promo}</span>
         </div>
       )}
-      <button type="button" className={`ts-o2-select${card.popular ? ' ts-o2-select--accent' : ''}`}>
-        {ctaLabel ?? 'Select'}
-      </button>
+      {rentHref?.(card.key) ? (
+        <a className={`ts-o2-select${card.popular ? ' ts-o2-select--accent' : ''}`} href={rentHref(card.key)}>
+          {ctaLabel ?? 'Select'}
+        </a>
+      ) : (
+        <button type="button" className={`ts-o2-select${card.popular ? ' ts-o2-select--accent' : ''}`} disabled>
+          {ctaLabel ?? 'Select'}
+        </button>
+      )}
     </div>
   );
 }
@@ -1603,7 +1630,7 @@ function Option3Layout({ heading, subheading, urgency, adminFeeText, chromeless 
 }
 
 function O3Column({ card }: { card: O3Tier }) {
-  const { rows3, selectTier, selected, setSelected, ctaLabel } = useTierData();
+  const { rows3, rentHref, selected, setSelected, ctaLabel } = useTierData();
   const isSelected = selected === card.key;
   return (
     <div
@@ -1653,12 +1680,16 @@ function O3Column({ card }: { card: O3Tier }) {
             </div>
             {card.soldOut ? (
               <button type="button" className="ts-o2-select ts-o2-select--soldout" disabled>{ctaLabel ?? 'Select'}</button>
-            ) : (
-              <button
-                type="button"
+            ) : rentHref?.(card.key) ? (
+              <a
                 className={`ts-o2-select${isSelected ? ' ts-o2-select--accent' : ''}`}
-                onClick={(e) => { e.stopPropagation(); selectTier?.(card.key); }}
+                href={rentHref(card.key)}
+                onClick={(e) => e.stopPropagation()}
               >
+                {ctaLabel ?? 'Select'}
+              </a>
+            ) : (
+              <button type="button" className={`ts-o2-select${isSelected ? ' ts-o2-select--accent' : ''}`} disabled>
                 {ctaLabel ?? 'Select'}
               </button>
             )}

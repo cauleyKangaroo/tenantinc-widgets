@@ -712,6 +712,10 @@
 .ts-o2-select:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 8%, #fff); }
 .ts-o2-select--accent { background: var(--color_2, #509e2f); color: #fff; }
 .ts-o2-select--accent:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
+/* The Select CTA renders as an <a> (so Duda's router intercepts it in preview);
+   keep it visually identical to the button variants. */
+a.ts-select-btn, a.ts-o2-select { text-decoration: none; }
+a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
 
 .ts-o2-admin {
   display: flex;
