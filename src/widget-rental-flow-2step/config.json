@@ -6,5 +6,7 @@
   "propertyId": "OBZ5dhPmjZ",
   "spaceGroupId": "7jP5qtVeBg",
   "proxyBaseUrl": "",
-  "enableDirectWrites": true
+  "enableDirectWrites": true,
+  "gpApiKey": "",
+  "gpEnvironment": "test"
 }

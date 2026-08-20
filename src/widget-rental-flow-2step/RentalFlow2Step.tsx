@@ -88,10 +88,22 @@ export interface RentalFlow2StepProps {
   changeSpaceUrl?: string;
   /** Protection-plan brochure PDF, opened from step 2's "Learn More" lightbox. */
   brochureUrl?: string;
-  /** Global Payments CLIENT-side (publishable) key for Hosted Fields card
-   *  tokenization. The server-side key must NEVER be passed here. */
+  /**
+   * Global Payments CLIENT-side (publishable) key for Hosted Fields card
+   * tokenization. The server-side key must NEVER be passed here.
+   *
+   * Falls back to `config.json`'s `gpApiKey` when the Duda field is empty, so a
+   * site that has not added the content field still gets the key.
+   *
+   * SETTING THIS DISABLES THE RENTAL. Hosted fields exist to keep the card
+   * number out of our JavaScript, and the documented rental APIs want that
+   * exact number — so with a key present there is nothing to put in
+   * `payment_method` and Pay Now finishes without creating a lease. Leave it
+   * empty until Hummingbird confirms it accepts a GP token.
+   */
   gpApiKey?: string;
-  /** GP environment; keep 'test' until launch cutover. */
+  /** GP environment; keep 'test' until launch cutover. Falls back to
+   *  `config.json`'s `gpEnvironment`, then 'test'. */
   gpEnvironment?: 'test' | 'prod';
   /**
    * DEV HARNESS ONLY — fills the designed surfaces with their Figma samples when
@@ -627,7 +639,7 @@ export function RentalFlow2Step({
   proxyBaseUrl = cfg.proxyBaseUrl ?? '',
   changeSpaceUrl,
   gpApiKey,
-  gpEnvironment = 'test',
+  gpEnvironment,
   previewContent = false,
   inEditor = false,
   siteId,
@@ -745,7 +757,26 @@ export function RentalFlow2Step({
   const [payError, setPayError] = useState<string | undefined>(undefined);
   /** "Get Access" pressed on the static post-purchase form. */
   const [accessGranted, setAccessGranted] = useState(false);
-  const staticPay = !gpApiKey;
+  // Global Payments key: the Duda content field wins, config.json is the
+  // fallback so a site that has not added the field still gets the key. Same
+  // precedence as every other credential here. Only the CLIENT-side
+  // (publishable) key belongs in either place.
+  const gpKey = (gpApiKey || (cfg as { gpApiKey?: string }).gpApiKey || '').trim();
+  const gpEnv: 'test' | 'prod' =
+    gpEnvironment ?? ((cfg as { gpEnvironment?: string }).gpEnvironment === 'prod' ? 'prod' : 'test');
+  const staticPay = !gpKey;
+  // A key switches card entry to GP's hosted fields, and that path has no way
+  // to complete a rental: the APIs want a card number and hosted fields
+  // deliberately never expose one, so Pay Now finishes without a lease. Say so
+  // once, loudly, because on the page it looks like a normal successful rental.
+  useEffect(() => {
+    if (!staticPay) {
+      console.warn(
+        `${logTag} Global Payments hosted fields are ACTIVE, so this page cannot complete a rental — `
+        + 'the card never reaches documents/finalize or lease. Clear gpApiKey to use the documented rental flow.',
+      );
+    }
+  }, [staticPay, logTag]);
   // Office/Gate hours fallback for the confirmation page: the immutable success
   // snapshot occasionally predates propertyInfo loading, so it can lack hours.
   // Hours are read-only + non-sensitive (unlike the money block), so it's safe
@@ -1416,8 +1447,8 @@ export function RentalFlow2Step({
             brochureUrl={brochureUrl}
             onPlanChange={setInsuranceId}
             onEditDate={() => setDateModalOpen(true)}
-            gpApiKey={gpApiKey}
-            gpEnvironment={gpEnvironment}
+            gpApiKey={gpKey}
+            gpEnvironment={gpEnv}
             payNowTotal={quote?.totalDue}
             paying={paying}
             payError={payError}
