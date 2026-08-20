@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './RentalFlow2Step.css';
 import { Step2 } from './Step2';
 import {
@@ -375,32 +375,6 @@ function RentalHeader({ holdRemaining, homeHref, shrunk, innerRef }: {
   );
 }
 
-/**
- * Scroll the window to `top` over ~260ms.
- *
- * Hand-rolled rather than `behavior: 'smooth'` because that has no speed
- * control and its default glide is slow enough to feel like a delay when the
- * point is to snap back to the summary. Honours prefers-reduced-motion by
- * jumping straight there.
- */
-function fastScrollTo(top: number) {
-  const reduce = typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const start = window.scrollY;
-  const delta = top - start;
-  if (reduce || Math.abs(delta) < 2) { window.scrollTo(0, top); return; }
-
-  const DURATION = 260;
-  const t0 = performance.now();
-  const step = (now: number) => {
-    const p = Math.min(1, (now - t0) / DURATION);
-    // easeOutCubic — quick off the mark, settles rather than stopping dead.
-    window.scrollTo(0, start + delta * (1 - (1 - p) ** 3));
-    if (p < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-}
-
 // Payment interstitial (Figma screen 10 / mobile m06) — modal overlay
 // while the lease+payment finalize. Purely presentational; the parent
 // decides when to show it and where to go next.
@@ -744,27 +718,70 @@ export function RentalFlow2Step({
   const [railOpen, setRailOpen] = useState(false);
 
   /**
-   * Tapping the cost bar.
-   *
-   * Pinned (the page has scrolled past the widget), the bar is the only part of
-   * the summary on screen, so a tap means "take me back to it": always OPEN and
-   * scroll the widget's top under the viewport — never close, which would
-   * dismiss the thing being asked for.
-   *
-   * Unpinned it is an ordinary accordion and toggles, because the content it
-   * controls is already in view.
-   *
-   * The scroll targets the WIDGET's top, not the sheet's, so it is unaffected
-   * by the sheet animating open at the same time — a target that grows mid-
-   * scroll would land short.
+   * Tapping the cost bar opens or closes the sheet. Nothing else — it used to
+   * also scroll the page back to the summary when pinned, which is redundant
+   * now the sheet drops over the content instead of being appended below it.
    */
-  const onRailToggle = () => {
-    const rect = wrapRef.current?.getBoundingClientRect();
-    const pinned = !!rect && rect.top < 0;
-    if (!pinned) { setRailOpen((o) => !o); return; }
-    setRailOpen(true);
-    if (rect) fastScrollTo(window.scrollY + rect.top);
-  };
+  const onRailToggle = () => setRailOpen((o) => !o);
+
+  /**
+   * How tall the sheet may be: whatever is left of the viewport below the bar.
+   *
+   * Measured rather than assumed. The bar only sits at the top of the screen
+   * once the page has scrolled past the widget; before that it is wherever the
+   * flow puts it, and a hardcoded `100vh - 80px` would run off the bottom —
+   * unreachable, because the page behind is locked.
+   */
+  const railBarRef = useRef<HTMLDivElement | null>(null);
+  // Layout effect, not a plain one: the scrim is sized from this too, and a
+  // frame at its fallback height would briefly add page scroll.
+  useLayoutEffect(() => {
+    if (!isMobile || !railOpen) return undefined;
+    const measure = () => {
+      const bar = railBarRef.current;
+      const wrap = wrapRef.current;
+      if (!bar || !wrap) return;
+      const room = Math.max(window.innerHeight - bar.getBoundingClientRect().bottom, 0);
+      // The scrim covers exactly what is visible below the bar. Not 100vh — an
+      // absolutely positioned box past the viewport bottom lengthens the page
+      // and creates the very scrollbar this is here to suppress.
+      wrap.style.setProperty('--rfm-room', `${room}px`);
+      // The sheet gets a floor: on a very short viewport a scrollable 200px is
+      // more usable than a faithfully-measured 20px.
+      wrap.style.setProperty('--rfm-sheet-max', `${Math.max(room, 200)}px`);
+    };
+    measure();
+    // The bar can still move: it is only pinned once the page has scrolled past
+    // the widget, so a sheet opened before then travels with it.
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, { passive: true });
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure);
+    };
+  }, [isMobile, railOpen]);
+
+  /**
+   * Wheel over the scrim must not scroll the page behind it.
+   *
+   * Touch is handled in CSS (`touch-action: none`), but wheel has no such
+   * property, and React attaches its own wheel listener passively — so
+   * preventDefault has to come from a native non-passive one.
+   *
+   * There is deliberately NO document-level scroll lock. `overflow: hidden` on
+   * html/body stops the content overflowing at all, so the browser clamps
+   * scrollTop to 0: the page jumps to the top and takes the sticky bar with it.
+   * The position:fixed-body variant is worse — it unpins sticky outright.
+   * Blocking the interaction at the scrim leaves the document untouched.
+   */
+  const scrimRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const node = scrimRef.current;
+    if (!node || !isMobile || !railOpen) return undefined;
+    const block = (e: Event) => e.preventDefault();
+    node.addEventListener('wheel', block, { passive: false });
+    return () => node.removeEventListener('wheel', block);
+  }, [isMobile, railOpen]);
   useEffect(() => {
     const node = wrapRef.current;
     if (!node) return undefined;
@@ -1165,7 +1182,7 @@ export function RentalFlow2Step({
     <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
       {header}
       {isMobile && (
-        <div className="rfm-top">
+        <div className="rfm-top" ref={railBarRef}>
           {/* A hold only exists after a unit is actually held, so on step 1
               there is genuinely nothing to count down — which is why the row
               was invisible. The sample value is harness-only, on the same gate
@@ -1177,16 +1194,27 @@ export function RentalFlow2Step({
             expanded={railOpen}
             onToggle={onRailToggle}
           />
-        </div>
-      )}
-      {/* OUTSIDE .rfm-top, which is sticky: in there the sheet would stick to
-          the viewport along with the bar. Out here it is normal flow, so
-          opening it pushes the page down instead of covering it.
-          Always mounted, visibility driven by the class — a conditionally
-          rendered element cannot transition, it can only appear. */}
-      {isMobile && (
-        <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
-          <div className="rfm-sheet">{rail}</div>
+          {/* Click-outside target, and the thing that keeps the page behind
+              from scrolling. Before the sheet in the DOM so the sheet paints
+              over it. */}
+          <div
+            ref={scrimRef}
+            className={`rfm-scrim${railOpen ? ' rfm-scrim--open' : ''}`}
+            onClick={() => setRailOpen(false)}
+            aria-hidden="true"
+          />
+          {/* INSIDE .rfm-top, absolutely positioned off its bottom edge, so it
+              hangs from the bar wherever the bar happens to be — pinned to the
+              top of the screen or still down in the flow — and overlays the
+              content rather than pushing it down. .rf-wrapper is a container
+              (container-type: inline-size ⇒ contain: layout), which would make
+              a `fixed` sheet resolve against the widget instead of the
+              viewport; anchoring to the bar sidesteps that entirely.
+              Always mounted, visibility driven by the class — a conditionally
+              rendered element cannot transition, it can only appear. */}
+          <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
+            <div className="rfm-sheet">{rail}</div>
+          </div>
         </div>
       )}
       <div className="rf-layout">

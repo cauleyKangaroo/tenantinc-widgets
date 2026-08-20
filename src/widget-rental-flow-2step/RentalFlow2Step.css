@@ -1305,22 +1305,82 @@
 }
 .rfm-bar-chev { flex: 0 0 auto; color: #101318; transform: rotate(90deg); transition: transform 0.15s ease; }
 .rfm-bar-chev--up { transform: rotate(-90deg); }
-/* Grid 0fr -> 1fr is what lets this animate to its NATURAL height: there is no
-   pixel value to guess, so nothing clips and no scrollbar is needed. The sheet
-   is in normal flow, so opening it pushes the page down rather than covering
-   it. */
-.rfm-sheet-wrap {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+/* The sheet hangs off the bar's bottom edge and OVERLAYS what is beneath it,
+   rather than being appended below and pushing the page down.
+
+   `top: 100%` on an absolute child of the sticky bar means its position needs no
+   measurement at all — it tracks the bar automatically, whether the bar is
+   pinned to the top of the screen or still sitting down in the flow. Only its
+   height is measured (--rfm-sheet-max, set in RentalFlow2Step.tsx).
+
+   The old grid 0fr -> 1fr animation went with the push-down layout: that trick
+   animates to the content's NATURAL height, which is precisely what must not
+   happen now — the sheet is capped at the viewport and scrolls inside instead.
+   A slide behind the wrap's own clip does the same job with a definite height.
+
+   No max-height here: the wrap sizes to the sheet plus the shadow gutter, so
+   translateY(-100%) — which moves the sheet by its OWN height — parks its
+   bottom edge exactly on the wrap's top edge. Nothing peeks out. */
+/* Covers what is still visible below the sheet. Two jobs: a tap on it closes
+   the dropdown, and it absorbs scroll gestures aimed at the page behind —
+   which is why there is no document-level scroll lock (see the note in
+   RentalFlow2Step.tsx: locking html/body sends the page to the top and takes
+   the sticky bar with it).
+
+   Absolutely positioned off the sticky bar exactly like the sheet, so it
+   travels with it, and sized to the MEASURED room below it rather than 100vh —
+   a box hanging past the viewport bottom would lengthen the page and add the
+   scrollbar this exists to prevent. */
+.rfm-scrim {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: var(--rfm-room, 0px);
+  background: rgba(16, 19, 24, 0.32);
+  /* No wheel equivalent exists; that one is blocked by a native listener. */
+  touch-action: none;
+  overscroll-behavior: contain;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-.rfm-sheet-wrap--open { grid-template-rows: 1fr; }
-.rfm-sheet {
-  /* min-height:0 is required — a grid item's default min-height:auto would
-     refuse to shrink below its content and the row would never collapse. */
-  min-height: 0;
+.rfm-scrim--open { opacity: 1; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .rfm-scrim { transition: none; }
+}
+
+.rfm-sheet-wrap {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
   overflow: hidden;
+  /* Room for the sheet's drop shadow; the clip above would otherwise cut it
+     off flush and lose the sense that this is floating over the page. */
+  padding-bottom: 14px;
+  /* Closed, this is still a real box laid over the content underneath — empty
+     and invisible, but it would swallow taps meant for the page behind it. */
+  pointer-events: none;
+}
+.rfm-sheet-wrap--open { pointer-events: auto; }
+.rfm-sheet {
+  /* THE only scroller while the sheet is open: everything else visible is
+     under the scrim, which absorbs the gesture. `contain` handles the last
+     case the scrim cannot — a flick that starts inside this list and runs off
+     its end, which would otherwise chain out to the host page. */
+  max-height: var(--rfm-sheet-max, 60vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
+  box-shadow: 0 8px 12px rgba(71, 84, 116, 0.16);
+  transform: translateY(-100%);
+  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.rfm-sheet-wrap--open .rfm-sheet { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .rfm-sheet { transition: none; }
 }
 /* The rail is built for a 422px desktop column; inside the sheet it has to fit
    a 393px phone, so everything that carried a fixed width goes fluid rather
