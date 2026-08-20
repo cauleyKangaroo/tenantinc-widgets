@@ -5,8 +5,10 @@ import type { FeatureHighlight } from '../../featureHighlights';
 // Feature Highlights (Figma 10550-32752) — a plain list of feature links inside
 // the sidebar accordion: 16px semibold label, right chevron, hairline dividers
 // between rows. Clicking one puts `?feature=<slug>` on the URL and the whole
-// widget becomes that feature's landing page; clicking the active row again
-// clears it.
+// widget becomes that feature's landing page. A row is a TRIGGER, never a
+// toggle: clicking the active row re-selects the same feature instead of
+// clearing it, so a second click can't silently unfilter the page. The way back
+// to the full listing is the explicit "Show all spaces" button.
 
 interface FeatureHighlightsSectionProps {
   features: FeatureHighlight[];
@@ -32,8 +34,8 @@ export function FeatureHighlightsSection({
               <button
                 type="button"
                 className={`sl-fh-row${active ? ' active' : ''}`}
-                aria-pressed={active}
-                onClick={() => onSelect(active ? null : f.slug)}
+                aria-current={active ? 'true' : undefined}
+                onClick={() => onSelect(f.slug)}
               >
                 <span className="sl-fh-label">{f.name}</span>
                 <span className="sl-fh-chevron" aria-hidden="true">

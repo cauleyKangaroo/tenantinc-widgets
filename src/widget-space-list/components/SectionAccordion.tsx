@@ -225,7 +225,13 @@ export function SectionAccordion({
   // Every section is a candidate; the "Manage accordions" modal controls which
   // are visible (config.hidden) and their order (config.order). No config →
   // all sections shown in default order.
-  const allKeys = ACCORDION_SECTIONS.map((s) => s.key);
+  // Feature Highlights is the one section with nothing of its own to say: its
+  // rows ARE the property's filter-bar amenities. With none there is no empty
+  // state worth a header, so drop the whole row (header included) rather than
+  // offering an accordion that opens onto nothing.
+  const allKeys = ACCORDION_SECTIONS.map((s) => s.key).filter(
+    (k) => k !== 'highlights' || featureHighlights.length > 0,
+  );
 
   const items: AccordionItemDef[] = resolveVisibleOrder(allKeys, config).map((key) => ({
     key,
