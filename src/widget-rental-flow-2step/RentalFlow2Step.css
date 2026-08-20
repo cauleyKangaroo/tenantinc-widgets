@@ -618,35 +618,9 @@
    taller than the design. */
 .rf2-checks { display: flex; flex-direction: column; gap: 4px; }
 
-/* Step-2 checkbox skin (Figma 8507-23354). The shared Checkbox is built for the
-   form kit — an 8px radius, an #a5b4bf resting border and a GREEN (--hb-cta)
-   fill when on. This design wants a near-square, lighter-outlined box that
-   fills NEAR-BLACK, which is what the Check helper's "dark-fill" name has
-   always claimed. Scoped to .rf2-check, so the shared component is unchanged
-   for every other widget. */
-.rf-check .hb-check__box {
-  border-radius: 2px;
-  border-color: #dfe3e8;
-}
-/* Both classes sit on the same root element, hence the compound selector. */
-.rf-check.hb-check--on .hb-check__box {
-  background: #101318;
-  border-color: #101318;
-}
-
-/* 18px box for EVERY checkbox in the flow — the Additional Information size
-   (8507-23354), not the kit's 24px. Merged into .rf-check rather than kept as a
-   --sm variant: one size everywhere is the point.
-   The 3px margin preserves a 24px footprint, so shrinking the box does not move
-   label baselines or change the 28px row pitch. */
-.rf-check .hb-check__box {
-  width: 18px;
-  height: 18px;
-  margin: 3px;
-}
-/* No CSS sizing for the tick: RfCheckbox passes it in already sized, and the
-   design's mark is 13.41x10.12 — not square. Forcing width == height here would
-   stretch it. */
+/* The step-2 checkbox skin that used to live here — 18px near-square box,
+   #dfe3e8 outline, near-black fill, solid tick — is now the kit's default
+   (shared/ui/Checkbox), so every widget gets it and this override is gone. */
 .rf2-checkline { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .rf2-checkline input { position: absolute; width: 0; height: 0; opacity: 0; }
 .rf2-box {

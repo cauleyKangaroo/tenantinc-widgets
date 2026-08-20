@@ -25,10 +25,16 @@
 
 .hb-check__box {
   flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--hb-field-radius);
-  border: 2px solid var(--hb-cloud-darker);
+  /* 18px box inside a 24px footprint. The margin is what keeps the footprint:
+     shrinking the box alone would move label baselines and change row pitch
+     wherever these are stacked. */
+  width: 18px;
+  height: 18px;
+  margin: 3px;
+  /* Near-square, and a lighter resting outline than the field border — this is
+     a mark to tick, not a box to type in. */
+  border-radius: 2px;
+  border: 2px solid var(--hb-cloud-light, #dfe3e8);
   background: var(--hb-field-bg);
   display: inline-flex;
   align-items: center;
@@ -36,9 +42,11 @@
   color: var(--hb-white);
   transition: background var(--hb-transition), border-color var(--hb-transition);
 }
+/* Fills NEAR-BLACK when on, not the brand colour: a ticked box is a statement
+   of fact, and tinting it brand made it read as a call to action. */
 .hb-check--on .hb-check__box {
-  background: var(--hb-cta);
-  border-color: var(--hb-cta);
+  background: var(--hb-text-night);
+  border-color: var(--hb-text-night);
 }
 .hb-check__input:focus-visible + .hb-check__box { box-shadow: var(--hb-focus-ring); }
 .hb-check__tick { color: var(--hb-white); }

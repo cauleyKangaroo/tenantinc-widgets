@@ -1,12 +1,12 @@
 // ===========================================================================
 // <Checkbox /> — the one checkbox every widget should use.
-// Token-styled square box + tick (kit CheckIcon), label to the right, keyboard
+// Token-styled square box + solid tick (CheckTickSolid), label to the right, keyboard
 // focus ring. Controlled: pass `checked` + `onChange`.
 // ===========================================================================
 
 import React, { useId } from 'react';
 import './Checkbox.css';
-import { CheckIcon } from './icons';
+import { CheckTickSolid } from './icons';
 
 export interface CheckboxProps {
   checked: boolean;
@@ -17,8 +17,8 @@ export interface CheckboxProps {
   className?: string;
   id?: string;
   /**
-   * Replaces the tick mark. The kit's default is the Pika check — a curved,
-   * stroked glyph — but some designs specify a solid geometric tick, and the
+   * Replaces the tick mark. The default is the solid geometric tick the
+   * designs specify; pass this only where a different glyph is wanted, and the
    * mark cannot be swapped from CSS. Omit for the default.
    */
   tick?: React.ReactNode;
@@ -48,7 +48,7 @@ export function Checkbox({
         onChange={(e) => onChange(e.target.checked)}
       />
       <span className="hb-check__box" aria-hidden="true">
-        {checked && (tick ?? <CheckIcon size={18} className="hb-check__tick" />)}
+        {checked && (tick ?? <CheckTickSolid size={13} className="hb-check__tick" />)}
       </span>
       <span className="hb-check__label">
         {children}
