@@ -430,6 +430,57 @@
 .rf2-rowhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
 .rf2-rowhead > :first-child { min-width: max-content; }
 
+/* ── "Learn More" coverage card (Figma 8509-36480) ────────────────────────
+   Desktop shows the card on hover; tablet and mobile keep the tap-to-open
+   lightbox. The @media below must stay identical to PLAN_HOVER_QUERY in
+   Step2.tsx — if they drift there is a width at which both fire.
+
+   hover/pointer are in the query as well as width because hover on a
+   touchscreen fires on tap and then sticks, leaving the card up with nothing
+   to dismiss it. A touch tablet at 1024px would hit exactly that. */
+.rf2-learn { position: relative; display: inline-flex; }
+.rf2-learn-pop { display: none; }
+
+@media (min-width: 901px) and (hover: hover) and (pointer: fine) {
+  .rf2-learn-pop {
+    display: block;
+    position: absolute;
+    /* OVER the trigger, not beside it: the brief is that the pointer is already
+       inside the box when it appears. These offsets put "Learn More" just
+       inside the card's top-right corner, so there is no gap to cross and the
+       card cannot flicker as the pointer moves onto it. */
+    top: -12px;
+    right: -14px;
+    /* Above the plan dropdown (30) and the sticky bits below it in this widget,
+       but under the modals. */
+    z-index: 40;
+    /* Wider than the Figma frame's 234px (a 186px column inside 24px sides) —
+       asked for, and it buys the coverage lines a wider column so fewer of them
+       wrap. The card's padding is unchanged, so only the text column grows. */
+    width: 280px;
+    opacity: 0;
+    visibility: hidden;
+    /* visibility is discrete, so it has to wait out the fade on the way out —
+       without the delay the card would vanish instantly and the fade would
+       play against nothing. */
+    transition: opacity 0.15s ease, visibility 0s linear 0.15s;
+  }
+  /* Hover the WRAPPER, which contains the card — that is what keeps it open
+     once the pointer is on the card itself. */
+  .rf2-learn:hover .rf2-learn-pop,
+  .rf2-learn:focus-within .rf2-learn-pop {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+  /* The shared card is built to fill a modal up to 320px; here the popover owns
+     the width and the card fills it exactly. */
+  .rf2-learn-pop .rf-pp-card { width: 100%; max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rf2-learn-pop { transition: none; }
+}
+
 /* Protection plan option */
 /* Anchors the dropdown; the menu is absolute against this. */
 .rf2-plan-wrap { position: relative; }

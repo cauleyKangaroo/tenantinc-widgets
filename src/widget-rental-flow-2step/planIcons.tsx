@@ -19,17 +19,20 @@ interface GlyphProps {
   className?: string;
 }
 
-/** Filled glyph in its own aspect ratio, height-locked to `size`. */
+/** Filled glyph in its own aspect ratio, fitted inside a `size` box. */
 function Glyph({
   size = 16, className, viewBox, width, height, d,
 }: GlyphProps & { viewBox: string; width: number; height: number; d: string }) {
-  // Preserve the artwork's proportions: lock the height and let the width follow.
-  const w = (width / height) * size;
+  // Scale on the LONGER axis, so the artwork fits the box the design draws it
+  // in and keeps its proportions. Height-locking instead was wrong for the two
+  // glyphs that are wider than they are tall: it made the eye 21.8px across
+  // against the frame's 16, and the wind 16.6.
+  const k = size / Math.max(width, height);
   return (
     <svg
       className={className}
-      width={w}
-      height={size}
+      width={width * k}
+      height={height * k}
       viewBox={viewBox}
       fill="currentColor"
       xmlns="http://www.w3.org/2000/svg"
