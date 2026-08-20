@@ -11,7 +11,6 @@ import {
 } from './api';
 import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
-import { GP_BRIDGE_IS_PROTOTYPE } from './gpHostedFields';
 import { OrderRail } from './OrderRail';
 import { ChevronSolidIcon } from './icons';
 /* The ASSET ONLY, deliberately — not the #02 component, its config, its props
@@ -88,23 +87,6 @@ export interface RentalFlow2StepProps {
   changeSpaceUrl?: string;
   /** Protection-plan brochure PDF, opened from step 2's "Learn More" lightbox. */
   brochureUrl?: string;
-  /**
-   * Global Payments CLIENT-side (publishable) key for Hosted Fields card
-   * tokenization. The server-side key must NEVER be passed here.
-   *
-   * Falls back to `config.json`'s `gpApiKey` when the Duda field is empty, so a
-   * site that has not added the content field still gets the key.
-   *
-   * SETTING THIS DISABLES THE RENTAL. Hosted fields exist to keep the card
-   * number out of our JavaScript, and the documented rental APIs want that
-   * exact number — so with a key present there is nothing to put in
-   * `payment_method` and Pay Now finishes without creating a lease. Leave it
-   * empty until Hummingbird confirms it accepts a GP token.
-   */
-  gpApiKey?: string;
-  /** GP environment; keep 'test' until launch cutover. Falls back to
-   *  `config.json`'s `gpEnvironment`, then 'test'. */
-  gpEnvironment?: 'test' | 'prod';
   /**
    * DEV HARNESS ONLY — fills the designed surfaces with their Figma samples when
    * no live data has resolved, so the frames can be reviewed:
@@ -415,30 +397,6 @@ function RentalHeader({ holdRemaining, homeHref, shrunk, innerRef }: {
   );
 }
 
-// Payment interstitial (Figma screen 10 / mobile m06) — modal overlay
-// while the lease+payment finalize. Purely presentational; the parent
-// decides when to show it and where to go next.
-// The live-payment path's finalizing beat. It is ProcessingModal — the SAME
-// screen the static path shows — rather than a second implementation of it.
-// The old one had drifted to a 22px title, a 6px bar and #3ba55c against the
-// frame's 32px/10px/#509E2F, and would have needed the mobile take-over built
-// a second time. No onDone: this path navigates away when the real flow
-// finishes, so the bar eases to 100% and waits.
-function PaymentInterstitial({ firstName, brandName }: { firstName: string; brandName: string }) {
-  return (
-    <ProcessingModal
-      open
-      firstName={firstName}
-      facilityName={brandName}
-      note={GP_BRIDGE_IS_PROTOTYPE ? (
-        <p className="rf-demo-banner">
-          Demo preview — no payment, lease, or reservation was created.
-        </p>
-      ) : undefined}
-    />
-  );
-}
-
 export interface Contact { first: string; last: string; email: string; phone: string; business: boolean }
 
 // Step 1 — "Secure your space now" contact form.
@@ -638,8 +596,6 @@ export function RentalFlow2Step({
   unitGroupId: unitGroupIdArg,
   proxyBaseUrl = cfg.proxyBaseUrl ?? '',
   changeSpaceUrl,
-  gpApiKey,
-  gpEnvironment,
   previewContent = false,
   inEditor = false,
   siteId,
@@ -757,26 +713,6 @@ export function RentalFlow2Step({
   const [payError, setPayError] = useState<string | undefined>(undefined);
   /** "Get Access" pressed on the static post-purchase form. */
   const [accessGranted, setAccessGranted] = useState(false);
-  // Global Payments key: the Duda content field wins, config.json is the
-  // fallback so a site that has not added the field still gets the key. Same
-  // precedence as every other credential here. Only the CLIENT-side
-  // (publishable) key belongs in either place.
-  const gpKey = (gpApiKey || (cfg as { gpApiKey?: string }).gpApiKey || '').trim();
-  const gpEnv: 'test' | 'prod' =
-    gpEnvironment ?? ((cfg as { gpEnvironment?: string }).gpEnvironment === 'prod' ? 'prod' : 'test');
-  const staticPay = !gpKey;
-  // A key switches card entry to GP's hosted fields, and that path has no way
-  // to complete a rental: the APIs want a card number and hosted fields
-  // deliberately never expose one, so Pay Now finishes without a lease. Say so
-  // once, loudly, because on the page it looks like a normal successful rental.
-  useEffect(() => {
-    if (!staticPay) {
-      console.warn(
-        `${logTag} Global Payments hosted fields are ACTIVE, so this page cannot complete a rental — `
-        + 'the card never reaches documents/finalize or lease. Clear gpApiKey to use the documented rental flow.',
-      );
-    }
-  }, [staticPay, logTag]);
   // Office/Gate hours fallback for the confirmation page: the immutable success
   // snapshot occasionally predates propertyInfo loading, so it can lack hours.
   // Hours are read-only + non-sensitive (unlike the money block), so it's safe
@@ -1248,7 +1184,7 @@ export function RentalFlow2Step({
             </div>
           </div>
         )}
-        {GP_BRIDGE_IS_PROTOTYPE && confirmation.kind === 'rental' && (
+        {confirmation.kind === 'rental' && (
           <div className="rf-demo-banner rf-demo-banner--page" role="note">
             Demo preview — no payment or lease was created.
           </div>
@@ -1448,8 +1384,6 @@ export function RentalFlow2Step({
             brochureUrl={brochureUrl}
             onPlanChange={setInsuranceId}
             onEditDate={() => setDateModalOpen(true)}
-            gpApiKey={gpKey}
-            gpEnvironment={gpEnv}
             payNowTotal={quote?.totalDue}
             paying={paying}
             payError={payError}
@@ -1518,31 +1452,13 @@ export function RentalFlow2Step({
                   });
                 return;
               }
+              // No card, or no hold/quote to rent against — nothing to
+              // charge, so this is the harness/preview path: show the
+              // finalizing beat and hand to the post-purchase screen.
               setFinalizing(info);
               // The pick has been acted on — drop it so returning to /rental
               // later starts clean instead of silently re-selecting it.
               clearUnitSelection();
-              // Static path: the lightbox's onDone swaps in the post-purchase
-              // form. No nonce, no navigation — nothing was charged.
-              if (staticPay) return;
-              // Prototype bridge: no server-side sale endpoint yet (B4), so
-              // after the finalizing beat, land on the confirmation page with
-              // the REAL held unit number.
-              const unitNo = hold?.unitNumber ?? quote?.unitNumber;
-              const nonce = stashConfirmation({
-                kind: 'rental',
-                name: info.firstName,
-                unitNumber: unitNo ? `#${unitNo}` : undefined,
-                moveInDate: fmtDisplayDate(moveIn),
-                rail: { property: propertyInfo, selection, quote },
-              });
-              window.setTimeout(() => {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('unit_number');
-                url.searchParams.set('type', 'rental');
-                url.searchParams.set('c', nonce);
-                window.location.assign(url.toString());
-              }, 3200);
             }}
           />
         )}
@@ -1551,15 +1467,9 @@ export function RentalFlow2Step({
         {!isMobile && rail}
       </div>
 
-      {/* Two finalizing beats, one per payment path. With a Global Payments key
-          the real flow runs and navigates to the confirmation page, so it keeps
-          the inline interstitial. Without one, payment is the static forms, and
-          the lightbox (Figma 8509-35122) hands to the post-purchase form
-          (8507-25408) in place — no navigation, nothing was really charged. */}
-      {finalizing && !staticPay && (
-        <PaymentInterstitial firstName={finalizing.firstName} brandName={brandName} />
-      )}
-      {finalizing && staticPay && (
+      {/* Finalizing beat (Figma 8509-35122): the lightbox hands to the
+          post-purchase form (8507-25408) in place — no navigation. */}
+      {finalizing && (
         <ProcessingModal
           open
           firstName={finalizing.firstName}

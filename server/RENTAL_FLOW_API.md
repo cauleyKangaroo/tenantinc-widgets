@@ -289,15 +289,16 @@ failed one — the lease and the payment are already done by that point.
 
 ## Open questions for TenantInc
 
-1. **Card handling — decided, but still worth asking.** APIs 9 and 10 take raw
-   `card_number` / `cvv2` / `exp_mo` / `exp_yr` in the JSON body, and the guide
-   offers no tokenized alternative. On the client's instruction (2026-08-20) the
-   rental sends the raw card exactly as documented. **This means the card number
-   passes through a bundle served from public GitHub Pages, which puts the site
-   in a materially heavier PCI scope than the hosted-fields design it replaces.**
-   Still worth confirming with TenantInc whether `payment_method` accepts a
-   Global Payments token, or whether these two calls are meant to be made
-   server-side — either answer would let the PAN leave the browser again.
+1. **Card handling — decided.** APIs 9 and 10 take raw `card_number` / `cvv2` /
+   `exp_mo` / `exp_yr` in the JSON body, and the guide offers no tokenized
+   alternative. On the client's instruction (2026-08-20) the rental sends the
+   raw card exactly as documented, and the Global Payments hosted-fields
+   integration was removed rather than left as a second, incompatible payment
+   route. **This means the card number passes through a bundle served from
+   public GitHub Pages, which is a materially heavier PCI position than a
+   tokenized design.** If that becomes a problem the fix is one function,
+   `cardPaymentMethod()`, plus moving these two calls server-side — worth asking
+   TenantInc whether that is supported before anyone needs it urgently.
 2. **v1 vs v2** for `hold` / `lease-set-up` / `reserve` — is v1 deprecated, and
    does v1 `lease-set-up` honour `insurance_id` / `promotions` / `start_date`?
 3. **`total_due` vs `balance`** — confirm `balance` is what to charge.
@@ -328,10 +329,11 @@ Inputs and where each comes from:
 | card + billing address | the static `CardForm` |
 | contact | step 2's own fields (the shopper may have edited them) |
 
-> **The card path is only reachable when `gpApiKey` is NOT set.** With a Global
-> Payments key the widget mounts hosted fields, which by design never expose a
-> PAN, so there is nothing to put in `payment_method`. To use the documented
-> rental, leave `gpApiKey` empty.
+> **There is one payment path.** Global Payments Hosted Fields was removed on
+> 2026-08-20: it tokenizes the card inside GP's iframes and charges through
+> GP's own REST API (`/transactions/creditsales`), so it can neither supply
+> `card_number` to these calls nor take the money through Hummingbird. Two
+> gateways, one transaction — the guide is the one we follow.
 
 > After a real lease the confirmation no longer shows the placeholder access
 > code — the lease response carries none, and inventing one after a real charge

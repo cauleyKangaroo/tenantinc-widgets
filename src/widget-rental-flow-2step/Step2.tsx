@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CheckTick, CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
-import { mountGpHostedFields, GpTokenResult, GpFieldValidity } from './gpHostedFields';
+import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
@@ -203,87 +202,11 @@ function Check({
   );
 }
 
-// Credit/Debit panel — mounts Global Payments Hosted Fields (PCI iframes)
-// into empty divs. Without a client-side key it renders a configuration
-// notice instead; card data never touches widget code either way.
-function CardFieldsPanel({
-  gpApiKey, gpEnvironment, onToken, payNowTotal,
-}: {
-  gpApiKey?: string;
-  gpEnvironment: 'test' | 'prod';
-  onToken: (t: GpTokenResult) => void;
-  payNowTotal?: number;
-}) {
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [error, setError] = useState<string | undefined>(undefined);
-  const [validity, setValidity] = useState<GpFieldValidity>({});
-  const hostRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!gpApiKey) return;
-    let cleanup: (() => void) | undefined;
-    let cancelled = false;
-    mountGpHostedFields({
-      apiKey: gpApiKey,
-      environment: gpEnvironment,
-      targets: {
-        number: '#rf2-gp-number',
-        expiration: '#rf2-gp-expiration',
-        cvv: '#rf2-gp-cvv',
-        submit: '#rf2-gp-submit',
-      },
-      submitText: payNowTotal != null ? `Pay Now $${payNowTotal.toFixed(2)}` : undefined,
-      onToken: (t) => { if (!cancelled) onToken(t); },
-      onError: (msg) => { if (!cancelled) { setStatus('error'); setError(msg); } },
-      onValidity: (v) => { if (!cancelled) { setValidity(v); setStatus('ready'); setError(undefined); } },
-    }).then((c) => {
-      cleanup = c;
-      // The GP iframes appear asynchronously; treat a populated host as ready.
-      if (!cancelled && hostRef.current?.querySelector('iframe')) setStatus('ready');
-      else if (!cancelled) setStatus('ready'); // fields render momentarily; errors arrive via onError
-    });
-    return () => { cancelled = true; cleanup?.(); };
-  }, [gpApiKey, gpEnvironment, onToken, payNowTotal]);
-
-  if (!gpApiKey) {
-    return (
-      <div className="rf2-gp rf2-gp--unconfigured">
-        Card entry is not configured for this site yet (missing the Global
-        Payments client-side key). Set the <code>gpApiKey</code> widget prop.
-      </div>
-    );
-  }
-  return (
-    <div className="rf2-gp" ref={hostRef}>
-      <div className="rf2-gp-grid">
-        <label className="rf2-field rf2-gp-slot rf2-gp-slot--number">
-          <span className="rf2-field-label">Card Number<span className="rf-req">*</span></span>
-          <div id="rf2-gp-number" className="rf2-gp-frame" />
-        </label>
-        <label className="rf2-field rf2-gp-slot">
-          <span className="rf2-field-label">Expiration<span className="rf-req">*</span></span>
-          <div id="rf2-gp-expiration" className="rf2-gp-frame" />
-        </label>
-        <label className="rf2-field rf2-gp-slot">
-          <span className="rf2-field-label">CVV<span className="rf-req">*</span></span>
-          <div id="rf2-gp-cvv" className="rf2-gp-frame" />
-        </label>
-      </div>
-      <div id="rf2-gp-submit" className="rf2-gp-submit" />
-      {status === 'loading' && <p className="rf2-gp-note">Loading secure card fields…</p>}
-      {status === 'error' && <p className="rf2-gp-note rf2-gp-note--error">{error}</p>}
-      {status === 'ready' && validity.number === false && (
-        <p className="rf2-gp-note rf2-gp-note--error">Card number doesn&apos;t look right.</p>
-      )}
-    </div>
-  );
-}
-
 /** Desktop pointer devices only — mirrored by a @media block in the CSS. */
 const PLAN_HOVER_QUERY = '(min-width: 901px) and (hover: hover) and (pointer: fine)';
 
 export function Step2({
-  moveIn, plans = [], leaseDocName, onEditDate, gpApiKey, gpEnvironment = 'test', payNowTotal, onPaymentComplete,
+  moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
   brochureUrl, onPlanChange, paying, payError, contact,
 }: {
   moveIn: Date;
@@ -301,9 +224,6 @@ export function Step2({
    *  Reported upward because the choice re-prices the move-in quote — it is not
    *  a display-only toggle. */
   onPlanChange?: (insuranceId: string | undefined) => void;
-  /** Global Payments CLIENT-side (publishable) key — hosted-fields tokenization only. */
-  gpApiKey?: string;
-  gpEnvironment?: 'test' | 'prod';
   /** Authoritative move-in total (hold-aware quote) — printed on the pay button. */
   payNowTotal?: number;
   /** Card tokenized — parent takes over (interstitial → confirmation). */
@@ -462,7 +382,6 @@ export function Step2({
   // 15-minute unit hold. It is what the (future) server-side move-in
   // charge consumes; no card data exists widget-side.
   const [payMethod, setPayMethod] = useState<'gpay' | 'apple' | 'card' | 'bank' | null>(null);
-  const [cardToken, setCardToken] = useState<GpTokenResult | undefined>(undefined);
   const [payAttempted, setPayAttempted] = useState(false);
   /** Skeleton beat before a static payment form appears (Figma 8507-24610). */
   const [formLoading, setFormLoading] = useState(false);
@@ -491,21 +410,17 @@ export function Step2({
   ];
   const formComplete = required.every(([, ok]) => ok);
   const bad = (key: string) => payAttempted && !(required.find(([k]) => k === key)?.[1] ?? true);
-  /** No GP key ⇒ the static forms stand in for hosted fields. */
-  const staticPay = !gpApiKey;
-
   /** A card/bank panel is open, so its button is replaced by the panel and the
    *  other method relocates beneath it. Wallets are one-tap and never expand. */
-  const methodOpen = staticPay && (payMethod === 'card' || payMethod === 'bank');
+  const methodOpen = payMethod === 'card' || payMethod === 'bank';
 
   const selectPayMethod = (m: 'gpay' | 'apple' | 'card' | 'bank') => {
     if (!formComplete) { setPayAttempted(true); return; }
     const next = payMethod === m ? null : m;
     setPayMethod(next);
-    setCardToken(undefined);
-    // Skeleton beat when opening a static panel. Real hosted fields do their
-    // own loading, so this only stands in for them.
-    if (staticPay && next && (next === 'card' || next === 'bank')) {
+    // Skeleton beat before the panel appears (Figma 8507-24610), so it does
+    // not snap in.
+    if (next && (next === 'card' || next === 'bank')) {
       setFormLoading(true);
       window.setTimeout(() => setFormLoading(false), FORM_SKELETON_MS);
     }
@@ -851,7 +766,7 @@ export function Step2({
               hosted-fields iframes. With a key set, the real GP path below runs
               untouched. Either way the form is preceded by a brief skeleton
               (8507-24610) so the panel doesn't snap in. */}
-          {staticPay && (payMethod === 'card' || payMethod === 'bank') && (
+          {(payMethod === 'card' || payMethod === 'bank') && (
             <section
               className="rf-method-panel"
               aria-label={payMethod === 'card' ? 'Credit / Debit' : 'Pay by Bank'}
@@ -885,31 +800,6 @@ export function Step2({
             </Button>
           )}
 
-          {!staticPay && payMethod === 'card' && !cardToken && (
-            <CardFieldsPanel
-              gpApiKey={gpApiKey}
-              gpEnvironment={gpEnvironment}
-              payNowTotal={payNowTotal}
-              onToken={(t) => {
-                setCardToken(t);
-                // Real flow: temporary_token → server-side sale → lease. Until
-                // that endpoint exists (B4), tokenization completes the step.
-                onPaymentComplete?.({ firstName: first.trim() || 'there' });
-              }}
-            />
-          )}
-          {payMethod === 'card' && cardToken && (
-            <div className="rf2-gp rf2-gp--done">
-              <CheckTick size={18} />
-              <span>
-                Card ready{cardToken.maskedCardNumber ? ` — ${cardToken.maskedCardNumber.slice(-8)}` : ''}.
-                Charged securely when you complete the rental.
-              </span>
-              <button type="button" className="rf2-link rf2-gp-change" onClick={() => setCardToken(undefined)}>
-                Use a different card
-              </button>
-            </div>
-          )}
         </section>
       </div>
 
