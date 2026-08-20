@@ -16,6 +16,19 @@ import {
   isUnavailable,
 } from './filters';
 import { readFiltersFromUrl, writeFiltersToUrl } from './urlFilters';
+import {
+  FEATURE_COPY,
+  buildFeatureHighlights,
+  collectFilterBarFeatures,
+  copyCoverage,
+  findFeature,
+  readFeatureFromUrl,
+  unitHasFeature,
+  writeFeatureToUrl,
+  type FeatureHighlight,
+} from './featureHighlights';
+import { FEATURE_PAGE_COLLECTION, fetchFeaturePageCopy } from './featurePageSource';
+import { hasCollectionsApi } from '@shared/dudaCollections';
 import { PROMOTION_OPTIONS } from './data';
 import { FilterModal } from './components/FilterModal';
 import { TopFilterBar } from './components/TopFilterBar';
@@ -28,6 +41,7 @@ import { SkeletonLoader } from './components/SkeletonLoader';
 import { ACCORDION_SECTIONS, type AccordionConfig } from './accordionSections';
 import { instanceKey, readAccordionConfig, saveAccordionConfig } from './accordionConfigApi';
 import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, type PromoSelection } from '@shared/promoBus';
+import { RichText } from '@shared/richText';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 
 // Wrapper-width breakpoint below which we count as mobile. Keyed off the widget's
@@ -88,6 +102,7 @@ export function SpaceList({
   notesContent,
   blogCollection,
   blogBasePath,
+  featureCollection = FEATURE_PAGE_COLLECTION,
   stickyFilterBar = true,
   stickyOffsetTop = 0,
   inEditor    = false,
@@ -288,6 +303,27 @@ export function SpaceList({
     clearPromoInUrl();
   }
 
+  // Feature-page mode: `?feature=<slug>` (set by the Feature Highlights
+  // accordion) turns this listing into that one feature's landing page — see
+  // featureHighlights.ts.
+  const [featureParam, setFeatureParam] = useState<string | null>(() => readFeatureFromUrl());
+
+  // Selecting a feature pushes a history entry, so Back has to bring the full
+  // listing back rather than leaving a stale heading over unfiltered units.
+  useEffect(() => {
+    const onPop = () => setFeatureParam(readFeatureFromUrl());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  function selectFeature(slug: string | null) {
+    setFeatureParam(slug);
+    writeFeatureToUrl(slug);
+    // The bar that opens this modal is about to disappear, so an open panel would
+    // be orphaned — and would pop back up on returning to the full listing.
+    setPanelOpen(false);
+  }
+
   // Per-instance accordion arrangement (order + hidden). Read from Duda on
   // mount (step: collections read); null until then = default order, none hidden.
   const [accordionConfig, setAccordionConfig] = useState<AccordionConfig | null>(null);
@@ -332,6 +368,76 @@ export function SpaceList({
     }
   }
 
+  // Feature-page copy from the `featurePage` collection, joined onto the live
+  // features below. Seeded from `hasCollectionsApi()` rather than starting null:
+  // outside Duda there is nothing to wait for, so the bundled copy goes in at
+  // once; inside Duda we start EMPTY so a feature page briefly shows its
+  // generated one-liner instead of flashing another site's bundled prose.
+  const [featureCopy, setFeatureCopy] = useState<FeatureHighlight[]>(() =>
+    hasCollectionsApi() ? [] : FEATURE_COPY,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchFeaturePageCopy(featureCollection).then((rows) => {
+      // Empty means the collection is absent or unpopulated (and every widget on
+      // a site without it) — keep the bundled copy so the section still reads.
+      if (!cancelled) setFeatureCopy(rows.length > 0 ? rows : FEATURE_COPY);
+    });
+    return () => { cancelled = true; };
+  }, [featureCollection]);
+
+  // Rows for the Feature Highlights accordion — the property's OWN filter-bar
+  // amenities, so the accordion and the pills can never list different features.
+  // Authored prose is joined on per row; see featureHighlights.ts.
+  const featureHighlights = useMemo(() => {
+    const live = collectFilterBarFeatures(units);
+    if (live.length > 0) return buildFeatureHighlights(live, featureCopy);
+    // No units at all means loading, or credentials that can't reach the API —
+    // both the Duda editor and the dev harness land here — so show the authored
+    // rows to keep the section previewable. Units that DID load but carry no
+    // filter-bar amenity get an EMPTY section instead: five features this
+    // property demonstrably doesn't have would filter to nothing on a live page.
+    return units.length === 0
+      ? buildFeatureHighlights(FEATURE_COPY.map((c) => c.name), featureCopy)
+      : [];
+  }, [units, featureCopy]);
+
+  // The name→amenity join is silent by design: an unmatched feature still renders
+  // a working row with a generated line. That makes a typo'd `name` column
+  // invisible on the page, so say so in the console instead.
+  useEffect(() => {
+    const live = collectFilterBarFeatures(units);
+    if (live.length === 0 || featureCopy.length === 0) return;
+    const { missingCopy, unusedRows } = copyCoverage(live, featureCopy);
+    if (missingCopy.length > 0) {
+      console.info(
+        `[featurePage] no copy row for: ${missingCopy.join(', ')} — add a row whose "name" matches, or leave it for the generated line.`,
+      );
+    }
+    if (unusedRows.length > 0) {
+      console.warn(
+        `[featurePage] rows matching no amenity on this property: ${unusedRows.join(', ')} — check the "name" column against the filter-bar labels.`,
+      );
+    }
+  }, [units, featureCopy]);
+
+  // Resolved against the rows this property actually has, so `?feature=` naming
+  // an amenity that isn't on any of its tiers is IGNORED rather than filtering
+  // the listing down to nothing.
+  const activeFeature = useMemo(
+    () => findFeature(featureHighlights, featureParam),
+    [featureHighlights, featureParam],
+  );
+
+  useEffect(() => {
+    if (featureParam && !activeFeature && units.length > 0) {
+      console.warn(
+        `[SpaceList] ?feature=${featureParam} matches no filter-bar amenity on this property — showing the full listing.`,
+      );
+    }
+  }, [featureParam, activeFeature, units.length]);
+
   const amenityOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
@@ -354,7 +460,14 @@ export function SpaceList({
   }, [units, filters.types]);
 
   const visibleUnits = useMemo(() => {
-    let filtered = filterUnits(units, filters, searchTerm);
+    // A feature page shows no filter bar and no search box, so it must not APPLY
+    // either: state whose controls aren't on screen would narrow the listing for
+    // a reason the visitor can neither see nor undo (filter to Extra Large, click
+    // a feature, get an empty page with nothing to explain it). Both are kept in
+    // memory rather than reset, so "Show all spaces" restores what they had.
+    let filtered = activeFeature
+      ? units.filter((u) => unitHasFeature(u, activeFeature))
+      : filterUnits(units, filters, searchTerm);
     // Cross-widget promo filter: only units allocated to the selected promotion.
     if (promoId) filtered = filtered.filter((u) => u.promoId === promoId);
     // Sold-out units are hidden unless showUnavailableUnits is on. Visibility is
@@ -362,7 +475,7 @@ export function SpaceList({
     // picks the CTA ("Join waitlist" vs "Call") for whatever is shown. So
     // showUnavailableUnits off + waitlist on still shows nothing sold out.
     return showUnavailableUnits ? filtered : filtered.filter((u) => !isUnavailable(u));
-  }, [units, filters, searchTerm, showUnavailableUnits, promoId]);
+  }, [units, filters, searchTerm, showUnavailableUnits, promoId, activeFeature]);
   const badge = activeFilterCount(filters);
   const totalVacant = units.reduce((sum, u) => sum + (u.vacantCount ?? 0), 0);
 
@@ -384,6 +497,9 @@ export function SpaceList({
       notesContent={notesContent}
       blogCollection={blogCollection}
       blogBasePath={blogBasePath}
+      featureHighlights={featureHighlights}
+      activeFeatureSlug={activeFeature?.slug ?? null}
+      onSelectFeature={selectFeature}
     />
   );
 
@@ -404,7 +520,12 @@ export function SpaceList({
   // line up with the title and the listing below them. On mobile the bar pins to
   // the shared sticky stack (below #03's contact row) once scrolled past; the
   // modal deliberately stays put — it's already a fixed overlay.
-  const topBar = (
+  //
+  // NOT rendered at all on a feature page: the feature IS the filter there. Note
+  // `filterSticky` above stays registered — a slot with no sentinel is never
+  // activated, stays `display:none` and is skipped by heightAbove(), so it costs
+  // #03's shared stack nothing.
+  const topBar = activeFeature ? null : (
     <>
       <div ref={filterSticky.sentinelRef} className="sl-sticky-sentinel" />
       <div ref={filterSticky.slotRef} className="sl-top-bar-slot">
@@ -435,9 +556,31 @@ export function SpaceList({
       <div className="sl-heading">
         <p className="sl-select-heading">Select a Space {totalVacant > 0 && `— ${totalVacant} Available`}</p>
         <h1 className="sl-page-title">
-          {boundText(propertyHeader) || `Storage Units in ${propertyExtras?.name || cfg.propertyName}`}
+          {activeFeature
+            // A feature page names the feature. With no explicit heading on the row
+            // it still names the location, the way the unfiltered page does — the
+            // page really is "climate controlled units at THIS facility".
+            ? activeFeature.heading?.trim() ||
+              `${activeFeature.name} Storage Units in ${propertyExtras?.name || cfg.propertyName}`
+            : boundText(propertyHeader) ||
+              `Storage Units in ${propertyExtras?.name || cfg.propertyName}`}
         </h1>
       </div>
+      {/* Outside .sl-heading on purpose: that block is display:none on mobile (the
+          host page's own H1 covers it), but a feature page's explanation and its
+          way back out have to survive at every width. */}
+      {activeFeature && (
+        <div className="sl-feature-intro">
+          <p className="sl-feature-intro-text">{activeFeature.description}</p>
+          <button
+            type="button"
+            className="sl-feature-intro-clear"
+            onClick={() => selectFeature(null)}
+          >
+            Show all spaces
+          </button>
+        </div>
+      )}
       <div className="sl-row">
         {showSideAccordions && apLocation === 'left' && sectionPanel}
         <main className="sl-listing-area">
@@ -465,6 +608,16 @@ export function SpaceList({
             <DefaultView units={visibleUnits} config={config} />
           ) : (
             <GridView units={visibleUnits} config={config} />
+          )}
+          {/* Long-form copy for the selected feature, under the listing. Rich text
+              because the Duda collection column that replaces this will be. */}
+          {activeFeature && activeFeature.details.trim() && (
+            <section className="sl-feature-details">
+              {activeFeature.detailsTitle && (
+                <h2 className="sl-feature-details-title">{activeFeature.detailsTitle}</h2>
+              )}
+              <RichText value={activeFeature.details} className="sl-feature-details-body" />
+            </section>
           )}
         </main>
         {showSideAccordions && apLocation === 'right' && sectionPanel}

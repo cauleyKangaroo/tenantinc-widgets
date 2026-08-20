@@ -326,6 +326,13 @@ export interface SpaceListProps {
   /** Path the blog post slugs hang off, e.g. "/blog". Default '/blog'. */
   blogBasePath?: string;
   /**
+   * Duda collection holding the Feature Highlights copy (case-sensitive).
+   * Default 'featurePage'. Three columns — `name` (matched against the
+   * property's filter-bar amenity), `description` (under the <h1>) and
+   * `content` (rich text, under the listing). See featurePageSource.ts.
+   */
+  featureCollection?: string;
+  /**
    * Mobile: pin the filter bar to the top of the page once it scrolls out of
    * view. It shares one fixed stack with #03's contact row and sits below it —
    * see @shared/stickyStack. Default true.
@@ -344,6 +351,7 @@ export interface SpaceListProps {
   // against these keys.
   isReviews?:   boolean;
   isFeatures?:  boolean;
+  isFeatureHighlights?: boolean;
   isNearby?:    boolean;
   isSizeGuide?: boolean;
   isBlog?:      boolean;

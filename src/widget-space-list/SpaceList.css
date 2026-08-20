@@ -313,9 +313,15 @@
   font-family: 'Montserrat', sans-serif;
   font-size: 32px;
   font-weight: 700;
-  line-height: 40px;
+  /* Unitless on purpose: a long feature-page heading wraps to two lines, and a
+     fixed 40px leading crams them together the moment a host theme scales the
+     font up. 1.3 keeps the desktop line box at ~42px and scales with the text. */
+  line-height: 1.3;
   color: #101318;
   margin: 0;
+  /* A long facility name ("Storage Outlet - Bellflower") must break rather than
+     push the column wider. */
+  overflow-wrap: break-word;
   /* Guard against host themes restyling bare <h1> (e.g. uppercasing it). The
      size/weight/margin above also override the browser's own h1 defaults. */
   text-transform: none;
@@ -325,6 +331,74 @@
    (display:contents) so only the page title shows — desktop is unchanged. */
 .sl-wrapper .sl-heading { display: contents; }
 .sl-wrapper .sl-select-heading { display: none; }
+
+/* ===========================================================================
+   FEATURE PAGE (?feature=<slug>)
+   =========================================================================== */
+/* Sub-heading copy for the selected feature. Deliberately NOT inside
+   .sl-heading — that block is display:none on mobile, and the explanation for
+   why the listing is filtered has to survive there. */
+.sl-wrapper .sl-feature-intro {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: -8px;
+}
+.sl-wrapper .sl-feature-intro-text {
+  flex: 1 1 420px;
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 26px;
+  color: #101318;
+  max-width: 900px;
+}
+/* The only way off a feature page at widths where the sidebar accordion is
+   hidden, so it is a control rather than decoration. */
+.sl-wrapper .sl-feature-intro-clear {
+  flex: 0 0 auto;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #101318;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.sl-wrapper .sl-feature-intro-clear:hover { color: var(--color_1, #f45f30); }
+
+/* Long-form copy under the listing. */
+.sl-wrapper .sl-feature-details {
+  border-top: 1px solid #dfe3e8;
+  padding-top: 24px;
+}
+.sl-wrapper .sl-feature-details-title {
+  margin: 0 0 12px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 30px;
+  color: #101318;
+  text-transform: none;
+  letter-spacing: normal;
+}
+/* RichText puts this class on EACH generated <p> for plain copy, and on the
+   single wrapper for authored HTML — hence the margin rules, which have to read
+   the same either way. */
+.sl-wrapper .sl-feature-details-body {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 26px;
+  color: #101318;
+  max-width: 900px;
+  margin: 0 0 16px;
+}
+.sl-wrapper .sl-feature-details-body:last-child { margin-bottom: 0; }
 
 /* ===========================================================================
    GRID VIEW — ACCORDIONS
@@ -2063,6 +2137,48 @@
   border-top: 1px solid #f4f6f8;
   padding: 0;
 }
+
+/* Feature Highlights (Figma 10550-32752) — 24px side padding, 20px top/bottom,
+   rows separated by a hairline. Each row is a button: it navigates the page. */
+.sl-wrapper .sl-sa-body .sl-section--highlights { padding: 20px 24px; }
+.sl-wrapper .sl-fh-list { list-style: none; margin: 0; padding: 0; }
+.sl-wrapper .sl-fh-item + .sl-fh-item { border-top: 1px solid #dfe3e8; }
+.sl-wrapper .sl-fh-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  padding: 24px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: #101318;
+}
+/* The body's own 20px already spaces the first and last rows off the edges. */
+.sl-wrapper .sl-fh-item:first-child .sl-fh-row { padding-top: 4px; }
+.sl-wrapper .sl-fh-item:last-child  .sl-fh-row { padding-bottom: 4px; }
+.sl-wrapper .sl-fh-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: normal;
+  overflow-wrap: anywhere;
+}
+.sl-wrapper .sl-fh-chevron {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+.sl-wrapper .sl-fh-row:hover { color: var(--color_1, #f45f30); }
+/* The feature the page is already showing — marked, and still clickable to clear. */
+.sl-wrapper .sl-fh-row.active { color: var(--color_1, #f45f30); }
+.sl-wrapper .sl-fh-row.active .sl-fh-label { font-weight: 700; }
 
 /* When section components render inside an accordion body, strip their outer padding */
 .sl-wrapper .sl-sa-body .sl-section--nearby,
