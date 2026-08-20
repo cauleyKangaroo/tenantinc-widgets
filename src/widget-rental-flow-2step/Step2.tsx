@@ -8,7 +8,7 @@ import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from './P
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
-import { FormField, Button, DateModal, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space now" (Figma 8507-23329).
@@ -342,8 +342,6 @@ export function Step2({
   const [bizFirst, setBizFirst] = useState('');
   const [bizLast, setBizLast] = useState('');
   const [dob, setDob] = useState('');
-  const [dobOpen, setDobOpen] = useState(false);
-  const [dobDate, setDobDate] = useState<Date | null>(null);
   const [acFirst, setAcFirst] = useState('');
   const [acLast, setAcLast] = useState('');
   const [acPhone, setAcPhone] = useState('');
@@ -685,20 +683,21 @@ export function Step2({
             <Check checked={military} onChange={setMilitary}>I am active military</Check>
             {military && (
               <div className="rf2-expand">
-                {/* Same shape as the Move-in Date control above: label, value,
-                    calendar affordance, opens a modal. A DOB is decades back,
-                    so a picker that can jump month and year beats stepping. */}
-                <button
-                  type="button"
-                  className={`rf2-movein rf2-movein--full${bad('dob') ? ' rf2-movein--error' : ''}${dob ? ' rf2-movein--valid' : ''}`}
-                  onClick={() => setDobOpen(true)}
-                >
-                  <span className="rf2-movein-text">
-                    <span className="rf2-movein-label">Date of Birth<span className="rf-req">*</span></span>
-                    <span className="rf2-movein-value">{dob || 'Select a date'}</span>
-                  </span>
-                  <CalendarIcon size={24} />
-                </button>
+                {/* Typed, not a picker. A birth date is decades back and a
+                    known quantity — typing eight digits beats navigating a
+                    calendar to it, which is why SuccessStep's DOB was already
+                    the masked field. The label rests as "Date of Birth" and the
+                    MM/DD/YYYY mask appears on focus. */}
+                <FormField
+                  label="Date of Birth"
+                  required
+                  mask="date"
+                  value={dob}
+                  onChange={setDob}
+                  autoComplete="bday"
+                  error={bad('dob') ? 'Enter a valid Date of Birth' : undefined}
+                  state={dob.length === 10 ? 'success' : undefined}
+                />
               </div>
             )}
             <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
@@ -911,24 +910,6 @@ export function Step2({
         open={planOpen}
         onClose={() => setPlanOpen(false)}
         brochureUrl={brochureUrl}
-      />
-      {/* Date-of-birth picker. Browse mode, capped at today — a birth date
-          cannot be in the future — and reaching back 120 years. */}
-      <DateModal
-        open={dobOpen}
-        onClose={() => setDobOpen(false)}
-        selected={dobDate}
-        onSelect={(d) => setDobDate(d)}
-        onConfirm={() => {
-          if (dobDate) setDob(formatDate(dobDate));
-          setDobOpen(false);
-        }}
-        title="Select your Date of Birth"
-        ctaLabel="Confirm Date"
-        browse
-        onReset={() => { setDobDate(null); setDob(''); setDobOpen(false); }}
-        minDate={new Date(new Date().getFullYear() - 120, 0, 1)}
-        maxDate={new Date()}
       />
       <LeaseModal
         open={leaseOpen}

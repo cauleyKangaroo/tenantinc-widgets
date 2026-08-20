@@ -173,6 +173,12 @@
 .hb-field--labelled .hb-field__input {
   margin-top: 15px;
 }
+/* The same 15px, as padding — see the note on .hb-field__mask-hint. Keep these
+   two in step: they are what put the mask on the value's line rather than under
+   it. */
+.hb-field--labelled .hb-field__mask-hint {
+  padding-top: 15px;
+}
 
 /* The placeholder is only ever visible on a labelled field once it has focus,
    because until then the label is occupying that space. */
@@ -188,17 +194,33 @@
 }
 
 /* The greyed-out remainder of a mask, e.g. the "YYYY" of 01/10/YYYY. It is a
-   sibling overlay rather than real input text, so it can never be submitted. */
+   sibling overlay rather than real input text, so it can never be submitted.
+
+   It must sit on EXACTLY the input's line, and `bottom: 0` did not: the input
+   is centred by .hb-field__data with a top margin, so the hint landed about
+   10px lower and the mask read as a second line under the value.
+   `inset: 0` + centring + a padding-top equal to that margin reproduces the
+   input's own placement rather than guessing at it — for a data box H, line
+   height L and margin M the input's text starts at M + (H - M - L) / 2, and so
+   does this. No pixel values, so it survives a token change. */
 .hb-field__mask-hint {
   position: absolute;
-  left: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
+  align-items: center;
   color: var(--hb-field-placeholder);
   font-size: var(--hb-font-size-value);
   line-height: var(--hb-line-height-value);
   white-space: pre;
   pointer-events: none;
+}
+
+/* Hidden at rest. Empty and unfocused, the label is sitting full-size on the
+   value's line, and the mask underneath it read as a filled-in field that had
+   somehow been typed already. `:placeholder-shown` is only true when the value
+   is empty, so a partly typed mask keeps showing its remainder. */
+.hb-field__input:placeholder-shown:not(:focus) ~ .hb-field__mask-hint {
+  visibility: hidden;
 }
 .hb-field__mask-hint > span:first-child {
   /* Transparent copy of what the user typed, so the hint starts at the caret. */
