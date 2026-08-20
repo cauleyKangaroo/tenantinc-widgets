@@ -149,9 +149,45 @@
 
 .rf-proc-copy { margin: 0; color: var(--hb-text-night, #101318); font-size: 16px; line-height: 1.5; }
 
+/* Desktop keeps the lightbox, so the logo is hidden — the page behind it still
+   shows the sticky header's. */
+.rf-proc-logo { display: none; }
+
+/* Mobile (Figma 8538-21871): a full white page, not a card on a dim.
+   A MEDIA query, not the @container ones used elsewhere in this widget: the
+   screen is portalled to <body> and has no .rf-wrapper ancestor to measure. */
 @media (max-width: 640px) {
-  .rf-proc { padding: 48px 24px; gap: 24px; }
-  .rf-proc-title { font-size: 24px; }
+  .rf-overlay--proc {
+    padding: 0;
+    background: #fff;
+    align-items: stretch;
+  }
+  .rf-proc {
+    max-width: none;
+    min-height: 100%;
+    padding: 0 24px 40px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    /* Content sits from the top under the logo rather than being centred in a
+       box; the gaps below are the frame's own, so `gap` is cleared to stop it
+       adding to every one of them. */
+    justify-content: flex-start;
+    gap: 0;
+  }
+  .rf-proc-logo {
+    display: block;
+    /* Same 269px as the header's banner — it is the same artwork. Height is
+       left to the image so the PNG keeps its ~2.25:1 aspect. */
+    width: 269px;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+  }
+  /* The frame's rhythm below the banner: 71px, then 60px, then 44px. */
+  .rf-proc-title { font-size: 32px; max-width: 292px; margin-top: 71px; }
+  .rf-proc-bar { margin-top: 60px; }
+  .rf-proc-copy { margin-top: 44px; max-width: 240px; line-height: 20px; }
 }
 
 /* ── Payment section (10080-28749 / 10080-30277) ─────────────────────────── */
@@ -507,7 +543,12 @@
    any size; the box carries the same aspect ratio so nothing skews. */
 .rf-sx-illus {
   position: relative;
-  flex: 0 0 260px;
+  /* Shrinkable. `0 0 260px` could not give way, so at a 901px viewport — where
+     the rail leaves the column ~243px of content — it ran straight out of the
+     box. aspect-ratio keeps it in proportion as it narrows. */
+  flex: 0 1 260px;
+  min-width: 0;
+  max-width: 100%;
   aspect-ratio: 292.25 / 119.43;
 }
 

@@ -303,6 +303,31 @@ const MOBILE_BP = 640;
 
 const fmtBarCountdown = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
+// The confirmation page's version of the bar (Figma 8550-19760). Same 80px
+// band, same rows, same sheet — only the copy differs, because by this point
+// there is no hold left to count down and nothing left to pay: it reports what
+// WAS paid and offers the lease summary.
+function MobileLeaseBar({
+  total, expanded, onToggle,
+}: {
+  total?: number;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button type="button" className="rfm-bar" onClick={onToggle} aria-expanded={expanded}>
+      <span className="rfm-bar-row">
+        <span className="rfm-bar-title">Total Paid:</span>
+        <span className="rfm-bar-total">{total != null ? `$${total.toFixed(2)}` : '\u2014'}</span>
+      </span>
+      <span className="rfm-bar-row">
+        <span className="rfm-bar-lease">Lease Summary</span>
+        <ChevronSolidIcon size={14} className={`rfm-bar-chev${expanded ? ' rfm-bar-chev--up' : ''}`} />
+      </span>
+    </button>
+  );
+}
+
 // Sticky collapsed cost bar (mobile): "Total Cost to Move-In: $X /
 // Holding Space for 14:59" + chevron. Tapping toggles the full rail
 // card in a drop-down sheet (spec-05 Total Cost Dropdown Card).
@@ -378,25 +403,24 @@ function RentalHeader({ holdRemaining, homeHref, shrunk, innerRef }: {
 // Payment interstitial (Figma screen 10 / mobile m06) — modal overlay
 // while the lease+payment finalize. Purely presentational; the parent
 // decides when to show it and where to go next.
+// The live-payment path's finalizing beat. It is ProcessingModal — the SAME
+// screen the static path shows — rather than a second implementation of it.
+// The old one had drifted to a 22px title, a 6px bar and #3ba55c against the
+// frame's 32px/10px/#509E2F, and would have needed the mobile take-over built
+// a second time. No onDone: this path navigates away when the real flow
+// finishes, so the bar eases to 100% and waits.
 function PaymentInterstitial({ firstName, brandName }: { firstName: string; brandName: string }) {
   return (
-    <div className="rf-interstitial-overlay" role="status" aria-live="polite">
-      <div className="rf-interstitial">
-        <h3 className="rf-interstitial-h">
-          <span className="rf-interstitial-name">{firstName},</span> we’re finalizing your lease &amp; payment
-        </h3>
-        <div className="rf-interstitial-bar"><div className="rf-interstitial-fill" /></div>
-        <p className="rf-interstitial-p">
-          Thank you for choosing {brandName}.<br />
-          Please sit tight as we wrap up your payment.
+    <ProcessingModal
+      open
+      firstName={firstName}
+      facilityName={brandName}
+      note={GP_BRIDGE_IS_PROTOTYPE ? (
+        <p className="rf-demo-banner">
+          Demo preview — no payment, lease, or reservation was created.
         </p>
-        {GP_BRIDGE_IS_PROTOTYPE && (
-          <p className="rf-demo-banner">
-            Demo preview — no payment, lease, or reservation was created.
-          </p>
-        )}
-      </div>
-    </div>
+      ) : undefined}
+    />
   );
 }
 
@@ -1041,20 +1065,33 @@ export function RentalFlow2Step({
    * gating on it would cost the header a frame. CSS hides .rf-hdr under the
    * same 640px container width instead, which costs nothing at paint.
    */
-  const header = (
+  const makeHeader = (withCountdown: boolean) => (
     <>
       {/* Zero-height marker: once it scrolls out of view the header is pinned. */}
       <div ref={hdrSentinelRef} className="rf-hdr-sentinel" aria-hidden="true" />
       <RentalHeader
-      shrunk={hdrShrunk}
-      innerRef={hdrRef}
-      holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
-      /* Site root. The logo is the only way back out of checkout, so it must
-         not inherit termsHref or any editor-set '#'. */
-      homeHref="/"
+        shrunk={hdrShrunk}
+        innerRef={hdrRef}
+        holdRemaining={withCountdown
+          ? (holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined))
+          : undefined}
+        /* Site root. The logo is the only way back out of checkout, so it must
+           not inherit termsHref or any editor-set '#'. */
+        homeHref="/"
       />
     </>
   );
+  /** Steps 1-2: the hold is live, so the strip carries the countdown. */
+  const header = makeHeader(true);
+  /**
+   * Steps 3-4: white strip and logo, no countdown.
+   *
+   * The space is paid for and the hold is spent — there is nothing left to
+   * count down, and a timer still running next to "Your Space is ready!" reads
+   * as a deadline the customer has already met. Only one branch renders at a
+   * time, so the two share the sentinel and header refs without colliding.
+   */
+  const headerDone = makeHeader(false);
 
   if (confirmation) {
     // Reservations are REAL (hold + reserve POSTs exist), so they show real
@@ -1077,9 +1114,40 @@ export function RentalFlow2Step({
       } catch { return undefined; }
     })();
     const goToCheckout = () => { if (checkoutUrl) window.location.assign(checkoutUrl); };
+    // Same rail the flow used, rebuilt from the immutable success snapshot —
+    // one element, placed in the desktop grid OR the mobile sheet, never both.
+    const confirmationRail = (
+      <OrderRail
+        property={snapProp}
+        selection={snap?.selection}
+        quote={snap?.quote}
+        estimate={confirmation.kind === 'reservation'}
+      />
+    );
     return (
-      <div className="rf-wrapper">
-        {header}
+      <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
+        {headerDone}
+        {/* The step-2 sticky bar and its overlay sheet, reused wholesale: the
+            confirmation page needs the same "summary always reachable" affordance
+            and rebuilding it would be a second thing to keep in step. */}
+        {isMobile && (
+          <div className="rfm-top" ref={railBarRef}>
+            <MobileLeaseBar
+              total={snap?.quote?.totalDue}
+              expanded={railOpen}
+              onToggle={onRailToggle}
+            />
+            <div
+              ref={scrimRef}
+              className={`rfm-scrim${railOpen ? ' rfm-scrim--open' : ''}`}
+              onClick={() => setRailOpen(false)}
+              aria-hidden="true"
+            />
+            <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
+              <div className="rfm-sheet">{confirmationRail}</div>
+            </div>
+          </div>
+        )}
         {GP_BRIDGE_IS_PROTOTYPE && confirmation.kind === 'rental' && (
           <div className="rf-demo-banner rf-demo-banner--page" role="note">
             Demo preview — no payment or lease was created.
@@ -1096,9 +1164,8 @@ export function RentalFlow2Step({
             onRetry={goToCheckout}
             reviewUrl={reviewUrl}
           />
-          {/* Right column is the SAME shared order-summary rail (via OrderRail),
-              fed from the immutable success snapshot. */}
-          <OrderRail property={snapProp} selection={snap?.selection} quote={snap?.quote} estimate={confirmation.kind === 'reservation'} />
+          {/* Desktop only — on mobile this same element is inside the sheet. */}
+          {!isMobile && confirmationRail}
         </div>
       </div>
     );
@@ -1128,7 +1195,33 @@ export function RentalFlow2Step({
     const staticUnitNumber = heldUnit ? `#${heldUnit}` : undefined;
 
     return (
-      <div className="rf-wrapper" ref={wrapRef}>
+      <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
+        {headerDone}
+        {/* Both steps now, since both have a rail to open. Same bar and sheet as
+            the nonce-backed confirmation above — the two routes render the same
+            screen and should not behave differently. */}
+        {isMobile && (
+          <div className="rfm-top" ref={railBarRef}>
+            <MobileLeaseBar
+              total={quote?.totalDue}
+              expanded={railOpen}
+              onToggle={onRailToggle}
+            />
+            <div
+              ref={scrimRef}
+              className={`rfm-scrim${railOpen ? ' rfm-scrim--open' : ''}`}
+              onClick={() => setRailOpen(false)}
+              aria-hidden="true"
+            />
+            <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
+              <div className="rfm-sheet">
+                <OrderRail property={propertyInfo} selection={selection} quote={quote} />
+              </div>
+            </div>
+          </div>
+        )}
+        {/* One rail for both steps, placed in the desktop grid or the mobile
+            sheet. Step 3 was a bare left column with nothing beside it. */}
         {accessGranted ? (
           <div className="rfc-layout">
             <Confirmation
@@ -1147,10 +1240,13 @@ export function RentalFlow2Step({
               gateHours={propertyInfo?.gateHours?.length ? propertyInfo.gateHours : confHours?.gateHours}
               reviewUrl={reviewUrl}
             />
-            <OrderRail property={propertyInfo} selection={selection} quote={quote} />
+            {!isMobile && <OrderRail property={propertyInfo} selection={selection} quote={quote} />}
           </div>
         ) : (
-          <SuccessStep onGetAccess={() => setAccessGranted(true)} />
+          <div className="rfc-layout">
+            <SuccessStep onGetAccess={() => setAccessGranted(true)} />
+            {!isMobile && <OrderRail property={propertyInfo} selection={selection} quote={quote} />}
+          </div>
         )}
       </div>
     );

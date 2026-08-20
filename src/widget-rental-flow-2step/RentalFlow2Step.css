@@ -1042,37 +1042,82 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 422px;
   gap: 28px;
-  /* Left-aligned (not margin:0 auto) so the content starts at the container's
-     left edge instead of floating centered with white space on both sides on
-     wide screens — this also gives the content column more room for text. */
-  /* 1330px matches .rf-layout and the rest of the site. It was 1400px, which
-     made the confirmation screen 300px wider than the step it follows. */
+  /* Centred, matching .rf-layout. It was `margin: 0` — deliberately left-aligned
+     to buy the content column width — but that put the confirmation somewhere
+     different on the page from every step leading to it, which reads as a bug
+     rather than as extra room. 1330px is .rf-layout's width and the site's. */
   box-sizing: border-box;
   max-width: 1330px;
-  margin: 0;
+  margin: 0 auto;
   padding: 0 24px;
   align-items: start;
 }
 /* Trim .rf-card's oversized 56/72 padding + drop its 920/margin-auto centering
    (grid handles width) so the heading has room and there's no side white-space. */
-.rfc-card { max-width: none; min-width: 0; margin: 0; padding: 24px 18px; }
-.rfc-card .rf-title { margin-bottom: 16px; }
+/* The left column on steps 3 and 4.
+   .rf-card gives every card `max-width: 920px; margin: 0 auto` — right for a
+   standalone centred card, wrong for a grid item: AUTO MARGINS SUPPRESS
+   STRETCH, so the track no longer sizes the item and it falls back to
+   fit-content. Combined with the size containment below that is fatal rather
+   than merely narrow — `container-type: inline-size` means the contents
+   contribute nothing to the intrinsic width, so fit-content resolves to the
+   padding alone and step 3 collapsed to a 144px ribbon. The two therefore
+   belong in ONE rule: the container is only safe once the margins are gone.
+   width:100% rather than relying on stretch, so it cannot come back.
+
+   Padding is step 2's gutters (.rf2-card's 50px on .rf-card's 56px vertical),
+   not the old 24/18 — with the column centred and the same width as the step it
+   follows, anything narrower reads as a different page. */
+.rfc-card,
+.rf-sx {
+  /* This file has no universal reset — box-sizing is per-rule — so width:100%
+     alongside 50px gutters would push the card 100px past its track. */
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 56px 50px;
+}
+/* 44px: the frame's title block ends at y=132 and the sent bar starts at 176. */
+.rfc-card .rf-title { margin-bottom: 44px; }
 @media (max-width: 900px) { .rfc-layout { grid-template-columns: minmax(0, 1fr); } }
+
+/* The 901-1100 squeeze. The rail is still beside the content there, so the left
+   column is only ~403-600px wide; 50px gutters each side spend a sixth of it on
+   nothing. The container queries above already stack what cannot fit — this
+   just hands those stacked boxes back some width. */
+@media (max-width: 1100px) {
+  .rfc-card { padding-inline: 30px; }
+  .rf-sx { padding-inline: 30px; }
+}
 /* Confirmation name eyebrow is 36px (Figma 8507-24998). Now the same as the
    base rule, so this is a no-op on desktop — it is kept because it also
    outranks the narrow-width 28px above, holding confirmation at 36px there as
    it was before. Delete it and that screen changes on mobile. */
 .rfc-card .rf-eyebrow { font-size: 36px; }
 
+/* Figma: 754x53 at #E1EFDC, radius 12. The icon sits 25px in, the text 13px
+   after it, and Resend ends 32px from the right edge — expressed as padding and
+   a gap so the bar keeps those insets at any width rather than only at 754.
+   min-height, not height: the copy wraps to two lines on a phone (8550-19787)
+   and a fixed 53 would clip it. */
 .rfc-sent {
-  display: flex; align-items: center; gap: 10px;
-  background: #eaf6e3; border-radius: 8px; padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  box-sizing: border-box;
+  min-height: 53px;
+  padding: 12px 32px 12px 25px;
+  background: #e1efdc;
+  border-radius: 12px;
   margin-bottom: 20px;
 }
-.rfc-sent-icon { flex: 0 0 auto; display: inline-flex; color: var(--color_1, #509e2f); }
-.rfc-sent-txt { flex: 1 1 auto; font-size: 18px; font-weight: 600; color: #101318; }
+.rfc-sent-icon { flex: 0 0 auto; display: inline-flex; color: var(--hb-text-night, #101318); }
+.rfc-sent-txt { flex: 1 1 auto; font-size: 16px; font-weight: 600; line-height: 1.35; color: #101318; }
 .rfc-resend { border: none; background: none; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
-.rfc-panel { background: #f4f6f8; border-radius: 12px; padding: 16px 12px; margin-bottom: 20px; }
+/* Figma 8507-24357: #F4F6F8, radius 12, 35px all round. */
+.rfc-panel { background: #f4f6f8; border-radius: 12px; padding: 35px; margin-bottom: 20px; }
 .rfc-space-head { font-size: 28px; font-weight: 600; color: #101318; margin-bottom: 14px; }
 
 /* Code card (fixed 300, left) + details (right). GRID, not flex-wrap, so the
@@ -1080,8 +1125,66 @@
    it; minmax(0,1fr) lets the date text wrap internally on a narrow container
    instead of pushing the whole block down. Stacks only when the widget's own
    container is genuinely narrow (container query on .rf-wrapper). */
-.rfc-cols { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
-@container (max-width: 640px) { .rfc-cols { grid-template-columns: 1fr; } }
+/* True 50/50, not a fixed code column plus whatever is left. The frame's own
+   split is 689px of content with a 41px gutter, i.e. 324 each — the code card
+   is drawn at 328 because it overhangs its column by 4px, which is not a
+   proportion worth reproducing. min-width:0 on both so a long address or hours
+   line wraps instead of forcing the grid wider. */
+.rfc-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 41px;
+  align-items: start;
+}
+@container (max-width: 640px) {
+  /* 24px, the same as .rf2-card gets at this width. This one genuinely IS about
+     the viewport, so it stays on the wrapper's unnamed container. */
+  .rfc-card { padding-inline: 24px; }
+}
+
+/* ── Steps 3 and 4: the left column is its own query container ────────────
+   Everything inside these screens used to size off .rf-wrapper — the WHOLE
+   widget, 1330px wide — while actually living in a column of 1330 - 422 rail
+   - 28 gutter - 48 gutters = 832px, or as little as 403px at a 901px viewport.
+   So a two-up grid stayed two-up long after its columns had been squeezed to
+   180px each: the access-code box and the move-in/hours column were being
+   sized by the browser, not by the box they are in. Naming the container is
+   what makes the queries below ask the right element how much room there is.
+
+   Both columns carry the SAME name so the two steps cannot drift; a rule
+   written for one applies to the other by construction. */
+.rfc-card,
+.rf-sx {
+  container-type: inline-size;
+  container-name: rfmain;
+}
+/* Keep them in step on mobile too — .rf-sx was inheriting .rf-card's 32/20. */
+@container (max-width: 640px) {
+  .rf-sx { padding-inline: 24px; }
+}
+
+/* Buy the two-up grid some room before giving up on it: tighter box padding and
+   gutter keep it viable a couple of hundred pixels further down. */
+@container rfmain (max-width: 780px) {
+  .rfc-panel { padding: 24px; }
+  .rfc-cols { gap: 24px; }
+}
+
+@container rfmain (max-width: 620px) {
+  /* The frame's 25px/32px insets are desktop figures — on a phone they spend a
+     third of the bar on padding. */
+  .rfc-sent { padding: 14px 18px; gap: 10px; }
+  /* Below this the code card cannot hold the wallet badges and the details
+     column cannot hold an hours line, so one above the other beats both
+     crushed. */
+  .rfc-cols { grid-template-columns: 1fr; }
+  /* Step 3's paired form fields, for the same reason. Its own @media (720px)
+     rule is viewport-based and left them two-up in a 403px column. */
+  .rf-pay-grid { grid-template-columns: 1fr; }
+}
+/* The "Lease Summary" line on the confirmation bar sits where step 2 puts the
+   hold countdown: same row, same 16px, but plain — there is nothing ticking. */
+.rfm-bar-lease { font-size: 16px; line-height: 28px; color: #101318; }
 .rfc-details { min-width: 0; }
 /* Dates: calendar icon + a column of one-line date rows (never wrap "…, 2026"). */
 .rfc-info-dates { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
@@ -1098,8 +1201,12 @@
 .rfc-hours--gate { margin-top: 14px !important; }
 
 /* Code card — fixed width (Figma 328), dashed night border, grey wallet strip. */
+/* Full width of whatever column it lands in — 327px beside the details at
+   desktop (the frame draws 328), the whole box once the grid is one column.
+   It was a flat 280px, which under-filled the column at every width and left a
+   gap the details column could not use. */
 .rfc-code-card {
-  width: 280px; max-width: 100%;
+  width: 100%;
   border: 2px dashed #101318; border-radius: 16px;
   background: #fff; overflow: hidden;
   display: flex; flex-direction: column;
@@ -1114,18 +1221,39 @@
 /* Wallet strip (grey, Figma #DFE3E8) — badges shown even before pass URLs exist. */
 .rfc-wallet { background: #dfe3e8; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .rfc-wallet-title { font-size: 16px; font-weight: 600; color: #101318; }
-.rfc-wallet-row { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: center; }
+/* nowrap so the two scale rather than stack — see .rfc-wb. */
+.rfc-wallet-row { display: flex; gap: 13.61px; flex-wrap: nowrap; justify-content: center; align-items: center; }
+/* The badge IS the artwork — no box, no background, no padding of ours. Both
+   assets already carry their own black pill and corner radius, so anything
+   drawn behind them shows as a halo. */
 .rfc-wb {
-  display: inline-flex; align-items: center; gap: 4px;
-  height: 38px; padding: 0 6px; border-radius: 8px;
-  background: #000; color: #fff; text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  /* Shrinkable, not fixed: in a narrow code card the pair scales down together
+     the way the mobile frame draws them (113/122 against the desktop 128/139)
+     instead of one dropping onto a second line. min-width:0 is what lets a flex
+     item go below its content width at all. */
+  flex: 0 1 auto;
+  min-width: 0;
+  text-decoration: none;
 }
-.rfc-wb--google { background: #101318; }
-.rfc-wb-logo { display: inline-flex; align-items: center; }
-.rfc-wb-logo svg { width: 16px; height: 16px; }
-.rfc-wb-txt { display: flex; flex-direction: column; line-height: 1.05; text-align: left; }
-.rfc-wb-txt small { font-size: 8px; opacity: .9; }
-.rfc-wb-txt b { font-size: 11px; font-weight: 600; white-space: nowrap; }
+/* Sized from the frame in px, NOT stretched to a shared height: Apple's badge
+   is 128.378x39.717 and Google's 139.009x37.510, and forcing them to match
+   would distort one of them. max-width keeps them inside a narrow card, with
+   height:auto so the aspect ratio survives the squeeze. */
+.rfc-wb-img {
+  display: block;
+  /* width:100% (not max-width) so the image follows the flex item as it
+     shrinks; height:auto keeps each badge's own aspect ratio while it does. */
+  width: 100%;
+  height: auto;
+}
+
+
+
+
+
+
 /* Full-width row under the code card: prompt (left) + Rent Online Now button
    spanning the rest of the row (right). */
 .rfc-rentnow {
@@ -1135,24 +1263,119 @@
 .rfc-rentnow > span { flex: 0 0 auto; }
 .rfc-rentnow .hb-btn { flex: 1 1 auto; width: auto; }
 /* Review card */
+/* Figma 8507-24413: WHITE with Elevation M, not the grey panel it was — it is a
+   card sitting on the page, not another section of it. 30px/38px insets. */
 .rfc-review {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-  background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+  padding: 38px 30px;
+  margin-bottom: 20px;
 }
-.rfc-review-q { margin: 0; font-size: 24px; font-weight: 600; color: #101318; max-width: 320px; }
+/* 270px is what breaks the copy onto the frame's three lines — "Our goal is to
+   simplify / the move-in process. / How are we doing?" — without hard <br>s
+   that would fight a longer translation. */
+.rfc-review-q {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 30px;
+  color: #101318;
+  max-width: 270px;
+}
 .rfc-review-accent { color: var(--color_1, #509e2f); }
-.rfc-review-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.rfc-review-stars { display: inline-flex; align-items: center; gap: 4px; }
-.rfc-review-link { font-size: 16px; font-weight: 600; text-decoration: underline; color: #101318; cursor: pointer; }
-.rfc-next .rf2-h { font-size: 22px; font-weight: 600; }
-.rfc-next { background: #f9fafb; border-radius: 12px; padding: 20px; }
-.rfc-next-item {
-  display: flex; gap: 10px; align-items: flex-start;
-  background: #fff; border-radius: 8px; padding: 14px 16px; margin-top: 10px;
-  font-size: 16px; color: #101318; box-shadow: 0 1px 2px rgba(16,19,24,.05);
+/* The frame right-aligns both rows and sets 15px between them (stars end at
+   y=73, the link row starts at 88). */
+.rfc-review-right { display: flex; flex-direction: column; align-items: flex-end; gap: 15px; }
+/* Mark and stars, 28px apart (G ends at 468, stars start at 496). */
+.rfc-review-rating { display: inline-flex; align-items: center; gap: 28px; }
+/* The G is our existing 4-colour vector rather than the frame's 1920px PNG: the
+   glyph is the same mark, and the raster would have cost ~800KB of base64 in a
+   bundle where it renders 39px wide. Boxed at the frame's 39x40 with the square
+   viewBox centred inside, so nothing stretches. */
+.rfc-review-g svg { display: block; width: 39px; height: 40px; }
+/* One asset for all five, at its own intrinsic size. */
+/* height:auto so a narrow column scales the strip instead of squashing it —
+   max-width alone against a fixed height distorts the stars. */
+.rfc-review-stars { display: block; width: 194.356px; height: auto; max-width: 100%; }
+/* Regular, not semibold — the frame's weight, and the underline is what marks
+   it as the action. 8px between icon and text. */
+.rfc-review-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-decoration: underline;
+  color: #101318;
+  cursor: pointer;
 }
-.rfc-next-check { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--color_1, #509e2f); color: #fff; }
-.rfc-next-check svg { color: #fff; }
+.rfc-review-link svg { flex: 0 0 auto; }
+
+/* Figma 8507-24383: #F9FAFB, radius 10, 30px all round, 25px from the title to
+   the first item. flex+gap rather than margins on the items, so that 25px is
+   stated once instead of being a margin the first item has to cancel. */
+.rfc-next {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  box-sizing: border-box;
+  background: #f9fafb;
+  border-radius: 10px;
+  padding: 30px;
+}
+/* Its own title rule now. It was borrowing step 2's .rf2-h, which is 20px/700
+   there and had to be overridden here — two rules describing one heading. */
+.rfc-next-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #101318;
+}
+/* The rows are a 12px column; .rfc-next-item's old margin-top did the same job
+   but left a stray 10px above the first one. */
+.rfc-next-list { display: flex; flex-direction: column; gap: 12px; }
+/* Figma: white, radius 10, 20px padding, Elevation S, 12px from tick to text,
+   16px/400 Montserrat on an 18px line. Centred, not top-aligned — the frame
+   centres the tick against the text even when it wraps to two lines. */
+.rfc-next-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 2px rgba(71, 84, 116, 0.1);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 18px;
+  color: #101318;
+}
+/* The 28px box the frame measures the 12px gap from. No disc of our own: the
+   tick-circle draws its own ring, and the old green fill behind it was standing
+   in for artwork we did not have. */
+.rfc-next-check {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--hb-secondary, #509e2f);
+}
+.rfc-next-check svg { display: block; }
 .rfc-error-eyebrow { color: #dc2626; }
 .rfc-error-panel {
   background: #fef2f2; border: 1px solid #fca5a5; border-radius: 10px;
@@ -1262,32 +1485,6 @@
   line-height: 18px;
   color: #b3261e;
 }
-
-/* --- Payment finalizing interstitial (screen 10 / m06) ------------------- */
-.rf-interstitial-overlay {
-  position: fixed; inset: 0; z-index: 60;
-  background: rgba(16, 19, 24, 0.45);
-  display: flex; align-items: flex-start; justify-content: center;
-}
-.rf-interstitial {
-  margin-top: 12vh; background: #fff; border-radius: 12px;
-  padding: 40px 48px; max-width: 420px; width: calc(100% - 32px);
-  text-align: center; box-shadow: 0 12px 40px rgba(16, 19, 24, 0.25);
-}
-.rf-interstitial-h { font-size: 22px; font-weight: 700; color: #101318; margin: 0 0 22px; line-height: 1.35; }
-.rf-interstitial-name { color: #3ba55c; }
-.rf-interstitial-bar {
-  height: 6px; border-radius: 3px; background: #e3e5e9;
-  overflow: hidden; margin: 0 auto 22px; max-width: 240px;
-}
-.rf-interstitial-fill {
-  height: 100%; width: 35%; border-radius: 3px; background: #3ba55c;
-  animation: rf-interstitial-progress 3s ease-in-out forwards;
-}
-@keyframes rf-interstitial-progress {
-  0% { width: 12%; } 60% { width: 55%; } 100% { width: 92%; }
-}
-.rf-interstitial-p { font-size: 14px; color: #101318; margin: 0; line-height: 1.5; }
 
 /* --- Mobile: sticky top cost bar + drop-down rail sheet ------------------ */
 .rfm-top { position: sticky; top: 0; z-index: 50; }

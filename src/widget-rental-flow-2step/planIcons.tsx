@@ -19,6 +19,133 @@ interface GlyphProps {
   className?: string;
 }
 
+/**
+ * check/check-tick-circle (Figma 8507-24390) — the What's Next bullet.
+ *
+ * One exported vector inside a 28px box: the glyph itself is 21.35px, inset
+ * 11.88% and drawn at 2.333 stroke in the brand green. The 28px outer box is
+ * kept because it is what the row's 12px gap is measured from.
+ */
+export function TickCircleIcon({ size = 28, className }: GlyphProps) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 28 28"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.33333}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g transform="translate(2.1607 2.1607)">
+        <path d="M7.75836 12.4394L10.4898 15.1679C11.8035 12.8708 13.6215 10.9019 15.8069 9.40962L15.925 9.32892M22.5167 11.8417C22.5167 17.7373 17.7373 22.5167 11.8417 22.5167C5.94603 22.5167 1.16667 17.7373 1.16667 11.8417C1.16667 5.94603 5.94603 1.16667 11.8417 1.16667C17.7373 1.16667 22.5167 5.94603 22.5167 11.8417Z" />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * review/write-review (Figma 6492-145196) — message bubble plus a pencil.
+ *
+ * The two vectors carry DIFFERENT stroke weights in the export — 2 on the
+ * bubble, 1 on the pencil — so the weight is per-<g>, not on the <svg>. Giving
+ * both the bubble's 2 turns the pencil into a blob at 24px.
+ */
+export function WriteReviewIcon({ size = 24, className }: GlyphProps) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g transform="translate(2 2)" strokeWidth={2}>
+        <path d="M14.2 1H5.8C4.11984 1 3.27976 1 2.63803 1.32698C2.07354 1.6146 1.6146 2.07354 1.32698 2.63803C1 3.27976 1 4.11984 1 5.8V10.2C1 11.8802 1 12.7202 1.32698 13.362C1.6146 13.9265 2.07354 14.3854 2.63803 14.673C3.27976 15 4.11984 15 5.8 15H6V19L11 15H14.2C15.8802 15 16.7202 15 17.362 14.673C17.9265 14.3854 18.3854 13.9265 18.673 13.362C19 12.7202 19 11.8802 19 10.2V5.8C19 4.11984 19 3.27976 18.673 2.63803C18.3854 2.07354 17.9265 1.6146 17.362 1.32698C16.7202 1 15.8802 1 14.2 1Z" />
+      </g>
+      <g transform="translate(8.5 6.5)" strokeWidth={1}>
+        <path d="M0.525803 5.71185C0.533411 5.47947 0.537215 5.36327 0.565948 5.2542C0.591429 5.15747 0.631286 5.06516 0.684177 4.98037C0.74382 4.88475 0.825675 4.80255 0.989386 4.63814L4.93592 0.674773C5.13305 0.476798 5.44075 0.443116 5.67572 0.59379C5.95949 0.775753 6.20152 1.0162 6.38577 1.29919L6.39866 1.31898C6.55965 1.56624 6.52597 1.89299 6.31796 2.10188L2.4081 6.02842C2.23822 6.19902 2.15329 6.28432 2.05423 6.34555C1.9664 6.39984 1.87067 6.44003 1.7705 6.46466C1.65752 6.49245 1.53741 6.49323 1.29717 6.4948L0.5 6.50001L0.525803 5.71185Z" />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * message/message-default (Figma 8065-14150) — the mark in the "We've sent your
+ * access code" bar. Three exported vectors: the bubble, then the two text
+ * rules inside it, each placed by its Figma inset via a <g transform>.
+ */
+export function MessageIcon({ size = 24, className }: GlyphProps) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g transform="translate(2 2)">
+        <path d="M14.2 1H5.8C4.11984 1 3.27976 1 2.63803 1.32698C2.07354 1.6146 1.6146 2.07354 1.32698 2.63803C1 3.27976 1 4.11984 1 5.8V10.2C1 11.8802 1 12.7202 1.32698 13.362C1.6146 13.9265 2.07354 14.3854 2.63803 14.673C3.27976 15 4.11984 15 5.8 15H6V19L11 15H14.2C15.8802 15 16.7202 15 17.362 14.673C17.9265 14.3854 18.3854 13.9265 18.673 13.362C19 12.7202 19 11.8802 19 10.2V5.8C19 4.11984 19 3.27976 18.673 2.63803C18.3854 2.07354 17.9265 1.6146 17.362 1.32698C16.7202 1 15.8802 1 14.2 1Z" />
+      </g>
+      <g transform="translate(6 7)"><path d="M1 1H11" /></g>
+      <g transform="translate(6 11)"><path d="M1 1H8" /></g>
+    </svg>
+  );
+}
+
+/**
+ * key/key-top-right-02 (Figma 8754-50337) — the mark before "Access Code".
+ *
+ * Two exported vectors, each placed by its own Figma inset and kept in its own
+ * <g transform>. Translating the path data by hand would have been four decimal
+ * points of opportunity to be wrong; the transform is exact and reversible.
+ * Rendered SQUARE at the component's own 24x24, deliberately. The placed
+ * instance measures 24 x 22.691 — Figma percentage insets inside an
+ * overflow-clip frame that was nudged 5.5% shorter, which squashes the artwork
+ * rather than resizing it. Reproducing a 5.5% vertical squash of a stroked
+ * glyph looks wrong next to the 24px icons beside it, and 1.3px is not a design
+ * decision worth inheriting.
+ */
+export function KeyIcon({ size = 24, className }: GlyphProps) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g transform="translate(2.612 3.9296)">
+        <path d="M13.6316 1H16.4596V3.828L14.3386 5.949H12.7176C12.5849 5.949 12.4578 6.00168 12.364 6.09545C12.2702 6.18922 12.2176 6.31639 12.2176 6.449V8.07L9.76455 10.522C10.0886 11.4838 10.0779 12.5269 9.7343 13.482C9.39071 14.437 8.73437 15.2478 7.87186 15.7827C7.00935 16.3177 5.99133 16.5453 4.98311 16.4288C3.9749 16.3122 3.0357 15.8582 2.31803 15.1405C1.60036 14.4229 1.14638 13.4837 1.02979 12.4754C0.913213 11.4672 1.14088 10.4492 1.67583 9.58669C2.21078 8.72418 3.02159 8.06784 3.9766 7.72425C4.93161 7.38066 5.97472 7.37 6.93655 7.694L13.6316 1Z" />
+      </g>
+      <g transform="translate(5.684 14.8904)">
+        <path d="M2.42555 2.41403L1.01255 1.00003C0.985113 1.19219 1.00281 1.38811 1.06423 1.57224C1.12566 1.75638 1.22912 1.92369 1.36643 2.0609C1.50374 2.19811 1.67111 2.30145 1.85529 2.36275C2.03948 2.42404 2.2354 2.4416 2.42755 2.41403H2.42555Z" />
+      </g>
+    </svg>
+  );
+}
+
 /** Filled glyph in its own aspect ratio, fitted inside a `size` box. */
 function Glyph({
   size = 16, className, viewBox, width, height, d,
