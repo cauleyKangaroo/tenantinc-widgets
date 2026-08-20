@@ -586,7 +586,7 @@ export async function fetchUnitInfo(ctx: RentalCtx, unitId: string): Promise<{ n
 }
 
 interface ApiQuoteDetail { name?: string; total_cost?: number; start_date?: string; end_date?: string }
-interface ApiQuoteInvoice { total_due?: number; total_tax?: number; Detail?: ApiQuoteDetail[] }
+interface ApiQuoteInvoice { total_due?: number; balance?: number; total_tax?: number; Detail?: ApiQuoteDetail[] }
 
 /**
  * What the shopper has chosen, as lease-set-up's documented inputs.
@@ -625,10 +625,12 @@ function leaseSetUpBody(opts: QuoteOptions): Record<string, unknown> {
 /**
  * POST lease-set-up for a held unit.
  *
- * The extra parameters are documented but UNPROVEN on this tenant's v1 endpoint
- * (the guide describes v2). So a rejection falls back to the hold_token-only
- * body that has been shipping — a wrong-but-present breakdown beats losing the
- * money block entirely — and says so loudly in the console.
+ * The extra parameters ARE honoured by v1 — verified against a held unit
+ * 2026-08-20: `insurance_id` added a prorated "Coverage $2000" line, a
+ * `start_date` of 2026-08-25 came back on `details.start_date` (the minimal
+ * call returned today), and `promotions` produced a Discounts entry and moved
+ * the balance. The fallback below is therefore belt-and-braces rather than an
+ * expected path; if the warning ever appears, the endpoint changed.
  */
 async function postLeaseSetUp(path: string, opts: QuoteOptions): Promise<Record<string, unknown> | undefined> {
   const body = leaseSetUpBody(opts);
@@ -667,10 +669,16 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
   const details = data?.details as { Invoices?: ApiQuoteInvoice[]; bill_day?: number; rent?: number } | undefined;
   const inv = (details?.Invoices ?? [])[0];
   if (!inv || typeof inv.total_due !== 'number') return undefined;
+  // `balance` is the NET payable; `total_due` is the gross before discounts.
+  // Verified on a held unit 2026-08-20: with a 50%-off promotion the same quote
+  // returned total_due 75.52 against balance 71.02, and the per-line total_cost
+  // values summed to the balance — so reading total_due showed a total $4.50
+  // higher than both the lines above it and the amount actually charged.
+  const payable = typeof inv.balance === 'number' ? inv.balance : inv.total_due;
   return {
     unitId: unit.id,
     unitNumber: unit.number,
-    totalDue: inv.total_due,
+    totalDue: payable,
     totalTax: inv.total_tax ?? 0,
     billDay: typeof details?.bill_day === 'number' ? details.bill_day : undefined,
     rent: typeof details?.rent === 'number' ? details.rent : undefined,

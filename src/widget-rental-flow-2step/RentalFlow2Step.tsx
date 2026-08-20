@@ -1235,6 +1235,30 @@ export function RentalFlow2Step({
   const railSelection = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
   const railQuote = quote ?? (previewContent ? PREVIEW_QUOTE : undefined);
 
+  // ONE aside for the whole flow. Steps 1, 2 and 3 show the same order — the
+  // same property, space and money — so they render the same element rather
+  // than three OrderRails that can drift apart. The post-purchase variant only
+  // drops "Change Space", which is meaningless once the unit is rented.
+  const railFor = (rented: boolean) => (
+    <OrderRail
+      property={railProperty}
+      selection={railSelection}
+      quote={railQuote}
+      // The frame shows "#111 | 5’ x 7’" — the unit number leads, then the size.
+      // SummaryRail composes that as `size | tierName`, so the preview passes the
+      // unit as `size`. Real selections have no unit number here (see note below).
+      unitLabel={previewContent && !selection ? '#111' : undefined}
+      changeSpaceUrl={rented ? undefined : (changeSpaceUrl ?? backToSpacesUrl)}
+      quoteFailed={quoteFailed}
+      // Only an UNHELD quote assumes today: the pre-hold GET carries no
+      // start_date, while the hold-aware POST sends the chosen one and the
+      // engine honours it (verified against a held unit 2026-08-20). Warning
+      // about a date the quote already reflects would be its own small lie.
+      quoteAssumesToday={!hold && moveIn.getTime() > startOfToday().getTime()}
+    />
+  );
+  const rail = railFor(false);
+
   if (staticPaid) {
     // The held unit is real even on the static path — the hold and quote both
     // come from the live API.
@@ -1268,7 +1292,7 @@ export function RentalFlow2Step({
             />
             <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
               <div className="rfm-sheet">
-                <OrderRail property={railProperty} selection={railSelection} quote={railQuote} />
+                {railFor(true)}
               </div>
             </div>
           </div>
@@ -1299,32 +1323,17 @@ export function RentalFlow2Step({
               gateHours={propertyInfo?.gateHours?.length ? propertyInfo.gateHours : confHours?.gateHours}
               reviewUrl={reviewUrl}
             />
-            {!isMobile && <OrderRail property={railProperty} selection={railSelection} quote={railQuote} />}
+            {!isMobile && railFor(true)}
           </div>
         ) : (
           <div className="rfc-layout">
             <SuccessStep onGetAccess={() => setAccessGranted(true)} />
-            {!isMobile && <OrderRail property={railProperty} selection={railSelection} quote={railQuote} />}
+            {!isMobile && railFor(true)}
           </div>
         )}
       </div>
     );
   }
-
-  const rail = (
-    <OrderRail
-      property={railProperty}
-      selection={railSelection}
-      quote={railQuote}
-      // The frame shows "#111 | 5’ x 7’" — the unit number leads, then the size.
-      // SummaryRail composes that as `size | tierName`, so the preview passes the
-      // unit as `size`. Real selections have no unit number here (see note below).
-      unitLabel={previewContent && !selection ? '#111' : undefined}
-      changeSpaceUrl={changeSpaceUrl ?? backToSpacesUrl}
-      quoteFailed={quoteFailed}
-      quoteAssumesToday={moveIn.getTime() > startOfToday().getTime()}
-    />
-  );
 
   return (
     <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
