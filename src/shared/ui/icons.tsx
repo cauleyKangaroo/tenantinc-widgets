@@ -132,6 +132,32 @@ export function EyeOffIcon(props: IconProps) {
  * 9px mark, half what the caller asked for. Existing callers are left on it so
  * nothing shifts; anything matching the frames should use this.
  */
+/**
+ * The checkbox tick — a SOLID geometric mark, not the curved Pika check.
+ *
+ * Deliberately not square: the design's glyph is 13.41 x 10.12, and the
+ * viewBox is cropped to exactly that, so `size` means the drawn width rather
+ * than a frame the mark floats inside. Forcing width === height would stretch
+ * it.
+ */
+export function CheckTickSolid({ size = 13, className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={(size * 10.1214) / 13.4143}
+      viewBox="10.293 11.7928 13.4143 10.1214"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M15 21.9142L23.7073 13.207L22.293 11.7928L15 19.0857L11.7073 15.7928L10.293 17.207L15 21.9142Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 export function CloseSolidIcon({ size = 18, className }: IconProps) {
   return (
     <svg

@@ -31,7 +31,6 @@ export function OrderRail({
   quote,
   unitLabel,
   changeSpaceUrl,
-  holdRemaining,
   quoteFailed = false,
   quoteAssumesToday = false,
   estimate = false,
@@ -44,8 +43,6 @@ export function OrderRail({
    *  moves into the trailing slot. */
   unitLabel?: string;
   changeSpaceUrl?: string;
-  /** Seconds left on the real unit hold; renders the countdown header. */
-  holdRemaining?: number;
   /** Quote pipeline failed — show the technical-difficulty note, never fakes. */
   quoteFailed?: boolean;
   /** Selected move-in date is in the FUTURE — the gateway quote engine
@@ -96,7 +93,6 @@ export function OrderRail({
       promoPrice={showStrike ? selection!.online : undefined}
       priceLabels={{ standard: 'IN-STORE', promo: 'ONLINE' }}
       promo={selection?.promo}
-      holdRemaining={holdRemaining}
     >
       <div className="ts-card-breakdown">
         {quote ? (

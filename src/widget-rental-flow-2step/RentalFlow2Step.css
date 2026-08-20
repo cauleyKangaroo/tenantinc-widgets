@@ -19,8 +19,15 @@
    countdown. Everything else — the overhanging logo banner, the white strip
    and its reserved left gutter — is #02's, so the two headers read as the same
    component. Only the logo ASSET is shared; no component, config or data. */
+/* Zero-height sentinel above the header; the IntersectionObserver watches this
+   rather than sampling scroll position. */
+.rf-hdr-sentinel { height: 0; }
+
 .rf-hdr {
-  position: relative;
+  /* Sticky #1. z-index above the rail (sticky #2), which sits below it. */
+  position: sticky;
+  top: 0;
+  z-index: 60;
   width: 100%;
   box-sizing: border-box;
   background: #fff;
@@ -56,12 +63,32 @@
 }
 .rf-hdr-logo-img { display: block; width: 100%; height: auto; }
 
+/* ── Shrunk (pinned and scrolled) ────────────────────────────────────────
+   The strip and the banner contract; the countdown deliberately does NOT —
+   it is the one thing on this header that has to stay readable, and shrinking
+   a ticking timer is exactly the wrong economy. */
+/* A gentler contraction than the first pass (64px / 170px), which took too
+   much off — the banner stopped reading as the site's mark. The strip loses
+   ~22%, the banner the same, so the overhang stays about 18px either side of
+   the change and the header keeps its proportions rather than just getting
+   small. */
+.rf-hdr--shrunk .rf-hdr-inner { min-height: 78px; padding-left: 240px; }
+.rf-hdr--shrunk .rf-hdr-logo { width: 215px; }
+/* A little more separation once it is floating over content. */
+.rf-hdr--shrunk { box-shadow: 0 2px 8px 2px rgba(71, 84, 116, 0.14); }
+.rf-hdr-logo { transition: width 0.2s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-hdr-inner, .rf-hdr-logo { transition: none; }
+}
+
 /* The white strip. padding-left reserves the gutter the banner occupies. */
 .rf-hdr-inner {
   position: relative;
   max-width: 1314px;
   margin: 0 auto;
   min-height: 100px;
+  transition: min-height 0.2s ease;
   padding: 0 24px 0 285px;
   display: flex;
   align-items: center;
@@ -618,35 +645,9 @@
    taller than the design. */
 .rf2-checks { display: flex; flex-direction: column; gap: 4px; }
 
-/* Step-2 checkbox skin (Figma 8507-23354). The shared Checkbox is built for the
-   form kit — an 8px radius, an #a5b4bf resting border and a GREEN (--hb-cta)
-   fill when on. This design wants a near-square, lighter-outlined box that
-   fills NEAR-BLACK, which is what the Check helper's "dark-fill" name has
-   always claimed. Scoped to .rf2-check, so the shared component is unchanged
-   for every other widget. */
-.rf-check .hb-check__box {
-  border-radius: 2px;
-  border-color: #dfe3e8;
-}
-/* Both classes sit on the same root element, hence the compound selector. */
-.rf-check.hb-check--on .hb-check__box {
-  background: #101318;
-  border-color: #101318;
-}
-
-/* 18px box for EVERY checkbox in the flow — the Additional Information size
-   (8507-23354), not the kit's 24px. Merged into .rf-check rather than kept as a
-   --sm variant: one size everywhere is the point.
-   The 3px margin preserves a 24px footprint, so shrinking the box does not move
-   label baselines or change the 28px row pitch. */
-.rf-check .hb-check__box {
-  width: 18px;
-  height: 18px;
-  margin: 3px;
-}
-/* No CSS sizing for the tick: RfCheckbox passes it in already sized, and the
-   design's mark is 13.41x10.12 — not square. Forcing width == height here would
-   stretch it. */
+/* The step-2 checkbox skin that used to live here — 18px near-square box,
+   #dfe3e8 outline, near-black fill, solid tick — is now the kit's default
+   (shared/ui/Checkbox), so every widget gets it and this override is gone. */
 .rf2-checkline { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .rf2-checkline input { position: absolute; width: 0; height: 0; opacity: 0; }
 .rf2-box {
@@ -866,16 +867,24 @@
   .rf-layout > .ts-card,
   .rfc-layout > .ts-card {
     position: sticky;
-    /* Clear of the browser chrome instead of flush against it. */
-    top: 24px;
+    /* Sticky #2 — BELOW sticky #1, not behind it. --rf-hdr-h is the header's
+       MEASURED height, republished whenever it shrinks or grows (see the
+       ResizeObserver in RentalFlow2Step.tsx), so this tracks it rather than
+       guessing. Hardcoding breaks in both directions: the tall value leaves a
+       gap once the header shrinks, the short one lets the header cover the rail
+       when you scroll back up and it re-grows. The fallback matches the
+       unshrunk strip, so it stays correct if the observer never runs. */
+    top: calc(var(--rf-hdr-h, 100px) + 24px);
     /* .rf-layout already sets align-items:start; restated because a stretched
        grid item is full-height and therefore can never stick, and that failure
        is silent if the container rule is ever changed. */
     align-self: start;
     /* The rail runs ~684px. On a short viewport a plain sticky top pins the
        header and parks the move-in total permanently off-screen with no way to
-       scroll to it. This engages only when the rail genuinely does not fit. */
-    max-height: calc(100vh - 48px);
+       scroll to it. This engages only when the rail genuinely does not fit.
+       The sticky header eats into the available height too, so subtract it
+       alongside the 24px above and below. */
+    max-height: calc(100vh - var(--rf-hdr-h, 100px) - 48px);
     overflow-y: auto;
   }
 }
@@ -898,9 +907,6 @@
     /* grid's default stretch is what makes the two halves equal height. */
     align-items: stretch;
   }
-  /* The hold countdown is a banner across the top, not a third column. */
-  .rf-layout > .ts-card > .ts-card-holdbar,
-  .rfc-layout > .ts-card > .ts-card-holdbar { grid-column: 1 / -1; }
   /* Released from its fixed 208px so it matches whatever the body needs, but
      never collapses below it when the body is short. */
   .rf-layout > .ts-card > .ts-card-hero,
@@ -1299,22 +1305,82 @@
 }
 .rfm-bar-chev { flex: 0 0 auto; color: #101318; transform: rotate(90deg); transition: transform 0.15s ease; }
 .rfm-bar-chev--up { transform: rotate(-90deg); }
-/* Grid 0fr -> 1fr is what lets this animate to its NATURAL height: there is no
-   pixel value to guess, so nothing clips and no scrollbar is needed. The sheet
-   is in normal flow, so opening it pushes the page down rather than covering
-   it. */
-.rfm-sheet-wrap {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+/* The sheet hangs off the bar's bottom edge and OVERLAYS what is beneath it,
+   rather than being appended below and pushing the page down.
+
+   `top: 100%` on an absolute child of the sticky bar means its position needs no
+   measurement at all — it tracks the bar automatically, whether the bar is
+   pinned to the top of the screen or still sitting down in the flow. Only its
+   height is measured (--rfm-sheet-max, set in RentalFlow2Step.tsx).
+
+   The old grid 0fr -> 1fr animation went with the push-down layout: that trick
+   animates to the content's NATURAL height, which is precisely what must not
+   happen now — the sheet is capped at the viewport and scrolls inside instead.
+   A slide behind the wrap's own clip does the same job with a definite height.
+
+   No max-height here: the wrap sizes to the sheet plus the shadow gutter, so
+   translateY(-100%) — which moves the sheet by its OWN height — parks its
+   bottom edge exactly on the wrap's top edge. Nothing peeks out. */
+/* Covers what is still visible below the sheet. Two jobs: a tap on it closes
+   the dropdown, and it absorbs scroll gestures aimed at the page behind —
+   which is why there is no document-level scroll lock (see the note in
+   RentalFlow2Step.tsx: locking html/body sends the page to the top and takes
+   the sticky bar with it).
+
+   Absolutely positioned off the sticky bar exactly like the sheet, so it
+   travels with it, and sized to the MEASURED room below it rather than 100vh —
+   a box hanging past the viewport bottom would lengthen the page and add the
+   scrollbar this exists to prevent. */
+.rfm-scrim {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: var(--rfm-room, 0px);
+  background: rgba(16, 19, 24, 0.32);
+  /* No wheel equivalent exists; that one is blocked by a native listener. */
+  touch-action: none;
+  overscroll-behavior: contain;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-.rfm-sheet-wrap--open { grid-template-rows: 1fr; }
-.rfm-sheet {
-  /* min-height:0 is required — a grid item's default min-height:auto would
-     refuse to shrink below its content and the row would never collapse. */
-  min-height: 0;
+.rfm-scrim--open { opacity: 1; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .rfm-scrim { transition: none; }
+}
+
+.rfm-sheet-wrap {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
   overflow: hidden;
+  /* Room for the sheet's drop shadow; the clip above would otherwise cut it
+     off flush and lose the sense that this is floating over the page. */
+  padding-bottom: 14px;
+  /* Closed, this is still a real box laid over the content underneath — empty
+     and invisible, but it would swallow taps meant for the page behind it. */
+  pointer-events: none;
+}
+.rfm-sheet-wrap--open { pointer-events: auto; }
+.rfm-sheet {
+  /* THE only scroller while the sheet is open: everything else visible is
+     under the scrim, which absorbs the gesture. `contain` handles the last
+     case the scrim cannot — a flick that starts inside this list and runs off
+     its end, which would otherwise chain out to the host page. */
+  max-height: var(--rfm-sheet-max, 60vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
+  box-shadow: 0 8px 12px rgba(71, 84, 116, 0.16);
+  transform: translateY(-100%);
+  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.rfm-sheet-wrap--open .rfm-sheet { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .rfm-sheet { transition: none; }
 }
 /* The rail is built for a 422px desktop column; inside the sheet it has to fit
    a 393px phone, so everything that carried a fixed width goes fluid rather

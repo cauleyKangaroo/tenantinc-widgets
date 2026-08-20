@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './RentalFlow2Step.css';
 import { Step2 } from './Step2';
 import {
-  fetchProperty, fetchSpaceGroups, extractProtectionPlans, fetchLeaseDocument,
-  extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitNumber,
+  fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
+  extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
@@ -166,10 +166,12 @@ const PREVIEW_QUOTE: MoveInQuote = {
 };
 
 /**
- * Sample protection plans (Figma 8508-32894). Same gate, and the same reason
- * squared: api.ts notes the insurance rows come back `[]` on every tenant we can
- * read, so step 2's plan card has never had anything real to show — which is why
- * it renders "confirmed at checkout" rather than inventing $2,000/$12.
+ * Sample protection plans (Figma 8508-32894), harness/editor preview only.
+ *
+ * Live plans now come from the property's `insurances` endpoint and win
+ * whenever it returns any. These fill the card only when the list is empty AND
+ * previewContent is on, so a property with no coverage configured still shows
+ * the honest "confirmed at checkout" note rather than invented money.
  */
 const PREVIEW_PLANS: ProtectionPlan[] = [
   { id: 'preview-1000', coverage: 1000, premium: 11 },
@@ -346,9 +348,15 @@ function MobileRailBar({
  *
  * Rebuilt from #02's design rather than imported: see the logo import above.
  */
-function RentalHeader({ holdRemaining, homeHref }: { holdRemaining?: number; homeHref: string }) {
+function RentalHeader({ holdRemaining, homeHref, shrunk, innerRef }: {
+  holdRemaining?: number;
+  homeHref: string;
+  /** Pinned and scrolled — the strip and banner contract, the countdown does not. */
+  shrunk?: boolean;
+  innerRef?: React.Ref<HTMLElement>;
+}) {
   return (
-    <header className="rf-hdr">
+    <header ref={innerRef} className={`rf-hdr${shrunk ? ' rf-hdr--shrunk' : ''}`}>
       {/* #02's structure exactly: the logo is an absolutely positioned banner
           that overhangs the bar, and .rf-hdr-inner is the white strip whose
           left gutter is reserved for it. The grey top bar (phone, live chat)
@@ -367,32 +375,6 @@ function RentalHeader({ holdRemaining, homeHref }: { holdRemaining?: number; hom
       </div>
     </header>
   );
-}
-
-/**
- * Scroll the window to `top` over ~260ms.
- *
- * Hand-rolled rather than `behavior: 'smooth'` because that has no speed
- * control and its default glide is slow enough to feel like a delay when the
- * point is to snap back to the summary. Honours prefers-reduced-motion by
- * jumping straight there.
- */
-function fastScrollTo(top: number) {
-  const reduce = typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const start = window.scrollY;
-  const delta = top - start;
-  if (reduce || Math.abs(delta) < 2) { window.scrollTo(0, top); return; }
-
-  const DURATION = 260;
-  const t0 = performance.now();
-  const step = (now: number) => {
-    const p = Math.min(1, (now - t0) / DURATION);
-    // easeOutCubic — quick off the mark, settles rather than stopping dead.
-    window.scrollTo(0, start + delta * (1 - (1 - p) ** 3));
-    if (p < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
 }
 
 // Payment interstitial (Figma screen 10 / mobile m06) — modal overlay
@@ -706,6 +688,18 @@ export function RentalFlow2Step({
   const [brandName, setBrandName] = useState('UAT Tenant V2');
   const [propertyInfo, setPropertyInfo] = useState<import('./api').PropertyInfo | undefined>(undefined);
   const [plans, setPlans] = useState<ProtectionPlan[]>([]);
+  // Space type ID of the unit being rented, once resolved. Plans are configured
+  // per space type, so this is what keeps a storage rental from being offered
+  // the property's Commercial coverage (Bellflower returns both).
+  const [unitTypeId, setUnitTypeId] = useState<string | undefined>(undefined);
+  // Coverage chosen in step 2, or undefined for "I have my own insurance".
+  // Lives here rather than in Step2 because it changes the QUOTE, not just the
+  // card: lease-set-up prices the selected plan as its own invoice line.
+  const [insuranceId, setInsuranceId] = useState<string | undefined>(undefined);
+  // Only the plans for the space type being rented. Before the unit resolves
+  // (or if its type is unknown) this is the full list — showing every plan is
+  // recoverable, showing none would re-create the "confirmed at checkout" bug.
+  const shownPlans = React.useMemo(() => plansForUnitType(plans, unitTypeId), [plans, unitTypeId]);
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
   const [quote, setQuote] = useState<MoveInQuote | undefined>(undefined);
@@ -738,27 +732,70 @@ export function RentalFlow2Step({
   const [railOpen, setRailOpen] = useState(false);
 
   /**
-   * Tapping the cost bar.
-   *
-   * Pinned (the page has scrolled past the widget), the bar is the only part of
-   * the summary on screen, so a tap means "take me back to it": always OPEN and
-   * scroll the widget's top under the viewport — never close, which would
-   * dismiss the thing being asked for.
-   *
-   * Unpinned it is an ordinary accordion and toggles, because the content it
-   * controls is already in view.
-   *
-   * The scroll targets the WIDGET's top, not the sheet's, so it is unaffected
-   * by the sheet animating open at the same time — a target that grows mid-
-   * scroll would land short.
+   * Tapping the cost bar opens or closes the sheet. Nothing else — it used to
+   * also scroll the page back to the summary when pinned, which is redundant
+   * now the sheet drops over the content instead of being appended below it.
    */
-  const onRailToggle = () => {
-    const rect = wrapRef.current?.getBoundingClientRect();
-    const pinned = !!rect && rect.top < 0;
-    if (!pinned) { setRailOpen((o) => !o); return; }
-    setRailOpen(true);
-    if (rect) fastScrollTo(window.scrollY + rect.top);
-  };
+  const onRailToggle = () => setRailOpen((o) => !o);
+
+  /**
+   * How tall the sheet may be: whatever is left of the viewport below the bar.
+   *
+   * Measured rather than assumed. The bar only sits at the top of the screen
+   * once the page has scrolled past the widget; before that it is wherever the
+   * flow puts it, and a hardcoded `100vh - 80px` would run off the bottom —
+   * unreachable, because the page behind is locked.
+   */
+  const railBarRef = useRef<HTMLDivElement | null>(null);
+  // Layout effect, not a plain one: the scrim is sized from this too, and a
+  // frame at its fallback height would briefly add page scroll.
+  useLayoutEffect(() => {
+    if (!isMobile || !railOpen) return undefined;
+    const measure = () => {
+      const bar = railBarRef.current;
+      const wrap = wrapRef.current;
+      if (!bar || !wrap) return;
+      const room = Math.max(window.innerHeight - bar.getBoundingClientRect().bottom, 0);
+      // The scrim covers exactly what is visible below the bar. Not 100vh — an
+      // absolutely positioned box past the viewport bottom lengthens the page
+      // and creates the very scrollbar this is here to suppress.
+      wrap.style.setProperty('--rfm-room', `${room}px`);
+      // The sheet gets a floor: on a very short viewport a scrollable 200px is
+      // more usable than a faithfully-measured 20px.
+      wrap.style.setProperty('--rfm-sheet-max', `${Math.max(room, 200)}px`);
+    };
+    measure();
+    // The bar can still move: it is only pinned once the page has scrolled past
+    // the widget, so a sheet opened before then travels with it.
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, { passive: true });
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure);
+    };
+  }, [isMobile, railOpen]);
+
+  /**
+   * Wheel over the scrim must not scroll the page behind it.
+   *
+   * Touch is handled in CSS (`touch-action: none`), but wheel has no such
+   * property, and React attaches its own wheel listener passively — so
+   * preventDefault has to come from a native non-passive one.
+   *
+   * There is deliberately NO document-level scroll lock. `overflow: hidden` on
+   * html/body stops the content overflowing at all, so the browser clamps
+   * scrollTop to 0: the page jumps to the top and takes the sticky bar with it.
+   * The position:fixed-body variant is worse — it unpins sticky outright.
+   * Blocking the interaction at the scrim leaves the document untouched.
+   */
+  const scrimRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const node = scrimRef.current;
+    if (!node || !isMobile || !railOpen) return undefined;
+    const block = (e: Event) => e.preventDefault();
+    node.addEventListener('wheel', block, { passive: false });
+    return () => node.removeEventListener('wheel', block);
+  }, [isMobile, railOpen]);
   useEffect(() => {
     const node = wrapRef.current;
     if (!node) return undefined;
@@ -813,7 +850,13 @@ export function RentalFlow2Step({
         // the only source. Fail CLOSED: never show another unit's money.
         const held = result.hold;
         setQuote((prev) => (prev && prev.unitId === held.unitId ? prev : undefined));
-        fetchMoveInQuote(ctx, { id: held.unitId, number: held.unitNumber }, held.holdToken)
+        fetchMoveInQuote(ctx, { id: held.unitId, number: held.unitNumber }, {
+          holdToken: held.holdToken,
+          insuranceId,
+          promotionIds: selection?.promotionIds,
+          startDate: ymd(moveIn),
+          offerToken: selection?.offerToken,
+        })
           .then((q) => {
             if (cancelled) return;
             if (q) setQuote(q);
@@ -828,7 +871,38 @@ export function RentalFlow2Step({
       }
     })();
     return () => { cancelled = true; };
-  }, [step, quote, hold, holdExpired, selection, inEditor, logTag, ctx]);
+  }, [step, quote, hold, holdExpired, selection, inEditor, logTag, ctx, insuranceId, moveIn]);
+
+  // Re-quote when a choice that changes the money changes — coverage or the
+  // move-in date. Only while holding: lease-set-up will not price either of them
+  // without a hold token, and the plain GET 409s on a held unit anyway.
+  //
+  // The first run is skipped: the hold effect above has just quoted with these
+  // exact values, and re-firing would double every request for no new number.
+  const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}`;
+  const quotedChoice = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!hold || step !== 2) return undefined;
+    if (quotedChoice.current === undefined || quotedChoice.current === choiceKey) {
+      quotedChoice.current = choiceKey;
+      return undefined;
+    }
+    quotedChoice.current = choiceKey;
+    let cancelled = false;
+    fetchMoveInQuote(ctx, { id: hold.unitId, number: hold.unitNumber }, {
+      holdToken: hold.holdToken,
+      insuranceId,
+      promotionIds: selection?.promotionIds,
+      startDate: ymd(moveIn),
+      offerToken: selection?.offerToken,
+    })
+      .then((q) => { if (!cancelled && q) setQuote(q); })
+      // Keep the previous quote on failure rather than blanking the rail: the
+      // shopper changed a plan, not the unit, and the old total is still the
+      // last figure the API actually stood behind.
+      .catch((err) => console.warn(`${logTag} re-quote after a choice change failed — keeping the previous total:`, err));
+    return () => { cancelled = true; };
+  }, [hold, step, choiceKey, insuranceId, moveIn, selection, ctx, logTag]);
 
   // Countdown driven by the acquisition timestamp, not a decrementing
   // counter — survives re-renders and background-tab throttling.
@@ -870,6 +944,8 @@ export function RentalFlow2Step({
     setSelection(undefined);
     setQuote(undefined);
     setQuoteFailed(false);
+    setUnitTypeId(undefined);
+    setInsuranceId(undefined);
     if (holdRef.current) {
       void releaseHold(ctx, holdRef.current);
       setHold(undefined);
@@ -885,10 +961,17 @@ export function RentalFlow2Step({
       })
       .catch((err) => console.error(`${logTag} fetchProperty error:`, err))
       .finally(settle);
+    // Protection plans are their own endpoint (space-types → property
+    // insurances) — deliberately NOT chained to space-groups: they are unrelated
+    // reads, and the plan card should not wait on (or be lost with) the tier
+    // lookup. Outside the settle() gate for the same reason: the rail renders
+    // without plans, so they must not hold up the first paint.
+    fetchProtectionPlans(ctx)
+      .then((list) => { if (!cancelled) setPlans(list); })
+      .catch((err) => console.error(`${logTag} fetchProtectionPlans error:`, err));
     fetchSpaceGroups(ctx)
       .then((raw) => {
         if (cancelled) return;
-        setPlans(extractProtectionPlans(raw));
         if (unitIdProp || unitGroupIdProp || sizeProp) {
           const sel = extractSelectionContext(raw, unitGroupIdProp, sizeProp);
           // Prefer the richer /offers selection (amenities, real promo rate) —
@@ -902,10 +985,11 @@ export function RentalFlow2Step({
           } else if (sel) {
             setSelection(sel);
           }
-          const resolveUnit: Promise<{ id: string; number?: string } | undefined> = unitIdProp
+          const resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string } | undefined> = unitIdProp
             // Handoff gives only a unitId; resolve its number so the rail and the
-            // confirmation can show "Space #…" (the reserve response omits it).
-            ? fetchUnitNumber(ctx, unitIdProp).then((number) => ({ id: unitIdProp, number }))
+            // confirmation can show "Space #…" (the reserve response omits it),
+            // plus its space type to narrow the protection plans.
+            ? fetchUnitInfo(ctx, unitIdProp).then((info) => ({ id: unitIdProp, ...info }))
             : sel
               ? findUnitForSelection(ctx, sel.size, sel.price)
               // No offer matched, but a stored pick still names a size and a
@@ -914,7 +998,10 @@ export function RentalFlow2Step({
                 ? findUnitForSelection(ctx, stored.size, stored.price)
                 : Promise.resolve(undefined);
           resolveUnit
-            .then((unit) => (unit ? fetchMoveInQuote(ctx, unit) : undefined))
+            .then((unit) => {
+              if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
+              return unit ? fetchMoveInQuote(ctx, unit) : undefined;
+            })
             .then((q) => {
               if (cancelled) return;
               if (q) setQuote(q);
@@ -964,6 +1051,75 @@ export function RentalFlow2Step({
       .catch(() => { /* fail-soft: hours just stay hidden */ });
     return () => { cancelled = true; };
   }, [ctx, effectiveCompanyId]);
+  /*
+   * Sticky-header plumbing.
+   *
+   * `shrunk` comes from an IntersectionObserver on a zero-height sentinel above
+   * the header, not a scroll listener — the browser reports the crossing itself
+   * rather than us sampling scrollY on every frame.
+   *
+   * The measured height is published as --rf-hdr-h so the order rail can sit
+   * BELOW the header rather than behind it. Measured rather than hardcoded
+   * because the header changes height when it shrinks: two constants would
+   * leave the rail either overlapping (if it used the tall value) or floating
+   * in a gap (if it used the short one), and scrolling back up re-grows the
+   * header while the rail is still pinned.
+   */
+  const hdrRef = useRef<HTMLElement>(null);
+  const hdrSentinelRef = useRef<HTMLDivElement>(null);
+  const [hdrShrunk, setHdrShrunk] = useState(false);
+
+  useEffect(() => {
+    const el = hdrSentinelRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => setHdrShrunk(!e.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const el = hdrRef.current;
+    const wrap = wrapRef.current;
+    if (!el || !wrap) return;
+    const write = () => wrap.style.setProperty('--rf-hdr-h', `${el.offsetHeight}px`);
+    write();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(write);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hdrShrunk]);
+
+  /*
+   * The header is hoisted above every branch and rendered on FIRST paint.
+   *
+   * This widget replaces the site's own header on this page, so until it
+   * appears the page has no header at all — a blank strip where the brand
+   * should be. It depends on nothing that is fetched: the logo is a bundled
+   * data URI and the countdown only appears once a hold exists.
+   *
+   * Deliberately NOT behind `pastDelay`. That 200ms gate stops a skeleton
+   * flashing on fast loads, which is right for the body and wrong here — the
+   * header has real content to show immediately.
+   *
+   * Nor behind `!isMobile`: that is set by a ResizeObserver AFTER mount, so
+   * gating on it would cost the header a frame. CSS hides .rf-hdr under the
+   * same 640px container width instead, which costs nothing at paint.
+   */
+  const header = (
+    <>
+      {/* Zero-height marker: once it scrolls out of view the header is pinned. */}
+      <div ref={hdrSentinelRef} className="rf-hdr-sentinel" aria-hidden="true" />
+      <RentalHeader
+      shrunk={hdrShrunk}
+      innerRef={hdrRef}
+      holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
+      /* Site root. The logo is the only way back out of checkout, so it must
+         not inherit termsHref or any editor-set '#'. */
+      homeHref="/"
+      />
+    </>
+  );
+
   if (confirmation) {
     // Reservations are REAL (hold + reserve POSTs exist), so they show real
     // response data and NO demo banner. The prototype banner stays only for
@@ -987,6 +1143,7 @@ export function RentalFlow2Step({
     const goToCheckout = () => { if (checkoutUrl) window.location.assign(checkoutUrl); };
     return (
       <div className="rf-wrapper">
+        {header}
         {GP_BRIDGE_IS_PROTOTYPE && confirmation.kind === 'rental' && (
           <div className="rf-demo-banner rf-demo-banner--page" role="note">
             Demo preview — no payment or lease was created.
@@ -1014,6 +1171,7 @@ export function RentalFlow2Step({
   if (loading) {
     return (
       <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
+        {header}
         {pastDelay ? <RfSkeleton mobile={isMobile} /> : null}
       </div>
     );
@@ -1079,7 +1237,6 @@ export function RentalFlow2Step({
       // unit as `size`. Real selections have no unit number here (see note below).
       unitLabel={previewContent && !selection ? '#111' : undefined}
       changeSpaceUrl={changeSpaceUrl ?? backToSpacesUrl}
-      holdRemaining={isMobile ? undefined : holdRemaining}
       quoteFailed={quoteFailed}
       quoteAssumesToday={moveIn.getTime() > startOfToday().getTime()}
     />
@@ -1087,16 +1244,9 @@ export function RentalFlow2Step({
 
   return (
     <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
-      {!isMobile && (
-        <RentalHeader
-          holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
-          /* Site root. The logo is the only way back out of checkout, so it
-             must not inherit termsHref or any editor-set '#'. */
-          homeHref="/"
-        />
-      )}
+      {header}
       {isMobile && (
-        <div className="rfm-top">
+        <div className="rfm-top" ref={railBarRef}>
           {/* A hold only exists after a unit is actually held, so on step 1
               there is genuinely nothing to count down — which is why the row
               was invisible. The sample value is harness-only, on the same gate
@@ -1108,16 +1258,27 @@ export function RentalFlow2Step({
             expanded={railOpen}
             onToggle={onRailToggle}
           />
-        </div>
-      )}
-      {/* OUTSIDE .rfm-top, which is sticky: in there the sheet would stick to
-          the viewport along with the bar. Out here it is normal flow, so
-          opening it pushes the page down instead of covering it.
-          Always mounted, visibility driven by the class — a conditionally
-          rendered element cannot transition, it can only appear. */}
-      {isMobile && (
-        <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
-          <div className="rfm-sheet">{rail}</div>
+          {/* Click-outside target, and the thing that keeps the page behind
+              from scrolling. Before the sheet in the DOM so the sheet paints
+              over it. */}
+          <div
+            ref={scrimRef}
+            className={`rfm-scrim${railOpen ? ' rfm-scrim--open' : ''}`}
+            onClick={() => setRailOpen(false)}
+            aria-hidden="true"
+          />
+          {/* INSIDE .rfm-top, absolutely positioned off its bottom edge, so it
+              hangs from the bar wherever the bar happens to be — pinned to the
+              top of the screen or still down in the flow — and overlays the
+              content rather than pushing it down. .rf-wrapper is a container
+              (container-type: inline-size ⇒ contain: layout), which would make
+              a `fixed` sheet resolve against the widget instead of the
+              viewport; anchoring to the bar sidesteps that entirely.
+              Always mounted, visibility driven by the class — a conditionally
+              rendered element cannot transition, it can only appear. */}
+          <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
+            <div className="rfm-sheet">{rail}</div>
+          </div>
         </div>
       )}
       <div className="rf-layout">
@@ -1145,9 +1306,10 @@ export function RentalFlow2Step({
             // The whole list, not plans[0]: the card is a dropdown now, so it
             // needs every option. Live plans win; the sample only fills an empty
             // list, and only in the harness.
-            plans={plans.length ? plans : (previewContent ? PREVIEW_PLANS : [])}
+            plans={shownPlans.length ? shownPlans : (previewContent ? PREVIEW_PLANS : [])}
             leaseDocName={leaseDoc?.name}
             brochureUrl={brochureUrl}
+            onPlanChange={setInsuranceId}
             onEditDate={() => setDateModalOpen(true)}
             gpApiKey={gpApiKey}
             gpEnvironment={gpEnvironment}
