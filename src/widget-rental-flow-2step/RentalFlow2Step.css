@@ -907,9 +907,6 @@
     /* grid's default stretch is what makes the two halves equal height. */
     align-items: stretch;
   }
-  /* The hold countdown is a banner across the top, not a third column. */
-  .rf-layout > .ts-card > .ts-card-holdbar,
-  .rfc-layout > .ts-card > .ts-card-holdbar { grid-column: 1 / -1; }
   /* Released from its fixed 208px so it matches whatever the body needs, but
      never collapses below it when the body is short. */
   .rf-layout > .ts-card > .ts-card-hero,

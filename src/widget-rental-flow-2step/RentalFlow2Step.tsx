@@ -1156,7 +1156,6 @@ export function RentalFlow2Step({
       // unit as `size`. Real selections have no unit number here (see note below).
       unitLabel={previewContent && !selection ? '#111' : undefined}
       changeSpaceUrl={changeSpaceUrl ?? backToSpacesUrl}
-      holdRemaining={isMobile ? undefined : holdRemaining}
       quoteFailed={quoteFailed}
       quoteAssumesToday={moveIn.getTime() > startOfToday().getTime()}
     />
