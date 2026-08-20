@@ -289,8 +289,22 @@
   font-weight: 600;
   letter-spacing: 0.2px;
   cursor: pointer;
+  transition: background var(--hb-transition, 0.15s ease);
 }
-.rf-paynow:hover { filter: brightness(0.94); }
+/* The kit's CTA hover model, matched exactly: name a real BACKGROUND, darkened
+   12% toward black (22% on press), rather than dimming with a filter.
+   `filter: brightness()` leaves `background` unset, so a host rule like the dev
+   harness's `button:hover { background: #f3f4f6 }` — (0,1,1), which outranks
+   this single class — paints grey over the CTA and the filter merely dims THAT.
+   `filter: none` clears the old value in case anything else still sets one. */
+.rf-paynow:hover:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--hb-cta, #f45f30) 88%, #000);
+}
+.rf-paynow:active:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--hb-cta, #f45f30) 78%, #000);
+}
 
 @media (max-width: 720px) {
   .rf-pay-grid { grid-template-columns: 1fr; }
