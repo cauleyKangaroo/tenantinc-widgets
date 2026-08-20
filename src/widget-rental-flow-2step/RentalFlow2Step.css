@@ -1749,6 +1749,27 @@
    further down the file simply won on source order. */
 .rf-wrapper--mobile .rf-layout,
 .rf-wrapper--mobile .rfc-layout { padding-left: 0; padding-right: 0; }
+/* Steps 1 and 2 size off their COLUMN, not the browser.
+   Every `@container (max-width: 640px)` rule for this content used to resolve
+   against .rf-wrapper — the whole widget, up to 1330px — while the content
+   actually lives in `1330 - 422 rail - 28 gutter - 48 gutters` = 832px, and as
+   little as 403px at a 901px viewport. So the title stayed at 36px and the
+   paired fields stayed two-up in a column that could not hold them, which is
+   the "Em… / Pho…" crush.
+   The blocks themselves are unchanged: an unnamed @container resolves to the
+   NEAREST ancestor container, so declaring one here re-points them all at the
+   column. .rf-hdr is a sibling of .rf-main, not a descendant, so the header
+   keeps measuring the whole widget — which is right, it spans it.
+   Named to match .rfc-card / .rf-sx on steps 3 and 4: one name for "the content
+   column, whichever step", so a rule written for one applies to all of them.
+   NOTE this also makes .rf-main a containing block for `position: fixed`
+   descendants. Every overlay rendered inside it is portalled to <body> for
+   exactly that reason — see LeaseModal, ProtectionPlanModal and DateModal. */
+.rf-main {
+  container-type: inline-size;
+  container-name: rfmain;
+  min-width: 0;
+}
 .rf-wrapper--mobile .rf-main { width: 100%; }
 
 /* Payment schedule (spec-04: Next Month(s) / Ongoing) */

@@ -6,6 +6,7 @@
 // ===========================================================================
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import './DateModal.css';
 import { CalendarIcon, CloseSolidIcon } from './icons';
 import { Button } from './Button';
@@ -170,7 +171,7 @@ export function DateModal({
   const nextYear = m0 === 11 ? y0 + 1 : y0;
   const nextMonth = m0 === 11 ? 0 : m0 + 1;
 
-  return (
+  const overlay = (
     <div className="hb-datemodal-overlay" onMouseDown={onClose}>
       <div
         className="hb-datemodal"
@@ -242,4 +243,13 @@ export function DateModal({
       </div>
     </div>
   );
+
+  // Portalled to <body>. A `position: fixed` overlay is contained by the
+  // nearest ancestor with LAYOUT containment, and the flow's content column is
+  // `container-type: inline-size` so its contents size off the column rather
+  // than the browser — which would pin this overlay to that column instead of
+  // the viewport. Same reason as ProcessingModal; see the note there.
+  return typeof document !== 'undefined' && document.body
+    ? createPortal(overlay, document.body)
+    : overlay;
 }
