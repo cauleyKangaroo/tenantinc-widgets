@@ -320,43 +320,62 @@ export function CardForm({ total, onPay, busy }: {
           <label className="rf-cardcell-label">Card Number<span className="rf-req">*</span></label>
         </span>
 
-        <span className="rf-cardcell rf-cardcell--exp">
-          <input
-            className="rf-cardrow-input"
-            ref={expiryRef}
-            value={expiry}
-            onChange={(e) => onExpiry(e.target.value)}
-            placeholder=" "
-            inputMode="numeric"
-            autoComplete="cc-exp"
-            aria-label="Card expiry, MM / YY (required)"
-          />
-          <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>
-        </span>
+        {/* Expiry and CVV are wrapped together so they move to a second line as
+            a PAIR. Left as three loose siblings, flex wraps them one at a time
+            and there is a band of widths where CVV sits alone under a row that
+            still has expiry on it. */}
+        <span className="rf-cardrow-short">
+          <span className="rf-cardcell rf-cardcell--exp">
+            <input
+              className="rf-cardrow-input"
+              ref={expiryRef}
+              value={expiry}
+              onChange={(e) => onExpiry(e.target.value)}
+              placeholder=" "
+              inputMode="numeric"
+              autoComplete="cc-exp"
+              aria-label="Card expiry, MM / YY (required)"
+            />
+            <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>
+          </span>
 
-        <span className="rf-cardcell rf-cardcell--cvv">
-          <input
-            className="rf-cardrow-input"
-            ref={cvvRef}
-            value={cvv}
-            onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, CVV_DIGITS))}
-            placeholder=" "
-            inputMode="numeric"
-            autoComplete="cc-csc"
-            aria-label="Card security code (required)"
-          />
-          <label className="rf-cardcell-label">CVV<span className="rf-req">*</span></label>
+          <span className="rf-cardcell rf-cardcell--cvv">
+            <input
+              className="rf-cardrow-input"
+              ref={cvvRef}
+              value={cvv}
+              onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, CVV_DIGITS))}
+              placeholder=" "
+              inputMode="numeric"
+              autoComplete="cc-csc"
+              aria-label="Card security code (required)"
+            />
+            <label className="rf-cardcell-label">CVV<span className="rf-req">*</span></label>
+          </span>
         </span>
 
         {/* One tick for the row, not three: the three inputs share a single
-            border, so they succeed as a unit (Figma 10080-28126). */}
-        {cardRowValid && <CheckIcon className="rf-cardrow-tick" />}
+            border, so they succeed as a unit (Figma 10080-28126).
+            ALWAYS rendered, only its visibility toggling — mounting it on
+            validity made expiry and CVV jump left by the icon's width the
+            instant the last digit landed, which reads as the field having
+            moved under the cursor. */}
+        <CheckIcon
+          className={`rf-cardrow-tick${cardRowValid ? '' : ' rf-cardrow-tick--pending'}`}
+          aria-hidden="true"
+        />
       </div>
       {expError && <p className="rf-cardrow-msg" role="alert">{expError}</p>}
 
       <FormField label="Name on Card" required value={name} onChange={setName} autoComplete="cc-name" state={ok(filled(name))} />
 
-      <FormField label="Billing Address" required value={address} onChange={setAddress} autoComplete="billing street-address" state={ok(filled(address))} />
+      {/* type="search" for the magnifier — the kit's affordance for a lookup
+          field, ready for address search to be wired to it. The bank form's
+          Billing Address and SuccessStep's Business Address already use it, so
+          this was the odd one out. The icon stays neutral when the field
+          validates (.hb-field__icon--affordance), so it does not compete with
+          the success tick. */}
+      <FormField label="Billing Address" required type="search" value={address} onChange={setAddress} autoComplete="billing street-address" state={ok(filled(address))} />
 
       <div className="rf-pay-grid">
         <FormField label="Billing City" required value={city} onChange={setCity} autoComplete="billing address-level2" state={ok(filled(city))} />

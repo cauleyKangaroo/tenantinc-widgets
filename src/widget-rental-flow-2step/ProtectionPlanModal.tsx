@@ -15,6 +15,7 @@
 // ===========================================================================
 
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { CloseIcon } from './icons';
 import { FireGlyph, DropGlyph, EyeGlyph, WindGlyph, SnowGlyph, DownloadIcon } from './planIcons';
 
@@ -100,7 +101,7 @@ export function ProtectionPlanModal({
 
   if (!open) return null;
 
-  return (
+  const overlay = (
     <div className="rf-overlay" onClick={onClose} role="presentation">
       <div
         className="rf-pp-card"
@@ -118,4 +119,13 @@ export function ProtectionPlanModal({
       </div>
     </div>
   );
+
+  // Portalled to <body>. A `position: fixed` overlay is contained by the
+  // nearest ancestor with LAYOUT containment, and the flow's content column is
+  // `container-type: inline-size` so its contents size off the column rather
+  // than the browser — which would pin this overlay to that column instead of
+  // the viewport. Same reason as ProcessingModal; see the note there.
+  return typeof document !== 'undefined' && document.body
+    ? createPortal(overlay, document.body)
+    : overlay;
 }

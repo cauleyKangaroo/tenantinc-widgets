@@ -263,12 +263,16 @@
   }
 
   .rf-card { padding: 32px 20px; }
-  /* Both title lines scale together — they are one size in the frame, and the
-     eyebrow at a base 36px would otherwise outsize the 28px heading here.
+  /* Mobile title (Figma 8509-51825). Not just a smaller desktop: the frame
+     changes the WEIGHT too — the heading is Bold 700 here against SemiBold 600
+     on desktop — and tightens the gap from 14px to 6px. Line heights are the
+     frame's own, not derived, because at 24px the desktop's 20/38 would leave
+     the eyebrow clipped and the heading airy.
      .rf-wrapper-qualified to match the base rules' (0,2,0); these win on source
      order, being later in the file. */
-  .rf-wrapper .rf-eyebrow { font-size: 28px; }
-  .rf-wrapper .rf-heading { font-size: 28px; }
+  .rf-title { gap: 6px; }
+  .rf-wrapper .rf-eyebrow { font-size: 24px; line-height: 16px; }
+  .rf-wrapper .rf-heading { font-size: 24px; font-weight: 700; line-height: 27px; }
   .rf-row { flex-direction: column; }
   .rf-actions { max-width: none; }
 }
@@ -350,7 +354,7 @@
   .rf-cals { gap: 16px; }
 }
 
-/* ═══ Step 2 — "Secure your space today" ═══════════════════════════════════ */
+/* ═══ Step 2 — "Secure your space now" ═══════════════════════════════════ */
 .rf2-h { font-size: 20px; font-weight: 700; color: #101318; }
 .rf2-link {
   display: inline-flex; align-items: center; gap: 8px;
@@ -715,7 +719,18 @@
 .rf2-agree-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 28px 29px 20px; }
 /* Long label by default, short one on mobile — see the note at the call site. */
 .rf2-link-short { display: none; }
-.rf2-agree-doc { margin: 0 24px; height: 300px; overflow: auto; background: #fff; border-radius: 4px; }
+/* A fixed 250px PREVIEW, not a reader. `overflow: hidden` deliberately: this
+   box used to scroll the whole agreement inline, which competed with the page's
+   own scroll on a phone and put the full document somewhere it was never going
+   to be read. "View Document" opens the lightbox that IS the reader, so this
+   only has to show enough to identify what is being agreed to. */
+.rf2-agree-doc {
+  margin: 0 24px;
+  height: 250px;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 4px;
+}
 .rf2-doc-page { padding: 24px 28px; }
 .rf2-doc-title { margin: 0 0 14px; font-size: 16px; font-weight: 700; color: #101318; }
 .rf2-doc-h { margin: 0 0 6px; font-size: 12px; font-weight: 700; font-style: italic; color: #101318; }
@@ -876,8 +891,51 @@
   /* .rf2-row stacks here, so its fields are full width — match them. */
   .rf2-movein { width: 100%; }
   .rf2-panel, .rf2-payment { padding: 20px; }
-  /* Also less the 2px border, matching the base rule. */
-  .rf2-autopay { padding: 14px 18px; }
+  /* Payment goes flat white and full width on mobile.
+     NOTE this repeats what the "flat white sheet" block near the top of the
+     file already says for .rf2-panel and .rf-method-panel — that block has
+     never actually worked. It is (0,1,0), and BOTH base rules are declared
+     after it: .rf2-panel later in this file, .rf-method-panel over in
+     screens.css, which is bundled after this file entirely. Qualifying with
+     .rf-wrapper takes these to (0,2,0) so source order stops deciding.
+     Scoped to the payment section deliberately — the other panels are still
+     grey today and turning them all white at once is a bigger change than the
+     one asked for. */
+  .rf-wrapper .rf2-payment {
+    background: #fff;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    /* With no box left there is nothing for a side gutter to hold content away
+       from — this is what lets the method panel below span the card. */
+    padding-inline: 0;
+  }
+  /* The method panel KEEPS its box (Figma 8538-21125): #F9FAFB behind a 2px
+     primary border at radius 12. It was in the rule above and should not have
+     been — the grey to remove was the SECTION's, and stripping the panel too
+     left the card/bank fields floating on a white page with nothing marking
+     them as the selected method. Now the section is flat and the panel is the
+     only box, which is the frame. */
+  .rf-wrapper .rf2-payment .rf-method-panel {
+    background: #f9fafb;
+    border: 2px solid var(--hb-cta, #f45f30);
+    border-radius: 12px;
+    /* 20px, matching what screens.css already drops to at 720px. The frame
+       draws 30, but on a phone that spends a sixth of the panel on padding and
+       the card-number row inside needs the width more. */
+    padding: 20px;
+  }
+  /* Figma 8538-22333: on mobile the row inverts — the panel behind it is white
+     now, so a white row would vanish into it. #F4F6F8 fill, radius 10, 64px
+     tall. 28px inline is the frame's 30 less the 2px transparent border the
+     base rule always carries, so enrolling recolours the outline without
+     moving the label. .rf-wrapper-qualified (0,2,0): the base .rf2-autopay is
+     (0,1,0) and this file has bitten us three times today on source order. */
+  .rf-wrapper .rf2-autopay {
+    background: #f4f6f8;
+    min-height: 64px;
+    padding: 0 28px;
+  }
   .rf2-agree-head { padding: 20px 20px 16px; }
   .rf2-link-long { display: none; }
   .rf2-link-short { display: inline; }
@@ -1091,11 +1149,11 @@
   .rfc-card { padding-inline: 30px; }
   .rf-sx { padding-inline: 30px; }
 }
-/* Confirmation name eyebrow is 36px (Figma 8507-24998). Now the same as the
-   base rule, so this is a no-op on desktop — it is kept because it also
-   outranks the narrow-width 28px above, holding confirmation at 36px there as
-   it was before. Delete it and that screen changes on mobile. */
-.rfc-card .rf-eyebrow { font-size: 36px; }
+/* The confirmation eyebrow used to be pinned to 36px here so it kept the
+   desktop size on mobile while the other steps dropped to 28. That exception is
+   gone: all four titles are one treatment now — 36/600 + 36/600 on desktop,
+   24/600 + 24/700 on mobile — and holding one screen at 36px on a phone was the
+   thing making them inconsistent. */
 
 /* Figma: 754x53 at #E1EFDC, radius 12. The icon sits 25px in, the text 13px
    after it, and Resend ends 32px from the right edge — expressed as padding and
@@ -1108,7 +1166,11 @@
   gap: 13px;
   box-sizing: border-box;
   min-height: 53px;
-  padding: 12px 32px 12px 25px;
+  /* 30px each side, matching .rfc-panel, .rfc-review and .rfc-next — the four
+     boxes stack down the page and their contents have to start on one line.
+     The frame draws this bar at 25/32 and the panel at 35/37, which is Figma
+     drift rather than intent: the two boxes below it both use 30. */
+  padding: 12px 30px;
   background: #e1efdc;
   border-radius: 12px;
   margin-bottom: 20px;
@@ -1117,7 +1179,7 @@
 .rfc-sent-txt { flex: 1 1 auto; font-size: 16px; font-weight: 600; line-height: 1.35; color: #101318; }
 .rfc-resend { border: none; background: none; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
 /* Figma 8507-24357: #F4F6F8, radius 12, 35px all round. */
-.rfc-panel { background: #f4f6f8; border-radius: 12px; padding: 35px; margin-bottom: 20px; }
+.rfc-panel { background: #f4f6f8; border-radius: 12px; padding: 30px; margin-bottom: 20px; }
 .rfc-space-head { font-size: 28px; font-weight: 600; color: #101318; margin-bottom: 14px; }
 
 /* Code card (fixed 300, left) + details (right). GRID, not flex-wrap, so the
@@ -1165,22 +1227,33 @@
 
 /* Buy the two-up grid some room before giving up on it: tighter box padding and
    gutter keep it viable a couple of hundred pixels further down. */
+/* Both rfmain blocks are .rf-wrapper-qualified purely for SPECIFICITY (0,2,0),
+   the same trick .rf-eyebrow/.rf-heading use higher up. A container query has no
+   specificity of its own, so at (0,1,0) these lose to any base rule declared
+   later — and .rfc-review, .rfc-next and .rf-pay-grid all are, the last one from
+   screens.css, which is bundled after this file entirely. Without this the rules
+   below silently do nothing. */
 @container rfmain (max-width: 780px) {
-  .rfc-panel { padding: 24px; }
-  .rfc-cols { gap: 24px; }
+  /* All four together: tightening one on its own is what let them fall out of
+     line in the first place. */
+  .rf-wrapper .rfc-sent,
+  .rf-wrapper .rfc-panel,
+  .rf-wrapper .rfc-review,
+  .rf-wrapper .rfc-next { padding-inline: 24px; }
+  .rf-wrapper .rfc-panel { padding-block: 24px; }
+  .rf-wrapper .rfc-cols { gap: 24px; }
 }
 
 @container rfmain (max-width: 620px) {
-  /* The frame's 25px/32px insets are desktop figures — on a phone they spend a
-     third of the bar on padding. */
-  .rfc-sent { padding: 14px 18px; gap: 10px; }
+  /* Only the gap here — the inset is handled above, for all four at once. */
+  .rf-wrapper .rfc-sent { gap: 10px; }
   /* Below this the code card cannot hold the wallet badges and the details
      column cannot hold an hours line, so one above the other beats both
      crushed. */
-  .rfc-cols { grid-template-columns: 1fr; }
+  .rf-wrapper .rfc-cols { grid-template-columns: 1fr; }
   /* Step 3's paired form fields, for the same reason. Its own @media (720px)
      rule is viewport-based and left them two-up in a 403px column. */
-  .rf-pay-grid { grid-template-columns: 1fr; }
+  .rf-wrapper .rf-pay-grid { grid-template-columns: 1fr; }
 }
 /* The "Lease Summary" line on the confirmation bar sits where step 2 puts the
    hold countdown: same row, same 16px, but plain — there is nothing ticking. */
@@ -1219,21 +1292,45 @@
 .rfc-qr svg { display: block; width: 116px; height: 116px; }
 
 /* Wallet strip (grey, Figma #DFE3E8) — badges shown even before pass URLs exist. */
-.rfc-wallet { background: #dfe3e8; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+/* Figma 8754-50340: the #DFE3E8 band runs the full width of the card, with the
+   title 19px down, the badge row 12px under it and 24px of clearance below. */
+.rfc-wallet {
+  background: #dfe3e8;
+  padding: 19px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
 .rfc-wallet-title { font-size: 16px; font-weight: 600; color: #101318; }
-/* nowrap so the two scale rather than stack — see .rfc-wb. */
-.rfc-wallet-row { display: flex; gap: 13.61px; flex-wrap: nowrap; justify-content: center; align-items: center; }
+/* An even split, not two intrinsically-sized items sitting side by side.
+   Flex sized each badge from its own artwork, so Apple's 128.378 and Google's
+   139.009 made a lopsided pair that also grew past the design on a wide card.
+   A 1fr 1fr grid gives each exactly half, and max-width caps the row at the
+   frame's own 128.378 + 13.61 + 139.009 = 281 so they can shrink but never
+   inflate. Centred, because the cap leaves slack in a wide card. */
+.rfc-wallet-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13.61px;
+  align-items: center;
+  justify-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 281px;
+  margin: 0 auto;
+}
 /* The badge IS the artwork — no box, no background, no padding of ours. Both
    assets already carry their own black pill and corner radius, so anything
    drawn behind them shows as a halo. */
 .rfc-wb {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  /* Shrinkable, not fixed: in a narrow code card the pair scales down together
-     the way the mobile frame draws them (113/122 against the desktop 128/139)
-     instead of one dropping onto a second line. min-width:0 is what lets a flex
-     item go below its content width at all. */
-  flex: 0 1 auto;
+  justify-content: center;
+  /* Fills its half of the grid. min-width:0 is what lets a grid item go below
+     its content width, without which the intrinsic badge width would force the
+     track wider than 1fr. */
+  width: 100%;
   min-width: 0;
   text-decoration: none;
 }
@@ -1652,6 +1749,27 @@
    further down the file simply won on source order. */
 .rf-wrapper--mobile .rf-layout,
 .rf-wrapper--mobile .rfc-layout { padding-left: 0; padding-right: 0; }
+/* Steps 1 and 2 size off their COLUMN, not the browser.
+   Every `@container (max-width: 640px)` rule for this content used to resolve
+   against .rf-wrapper — the whole widget, up to 1330px — while the content
+   actually lives in `1330 - 422 rail - 28 gutter - 48 gutters` = 832px, and as
+   little as 403px at a 901px viewport. So the title stayed at 36px and the
+   paired fields stayed two-up in a column that could not hold them, which is
+   the "Em… / Pho…" crush.
+   The blocks themselves are unchanged: an unnamed @container resolves to the
+   NEAREST ancestor container, so declaring one here re-points them all at the
+   column. .rf-hdr is a sibling of .rf-main, not a descendant, so the header
+   keeps measuring the whole widget — which is right, it spans it.
+   Named to match .rfc-card / .rf-sx on steps 3 and 4: one name for "the content
+   column, whichever step", so a rule written for one applies to all of them.
+   NOTE this also makes .rf-main a containing block for `position: fixed`
+   descendants. Every overlay rendered inside it is portalled to <body> for
+   exactly that reason — see LeaseModal, ProtectionPlanModal and DateModal. */
+.rf-main {
+  container-type: inline-size;
+  container-name: rfmain;
+  min-width: 0;
+}
 .rf-wrapper--mobile .rf-main { width: 100%; }
 
 /* Payment schedule (spec-04: Next Month(s) / Ongoing) */

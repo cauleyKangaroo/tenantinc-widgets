@@ -12,6 +12,7 @@
 // ===========================================================================
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CloseIcon } from './icons';
 import { RfCheckbox } from './RfCheckbox';
 
@@ -54,7 +55,7 @@ export function LeaseModal({
 
   const clamp = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number(z.toFixed(2))));
 
-  return (
+  const overlay = (
     <div className="rf-overlay rf-overlay--sheet" onClick={onClose} role="presentation">
       <div
         className="rf2-lease"
@@ -106,4 +107,13 @@ export function LeaseModal({
       </div>
     </div>
   );
+
+  // Portalled to <body>. A `position: fixed` overlay is contained by the
+  // nearest ancestor with LAYOUT containment, and the flow's content column is
+  // `container-type: inline-size` so its contents size off the column rather
+  // than the browser — which would pin this overlay to that column instead of
+  // the viewport. Same reason as ProcessingModal; see the note there.
+  return typeof document !== 'undefined' && document.body
+    ? createPortal(overlay, document.body)
+    : overlay;
 }

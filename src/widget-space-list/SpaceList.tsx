@@ -566,9 +566,10 @@ export function SpaceList({
               `Storage Units in ${propertyExtras?.name || cfg.propertyName}`}
         </h1>
       </div>
-      {/* Outside .sl-heading on purpose: that block is display:none on mobile (the
-          host page's own H1 covers it), but a feature page's explanation and its
-          way back out have to survive at every width. */}
+      {/* Outside .sl-heading on purpose: a feature page's explanation and its way
+          back out are their own block, not part of the title. (.sl-heading used
+          to be display:none on mobile, which is what made that separation
+          load-bearing; the title is visible at every width now.) */}
       {activeFeature && (
         <div className="sl-feature-intro">
           <p className="sl-feature-intro-text">{activeFeature.description}</p>

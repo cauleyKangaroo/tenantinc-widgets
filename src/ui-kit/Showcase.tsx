@@ -88,14 +88,14 @@ export function Showcase() {
               <FormField label="Move-in Date" type="date" value={moveIn} onChange={setMoveIn} state="success" />
             </State>
             <State label="Typed mask — no picker (date of birth)">
-              <FormField label="Date of Birth (MM/DD/YYYY)" mask="date" value={dob} onChange={setDob} state="success" />
+              <FormField label="Date of Birth" mask="date" value={dob} onChange={setDob} state="success" />
             </State>
             <State label="Typed mask, partially filled">
               <FormField label="Date of Birth" mask="date" value={partialDob} onChange={setPartialDob} />
             </State>
             <State label="Error / validation">
               <FormField
-                label="Date of Birth (MM/DD/YYYY)" mask="date" value={badDob} onChange={setBadDob}
+                label="Date of Birth" mask="date" value={badDob} onChange={setBadDob}
                 error="Enter a valid Date of Birth"
               />
             </State>
