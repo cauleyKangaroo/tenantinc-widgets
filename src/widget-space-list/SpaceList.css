@@ -311,19 +311,22 @@
 .sl-wrapper .sl-promo-banner-clear:hover { color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-page-title {
   font-family: 'Montserrat', sans-serif;
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 700;
   /* Unitless on purpose: a long feature-page heading wraps to two lines, and a
-     fixed 40px leading crams them together the moment a host theme scales the
-     font up. 1.3 keeps the desktop line box at ~42px and scales with the text. */
+     fixed leading crams them together the moment a host theme scales the font
+     up. 1.3 keeps the desktop line box at ~39px and scales with the text. */
   line-height: 1.3;
   color: #101318;
   margin: 0;
+  text-align: left;
   /* A long facility name ("Storage Outlet - Bellflower") must break rather than
      push the column wider. */
   overflow-wrap: break-word;
-  /* Guard against host themes restyling bare <h1> (e.g. uppercasing it). The
-     size/weight/margin above also override the browser's own h1 defaults. */
+  /* Guard against host themes restyling bare <h1> (e.g. uppercasing it). This
+     rule is .sl-wrapper-qualified for SPECIFICITY (0,2,0): a bare .sl-page-title
+     is (0,1,0) and loses to any host rule shaped like `.something h1`. The
+     size/weight/margin/align also override the browser's own h1 defaults. */
   text-transform: none;
   letter-spacing: normal;
 }
@@ -1139,10 +1142,18 @@
      width from its content and collapses to ~min-content. */
   .sl-wrapper .sl-row { flex-direction: column; align-items: stretch; }
   .sl-wrapper .sl-listing-area { width: 100%; }
-  /* Both headings are hidden on mobile — the page's own H1 already says where you
-     are, and the vacancy count reads as noise above the fold on a phone.
-     (Desktop keeps the 32px page title; the whole .sl-heading block just goes.) */
-  .sl-wrapper .sl-heading { display: none; }
+  /* The page title STAYS on mobile — it was hidden with the rest of
+     .sl-heading on the reasoning that the host page's own H1 already says where
+     you are, which is not true on every page that mounts this widget, and a
+     listing with no title above it reads as broken. Smaller and centred, per
+     the ask. .sl-select-heading is unaffected: it is display:none at every
+     width already, so nothing else comes back with it.
+     .sl-heading keeps its display:contents, so the title stays a direct
+     participant in .sl-wrapper's flex column exactly as it is on desktop. */
+  .sl-wrapper .sl-page-title {
+    font-size: 22px;
+    text-align: center;
+  }
   .sl-wrapper .sl-filter-panel,
   .sl-wrapper .sl-additional-panel.ap-left,
   .sl-wrapper .sl-additional-panel.ap-right { width: 100% !important; }
