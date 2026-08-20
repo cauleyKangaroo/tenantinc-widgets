@@ -107,7 +107,15 @@
 .hb-field__label {
   position: absolute;
   top: 50%;
+  /* `right: 0` as well as `left: 0` is what BOUNDS it. With only `left` an
+     absolutely positioned box shrink-wraps its content, so a long label
+     ("Confirm Account Number") ran straight out of .hb-field__data and under
+     the trailing icons. .hb-field__data already excludes the icons, so pinning
+     both edges is enough — nothing needs to know how many icons there are. */
   left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
   transform: translateY(-50%);
   transform-origin: left center;
   color: var(--hb-field-label);
@@ -117,6 +125,15 @@
   white-space: nowrap;
   pointer-events: none;   /* clicks fall through to the input */
   transition: transform var(--hb-transition), font-size var(--hb-transition);
+}
+
+/* The text truncates; the asterisk does not. min-width:0 is what lets a flex
+   item shrink below its content so text-overflow has something to do. */
+.hb-field__label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Floated: focused, or holding a value. `:not(:placeholder-shown)` is what makes
@@ -130,8 +147,10 @@
   line-height: var(--hb-line-height-label);
 }
 
-/* The red required marker, appended inside the label. */
+/* The red required marker, appended inside the label. Never shrinks — a
+   truncated label that has lost its asterisk stops reading as required. */
 .hb-field__required {
+  flex: 0 0 auto;
   color: var(--hb-ada-red);
   margin-left: 2px;
 }

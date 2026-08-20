@@ -11,7 +11,7 @@ import './screens.css';
 import { FormField, Button, DateModal, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 
 // ---------------------------------------------------------------------------
-// Rental Flow — step 2, "Secure your space today" (Figma 8507-23329).
+// Rental Flow — step 2, "Secure your space now" (Figma 8507-23329).
 // Contact form + selected move-in date, Protection Plan, Additional Info
 // toggles, Rental Agreement (+ "I agree"), and Payment method selection.
 // ---------------------------------------------------------------------------
@@ -518,7 +518,7 @@ export function Step2({
     <div className="rf-card rf2-card">
       <div className="rf-title">
         <p className="rf-eyebrow">Great choice!</p>
-        <h2 className="rf-heading">Secure your space today</h2>
+        <h2 className="rf-heading">Secure your space now</h2>
       </div>
 
       <RfCheckbox checked={business} onChange={setBusiness} className="rf-business">

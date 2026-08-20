@@ -263,12 +263,16 @@
   }
 
   .rf-card { padding: 32px 20px; }
-  /* Both title lines scale together — they are one size in the frame, and the
-     eyebrow at a base 36px would otherwise outsize the 28px heading here.
+  /* Mobile title (Figma 8509-51825). Not just a smaller desktop: the frame
+     changes the WEIGHT too — the heading is Bold 700 here against SemiBold 600
+     on desktop — and tightens the gap from 14px to 6px. Line heights are the
+     frame's own, not derived, because at 24px the desktop's 20/38 would leave
+     the eyebrow clipped and the heading airy.
      .rf-wrapper-qualified to match the base rules' (0,2,0); these win on source
      order, being later in the file. */
-  .rf-wrapper .rf-eyebrow { font-size: 28px; }
-  .rf-wrapper .rf-heading { font-size: 28px; }
+  .rf-title { gap: 6px; }
+  .rf-wrapper .rf-eyebrow { font-size: 24px; line-height: 16px; }
+  .rf-wrapper .rf-heading { font-size: 24px; font-weight: 700; line-height: 27px; }
   .rf-row { flex-direction: column; }
   .rf-actions { max-width: none; }
 }
@@ -350,7 +354,7 @@
   .rf-cals { gap: 16px; }
 }
 
-/* ═══ Step 2 — "Secure your space today" ═══════════════════════════════════ */
+/* ═══ Step 2 — "Secure your space now" ═══════════════════════════════════ */
 .rf2-h { font-size: 20px; font-weight: 700; color: #101318; }
 .rf2-link {
   display: inline-flex; align-items: center; gap: 8px;
@@ -1145,11 +1149,11 @@
   .rfc-card { padding-inline: 30px; }
   .rf-sx { padding-inline: 30px; }
 }
-/* Confirmation name eyebrow is 36px (Figma 8507-24998). Now the same as the
-   base rule, so this is a no-op on desktop — it is kept because it also
-   outranks the narrow-width 28px above, holding confirmation at 36px there as
-   it was before. Delete it and that screen changes on mobile. */
-.rfc-card .rf-eyebrow { font-size: 36px; }
+/* The confirmation eyebrow used to be pinned to 36px here so it kept the
+   desktop size on mobile while the other steps dropped to 28. That exception is
+   gone: all four titles are one treatment now — 36/600 + 36/600 on desktop,
+   24/600 + 24/700 on mobile — and holding one screen at 36px on a phone was the
+   thing making them inconsistent. */
 
 /* Figma: 754x53 at #E1EFDC, radius 12. The icon sits 25px in, the text 13px
    after it, and Resend ends 32px from the right edge — expressed as padding and

@@ -46,7 +46,7 @@ const ymd = (d: Date): string => {
 // Step 1 ("Secure your space now", 8507-23264): contact form + Rent/Reserve.
 //   Rent → Move-In Date lightbox (8507-23637). Confirming closes the modal and
 //   crossfades to…
-// Step 2 ("Secure your space today", 8507-23329): full checkout form.
+// Step 2 ("Secure your space now", 8507-23329): full checkout form.
 // ---------------------------------------------------------------------------
 
 export interface RentalFlow2StepProps {
