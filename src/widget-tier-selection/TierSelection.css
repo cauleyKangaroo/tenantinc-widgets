@@ -1012,10 +1012,11 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
   position: relative;
   z-index: 2;
   background: #fff;
-  padding: 28px 72px 12px 32px; /* right pad reserves room for the close button */
+  padding: 28px 24px 12px 32px;
 }
-.ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; }
+.ts-modal-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px 40px; flex-wrap: wrap; }
 .ts-modal-heading-main { text-align: left; }
+.ts-modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 20px; flex: 0 0 auto; }
 .ts-modal-meta { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; }
 .ts-modal-title { font-size: 40px; font-weight: 600; line-height: 1; margin: 0 0 10px; color: var(--ts-title-color, #101318); text-transform: none; letter-spacing: normal; }
 .ts-modal-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
@@ -1023,26 +1024,39 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
 .ts-modal-admin { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 0; font-size: 20px; font-weight: 400; color: #101318; }
 .ts-modal-admin-info { color: #101318; flex: 0 0 auto; }
 .ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 32px; }
-/* Close: black ✕ (Figma). Absolute to the fixed header bar, so it always sits in
-   the top-right corner and never scrolls away. */
+/* Keep a 48px touch target while drawing the 40px Figma circle inside it. The
+   button participates in the header layout so its center follows the optional
+   urgency/admin block whether either, both, or neither message is present. */
 .ts-modal-close {
-  position: absolute;
-  top: 18px;
-  right: 16px;
+  position: relative;
   width: 48px;
   height: 48px;
+  flex: 0 0 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: none;
-  color: #101318;
+  background: transparent;
+  color: #fff;
   border: 0;
-  font-size: 48px;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  font-size: 38px;
+  font-weight: 300;
   line-height: 1;
   cursor: pointer;
   z-index: 3;
 }
-.ts-modal-close:hover { color: #000; }
+.ts-modal-close::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  z-index: -1;
+  border-radius: 50%;
+  background: #101318;
+}
+.ts-modal-close:hover { color: #fff; }
+.ts-modal-close:hover::before { background: #000; }
+.ts-modal-close:focus-visible { outline: 3px solid #101318; outline-offset: 2px; border-radius: 50%; }
 /* Editor-only placeholder for a closed modal (invisible on the live site) so it
    can be selected and configured in the Duda editor. */
 .ts-modal-editor-hint {
@@ -1067,19 +1081,36 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
     max-width: none;
     overflow: hidden;
   }
-  .ts-modal-header { flex: 0 0 auto; position: relative; padding: 20px 56px 16px 20px; }
+  /* The Figma mobile frame is one continuous gray pricing surface: title/meta
+     flow directly into the cards instead of sitting in a separate white band. */
+  .ts-modal-header {
+    flex: 0 0 auto;
+    position: relative;
+    padding: 20px 16px 8px 20px;
+    background: #f4f6f8;
+  }
   .ts-modal-body {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-    padding: 24px 16px calc(64px + env(safe-area-inset-bottom));
+    padding: 0;
+    background: #f4f6f8;
   }
-  .ts-modal-close { top: 10px; }   /* align with the (smaller, higher) mobile heading */
+  /* Remove the generic shell's 8px inset. With 28px on .ts-m, cards land at
+     the Figma x=29 gutter and retain their intended width on a 440px canvas. */
+  .ts-modal-body > .ts-wrapper { padding: 0; }
+  .ts-modal-body .ts-m {
+    min-height: 100%;
+    border-radius: 0;
+    padding: 16px 28px calc(32px + env(safe-area-inset-bottom));
+  }
   .ts-modal-heading { justify-content: center; }
   .ts-modal-heading-main { text-align: center; width: 100%; }
-  .ts-modal-meta { align-items: center; text-align: center; width: 100%; }
+  .ts-modal-actions { width: 100%; gap: 8px; }
+  .ts-modal-actions::before { content: ''; flex: 0 0 48px; }
+  .ts-modal-meta { align-items: center; text-align: center; width: auto; flex: 1 1 auto; min-width: 0; }
   /* Defensive: an operator-set heading can't blow up the fixed header height —
      clamp to two lines and break unbreakable strings. Ordinary titles are
      unaffected. */

@@ -77,6 +77,7 @@
     <button class="page-tab" data-page="value-tiers" onclick="showPage('value-tiers')">Value Tiers page</button>
     <button class="page-tab" data-page="rental-flow" onclick="showPage('rental-flow')">Rental Flow</button>
     <button class="page-tab" data-page="city" onclick="showPage('city')">City page</button>
+    <button class="page-tab" data-page="homepage" onclick="showPage('homepage')">Homepage</button>
     <button class="page-tab" data-page="ui-kit" onclick="showPage('ui-kit')">UI Kit (forms &amp; buttons)</button>
   </div>
 
@@ -530,6 +531,50 @@
 
   </div><!-- /#page-city -->
 
+  <div id="page-homepage" class="page" hidden>
+
+    <!-- ── widget-homepage-search ───────────────────────────────────────── -->
+    <div class="widget-section">
+      <h2>widget-homepage-search (#04)</h2>
+
+      <!-- Hero stand-in: on the real site the widget is dropped over the homepage
+           image. The dark gradient here just stands in for that photo so the
+           white search pill reads. -->
+      <div style="position:relative; min-height:460px; display:flex; align-items:center; padding:48px 40px; border-radius:12px; background:linear-gradient(135deg,#3a4048,#20242b);">
+        <div id="homepage-search-container" class="widget-container" style="width:100%; max-width:1120px; margin:0 auto;"></div>
+      </div>
+
+      <div class="controls">
+        <div class="controls-group">
+          <span class="controls-group-label">Search widget</span>
+          <label>Search URL:
+            <input id="hs-search-url" type="text" value="/property-landing-page--value-tiers-test" style="width:260px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Locations URL:
+            <input id="hs-locations-url" type="text" value="/locations" style="width:130px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Locations count:
+            <input id="hs-locations-count" type="number" min="0" value="29" style="width:70px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Recent searches:
+            <input id="hs-history-limit" type="number" min="0" max="5" value="5" style="width:60px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>CTA label:
+            <input id="hs-cta" type="text" value="Find Storage" style="width:110px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label class="checkbox"><input type="checkbox" id="hs-show-type" checked onchange="reinitHomepageSearch()"> Storage Type dropdown</label>
+          <label>Storage types:
+            <input id="hs-types" type="text" value="Storage Type,Climate Controlled,Drive-Up,Indoor,Outdoor,Vehicle &amp; RV" style="width:280px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Accent color:
+            <input id="hs-accent" type="text" placeholder="(theme --color_2 / red)" style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /#page-homepage -->
+
   <!-- ── Shared UI kit styleguide ─────────────────────────────────────────── -->
   <div id="page-ui-kit" class="page" hidden>
     <div class="widget-section">
@@ -561,7 +606,7 @@
   <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
     // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
-    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'value-tiers', 'rental-flow', 'city', 'ui-kit'];
+    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'value-tiers', 'rental-flow', 'city', 'homepage', 'ui-kit'];
 
     // Per-page container ids for the widgets that appear on more than one page.
     var NAV_CONTAINERS = {
@@ -947,6 +992,39 @@
       widget.init({
         container: document.getElementById('map-locations-container'),
         props: getMapLocationsProps(),
+      });
+    });
+
+    // ── Homepage: #04 homepage-search ────────────────────────────────────
+    var homepageSearchWidget = null;
+
+    function getHomepageSearchProps() {
+      return {
+        searchUrl:      document.getElementById('hs-search-url').value,
+        locationsUrl:   document.getElementById('hs-locations-url').value,
+        locationsCount: Number(document.getElementById('hs-locations-count').value) || 0,
+        historyLimit:    Number(document.getElementById('hs-history-limit').value),
+        ctaLabel:       document.getElementById('hs-cta').value || 'Find',
+        showStorageType: document.getElementById('hs-show-type').checked,
+        storageTypes:   document.getElementById('hs-types').value,
+        accentColor:    document.getElementById('hs-accent').value.trim() || undefined,
+      };
+    }
+
+    function reinitHomepageSearch() {
+      if (homepageSearchWidget) {
+        homepageSearchWidget.init({
+          container: document.getElementById('homepage-search-container'),
+          props: getHomepageSearchProps(),
+        });
+      }
+    }
+
+    require(['/dist/widget-homepage-search.js'], function (widget) {
+      homepageSearchWidget = widget;
+      widget.init({
+        container: document.getElementById('homepage-search-container'),
+        props: getHomepageSearchProps(),
       });
     });
   </script>
