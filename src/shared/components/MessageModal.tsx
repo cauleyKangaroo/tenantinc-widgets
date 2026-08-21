@@ -2,15 +2,71 @@ import React, { useEffect, useState } from 'react';
 import { Checkbox } from '@shared/ui/Checkbox';
 import { FormField, type FieldType } from '@shared/ui/FormField';
 import { isPossiblePhone } from '@shared/ui/phone';
-import { EnvelopeIcon, CloseSolidIcon, MapPinIcon } from './icons';
-import { createLead } from './api';
+import type { LeadInput } from '@shared/leadsApi';
+import './MessageModal.css';
 
 // ---------------------------------------------------------------------------
-// "Send Message" lightbox (Figma 10199-60873 / 10199-67707). Opens from the
-// property-info "Send us a Message" link, mirroring the Hours modal.
-// Facility area: a "Select Facility" dropdown when unselected; the facility
-// name + address once chosen (auto-selected when there's only one facility).
+// "Send us a Message" lightbox (Figma 10199-60873 / 10199-67707).
+//
+// SHARED between #03 property-info and #05 space-list. #05 used to carry a
+// "faithful clone" of #03's, which is exactly how it ended up two revisions
+// behind — bespoke inputs, a hand-rolled checkbox and the old close mark, while
+// #03 moved to the kit. One component means that cannot happen a third time.
+//
+// The lead call is INJECTED. Each widget files against its own company and
+// property with its own key, so the creds cannot live here; `submitLead` is
+// whatever that widget's createLead already is.
+//
+// Class names keep the `pi-msg-` prefix. Renaming 69 rules across a widget that
+// is live, with no way to check the result in a browser, is a worse trade than
+// a prefix that reads as property-info's. The stylesheet moved with the
+// component, so it is at least no longer property-info's to own.
 // ---------------------------------------------------------------------------
+
+const stroke = {
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+
+/* Copied from #03's icons.tsx rather than imported: those three are used by
+   PropertyInfo itself as well, so they cannot move, and a shared component
+   reaching into a widget's folder is the wrong direction of dependency. */
+function MapPinIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+      <path d="M12.0004 13.7105C13.6137 13.7105 14.9215 12.4027 14.9215 10.7895C14.9215 9.17622 13.6137 7.86842 12.0004 7.86842C10.3872 7.86842 9.07936 9.17622 9.07936 10.7895C9.07936 12.4027 10.3872 13.7105 12.0004 13.7105Z" />
+      <path d="M12.0004 21.5C13.9478 21.5 19.7899 17.3889 19.7899 11.2222C19.7899 5.05556 14.9215 3 12.0004 3C9.07936 3 4.21094 5.05556 4.21094 11.2222C4.21094 17.3889 10.053 21.5 12.0004 21.5Z" />
+    </svg>
+  );
+}
+
+function EnvelopeIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+      <path d="M21.8032 7.76159L16.295 11.2668C14.7385 12.2573 13.9602 12.7526 13.1238 12.9455C12.3843 13.1161 11.6157 13.1161 10.8762 12.9455C10.0398 12.7526 9.26153 12.2573 7.70499 11.2668L2.19678 7.76159M21.8032 7.76159C22 8.72189 22 10.006 22 12C22 14.8003 22 16.2004 21.455 17.27C20.9757 18.2108 20.2108 18.9757 19.27 19.455C18.2004 20 16.8003 20 14 20H10C7.19974 20 5.79961 20 4.73005 19.455C3.78924 18.9757 3.02433 18.2108 2.54497 17.27C2 16.2004 2 14.8003 2 12C2 10.006 2 8.72189 2.19678 7.76159M21.8032 7.76159C21.7237 7.37332 21.6119 7.03798 21.455 6.73005C20.9757 5.78924 20.2108 5.02433 19.27 4.54497C18.2004 4 16.8003 4 14 4H10C7.19974 4 5.79961 4 4.73005 4.54497C3.78924 5.02433 3.02433 5.78924 2.54497 6.73005C2.38807 7.03798 2.27634 7.37332 2.19678 7.76159" />
+    </svg>
+  );
+}
+
+function CloseSolidIcon({ size = 24, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 18 18"
+      fill="currentColor"
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+    >
+      <path d="M18 1.81286L16.1871 0L9 7.18714L1.81286 0L0 1.81286L7.18714 9L0 16.1871L1.81286 18L9 10.8129L16.1871 18L18 16.1871L10.8129 9L18 1.81286Z" />
+    </svg>
+  );
+}
 
 export interface Facility { name: string; address?: string; }
 
@@ -91,11 +147,13 @@ function MessageBox({
 }
 
 export function MessageModal({
-  open, onClose, facilities, termsHref = '#',
+  open, onClose, facilities, submitLead, termsHref = '#',
 }: {
   open: boolean;
   onClose: () => void;
   facilities: Facility[];
+  /** The widget's own createLead — see the note at the top of this file. */
+  submitLead: (input: LeadInput) => Promise<unknown>;
   termsHref?: string;
 }) {
   // Always opens on the "Select Facility" dropdown (Figma 10199-60873); picking
@@ -159,7 +217,7 @@ export function MessageModal({
 
     setStatus('submitting');
     try {
-      await createLead({ first, last, email, phone: mobile, message });
+      await submitLead({ first, last, email, phone: mobile, message });
       setStatus('success');
     } catch (err) {
       console.error('[MessageModal] createLead error:', err);
@@ -208,15 +266,29 @@ export function MessageModal({
                     <span className="pi-msg-facility-addr"><MapPinIcon size={24} /><span>{selected.address}</span></span>
                   )}
                 </div>
-                {canReselect && (
+                {/* Clear always, Change Property only with somewhere to change
+                    TO. With one facility "Change Property" opens a list of the
+                    one you already have, which is why it is gated — but the
+                    shopper still needs a way back to the empty state, and that
+                    is what Clear is for. */}
+                <div className="pi-msg-facility-actions">
+                  {canReselect && (
+                    <button
+                      type="button"
+                      className="pi-msg-facility-change"
+                      onClick={() => setListOpen((o) => !o)}
+                    >
+                      Change Property
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="pi-msg-facility-change"
-                    onClick={() => setListOpen((o) => !o)}
+                    className="pi-msg-facility-clear"
+                    onClick={() => { setSelected(null); setListOpen(false); }}
                   >
-                    Change Property
+                    Clear
                   </button>
-                )}
+                </div>
               </div>
             ) : (
               /* Figma 10295-76823: a single "Select Property" field, no heading above it. */
@@ -273,7 +345,7 @@ export function MessageModal({
           <div className="pi-msg-actions">
             <div className="pi-msg-captcha" aria-hidden="true">
               <span className="pi-msg-captcha-box" />
-              <span className="pi-msg-captcha-label">I'm not a robot</span>
+              <span className="pi-msg-captcha-label">I&rsquo;m not a robot</span>
               <span className="pi-msg-captcha-brand">reCAPTCHA</span>
             </div>
             <div className="pi-msg-buttons">

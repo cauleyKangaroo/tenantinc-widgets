@@ -4,7 +4,7 @@ import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
 import { scrollToSpaceList } from '@shared/promoBus';
-import { fetchPropertyDetails, propertyBreadcrumb, type PropertyDetails, type BoundPropertyProps } from './api';
+import { createLead, fetchPropertyDetails, propertyBreadcrumb, type PropertyDetails, type BoundPropertyProps } from './api';
 import { fetchPropertyImages } from '@shared/propertyImages';
 import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
@@ -12,7 +12,7 @@ import {
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
   CloseIcon, CloseSolidIcon, LightboxChevron,
 } from './icons';
-import { MessageModal } from './MessageModal';
+import { MessageModal } from '@shared/components/MessageModal';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -859,6 +859,12 @@ export function PropertyInfo(props: Props) {
         open={messageOpen}
         onClose={() => setMessageOpen(false)}
         facilities={[{ name: displayName, address: displayAddress }]}
+        // This widget's creds and bound property; the modal has no idea which
+        // company it is filing against and should not.
+        submitLead={(input) => createLead(input, {
+          propertyId, propertyName, propertyAddress, propertyPhones, propertyEmails,
+          propertyAccessHours, propertySocials, propertyUnitCounts, propertyTimezone,
+        })}
       />
     </div>
   );

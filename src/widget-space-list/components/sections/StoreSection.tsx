@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { SOCIAL_ICONS } from '@shared/socialIcons';
 import type { HoursStatus, ScheduleRow } from '@shared/accessHours';
-import { MessageModal } from '../MessageModal';
+import { MessageModal } from '@shared/components/MessageModal';
+import { createLead } from '../../propertyApi';
+import { usePropertyId } from '../../propertyContext';
 
 function CloseIcon() {
   return (
@@ -109,6 +111,9 @@ interface StoreSectionProps {
   scheduleSections?: { title: string; rows: ScheduleRow[] }[];
   /** Property name, shown in the "Send us a Message" popup. */
   facilityName?: string;
+  /** Its address, shown under the name in that popup. Without it the modal
+   *  printed a bare facility name with nothing beneath. */
+  facilityAddress?: string;
 }
 
 // Demo per-day hours shown in the popup until the API supplies real ones.
@@ -133,7 +138,11 @@ const DEMO_PHONES = [
   { number: '(877) 847-9487', note: 'Existing Customer' },
 ];
 
-export function StoreSection({ phones, socials, hours, scheduleSections, facilityName }: StoreSectionProps = {}) {
+export function StoreSection({ phones, socials, hours, scheduleSections, facilityName, facilityAddress }: StoreSectionProps = {}) {
+  // The bound property, so the enquiry files against the facility the shopper
+  // is actually looking at. The old clone sent none and fell back to
+  // config.json's — which on this site is another company's property.
+  const leadPropertyId = usePropertyId();
   const [hoursOpen, setHoursOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
   const [reservationCode, setReservationCode] = useState('');
@@ -287,7 +296,15 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
         ))}
       </div>
 
-      <MessageModal open={messageOpen} onClose={() => setMessageOpen(false)} facilities={[{ name: facilityName || 'This Facility' }]} />
+      {/* The SHARED modal — #05 used to keep its own clone of #03's, which is
+          how it fell two revisions behind. createLead is injected because the
+          creds are this widget's. */}
+      <MessageModal
+        open={messageOpen}
+        onClose={() => setMessageOpen(false)}
+        facilities={[{ name: facilityName || 'This Facility', address: facilityAddress }]}
+        submitLead={(input) => createLead(input, { propertyId: leadPropertyId })}
+      />
 
     </div>
   );
