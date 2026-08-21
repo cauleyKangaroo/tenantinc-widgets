@@ -1177,10 +1177,34 @@
 }
 .rfc-sent-icon { flex: 0 0 auto; display: inline-flex; color: var(--hb-text-night, #101318); }
 .rfc-sent-txt { flex: 1 1 auto; font-size: 16px; font-weight: 600; line-height: 1.35; color: #101318; }
-.rfc-resend { border: none; background: none; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
+/* Row on desktop — copy on the left, Resend against the right edge. Becomes a
+   column at narrow widths; see the container query. */
+.rfc-sent-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rfc-resend { flex: 0 0 auto; padding: 0; border: none; background: none; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
 /* Figma 8507-24357: #F4F6F8, radius 12, 35px all round. */
 .rfc-panel { background: #f4f6f8; border-radius: 12px; padding: 30px; margin-bottom: 20px; }
-.rfc-space-head { font-size: 28px; font-weight: 600; color: #101318; margin-bottom: 14px; }
+/* Figma 8507-24357: 28px/600 sitting 39px above the code card, INSIDE the left
+   column. .rfc-code-col is what keeps the two together as that column. */
+.rfc-code-col { display: flex; flex-direction: column; min-width: 0; }
+/* The gap under the title matches the box's padding, so the card sits the same
+   distance below the title as it does from the box's own edges — 14px read as
+   the title being crowded against it. Tracked in the container query below,
+   which is where that padding changes. */
+.rfc-space-head {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 28px;
+  color: #101318;
+  margin-bottom: 30px;
+}
 
 /* Code card (fixed 300, left) + details (right). GRID, not flex-wrap, so the
    details always stay in the second column beside the card and never drop under
@@ -1232,8 +1256,13 @@
    specificity of its own, so at (0,1,0) these lose to any base rule declared
    later — and .rfc-review, .rfc-next and .rf-pay-grid all are, the last one from
    screens.css, which is bundled after this file entirely. Without this the rules
-   below silently do nothing. */
-@container rfmain (max-width: 780px) {
+   below silently do nothing.
+
+   700, not the 780 this was: at the layout's full 1330px the card's content box
+   is 1330 - 48 gutters - 422 rail - 28 gap - 100 card padding = 732px, which is
+   UNDER 780 — so the "narrow" tightening applied at every width and the boxes
+   were 24px on desktop when they should have been 30. */
+@container rfmain (max-width: 700px) {
   /* All four together: tightening one on its own is what let them fall out of
      line in the first place. */
   .rf-wrapper .rfc-sent,
@@ -1242,11 +1271,27 @@
   .rf-wrapper .rfc-next { padding-inline: 24px; }
   .rf-wrapper .rfc-panel { padding-block: 24px; }
   .rf-wrapper .rfc-cols { gap: 24px; }
+  /* Follows the box padding above — see .rfc-space-head. */
+  .rf-wrapper .rfc-space-head { margin-bottom: 24px; }
 }
 
 @container rfmain (max-width: 620px) {
   /* Only the gap here — the inset is handled above, for all four at once. */
-  .rf-wrapper .rfc-sent { gap: 10px; }
+  .rf-wrapper .rfc-sent { gap: 10px; align-items: flex-start; }
+  /* Resend drops UNDER the copy rather than being squeezed beside it (Figma
+     8550-19787). The wrapper is what makes this a two-line stack next to the
+     icon instead of pushing the icon onto its own line. */
+  .rf-wrapper .rfc-sent-body { flex-direction: column; align-items: flex-start; gap: 4px; }
+  /* The review card's right-hand column stops being right-hand: on a phone it
+     sits under the copy, so aligning it to the right leaves the mark, the stars
+     and the link hanging off the far edge away from everything else. */
+  .rf-wrapper .rfc-review-right { align-items: flex-start; width: 100%; }
+  /* Figma 8754-50293: 20px and centred over the card it titles. */
+  .rf-wrapper .rfc-space-head { font-size: 20px; line-height: normal; text-align: center; }
+  /* Figma 8551-20453: the title block ends at y=269 and the first box starts at
+     291 — 22px, not the 44px desktop gets. On a phone that gap was most of a
+     thumb-scroll of nothing between the heading and the content. */
+  .rf-wrapper .rfc-card .rf-title { margin-bottom: 22px; }
   /* Below this the code card cannot hold the wallet badges and the details
      column cannot hold an hours line, so one above the other beats both
      crushed. */
@@ -1260,8 +1305,37 @@
 .rfm-bar-lease { font-size: 16px; line-height: 28px; color: #101318; }
 .rfc-details { min-width: 0; }
 /* Dates: calendar icon + a column of one-line date rows (never wrap "…, 2026"). */
-.rfc-info-dates { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
-.rfc-info-cal { flex: 0 0 auto; width: 20px; height: 20px; color: #101318; margin-top: 1px; }
+.rfc-info-dates { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+/* Every row is icon + block, 24px icon, dark. The gap is the frame's: 10px on
+   the two rows whose text stacks (address, hours) and 12px on the single-line
+   ones (phone, move-in date). */
+.rfc-info-ico { flex: 0 0 auto; color: var(--hb-text-night, #101318); }
+.rfc-info-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.rfc-info-row--top { align-items: flex-start; gap: 10px; }
+/* .rfc-details-qualified for SPECIFICITY: this is a <p>, and the generic
+   `.rfc-details p { font-weight: 400 }` below is (0,1,1) against a bare class's
+   (0,1,0) — so the facility name was rendering regular no matter what this
+   said. Same for the link beside it. */
+.rfc-details .rfc-info-strong {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #101318;
+}
+/* Address and phone are links in the frame — underlined, same weight as the
+   body around them, inheriting the text colour rather than a link blue. */
+.rfc-details .rfc-info-link,
+.rfc-info-link {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #101318;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
 /* Values regular, only the labels bold — gives hierarchy and stops the whole
    column reading as bold (matches the money-block rail on the right). */
 .rfc-details p { margin: 0 0 6px; font-size: 16px; font-weight: 400; color: #101318; line-height: 1.4; }
@@ -1269,7 +1343,7 @@
 .rfc-info-dates p { white-space: nowrap; }
 .rfc-info-dates p:last-child { margin-bottom: 0; }
 /* Hours: clock icon + Office/Gate blocks, with clear spacing before Gate. */
-.rfc-info-hours { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; }
+.rfc-info-hours { display: flex; align-items: flex-start; gap: 10px; margin-top: 0; }
 .rfc-hours { color: #000 !important; line-height: 24px !important; margin: 0 !important; }
 .rfc-hours--gate { margin-top: 14px !important; }
 
@@ -1388,8 +1462,10 @@
 /* The frame right-aligns both rows and sets 15px between them (stars end at
    y=73, the link row starts at 88). */
 .rfc-review-right { display: flex; flex-direction: column; align-items: flex-end; gap: 15px; }
-/* Mark and stars, 28px apart (G ends at 468, stars start at 496). */
-.rfc-review-rating { display: inline-flex; align-items: center; gap: 28px; }
+/* Mark and stars 14px apart — the same 14px the five stars are spaced by inside
+   their own asset (41.671 pitch less the 27.671 glyph), so the row reads as one
+   evenly spaced set rather than a mark and then a strip. */
+.rfc-review-rating { display: inline-flex; align-items: center; gap: 14px; }
 /* The G is our existing 4-colour vector rather than the frame's 1920px PNG: the
    glyph is the same mark, and the raster would have cost ~800KB of base64 in a
    bundle where it renders 39px wide. Boxed at the frame's 39x40 with the square
@@ -1440,12 +1516,13 @@
    but left a stray 10px above the first one. */
 .rfc-next-list { display: flex; flex-direction: column; gap: 12px; }
 /* Figma: white, radius 10, 20px padding, Elevation S, 12px from tick to text,
-   16px/400 Montserrat on an 18px line. Centred, not top-aligned — the frame
-   centres the tick against the text even when it wraps to two lines. */
+   16px/400 Montserrat on an 18px line. Top-aligned: on a row that wraps to two
+   lines a centred tick drifts into the gutter between them and stops reading as
+   a bullet for the first line. */
 .rfc-next-item {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
   box-sizing: border-box;
   background: #fff;
   border-radius: 10px;

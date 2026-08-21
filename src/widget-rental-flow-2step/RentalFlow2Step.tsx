@@ -1232,6 +1232,9 @@ export function RentalFlow2Step({
             {...confirmation}
             confirmedHeading={confirmation.kind === 'reservation' ? reservationHeading : rentalHeading}
             facilityPhone={fmtPhone}
+            spaceName={snap?.selection?.size}
+            propertyName={snapProp?.name}
+            propertyAddress={snapProp?.address}
             officeHours={snapProp?.officeHours?.length ? snapProp.officeHours : confHours?.officeHours}
             gateHours={snapProp?.gateHours?.length ? snapProp.gateHours : confHours?.gateHours}
             rentUrl={confirmation.kind === 'reservation' ? checkoutUrl : undefined}
@@ -1312,6 +1315,9 @@ export function RentalFlow2Step({
               moveInDate={fmtDisplayDate(moveIn)}
               confirmedHeading={rentalHeading}
               facilityPhone={formatUsPhone(propertyInfo?.phone)}
+              spaceName={selection?.size}
+              propertyName={propertyInfo?.name}
+              propertyAddress={propertyInfo?.address}
               // Same fallback the real confirmation page uses: the property may
               // carry no hours, in which case they're fetched separately.
               officeHours={propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours}
