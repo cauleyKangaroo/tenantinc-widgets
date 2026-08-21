@@ -257,38 +257,109 @@ function RfSkeleton({ mobile = false }: { mobile?: boolean }) {
     );
   }
 
+  // Desktop. Every wrapper below is the REAL class the finished step uses, so
+  // the padding, gaps and column widths come from the stylesheet rather than
+  // from numbers typed here — only the leaf blocks are drawn. That is what stops
+  // it shifting: the previous version was a freehand sketch (two-up buttons the
+  // form never renders, 46px fields against a 56px token, a 160px hero against a
+  // 208px one, and .rfr-card — a class nothing else uses — standing in for the
+  // shared .ts-card), so the swap moved almost every row.
   return (
     <div className="rf-layout" aria-hidden="true">
       <div className="rf-main">
         <div className="rf-card">
-          <Shimmer w={260} h={22} mb={12} />
-          <Shimmer w="100%" h={16} mb={20} />
-          <Shimmer w="100%" h={64} mb={24} r={8} />
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-            <Shimmer w="50%" h={46} r={8} /><Shimmer w="50%" h={46} r={8} />
+          {/* .rf-title supplies the 14px gap and 26px bottom margin. Blocks are
+              the eyebrow's 20px and the heading's 38px line boxes. */}
+          <div className="rf-title">
+            <Shimmer w={132} h={20} r={4} />
+            <Shimmer w="72%" h={38} r={4} />
           </div>
-          <Shimmer w="100%" h={16} mb={20} />
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-            <Shimmer w="50%" h={46} r={8} /><Shimmer w="50%" h={46} r={8} />
+          {/* "I am renting as a business" — checkbox + label on one 24px row. */}
+          <div className="rf-business">
+            <Shimmer w={20} h={20} r={4} />
+            <Shimmer w={196} h={20} r={4} />
           </div>
-          <Shimmer w={220} h={14} mb={10} />
-          <Shimmer w="100%" h={48} mb={28} r={8} />
-          <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
-            <Shimmer w="50%" h={44} r={8} /><Shimmer w="50%" h={44} r={8} />
+          {/* .rf-form gaps at 20px; .rf-row lays its children out at flex 1 1 0,
+              so each field block sizes itself. 56px is --hb-field-height. */}
+          <div className="rf-form">
+            <div className="rf-row">
+              <Shimmer h={56} r={8} /><Shimmer h={56} r={8} />
+            </div>
+            <div className="rf-row">
+              <Shimmer h={56} r={8} /><Shimmer h={56} r={8} />
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Shimmer w="50%" h={44} r={8} /><Shimmer w="50%" h={44} r={8} />
+          {/* Rent / or / Reserve — STACKED and capped at 343px by .rf-actions,
+              not the side-by-side pairs this used to draw. 50px is the height
+              .rf-actions gives its buttons. The divider is real: it is a
+              constant, so rendering it costs no shift and reads as true. */}
+          <div className="rf-actions">
+            <Shimmer w="100%" h={50} r={8} />
+            {/* .rf-or draws the two rules and the 11px margins; the word itself
+                is a block, not the literal "or" — a lone conjunction between two
+                grey slabs joins nothing yet and reads as a stray glyph. The
+                Shimmer holds the span's 16px line box so the height is unchanged. */}
+            <div className="rf-or"><Shimmer w={20} h={16} r={4} /></div>
+            <Shimmer w="100%" h={50} r={8} />
           </div>
         </div>
       </div>
-      <aside className="rfr-card" style={{ padding: 20 }}>
-        <Shimmer w="100%" h={160} mb={18} r={10} />
-        <Shimmer w={180} h={16} mb={12} />
-        <Shimmer w="100%" h={14} mb={10} />
-        <Shimmer w="100%" h={14} mb={10} />
-        <Shimmer w={140} h={14} mb={18} />
-        <Shimmer w="100%" h={14} mb={10} />
-        <Shimmer w="100%" h={18} />
+      {/* The rail is the shared <SummaryRail>, which renders .ts-card — a 422px
+          card whose 208px hero is FLUSH (the card clips it, there is no padding
+          around it) and whose body is inset 20/30/24. */}
+      <aside className="ts-card">
+        <div className="ts-card-hero"><Shimmer w="100%" h="100%" r={0} /></div>
+        {/* .ts-card-top is a two-column flex — size/summary/amenities on the
+            left, "Change Space" and the price pair on the right. Drawing it as
+            one stacked column (what this used to do) is both the wrong shape and
+            the wrong height, which is the shift that survived the first pass.
+            Heights are the real line boxes: .ts-card-size is 24px/1.2, .ts-card-sub
+            16px/20px, .ts-feat 14px, and .ts-card-prices is a flat 50px. */}
+        <div className="ts-card-body">
+          <div className="ts-card-top">
+            <div className="ts-card-top-left">
+              <Shimmer w={152} h={29} r={4} />
+              <Shimmer w={188} h={20} r={4} style={{ marginTop: 6 }} />
+              {/* features[0] is the sub-line above; the REST are the ticked list,
+                  so a five-feature selection draws four rows here, not two. */}
+              <div className="ts-card-amenities">
+                <Shimmer w={116} h={17} r={4} />
+                <Shimmer w={96} h={17} r={4} />
+                <Shimmer w={108} h={17} r={4} />
+                <Shimmer w={88} h={17} r={4} />
+              </div>
+            </div>
+            <div className="ts-card-top-right">
+              <Shimmer w={104} h={20} r={4} />
+              <Shimmer w={124} h={50} r={4} />
+            </div>
+          </div>
+          {/* Where the promo pill will be. Deliberately NOT .ts-card-promo: that
+              class paints a 2px dashed GREEN border, and drawing it here would
+              assert this space has a promotion before anything has loaded — the
+              promo is conditional on `selection.promo`, so it may never arrive.
+              One flat block instead, reserving the pill's exact box: the class's
+              24px margin, then 2px border + 12px padding + 20px line + 12px + 2px. */}
+          <div style={{ marginTop: 24 }}><Shimmer w="100%" h={48} r={8} /></div>
+          {/* .ts-card-breakdown's 20px top margin comes from CSS. The first row
+              is taller than the others: a prorated line stacks its date range
+              under the name. .hb-money's 10px gap is reproduced by the mb's. */}
+          <div className="ts-card-breakdown">
+            <Shimmer w="100%" h={34} mb={10} r={4} />
+            <Shimmer w="100%" h={20} mb={10} r={4} />
+            <Shimmer w="100%" h={20} r={4} />
+            <div style={{ marginTop: 8 }}><Shimmer w="100%" h={28} r={4} /></div>
+          </div>
+          {/* The card + wallet marks. SummaryRail defaults `showPayments` to TRUE
+              and OrderRail never overrides it, so this row is ALWAYS there — it
+              was simply missing from the skeleton, which is most of why the rail
+              came up short. Six 38.6 x 24 chips, per .ts-pay-box. */}
+          <div className="ts-card-payments">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <Shimmer key={i} w={39} h={24} r={3} />
+            ))}
+          </div>
+        </div>
       </aside>
     </div>
   );
@@ -980,8 +1051,11 @@ export function RentalFlow2Step({
           // the same data the value-tiers card uses. Set the rail's selection
           // ONCE, from offers when available, so it never flashes the thin
           // space-groups price before the promo rate loads.
+          // Held so the `.finally(settle)` below can await it — see the return
+          // at the end of this callback.
+          let selectionDone: Promise<unknown> = Promise.resolve();
           if (unitGroupIdProp) {
-            fetchSelectionFromOffers(ctx, unitGroupIdProp, { tier: tierProp, unitId: unitIdProp, size: sizeProp })
+            selectionDone = fetchSelectionFromOffers(ctx, unitGroupIdProp, { tier: tierProp, unitId: unitIdProp, size: sizeProp })
               .then((rich) => { if (!cancelled) setSelection(rich ?? sel ?? undefined); })
               .catch(() => { if (!cancelled && sel) setSelection(sel); });
           } else if (sel) {
@@ -999,7 +1073,7 @@ export function RentalFlow2Step({
               : stored?.size
                 ? findUnitForSelection(ctx, stored.size, stored.price)
                 : Promise.resolve(undefined);
-          resolveUnit
+          const quoteDone = resolveUnit
             .then((unit) => {
               if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
               return unit ? fetchMoveInQuote(ctx, unit) : undefined;
@@ -1014,6 +1088,20 @@ export function RentalFlow2Step({
               if (!cancelled) setQuoteFailed(true);
             });
           if (!sel && !unitIdProp) console.warn(`${logTag} handoff selection not found in live data`, { tierProp, sizeProp, unitGroupIdProp });
+
+          // RETURNED, so `.finally(settle)` waits for the selection and the quote
+          // rather than firing the moment this callback exits.
+          //
+          // These two used to be started and forgotten: the outer promise settled
+          // immediately, `loading` went false, and step 1 painted with `quote`
+          // still undefined. OrderRail renders a one-line note without a quote and
+          // a full breakdown (lines, tax, total) with one, so the rail snapped
+          // taller a beat later. Same defect as #07/#08 — the skeleton was gating
+          // only the first wave of fetches.
+          //
+          // Both branches already swallow their own failures, so awaiting them can
+          // only delay the skeleton, never leave it stuck on a rejection.
+          return Promise.all([selectionDone, quoteDone]);
         }
       })
       .catch((err) => console.error(`${logTag} fetchSpaceGroups error:`, err))
