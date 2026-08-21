@@ -1218,6 +1218,9 @@ export type RentResult =
     /** The tenant's gate PIN, from `lease.tenants[0].pin`. THE access code —
      *  no other endpoint returns one, and it exists only after the lease. */
     accessCode?: string;
+    /** The tenant's contact id, from lease.tenants[]. What the post-lease
+     *  contact update is addressed to. */
+    contactId?: string;
     /** 'active' on a completed rental. */
     status?: string;
   }
@@ -1373,7 +1376,7 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
 /** API 10 — finalize the lease and take the move-in payment. */
 async function finalizeLease(
   ctx: RentalCtx, args: RentArgs, documents: LeaseDocumentRef[],
-): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string; accessCode?: string; status?: string }> {
+): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string; accessCode?: string; contactId?: string; status?: string }> {
   const body: Record<string, unknown> = {
     contacts: rentContacts(args.contact, args.extras),
     documents,
@@ -1405,13 +1408,15 @@ async function finalizeLease(
   if (!leaseId) throw new Error('The lease was created but returned no id — please contact the facility before trying again.');
   // The gate PIN rides on the tenant, not the lease. This is the ONLY place any
   // endpoint returns an access code — it does not exist before the lease.
-  const tenants = (d.tenants as Array<{ pin?: string | number }> | undefined) ?? [];
+  const tenants = (d.tenants as Array<{ pin?: string | number; contact_id?: string }> | undefined) ?? [];
   const pin = tenants.find((t) => t?.pin != null)?.pin;
+  const contactId = tenants.find((t) => t?.contact_id)?.contact_id;
   return {
     leaseId,
     paymentId: d.payment_id as string | undefined,
     paymentMethodId: d.payment_method_id as string | undefined,
     accessCode: pin != null ? String(pin) : undefined,
+    contactId,
     status: d.status as string | undefined,
   };
 }
@@ -1474,6 +1479,7 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
     paymentId: lease.paymentId,
     paymentMethodId: lease.paymentMethodId,
     accessCode: lease.accessCode,
+    contactId: lease.contactId,
     status: lease.status,
     unitNumber: a.unit.number,
     autopay,
@@ -1658,5 +1664,97 @@ export async function createBulkPayment(
     return { ok: true, paymentId: (payment.id ?? payment.payment_id) as string | undefined, data: d };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// --- Contact update (post-lease details) ------------------------------------
+//
+// PUT companies/{co}/contacts/{contactId}. NOT in the rental-flow guide —
+// found by probing and verified against the sandbox 2026-08-21, which is why
+// what it does and does NOT accept is written down here rather than assumed.
+//
+// PERSISTS:  driver_license, driver_license_exp, driver_license_state, dob,
+//            rent_as_business, company, Addresses[] (incl. type "mailing")
+// IGNORED:   Military, Relationships — accepted with a 200 and silently dropped
+// REJECTED:  Vehicles — "Vehicles[0].manufacturer is not allowed"
+//
+// So anything in the ignored/rejected list has to travel with the LEASE
+// (documents/finalize), not here. This call is for what the shopper adds after
+// the unit is theirs.
+
+export interface ContactDetailsUpdate {
+  /** Licence number as typed; the API masks it on read. */
+  driverLicense?: string;
+  /** YYYY-MM-DD. */
+  driverLicenseExp?: string;
+  /** Two-letter issuing state. */
+  driverLicenseState?: string;
+  /** YYYY-MM-DD. */
+  dateOfBirth?: string;
+  mailingAddress?: {
+    address: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  };
+}
+
+/**
+ * File post-lease details against the tenant's contact.
+ *
+ * Sends ONLY what was filled: a PUT with a key present but empty would blank a
+ * value the tenant may have given at the counter. Returns a boolean rather than
+ * throwing — the rental is already complete by the time this runs, so a failure
+ * here must never look like a failed rental. It is logged, not surfaced.
+ */
+export async function updateContactDetails(
+  ctx: RentalCtx, contactId: string, details: ContactDetailsUpdate,
+): Promise<boolean> {
+  if (!contactId) return false;
+  const body: Record<string, unknown> = {};
+  if (details.driverLicense?.trim()) body.driver_license = details.driverLicense.trim();
+  if (details.driverLicenseExp) body.driver_license_exp = details.driverLicenseExp;
+  if (details.driverLicenseState?.trim()) body.driver_license_state = details.driverLicenseState.trim();
+  if (details.dateOfBirth) body.dob = details.dateOfBirth;
+  const m = details.mailingAddress;
+  if (m?.address?.trim()) {
+    body.Addresses = [{
+      Address: {
+        address: m.address.trim(),
+        ...(m.city?.trim() ? { city: m.city.trim() } : {}),
+        ...(m.state?.trim() ? { state: m.state.trim() } : {}),
+        ...(m.zip?.trim() ? { zip: m.zip.trim() } : {}),
+      },
+      type: 'mailing',
+    }];
+  }
+  // Nothing to say is not a failure.
+  if (!Object.keys(body).length) return true;
+
+  try {
+    const res = await fetch(
+      `${BASE_URL}/applications/${APP_ID}/v2/companies/${ctx.companyId}/contacts/${encodeURIComponent(contactId)}`,
+      {
+        method: 'PUT',
+        headers: { ...headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    );
+    if (!res.ok) {
+      console.warn(`[rental] contact update failed: ${res.status} ${res.statusText}`);
+      return false;
+    }
+    const env = await res.json() as { applicationData?: Record<string, InnerResult[]> };
+    const inner = env?.applicationData?.[APP_ID]?.[0];
+    if (inner?.status !== 200) {
+      // Its validation messages name the offending field, so they are worth
+      // keeping verbatim.
+      console.warn('[rental] contact update rejected:', inner?.status, inner?.msg);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[rental] contact update threw:', err);
+    return false;
   }
 }

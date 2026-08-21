@@ -2,23 +2,18 @@
 // "You've got your space! Finish up below for access" — the post-purchase screen.
 // Figma: Mariposa — Duda, node 8507-25408.
 //
-// Additional Information, whose field groups are each revealed by their own
-// checkbox. In the Figma frame every checkbox is ticked so all groups show at
-// once; here they start from what the shopper chose on step 2, because that is
-// what the checkbox is for — showing 20 fields to someone storing nothing but
-// boxes would be a worse screen than the design.
+// Two parts: an ID Verification card, then Additional Information whose field
+// groups are each revealed by their own checkbox. In the Figma frame every
+// checkbox is ticked so all groups show at once; here they start UNTICKED and
+// reveal on demand, because that is what the checkbox is for — showing 20 fields
+// to someone storing nothing but boxes would be a worse screen than the design.
 //
 // Fields are `@shared/ui` FormField — the frame is built from the same
 // "Mariposa Form 2.0" component the kit was traced from.
 //
-// The frame's ID VERIFICATION card was removed on request (2026-08-21). It had
-// nothing behind it: the rental API has no verification endpoint, only
-// driver_license fields on the contact, so "Verify ID Now" could never have
-// done anything. Its line-art illustration went with it — eight inlined assets
-// that cost real bundle weight for a card nobody can use. Both are one revert
-// away in git if it comes back.
-//
-// STATIC, as briefed: nothing on this screen is submitted.
+// STATIC, as briefed: nothing is submitted, and "Get Access" / "Verify ID Now"
+// are inert. The ID illustration's line art is bundled; see the note on
+// `IdIllustration` for the one asset that isn't.
 // ===========================================================================
 
 import { useLayoutEffect, useRef, useState } from 'react';
@@ -26,6 +21,14 @@ import { Checkbox, FormField, isPossiblePhone } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { ChevronBig } from './planIcons';
 
+import idHandCard from './assets/id-g72.svg';
+import idCardFace from './assets/id-g105.svg';
+import idPhoneA from './assets/id-g28.svg';
+import idPhoneB from './assets/id-g27.svg';
+import idScreen from './assets/id-rect.svg';
+import idThumbA from './assets/id-p19.svg';
+import idThumbB from './assets/id-p18.svg';
+import idPortrait from './assets/id-portrait.png';
 
 function Select({
   label, value, onChange, options, required, error,
@@ -56,9 +59,55 @@ function Select({
   );
 }
 
+/**
+ * The hand-holding-phone-and-ID line drawing from the ID Verification card.
+ *
+ * The exported layers, positioned at the coordinates Figma 10078-25475 gives
+ * them. Every layer is a percentage of the 292.25 × 119.43 artboard those
+ * coordinates live in, so the whole thing scales with the card.
+ *
+ * The licence photo IS included now. Figma exports it at 920×589 (1 MB) for
+ * something that renders ~60×38, and webpack inlines images as base64
+ * (`asset/inline`), so the export is resampled to 180×115 — 3× the display size,
+ * enough for retina — which costs ~57 KB instead of ~1.35 MB inlined.
+ */
+// Kept alongside the parked card above, so both come back together.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function IdIllustration() {
+  return (
+    <div className="rf-sx-illus" aria-hidden="true">
+      {/* Painter's order, exactly as the frame stacks them. Right hand and its
+          ID card first: hand, white card, licence photo, keyline, fingers. */}
+      <img className="rf-sx-illus-l rf-sx-illus-handcard" src={idHandCard} alt="" />
+      <span className="rf-sx-illus-l rf-sx-illus-cardbg" />
+      <img className="rf-sx-illus-l rf-sx-illus-portrait" src={idPortrait} alt="" />
+      <span className="rf-sx-illus-l rf-sx-illus-cardline" />
+      <img className="rf-sx-illus-l rf-sx-illus-cardface" src={idCardFace} alt="" />
+
+      {/* Then the left hand and its phone. */}
+      <img className="rf-sx-illus-l rf-sx-illus-phoneA" src={idPhoneA} alt="" />
+      <span className="rf-sx-illus-l rf-sx-illus-glint" />
+      <img className="rf-sx-illus-l rf-sx-illus-phoneB" src={idPhoneB} alt="" />
+      <img className="rf-sx-illus-l rf-sx-illus-screen" src={idScreen} alt="" />
+      <img className="rf-sx-illus-l rf-sx-illus-thumbA" src={idThumbA} alt="" />
+      <img className="rf-sx-illus-l rf-sx-illus-thumbB" src={idThumbB} alt="" />
+    </div>
+  );
+}
+
+/** What this screen can actually file against the contact after the lease. */
+export interface SuccessDetails {
+  driverLicense?: string;
+  /** As typed, MM/DD/YYYY — the parent converts. */
+  driverLicenseExp?: string;
+  driverLicenseState?: string;
+  mailingAddress?: { address: string; city?: string; state?: string; zip?: string };
+}
 
 export function SuccessStep({ onGetAccess, chosen }: {
-  onGetAccess?: () => void;
+  /** Fires with everything the contact update can file. The parent decides
+   *  what to do with it; this screen just collects. */
+  onGetAccess?: (details?: SuccessDetails) => void;
   /** What the shopper ticked back in step 2. Those screens ask the QUESTION;
    *  this one asks for the details, so it opens the same sections already
    *  ticked rather than making them answer twice. */
@@ -69,6 +118,21 @@ export function SuccessStep({ onGetAccess, chosen }: {
   const [military, setMilitary] = useState(chosen?.military ?? false);
   const [altContact, setAltContact] = useState(chosen?.altContact ?? false);
   const [vehicle, setVehicle] = useState(chosen?.vehicle ?? false);
+
+  // Mailing address — where notices go when it is not the space's address.
+  // Filed on the contact as an Addresses entry of type "mailing" (verified
+  // 2026-08-21: it persists).
+  const [mailAddress, setMailAddress] = useState('');
+  const [mailCity, setMailCity] = useState('');
+  const [mailState, setMailState] = useState('');
+  const [mailZip, setMailZip] = useState('');
+
+  // Driver's licence. THESE are what "ID verification" means to this API —
+  // there is no verification service, only these three fields on the contact,
+  // and all three persist.
+  const [dlNumber, setDlNumber] = useState('');
+  const [dlExp, setDlExp] = useState('');
+  const [dlState, setDlState] = useState('');
 
   // Business
   const [bizAddress, setBizAddress] = useState('');
@@ -132,7 +196,21 @@ export function SuccessStep({ onGetAccess, chosen }: {
   const submit = () => {
     setAttempted(true);
     if (Object.values(problems).some(Boolean)) { setFailures((n) => n + 1); return; }
-    onGetAccess?.();
+    // Only what was filled — the update must not blank a value the tenant may
+    // have given at the counter.
+    onGetAccess?.({
+      driverLicense: dlNumber.trim() || undefined,
+      driverLicenseExp: dlExp.trim() || undefined,
+      driverLicenseState: dlState.trim() || undefined,
+      mailingAddress: mailAddress.trim()
+        ? {
+          address: mailAddress.trim(),
+          city: mailCity.trim() || undefined,
+          state: mailState.trim() || undefined,
+          zip: mailZip.trim() || undefined,
+        }
+        : undefined,
+    });
   };
 
   /**
@@ -165,6 +243,68 @@ export function SuccessStep({ onGetAccess, chosen }: {
         <p className="rf-eyebrow">You&rsquo;ve got your space!</p>
         <h2 className="rf-heading">Finish up below for access</h2>
       </div>
+
+      {/* ID VERIFICATION — PARKED, not deleted (2026-08-21).
+
+          Both buttons are inert and cannot be otherwise: the rental flow API
+          has no verification endpoint anywhere in the guide. What it has is
+          driver_license / _exp / _state as fields on the CONTACT, which the
+          Driver's Licence group below now collects and files. So this card
+          comes back only if an actual verification service is introduced.
+
+          <section className="rf-sx-idv">
+            <h3 className="rf-sx-idv-title">ID Verification</h3>
+            <div className="rf-sx-idv-body">
+              <IdIllustration />
+              <div className="rf-sx-idv-actions">
+                <button type="button" className="rf-sx-btn rf-sx-btn--solid">Verify ID Now</button>
+                <button type="button" className="rf-sx-btn rf-sx-btn--outline">Verify In-Store</button>
+              </div>
+            </div>
+            <p className="rf-sx-idv-note">
+              Get ready to take a photo of your ID and a Selfie.{' '}
+              <a href="#pop-ups" onClick={(e) => e.preventDefault()}>Click here to see how to enable pop-ups</a>{' '}
+              if the link you received did not open the the ID Verification tool.
+            </p>
+          </section>
+      */}
+
+      {/* Standing in for the parked ID Verification card: the licence details
+          the API actually stores, asked for plainly. */}
+      <section className="rf-sx-extra">
+        <h3 className="rf-sx-extra-title">Driver&rsquo;s Licence</h3>
+        <div className="rf-sx-fields">
+          <FormField label="Driver's Licence Number" value={dlNumber} onChange={setDlNumber} autoComplete="off" state={dlNumber.trim() ? 'success' : 'default'} />
+          <div className="rf-pay-grid">
+            <FormField label="Expiry Date" mask="date" value={dlExp} onChange={setDlExp} state={dlExp.length === 10 ? 'success' : 'default'} />
+            <FormField label="Issuing State" value={dlState} onChange={(v) => setDlState(v.toUpperCase().slice(0, 2))} state={dlState.trim().length === 2 ? 'success' : 'default'} />
+          </div>
+        </div>
+      </section>
+
+      <section className="rf-sx-extra">
+        <h3 className="rf-sx-extra-title">Mailing Address</h3>
+        <div className="rf-sx-fields">
+          {/* Same lookup as everywhere else — picking a suggestion fills the
+              city, state and ZIP rather than asking for them a second time. */}
+          <AddressAutocomplete
+            value={mailAddress}
+            onChange={setMailAddress}
+            onPick={(place) => {
+              if (place.address.city) setMailCity(place.address.city);
+              if (place.address.stateCode) setMailState(place.address.stateCode);
+              if (place.address.zip) setMailZip(place.address.zip);
+            }}
+          >
+            <FormField label="Mailing Address" type="search" value={mailAddress} onChange={setMailAddress} autoComplete="street-address" state={mailAddress.trim() ? 'success' : 'default'} />
+          </AddressAutocomplete>
+          <div className="rf-pay-grid">
+            <FormField label="City" value={mailCity} onChange={setMailCity} autoComplete="address-level2" state={mailCity.trim() ? 'success' : 'default'} />
+            <FormField label="State" value={mailState} onChange={(v) => setMailState(v.toUpperCase().slice(0, 2))} autoComplete="address-level1" state={mailState.trim().length === 2 ? 'success' : 'default'} />
+          </div>
+          <FormField label="ZIP Code" value={mailZip} onChange={setMailZip} autoComplete="postal-code" state={mailZip.trim().length >= 3 ? 'success' : 'default'} />
+        </div>
+      </section>
 
       <section className="rf-sx-extra">
         <h3 className="rf-sx-extra-title">Additional Information</h3>
