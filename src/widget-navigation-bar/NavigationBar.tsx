@@ -613,24 +613,18 @@ export function NavigationBar({
                   ))}
                 </ul>
 
+                {/* TWO levels only: state › city. The facility flyout that used to
+                    hang off each city is gone — three nested hover panels is a lot
+                    of target to keep the pointer inside, and the city row already
+                    goes to /locations/<state>/<city>, which lists its facilities.
+                    So the leaf is one click further away, not unreachable.
+                    `sub.children` is still populated (the mobile drawer renders
+                    all three levels); this variant just stops reading it. */}
                 {activeItem?.children?.length ? (
                   <ul className="nav-subpanel" style={{ top: subTop }}>
                     {activeItem.children.map((sub) => (
                       <li key={sub.label} className="nav-sub-item">
-                        <a href={sub.href}>
-                          <span>{sub.label}</span>
-                          {sub.children?.length ? <ChevronRight size={16} className="nav-sub-arrow" /> : null}
-                        </a>
-                        {/* Third level (e.g. a city's facilities) — CSS hover flyout. */}
-                        {sub.children?.length ? (
-                          <ul className="nav-subsubpanel">
-                            {sub.children.map((leaf) => (
-                              <li key={leaf.label} className="nav-sub-item">
-                                <a href={leaf.href}><span>{leaf.label}</span></a>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : null}
+                        <a href={sub.href}><span>{sub.label}</span></a>
                       </li>
                     ))}
                   </ul>

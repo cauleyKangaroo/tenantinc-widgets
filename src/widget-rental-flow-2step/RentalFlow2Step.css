@@ -1798,6 +1798,34 @@
 .rfm-sheet .ts-card-line span,
 .rfm-sheet .ts-bd-row span { min-width: 0; overflow-wrap: anywhere; }
 .rfm-sheet .ts-card-storename { overflow-wrap: anywhere; }
+
+/* The hero's name / address / phone stack, in the mobile sheet.
+   The collapsed tablet rail already relaxes these (see the 900px block); the
+   sheet is a sibling of .rfm-top rather than a child of .rf-layout, so none of
+   that reached it and the base rule still applied: a FIXED 30px line with
+   items centred. A wrapped address therefore overflowed its own box, sat on
+   two cramped lines, and pulled the pin icon down to float between them. */
+.rfm-sheet .ts-card-storename { margin-bottom: 8px; }
+.rfm-sheet .ts-card-line {
+  align-items: flex-start;
+  height: auto;
+  min-height: 30px;
+  line-height: 26px;
+}
+/* Optically centre the 24px icon on the FIRST line rather than the whole
+   block — (26 - 24) / 2. Without this flex-start puts it hard against the top
+   of the line box and it reads as sitting slightly high. */
+.rfm-sheet .ts-card-line-icon { margin-top: 1px; }
+/* 6px, not the 10px this first went in at — with line-height already up to 26
+   the rows had enough air and the extra gap read as three separate blocks
+   rather than one address-and-phone stack. */
+.rfm-sheet .ts-card-line + .ts-card-line { margin-top: 6px; }
+
+/* The hero's inset matches .ts-card-body's 20px below it, so the name, address
+   and phone start on the same line as the size and price under them. It was the
+   rail's desktop 29px/19px, which on a 345px sheet put the two halves of one
+   card visibly out of step. */
+.rfm-sheet .ts-card-hero-content { padding: 0 20px; bottom: 20px; }
 /* Stacked layout: the main column takes the full width on mobile. */
 .rf-wrapper--mobile .rf-layout { display: block; }
 /* Flush to the edge on mobile: with no border or radius left there is nothing

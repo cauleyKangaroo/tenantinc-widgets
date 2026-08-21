@@ -5,6 +5,7 @@ import {
   fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
+  updateContactDetails, dobToIso,
   type RentResult,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
@@ -1503,7 +1504,26 @@ export function RentalFlow2Step({
           </div>
         ) : (
           <div className="rfc-layout">
-            <SuccessStep onGetAccess={() => setAccessGranted(true)} chosen={chosenSections} />
+            <SuccessStep
+              chosen={chosenSections}
+              onGetAccess={(details) => {
+                // File what this screen collects against the tenant's contact.
+                // Deliberately NOT awaited: the rental is already complete, the
+                // shopper is owed their access screen immediately, and a failure
+                // here is logged rather than shown — it cannot undo a lease.
+                if (rental?.contactId && details) {
+                  void updateContactDetails(ctx, rental.contactId, {
+                    driverLicense: details.driverLicense,
+                    driverLicenseExp: details.driverLicenseExp
+                      ? dobToIso(details.driverLicenseExp)
+                      : undefined,
+                    driverLicenseState: details.driverLicenseState,
+                    mailingAddress: details.mailingAddress,
+                  });
+                }
+                setAccessGranted(true);
+              }}
+            />
             {!isMobile && railFor(true)}
           </div>
         )}

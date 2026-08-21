@@ -853,3 +853,22 @@
    in a place with less room to breathe, not more. */
 .rf2-lease-zoom { left: 16px; bottom: 102px; }
 }
+
+/* The licence-expiry trigger. It borrows .rf-select's overlay so the box below
+   is a real FormField — same height, border and floating label as the field
+   beside it — while this transparent button takes the click. */
+.rf-datebtn {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  /* Its own ring, since the twin below cannot show :focus-visible. */
+  border-radius: 8px;
+}
+.rf-datebtn:focus-visible { outline: 2px solid var(--hb-cta, #028a0c); outline-offset: 2px; }
+
+/* The slot rotates its icon 90deg to point the chevron down. A calendar is not
+   a chevron, so this variant sits in the same place upright. */
+.rf-select-ico--plain { transform: none; }

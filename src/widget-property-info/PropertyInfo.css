@@ -36,7 +36,7 @@
 }
 
 .pi-name {
-  font-size: 35px;
+  font-size: 30px;
   font-weight: 700;
   line-height: 1.2;
   margin: 0 0 4px;
@@ -921,9 +921,11 @@ span.pi-lb-img {
 }
 
 @media (max-width: 560px) {
-  .pi-name {
-    font-size: 28px;
-  }
+  /* .pi-wrapper-qualified AND !important, because the host-resilience block
+     at the bottom of this file pins .pi-name unconditionally with !important
+     — so this rule has never applied and the title kept its desktop size on a
+     phone. (0,2,0) beats that rule's (0,1,0) whatever the source order. */
+  .pi-wrapper .pi-name { font-size: 22px !important; }
 
   /* Arrows are dropped on mobile — swiping moves between photos instead (see the
      touch handlers in PropertyInfo.tsx). Give the photo the full width back and
@@ -1161,7 +1163,7 @@ span.pi-lb-img {
    can still override colour + size. Force ours so it matches local. */
 .pi-name {
   color: #101318 !important;
-  font-size: 35px !important;
+  font-size: 30px !important;
   font-weight: 700 !important;
   line-height: 1.2 !important;
 }

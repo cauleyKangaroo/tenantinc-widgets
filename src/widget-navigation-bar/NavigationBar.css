@@ -61,7 +61,7 @@
   align-items: center;
   gap: 9px;
   font-family: 'Montserrat', sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
   color: #000;
@@ -103,7 +103,7 @@
   justify-content: flex-end;
 }
 
-/* Height (content-menu: Height) — Narrow 100px (default) / Wide 180px. */
+/* Height (content-menu: Height) — Narrow 85px (default) / Wide 180px. */
 .nav-bar.is-wide .nav-inner {
   min-height: 180px;
 }
@@ -215,7 +215,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.5;
   color: #000;
@@ -263,25 +263,9 @@
    panels share a look. */
 .nav-dd-panel,
 .nav-subpanel,
-.nav-subsubpanel {
-  list-style: none;
-  margin: 0;
-  /* 4px white spacers top/bottom, matching the Figma frame. */
-  padding: 4px 0;
-  min-width: 270px;
-  background: #fff;
-  border: 1px solid #eee;
-  border-radius: 12px;
-  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
-}
-
 /* The first-level panel and the leaf third-level panel clip their own rows; the
    middle panel must stay visible so its third-level flyout can escape right. */
 .nav-dd-panel,
-.nav-subsubpanel {
-  overflow: hidden;
-}
-
 /* Second-level panel sits flush to the right edge of the first, aligned to the
    hovered row (top set inline). */
 .nav-subpanel {
@@ -356,29 +340,6 @@
   color: #000;
   text-decoration: none;
   white-space: nowrap;
-}
-
-.nav-sub-arrow {
-  flex-shrink: 0;
-  color: #000;
-}
-
-/* Third-level flyout (a city's facilities), revealed on hover, aligned so its
-   first row lines up with the hovered city. It opens to the LEFT of the cities
-   column: the nav links are right-aligned, so a rightward cascade would run off
-   the right edge of the viewport on wide screens. A left flyout is always
-   on-screen and paints above the (now-behind) first-level panel. */
-.nav-subsubpanel {
-  position: absolute;
-  right: 100%;
-  top: -4px;
-  min-width: 220px;
-  z-index: 10;
-  display: none;
-}
-
-.nav-sub-item:hover > .nav-subsubpanel {
-  display: block;
 }
 
 /* ── Inline actions — single-bar mode only (top bar toggled off) ─────────── */
@@ -821,6 +782,8 @@
   }
 
   .nav-top-item {
+    /* The base is 14px now, so this holds the size rather than stepping it
+       down; the gap is what this rule is still here for. */
     font-size: 14px;
     gap: 6px;
   }
@@ -838,6 +801,9 @@
   }
 
   .nav-link {
+    /* Was the 18 -> 16 step. The base is 16 now, so this holds the size rather
+       than changing it — kept because the rule sets other properties and
+       deleting the line would be the only edit in it. */
     font-size: 16px;
   }
 }
@@ -891,7 +857,10 @@
 
   .nav-inner {
     justify-content: flex-end;
-    min-height: 88px;
+    /* 85px, matching the base. This was 88 when the base was 100 — a reduction
+       then, but left behind by that change it became an INCREASE, so the bar
+       grew slightly on tablet instead of shrinking. */
+    min-height: 85px;
     padding: 0 24px;
   }
 
