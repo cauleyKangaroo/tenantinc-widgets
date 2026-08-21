@@ -1288,9 +1288,6 @@
 .rfc-code-label { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; color: #101318; }
 .rfc-code { font-size: 30px; font-weight: 600; color: #101318; word-break: break-word; line-height: 1.1; }
 .rfc-code-note { font-size: 13px; color: #637381; }
-.rfc-qr { margin-top: 4px; display: inline-flex; padding: 6px; background: #fff; border-radius: 8px; }
-.rfc-qr svg { display: block; width: 116px; height: 116px; }
-
 /* Wallet strip (grey, Figma #DFE3E8) — badges shown even before pass URLs exist. */
 /* Figma 8754-50340: the #DFE3E8 band runs the full width of the card, with the
    title 19px down, the badge row 12px under it and 24px of clearance below. */

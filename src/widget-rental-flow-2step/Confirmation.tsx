@@ -1,5 +1,4 @@
 import React from 'react';
-import QRCode from 'react-qr-code';
 import { Button, CalendarIcon } from '@shared/ui';
 import { KeyIcon, MessageIcon, TickCircleIcon, WriteReviewIcon } from './planIcons';
 import reviewStars from './assets/review-stars.svg';
@@ -209,13 +208,6 @@ export function Confirmation({
                   {code
                     ? <span className="rfc-code">{isReservation ? code : `#${code}*`}</span>
                     : <span className="rfc-code-note">Shown at the facility on move-in.</span>}
-                  {code && (
-                    // Scannable QR of the actual code — strictly black-on-white
-                    // (never themed) so it reads reliably; SVG stays crisp.
-                    <span className="rfc-qr">
-                      <QRCode value={code} size={116} bgColor="#ffffff" fgColor="#101318" level="M" aria-label={`${codeLabel} QR`} />
-                    </span>
-                  )}
                 </div>
                 {/* Wallet strip — shown even before pass URLs exist (Figma). */}
                 <div className="rfc-wallet">
