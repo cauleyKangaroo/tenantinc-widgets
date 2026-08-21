@@ -92,19 +92,18 @@ function IdIllustration() {
   );
 }
 
-export function SuccessStep({ onGetAccess, initialSections }: {
+export function SuccessStep({ onGetAccess, chosen }: {
   onGetAccess?: () => void;
-  /** What the shopper ticked under Additional Information on step 2. Those
-   *  sections open here already expanded — they said they had a vehicle to
-   *  declare, so the form should be waiting for it rather than asking again. */
-  initialSections?: { military: boolean; altContact: boolean; vehicle: boolean };
+  /** What the shopper ticked back in step 2. Those screens ask the QUESTION;
+   *  this one asks for the details, so it opens the same sections already
+   *  ticked rather than making them answer twice. */
+  chosen?: { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean };
 }) {
-  const [business, setBusiness] = useState(false);
-  // Seeded, not synced: this is the shopper's own form from here on, so
-  // unticking one must stick. An initial value is all step 2 gets to say.
-  const [military, setMilitary] = useState(initialSections?.military ?? false);
-  const [altContact, setAltContact] = useState(initialSections?.altContact ?? false);
-  const [vehicle, setVehicle] = useState(initialSections?.vehicle ?? false);
+  // Initialisers, not synced props: the boxes stay the shopper's to change here.
+  const [business, setBusiness] = useState(chosen?.business ?? false);
+  const [military, setMilitary] = useState(chosen?.military ?? false);
+  const [altContact, setAltContact] = useState(chosen?.altContact ?? false);
+  const [vehicle, setVehicle] = useState(chosen?.vehicle ?? false);
 
   // Business
   const [bizAddress, setBizAddress] = useState('');

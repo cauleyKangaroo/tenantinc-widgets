@@ -11,7 +11,6 @@ import {
 } from './api';
 import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
-import { GP_BRIDGE_IS_PROTOTYPE } from './gpHostedFields';
 import { OrderRail } from './OrderRail';
 import { ChevronSolidIcon } from './icons';
 /* The ASSET ONLY, deliberately — not the #02 component, its config, its props
@@ -88,11 +87,6 @@ export interface RentalFlow2StepProps {
   changeSpaceUrl?: string;
   /** Protection-plan brochure PDF, opened from step 2's "Learn More" lightbox. */
   brochureUrl?: string;
-  /** Global Payments CLIENT-side (publishable) key for Hosted Fields card
-   *  tokenization. The server-side key must NEVER be passed here. */
-  gpApiKey?: string;
-  /** GP environment; keep 'test' until launch cutover. */
-  gpEnvironment?: 'test' | 'prod';
   /**
    * DEV HARNESS ONLY — fills the designed surfaces with their Figma samples when
    * no live data has resolved, so the frames can be reviewed:
@@ -263,38 +257,109 @@ function RfSkeleton({ mobile = false }: { mobile?: boolean }) {
     );
   }
 
+  // Desktop. Every wrapper below is the REAL class the finished step uses, so
+  // the padding, gaps and column widths come from the stylesheet rather than
+  // from numbers typed here — only the leaf blocks are drawn. That is what stops
+  // it shifting: the previous version was a freehand sketch (two-up buttons the
+  // form never renders, 46px fields against a 56px token, a 160px hero against a
+  // 208px one, and .rfr-card — a class nothing else uses — standing in for the
+  // shared .ts-card), so the swap moved almost every row.
   return (
     <div className="rf-layout" aria-hidden="true">
       <div className="rf-main">
         <div className="rf-card">
-          <Shimmer w={260} h={22} mb={12} />
-          <Shimmer w="100%" h={16} mb={20} />
-          <Shimmer w="100%" h={64} mb={24} r={8} />
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-            <Shimmer w="50%" h={46} r={8} /><Shimmer w="50%" h={46} r={8} />
+          {/* .rf-title supplies the 14px gap and 26px bottom margin. Blocks are
+              the eyebrow's 20px and the heading's 38px line boxes. */}
+          <div className="rf-title">
+            <Shimmer w={132} h={20} r={4} />
+            <Shimmer w="72%" h={38} r={4} />
           </div>
-          <Shimmer w="100%" h={16} mb={20} />
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-            <Shimmer w="50%" h={46} r={8} /><Shimmer w="50%" h={46} r={8} />
+          {/* "I am renting as a business" — checkbox + label on one 24px row. */}
+          <div className="rf-business">
+            <Shimmer w={20} h={20} r={4} />
+            <Shimmer w={196} h={20} r={4} />
           </div>
-          <Shimmer w={220} h={14} mb={10} />
-          <Shimmer w="100%" h={48} mb={28} r={8} />
-          <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
-            <Shimmer w="50%" h={44} r={8} /><Shimmer w="50%" h={44} r={8} />
+          {/* .rf-form gaps at 20px; .rf-row lays its children out at flex 1 1 0,
+              so each field block sizes itself. 56px is --hb-field-height. */}
+          <div className="rf-form">
+            <div className="rf-row">
+              <Shimmer h={56} r={8} /><Shimmer h={56} r={8} />
+            </div>
+            <div className="rf-row">
+              <Shimmer h={56} r={8} /><Shimmer h={56} r={8} />
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Shimmer w="50%" h={44} r={8} /><Shimmer w="50%" h={44} r={8} />
+          {/* Rent / or / Reserve — STACKED and capped at 343px by .rf-actions,
+              not the side-by-side pairs this used to draw. 50px is the height
+              .rf-actions gives its buttons. The divider is real: it is a
+              constant, so rendering it costs no shift and reads as true. */}
+          <div className="rf-actions">
+            <Shimmer w="100%" h={50} r={8} />
+            {/* .rf-or draws the two rules and the 11px margins; the word itself
+                is a block, not the literal "or" — a lone conjunction between two
+                grey slabs joins nothing yet and reads as a stray glyph. The
+                Shimmer holds the span's 16px line box so the height is unchanged. */}
+            <div className="rf-or"><Shimmer w={20} h={16} r={4} /></div>
+            <Shimmer w="100%" h={50} r={8} />
           </div>
         </div>
       </div>
-      <aside className="rfr-card" style={{ padding: 20 }}>
-        <Shimmer w="100%" h={160} mb={18} r={10} />
-        <Shimmer w={180} h={16} mb={12} />
-        <Shimmer w="100%" h={14} mb={10} />
-        <Shimmer w="100%" h={14} mb={10} />
-        <Shimmer w={140} h={14} mb={18} />
-        <Shimmer w="100%" h={14} mb={10} />
-        <Shimmer w="100%" h={18} />
+      {/* The rail is the shared <SummaryRail>, which renders .ts-card — a 422px
+          card whose 208px hero is FLUSH (the card clips it, there is no padding
+          around it) and whose body is inset 20/30/24. */}
+      <aside className="ts-card">
+        <div className="ts-card-hero"><Shimmer w="100%" h="100%" r={0} /></div>
+        {/* .ts-card-top is a two-column flex — size/summary/amenities on the
+            left, "Change Space" and the price pair on the right. Drawing it as
+            one stacked column (what this used to do) is both the wrong shape and
+            the wrong height, which is the shift that survived the first pass.
+            Heights are the real line boxes: .ts-card-size is 24px/1.2, .ts-card-sub
+            16px/20px, .ts-feat 14px, and .ts-card-prices is a flat 50px. */}
+        <div className="ts-card-body">
+          <div className="ts-card-top">
+            <div className="ts-card-top-left">
+              <Shimmer w={152} h={29} r={4} />
+              <Shimmer w={188} h={20} r={4} style={{ marginTop: 6 }} />
+              {/* features[0] is the sub-line above; the REST are the ticked list,
+                  so a five-feature selection draws four rows here, not two. */}
+              <div className="ts-card-amenities">
+                <Shimmer w={116} h={17} r={4} />
+                <Shimmer w={96} h={17} r={4} />
+                <Shimmer w={108} h={17} r={4} />
+                <Shimmer w={88} h={17} r={4} />
+              </div>
+            </div>
+            <div className="ts-card-top-right">
+              <Shimmer w={104} h={20} r={4} />
+              <Shimmer w={124} h={50} r={4} />
+            </div>
+          </div>
+          {/* Where the promo pill will be. Deliberately NOT .ts-card-promo: that
+              class paints a 2px dashed GREEN border, and drawing it here would
+              assert this space has a promotion before anything has loaded — the
+              promo is conditional on `selection.promo`, so it may never arrive.
+              One flat block instead, reserving the pill's exact box: the class's
+              24px margin, then 2px border + 12px padding + 20px line + 12px + 2px. */}
+          <div style={{ marginTop: 24 }}><Shimmer w="100%" h={48} r={8} /></div>
+          {/* .ts-card-breakdown's 20px top margin comes from CSS. The first row
+              is taller than the others: a prorated line stacks its date range
+              under the name. .hb-money's 10px gap is reproduced by the mb's. */}
+          <div className="ts-card-breakdown">
+            <Shimmer w="100%" h={34} mb={10} r={4} />
+            <Shimmer w="100%" h={20} mb={10} r={4} />
+            <Shimmer w="100%" h={20} r={4} />
+            <div style={{ marginTop: 8 }}><Shimmer w="100%" h={28} r={4} /></div>
+          </div>
+          {/* The card + wallet marks. SummaryRail defaults `showPayments` to TRUE
+              and OrderRail never overrides it, so this row is ALWAYS there — it
+              was simply missing from the skeleton, which is most of why the rail
+              came up short. Six 38.6 x 24 chips, per .ts-pay-box. */}
+          <div className="ts-card-payments">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <Shimmer key={i} w={39} h={24} r={3} />
+            ))}
+          </div>
+        </div>
       </aside>
     </div>
   );
@@ -400,30 +465,6 @@ function RentalHeader({ holdRemaining, homeHref, shrunk, innerRef }: {
         )}
       </div>
     </header>
-  );
-}
-
-// Payment interstitial (Figma screen 10 / mobile m06) — modal overlay
-// while the lease+payment finalize. Purely presentational; the parent
-// decides when to show it and where to go next.
-// The live-payment path's finalizing beat. It is ProcessingModal — the SAME
-// screen the static path shows — rather than a second implementation of it.
-// The old one had drifted to a 22px title, a 6px bar and #3ba55c against the
-// frame's 32px/10px/#509E2F, and would have needed the mobile take-over built
-// a second time. No onDone: this path navigates away when the real flow
-// finishes, so the bar eases to 100% and waits.
-function PaymentInterstitial({ firstName, brandName }: { firstName: string; brandName: string }) {
-  return (
-    <ProcessingModal
-      open
-      firstName={firstName}
-      facilityName={brandName}
-      note={GP_BRIDGE_IS_PROTOTYPE ? (
-        <p className="rf-demo-banner">
-          Demo preview — no payment, lease, or reservation was created.
-        </p>
-      ) : undefined}
-    />
   );
 }
 
@@ -626,8 +667,6 @@ export function RentalFlow2Step({
   unitGroupId: unitGroupIdArg,
   proxyBaseUrl = cfg.proxyBaseUrl ?? '',
   changeSpaceUrl,
-  gpApiKey,
-  gpEnvironment = 'test',
   previewContent = false,
   inEditor = false,
   siteId,
@@ -736,21 +775,26 @@ export function RentalFlow2Step({
   // units/available, so recovery is re-pick → re-quote → re-hold once.
   const [hold, setHold] = useState<UnitHold | undefined>(undefined);
   const [finalizing, setFinalizing] = useState<{ firstName: string } | undefined>(undefined);
+  // The contact the LEASE was created with. Step 2 seeds from step 1 but is
+  // editable, so this can differ from `contact` — and the confirmation has to
+  // show what was actually filed, not what was typed a screen earlier.
+  // Which optional sections the shopper ticked in step 2, carried to the
+  // post-purchase screen so it opens them already ticked.
+  const [chosenSections, setChosenSections] = useState<
+    { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean } | undefined
+  >(undefined);
+  const [rentedContact, setRentedContact] = useState<
+    { first: string; last: string; email: string; phone: string } | undefined
+  >(undefined);
   /** Static payment path (no GP key): the lightbox has finished, show the
    *  post-purchase form rather than navigating to the confirmation page. */
   const [staticPaid, setStaticPaid] = useState(false);
-  /** Step 2's Additional Information ticks, handed to step 3 so the sections
-   *  the shopper asked for are already open when they get there. */
-  const [extraSections, setExtraSections] = useState<
-    { military: boolean; altContact: boolean; vehicle: boolean } | undefined
-  >(undefined);
   // The real rental (documents → lease → autopay). Present ⇒ money moved.
   const [rental, setRental] = useState<Extract<RentResult, { ok: true }> | undefined>(undefined);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | undefined>(undefined);
   /** "Get Access" pressed on the static post-purchase form. */
   const [accessGranted, setAccessGranted] = useState(false);
-  const staticPay = !gpApiKey;
   // Office/Gate hours fallback for the confirmation page: the immutable success
   // snapshot occasionally predates propertyInfo loading, so it can lack hours.
   // Hours are read-only + non-sensitive (unlike the money block), so it's safe
@@ -1012,8 +1056,11 @@ export function RentalFlow2Step({
           // the same data the value-tiers card uses. Set the rail's selection
           // ONCE, from offers when available, so it never flashes the thin
           // space-groups price before the promo rate loads.
+          // Held so the `.finally(settle)` below can await it — see the return
+          // at the end of this callback.
+          let selectionDone: Promise<unknown> = Promise.resolve();
           if (unitGroupIdProp) {
-            fetchSelectionFromOffers(ctx, unitGroupIdProp, { tier: tierProp, unitId: unitIdProp, size: sizeProp })
+            selectionDone = fetchSelectionFromOffers(ctx, unitGroupIdProp, { tier: tierProp, unitId: unitIdProp, size: sizeProp })
               .then((rich) => { if (!cancelled) setSelection(rich ?? sel ?? undefined); })
               .catch(() => { if (!cancelled && sel) setSelection(sel); });
           } else if (sel) {
@@ -1031,7 +1078,7 @@ export function RentalFlow2Step({
               : stored?.size
                 ? findUnitForSelection(ctx, stored.size, stored.price)
                 : Promise.resolve(undefined);
-          resolveUnit
+          const quoteDone = resolveUnit
             .then((unit) => {
               if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
               return unit ? fetchMoveInQuote(ctx, unit) : undefined;
@@ -1046,6 +1093,20 @@ export function RentalFlow2Step({
               if (!cancelled) setQuoteFailed(true);
             });
           if (!sel && !unitIdProp) console.warn(`${logTag} handoff selection not found in live data`, { tierProp, sizeProp, unitGroupIdProp });
+
+          // RETURNED, so `.finally(settle)` waits for the selection and the quote
+          // rather than firing the moment this callback exits.
+          //
+          // These two used to be started and forgotten: the outer promise settled
+          // immediately, `loading` went false, and step 1 painted with `quote`
+          // still undefined. OrderRail renders a one-line note without a quote and
+          // a full breakdown (lines, tax, total) with one, so the rail snapped
+          // taller a beat later. Same defect as #07/#08 — the skeleton was gating
+          // only the first wave of fetches.
+          //
+          // Both branches already swallow their own failures, so awaiting them can
+          // only delay the skeleton, never leave it stuck on a rejection.
+          return Promise.all([selectionDone, quoteDone]);
         }
       })
       .catch((err) => console.error(`${logTag} fetchSpaceGroups error:`, err))
@@ -1222,7 +1283,7 @@ export function RentalFlow2Step({
             </div>
           </div>
         )}
-        {GP_BRIDGE_IS_PROTOTYPE && confirmation.kind === 'rental' && (
+        {confirmation.kind === 'rental' && (
           <div className="rf-demo-banner rf-demo-banner--page" role="note">
             Demo preview — no payment or lease was created.
           </div>
@@ -1263,15 +1324,47 @@ export function RentalFlow2Step({
   // the same <Confirmation> the real flow lands on: sent-code bar, access code,
   // wallet badges, move-in date, office/gate hours, review card, What's Next.
   // Composing that screen a second time would be a near-duplicate that drifts.
+  // Live data ALWAYS wins; the preview only fills gaps, and only in the harness.
+  // Per-field rather than all-or-nothing so a real property still shows its own
+  // name and address while the selection is still resolving.
+  const railProperty = propertyInfo ?? (previewContent ? PREVIEW_PROPERTY : undefined);
+  const railSelection = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
+  const railQuote = quote ?? (previewContent ? PREVIEW_QUOTE : undefined);
+
+  // ONE aside for the whole flow. Steps 1, 2 and 3 show the same order — the
+  // same property, space and money — so they render the same element rather
+  // than three OrderRails that can drift apart. The post-purchase variant only
+  // drops "Change Space", which is meaningless once the unit is rented.
+  const railFor = (rented: boolean) => (
+    <OrderRail
+      property={railProperty}
+      selection={railSelection}
+      quote={railQuote}
+      // The frame shows "#111 | 5’ x 7’" — the unit number leads, then the size.
+      // SummaryRail composes that as `size | tierName`, so the preview passes the
+      // unit as `size`. Real selections have no unit number here (see note below).
+      unitLabel={previewContent && !selection ? '#111' : undefined}
+      changeSpaceUrl={rented ? undefined : (changeSpaceUrl ?? backToSpacesUrl)}
+      quoteFailed={quoteFailed}
+      // Only an UNHELD quote assumes today: the pre-hold GET carries no
+      // start_date, while the hold-aware POST sends the chosen one and the
+      // engine honours it (verified against a held unit 2026-08-20). Warning
+      // about a date the quote already reflects would be its own small lie.
+      quoteAssumesToday={!hold && moveIn.getTime() > startOfToday().getTime()}
+    />
+  );
+  const rail = railFor(false);
+
   if (staticPaid) {
     // The held unit is real even on the static path — the hold and quote both
     // come from the live API.
     //
-    // The access CODE is a placeholder, and it is shown ONLY when no real lease
-    // was created. After a real rental the money has moved and a made-up gate
-    // code would be a lie the tenant acts on, so the confirmation falls back to
-    // its no-code variant ("see the facility manager at move-in") — the lease
-    // response carries no access code to show instead.
+    // The access code is REAL after a rental: the lease response carries the
+    // tenant's gate PIN at `lease.tenants[].pin` (verified 2026-08-20 — no
+    // other endpoint returns one, and it does not exist before the lease).
+    // Without a lease there is nothing to show, so the placeholder stands in
+    // for the preview path only; a real rental that somehow returned no pin
+    // falls back to the no-code variant rather than inventing one.
     const heldUnit = rental?.unitNumber ?? hold?.unitNumber ?? quote?.unitNumber;
     const staticUnitNumber = heldUnit ? `#${heldUnit}` : undefined;
 
@@ -1284,7 +1377,7 @@ export function RentalFlow2Step({
         {isMobile && (
           <div className="rfm-top" ref={railBarRef}>
             <MobileLeaseBar
-              total={quote?.totalDue}
+              total={railQuote?.totalDue}
               expanded={railOpen}
               onToggle={onRailToggle}
             />
@@ -1296,7 +1389,7 @@ export function RentalFlow2Step({
             />
             <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
               <div className="rfm-sheet">
-                <OrderRail property={propertyInfo} selection={selection} quote={quote} />
+                {railFor(true)}
               </div>
             </div>
           </div>
@@ -1308,9 +1401,15 @@ export function RentalFlow2Step({
             <Confirmation
               kind="rental"
               name={finalizing?.firstName}
-              phone={contact?.phone}
+              phone={rentedContact?.phone ?? contact?.phone}
+              tenantName={[rentedContact?.first ?? contact?.first, rentedContact?.last ?? contact?.last]
+                .filter(Boolean).join(' ') || undefined}
+              tenantEmail={rentedContact?.email ?? contact?.email}
+              tenantPhone={formatUsPhone(rentedContact?.phone ?? contact?.phone)}
+              // Only after a real lease: there is nothing to reference otherwise.
+              reference={rental?.leaseId}
               unitNumber={staticUnitNumber}
-              code={rental ? undefined : STATIC_ACCESS_CODE}
+              code={rental ? rental.accessCode : STATIC_ACCESS_CODE}
               entry="gate"
               moveInDate={fmtDisplayDate(moveIn)}
               confirmedHeading={rentalHeading}
@@ -1324,39 +1423,17 @@ export function RentalFlow2Step({
               gateHours={propertyInfo?.gateHours?.length ? propertyInfo.gateHours : confHours?.gateHours}
               reviewUrl={reviewUrl}
             />
-            {!isMobile && <OrderRail property={propertyInfo} selection={selection} quote={quote} />}
+            {!isMobile && railFor(true)}
           </div>
         ) : (
           <div className="rfc-layout">
-            <SuccessStep onGetAccess={() => setAccessGranted(true)} initialSections={extraSections} />
-            {!isMobile && <OrderRail property={propertyInfo} selection={selection} quote={quote} />}
+            <SuccessStep onGetAccess={() => setAccessGranted(true)} chosen={chosenSections} />
+            {!isMobile && railFor(true)}
           </div>
         )}
       </div>
     );
   }
-
-  // Live data ALWAYS wins; the preview only fills gaps, and only in the harness.
-  // Per-field rather than all-or-nothing so a real property still shows its own
-  // name and address while the selection is still resolving.
-  const railProperty = propertyInfo ?? (previewContent ? PREVIEW_PROPERTY : undefined);
-  const railSelection = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
-  const railQuote = quote ?? (previewContent ? PREVIEW_QUOTE : undefined);
-
-  const rail = (
-    <OrderRail
-      property={railProperty}
-      selection={railSelection}
-      quote={railQuote}
-      // The frame shows "#111 | 5’ x 7’" — the unit number leads, then the size.
-      // SummaryRail composes that as `size | tierName`, so the preview passes the
-      // unit as `size`. Real selections have no unit number here (see note below).
-      unitLabel={previewContent && !selection ? '#111' : undefined}
-      changeSpaceUrl={changeSpaceUrl ?? backToSpacesUrl}
-      quoteFailed={quoteFailed}
-      quoteAssumesToday={moveIn.getTime() > startOfToday().getTime()}
-    />
-  );
 
   return (
     <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
@@ -1429,16 +1506,10 @@ export function RentalFlow2Step({
             brochureUrl={brochureUrl}
             onPlanChange={setInsuranceId}
             onEditDate={() => setDateModalOpen(true)}
-            gpApiKey={gpApiKey}
-            gpEnvironment={gpEnvironment}
-            payNowTotal={quote?.totalDue}
+            payNowTotal={railQuote?.totalDue}
             paying={paying}
             payError={payError}
             onPaymentComplete={(info) => {
-              // Recorded before anything else branches — every path from here
-              // ends on step 3 or the confirmation, and both are downstream of
-              // this. Doing it inside one branch would lose it on the others.
-              setExtraSections(info.sections);
               // REAL RENTAL. A card plus a live hold and quote means we have
               // everything the documented flow needs (guide APIs 9→10→11), so
               // run it instead of the prototype bridge below. Nothing is
@@ -1477,6 +1548,7 @@ export function RentalFlow2Step({
                   costs: quoteToCosts(quote, start),
                   promotionIds: selection?.promotionIds,
                   platform: 'website',
+                  extras: info.extras,
                 })
                   .then((res) => {
                     setPaying(false);
@@ -1487,6 +1559,8 @@ export function RentalFlow2Step({
                     }
                     console.log(`${logTag} rental complete — lease ${res.leaseId}`);
                     setRental(res);
+                    if (info.contact) setRentedContact(info.contact);
+                    if (info.extras) setChosenSections(info.extras);
                     // The unit is LEASED now, so the hold is spent: forget it so
                     // the countdown stops and unmount does not try to release a
                     // hold that no longer exists.
@@ -1503,31 +1577,14 @@ export function RentalFlow2Step({
                   });
                 return;
               }
+              // No card, or no hold/quote to rent against — nothing to
+              // charge, so this is the harness/preview path: show the
+              // finalizing beat and hand to the post-purchase screen.
               setFinalizing(info);
+              if (info.extras) setChosenSections(info.extras);
               // The pick has been acted on — drop it so returning to /rental
               // later starts clean instead of silently re-selecting it.
               clearUnitSelection();
-              // Static path: the lightbox's onDone swaps in the post-purchase
-              // form. No nonce, no navigation — nothing was charged.
-              if (staticPay) return;
-              // Prototype bridge: no server-side sale endpoint yet (B4), so
-              // after the finalizing beat, land on the confirmation page with
-              // the REAL held unit number.
-              const unitNo = hold?.unitNumber ?? quote?.unitNumber;
-              const nonce = stashConfirmation({
-                kind: 'rental',
-                name: info.firstName,
-                unitNumber: unitNo ? `#${unitNo}` : undefined,
-                moveInDate: fmtDisplayDate(moveIn),
-                rail: { property: propertyInfo, selection, quote },
-              });
-              window.setTimeout(() => {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('unit_number');
-                url.searchParams.set('type', 'rental');
-                url.searchParams.set('c', nonce);
-                window.location.assign(url.toString());
-              }, 3200);
             }}
           />
         )}
@@ -1536,15 +1593,9 @@ export function RentalFlow2Step({
         {!isMobile && rail}
       </div>
 
-      {/* Two finalizing beats, one per payment path. With a Global Payments key
-          the real flow runs and navigates to the confirmation page, so it keeps
-          the inline interstitial. Without one, payment is the static forms, and
-          the lightbox (Figma 8509-35122) hands to the post-purchase form
-          (8507-25408) in place — no navigation, nothing was really charged. */}
-      {finalizing && !staticPay && (
-        <PaymentInterstitial firstName={finalizing.firstName} brandName={brandName} />
-      )}
-      {finalizing && staticPay && (
+      {/* Finalizing beat (Figma 8509-35122): the lightbox hands to the
+          post-purchase form (8507-25408) in place — no navigation. */}
+      {finalizing && (
         <ProcessingModal
           open
           firstName={finalizing.firstName}

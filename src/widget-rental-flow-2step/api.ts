@@ -586,7 +586,7 @@ export async function fetchUnitInfo(ctx: RentalCtx, unitId: string): Promise<{ n
 }
 
 interface ApiQuoteDetail { name?: string; total_cost?: number; start_date?: string; end_date?: string }
-interface ApiQuoteInvoice { total_due?: number; total_tax?: number; Detail?: ApiQuoteDetail[] }
+interface ApiQuoteInvoice { total_due?: number; balance?: number; total_tax?: number; Detail?: ApiQuoteDetail[] }
 
 /**
  * What the shopper has chosen, as lease-set-up's documented inputs.
@@ -625,10 +625,12 @@ function leaseSetUpBody(opts: QuoteOptions): Record<string, unknown> {
 /**
  * POST lease-set-up for a held unit.
  *
- * The extra parameters are documented but UNPROVEN on this tenant's v1 endpoint
- * (the guide describes v2). So a rejection falls back to the hold_token-only
- * body that has been shipping — a wrong-but-present breakdown beats losing the
- * money block entirely — and says so loudly in the console.
+ * The extra parameters ARE honoured by v1 — verified against a held unit
+ * 2026-08-20: `insurance_id` added a prorated "Coverage $2000" line, a
+ * `start_date` of 2026-08-25 came back on `details.start_date` (the minimal
+ * call returned today), and `promotions` produced a Discounts entry and moved
+ * the balance. The fallback below is therefore belt-and-braces rather than an
+ * expected path; if the warning ever appears, the endpoint changed.
  */
 async function postLeaseSetUp(path: string, opts: QuoteOptions): Promise<Record<string, unknown> | undefined> {
   const body = leaseSetUpBody(opts);
@@ -667,10 +669,16 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
   const details = data?.details as { Invoices?: ApiQuoteInvoice[]; bill_day?: number; rent?: number } | undefined;
   const inv = (details?.Invoices ?? [])[0];
   if (!inv || typeof inv.total_due !== 'number') return undefined;
+  // `balance` is the NET payable; `total_due` is the gross before discounts.
+  // Verified on a held unit 2026-08-20: with a 50%-off promotion the same quote
+  // returned total_due 75.52 against balance 71.02, and the per-line total_cost
+  // values summed to the balance — so reading total_due showed a total $4.50
+  // higher than both the lines above it and the amount actually charged.
+  const payable = typeof inv.balance === 'number' ? inv.balance : inv.total_due;
   return {
     unitId: unit.id,
     unitNumber: unit.number,
-    totalDue: inv.total_due,
+    totalDue: payable,
     totalTax: inv.total_tax ?? 0,
     billDay: typeof details?.bill_day === 'number' ? details.bill_day : undefined,
     rent: typeof details?.rent === 'number' ? details.rent : undefined,
@@ -1065,6 +1073,29 @@ export async function fetchPaymentLink(ctx: RentalCtx, contactId: string): Promi
 //
 // Nothing here is memoised and nothing is retried: these are money writes.
 
+/**
+ * `source` on both calls — Hummingbird records it as the originating
+ * application. TenantInc's own sample uses this exact string; override per site
+ * once more than one website feeds the same company.
+ */
+const DEFAULT_SOURCE = 'Mariposa Website Application';
+
+/**
+ * The masked "MM/DD/YYYY" a form collects → the API's "YYYY-MM-DD".
+ *
+ * Purely positional: no Date is constructed, so an incomplete or nonsense entry
+ * yields undefined instead of a silently shifted date (new Date('13/40/2020')
+ * rolls over into 2021 rather than failing). Every date field here is optional
+ * to the API, so sending nothing beats sending a wrong birthday.
+ */
+export const dobToIso = (masked: string): string | undefined => {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(masked.trim());
+  if (!m) return undefined;
+  const [, mm, dd, yyyy] = m;
+  if (+mm < 1 || +mm > 12 || +dd < 1 || +dd > 31) return undefined;
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 /** Billing/contact address — required by both the contact and the card. */
 export interface RentAddress {
   address: string;
@@ -1113,6 +1144,31 @@ export interface LeaseDocumentRef {
   version: string;
 }
 
+/**
+ * The optional Additional Information sections, mapped to the guide's names.
+ *
+ * NOTE on `business`: the guide's contact example carries `"Business": {}` and
+ * documents no fields for it, so the business details are deliberately NOT sent
+ * — inventing a shape would either be ignored or rejected. Ask TenantInc for it.
+ */
+export interface RentalExtras {
+  business?: boolean;
+  businessAddress?: string;
+  businessFirst?: string;
+  businessLast?: string;
+  military?: boolean;
+  /** YYYY-MM-DD. */
+  dateOfBirth?: string;
+  altContact?: boolean;
+  altFirst?: string;
+  altLast?: string;
+  altPhone?: string;
+  altEmail?: string;
+  altAddress?: string;
+  vehicle?: boolean;
+  vehicleType?: string;
+}
+
 export interface RentArgs {
   unit: { id: string; number?: string };
   holdToken: string;
@@ -1132,16 +1188,35 @@ export interface RentArgs {
   /** Reserve first, then rent: the lease attaches to the reservation. */
   reservationId?: string;
   platform?: string;
+  /** `source` — which application originated this, for attribution in
+   *  Hummingbird. TenantInc's own example sends "Mariposa Website Application". */
+  source?: string;
+  /** How the tenant wants legal notices delivered: hand_delivery | email | mail. */
+  noticeDelivery?: 'hand_delivery' | 'email' | 'mail';
+  /** Military / alternate-contact / vehicle sections, when the shopper opened them. */
+  extras?: RentalExtras;
 }
 
 export type RentStage = 'documents' | 'lease' | 'autopay';
 export type RentResult =
-  | { ok: true; leaseId: string; paymentId?: string; paymentMethodId?: string; unitNumber?: string; autopay?: boolean }
+  | {
+    ok: true;
+    leaseId: string;
+    paymentId?: string;
+    paymentMethodId?: string;
+    unitNumber?: string;
+    autopay?: boolean;
+    /** The tenant's gate PIN, from `lease.tenants[0].pin`. THE access code —
+     *  no other endpoint returns one, and it exists only after the lease. */
+    accessCode?: string;
+    /** 'active' on a completed rental. */
+    status?: string;
+  }
   | { ok: false; error: string; stage: RentStage };
 
 /** The `contacts` array both calls take. Phones are E.164 with the type lowercase. */
-function rentContacts(c: RentContact): unknown[] {
-  return [{
+function rentContacts(c: RentContact, extras?: RentalExtras): unknown[] {
+  const contact: Record<string, unknown> = {
     first: c.first,
     last: c.last,
     email: c.email,
@@ -1150,7 +1225,42 @@ function rentContacts(c: RentContact): unknown[] {
       Address: { address: c.address, city: c.city, state: c.state, zip: c.zip },
       type: 'primary',
     }],
-  }];
+  };
+
+  // Military. The guide's Military object has ten fields; the form asks only for
+  // a date of birth, so only that is sent. active_military is the flag the guide
+  // says accompanies military details.
+  if (extras?.military && extras.dateOfBirth) {
+    contact.active_military = 1;
+    contact.Military = { active: 1, date_of_birth: extras.dateOfBirth };
+  }
+
+  // Alternate contact — a Relationship, not a second contact. Sent only when the
+  // section is ticked AND has a name, so a half-filled section that the shopper
+  // closed again cannot post an empty person.
+  if (extras?.altContact && (extras.altFirst || extras.altLast)) {
+    const alt: Record<string, unknown> = {
+      first: extras.altFirst ?? '',
+      last: extras.altLast ?? '',
+      email: extras.altEmail ?? '',
+    };
+    const altPhone = extras.altPhone ? normalizePhone(extras.altPhone, 'US') : undefined;
+    if (altPhone) alt.Phones = [{ phone: altPhone, type: 'cell', sms: true }];
+    if (extras.altAddress) {
+      // The form takes one address line; city/state/zip are not asked for, so
+      // they are omitted rather than guessed from it.
+      alt.Addresses = [{ Address: { address: extras.altAddress }, type: 'alternate' }];
+    }
+    contact.Relationships = [{ Contact: alt, is_alternate: 1, type: 'alternate' }];
+  }
+
+  return [contact];
+}
+
+/** `vehicle_info`, when the shopper is storing one. Type is all the form asks. */
+function vehicleInfo(extras?: RentalExtras): Record<string, unknown> | undefined {
+  if (!extras?.vehicle || !extras.vehicleType) return undefined;
+  return { description: extras.vehicleType, vehicle: { type: extras.vehicleType } };
 }
 
 /** The `payment_method` object. Card only — ACH is not wired yet. */
@@ -1202,7 +1312,7 @@ interface FinalizeData { documents?: unknown[]; signed?: boolean }
  */
 async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseDocumentRef[]> {
   const body: Record<string, unknown> = {
-    contacts: rentContacts(args.contact),
+    contacts: rentContacts(args.contact, args.extras),
     payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
     start_date: args.startDate,
     space_mix_id: args.spaceMixId,
@@ -1213,7 +1323,11 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
     costs: args.costs,
     metadata: signingMetadata(),
     platform: args.platform ?? 'website',
+    source: args.source ?? DEFAULT_SOURCE,
+    deliveryMethod: { notice_delivery: args.noticeDelivery ?? 'email' },
   };
+  const vehicle = vehicleInfo(args.extras);
+  if (vehicle) body.vehicle_info = vehicle;
   if (args.promotionIds?.length) body.discount_id = args.promotionIds[0];
 
   const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/documents/finalize`, body);
@@ -1241,13 +1355,15 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
 /** API 10 — finalize the lease and take the move-in payment. */
 async function finalizeLease(
   ctx: RentalCtx, args: RentArgs, documents: LeaseDocumentRef[],
-): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string }> {
+): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string; accessCode?: string; status?: string }> {
   const body: Record<string, unknown> = {
-    contacts: rentContacts(args.contact),
+    contacts: rentContacts(args.contact, args.extras),
     documents,
     payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
     start_date: args.startDate,
     platform: args.platform ?? 'website',
+    source: args.source ?? DEFAULT_SOURCE,
+    deliveryMethod: { notice_delivery: args.noticeDelivery ?? 'email' },
     additional_months: 0,
   };
   // One identifier or the other, never both: reservation_id continues a
@@ -1262,13 +1378,23 @@ async function finalizeLease(
   if (inner.status !== 200 || !inner.data) {
     throw new Error(inner.msg || `lease failed (${inner.status}).`);
   }
-  const d = inner.data as Record<string, unknown>;
+  // VERIFIED 2026-08-20: the real response nests everything under `lease`,
+  // where the guide's example shows it flat. Both are accepted so a fix at
+  // either end cannot break this.
+  const raw = inner.data as Record<string, unknown>;
+  const d = (raw.lease ?? raw) as Record<string, unknown>;
   const leaseId = (d.lease_id ?? d.id) as string | undefined;
   if (!leaseId) throw new Error('The lease was created but returned no id — please contact the facility before trying again.');
+  // The gate PIN rides on the tenant, not the lease. This is the ONLY place any
+  // endpoint returns an access code — it does not exist before the lease.
+  const tenants = (d.tenants as Array<{ pin?: string | number }> | undefined) ?? [];
+  const pin = tenants.find((t) => t?.pin != null)?.pin;
   return {
     leaseId,
     paymentId: d.payment_id as string | undefined,
     paymentMethodId: d.payment_method_id as string | undefined,
+    accessCode: pin != null ? String(pin) : undefined,
+    status: d.status as string | undefined,
   };
 }
 
@@ -1304,7 +1430,7 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
     return { ok: false, error: err instanceof Error ? err.message : String(err), stage: 'documents' };
   }
 
-  let lease: { leaseId: string; paymentId?: string; paymentMethodId?: string };
+  let lease: Awaited<ReturnType<typeof finalizeLease>>;
   try {
     lease = await finalizeLease(ctx, a, documents);
   } catch (err) {
@@ -1329,6 +1455,8 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
     leaseId: lease.leaseId,
     paymentId: lease.paymentId,
     paymentMethodId: lease.paymentMethodId,
+    accessCode: lease.accessCode,
+    status: lease.status,
     unitNumber: a.unit.number,
     autopay,
   };
