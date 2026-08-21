@@ -61,7 +61,7 @@
   align-items: center;
   gap: 9px;
   font-family: 'Montserrat', sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
   color: #000;
@@ -103,7 +103,7 @@
   justify-content: flex-end;
 }
 
-/* Height (content-menu: Height) — Narrow 100px (default) / Wide 180px. */
+/* Height (content-menu: Height) — Narrow 85px (default) / Wide 180px. */
 .nav-bar.is-wide .nav-inner {
   min-height: 180px;
 }
@@ -215,7 +215,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.5;
   color: #000;
@@ -821,6 +821,8 @@
   }
 
   .nav-top-item {
+    /* The base is 14px now, so this holds the size rather than stepping it
+       down; the gap is what this rule is still here for. */
     font-size: 14px;
     gap: 6px;
   }
@@ -838,6 +840,9 @@
   }
 
   .nav-link {
+    /* Was the 18 -> 16 step. The base is 16 now, so this holds the size rather
+       than changing it — kept because the rule sets other properties and
+       deleting the line would be the only edit in it. */
     font-size: 16px;
   }
 }
@@ -891,7 +896,10 @@
 
   .nav-inner {
     justify-content: flex-end;
-    min-height: 88px;
+    /* 85px, matching the base. This was 88 when the base was 100 — a reduction
+       then, but left behind by that change it became an INCREASE, so the bar
+       grew slightly on tablet instead of shrinking. */
+    min-height: 85px;
     padding: 0 24px;
   }
 
