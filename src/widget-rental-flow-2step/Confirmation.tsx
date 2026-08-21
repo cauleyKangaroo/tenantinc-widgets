@@ -1,7 +1,9 @@
 import React from 'react';
-import QRCode from 'react-qr-code';
-import { Button, CalendarIcon } from '@shared/ui';
-import { KeyIcon, MessageIcon, TickCircleIcon, WriteReviewIcon } from './planIcons';
+import { Button } from '@shared/ui';
+import {
+  KeyIcon, MessageIcon, TickCircleIcon, WriteReviewIcon,
+  MapPinGlyph, PhoneGlyph, CalendarGlyph, ClockGlyph,
+} from './planIcons';
 import reviewStars from './assets/review-stars.svg';
 // The official badges, exported from Figma (8754-50342 / 8754-50343) and
 // inlined as data URIs by webpack — the AMD bundle can't fetch remote assets.
@@ -32,6 +34,12 @@ export interface ConfirmationProps {
   moveInDate?: string;
   reservationDate?: string;
   facilityPhone?: string;
+  /** The unit's display size, e.g. "5' x 7'" — titles the code card when there
+   *  is no unit number to show. */
+  spaceName?: string;
+  /** Facility name and address — the first row of the details column. */
+  propertyName?: string;
+  propertyAddress?: string;
   officeHours?: string[];
   gateHours?: string[];
   /** "Rent Online Now" target (reservation → rental). Hidden if absent. */
@@ -70,6 +78,7 @@ export interface ConfirmationProps {
 // absent, so a populated page never shows them — but note that the SMS line is
 // a CLAIM: see the comment where it renders.
 const DEMO_PHONE = '(949) 456-8765';
+const DEMO_UNIT = '#111';
 const DEMO_REVIEW_URL = 'https://www.google.com/maps';
 
 const WHATS_NEXT = [
@@ -81,21 +90,13 @@ const WHATS_NEXT = [
   'If you decide you need a different unit, we can easily make that change for you.',
 ];
 
-/** Local, like ClockIcon below it — same 20px frame and 1.8 stroke, so the
- *  three detail rows line up on one optical grid. */
+/** Local and hand-drawn, unlike the four rows traced from the frame — the
+ *  tenant row has no Figma counterpart yet. Worth tracing when it does. */
 function UserIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="8" r="3.6" stroke="currentColor" strokeWidth="1.8" />
       <path d="M5 20c0-3.31 3.13-6 7-6s7 2.69 7 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-function ClockIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M12 7.5V12l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -145,6 +146,9 @@ export function Confirmation({
   moveInDate,
   reservationDate,
   facilityPhone,
+  spaceName,
+  propertyName,
+  propertyAddress,
   officeHours,
   gateHours,
   rentUrl,
@@ -166,6 +170,11 @@ export function Confirmation({
   reference,
 }: ConfirmationProps) {
   const isReservation = kind === 'reservation';
+  /* Real unit first, then the size the shopper actually chose, then the frame's
+     placeholder. The size is not prefixed with "Space" — "Space 5' x 7'" reads
+     as a name that does not exist, where the size on its own is a true
+     description of what was rented. */
+  const spaceTitle = unitNumber ? `Space ${unitNumber}` : (spaceName || `Space ${DEMO_UNIT}`);
   const codeLabel = isReservation ? 'Reservation Code' : 'Access Code';
 
   if (errorMessage) {
@@ -203,20 +212,33 @@ export function Confirmation({
           `smsSent` before this ships, or make the copy conditional. */}
       <div className="rfc-sent">
         <span className="rfc-sent-icon"><MessageIcon size={24} /></span>
-        <span className="rfc-sent-txt">
-          We&rsquo;ve sent your {isReservation ? 'Reservation' : 'Access'} Code to {phone ?? DEMO_PHONE}
+        {/* Text and Resend share a wrapper so the two can go from a row (Resend
+            pushed to the far right) to a column (Resend under the copy) without
+            the icon coming along for the ride. */}
+        <span className="rfc-sent-body">
+          <span className="rfc-sent-txt">
+            We&rsquo;ve sent your {isReservation ? 'Reservation' : 'Access'} Code to {phone ?? DEMO_PHONE}
+          </span>
+          <button type="button" className="rfc-resend" onClick={onResend}>Resend</button>
         </span>
-        <button type="button" className="rfc-resend" onClick={onResend}>Resend</button>
       </div>
 
       <section className="rfc-panel">
-        {unitNumber && <div className="rfc-space-head">Space {unitNumber}</div>}
-
         {/* Code card on the left, details (dates/hours + rent nudge) beside it
             on the right — the code card is a fixed 328px so the details column
             keeps enough width that "Reservation Date: …, 2026" never wraps. */}
         <div className="rfc-cols">
-          <div className="rfc-code-card">
+          <div className="rfc-code-col">
+            {/* Above the code card and INSIDE the left column, per the frame —
+                it names what the card is for. It was a full-width heading
+                spanning both columns, which read as a title for the panel. */}
+            {/* Always shown. It was gated on `unitNumber`, which is only set once
+                a real hold exists — so on every path without one the card had no
+                title at all. Falls back to the frame's placeholder; NOTE that is
+                a made-up unit number on a live page, so it wants the same gating
+                as the SMS line before launch. */}
+            <div className="rfc-space-head">{spaceTitle}</div>
+            <div className="rfc-code-card">
             {entry === 'smart' ? (
               <div className="rfc-code-top">
                 <span className="rfc-code-label">Smart Entry System</span>
@@ -235,13 +257,6 @@ export function Confirmation({
                   {code
                     ? <span className="rfc-code">{isReservation ? code : `#${code}*`}</span>
                     : <span className="rfc-code-note">Shown at the facility on move-in.</span>}
-                  {code && (
-                    // Scannable QR of the actual code — strictly black-on-white
-                    // (never themed) so it reads reliably; SVG stays crisp.
-                    <span className="rfc-qr">
-                      <QRCode value={code} size={116} bgColor="#ffffff" fgColor="#101318" level="M" aria-label={`${codeLabel} QR`} />
-                    </span>
-                  )}
                 </div>
                 {/* Wallet strip — shown even before pass URLs exist (Figma). */}
                 <div className="rfc-wallet">
@@ -253,11 +268,36 @@ export function Confirmation({
                 </div>
               </>
             )}
+            </div>
           </div>
 
           <div className="rfc-details">
+            {(propertyName || propertyAddress) && (
+              <div className="rfc-info-row rfc-info-row--top">
+                <MapPinGlyph size={24} className="rfc-info-ico" />
+                <div>
+                  {propertyName && <p className="rfc-info-strong">{propertyName}</p>}
+                  {propertyAddress && (
+                    <a
+                      className="rfc-info-link"
+                      href={`https://maps.google.com/?q=${encodeURIComponent(propertyAddress)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {propertyAddress}
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+            {facilityPhone && (
+              <div className="rfc-info-row">
+                <PhoneGlyph size={24} className="rfc-info-ico" />
+                <a className="rfc-info-link" href={`tel:${facilityPhone.replace(/\D/g, '')}`}>{facilityPhone}</a>
+              </div>
+            )}
             <div className="rfc-info-dates">
-              <CalendarIcon className="rfc-info-cal" />
+              <CalendarGlyph size={24} className="rfc-info-ico" />
               <div>
                 {isReservation && reservationDate && (
                   <p><b>Reservation Date:</b> {reservationDate}</p>
@@ -271,7 +311,7 @@ export function Confirmation({
                 holds the details the shopper just entered. */}
             {(tenantName || tenantEmail || tenantPhone || reference) && (
               <div className="rfc-info-tenant">
-                <UserIcon className="rfc-info-cal" />
+                <UserIcon className="rfc-info-ico" />
                 <div>
                   {tenantName && <p><b>Name:</b> {tenantName}</p>}
                   {tenantEmail && <p className="rfc-info-break"><b>Email:</b> {tenantEmail}</p>}
@@ -282,7 +322,7 @@ export function Confirmation({
             )}
             {((officeHours && officeHours.length > 0) || (gateHours && gateHours.length > 0)) && (
               <div className="rfc-info-hours">
-                <ClockIcon className="rfc-info-cal" />
+                <ClockGlyph size={24} className="rfc-info-ico" />
                 <div>
                   {officeHours && officeHours.length > 0 && (
                     <p className="rfc-hours"><b>Office Hours</b>{officeHours.map((l) => <React.Fragment key={l}><br />{l}</React.Fragment>)}</p>

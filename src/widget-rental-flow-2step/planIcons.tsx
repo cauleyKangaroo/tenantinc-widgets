@@ -20,6 +20,78 @@ interface GlyphProps {
 }
 
 /**
+ * The confirmation details column (Figma 8754-50295) — map-pin, phone, calendar
+ * and clock, each traced from its export and placed by <g transform> at the
+ * Figma inset inside a 24px box.
+ *
+ * The first three are STROKED at 2 and take currentColor; the clock is a FILLED
+ * mdi glyph with an even-odd hole, so it takes currentColor as fill and no
+ * stroke. Driving them all from one set of attributes would either hollow the
+ * clock out or thicken the other three.
+ */
+function StrokeGlyph({
+  size = 24, className, tx, ty, children,
+}: GlyphProps & { tx: number; ty: number; children: React.ReactNode }) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g transform={`translate(${tx} ${ty})`}>{children}</g>
+    </svg>
+  );
+}
+
+/** map/map-pin — the facility address row. */
+export function MapPinGlyph(p: GlyphProps) {
+  return (
+    <StrokeGlyph {...p} tx={3.2119} ty={1.9992}>
+      <path d="M8.78947 11.7105C10.4027 11.7105 11.7105 10.4027 11.7105 8.78947C11.7105 7.17622 10.4027 5.86842 8.78947 5.86842C7.17622 5.86842 5.86842 7.17622 5.86842 8.78947C5.86842 10.4027 7.17622 11.7105 8.78947 11.7105Z" />
+      <path d="M8.78947 19.5C10.7368 19.5 16.5789 15.3889 16.5789 9.22222C16.5789 3.05556 11.7105 1 8.78947 1C5.86842 1 1 3.05556 1 9.22222C1 15.3889 6.84211 19.5 8.78947 19.5Z" />
+    </StrokeGlyph>
+  );
+}
+
+/** phone/phone-default — the facility number row. */
+export function PhoneGlyph(p: GlyphProps) {
+  return <StrokeGlyph {...p} tx={2.0169} ty={2.0001}><path d="M3.38871 10.974C2.15128 8.8771 1.33764 6.43265 1.01633 3.70916C0.875229 2.51324 1.61659 1.25378 2.87872 1.04738C3.27534 0.982522 3.76571 0.992323 4.16907 1.0287C5.8522 1.18052 6.54798 2.6661 6.91734 4.10804C7.4119 6.0387 6.80942 8.08519 5.34772 9.43969C4.74286 10.0002 4.04195 10.4721 3.38871 10.974ZM3.38871 10.974C4.70546 13.2053 6.50207 15.043 8.696 16.4047M8.696 16.4047C10.8601 17.7478 13.4108 18.6276 16.2688 18.965C17.4648 19.1062 18.7238 18.3643 18.9301 17.1022C19.0008 16.6693 18.9924 16.1714 18.9409 15.7362C18.7313 13.9658 17.0268 13.2968 15.5058 12.948C13.7726 12.5505 11.9547 13.0271 10.6393 14.2238C9.92523 14.8733 9.32796 15.6768 8.696 16.4047Z" /></StrokeGlyph>;
+}
+
+/** calendar/calendar-default — the move-in date row. */
+export function CalendarGlyph(p: GlyphProps) {
+  return <StrokeGlyph {...p} tx={1.9992} ty={0.9991}><path d="M6 1V3.12777M6 5V3.12777M14 1V3.12777M14 5V3.12777M6 3.12777C5.50219 3.19536 5.08538 3.29871 4.7039 3.45672C3.23373 4.06569 2.06569 5.23373 1.45672 6.7039C1.20333 7.31564 1.09052 8.01824 1.0403 9C1 9.78781 1 10.7554 1 12C1 14.7956 1 16.1935 1.45672 17.2961C2.06569 18.7663 3.23373 19.9343 4.7039 20.5433C5.80653 21 7.20435 21 10 21C12.7956 21 14.1935 21 15.2961 20.5433C16.7663 19.9343 17.9343 18.7663 18.5433 17.2961C19 16.1935 19 14.7956 19 12C19 10.7554 19 9.78781 18.9597 9M18.9597 9C18.9095 8.01824 18.7967 7.31564 18.5433 6.7039C17.9343 5.23373 16.7663 4.06569 15.2961 3.45672C14.9146 3.29871 14.4978 3.19536 14 3.12777M18.9597 9H1.0403M6 3.12777C6.94106 3 8.17157 3 10 3C11.8284 3 13.0589 3 14 3.12777" /></StrokeGlyph>;
+}
+
+/** Clock (mdiClockOutline) — the office/gate hours row. A 20px glyph centred in
+ *  the same 24px box the stroked three use, so the four rows line up. */
+export function ClockGlyph({ size = 24, className }: GlyphProps) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g transform="translate(2 2)">
+        <path fillRule="evenodd" clipRule="evenodd" d="M10 0C4.5 0 0 4.5 0 10C0 15.5 4.5 20 10 20C15.5 20 20 15.5 20 10C20 4.5 15.5 0 10 0ZM10 18C5.59 18 2 14.41 2 10C2 5.59 5.59 2 10 2C14.41 2 18 5.59 18 10C18 14.41 14.41 18 10 18ZM9 5H10.5V10.2L15 12.9L14.2 14.2L9 11V5Z" />
+      </g>
+    </svg>
+  );
+}
+
+/**
  * check/check-tick-circle (Figma 8507-24390) — the What's Next bullet.
  *
  * One exported vector inside a 28px box: the glyph itself is 21.35px, inset
