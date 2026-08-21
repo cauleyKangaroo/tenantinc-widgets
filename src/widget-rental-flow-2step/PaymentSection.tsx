@@ -258,6 +258,10 @@ export function CardForm({ total, onPay, busy }: {
   const cardRowValid = validCard(number) && validExpiry(expiry) && validCvv(cvv);
   const expError = expiryError(expiry);
   const [payAttempted, setPayAttempted] = useState(false);
+  /** A suggestion has been chosen, so the address parts below are real. */
+  const [addressPicked, setAddressPicked] = useState(false);
+  const showBillingParts = addressPicked || payAttempted
+    || filled(city) || filled(stateCode) || filled(zip);
   const complete = cardRowValid && filled(name) && filled(address) && filled(city)
     && stateCode.trim().length === 2 && zip.trim().length >= 3;
 
@@ -392,24 +396,37 @@ export function CardForm({ total, onPay, busy }: {
           if (place.address.stateCode) setStateCode(place.address.stateCode);
           if (place.address.zip) setZip(place.address.zip);
           if (place.address.country) setCountry(place.address.country);
+          setAddressPicked(true);
         }}
       >
         <FormField label="Billing Address" required type="search" value={address} onChange={setAddress} autoComplete="billing street-address" state={ok(filled(address))} />
       </AddressAutocomplete>
 
-      <div className="rf-pay-grid">
-        <FormField label="Billing City" required value={city} onChange={setCity} autoComplete="billing address-level2" state={ok(filled(city))} />
-        <FormField label="Billing State" required value={stateCode} onChange={(v) => setStateCode(v.toUpperCase().slice(0, 2))} autoComplete="billing address-level1" state={ok(stateCode.trim().length === 2)} />
-      </div>
+      {/* City, state, country and ZIP stay hidden until the address lookup
+          fills them — four empty boxes before an address is chosen are four
+          boxes nobody should have to type into.
 
-      <div className="rf-pay-grid">
-        <SelectField
-          label="Billing Country" required value={country} onChange={setCountry}
-          options={['United States', 'Canada']}
-          state={country ? 'success' : 'default'}
-        />
-        <FormField label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code" state={ok(zip.trim().length >= 3)} />
-      </div>
+          They also appear once anything is already in them (a browser autofill,
+          or a return to the panel), and on a pay attempt — they are REQUIRED,
+          so a shopper who never picks a suggestion must still be able to see
+          and complete them rather than meet a dead button. */}
+      {showBillingParts && (
+        <>
+          <div className="rf-pay-grid">
+            <FormField label="Billing City" required value={city} onChange={setCity} autoComplete="billing address-level2" state={ok(filled(city))} />
+            <FormField label="Billing State" required value={stateCode} onChange={(v) => setStateCode(v.toUpperCase().slice(0, 2))} autoComplete="billing address-level1" state={ok(stateCode.trim().length === 2)} />
+          </div>
+
+          <div className="rf-pay-grid">
+            <SelectField
+              label="Billing Country" required value={country} onChange={setCountry}
+              options={['United States', 'Canada']}
+              state={country ? 'success' : 'default'}
+            />
+            <FormField label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code" state={ok(zip.trim().length >= 3)} />
+          </div>
+        </>
+      )}
 
       {payAttempted && !complete && (
         <p className="rf-cardrow-msg" role="alert">Complete the card and billing details to pay.</p>

@@ -260,7 +260,11 @@ export function SuccessStep({ onGetAccess, chosen }: {
                 <FormField label="Phone" required type="tel" value={altPhone} onChange={setAltPhone} error={bad('altPhone')} />
                 <FormField label="Email" required type="email" value={altEmail} onChange={setAltEmail} error={bad('altEmail')} />
               </div>
-              <FormField label="Address" required type="search" value={altAddress} onChange={setAltAddress} error={bad('altAddress')} />
+              {/* Same lookup as the Business Address above it — this one was
+                  left as a plain field when the others were wired. */}
+              <AddressAutocomplete value={altAddress} onChange={setAltAddress}>
+                <FormField label="Address" required type="search" value={altAddress} onChange={setAltAddress} error={bad('altAddress')} />
+              </AddressAutocomplete>
             </div>
           )}
         </div>
