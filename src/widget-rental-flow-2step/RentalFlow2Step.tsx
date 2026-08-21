@@ -1596,6 +1596,7 @@ export function RentalFlow2Step({
                     last: c?.last ?? '',
                     email: c?.email ?? '',
                     phone: c?.phone ?? '',
+                    businessName: c?.businessName,
                     // The tenant's address is the billing address they just
                     // typed — the form asks for one address, not two.
                     address: info.card.address,
