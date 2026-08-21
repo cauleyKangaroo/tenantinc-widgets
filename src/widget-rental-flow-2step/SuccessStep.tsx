@@ -16,8 +16,8 @@
 // `IdIllustration` for the one asset that isn't.
 // ===========================================================================
 
-import { useState } from 'react';
-import { Checkbox, FormField } from '@shared/ui';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Checkbox, FormField, isPossiblePhone } from '@shared/ui';
 import { ChevronBig } from './planIcons';
 
 import idHandCard from './assets/id-g72.svg';
@@ -30,13 +30,16 @@ import idThumbB from './assets/id-p18.svg';
 import idPortrait from './assets/id-portrait.png';
 
 function Select({
-  label, value, onChange, options, required,
+  label, value, onChange, options, required, error,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: string[];
   required?: boolean;
+  /** Rendered by the FormField face below, so a select's message sits in the
+   *  same place and style as every other field's. */
+  error?: string;
 }) {
   return (
     <div className="rf-select">
@@ -48,7 +51,7 @@ function Select({
         </select>
       </label>
       <div className="rf-select-face" aria-hidden="true">
-        <FormField label={label} required={required} value={value} onChange={() => {}} />
+        <FormField label={label} required={required} value={value} onChange={() => {}} error={error} />
         <ChevronBig size={24} className="rf-select-chev" />
       </div>
     </div>
@@ -125,8 +128,71 @@ export function SuccessStep({ onGetAccess, initialSections }: {
   const [country, setCountry] = useState('');
   const [stateVal, setStateVal] = useState('');
 
+  /**
+   * Required fields, and only for the sections actually switched on — an
+   * unticked section is not an incomplete one. Messages appear on the first
+   * attempt to continue, not while typing: flagging a field the shopper has not
+   * reached yet is noise, and this form can be twenty inputs long.
+   */
+  const [attempted, setAttempted] = useState(false);
+  const filled = (v: string) => v.trim().length > 0;
+  const problems: Record<string, string> = {
+    ...(business ? {
+      bizAddress: filled(bizAddress) ? '' : 'Enter the business address',
+      repFirst: filled(repFirst) ? '' : 'Enter the business rep’s first name',
+      repLast: filled(repLast) ? '' : 'Enter the business rep’s last name',
+    } : {}),
+    // The mask is MM/DD/YYYY, so a complete date is exactly ten characters —
+    // "12/25/" is filled but not a date.
+    ...(military ? { dob: dob.length === 10 ? '' : 'Enter a valid date of birth' } : {}),
+    ...(altContact ? {
+      altFirst: filled(altFirst) ? '' : 'Enter the alternate contact’s first name',
+      altLast: filled(altLast) ? '' : 'Enter the alternate contact’s last name',
+      altPhone: isPossiblePhone(altPhone, 'US') ? '' : 'Enter a valid phone number',
+      altEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(altEmail.trim()) ? '' : 'Enter a valid email address',
+      altAddress: filled(altAddress) ? '' : 'Enter the alternate contact’s address',
+    } : {}),
+    // Vehicle Type alone carries the asterisk in the frame; make, model, year,
+    // colour, plate, country and state are all optional.
+    ...(vehicle ? { vType: filled(vType) ? '' : 'Select a vehicle type' } : {}),
+  };
+  const bad = (k: string) => (attempted && problems[k] ? problems[k] : undefined);
+
+  /**
+   * Bumped on every FAILED attempt, not just the first, so pressing Get Access
+   * again after fixing one field still takes you to the next one. A boolean
+   * would only ever fire once.
+   */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [failures, setFailures] = useState(0);
+  const submit = () => {
+    setAttempted(true);
+    if (Object.values(problems).some(Boolean)) { setFailures((n) => n + 1); return; }
+    onGetAccess?.();
+  };
+
+  /**
+   * Take the shopper to the topmost error. Without this the button appears dead
+   * whenever the first missing field is above the fold — the messages render,
+   * just nowhere they can see.
+   *
+   * A LAYOUT effect: it has to run after React has painted the error state,
+   * because the element being looked for does not exist until then.
+   * `querySelector` returns the first match in DOM order, which in a single
+   * column is the highest on the page. Centred rather than aligned to the top,
+   * so the sticky header cannot land on top of the field it just scrolled to.
+   */
+  useLayoutEffect(() => {
+    if (!failures) return;
+    const first = rootRef.current?.querySelector('.hb-field--error');
+    if (!first) return;
+    const reduce = typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    first.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+  }, [failures]);
+
   return (
-    <div className="rf-card rf-sx">
+    <div className="rf-card rf-sx" ref={rootRef}>
       {/* Step 2's own title elements, not a near-copy: .rf-eyebrow is 36px/600
           in the Duda primary, .rf-heading 36px/600 hardcoded black, both with
           Montserrat and the host-proofing specificity pinned in one place. The
@@ -162,10 +228,10 @@ export function SuccessStep({ onGetAccess, initialSections }: {
           <Checkbox checked={business} onChange={setBusiness}>I am renting as a business</Checkbox>
           {business && (
             <div className="rf-sx-fields">
-              <FormField label="Business Address" required type="search" value={bizAddress} onChange={setBizAddress} />
+              <FormField label="Business Address" required type="search" value={bizAddress} onChange={setBizAddress} error={bad('bizAddress')} />
               <div className="rf-pay-grid">
-                <FormField label="Business Rep First Name" required value={repFirst} onChange={setRepFirst} />
-                <FormField label="Business Rep Last Name" required value={repLast} onChange={setRepLast} />
+                <FormField label="Business Rep First Name" required value={repFirst} onChange={setRepFirst} error={bad('repFirst')} />
+                <FormField label="Business Rep Last Name" required value={repLast} onChange={setRepLast} error={bad('repLast')} />
               </div>
             </div>
           )}
@@ -177,7 +243,7 @@ export function SuccessStep({ onGetAccess, initialSections }: {
             <div className="rf-sx-fields">
               {/* Typed mask, not a picker: scrolling a calendar back decades to a
                   birth year is slower than typing it. */}
-              <FormField label="Date of Birth" required mask="date" value={dob} onChange={setDob} />
+              <FormField label="Date of Birth" required mask="date" value={dob} onChange={setDob} error={bad('dob')} />
             </div>
           )}
         </div>
@@ -187,12 +253,12 @@ export function SuccessStep({ onGetAccess, initialSections }: {
           {altContact && (
             <div className="rf-sx-fields">
               <div className="rf-pay-grid">
-                <FormField label="First Name" required value={altFirst} onChange={setAltFirst} />
-                <FormField label="Last Name" required value={altLast} onChange={setAltLast} />
-                <FormField label="Phone" required type="tel" value={altPhone} onChange={setAltPhone} />
-                <FormField label="Email" required type="email" value={altEmail} onChange={setAltEmail} />
+                <FormField label="First Name" required value={altFirst} onChange={setAltFirst} error={bad('altFirst')} />
+                <FormField label="Last Name" required value={altLast} onChange={setAltLast} error={bad('altLast')} />
+                <FormField label="Phone" required type="tel" value={altPhone} onChange={setAltPhone} error={bad('altPhone')} />
+                <FormField label="Email" required type="email" value={altEmail} onChange={setAltEmail} error={bad('altEmail')} />
               </div>
-              <FormField label="Address" required type="search" value={altAddress} onChange={setAltAddress} />
+              <FormField label="Address" required type="search" value={altAddress} onChange={setAltAddress} error={bad('altAddress')} />
             </div>
           )}
         </div>
@@ -204,6 +270,7 @@ export function SuccessStep({ onGetAccess, initialSections }: {
               <Select
                 label="Vehicle Type" required value={vType} onChange={setVType}
                 options={['Car', 'Motorcycle', 'RV', 'Boat', 'Trailer']}
+                error={bad('vType')}
               />
               <div className="rf-pay-grid">
                 {/* Make/Model/Year/Colour/Plate are NOT required in the frame —
@@ -222,7 +289,7 @@ export function SuccessStep({ onGetAccess, initialSections }: {
         </div>
       </section>
 
-      <button type="button" className="rf-sx-access" onClick={onGetAccess}>Get Access</button>
+      <button type="button" className="rf-sx-access" onClick={submit}>Get Access</button>
     </div>
   );
 }
