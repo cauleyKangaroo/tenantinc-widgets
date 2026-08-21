@@ -242,6 +242,25 @@ export function PropertyInfo(props: Props) {
   // Google rating average + total from the `GoogleReviews` collection; the
   // rating/reviewCount props stay as the fallback.
   const [googleRating, setGoogleRating] = useState<{ score: number; count: number } | null>(null);
+  // Held by the MAIN skeleton, not a per-section one like the gallery below.
+  //
+  // The gallery waits on the property (it needs an id), so it outlives the main
+  // gate and gets its own placeholder. This read does not: it takes no property
+  // id and starts on mount, in parallel with the property fetch — so it belongs
+  // to the same first wave, and the widget can simply wait for both.
+  //
+  // Without it the skeleton cleared on the property alone and the card painted
+  // DEFAULTS.rating / DEFAULTS.reviewCount — an invented "4.5 (32 Reviews)" —
+  // before the real figures swapped in, in all three layouts. Inventing a rating
+  // is worse than inventing a name: a shopper may act on it.
+  //
+  // It cannot strand the skeleton: fetchReviewSource returns immediately when
+  // there is no dmAPI (the Duda editor and the dev harness), and its failures are
+  // caught below.
+  //
+  // Deps stay [] on purpose. The rating is site-wide, not per-property, so a
+  // binding change re-runs the property effect only and this stays settled.
+  const [ratingLoading, setRatingLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -251,7 +270,8 @@ export function PropertyInfo(props: Props) {
           setGoogleRating({ score: src.score, count: src.count });
         }
       })
-      .catch((err) => console.error('[PropertyInfo] GoogleReviews read error:', err));
+      .catch((err) => console.error('[PropertyInfo] GoogleReviews read error:', err))
+      .finally(() => { if (!cancelled) setRatingLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -836,10 +856,12 @@ export function PropertyInfo(props: Props) {
     </div>
   );
 
-  // Hold everything behind a skeleton until the property fetch settles. Covering
-  // the whole widget (rather than just the API-driven text) keeps it to one
-  // coherent loading state and guarantees nothing is painted then replaced.
-  if (loading) {
+  // Hold everything behind a skeleton until BOTH first-wave reads settle — the
+  // property and the Google rating. Covering the whole widget (rather than just
+  // the API-driven text) keeps it to one coherent loading state and guarantees
+  // nothing is painted then replaced. The gallery is the exception and waits
+  // separately, because it cannot start until the property gives it an id.
+  if (loading || ratingLoading) {
     return (
       <div className="pi-wrapper">
         <PropertySkeleton />
