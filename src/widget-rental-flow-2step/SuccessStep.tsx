@@ -105,6 +105,16 @@ export interface SuccessDetails {
   mailingAddress?: { address: string; city?: string; state?: string; zip?: string };
 }
 
+/**
+ * Furthest expiry the picker offers. Licences run up to ~8 years in most US
+ * states; twenty is generous without listing a century of irrelevant years.
+ */
+const LICENCE_MAX_EXPIRY = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 20);
+  return d;
+})();
+
 /** MM/DD/YYYY — the shape updateContactDetails converts to the API's date. */
 const formatMasked = (d: Date): string => {
   const p = (n: number) => String(n).padStart(2, '0');
@@ -324,17 +334,34 @@ export function SuccessStep({ onGetAccess, chosen }: {
         <div className="rf-sx-fields">
           <FormField label="Driver's Licence Number" value={dlNumber} onChange={setDlNumber} autoComplete="off" state={dlNumber.trim() ? 'success' : 'default'} />
           <div className="rf-pay-grid">
-            {/* A picker, not a typed mask. An expiry is a date the shopper is
-                reading off a card in front of them, and it is always in the
-                FUTURE — so the calendar opens on today and browses forward,
-                which is fewer taps than typing eight digits. */}
-            <button type="button" className="rf2-movein rf2-movein--valid" onClick={() => setDlExpOpen(true)}>
-              <span className="rf2-movein-text">
-                <span className="rf2-movein-label">Expiry Date</span>
-                <span className="rf2-movein-value">{dlExp || 'Select a date'}</span>
-              </span>
-              <CalendarIcon size={24} className="rf2-movein-cal" />
-            </button>
+            {/* A picker, not a typed mask: an expiry is read off a card and is
+                always in the FUTURE, so browsing beats typing eight digits.
+
+                Built on .rf-select — the same presentational-twin trick the
+                dropdowns use — rather than step 2's .rf2-movein row. That row
+                is a full-width control with its own height and a hardcoded
+                green border; dropped into this half-width grid cell it came out
+                shorter than the field beside it, wrapped "Select a date" onto
+                two lines, and showed a valid border with nothing chosen. This
+                way the box IS a FormField, so height, radius, border and the
+                floating label cannot drift from its neighbour. */}
+            <div className="rf-select">
+              <button
+                type="button"
+                className="rf-select-native rf-datebtn"
+                onClick={() => setDlExpOpen(true)}
+                aria-label={dlExp ? `Licence expiry date, ${dlExp}. Change` : 'Select licence expiry date'}
+              />
+              <div className="rf-select-face" aria-hidden="true">
+                <FormField
+                  label="Expiry Date"
+                  value={dlExp}
+                  onChange={() => {}}
+                  className={dlExp ? 'rf-valid' : undefined}
+                />
+                <CalendarIcon size={24} className="rf-select-chev rf-select-ico--plain" />
+              </div>
+            </div>
             <FormField label="Issuing State" value={dlState} onChange={(v) => setDlState(v.toUpperCase().slice(0, 2))} state={dlState.trim().length === 2 ? 'success' : 'default'} />
           </div>
         </div>
@@ -352,11 +379,16 @@ export function SuccessStep({ onGetAccess, chosen }: {
         onReset={() => { setDlExpDate(null); setDlExp(''); setDlExpOpen(false); }}
         title="Licence Expiry Date"
         ctaLabel="Confirm"
-        // Browse mode: an expiry can be years out, so month-and-year jumping
-        // beats stepping. Nothing before today — a licence that has already
-        // expired is not one to file.
+        // Browse mode: an expiry is years out, so month-and-year jumping beats
+        // stepping. Both bounds are required, not just the floor: the year list
+        // is built BACKWARDS from maxDate down to minDate, so passing only
+        // minDate=today made last === first and offered a single year.
+        //
+        // Floor is today (an expired licence is not one to file); ceiling is
+        // twenty years out, which covers every issuing state's term.
         browse
         minDate={new Date()}
+        maxDate={LICENCE_MAX_EXPIRY}
       />
 
       <section className="rf-sx-extra">
