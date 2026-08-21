@@ -707,6 +707,11 @@ export function RentalFlow2Step({
   // The contact the LEASE was created with. Step 2 seeds from step 1 but is
   // editable, so this can differ from `contact` — and the confirmation has to
   // show what was actually filed, not what was typed a screen earlier.
+  // Which optional sections the shopper ticked in step 2, carried to the
+  // post-purchase screen so it opens them already ticked.
+  const [chosenSections, setChosenSections] = useState<
+    { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean } | undefined
+  >(undefined);
   const [rentedContact, setRentedContact] = useState<
     { first: string; last: string; email: string; phone: string } | undefined
   >(undefined);
@@ -1328,7 +1333,7 @@ export function RentalFlow2Step({
           </div>
         ) : (
           <div className="rfc-layout">
-            <SuccessStep onGetAccess={() => setAccessGranted(true)} />
+            <SuccessStep onGetAccess={() => setAccessGranted(true)} chosen={chosenSections} />
             {!isMobile && railFor(true)}
           </div>
         )}
@@ -1460,6 +1465,7 @@ export function RentalFlow2Step({
                     console.log(`${logTag} rental complete — lease ${res.leaseId}`);
                     setRental(res);
                     if (info.contact) setRentedContact(info.contact);
+                    if (info.extras) setChosenSections(info.extras);
                     // The unit is LEASED now, so the hold is spent: forget it so
                     // the countdown stops and unmount does not try to release a
                     // hold that no longer exists.
@@ -1480,6 +1486,7 @@ export function RentalFlow2Step({
               // charge, so this is the harness/preview path: show the
               // finalizing beat and hand to the post-purchase screen.
               setFinalizing(info);
+              if (info.extras) setChosenSections(info.extras);
               // The pick has been acted on — drop it so returning to /rental
               // later starts clean instead of silently re-selecting it.
               clearUnitSelection();

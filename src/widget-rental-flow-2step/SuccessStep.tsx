@@ -89,11 +89,18 @@ function IdIllustration() {
   );
 }
 
-export function SuccessStep({ onGetAccess }: { onGetAccess?: () => void }) {
-  const [business, setBusiness] = useState(false);
-  const [military, setMilitary] = useState(false);
-  const [altContact, setAltContact] = useState(false);
-  const [vehicle, setVehicle] = useState(false);
+export function SuccessStep({ onGetAccess, chosen }: {
+  onGetAccess?: () => void;
+  /** What the shopper ticked back in step 2. Those screens ask the QUESTION;
+   *  this one asks for the details, so it opens the same sections already
+   *  ticked rather than making them answer twice. */
+  chosen?: { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean };
+}) {
+  // Initialisers, not synced props: the boxes stay the shopper's to change here.
+  const [business, setBusiness] = useState(chosen?.business ?? false);
+  const [military, setMilitary] = useState(chosen?.military ?? false);
+  const [altContact, setAltContact] = useState(chosen?.altContact ?? false);
+  const [vehicle, setVehicle] = useState(chosen?.vehicle ?? false);
 
   // Business
   const [bizAddress, setBizAddress] = useState('');
