@@ -995,94 +995,97 @@ export function RentalFlow2Step({
     fetchProtectionPlans(ctx)
       .then((list) => { if (!cancelled) setPlans(list); })
       .catch((err) => console.error(`${logTag} fetchProtectionPlans error:`, err));
-    fetchSpaceGroups(ctx)
-      .then((raw) => {
-        if (cancelled) return;
-        if (unitIdProp || unitGroupIdProp || sizeProp) {
-          const sel = extractSelectionContext(raw, unitGroupIdProp, sizeProp);
-          // Prefer the richer /offers selection (amenities, real promo rate) —
-          // the same data the value-tiers card uses. Set the rail's selection
-          // ONCE, from offers when available, so it never flashes the thin
-          // space-groups price before the promo rate loads.
-          // Held so the `.finally(settle)` below can await it — see the return
-          // at the end of this callback.
-          let selectionDone: Promise<unknown> = Promise.resolve();
-          if (unitGroupIdProp) {
-            selectionDone = fetchSelectionFromOffers(
-              ctx,
-              unitGroupIdProp,
-              { tier: tierProp, unitId: unitIdProp, size: sizeProp },
-              { fresh: loadAttempt > 0 },
-            )
-              .then((result) => {
-                if (cancelled) return;
-                if (result.status === 'matched') {
-                  setSelection(result.selection);
-                  setSelectionStatus('matched');
-                } else {
-                  setSelection(undefined);
-                  setSelectionStatus(result.status);
-                }
-              })
-              .catch((err) => {
-                console.warn(`${logTag} offers selection unavailable:`, err);
-                if (cancelled) return;
-                // Legacy data may keep the rail informative, but it carries no
-                // unit identity and therefore can never authorize Rent/Reserve.
-                setSelection(sel ?? undefined);
-                setSelectionStatus('network-error');
-              });
-          } else if (sel) {
-            setSelection(sel);
-            setSelectionStatus('legacy-display');
-          } else {
-            setSelectionStatus('unit-unavailable');
-          }
-          const resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string } | undefined> = unitIdProp
-            // Handoff gives only a unitId; resolve its number so the rail and the
-            // confirmation can show "Space #…" (the reserve response omits it),
-            // plus its space type to narrow the protection plans.
-            ? fetchUnitInfo(ctx, unitIdProp).then((info) => ({ id: unitIdProp, ...info }))
-            : sel
-              ? findUnitForSelection(ctx, sel.size, sel.price)
-              // No offer matched, but a stored pick still names a size and a
-              // price — enough to find the unit behind the clicked tier.
-              : stored?.size
-                ? findUnitForSelection(ctx, stored.size, stored.price)
-                : Promise.resolve(undefined);
-          const quoteDone = resolveUnit
-            .then((unit) => {
-              if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
-              return unit ? fetchMoveInQuote(ctx, unit) : undefined;
-            })
-            .then((q) => {
-              if (cancelled) return;
-              if (q) setQuote(q);
-              else setQuoteFailed(true);
-            })
-            .catch((err) => {
-              console.warn(`${logTag} move-in quote unavailable — rail shows the technical-difficulty note:`, err);
-              if (!cancelled) setQuoteFailed(true);
-            });
-          if (!sel && !unitIdProp) console.warn(`${logTag} handoff selection not found in live data`, { tierProp, sizeProp, unitGroupIdProp });
+    // Selection + unit + quote. On a fully authoritative handoff (property,
+    // company, group and unit all known) these reads need only those ids — never
+    // the broad space-groups lookup — so skip it: it otherwise sits as a serial
+    // round-trip in front of the price. Legacy/incomplete handoffs resolve the
+    // selection and unit via space-groups as before.
+    const authoritative = !!(unitIdProp && unitGroupIdProp && effectivePropertyId && effectiveCompanyId);
 
-          // RETURNED, so `.finally(settle)` waits for the selection and the quote
-          // rather than firing the moment this callback exits.
-          //
-          // These two used to be started and forgotten: the outer promise settled
-          // immediately, `loading` went false, and step 1 painted with `quote`
-          // still undefined. OrderRail renders a one-line note without a quote and
-          // a full breakdown (lines, tax, total) with one, so the rail snapped
-          // taller a beat later. Same defect as #07/#08 — the skeleton was gating
-          // only the first wave of fetches.
-          //
-          // Both branches already swallow their own failures, so awaiting them can
-          // only delay the skeleton, never leave it stuck on a rejection.
-          return Promise.all([selectionDone, quoteDone]);
+    // Quote pipeline: resolve the unit (its type narrows the plans), then price it.
+    const runQuote = (
+      resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string } | undefined>,
+    ): Promise<void> => resolveUnit
+      .then((unit) => {
+        if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
+        return unit ? fetchMoveInQuote(ctx, unit) : undefined;
+      })
+      .then((q) => {
+        if (cancelled) return;
+        if (q) setQuote(q);
+        else setQuoteFailed(true);
+      })
+      .catch((err) => {
+        console.warn(`${logTag} move-in quote unavailable — rail shows the technical-difficulty note:`, err);
+        if (!cancelled) setQuoteFailed(true);
+      });
+
+    // Selection from /offers (richer than space-groups). `fallback` is the
+    // space-groups selection, used ONLY on a technical failure of the offers read
+    // for display — it carries no unit identity and never authorizes a transaction.
+    const runOffers = (fallback?: SelectionContext): Promise<void> => fetchSelectionFromOffers(
+      ctx,
+      unitGroupIdProp as string,
+      { tier: tierProp, unitId: unitIdProp, size: sizeProp },
+      { fresh: loadAttempt > 0 },
+    )
+      .then((result) => {
+        if (cancelled) return;
+        if (result.status === 'matched') {
+          setSelection(result.selection);
+          setSelectionStatus('matched');
+        } else {
+          setSelection(undefined);
+          setSelectionStatus(result.status);
         }
       })
-      .catch((err) => console.error(`${logTag} fetchSpaceGroups error:`, err))
-      .finally(settle);
+      .catch((err) => {
+        console.warn(`${logTag} offers selection unavailable:`, err);
+        if (cancelled) return;
+        setSelection(fallback ?? undefined);
+        setSelectionStatus('network-error');
+      });
+
+    if (authoritative) {
+      // FAST PATH — offers + unit-info + quote start immediately; no space-groups
+      // round-trip in front of the price. No display fallback: a technical offers
+      // failure shows the retry/unavailable state with the buttons disabled.
+      const selectionDone = runOffers();
+      const quoteDone = runQuote(
+        fetchUnitInfo(ctx, unitIdProp).then((info) => ({ id: unitIdProp, ...info })),
+      );
+      Promise.all([selectionDone, quoteDone]).finally(settle);
+    } else {
+      // LEGACY / INCOMPLETE HANDOFF — space-groups resolves the selection and unit.
+      fetchSpaceGroups(ctx)
+        .then((raw) => {
+          if (cancelled) return;
+          if (unitIdProp || unitGroupIdProp || sizeProp) {
+            const sel = extractSelectionContext(raw, unitGroupIdProp, sizeProp);
+            let selectionDone: Promise<unknown> = Promise.resolve();
+            if (unitGroupIdProp) {
+              selectionDone = runOffers(sel);
+            } else if (sel) {
+              setSelection(sel);
+              setSelectionStatus('legacy-display');
+            } else {
+              setSelectionStatus('unit-unavailable');
+            }
+            const resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string } | undefined> = unitIdProp
+              ? fetchUnitInfo(ctx, unitIdProp).then((info) => ({ id: unitIdProp, ...info }))
+              : sel
+                ? findUnitForSelection(ctx, sel.size, sel.price)
+                : stored?.size
+                  ? findUnitForSelection(ctx, stored.size, stored.price)
+                  : Promise.resolve(undefined);
+            const quoteDone = runQuote(resolveUnit);
+            if (!sel && !unitIdProp) console.warn(`${logTag} handoff selection not found in live data`, { tierProp, sizeProp, unitGroupIdProp });
+            return Promise.all([selectionDone, quoteDone]);
+          }
+        })
+        .catch((err) => console.error(`${logTag} fetchSpaceGroups error:`, err))
+        .finally(settle);
+    }
     fetchLeaseDocument(ctx)
       .then((doc) => { if (!cancelled) setLeaseDoc(doc); })
       .catch((err) => console.error(`${logTag} fetchLeaseDocument error:`, err));
