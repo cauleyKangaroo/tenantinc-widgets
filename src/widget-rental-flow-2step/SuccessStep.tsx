@@ -2,18 +2,23 @@
 // "You've got your space! Finish up below for access" — the post-purchase screen.
 // Figma: Mariposa — Duda, node 8507-25408.
 //
-// Two parts: an ID Verification card, then Additional Information whose field
-// groups are each revealed by their own checkbox. In the Figma frame every
-// checkbox is ticked so all groups show at once; here they start UNTICKED and
-// reveal on demand, because that is what the checkbox is for — showing 20 fields
-// to someone storing nothing but boxes would be a worse screen than the design.
+// Additional Information, whose field groups are each revealed by their own
+// checkbox. In the Figma frame every checkbox is ticked so all groups show at
+// once; here they start from what the shopper chose on step 2, because that is
+// what the checkbox is for — showing 20 fields to someone storing nothing but
+// boxes would be a worse screen than the design.
 //
 // Fields are `@shared/ui` FormField — the frame is built from the same
 // "Mariposa Form 2.0" component the kit was traced from.
 //
-// STATIC, as briefed: nothing is submitted, and "Get Access" / "Verify ID Now"
-// are inert. The ID illustration's line art is bundled; see the note on
-// `IdIllustration` for the one asset that isn't.
+// The frame's ID VERIFICATION card was removed on request (2026-08-21). It had
+// nothing behind it: the rental API has no verification endpoint, only
+// driver_license fields on the contact, so "Verify ID Now" could never have
+// done anything. Its line-art illustration went with it — eight inlined assets
+// that cost real bundle weight for a card nobody can use. Both are one revert
+// away in git if it comes back.
+//
+// STATIC, as briefed: nothing on this screen is submitted.
 // ===========================================================================
 
 import { useLayoutEffect, useRef, useState } from 'react';
@@ -21,14 +26,6 @@ import { Checkbox, FormField, isPossiblePhone } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { ChevronBig } from './planIcons';
 
-import idHandCard from './assets/id-g72.svg';
-import idCardFace from './assets/id-g105.svg';
-import idPhoneA from './assets/id-g28.svg';
-import idPhoneB from './assets/id-g27.svg';
-import idScreen from './assets/id-rect.svg';
-import idThumbA from './assets/id-p19.svg';
-import idThumbB from './assets/id-p18.svg';
-import idPortrait from './assets/id-portrait.png';
 
 function Select({
   label, value, onChange, options, required, error,
@@ -59,39 +56,6 @@ function Select({
   );
 }
 
-/**
- * The hand-holding-phone-and-ID line drawing from the ID Verification card.
- *
- * The exported layers, positioned at the coordinates Figma 10078-25475 gives
- * them. Every layer is a percentage of the 292.25 × 119.43 artboard those
- * coordinates live in, so the whole thing scales with the card.
- *
- * The licence photo IS included now. Figma exports it at 920×589 (1 MB) for
- * something that renders ~60×38, and webpack inlines images as base64
- * (`asset/inline`), so the export is resampled to 180×115 — 3× the display size,
- * enough for retina — which costs ~57 KB instead of ~1.35 MB inlined.
- */
-function IdIllustration() {
-  return (
-    <div className="rf-sx-illus" aria-hidden="true">
-      {/* Painter's order, exactly as the frame stacks them. Right hand and its
-          ID card first: hand, white card, licence photo, keyline, fingers. */}
-      <img className="rf-sx-illus-l rf-sx-illus-handcard" src={idHandCard} alt="" />
-      <span className="rf-sx-illus-l rf-sx-illus-cardbg" />
-      <img className="rf-sx-illus-l rf-sx-illus-portrait" src={idPortrait} alt="" />
-      <span className="rf-sx-illus-l rf-sx-illus-cardline" />
-      <img className="rf-sx-illus-l rf-sx-illus-cardface" src={idCardFace} alt="" />
-
-      {/* Then the left hand and its phone. */}
-      <img className="rf-sx-illus-l rf-sx-illus-phoneA" src={idPhoneA} alt="" />
-      <span className="rf-sx-illus-l rf-sx-illus-glint" />
-      <img className="rf-sx-illus-l rf-sx-illus-phoneB" src={idPhoneB} alt="" />
-      <img className="rf-sx-illus-l rf-sx-illus-screen" src={idScreen} alt="" />
-      <img className="rf-sx-illus-l rf-sx-illus-thumbA" src={idThumbA} alt="" />
-      <img className="rf-sx-illus-l rf-sx-illus-thumbB" src={idThumbB} alt="" />
-    </div>
-  );
-}
 
 export function SuccessStep({ onGetAccess, chosen }: {
   onGetAccess?: () => void;
@@ -201,22 +165,6 @@ export function SuccessStep({ onGetAccess, chosen }: {
         <p className="rf-eyebrow">You&rsquo;ve got your space!</p>
         <h2 className="rf-heading">Finish up below for access</h2>
       </div>
-
-      <section className="rf-sx-idv">
-        <h3 className="rf-sx-idv-title">ID Verification</h3>
-        <div className="rf-sx-idv-body">
-          <IdIllustration />
-          <div className="rf-sx-idv-actions">
-            <button type="button" className="rf-sx-btn rf-sx-btn--solid">Verify ID Now</button>
-            <button type="button" className="rf-sx-btn rf-sx-btn--outline">Verify In-Store</button>
-          </div>
-        </div>
-        <p className="rf-sx-idv-note">
-          Get ready to take a photo of your ID and a Selfie.{' '}
-          <a href="#pop-ups" onClick={(e) => e.preventDefault()}>Click here to see how to enable pop-ups</a>{' '}
-          if the link you received did not open the the ID Verification tool.
-        </p>
-      </section>
 
       <section className="rf-sx-extra">
         <h3 className="rf-sx-extra-title">Additional Information</h3>
