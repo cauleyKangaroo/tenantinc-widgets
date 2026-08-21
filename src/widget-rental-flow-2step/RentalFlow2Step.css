@@ -163,9 +163,35 @@
 /* --color_1 is Duda's PRIMARY; #509e2f is only the unthemed fallback, which is
    what the frame happens to render. Line-height is the frame's literal 20px —
    tighter than the 36px glyphs, which is how the frame trims to cap height. */
-.rf-wrapper .rf-eyebrow { margin: 0; font-family: 'Montserrat', sans-serif; font-size: 36px; font-weight: 600; line-height: 20px; letter-spacing: normal; text-transform: none; color: var(--color_1, #509e2f); }
+/* Both title lines are ONE size and ONE weight — 36px/700 here, 24px/700 on
+   mobile — and every property a Duda theme touches is !important. These are a
+   <p> and an <h2>, and the theme styles both from id-scoped selectors that
+   outrank any class of ours; the same fight #02 and #05 already document.
+   The frame had the eyebrow at 600 against the heading's 700 on mobile; both
+   are 700 now, as asked, so the pair reads as one heading in two colours.
+   Line heights still differ (the eyebrow's box is deliberately tight) — that is
+   not size or weight, and it is what keeps the two lines close together. */
+.rf-wrapper .rf-eyebrow {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 36px !important;
+  font-weight: 700 !important;
+  line-height: 20px !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  color: var(--color_1, #509e2f) !important;
+}
 /* Hardcoded #101318, per the frame — this line never follows the site theme. */
-.rf-wrapper .rf-heading { margin: 0; font-family: 'Montserrat', sans-serif; font-size: 36px; font-weight: 600; line-height: 38px; letter-spacing: normal; text-transform: none; color: #101318; }
+.rf-wrapper .rf-heading {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 36px !important;
+  font-weight: 700 !important;
+  line-height: 38px !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  color: #101318 !important;
+}
 
 /* ── "Renting as a business" checkbox ──────────────────────────────────── */
 /* Layout only. The box's own skin comes from .rf-check (see RfCheckbox).
@@ -271,8 +297,12 @@
      .rf-wrapper-qualified to match the base rules' (0,2,0); these win on source
      order, being later in the file. */
   .rf-title { gap: 6px; }
-  .rf-wrapper .rf-eyebrow { font-size: 24px; line-height: 16px; }
-  .rf-wrapper .rf-heading { font-size: 24px; font-weight: 700; line-height: 27px; }
+  /* !important here too: equal specificity to the base guards above, so these
+     win on source order only if they are guarded as well. Weight is inherited
+     from the base — both are 700 at every width, so restating it would be a
+     second place to keep in step. */
+  .rf-wrapper .rf-eyebrow { font-size: 24px !important; line-height: 16px !important; }
+  .rf-wrapper .rf-heading { font-size: 24px !important; line-height: 27px !important; }
   .rf-row { flex-direction: column; }
   .rf-actions { max-width: none; }
 }
@@ -1657,6 +1687,10 @@
    !important as asked, and warranted: these render inside a Duda page whose
    theme sizes text from id-scoped selectors that outrank any class of ours. */
 .rf-wrapper .hb-money-row:not(.hb-money-total) { font-size: 14px !important; }
+
+/* 6px between the line items, down from the component's 10px. Scoped for the
+   same reason as the size above: .hb-money is shared with #14. */
+.rf-wrapper .hb-money { gap: 6px; }
 
 /* --- Mobile: sticky top cost bar + drop-down rail sheet ------------------ */
 .rfm-top { position: sticky; top: 0; z-index: 50; }

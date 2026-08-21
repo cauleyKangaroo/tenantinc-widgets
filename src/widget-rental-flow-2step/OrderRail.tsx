@@ -97,10 +97,14 @@ export function OrderRail({
       <div className="ts-card-breakdown">
         {quote ? (
           <>
+            {/* No unitNumber: MoneyBreakdown renders it as a "Unit #be23fl" row,
+                which repeats what the card's own header already says and shows
+                the raw id rather than the space number. Dropped at the call
+                site rather than in the component — #14 passes it too and keeps
+                the row. */}
             <MoneyBreakdown
               totalDue={quote.totalDue}
               totalTax={quote.totalTax}
-              unitNumber={quote.unitNumber}
               lines={quote.lines}
               showTotal={false}
             />
