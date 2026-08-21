@@ -5,8 +5,12 @@
    =========================================================================== */
 @import './tokens.css';
 
+/* Portalled to <body> like the rental flow's overlays, so it inherits nothing
+   from the widget that opened it — including the font. See the note on
+   .rf-overlay in #99's screens.css. */
 .hb-datemodal-overlay {
   position: fixed;
+  font-family: var(--hb-font, 'Montserrat', sans-serif);
   inset: 0;
   z-index: 9999;
   display: flex;

@@ -363,6 +363,10 @@ export interface SelectionContext {
   offerToken?: string;
   /** `space_mix_id` from the offer — required verbatim by documents/finalize. */
   spaceMixId?: string;
+  /** The unit's display number, e.g. "0004" — the rail's "#0004 | 8' x 12'".
+   *  It rides on the offer at `costs.Unit.number`, so it is known as soon as
+   *  the tier resolves, before any hold or quote. */
+  unitNumber?: string;
 }
 
 /** "10' x 10'" / "10x10" → "10x10" for comparisons. */
@@ -442,7 +446,7 @@ interface SelOffer {
   unit_id?: string; price?: number;
   value_tier?: { type?: string };
   promotions?: Array<{ id?: string; name?: string }>;
-  costs?: { Discounts?: OfferDiscount[] };
+  costs?: { Discounts?: OfferDiscount[]; Unit?: { number?: string } };
   amenities?: OfferAmenity[];
   dossier?: { token?: string };
   space_mix_id?: string;
@@ -495,6 +499,7 @@ export async function fetchSelectionFromOffers(
     promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
     offerToken: pick.dossier?.token,
     spaceMixId: pick.space_mix_id,
+    unitNumber: pick.costs?.Unit?.number,
   };
 }
 
@@ -1109,6 +1114,10 @@ export interface RentContact extends RentAddress {
   last: string;
   email: string;
   phone: string;
+  /** Trading name when renting as a business. Sent as `company` — the contact
+   *  record's own field for it — so Hummingbird stores the business rather than
+   *  only the first/last the name was split into. */
+  businessName?: string;
 }
 
 export interface CardPayment extends RentAddress {
@@ -1226,6 +1235,15 @@ function rentContacts(c: RentContact, extras?: RentalExtras): unknown[] {
       type: 'primary',
     }],
   };
+
+  // Renting as a business: the trading name belongs in `company`, with
+  // `rent_as_business` marking the contact. Both are real fields on the contact
+  // record and both persist (verified 2026-08-21) — without them the business
+  // survives only as the first/last its name was split into.
+  if (c.businessName) {
+    contact.company = c.businessName;
+    contact.rent_as_business = 1;
+  }
 
   // Military. The guide's Military object has ten fields; the form asks only for
   // a date of birth, so only that is sent. active_military is the flag the guide

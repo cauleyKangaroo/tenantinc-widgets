@@ -76,9 +76,19 @@ interface ApiAmenity {
   image?: string;  // full image URL
 }
 
+/** As #03 types it: "" when unset, so every read has to guard the object case. */
+interface ApiAddress {
+  address?: string;
+  address2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+}
+
 interface ApiProperty {
   id: string;
   name?: string;
+  Address?: ApiAddress | '';
   utc_offset?: string;      // IANA tz, e.g. "America/Los_Angeles"
   Phones?: ApiPhone[] | '';
   Faq?: ApiFaq[] | '';
@@ -101,6 +111,9 @@ interface ApiResponse {
 export interface PropertyExtras {
   /** Property display name, e.g. "Storelocal Dove Mountain". */
   name: string;
+  /** One-line postal address, for the "Send us a Message" modal. Composed the
+   *  same way #03 does it, so the two widgets print the same string. */
+  address: string;
   phones: { number: string; note?: string }[];
   socials: { platform: string; url: string }[];
   faqs: { question: string; answer: string }[];
@@ -257,5 +270,10 @@ export function extractPropertyExtras(raw: unknown, propertyId: string = PROPERT
         .map((a) => ({ name: a.name!, label: amenityLabel(a.name!), image: a.image! }))
     : [];
 
-  return { name: prop.name ?? '', phones, socials, faqs, hours, schedule, scheduleSections, amenities };
+  const addr = prop.Address && typeof prop.Address === 'object' ? prop.Address : null;
+  const address = addr
+    ? `${[addr.address, addr.address2].filter(Boolean).join(' ')}, ${addr.city}, ${addr.state} ${addr.zip}`.trim()
+    : '';
+
+  return { name: prop.name ?? '', address, phones, socials, faqs, hours, schedule, scheduleSections, amenities };
 }
