@@ -1397,6 +1397,10 @@ export function RentalFlow2Step({
   const railSelection = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
   const railQuote = quote ?? (previewContent ? PREVIEW_QUOTE : undefined);
 
+  const realUnitNumber = rental?.unitNumber ?? hold?.unitNumber
+    ?? railQuote?.unitNumber ?? railSelection?.unitNumber;
+  const unitNumberLabel = realUnitNumber ? `#${realUnitNumber}` : undefined;
+
   // ONE aside for the whole flow. Steps 1, 2 and 3 show the same order — the
   // same property, space and money — so they render the same element rather
   // than three OrderRails that can drift apart. The post-purchase variant only
@@ -1407,9 +1411,15 @@ export function RentalFlow2Step({
       selection={railSelection}
       quote={railQuote}
       // The frame shows "#111 | 5’ x 7’" — the unit number leads, then the size.
-      // SummaryRail composes that as `size | tierName`, so the preview passes the
-      // unit as `size`. Real selections have no unit number here (see note below).
-      unitLabel={previewContent && !selection ? '#111' : undefined}
+      // SummaryRail composes that as `size | tierName`, so the unit goes in the
+      // `size` slot and the dimensions move to the trailing one.
+      //
+      // The REAL number, in the order it becomes known: the leased unit, the
+      // held one, the quoted one, then the offer's own `costs.Unit.number`,
+      // which is available as soon as the tier resolves — before any hold. The
+      // "#111" placeholder is the harness only, and only until a selection
+      // loads, so a live page never shows a made-up unit.
+      unitLabel={unitNumberLabel ?? (previewContent && !selection ? '#111' : undefined)}
       changeSpaceUrl={rented ? undefined : (changeSpaceUrl ?? backToSpacesUrl)}
       quoteFailed={quoteFailed}
       // Only an UNHELD quote assumes today: the pre-hold GET carries no
