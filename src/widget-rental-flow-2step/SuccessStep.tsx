@@ -18,6 +18,7 @@
 
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Checkbox, FormField, isPossiblePhone } from '@shared/ui';
+import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { ChevronBig } from './planIcons';
 
 import idHandCard from './assets/id-g72.svg';
@@ -227,7 +228,9 @@ export function SuccessStep({ onGetAccess, chosen }: {
           <Checkbox checked={business} onChange={setBusiness}>I am renting as a business</Checkbox>
           {business && (
             <div className="rf-sx-fields">
-              <FormField label="Business Address" required type="search" value={bizAddress} onChange={setBizAddress} error={bad('bizAddress')} />
+              <AddressAutocomplete value={bizAddress} onChange={setBizAddress}>
+                <FormField label="Business Address" required type="search" value={bizAddress} onChange={setBizAddress} error={bad('bizAddress')} />
+              </AddressAutocomplete>
               <div className="rf-pay-grid">
                 <FormField label="Business Rep First Name" required value={repFirst} onChange={setRepFirst} error={bad('repFirst')} />
                 <FormField label="Business Rep Last Name" required value={repLast} onChange={setRepLast} error={bad('repLast')} />
