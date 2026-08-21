@@ -210,8 +210,9 @@ const FIND_STORAGE_LABEL = 'Find Storage';
  * pinned to the top.
  *
  * Every city keeps its third level, however few facilities it holds — the
- * accordion is the quickest route to a specific facility on a phone, and
- * tapping the city name itself still goes to the city page.
+ * accordion is the quickest route to a specific facility on a phone. Tapping the
+ * city name itself follows `NavCity.href`: the facility's landing page when the
+ * city holds one, the city page when it holds several.
  */
 function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
   return [
@@ -223,10 +224,9 @@ function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
         label: city.label,
         href: city.href,
         // EVERY city expands to its facilities, including a city holding just
-        // one. Hiding the third level there made a single-facility city a
-        // dead end: the cascade stopped at the city and the only way to the
-        // property page was the city page itself. The levels now mean the same
-        // thing everywhere — state › city › facility.
+        // one — the levels mean the same thing everywhere, state › city ›
+        // facility, and the single facility's row is the shorter tap of the two
+        // routes to the same page (`city.href` shortcuts there as well).
         children: city.properties.map((prop) => ({ label: prop.label, href: prop.href })),
       })),
     })),

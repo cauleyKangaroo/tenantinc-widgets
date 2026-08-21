@@ -68,15 +68,18 @@ export interface NavCity {
   label: string;
   properties: NavProperty[];
   /**
-   * The city page, `/locations/<state>/<city>` — always, however many facilities
-   * the city holds.
+   * Where the city row goes.
    *
-   * This used to shortcut a single-facility city straight to that facility's
-   * page (4ae71d7), on the reasoning that a city page listing one property is a
-   * pointless extra click. Reverted deliberately: a nav level that sometimes
-   * lands on a listing and sometimes on a property is unpredictable, and the
-   * city page is a real page either way. Restore the shortcut here if the
-   * extra click turns out to matter more than the consistency.
+   * ONE facility in the city → straight to that facility's page,
+   * `/storage-units/<state>/<city>/<property-slug-id>` (i.e. the property's own
+   * `href`, `basePath` included). A city page listing a single property is an
+   * extra click to a page that says nothing the nav didn't already.
+   *
+   * TWO OR MORE → the city page, `/locations/<state>/<city>`.
+   *
+   * The shortcut has been in and out before (added 4ae71d7, reverted for
+   * consistency); it is back deliberately — the property landing pages exist
+   * today and the city pages do not.
    */
   href: string;
 }
@@ -156,7 +159,8 @@ export interface BuildTreeOptions {
   basePath?: string;
   /**
    * Path the CITY pages live under — `/locations/<state>/<city>`, the default.
-   * Only used for cities holding more than one facility (see `NavCity.href`).
+   * Only used for cities holding more than one facility — a single-facility city
+   * links straight to the facility under `basePath` (see `NavCity.href`).
    * Normalised exactly like `basePath`.
    *
    * NOTE: those city pages are not built yet. The links are correct by
@@ -300,7 +304,11 @@ export function buildLocationTree(
             key: cityKey,
             label: c.label,
             properties,
-            href: `${cityBase}/${key}/${cityKey}`,
+            // One facility ⇒ its landing page (already carries `basePath`);
+            // otherwise the city listing. See `NavCity.href`.
+            href: properties.length === 1
+              ? properties[0].href
+              : `${cityBase}/${key}/${cityKey}`,
           };
         })
         .sort(byLabel);
