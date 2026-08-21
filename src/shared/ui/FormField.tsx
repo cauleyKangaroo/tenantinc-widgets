@@ -194,8 +194,11 @@ export function FormField({
             aria-invalid={effectiveState === 'error' || undefined}
             aria-describedby={error || help ? messageId : undefined}
           />
+          {/* The text is its own span so it can ellipsis on its own while the
+              required marker stays put — truncating the whole label would eat
+              the asterisk and the field would stop reading as required. */}
           <label className="hb-field__label" htmlFor={inputId}>
-            {label}
+            <span className="hb-field__label-text">{label}</span>
             {required && <span className="hb-field__required" aria-hidden="true">*</span>}
           </label>
 

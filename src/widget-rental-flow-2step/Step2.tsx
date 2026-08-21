@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CheckTick, CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
-import { mountGpHostedFields, GpTokenResult, GpFieldValidity } from './gpHostedFields';
+import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
@@ -8,10 +7,10 @@ import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from './P
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
-import { FormField, Button, DateModal, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 
 // ---------------------------------------------------------------------------
-// Rental Flow — step 2, "Secure your space today" (Figma 8507-23329).
+// Rental Flow — step 2, "Secure your space now" (Figma 8507-23329).
 // Contact form + selected move-in date, Protection Plan, Additional Info
 // toggles, Rental Agreement (+ "I agree"), and Payment method selection.
 // ---------------------------------------------------------------------------
@@ -115,80 +114,6 @@ function FieldAbove({
   );
 }
 
-/**
- * Dropdown, built on the shared field's skin (Figma 8507-25490 / 8507-25502).
- *
- * The label belongs INSIDE the box, exactly as FieldAbove's <FormField> already
- * puts it — the old label-above markup was what made these three controls the
- * odd ones out in a form where every text input floats its label. So this
- * reuses the kit's own `hb-field` classes rather than restyling a select from
- * scratch: box, 56px height, 16px gutters, #A5B4BF border, focus ring, floated
- * label and the red required marker all arrive from @shared/ui and cannot drift
- * from the inputs sitting beside them.
- *
- * Two things a <select> cannot inherit:
- *  - The kit floats its label off `:placeholder-shown`, which a select never
- *    matches. `.rf2-sel--filled` stands in for it (see the CSS).
- *  - The arrow was the BROWSER's, which is why it looked foreign and sat hard
- *    against the edge. `appearance: none` removes it and ChevronSolidIcon — the
- *    same mark as the protection-plan dropdown (Figma 8508-32282) — goes into
- *    the kit's `hb-field__icons` slot, where the box's own 16px padding indents
- *    it to match the frame without a magic number.
- */
-function SelectField({
-  label, required, value, onChange, options, error,
-}: {
-  label: string;
-  required?: boolean;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-  error?: boolean;
-}) {
-  const cls = [
-    'hb-field', 'hb-field--labelled', 'rf2-sel',
-    value ? 'rf2-sel--filled' : '',
-    /* Green border only, never the kit's tick: the chevron already occupies
-       this field's icon slot, and stacking the two is what produced the
-       doubled mark on the payment panel's country select. Same rule here. */
-    value && !error ? 'rf-valid' : '',
-    error ? 'hb-field--error' : '',
-  ].filter(Boolean).join(' ');
-
-  return (
-    <div className={cls}>
-      <div className="hb-field__box">
-        <div className="hb-field__data">
-          {/* Select before label, matching FormField, so the CSS sibling
-              selector can float the label on focus. */}
-          <select
-            className="hb-field__input hb-field__select"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            /* The visible label is the floating one, which is decorative to AT
-               once it has floated — so name the control explicitly. */
-            aria-label={label}
-            required={required}
-            aria-invalid={error || undefined}
-          >
-            <option value="" disabled hidden />
-            {options.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-          <label className="hb-field__label">
-            {label}
-            {required && <span className="hb-field__required" aria-hidden="true">*</span>}
-          </label>
-        </div>
-        <div className="hb-field__icons">
-          <ChevronSolidIcon size={14} className="hb-field__icon rf2-sel-chev" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Thin alias kept so the step-2 call sites read as before; RfCheckbox owns the
-// skin, size and tick. No `small` — every checkbox in the flow is one size now.
 function Check({
   checked, onChange, children,
 }: {
@@ -203,88 +128,31 @@ function Check({
   );
 }
 
-// Credit/Debit panel — mounts Global Payments Hosted Fields (PCI iframes)
-// into empty divs. Without a client-side key it renders a configuration
-// notice instead; card data never touches widget code either way.
-function CardFieldsPanel({
-  gpApiKey, gpEnvironment, onToken, payNowTotal,
-}: {
-  gpApiKey?: string;
-  gpEnvironment: 'test' | 'prod';
-  onToken: (t: GpTokenResult) => void;
-  payNowTotal?: number;
-}) {
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [error, setError] = useState<string | undefined>(undefined);
-  const [validity, setValidity] = useState<GpFieldValidity>({});
-  const hostRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!gpApiKey) return;
-    let cleanup: (() => void) | undefined;
-    let cancelled = false;
-    mountGpHostedFields({
-      apiKey: gpApiKey,
-      environment: gpEnvironment,
-      targets: {
-        number: '#rf2-gp-number',
-        expiration: '#rf2-gp-expiration',
-        cvv: '#rf2-gp-cvv',
-        submit: '#rf2-gp-submit',
-      },
-      submitText: payNowTotal != null ? `Pay Now $${payNowTotal.toFixed(2)}` : undefined,
-      onToken: (t) => { if (!cancelled) onToken(t); },
-      onError: (msg) => { if (!cancelled) { setStatus('error'); setError(msg); } },
-      onValidity: (v) => { if (!cancelled) { setValidity(v); setStatus('ready'); setError(undefined); } },
-    }).then((c) => {
-      cleanup = c;
-      // The GP iframes appear asynchronously; treat a populated host as ready.
-      if (!cancelled && hostRef.current?.querySelector('iframe')) setStatus('ready');
-      else if (!cancelled) setStatus('ready'); // fields render momentarily; errors arrive via onError
-    });
-    return () => { cancelled = true; cleanup?.(); };
-  }, [gpApiKey, gpEnvironment, onToken, payNowTotal]);
-
-  if (!gpApiKey) {
-    return (
-      <div className="rf2-gp rf2-gp--unconfigured">
-        Card entry is not configured for this site yet (missing the Global
-        Payments client-side key). Set the <code>gpApiKey</code> widget prop.
-      </div>
-    );
-  }
-  return (
-    <div className="rf2-gp" ref={hostRef}>
-      <div className="rf2-gp-grid">
-        <label className="rf2-field rf2-gp-slot rf2-gp-slot--number">
-          <span className="rf2-field-label">Card Number<span className="rf-req">*</span></span>
-          <div id="rf2-gp-number" className="rf2-gp-frame" />
-        </label>
-        <label className="rf2-field rf2-gp-slot">
-          <span className="rf2-field-label">Expiration<span className="rf-req">*</span></span>
-          <div id="rf2-gp-expiration" className="rf2-gp-frame" />
-        </label>
-        <label className="rf2-field rf2-gp-slot">
-          <span className="rf2-field-label">CVV<span className="rf-req">*</span></span>
-          <div id="rf2-gp-cvv" className="rf2-gp-frame" />
-        </label>
-      </div>
-      <div id="rf2-gp-submit" className="rf2-gp-submit" />
-      {status === 'loading' && <p className="rf2-gp-note">Loading secure card fields…</p>}
-      {status === 'error' && <p className="rf2-gp-note rf2-gp-note--error">{error}</p>}
-      {status === 'ready' && validity.number === false && (
-        <p className="rf2-gp-note rf2-gp-note--error">Card number doesn&apos;t look right.</p>
-      )}
-    </div>
-  );
+/** The optional Additional Information sections, as the rental APIs want them. */
+export interface RentalExtras {
+  business: boolean;
+  businessAddress?: string;
+  businessFirst?: string;
+  businessLast?: string;
+  military: boolean;
+  /** YYYY-MM-DD — the API's format, not the display one. */
+  dateOfBirth?: string;
+  altContact: boolean;
+  altFirst?: string;
+  altLast?: string;
+  altPhone?: string;
+  altEmail?: string;
+  altAddress?: string;
+  vehicle: boolean;
+  vehicleType?: string;
 }
 
 /** Desktop pointer devices only — mirrored by a @media block in the CSS. */
 const PLAN_HOVER_QUERY = '(min-width: 901px) and (hover: hover) and (pointer: fine)';
 
 export function Step2({
-  moveIn, plans = [], leaseDocName, onEditDate, gpApiKey, gpEnvironment = 'test', payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, paying, payError,
+  moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
+  brochureUrl, onPlanChange, paying, payError, contact,
 }: {
   moveIn: Date;
   /** Protection plans to choose between, already narrowed to the space type
@@ -301,9 +169,6 @@ export function Step2({
    *  Reported upward because the choice re-prices the move-in quote — it is not
    *  a display-only toggle. */
   onPlanChange?: (insuranceId: string | undefined) => void;
-  /** Global Payments CLIENT-side (publishable) key — hosted-fields tokenization only. */
-  gpApiKey?: string;
-  gpEnvironment?: 'test' | 'prod';
   /** Authoritative move-in total (hold-aware quote) — printed on the pay button. */
   payNowTotal?: number;
   /** Card tokenized — parent takes over (interstitial → confirmation). */
@@ -317,7 +182,14 @@ export function Step2({
     contact?: { first: string; last: string; email: string; phone: string };
     /** Autopay Enrollment checkbox. */
     autopay?: boolean;
+    /** The Additional Information sections the shopper opened and filled.
+     *  Only the ticked ones carry meaning — an unticked section's fields are
+     *  whatever was typed before it was closed again. */
+    extras?: RentalExtras;
   }) => void;
+  /** What the shopper typed in step 1, used as the starting values here so they
+   *  do not retype their own name and email one screen later. */
+  contact?: { first: string; last: string; email: string; phone: string; business?: boolean };
   /** Payment in flight — locks the pay button against a double charge. */
   paying?: boolean;
   /** Why the rental could not be completed. Shown by the payment panel so the
@@ -325,11 +197,16 @@ export function Step2({
    *  filled in. */
   payError?: string;
 }) {
-  const [business, setBusiness] = useState(false);
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [first, setFirst] = useState('');
-  const [last, setLast] = useState('');
+  // Ticked when step 1 said this is a business rental, so the shopper does not
+  // answer the same question twice and its fields open ready to fill.
+  const [business, setBusiness] = useState(contact?.business ?? false);
+  // Seeded from step 1. Initialisers, not props: these are editable fields, so
+  // step 1 supplies the STARTING value and anything typed here wins from then
+  // on — re-syncing on every render would fight the shopper's own edits.
+  const [email, setEmail] = useState(contact?.email ?? '');
+  const [phone, setPhone] = useState(contact?.phone ?? '');
+  const [first, setFirst] = useState(contact?.first ?? '');
+  const [last, setLast] = useState(contact?.last ?? '');
   const [military, setMilitary] = useState(false);
   // Off, like every other optional section. On, it opens five REQUIRED fields
   // (name, phone, email, address) that block the step until they are filled —
@@ -337,26 +214,6 @@ export function Step2({
   const [altContact, setAltContact] = useState(false);
   const [vehicle, setVehicle] = useState(false);
 
-  // Conditional-section fields (Figma 8507-23979 scenarios / screens 12-13).
-  const [bizAddress, setBizAddress] = useState('');
-  const [bizFirst, setBizFirst] = useState('');
-  const [bizLast, setBizLast] = useState('');
-  const [dob, setDob] = useState('');
-  const [dobOpen, setDobOpen] = useState(false);
-  const [dobDate, setDobDate] = useState<Date | null>(null);
-  const [acFirst, setAcFirst] = useState('');
-  const [acLast, setAcLast] = useState('');
-  const [acPhone, setAcPhone] = useState('');
-  const [acEmail, setAcEmail] = useState('');
-  const [acAddress, setAcAddress] = useState('');
-  const [vehType, setVehType] = useState('');
-  const [vehMake, setVehMake] = useState('');
-  const [vehModel, setVehModel] = useState('');
-  const [vehYear, setVehYear] = useState('');
-  const [vehColor, setVehColor] = useState('');
-  const [vehPlate, setVehPlate] = useState('');
-  const [vehCountry, setVehCountry] = useState('');
-  const [vehState, setVehState] = useState('');
   const [agree, setAgree] = useState(false);
   const [autopay, setAutopay] = useState(false);
   // "Learn More" coverage card (Figma 8509-36480). The plan CARD in the page is
@@ -456,7 +313,6 @@ export function Step2({
   // 15-minute unit hold. It is what the (future) server-side move-in
   // charge consumes; no card data exists widget-side.
   const [payMethod, setPayMethod] = useState<'gpay' | 'apple' | 'card' | 'bank' | null>(null);
-  const [cardToken, setCardToken] = useState<GpTokenResult | undefined>(undefined);
   const [payAttempted, setPayAttempted] = useState(false);
   /** Skeleton beat before a static payment form appears (Figma 8507-24610). */
   const [formLoading, setFormLoading] = useState(false);
@@ -472,45 +328,38 @@ export function Step2({
     ['first', first.trim().length > 0],
     ['last', last.trim().length > 0],
     ['agree', agree],
-    ...(business ? [['bizAddress', bizAddress.trim().length > 0],
-      ['bizFirst', bizFirst.trim().length > 0],
-      ['bizLast', bizLast.trim().length > 0]] as Array<[string, boolean]> : []),
-    ...(military ? [['dob', dob.trim().length > 0]] as Array<[string, boolean]> : []),
-    ...(altContact ? [['acFirst', acFirst.trim().length > 0],
-      ['acLast', acLast.trim().length > 0],
-      ['acPhone', isPossiblePhone(acPhone, 'US')],
-      ['acEmail', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(acEmail.trim())],
-      ['acAddress', acAddress.trim().length > 0]] as Array<[string, boolean]> : []),
-    ...(vehicle ? [['vehType', vehType.trim().length > 0]] as Array<[string, boolean]> : []),
+    // The optional sections are TICKS here — their fields live on the
+    // post-purchase screen, so there is nothing on this step to validate. They
+    // must not gate payment either: requiring an input nobody can see would
+    // disable Pay Now with no way to find out why.
   ];
   const formComplete = required.every(([, ok]) => ok);
   const bad = (key: string) => payAttempted && !(required.find(([k]) => k === key)?.[1] ?? true);
-  /** No GP key ⇒ the static forms stand in for hosted fields. */
-  const staticPay = !gpApiKey;
-
   /** A card/bank panel is open, so its button is replaced by the panel and the
    *  other method relocates beneath it. Wallets are one-tap and never expand. */
-  const methodOpen = staticPay && (payMethod === 'card' || payMethod === 'bank');
+  const methodOpen = payMethod === 'card' || payMethod === 'bank';
 
   const selectPayMethod = (m: 'gpay' | 'apple' | 'card' | 'bank') => {
     if (!formComplete) { setPayAttempted(true); return; }
     const next = payMethod === m ? null : m;
     setPayMethod(next);
-    setCardToken(undefined);
-    // Skeleton beat when opening a static panel. Real hosted fields do their
-    // own loading, so this only stands in for them.
-    if (staticPay && next && (next === 'card' || next === 'bank')) {
+    // Skeleton beat before the panel appears (Figma 8507-24610), so it does
+    // not snap in.
+    if (next && (next === 'card' || next === 'bank')) {
       setFormLoading(true);
       window.setTimeout(() => setFormLoading(false), FORM_SKELETON_MS);
     }
   };
 
-  /** Static "Pay Now" — hands the parent everything the rental APIs need. */
+  /** "Pay Now" — hands the parent everything the rental APIs need. */
   const payStatically = (card?: CardFormValue) => onPaymentComplete?.({
     firstName: first.trim() || 'there',
     card,
     contact: { first: first.trim(), last: last.trim(), email: email.trim(), phone },
     autopay,
+    // Which sections the shopper opted into. The VALUES are collected on the
+    // post-purchase screen, so this step sends the choices and nothing else.
+    extras: { business, military, altContact, vehicle },
   });
 
 
@@ -518,21 +367,14 @@ export function Step2({
     <div className="rf-card rf2-card">
       <div className="rf-title">
         <p className="rf-eyebrow">Great choice!</p>
-        <h2 className="rf-heading">Secure your space today</h2>
+        <h2 className="rf-heading">Secure your space now</h2>
       </div>
 
       <RfCheckbox checked={business} onChange={setBusiness} className="rf-business">
         I am renting as a business
       </RfCheckbox>
-      {business && (
-        <div className="rf2-expand rf2-expand--top">
-          <FieldAbove label="Business Address" required value={bizAddress} onChange={setBizAddress} error={bad('bizAddress')} />
-          <div className="rf2-row">
-            <FieldAbove label="Business Rep First Name" required value={bizFirst} onChange={setBizFirst} error={bad('bizFirst')} />
-            <FieldAbove label="Business Rep Last Name" required value={bizLast} onChange={setBizLast} error={bad('bizLast')} />
-          </div>
-        </div>
-      )}
+      {/* Tick only. The business details themselves are asked for on the
+          post-purchase screen, with the rest of the optional sections. */}
 
       <div className="rf2-form">
         <div className="rf2-row">
@@ -682,61 +524,12 @@ export function Step2({
         <section className="rf2-plain">
           <span className="rf2-h">Additional Information</span>
           <div className="rf2-checks">
+            {/* Ticks only — the fields these used to reveal now live on the
+                post-purchase screen, which opens the matching sections already
+                ticked. Choosing here, filling there. */}
             <Check checked={military} onChange={setMilitary}>I am active military</Check>
-            {military && (
-              <div className="rf2-expand">
-                {/* Same shape as the Move-in Date control above: label, value,
-                    calendar affordance, opens a modal. A DOB is decades back,
-                    so a picker that can jump month and year beats stepping. */}
-                <button
-                  type="button"
-                  className={`rf2-movein rf2-movein--full${bad('dob') ? ' rf2-movein--error' : ''}${dob ? ' rf2-movein--valid' : ''}`}
-                  onClick={() => setDobOpen(true)}
-                >
-                  <span className="rf2-movein-text">
-                    <span className="rf2-movein-label">Date of Birth<span className="rf-req">*</span></span>
-                    <span className="rf2-movein-value">{dob || 'Select a date'}</span>
-                  </span>
-                  <CalendarIcon size={24} />
-                </button>
-              </div>
-            )}
             <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
-            {altContact && (
-              <div className="rf2-expand">
-                <div className="rf2-row">
-                  <FieldAbove label="First Name" required value={acFirst} onChange={setAcFirst} error={bad('acFirst')} />
-                  <FieldAbove label="Last Name" required value={acLast} onChange={setAcLast} error={bad('acLast')} />
-                </div>
-                <div className="rf2-row">
-                  <FieldAbove label="Phone" required value={acPhone} onChange={setAcPhone} type="tel" phoneCountry="US" error={bad('acPhone')} />
-                  <FieldAbove label="Email" required value={acEmail} onChange={setAcEmail} type="email" error={bad('acEmail')} />
-                </div>
-                <FieldAbove label="Address" required value={acAddress} onChange={setAcAddress} error={bad('acAddress')} />
-              </div>
-            )}
             <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
-            {vehicle && (
-              <div className="rf2-expand">
-                <SelectField label="Vehicle Type" required value={vehType} onChange={setVehType} error={bad('vehType')}
-                  options={['Car', 'Truck', 'Motorcycle', 'RV', 'Boat', 'Trailer', 'Other']} />
-                <div className="rf2-row">
-                  <FieldAbove label="Make" value={vehMake} onChange={setVehMake} />
-                  <FieldAbove label="Model" value={vehModel} onChange={setVehModel} />
-                </div>
-                <div className="rf2-row">
-                  <FieldAbove label="Year" value={vehYear} onChange={setVehYear} />
-                  <FieldAbove label="Color" value={vehColor} onChange={setVehColor} />
-                </div>
-                <div className="rf2-row">
-                  <FieldAbove label="License Plate Number" value={vehPlate} onChange={setVehPlate} />
-                  <SelectField label="Country" value={vehCountry} onChange={setVehCountry}
-                    options={['United States', 'Canada', 'Mexico']} />
-                </div>
-                <SelectField label="State" value={vehState} onChange={setVehState}
-                  options={['AZ', 'CA', 'NV', 'OR', 'TX', 'WA', 'Other']} />
-              </div>
-            )}
           </div>
         </section>
 
@@ -845,7 +638,7 @@ export function Step2({
               hosted-fields iframes. With a key set, the real GP path below runs
               untouched. Either way the form is preceded by a brief skeleton
               (8507-24610) so the panel doesn't snap in. */}
-          {staticPay && (payMethod === 'card' || payMethod === 'bank') && (
+          {(payMethod === 'card' || payMethod === 'bank') && (
             <section
               className="rf-method-panel"
               aria-label={payMethod === 'card' ? 'Credit / Debit' : 'Pay by Bank'}
@@ -879,31 +672,6 @@ export function Step2({
             </Button>
           )}
 
-          {!staticPay && payMethod === 'card' && !cardToken && (
-            <CardFieldsPanel
-              gpApiKey={gpApiKey}
-              gpEnvironment={gpEnvironment}
-              payNowTotal={payNowTotal}
-              onToken={(t) => {
-                setCardToken(t);
-                // Real flow: temporary_token → server-side sale → lease. Until
-                // that endpoint exists (B4), tokenization completes the step.
-                onPaymentComplete?.({ firstName: first.trim() || 'there' });
-              }}
-            />
-          )}
-          {payMethod === 'card' && cardToken && (
-            <div className="rf2-gp rf2-gp--done">
-              <CheckTick size={18} />
-              <span>
-                Card ready{cardToken.maskedCardNumber ? ` — ${cardToken.maskedCardNumber.slice(-8)}` : ''}.
-                Charged securely when you complete the rental.
-              </span>
-              <button type="button" className="rf2-link rf2-gp-change" onClick={() => setCardToken(undefined)}>
-                Use a different card
-              </button>
-            </div>
-          )}
         </section>
       </div>
 
@@ -911,24 +679,6 @@ export function Step2({
         open={planOpen}
         onClose={() => setPlanOpen(false)}
         brochureUrl={brochureUrl}
-      />
-      {/* Date-of-birth picker. Browse mode, capped at today — a birth date
-          cannot be in the future — and reaching back 120 years. */}
-      <DateModal
-        open={dobOpen}
-        onClose={() => setDobOpen(false)}
-        selected={dobDate}
-        onSelect={(d) => setDobDate(d)}
-        onConfirm={() => {
-          if (dobDate) setDob(formatDate(dobDate));
-          setDobOpen(false);
-        }}
-        title="Select your Date of Birth"
-        ctaLabel="Confirm Date"
-        browse
-        onReset={() => { setDobDate(null); setDob(''); setDobOpen(false); }}
-        minDate={new Date(new Date().getFullYear() - 120, 0, 1)}
-        maxDate={new Date()}
       />
       <LeaseModal
         open={leaseOpen}

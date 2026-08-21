@@ -255,8 +255,31 @@ Ours: `finalizeDocuments()`.
 > browser without calling a third-party geolocation service, which would leak
 > the shopper to an unrelated host. Hummingbird sees the real IP on the request.
 
-`vehicle_info`, military details and relationship contacts are not sent — the
-form collects them but they are not yet mapped.
+Ours: `finalizeDocuments()`. TenantInc re-sent this call's payload on
+2026-08-21 with the instruction **"ignore the fields you don't have data for"**,
+which is how the optional blocks are treated below.
+
+**Sent when the shopper fills them:** `Military` (`active` + `date_of_birth`),
+`Relationships[]` as `type: "alternate"`, `vehicle_info`, `discount_id`,
+`deliveryMethod` (defaults to `email`), and `source` — Hummingbird's record of
+the originating application, `"Mariposa Website Application"` per their sample.
+
+**Not sent, and why:**
+
+| field | reason |
+|---|---|
+| `Business` | their payload shows `"Business": {}` — an empty object with no documented fields, so the business name and address the form collects have nowhere to go |
+| `driver_license`, `_exp`, `_state`, `ssn` | the form does not ask for them yet — this is the ID-verification data, see below |
+| `Relationships` `authorized` / `lien_holder` | the form offers one alternate contact only |
+| `vehicle_info` details | we capture the type; make, model, year, VIN, plate, insurance and registered owner are not asked for |
+| `Military` detail | branch, rank, unit, service dates, commanding officer are not asked for |
+| ACH `payment_method` | the bank form is not wired to the API |
+
+> **ID verification.** There is no verification endpoint anywhere in the guide.
+> What exists is `driver_license` / `driver_license_exp` / `driver_license_state`
+> / `ssn` **as fields on the contact** — so "verifying ID" means capturing the
+> licence with the tenant, not calling a service. The SuccessStep's "Verify ID
+> Now" button has nothing to call.
 
 ### 10. Lease finalization
 
@@ -289,15 +312,19 @@ failed one — the lease and the payment are already done by that point.
 
 ## Open questions for TenantInc
 
-1. **Card handling — decided, but still worth asking.** APIs 9 and 10 take raw
+1. **Card handling — settled for the test release.** APIs 9 and 10 take raw
    `card_number` / `cvv2` / `exp_mo` / `exp_yr` in the JSON body, and the guide
-   offers no tokenized alternative. On the client's instruction (2026-08-20) the
-   rental sends the raw card exactly as documented. **This means the card number
-   passes through a bundle served from public GitHub Pages, which puts the site
-   in a materially heavier PCI scope than the hosted-fields design it replaces.**
-   Still worth confirming with TenantInc whether `payment_method` accepts a
-   Global Payments token, or whether these two calls are meant to be made
-   server-side — either answer would let the PAN leave the browser again.
+   offers no tokenized alternative. **TenantInc confirmed (2026-08-20) that
+   sending the card in the request is expected for this test release**, so the
+   rental does exactly that and the Global Payments hosted-fields integration
+   was removed rather than kept as a second, incompatible payment route.
+
+   Worth revisiting **before a production launch with real cards**, since the
+   card number passes through a bundle served from public GitHub Pages. If it
+   is revisited, the change is small and localised: `cardPaymentMethod()` builds
+   the object, and `finalizeDocuments()` / `finalizeLease()` are the only two
+   callers — moving them behind the proxy would keep the PAN out of the browser
+   without touching the UI.
 2. **v1 vs v2** for `hold` / `lease-set-up` / `reserve` — is v1 deprecated, and
    does v1 `lease-set-up` honour `insurance_id` / `promotions` / `start_date`?
 3. **`total_due` vs `balance`** — confirm `balance` is what to charge.
@@ -328,10 +355,11 @@ Inputs and where each comes from:
 | card + billing address | the static `CardForm` |
 | contact | step 2's own fields (the shopper may have edited them) |
 
-> **The card path is only reachable when `gpApiKey` is NOT set.** With a Global
-> Payments key the widget mounts hosted fields, which by design never expose a
-> PAN, so there is nothing to put in `payment_method`. To use the documented
-> rental, leave `gpApiKey` empty.
+> **There is one payment path.** Global Payments Hosted Fields was removed on
+> 2026-08-20: it tokenizes the card inside GP's iframes and charges through
+> GP's own REST API (`/transactions/creditsales`), so it can neither supply
+> `card_number` to these calls nor take the money through Hummingbird. Two
+> gateways, one transaction — the guide is the one we follow.
 
 > After a real lease the confirmation no longer shows the placeholder access
 > code — the lease response carries none, and inventing one after a real charge

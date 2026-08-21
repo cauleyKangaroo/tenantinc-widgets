@@ -11,7 +11,6 @@ import {
 } from './api';
 import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
-import { GP_BRIDGE_IS_PROTOTYPE } from './gpHostedFields';
 import { OrderRail } from './OrderRail';
 import { ChevronSolidIcon } from './icons';
 /* The ASSET ONLY, deliberately — not the #02 component, its config, its props
@@ -46,7 +45,7 @@ const ymd = (d: Date): string => {
 // Step 1 ("Secure your space now", 8507-23264): contact form + Rent/Reserve.
 //   Rent → Move-In Date lightbox (8507-23637). Confirming closes the modal and
 //   crossfades to…
-// Step 2 ("Secure your space today", 8507-23329): full checkout form.
+// Step 2 ("Secure your space now", 8507-23329): full checkout form.
 // ---------------------------------------------------------------------------
 
 export interface RentalFlow2StepProps {
@@ -88,11 +87,6 @@ export interface RentalFlow2StepProps {
   changeSpaceUrl?: string;
   /** Protection-plan brochure PDF, opened from step 2's "Learn More" lightbox. */
   brochureUrl?: string;
-  /** Global Payments CLIENT-side (publishable) key for Hosted Fields card
-   *  tokenization. The server-side key must NEVER be passed here. */
-  gpApiKey?: string;
-  /** GP environment; keep 'test' until launch cutover. */
-  gpEnvironment?: 'test' | 'prod';
   /**
    * DEV HARNESS ONLY — fills the designed surfaces with their Figma samples when
    * no live data has resolved, so the frames can be reviewed:
@@ -403,30 +397,6 @@ function RentalHeader({ holdRemaining, homeHref, shrunk, innerRef }: {
   );
 }
 
-// Payment interstitial (Figma screen 10 / mobile m06) — modal overlay
-// while the lease+payment finalize. Purely presentational; the parent
-// decides when to show it and where to go next.
-// The live-payment path's finalizing beat. It is ProcessingModal — the SAME
-// screen the static path shows — rather than a second implementation of it.
-// The old one had drifted to a 22px title, a 6px bar and #3ba55c against the
-// frame's 32px/10px/#509E2F, and would have needed the mobile take-over built
-// a second time. No onDone: this path navigates away when the real flow
-// finishes, so the bar eases to 100% and waits.
-function PaymentInterstitial({ firstName, brandName }: { firstName: string; brandName: string }) {
-  return (
-    <ProcessingModal
-      open
-      firstName={firstName}
-      facilityName={brandName}
-      note={GP_BRIDGE_IS_PROTOTYPE ? (
-        <p className="rf-demo-banner">
-          Demo preview — no payment, lease, or reservation was created.
-        </p>
-      ) : undefined}
-    />
-  );
-}
-
 export interface Contact { first: string; last: string; email: string; phone: string; business: boolean }
 
 // Step 1 — "Secure your space now" contact form.
@@ -626,8 +596,6 @@ export function RentalFlow2Step({
   unitGroupId: unitGroupIdArg,
   proxyBaseUrl = cfg.proxyBaseUrl ?? '',
   changeSpaceUrl,
-  gpApiKey,
-  gpEnvironment = 'test',
   previewContent = false,
   inEditor = false,
   siteId,
@@ -736,6 +704,17 @@ export function RentalFlow2Step({
   // units/available, so recovery is re-pick → re-quote → re-hold once.
   const [hold, setHold] = useState<UnitHold | undefined>(undefined);
   const [finalizing, setFinalizing] = useState<{ firstName: string } | undefined>(undefined);
+  // The contact the LEASE was created with. Step 2 seeds from step 1 but is
+  // editable, so this can differ from `contact` — and the confirmation has to
+  // show what was actually filed, not what was typed a screen earlier.
+  // Which optional sections the shopper ticked in step 2, carried to the
+  // post-purchase screen so it opens them already ticked.
+  const [chosenSections, setChosenSections] = useState<
+    { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean } | undefined
+  >(undefined);
+  const [rentedContact, setRentedContact] = useState<
+    { first: string; last: string; email: string; phone: string } | undefined
+  >(undefined);
   /** Static payment path (no GP key): the lightbox has finished, show the
    *  post-purchase form rather than navigating to the confirmation page. */
   const [staticPaid, setStaticPaid] = useState(false);
@@ -745,7 +724,6 @@ export function RentalFlow2Step({
   const [payError, setPayError] = useState<string | undefined>(undefined);
   /** "Get Access" pressed on the static post-purchase form. */
   const [accessGranted, setAccessGranted] = useState(false);
-  const staticPay = !gpApiKey;
   // Office/Gate hours fallback for the confirmation page: the immutable success
   // snapshot occasionally predates propertyInfo loading, so it can lack hours.
   // Hours are read-only + non-sensitive (unlike the money block), so it's safe
@@ -1217,7 +1195,7 @@ export function RentalFlow2Step({
             </div>
           </div>
         )}
-        {GP_BRIDGE_IS_PROTOTYPE && confirmation.kind === 'rental' && (
+        {confirmation.kind === 'rental' && (
           <div className="rf-demo-banner rf-demo-banner--page" role="note">
             Demo preview — no payment or lease was created.
           </div>
@@ -1255,15 +1233,47 @@ export function RentalFlow2Step({
   // the same <Confirmation> the real flow lands on: sent-code bar, access code,
   // wallet badges, move-in date, office/gate hours, review card, What's Next.
   // Composing that screen a second time would be a near-duplicate that drifts.
+  // Live data ALWAYS wins; the preview only fills gaps, and only in the harness.
+  // Per-field rather than all-or-nothing so a real property still shows its own
+  // name and address while the selection is still resolving.
+  const railProperty = propertyInfo ?? (previewContent ? PREVIEW_PROPERTY : undefined);
+  const railSelection = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
+  const railQuote = quote ?? (previewContent ? PREVIEW_QUOTE : undefined);
+
+  // ONE aside for the whole flow. Steps 1, 2 and 3 show the same order — the
+  // same property, space and money — so they render the same element rather
+  // than three OrderRails that can drift apart. The post-purchase variant only
+  // drops "Change Space", which is meaningless once the unit is rented.
+  const railFor = (rented: boolean) => (
+    <OrderRail
+      property={railProperty}
+      selection={railSelection}
+      quote={railQuote}
+      // The frame shows "#111 | 5’ x 7’" — the unit number leads, then the size.
+      // SummaryRail composes that as `size | tierName`, so the preview passes the
+      // unit as `size`. Real selections have no unit number here (see note below).
+      unitLabel={previewContent && !selection ? '#111' : undefined}
+      changeSpaceUrl={rented ? undefined : (changeSpaceUrl ?? backToSpacesUrl)}
+      quoteFailed={quoteFailed}
+      // Only an UNHELD quote assumes today: the pre-hold GET carries no
+      // start_date, while the hold-aware POST sends the chosen one and the
+      // engine honours it (verified against a held unit 2026-08-20). Warning
+      // about a date the quote already reflects would be its own small lie.
+      quoteAssumesToday={!hold && moveIn.getTime() > startOfToday().getTime()}
+    />
+  );
+  const rail = railFor(false);
+
   if (staticPaid) {
     // The held unit is real even on the static path — the hold and quote both
     // come from the live API.
     //
-    // The access CODE is a placeholder, and it is shown ONLY when no real lease
-    // was created. After a real rental the money has moved and a made-up gate
-    // code would be a lie the tenant acts on, so the confirmation falls back to
-    // its no-code variant ("see the facility manager at move-in") — the lease
-    // response carries no access code to show instead.
+    // The access code is REAL after a rental: the lease response carries the
+    // tenant's gate PIN at `lease.tenants[].pin` (verified 2026-08-20 — no
+    // other endpoint returns one, and it does not exist before the lease).
+    // Without a lease there is nothing to show, so the placeholder stands in
+    // for the preview path only; a real rental that somehow returned no pin
+    // falls back to the no-code variant rather than inventing one.
     const heldUnit = rental?.unitNumber ?? hold?.unitNumber ?? quote?.unitNumber;
     const staticUnitNumber = heldUnit ? `#${heldUnit}` : undefined;
 
@@ -1276,7 +1286,7 @@ export function RentalFlow2Step({
         {isMobile && (
           <div className="rfm-top" ref={railBarRef}>
             <MobileLeaseBar
-              total={quote?.totalDue}
+              total={railQuote?.totalDue}
               expanded={railOpen}
               onToggle={onRailToggle}
             />
@@ -1288,7 +1298,7 @@ export function RentalFlow2Step({
             />
             <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
               <div className="rfm-sheet">
-                <OrderRail property={propertyInfo} selection={selection} quote={quote} />
+                {railFor(true)}
               </div>
             </div>
           </div>
@@ -1300,9 +1310,15 @@ export function RentalFlow2Step({
             <Confirmation
               kind="rental"
               name={finalizing?.firstName}
-              phone={contact?.phone}
+              phone={rentedContact?.phone ?? contact?.phone}
+              tenantName={[rentedContact?.first ?? contact?.first, rentedContact?.last ?? contact?.last]
+                .filter(Boolean).join(' ') || undefined}
+              tenantEmail={rentedContact?.email ?? contact?.email}
+              tenantPhone={formatUsPhone(rentedContact?.phone ?? contact?.phone)}
+              // Only after a real lease: there is nothing to reference otherwise.
+              reference={rental?.leaseId}
               unitNumber={staticUnitNumber}
-              code={rental ? undefined : STATIC_ACCESS_CODE}
+              code={rental ? rental.accessCode : STATIC_ACCESS_CODE}
               entry="gate"
               moveInDate={fmtDisplayDate(moveIn)}
               confirmedHeading={rentalHeading}
@@ -1313,39 +1329,17 @@ export function RentalFlow2Step({
               gateHours={propertyInfo?.gateHours?.length ? propertyInfo.gateHours : confHours?.gateHours}
               reviewUrl={reviewUrl}
             />
-            {!isMobile && <OrderRail property={propertyInfo} selection={selection} quote={quote} />}
+            {!isMobile && railFor(true)}
           </div>
         ) : (
           <div className="rfc-layout">
-            <SuccessStep onGetAccess={() => setAccessGranted(true)} />
-            {!isMobile && <OrderRail property={propertyInfo} selection={selection} quote={quote} />}
+            <SuccessStep onGetAccess={() => setAccessGranted(true)} chosen={chosenSections} />
+            {!isMobile && railFor(true)}
           </div>
         )}
       </div>
     );
   }
-
-  // Live data ALWAYS wins; the preview only fills gaps, and only in the harness.
-  // Per-field rather than all-or-nothing so a real property still shows its own
-  // name and address while the selection is still resolving.
-  const railProperty = propertyInfo ?? (previewContent ? PREVIEW_PROPERTY : undefined);
-  const railSelection = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
-  const railQuote = quote ?? (previewContent ? PREVIEW_QUOTE : undefined);
-
-  const rail = (
-    <OrderRail
-      property={railProperty}
-      selection={railSelection}
-      quote={railQuote}
-      // The frame shows "#111 | 5’ x 7’" — the unit number leads, then the size.
-      // SummaryRail composes that as `size | tierName`, so the preview passes the
-      // unit as `size`. Real selections have no unit number here (see note below).
-      unitLabel={previewContent && !selection ? '#111' : undefined}
-      changeSpaceUrl={changeSpaceUrl ?? backToSpacesUrl}
-      quoteFailed={quoteFailed}
-      quoteAssumesToday={moveIn.getTime() > startOfToday().getTime()}
-    />
-  );
 
   return (
     <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
@@ -1412,13 +1406,12 @@ export function RentalFlow2Step({
             // needs every option. Live plans win; the sample only fills an empty
             // list, and only in the harness.
             plans={shownPlans.length ? shownPlans : (previewContent ? PREVIEW_PLANS : [])}
+            contact={contact}
             leaseDocName={leaseDoc?.name}
             brochureUrl={brochureUrl}
             onPlanChange={setInsuranceId}
             onEditDate={() => setDateModalOpen(true)}
-            gpApiKey={gpApiKey}
-            gpEnvironment={gpEnvironment}
-            payNowTotal={quote?.totalDue}
+            payNowTotal={railQuote?.totalDue}
             paying={paying}
             payError={payError}
             onPaymentComplete={(info) => {
@@ -1460,6 +1453,7 @@ export function RentalFlow2Step({
                   costs: quoteToCosts(quote, start),
                   promotionIds: selection?.promotionIds,
                   platform: 'website',
+                  extras: info.extras,
                 })
                   .then((res) => {
                     setPaying(false);
@@ -1470,6 +1464,8 @@ export function RentalFlow2Step({
                     }
                     console.log(`${logTag} rental complete — lease ${res.leaseId}`);
                     setRental(res);
+                    if (info.contact) setRentedContact(info.contact);
+                    if (info.extras) setChosenSections(info.extras);
                     // The unit is LEASED now, so the hold is spent: forget it so
                     // the countdown stops and unmount does not try to release a
                     // hold that no longer exists.
@@ -1486,31 +1482,14 @@ export function RentalFlow2Step({
                   });
                 return;
               }
+              // No card, or no hold/quote to rent against — nothing to
+              // charge, so this is the harness/preview path: show the
+              // finalizing beat and hand to the post-purchase screen.
               setFinalizing(info);
+              if (info.extras) setChosenSections(info.extras);
               // The pick has been acted on — drop it so returning to /rental
               // later starts clean instead of silently re-selecting it.
               clearUnitSelection();
-              // Static path: the lightbox's onDone swaps in the post-purchase
-              // form. No nonce, no navigation — nothing was charged.
-              if (staticPay) return;
-              // Prototype bridge: no server-side sale endpoint yet (B4), so
-              // after the finalizing beat, land on the confirmation page with
-              // the REAL held unit number.
-              const unitNo = hold?.unitNumber ?? quote?.unitNumber;
-              const nonce = stashConfirmation({
-                kind: 'rental',
-                name: info.firstName,
-                unitNumber: unitNo ? `#${unitNo}` : undefined,
-                moveInDate: fmtDisplayDate(moveIn),
-                rail: { property: propertyInfo, selection, quote },
-              });
-              window.setTimeout(() => {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('unit_number');
-                url.searchParams.set('type', 'rental');
-                url.searchParams.set('c', nonce);
-                window.location.assign(url.toString());
-              }, 3200);
             }}
           />
         )}
@@ -1519,15 +1498,9 @@ export function RentalFlow2Step({
         {!isMobile && rail}
       </div>
 
-      {/* Two finalizing beats, one per payment path. With a Global Payments key
-          the real flow runs and navigates to the confirmation page, so it keeps
-          the inline interstitial. Without one, payment is the static forms, and
-          the lightbox (Figma 8509-35122) hands to the post-purchase form
-          (8507-25408) in place — no navigation, nothing was really charged. */}
-      {finalizing && !staticPay && (
-        <PaymentInterstitial firstName={finalizing.firstName} brandName={brandName} />
-      )}
-      {finalizing && staticPay && (
+      {/* Finalizing beat (Figma 8509-35122): the lightbox hands to the
+          post-purchase form (8507-25408) in place — no navigation. */}
+      {finalizing && (
         <ProcessingModal
           open
           firstName={finalizing.firstName}
