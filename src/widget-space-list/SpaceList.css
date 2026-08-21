@@ -309,26 +309,33 @@
   flex: 0 0 auto;
 }
 .sl-wrapper .sl-promo-banner-clear:hover { color: var(--color_1, #f45f30); }
+/* ── This <h1> is !important on purpose ───────────────────────────────────
+   Duda styles headings from ID-SCOPED selectors (`#dm h1`), and an id beats any
+   number of classes — so .sl-wrapper-qualifying to (0,2,0) was never going to
+   be enough and the title took the theme's size on the published page. The
+   harness has no such rules, so it only ever showed live. Same fight #02
+   documents in FindStorageMegaMenu.css, and the same answer.
+
+   Every property the theme touches is guarded together: winning size while
+   losing weight or transform just produces a differently wrong heading. It
+   matches #03's .pi-name — 30px / 22px, 700 — so the two widgets' titles are
+   one size on a page that shows both. */
 .sl-wrapper .sl-page-title {
-  font-family: 'Montserrat', sans-serif;
-  font-size: 30px;
-  font-weight: 700;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 30px !important;
+  font-weight: 700 !important;
   /* Unitless on purpose: a long feature-page heading wraps to two lines, and a
      fixed leading crams them together the moment a host theme scales the font
      up. 1.3 keeps the desktop line box at ~39px and scales with the text. */
-  line-height: 1.3;
-  color: #101318;
-  margin: 0;
-  text-align: left;
+  line-height: 1.3 !important;
+  color: #101318 !important;
+  margin: 0 !important;
+  text-align: left !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
   /* A long facility name ("Storage Outlet - Bellflower") must break rather than
-     push the column wider. */
+     push the column wider. Not guarded — no theme sets it. */
   overflow-wrap: break-word;
-  /* Guard against host themes restyling bare <h1> (e.g. uppercasing it). This
-     rule is .sl-wrapper-qualified for SPECIFICITY (0,2,0): a bare .sl-page-title
-     is (0,1,0) and loses to any host rule shaped like `.something h1`. The
-     size/weight/margin/align also override the browser's own h1 defaults. */
-  text-transform: none;
-  letter-spacing: normal;
 }
 /* "Select a Space" is a mobile-only heading. On desktop .sl-heading collapses
    (display:contents) so only the page title shows — desktop is unchanged. */
@@ -1153,9 +1160,11 @@
      width already, so nothing else comes back with it.
      .sl-heading keeps its display:contents, so the title stays a direct
      participant in .sl-wrapper's flex column exactly as it is on desktop. */
+  /* !important to clear the base guard above — equal specificity, so this wins
+     on source order, but only if it is guarded too. */
   .sl-wrapper .sl-page-title {
-    font-size: 22px;
-    text-align: center;
+    font-size: 22px !important;
+    text-align: center !important;
   }
   .sl-wrapper .sl-filter-panel,
   .sl-wrapper .sl-additional-panel.ap-left,
