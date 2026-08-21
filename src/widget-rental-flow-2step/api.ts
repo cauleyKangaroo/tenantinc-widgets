@@ -1080,22 +1080,6 @@ export async function fetchPaymentLink(ctx: RentalCtx, contactId: string): Promi
  */
 const DEFAULT_SOURCE = 'Mariposa Website Application';
 
-/**
- * The masked "MM/DD/YYYY" a form collects → the API's "YYYY-MM-DD".
- *
- * Purely positional: no Date is constructed, so an incomplete or nonsense entry
- * yields undefined instead of a silently shifted date (new Date('13/40/2020')
- * rolls over into 2021 rather than failing). Every date field here is optional
- * to the API, so sending nothing beats sending a wrong birthday.
- */
-export const dobToIso = (masked: string): string | undefined => {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(masked.trim());
-  if (!m) return undefined;
-  const [, mm, dd, yyyy] = m;
-  if (+mm < 1 || +mm > 12 || +dd < 1 || +dd > 31) return undefined;
-  return `${yyyy}-${mm}-${dd}`;
-};
-
 /** Billing/contact address — required by both the contact and the card. */
 export interface RentAddress {
   address: string;
