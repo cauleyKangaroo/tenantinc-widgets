@@ -20,6 +20,7 @@ import { ChevronSolidIcon } from './icons';
    lookups and Duda bindings, none of which belong on a checkout page. */
 import storelocalLogo from '../widget-navigation-bar/Storelocal_logo.png';
 import { RfCheckbox } from './RfCheckbox';
+import { splitBusinessName } from './businessName';
 import { readUnitSelection, clearUnitSelection } from '@shared/unitHandoff';
 import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
@@ -468,9 +469,24 @@ function RentalHeader({ holdRemaining, homeHref, shrunk, innerRef }: {
   );
 }
 
-export interface Contact { first: string; last: string; email: string; phone: string; business: boolean }
+export interface Contact {
+  first: string;
+  last: string;
+  email: string;
+  phone: string;
+  business: boolean;
+  /**
+   * The trading name, when renting as a business — the one field that replaces
+   * First/Last on that path.
+   *
+   * `first`/`last` are still populated from it, because the API requires both
+   * on a contact and a lease cannot be filed without them. This keeps the name
+   * as the operator typed it, so nothing downstream has to reassemble it from
+   * a split that was never a real first and last name.
+   */
+  businessName?: string;
+}
 
-// Step 1 — "Secure your space now" contact form.
 function Step1Form({
   eyebrow, heading, termsHref, brandName, onRent, onReserve, reserveError,
 }: {
@@ -487,15 +503,21 @@ function Step1Form({
   const [phone, setPhone] = useState('');
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
+  // Renting as a business replaces First + Last with a single trading name.
+  const [bizName, setBizName] = useState('');
   const [attempted, setAttempted] = useState(false);
 
-  // These four are the "contact information" the lease POST ultimately
-  // requires — Rent/Reserve don't proceed until they're present.
+  // The contact information the lease POST ultimately requires — Rent/Reserve
+  // don't proceed until it's present. Which NAME fields count depends on the
+  // business toggle, so an unfilled first name cannot block a business rental
+  // that never showed the field.
   const checks: Array<[string, boolean]> = [
     ['rf-email', isValidEmail(email)],
     ['rf-phone', isPossiblePhone(phone, 'US')],
-    ['rf-first', first.trim().length > 0],
-    ['rf-last', last.trim().length > 0],
+    ...(business
+      ? [['rf-bizname', bizName.trim().length > 0]] as Array<[string, boolean]>
+      : [['rf-first', first.trim().length > 0],
+        ['rf-last', last.trim().length > 0]] as Array<[string, boolean]>),
   ];
   const gate = (proceed: (c: Contact) => void) => () => {
     const firstInvalid = checks.find(([, ok]) => !ok);
@@ -504,7 +526,14 @@ function Step1Form({
       document.getElementById(firstInvalid[0])?.focus();
       return;
     }
-    proceed({ first: first.trim(), last: last.trim(), email: email.trim(), phone: phone.trim(), business });
+    const name = business ? splitBusinessName(bizName) : { first: first.trim(), last: last.trim() };
+    proceed({
+      ...name,
+      email: email.trim(),
+      phone: phone.trim(),
+      business,
+      businessName: business ? bizName.trim() : undefined,
+    });
   };
   const bad = (id: string) => attempted && !(checks.find(([k]) => k === id)?.[1]);
 
@@ -520,10 +549,12 @@ function Step1Form({
       </RfCheckbox>
 
       <div className="rf-form">
+        {/* The labels say whose details these are. Same fields, same
+            validation — only the words change with the toggle. */}
         <div className="rf-row">
-          <Field id="rf-email" label="Email" type="email" value={email}
+          <Field id="rf-email" label={business ? 'Business Email' : 'Email'} type="email" value={email}
             valid={isValidEmail(email)} error={bad('rf-email')} onChange={setEmail} />
-          <Field id="rf-phone" label="Phone" type="tel" value={phone} phoneCountry="US"
+          <Field id="rf-phone" label={business ? 'Business Phone' : 'Phone'} type="tel" value={phone} phoneCountry="US"
             valid={isPossiblePhone(phone, 'US')} error={bad('rf-phone')} onChange={setPhone} />
         </div>
 
@@ -536,12 +567,20 @@ function Step1Form({
           </p>
         )}
 
-        <div className="rf-row">
-          <Field id="rf-first" label="First Name" value={first}
-            valid={first.trim().length > 0} error={bad('rf-first')} onChange={setFirst} />
-          <Field id="rf-last" label="Last Name" value={last}
-            valid={last.trim().length > 0} error={bad('rf-last')} onChange={setLast} />
-        </div>
+        {/* A business has one name, not a first and a last — so the pair
+            collapses into a single full-width field rather than leaving an
+            empty half-row. */}
+        {business ? (
+          <Field id="rf-bizname" label="Business Name" value={bizName}
+            valid={bizName.trim().length > 0} error={bad('rf-bizname')} onChange={setBizName} />
+        ) : (
+          <div className="rf-row">
+            <Field id="rf-first" label="First Name" value={first}
+              valid={first.trim().length > 0} error={bad('rf-first')} onChange={setFirst} />
+            <Field id="rf-last" label="Last Name" value={last}
+              valid={last.trim().length > 0} error={bad('rf-last')} onChange={setLast} />
+          </div>
+        )}
       </div>
 
       <div className="rf-actions">

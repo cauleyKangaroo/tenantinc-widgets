@@ -8,6 +8,7 @@ import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from './P
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
 import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { splitBusinessName } from './businessName';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space now" (Figma 8507-23329).
@@ -179,7 +180,7 @@ export function Step2({
     card?: CardFormValue;
     /** Step 2's own contact fields, which the shopper may have edited after
      *  step 1, so these win over the ones captured there. */
-    contact?: { first: string; last: string; email: string; phone: string };
+    contact?: { first: string; last: string; email: string; phone: string; businessName?: string };
     /** Autopay Enrollment checkbox. */
     autopay?: boolean;
     /** The Additional Information sections the shopper opened and filled.
@@ -189,7 +190,7 @@ export function Step2({
   }) => void;
   /** What the shopper typed in step 1, used as the starting values here so they
    *  do not retype their own name and email one screen later. */
-  contact?: { first: string; last: string; email: string; phone: string; business?: boolean };
+  contact?: { first: string; last: string; email: string; phone: string; business?: boolean; businessName?: string };
   /** Payment in flight — locks the pay button against a double charge. */
   paying?: boolean;
   /** Why the rental could not be completed. Shown by the payment panel so the
@@ -207,6 +208,9 @@ export function Step2({
   const [phone, setPhone] = useState(contact?.phone ?? '');
   const [first, setFirst] = useState(contact?.first ?? '');
   const [last, setLast] = useState(contact?.last ?? '');
+  // The trading name, when renting as a business — replaces First + Last here
+  // exactly as it does on step 1, so the answer carries across the Rent click.
+  const [bizName, setBizName] = useState(contact?.businessName ?? '');
   const [military, setMilitary] = useState(false);
   // Off, like every other optional section. On, it opens five REQUIRED fields
   // (name, phone, email, address) that block the step until they are filled —
@@ -325,8 +329,12 @@ export function Step2({
   const required: Array<[key: string, ok: boolean]> = [
     ['email', emailOk],
     ['phone', phoneOk],
-    ['first', first.trim().length > 0],
-    ['last', last.trim().length > 0],
+    // Whichever name fields are actually on screen — a hidden First Name must
+    // never be what stops Pay Now.
+    ...(business
+      ? [['bizName', bizName.trim().length > 0]] as Array<[string, boolean]>
+      : [['first', first.trim().length > 0],
+        ['last', last.trim().length > 0]] as Array<[string, boolean]>),
     ['agree', agree],
     // The optional sections are TICKS here — their fields live on the
     // post-purchase screen, so there is nothing on this step to validate. They
@@ -355,7 +363,9 @@ export function Step2({
   const payStatically = (card?: CardFormValue) => onPaymentComplete?.({
     firstName: first.trim() || 'there',
     card,
-    contact: { first: first.trim(), last: last.trim(), email: email.trim(), phone },
+    contact: business
+      ? { ...splitBusinessName(bizName), email: email.trim(), phone, businessName: bizName.trim() }
+      : { first: first.trim(), last: last.trim(), email: email.trim(), phone },
     autopay,
     // Which sections the shopper opted into. The VALUES are collected on the
     // post-purchase screen, so this step sends the choices and nothing else.
@@ -378,13 +388,17 @@ export function Step2({
 
       <div className="rf2-form">
         <div className="rf2-row">
-          <FieldAbove label="Email" required value={email} onChange={setEmail} type="email" error={bad('email')} />
-          <FieldAbove label="Phone Number" required value={phone} onChange={setPhone} type="tel" phoneCountry="US" error={bad('phone')} />
+          <FieldAbove label={business ? 'Business Email' : 'Email'} required value={email} onChange={setEmail} type="email" error={bad('email')} />
+          <FieldAbove label={business ? 'Business Phone' : 'Phone Number'} required value={phone} onChange={setPhone} type="tel" phoneCountry="US" error={bad('phone')} />
         </div>
-        <div className="rf2-row">
-          <FieldAbove label="First Name" required value={first} onChange={setFirst} error={bad('first')} />
-          <FieldAbove label="Last Name" required value={last} onChange={setLast} error={bad('last')} />
-        </div>
+        {business ? (
+          <FieldAbove label="Business Name" required value={bizName} onChange={setBizName} error={bad('bizName')} />
+        ) : (
+          <div className="rf2-row">
+            <FieldAbove label="First Name" required value={first} onChange={setFirst} error={bad('first')} />
+            <FieldAbove label="Last Name" required value={last} onChange={setLast} error={bad('last')} />
+          </div>
+        )}
         <button type="button" className="rf2-movein rf2-movein--valid" onClick={onEditDate}>
           <span className="rf2-movein-text">
             <span className="rf2-movein-label">Move-in Date<span className="rf-req">*</span></span>
