@@ -363,6 +363,10 @@ export interface SelectionContext {
   offerToken?: string;
   /** `space_mix_id` from the offer — required verbatim by documents/finalize. */
   spaceMixId?: string;
+  /** The unit's display number, e.g. "0004" — the rail's "#0004 | 8' x 12'".
+   *  It rides on the offer at `costs.Unit.number`, so it is known as soon as
+   *  the tier resolves, before any hold or quote. */
+  unitNumber?: string;
 }
 
 /** "10' x 10'" / "10x10" → "10x10" for comparisons. */
@@ -442,7 +446,7 @@ interface SelOffer {
   unit_id?: string; price?: number;
   value_tier?: { type?: string };
   promotions?: Array<{ id?: string; name?: string }>;
-  costs?: { Discounts?: OfferDiscount[] };
+  costs?: { Discounts?: OfferDiscount[]; Unit?: { number?: string } };
   amenities?: OfferAmenity[];
   dossier?: { token?: string };
   space_mix_id?: string;
@@ -495,6 +499,7 @@ export async function fetchSelectionFromOffers(
     promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
     offerToken: pick.dossier?.token,
     spaceMixId: pick.space_mix_id,
+    unitNumber: pick.costs?.Unit?.number,
   };
 }
 
