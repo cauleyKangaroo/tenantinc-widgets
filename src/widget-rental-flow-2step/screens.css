@@ -373,9 +373,21 @@
 .rf-select-chev {
   position: absolute;
   top: 16px;
-  right: 16px;
+  right: var(--hb-field-padding-x, 16px);
   color: var(--hb-grayscale-medium, #637381);
   transform: rotate(90deg);
+}
+
+/* A state icon appears in the field's own icon slot, and the chevron is drawn
+   OVER the face rather than living in that slot — so it landed on top of the
+   red alert mark. Step aside by exactly what the field added: a 24px icon plus
+   the slot's gap. Adjacent-sibling because the chevron follows the FormField
+   inside .rf-select-face. Success is covered too: the Select does not set it
+   today, but the geometry is identical and finding this again would be
+   irritating. */
+.rf-select-face .hb-field--error + .rf-select-chev,
+.rf-select-face .hb-field--success + .rf-select-chev {
+  right: calc(var(--hb-field-padding-x, 16px) + 24px + var(--hb-field-icon-gap, 8px));
 }
 /* Focus lands on the hidden select, so mirror the ring onto the visible face. */
 .rf-select:focus-within .rf-select-face .hb-field__box {
