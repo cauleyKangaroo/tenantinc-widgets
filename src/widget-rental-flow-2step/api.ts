@@ -1073,6 +1073,13 @@ export async function fetchPaymentLink(ctx: RentalCtx, contactId: string): Promi
 //
 // Nothing here is memoised and nothing is retried: these are money writes.
 
+/**
+ * `source` on both calls — Hummingbird records it as the originating
+ * application. TenantInc's own sample uses this exact string; override per site
+ * once more than one website feeds the same company.
+ */
+const DEFAULT_SOURCE = 'Mariposa Website Application';
+
 /** Billing/contact address — required by both the contact and the card. */
 export interface RentAddress {
   address: string;
@@ -1165,6 +1172,11 @@ export interface RentArgs {
   /** Reserve first, then rent: the lease attaches to the reservation. */
   reservationId?: string;
   platform?: string;
+  /** `source` — which application originated this, for attribution in
+   *  Hummingbird. TenantInc's own example sends "Mariposa Website Application". */
+  source?: string;
+  /** How the tenant wants legal notices delivered: hand_delivery | email | mail. */
+  noticeDelivery?: 'hand_delivery' | 'email' | 'mail';
   /** Military / alternate-contact / vehicle sections, when the shopper opened them. */
   extras?: RentalExtras;
 }
@@ -1295,6 +1307,8 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
     costs: args.costs,
     metadata: signingMetadata(),
     platform: args.platform ?? 'website',
+    source: args.source ?? DEFAULT_SOURCE,
+    deliveryMethod: { notice_delivery: args.noticeDelivery ?? 'email' },
   };
   const vehicle = vehicleInfo(args.extras);
   if (vehicle) body.vehicle_info = vehicle;
@@ -1332,6 +1346,8 @@ async function finalizeLease(
     payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
     start_date: args.startDate,
     platform: args.platform ?? 'website',
+    source: args.source ?? DEFAULT_SOURCE,
+    deliveryMethod: { notice_delivery: args.noticeDelivery ?? 'email' },
     additional_months: 0,
   };
   // One identifier or the other, never both: reservation_id continues a
