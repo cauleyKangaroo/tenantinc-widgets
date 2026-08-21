@@ -115,77 +115,6 @@ function FieldAbove({
   );
 }
 
-/**
- * Dropdown, built on the shared field's skin (Figma 8507-25490 / 8507-25502).
- *
- * The label belongs INSIDE the box, exactly as FieldAbove's <FormField> already
- * puts it — the old label-above markup was what made these three controls the
- * odd ones out in a form where every text input floats its label. So this
- * reuses the kit's own `hb-field` classes rather than restyling a select from
- * scratch: box, 56px height, 16px gutters, #A5B4BF border, focus ring, floated
- * label and the red required marker all arrive from @shared/ui and cannot drift
- * from the inputs sitting beside them.
- *
- * Two things a <select> cannot inherit:
- *  - The kit floats its label off `:placeholder-shown`, which a select never
- *    matches. `.rf2-sel--filled` stands in for it (see the CSS).
- *  - The arrow was the BROWSER's, which is why it looked foreign and sat hard
- *    against the edge. `appearance: none` removes it and ChevronSolidIcon — the
- *    same mark as the protection-plan dropdown (Figma 8508-32282) — goes into
- *    the kit's `hb-field__icons` slot, where the box's own 16px padding indents
- *    it to match the frame without a magic number.
- */
-function SelectField({
-  label, required, value, onChange, options, error,
-}: {
-  label: string;
-  required?: boolean;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-  error?: boolean;
-}) {
-  const cls = [
-    'hb-field', 'hb-field--labelled', 'rf2-sel',
-    value ? 'rf2-sel--filled' : '',
-    /* Green border only, never the kit's tick: the chevron already occupies
-       this field's icon slot, and stacking the two is what produced the
-       doubled mark on the payment panel's country select. Same rule here. */
-    value && !error ? 'rf-valid' : '',
-    error ? 'hb-field--error' : '',
-  ].filter(Boolean).join(' ');
-
-  return (
-    <div className={cls}>
-      <div className="hb-field__box">
-        <div className="hb-field__data">
-          {/* Select before label, matching FormField, so the CSS sibling
-              selector can float the label on focus. */}
-          <select
-            className="hb-field__input hb-field__select"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            /* The visible label is the floating one, which is decorative to AT
-               once it has floated — so name the control explicitly. */
-            aria-label={label}
-            required={required}
-            aria-invalid={error || undefined}
-          >
-            <option value="" disabled hidden />
-            {options.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-          <label className="hb-field__label">
-            {label}
-            {required && <span className="hb-field__required" aria-hidden="true">*</span>}
-          </label>
-        </div>
-        <div className="hb-field__icons">
-          <ChevronSolidIcon size={14} className="hb-field__icon rf2-sel-chev" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Thin alias kept so the step-2 call sites read as before; RfCheckbox owns the
 // skin, size and tick. No `small` — every checkbox in the flow is one size now.
@@ -317,6 +246,9 @@ export function Step2({
     contact?: { first: string; last: string; email: string; phone: string };
     /** Autopay Enrollment checkbox. */
     autopay?: boolean;
+    /** Additional Information ticks, so step 3 can open the matching sections
+     *  already expanded instead of asking the same questions twice. */
+    sections?: { military: boolean; altContact: boolean; vehicle: boolean };
   }) => void;
   /** Payment in flight — locks the pay button against a double charge. */
   paying?: boolean;
@@ -341,20 +273,6 @@ export function Step2({
   const [bizAddress, setBizAddress] = useState('');
   const [bizFirst, setBizFirst] = useState('');
   const [bizLast, setBizLast] = useState('');
-  const [dob, setDob] = useState('');
-  const [acFirst, setAcFirst] = useState('');
-  const [acLast, setAcLast] = useState('');
-  const [acPhone, setAcPhone] = useState('');
-  const [acEmail, setAcEmail] = useState('');
-  const [acAddress, setAcAddress] = useState('');
-  const [vehType, setVehType] = useState('');
-  const [vehMake, setVehMake] = useState('');
-  const [vehModel, setVehModel] = useState('');
-  const [vehYear, setVehYear] = useState('');
-  const [vehColor, setVehColor] = useState('');
-  const [vehPlate, setVehPlate] = useState('');
-  const [vehCountry, setVehCountry] = useState('');
-  const [vehState, setVehState] = useState('');
   const [agree, setAgree] = useState(false);
   const [autopay, setAutopay] = useState(false);
   // "Learn More" coverage card (Figma 8509-36480). The plan CARD in the page is
@@ -473,13 +391,8 @@ export function Step2({
     ...(business ? [['bizAddress', bizAddress.trim().length > 0],
       ['bizFirst', bizFirst.trim().length > 0],
       ['bizLast', bizLast.trim().length > 0]] as Array<[string, boolean]> : []),
-    ...(military ? [['dob', dob.trim().length > 0]] as Array<[string, boolean]> : []),
-    ...(altContact ? [['acFirst', acFirst.trim().length > 0],
-      ['acLast', acLast.trim().length > 0],
-      ['acPhone', isPossiblePhone(acPhone, 'US')],
-      ['acEmail', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(acEmail.trim())],
-      ['acAddress', acAddress.trim().length > 0]] as Array<[string, boolean]> : []),
-    ...(vehicle ? [['vehType', vehType.trim().length > 0]] as Array<[string, boolean]> : []),
+    // Nothing from Additional Information: those three boxes are a statement of
+    // intent now and their fields are collected on step 3.
   ];
   const formComplete = required.every(([, ok]) => ok);
   const bad = (key: string) => payAttempted && !(required.find(([k]) => k === key)?.[1] ?? true);
@@ -509,6 +422,7 @@ export function Step2({
     card,
     contact: { first: first.trim(), last: last.trim(), email: email.trim(), phone },
     autopay,
+    sections: { military, altContact, vehicle },
   });
 
 
@@ -680,62 +594,14 @@ export function Step2({
         <section className="rf2-plain">
           <span className="rf2-h">Additional Information</span>
           <div className="rf2-checks">
+            {/* Plain checkboxes: they RECORD an intent, they do not collect it.
+                The fields each one used to reveal live on step 3, after payment,
+                where the shopper is not standing between them and a card form —
+                and the ones ticked here arrive already open. Nothing in this
+                section blocks Pay Now any more. */}
             <Check checked={military} onChange={setMilitary}>I am active military</Check>
-            {military && (
-              <div className="rf2-expand">
-                {/* Typed, not a picker. A birth date is decades back and a
-                    known quantity — typing eight digits beats navigating a
-                    calendar to it, which is why SuccessStep's DOB was already
-                    the masked field. The label rests as "Date of Birth" and the
-                    MM/DD/YYYY mask appears on focus. */}
-                <FormField
-                  label="Date of Birth"
-                  required
-                  mask="date"
-                  value={dob}
-                  onChange={setDob}
-                  autoComplete="bday"
-                  error={bad('dob') ? 'Enter a valid Date of Birth' : undefined}
-                  state={dob.length === 10 ? 'success' : undefined}
-                />
-              </div>
-            )}
             <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
-            {altContact && (
-              <div className="rf2-expand">
-                <div className="rf2-row">
-                  <FieldAbove label="First Name" required value={acFirst} onChange={setAcFirst} error={bad('acFirst')} />
-                  <FieldAbove label="Last Name" required value={acLast} onChange={setAcLast} error={bad('acLast')} />
-                </div>
-                <div className="rf2-row">
-                  <FieldAbove label="Phone" required value={acPhone} onChange={setAcPhone} type="tel" phoneCountry="US" error={bad('acPhone')} />
-                  <FieldAbove label="Email" required value={acEmail} onChange={setAcEmail} type="email" error={bad('acEmail')} />
-                </div>
-                <FieldAbove label="Address" required value={acAddress} onChange={setAcAddress} error={bad('acAddress')} />
-              </div>
-            )}
             <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
-            {vehicle && (
-              <div className="rf2-expand">
-                <SelectField label="Vehicle Type" required value={vehType} onChange={setVehType} error={bad('vehType')}
-                  options={['Car', 'Truck', 'Motorcycle', 'RV', 'Boat', 'Trailer', 'Other']} />
-                <div className="rf2-row">
-                  <FieldAbove label="Make" value={vehMake} onChange={setVehMake} />
-                  <FieldAbove label="Model" value={vehModel} onChange={setVehModel} />
-                </div>
-                <div className="rf2-row">
-                  <FieldAbove label="Year" value={vehYear} onChange={setVehYear} />
-                  <FieldAbove label="Color" value={vehColor} onChange={setVehColor} />
-                </div>
-                <div className="rf2-row">
-                  <FieldAbove label="License Plate Number" value={vehPlate} onChange={setVehPlate} />
-                  <SelectField label="Country" value={vehCountry} onChange={setVehCountry}
-                    options={['United States', 'Canada', 'Mexico']} />
-                </div>
-                <SelectField label="State" value={vehState} onChange={setVehState}
-                  options={['AZ', 'CA', 'NV', 'OR', 'TX', 'WA', 'Other']} />
-              </div>
-            )}
           </div>
         </section>
 

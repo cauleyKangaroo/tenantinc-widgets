@@ -89,11 +89,19 @@ function IdIllustration() {
   );
 }
 
-export function SuccessStep({ onGetAccess }: { onGetAccess?: () => void }) {
+export function SuccessStep({ onGetAccess, initialSections }: {
+  onGetAccess?: () => void;
+  /** What the shopper ticked under Additional Information on step 2. Those
+   *  sections open here already expanded — they said they had a vehicle to
+   *  declare, so the form should be waiting for it rather than asking again. */
+  initialSections?: { military: boolean; altContact: boolean; vehicle: boolean };
+}) {
   const [business, setBusiness] = useState(false);
-  const [military, setMilitary] = useState(false);
-  const [altContact, setAltContact] = useState(false);
-  const [vehicle, setVehicle] = useState(false);
+  // Seeded, not synced: this is the shopper's own form from here on, so
+  // unticking one must stick. An initial value is all step 2 gets to say.
+  const [military, setMilitary] = useState(initialSections?.military ?? false);
+  const [altContact, setAltContact] = useState(initialSections?.altContact ?? false);
+  const [vehicle, setVehicle] = useState(initialSections?.vehicle ?? false);
 
   // Business
   const [bizAddress, setBizAddress] = useState('');

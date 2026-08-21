@@ -739,6 +739,11 @@ export function RentalFlow2Step({
   /** Static payment path (no GP key): the lightbox has finished, show the
    *  post-purchase form rather than navigating to the confirmation page. */
   const [staticPaid, setStaticPaid] = useState(false);
+  /** Step 2's Additional Information ticks, handed to step 3 so the sections
+   *  the shopper asked for are already open when they get there. */
+  const [extraSections, setExtraSections] = useState<
+    { military: boolean; altContact: boolean; vehicle: boolean } | undefined
+  >(undefined);
   // The real rental (documents → lease → autopay). Present ⇒ money moved.
   const [rental, setRental] = useState<Extract<RentResult, { ok: true }> | undefined>(undefined);
   const [paying, setPaying] = useState(false);
@@ -1317,7 +1322,7 @@ export function RentalFlow2Step({
           </div>
         ) : (
           <div className="rfc-layout">
-            <SuccessStep onGetAccess={() => setAccessGranted(true)} />
+            <SuccessStep onGetAccess={() => setAccessGranted(true)} initialSections={extraSections} />
             {!isMobile && <OrderRail property={propertyInfo} selection={selection} quote={quote} />}
           </div>
         )}
@@ -1422,6 +1427,10 @@ export function RentalFlow2Step({
             paying={paying}
             payError={payError}
             onPaymentComplete={(info) => {
+              // Recorded before anything else branches — every path from here
+              // ends on step 3 or the confirmation, and both are downstream of
+              // this. Doing it inside one branch would lose it on the others.
+              setExtraSections(info.sections);
               // REAL RENTAL. A card plus a live hold and quote means we have
               // everything the documented flow needs (guide APIs 9→10→11), so
               // run it instead of the prototype bridge below. Nothing is

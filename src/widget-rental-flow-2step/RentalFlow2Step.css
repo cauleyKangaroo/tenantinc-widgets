@@ -1513,20 +1513,6 @@
   background-image: none;
   text-overflow: ellipsis;
 }
-/* The kit floats its label with `:placeholder-shown`, which a <select> can never
-   match, so `--filled` stands in for "has a value". Values are copied from
-   .hb-field__input:not(:placeholder-shown) — keep them in step with the kit. */
-.rf2-sel--filled .hb-field__label,
-.rf2-sel .hb-field__select:focus + .hb-field__label {
-  transform: translateY(-18px);
-  font-size: var(--hb-font-size-label);
-  line-height: var(--hb-line-height-label);
-}
-/* ChevronSolidIcon points RIGHT as drawn; a dropdown wants it down. It sits in
-   the kit's icon slot, so the 16px indent is .hb-field__box's own padding —
-   the same gutter as the label, which is what the frame shows. */
-.rf2-sel-chev { transform: rotate(90deg); color: #101318; }
-
 /* --- Global Payments Hosted Fields (Credit / Debit panel) --------------- */
 .rf2-pay--selected { border: 2px solid #101318; }
 .rf2-gp { margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
