@@ -202,7 +202,16 @@
   font-family: var(--hb-font);
 }
 
-.rf-payment-title { margin: 0; color: #000; font-size: 20px; font-weight: 700; }
+/* The third <h3> — same exposure as the step-3 pair; see the note on
+   .rf-sx-idv-title. Not reported yet only because step 2 was not the screenshot. */
+.rf-payment-title {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: #000 !important;
+}
 
 .rf-autopay-card {
   display: flex;
@@ -525,7 +534,31 @@
 .rf-sx > .rf-title { margin-bottom: 0; }
 
 .rf-sx-idv { padding: 30px; border-radius: 12px; background: #f4f6f8; }
-.rf-sx-idv-title { margin: 0 0 16px; color: var(--hb-text-night, #101318); font-size: 20px; font-weight: 600; }
+/* ── The three <h3>s carry `!important` on purpose ────────────────────────
+   Duda's theme styles headings from ID-SCOPED selectors (`#dm h3`). An id beats
+   any number of classes, so a bare `.rf-sx-idv-title` loses the cascade on a
+   PUBLISHED page — reported live with "ID Verification" and "Additional
+   Information" rendering white, invisible against the panel behind them. It
+   never shows in the dev harness, which has no such rules, so the only signal
+   is a screenshot from the real site.
+
+   Same fight #02 already documents in FindStorageMegaMenu.css and
+   NavigationBar.css. Family, size, weight, line-height and colour are all
+   guarded: whatever the theme sets on h3 it sets on all of them together, and
+   winning colour while losing size just produces a different wrong heading.
+
+   The <h2>s are deliberately NOT guarded — they render correctly on the same
+   page, so this theme has no id-scoped h2 rule and blanket !important would be
+   armour against an attacker that is not there. */
+
+.rf-sx-idv-title {
+  margin: 0 0 16px;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  color: var(--hb-text-night, #101318) !important;
+}
 .rf-sx-idv-body { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
 .rf-sx-idv-actions { display: flex; flex: 1 1 300px; flex-direction: column; gap: 14px; }
 
@@ -631,7 +664,15 @@
 }
 
 .rf-sx-extra { display: flex; flex-direction: column; gap: 20px; }
-.rf-sx-extra-title { margin: 0; color: var(--hb-text-night, #101318); font-size: 20px; font-weight: 700; }
+/* See the note on .rf-sx-idv-title. */
+.rf-sx-extra-title {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: var(--hb-text-night, #101318) !important;
+}
 /* Matched to step 2's .rf2-expand, which sits 10px under its checkbox inside a
    4px column (=14px) and leaves 12px below before the next one. The groups
    themselves are spaced by .rf2-checks in the markup. */

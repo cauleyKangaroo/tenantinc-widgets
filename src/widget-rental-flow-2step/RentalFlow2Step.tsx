@@ -1228,6 +1228,33 @@ export function RentalFlow2Step({
    */
   const headerDone = makeHeader(false);
 
+  /**
+   * Every step change starts at the top of the new step.
+   *
+   * Advancing only swaps what is rendered — the scroll position is the
+   * document's and does not care — so paying from the bottom of a long step 2
+   * dropped you into the MIDDLE of step 3, which reads as the page not having
+   * changed at all.
+   *
+   * One effect over a derived screen key rather than a scroll at each of the
+   * three call sites: those live in different branches and one more would be
+   * easy to add without remembering this.
+   *
+   * INSTANT, not smooth. This stands in for a page load, and a smooth glide up
+   * several thousand pixels is slow enough to read as a delay — the same reason
+   * the old fastScrollTo existed. The widget's own top, not the document's,
+   * because the widget need not be the only thing on the Duda page.
+   */
+  const screen = accessGranted ? 'access' : staticPaid ? 'idv' : `step${step}`;
+  const lastScreen = useRef(screen);
+  useEffect(() => {
+    if (lastScreen.current === screen) return;
+    lastScreen.current = screen;
+    const top = wrapRef.current?.getBoundingClientRect().top;
+    if (top == null) return;
+    window.scrollTo({ top: Math.max(0, window.scrollY + top), behavior: 'auto' });
+  }, [screen]);
+
   if (confirmation) {
     // Reservations are REAL (hold + reserve POSTs exist), so they show real
     // response data and NO demo banner. The prototype banner stays only for
