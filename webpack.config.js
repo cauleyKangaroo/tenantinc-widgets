@@ -9,6 +9,7 @@ const widgetEntries = {
   'widget-utility-bar':      './src/widget-utility-bar/index.tsx',      // #01
   'widget-navigation-bar':   './src/widget-navigation-bar/index.tsx',   // #02
   'widget-property-info':    './src/widget-property-info/index.tsx',    // #03
+  'widget-homepage-search':  './src/widget-homepage-search/index.tsx',  // #04
   'widget-space-list':       './src/widget-space-list/index.tsx',       // #05
   'widget-promotions':       './src/widget-promotions/index.tsx',       // #06
   'widget-nearby-locations': './src/widget-nearby-locations/index.tsx', // #07
