@@ -1413,6 +1413,8 @@ export function RentalFlow2Step({
         ) : (
           <Step2
             moveIn={moveIn}
+            // Everything step 1 already asked for, so step 2 opens filled in.
+            contact={contact}
             // The whole list, not plans[0]: the card is a dropdown now, so it
             // needs every option. Live plans win; the sample only fills an empty
             // list, and only in the harness.

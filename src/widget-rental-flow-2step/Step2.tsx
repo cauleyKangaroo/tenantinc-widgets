@@ -213,9 +213,12 @@ const PLAN_HOVER_QUERY = '(min-width: 901px) and (hover: hover) and (pointer: fi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, gpApiKey, gpEnvironment = 'test', payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, paying, payError,
+  brochureUrl, onPlanChange, paying, payError, contact,
 }: {
   moveIn: Date;
+  /** What step 1 collected. Seeds the fields below so the shopper is not asked
+   *  for their name and email a second time. */
+  contact?: { first: string; last: string; email: string; phone: string; business: boolean };
   /** Protection plans to choose between, already narrowed to the space type
    *  being rented. Empty → the "confirmed at checkout" note, which now means
    *  the property has no coverage products configured for that type. */
@@ -257,11 +260,16 @@ export function Step2({
    *  filled in. */
   payError?: string;
 }) {
-  const [business, setBusiness] = useState(false);
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [first, setFirst] = useState('');
-  const [last, setLast] = useState('');
+  /* Seeded from step 1, NOT synced to it. Step 2 owns these from here — the
+     shopper can correct a typo without step 1's copy overwriting it on the next
+     render, which is also why onPaymentComplete sends step 2's values up rather
+     than the parent reusing its own. Step 2 mounts only once step 1 has handed
+     the contact over, so the initial value is always there to read. */
+  const [business, setBusiness] = useState(contact?.business ?? false);
+  const [email, setEmail] = useState(contact?.email ?? '');
+  const [phone, setPhone] = useState(contact?.phone ?? '');
+  const [first, setFirst] = useState(contact?.first ?? '');
+  const [last, setLast] = useState(contact?.last ?? '');
   const [military, setMilitary] = useState(false);
   // Off, like every other optional section. On, it opens five REQUIRED fields
   // (name, phone, email, address) that block the step until they are filled —
