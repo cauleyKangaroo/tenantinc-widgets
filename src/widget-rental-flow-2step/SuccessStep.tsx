@@ -17,9 +17,10 @@
 // ===========================================================================
 
 import { useLayoutEffect, useRef, useState } from 'react';
-import { Checkbox, FormField, isPossiblePhone } from '@shared/ui';
+import { Checkbox, DateModal, FormField, isPossiblePhone } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { ChevronBig } from './planIcons';
+import { CalendarIcon } from './icons';
 
 import idHandCard from './assets/id-g72.svg';
 import idCardFace from './assets/id-g105.svg';
@@ -104,6 +105,12 @@ export interface SuccessDetails {
   mailingAddress?: { address: string; city?: string; state?: string; zip?: string };
 }
 
+/** MM/DD/YYYY — the shape updateContactDetails converts to the API's date. */
+const formatMasked = (d: Date): string => {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}/${p(d.getDate())}/${d.getFullYear()}`;
+};
+
 export function SuccessStep({ onGetAccess, chosen }: {
   /** Fires with everything the contact update can file. The parent decides
    *  what to do with it; this screen just collects. */
@@ -132,7 +139,14 @@ export function SuccessStep({ onGetAccess, chosen }: {
   // and all three persist.
   const [dlNumber, setDlNumber] = useState('');
   const [dlExp, setDlExp] = useState('');
+  const [dlExpDate, setDlExpDate] = useState<Date | null>(null);
+  const [dlExpOpen, setDlExpOpen] = useState(false);
   const [dlState, setDlState] = useState('');
+
+  /** A picked or typed mailing address — the city/state/ZIP follow it. */
+  const [mailPicked, setMailPicked] = useState(false);
+  const showMailParts = mailPicked
+    || !!(mailCity.trim() || mailState.trim() || mailZip.trim());
 
   // Business
   const [bizAddress, setBizAddress] = useState('');
@@ -269,24 +283,11 @@ export function SuccessStep({ onGetAccess, chosen }: {
           </section>
       */}
 
-      {/* Standing in for the parked ID Verification card: the licence details
-          the API actually stores, asked for plainly. */}
-      <section className="rf-sx-extra">
-        <h3 className="rf-sx-extra-title">Driver&rsquo;s Licence</h3>
-        <div className="rf-sx-fields">
-          <FormField label="Driver's Licence Number" value={dlNumber} onChange={setDlNumber} autoComplete="off" state={dlNumber.trim() ? 'success' : 'default'} />
-          <div className="rf-pay-grid">
-            <FormField label="Expiry Date" mask="date" value={dlExp} onChange={setDlExp} state={dlExp.length === 10 ? 'success' : 'default'} />
-            <FormField label="Issuing State" value={dlState} onChange={(v) => setDlState(v.toUpperCase().slice(0, 2))} state={dlState.trim().length === 2 ? 'success' : 'default'} />
-          </div>
-        </div>
-      </section>
-
+      {/* Mailing address first: it is the one most tenants will fill, and the
+          licence group reads as a follow-up rather than a gate. */}
       <section className="rf-sx-extra">
         <h3 className="rf-sx-extra-title">Mailing Address</h3>
         <div className="rf-sx-fields">
-          {/* Same lookup as everywhere else — picking a suggestion fills the
-              city, state and ZIP rather than asking for them a second time. */}
           <AddressAutocomplete
             value={mailAddress}
             onChange={setMailAddress}
@@ -294,17 +295,69 @@ export function SuccessStep({ onGetAccess, chosen }: {
               if (place.address.city) setMailCity(place.address.city);
               if (place.address.stateCode) setMailState(place.address.stateCode);
               if (place.address.zip) setMailZip(place.address.zip);
+              setMailPicked(true);
             }}
           >
             <FormField label="Mailing Address" type="search" value={mailAddress} onChange={setMailAddress} autoComplete="street-address" state={mailAddress.trim() ? 'success' : 'default'} />
           </AddressAutocomplete>
-          <div className="rf-pay-grid">
-            <FormField label="City" value={mailCity} onChange={setMailCity} autoComplete="address-level2" state={mailCity.trim() ? 'success' : 'default'} />
-            <FormField label="State" value={mailState} onChange={(v) => setMailState(v.toUpperCase().slice(0, 2))} autoComplete="address-level1" state={mailState.trim().length === 2 ? 'success' : 'default'} />
-          </div>
-          <FormField label="ZIP Code" value={mailZip} onChange={setMailZip} autoComplete="postal-code" state={mailZip.trim().length >= 3 ? 'success' : 'default'} />
+          {/* City, state and ZIP appear once the lookup has filled them — or if
+              anything is already in them. Nothing here is required, so unlike
+              the billing panel there is no need to reveal them on submit: a
+              shopper who types a street and stops has still given a usable
+              address. */}
+          {showMailParts && (
+            <>
+              <div className="rf-pay-grid">
+                <FormField label="City" value={mailCity} onChange={setMailCity} autoComplete="address-level2" state={mailCity.trim() ? 'success' : 'default'} />
+                <FormField label="State" value={mailState} onChange={(v) => setMailState(v.toUpperCase().slice(0, 2))} autoComplete="address-level1" state={mailState.trim().length === 2 ? 'success' : 'default'} />
+              </div>
+              <FormField label="ZIP Code" value={mailZip} onChange={setMailZip} autoComplete="postal-code" state={mailZip.trim().length >= 3 ? 'success' : 'default'} />
+            </>
+          )}
         </div>
       </section>
+
+      {/* Standing in for the parked ID Verification card: the licence details
+          the API actually stores, asked for plainly. */}
+      <section className="rf-sx-extra">
+        <h3 className="rf-sx-extra-title">Driver&rsquo;s Licence</h3>
+        <div className="rf-sx-fields">
+          <FormField label="Driver's Licence Number" value={dlNumber} onChange={setDlNumber} autoComplete="off" state={dlNumber.trim() ? 'success' : 'default'} />
+          <div className="rf-pay-grid">
+            {/* A picker, not a typed mask. An expiry is a date the shopper is
+                reading off a card in front of them, and it is always in the
+                FUTURE — so the calendar opens on today and browses forward,
+                which is fewer taps than typing eight digits. */}
+            <button type="button" className="rf2-movein rf2-movein--valid" onClick={() => setDlExpOpen(true)}>
+              <span className="rf2-movein-text">
+                <span className="rf2-movein-label">Expiry Date</span>
+                <span className="rf2-movein-value">{dlExp || 'Select a date'}</span>
+              </span>
+              <CalendarIcon size={24} className="rf2-movein-cal" />
+            </button>
+            <FormField label="Issuing State" value={dlState} onChange={(v) => setDlState(v.toUpperCase().slice(0, 2))} state={dlState.trim().length === 2 ? 'success' : 'default'} />
+          </div>
+        </div>
+      </section>
+
+      <DateModal
+        open={dlExpOpen}
+        onClose={() => setDlExpOpen(false)}
+        selected={dlExpDate}
+        onSelect={(d) => setDlExpDate(d)}
+        onConfirm={() => {
+          if (dlExpDate) setDlExp(formatMasked(dlExpDate));
+          setDlExpOpen(false);
+        }}
+        onReset={() => { setDlExpDate(null); setDlExp(''); setDlExpOpen(false); }}
+        title="Licence Expiry Date"
+        ctaLabel="Confirm"
+        // Browse mode: an expiry can be years out, so month-and-year jumping
+        // beats stepping. Nothing before today — a licence that has already
+        // expired is not one to file.
+        browse
+        minDate={new Date()}
+      />
 
       <section className="rf-sx-extra">
         <h3 className="rf-sx-extra-title">Additional Information</h3>
