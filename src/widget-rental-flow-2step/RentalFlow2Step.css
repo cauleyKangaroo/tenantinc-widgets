@@ -1643,6 +1643,21 @@
   color: #b3261e;
 }
 
+/* ── Move-in cost line items — 14px ───────────────────────────────────────
+   Rent (Prorated), Admin Fee, Protection, Total Tax and any discount rows.
+
+   Scoped to .rf-wrapper because MoneyBreakdown and .ts-card-breakdown are
+   SHARED with #14, whose card sizes them from its own context — the component's
+   own stylesheet sets no size at all, deliberately, so it blends into either.
+
+   :not(.hb-money-total) leaves "Total Cost to Move-In" alone. It is the
+   emphasis line and sizing it down with the items it sums would flatten the
+   block into one undifferentiated list.
+
+   !important as asked, and warranted: these render inside a Duda page whose
+   theme sizes text from id-scoped selectors that outrank any class of ours. */
+.rf-wrapper .hb-money-row:not(.hb-money-total) { font-size: 14px !important; }
+
 /* --- Mobile: sticky top cost bar + drop-down rail sheet ------------------ */
 .rfm-top { position: sticky; top: 0; z-index: 50; }
 .rfm-bar {
