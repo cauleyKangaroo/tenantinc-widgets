@@ -780,8 +780,8 @@ export function TierSelection({
                   subheading={isMobile ? undefined : subheading}
                   urgency={modalShowUrgency === false ? '' : urgency}
                   adminFeeText={modalFeeText ?? adminFeeText}
+                  onClose={() => setModalOpen(false)}
                 />
-                <button type="button" className="ts-modal-close" aria-label="Close" onClick={() => setModalOpen(false)}>&times;</button>
               </header>
               <div className="ts-modal-body">{inner}</div>
             </div>
@@ -808,8 +808,8 @@ export function TierSelection({
 // Modal shell header — the single heading row for modal mode: title + subheading
 // on the left, urgency + admin fee on the right (centered on mobile via CSS). It
 // lives in the fixed .ts-modal-header, so the body layouts render chromeless.
-function TierModalHeader({ heading, subheading, urgency, adminFeeText }: {
-  heading: string; subheading?: string; urgency?: string; adminFeeText?: string;
+function TierModalHeader({ heading, subheading, urgency, adminFeeText, onClose }: {
+  heading: string; subheading?: string; urgency?: string; adminFeeText?: string; onClose: () => void;
 }) {
   return (
     <div className="ts-modal-heading">
@@ -817,17 +817,20 @@ function TierModalHeader({ heading, subheading, urgency, adminFeeText }: {
         <h2 className="ts-modal-title">{heading}</h2>
         {subheading && <p className="ts-modal-subtitle">{subheading}</p>}
       </div>
-      {(urgency || adminFeeText) && (
-        <div className="ts-modal-meta">
-          {urgency && <p className="ts-modal-urgency">{urgency}</p>}
-          {adminFeeText && (
-            <p className="ts-modal-admin">
-              {adminFeeText}
-              <InfoCircle size={22} className="ts-modal-admin-info" />
-            </p>
-          )}
-        </div>
-      )}
+      <div className="ts-modal-actions">
+        {(urgency || adminFeeText) && (
+          <div className="ts-modal-meta">
+            {urgency && <p className="ts-modal-urgency">{urgency}</p>}
+            {adminFeeText && (
+              <p className="ts-modal-admin">
+                {adminFeeText}
+                <InfoCircle size={22} className="ts-modal-admin-info" />
+              </p>
+            )}
+          </div>
+        )}
+        <button type="button" className="ts-modal-close" aria-label="Close" onClick={onClose}>&times;</button>
+      </div>
     </div>
   );
 }

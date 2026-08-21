@@ -255,8 +255,31 @@ Ours: `finalizeDocuments()`.
 > browser without calling a third-party geolocation service, which would leak
 > the shopper to an unrelated host. Hummingbird sees the real IP on the request.
 
-`vehicle_info`, military details and relationship contacts are not sent — the
-form collects them but they are not yet mapped.
+Ours: `finalizeDocuments()`. TenantInc re-sent this call's payload on
+2026-08-21 with the instruction **"ignore the fields you don't have data for"**,
+which is how the optional blocks are treated below.
+
+**Sent when the shopper fills them:** `Military` (`active` + `date_of_birth`),
+`Relationships[]` as `type: "alternate"`, `vehicle_info`, `discount_id`,
+`deliveryMethod` (defaults to `email`), and `source` — Hummingbird's record of
+the originating application, `"Mariposa Website Application"` per their sample.
+
+**Not sent, and why:**
+
+| field | reason |
+|---|---|
+| `Business` | their payload shows `"Business": {}` — an empty object with no documented fields, so the business name and address the form collects have nowhere to go |
+| `driver_license`, `_exp`, `_state`, `ssn` | the form does not ask for them yet — this is the ID-verification data, see below |
+| `Relationships` `authorized` / `lien_holder` | the form offers one alternate contact only |
+| `vehicle_info` details | we capture the type; make, model, year, VIN, plate, insurance and registered owner are not asked for |
+| `Military` detail | branch, rank, unit, service dates, commanding officer are not asked for |
+| ACH `payment_method` | the bank form is not wired to the API |
+
+> **ID verification.** There is no verification endpoint anywhere in the guide.
+> What exists is `driver_license` / `driver_license_exp` / `driver_license_state`
+> / `ssn` **as fields on the contact** — so "verifying ID" means capturing the
+> licence with the tenant, not calling a service. The SuccessStep's "Verify ID
+> Now" button has nothing to call.
 
 ### 10. Lease finalization
 

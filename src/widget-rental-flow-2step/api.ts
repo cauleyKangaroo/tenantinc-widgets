@@ -1073,6 +1073,29 @@ export async function fetchPaymentLink(ctx: RentalCtx, contactId: string): Promi
 //
 // Nothing here is memoised and nothing is retried: these are money writes.
 
+/**
+ * `source` on both calls — Hummingbird records it as the originating
+ * application. TenantInc's own sample uses this exact string; override per site
+ * once more than one website feeds the same company.
+ */
+const DEFAULT_SOURCE = 'Mariposa Website Application';
+
+/**
+ * The masked "MM/DD/YYYY" a form collects → the API's "YYYY-MM-DD".
+ *
+ * Purely positional: no Date is constructed, so an incomplete or nonsense entry
+ * yields undefined instead of a silently shifted date (new Date('13/40/2020')
+ * rolls over into 2021 rather than failing). Every date field here is optional
+ * to the API, so sending nothing beats sending a wrong birthday.
+ */
+export const dobToIso = (masked: string): string | undefined => {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(masked.trim());
+  if (!m) return undefined;
+  const [, mm, dd, yyyy] = m;
+  if (+mm < 1 || +mm > 12 || +dd < 1 || +dd > 31) return undefined;
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 /** Billing/contact address — required by both the contact and the card. */
 export interface RentAddress {
   address: string;
@@ -1165,6 +1188,11 @@ export interface RentArgs {
   /** Reserve first, then rent: the lease attaches to the reservation. */
   reservationId?: string;
   platform?: string;
+  /** `source` — which application originated this, for attribution in
+   *  Hummingbird. TenantInc's own example sends "Mariposa Website Application". */
+  source?: string;
+  /** How the tenant wants legal notices delivered: hand_delivery | email | mail. */
+  noticeDelivery?: 'hand_delivery' | 'email' | 'mail';
   /** Military / alternate-contact / vehicle sections, when the shopper opened them. */
   extras?: RentalExtras;
 }
@@ -1295,6 +1323,8 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
     costs: args.costs,
     metadata: signingMetadata(),
     platform: args.platform ?? 'website',
+    source: args.source ?? DEFAULT_SOURCE,
+    deliveryMethod: { notice_delivery: args.noticeDelivery ?? 'email' },
   };
   const vehicle = vehicleInfo(args.extras);
   if (vehicle) body.vehicle_info = vehicle;
@@ -1332,6 +1362,8 @@ async function finalizeLease(
     payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
     start_date: args.startDate,
     platform: args.platform ?? 'website',
+    source: args.source ?? DEFAULT_SOURCE,
+    deliveryMethod: { notice_delivery: args.noticeDelivery ?? 'email' },
     additional_months: 0,
   };
   // One identifier or the other, never both: reservation_id continues a
