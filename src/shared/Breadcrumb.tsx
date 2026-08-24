@@ -18,6 +18,7 @@
 // ===========================================================================
 
 import { useEffect } from 'react';
+import { openFindStorage, FIND_STORAGE_OPEN_EVENT } from './findStorageBus';
 
 const STYLE_ID = 'ti-crumbs-style';
 
@@ -35,6 +36,25 @@ function ensureStyles() {
 .ti-crumb { display: flex; align-items: center; gap: 4px; }
 .ti-crumb-link { color: inherit; text-decoration: underline; }
 .ti-crumb-link:hover { text-decoration: none; }
+/* The action crumb is a real <button> — it opens a panel, so it must not be a
+   link — and #02 renders its own "Find Storage" trigger the same way. A button
+   therefore needs a FULL host reset to look identical to the <a> crumbs beside
+   it: Duda themes style bare buttons, and so does the dev harness, which sets
+   padding, a 1px border, a 6px radius, a white background and a 13px font on
+   every bare button. Anything left unanswered leaks through as a bordered,
+   padded pill in the middle of the trail — the lesson #99's .rfm-bar documents,
+   where an unreset border-radius kept coming back.
+   font: inherit covers family/size/weight/style/variant in one; the rest are
+   properties that shorthand does NOT reach. text-transform is the nastiest of
+   them: a theme with uppercase buttons would render "FIND STORAGE" mid-trail.
+   No outline reset — the focus ring is the one piece of button chrome worth
+   keeping. */
+.ti-crumb-btn { appearance: none; -webkit-appearance: none; box-sizing: border-box;
+  margin: 0; padding: 0; border: 0; border-radius: 0; background: none;
+  box-shadow: none; font: inherit; color: inherit; line-height: inherit;
+  letter-spacing: inherit; text-align: left; text-transform: none; text-indent: 0;
+  width: auto; min-width: 0; height: auto; min-height: 0; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; }
 .ti-crumb-sep { flex-shrink: 0; color: #101318; }
 @media (max-width: 768px) { .ti-crumbs { font-size: 16px; line-height: 20px; } }
 .ti-crumbs--hero { gap: 8px; font-size: 14px; line-height: 1.25; color: #fff; }
@@ -111,6 +131,19 @@ export interface Crumb {
   label: string;
   /** Omitted for the page you are on — the last crumb is never a link. */
   href?: string;
+  /**
+   * Renders this crumb as a BUTTON that runs this instead of navigating.
+   *
+   * For a crumb whose destination is a panel on the page rather than a page of
+   * its own — "Find Storage" opens #02's mega menu, which is what the nav item
+   * of the same name does. A crumb like that must not be an <a>: a link that
+   * goes nowhere is announced as a link by a screen reader and offers a URL to
+   * open in a new tab that does not exist.
+   *
+   * Return false when the action could not be performed (e.g. no nav on the
+   * page); the crumb then falls back to `href` if it has one.
+   */
+  onSelect?: () => boolean | void;
 }
 
 export interface BreadcrumbProps {
@@ -164,18 +197,34 @@ export function Breadcrumb({ items, variant = 'default', className }: Breadcrumb
             {showSep && (hero
               ? <span className="ti-crumb-slash" aria-hidden="true">/</span>
               : <ChevronRight className="ti-crumb-sep" />)}
-            {isLast || !c.href
+            {isLast || (!c.href && !c.onSelect)
               ? <span aria-current={isLast ? 'page' : undefined}>{label}</span>
-              : (
-                <a
-                  className="ti-crumb-link"
-                  href={c.href}
-                  /* The icon replaces the word, so the link needs the name back. */
-                  aria-label={hero && i === 0 ? c.label : undefined}
-                >
-                  {label}
-                </a>
-              )}
+              : c.onSelect
+                ? (
+                  <button
+                    type="button"
+                    className="ti-crumb-link ti-crumb-btn"
+                    /* The icon replaces the word, so the control needs the name back. */
+                    aria-label={hero && i === 0 ? c.label : undefined}
+                    onClick={() => {
+                      // Only an explicit false is a failure — a handler that
+                      // returns nothing is the ordinary "did it" case.
+                      if (c.onSelect!() === false && c.href) window.location.href = c.href;
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+                : (
+                  <a
+                    className="ti-crumb-link"
+                    href={c.href}
+                    /* The icon replaces the word, so the link needs the name back. */
+                    aria-label={hero && i === 0 ? c.label : undefined}
+                  >
+                    {label}
+                  </a>
+                )}
           </span>
         );
       })}
@@ -223,13 +272,36 @@ export function normaliseBase(path: string | undefined): string {
 /**
  * The Home / Find Storage head every trail starts with.
  *
- * `base` names where the state and city pages live (`/locations`). "Find
- * Storage" points at that index; when there is no base it is left unlinked
- * rather than pointed at the site root, which Home already covers.
+ * "Find Storage" OPENS #02'S MEGA MENU rather than navigating. It used to link
+ * to the state/city base (`/locations`), which was wrong in the plainest way:
+ * that path is a PREFIX for state and city pages, not a page — `/locations/
+ * california/bellflower` resolves, bare `/locations` does not, and the crumb
+ * went to an error page on the live site.
+ *
+ * Nor is there an index page to point it at instead. Nothing in the site links
+ * to one: #02's own "Find Storage" nav item is `href: '#'` with a dropdown, and
+ * even "All Locations" inside that menu is a dead `'#'`. The mega menu IS this
+ * site's find-storage affordance, so the crumb now does exactly what the nav
+ * item of the same name does — which is also why #02 already exposes the hook
+ * this uses.
+ *
+ * `fallbackHref` is for a site that DOES build a locations index later: pass it
+ * and the crumb navigates there when no nav answers. Left unset, a page without
+ * #02 gets a crumb that warns to the console instead of going to a 404 — doing
+ * nothing visible is poor, but it beats an error page, and it is diagnosable.
  */
-export function locationCrumbHead(base: string): Crumb[] {
+export function locationCrumbHead(fallbackHref?: string): Crumb[] {
   return [
     { label: 'Home', href: '/' },
-    { label: 'Find Storage', href: base === '/' ? undefined : base },
+    {
+      label: 'Find Storage',
+      href: fallbackHref,
+      onSelect: () => {
+        if (openFindStorage()) return true;
+        console.warn('[Breadcrumb] "Find Storage" — no navigation bar (#02) answered '
+          + `${FIND_STORAGE_OPEN_EVENT}; the mega menu is not on this page.`);
+        return false;
+      },
+    },
   ];
 }

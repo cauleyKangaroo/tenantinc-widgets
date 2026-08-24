@@ -616,7 +616,7 @@ export function MapLocations({
    */
   const crumbs = useMemo<Crumb[]>(() => {
     const base = normaliseBase(locationBasePath);
-    const trail: Crumb[] = [...locationCrumbHead(base)];
+    const trail: Crumb[] = [...locationCrumbHead()];
     if (scope.state) trail.push({ label: stateDisplayName(scope.state), href: `${base}/${scope.state}` });
     // The city crumb wants the bare town — `cityLabel` may carry the ", CA" an
     // editor typed, which reads wrong next to the state crumb beside it.
