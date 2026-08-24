@@ -33,7 +33,6 @@ import type {
   TierKey, Tier, RowType, FeatureRow, O2Tier, O3Tier, O3Row, O3Weight, TierData, TierQuoteState,
 } from './types';
 import { onOpenTiers, isValidTierRequest } from '@shared/tierBus';
-import { holdTierUnit } from './api';
 
 // Branded Small/Medium/Large size illustrations served from Cloudinary — the
 // same CDN assets the live Storage Outlet site uses, so they stay out of the JS
@@ -160,7 +159,9 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
     popular: i === popularIdx,
     promo: t.promo,
     soldOut: t.soldOut,
-    features: (t.features ?? []).slice(0, 5).map((label) => ({ label })),
+    // Pricing cards intentionally show only the four highest-priority website
+    // amenities. The API has already applied show_in_website + sort_order.
+    features: (t.features ?? []).slice(0, 4).map((label) => ({ label })),
   }));
 
   const o3: O3Tier[] = tiers.map((t, i) => ({
@@ -523,52 +524,23 @@ export function TierSelection({
       .then((result) => setQuotes((prev) => ({ ...prev, [key]: result })));
   }, [ctx]);
 
-  /**
-   * Select was pressed: take the hold, then go.
-   *
-   * The hold happens HERE rather than when a tier is highlighted — highlighting
-   * is browsing, and a hold is a real unit out of inventory for fifteen
-   * minutes. Merely opening the popup must not cost anyone a space.
-   *
-   * That means intercepting the anchor, because the token only exists after an
-   * async POST and the href was built before the click. The <a href> is kept so
-   * middle-click and "copy link address" still behave; a plain click comes here.
-   *
-   * NAVIGATION MIRRORS THE SPACE LIST: absolute URL on the published site,
-   * relative in the Duda editor/preview, because a programmatic
-   * window.location bypasses Duda's routing and 404s on my.duda.co.
-   *
-   * A failed hold still navigates. The rental page acquires its own when none
-   * is handed over, so a 409 costs the shopper nothing but a later countdown.
-   */
-  const holdingRef = useRef(false);
+  /** Navigate without taking inventory first. Rental Flow verifies the exact
+   * handed-off offer and owns hold creation at Step 2. Holding here made the
+   * offers endpoint omit that same unit on the destination page, which the
+   * strict correlation check correctly refused but mislabeled unavailable. */
   const onSelectClick = useCallback((key: TierKey) => (e: React.MouseEvent) => {
     // Leave the browser to handle the ways a user asks for a new tab.
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     const href = rentHrefRef.current?.(key);
     if (!href) return;
     e.preventDefault();
-    if (holdingRef.current) return; // a second click must not hold twice
-    holdingRef.current = true;
-
-    const bundle = bundlesRef.current.find((b) => b.key === key);
-    const unitId = bundle?.unitId;
     const go = (target: string) => {
       const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
       const isLive = typeof dm !== 'undefined' && dm?.getCurrentEnvironment?.() === 'live';
       window.location.href = isLive ? window.location.origin + target : target;
     };
-
-    if (inEditor || !unitId) { go(href); return; }
-    void holdTierUnit(ctx, unitId).then((h) => {
-      if (!h) { go(href); return; }
-      // The token travels in the link; heldAt is absolute, so the countdown on
-      // the rental page continues rather than restarting.
-      const sep = href.includes('?') ? '&' : '?';
-      const q = 'holdToken=' + encodeURIComponent(h.holdToken) + '&heldAt=' + h.heldAt;
-      go(href + sep + q);
-    }).catch(() => go(href));
-  }, [ctx, inEditor]);
+    go(href);
+  }, []);
 
 
 
@@ -1526,7 +1498,7 @@ function O2Card({ card }: { card: O2Tier }) {
             <p className="ts-o2-tag">{card.tagline}</p>
           </div>
           <ul className="ts-o2-features ts-o2-features--soldout" aria-hidden="true">
-            {Array.from({ length: 5 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <li className="ts-o2-skel" key={i} />
             ))}
           </ul>

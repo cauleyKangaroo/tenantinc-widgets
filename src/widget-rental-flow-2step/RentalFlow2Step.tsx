@@ -726,7 +726,7 @@ export function RentalFlow2Step({
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
   const [selectionStatus, setSelectionStatus] = useState<
-    'loading' | 'matched' | 'unit-unavailable' | 'malformed' | 'network-error' | 'legacy-display'
+    'loading' | 'matched' | 'unit-unavailable' | 'unit-unverified' | 'malformed' | 'network-error' | 'legacy-display'
   >('loading');
   const [quote, setQuote] = useState<MoveInQuote | undefined>(undefined);
   const [quoteFailed, setQuoteFailed] = useState(false);
@@ -889,6 +889,7 @@ export function RentalFlow2Step({
   const [holdExpired, setHoldExpired] = useState(false);
   const holdRef = useRef<UnitHold | undefined>(undefined);
   holdRef.current = hold;
+  const holdContextRef = useRef<{ key: string; ctx: RentalCtx } | undefined>(undefined);
 
   useEffect(() => {
     if (step !== 2 || !quote || hold || holdExpired) return;
@@ -1019,8 +1020,11 @@ export function RentalFlow2Step({
   // Release on unmount. (Navigating away entirely skips this — the server
   // expires the hold on its own; release is best-effort by design.)
   useEffect(() => () => {
-    if (holdRef.current) void releaseHold(ctx, holdRef.current);
-  }, [ctx]);
+    const releaseContext = holdContextRef.current?.ctx;
+    if (releaseContext?.companyId && holdRef.current) {
+      void releaseHold(releaseContext, holdRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1032,6 +1036,20 @@ export function RentalFlow2Step({
       const confType = new URLSearchParams(window.location.search).get('type');
       if (confType === 'rental' || confType === 'reservation') { setLoading(false); return () => { cancelled = true; }; }
     } catch { /* ignore */ }
+    // The initial context intentionally has companyId='' while collection/config
+    // resolution is pending. Do not reset or release a hold with that incomplete
+    // context — it produced DELETE .../companies//units/... requests.
+    if (!effectiveCompanyId || !ctx.companyId) return () => { cancelled = true; };
+
+    const contextKey = [ctx.companyId, ctx.propertyId, unitGroupIdProp ?? '', unitIdProp ?? ''].join('|');
+    const priorHoldContext = holdContextRef.current;
+    const contextChanged = !!priorHoldContext && priorHoldContext.key !== contextKey;
+    if (contextChanged && holdRef.current) {
+      void releaseHold(priorHoldContext.ctx, holdRef.current);
+      setHold(undefined);
+    }
+    holdContextRef.current = { key: contextKey, ctx };
+
     // Duda re-renders the same root when panel props change — reset all
     // derived state so a stale selection/quote can't survive a context switch.
     setLoading(true);
@@ -1043,12 +1061,6 @@ export function RentalFlow2Step({
     setQuoteFailed(false);
     setUnitTypeId(undefined);
     setInsuranceId(undefined);
-    if (holdRef.current) {
-      void releaseHold(ctx, holdRef.current);
-      setHold(undefined);
-    }
-    // Wait for the async company id before hitting the facility API.
-    if (effectiveCompanyId === null) return () => { cancelled = true; };
     const settle = () => { if (!cancelled && ++settled >= 2) setLoading(false); };
     fetchProperty(ctx)
       .then((p) => {
@@ -1184,7 +1196,7 @@ export function RentalFlow2Step({
       .then((doc) => { if (!cancelled) setLeaseDoc(doc); })
       .catch((err) => console.error(`${logTag} fetchLeaseDocument error:`, err));
     return () => { cancelled = true; };
-  }, [sizeProp, tierProp, unitIdProp, unitGroupIdProp, logTag, ctx, effectiveCompanyId, loadAttempt, stored?.size, stored?.price]);
+  }, [sizeProp, tierProp, unitIdProp, unitGroupIdProp, logTag, ctx, effectiveCompanyId, effectivePropertyId, loadAttempt, stored?.size, stored?.price]);
 
   const goToStep = useCallback((next: 1 | 2) => {
     setPhase('out');
@@ -1443,7 +1455,7 @@ export function RentalFlow2Step({
     ? 'ready'
     : selectionStatus === 'unit-unavailable'
       ? 'unavailable'
-      : selectionStatus === 'malformed' || selectionStatus === 'network-error' || selectionStatus === 'legacy-display' || quoteFailed
+      : selectionStatus === 'unit-unverified' || selectionStatus === 'malformed' || selectionStatus === 'network-error' || selectionStatus === 'legacy-display' || quoteFailed
         ? 'error'
         : loading || selectionStatus === 'loading'
           ? 'loading'
