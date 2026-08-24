@@ -157,20 +157,10 @@
    sees this. */
 .pi-media > .pi-breadcrumb { text-align: right; }
 
-.pi-breadcrumb {
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 22px;
-  color: #101318;
-}
-
-.pi-breadcrumb a {
-  color: #101318;
-}
-
-.pi-breadcrumb a:hover {
-  color: var(--color_1, #f45f30);
-}
+/* Positioning hook only. Type, colour, gaps and the hover now come from
+   @shared/Breadcrumb's own stylesheet, which #08's city page shares — the two
+   Figma frames (9499:22620 and 10622:77309) are identical, so one source. */
+.pi-breadcrumb { flex-shrink: 0; }
 
 .pi-cards {
   display: flex;
@@ -1005,15 +995,10 @@ span.pi-lb-img {
   gap: 12px;
 }
 
-.pi-m-breadcrumb {
-  font-size: 14px;
-  line-height: 22px;
-  color: #fff;
-}
-
-.pi-m-breadcrumb a {
-  color: #fff;
-}
+/* Type and colour come from @shared/Breadcrumb's `hero` variant, which draws
+   this frame (9693:40309). Kept as a hook in case the hero ever needs to place
+   it differently from the page-top trail. */
+.pi-m-breadcrumb { min-width: 0; }
 
 .pi-m-expand {
   flex-shrink: 0;
