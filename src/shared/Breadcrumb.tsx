@@ -32,7 +32,7 @@ function ensureStyles() {
   // push the page wider.
   style.textContent = `
 .ti-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
-  font-size: 18px; line-height: 22.5px; color: #101318; }
+  font-size: 16px; line-height: 20px; color: #101318; }
 .ti-crumb { display: flex; align-items: center; gap: 4px; }
 .ti-crumb-link { color: inherit; text-decoration: underline; }
 .ti-crumb-link:hover { text-decoration: none; }
@@ -56,7 +56,6 @@ function ensureStyles() {
   width: auto; min-width: 0; height: auto; min-height: 0; cursor: pointer;
   -webkit-tap-highlight-color: transparent; }
 .ti-crumb-sep { flex-shrink: 0; color: #101318; }
-@media (max-width: 768px) { .ti-crumbs { font-size: 16px; line-height: 20px; } }
 .ti-crumbs--hero { gap: 8px; font-size: 14px; line-height: 1.25; color: #fff; }
 .ti-crumbs--hero .ti-crumb { gap: 8px; }
 .ti-crumbs--hero .ti-crumb-link { color: inherit; }
@@ -149,7 +148,7 @@ export interface Crumb {
 export interface BreadcrumbProps {
   items: Crumb[];
   /**
-   * `default` — the page-top trail: 18px dark text, chevron separators, every
+   * `default` — the page-top trail: 16px dark text, chevron separators, every
    * crumb spelled out (Figma 10622:77309 / 9499:22620).
    *
    * `hero` — the compact trail that sits INSIDE a dark hero image on mobile
