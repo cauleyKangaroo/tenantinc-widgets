@@ -330,6 +330,9 @@
 
 /* Two-up field grid; collapses on narrow widths. */
 .rf-pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+/* Licence row — Figma 10078-25737. Three equal columns; `minmax(0, 1fr)`
+   rather than `1fr` so a long value cannot push a column past its share. */
+.rf-sx-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 
 .rf-paynow {
   display: flex;
@@ -365,6 +368,7 @@
 
 @media (max-width: 720px) {
   .rf-pay-grid { grid-template-columns: 1fr; }
+  .rf-sx-grid3 { grid-template-columns: 1fr; }
   .rf-payment, .rf-method-panel { padding: 20px; }
   .rf-wallets { flex-direction: column; }
   .rf-autopay-card { padding: 0 16px; }
@@ -382,6 +386,10 @@
   border: 0;
   background: transparent;
   color: transparent;
+  /* Form controls do not inherit the page font — browsers give them the system
+     UI one unless told otherwise. Invisible on the closed control (the text is
+     transparent; the face behind it is what shows) but not in the open list. */
+  font-family: inherit;
   font-size: 16px;
   cursor: pointer;
   -webkit-appearance: none;
@@ -622,6 +630,208 @@
 }
 .rf-sx-idv-note a { color: inherit; text-decoration: underline; }
 
+/* ── ID verification: the in-store branch and the three results ──────────
+   Figma 10080-26478 (in-store), 8507-24189 / -24120 / -24130 (results).
+
+   All four reuse .rf-sx-idv's box; only the ground and the border change, so a
+   result cannot drift away from the card it replaces. The two alert states
+   invert it — white inside a red rule — because they are the only thing on the
+   step that must be read before anything else. */
+
+.rf-sx-idv--instore {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.rf-sx-idv-instore-main { flex: 1 1 300px; min-width: 0; }
+/* Aligned to the lede rather than the heading: the aside is a second thought
+   ("changed your mind?"), not a second column of the same rank. */
+.rf-sx-idv-instore-aside {
+  display: flex;
+  flex: 1 1 260px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 42px;
+}
+.rf-sx-idv-instore-aside .rf-sx-btn { width: 100%; }
+
+/* The heading rules re-state family/size/weight/line-height/colour for the
+   same reason .rf-sx-idv-title does — see the note above it. Adding an icon
+   means adding `display: flex`, which the theme does not touch, so the two
+   modifiers below only add layout. */
+.rf-sx-idv-title--tick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rf-sx-idv-tick { flex: 0 0 auto; color: var(--hb-secondary, #509e2f); }
+.rf-sx-idv-alert { flex: 0 0 auto; color: var(--hb-ada-red, #e53935); }
+
+.rf-sx-idv-lede {
+  margin: 0 0 16px;
+  color: var(--hb-text-night, #101318);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.rf-sx-idv-row { display: flex; gap: 10px; align-items: flex-start; }
+.rf-sx-idv-row--mid { align-items: center; margin-top: 12px; }
+/* Nudged onto the first line of text beside it: the glyphs are drawn in a
+   24px frame whose art sits a couple of pixels in from the top. */
+.rf-sx-idv-ico { flex: 0 0 auto; margin-top: 1px; color: var(--hb-text-night, #101318); }
+.rf-sx-idv-strong {
+  margin: 0;
+  color: var(--hb-text-night, #101318);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.rf-sx-idv-line {
+  margin: 0;
+  color: var(--hb-text-night, #101318);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.rf-sx-idv-link {
+  color: var(--hb-text-night, #101318);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* Result: complete. The card's own ground — nothing to warn about. */
+.rf-sx-idv--done { padding: 30px 28px; }
+.rf-sx-idv--done .rf-sx-idv-title { margin: 0; }
+
+/* Results: failed / later. */
+.rf-sx-idv--alert {
+  padding: 24px 30px;
+  border: 3px solid var(--hb-ada-red, #e53935);
+  border-radius: 10px;
+  background: var(--hb-white, #fff);
+}
+.rf-sx-idv--alert .rf-sx-idv-lede { margin-bottom: 0; }
+.rf-sx-idv-danger { color: var(--hb-ada-red, #e53935); font-weight: 700; }
+/* A <button>, not an <a>: it changes state on this page and goes nowhere, so
+   a link would lie about it to a screen reader and to a middle click. Styled
+   back down to the surrounding sentence. */
+.rf-sx-idv-inline {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ── "Verify ID Now" modal (Figma 8509-35693) ────────────────────────────
+   Qualified with .rf-modal so it beats that rule's max-width whichever of the
+   two stylesheets the bundler emits first. */
+.rf-modal.rf-idm { max-width: 700px; }
+.rf-idm .rf-modal-title { font-size: 20px; line-height: 36px; }
+
+/* ── Why these are !important ────────────────────────────────────────────
+   #03's "Send us a Message" modal renders INSIDE the widget, so inside Duda's
+   `#dm`. This one is portalled to <body> to escape the flow's inline-size
+   containment, which puts it OUTSIDE `#dm` — a different cascade, where the
+   theme's own un-scoped rules land on it and `#dm`-scoped ones do not. An
+   `svg { width: ... }` anywhere in that sheet beats a width ATTRIBUTE, which is
+   how an 18px mark ends up drawn smaller here than the identical 18px mark in
+   #03. Pinned in CSS so the size is ours either way; 18 in a 32px button is
+   exactly what .pi-msg-close does.
+
+   Same fight #02 documents in NavigationBar.css, and invisible in the dev
+   harness — there is no theme sheet there to lose to. */
+.rf-idm .rf-modal-close {
+  padding: 0;                    /* .pi-msg-close has it; this rule never did */
+}
+.rf-idm .rf-modal-close svg {
+  flex: 0 0 auto;
+  width: 18px !important;
+  height: 18px !important;
+}
+.rf-idm .rf-modal-title svg {
+  width: 24px !important;
+  height: 24px !important;
+}
+.rf-idm-body { display: flex; flex-direction: column; gap: 20px; padding: 30px 42px 36px; }
+.rf-idm-top { display: flex; gap: 24px; align-items: flex-start; }
+.rf-idm-copy { flex: 1 1 255px; min-width: 0; }
+.rf-idm-illus { flex: 1 1 300px; align-self: center; }
+.rf-idm-lede {
+  margin: 0 0 16px;
+  color: var(--hb-text-night, #101318);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 24px;
+}
+.rf-idm-para {
+  margin: 0;
+  color: var(--hb-text-night, #101318);
+  font-size: 14px;
+  line-height: 18px;
+}
+.rf-idm-para b { font-weight: 600; }
+.rf-idm-para a { color: inherit; text-decoration: underline; }
+
+/* The field grows, the button does not — "Resend Text" is one line and must
+   stay on it however narrow the modal gets. */
+.rf-idm-resend { display: flex; gap: 12px; align-items: flex-start; }
+.rf-idm-resend .hb-field { flex: 1 1 auto; min-width: 0; }
+.rf-idm-resend-btn { flex: 0 0 auto; height: 56px; padding: 0 24px; border-radius: var(--hb-button-radius, 8px); }
+.rf-idm-resend-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.rf-idm-note { margin: -8px 0 0; color: var(--hb-grayscale-medium, #637381); font-size: 12px; }
+
+.rf-idm-or { display: flex; gap: 12px; align-items: center; }
+.rf-idm-or::before,
+.rf-idm-or::after {
+  content: '';
+  flex: 1 1 0;
+  height: 1px;
+  background: var(--hb-cloud-darker, #a5b4bf);
+}
+.rf-idm-or span { color: var(--hb-cloud-darker, #a5b4bf); font-size: 14px; font-weight: 500; }
+
+.rf-idm-return { height: 56px; border-radius: var(--hb-button-radius, 8px); }
+.rf-idm-foot { margin-top: 4px; }
+
+/* The demo-only result picker. Deliberately plain, so it never reads as part
+   of the design; it goes when the verification service is wired up. */
+.rf-idm-stub {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px dashed var(--hb-cloud-darker, #a5b4bf);
+  border-radius: 8px;
+  background: var(--hb-cloud-light, #f4f6f8);
+}
+.rf-idm-stub-label { margin: 0 0 8px; color: var(--hb-grayscale-medium, #637381); font-size: 12px; }
+.rf-idm-stub-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.rf-idm-stub-row button {
+  padding: 6px 12px;
+  border: 1px solid var(--hb-cloud-darker, #a5b4bf);
+  border-radius: 6px;
+  background: var(--hb-white, #fff);
+  color: var(--hb-text-night, #101318);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.rf-idm-stub-row button:hover { background: var(--hb-cloud-light, #f4f6f8); }
+
+@media (max-width: 640px) {
+  /* The head kept its 33px inset at every width, which is most of a phone's
+     margin — #03's modal drops to 18/20 here and this now matches it. */
+  .rf-idm .rf-modal-head { padding: 18px 20px; }
+  .rf-idm-body { padding: 20px; }
+  .rf-idm-top { flex-direction: column; }
+  .rf-idm-illus { width: 100%; }
+  .rf-idm-resend { flex-direction: column; }
+  .rf-idm-resend-btn { width: 100%; }
+  .rf-sx-idv-instore-aside { padding-top: 0; }
+}
+
 /* Layered line art (Figma 10078-25475). Every layer is a percentage of that
    frame's 292.25 x 119.43 artboard, so they stay registered to one another at
    any size; the box carries the same aspect ratio so nothing skews. */
@@ -690,6 +900,45 @@
    themselves are spaced by .rf2-checks in the markup. */
 .rf-sx-group { display: flex; flex-direction: column; gap: 14px; }
 .rf-sx-fields { display: flex; flex-direction: column; gap: 20px; margin-bottom: 12px; }
+
+/* ── Verified details: read-out + Edit (Figma 8754-49724) ────────────────
+   The value and the Edit control share a row, top-aligned, with the section
+   heading above them — so a two-line address keeps Edit level with its first
+   line rather than drifting to the middle. */
+.rf-sx-idv-current {
+  margin: 0;
+  color: var(--hb-ada-red, #e53935);
+  font-size: 16px;
+  line-height: 20px;
+}
+.rf-sx-readout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.rf-sx-readout-val {
+  margin: 0;
+  min-width: 0;
+  color: var(--hb-text-night, #101318);
+  font-size: 16px;
+  line-height: 24px;
+}
+/* A <button>: it changes what is on the page and goes nowhere, so a link would
+   misreport it to a screen reader and to a middle click. */
+.rf-sx-edit {
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hb-text-night, #101318);
+  font: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.rf-sx-edit:hover { color: var(--hb-secondary, #509e2f); }
 
 
 

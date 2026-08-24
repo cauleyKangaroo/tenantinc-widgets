@@ -455,3 +455,76 @@ export async function fetchTierQuote(ctx: TierContext, unit: QuoteInput): Promis
     return status === 404 || status === 409 ? { status: 'contended' } : { status: 'error' };
   }
 }
+
+// --- Unit hold (starts here, not on the rental page) -------------------------
+//
+// The 15-minute hold is taken the moment a shopper picks a value tier, so the
+// countdown they see on the rental page is the real remaining time rather than
+// one that starts again when they get there.
+//
+// Held here means held EARLY, so the release below matters: closing the modal,
+// switching tiers or leaving the page all give the unit back rather than
+// stranding it for the full quarter hour.
+//
+// v1, matching the rental flow's own hold calls — same endpoints, same key.
+
+/** Assumed TTL: the response carries no expiry; 15 minutes per the platform. */
+export const HOLD_TTL_SECONDS = 15 * 60;
+
+export interface TierHold {
+  unitId: string;
+  holdToken: string;
+  /** ms epoch. ABSOLUTE, so the countdown survives the navigation to /rental. */
+  heldAt: number;
+}
+
+interface InnerV1 { status?: number; data?: Record<string, unknown>; msg?: string }
+
+async function sendV1(method: 'POST' | 'DELETE', path: string): Promise<InnerV1> {
+  const res = await fetch(`${appBase}/v1/${path}`, {
+    method,
+    headers: { ...hbHeaders(), 'Content-Type': 'application/json' },
+    body: method === 'POST' ? '{}' : undefined,
+  });
+  if (!res.ok) throw new Error(`${method} v1/${path} failed: ${res.status} ${res.statusText}`);
+  const env = await res.json() as { applicationData?: Record<string, InnerV1[]> };
+  return env?.applicationData?.[APP]?.[0] ?? {};
+}
+
+/**
+ * Hold the tier's unit. Returns null rather than throwing on any failure —
+ * including the 409 when someone else got there first. A hold that does not
+ * happen must never block the shopper from reaching the rental page; they just
+ * arrive without one and the rental flow acquires it the way it always did.
+ */
+export async function holdTierUnit(ctx: TierContext, unitId: string): Promise<TierHold | null> {
+  if (!unitId) return null;
+  try {
+    const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${encodeURIComponent(unitId)}/hold`);
+    const token = inner.data?.hold_token;
+    if (inner.status !== 200 || typeof token !== 'string' || !token) {
+      // 409 = already held by another shopper. Expected under contention, so
+      // it is a warning rather than an error.
+      console.warn('[TierSelection] hold not acquired:', inner.status, inner.msg ?? '');
+      return null;
+    }
+    return { unitId, holdToken: token, heldAt: Date.now() };
+  } catch (err) {
+    console.warn('[TierSelection] hold failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Give a held unit back. Best-effort and silent: the server expires the hold on
+ * its own, so a failed release costs 15 minutes of one unit's availability, not
+ * correctness — and it must never surface to the shopper, who has usually just
+ * closed a modal.
+ */
+export async function releaseTierHold(ctx: TierContext, hold: TierHold): Promise<void> {
+  try {
+    await sendV1('DELETE', `companies/${ctx.companyId}/units/${encodeURIComponent(hold.unitId)}/hold/${encodeURIComponent(hold.holdToken)}`);
+  } catch {
+    /* expires by itself */
+  }
+}

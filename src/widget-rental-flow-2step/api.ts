@@ -68,13 +68,13 @@ function headers() {
   };
 }
 
-async function getJson(path: string): Promise<unknown> {
+async function getJson(path: string, fresh = false): Promise<unknown> {
   const url = `${BASE_URL}/applications/${APP_ID}/v2/${path}`;
   return memoGet(url, async () => {
     const res = await fetch(url, { headers: headers() });
     if (!res.ok) throw new Error(`GET ${path} failed: ${res.status} ${res.statusText}`);
     return res.json();
-  });
+  }, { fresh });
 }
 
 /** Unwrap the standard envelope: applicationData.<appId>[0].data */
@@ -366,6 +366,9 @@ export async function fetchLeaseDocument(ctx: RentalCtx): Promise<LeaseDocument 
 // --- Selection context (tiers → rent handoff receiver) -----------------------
 
 export interface SelectionContext {
+  /** The exact rentable unit this offer describes. Absent only on the legacy
+   *  space-groups display fallback, which must never authorize a transaction. */
+  unitId?: string;
   size: string;
   price?: number;
   online?: number;
@@ -461,7 +464,7 @@ export function extractSelectionContext(
 interface OfferAmenity { name?: string; value?: string; sort_order?: number }
 interface OfferDiscount { value?: number; type?: string }
 interface SelOffer {
-  unit_id?: string; price?: number;
+  unit_id?: string | null; price?: number | null;
   value_tier?: { type?: string };
   promotions?: Array<{ id?: string; name?: string }>;
   costs?: { Discounts?: OfferDiscount[]; Unit?: { number?: string } };
@@ -469,6 +472,11 @@ interface SelOffer {
   dossier?: { token?: string };
   space_mix_id?: string;
 }
+
+export type OfferResolution =
+  | { status: 'matched'; selection: SelectionContext & { unitId: string } }
+  | { status: 'unit-unavailable' }
+  | { status: 'malformed' };
 
 function offerAmenityLabel(a: OfferAmenity): string | undefined {
   const v = (a.value ?? '').trim();
@@ -488,37 +496,71 @@ export async function fetchSelectionFromOffers(
   ctx: RentalCtx,
   unitGroupId: string,
   sel: { tier?: string; unitId?: string; size?: string },
-): Promise<SelectionContext | undefined> {
+  opts: { fresh?: boolean } = {},
+): Promise<OfferResolution> {
   const raw = await getJson(
     `companies/${ctx.companyId}/properties/${ctx.propertyId}/offers?amenities=[]&promotions=[]&unitGroupId=${encodeURIComponent(unitGroupId)}`,
+    opts.fresh,
   );
-  const offers = (unwrap(raw)?.offers as SelOffer[] | undefined) ?? [];
-  const avail = offers.filter((o) => o.unit_id != null && typeof o.price === 'number' && (o.price as number) >= 0);
-  if (!avail.length) return undefined;
-  const pick =
-    (sel.unitId ? avail.find((o) => o.unit_id === sel.unitId) : undefined)
-    ?? (sel.tier ? avail.find((o) => o.value_tier?.type === sel.tier) : undefined)
-    ?? avail[0];
-  const price = pick.price as number;
-  const online = offerOnlineRate(price, pick.costs?.Discounts) ?? price;
-  const features = (pick.amenities ?? [])
-    .slice()
-    .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
-    .map(offerAmenityLabel)
-    .filter((x): x is string => !!x)
-    .slice(0, 6);
-  return {
-    size: sel.size ?? '',
-    price,
-    online,
-    inStore: price,
-    promo: pick.promotions?.find((p) => p?.name)?.name,
-    features,
-    promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
-    offerToken: pick.dossier?.token,
-    spaceMixId: pick.space_mix_id,
-    unitNumber: pick.costs?.Unit?.number,
-  };
+  try {
+    const payload = unwrap(raw);
+    if (!payload || !Array.isArray(payload.offers)) return { status: 'malformed' };
+    if (!payload.offers.every((o) => !!o && typeof o === 'object' && !Array.isArray(o))) {
+      return { status: 'malformed' };
+    }
+    const offers = payload.offers as SelOffer[];
+    const inconsistent = offers.some((o) => {
+      const soldOut = o.unit_id == null && o.price == null;
+      const available = typeof o.unit_id === 'string' && o.unit_id.length > 0
+        && typeof o.price === 'number' && Number.isFinite(o.price) && o.price >= 0;
+      return !soldOut && !available;
+    });
+    if (inconsistent) return { status: 'malformed' };
+    const avail = offers.filter((o): o is SelOffer & { unit_id: string; price: number } =>
+      typeof o.unit_id === 'string' && typeof o.price === 'number');
+    if (!avail.length) return { status: 'unit-unavailable' };
+
+    // A handed-off unit is authoritative. Never replace it with another unit
+    // from the same tier (or the first offer): that would combine one unit's
+    // amenities/promotion with another unit's quote.
+    const pick = sel.unitId
+      ? avail.find((o) => o.unit_id === sel.unitId)
+      : (sel.tier ? avail.find((o) => o.value_tier?.type === sel.tier) : undefined) ?? avail[0];
+    if (!pick) return { status: 'unit-unavailable' };
+    if ((pick.amenities != null && !Array.isArray(pick.amenities))
+      || (pick.promotions != null && !Array.isArray(pick.promotions))
+      || (pick.costs?.Discounts != null && !Array.isArray(pick.costs.Discounts))) {
+      return { status: 'malformed' };
+    }
+    const price = pick.price;
+    const online = offerOnlineRate(price, pick.costs?.Discounts) ?? price;
+    const features = (pick.amenities ?? [])
+      .slice()
+      .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+      .map(offerAmenityLabel)
+      .filter((x): x is string => !!x)
+      .slice(0, 6);
+    return {
+      status: 'matched',
+      selection: {
+        unitId: pick.unit_id,
+        size: sel.size ?? '',
+        price,
+        online,
+        inStore: price,
+        promo: pick.promotions?.find((p) => p?.name)?.name,
+        features,
+        promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
+        offerToken: pick.dossier?.token,
+        spaceMixId: pick.space_mix_id,
+        unitNumber: pick.costs?.Unit?.number,
+      },
+    };
+  } catch {
+    // Parsing/shape failures are contract errors. Network failures happen in
+    // getJson above and remain thrown so the caller can distinguish them.
+    return { status: 'malformed' };
+  }
 }
 
 // --- Move-in quote (GET /units/{unit_id}/lease-set-up) -----------------------
@@ -763,9 +805,18 @@ async function sendV1(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: un
     headers: { ...headers(), 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  // Read the envelope EVEN ON A NON-2XX. A validation failure comes back as a
+  // 400 whose body names the offending field — '"payment_method.cvv2" must be
+  // a string' — and throwing on res.ok alone discarded exactly that, leaving
+  // callers with "failed: 400" and nothing to act on.
+  const env = await res.json().catch(() => undefined) as
+    { applicationData?: Record<string, InnerResult[]> } | undefined;
+  const inner = env?.applicationData?.[APP_ID]?.[0];
+  if (inner) return inner;
+  // No envelope to read: a gateway or transport failure rather than the API
+  // rejecting the request.
   if (!res.ok) throw new Error(`${method} v1/${path} failed: ${res.status} ${res.statusText}`);
-  const env = await res.json() as { applicationData?: Record<string, InnerResult[]> };
-  return env?.applicationData?.[APP_ID]?.[0] ?? {};
+  return {};
 }
 
 export type HoldResult =
@@ -1119,6 +1170,15 @@ export const dobToIso = (masked: string): string | undefined => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+/**
+ * What the shopper sees when a money call is rejected.
+ *
+ * Deliberately one sentence and free of endpoint names: "documents/finalize
+ * failed: 400" tells them nothing they can do anything about, and the real
+ * cause is in the console for whoever can.
+ */
+const SHOPPER_ERROR = 'We could not complete your rental just now. Please check your details and try again — if it keeps happening, contact the facility and we will finish it for you.';
+
 /** Billing/contact address — required by both the contact and the card. */
 export interface RentAddress {
   address: string;
@@ -1371,7 +1431,11 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
 
   const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/documents/finalize`, body);
   if (inner.status !== 200 || !inner.data) {
-    throw new Error(inner.msg || `documents/finalize failed (${inner.status}).`);
+    // The API's own words name the field, which is what makes this debuggable
+    // — but they are validation text, not something to put in front of a
+    // shopper, so log them and return a sentence they can act on.
+    console.error('[rental] documents/finalize rejected:', inner.status, inner.msg ?? '');
+    throw new Error(SHOPPER_ERROR);
   }
   const data = inner.data as FinalizeData;
   const docs = (data.documents ?? []) as Array<Record<string, unknown>>;
@@ -1462,6 +1526,20 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
   }
   const phoneE164 = normalizePhone(args.contact.phone, 'US');
   if (!phoneE164) return { ok: false, error: 'Please enter a valid phone number.', stage: 'documents' };
+  // documents/finalize requires all three, and they all come from the move-in
+  // quote. Without it they go over as undefined and the API rejects the call
+  // with a validation error — better to say the total is missing than to send
+  // a request that cannot succeed.
+  if (!(args.totalPaymentAmount > 0) || args.billDay == null || args.webRate == null) {
+    console.error('[rental] refusing to finalize without a quote:', {
+      totalPaymentAmount: args.totalPaymentAmount, billDay: args.billDay, webRate: args.webRate,
+    });
+    return {
+      ok: false,
+      stage: 'documents',
+      error: 'We could not price this space just now. Please refresh and try again.',
+    };
+  }
   const a: RentArgs = { ...args, contact: { ...args.contact, phone: phoneE164 } };
 
   let documents: LeaseDocumentRef[];

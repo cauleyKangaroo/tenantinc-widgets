@@ -1,0 +1,580 @@
+{
+  "info": {
+    "name": "Hummingbird — Rental Flow (Mariposa)",
+    "description": "The eleven documented rental-flow calls, plus the extras we found by probing.\n\nEVERY request signs itself: a collection-level pre-request script sets `epoch` to the current unix time, so `x-storageapi-date` is always fresh. You never set it by hand.\n\nRESPONSES FEED THE NEXT CALL. Each request's Tests tab writes the ids it returns into collection variables — hold a unit and `holdToken` fills in, finalize documents and `docSrc`/`docVersion` fill in — so the chain runs top to bottom without copy-paste.\n\nORDER MATTERS. 5 Hold → 7 Lease set-up → 9 Documents → 10 Lease → 11 Autopay is the rental. A hold lasts 15 minutes; past that, re-run 5.\n\nWATCH OUT: 9 and 10 create a REAL lease and take a REAL payment, even in the sandbox. 10 puts the unit out of inventory permanently.\n\nVERIFIED 2026-08-24 against edge.tenant.dev.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// x-storageapi-date must be the CURRENT unix time on every request —",
+          "// a stale one is rejected. Set here so no request carries it by hand.",
+          "pm.collectionVariables.set('epoch', Math.floor(Date.now() / 1000));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "https://edge.tenant.dev/api/v3", "description": "The guide says prod.edge.tenant.dev; this host is the one our key works against." },
+    { "key": "appId", "value": "appbc35600a675841eea5893df84231789e", "description": "OUR application id. TenantInc's sample curl uses appc02fcbc01b5e41818669077c87c01e7f, which answers 'I was unable to find that application' for this key." },
+    { "key": "apiKey", "value": "309365e7685b4b048d79dc7d29bd4f57" },
+    { "key": "companyId", "value": "kQoBXA8vpn", "description": "Storage Outlet. On a published site this comes from the Company collection." },
+    { "key": "propertyId", "value": "OBZ5dhPmjZ", "description": "Storage Outlet - Bellflower" },
+    { "key": "spaceGroupId", "value": "7jP5qtVeBg", "description": "Bellflower's 'Website Group' — the public one." },
+    { "key": "storageTypeId", "value": "wNjG5IpNvK", "description": "Filled by request 1." },
+    { "key": "unitGroupId", "value": "", "description": "A tier_id from request 3. Filled automatically." },
+    { "key": "unitId", "value": "", "description": "Filled by request 4 (offers) or 4b (units available)." },
+    { "key": "spaceMixId", "value": "", "description": "Filled by request 4b — required by request 9." },
+    { "key": "holdToken", "value": "", "description": "Filled by request 5. Valid 15 minutes." },
+    { "key": "insuranceId", "value": "", "description": "Filled by request 6." },
+    { "key": "promotionId", "value": "", "description": "Filled by request 3." },
+    { "key": "billDay", "value": "1", "description": "Filled by request 7." },
+    { "key": "webRate", "value": "9", "description": "Non-prorated monthly rent. Filled by request 7." },
+    { "key": "totalDue", "value": "", "description": "Filled by request 7 from invoice.balance (NET), not total_due (gross)." },
+    { "key": "docType", "value": "", "description": "Filled by request 9." },
+    { "key": "docName", "value": "", "description": "Filled by request 9." },
+    { "key": "docSrc", "value": "", "description": "Filled by request 9." },
+    { "key": "docVersion", "value": "", "description": "Filled by request 9." },
+    { "key": "leaseId", "value": "", "description": "Filled by request 10." },
+    { "key": "paymentMethodId", "value": "", "description": "Filled by request 10." },
+    { "key": "contactId", "value": "", "description": "Filled by request 10, from tenants[].contact_id." },
+    { "key": "accessPin", "value": "", "description": "The tenant's gate PIN. Filled by request 10 — the ONLY place any endpoint returns one." },
+    { "key": "startDate", "value": "2026-09-01", "description": "Lease start, YYYY-MM-DD." },
+    { "key": "gpPublicKey", "value": "pkapi_cert_a3ujFfhmq3EPW8k0ZP", "description": "Global Payments / Heartland CERTIFICATION public key." },
+    { "key": "cardToken", "value": "", "description": "supt_… token. Filled by the Tokenize request." },
+    { "key": "cardMasked", "value": "", "description": "************1111. Filled by the Tokenize request." },
+    { "key": "epoch", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1 — Space types",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v2/companies/{{companyId}}/space-management/space-types",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v2", "companies", "{{companyId}}", "space-management", "space-types"]
+        },
+        "description": "Every space type on the company, with its unit_type_id. Needed by 3 and 6.\n\nNOTE: this endpoint's `data` is an ARRAY; every other call returns an object."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json().applicationData[pm.collectionVariables.get('appId')][0].data || [];",
+              "// Match on NAME here only because this is the lookup that defines the ids.",
+              "const storage = d.find(t => t.unit_type_name === 'storage');",
+              "if (storage) pm.collectionVariables.set('storageTypeId', storage.unit_type_id);",
+              "console.log(d.map(t => `${t.unit_type_id}  ${t.unit_type_name}  coverage=${t.have_coverage}`).join('\\n'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 — Space groups",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v2/companies/{{companyId}}/properties/{{propertyId}}/space-groups",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v2", "companies", "{{companyId}}", "properties", "{{propertyId}}", "space-groups"]
+        },
+        "description": "The property's space groups. The public one is named 'Website Group' — match on the NAME, never 'take the first': on some properties it is last in the list."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json().applicationData[pm.collectionVariables.get('appId')][0].data;",
+              "const groups = (d && d.spaceGroups) || [];",
+              "const website = groups.find(g => (g.name || '').trim() === 'Website Group');",
+              "if (website) pm.collectionVariables.set('spaceGroupId', website.id);",
+              "console.log(groups.map(g => `${g.id}  ${g.name}  spaces=${g.num_spaces}`).join('\\n'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 — Tiers for the space group",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v2/companies/{{companyId}}/properties/{{propertyId}}/space-groups/{{spaceGroupId}}/groups?cost=true",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v2", "companies", "{{companyId}}", "properties", "{{propertyId}}", "space-groups", "{{spaceGroupId}}", "groups"],
+          "query": [{ "key": "cost", "value": "true" }]
+        },
+        "description": "Tiers per space type. `tier_id` is what request 4 wants as unitGroupId.\n\nThe `insurance` array here is EMPTY on every tenant — coverage comes from request 6, not this."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json().applicationData[pm.collectionVariables.get('appId')][0].data;",
+              "const profiles = (d && d.spaceGroupProfile) || {};",
+              "const rows = [];",
+              "Object.entries(profiles).forEach(([k, v]) => {",
+              "  if (k === 'id' || !v || !v.groups) return;",
+              "  v.groups.forEach(g => (g.tiers || []).forEach(t => rows.push(t)));",
+              "});",
+              "// Prefer a tier with vacancy — request 4 only returns units for those.",
+              "const vacant = rows.find(t => t.vacant && t.vacant.count > 0) || rows[0];",
+              "if (vacant) pm.collectionVariables.set('unitGroupId', vacant.tier_id);",
+              "const promo = rows.map(t => t.allocated_promo).find(p => p && p.id);",
+              "if (promo) pm.collectionVariables.set('promotionId', promo.id);",
+              "console.log(rows.map(t => `${t.tier_id}  ${t.description}  vacant=${(t.vacant||{}).count||0}`).join('\\n'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 — Offers for a tier",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v2/companies/{{companyId}}/properties/{{propertyId}}/offers?amenities=[]&promotions=[]&unitGroupId={{unitGroupId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v2", "companies", "{{companyId}}", "properties", "{{propertyId}}", "offers"],
+          "query": [
+            { "key": "amenities", "value": "[]" },
+            { "key": "promotions", "value": "[]" },
+            { "key": "unitGroupId", "value": "{{unitGroupId}}" }
+          ]
+        },
+        "description": "Good / Better / Best for the tier. A sold-out slot comes back with unit_id and price both null.\n\nCarries `dossier.token` (validates the price at request 7), `space_mix_id`, and the unit number at costs.Unit.number."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json().applicationData[pm.collectionVariables.get('appId')][0].data;",
+              "const offers = (d && d.offers) || [];",
+              "const live = offers.find(o => o.unit_id);",
+              "if (live) {",
+              "  pm.collectionVariables.set('unitId', live.unit_id);",
+              "  if (live.space_mix_id) pm.collectionVariables.set('spaceMixId', live.space_mix_id);",
+              "}",
+              "console.log(offers.map(o => `${(o.value_tier||{}).type}  unit=${o.unit_id || 'SOLD OUT'}  price=${o.price}`).join('\\n'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4b — Units available (helper)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v1/companies/{{companyId}}/properties/{{propertyId}}/units/available",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v1", "companies", "{{companyId}}", "properties", "{{propertyId}}", "units", "available"]
+        },
+        "description": "Not in the guide, but the quickest way to a rentable unit id and its space_mix_id.\n\nA HELD unit disappears from this list — that is how you tell a hold took."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json().applicationData[pm.collectionVariables.get('appId')][0].data;",
+              "const units = (d && d.units) || [];",
+              "const cheapest = units.filter(u => u.type === 'storage').sort((a, b) => a.price - b.price)[0];",
+              "if (cheapest) {",
+              "  pm.collectionVariables.set('unitId', cheapest.id);",
+              "  pm.collectionVariables.set('spaceMixId', cheapest.space_mix_id);",
+              "  pm.collectionVariables.set('webRate', cheapest.price);",
+              "}",
+              "console.log(`${units.length} available; picked ${cheapest && cheapest.id} (#${cheapest && cheapest.number}) at $${cheapest && cheapest.price}`);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 — Hold the unit",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v1/companies/{{companyId}}/units/{{unitId}}/hold",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v1", "companies", "{{companyId}}", "units", "{{unitId}}", "hold"]
+        },
+        "description": "15 minutes. A second hold on the same unit returns inner status 409 — 'currently being held by another customer'."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const r = pm.response.json().applicationData[pm.collectionVariables.get('appId')][0];",
+              "if (r.data && r.data.hold_token) pm.collectionVariables.set('holdToken', r.data.hold_token);",
+              "console.log('hold_token', r.data && r.data.hold_token, '| inner', r.status, r.msg || '');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5b — Release the hold",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v1/companies/{{companyId}}/units/{{unitId}}/hold/{{holdToken}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v1", "companies", "{{companyId}}", "units", "{{unitId}}", "hold", "{{holdToken}}"]
+        },
+        "description": "Undocumented but works. RUN THIS if you abandon a test — otherwise the unit sits out of inventory for 15 minutes."
+      }
+    },
+    {
+      "name": "6 — Coverage options",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v2/companies/{{companyId}}/properties/{{propertyId}}/insurances?unit_type_ids=[{{storageTypeId}}]",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v2", "companies", "{{companyId}}", "properties", "{{propertyId}}", "insurances"],
+          "query": [{ "key": "unit_type_ids", "value": "[{{storageTypeId}}]" }]
+        },
+        "description": "THE source of protection plans. Bracketed, comma-separated type ids.\n\nPlans are per space type: ask for every type and Bellflower returns six — two storage and four Commercial — so filter by unit_type_id, never by name (a unit row says 'commercial_storage' where the plan says 'Commercial')."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json().applicationData[pm.collectionVariables.get('appId')][0].data;",
+              "const list = (d && d.insurances) || [];",
+              "if (list[0]) pm.collectionVariables.set('insuranceId', list[0].id);",
+              "console.log(list.map(i => `${i.id}  ${i.unit_type}  $${i.premium_value} for ${i.coverage}  ${i.name}`).join('\\n'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7 — Lease set-up (the quote)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hold_token\": \"{{holdToken}}\",\n  \"insurance_id\": \"{{insuranceId}}\",\n  \"promotions\": [],\n  \"start_date\": \"{{startDate}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v1/companies/{{companyId}}/units/{{unitId}}/lease-set-up",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v1", "companies", "{{companyId}}", "units", "{{unitId}}", "lease-set-up"]
+        },
+        "description": "The money. Verified: v1 HONOURS insurance_id (adds a prorated Coverage line), start_date (details.start_date comes back as sent) and promotions.\n\nREAD `balance`, NOT `total_due`. With a promotion applied the same quote returned total_due 75.52 against balance 71.02 — total_due is the gross before discounts.\n\nAdd \"token\": \"<dossier token from request 4>\" to have Hummingbird validate the quoted price."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const r = pm.response.json().applicationData[pm.collectionVariables.get('appId')][0];",
+              "const d = r.data && r.data.details;",
+              "if (!d) { console.log('inner', r.status, r.msg); return; }",
+              "const inv = (d.Invoices || [])[0] || {};",
+              "// balance is the NET payable; total_due is gross.",
+              "if (inv.balance != null) pm.collectionVariables.set('totalDue', inv.balance);",
+              "if (d.bill_day != null) pm.collectionVariables.set('billDay', d.bill_day);",
+              "if (d.rent != null) pm.collectionVariables.set('webRate', d.rent);",
+              "console.log(`rent=${d.rent} bill_day=${d.bill_day} start=${d.start_date}`);",
+              "console.log(`balance=${inv.balance}  total_due=${inv.total_due}  tax=${inv.total_tax}`);",
+              "console.log((inv.Detail || []).map(x => `  ${x.name} = ${x.total_cost}`).join('\\n'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8 — Reserve",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hold_token\": \"{{holdToken}}\",\n  \"contacts\": [\n    {\n      \"first\": \"Postman\",\n      \"last\": \"Tester\",\n      \"email\": \"test+postman@example.com\",\n      \"Phones\": [{ \"phone\": \"+18888373737\", \"type\": \"cell\", \"sms\": true }]\n    }\n  ],\n  \"platform\": \"website\",\n  \"start_date\": \"{{startDate}}\",\n  \"move_in_cost\": {}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v1/companies/{{companyId}}/units/{{unitId}}/reserve",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v1", "companies", "{{companyId}}", "units", "{{unitId}}", "reserve"]
+        },
+        "description": "Reservation, no payment. SEPARATE journey from the rental — you do not run 8 and 10 for the same unit.\n\n`move_in_cost` wants the guide's nested shape: {data:{rental:{amount, costs:[{amount,costType,description,start,end,total}], costType:'reservation', start, end, total}}} with UNIX timestamps. The empty object here is a placeholder."
+      }
+    },
+    {
+      "name": "Tokenize a card (Global Payments)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "User-Agent", "value": "Mozilla/5.0 Chrome/145" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"token\",\n  \"token_type\": \"supt\",\n  \"_method\": \"post\",\n  \"card\": {\n    \"number\": \"4111111111111111\",\n    \"cvc\": \"123\",\n    \"exp_month\": \"09\",\n    \"exp_year\": \"2027\"\n  }\n}"
+        },
+        "url": {
+          "raw": "https://cert.api2.heartlandportico.com/Hps.Exchange.PosGateway.Hpf.v1/api/token?api_key={{gpPublicKey}}",
+          "protocol": "https",
+          "host": ["cert", "api2", "heartlandportico", "com"],
+          "path": ["Hps.Exchange.PosGateway.Hpf.v1", "api", "token"],
+          "query": [{ "key": "api_key", "value": "{{gpPublicKey}}" }]
+        },
+        "description": "NOT a Hummingbird call — Global Payments' own tokenizer, proving the pkapi_cert_ key works. Returns a supt_ token and the masked number.\n\nTHE CATCH: request 10 REJECTS a masked number ('Card Number is invalid') and ignores this token. Only request 9 accepts it. So this cannot currently replace a real PAN in the rental."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "if (j.token_value) pm.collectionVariables.set('cardToken', j.token_value);",
+              "if (j.card && j.card.number) pm.collectionVariables.set('cardMasked', j.card.number);",
+              "console.log('token', j.token_value, '| masked', j.card && j.card.number, '| expires', j.token_expire);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9 — Documents finalize",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"contacts\": [\n    {\n      \"first\": \"Postman\",\n      \"last\": \"Tester\",\n      \"email\": \"test+postman@example.com\",\n      \"Phones\": [{ \"phone\": \"+18888373737\", \"type\": \"cell\", \"sms\": true }],\n      \"Addresses\": [\n        {\n          \"Address\": { \"address\": \"123 South Figueroa Street\", \"city\": \"LOS ANGELES\", \"state\": \"CA\", \"zip\": \"90012\" },\n          \"type\": \"primary\"\n        }\n      ]\n    }\n  ],\n  \"payment_method\": {\n    \"type\": \"card\",\n    \"card_number\": \"4111111111111111\",\n    \"cvv2\": \"123\",\n    \"exp_mo\": \"09\",\n    \"exp_yr\": \"2027\",\n    \"name_on_card\": \"Postman Tester\",\n    \"address\": \"123 South Figueroa Street\",\n    \"city\": \"LOS ANGELES\",\n    \"state\": \"CA\",\n    \"zip\": \"90012\",\n    \"save_to_account\": true\n  },\n  \"start_date\": \"{{startDate}}\",\n  \"space_mix_id\": \"{{spaceMixId}}\",\n  \"total_payment_amount\": {{totalDue}},\n  \"bill_day\": {{billDay}},\n  \"payment_cycle\": \"Monthly\",\n  \"web_rate\": {{webRate}},\n  \"costs\": [\n    { \"amount\": {{webRate}}, \"description\": \"Rent\", \"costType\": \"rent\", \"start\": \"{{startDate}}\", \"end\": \"{{startDate}}\", \"tax\": 0, \"total\": {{webRate}}, \"pmsRaw\": null }\n  ],\n  \"metadata\": { \"ip\": \"\", \"location\": \"\", \"user_agent\": \"postman\" },\n  \"platform\": \"website\",\n  \"source\": \"Mariposa Website Application\",\n  \"deliveryMethod\": { \"notice_delivery\": \"email\" }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v1/companies/{{companyId}}/units/{{unitId}}/documents/finalize",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v1", "companies", "{{companyId}}", "units", "{{unitId}}", "documents", "finalize"]
+        },
+        "description": "Generates AND signs the lease. `signed: true` means ClickWrap/Super Lease did it internally — this company is on Super Lease.\n\nThe returned documents array is required input to request 10.\n\ncvv2 IS REQUIRED and must be a NON-EMPTY STRING: null -> 'must be a string', omitted -> 'is required', \"\" -> 'not allowed to be empty'.\n\nThis call accepts a MASKED card_number plus a token — but request 10 does not, so there is no point masking it here."
+        },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const r = pm.response.json().applicationData[pm.collectionVariables.get('appId')][0];",
+              "const d = r.data || {};",
+              "const doc = (d.documents || [])[0];",
+              "if (doc) {",
+              "  pm.collectionVariables.set('docType', doc.document_type);",
+              "  pm.collectionVariables.set('docName', doc.filename);",
+              "  pm.collectionVariables.set('docSrc', doc.src);",
+              "  pm.collectionVariables.set('docVersion', doc.version);",
+              "}",
+              "console.log('inner', r.status, r.msg || '', '| signed:', d.signed);",
+              "if (d.signed === false) console.log('TRADITIONAL SIGNING — needs a signing UI; the lease call will refuse unsigned documents.');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 — Lease (CHARGES THE CARD)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"contacts\": [\n    {\n      \"first\": \"Postman\",\n      \"last\": \"Tester\",\n      \"email\": \"test+postman@example.com\",\n      \"Phones\": [{ \"phone\": \"+18888373737\", \"type\": \"cell\", \"sms\": true }],\n      \"Addresses\": [\n        {\n          \"Address\": { \"address\": \"123 South Figueroa Street\", \"city\": \"LOS ANGELES\", \"state\": \"CA\", \"zip\": \"90012\" },\n          \"type\": \"primary\"\n        }\n      ]\n    }\n  ],\n  \"documents\": [\n    {\n      \"document_type\": \"{{docType}}\",\n      \"filename\": \"{{docName}}\",\n      \"src\": \"{{docSrc}}\",\n      \"version\": \"{{docVersion}}\"\n    }\n  ],\n  \"payment_method\": {\n    \"type\": \"card\",\n    \"card_number\": \"4111111111111111\",\n    \"cvv2\": \"123\",\n    \"exp_mo\": \"09\",\n    \"exp_yr\": \"2027\",\n    \"name_on_card\": \"Postman Tester\",\n    \"address\": \"123 South Figueroa Street\",\n    \"city\": \"LOS ANGELES\",\n    \"state\": \"CA\",\n    \"zip\": \"90012\",\n    \"save_to_account\": true,\n    \"auto_charge\": true\n  },\n  \"start_date\": \"{{startDate}}\",\n  \"platform\": \"website\",\n  \"source\": \"Mariposa Website Application\",\n  \"additional_months\": 0,\n  \"hold_token\": \"{{holdToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v1/companies/{{companyId}}/units/{{unitId}}/lease",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v1", "companies", "{{companyId}}", "units", "{{unitId}}", "lease"]
+        },
+        "description": "CREATES A REAL LEASE AND TAKES A REAL PAYMENT. The unit leaves inventory permanently.\n\nSend hold_token for a direct rental, or reservation_id to convert a reservation — one or the other, not both.\n\nTHE RESPONSE IS NESTED UNDER `lease`, where the guide shows it flat.\n\nTOKEN TEST RESULT (2026-08-24): sending card_number '************1111' with a supt_ token returns 500 'Card Number is invalid.' The identical payload with the real number succeeds. So this call needs the real PAN and ignores the Global Payments token."
+        },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const r = pm.response.json().applicationData[pm.collectionVariables.get('appId')][0];",
+              "// Nested under `lease` in reality; accept flat too in case that changes.",
+              "const L = (r.data && (r.data.lease || r.data)) || {};",
+              "if (L.lease_id) pm.collectionVariables.set('leaseId', L.lease_id);",
+              "if (L.payment_method_id) pm.collectionVariables.set('paymentMethodId', L.payment_method_id);",
+              "const t = (L.tenants || [])[0] || {};",
+              "if (t.contact_id) pm.collectionVariables.set('contactId', t.contact_id);",
+              "if (t.pin) pm.collectionVariables.set('accessPin', t.pin);",
+              "console.log('inner', r.status, r.msg || '');",
+              "console.log(`lease=${L.lease_id} status=${L.status} payment=${L.payment_id}`);",
+              "console.log(`contact=${t.contact_id}  GATE PIN=${t.pin}`);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 — Autopay",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v1/companies/{{companyId}}/leases/{{leaseId}}/payment-methods/{{paymentMethodId}}/autopay",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v1", "companies", "{{companyId}}", "leases", "{{leaseId}}", "payment-methods", "{{paymentMethodId}}", "autopay"]
+        },
+        "description": "Empty body. Only after request 10, using the two ids it returned."
+      }
+    },
+    {
+      "name": "Payments bulk",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"contact_id\": \"{{contactId}}\",\n  \"property_id\": \"{{propertyId}}\",\n  \"Invoices\": [\n    { \"amount\": 1, \"lease_id\": \"{{leaseId}}\" }\n  ],\n  \"payment\": {\n    \"amount\": 1,\n    \"contact_id\": \"{{contactId}}\",\n    \"property_id\": \"{{propertyId}}\",\n    \"type\": \"card\",\n    \"source\": \"website\",\n    \"status\": 1\n  },\n  \"paymentMethod\": {\n    \"type\": \"card\",\n    \"card_number\": \"{{cardMasked}}\",\n    \"card_type\": \"VISA\",\n    \"token\": \"{{cardToken}}\",\n    \"cvv2\": \"123\",\n    \"exp_mo\": \"09\",\n    \"exp_yr\": \"2027\",\n    \"name_on_card\": \"Postman Tester\",\n    \"address\": \"123 South Figueroa Street\",\n    \"city\": \"LOS ANGELES\",\n    \"state\": \"CA\",\n    \"zip\": \"90012\",\n    \"save_to_account\": true\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v1/companies/{{companyId}}/payments/bulk",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v1", "companies", "{{companyId}}", "payments", "bulk"]
+        },
+        "description": "Takes a payment against invoices. UNLIKE request 10 it accepts a masked card_number with a token without complaint.\n\nOmit an invoice `id` for a pre-payment; include it for a due invoice.\n\nExpect business-logic errors while testing: 'only $0.00 due' against a settled invoice, 'an invoice with this period might already exist' for a duplicate pre-payment."
+      }
+    },
+    {
+      "name": "Contact — read",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v2/companies/{{companyId}}/contacts/{{contactId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v2", "companies", "{{companyId}}", "contacts", "{{contactId}}"]
+        },
+        "description": "Not in the guide. Shows what actually stuck after a lease or an update.\n\nThe licence number reads back MASKED (****0103) — that is the API hiding it, not a failed write."
+      }
+    },
+    {
+      "name": "Contact — update",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"driver_license\": \"Y6890103\",\n  \"driver_license_exp\": \"2029-07-31\",\n  \"driver_license_state\": \"CO\",\n  \"Addresses\": [\n    {\n      \"Address\": { \"address\": \"1245 Wilshire Boulevard\", \"city\": \"LOS ANGELES\", \"state\": \"CA\", \"zip\": \"90017\" },\n      \"type\": \"mailing\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v2/companies/{{companyId}}/contacts/{{contactId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v2", "companies", "{{companyId}}", "contacts", "{{contactId}}"]
+        },
+        "description": "Not in the guide. How post-lease details get filed. PUT only — PATCH returns 405, POST 404.\n\nPERSISTS: driver_license, _exp, _state, dob, rent_as_business, company, Addresses[] (incl. type 'mailing')\nIGNORED: Military, Relationships — 200 and silently dropped\nREJECTED: Vehicles — 'Vehicles[0].manufacturer is not allowed'\n\nSo military / alternate contact / vehicle must travel with request 9 instead.\n\nSend ONLY the keys you mean to change: a present-but-empty key blanks a value."
+      }
+    },
+    {
+      "name": "Property documents (templates)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-storageapi-key", "value": "{{apiKey}}" },
+          { "key": "x-storageapi-date", "value": "{{epoch}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/applications/{{appId}}/v2/companies/{{companyId}}/properties/{{propertyId}}/documents",
+          "host": ["{{baseUrl}}"],
+          "path": ["applications", "{{appId}}", "v2", "companies", "{{companyId}}", "properties", "{{propertyId}}", "documents"]
+        },
+        "description": "Every document template on the property. A `super-lease` entry here means the company signs via Super Lease / ClickWrap, so request 9 returns signed: true.\n\nGET v2/companies/{co}/documents/{id} returns the full HTML — but as an UNRENDERED Carbone template with ~320 {d.…} merge tokens, so it cannot be shown to a shopper as-is."
+      }
+    }
+  ]
+}

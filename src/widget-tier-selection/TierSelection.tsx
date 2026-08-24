@@ -33,6 +33,7 @@ import type {
   TierKey, Tier, RowType, FeatureRow, O2Tier, O3Tier, O3Row, O3Weight, TierData, TierQuoteState,
 } from './types';
 import { onOpenTiers, isValidTierRequest } from '@shared/tierBus';
+import { holdTierUnit } from './api';
 
 // Branded Small/Medium/Large size illustrations served from Cloudinary — the
 // same CDN assets the live Storage Outlet site uses, so they stay out of the JS
@@ -522,6 +523,55 @@ export function TierSelection({
       .then((result) => setQuotes((prev) => ({ ...prev, [key]: result })));
   }, [ctx]);
 
+  /**
+   * Select was pressed: take the hold, then go.
+   *
+   * The hold happens HERE rather than when a tier is highlighted — highlighting
+   * is browsing, and a hold is a real unit out of inventory for fifteen
+   * minutes. Merely opening the popup must not cost anyone a space.
+   *
+   * That means intercepting the anchor, because the token only exists after an
+   * async POST and the href was built before the click. The <a href> is kept so
+   * middle-click and "copy link address" still behave; a plain click comes here.
+   *
+   * NAVIGATION MIRRORS THE SPACE LIST: absolute URL on the published site,
+   * relative in the Duda editor/preview, because a programmatic
+   * window.location bypasses Duda's routing and 404s on my.duda.co.
+   *
+   * A failed hold still navigates. The rental page acquires its own when none
+   * is handed over, so a 409 costs the shopper nothing but a later countdown.
+   */
+  const holdingRef = useRef(false);
+  const onSelectClick = useCallback((key: TierKey) => (e: React.MouseEvent) => {
+    // Leave the browser to handle the ways a user asks for a new tab.
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    const href = rentHrefRef.current?.(key);
+    if (!href) return;
+    e.preventDefault();
+    if (holdingRef.current) return; // a second click must not hold twice
+    holdingRef.current = true;
+
+    const bundle = bundlesRef.current.find((b) => b.key === key);
+    const unitId = bundle?.unitId;
+    const go = (target: string) => {
+      const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
+      const isLive = typeof dm !== 'undefined' && dm?.getCurrentEnvironment?.() === 'live';
+      window.location.href = isLive ? window.location.origin + target : target;
+    };
+
+    if (inEditor || !unitId) { go(href); return; }
+    void holdTierUnit(ctx, unitId).then((h) => {
+      if (!h) { go(href); return; }
+      // The token travels in the link; heldAt is absolute, so the countdown on
+      // the rental page continues rather than restarting.
+      const sep = href.includes('?') ? '&' : '?';
+      const q = 'holdToken=' + encodeURIComponent(h.holdToken) + '&heldAt=' + h.heldAt;
+      go(href + sep + q);
+    }).catch(() => go(href));
+  }, [ctx, inEditor]);
+
+
+
   React.useEffect(() => {
     let cancelled = false;
     // Reset for the new context so a previous facility's tiers/quotes can't
@@ -744,6 +794,11 @@ export function TierSelection({
     return url.pathname + url.search;
   };
 
+  // rentHref is declared after onSelectClick, so the callback reads it through
+  // a ref rather than pulling the whole render into its dependency list.
+  const rentHrefRef = useRef<((key: TierKey) => string | undefined) | undefined>(undefined);
+  rentHrefRef.current = rentHref;
+
   const inner = (
     <div
       className={`ts-wrapper${status === 'loading' ? ` ts-wrapper--loading ts-wrapper--${variant}` : ''}`}
@@ -759,6 +814,7 @@ export function TierSelection({
     <TierDataContext.Provider value={data ? {
       ...data,
       rentHref,
+      onSelectClick,
       selected,
       setSelected,
       quotes,
@@ -1124,7 +1180,7 @@ interface LayoutProps {
 }
 
 function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgency, adminFeeText, promo, chromeless }: LayoutProps) {
-  const { tiers, rows, sizeImage, sizeAlt, size, live, property, rentHref, ctaLabel } = useTierData();
+  const { tiers, rows, sizeImage, sizeAlt, size, live, property, rentHref, onSelectClick, ctaLabel } = useTierData();
   const displaySize = size ? size.replace(/'/g, '\u2019') : '5\u2019 x 5\u2019';
   const cardPromo = live ? tier.promo : 'First Full Month FREE';
   return (
@@ -1204,7 +1260,7 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgen
             </div>
 
             {rentHref?.(selected)
-              ? <a className="ts-select-btn" href={rentHref(selected)}>{ctaLabel ?? 'Select'}</a>
+              ? <a className="ts-select-btn" href={rentHref(selected)} onClick={onSelectClick?.(selected)}>{ctaLabel ?? 'Select'}</a>
               : <button type="button" className="ts-select-btn" disabled>{ctaLabel ?? 'Select'}</button>}
           </div>
         </div>
@@ -1275,7 +1331,7 @@ function MobileLayout({
   tier: Tier; selected: TierKey; setSelected: (k: TierKey) => void;
   heading: string; urgency: string; promo: string; chromeless?: boolean;
 }) {
-  const { tiers, rows, live, rentHref, ctaLabel } = useTierData();
+  const { tiers, rows, live, rentHref, onSelectClick, ctaLabel } = useTierData();
   const [open, setOpen] = useState(false);
   // Mobile has no room for sold-out placeholders — show real tiers only.
   const visibleTiers = tiers.filter((t) => !t.soldOut);
@@ -1337,7 +1393,7 @@ function MobileLayout({
       </div>
 
       {rentHref?.(selected)
-        ? <a className="ts-select-btn ts-m-select" href={rentHref(selected)}>{ctaLabel ?? 'Select'}</a>
+        ? <a className="ts-select-btn ts-m-select" href={rentHref(selected)} onClick={onSelectClick?.(selected)}>{ctaLabel ?? 'Select'}</a>
         : <button type="button" className="ts-select-btn ts-m-select" disabled>{ctaLabel ?? 'Select'}</button>}
 
       {tier.promoRate != null && (
@@ -1453,7 +1509,7 @@ function Option2Layout({ heading, subheading, urgency, adminFeeText, chromeless 
 }
 
 function O2Card({ card }: { card: O2Tier }) {
-  const { rentHref, selected, setSelected, ctaLabel } = useTierData();
+  const { rentHref, onSelectClick, selected, setSelected, ctaLabel } = useTierData();
   const isSelected = selected === card.key;
   if (card.soldOut) {
     return (
@@ -1541,7 +1597,12 @@ function O2Card({ card }: { card: O2Tier }) {
             <a
               className={`ts-o2-select${isSelected ? ' ts-o2-select--accent' : ''}`}
               href={rentHref(card.key)}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                // The card itself selects the tier on click — Select must not
+                // bubble into that.
+                e.stopPropagation();
+                onSelectClick?.(card.key)(e);
+              }}
             >
               {ctaLabel ?? 'Select'}
             </a>
@@ -1626,7 +1687,7 @@ function O2MHead({ card }: { card: O2Tier }) {
 }
 
 function O2MExpanded({ card }: { card: O2Tier }) {
-  const { ctaLabel, rentHref } = useTierData();
+  const { ctaLabel, rentHref, onSelectClick } = useTierData();
   return (
     <div className={`ts-o2m-card${card.popular ? ' ts-o2m-card--popular' : ''}`}>
       {card.popular && <span className="ts-o2-badge ts-o2m-badge">Most Popular</span>}
@@ -1650,7 +1711,7 @@ function O2MExpanded({ card }: { card: O2Tier }) {
         </div>
       )}
       {rentHref?.(card.key) ? (
-        <a className="ts-o2-select ts-o2-select--accent" href={rentHref(card.key)}>
+        <a className="ts-o2-select ts-o2-select--accent" href={rentHref(card.key)} onClick={onSelectClick?.(card.key)}>
           {ctaLabel ?? 'Select'}
         </a>
       ) : (
@@ -1718,7 +1779,7 @@ function Option3Layout({ heading, subheading, urgency, adminFeeText, chromeless 
 }
 
 function O3Column({ card }: { card: O3Tier }) {
-  const { rows3, rentHref, selected, setSelected, ctaLabel } = useTierData();
+  const { rows3, rentHref, onSelectClick, selected, setSelected, ctaLabel } = useTierData();
   const isSelected = selected === card.key;
   return (
     <div
@@ -1772,7 +1833,12 @@ function O3Column({ card }: { card: O3Tier }) {
               <a
                 className={`ts-o2-select${isSelected ? ' ts-o2-select--accent' : ''}`}
                 href={rentHref(card.key)}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  // The card behind this is itself clickable (it selects the
+                  // tier), so the Select must not bubble into it.
+                  e.stopPropagation();
+                  onSelectClick?.(card.key)(e);
+                }}
               >
                 {ctaLabel ?? 'Select'}
               </a>

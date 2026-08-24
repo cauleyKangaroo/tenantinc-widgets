@@ -16,20 +16,15 @@
 // `IdIllustration` for the one asset that isn't.
 // ===========================================================================
 
-import { useLayoutEffect, useRef, useState } from 'react';
-import { Checkbox, DateModal, FormField, isPossiblePhone } from '@shared/ui';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Checkbox, FormField, isPossiblePhone } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
-import { ChevronBig } from './planIcons';
-import { CalendarIcon } from './icons';
+import {
+  ChevronBig, TickSingleIcon, AlertTriangleIcon, ClockGlyph, PhoneGlyph,
+} from './planIcons';
+import { IdIllustration } from './IdIllustration';
+import { IdVerifyModal } from './IdVerifyModal';
 
-import idHandCard from './assets/id-g72.svg';
-import idCardFace from './assets/id-g105.svg';
-import idPhoneA from './assets/id-g28.svg';
-import idPhoneB from './assets/id-g27.svg';
-import idScreen from './assets/id-rect.svg';
-import idThumbA from './assets/id-p19.svg';
-import idThumbB from './assets/id-p18.svg';
-import idPortrait from './assets/id-portrait.png';
 
 function Select({
   label, value, onChange, options, required, error,
@@ -60,66 +55,59 @@ function Select({
   );
 }
 
-/**
- * The hand-holding-phone-and-ID line drawing from the ID Verification card.
- *
- * The exported layers, positioned at the coordinates Figma 10078-25475 gives
- * them. Every layer is a percentage of the 292.25 × 119.43 artboard those
- * coordinates live in, so the whole thing scales with the card.
- *
- * The licence photo IS included now. Figma exports it at 920×589 (1 MB) for
- * something that renders ~60×38, and webpack inlines images as base64
- * (`asset/inline`), so the export is resampled to 180×115 — 3× the display size,
- * enough for retina — which costs ~57 KB instead of ~1.35 MB inlined.
- */
-// Kept alongside the parked card above, so both come back together.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function IdIllustration() {
-  return (
-    <div className="rf-sx-illus" aria-hidden="true">
-      {/* Painter's order, exactly as the frame stacks them. Right hand and its
-          ID card first: hand, white card, licence photo, keyline, fingers. */}
-      <img className="rf-sx-illus-l rf-sx-illus-handcard" src={idHandCard} alt="" />
-      <span className="rf-sx-illus-l rf-sx-illus-cardbg" />
-      <img className="rf-sx-illus-l rf-sx-illus-portrait" src={idPortrait} alt="" />
-      <span className="rf-sx-illus-l rf-sx-illus-cardline" />
-      <img className="rf-sx-illus-l rf-sx-illus-cardface" src={idCardFace} alt="" />
-
-      {/* Then the left hand and its phone. */}
-      <img className="rf-sx-illus-l rf-sx-illus-phoneA" src={idPhoneA} alt="" />
-      <span className="rf-sx-illus-l rf-sx-illus-glint" />
-      <img className="rf-sx-illus-l rf-sx-illus-phoneB" src={idPhoneB} alt="" />
-      <img className="rf-sx-illus-l rf-sx-illus-screen" src={idScreen} alt="" />
-      <img className="rf-sx-illus-l rf-sx-illus-thumbA" src={idThumbA} alt="" />
-      <img className="rf-sx-illus-l rf-sx-illus-thumbB" src={idThumbB} alt="" />
-    </div>
-  );
-}
-
 /** What this screen can actually file against the contact after the lease. */
+/**
+ * DUMMY — what the ID verification app hands back once a scan succeeds. Values
+ * from Figma 8754-49724. It carries more than the widget's own fields do (a
+ * full state name, a written-out date), which is why the read-only summaries
+ * render THIS rather than re-deriving from the inputs: those hold the two-letter
+ * code and MM/DD/YYYY the record actually stores.
+ *
+ * Replace with the app's real response; nothing else here has to change.
+ */
+/**
+ * ID verification is switched OFF.
+ *
+ * Nothing behind it is wired to a real service yet, so it must not appear on a
+ * demo or a live page. One flag rather than a hundred commented-out lines: the
+ * whole flow — the card, the in-store branch, the three results, the modal and
+ * the read-only summaries — stays compiled and type-checked, so it cannot rot
+ * while it waits.
+ *
+ * Off, step 3 is exactly what it was before any of it existed: mailing address,
+ * licence and additional information all on the page, and Get Access grants
+ * access. Flip to `true` to bring it back; nothing else has to change.
+ */
+const IDV_ENABLED = false;
+
+const IDV_SOURCE = {
+  mailing: {
+    line: '4920 Campus Drive Suite B, Newport Beach, CA 92660',
+    address: '4920 Campus Drive Suite B',
+    city: 'Newport Beach',
+    state: 'CA',
+    zip: '92660',
+  },
+  licence: {
+    number: 'DL7833839393',
+    state: 'CA',
+    stateLabel: 'California',
+    exp: '09/20/2035',
+    expLabel: 'Sep 20, 2035',
+  },
+};
+
 export interface SuccessDetails {
   driverLicense?: string;
   /** As typed, MM/DD/YYYY — the parent converts. */
   driverLicenseExp?: string;
   driverLicenseState?: string;
   mailingAddress?: { address: string; city?: string; state?: string; zip?: string };
+  /** Did the shopper actually get through ID verification? Only a `complete`
+   *  result counts — ignoring the card, choosing the counter, failing, or
+   *  deferring all leave them without a verified ID, and so without a code. */
+  idVerified: boolean;
 }
-
-/**
- * Furthest expiry the picker offers. Licences run up to ~8 years in most US
- * states; twenty is generous without listing a century of irrelevant years.
- */
-const LICENCE_MAX_EXPIRY = (() => {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() + 20);
-  return d;
-})();
-
-/** MM/DD/YYYY — the shape updateContactDetails converts to the API's date. */
-const formatMasked = (d: Date): string => {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(d.getMonth() + 1)}/${p(d.getDate())}/${d.getFullYear()}`;
-};
 
 export function SuccessStep({ onGetAccess, chosen }: {
   /** Fires with everything the contact update can file. The parent decides
@@ -139,6 +127,36 @@ export function SuccessStep({ onGetAccess, chosen }: {
   // Mailing address — where notices go when it is not the space's address.
   // Filed on the contact as an Addresses entry of type "mailing" (verified
   // 2026-08-21: it persists).
+  /**
+   * ID verification. DUMMY — there is no verification service wired up yet; the
+   * states and the transitions between them are here so the real one can be
+   * dropped in behind them.
+   *
+   *   choose    the card with the illustration and the two buttons
+   *   instore   "Verify ID In-Store" — hours, address, phone, and a way back
+   *   complete / failed / later   the three results the service can return
+   *
+   * The detail sections below are shown only in `instore`, per the brief. Their
+   * VALUES live in this component either way, so switching back and forth keeps
+   * everything already typed — unmounting the markup does not touch the state.
+   */
+  const [idv, setIdv] = useState<'choose' | 'instore' | 'complete' | 'failed' | 'later'>('choose');
+  const [idvModal, setIdvModal] = useState(false);
+  /* A completed scan arrives pre-filled and collapsed to a summary; "Edit" is
+     how the tenant overrides what the scan read off the card. One flag each,
+     because the two boxes are independent in the frame. */
+  const [mailEditing, setMailEditing] = useState(false);
+  const [dlEditing, setDlEditing] = useState(false);
+  /* The two detail groups belong to every state that has to collect them:
+     in-store (the counter needs them), complete (the scan supplies them, and
+     they can be overridden) and failed (nothing was captured, so they are typed
+     by hand). Not `choose` or `later` — nothing has been decided yet. */
+  // Off, the two groups are simply always on the page — there is no branch
+  // left to decide otherwise.
+  const detailsShown = !IDV_ENABLED || idv === 'instore' || idv === 'complete' || idv === 'failed';
+  const mailReadOnly = idv === 'complete' && !mailEditing;
+  const dlReadOnly = idv === 'complete' && !dlEditing;
+
   const [mailAddress, setMailAddress] = useState('');
   const [mailCity, setMailCity] = useState('');
   const [mailState, setMailState] = useState('');
@@ -149,14 +167,18 @@ export function SuccessStep({ onGetAccess, chosen }: {
   // and all three persist.
   const [dlNumber, setDlNumber] = useState('');
   const [dlExp, setDlExp] = useState('');
-  const [dlExpDate, setDlExpDate] = useState<Date | null>(null);
-  const [dlExpOpen, setDlExpOpen] = useState(false);
   const [dlState, setDlState] = useState('');
 
   /** A picked or typed mailing address — the city/state/ZIP follow it. */
   const [mailPicked, setMailPicked] = useState(false);
+  const [attemptedReveal, setAttemptedReveal] = useState(false);
+  /* Revealed by the lookup, by content already in them, or by a failed submit.
+     That last one matters now they are REQUIRED: an address typed straight into
+     the box without choosing a suggestion leaves `mailPicked` false, so without
+     it the three fields would be demanded while still hidden. */
   const showMailParts = mailPicked
-    || !!(mailCity.trim() || mailState.trim() || mailZip.trim());
+    || !!(mailCity.trim() || mailState.trim() || mailZip.trim())
+    || (attemptedReveal && !!mailAddress.trim());
 
   // Business
   const [bizAddress, setBizAddress] = useState('');
@@ -189,6 +211,23 @@ export function SuccessStep({ onGetAccess, chosen }: {
   const [attempted, setAttempted] = useState(false);
   const filled = (v: string) => v.trim().length > 0;
   const problems: Record<string, string> = {
+    // Only while the detail groups are mounted — a required field that is not
+    // on screen produces a message nobody can act on.
+    ...(detailsShown ? {
+      mailAddress: filled(mailAddress) ? '' : 'Enter your mailing address',
+      // Keyed off the ADDRESS, not off whether the three are on screen. Keying
+      // it off visibility would read the pre-click render, where the reveal has
+      // not happened yet, and let the first submit through.
+      ...(filled(mailAddress) ? {
+        mailCity: filled(mailCity) ? '' : 'Enter the city',
+        mailState: mailState.trim().length === 2 ? '' : 'Enter the two-letter state',
+        mailZip: mailZip.trim().length >= 5 ? '' : 'Enter a valid ZIP code',
+      } : {}),
+      dlNumber: filled(dlNumber) ? '' : 'Enter the licence number',
+      dlState: dlState.trim().length === 2 ? '' : 'Enter the two-letter state or province',
+      // Ten characters is a complete MM/DD/YYYY — "12/25/" is filled but not a date.
+      dlExp: dlExp.length === 10 ? '' : 'Enter a valid expiration date',
+    } : {}),
     ...(business ? {
       bizAddress: filled(bizAddress) ? '' : 'Enter the business address',
       repFirst: filled(repFirst) ? '' : 'Enter the business rep’s first name',
@@ -217,12 +256,34 @@ export function SuccessStep({ onGetAccess, chosen }: {
    */
   const rootRef = useRef<HTMLDivElement>(null);
   const [failures, setFailures] = useState(0);
+
+  /* Seed the fields from the scan whenever one completes. It OVERWRITES on
+     purpose: the whole point of verification is that the card is the source of
+     truth, and "Edit" is the documented way to disagree with it. Keyed on `idv`
+     alone, so editing afterwards does not re-run it. */
+  useEffect(() => {
+    if (idv !== 'complete') return;
+    setMailAddress(IDV_SOURCE.mailing.address);
+    setMailCity(IDV_SOURCE.mailing.city);
+    setMailState(IDV_SOURCE.mailing.state);
+    setMailZip(IDV_SOURCE.mailing.zip);
+    setMailPicked(true);
+    setDlNumber(IDV_SOURCE.licence.number);
+    setDlState(IDV_SOURCE.licence.state);
+    setDlExp(IDV_SOURCE.licence.exp);
+    setMailEditing(false);
+    setDlEditing(false);
+  }, [idv]);
   const submit = () => {
     setAttempted(true);
+    setAttemptedReveal(true);
     if (Object.values(problems).some(Boolean)) { setFailures((n) => n + 1); return; }
     // Only what was filled — the update must not blank a value the tenant may
     // have given at the counter.
     onGetAccess?.({
+      // Off, nothing is being verified, so nothing may be withheld for it —
+      // the confirmation page must not claim verification is required.
+      idVerified: !IDV_ENABLED || idv === 'complete',
       driverLicense: dlNumber.trim() || undefined,
       driverLicenseExp: dlExp.trim() || undefined,
       driverLicenseState: dlState.trim() || undefined,
@@ -268,128 +329,244 @@ export function SuccessStep({ onGetAccess, chosen }: {
         <h2 className="rf-heading">Finish up below for access</h2>
       </div>
 
-      {/* ID VERIFICATION — PARKED, not deleted (2026-08-21).
-
-          Both buttons are inert and cannot be otherwise: the rental flow API
-          has no verification endpoint anywhere in the guide. What it has is
-          driver_license / _exp / _state as fields on the CONTACT, which the
-          Driver's Licence group below now collects and files. So this card
-          comes back only if an actual verification service is introduced.
-
-          <section className="rf-sx-idv">
-            <h3 className="rf-sx-idv-title">ID Verification</h3>
-            <div className="rf-sx-idv-body">
-              <IdIllustration />
-              <div className="rf-sx-idv-actions">
-                <button type="button" className="rf-sx-btn rf-sx-btn--solid">Verify ID Now</button>
-                <button type="button" className="rf-sx-btn rf-sx-btn--outline">Verify In-Store</button>
-              </div>
+      {/* ID VERIFICATION.
+          Un-parked from the comment Jaweed left on 2026-08-21, whose reasoning
+          still stands: the rental flow API has no verification endpoint, so
+          nothing here talks to anything. It is a DUMMY FLOW, built so the real
+          service can be wired to `idv` and the modal without redesigning. What
+          the contact record actually stores — driver_license / _exp / _state —
+          is still collected by the Driver's Licence group below. */}
+      {IDV_ENABLED && idv === 'choose' && (
+        <section className="rf-sx-idv">
+          <h3 className="rf-sx-idv-title">ID Verification</h3>
+          <div className="rf-sx-idv-body">
+            <IdIllustration />
+            <div className="rf-sx-idv-actions">
+              <button type="button" className="rf-sx-btn rf-sx-btn--solid" onClick={() => setIdvModal(true)}>
+                Verify ID Now
+              </button>
+              <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => setIdv('instore')}>
+                Verify In-Store
+              </button>
             </div>
-            <p className="rf-sx-idv-note">
-              Get ready to take a photo of your ID and a Selfie.{' '}
-              <a href="#pop-ups" onClick={(e) => e.preventDefault()}>Click here to see how to enable pop-ups</a>{' '}
-              if the link you received did not open the the ID Verification tool.
-            </p>
-          </section>
-      */}
-
-      {/* Mailing address first: it is the one most tenants will fill, and the
-          licence group reads as a follow-up rather than a gate. */}
-      <section className="rf-sx-extra">
-        <h3 className="rf-sx-extra-title">Mailing Address</h3>
-        <div className="rf-sx-fields">
-          <AddressAutocomplete
-            value={mailAddress}
-            onChange={setMailAddress}
-            onPick={(place) => {
-              if (place.address.city) setMailCity(place.address.city);
-              if (place.address.stateCode) setMailState(place.address.stateCode);
-              if (place.address.zip) setMailZip(place.address.zip);
-              setMailPicked(true);
-            }}
-          >
-            <FormField label="Mailing Address" type="search" value={mailAddress} onChange={setMailAddress} autoComplete="street-address" state={mailAddress.trim() ? 'success' : 'default'} />
-          </AddressAutocomplete>
-          {/* City, state and ZIP appear once the lookup has filled them — or if
-              anything is already in them. Nothing here is required, so unlike
-              the billing panel there is no need to reveal them on submit: a
-              shopper who types a street and stops has still given a usable
-              address. */}
-          {showMailParts && (
-            <>
-              <div className="rf-pay-grid">
-                <FormField label="City" value={mailCity} onChange={setMailCity} autoComplete="address-level2" state={mailCity.trim() ? 'success' : 'default'} />
-                <FormField label="State" value={mailState} onChange={(v) => setMailState(v.toUpperCase().slice(0, 2))} autoComplete="address-level1" state={mailState.trim().length === 2 ? 'success' : 'default'} />
-              </div>
-              <FormField label="ZIP Code" value={mailZip} onChange={setMailZip} autoComplete="postal-code" state={mailZip.trim().length >= 3 ? 'success' : 'default'} />
-            </>
-          )}
-        </div>
-      </section>
-
-      {/* Standing in for the parked ID Verification card: the licence details
-          the API actually stores, asked for plainly. */}
-      <section className="rf-sx-extra">
-        <h3 className="rf-sx-extra-title">Driver&rsquo;s Licence</h3>
-        <div className="rf-sx-fields">
-          <FormField label="Driver's Licence Number" value={dlNumber} onChange={setDlNumber} autoComplete="off" state={dlNumber.trim() ? 'success' : 'default'} />
-          <div className="rf-pay-grid">
-            {/* A picker, not a typed mask: an expiry is read off a card and is
-                always in the FUTURE, so browsing beats typing eight digits.
-
-                Built on .rf-select — the same presentational-twin trick the
-                dropdowns use — rather than step 2's .rf2-movein row. That row
-                is a full-width control with its own height and a hardcoded
-                green border; dropped into this half-width grid cell it came out
-                shorter than the field beside it, wrapped "Select a date" onto
-                two lines, and showed a valid border with nothing chosen. This
-                way the box IS a FormField, so height, radius, border and the
-                floating label cannot drift from its neighbour. */}
-            <div className="rf-select">
-              <button
-                type="button"
-                className="rf-select-native rf-datebtn"
-                onClick={() => setDlExpOpen(true)}
-                aria-label={dlExp ? `Licence expiry date, ${dlExp}. Change` : 'Select licence expiry date'}
-              />
-              <div className="rf-select-face" aria-hidden="true">
-                <FormField
-                  label="Expiry Date"
-                  value={dlExp}
-                  onChange={() => {}}
-                  className={dlExp ? 'rf-valid' : undefined}
-                />
-                <CalendarIcon size={24} className="rf-select-chev rf-select-ico--plain" />
-              </div>
-            </div>
-            <FormField label="Issuing State" value={dlState} onChange={(v) => setDlState(v.toUpperCase().slice(0, 2))} state={dlState.trim().length === 2 ? 'success' : 'default'} />
           </div>
-        </div>
-      </section>
+          <p className="rf-sx-idv-note">
+            Get ready to take a photo of your ID and a Selfie.{' '}
+            <a href="#pop-ups" onClick={(e) => e.preventDefault()}>Click here to see how to enable pop-ups</a>{' '}
+            if the link you received did not open the the ID Verification tool.
+          </p>
+        </section>
+      )}
 
-      <DateModal
-        open={dlExpOpen}
-        onClose={() => setDlExpOpen(false)}
-        selected={dlExpDate}
-        onSelect={(d) => setDlExpDate(d)}
-        onConfirm={() => {
-          if (dlExpDate) setDlExp(formatMasked(dlExpDate));
-          setDlExpOpen(false);
-        }}
-        onReset={() => { setDlExpDate(null); setDlExp(''); setDlExpOpen(false); }}
-        title="Licence Expiry Date"
-        ctaLabel="Confirm"
-        // Browse mode: an expiry is years out, so month-and-year jumping beats
-        // stepping. Both bounds are required, not just the floor: the year list
-        // is built BACKWARDS from maxDate down to minDate, so passing only
-        // minDate=today made last === first and offered a single year.
-        //
-        // Floor is today (an expired licence is not one to file); ceiling is
-        // twenty years out, which covers every issuing state's term.
-        browse
-        minDate={new Date()}
-        maxDate={LICENCE_MAX_EXPIRY}
-      />
+      {/* Figma 10080-26478. Two columns: what to bring and where to bring it on
+          the left, the way back on the right.
+
+          The hours and the phone number are the FRAME'S placeholders, not this
+          property's — SuccessStep is not passed the property, and the record
+          separates access hours from office hours, so picking one here would be
+          a guess. Thread the real pair in when the verification work lands. */}
+      {IDV_ENABLED && idv === 'instore' && (
+        <section className="rf-sx-idv rf-sx-idv--instore">
+          <div className="rf-sx-idv-instore-main">
+            <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
+              <TickSingleIcon size={24} className="rf-sx-idv-tick" />
+              Verify ID In-Store
+            </h3>
+            <p className="rf-sx-idv-lede">Bring in your ID upon move-in or call the store to get access.</p>
+            <div className="rf-sx-idv-row">
+              <ClockGlyph size={24} className="rf-sx-idv-ico" />
+              <div>
+                <p className="rf-sx-idv-strong">Office Hours</p>
+                <p className="rf-sx-idv-line">Mon-Sat: 8:00 AM - 5:00 PM</p>
+                <p className="rf-sx-idv-line">Sun: 10:00 AM - 3:00 PM</p>
+              </div>
+            </div>
+            <div className="rf-sx-idv-row rf-sx-idv-row--mid">
+              <PhoneGlyph size={24} className="rf-sx-idv-ico" />
+              <a className="rf-sx-idv-link" href="tel:8776577465">(877) 657-7465</a>
+            </div>
+          </div>
+          <div className="rf-sx-idv-instore-aside">
+            <p className="rf-sx-idv-strong">Changed your mind?</p>
+            <button
+              type="button"
+              className="rf-sx-btn rf-sx-btn--solid"
+              onClick={() => { setIdv('choose'); setIdvModal(true); }}
+            >
+              Verify ID Now
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* The three results a verification can end in (Figma 8507-24189 /
+          8507-24120 / 8507-24130). Reachable from the modal today so the flow
+          can be walked through; the real service sets `idv` instead. */}
+      {IDV_ENABLED && idv === 'complete' && (
+        <section className="rf-sx-idv rf-sx-idv--done">
+          <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
+            <TickSingleIcon size={24} className="rf-sx-idv-tick" />
+            ID Verification Complete
+          </h3>
+        </section>
+      )}
+
+      {IDV_ENABLED && idv === 'failed' && (
+        <section className="rf-sx-idv rf-sx-idv--alert">
+          <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
+            <AlertTriangleIcon size={24} className="rf-sx-idv-alert" />
+            ID Verification Failed
+          </h3>
+          <p className="rf-sx-idv-lede">
+            Your ID must be verified before getting access. Please reverify your ID or contact us to
+            get access (949) 546-7465.{' '}
+            <button
+              type="button"
+              className="rf-sx-idv-inline"
+              onClick={() => { setIdv('choose'); setIdvModal(true); }}
+            >
+              Reverify ID
+            </button>
+          </p>
+        </section>
+      )}
+
+      {IDV_ENABLED && idv === 'later' && (
+        <section className="rf-sx-idv rf-sx-idv--alert">
+          <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
+            <AlertTriangleIcon size={24} className="rf-sx-idv-alert" />
+            Verify ID Later
+          </h3>
+          <p className="rf-sx-idv-lede">
+            <b className="rf-sx-idv-danger">ID Verification is required to get access to your space.</b>{' '}
+            Please contact us to complete the verification.<br />
+            Changed your mind?{' '}
+            <button
+              type="button"
+              className="rf-sx-idv-inline"
+              onClick={() => { setIdv('choose'); setIdvModal(true); }}
+            >
+              Verify ID Now
+            </button>
+          </p>
+        </section>
+      )}
+
+
+      {/* Mailing address and licence, in whichever form the current state calls
+          for. Additional Information is NOT in here: Figma 8507-25408 has it on
+          the page from the start.
+
+          UNMOUNTED, not hidden — but every value they edit is state on this
+          component, so switching back and forth keeps whatever was typed. */}
+      {detailsShown && (
+        <>
+        {IDV_ENABLED && idv === 'complete' && (
+          <p className="rf-sx-idv-current">
+            For the purpose of important notifications, please make sure the address captured from
+            your license is current.
+          </p>
+        )}
+
+        {/* Mailing address first: it is the one most tenants will fill, and the
+            licence group reads as a follow-up rather than a gate. */}
+        <section className="rf-sx-extra">
+          <h3 className="rf-sx-extra-title">Mailing Address</h3>
+          {mailReadOnly ? (
+            <div className="rf-sx-readout">
+              <p className="rf-sx-readout-val">{IDV_SOURCE.mailing.line}</p>
+              <button type="button" className="rf-sx-edit" onClick={() => setMailEditing(true)}>Edit</button>
+            </div>
+          ) : (
+          <div className="rf-sx-fields">
+            <AddressAutocomplete
+              value={mailAddress}
+              onChange={setMailAddress}
+              onPick={(place) => {
+                if (place.address.city) setMailCity(place.address.city);
+                if (place.address.stateCode) setMailState(place.address.stateCode);
+                if (place.address.zip) setMailZip(place.address.zip);
+                setMailPicked(true);
+              }}
+            >
+              <FormField label="Mailing Address" required type="search" value={mailAddress} onChange={setMailAddress} autoComplete="street-address" state={mailAddress.trim() ? 'success' : 'default'} error={bad('mailAddress')} />
+            </AddressAutocomplete>
+            {/* City, state and ZIP appear once the lookup has filled them, if
+                anything is already in them, or on a failed submit. They are
+                required as soon as there IS an address — a street on its own is
+                not one the counter can post to. */}
+            {showMailParts && (
+              <>
+                <div className="rf-pay-grid">
+                  <FormField label="City" required value={mailCity} onChange={setMailCity} autoComplete="address-level2" state={mailCity.trim() ? 'success' : 'default'} error={bad('mailCity')} />
+                  <FormField label="State" required value={mailState} onChange={(v) => setMailState(v.toUpperCase().slice(0, 2))} autoComplete="address-level1" state={mailState.trim().length === 2 ? 'success' : 'default'} error={bad('mailState')} />
+                </div>
+                <FormField label="ZIP Code" required value={mailZip} onChange={setMailZip} autoComplete="postal-code" state={mailZip.trim().length >= 5 ? 'success' : 'default'} error={bad('mailZip')} />
+              </>
+            )}
+          </div>
+          )}
+        </section>
+
+        {/* Figma 10078-25737 — three equal columns, all three required. */}
+        <section className="rf-sx-extra">
+          <h3 className="rf-sx-extra-title">Driver&rsquo;s Licence</h3>
+          {dlReadOnly ? (
+            <div className="rf-sx-readout">
+              {/* Three lines, as the frame has them — and the app's own wording:
+                  the full state name and a written-out date, neither of which the
+                  two inputs behind this hold. */}
+              <p className="rf-sx-readout-val">
+                {IDV_SOURCE.licence.number}<br />
+                {IDV_SOURCE.licence.stateLabel}<br />
+                {IDV_SOURCE.licence.expLabel}
+              </p>
+              <button type="button" className="rf-sx-edit" onClick={() => setDlEditing(true)}>Edit</button>
+            </div>
+          ) : (
+          <div className="rf-sx-fields">
+            <div className="rf-sx-grid3">
+              <FormField
+                label="License Number"
+                required
+                value={dlNumber}
+                onChange={setDlNumber}
+                autoComplete="off"
+                state={dlNumber.trim() ? 'success' : 'default'}
+                error={bad('dlNumber')}
+              />
+              {/* A text box, not the frame's dropdown: the record stores a
+                  two-letter code, and no canonical state+province list exists
+                  in the widget to populate a <Select> with. */}
+              <FormField
+                label="State/Province"
+                required
+                value={dlState}
+                onChange={(v) => setDlState(v.toUpperCase().slice(0, 2))}
+                state={dlState.trim().length === 2 ? 'success' : 'default'}
+                error={bad('dlState')}
+              />
+              {/* Typed, not a picker. An expiry is read straight off the card in
+                  the shopper's hand — eight digits is quicker than browsing to a
+                  date they can already see, and it is the same control the Date
+                  of Birth field above uses. The kit's mask rests as the label
+                  and reveals MM/DD/YYYY on focus. */}
+              <FormField
+                label="Expiration Date"
+                required
+                mask="date"
+                value={dlExp}
+                onChange={setDlExp}
+                autoComplete="off"
+                state={dlExp.length === 10 ? 'success' : 'default'}
+                error={bad('dlExp')}
+              />
+            </div>
+          </div>
+          )}
+        </section>
+        </>
+      )}
 
       <section className="rf-sx-extra">
         <h3 className="rf-sx-extra-title">Additional Information</h3>
@@ -469,6 +646,14 @@ export function SuccessStep({ onGetAccess, chosen }: {
       </section>
 
       <button type="button" className="rf-sx-access" onClick={submit}>Get Access</button>
+
+      {IDV_ENABLED && (
+      <IdVerifyModal
+        open={idvModal}
+        onClose={() => setIdvModal(false)}
+        onResult={setIdv}
+      />
+      )}
     </div>
   );
 }

@@ -70,7 +70,20 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './FindStorageMegaMenu.css';
-import { ChevronLeft, CloseIcon, MapPinIcon, PhoneIcon, SearchIcon } from './icons';
+import {
+  ChevronLeft,
+  CloseFilledIcon,
+  MapPinFilledIcon,
+  PhoneIcon,
+  SearchIcon,
+  StarRating,
+} from './icons';
+import {
+  fetchGoogleRatingsByPlace,
+  ratingForProperty,
+  type RatingSummary,
+} from '@shared/reviewsCollections';
+import { hasCollectionsApi } from '@shared/dudaCollections';
 import { FormField, Button } from '@shared/ui';
 import { getUserLocation, haversineMiles } from '@shared/nearbyProperties';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
@@ -145,10 +158,145 @@ interface NearbyItem {
   miles: number | null;
 }
 
-// The two selects are placeholders until the search page exists; the values
-// mirror what the site sells so the control isn't obviously fake.
-const TYPE_OPTIONS = ['Storage', 'Vehicle & RV', 'Business'];
-const SIZE_OPTIONS = ['All Sizes', 'Small (5x5 - 5x10)', 'Medium (10x10 - 10x15)', 'Large (10x20+)'];
+// The two selects are placeholders until the search page exists, but the OPTIONS
+// are the frame's own (audit 11691-240520 / 11691-240556) — plain nouns, no
+// parenthetical dimensions. The "(5x5 - 5x10)" verbiage was invented here to make
+// the placeholder look plausible and read as clutter in the audited dropdown; the
+// size guide is where dimensions belong.
+const TYPE_OPTIONS = ['Storage', 'Parking'];
+const SIZE_OPTIONS = ['All Sizes', 'Small', 'Medium', 'Large', 'XLarge'];
+
+/**
+ * One Type/Size field — AUDIT: "Implement the same dropdowns than we have in
+ * the navigation."
+ *
+ * It was a native `<select>`, so the open list was whatever the OS draws: the
+ * audited screenshot shows a grey macOS menu with a tick, nothing like the site.
+ * This is the nav's own dropdown instead — the white 12px-radius panel with
+ * `--nav-dd-*` rows (Figma "Sub Tab Element": 42px tall, 15/10 padding,
+ * Montserrat 14, an inset bottom hairline per row) — reusing NavigationBar.css's
+ * `.nav-dd-panel`/`.nav-dd-item` look so the two menus can't drift apart.
+ *
+ * The closed box keeps the ".Form 2.0" styling it already had, so only the open
+ * list changes.
+ *
+ * Behaviour a native select gave for free and this has to restate:
+ *  - **Escape closes the LIST, not the whole menu.** `stopPropagation` is what
+ *    does it — the popup's own Escape handler is on `document`, and React's
+ *    listener at the root runs first, so stopping there never reaches it.
+ *  - **Arrow keys move the highlight** and `preventDefault()`, which also keeps
+ *    the popup's scroll-key blocker off them: it bails on `defaultPrevented`.
+ *  - Click outside, or pick a row, closes. Focus returns to the box.
+ */
+function MegaSelect({
+  label,
+  value,
+  options,
+  onPick,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onPick: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [cursor, setCursor] = useState(0);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+
+  // Open on the current value, so the first ArrowDown moves from where the
+  // visitor is rather than from the top of the list.
+  const openList = () => {
+    setCursor(Math.max(0, options.indexOf(value)));
+    setOpen(true);
+  };
+
+  const close = (refocus = true) => {
+    setOpen(false);
+    if (refocus) btnRef.current?.focus();
+  };
+
+  const pick = (v: string) => {
+    onPick(v);
+    close();
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Element | null;
+      if (t && rootRef.current?.contains(t)) return;
+      // No refocus: the visitor clicked somewhere else on purpose.
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (!open) return;
+      e.stopPropagation();
+      e.preventDefault();
+      close();
+      return;
+    }
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openList();
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      setCursor((i) => {
+        const next = e.key === 'ArrowDown' ? i + 1 : i - 1;
+        return (next + options.length) % options.length;
+      });
+      return;
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      pick(options[cursor] ?? value);
+      return;
+    }
+    if (e.key === 'Tab') close(false);
+  };
+
+  return (
+    <div className="nav-mega-select" ref={rootRef}>
+      <button
+        className="nav-mega-select-btn"
+        type="button"
+        ref={btnRef}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => (open ? close() : openList())}
+        onKeyDown={onKeyDown}
+      >
+        <span className="nav-mega-select-label">{label}</span>
+        <span className="nav-mega-select-value">{value}</span>
+      </button>
+      {open && (
+        <ul className="nav-mega-dd" role="listbox" aria-label={label} onKeyDown={onKeyDown}>
+          {options.map((o, i) => (
+            <li
+              className={`nav-mega-dd-item${i === cursor ? ' is-active' : ''}`}
+              key={o}
+              role="option"
+              aria-selected={o === value}
+              onMouseEnter={() => setCursor(i)}
+              onClick={() => pick(o)}
+            >
+              {o}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 /**
  * "1.7 mi", as the Figma writes it. NOT @shared/nearbyProperties' formatDistance:
@@ -264,6 +412,49 @@ export function FindStorageMegaMenu({
     getUserLocation()
       .then(setCoords)
       .catch(() => { /* denied / unavailable — the list falls back below */ });
+  }, [open]);
+
+  /**
+   * Facility ratings — AUDIT: "Add in Reviews".
+   *
+   * Same source and same rule as #08's city page (`fetchGoogleRatingsByPlace` /
+   * `ratingForProperty`): the `GoogleReviews` rows grouped by `placeName`, so a
+   * facility with its own place gets its OWN score, and one without falls back to
+   * the site-wide figure. Nothing is invented — a site with a single business
+   * shows that business's rating on each row, which is what it has.
+   *
+   * Fetched on open and once only, like the geolocation ask above: it is a
+   * collection read for a panel most visitors never open. No dmAPI (the Duda
+   * editor, the dev harness) fails soft to null and the rows render without a
+   * rating line, exactly as before this change.
+   */
+  const [ratings, setRatings] = useState<{
+    byPlace: Map<string, RatingSummary>;
+    overall: RatingSummary | null;
+  } | null>(null);
+  const ratingsAskedRef = useRef(false);
+
+  /**
+   * Editor/harness ratings — the same reasoning as `demoLocationTree` in
+   * NavigationBar: the Duda editor and the dev harness have no `dmAPI`, so the
+   * read above returns nothing and the rows rendered with no rating line at all,
+   * which reads as "the audit note wasn't done" rather than "there is no
+   * collection here yet".
+   *
+   * Gated on the API being ABSENT, never on an empty result: on a published page
+   * with no `GoogleReviews` collection the rows still show no rating, because
+   * inventing a score on a live site is the one thing worse than omitting it.
+   * The figures are the frame's own (4.5, and its 32/56/21 counts).
+   */
+  const demoRatings = !hasCollectionsApi();
+  const DEMO_REVIEW_COUNTS = [32, 56, 21];
+
+  useEffect(() => {
+    if (!open || ratingsAskedRef.current) return;
+    ratingsAskedRef.current = true;
+    fetchGoogleRatingsByPlace('#02 mega menu')
+      .then(setRatings)
+      .catch(() => { /* fails soft — rows just show no rating line */ });
   }, [open]);
 
   const nearby: NearbyItem[] = useMemo(() => {
@@ -410,8 +601,11 @@ export function FindStorageMegaMenu({
       const dir = SCROLL_KEYS[e.key];
       if (!dir || e.defaultPrevented) return;
       const target = e.target as Element | null;
-      // Typing in the search field, or driving a <select>, is not scrolling.
+      // Typing in the search field, or driving a dropdown, is not scrolling. The
+      // role selectors cover MegaSelect, which is a button + listbox rather than
+      // the native <select> this used to match on.
       if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (target?.closest('[role="listbox"], [aria-haspopup="listbox"]')) return;
       if (!canScroll(target, dir)) e.preventDefault();
     };
 
@@ -452,13 +646,21 @@ export function FindStorageMegaMenu({
   // ── "See all cities" ─────────────────────────────────────────────────────
   // Measured rather than derived from a row count: the column's height depends on
   // the viewport, so 20 cities may overflow on a laptop and fit on a large screen.
+  //
+  // BOTH AXES since the columns fill sequentially (`column-fill: auto`, see the
+  // CSS): a list that outgrows the box no longer makes the box taller, it starts
+  // a THIRD column and overflows sideways. Testing height alone — which is all
+  // this did while the columns balanced — would report "fits" forever and the
+  // link would never appear.
   useLayoutEffect(() => {
     const el = cityListRef.current;
     if (!el || !open || showAllCities) {
       setCityOverflow(false);
       return;
     }
-    const check = () => setCityOverflow(el.scrollHeight - el.clientHeight > 1);
+    const check = () => setCityOverflow(
+      el.scrollHeight - el.clientHeight > 1 || el.scrollWidth - el.clientWidth > 1,
+    );
     check();
 
     window.addEventListener('resize', check);
@@ -555,9 +757,11 @@ export function FindStorageMegaMenu({
   // "Nearby Storage Facilities" — the desktop search column and mobile page 1
   // show the identical block (Figma 10557-106986 and 10692-81165).
   //
-  // The frames put a star rating and a review count on each row. Left out on
-  // purpose: `GoogleReviews` holds ONE site-wide business score, not a score per
-  // property, so those stars would be the same invented number three times.
+  // Each row carries a rating line — AUDIT: "Add in Reviews". It reads a facility's
+  // OWN score when `GoogleReviews` has a place for it and the site-wide figure
+  // otherwise (see the ratings effect above), so on a single-business site the
+  // three rows do show the same score: that is the score the site has, not an
+  // invented one. A site with no reviews collection shows no rating line at all.
   const nearbyBlock = (
     <div className="nav-mega-block nav-mega-block--nearby">
       <h3 className="nav-mega-heading nav-mega-heading--sm">Nearby Storage Facilities</h3>
@@ -569,21 +773,41 @@ export function FindStorageMegaMenu({
               a nav menu took them off the site instead of to the facility. Maps
               and click-to-call belong on the property page, which is where this
               now goes. */}
-          {nearby.map(({ property, miles }) => (
+          {nearby.map(({ property, miles }, i) => (
             <a
               className="nav-mega-loc"
               key={property.id || property.slug}
               href={property.href}
             >
-              <MapPinIcon size={24} />
+              <MapPinFilledIcon size={24} />
               <span className="nav-mega-loc-data">
                 <span className="nav-mega-loc-name">
                   {property.label}
                   {miles != null && ` - ${milesLabel(miles)}`}
                 </span>
+                {(() => {
+                  const live = ratings ? ratingForProperty(property.label, ratings) : null;
+                  const r = live && live.score > 0
+                    ? { score: live.score, count: live.count }
+                    : demoRatings
+                      ? { score: 4.5, count: DEMO_REVIEW_COUNTS[i % DEMO_REVIEW_COUNTS.length] }
+                      : null;
+                  if (!r) return null;
+                  return (
+                    <span className="nav-mega-loc-rating">
+                      <span className="nav-mega-loc-score">{r.score.toFixed(1)}</span>
+                      <StarRating rating={r.score} size={16} />
+                      {r.count > 0 && (
+                        <span className="nav-mega-loc-reviews">
+                          {r.count.toLocaleString('en-US')} Reviews
+                        </span>
+                      )}
+                    </span>
+                  );
+                })()}
                 {property.address && (
                   <span className="nav-mega-loc-line">
-                    <MapPinIcon size={16} />
+                    <MapPinFilledIcon size={16} />
                     <span>{property.address}</span>
                   </span>
                 )}
@@ -607,18 +831,8 @@ export function FindStorageMegaMenu({
   const searchForm = (
     <form className="nav-mega-form" onSubmit={(e) => e.preventDefault()}>
       <div className="nav-mega-selects">
-        <label className="nav-mega-select">
-          <span className="nav-mega-select-label">Type</span>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            {TYPE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </label>
-        <label className="nav-mega-select">
-          <span className="nav-mega-select-label">Size</span>
-          <select value={size} onChange={(e) => setSize(e.target.value)}>
-            {SIZE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </label>
+        <MegaSelect label="Type" value={type} options={TYPE_OPTIONS} onPick={setType} />
+        <MegaSelect label="Size" value={size} options={SIZE_OPTIONS} onPick={setSize} />
       </div>
       {searchRow}
     </form>
@@ -688,7 +902,7 @@ export function FindStorageMegaMenu({
   // page.
   const mobileClose = (
     <button className="nav-mega-m-close" type="button" onClick={onClose} aria-label="Close menu">
-      <CloseIcon size={24} />
+      <CloseFilledIcon size={34} />
     </button>
   );
 
@@ -747,7 +961,7 @@ export function FindStorageMegaMenu({
       {/* Outside .nav-mega-inner on purpose: the Figma parks the ✕ against the
           viewport corner, past the right edge of the card. */}
       <button className="nav-mega-close" type="button" onClick={onClose} aria-label="Close menu">
-        <CloseIcon size={24} />
+        <CloseFilledIcon size={34} />
       </button>
 
       <div className="nav-mega-inner">
