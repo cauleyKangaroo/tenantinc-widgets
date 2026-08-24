@@ -68,13 +68,13 @@ function headers() {
   };
 }
 
-async function getJson(path: string): Promise<unknown> {
+async function getJson(path: string, fresh = false): Promise<unknown> {
   const url = `${BASE_URL}/applications/${APP_ID}/v2/${path}`;
   return memoGet(url, async () => {
     const res = await fetch(url, { headers: headers() });
     if (!res.ok) throw new Error(`GET ${path} failed: ${res.status} ${res.statusText}`);
     return res.json();
-  });
+  }, { fresh });
 }
 
 /** Unwrap the standard envelope: applicationData.<appId>[0].data */
@@ -366,6 +366,9 @@ export async function fetchLeaseDocument(ctx: RentalCtx): Promise<LeaseDocument 
 // --- Selection context (tiers → rent handoff receiver) -----------------------
 
 export interface SelectionContext {
+  /** The exact rentable unit this offer describes. Absent only on the legacy
+   *  space-groups display fallback, which must never authorize a transaction. */
+  unitId?: string;
   size: string;
   price?: number;
   online?: number;
@@ -461,7 +464,7 @@ export function extractSelectionContext(
 interface OfferAmenity { name?: string; value?: string; sort_order?: number }
 interface OfferDiscount { value?: number; type?: string }
 interface SelOffer {
-  unit_id?: string; price?: number;
+  unit_id?: string | null; price?: number | null;
   value_tier?: { type?: string };
   promotions?: Array<{ id?: string; name?: string }>;
   costs?: { Discounts?: OfferDiscount[]; Unit?: { number?: string } };
@@ -469,6 +472,11 @@ interface SelOffer {
   dossier?: { token?: string };
   space_mix_id?: string;
 }
+
+export type OfferResolution =
+  | { status: 'matched'; selection: SelectionContext & { unitId: string } }
+  | { status: 'unit-unavailable' }
+  | { status: 'malformed' };
 
 function offerAmenityLabel(a: OfferAmenity): string | undefined {
   const v = (a.value ?? '').trim();
@@ -488,37 +496,71 @@ export async function fetchSelectionFromOffers(
   ctx: RentalCtx,
   unitGroupId: string,
   sel: { tier?: string; unitId?: string; size?: string },
-): Promise<SelectionContext | undefined> {
+  opts: { fresh?: boolean } = {},
+): Promise<OfferResolution> {
   const raw = await getJson(
     `companies/${ctx.companyId}/properties/${ctx.propertyId}/offers?amenities=[]&promotions=[]&unitGroupId=${encodeURIComponent(unitGroupId)}`,
+    opts.fresh,
   );
-  const offers = (unwrap(raw)?.offers as SelOffer[] | undefined) ?? [];
-  const avail = offers.filter((o) => o.unit_id != null && typeof o.price === 'number' && (o.price as number) >= 0);
-  if (!avail.length) return undefined;
-  const pick =
-    (sel.unitId ? avail.find((o) => o.unit_id === sel.unitId) : undefined)
-    ?? (sel.tier ? avail.find((o) => o.value_tier?.type === sel.tier) : undefined)
-    ?? avail[0];
-  const price = pick.price as number;
-  const online = offerOnlineRate(price, pick.costs?.Discounts) ?? price;
-  const features = (pick.amenities ?? [])
-    .slice()
-    .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
-    .map(offerAmenityLabel)
-    .filter((x): x is string => !!x)
-    .slice(0, 6);
-  return {
-    size: sel.size ?? '',
-    price,
-    online,
-    inStore: price,
-    promo: pick.promotions?.find((p) => p?.name)?.name,
-    features,
-    promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
-    offerToken: pick.dossier?.token,
-    spaceMixId: pick.space_mix_id,
-    unitNumber: pick.costs?.Unit?.number,
-  };
+  try {
+    const payload = unwrap(raw);
+    if (!payload || !Array.isArray(payload.offers)) return { status: 'malformed' };
+    if (!payload.offers.every((o) => !!o && typeof o === 'object' && !Array.isArray(o))) {
+      return { status: 'malformed' };
+    }
+    const offers = payload.offers as SelOffer[];
+    const inconsistent = offers.some((o) => {
+      const soldOut = o.unit_id == null && o.price == null;
+      const available = typeof o.unit_id === 'string' && o.unit_id.length > 0
+        && typeof o.price === 'number' && Number.isFinite(o.price) && o.price >= 0;
+      return !soldOut && !available;
+    });
+    if (inconsistent) return { status: 'malformed' };
+    const avail = offers.filter((o): o is SelOffer & { unit_id: string; price: number } =>
+      typeof o.unit_id === 'string' && typeof o.price === 'number');
+    if (!avail.length) return { status: 'unit-unavailable' };
+
+    // A handed-off unit is authoritative. Never replace it with another unit
+    // from the same tier (or the first offer): that would combine one unit's
+    // amenities/promotion with another unit's quote.
+    const pick = sel.unitId
+      ? avail.find((o) => o.unit_id === sel.unitId)
+      : (sel.tier ? avail.find((o) => o.value_tier?.type === sel.tier) : undefined) ?? avail[0];
+    if (!pick) return { status: 'unit-unavailable' };
+    if ((pick.amenities != null && !Array.isArray(pick.amenities))
+      || (pick.promotions != null && !Array.isArray(pick.promotions))
+      || (pick.costs?.Discounts != null && !Array.isArray(pick.costs.Discounts))) {
+      return { status: 'malformed' };
+    }
+    const price = pick.price;
+    const online = offerOnlineRate(price, pick.costs?.Discounts) ?? price;
+    const features = (pick.amenities ?? [])
+      .slice()
+      .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+      .map(offerAmenityLabel)
+      .filter((x): x is string => !!x)
+      .slice(0, 6);
+    return {
+      status: 'matched',
+      selection: {
+        unitId: pick.unit_id,
+        size: sel.size ?? '',
+        price,
+        online,
+        inStore: price,
+        promo: pick.promotions?.find((p) => p?.name)?.name,
+        features,
+        promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
+        offerToken: pick.dossier?.token,
+        spaceMixId: pick.space_mix_id,
+        unitNumber: pick.costs?.Unit?.number,
+      },
+    };
+  } catch {
+    // Parsing/shape failures are contract errors. Network failures happen in
+    // getJson above and remain thrown so the caller can distinguish them.
+    return { status: 'malformed' };
+  }
 }
 
 // --- Move-in quote (GET /units/{unit_id}/lease-set-up) -----------------------
