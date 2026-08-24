@@ -322,49 +322,72 @@ function RfSkeleton({ mobile = false }: { mobile?: boolean }) {
       </div>
       {/* The rail is the shared <SummaryRail>, which renders .ts-card — a 422px
           card whose 208px hero is FLUSH (the card clips it, there is no padding
-          around it) and whose body is inset 20/30/24. */}
+          around it) and whose body is inset 20/30/24.
+
+          GROWTH-ONLY, and that is the whole design of this block. What is drawn
+          below is only what the loaded card ALWAYS has at a size it always has:
+          the 208px hero, the 29px size line, the flat 50px price pair, the
+          payments row. Everything whose height is decided by the data — the
+          amenity list, the summary line, the promo pill, the breakdown's line
+          items — is deliberately NOT drawn.
+
+          Those parts cannot be predicted, and the previous version proved it by
+          trying. Their sizes ARE the payload of the request being waited on, so
+          any figure typed here is right for one dataset and wrong for the rest:
+          four amenity rows reserve 99px against a real 0 for a space with no
+          features, the promo pill reserves 72px for a promotion that may never
+          exist, and the three-row breakdown was tuned to a three-line quote on
+          sites that bill seven (rent, deposit, admin, key deposit, lock cut,
+          lien notice, tax). Reserving nothing for them means the card can only
+          GROW when the data lands — it can never come up short and snap.
+
+          Growing is close to free here. .rf-layout is a two-column grid with
+          `align-items: start`, and above 901px the card is `position: sticky`,
+          so its top edge is pinned and the extra height extends downward into
+          empty space. Between 640-900px it sits BELOW the form in one column,
+          so it grows downward there too. In no layout does the rail's height
+          move the form beside it.
+
+          The one case that still shrinks is a rail with NO selection at all,
+          which drops the size and price blocks entirely and reads "Select a
+          space to see your move-in cost." That is the degenerate path — you
+          reach this page BY picking a space — and sizing the skeleton for it
+          would make the normal path, where a selection always exists, jump
+          instead. Trading a visible shift on every good load for a smaller one
+          on a broken load is the wrong way round. */}
       <aside className="ts-card">
         <div className="ts-card-hero"><Shimmer w="100%" h="100%" r={0} /></div>
-        {/* .ts-card-top is a two-column flex — size/summary/amenities on the
-            left, "Change Space" and the price pair on the right. Drawing it as
-            one stacked column (what this used to do) is both the wrong shape and
-            the wrong height, which is the shift that survived the first pass.
-            Heights are the real line boxes: .ts-card-size is 24px/1.2, .ts-card-sub
-            16px/20px, .ts-feat 14px, and .ts-card-prices is a flat 50px. */}
+        {/* .ts-card-top is a two-column flex, so its height is the TALLER of the
+            two. Both sides are drawn at their minimum, which makes this row 50px
+            — exactly what the real card measures when the space has no features
+            and no "Change Space" link, and less than it measures in every other
+            case. */}
         <div className="ts-card-body">
           <div className="ts-card-top">
             <div className="ts-card-top-left">
+              {/* .ts-card-size is 24px/1.2. No sub-line and no amenity rows
+                  beneath it: both are slices of `selection.features`, which is
+                  routinely empty. */}
               <Shimmer w={152} h={29} r={4} />
-              <Shimmer w={188} h={20} r={4} style={{ marginTop: 6 }} />
-              {/* features[0] is the sub-line above; the REST are the ticked list,
-                  so a five-feature selection draws four rows here, not two. */}
-              <div className="ts-card-amenities">
-                <Shimmer w={116} h={17} r={4} />
-                <Shimmer w={96} h={17} r={4} />
-                <Shimmer w={108} h={17} r={4} />
-                <Shimmer w={88} h={17} r={4} />
-              </div>
             </div>
             <div className="ts-card-top-right">
-              <Shimmer w={104} h={20} r={4} />
+              {/* .ts-card-prices is a flat 50px in BOTH the single-price and the
+                  struck-through variants, so this one is safe to reserve.
+                  "Change Space" is not drawn above it: that link needs a
+                  same-origin referrer (backToSpacesUrl) and is absent on a direct
+                  navigation, so its 20px + 24px gap would over-reserve in exactly
+                  the case where someone opens /rental cold. */}
               <Shimmer w={124} h={50} r={4} />
             </div>
           </div>
-          {/* Where the promo pill will be. Deliberately NOT .ts-card-promo: that
-              class paints a 2px dashed GREEN border, and drawing it here would
-              assert this space has a promotion before anything has loaded — the
-              promo is conditional on `selection.promo`, so it may never arrive.
-              One flat block instead, reserving the pill's exact box: the class's
-              24px margin, then 2px border + 12px padding + 20px line + 12px + 2px. */}
-          <div style={{ marginTop: 24 }}><Shimmer w="100%" h={48} r={8} /></div>
-          {/* .ts-card-breakdown's 20px top margin comes from CSS. The first row
-              is taller than the others: a prorated line stacks its date range
-              under the name. .hb-money's 10px gap is reproduced by the mb's. */}
+          {/* The breakdown at ITS minimum: the single-line note and the total row
+              that OrderRail renders before a quote resolves. The line items are
+              whatever the property bills, which is the thing that varies most of
+              all, so they are left to arrive rather than guessed at.
+              .ts-card-breakdown's 20px top margin comes from CSS. */}
           <div className="ts-card-breakdown">
-            <Shimmer w="100%" h={34} mb={10} r={4} />
-            <Shimmer w="100%" h={20} mb={10} r={4} />
-            <Shimmer w="100%" h={20} r={4} />
-            <div style={{ marginTop: 8 }}><Shimmer w="100%" h={28} r={4} /></div>
+            <Shimmer w="100%" h={20} mb={12} r={4} />
+            <div style={{ marginTop: 8 }}><Shimmer w="100%" h={22} r={4} /></div>
           </div>
           {/* The card + wallet marks. SummaryRail defaults `showPayments` to TRUE
               and OrderRail never overrides it, so this row is ALWAYS there — it
