@@ -237,6 +237,20 @@ export function FilterModal({
             </div>
           </div>
         </div>
+
+        {/* Sticky footer (Figma 10557-146399). A flex sibling of the body, which
+            is the scroller — so it holds the bottom of the lightbox at every
+            height without `position: sticky` and without leaving the flow.
+
+            The filters already apply as they are touched, so this CONFIRMS and
+            dismisses rather than committing anything: closing is applying. It
+            exists because on a long list — and on a phone, where the modal is
+            nearly full height — the only way out was the X back at the top. */}
+        <div className="sl-modal-footer">
+          <button type="button" className="sl-apply-filters" onClick={onClose}>
+            Apply Filters
+          </button>
+        </div>
       </div>
     </div>
   );
