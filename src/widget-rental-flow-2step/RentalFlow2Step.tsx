@@ -831,7 +831,32 @@ export function RentalFlow2Step({
   // (test tenant only — api.ts writesEnabled() guard fails closed elsewhere).
   // 409 = someone else holds it; the unit also vanishes from
   // units/available, so recovery is re-pick → re-quote → re-hold once.
-  const [hold, setHold] = useState<UnitHold | undefined>(undefined);
+  /**
+   * The hold, ADOPTED from the value-tiers popup when it sent one.
+   *
+   * #14 takes the hold the moment a tier is chosen, so the countdown here is
+   * the real time remaining rather than a fresh fifteen minutes. Seeded from
+   * the URL once, on mount: re-reading it later would resurrect a hold this
+   * page had already released or replaced.
+   *
+   * An already-expired handoff is ignored, so the effect below acquires a new
+   * one exactly as it did before this existed.
+   */
+  const [hold, setHold] = useState<UnitHold | undefined>(() => {
+    const token = urlParam('holdToken');
+    const heldAtRaw = urlParam('heldAt');
+    const heldUnit = urlParam('unitId');
+    // No unit id, no adoption: releasing later needs it, and a release against
+    // an empty id is a 404 rather than a returned unit.
+    if (!token || !heldAtRaw || !heldUnit) return undefined;
+    const heldAt = Number(heldAtRaw);
+    if (!Number.isFinite(heldAt) || heldAt <= 0) return undefined;
+    const elapsed = (Date.now() - heldAt) / 1000;
+    // Also rejects a clock-skewed future timestamp, which would otherwise show
+    // a countdown longer than the hold really has.
+    if (elapsed < 0 || elapsed >= HOLD_TTL_SECONDS) return undefined;
+    return { unitId: heldUnit, holdToken: token, heldAt };
+  });
   const [finalizing, setFinalizing] = useState<{ firstName: string } | undefined>(undefined);
   // The contact the LEASE was created with. Step 2 seeds from step 1 but is
   // editable, so this can differ from `contact` — and the confirmation has to
