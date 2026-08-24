@@ -1,3 +1,4 @@
+import type React from 'react';
 // Shared type contract for widget #14. Both the production component and the
 // (production-unreachable) fixtures import from here, so neither depends on
 // the other — sample data can never leak into the production bundle.
@@ -74,6 +75,10 @@ export interface TierData {
   /** Root-relative handoff href to the rental flow for the given tier key, for a
    *  real <a> (Duda intercepts anchors in preview). undefined ⇒ not navigable. */
   rentHref?: (key: TierKey) => string | undefined;
+  /** Select was clicked: takes the hold, then navigates. The anchor's href
+   *  stays correct for middle-click and "copy link", but a plain click goes
+   *  through here so the hold token can be added before leaving. */
+  onSelectClick?: (key: TierKey) => (e: React.MouseEvent) => void;
   /** The currently highlighted tier and a setter — shared so card layouts
    *  (option2/3) can select-on-click like option1's pills. */
   selected?: TierKey;
