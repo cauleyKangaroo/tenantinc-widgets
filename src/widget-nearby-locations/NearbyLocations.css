@@ -553,6 +553,16 @@
 /* Overrides the image block's own gradient background, keeping its 234px height */
 .nl-skeleton-card .nl-card-image { border-radius: 0; }
 
+/* Mirrors .nl-card-body's 16px column gap. The promo and .nl-spaces are siblings
+   in the real card and get that gap from the body itself; the skeleton wraps them
+   in one element, so without this the body's gap lands around the pair and the
+   promo bar touches the first space row. */
+.nl-skeleton-spaces {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .nl-skeleton-space-row {
   display: flex;
   align-items: center;
