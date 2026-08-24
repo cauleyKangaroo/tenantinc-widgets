@@ -401,7 +401,13 @@ export function SuccessStep({ onGetAccess, chosen }: {
           <p className="rf-sx-idv-lede">
             Your ID must be verified before getting access. Please reverify your ID or contact us to
             get access (949) 546-7465.{' '}
-            <button type="button" className="rf-sx-idv-inline" onClick={() => setIdvModal(true)}>Reverify ID</button>
+            <button
+              type="button"
+              className="rf-sx-idv-inline"
+              onClick={() => { setIdv('choose'); setIdvModal(true); }}
+            >
+              Reverify ID
+            </button>
           </p>
         </section>
       )}
@@ -416,7 +422,13 @@ export function SuccessStep({ onGetAccess, chosen }: {
             <b className="rf-sx-idv-danger">ID Verification is required to get access to your space.</b>{' '}
             Please contact us to complete the verification.<br />
             Changed your mind?{' '}
-            <button type="button" className="rf-sx-idv-inline" onClick={() => setIdvModal(true)}>Verify ID Now</button>
+            <button
+              type="button"
+              className="rf-sx-idv-inline"
+              onClick={() => { setIdv('choose'); setIdvModal(true); }}
+            >
+              Verify ID Now
+            </button>
           </p>
         </section>
       )}

@@ -727,6 +727,31 @@
    two stylesheets the bundler emits first. */
 .rf-modal.rf-idm { max-width: 700px; }
 .rf-idm .rf-modal-title { font-size: 20px; line-height: 36px; }
+
+/* ── Why these are !important ────────────────────────────────────────────
+   #03's "Send us a Message" modal renders INSIDE the widget, so inside Duda's
+   `#dm`. This one is portalled to <body> to escape the flow's inline-size
+   containment, which puts it OUTSIDE `#dm` — a different cascade, where the
+   theme's own un-scoped rules land on it and `#dm`-scoped ones do not. An
+   `svg { width: ... }` anywhere in that sheet beats a width ATTRIBUTE, which is
+   how an 18px mark ends up drawn smaller here than the identical 18px mark in
+   #03. Pinned in CSS so the size is ours either way; 18 in a 32px button is
+   exactly what .pi-msg-close does.
+
+   Same fight #02 documents in NavigationBar.css, and invisible in the dev
+   harness — there is no theme sheet there to lose to. */
+.rf-idm .rf-modal-close {
+  padding: 0;                    /* .pi-msg-close has it; this rule never did */
+}
+.rf-idm .rf-modal-close svg {
+  flex: 0 0 auto;
+  width: 18px !important;
+  height: 18px !important;
+}
+.rf-idm .rf-modal-title svg {
+  width: 24px !important;
+  height: 24px !important;
+}
 .rf-idm-body { display: flex; flex-direction: column; gap: 20px; padding: 30px 42px 36px; }
 .rf-idm-top { display: flex; gap: 24px; align-items: flex-start; }
 .rf-idm-copy { flex: 1 1 255px; min-width: 0; }
