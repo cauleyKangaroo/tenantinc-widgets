@@ -1493,7 +1493,6 @@ export function RentalFlow2Step({
       // start_date, while the hold-aware POST sends the chosen one and the
       // engine honours it (verified against a held unit 2026-08-20). Warning
       // about a date the quote already reflects would be its own small lie.
-      quoteAssumesToday={!hold && moveIn.getTime() > startOfToday().getTime()}
     />
   );
   const rail = loading ? <RailSkeleton /> : railFor(false);

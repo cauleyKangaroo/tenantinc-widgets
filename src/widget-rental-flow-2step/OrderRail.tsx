@@ -32,7 +32,6 @@ export function OrderRail({
   unitLabel,
   changeSpaceUrl,
   quoteFailed = false,
-  quoteAssumesToday = false,
   estimate = false,
 }: {
   property?: PropertyInfo;
@@ -45,10 +44,6 @@ export function OrderRail({
   changeSpaceUrl?: string;
   /** Quote pipeline failed — show the technical-difficulty note, never fakes. */
   quoteFailed?: boolean;
-  /** Selected move-in date is in the FUTURE — the gateway quote engine
-   *  ignores move_in_date (verified), so totals are for a today move-in
-   *  and must say so (review finding #6). */
-  quoteAssumesToday?: boolean;
   /** No money moved (reservation hold): the reserve endpoint re-prices
    *  server-side and does not echo the final breakdown, so the shown total is
    *  an ESTIMATE, not a confirmed charge. Labels it accordingly. */
@@ -112,15 +107,10 @@ export function OrderRail({
               <span className="ts-bd-total-label">{estimate ? 'Estimated Move-In Total:' : 'Total Cost to Move-In:'}</span>
               <span className="ts-bd-total-amt">${quote.totalDue.toFixed(2)}</span>
             </div>
-            {estimate ? (
+            {estimate && (
               <p className="ts-bd-note">
                 Estimate only — no payment was taken for this reservation. Your
                 exact move-in total is confirmed when you complete your rental.
-              </p>
-            ) : quoteAssumesToday && (
-              <p className="ts-bd-note">
-                Shown for a move-in today — your exact prorated total for the
-                selected date is confirmed before you pay.
               </p>
             )}
           </>
