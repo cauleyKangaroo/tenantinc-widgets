@@ -179,20 +179,62 @@ img.promo-banner-img {
      with the CTA. */
   gap: 4px;
   width: auto;
-  /* The frame's content column. */
-  max-width: 723px;
+  /* 1320px, not the frame's 723px content column — at that width a real
+     promotion title wrapped onto a second line on a desktop that had room to
+     spare. The band is full-bleed either way; this is only how far the text
+     inside it may run. */
+  max-width: 1320px;
   text-align: center;
 }
 /* Centred as one group: the base rule pushes the info button to the far right
-   with space-between, which at full width would strand it in the margin. */
+   with space-between, which at full width would strand it in the margin. The
+   info mark sits directly after the title instead and moves with it, however
+   long the text runs.
+
+   flex-start on both, so the tag and the info mark hold the FIRST line. The
+   base centres them, which is right for one line but drops both icons to the
+   middle of a two-line title — floating beside the gap between the lines
+   rather than beside any text. */
 .promo-bars[data-cols='1'] .promo-bar-titlerow {
+  align-items: flex-start;
   justify-content: center;
   gap: 12px;
   width: auto;
+  /* The TITLE's size, set on the row and inherited by it. Nothing else in here
+     is text, and it is what lets the two margins below be written in `em`:
+     they resolve against the title's own size, so the optical alignment holds
+     across the whole clamp instead of only at its top end. */
+  font-size: clamp(24px, 4.5vw, 50px);
 }
-.promo-bars[data-cols='1'] .promo-bar-titlewrap { flex: 0 1 auto; justify-content: center; gap: 12px; }
-.promo-bars[data-cols='1'] .promo-bar-title { font-size: clamp(24px, 4.5vw, 60px); }
-.promo-bars[data-cols='1'] .promo-bar-titlewrap svg { width: 48px; height: 48px; }
+.promo-bars[data-cols='1'] .promo-bar-titlewrap {
+  flex: 0 1 auto;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+}
+.promo-bars[data-cols='1'] .promo-bar-title { font-size: inherit; }
+
+/* Centred ON THE FIRST LINE, not at the top of it. flex-start alone parked
+   both marks on the line box's upper edge, which is 1.12em tall against a 48px
+   and a 36px icon — so they floated well above the letters. Half the leftover
+   puts each back on the line's middle while keeping it anchored to the first
+   line when the title wraps.
+   max(0px, …) because below roughly a 36px title the line box is shorter than
+   the tag itself, and the raw result would go negative and pull it up. */
+.promo-bars[data-cols='1'] .promo-bar-titlewrap svg {
+  width: 40px;
+  height: 40px;
+  margin-top: max(0px, calc((1.12em - 40px) / 2));
+}
+.promo-bars[data-cols='1'] .promo-bar-info {
+  /* `font-size: inherit` is doing the work here. This is a <button>, and the UA
+     stylesheet gives buttons their own ~13px font rather than letting them
+     inherit — so `1.12em` measured 15px, not 56px, the max() below clamped to
+     zero, and the mark got no offset at all while the tag beside it (a plain
+     <svg>, which does inherit) was placed correctly. */
+  font-size: inherit;
+  margin-top: max(0px, calc((1.12em - 36px) / 2));
+}
 .promo-bars[data-cols='1'] .promo-bar-info svg { width: 36px; height: 36px; }
 
 .promo-bars[data-cols='3'] .promo-bar { padding: 26px; }
