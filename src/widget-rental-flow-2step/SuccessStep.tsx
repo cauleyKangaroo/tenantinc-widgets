@@ -17,10 +17,9 @@
 // ===========================================================================
 
 import { useLayoutEffect, useRef, useState } from 'react';
-import { Checkbox, DateModal, FormField, isPossiblePhone } from '@shared/ui';
+import { Checkbox, FormField, isPossiblePhone } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { ChevronBig } from './planIcons';
-import { CalendarIcon } from './icons';
 
 import idHandCard from './assets/id-g72.svg';
 import idCardFace from './assets/id-g105.svg';
@@ -105,22 +104,6 @@ export interface SuccessDetails {
   mailingAddress?: { address: string; city?: string; state?: string; zip?: string };
 }
 
-/**
- * Furthest expiry the picker offers. Licences run up to ~8 years in most US
- * states; twenty is generous without listing a century of irrelevant years.
- */
-const LICENCE_MAX_EXPIRY = (() => {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() + 20);
-  return d;
-})();
-
-/** MM/DD/YYYY — the shape updateContactDetails converts to the API's date. */
-const formatMasked = (d: Date): string => {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(d.getMonth() + 1)}/${p(d.getDate())}/${d.getFullYear()}`;
-};
-
 export function SuccessStep({ onGetAccess, chosen }: {
   /** Fires with everything the contact update can file. The parent decides
    *  what to do with it; this screen just collects. */
@@ -149,8 +132,6 @@ export function SuccessStep({ onGetAccess, chosen }: {
   // and all three persist.
   const [dlNumber, setDlNumber] = useState('');
   const [dlExp, setDlExp] = useState('');
-  const [dlExpDate, setDlExpDate] = useState<Date | null>(null);
-  const [dlExpOpen, setDlExpOpen] = useState(false);
   const [dlState, setDlState] = useState('');
 
   /** A picked or typed mailing address — the city/state/ZIP follow it. */
@@ -334,62 +315,25 @@ export function SuccessStep({ onGetAccess, chosen }: {
         <div className="rf-sx-fields">
           <FormField label="Driver's Licence Number" value={dlNumber} onChange={setDlNumber} autoComplete="off" state={dlNumber.trim() ? 'success' : 'default'} />
           <div className="rf-pay-grid">
-            {/* A picker, not a typed mask: an expiry is read off a card and is
-                always in the FUTURE, so browsing beats typing eight digits.
-
-                Built on .rf-select — the same presentational-twin trick the
-                dropdowns use — rather than step 2's .rf2-movein row. That row
-                is a full-width control with its own height and a hardcoded
-                green border; dropped into this half-width grid cell it came out
-                shorter than the field beside it, wrapped "Select a date" onto
-                two lines, and showed a valid border with nothing chosen. This
-                way the box IS a FormField, so height, radius, border and the
-                floating label cannot drift from its neighbour. */}
-            <div className="rf-select">
-              <button
-                type="button"
-                className="rf-select-native rf-datebtn"
-                onClick={() => setDlExpOpen(true)}
-                aria-label={dlExp ? `Licence expiry date, ${dlExp}. Change` : 'Select licence expiry date'}
-              />
-              <div className="rf-select-face" aria-hidden="true">
-                <FormField
-                  label="Expiry Date"
-                  value={dlExp}
-                  onChange={() => {}}
-                  className={dlExp ? 'rf-valid' : undefined}
-                />
-                <CalendarIcon size={24} className="rf-select-chev rf-select-ico--plain" />
-              </div>
-            </div>
+            {/* Typed, not a picker. An expiry is read straight off the card in
+                the shopper's hand — eight digits is quicker than browsing to a
+                date they can already see, and it is the same control the Date
+                of Birth field above uses, so the section behaves consistently.
+                The kit's mask rests as "Expiry Date" and reveals MM/DD/YYYY on
+                focus. */}
+            <FormField
+              label="Expiry Date"
+              mask="date"
+              value={dlExp}
+              onChange={setDlExp}
+              autoComplete="off"
+              state={dlExp.length === 10 ? 'success' : 'default'}
+            />
             <FormField label="Issuing State" value={dlState} onChange={(v) => setDlState(v.toUpperCase().slice(0, 2))} state={dlState.trim().length === 2 ? 'success' : 'default'} />
           </div>
         </div>
       </section>
 
-      <DateModal
-        open={dlExpOpen}
-        onClose={() => setDlExpOpen(false)}
-        selected={dlExpDate}
-        onSelect={(d) => setDlExpDate(d)}
-        onConfirm={() => {
-          if (dlExpDate) setDlExp(formatMasked(dlExpDate));
-          setDlExpOpen(false);
-        }}
-        onReset={() => { setDlExpDate(null); setDlExp(''); setDlExpOpen(false); }}
-        title="Licence Expiry Date"
-        ctaLabel="Confirm"
-        // Browse mode: an expiry is years out, so month-and-year jumping beats
-        // stepping. Both bounds are required, not just the floor: the year list
-        // is built BACKWARDS from maxDate down to minDate, so passing only
-        // minDate=today made last === first and offered a single year.
-        //
-        // Floor is today (an expired licence is not one to file); ceiling is
-        // twenty years out, which covers every issuing state's term.
-        browse
-        minDate={new Date()}
-        maxDate={LICENCE_MAX_EXPIRY}
-      />
 
       <section className="rf-sx-extra">
         <h3 className="rf-sx-extra-title">Additional Information</h3>
