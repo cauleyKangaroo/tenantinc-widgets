@@ -2,6 +2,24 @@ import cfg from './config.json';
 import { memoGet, memoInvalidate, MEMO_TTL } from '@shared/requestMemo';
 import { normalizePhone } from '@shared/ui/phone';
 
+/**
+ * "2026-08-21" -> "08/21/2026", the format the rail's frame prints
+ * (Figma 8508-33072). Applied where the API value is READ, so every line the
+ * breakdown renders is formatted once at the boundary rather than at each
+ * display site — the harness looked correct only because its demo lines were
+ * already written that way.
+ *
+ * String surgery, not Date: `new Date('2026-08-21')` parses as UTC midnight,
+ * which in any negative offset — every US timezone — renders as the day before.
+ * Anything not in ISO shape passes through untouched.
+ */
+function usDate(v?: string): string | undefined {
+  if (!v) return v;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v);
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : v;
+}
+
+
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
 const API_KEY = cfg.apiKey;
@@ -692,8 +710,8 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
       .map((d) => ({
         name: d.name as string,
         cost: d.total_cost as number,
-        startDate: d.start_date,
-        endDate: d.end_date,
+        startDate: usDate(d.start_date),
+        endDate: usDate(d.end_date),
       })),
   };
 }
@@ -882,7 +900,7 @@ async function fetchReserveCost(
     totalTax: inv.total_tax ?? 0,
     lines: (inv.Detail ?? [])
       .filter((x) => x.name && typeof x.total_cost === 'number')
-      .map((x) => ({ name: x.name as string, cost: x.total_cost as number, startDate: x.start_date, endDate: x.end_date })),
+      .map((x) => ({ name: x.name as string, cost: x.total_cost as number, startDate: usDate(x.start_date), endDate: usDate(x.end_date) })),
   } : undefined;
   return { moveInCost, quote };
 }
