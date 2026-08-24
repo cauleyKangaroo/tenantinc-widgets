@@ -221,3 +221,107 @@ export function CloseIcon({ size = 28 }: { size?: number }) {
     </svg>
   );
 }
+
+// ===========================================================================
+// Mega-menu audit icons — Figma 11691-240584
+//
+// Exact exported vectors, inlined rather than linked: the AMD bundle can't load
+// remote assets and Figma's asset URLs expire in ~7 days (same reason as every
+// other icon here). Each path keeps its own coordinates and is placed with a
+// `translate` derived from the Figma frame insets — no re-authoring, no scaling
+// of the source geometry.
+//
+// These are FILLED paths, so `fill="currentColor"` and CSS decides the colour:
+// the pin follows the CTA accent, the stars are gold.
+// ===========================================================================
+
+/**
+ * Filled map pin — the audit's "Use Filled icon".
+ *
+ * Replaces the 2px-stroked outline pin on the mega menu's facility rows. Figma
+ * draws it as a 17.58×20.5 vector inset 13.38%/8.33% inside a 24 frame, hence
+ * the translate; the ring in the middle is part of the same even-odd path, so
+ * the pin reads as a pin at 16px as well as 24.
+ */
+export function MapPinFilledIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <g transform="translate(3.2111 2)">
+        <path fillRule="evenodd" clipRule="evenodd" d="M8.78947 0C7.12735 0 4.95001 0.576172 3.169 2.02229C1.35059 3.49878 0 5.84065 0 9.22222C0 12.6327 1.61462 15.4361 3.43852 17.3614C4.35296 18.3266 5.33935 19.0928 6.24497 19.6239C7.11063 20.1315 8.03065 20.5 8.78947 20.5C9.54829 20.5 10.4683 20.1315 11.334 19.6239C12.2396 19.0928 13.226 18.3266 14.1404 17.3614C15.9643 15.4361 17.5789 12.6327 17.5789 9.22222C17.5789 5.84065 16.2284 3.49878 14.4099 2.02229C12.6289 0.576172 10.4516 0 8.78947 0ZM5.36865 8.78946C5.36865 6.90007 6.90031 5.36841 8.78971 5.36841C10.6791 5.36841 12.2108 6.90007 12.2108 8.78946C12.2108 10.6789 10.6791 12.2105 8.78971 12.2105C6.90031 12.2105 5.36865 10.6789 5.36865 8.78946Z" fill="currentColor" />
+      </g>
+    </svg>
+  );
+}
+
+/** One filled star, 13.81×13.33 inset inside a 16 frame. */
+export function StarIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <g transform="translate(1.0944 1.3333)">
+        <path d="M7.93428 0.277607C7.29898 -0.0925355 6.51373 -0.0925355 5.87843 0.277607C5.53717 0.476435 5.30328 0.807635 5.10641 1.14694C4.90671 1.4911 4.68666 1.95226 4.41693 2.51755L4.40406 2.54451C4.22176 2.92656 4.17909 3.00328 4.1314 3.05883C4.05936 3.14274 3.96868 3.20862 3.86662 3.25121C3.79905 3.2794 3.71289 3.29627 3.29322 3.35159L3.26359 3.35549C2.64262 3.43734 2.13603 3.50411 1.747 3.58768C1.36347 3.67007 0.976207 3.79017 0.681654 4.05329C0.133309 4.54311 -0.109345 5.28992 0.0463625 6.00851C0.130004 6.39451 0.372718 6.7193 0.634574 7.01139C0.900176 7.30765 1.27076 7.65943 1.72501 8.09063L1.74671 8.11123C2.05372 8.40267 2.11351 8.46696 2.1516 8.52948C2.20914 8.62392 2.24378 8.73052 2.25274 8.84076C2.25867 8.91373 2.24809 9.00088 2.17102 9.41711L2.16558 9.44649C2.05153 10.0624 1.95849 10.5648 1.91775 10.9606C1.87759 11.3508 1.87214 11.7562 2.03136 12.1177C2.32776 12.7906 2.96304 13.2521 3.69457 13.3261C4.08753 13.3658 4.47142 13.2353 4.83013 13.0766C5.19398 12.9155 5.64306 12.6718 6.19355 12.373L6.21981 12.3587C6.59185 12.1568 6.67147 12.1198 6.74271 12.1029C6.85031 12.0774 6.9624 12.0774 7.07 12.1029C7.14124 12.1198 7.22085 12.1568 7.59289 12.3587L7.61915 12.373C8.16961 12.6717 8.61874 12.9155 8.98258 13.0766C9.34129 13.2353 9.72518 13.3658 10.1181 13.3261C10.8497 13.2521 11.4849 12.7906 11.7814 12.1177C11.9406 11.7562 11.9351 11.3508 11.895 10.9606C11.8542 10.5648 11.7612 10.0624 11.6471 9.44653L11.6417 9.41711C11.5646 9.00088 11.554 8.91373 11.56 8.84076C11.5689 8.73052 11.6036 8.62392 11.6611 8.52948C11.6992 8.46696 11.759 8.40267 12.066 8.11123L12.0876 8.09071C12.5419 7.65948 12.9125 7.30767 13.1781 7.01139C13.44 6.7193 13.6827 6.39451 13.7663 6.00851C13.9221 5.28992 13.6794 4.54311 13.1311 4.05329C12.8365 3.79017 12.4492 3.67007 12.0657 3.58768C11.6767 3.50411 11.1701 3.43734 10.5491 3.3555L10.5195 3.35159C10.0998 3.29627 10.0137 3.2794 9.94609 3.25121C9.84403 3.20862 9.75335 3.14274 9.68131 3.05883C9.63361 3.00328 9.59095 2.92656 9.40865 2.54451L9.39578 2.51755C9.12605 1.95227 8.906 1.49109 8.7063 1.14694C8.50943 0.807635 8.27554 0.476435 7.93428 0.277607Z" fill="currentColor" />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * Half star — two half-width vectors, exactly as Figma builds it: the left half
+ * solid and the right half the same shape at 28% opacity. Doing it with a
+ * clip-path over one glyph would lose the faint right half the frame shows.
+ */
+export function StarHalfIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <g transform="translate(1.0944 1.3333)">
+        <path d="M6.90625 0C6.55128 1.80645e-05 6.19603 0.0925667 5.87843 0.277607C5.53717 0.476435 5.30328 0.807635 5.10641 1.14694C4.90671 1.49109 4.68667 1.95225 4.41694 2.51753L4.40406 2.54451C4.22176 2.92656 4.17909 3.00328 4.1314 3.05883C4.05936 3.14274 3.96868 3.20862 3.86662 3.25121C3.79905 3.2794 3.71289 3.29627 3.29322 3.35159L3.26359 3.35549C2.64262 3.43734 2.13603 3.50411 1.747 3.58768C1.36347 3.67007 0.976207 3.79017 0.681654 4.05329C0.133309 4.54311 -0.109345 5.28992 0.0463625 6.00851C0.130004 6.39451 0.372717 6.7193 0.634574 7.01139C0.900183 7.30766 1.27078 7.65945 1.72505 8.09066L1.74671 8.11123C2.05372 8.40267 2.11351 8.46696 2.1516 8.52948C2.20914 8.62392 2.24378 8.73052 2.25274 8.84076C2.25867 8.91373 2.24809 9.00088 2.17102 9.41711L2.16558 9.44649C2.05153 10.0624 1.95849 10.5648 1.91775 10.9606C1.87759 11.3508 1.87214 11.7562 2.03136 12.1177C2.32776 12.7906 2.96304 13.2521 3.69457 13.3261C4.08753 13.3658 4.47142 13.2353 4.83013 13.0766C5.19396 12.9155 5.64301 12.6718 6.19344 12.373L6.21981 12.3587C6.59185 12.1568 6.67147 12.1198 6.74271 12.1029C6.79648 12.0901 6.85136 12.0838 6.90625 12.0837V0Z" fill="currentColor" />
+        <path opacity="0.28" d="M6.90625 12.0838C6.96121 12.0837 7.01616 12.0901 7.07 12.1029C7.14124 12.1198 7.22085 12.1568 7.59289 12.3587L7.61915 12.373C8.16955 12.6717 8.61877 12.9155 8.98258 13.0766C9.34129 13.2353 9.72518 13.3658 10.1181 13.3261C10.8497 13.2521 11.4849 12.7906 11.7813 12.1177C11.9406 11.7562 11.9351 11.3508 11.895 10.9606C11.8542 10.5648 11.7612 10.0625 11.6472 9.4467L11.6417 9.41711C11.5646 9.00088 11.554 8.91373 11.56 8.84076C11.5689 8.73052 11.6036 8.62392 11.6611 8.52948C11.6992 8.46696 11.759 8.40267 12.066 8.11123L12.0876 8.09071C12.5419 7.65948 12.9125 7.30767 13.1781 7.01139C13.44 6.7193 13.6827 6.39451 13.7663 6.00851C13.9221 5.28992 13.6794 4.54311 13.1311 4.05329C12.8365 3.79017 12.4492 3.67007 12.0657 3.58768C11.6767 3.50412 11.1701 3.43734 10.5491 3.3555L10.5195 3.35159C10.0998 3.29627 10.0137 3.2794 9.94609 3.25121C9.84403 3.20862 9.75335 3.14274 9.68131 3.05883C9.63361 3.00328 9.59095 2.92656 9.40865 2.54451L9.39578 2.51755C9.12605 1.95227 8.906 1.49109 8.7063 1.14694C8.50943 0.807635 8.27554 0.476435 7.93428 0.277607C7.61659 0.0925175 7.26142 -1.80563e-05 6.90625 2.64272e-09V12.0838Z" fill="currentColor" />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * Five stars for a 0–5 score — the audit's "Add in Reviews".
+ *
+ * Rounds to the nearest HALF, which is what the frame shows (4.5 → four solid
+ * and one half). A star past the score is the same glyph at 28% opacity, the
+ * treatment Figma uses for the empty half, so a 3-star property still reads as
+ * five positions rather than three floating stars.
+ */
+export function StarRating({ rating, size = 16 }: { rating: number; size?: number }) {
+  const halves = Math.round(Math.max(0, Math.min(5, rating)) * 2);
+  return (
+    <span className="nav-mega-stars" role="img" aria-label={`${rating} out of 5`}>
+      {[0, 1, 2, 3, 4].map((i) => {
+        const filled = halves - i * 2;
+        if (filled >= 2) return <StarIcon key={i} size={size} />;
+        if (filled === 1) return <StarHalfIcon key={i} size={size} />;
+        return (
+          <span key={i} style={{ opacity: 0.28, display: 'inline-flex' }}>
+            <StarIcon size={size} />
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+/**
+ * The design's ✕ — the audit's "Make the X bigger according to design".
+ *
+ * `CloseIcon` above draws its X from 6 to 18 of a 24 viewBox, so the glyph is
+ * only half the box and rendered visibly smaller than the frame's. This is the
+ * Figma component's own path (mdiClose), which fills the full 24 corner to
+ * corner, and it is a filled shape rather than a 2px stroke — which is the other
+ * half of why the audited one looked thin.
+ *
+ * Kept separate rather than replacing `CloseIcon`: that one is also the mobile
+ * drawer's, and the audit is about this menu.
+ */
+export function CloseFilledIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M24 2.41714L21.5829 0L12 9.58286L2.41714 0L0 2.41714L9.58286 12L0 21.5829L2.41714 24L12 14.4171L21.5829 24L24 21.5829L14.4171 12L24 2.41714Z" fill="currentColor" />
+    </svg>
+  );
+}
