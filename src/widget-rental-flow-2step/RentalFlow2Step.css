@@ -1837,8 +1837,22 @@
   /* Closed, this is still a real box laid over the content underneath — empty
      and invisible, but it would swallow taps meant for the page behind it. */
   pointer-events: none;
+  /* And genuinely invisible. Sliding the sheet up by its own height clears the
+     BOX but not its drop shadow: at translateY(-100%) the sheet's bottom edge
+     sits exactly on this wrap's top, so `0 8px 12px` projects straight back
+     into view as a faint band under the bar. Clipping cannot help — the shadow
+     is inside the clip, not outside it.
+     The delay keeps the closing slide watchable: visibility is a discrete
+     property, so without it the sheet would vanish on the first frame and the
+     transform would animate against nothing. */
+  visibility: hidden;
+  transition: visibility 0s linear 0.28s;
 }
-.rfm-sheet-wrap--open { pointer-events: auto; }
+.rfm-sheet-wrap--open {
+  pointer-events: auto;
+  visibility: visible;
+  transition-delay: 0s;
+}
 .rfm-sheet {
   /* THE only scroller while the sheet is open: everything else visible is
      under the scrim, which absorbs the gesture. `contain` handles the last
@@ -1856,6 +1870,9 @@
 .rfm-sheet-wrap--open .rfm-sheet { transform: translateY(0); }
 @media (prefers-reduced-motion: reduce) {
   .rfm-sheet { transition: none; }
+  /* No slide to wait out, so nothing to delay — the wrap would otherwise stay
+     visible for 280ms after close with nothing animating. */
+  .rfm-sheet-wrap { transition: none; }
 }
 /* The rail is built for a 422px desktop column; inside the sheet it has to fit
    a 393px phone, so everything that carried a fixed width goes fluid rather
