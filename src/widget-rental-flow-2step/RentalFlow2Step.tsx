@@ -1015,29 +1015,52 @@ export function RentalFlow2Step({
         // hold-aware — the plain GET 409s once held, so POST { hold_token } is
         // the only source. Fail CLOSED: never show another unit's money.
         const held = result.hold;
+        // Drop any quote that is not the held unit's — the effect below then
+        // re-quotes hold-aware. Fail CLOSED: never show another unit's money.
         setQuote((prev) => (prev && prev.unitId === held.unitId ? prev : undefined));
-        fetchMoveInQuote(ctx, { id: held.unitId, number: held.unitNumber }, {
-          holdToken: held.holdToken,
-          insuranceId,
-          promotionIds: selection?.promotionIds,
-          startDate: ymd(moveIn),
-          offerToken: selection?.offerToken,
-        })
-          .then((q) => {
-            if (cancelled) return;
-            if (q) setQuote(q);
-            else { setQuote(undefined); setQuoteFailed(true); }
-          })
-          .catch((err) => {
-            console.warn(`${logTag} hold-aware re-quote failed — failing closed:`, err);
-            if (!cancelled) { setQuote(undefined); setQuoteFailed(true); }
-          });
       } else if (!result.ok && result.reason !== 'writes-disabled') {
         console.warn(`${logTag} hold not acquired:`, result.reason, result.detail);
       }
     })();
     return () => { cancelled = true; };
   }, [step, quote, hold, holdExpired, selection, inEditor, logTag, ctx, insuranceId, moveIn]);
+
+  /**
+   * Quote the HELD unit.
+   *
+   * This has to be its own effect because the hold can arrive two ways: taken
+   * above, or handed over by the value-tiers popup in the URL. When it is
+   * handed over, the acquire effect returns early — so anything that quoted
+   * inside it would simply never run, and the flow would reach payment with no
+   * money block at all. That is exactly what produced a 400 from
+   * documents/finalize: total_payment_amount, bill_day and web_rate all come
+   * from this quote.
+   *
+   * It is also the ONLY way to price a held unit: the plain GET 409s once
+   * anyone holds it — including us.
+   */
+  useEffect(() => {
+    if (!hold || inEditor) return undefined;
+    if (quote && quote.unitId === hold.unitId) return undefined;
+    let cancelled = false;
+    fetchMoveInQuote(ctx, { id: hold.unitId, number: hold.unitNumber }, {
+      holdToken: hold.holdToken,
+      insuranceId,
+      promotionIds: selection?.promotionIds,
+      startDate: ymd(moveIn),
+      offerToken: selection?.offerToken,
+    })
+      .then((q) => {
+        if (cancelled) return;
+        if (q) { setQuote(q); setQuoteFailed(false); }
+        else { setQuote(undefined); setQuoteFailed(true); }
+      })
+      .catch((err) => {
+        console.warn(`${logTag} hold-aware quote failed — failing closed:`, err);
+        if (!cancelled) { setQuote(undefined); setQuoteFailed(true); }
+      });
+    return () => { cancelled = true; };
+  }, [hold, quote, ctx, inEditor, insuranceId, selection, moveIn, logTag]);
 
   // Re-quote when a choice that changes the money changes — coverage or the
   // move-in date. Only while holding: lease-set-up will not price either of them
