@@ -40,6 +40,20 @@
   --bpg-footer-h: 24px;   /* the 24px Share glyph is the tallest thing in it  */
 }
 
+/* 60px is the frame's gap between the trail and the "Self Storage Blogs" hero
+   (9340:23373). This widget starts at the filter bar rather than the hero, so
+   the gap lands above that instead — same distance, next element along. */
+.bpg-crumbs { margin-bottom: 60px; }
+
+/* DESKTOP ONLY. There is no mobile frame for this trail and none is wanted, so
+   it is hidden rather than shrunk — unlike #16's, which has a designed mobile
+   treatment at this same width. Two classes deep on purpose: @shared/Breadcrumb
+   sets `display: flex` from an injected stylesheet whose order against this file
+   is not guaranteed, so a single-class rule could lose. */
+@media (max-width: 900px) {
+  .bpg-wrapper .bpg-crumbs { display: none; }
+}
+
 .bpg-wrapper *,
 .bpg-wrapper *::before,
 .bpg-wrapper *::after {

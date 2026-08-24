@@ -529,24 +529,12 @@
     gap: 28px;
   }
 
+  /* No breadcrumb on a phone — the Figma draws none, on this page or on the
+     blog listing (#15 hides its own at this width for the same reason).
+     Replaces a shrunk-down treatment (14px text, 18px chevrons and an
+     ellipsised post title) that is dead once the row is hidden. */
   .bpp-crumbs {
-    margin-bottom: 24px;
-    font-size: 14px;
-    line-height: 20px;
-  }
-
-  .bpp-crumbs svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  /* The post title is the whole crumb trail's width problem on a phone. One
-     line with an ellipsis keeps the trail to a single row. */
-  .bpp-crumb-current {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: none;
   }
 
   .bpp-byline {

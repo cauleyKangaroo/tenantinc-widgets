@@ -1,10 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
 import { scrollToSpaceList } from '@shared/promoBus';
-import { createLead, fetchPropertyDetails, propertyBreadcrumb, type PropertyDetails, type BoundPropertyProps } from './api';
+import { createLead, fetchPropertyDetails, propertyBreadcrumb, stateName, type PropertyDetails, type BoundPropertyProps } from './api';
+import {
+  Breadcrumb, collapseMiddle, locationCrumbHead, normaliseBase, placeSlug,
+  LOCATION_BASE_PATH, type Crumb,
+} from '@shared/Breadcrumb';
 import { fetchPropertyImages } from '@shared/propertyImages';
 import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
@@ -340,6 +344,47 @@ export function PropertyInfo(props: Props) {
   // `breadcrumb` prop still wins; the DEFAULT is the last resort.
   const displayBreadcrumb =
     props.breadcrumb ?? propertyBreadcrumb(property) ?? breadcrumb;
+
+  /**
+   * The same trail, with somewhere to go (Figma 9499:22620).
+   *
+   * The labels still come from `propertyBreadcrumb`, so a dynamic page keeps
+   * rendering its own trail; this adds the hrefs, which every crumb previously
+   * lacked — they were all `href="#"`, so it LOOKED like a breadcrumb and
+   * navigated nowhere.
+   *
+   * Links are derived from the property's state and city, not from the label
+   * text: the label is a display name ("California") while the path segment is
+   * a slug ("california"). Root-relative for the reason #02's links are — one
+   * path is right on the preview host, the live domain and any custom domain,
+   * and Duda serves every page from the site root.
+   *
+   * Only a trail built from a RESOLVED property gets links. A caller-supplied
+   * `breadcrumb` prop, or the DEFAULT, is arbitrary text that cannot be mapped
+   * to pages, so it stays plain rather than inventing URLs that may 404.
+   */
+  const crumbs = useMemo<Crumb[]>(() => {
+    const plain = displayBreadcrumb.map((label) => ({ label }));
+    if (props.breadcrumb || !property) return plain;
+    const base = normaliseBase(LOCATION_BASE_PATH);
+    const stateLabel = stateName(property.state);
+    const stateSlug = placeSlug(stateLabel);
+    const citySlug = placeSlug(property.city);
+    const head = locationCrumbHead(base);
+    const trail: Crumb[] = [...head];
+    if (stateSlug) trail.push({ label: stateLabel, href: `${base}/${stateSlug}` });
+    if (stateSlug && citySlug) trail.push({ label: property.city, href: `${base}/${stateSlug}/${citySlug}` });
+    // The street IS this page; Breadcrumb drops the href on the last item.
+    if (property.street) trail.push({ label: property.street });
+    // No address parts leaves just the head, which is not a trail — keep the
+    // labels so the row is never silently dropped.
+    return trail.length > head.length ? trail : plain;
+  }, [displayBreadcrumb, props.breadcrumb, property]);
+
+  /** The same trail, shortened for the hero (Figma 9693:40309): Home keeps its
+   *  place as the icon, the page you are on keeps its name, and everything
+   *  between becomes an ellipsis — one per crumb, each still linked. */
+  const mobileCrumbs = useMemo<Crumb[]>(() => collapseMiddle(crumbs), [crumbs]);
   // "Send us a Message" -> explicit prop wins, else mailto: the API email.
   const messageHref = messageUrl !== '#' ? messageUrl : property?.email ? `mailto:${property.email}` : '#';
 
@@ -525,16 +570,9 @@ export function PropertyInfo(props: Props) {
     </div>
   );
 
-  const breadcrumbNav = (
-    <nav className="pi-breadcrumb" aria-label="Breadcrumb">
-      {displayBreadcrumb.map((crumb, i) => (
-        <span key={crumb}>
-          {i < displayBreadcrumb.length - 1 ? <a className="pi-underline" href="#">{crumb}</a> : <span>{crumb}</span>}
-          {i < displayBreadcrumb.length - 1 && <span className="pi-crumb-sep"> / </span>}
-        </span>
-      ))}
-    </nav>
-  );
+  // Shared with #08's city page — same frame, so the same component rather than
+  // a second copy of it here.
+  const breadcrumbNav = <Breadcrumb items={crumbs} className="pi-breadcrumb" />;
 
   const lightboxEl = lightbox && (
     <div
@@ -771,19 +809,14 @@ export function PropertyInfo(props: Props) {
         <ImageFill className="pi-m-hero-img" src={heroSlide} />
         <span className="pi-m-hero-overlay" style={{ background: `rgba(16, 19, 24, ${overlay})` }} />
         <div className="pi-m-hero-top">
-          <nav className="pi-breadcrumb pi-m-breadcrumb" aria-label="Breadcrumb">
-            {displayBreadcrumb.map((crumb, i) => {
-              const last = i === displayBreadcrumb.length - 1;
-              // On mobile, collapse everything except the final two crumbs to "…".
-              const label = i < displayBreadcrumb.length - 2 ? '...' : crumb;
-              return (
-                <span key={crumb}>
-                  {last ? <span>{label}</span> : <a href="#">{label}</a>}
-                  {!last && <span className="pi-crumb-sep"> / </span>}
-                </span>
-              );
-            })}
-          </nav>
+          {/* Figma 9693:40309 — inside the hero, so white on the image: a home
+              icon, then one "…" per hidden crumb, then the page you are on.
+              Slashes, not the chevrons the page-top trail uses. */}
+          <Breadcrumb
+            items={mobileCrumbs}
+            variant="hero"
+            className="pi-breadcrumb pi-m-breadcrumb"
+          />
           <button className="pi-m-expand" onClick={() => setLightbox(true)} aria-label="Open photo gallery">
             <PhotoExpandIcon size={40} />
           </button>

@@ -1035,6 +1035,12 @@
 
 .ml-seo-body { font-size: 16px; line-height: 1.25; color: #000; }
 .ml-seo-body p { margin: 0 0 12px; }
+/* A paragraph that is nothing but a bold run is a block heading, so it sits
+   closer to the text it introduces than blocks sit to each other — 4px under a
+   heading against 12px between blocks. Doing it here rather than with a <br>
+   keeps the rule working for editor-written `seoContent` too, which is authored
+   in a WYSIWYG and arrives as its own paragraphs. */
+.ml-seo-body p:has(> strong:only-child) { margin-bottom: 4px; }
 .ml-seo-body strong { font-weight: 700; }
 
 /* ── Mobile ────────────────────────────────────────────────────────────── */
