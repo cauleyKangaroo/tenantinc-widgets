@@ -1685,6 +1685,23 @@
 .rf-field--error .rf-field-input { border-color: #b3261e; }
 .rf-field--error .rf-field-label { color: #b3261e; }
 .rf-form-error { font-size: 14px; color: #b3261e; margin: 4px 0 0; }
+.rf-availability {
+  margin: 12px auto 0;
+  max-width: 420px;
+  color: #637381;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+.rf-availability--error { color: #b3261e; }
+.rf-availability a,
+.rf-availability button {
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+.rf-availability button { border: 0; padding: 0; background: transparent; cursor: pointer; }
 .rf2-field--error .rf2-field-input { border-color: #b3261e; }
 .rf2-field--error .rf2-field-label { color: #b3261e; }
 /* Required-agreement message. Replaces a 2px red outline that used to ring the
