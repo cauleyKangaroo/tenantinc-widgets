@@ -831,7 +831,32 @@ export function RentalFlow2Step({
   // (test tenant only — api.ts writesEnabled() guard fails closed elsewhere).
   // 409 = someone else holds it; the unit also vanishes from
   // units/available, so recovery is re-pick → re-quote → re-hold once.
-  const [hold, setHold] = useState<UnitHold | undefined>(undefined);
+  /**
+   * The hold, ADOPTED from the value-tiers popup when it sent one.
+   *
+   * #14 takes the hold the moment a tier is chosen, so the countdown here is
+   * the real time remaining rather than a fresh fifteen minutes. Seeded from
+   * the URL once, on mount: re-reading it later would resurrect a hold this
+   * page had already released or replaced.
+   *
+   * An already-expired handoff is ignored, so the effect below acquires a new
+   * one exactly as it did before this existed.
+   */
+  const [hold, setHold] = useState<UnitHold | undefined>(() => {
+    const token = urlParam('holdToken');
+    const heldAtRaw = urlParam('heldAt');
+    const heldUnit = urlParam('unitId');
+    // No unit id, no adoption: releasing later needs it, and a release against
+    // an empty id is a 404 rather than a returned unit.
+    if (!token || !heldAtRaw || !heldUnit) return undefined;
+    const heldAt = Number(heldAtRaw);
+    if (!Number.isFinite(heldAt) || heldAt <= 0) return undefined;
+    const elapsed = (Date.now() - heldAt) / 1000;
+    // Also rejects a clock-skewed future timestamp, which would otherwise show
+    // a countdown longer than the hold really has.
+    if (elapsed < 0 || elapsed >= HOLD_TTL_SECONDS) return undefined;
+    return { unitId: heldUnit, holdToken: token, heldAt };
+  });
   const [finalizing, setFinalizing] = useState<{ firstName: string } | undefined>(undefined);
   // The contact the LEASE was created with. Step 2 seeds from step 1 but is
   // editable, so this can differ from `contact` — and the confirmation has to
@@ -853,6 +878,11 @@ export function RentalFlow2Step({
   const [payError, setPayError] = useState<string | undefined>(undefined);
   /** "Get Access" pressed on the static post-purchase form. */
   const [accessGranted, setAccessGranted] = useState(false);
+  /* Whether the shopper cleared ID verification on the step before. Held here
+     rather than read back out of SuccessStep, which unmounts the moment access
+     is granted. Starts true so nothing changes for a flow that never renders
+     that step. */
+  const [idVerified, setIdVerified] = useState(true);
   // Office/Gate hours fallback for the confirmation page: the immutable success
   // snapshot occasionally predates propertyInfo loading, so it can lack hours.
   // Hours are read-only + non-sensitive (unlike the money block), so it's safe
@@ -1503,10 +1533,6 @@ export function RentalFlow2Step({
               kind="rental"
               name={finalizing?.firstName}
               phone={rentedContact?.phone ?? contact?.phone}
-              tenantName={[rentedContact?.first ?? contact?.first, rentedContact?.last ?? contact?.last]
-                .filter(Boolean).join(' ') || undefined}
-              tenantEmail={rentedContact?.email ?? contact?.email}
-              tenantPhone={formatUsPhone(rentedContact?.phone ?? contact?.phone)}
               // Only after a real lease: there is nothing to reference otherwise.
               reference={rental?.leaseId}
               unitNumber={staticUnitNumber}
@@ -1516,6 +1542,7 @@ export function RentalFlow2Step({
               confirmedHeading={rentalHeading}
               facilityPhone={formatUsPhone(propertyInfo?.phone)}
               spaceName={selection?.size}
+              idUnverified={!idVerified}
               propertyName={propertyInfo?.name}
               propertyAddress={propertyInfo?.address}
               // Same fallback the real confirmation page uses: the property may
@@ -1545,6 +1572,7 @@ export function RentalFlow2Step({
                     mailingAddress: details.mailingAddress,
                   });
                 }
+                setIdVerified(details?.idVerified ?? true);
                 setAccessGranted(true);
               }}
             />

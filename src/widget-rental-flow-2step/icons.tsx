@@ -1,4 +1,5 @@
 import React from 'react';
+import { CloseSolidIcon } from '@shared/ui';
 
 // Check-tick — green validation mark inside a filled field, and the tick shown
 // in the "renting as a business" checkbox when checked.
@@ -58,19 +59,11 @@ export function CalendarIcon({ size = 24, className }: { size?: number; classNam
  * Bounds are 6→18 grown by half the 2.2 stroke at each end (round caps), giving
  * 4.9 → 19.1 = 14.2.
  */
+/* The kit's mark, re-exported at this module's name so the flow's two other
+   modals keep their import. One definition: the geometry is Figma's exact
+   filled path, which @shared/ui already carried. */
 export function CloseIcon({ size = 18, className }: { size?: number; className?: string }) {
-  return (
-    <svg
-      className={className}
-      width={size}
-      height={size}
-      viewBox="4.9 4.9 14.2 14.2"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
+  return <CloseSolidIcon size={size} className={className} />;
 }
 
 // ── Step 2 icons — exact Figma (Pika) vectors, currentColor stroke/fill. ────

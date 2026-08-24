@@ -39,6 +39,7 @@ import { Shimmer } from '@shared/Shimmer';
 import cfg from './config.json';
 import { useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { FilterIcon, ChevronBigDownIcon, SortIcon, StarIcon, TagIcon, MapLocationIcon } from './icons';
+import { Breadcrumb, locationCrumbHead, normaliseBase, type Crumb } from '@shared/Breadcrumb';
 
 // ── Icons (inline SVG — the AMD bundle can't load remote assets) ─────────────
 
@@ -485,11 +486,19 @@ function sortFacilities(list: CityFacility[], by: SortId): CityFacility[] {
  * Editors get the same tokens: anything typed into the `seoContent` field runs
  * through the same substitution, so operator-written copy stays portable
  * between pages instead of being pinned to one town.
+ *
+ * Every block is a heading <p> followed by a body <p> — never a <br> between the
+ * two. The first block was already written this way and the other two were not,
+ * so the first sat looser than the pair beneath it. `.ml-seo-body` gives a
+ * heading paragraph a smaller bottom margin than a body one, which is what puts
+ * the small gap under each heading while keeping the blocks themselves apart.
  */
 const DEFAULT_SEO = `<p><strong>Storage in {city}</strong></p>
 <p>If you are looking for high quality self storage in {city}, {state}, we can help. We provide customers with a high quality, well-maintained self storage facility at a great price. A friendly, professional on-site manager is always here to help you.</p>
-<p><strong>Self Storage Features</strong><br>At our storage facilities, we offer a wide range of features and amenities that make packing and self storage easy. You will find drive-up storage units for simple loading and unloading, delivery receiving services, packing and moving supplies right on site, and long gate access hours.</p>
-<p><strong>Secure Storage Units</strong><br>When you rent storage units in {city}, {state}, you want total security. Our property is covered with 24/7 video surveillance, electronic gate access, and a manager who is always on site.</p>`;
+<p><strong>Self Storage Features</strong></p>
+<p>At our storage facilities, we offer a wide range of features and amenities that make packing and self storage easy. You will find drive-up storage units for simple loading and unloading, delivery receiving services, packing and moving supplies right on site, and long gate access hours.</p>
+<p><strong>Secure Storage Units</strong></p>
+<p>When you rent storage units in {city}, {state}, you want total security. Our property is covered with 24/7 video surveillance, electronic gate access, and a manager who is always on site.</p>`;
 
 /**
  * Fill `{city}` / `{state}` in a body of copy.
@@ -591,6 +600,31 @@ export function MapLocations({
     state: (state ?? '').trim() || fromUrl.state || '',
     city: (city ?? '').trim() || fromUrl.city || '',
   };
+
+  /**
+   * Breadcrumb trail — Figma 10622:77309.
+   *
+   * Built from the scope the page already resolved, so it needs no new data and
+   * follows a dynamic page from city to city on its own. The last entry is the
+   * page you are on and is deliberately NOT a link.
+   *
+   * Hrefs are root-relative for the same reason #02's are: one path is correct
+   * on the preview host, the live domain and any custom domain, and Duda serves
+   * every page from the site root. `locationBasePath` already names where the
+   * state/city pages live (default `/locations`), so the state crumb and the
+   * "Find Storage" index are derived from it rather than hardcoded a second time.
+   */
+  const crumbs = useMemo<Crumb[]>(() => {
+    const base = normaliseBase(locationBasePath);
+    const trail: Crumb[] = [...locationCrumbHead(base)];
+    if (scope.state) trail.push({ label: stateDisplayName(scope.state), href: `${base}/${scope.state}` });
+    // The city crumb wants the bare town — `cityLabel` may carry the ", CA" an
+    // editor typed, which reads wrong next to the state crumb beside it.
+    // Breadcrumb drops the href on the last item, so whatever ends the trail is
+    // the current page — a state page simply stops at the state.
+    if (scope.city) trail.push({ label: slugLabel(scope.city) });
+    return trail;
+  }, [locationBasePath, scope.state, scope.city]);
 
   // Heading reads "… in Fullerton, CA" on a city page and "… in California" on a
   // state page. Prefer whatever the editor typed — it carries the ", CA" the
@@ -928,6 +962,13 @@ export function MapLocations({
 
   return (
     <div className="ml-wrapper" style={{ ['--ml-row-h' as string]: typeof rowHeight === 'number' ? `${rowHeight}px` : rowHeight }}>
+      {/* Breadcrumb strip. `.ml-wrapper` is a 24px-gap column, so it spaces
+          itself against the header below without a margin of its own. Desktop
+          only: the node this comes from is the 1316px frame, and #08's mobile
+          frames are drawn separately (10609:*) — see the note on RfSkeleton's
+          mobile branch for why a desktop shape is not just a narrower one. */}
+      {!isMobile && <Breadcrumb items={crumbs} />}
+
       {isMobile ? (
         /* Mobile — search, then a Map/List toggle beside "Filter & Sort",
            then the count. Figma 10609:72429 / 10609:72649. */

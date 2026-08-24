@@ -344,7 +344,19 @@
   padding: 23px 33px;
   box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
 }
-.rf-modal-title { display: flex; align-items: center; gap: 8px; font-size: 24px; font-weight: 600; color: #101318; }
+/* `margin: 0` because this lands on a heading element, which carries a UA
+   margin — it pushed the head 17px taller top and bottom and threw the icon
+   off the text's centre line. Every other modal title in the flow resets it;
+   this rule predates its only current caller and never had to. */
+.rf-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #101318;
+}
 .rf-modal-title svg { flex: 0 0 auto; }
 .rf-modal-close {
   flex: 0 0 auto;
@@ -1329,6 +1341,7 @@
   /* Step 3's paired form fields, for the same reason. Its own @media (720px)
      rule is viewport-based and left them two-up in a 403px column. */
   .rf-wrapper .rf-pay-grid { grid-template-columns: 1fr; }
+  .rf-wrapper .rf-sx-grid3 { grid-template-columns: 1fr; }
 }
 /* The "Lease Summary" line on the confirmation bar sits where step 2 puts the
    hold countdown: same row, same 16px, but plain — there is nothing ticking. */
@@ -1389,6 +1402,20 @@
   display: flex; flex-direction: column;
 }
 .rfc-code-top { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px; text-align: center; }
+
+/* ID verification skipped — Figma 8754-50358. The same dashed card, so the
+   page keeps its shape; only what is inside it changes. `justify-content`
+   because there is no wallet strip below to hold the notice up. */
+.rfc-code-card--unverified { justify-content: center; min-height: 168px; }
+.rfc-code-blocked {
+  margin: 0;
+  padding: 30px 24px;
+  color: #101318;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  text-align: center;
+}
 .rfc-code-label { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; color: #101318; }
 .rfc-code { font-size: 30px; font-weight: 600; color: #101318; word-break: break-word; line-height: 1.1; }
 .rfc-code-note { font-size: 13px; color: #637381; }
@@ -1837,8 +1864,22 @@
   /* Closed, this is still a real box laid over the content underneath — empty
      and invisible, but it would swallow taps meant for the page behind it. */
   pointer-events: none;
+  /* And genuinely invisible. Sliding the sheet up by its own height clears the
+     BOX but not its drop shadow: at translateY(-100%) the sheet's bottom edge
+     sits exactly on this wrap's top, so `0 8px 12px` projects straight back
+     into view as a faint band under the bar. Clipping cannot help — the shadow
+     is inside the clip, not outside it.
+     The delay keeps the closing slide watchable: visibility is a discrete
+     property, so without it the sheet would vanish on the first frame and the
+     transform would animate against nothing. */
+  visibility: hidden;
+  transition: visibility 0s linear 0.28s;
 }
-.rfm-sheet-wrap--open { pointer-events: auto; }
+.rfm-sheet-wrap--open {
+  pointer-events: auto;
+  visibility: visible;
+  transition-delay: 0s;
+}
 .rfm-sheet {
   /* THE only scroller while the sheet is open: everything else visible is
      under the scrim, which absorbs the gesture. `contain` handles the last
@@ -1856,6 +1897,9 @@
 .rfm-sheet-wrap--open .rfm-sheet { transform: translateY(0); }
 @media (prefers-reduced-motion: reduce) {
   .rfm-sheet { transition: none; }
+  /* No slide to wait out, so nothing to delay — the wrap would otherwise stay
+     visible for 280ms after close with nothing animating. */
+  .rfm-sheet-wrap { transition: none; }
 }
 /* The rail is built for a 422px desktop column; inside the sheet it has to fit
    a 393px phone, so everything that carried a fixed width goes fluid rather
@@ -1952,7 +1996,9 @@
 /* Tenant block on the confirmation — same row shape as the dates and hours
    above it (icon + column), so the three read as one list rather than three
    layouts. Only the in-place rental passes these; the nonce page has none. */
-.rfc-info-tenant { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; }
+/* No icon of its own any more, so 34px — the 24px glyph the rows above use
+   plus their 10px gap — lines its text up with theirs. */
+.rfc-info-tenant { margin-top: 16px; padding-left: 34px; }
 .rfc-info-tenant p:last-child { margin-bottom: 0; }
 /* An email or a lease id has no spaces to break at, so a long one would push
    the column wide instead of wrapping. */

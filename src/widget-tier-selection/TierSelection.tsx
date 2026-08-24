@@ -33,6 +33,7 @@ import type {
   TierKey, Tier, RowType, FeatureRow, O2Tier, O3Tier, O3Row, O3Weight, TierData, TierQuoteState,
 } from './types';
 import { onOpenTiers, isValidTierRequest } from '@shared/tierBus';
+import { holdTierUnit, releaseTierHold, type TierHold } from './api';
 
 // Branded Small/Medium/Large size illustrations served from Cloudinary — the
 // same CDN assets the live Storage Outlet site uses, so they stay out of the JS
@@ -508,6 +509,12 @@ export function TierSelection({
   const [status, setStatus] = useState<'loading' | 'live' | 'disabled' | 'unavailable' | 'soldout'>('loading');
   const [pastDelay, setPastDelay] = useState(false);
 
+  // The unit held for the CURRENTLY selected tier. Taken here rather than on
+  // the rental page so the countdown there is the real remaining time.
+  const [hold, setHold] = useState<TierHold | null>(null);
+  const holdRef = useRef<TierHold | null>(null);
+  holdRef.current = hold;
+
   const bundlesRef = useRef<import('./api').ValueTierBundle[]>([]);
   const tzRef = useRef<string | undefined>(undefined);
   const groupIdRef = useRef<string | undefined>(undefined);
@@ -521,6 +528,58 @@ export function TierSelection({
     fetchTierQuote(ctx, { unitId: b.unitId, rent: b.price, promotionIds: b.promotionIds, promoName: b.promo, timezone: tzRef.current })
       .then((result) => setQuotes((prev) => ({ ...prev, [key]: result })));
   }, [ctx]);
+
+  /**
+   * Hold the selected tier's unit, and give back whatever was held before.
+   *
+   * Runs on the SELECTED tier, so switching Good → Better releases Good: three
+   * tiers browsed must not mean three units off the market.
+   *
+   * Not in the editor, and not while the modal is shut — a hold is a real unit
+   * out of inventory for fifteen minutes, so it follows a shopper's intent, not
+   * a page load.
+   */
+  useEffect(() => {
+    const live = !inEditor && (mode !== 'modal' || modalOpen);
+    const bundle = bundlesRef.current.find((b) => b.key === selected);
+    const unitId = bundle?.unitId;
+    if (!live || !unitId) return undefined;
+    if (holdRef.current?.unitId === unitId) return undefined; // already held
+
+    let cancelled = false;
+    const previous = holdRef.current;
+    void (async () => {
+      const next = await holdTierUnit(ctx, unitId);
+      if (cancelled) {
+        // Selection moved on while this was in flight — do not strand it.
+        if (next) void releaseTierHold(ctx, next);
+        return;
+      }
+      setHold(next);
+      if (previous) void releaseTierHold(ctx, previous);
+    })();
+    return () => { cancelled = true; };
+  }, [selected, ctx, inEditor, mode, modalOpen, status]);
+
+  /**
+   * Closing the modal, or leaving the page, gives the unit back.
+   *
+   * Without this every abandoned look at the pricing table would park a unit
+   * for the full fifteen minutes — on a size with one vacancy that reads as
+   * sold out to the next real shopper.
+   *
+   * Navigating to the rental page is the one case that must NOT release: the
+   * token is handed over in the link and the countdown continues there. That is
+   * why this releases on modal CLOSE and unmount, not on navigation.
+   */
+  useEffect(() => {
+    if (mode !== 'modal' || modalOpen) return undefined;
+    const held = holdRef.current;
+    if (!held) return undefined;
+    setHold(null);
+    void releaseTierHold(ctx, held);
+    return undefined;
+  }, [mode, modalOpen, ctx]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -737,6 +796,13 @@ export function TierSelection({
     if (effectiveCompanyId) url.searchParams.set('companyId', effectiveCompanyId);
     const gid = authoritativeGroupId ?? groupIdRef.current;
     if (gid) url.searchParams.set('unitGroupId', gid);
+    // The hold travels with the link, so the rental page adopts it instead of
+    // taking a second one. heldAt is ABSOLUTE — the countdown is computed from
+    // acquisition time, which is what lets it survive the navigation.
+    if (hold && hold.unitId === t?.unitId) {
+      url.searchParams.set('holdToken', hold.holdToken);
+      url.searchParams.set('heldAt', String(hold.heldAt));
+    }
     // Root-relative handoff, same as Space List. Note: like Space List, this only
     // resolves on the PUBLISHED site — in the Duda editor/preview it 404s on
     // my.duda.co (Duda doesn't route these cross-page links in the editor). Test
