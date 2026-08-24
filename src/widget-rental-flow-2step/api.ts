@@ -763,9 +763,18 @@ async function sendV1(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: un
     headers: { ...headers(), 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  // Read the envelope EVEN ON A NON-2XX. A validation failure comes back as a
+  // 400 whose body names the offending field — '"payment_method.cvv2" must be
+  // a string' — and throwing on res.ok alone discarded exactly that, leaving
+  // callers with "failed: 400" and nothing to act on.
+  const env = await res.json().catch(() => undefined) as
+    { applicationData?: Record<string, InnerResult[]> } | undefined;
+  const inner = env?.applicationData?.[APP_ID]?.[0];
+  if (inner) return inner;
+  // No envelope to read: a gateway or transport failure rather than the API
+  // rejecting the request.
   if (!res.ok) throw new Error(`${method} v1/${path} failed: ${res.status} ${res.statusText}`);
-  const env = await res.json() as { applicationData?: Record<string, InnerResult[]> };
-  return env?.applicationData?.[APP_ID]?.[0] ?? {};
+  return {};
 }
 
 export type HoldResult =
@@ -1119,6 +1128,15 @@ export const dobToIso = (masked: string): string | undefined => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+/**
+ * What the shopper sees when a money call is rejected.
+ *
+ * Deliberately one sentence and free of endpoint names: "documents/finalize
+ * failed: 400" tells them nothing they can do anything about, and the real
+ * cause is in the console for whoever can.
+ */
+const SHOPPER_ERROR = 'We could not complete your rental just now. Please check your details and try again — if it keeps happening, contact the facility and we will finish it for you.';
+
 /** Billing/contact address — required by both the contact and the card. */
 export interface RentAddress {
   address: string;
@@ -1371,7 +1389,11 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
 
   const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/documents/finalize`, body);
   if (inner.status !== 200 || !inner.data) {
-    throw new Error(inner.msg || `documents/finalize failed (${inner.status}).`);
+    // The API's own words name the field, which is what makes this debuggable
+    // — but they are validation text, not something to put in front of a
+    // shopper, so log them and return a sentence they can act on.
+    console.error('[rental] documents/finalize rejected:', inner.status, inner.msg ?? '');
+    throw new Error(SHOPPER_ERROR);
   }
   const data = inner.data as FinalizeData;
   const docs = (data.documents ?? []) as Array<Record<string, unknown>>;
@@ -1462,6 +1484,20 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
   }
   const phoneE164 = normalizePhone(args.contact.phone, 'US');
   if (!phoneE164) return { ok: false, error: 'Please enter a valid phone number.', stage: 'documents' };
+  // documents/finalize requires all three, and they all come from the move-in
+  // quote. Without it they go over as undefined and the API rejects the call
+  // with a validation error — better to say the total is missing than to send
+  // a request that cannot succeed.
+  if (!(args.totalPaymentAmount > 0) || args.billDay == null || args.webRate == null) {
+    console.error('[rental] refusing to finalize without a quote:', {
+      totalPaymentAmount: args.totalPaymentAmount, billDay: args.billDay, webRate: args.webRate,
+    });
+    return {
+      ok: false,
+      stage: 'documents',
+      error: 'We could not price this space just now. Please refresh and try again.',
+    };
+  }
   const a: RentArgs = { ...args, contact: { ...args.contact, phone: phoneE164 } };
 
   let documents: LeaseDocumentRef[];
