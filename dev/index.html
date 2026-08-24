@@ -286,6 +286,46 @@
   <div class="widget-section">
     <h2>widget-nearby-locations (#07)</h2>
     <div id="nearby-locations-container" class="widget-container"></div>
+
+    <div class="controls">
+      <div class="controls-group">
+        <span class="controls-group-label">Nearby locations</span>
+        <label>
+          Layout:
+          <select id="nl-rows" onchange="reinitNearby()">
+            <option value="1">1 row &times; 3 columns</option>
+            <option value="2">2 rows &times; 3 columns</option>
+          </select>
+        </label>
+        <label>
+          Order:
+          <select id="nl-sort-mode" onchange="reinitNearby()">
+            <option value="nearest">Nearest to visitor</option>
+            <option value="featured">Featured facilities (priorityOrder)</option>
+          </select>
+        </label>
+        <label>
+          Radius (miles):
+          <input id="nl-radius" type="number" min="0" value="0"
+            style="width: 80px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;"
+            oninput="reinitNearby()" />
+        </label>
+        <label>
+          Max properties:
+          <input id="nl-max" type="number" min="0" placeholder="(all)"
+            style="width: 100px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;"
+            oninput="reinitNearby()" />
+        </label>
+      </div>
+      <p style="margin: 8px 0 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
+        No <code>dmAPI</code> in the harness, so <code>PropertiesInternal</code> reads empty:
+        the list falls back to <code>Properties</code>/REST, and <strong>featured</strong> has no
+        <code>priorityOrder</code> to apply so it sorts by name.
+        <strong>Max properties</strong> empty = the whole portfolio; spaces are fetched only for
+        the cards on the visible page (3 or 6 parallel calls), so watch the network tab on a
+        page turn.
+      </p>
+    </div>
   </div>
 
   <!-- ── widget-reviews ───────────────────────────────────────────────── -->
@@ -795,6 +835,26 @@
     }
 
     var promotionsWidget = null;
+    var nearbyWidget = null;
+
+    function getNearbyProps() {
+      var max = parseInt(document.getElementById('nl-max').value, 10);
+      return {
+        rows: document.getElementById('nl-rows').value,
+        sortMode: document.getElementById('nl-sort-mode').value,
+        radiusMiles: parseInt(document.getElementById('nl-radius').value, 10) || 0,
+        maxProperties: isNaN(max) ? 0 : max,
+      };
+    }
+
+    function reinitNearby() {
+      if (nearbyWidget) {
+        nearbyWidget.init({
+          container: document.getElementById('nearby-locations-container'),
+          props: getNearbyProps(),
+        });
+      }
+    }
 
     // Bar content is API-only — no static promo props here on purpose.
     function getPromotionsProps() {
@@ -841,7 +901,11 @@
       widget.init({ container: document.getElementById('promotions-container'), props: getPromotionsProps() });
     });
     require(['/dist/widget-nearby-locations.js'], function (widget) {
-      widget.init({ container: document.getElementById('nearby-locations-container'), props: {} });
+      nearbyWidget = widget;
+      widget.init({
+        container: document.getElementById('nearby-locations-container'),
+        props: getNearbyProps(),
+      });
     });
     require(['/dist/widget-reviews.js'], function (widget) {
       widget.init({ container: document.getElementById('reviews-container'), props: {} });

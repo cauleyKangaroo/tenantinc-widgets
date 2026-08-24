@@ -603,6 +603,10 @@
   display: flex;
   flex-direction: column;
 }
+.ts-o2-card--no-promo {
+  min-height: 465px;
+  align-self: start;
+}
 .ts-o2-card { cursor: pointer; }
 /* "Most Popular" is indicated by the badge only — the black border is reserved
    for the SELECTED card, so only ever one card reads as highlighted. */
@@ -682,6 +686,9 @@
   border-bottom-left-radius: 12px;
   border-bottom-right-radius: 12px;
 }
+/* A promotion occupies a 44px pill plus the footer's 12px row gap. Collapse
+   both when no promotion exists instead of rendering an empty white band. */
+.ts-o2-foot--no-promo { min-height: 178px; }
 .ts-o2-foot-top { text-align: center; }
 .ts-o2-price { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
 .ts-o2-amt { font-size: 30px; font-weight: 700; color: #101318; line-height: 1.5; }
@@ -762,6 +769,8 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
   text-transform: uppercase;
 }
 .ts-o2m-price { font-size: 20px; font-weight: 700; color: #101318; white-space: nowrap; }
+.ts-o2m-price-block { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+.ts-wrapper .ts-o2m-details { color: #637381 !important; font-size: 14px; font-weight: 400; line-height: 1.2; text-decoration: underline; }
 .ts-o2m-admin { display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin: 10px 0 0; font-size: 14px; font-weight: 400; color: #101318; }
 
 /* Collapsed summary bar */
@@ -924,6 +933,7 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
 .ts-pd-inner {
   box-sizing: border-box;
   width: 278px;
+  min-height: 220px;
   padding: 18px;
   background: #101318;
   border: 2px solid #101318;
@@ -946,6 +956,31 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
 .ts-pd-total { margin-top: 20px; align-items: flex-end; }
 .ts-pd-total > span:first-child { font-size: 14px; font-weight: 700; }
 .ts-pd-total-amt { font-size: 16px; font-weight: 700; white-space: nowrap; }
+.ts-pd-end-space { display: none; }
+.ts-pd-loading { display: flex; flex-direction: column; gap: 12px; padding-top: 2px; }
+.ts-pd-loading-row, .ts-pd-loading-total { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.ts-pd-loading-row > span, .ts-pd-loading-total > span {
+  display: block;
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255,255,255,.12) 25%, rgba(255,255,255,.28) 50%, rgba(255,255,255,.12) 75%);
+  background-size: 200% 100%;
+  animation: ts-pd-shimmer 1.2s ease-in-out infinite;
+}
+.ts-pd-loading-row > span:last-child { width: 54px; flex: 0 0 54px; }
+.ts-pd-loading-total { margin-top: 8px; padding-top: 14px; border-top: 1px solid rgba(223, 227, 232, 0.35); }
+.ts-pd-loading-total > span:first-child { width: 132px; }
+.ts-pd-loading-total > span:last-child { width: 64px; }
+@keyframes ts-pd-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.ts-pd-modal--mobile .ts-pd-inner {
+  height: min(236px, calc(100svh - 24px));
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.ts-pd-modal--mobile .ts-pd-total { margin-bottom: 0; }
+.ts-pd-modal--mobile .ts-pd-end-space { display: block; height: 12px; min-height: 12px; }
+.ts-pd-modal--mobile .ts-pd-inner::-webkit-scrollbar { display: none; }
 
 /* Visitor-facing notice (e.g. requested size unavailable — showing others). */
 .ts-notice {
@@ -1012,18 +1047,21 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
   position: relative;
   z-index: 2;
   background: #fff;
-  padding: 28px 24px 12px 32px;
+  /* The close button has a 48px hit area with a 40px circle inset by 4px:
+     36px shell padding therefore places the visible circle exactly 40px from
+     the modal's top and right edges. */
+  padding: 36px 36px 4px 40px;
 }
-.ts-modal-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px 40px; flex-wrap: wrap; }
+.ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; }
 .ts-modal-heading-main { text-align: left; }
-.ts-modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 20px; flex: 0 0 auto; }
-.ts-modal-meta { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; }
-.ts-modal-title { font-size: 40px; font-weight: 600; line-height: 1; margin: 0 0 10px; color: var(--ts-title-color, #101318); text-transform: none; letter-spacing: normal; }
+.ts-modal-actions { display: flex; align-items: flex-start; justify-content: flex-end; gap: 20px; flex: 0 0 auto; }
+.ts-modal-meta { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; padding-top: 4px; }
+.ts-modal-title { font-size: 36px; font-weight: 700; line-height: 1; margin: 0 0 10px; color: var(--ts-title-color, #101318); text-transform: none; letter-spacing: normal; }
 .ts-modal-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
-.ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; color: #e53935; }
-.ts-modal-admin { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 0; font-size: 20px; font-weight: 400; color: #101318; }
+.ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #e53935; }
+.ts-modal-admin { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 40px; margin: 0; font-size: 20px; font-weight: 400; color: #101318; }
 .ts-modal-admin-info { color: #101318; flex: 0 0 auto; }
-.ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 32px; }
+.ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 8px 32px 32px; }
 /* Keep a 48px touch target while drawing the 40px Figma circle inside it. The
    button participates in the header layout so its center follows the optional
    urgency/admin block whether either, both, or neither message is present. */
@@ -1106,11 +1144,17 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
     border-radius: 0;
     padding: 16px 28px calc(32px + env(safe-area-inset-bottom));
   }
+  .ts-modal-header {
+    padding: 24px 20px 12px;
+  }
   .ts-modal-heading { justify-content: center; }
-  .ts-modal-heading-main { text-align: center; width: 100%; }
-  .ts-modal-actions { width: 100%; gap: 8px; }
-  .ts-modal-actions::before { content: ''; flex: 0 0 48px; }
-  .ts-modal-meta { align-items: center; text-align: center; width: auto; flex: 1 1 auto; min-width: 0; }
+  .ts-modal-heading-main { text-align: center; width: 100%; padding: 0 44px; }
+  .ts-modal-actions { width: 100%; justify-content: center; }
+  /* Keep the close control out of the mobile message row. Previously it sat
+     after the centered metadata, which pushed it down and made its position
+     vary as urgency/admin copy appeared or disappeared. */
+  .ts-modal-close { position: absolute; top: 12px; right: 12px; }
+  .ts-modal-meta { align-items: center; text-align: center; width: auto; flex: 1 1 auto; min-width: 0; padding-top: 0; }
   /* Defensive: an operator-set heading can't blow up the fixed header height —
      clamp to two lines and break unbreakable strings. Ordinary titles are
      unaffected. */
@@ -1123,8 +1167,8 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
     overflow: hidden;
   }
   .ts-modal-subtitle { font-size: 16px; overflow-wrap: anywhere; }
-  .ts-modal-urgency { font-size: 16px; }
-  .ts-modal-admin { justify-content: center; font-size: 14px; }
+  .ts-modal-urgency { font-size: 16px; line-height: normal; }
+  .ts-modal-admin { justify-content: center; min-height: 0; font-size: 14px; }
 }
 
 /* Promo two-price (STANDARD struck + PROMO RATE) */

@@ -20,6 +20,7 @@ import { ChevronSolidIcon } from './icons';
    locally. Importing NavigationBar would drag in its nav tree, Properties
    lookups and Duda bindings, none of which belong on a checkout page. */
 import storelocalLogo from '../widget-navigation-bar/Storelocal_logo.png';
+import { imageUrl } from '@shared/dudaCollections';
 import { RfCheckbox } from './RfCheckbox';
 import { splitBusinessName } from './businessName';
 import { readUnitSelection, clearUnitSelection } from '@shared/unitHandoff';
@@ -51,6 +52,19 @@ const ymd = (d: Date): string => {
 // ---------------------------------------------------------------------------
 
 export interface RentalFlow2StepProps {
+  /**
+   * Content-menu IMAGE input (`logoImage`) — the checkout header's logo, so a
+   * site that sets its own in #02 can set the same one here.
+   *
+   * Typed `unknown` and read through `imageUrl()` for the reason #02 documents:
+   * Duda hands images over in more than one shape — a plain URL string, or an
+   * object keyed image / url / src / href / path / original — so the value is
+   * normalised rather than trusted. Unset falls through to the bundled logo, so
+   * an unconfigured widget looks exactly as it does today.
+   */
+  logoImage?: unknown;
+  /** Same thing as a plain URL, for a site that has one to hand. */
+  logoUrl?: string;
   eyebrow?: string;
   heading?: string;
   /** Underlined link at the end of the SMS-consent paragraph. */
@@ -441,9 +455,11 @@ function MobileRailBar({
  *
  * Rebuilt from #02's design rather than imported: see the logo import above.
  */
-function RentalHeader({ holdRemaining, homeHref, shrunk, innerRef }: {
+function RentalHeader({ holdRemaining, homeHref, logoSrc, shrunk, innerRef }: {
   holdRemaining?: number;
   homeHref: string;
+  /** Already resolved by the caller — the custom logo, or the bundled one. */
+  logoSrc: string;
   /** Pinned and scrolled — the strip and banner contract, the countdown does not. */
   shrunk?: boolean;
   innerRef?: React.Ref<HTMLElement>;
@@ -456,7 +472,7 @@ function RentalHeader({ holdRemaining, homeHref, shrunk, innerRef }: {
           is simply not built — checkout has no use for it — which puts this in
           #02's single-bar mode, hence the 210x104 banner rather than 264x150. */}
       <a className="rf-hdr-logo" href={homeHref} aria-label="Home">
-        <img className="rf-hdr-logo-img" src={storelocalLogo} alt="storelocal storage" />
+        <img className="rf-hdr-logo-img" src={logoSrc} alt="" />
       </a>
       <div className="rf-hdr-inner">
         {/* Where #02 puts .nav-links. */}
@@ -692,6 +708,8 @@ function readConfirmationPayload(inEditor: boolean): ConfirmationData | undefine
 }
 
 export function RentalFlow2Step({
+  logoImage,
+  logoUrl,
   eyebrow = 'Great choice!',
   heading = 'Secure your space now',
   termsHref = '#',
@@ -1240,6 +1258,11 @@ export function RentalFlow2Step({
    * gating on it would cost the header a frame. CSS hides .rf-hdr under the
    * same 640px container width instead, which costs nothing at paint.
    */
+  /* Same precedence as #02: the content-menu image wins, then a plain URL, then
+     the bundled logo. imageUrl() returns '' for anything it cannot read, so a
+     half-set field falls through instead of rendering a broken image. */
+  const headerLogo = imageUrl(logoImage) || (logoUrl ?? '').trim() || storelocalLogo;
+
   const makeHeader = (withCountdown: boolean) => (
     <>
       {/* Zero-height marker: once it scrolls out of view the header is pinned. */}
@@ -1247,6 +1270,7 @@ export function RentalFlow2Step({
       <RentalHeader
         shrunk={hdrShrunk}
         innerRef={hdrRef}
+        logoSrc={headerLogo}
         holdRemaining={withCountdown
           ? (holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined))
           : undefined}
