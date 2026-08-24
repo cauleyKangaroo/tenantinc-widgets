@@ -688,6 +688,12 @@
       <div class="controls">
         <div class="controls-group">
           <span class="controls-group-label">Search widget</span>
+          <label>Layout:
+            <select id="hs-layout" onchange="reinitHomepageSearch()" style="padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
+              <option value="search-bar">Layout 1 — Search bar</option>
+              <option value="promo-card">Layout 2 — Promo card</option>
+            </select>
+          </label>
           <label>Search URL:
             <input id="hs-search-url" type="text" value="/property-landing-page--value-tiers-test" style="width:260px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
           </label>
@@ -709,6 +715,18 @@
           </label>
           <label>Accent color:
             <input id="hs-accent" type="text" placeholder="(theme --color_2 / red)" style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Card heading:
+            <input id="hs-card-heading" type="text" value="Find Storage Near Me" style="width:190px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Promotion:
+            <input id="hs-promotion" type="text" value="$1 Summer Move-In" style="width:175px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Final line:
+            <input id="hs-promotion-suffix" type="text" value="Special" style="width:100px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Promo disclaimer:
+            <input id="hs-promotion-disclaimer" type="text" value="*All new rentals are subject to a $30 Admin Fee. Other fees like coverage may apply, select a space to see price details." style="width:360px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
           </label>
         </div>
       </div>
@@ -1354,6 +1372,14 @@
         showStorageType: document.getElementById('hs-show-type').checked,
         storageTypes:   document.getElementById('hs-types').value,
         accentColor:    document.getElementById('hs-accent').value.trim() || undefined,
+        // Belongs here, not in getNavProps() where fd156c6 put it — `layout`
+        // is a homepage-search prop, so from the nav's object it never
+        // reached this widget and the selector did nothing.
+        layout:         document.getElementById('hs-layout').value,
+        cardHeading:    document.getElementById('hs-card-heading').value,
+        promotionText:  document.getElementById('hs-promotion').value,
+        promotionSuffix: document.getElementById('hs-promotion-suffix').value,
+        promotionDisclaimer: document.getElementById('hs-promotion-disclaimer').value,
       };
     }
 
