@@ -135,7 +135,7 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
   // "Most Popular" badge on Better when it's available, else the priciest
   // available tier.
   const availIdx = slots.map((k, i) => (bySlot[k] ? i : -1)).filter((i) => i >= 0);
-  const popularIdx = bySlot.better ? slots.indexOf('better') : (availIdx.length >= 2 ? availIdx[availIdx.length - 1] : -1);
+  const popularIdx = bySlot.better ? slots.indexOf('better') : (availIdx.length ? availIdx[availIdx.length - 1] : -1);
 
   const hasKey = (k: TierKey, label: string) => !!bySlot[k]?.features.includes(label);
   const checkRows = data.featureLabels.slice(0, 6).map((label, ri) => ({
@@ -688,6 +688,9 @@ export function TierSelection({
     ?? (displaySize ? `Choose a ${displaySize} Option` : 'Choose an Option');
   const urgency = urgencyProp ?? data?.urgency ?? '';
   const promo = promoProp ?? tier?.promo ?? '';
+  const effectiveAdminFeeText = mode === 'modal'
+    ? (modalFeeText ?? adminFeeText)
+    : adminFeeText;
 
   // In modal mode the shell owns the header, so the body layouts render
   // chromeless — their own heading row is suppressed to avoid a duplicate.
@@ -726,7 +729,7 @@ export function TierSelection({
     );
   } else if (variant === 'option2') {
     body = isMobile ? (
-      <Option2Mobile heading={headingMobile} urgency={urgency} adminFeeText={adminFeeText} chromeless={chromeless} />
+      <Option2Mobile heading={headingMobile} urgency={urgency} adminFeeText={effectiveAdminFeeText} chromeless={chromeless} />
     ) : (
       <Option2Layout heading={heading} subheading={subheading} urgency={urgency} adminFeeText={adminFeeText} chromeless={chromeless} />
     );
@@ -740,6 +743,7 @@ export function TierSelection({
         setSelected={setSelected}
         heading={headingMobile}
         urgency={urgency}
+        adminFeeText={effectiveAdminFeeText}
         promo={promo}
         chromeless={chromeless}
       />
@@ -851,7 +855,7 @@ export function TierSelection({
                   heading={isMobile ? headingMobile : heading}
                   subheading={isMobile ? undefined : subheading}
                   urgency={modalShowUrgency === false ? '' : urgency}
-                  adminFeeText={modalFeeText ?? adminFeeText}
+                  adminFeeText={isMobile ? undefined : effectiveAdminFeeText}
                   onClose={() => setModalOpen(false)}
                 />
               </header>
@@ -1326,10 +1330,10 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgen
 // ── Mobile (Layout 2) ───────────────────────────────────────────────────────
 
 function MobileLayout({
-  tier, selected, setSelected, heading, urgency, promo, chromeless,
+  tier, selected, setSelected, heading, urgency, adminFeeText, promo, chromeless,
 }: {
   tier: Tier; selected: TierKey; setSelected: (k: TierKey) => void;
-  heading: string; urgency: string; promo: string; chromeless?: boolean;
+  heading: string; urgency: string; adminFeeText?: string; promo: string; chromeless?: boolean;
 }) {
   const { tiers, rows, live, rentHref, onSelectClick, ctaLabel } = useTierData();
   const [open, setOpen] = useState(false);
@@ -1461,6 +1465,8 @@ function MobileLayout({
           </div>
         ))}
       </div>
+
+      <MobileAdminFee text={adminFeeText} />
     </div>
   );
 }
@@ -1638,10 +1644,6 @@ function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading
         <div className="ts-m-headwrap">
           <h2 className="ts-m-title">{heading}</h2>
           {urgency && <p className="ts-m-urgency">{urgency}</p>}
-          <p className="ts-o2m-admin">
-            {adminFeeText}
-            <InfoCircle size={20} className="ts-o2-admin-info" />
-          </p>
         </div>
       )}
 
@@ -1662,7 +1664,18 @@ function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading
           ),
         )}
       </div>
+      <MobileAdminFee text={adminFeeText} />
     </div>
+  );
+}
+
+function MobileAdminFee({ text }: { text?: string }) {
+  if (!text) return null;
+  return (
+    <p className="ts-o2m-admin ts-mobile-admin">
+      {text}
+      <InfoCircle size={20} className="ts-o2-admin-info" />
+    </p>
   );
 }
 

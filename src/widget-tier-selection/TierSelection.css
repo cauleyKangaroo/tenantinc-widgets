@@ -772,6 +772,7 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
 .ts-o2m-price-block { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
 .ts-wrapper .ts-o2m-details { color: #637381 !important; font-size: 14px; font-weight: 400; line-height: 1.2; text-decoration: underline; }
 .ts-o2m-admin { display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin: 10px 0 0; font-size: 14px; font-weight: 400; color: #101318; }
+.ts-mobile-admin { width: 100%; margin: 24px 0 0; text-align: center; }
 
 /* Collapsed summary bar */
 .ts-o2m-bar {
@@ -795,6 +796,7 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
   padding: 18px 22px 22px;
 }
+.ts-o2m-card--popular { padding-top: 34px; }
 .ts-o2m-features { margin-top: 16px; }
 .ts-o2m-promo { margin-top: 16px; }
 .ts-o2m .ts-o2-select { height: 46px; margin-top: 16px; }
@@ -1033,6 +1035,7 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
   border-radius: 20px;
   width: 100%;
   max-width: 1470px; /* Figma "Facility Page" popup width */
+  height: min(747px, 90vh);
   max-height: min(747px, 90vh);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
   display: flex;
@@ -1047,16 +1050,13 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
   position: relative;
   z-index: 2;
   background: #fff;
-  /* The close button has a 48px hit area with a 40px circle inset by 4px:
-     36px shell padding therefore places the visible circle exactly 40px from
-     the modal's top and right edges. */
-  padding: 36px 36px 4px 40px;
+  padding: 40px 36px 4px 40px;
 }
 .ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; }
 .ts-modal-heading-main { text-align: left; }
 .ts-modal-actions { display: flex; align-items: flex-start; justify-content: flex-end; gap: 20px; flex: 0 0 auto; }
-.ts-modal-meta { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; padding-top: 4px; }
-.ts-modal-title { font-size: 36px; font-weight: 700; line-height: 1; margin: 0 0 10px; color: var(--ts-title-color, #101318); text-transform: none; letter-spacing: normal; }
+.ts-modal-meta { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; }
+.ts-modal-title { font-size: 36px; font-weight: 700; line-height: 1; margin: 0 0 4px; color: var(--ts-title-color, #101318); text-transform: none; letter-spacing: normal; }
 .ts-modal-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
 .ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #e53935; }
 .ts-modal-admin { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 40px; margin: 0; font-size: 20px; font-weight: 400; color: #101318; }
@@ -1067,6 +1067,7 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
    urgency/admin block whether either, both, or neither message is present. */
 .ts-modal-close {
   position: relative;
+  top: -4px;
   width: 48px;
   height: 48px;
   flex: 0 0 48px;
