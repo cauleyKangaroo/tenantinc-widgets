@@ -810,7 +810,9 @@ export function RentalFlow2Step({
   const onRailToggle = () => setRailOpen((o) => !o);
 
   /**
-   * How tall the sheet may be: whatever is left of the viewport below the bar.
+   * How tall the sheet may be: whatever is left of the viewport below the bar's
+   * slot — which is also exactly what drops the bar onto the bottom of the
+   * screen, since the bar rides the sheet's bottom edge.
    *
    * Measured rather than assumed. The bar only sits at the top of the screen
    * once the page has scrolled past the widget; before that it is wherever the
@@ -831,9 +833,15 @@ export function RentalFlow2Step({
       // absolutely positioned box past the viewport bottom lengthens the page
       // and creates the very scrollbar this is here to suppress.
       wrap.style.setProperty('--rfm-room', `${room}px`);
-      // The sheet gets a floor: on a very short viewport a scrollable 200px is
-      // more usable than a faithfully-measured 20px.
-      wrap.style.setProperty('--rfm-sheet-max', `${Math.max(room, 200)}px`);
+      // Exactly `room`, and no floor. The bar now sits on the sheet's BOTTOM
+      // edge, so this number is what puts it on the bottom of the browser once
+      // the card is taller than the screen: sheet top is .rfm-top's top, plus
+      // `room`, plus the bar's own height, lands on innerHeight.
+      //
+      // The old 200px floor traded a faithfully-measured 20px sheet for a
+      // usable scrollable one. That trade has inverted — overflow used to run
+      // harmlessly off the bottom, where now it carries the bar off with it.
+      wrap.style.setProperty('--rfm-sheet-max', `${room}px`);
     };
     measure();
     // The bar can still move: it is only pinned once the page has scrolled past
@@ -1365,19 +1373,26 @@ export function RentalFlow2Step({
             and rebuilding it would be a second thing to keep in step. */}
         {isMobile && (
           <div className="rfm-top" ref={railBarRef}>
-            <MobileLeaseBar
-              total={snap?.quote?.totalDue}
-              expanded={railOpen}
-              onToggle={onRailToggle}
-            />
             <div
               ref={scrimRef}
               className={`rfm-scrim${railOpen ? ' rfm-scrim--open' : ''}`}
               onClick={() => setRailOpen(false)}
               aria-hidden="true"
             />
-            <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
-              <div className="rfm-sheet">{confirmationRail}</div>
+            {/* Bar BELOW the sheet, per the frame: the panel opens downward and
+                pushes the bar to its bottom edge. Absolutely positioned so the
+                page behind still does not move — .rfm-top keeps the bar's own
+                80px in flow, and everything inside this grows over the content
+                instead of displacing it. */}
+            <div className="rfm-panel">
+              <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
+                <div className="rfm-sheet">{confirmationRail}</div>
+              </div>
+              <MobileLeaseBar
+                total={snap?.quote?.totalDue}
+                expanded={railOpen}
+                onToggle={onRailToggle}
+              />
             </div>
           </div>
         )}
@@ -1504,21 +1519,28 @@ export function RentalFlow2Step({
             screen and should not behave differently. */}
         {isMobile && (
           <div className="rfm-top" ref={railBarRef}>
-            <MobileLeaseBar
-              total={railQuote?.totalDue}
-              expanded={railOpen}
-              onToggle={onRailToggle}
-            />
             <div
               ref={scrimRef}
               className={`rfm-scrim${railOpen ? ' rfm-scrim--open' : ''}`}
               onClick={() => setRailOpen(false)}
               aria-hidden="true"
             />
-            <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
-              <div className="rfm-sheet">
-                {railFor(true)}
+            {/* Bar BELOW the sheet, per the frame: the panel opens downward and
+                pushes the bar to its bottom edge. Absolutely positioned so the
+                page behind still does not move — .rfm-top keeps the bar's own
+                80px in flow, and everything inside this grows over the content
+                instead of displacing it. */}
+            <div className="rfm-panel">
+              <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
+                <div className="rfm-sheet">
+                  {railFor(true)}
+                </div>
               </div>
+              <MobileLeaseBar
+                total={railQuote?.totalDue}
+                expanded={railOpen}
+                onToggle={onRailToggle}
+              />
             </div>
           </div>
         )}
@@ -1590,14 +1612,8 @@ export function RentalFlow2Step({
               was invisible. The sample value is harness-only, on the same gate
               as the rail's preview content: a live page must never claim to be
               holding a space it has not held. */}
-          <MobileRailBar
-            total={quote?.totalDue}
-            holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
-            expanded={railOpen}
-            onToggle={onRailToggle}
-          />
           {/* Click-outside target, and the thing that keeps the page behind
-              from scrolling. Before the sheet in the DOM so the sheet paints
+              from scrolling. Before the panel in the DOM so the panel paints
               over it. */}
           <div
             ref={scrimRef}
@@ -1605,17 +1621,30 @@ export function RentalFlow2Step({
             onClick={() => setRailOpen(false)}
             aria-hidden="true"
           />
-          {/* INSIDE .rfm-top, absolutely positioned off its bottom edge, so it
-              hangs from the bar wherever the bar happens to be — pinned to the
-              top of the screen or still down in the flow — and overlays the
-              content rather than pushing it down. .rf-wrapper is a container
-              (container-type: inline-size ⇒ contain: layout), which would make
-              a `fixed` sheet resolve against the widget instead of the
-              viewport; anchoring to the bar sidesteps that entirely.
+          {/* INSIDE .rfm-top and absolutely positioned, so the whole thing —
+              sheet and the bar under it — hangs from wherever the bar happens
+              to be, pinned to the top of the screen or still down in the flow,
+              and overlays the content rather than pushing it down. .rf-wrapper
+              is a container (container-type: inline-size ⇒ contain: layout),
+              which would make a `fixed` sheet resolve against the widget
+              instead of the viewport; anchoring here sidesteps that entirely.
+
+              The bar comes LAST: the panel opens downward and carries it to the
+              bottom edge. .rfm-top still reserves the bar's 80px in flow, so
+              the page behind is unmoved either way.
+
               Always mounted, visibility driven by the class — a conditionally
               rendered element cannot transition, it can only appear. */}
-          <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
-            <div className="rfm-sheet">{rail}</div>
+          <div className="rfm-panel">
+            <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
+              <div className="rfm-sheet">{rail}</div>
+            </div>
+            <MobileRailBar
+              total={quote?.totalDue}
+              holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
+              expanded={railOpen}
+              onToggle={onRailToggle}
+            />
           </div>
         </div>
       )}

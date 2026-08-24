@@ -5,11 +5,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 .rf-wrapper {
   container-type: inline-size;
-  /* Follow the Duda theme's font (Duda sets fonts per element, not via a var),
-     and make the shared @shared/ui components inside this widget follow it too
-     by pointing their --hb-font token at the inherited theme font. */
-  font-family: inherit;
-  --hb-font: inherit;
+  /* Montserrat, declared — NOT `font-family: inherit`.
+     Inherit was there to follow the Duda theme, but the flow was never actually
+     doing that: .rf-hdr, .rfm-bar, .rf-eyebrow, .rf-heading and the .rf-sx-*
+     headings all force Montserrat (several with !important, to beat the theme's
+     id-scoped heading rules). So a site whose theme font was anything else got
+     Montserrat headings over inherited body text — one widget in two fonts.
+     The portalled modals resolve --hb-font to Montserrat as well, being outside
+     this element entirely.
+     Declaring it here settles that the same way the design does: one font, and
+     --hb-font carries it into every @shared/ui component inside the flow. */
+  font-family: 'Montserrat', sans-serif;
+  --hb-font: 'Montserrat', sans-serif;
   color: #101318;
 }
 
@@ -305,6 +312,33 @@
   .rf-wrapper .rf-heading { font-size: 24px !important; line-height: 27px !important; }
   .rf-row { flex-direction: column; }
   .rf-actions { max-width: none; }
+
+  /* The hold banner is a SIBLING of the step card, not a child of it, so on
+     mobile — where the layout runs flush to the screen edge — it went
+     full-bleed with a 16px inset while everything beneath it sat at the card's
+     20px. Its message and its CTA lined up with nothing.
+
+     Treated as part of the card instead: the same 20px inset, so the button's
+     left edge meets the heading under it; 20px of air above the button rather
+     than 16; and a flat full-width band, because that is what every other box
+     becomes at this width — an 8px radius against the screen edge is the only
+     rounded corner left on the page.
+
+     .rf-wrapper-qualified to (0,2,0), beating the base rule. Container queries
+     carry no specificity of their own, so an unqualified selector here would be
+     (0,1,0) — a tie decided by source order, which is the trap the .rf-layout
+     padding note further down records. */
+  .rf-wrapper .rf-hold-expired {
+    margin: 20px 0;
+    padding: 20px;
+    gap: 20px;
+    border-width: 1px 0;
+    border-radius: 0;
+  }
+  /* And 20px to the content, not 52. The card's own 32px top padding stacks on
+     the banner's margin, which is why the gap read as roughly twice what the
+     one below the banner does. Only while the banner is there. */
+  .rf-wrapper .rf-hold-expired + .rf-step > .rf-card { padding-top: 0; }
 }
 
 /* ── "Confirm your Move-In Date" lightbox ──────────────────────────────── */
@@ -1758,7 +1792,22 @@
 }
 
 /* --- Mobile: sticky top cost bar + drop-down rail sheet ------------------ */
-.rfm-top { position: sticky; top: 0; z-index: 50; }
+/* The bar's slot in the flow. Everything visible sits in .rfm-panel, which is
+   absolute, so opening the sheet cannot move the page behind it — this element
+   just holds the 80px the bar occupies. Matches .rfm-bar's own min-height. */
+.rfm-top { position: sticky; top: 0; z-index: 50; min-height: 80px; }
+/* Sheet first, bar under it. Absolute rather than in flow, off .rfm-top's
+   padding box, so it grows over the content below instead of displacing it. */
+.rfm-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Never squeezed by a tall sheet — it is the only way to close one. */
+.rfm-bar { flex: 0 0 auto; }
 .rfm-bar {
   /* FULL host-button reset. Hosts style bare <button>s — the dev harness uses
      `button { padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 6px;
@@ -1870,35 +1919,36 @@
 }
 
 .rfm-sheet-wrap {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
+  /* In flow inside .rfm-panel now, not hung off the bar: its height IS what
+     pushes the bar down, so the two cannot come apart. Opens as a curtain —
+     `overflow: hidden` against a growing max-height — rather than by sliding a
+     fixed-height sheet, because the bar has to travel with the bottom edge. */
   overflow: hidden;
-  /* Room for the sheet's drop shadow; the clip above would otherwise cut it
-     off flush and lose the sense that this is floating over the page. */
-  padding-bottom: 14px;
+  max-height: 0;
   /* Closed, this is still a real box laid over the content underneath — empty
      and invisible, but it would swallow taps meant for the page behind it. */
   pointer-events: none;
-  /* And genuinely invisible. Sliding the sheet up by its own height clears the
-     BOX but not its drop shadow: at translateY(-100%) the sheet's bottom edge
-     sits exactly on this wrap's top, so `0 8px 12px` projects straight back
-     into view as a faint band under the bar. Clipping cannot help — the shadow
-     is inside the clip, not outside it.
-     The delay keeps the closing slide watchable: visibility is a discrete
+  /* The delay keeps the closing curtain watchable: visibility is a discrete
      property, so without it the sheet would vanish on the first frame and the
-     transform would animate against nothing. */
+     max-height would animate against nothing. */
   visibility: hidden;
-  transition: visibility 0s linear 0.28s;
+  transition:
+    max-height 0.28s cubic-bezier(0.22, 0.61, 0.36, 1),
+    visibility 0s linear 0.28s;
 }
 .rfm-sheet-wrap--open {
+  max-height: var(--rfm-sheet-max, 60vh);
   pointer-events: auto;
   visibility: visible;
-  transition-delay: 0s;
+  transition:
+    max-height 0.28s cubic-bezier(0.22, 0.61, 0.36, 1),
+    visibility 0s linear 0s;
 }
 .rfm-sheet {
-  /* THE only scroller while the sheet is open: everything else visible is
+  /* Capped to the same room the wrap opens to, so a taller card scrolls INSIDE
+     the panel and the bar stays on the panel's bottom edge — which, once the
+     content is taller than the screen, is the bottom of the browser.
+     THE only scroller while the sheet is open: everything else visible is
      under the scrim, which absorbs the gesture. `contain` handles the last
      case the scrim cannot — a flick that starts inside this list and runs off
      its end, which would otherwise chain out to the host page. */
@@ -1908,14 +1958,10 @@
   -webkit-overflow-scrolling: touch;
   background: #fff;
   box-shadow: 0 8px 12px rgba(71, 84, 116, 0.16);
-  transform: translateY(-100%);
-  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-.rfm-sheet-wrap--open .rfm-sheet { transform: translateY(0); }
 @media (prefers-reduced-motion: reduce) {
-  .rfm-sheet { transition: none; }
-  /* No slide to wait out, so nothing to delay — the wrap would otherwise stay
-     visible for 280ms after close with nothing animating. */
+  /* No curtain to wait out, so nothing to delay — the wrap would otherwise
+     stay visible for 280ms after close with nothing animating. */
   .rfm-sheet-wrap { transition: none; }
 }
 /* The rail is built for a 422px desktop column; inside the sheet it has to fit
