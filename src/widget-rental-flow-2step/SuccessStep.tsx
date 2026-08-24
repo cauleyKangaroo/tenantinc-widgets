@@ -17,8 +17,10 @@
 // ===========================================================================
 
 import { useLayoutEffect, useRef, useState } from 'react';
-import { Checkbox, FormField, isPossiblePhone } from '@shared/ui';
+import { Checkbox, DateModal, FormField, isPossiblePhone } from '@shared/ui';
+import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { ChevronBig } from './planIcons';
+import { CalendarIcon } from './icons';
 
 import idHandCard from './assets/id-g72.svg';
 import idCardFace from './assets/id-g105.svg';
@@ -70,6 +72,8 @@ function Select({
  * (`asset/inline`), so the export is resampled to 180×115 — 3× the display size,
  * enough for retina — which costs ~57 KB instead of ~1.35 MB inlined.
  */
+// Kept alongside the parked card above, so both come back together.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function IdIllustration() {
   return (
     <div className="rf-sx-illus" aria-hidden="true">
@@ -92,8 +96,35 @@ function IdIllustration() {
   );
 }
 
+/** What this screen can actually file against the contact after the lease. */
+export interface SuccessDetails {
+  driverLicense?: string;
+  /** As typed, MM/DD/YYYY — the parent converts. */
+  driverLicenseExp?: string;
+  driverLicenseState?: string;
+  mailingAddress?: { address: string; city?: string; state?: string; zip?: string };
+}
+
+/**
+ * Furthest expiry the picker offers. Licences run up to ~8 years in most US
+ * states; twenty is generous without listing a century of irrelevant years.
+ */
+const LICENCE_MAX_EXPIRY = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 20);
+  return d;
+})();
+
+/** MM/DD/YYYY — the shape updateContactDetails converts to the API's date. */
+const formatMasked = (d: Date): string => {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}/${p(d.getDate())}/${d.getFullYear()}`;
+};
+
 export function SuccessStep({ onGetAccess, chosen }: {
-  onGetAccess?: () => void;
+  /** Fires with everything the contact update can file. The parent decides
+   *  what to do with it; this screen just collects. */
+  onGetAccess?: (details?: SuccessDetails) => void;
   /** What the shopper ticked back in step 2. Those screens ask the QUESTION;
    *  this one asks for the details, so it opens the same sections already
    *  ticked rather than making them answer twice. */
@@ -104,6 +135,28 @@ export function SuccessStep({ onGetAccess, chosen }: {
   const [military, setMilitary] = useState(chosen?.military ?? false);
   const [altContact, setAltContact] = useState(chosen?.altContact ?? false);
   const [vehicle, setVehicle] = useState(chosen?.vehicle ?? false);
+
+  // Mailing address — where notices go when it is not the space's address.
+  // Filed on the contact as an Addresses entry of type "mailing" (verified
+  // 2026-08-21: it persists).
+  const [mailAddress, setMailAddress] = useState('');
+  const [mailCity, setMailCity] = useState('');
+  const [mailState, setMailState] = useState('');
+  const [mailZip, setMailZip] = useState('');
+
+  // Driver's licence. THESE are what "ID verification" means to this API —
+  // there is no verification service, only these three fields on the contact,
+  // and all three persist.
+  const [dlNumber, setDlNumber] = useState('');
+  const [dlExp, setDlExp] = useState('');
+  const [dlExpDate, setDlExpDate] = useState<Date | null>(null);
+  const [dlExpOpen, setDlExpOpen] = useState(false);
+  const [dlState, setDlState] = useState('');
+
+  /** A picked or typed mailing address — the city/state/ZIP follow it. */
+  const [mailPicked, setMailPicked] = useState(false);
+  const showMailParts = mailPicked
+    || !!(mailCity.trim() || mailState.trim() || mailZip.trim());
 
   // Business
   const [bizAddress, setBizAddress] = useState('');
@@ -167,7 +220,21 @@ export function SuccessStep({ onGetAccess, chosen }: {
   const submit = () => {
     setAttempted(true);
     if (Object.values(problems).some(Boolean)) { setFailures((n) => n + 1); return; }
-    onGetAccess?.();
+    // Only what was filled — the update must not blank a value the tenant may
+    // have given at the counter.
+    onGetAccess?.({
+      driverLicense: dlNumber.trim() || undefined,
+      driverLicenseExp: dlExp.trim() || undefined,
+      driverLicenseState: dlState.trim() || undefined,
+      mailingAddress: mailAddress.trim()
+        ? {
+          address: mailAddress.trim(),
+          city: mailCity.trim() || undefined,
+          state: mailState.trim() || undefined,
+          zip: mailZip.trim() || undefined,
+        }
+        : undefined,
+    });
   };
 
   /**
@@ -201,21 +268,128 @@ export function SuccessStep({ onGetAccess, chosen }: {
         <h2 className="rf-heading">Finish up below for access</h2>
       </div>
 
-      <section className="rf-sx-idv">
-        <h3 className="rf-sx-idv-title">ID Verification</h3>
-        <div className="rf-sx-idv-body">
-          <IdIllustration />
-          <div className="rf-sx-idv-actions">
-            <button type="button" className="rf-sx-btn rf-sx-btn--solid">Verify ID Now</button>
-            <button type="button" className="rf-sx-btn rf-sx-btn--outline">Verify In-Store</button>
+      {/* ID VERIFICATION — PARKED, not deleted (2026-08-21).
+
+          Both buttons are inert and cannot be otherwise: the rental flow API
+          has no verification endpoint anywhere in the guide. What it has is
+          driver_license / _exp / _state as fields on the CONTACT, which the
+          Driver's Licence group below now collects and files. So this card
+          comes back only if an actual verification service is introduced.
+
+          <section className="rf-sx-idv">
+            <h3 className="rf-sx-idv-title">ID Verification</h3>
+            <div className="rf-sx-idv-body">
+              <IdIllustration />
+              <div className="rf-sx-idv-actions">
+                <button type="button" className="rf-sx-btn rf-sx-btn--solid">Verify ID Now</button>
+                <button type="button" className="rf-sx-btn rf-sx-btn--outline">Verify In-Store</button>
+              </div>
+            </div>
+            <p className="rf-sx-idv-note">
+              Get ready to take a photo of your ID and a Selfie.{' '}
+              <a href="#pop-ups" onClick={(e) => e.preventDefault()}>Click here to see how to enable pop-ups</a>{' '}
+              if the link you received did not open the the ID Verification tool.
+            </p>
+          </section>
+      */}
+
+      {/* Mailing address first: it is the one most tenants will fill, and the
+          licence group reads as a follow-up rather than a gate. */}
+      <section className="rf-sx-extra">
+        <h3 className="rf-sx-extra-title">Mailing Address</h3>
+        <div className="rf-sx-fields">
+          <AddressAutocomplete
+            value={mailAddress}
+            onChange={setMailAddress}
+            onPick={(place) => {
+              if (place.address.city) setMailCity(place.address.city);
+              if (place.address.stateCode) setMailState(place.address.stateCode);
+              if (place.address.zip) setMailZip(place.address.zip);
+              setMailPicked(true);
+            }}
+          >
+            <FormField label="Mailing Address" type="search" value={mailAddress} onChange={setMailAddress} autoComplete="street-address" state={mailAddress.trim() ? 'success' : 'default'} />
+          </AddressAutocomplete>
+          {/* City, state and ZIP appear once the lookup has filled them — or if
+              anything is already in them. Nothing here is required, so unlike
+              the billing panel there is no need to reveal them on submit: a
+              shopper who types a street and stops has still given a usable
+              address. */}
+          {showMailParts && (
+            <>
+              <div className="rf-pay-grid">
+                <FormField label="City" value={mailCity} onChange={setMailCity} autoComplete="address-level2" state={mailCity.trim() ? 'success' : 'default'} />
+                <FormField label="State" value={mailState} onChange={(v) => setMailState(v.toUpperCase().slice(0, 2))} autoComplete="address-level1" state={mailState.trim().length === 2 ? 'success' : 'default'} />
+              </div>
+              <FormField label="ZIP Code" value={mailZip} onChange={setMailZip} autoComplete="postal-code" state={mailZip.trim().length >= 3 ? 'success' : 'default'} />
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* Standing in for the parked ID Verification card: the licence details
+          the API actually stores, asked for plainly. */}
+      <section className="rf-sx-extra">
+        <h3 className="rf-sx-extra-title">Driver&rsquo;s Licence</h3>
+        <div className="rf-sx-fields">
+          <FormField label="Driver's Licence Number" value={dlNumber} onChange={setDlNumber} autoComplete="off" state={dlNumber.trim() ? 'success' : 'default'} />
+          <div className="rf-pay-grid">
+            {/* A picker, not a typed mask: an expiry is read off a card and is
+                always in the FUTURE, so browsing beats typing eight digits.
+
+                Built on .rf-select — the same presentational-twin trick the
+                dropdowns use — rather than step 2's .rf2-movein row. That row
+                is a full-width control with its own height and a hardcoded
+                green border; dropped into this half-width grid cell it came out
+                shorter than the field beside it, wrapped "Select a date" onto
+                two lines, and showed a valid border with nothing chosen. This
+                way the box IS a FormField, so height, radius, border and the
+                floating label cannot drift from its neighbour. */}
+            <div className="rf-select">
+              <button
+                type="button"
+                className="rf-select-native rf-datebtn"
+                onClick={() => setDlExpOpen(true)}
+                aria-label={dlExp ? `Licence expiry date, ${dlExp}. Change` : 'Select licence expiry date'}
+              />
+              <div className="rf-select-face" aria-hidden="true">
+                <FormField
+                  label="Expiry Date"
+                  value={dlExp}
+                  onChange={() => {}}
+                  className={dlExp ? 'rf-valid' : undefined}
+                />
+                <CalendarIcon size={24} className="rf-select-chev rf-select-ico--plain" />
+              </div>
+            </div>
+            <FormField label="Issuing State" value={dlState} onChange={(v) => setDlState(v.toUpperCase().slice(0, 2))} state={dlState.trim().length === 2 ? 'success' : 'default'} />
           </div>
         </div>
-        <p className="rf-sx-idv-note">
-          Get ready to take a photo of your ID and a Selfie.{' '}
-          <a href="#pop-ups" onClick={(e) => e.preventDefault()}>Click here to see how to enable pop-ups</a>{' '}
-          if the link you received did not open the the ID Verification tool.
-        </p>
       </section>
+
+      <DateModal
+        open={dlExpOpen}
+        onClose={() => setDlExpOpen(false)}
+        selected={dlExpDate}
+        onSelect={(d) => setDlExpDate(d)}
+        onConfirm={() => {
+          if (dlExpDate) setDlExp(formatMasked(dlExpDate));
+          setDlExpOpen(false);
+        }}
+        onReset={() => { setDlExpDate(null); setDlExp(''); setDlExpOpen(false); }}
+        title="Licence Expiry Date"
+        ctaLabel="Confirm"
+        // Browse mode: an expiry is years out, so month-and-year jumping beats
+        // stepping. Both bounds are required, not just the floor: the year list
+        // is built BACKWARDS from maxDate down to minDate, so passing only
+        // minDate=today made last === first and offered a single year.
+        //
+        // Floor is today (an expired licence is not one to file); ceiling is
+        // twenty years out, which covers every issuing state's term.
+        browse
+        minDate={new Date()}
+        maxDate={LICENCE_MAX_EXPIRY}
+      />
 
       <section className="rf-sx-extra">
         <h3 className="rf-sx-extra-title">Additional Information</h3>
@@ -227,7 +401,9 @@ export function SuccessStep({ onGetAccess, chosen }: {
           <Checkbox checked={business} onChange={setBusiness}>I am renting as a business</Checkbox>
           {business && (
             <div className="rf-sx-fields">
-              <FormField label="Business Address" required type="search" value={bizAddress} onChange={setBizAddress} error={bad('bizAddress')} />
+              <AddressAutocomplete value={bizAddress} onChange={setBizAddress}>
+                <FormField label="Business Address" required type="search" value={bizAddress} onChange={setBizAddress} error={bad('bizAddress')} />
+              </AddressAutocomplete>
               <div className="rf-pay-grid">
                 <FormField label="Business Rep First Name" required value={repFirst} onChange={setRepFirst} error={bad('repFirst')} />
                 <FormField label="Business Rep Last Name" required value={repLast} onChange={setRepLast} error={bad('repLast')} />
@@ -257,7 +433,11 @@ export function SuccessStep({ onGetAccess, chosen }: {
                 <FormField label="Phone" required type="tel" value={altPhone} onChange={setAltPhone} error={bad('altPhone')} />
                 <FormField label="Email" required type="email" value={altEmail} onChange={setAltEmail} error={bad('altEmail')} />
               </div>
-              <FormField label="Address" required type="search" value={altAddress} onChange={setAltAddress} error={bad('altAddress')} />
+              {/* Same lookup as the Business Address above it — this one was
+                  left as a plain field when the others were wired. */}
+              <AddressAutocomplete value={altAddress} onChange={setAltAddress}>
+                <FormField label="Address" required type="search" value={altAddress} onChange={setAltAddress} error={bad('altAddress')} />
+              </AddressAutocomplete>
             </div>
           )}
         </div>

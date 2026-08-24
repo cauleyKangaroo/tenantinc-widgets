@@ -139,10 +139,13 @@
   margin-top: 24px;
   padding: 12px;
   background: #fff;
-  border: 2px dashed #509E2F;
+  border: 2px dashed var(--color_1, #509E2F);
   border-radius: 8px;
 }
-.ts-promo-icon { color: #509E2F; flex: 0 0 auto; }
+/* Duda's primary, with the old hardcoded green as the fallback so nothing moves
+   where --color_1 is undefined (the dev harness). #05's promo badges already
+   follow --color_1 the same way. */
+.ts-promo-icon { color: var(--color_1, #509E2F); flex: 0 0 auto; }
 .ts-promo-text {
   font-size: 14px;
   font-weight: 700;

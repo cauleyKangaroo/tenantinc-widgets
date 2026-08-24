@@ -243,6 +243,8 @@ export interface TierSelectionProps {
   defaultTier?: string;
   /** CTA button label — carried from the Space List's Button field (§12). Default 'Select'. */
   ctaLabel?: string;
+  /** Show the quote-backed Pricing Details breakdown on desktop and mobile. */
+  showPricingDetails?: boolean;
   /** Where Select navigates (the rental-flow page). Carries
    *  ?size=&unitId=&tier=; same-origin only. Empty = inert. */
   rentUrl?: string;
@@ -370,6 +372,7 @@ export function TierSelection({
   tier: tierProp,
   defaultTier,
   ctaLabel = 'Select',
+  showPricingDetails = true,
   rentUrl,
   inEditor = false,
   siteId,
@@ -389,6 +392,7 @@ export function TierSelection({
   // CTA + fee text mirrored from the Space List over the open event (configure once).
   const [modalCtaLabel, setModalCtaLabel] = useState<string | undefined>(undefined);
   const [modalFeeText, setModalFeeText] = useState<string | undefined>(undefined);
+  const [modalShowPricingDetails, setModalShowPricingDetails] = useState<boolean | undefined>(undefined);
   const [modalShowUrgency, setModalShowUrgency] = useState<boolean | undefined>(undefined);
   // Bumped on every open so reopening the SAME size still refetches (inventory
   // and pricing can change between opens).
@@ -488,6 +492,7 @@ export function TierSelection({
       setModalPropertyId(req.propertyId);
       setModalCtaLabel(req.ctaLabel);
       setModalFeeText(req.feeText);
+      setModalShowPricingDetails(req.showPricingDetails);
       setModalShowUrgency(req.showUrgency);
       setOpenGen((g) => g + 1);
       setModalOpen(true);
@@ -751,7 +756,18 @@ export function TierSelection({
   );
 
   return (
-    <TierDataContext.Provider value={data ? { ...data, rentHref, selected, setSelected, quotes, ensureQuote, ctaLabel: modalCtaLabel ?? ctaLabel } : EMPTY_DATA}>
+    <TierDataContext.Provider value={data ? {
+      ...data,
+      rentHref,
+      selected,
+      setSelected,
+      quotes,
+      ensureQuote,
+      ctaLabel: modalCtaLabel ?? ctaLabel,
+      showPricingDetails: mode === 'modal'
+        ? (modalShowPricingDetails ?? showPricingDetails)
+        : showPricingDetails,
+    } : EMPTY_DATA}>
       {mode === 'modal' ? (
         // Closed → render nothing at all. Open → an overlay the shopper can
         // dismiss (✕, backdrop click, or Esc). The panel stops click bubbling
@@ -935,21 +951,68 @@ function Pills({ selected, setSelected, tiers: tiersProp }: { selected: TierKey;
 // "Pricing Details" link + hover tooltip. The dark breakdown fades in on hover
 // and follows the cursor (mouse sits at the tooltip's top-centre); the trigger
 // shows a help (question-mark) cursor.
-function PricingDetails({ price, className, tierKey }: { price: number; className?: string; tierKey?: TierKey }) {
-  const { quotes, ensureQuote } = useTierData();
+function PricingDetails({ price, className, tierKey, mobile = false }: { price: number; className?: string; tierKey?: TierKey; mobile?: boolean }) {
+  const { quotes, ensureQuote, showPricingDetails } = useTierData();
   const state = quotes?.[tierKey ?? ('' as TierKey)];
   const quote = state?.status === 'ok' ? state.quote : undefined;
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [visible, setVisible] = useState(false);
+  const tooltipId = React.useId();
+  const triggerRef = useRef<HTMLAnchorElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const pointerActivation = useRef(false);
 
-  const track = (e: React.MouseEvent) => setPos({ x: e.clientX, y: e.clientY });
+  const track = (e: React.MouseEvent) => setPos({ x: e.clientX, y: e.clientY + 6 });
+  const showAtTrigger = (el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+    setPos({ x: rect.left + rect.width / 2, y: rect.bottom + 6 });
+    setVisible(true);
+    if (tierKey) ensureQuote?.(tierKey);
+  };
+
+  // Mobile has no cursor to follow. Keep the popup attached to the tapped link:
+  // below when it fits, otherwise immediately above, with its centre clamped so
+  // neither edge can leave the viewport. Re-run when the async quote replaces
+  // the shorter loading message with the full itemized breakdown.
+  useLayoutEffect(() => {
+    if (!visible || !mobile || !triggerRef.current || !tooltipRef.current) return;
+    const trigger = triggerRef.current.getBoundingClientRect();
+    const tip = tooltipRef.current.getBoundingClientRect();
+    const margin = 12;
+    const half = tip.width / 2;
+    const x = Math.min(window.innerWidth - half - margin, Math.max(half + margin, trigger.left + trigger.width / 2));
+    const below = trigger.bottom + 6;
+    const y = below + tip.height <= window.innerHeight - margin
+      ? below
+      : Math.max(margin, trigger.top - tip.height - 6);
+    setPos((current) => current?.x === x && current.y === y ? current : { x, y });
+  }, [visible, state?.status, quote?.lines.length, mobile]);
+
+  if (showPricingDetails === false) return null;
 
   return (
     <span className="ts-pd">
       <a
+        ref={triggerRef}
         className={`ts-pd-link${className ? ' ' + className : ''}`}
         href="#"
-        onClick={(e) => e.preventDefault()}
+        aria-expanded={visible}
+        aria-controls={tooltipId}
+        onPointerDown={() => { pointerActivation.current = true; }}
+        onClick={(e) => {
+          e.preventDefault();
+          const fromPointer = pointerActivation.current;
+          pointerActivation.current = false;
+          if (fromPointer && visible) setVisible(false);
+          else showAtTrigger(e.currentTarget);
+        }}
+        onFocus={(e) => {
+          // A pointer focuses before it clicks; let the click perform the one
+          // state change. Keyboard focus has no pointerdown and opens here.
+          if (!pointerActivation.current) showAtTrigger(e.currentTarget);
+        }}
+        onBlur={() => setVisible(false)}
+        onKeyDown={(e) => { if (e.key === 'Escape') { setVisible(false); e.currentTarget.blur(); } }}
         onMouseEnter={(e) => { track(e); setVisible(true); if (tierKey) ensureQuote?.(tierKey); }}
         onMouseMove={track}
         onMouseLeave={() => setVisible(false)}
@@ -958,9 +1021,12 @@ function PricingDetails({ price, className, tierKey }: { price: number; classNam
       </a>
       {pos && (
         <div
-          className="ts-pd-modal"
-          style={{ left: pos.x, top: pos.y + 6, opacity: visible ? 1 : 0 }}
-          aria-hidden
+          ref={tooltipRef}
+          className={`ts-pd-modal${mobile ? ' ts-pd-modal--mobile' : ''}`}
+          style={{ left: pos.x, top: pos.y, opacity: visible ? 1 : 0 }}
+          id={tooltipId}
+          role="tooltip"
+          aria-hidden={!visible}
         >
           <div className="ts-pd-inner">
             <div className="ts-pd-row">
@@ -996,11 +1062,27 @@ function PricingDetails({ price, className, tierKey }: { price: number; classNam
             ) : (
               <>
                 <hr className="ts-pd-divider" />
-                <p className="ts-pd-note">
-                  {QUOTE_STATE_COPY[state?.status ?? 'pending'] ?? QUOTE_STATE_COPY.error}
-                </p>
+                {(state?.status ?? 'pending') === 'pending' ? (
+                  <div className="ts-pd-loading" role="status" aria-label="Calculating your move-in cost">
+                    {[72, 58, 66].map((width, i) => (
+                      <div className="ts-pd-loading-row" key={i}>
+                        <span style={{ width: `${width}%` }} />
+                        <span />
+                      </div>
+                    ))}
+                    <div className="ts-pd-loading-total">
+                      <span />
+                      <span />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="ts-pd-note">
+                    {QUOTE_STATE_COPY[state?.status ?? 'error'] ?? QUOTE_STATE_COPY.error}
+                  </p>
+                )}
               </>
             )}
+            <div className="ts-pd-end-space" aria-hidden="true" />
           </div>
         </div>
       )}
@@ -1401,7 +1483,7 @@ function O2Card({ card }: { card: O2Tier }) {
   }
   return (
     <div
-      className={`ts-o2-card${card.popular ? ' ts-o2-card--popular' : ''}${isSelected ? ' ts-o2-card--selected' : ''}`}
+      className={`ts-o2-card${card.promo ? '' : ' ts-o2-card--no-promo'}${card.popular ? ' ts-o2-card--popular' : ''}${isSelected ? ' ts-o2-card--selected' : ''}`}
       onClick={() => setSelected?.(card.key)}
       onKeyDown={activateOnKey(() => setSelected?.(card.key))}
       role="button"
@@ -1429,7 +1511,7 @@ function O2Card({ card }: { card: O2Tier }) {
         </ul>
       </div>
 
-      <div className="ts-o2-foot">
+      <div className={`ts-o2-foot${card.promo ? '' : ' ts-o2-foot--no-promo'}`}>
         <div className="ts-o2-foot-top">
           {card.promoRate != null ? (
             <div className="ts-o2-price ts-o2-price--promo">
@@ -1447,14 +1529,14 @@ function O2Card({ card }: { card: O2Tier }) {
           <PricingDetails price={card.price} tierKey={card.key} className="ts-o2-details" />
         </div>
         <div className="ts-o2-foot-bottom">
-          <div className="ts-o2-promo-slot">
-            {card.promo && (
+          {card.promo && (
+            <div className="ts-o2-promo-slot">
               <div className="ts-promo ts-o2-promo">
                 <TagIcon size={16} className="ts-promo-icon" />
                 <span className="ts-promo-text">{card.promo}</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
           {rentHref?.(card.key) ? (
             <a
               className={`ts-o2-select${isSelected ? ' ts-o2-select--accent' : ''}`}
@@ -1531,11 +1613,14 @@ function O2MHead({ card }: { card: O2Tier }) {
         <span className="ts-o2m-name">{card.name}</span>
         <span className="ts-o2m-tag">{card.tagline}</span>
       </div>
-      {card.promoRate != null ? (
-        <span className="ts-o2m-price"><span className="ts-o2m-strike">{priceFmt(card.price)}/mo.</span> {priceFmt(card.promoRate)}</span>
-      ) : (
-        <span className="ts-o2m-price">{priceFmt(card.price)}/mo.</span>
-      )}
+      <div className="ts-o2m-price-block">
+        {card.promoRate != null ? (
+          <span className="ts-o2m-price"><span className="ts-o2m-strike">{priceFmt(card.price)}/mo.</span> {priceFmt(card.promoRate)}</span>
+        ) : (
+          <span className="ts-o2m-price">{priceFmt(card.price)}/mo.</span>
+        )}
+        <PricingDetails price={card.price} tierKey={card.key} className="ts-o2m-details" mobile />
+      </div>
     </div>
   );
 }
@@ -1565,11 +1650,11 @@ function O2MExpanded({ card }: { card: O2Tier }) {
         </div>
       )}
       {rentHref?.(card.key) ? (
-        <a className={`ts-o2-select${card.popular ? ' ts-o2-select--accent' : ''}`} href={rentHref(card.key)}>
+        <a className="ts-o2-select ts-o2-select--accent" href={rentHref(card.key)}>
           {ctaLabel ?? 'Select'}
         </a>
       ) : (
-        <button type="button" className={`ts-o2-select${card.popular ? ' ts-o2-select--accent' : ''}`} disabled>
+        <button type="button" className="ts-o2-select ts-o2-select--accent" disabled>
           {ctaLabel ?? 'Select'}
         </button>
       )}

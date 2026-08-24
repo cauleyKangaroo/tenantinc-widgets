@@ -21,8 +21,20 @@
 
 /* ── Shared lightbox shell ────────────────────────────────────────────────── */
 
+/* This overlay is PORTALLED to <body> (LeaseModal, ProtectionPlanModal and
+   ProcessingModal all are, so `position: fixed` resolves against the viewport
+   rather than the contained widget). That puts it outside .rf-wrapper, whose
+   `font-family: inherit` is how the flow picks up the page's font — so nothing
+   in here inherited it and the lease text rendered in the browser's default
+   serif on the live site. Only visible there: the harness's own body font is
+   close enough to hide it.
+
+   var(--hb-font, …) rather than a flat value: custom properties do not cross a
+   portal either, so this resolves to Montserrat today, and still follows
+   --hb-font if a site ever defines it at :root. */
 .rf-overlay {
   position: fixed;
+  font-family: var(--hb-font, 'Montserrat', sans-serif);
   inset: 0;
   z-index: 10000;
   display: flex;
@@ -769,10 +781,12 @@
   padding: 40px;
 }
 
-/* Floating zoom pill, bottom-left of the card. */
+/* Floating zoom pill, bottom-left of the card. Its left edge matches
+   .rf2-lease-foot's 30px inset, so the pill and the "I agree" checkbox beneath
+   it start on the same line — 19px put them 11px out of step. */
 .rf2-lease-zoom {
   position: absolute;
-  left: 19px;
+  left: 30px;
   bottom: 94px;              /* clears the 78px agree bar */
   display: flex;
   align-items: center;
@@ -834,5 +848,27 @@
   .rf2-lease-view { padding: 0 16px 16px; }
   .rf2-lease-doc { padding: 20px; }
   .rf2-lease-foot { padding: 12px 16px; }
-  .rf2-lease-zoom { left: 12px; bottom: 88px; }
+  /* Mobile: 16px to match .rf2-lease-foot's narrow inset, and further up. At 88px
+   the pill sat ~10px off the divider, tighter than the 16px it gets on desktop
+   in a place with less room to breathe, not more. */
+.rf2-lease-zoom { left: 16px; bottom: 102px; }
 }
+
+/* The licence-expiry trigger. It borrows .rf-select's overlay so the box below
+   is a real FormField — same height, border and floating label as the field
+   beside it — while this transparent button takes the click. */
+.rf-datebtn {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  /* Its own ring, since the twin below cannot show :focus-visible. */
+  border-radius: 8px;
+}
+.rf-datebtn:focus-visible { outline: 2px solid var(--hb-cta, #028a0c); outline-offset: 2px; }
+
+/* The slot rotates its icon 90deg to point the chevron down. A calendar is not
+   a chevron, so this variant sits in the same place upright. */
+.rf-select-ico--plain { transform: none; }

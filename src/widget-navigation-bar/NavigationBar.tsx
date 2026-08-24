@@ -210,8 +210,9 @@ const FIND_STORAGE_LABEL = 'Find Storage';
  * pinned to the top.
  *
  * Every city keeps its third level, however few facilities it holds — the
- * accordion is the quickest route to a specific facility on a phone, and
- * tapping the city name itself still goes to the city page.
+ * accordion is the quickest route to a specific facility on a phone. Tapping the
+ * city name itself follows `NavCity.href`: the facility's landing page when the
+ * city holds one, the city page when it holds several.
  */
 function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
   return [
@@ -223,10 +224,9 @@ function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
         label: city.label,
         href: city.href,
         // EVERY city expands to its facilities, including a city holding just
-        // one. Hiding the third level there made a single-facility city a
-        // dead end: the cascade stopped at the city and the only way to the
-        // property page was the city page itself. The levels now mean the same
-        // thing everywhere — state › city › facility.
+        // one — the levels mean the same thing everywhere, state › city ›
+        // facility, and the single facility's row is the shorter tap of the two
+        // routes to the same page (`city.href` shortcuts there as well).
         children: city.properties.map((prop) => ({ label: prop.label, href: prop.href })),
       })),
     })),
@@ -613,24 +613,18 @@ export function NavigationBar({
                   ))}
                 </ul>
 
+                {/* TWO levels only: state › city. The facility flyout that used to
+                    hang off each city is gone — three nested hover panels is a lot
+                    of target to keep the pointer inside, and the city row already
+                    goes to /locations/<state>/<city>, which lists its facilities.
+                    So the leaf is one click further away, not unreachable.
+                    `sub.children` is still populated (the mobile drawer renders
+                    all three levels); this variant just stops reading it. */}
                 {activeItem?.children?.length ? (
                   <ul className="nav-subpanel" style={{ top: subTop }}>
                     {activeItem.children.map((sub) => (
                       <li key={sub.label} className="nav-sub-item">
-                        <a href={sub.href}>
-                          <span>{sub.label}</span>
-                          {sub.children?.length ? <ChevronRight size={16} className="nav-sub-arrow" /> : null}
-                        </a>
-                        {/* Third level (e.g. a city's facilities) — CSS hover flyout. */}
-                        {sub.children?.length ? (
-                          <ul className="nav-subsubpanel">
-                            {sub.children.map((leaf) => (
-                              <li key={leaf.label} className="nav-sub-item">
-                                <a href={leaf.href}><span>{leaf.label}</span></a>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : null}
+                        <a href={sub.href}><span>{sub.label}</span></a>
                       </li>
                     ))}
                   </ul>

@@ -363,6 +363,10 @@ export interface SelectionContext {
   offerToken?: string;
   /** `space_mix_id` from the offer — required verbatim by documents/finalize. */
   spaceMixId?: string;
+  /** The unit's display number, e.g. "0004" — the rail's "#0004 | 8' x 12'".
+   *  It rides on the offer at `costs.Unit.number`, so it is known as soon as
+   *  the tier resolves, before any hold or quote. */
+  unitNumber?: string;
 }
 
 /** "10' x 10'" / "10x10" → "10x10" for comparisons. */
@@ -442,7 +446,7 @@ interface SelOffer {
   unit_id?: string; price?: number;
   value_tier?: { type?: string };
   promotions?: Array<{ id?: string; name?: string }>;
-  costs?: { Discounts?: OfferDiscount[] };
+  costs?: { Discounts?: OfferDiscount[]; Unit?: { number?: string } };
   amenities?: OfferAmenity[];
   dossier?: { token?: string };
   space_mix_id?: string;
@@ -495,6 +499,7 @@ export async function fetchSelectionFromOffers(
     promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
     offerToken: pick.dossier?.token,
     spaceMixId: pick.space_mix_id,
+    unitNumber: pick.costs?.Unit?.number,
   };
 }
 
@@ -1109,6 +1114,10 @@ export interface RentContact extends RentAddress {
   last: string;
   email: string;
   phone: string;
+  /** Trading name when renting as a business. Sent as `company` — the contact
+   *  record's own field for it — so Hummingbird stores the business rather than
+   *  only the first/last the name was split into. */
+  businessName?: string;
 }
 
 export interface CardPayment extends RentAddress {
@@ -1209,6 +1218,9 @@ export type RentResult =
     /** The tenant's gate PIN, from `lease.tenants[0].pin`. THE access code —
      *  no other endpoint returns one, and it exists only after the lease. */
     accessCode?: string;
+    /** The tenant's contact id, from lease.tenants[]. What the post-lease
+     *  contact update is addressed to. */
+    contactId?: string;
     /** 'active' on a completed rental. */
     status?: string;
   }
@@ -1226,6 +1238,15 @@ function rentContacts(c: RentContact, extras?: RentalExtras): unknown[] {
       type: 'primary',
     }],
   };
+
+  // Renting as a business: the trading name belongs in `company`, with
+  // `rent_as_business` marking the contact. Both are real fields on the contact
+  // record and both persist (verified 2026-08-21) — without them the business
+  // survives only as the first/last its name was split into.
+  if (c.businessName) {
+    contact.company = c.businessName;
+    contact.rent_as_business = 1;
+  }
 
   // Military. The guide's Military object has ten fields; the form asks only for
   // a date of birth, so only that is sent. active_military is the flag the guide
@@ -1355,7 +1376,7 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
 /** API 10 — finalize the lease and take the move-in payment. */
 async function finalizeLease(
   ctx: RentalCtx, args: RentArgs, documents: LeaseDocumentRef[],
-): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string; accessCode?: string; status?: string }> {
+): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string; accessCode?: string; contactId?: string; status?: string }> {
   const body: Record<string, unknown> = {
     contacts: rentContacts(args.contact, args.extras),
     documents,
@@ -1387,13 +1408,15 @@ async function finalizeLease(
   if (!leaseId) throw new Error('The lease was created but returned no id — please contact the facility before trying again.');
   // The gate PIN rides on the tenant, not the lease. This is the ONLY place any
   // endpoint returns an access code — it does not exist before the lease.
-  const tenants = (d.tenants as Array<{ pin?: string | number }> | undefined) ?? [];
+  const tenants = (d.tenants as Array<{ pin?: string | number; contact_id?: string }> | undefined) ?? [];
   const pin = tenants.find((t) => t?.pin != null)?.pin;
+  const contactId = tenants.find((t) => t?.contact_id)?.contact_id;
   return {
     leaseId,
     paymentId: d.payment_id as string | undefined,
     paymentMethodId: d.payment_method_id as string | undefined,
     accessCode: pin != null ? String(pin) : undefined,
+    contactId,
     status: d.status as string | undefined,
   };
 }
@@ -1456,6 +1479,7 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
     paymentId: lease.paymentId,
     paymentMethodId: lease.paymentMethodId,
     accessCode: lease.accessCode,
+    contactId: lease.contactId,
     status: lease.status,
     unitNumber: a.unit.number,
     autopay,
@@ -1498,4 +1522,239 @@ export function quoteToCosts(quote: MoveInQuote, startDate: string): RentCostLin
     });
   }
   return lines;
+}
+
+// --- Payments (bulk) --------------------------------------------------------
+//
+// The card is CAPTURED here and CHARGED on Hummingbird's side — this widget
+// never runs a sale (confirmed by TenantInc 2026-08-21). So what goes over is
+// the tokenized card: the gateway's token plus the MASKED number, never a PAN.
+//
+// Verified against the sandbox the same day: the endpoint accepts
+// `card_number: "************1111"` alongside a `token` without complaint. The
+// only failures were about invoice state ("only $0.00 due"), which is the
+// endpoint doing its job.
+//
+// NOTE ON THE APPLICATION ID: TenantInc's example curl uses
+// appc02fcbc01b5e41818669077c87c01e7f, which answers "I was unable to find that
+// application" for our key. Ours is the one in config.json, and it works — so
+// this goes through the same sendV1 helper as every other call rather than
+// hardcoding theirs.
+
+/** One invoice being paid. `id` is required for a due invoice, omitted for a
+ *  pre-payment — the endpoint creates the invoice in that case. */
+export interface BulkPaymentInvoice {
+  id?: string;
+  lease_id?: string;
+  amount: number;
+  balance?: number;
+  period_start?: string;
+  period_end?: string;
+}
+
+/** The tokenized card. No PAN: `cardNumber` is the gateway's masked form. */
+export interface TokenizedCard {
+  /** Masked, e.g. "************1111" — straight from the tokenizer. */
+  cardNumber: string;
+  /** The gateway's single-use token for the real card. */
+  token?: string;
+  /** VISA | MasterCard | AMEX | … as the gateway reported it. */
+  cardType?: string;
+  expMonth: string;
+  expYear: string;
+  cvv?: string;
+  nameOnCard: string;
+  address: string;
+  address2?: string;
+  city: string;
+  state: string;
+  zip: string;
+  country?: string;
+  saveToAccount?: boolean;
+  autoCharge?: boolean;
+}
+
+export interface BulkPaymentArgs {
+  contactId: string;
+  propertyId: string;
+  invoices: BulkPaymentInvoice[];
+  card: TokenizedCard;
+  /** Total being paid. Defaults to the sum of the invoice amounts. */
+  amount?: number;
+  /** Months to bill per lease, for a pre-payment. */
+  leases?: Array<{ id: string; billed_months?: number }>;
+  /** Gateway transaction reference, when the caller has one. */
+  transactionId?: string;
+  statusDesc?: string;
+  source?: string;
+}
+
+export type BulkPaymentResult =
+  | { ok: true; paymentId?: string; data?: Record<string, unknown> }
+  | { ok: false; error: string };
+
+/**
+ * POST payments/bulk — hand the tokenized card to Hummingbird to charge.
+ *
+ * Soft result, never throws, and never retried: a retry here is a second
+ * charge. `status: 1` marks the payment as one to process; the gateway's own
+ * outcome fields are passed through when the caller has them.
+ */
+export async function createBulkPayment(
+  ctx: RentalCtx, args: BulkPaymentArgs,
+): Promise<BulkPaymentResult> {
+  const total = args.amount
+    ?? args.invoices.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  if (!(total > 0)) return { ok: false, error: 'Nothing to pay.' };
+
+  const body: Record<string, unknown> = {
+    contact_id: args.contactId,
+    property_id: args.propertyId,
+    Invoices: args.invoices.map((i) => {
+      const inv: Record<string, unknown> = { amount: i.amount };
+      // Omitted entirely for a pre-payment — sending an empty id is not the
+      // same as not sending one.
+      if (i.id) inv.id = i.id;
+      if (i.lease_id) inv.lease_id = i.lease_id;
+      if (i.balance != null) inv.balance = i.balance;
+      if (i.period_start) inv.period_start = i.period_start;
+      if (i.period_end) inv.period_end = i.period_end;
+      return inv;
+    }),
+    payment: {
+      amount: total,
+      contact_id: args.contactId,
+      property_id: args.propertyId,
+      type: 'card',
+      source: args.source ?? 'website',
+      status: 1,
+      ...(args.statusDesc ? { status_desc: args.statusDesc } : {}),
+      ...(args.transactionId ? { transaction_id: args.transactionId } : {}),
+    },
+    paymentMethod: {
+      type: 'card',
+      card_number: args.card.cardNumber,
+      ...(args.card.token ? { token: args.card.token } : {}),
+      ...(args.card.cardType ? { card_type: args.card.cardType } : {}),
+      ...(args.card.cvv ? { cvv2: args.card.cvv } : {}),
+      exp_mo: args.card.expMonth,
+      exp_yr: args.card.expYear,
+      name_on_card: args.card.nameOnCard,
+      address: args.card.address,
+      ...(args.card.address2 ? { address2: args.card.address2 } : {}),
+      city: args.card.city,
+      state: args.card.state,
+      zip: args.card.zip,
+      ...(args.card.country ? { country: args.card.country } : {}),
+      save_to_account: !!args.card.saveToAccount,
+      auto_charge: !!args.card.autoCharge,
+    },
+  };
+  if (args.leases?.length) body.leases = args.leases;
+
+  try {
+    const inner = await sendV1('POST', `companies/${ctx.companyId}/payments/bulk`, body);
+    if (inner.status !== 200) {
+      // The endpoint's messages are specific and shopper-legible ("only $0.00
+      // due"), so they are surfaced rather than replaced with a generic line.
+      return { ok: false, error: inner.msg || `Payment failed (${inner.status}).` };
+    }
+    const d = (inner.data ?? {}) as Record<string, unknown>;
+    const payment = (d.payment ?? d) as Record<string, unknown>;
+    return { ok: true, paymentId: (payment.id ?? payment.payment_id) as string | undefined, data: d };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// --- Contact update (post-lease details) ------------------------------------
+//
+// PUT companies/{co}/contacts/{contactId}. NOT in the rental-flow guide —
+// found by probing and verified against the sandbox 2026-08-21, which is why
+// what it does and does NOT accept is written down here rather than assumed.
+//
+// PERSISTS:  driver_license, driver_license_exp, driver_license_state, dob,
+//            rent_as_business, company, Addresses[] (incl. type "mailing")
+// IGNORED:   Military, Relationships — accepted with a 200 and silently dropped
+// REJECTED:  Vehicles — "Vehicles[0].manufacturer is not allowed"
+//
+// So anything in the ignored/rejected list has to travel with the LEASE
+// (documents/finalize), not here. This call is for what the shopper adds after
+// the unit is theirs.
+
+export interface ContactDetailsUpdate {
+  /** Licence number as typed; the API masks it on read. */
+  driverLicense?: string;
+  /** YYYY-MM-DD. */
+  driverLicenseExp?: string;
+  /** Two-letter issuing state. */
+  driverLicenseState?: string;
+  /** YYYY-MM-DD. */
+  dateOfBirth?: string;
+  mailingAddress?: {
+    address: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  };
+}
+
+/**
+ * File post-lease details against the tenant's contact.
+ *
+ * Sends ONLY what was filled: a PUT with a key present but empty would blank a
+ * value the tenant may have given at the counter. Returns a boolean rather than
+ * throwing — the rental is already complete by the time this runs, so a failure
+ * here must never look like a failed rental. It is logged, not surfaced.
+ */
+export async function updateContactDetails(
+  ctx: RentalCtx, contactId: string, details: ContactDetailsUpdate,
+): Promise<boolean> {
+  if (!contactId) return false;
+  const body: Record<string, unknown> = {};
+  if (details.driverLicense?.trim()) body.driver_license = details.driverLicense.trim();
+  if (details.driverLicenseExp) body.driver_license_exp = details.driverLicenseExp;
+  if (details.driverLicenseState?.trim()) body.driver_license_state = details.driverLicenseState.trim();
+  if (details.dateOfBirth) body.dob = details.dateOfBirth;
+  const m = details.mailingAddress;
+  if (m?.address?.trim()) {
+    body.Addresses = [{
+      Address: {
+        address: m.address.trim(),
+        ...(m.city?.trim() ? { city: m.city.trim() } : {}),
+        ...(m.state?.trim() ? { state: m.state.trim() } : {}),
+        ...(m.zip?.trim() ? { zip: m.zip.trim() } : {}),
+      },
+      type: 'mailing',
+    }];
+  }
+  // Nothing to say is not a failure.
+  if (!Object.keys(body).length) return true;
+
+  try {
+    const res = await fetch(
+      `${BASE_URL}/applications/${APP_ID}/v2/companies/${ctx.companyId}/contacts/${encodeURIComponent(contactId)}`,
+      {
+        method: 'PUT',
+        headers: { ...headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    );
+    if (!res.ok) {
+      console.warn(`[rental] contact update failed: ${res.status} ${res.statusText}`);
+      return false;
+    }
+    const env = await res.json() as { applicationData?: Record<string, InnerResult[]> };
+    const inner = env?.applicationData?.[APP_ID]?.[0];
+    if (inner?.status !== 200) {
+      // Its validation messages name the offending field, so they are worth
+      // keeping verbatim.
+      console.warn('[rental] contact update rejected:', inner?.status, inner?.msg);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[rental] contact update threw:', err);
+    return false;
+  }
 }

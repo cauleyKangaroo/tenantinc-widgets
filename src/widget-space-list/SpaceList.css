@@ -309,26 +309,33 @@
   flex: 0 0 auto;
 }
 .sl-wrapper .sl-promo-banner-clear:hover { color: var(--color_1, #f45f30); }
+/* ── This <h1> is !important on purpose ───────────────────────────────────
+   Duda styles headings from ID-SCOPED selectors (`#dm h1`), and an id beats any
+   number of classes — so .sl-wrapper-qualifying to (0,2,0) was never going to
+   be enough and the title took the theme's size on the published page. The
+   harness has no such rules, so it only ever showed live. Same fight #02
+   documents in FindStorageMegaMenu.css, and the same answer.
+
+   Every property the theme touches is guarded together: winning size while
+   losing weight or transform just produces a differently wrong heading. It
+   matches #03's .pi-name — 30px / 22px, 700 — so the two widgets' titles are
+   one size on a page that shows both. */
 .sl-wrapper .sl-page-title {
-  font-family: 'Montserrat', sans-serif;
-  font-size: 30px;
-  font-weight: 700;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 30px !important;
+  font-weight: 700 !important;
   /* Unitless on purpose: a long feature-page heading wraps to two lines, and a
      fixed leading crams them together the moment a host theme scales the font
      up. 1.3 keeps the desktop line box at ~39px and scales with the text. */
-  line-height: 1.3;
-  color: #101318;
-  margin: 0;
-  text-align: left;
+  line-height: 1.3 !important;
+  color: #101318 !important;
+  margin: 0 !important;
+  text-align: left !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
   /* A long facility name ("Storage Outlet - Bellflower") must break rather than
-     push the column wider. */
+     push the column wider. Not guarded — no theme sets it. */
   overflow-wrap: break-word;
-  /* Guard against host themes restyling bare <h1> (e.g. uppercasing it). This
-     rule is .sl-wrapper-qualified for SPECIFICITY (0,2,0): a bare .sl-page-title
-     is (0,1,0) and loses to any host rule shaped like `.something h1`. The
-     size/weight/margin/align also override the browser's own h1 defaults. */
-  text-transform: none;
-  letter-spacing: normal;
 }
 /* "Select a Space" is a mobile-only heading. On desktop .sl-heading collapses
    (display:contents) so only the page title shows — desktop is unchanged. */
@@ -1153,9 +1160,11 @@
      width already, so nothing else comes back with it.
      .sl-heading keeps its display:contents, so the title stays a direct
      participant in .sl-wrapper's flex column exactly as it is on desktop. */
+  /* !important to clear the base guard above — equal specificity, so this wins
+     on source order, but only if it is guarded too. */
   .sl-wrapper .sl-page-title {
-    font-size: 22px;
-    text-align: center;
+    font-size: 22px !important;
+    text-align: center !important;
   }
   .sl-wrapper .sl-filter-panel,
   .sl-wrapper .sl-additional-panel.ap-left,
@@ -3149,159 +3158,6 @@
 .sl-hours-col-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; line-height: 26px; color: #101318; }
 .sl-hours-line { margin: 0; font-size: 15px; font-weight: 400; line-height: 26px; color: #101318; }
 
-/* ── "Send us a Message" popup — clone of the property-info modal ───────── */
-.sl-msg-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483647;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  box-sizing: border-box;
-  background: rgba(16, 19, 24, 0.55);
-  animation: sl-hours-fade 0.15s ease-out;
-}
-.sl-msg-modal {
-  width: min(695px, 100%);
-  max-height: calc(100vh - 48px);
-  overflow: auto;
-  box-sizing: border-box;
-  background: #fff;
-  border: 1px solid #f4f6f8;
-  border-radius: 20px;
-  box-shadow: 0 8px 9px 0 rgba(71, 84, 116, 0.2);
-  font-family: 'Montserrat', sans-serif;
-  animation: sl-hours-pop 0.15s ease-out;
-}
-.sl-msg-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 23px 24px;
-  background: #fffaf7;
-  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
-}
-.sl-msg-title { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 600; color: #101318; }
-.sl-msg-title svg { flex: 0 0 auto; }
-.sl-msg-close {
-  flex: 0 0 auto; width: 32px; height: 32px;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0; border: none; background: none; border-radius: 6px;
-  color: #101318; cursor: pointer;
-}
-.sl-msg-close:hover { background: #f4f6f8; }
-
-.sl-msg-body { background: #fff; padding: 30px 24px; display: flex; flex-direction: column; gap: 24px; }
-.sl-msg-req { color: #e53935; margin-left: 2px; }
-
-/* Facility area */
-.sl-msg-facility-area { position: relative; display: flex; flex-direction: column; gap: 12px; }
-.sl-msg-facility-heading { margin: 0; font-size: 18px; font-weight: 600; color: #101318; }
-.sl-msg-dd-btn {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  width: 100%; height: 56px; padding: 0 16px;
-  background: #fff; border: 1px solid #a5b4bf; border-radius: 8px;
-  color: #637381; font: 400 16px 'Montserrat', sans-serif; cursor: pointer;
-}
-.sl-msg-dd-btn svg { flex: 0 0 auto; color: #101318; }
-.sl-msg-facility { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 0; border: none; background: none; text-align: left; }
-.sl-msg-facility--btn { cursor: pointer; }
-.sl-msg-facility-name { font-size: 18px; font-weight: 600; color: #101318; }
-.sl-msg-facility-addr { display: flex; align-items: center; gap: 8px; font-size: 16px; color: #637381; }
-.sl-msg-facility-addr svg { flex: 0 0 auto; color: #637381; }
-.sl-msg-dd-list {
-  position: absolute; top: 100%; left: 0; right: 0; z-index: 2;
-  margin: 4px 0 0; padding: 4px; list-style: none;
-  background: #fff; border: 1px solid #a5b4bf; border-radius: 8px;
-  box-shadow: 0 8px 18px rgba(71, 84, 116, 0.2);
-}
-.sl-msg-dd-list li button {
-  display: block; width: 100%; text-align: left; padding: 10px 12px;
-  border: none; background: none; border-radius: 6px;
-  font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer;
-}
-.sl-msg-dd-list li button:hover { background: #f4f6f8; }
-
-/* Form fields (floating label) */
-.sl-msg-form { display: flex; flex-direction: column; gap: 12px; }
-.sl-msg-note { margin: 0; font-size: 16px; color: #101318; }
-.sl-msg-row { display: flex; gap: 12px; }
-.sl-msg-row > * { flex: 1 1 0; min-width: 0; }
-/* See the matching .pi-msg-field note: this is a <label>, and a host rule like
-   `label { display: inline }` collapses it so the input and floating label
-   overlap. Forced display/height, plus min-height as a floor. */
-.sl-msg-field { position: relative; display: block !important; height: 56px !important; min-height: 56px; box-sizing: border-box; border: 1px solid #a5b4bf; border-radius: 8px; background: #fff; }
-/* !important to beat the forced height on .sl-msg-field above — otherwise the
-   message textarea collapses to the 56px single-line height. */
-.sl-msg-field--area { height: 200px !important; min-height: 200px; }
-.sl-msg-field-input {
-  position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
-  padding: 20px 16px 0; border: none; background: transparent; outline: none;
-  font: 400 16px/20px 'Montserrat', sans-serif; color: #101318; resize: none;
-}
-.sl-msg-field--area .sl-msg-field-input { padding-top: 36px; resize: vertical; }
-.sl-msg-field-label {
-  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
-  font: 400 16px/20px 'Montserrat', sans-serif; color: #637381; pointer-events: none;
-  transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
-}
-.sl-msg-field--area .sl-msg-field-label { top: 16px; transform: none; }
-.sl-msg-field:focus-within .sl-msg-field-label,
-.sl-msg-field--filled .sl-msg-field-label { top: 9px; transform: none; font-size: 12px; line-height: 15px; }
-
-/* Footer */
-.sl-msg-foot { background: #f9fafb; padding: 19px 24px; display: flex; flex-direction: column; gap: 16px; }
-.sl-msg-consent { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
-.sl-msg-consent input { position: absolute; width: 0; height: 0; opacity: 0; }
-.sl-msg-check {
-  flex: 0 0 auto; width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  background: #fff; border: 2px solid #c4cdd5; border-radius: 6px;
-}
-.sl-msg-check--on { background: #101318; border-color: #101318; }
-.sl-msg-consent-text { font-size: 16px; line-height: 20px; color: #101318; }
-.sl-msg-terms { align-self: center; padding: 0 32px; font-size: 16px; line-height: 20px; color: #000; text-decoration: underline; }
-
-.sl-msg-actions { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
-.sl-msg-captcha {
-  width: 236px; height: 60px; flex: 0 0 auto;
-  display: flex; align-items: center; gap: 12px; padding: 0 12px;
-  background: #f9fafb; border: 1px solid #d3d3d3; border-radius: 4px;
-}
-.sl-msg-captcha-box { flex: 0 0 auto; width: 24px; height: 24px; background: #fff; border: 2px solid #c4cdd5; border-radius: 2px; }
-.sl-msg-captcha-label { flex: 1 1 auto; font-size: 14px; color: #3c4043; }
-.sl-msg-captcha-brand { font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; color: #9aa0a6; }
-.sl-msg-buttons { display: flex; align-items: center; gap: 16px; }
-.sl-msg-cancel { border: none; background: none; font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer; }
-.sl-msg-submit {
-  width: 127px; height: 40px;
-  display: flex; align-items: center; justify-content: center;
-  border: none; border-radius: 8px;
-  background: var(--color_1, #f45f30); color: #fff;
-  font: 700 16px 'Montserrat', sans-serif; cursor: pointer;
-}
-.sl-msg-submit:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black); }
-.sl-msg-submit:disabled, .sl-msg-cancel:disabled { opacity: 0.6; cursor: default; }
-
-.sl-msg-error { margin: 0 32px; color: #e53935; font: 500 15px 'Montserrat', sans-serif; }
-
-.sl-msg-success { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 24px 16px 8px; }
-.sl-msg-success-icon { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #e7f5e8; }
-.sl-msg-success-title { margin: 4px 0 0; font: 700 22px 'Montserrat', sans-serif; color: #101318; }
-.sl-msg-success-text { margin: 0 0 12px; max-width: 420px; font: 400 16px 'Montserrat', sans-serif; line-height: 1.5; color: #55606b; }
-.sl-msg-success .sl-msg-submit { width: auto; padding: 0 28px; }
-
-@media (max-width: 640px) {
-  .sl-msg-head { padding: 18px 20px; }
-  .sl-msg-body { padding: 20px; }
-  .sl-msg-foot { padding: 16px 20px; }
-  .sl-msg-row { flex-direction: column; }
-  .sl-msg-actions { flex-direction: column-reverse; align-items: stretch; }
-  .sl-msg-buttons { justify-content: flex-end; }
-  .sl-msg-captcha { width: 100%; }
-}
 
 /* Star rating */
 .sl-wrapper .sl-pi-stars {

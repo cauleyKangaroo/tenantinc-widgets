@@ -100,4 +100,6 @@ export interface TierData {
   ensureQuote?: (key: TierKey) => void;
   /** CTA button label (from the Space List Button field); default 'Select'. */
   ctaLabel?: string;
+  /** Operator toggle shared by desktop and mobile pricing-breakdown links. */
+  showPricingDetails?: boolean;
 }
