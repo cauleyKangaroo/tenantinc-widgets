@@ -92,6 +92,48 @@ export function ClockGlyph({ size = 24, className }: GlyphProps) {
 }
 
 /**
+ * check tick/check-tick-single (Figma 8105-21993) — the ✓ on the in-store card
+ * and the "ID Verification Complete" box. Inset 29.17%/16.67%/26.15%/22.92% of
+ * a 24px box, expanded 9.33%/6.9% for the 2px stroke.
+ */
+export function TickSingleIcon({ size = 24, className }: GlyphProps) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true" focusable="false">
+      <g transform="translate(4.5 6)"><path d="M1.00002 6.5001L5.51686 11.7248L5.91769 11.0239C8.06683 7.26593 11.0411 4.0449 14.6162 1.60364L15.5 1.0001" /></g>
+    </svg>
+  );
+}
+
+/** alert/alert-triangle (Figma 8141-17571) — the failed and later boxes. */
+export function AlertTriangleIcon({ size = 24, className }: GlyphProps) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true" focusable="false">
+      <g transform="translate(0.874 2)"><path d="M11.1249 11.0001V7.0001M11.1249 14.3751V14.3762M9.73501 1.28373C10.6239 0.905424 11.626 0.905424 12.5149 1.28373C15.1663 2.41217 21.4295 12.4218 21.246 15.0972C21.174 16.1459 20.6544 17.1112 19.8222 17.7421C17.6094 19.4193 4.64042 19.4193 2.42773 17.7421C1.59552 17.1112 1.07585 16.1459 1.0039 15.0972C0.82034 12.4218 7.08357 2.41217 9.73501 1.28373Z" /></g>
+    </svg>
+  );
+}
+
+/** id/id-card-vertical (Figma 8485-40240) — the Verify ID Now modal's header. */
+/* id/id-card-vertical (Figma 8485:40241) — both paths verbatim from the
+   export. The translates place them at the frame's insets less the 1px the
+   stroke adds to each export's own box: outer 16.67%/12.5% of 24 = (4,3),
+   inner 29.17%/25% = (7,6). */
+export function IdCardIcon({ size = 24, className }: GlyphProps) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true" focusable="false">
+      <g transform="translate(3 2)"><path d="M14 1H4C2.34315 1 1 2.34315 1 4V16C1 17.6569 2.34315 19 4 19H14C15.6569 19 17 17.6569 17 16V4C17 2.34315 15.6569 1 14 1Z" /></g>
+      <g transform="translate(6 5)"><path d="M1 1H7M1 5H4M9.667 11H6.333C5.597 11 5 11.597 5 12.333C5 12.702 5.299 13 5.667 13H10.333C10.4206 13 10.5073 12.9827 10.5882 12.9492C10.6692 12.9157 10.7427 12.8666 10.8046 12.8046C10.8666 12.7427 10.9157 12.6692 10.9492 12.5882C10.9827 12.5073 11 12.4206 11 12.333C11 11.597 10.403 11 9.667 11ZM9 7C9 7.26522 8.89464 7.51957 8.70711 7.70711C8.51957 7.89464 8.26522 8 8 8C7.73478 8 7.48043 7.89464 7.29289 7.70711C7.10536 7.51957 7 7.26522 7 7C7 6.73478 7.10536 6.48043 7.29289 6.29289C7.48043 6.10536 7.73478 6 8 6C8.26522 6 8.51957 6.10536 8.70711 6.29289C8.89464 6.48043 9 6.73478 9 7Z" /></g>
+    </svg>
+  );
+}
+
+/**
  * check/check-tick-circle (Figma 8507-24390) — the What's Next bullet.
  *
  * One exported vector inside a 28px box: the glyph itself is 21.35px, inset
