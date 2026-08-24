@@ -1996,7 +1996,9 @@
 /* Tenant block on the confirmation — same row shape as the dates and hours
    above it (icon + column), so the three read as one list rather than three
    layouts. Only the in-place rental passes these; the nonce page has none. */
-.rfc-info-tenant { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; }
+/* No icon of its own any more, so 34px — the 24px glyph the rows above use
+   plus their 10px gap — lines its text up with theirs. */
+.rfc-info-tenant { margin-top: 16px; padding-left: 34px; }
 .rfc-info-tenant p:last-child { margin-bottom: 0; }
 /* An email or a lease id has no spaces to break at, so a long one would push
    the column wide instead of wrapping. */

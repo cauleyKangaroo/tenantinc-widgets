@@ -17,8 +17,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FormField, isPossiblePhone } from '@shared/ui';
-import { CloseIcon } from './icons';
+import { CloseSolidIcon, FormField, isPossiblePhone } from '@shared/ui';
 import { IdCardIcon } from './planIcons';
 import { IdIllustration } from './IdIllustration';
 
@@ -73,12 +72,11 @@ export function IdVerifyModal({
             <IdCardIcon size={24} />
             Verify ID Now
           </h2>
-          {/* 24, not the frame's 18. Measured off the Figma export, the mark is
-              18x18 of ink inside a 32x32 button — which is what this was, and it
-              read too small on the page against a 700px modal. Asked for larger,
-              so the button grows with it to keep the 7px breathing room. */}
+          {/* The kit's mark at the size #03's "Send us a Message" modal uses:
+              18 in a 32px button. Same glyph, same box, so the two modals close
+              the same way. */}
           <button type="button" className="rf-modal-close" onClick={onClose} aria-label="Close">
-            <CloseIcon size={24} />
+            <CloseSolidIcon size={18} />
           </button>
         </div>
 

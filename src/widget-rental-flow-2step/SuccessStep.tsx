@@ -16,7 +16,7 @@
 // `IdIllustration` for the one asset that isn't.
 // ===========================================================================
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Checkbox, FormField, isPossiblePhone } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import {
@@ -56,6 +56,32 @@ function Select({
 }
 
 /** What this screen can actually file against the contact after the lease. */
+/**
+ * DUMMY — what the ID verification app hands back once a scan succeeds. Values
+ * from Figma 8754-49724. It carries more than the widget's own fields do (a
+ * full state name, a written-out date), which is why the read-only summaries
+ * render THIS rather than re-deriving from the inputs: those hold the two-letter
+ * code and MM/DD/YYYY the record actually stores.
+ *
+ * Replace with the app's real response; nothing else here has to change.
+ */
+const IDV_SOURCE = {
+  mailing: {
+    line: '4920 Campus Drive Suite B, Newport Beach, CA 92660',
+    address: '4920 Campus Drive Suite B',
+    city: 'Newport Beach',
+    state: 'CA',
+    zip: '92660',
+  },
+  licence: {
+    number: 'DL7833839393',
+    state: 'CA',
+    stateLabel: 'California',
+    exp: '09/20/2035',
+    expLabel: 'Sep 20, 2035',
+  },
+};
+
 export interface SuccessDetails {
   driverLicense?: string;
   /** As typed, MM/DD/YYYY — the parent converts. */
@@ -101,6 +127,18 @@ export function SuccessStep({ onGetAccess, chosen }: {
    */
   const [idv, setIdv] = useState<'choose' | 'instore' | 'complete' | 'failed' | 'later'>('choose');
   const [idvModal, setIdvModal] = useState(false);
+  /* A completed scan arrives pre-filled and collapsed to a summary; "Edit" is
+     how the tenant overrides what the scan read off the card. One flag each,
+     because the two boxes are independent in the frame. */
+  const [mailEditing, setMailEditing] = useState(false);
+  const [dlEditing, setDlEditing] = useState(false);
+  /* The two detail groups belong to every state that has to collect them:
+     in-store (the counter needs them), complete (the scan supplies them, and
+     they can be overridden) and failed (nothing was captured, so they are typed
+     by hand). Not `choose` or `later` — nothing has been decided yet. */
+  const detailsShown = idv === 'instore' || idv === 'complete' || idv === 'failed';
+  const mailReadOnly = idv === 'complete' && !mailEditing;
+  const dlReadOnly = idv === 'complete' && !dlEditing;
 
   const [mailAddress, setMailAddress] = useState('');
   const [mailCity, setMailCity] = useState('');
@@ -156,9 +194,9 @@ export function SuccessStep({ onGetAccess, chosen }: {
   const [attempted, setAttempted] = useState(false);
   const filled = (v: string) => v.trim().length > 0;
   const problems: Record<string, string> = {
-    // Only while the in-store branch is mounted — a required field that is not
+    // Only while the detail groups are mounted — a required field that is not
     // on screen produces a message nobody can act on.
-    ...(idv === 'instore' ? {
+    ...(detailsShown ? {
       mailAddress: filled(mailAddress) ? '' : 'Enter your mailing address',
       // Keyed off the ADDRESS, not off whether the three are on screen. Keying
       // it off visibility would read the pre-click render, where the reveal has
@@ -201,6 +239,24 @@ export function SuccessStep({ onGetAccess, chosen }: {
    */
   const rootRef = useRef<HTMLDivElement>(null);
   const [failures, setFailures] = useState(0);
+
+  /* Seed the fields from the scan whenever one completes. It OVERWRITES on
+     purpose: the whole point of verification is that the card is the source of
+     truth, and "Edit" is the documented way to disagree with it. Keyed on `idv`
+     alone, so editing afterwards does not re-run it. */
+  useEffect(() => {
+    if (idv !== 'complete') return;
+    setMailAddress(IDV_SOURCE.mailing.address);
+    setMailCity(IDV_SOURCE.mailing.city);
+    setMailState(IDV_SOURCE.mailing.state);
+    setMailZip(IDV_SOURCE.mailing.zip);
+    setMailPicked(true);
+    setDlNumber(IDV_SOURCE.licence.number);
+    setDlState(IDV_SOURCE.licence.state);
+    setDlExp(IDV_SOURCE.licence.exp);
+    setMailEditing(false);
+    setDlEditing(false);
+  }, [idv]);
   const submit = () => {
     setAttempted(true);
     setAttemptedReveal(true);
@@ -366,18 +422,31 @@ export function SuccessStep({ onGetAccess, chosen }: {
       )}
 
 
-      {/* Mailing address and licence belong to the in-store branch only —
-          they are what the counter needs. Additional Information is NOT in
-          here: Figma 8507-25408 has it on the page from the start.
+      {/* Mailing address and licence, in whichever form the current state calls
+          for. Additional Information is NOT in here: Figma 8507-25408 has it on
+          the page from the start.
 
           UNMOUNTED, not hidden — but every value they edit is state on this
           component, so switching back and forth keeps whatever was typed. */}
-      {idv === 'instore' && (
+      {detailsShown && (
         <>
+        {idv === 'complete' && (
+          <p className="rf-sx-idv-current">
+            For the purpose of important notifications, please make sure the address captured from
+            your license is current.
+          </p>
+        )}
+
         {/* Mailing address first: it is the one most tenants will fill, and the
             licence group reads as a follow-up rather than a gate. */}
         <section className="rf-sx-extra">
           <h3 className="rf-sx-extra-title">Mailing Address</h3>
+          {mailReadOnly ? (
+            <div className="rf-sx-readout">
+              <p className="rf-sx-readout-val">{IDV_SOURCE.mailing.line}</p>
+              <button type="button" className="rf-sx-edit" onClick={() => setMailEditing(true)}>Edit</button>
+            </div>
+          ) : (
           <div className="rf-sx-fields">
             <AddressAutocomplete
               value={mailAddress}
@@ -405,11 +474,25 @@ export function SuccessStep({ onGetAccess, chosen }: {
               </>
             )}
           </div>
+          )}
         </section>
 
         {/* Figma 10078-25737 — three equal columns, all three required. */}
         <section className="rf-sx-extra">
           <h3 className="rf-sx-extra-title">Driver&rsquo;s Licence</h3>
+          {dlReadOnly ? (
+            <div className="rf-sx-readout">
+              {/* Three lines, as the frame has them — and the app's own wording:
+                  the full state name and a written-out date, neither of which the
+                  two inputs behind this hold. */}
+              <p className="rf-sx-readout-val">
+                {IDV_SOURCE.licence.number}<br />
+                {IDV_SOURCE.licence.stateLabel}<br />
+                {IDV_SOURCE.licence.expLabel}
+              </p>
+              <button type="button" className="rf-sx-edit" onClick={() => setDlEditing(true)}>Edit</button>
+            </div>
+          ) : (
           <div className="rf-sx-fields">
             <div className="rf-sx-grid3">
               <FormField
@@ -449,6 +532,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
               />
             </div>
           </div>
+          )}
         </section>
         </>
       )}

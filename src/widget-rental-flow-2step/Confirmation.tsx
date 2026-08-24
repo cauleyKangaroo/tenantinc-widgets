@@ -64,12 +64,6 @@ export interface ConfirmationProps {
   /** Operator-editable success heading (already resolved for this kind by the
    *  parent). Falls back to the built-in reservation/rental copy. */
   confirmedHeading?: string;
-  /** Who the agreement is with — full name, as entered. Rendered only when set,
-   *  so the nonce-backed page (which carries a first name only) is unchanged. */
-  tenantName?: string;
-  tenantEmail?: string;
-  /** Already display-formatted by the caller. */
-  tenantPhone?: string;
   /**
    * Lease id. Deliberately NOT shown as the access code: it opens no gate, and
    * printing it in that card — with a QR — would send someone to the keypad
@@ -94,16 +88,6 @@ const WHATS_NEXT = [
   'If you decide you need a different unit, we can easily make that change for you.',
 ];
 
-/** Local and hand-drawn, unlike the four rows traced from the frame — the
- *  tenant row has no Figma counterpart yet. Worth tracing when it does. */
-function UserIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="8" r="3.6" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M5 20c0-3.31 3.13-6 7-6s7 2.69 7 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
 function GoogleG() {
   return (
     <svg width="26" height="26" viewBox="0 0 48 48" aria-hidden="true">
@@ -169,9 +153,6 @@ export function Confirmation({
   appleWalletUrl,
   googleWalletUrl,
   confirmedHeading,
-  tenantName,
-  tenantEmail,
-  tenantPhone,
   reference,
 }: ConfirmationProps) {
   const isReservation = kind === 'reservation';
@@ -312,19 +293,14 @@ export function Confirmation({
                 {moveInDate && <p><b>Move-in Date:</b> {moveInDate}</p>}
               </div>
             </div>
-            {/* Who and what, when we know it. The nonce-backed page carries a
-                first name only and passes none of this, so it renders exactly
-                as before — this block belongs to the in-place rental, which
-                holds the details the shopper just entered. */}
-            {(tenantName || tenantEmail || tenantPhone || reference) && (
+            {/* Name, email and phone used to sit here behind a user avatar.
+                Removed: none of the three is in the frame, and the shopper has
+                just typed all of them two screens ago. The lease reference is
+                not a person, so what is left carries no avatar — it is indented
+                to the other rows' text instead. */}
+            {reference && (
               <div className="rfc-info-tenant">
-                <UserIcon className="rfc-info-ico" />
-                <div>
-                  {tenantName && <p><b>Name:</b> {tenantName}</p>}
-                  {tenantEmail && <p className="rfc-info-break"><b>Email:</b> {tenantEmail}</p>}
-                  {tenantPhone && <p><b>Phone:</b> {tenantPhone}</p>}
-                  {reference && <p className="rfc-info-break"><b>Reference:</b> {reference}</p>}
-                </div>
+                <p className="rfc-info-break"><b>Reference:</b> {reference}</p>
               </div>
             )}
             {((officeHours && officeHours.length > 0) || (gateHours && gateHours.length > 0)) && (

@@ -1508,10 +1508,6 @@ export function RentalFlow2Step({
               kind="rental"
               name={finalizing?.firstName}
               phone={rentedContact?.phone ?? contact?.phone}
-              tenantName={[rentedContact?.first ?? contact?.first, rentedContact?.last ?? contact?.last]
-                .filter(Boolean).join(' ') || undefined}
-              tenantEmail={rentedContact?.email ?? contact?.email}
-              tenantPhone={formatUsPhone(rentedContact?.phone ?? contact?.phone)}
               // Only after a real lease: there is nothing to reference otherwise.
               reference={rental?.leaseId}
               unitNumber={staticUnitNumber}

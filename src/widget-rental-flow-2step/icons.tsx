@@ -1,4 +1,5 @@
 import React from 'react';
+import { CloseSolidIcon } from '@shared/ui';
 
 // Check-tick — green validation mark inside a filled field, and the tick shown
 // in the "renting as a business" checkbox when checked.
@@ -58,30 +59,11 @@ export function CalendarIcon({ size = 24, className }: { size?: number; classNam
  * Bounds are 6→18 grown by half the 2.2 stroke at each end (round caps), giving
  * 4.9 → 19.1 = 14.2.
  */
+/* The kit's mark, re-exported at this module's name so the flow's two other
+   modals keep their import. One definition: the geometry is Figma's exact
+   filled path, which @shared/ui already carried. */
 export function CloseIcon({ size = 18, className }: { size?: number; className?: string }) {
-  /* The exact export from Figma (node 8509:35699 > Icon), which is a FILLED
-     mark, not a stroked one — its arms are ~1.28px thick in an 18px box with
-     mitred ends. The hand-drawn version this replaces was a 2.2px round-capped
-     stroke in a 14.2-unit viewBox, so at size=18 the browser scaled the stroke
-     to 2.79px: the same footprint drawn more than twice as heavy, which read as
-     an oversized X beside the lighter one in the frame. Filled scales cleanly,
-     so the 14px one in the lease modal stays in proportion. */
-  return (
-    <svg
-      className={className}
-      width={size}
-      height={size}
-      viewBox="0 0 18 18"
-      fill="none"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path
-        d="M18 1.81286L16.1871 0L9 7.18714L1.81286 0L0 1.81286L7.18714 9L0 16.1871L1.81286 18L9 10.8129L16.1871 18L18 16.1871L10.8129 9L18 1.81286Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
+  return <CloseSolidIcon size={size} className={className} />;
 }
 
 // ── Step 2 icons — exact Figma (Pika) vectors, currentColor stroke/fill. ────
