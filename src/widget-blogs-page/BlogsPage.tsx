@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './BlogsPage.css';
 import { ShareIcon, FilterHorizontalIcon, SearchIcon, PillRemoveIcon, CloseIcon } from './icons';
 import { BLOG_IMAGES, cover } from '@shared/demoImages';
+import { Breadcrumb } from '@shared/Breadcrumb';
 import { hasCollectionsApi, logSource } from '@shared/dudaCollections';
 import { fetchBlogPosts, slugify, type BlogPostData } from '@shared/blogPosts';
 import { SOCIAL_ICONS } from '@shared/socialIcons';
@@ -22,9 +23,15 @@ import { useSocialProfiles } from '@shared/useSocialProfiles';
 // already do — see the line-clamp note on .bpg-card-title) without either one
 // having to grow a variant prop.
 //
-// Scope: filter bar + grid only. The Figma page also draws a breadcrumb and an
-// 80px "Self Storage Blogs" hero above this; those come from the Duda page,
-// which already has its own breadcrumb element and section heading.
+// Scope: filter bar + grid, PLUS the breadcrumb. The 80px "Self Storage Blogs"
+// hero above it still comes from the Duda page.
+//
+// The breadcrumb was originally left out on the grounds that the Duda page
+// "already has its own breadcrumb element". It does not — checked on the live
+// site — so the widget draws it (9340:23373). Note the frame puts the trail
+// ABOVE the hero while this widget renders below it: if the hero is a Duda
+// section above this element, either move this widget above that section or set
+// `showBreadcrumb={false}` and use a Duda element instead.
 //
 // KNOWN CEILING — the lazy load is client-side. `readCollection` does a single
 // `.get()` and Duda's pageSize is 100 (see @shared/dudaCollections), so this
@@ -327,6 +334,24 @@ export interface BlogsPageProps {
   /** Duda collection name (case-sensitive). */
   collection?: string;
   /**
+   * Breadcrumb (Figma 9340:23373). Named to match #16 blog-post's props, so the
+   * two blog widgets are configured the same way.
+   *
+   * DESKTOP ONLY — hidden under 900px in CSS. There is no mobile frame for it.
+   *
+   * The scope note at the top of this file says the Duda page owns this trail.
+   * That turned out not to be the case on the live site, so the widget draws it
+   * — but it draws it at the TOP OF ITSELF, and the frame puts the trail above
+   * the 80px "Self Storage Blogs" hero. If that hero is a Duda section sitting
+   * above this widget, move the widget above it (or turn this off and use a Duda
+   * element) or the trail will sit under the heading instead of over it.
+   */
+  showBreadcrumb?: boolean;
+  homeLabel?: string;
+  homeHref?: string;
+  /** The trailing crumb — this page, so it is not a link. */
+  listingLabel?: string;
+  /**
    * Path of the blog page the post slugs hang off. Cards link at
    * `${blogBasePath}/${slug}`, which is the URL #16 blog-post reads back — keep
    * the two in step or the cards will link past the article page.
@@ -412,6 +437,10 @@ function collectTags(posts: BlogPostData[]): string[] {
 export function BlogsPage({
   collection = 'BlogPosts',
   blogBasePath = '/blogs',
+  showBreadcrumb = true,
+  homeLabel = 'Home',
+  homeHref = '/',
+  listingLabel = 'Storage Blogs',
   searchPlaceholder = 'Search Blog',
   visibleTagCount,
   batchSize,
@@ -620,12 +649,22 @@ export function BlogsPage({
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  /* Two crumbs: Home, then this page. The trailing one carries no href —
+     Breadcrumb drops it on the last item regardless. Rendered in the loading
+     branch too: both labels are constants, so showing them costs no shift and
+     gives the reader something true while the posts resolve (the same reasoning
+     BlogsListing's skeleton uses for its heading). */
+  const crumbs = showBreadcrumb
+    ? <Breadcrumb className="bpg-crumbs" items={[{ label: homeLabel, href: homeHref }, { label: listingLabel }]} />
+    : null;
+
   // Still reading: skeleton once past the delay, nothing before it — never paint
   // the demo constants first.
   if (loading) {
     if (!pastDelay) return null;
     return (
       <div className="bpg-wrapper">
+        {crumbs}
         <BarSkeleton />
         <div className="bpg-grid">
           <CardSkeletons count={Math.max(MIN_SKELETON_CARDS, perBatch)} />
@@ -642,6 +681,7 @@ export function BlogsPage({
 
   return (
     <div className="bpg-wrapper">
+      {crumbs}
 
       {/* ── Filter / search bar ─────────────────────────────────────────────── */}
       <div className="bpg-bar">

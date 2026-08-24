@@ -151,7 +151,11 @@ export function Breadcrumb({ items, variant = 'default', className }: Breadcrumb
         // sits OUTSIDE that group — so there is no "/" between the icon and the
         // crumb after it, only between the crumbs themselves. Reproduced rather
         // than tidied: it is what the frame draws.
-        const showSep = i > 0 && !(hero && i === 1);
+        // The `> 2` guard covers a trail the frame does not draw: with only a
+        // home icon and the current page, dropping that separator would run
+        // the two together as "<icon> Some Page". The rule exists to sit an
+        // icon beside a RUN of ellipses, not to remove the only separator.
+        const showSep = i > 0 && !(hero && i === 1 && items.length > 2);
         const label = hero && i === 0
           ? <HomeGlyph className="ti-crumb-home" />
           : c.label;
