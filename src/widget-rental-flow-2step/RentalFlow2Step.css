@@ -1692,6 +1692,27 @@
    same reason as the size above: .hb-money is shared with #14. */
 .rf-wrapper .hb-money { gap: 6px; }
 
+/* ── The rail hero's address never wraps ──────────────────────────────────
+   One line, ellipsised. "10326 Foster Rd.,, Bellflower, CA 90706" is long
+   enough to take two lines in a 422px rail and most of three in the mobile
+   sheet, which pushed the phone row down and unbalanced the hero.
+
+   `white-space: nowrap` on the span is what does it; min-width:0 is what lets
+   the flex item shrink below its content so text-overflow has something to
+   trim. It also neutralises the `overflow-wrap: anywhere` set elsewhere for
+   the old wrapping behaviour — nowrap suppresses line breaking outright, so
+   those rules simply stop applying rather than fighting this.
+
+   Scoped to .rf-wrapper: .ts-card-line is SummaryRail's, shared with #14,
+   whose card is wider and wraps happily. */
+.rf-wrapper .ts-card-line { flex-wrap: nowrap; }
+.rf-wrapper .ts-card-line > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* --- Mobile: sticky top cost bar + drop-down rail sheet ------------------ */
 .rfm-top { position: sticky; top: 0; z-index: 50; }
 .rfm-bar {
