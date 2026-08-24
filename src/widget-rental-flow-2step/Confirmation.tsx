@@ -48,6 +48,10 @@ export interface ConfirmationProps {
   onRetry?: () => void;
   /** Operator's review link — the review card renders only when set. */
   reviewUrl?: string;
+  /** ID verification was not completed. The code card is replaced by a notice
+   *  rather than dropped: an empty space where a code should be reads as a bug,
+   *  where the notice says why and what to do about it (Figma 8754-50358). */
+  idUnverified?: boolean;
   /** Backend confirmed an SMS was sent — only then do we claim it + show Resend. */
   smsSent?: boolean;
   /** Real resend handler — the Resend control renders only when provided. */
@@ -154,6 +158,7 @@ export function Confirmation({
   rentUrl,
   onRetry,
   reviewUrl,
+  idUnverified,
   // Kept in the signature, deliberately unused: the sent bar renders
   // unconditionally for review (see the note where it renders) and this is the
   // gate that has to come back before launch. Deleting it would erase the
@@ -238,8 +243,10 @@ export function Confirmation({
                 a made-up unit number on a live page, so it wants the same gating
                 as the SMS line before launch. */}
             <div className="rfc-space-head">{spaceTitle}</div>
-            <div className="rfc-code-card">
-            {entry === 'smart' ? (
+            <div className={`rfc-code-card${idUnverified ? ' rfc-code-card--unverified' : ''}`}>
+            {idUnverified ? (
+              <p className="rfc-code-blocked">In-Store ID verification is required to access your space.</p>
+            ) : entry === 'smart' ? (
               <div className="rfc-code-top">
                 <span className="rfc-code-label">Smart Entry System</span>
                 <span className="rfc-code">App access enabled</span>

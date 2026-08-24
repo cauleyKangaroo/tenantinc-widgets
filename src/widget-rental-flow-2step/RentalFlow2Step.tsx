@@ -853,6 +853,11 @@ export function RentalFlow2Step({
   const [payError, setPayError] = useState<string | undefined>(undefined);
   /** "Get Access" pressed on the static post-purchase form. */
   const [accessGranted, setAccessGranted] = useState(false);
+  /* Whether the shopper cleared ID verification on the step before. Held here
+     rather than read back out of SuccessStep, which unmounts the moment access
+     is granted. Starts true so nothing changes for a flow that never renders
+     that step. */
+  const [idVerified, setIdVerified] = useState(true);
   // Office/Gate hours fallback for the confirmation page: the immutable success
   // snapshot occasionally predates propertyInfo loading, so it can lack hours.
   // Hours are read-only + non-sensitive (unlike the money block), so it's safe
@@ -1516,6 +1521,7 @@ export function RentalFlow2Step({
               confirmedHeading={rentalHeading}
               facilityPhone={formatUsPhone(propertyInfo?.phone)}
               spaceName={selection?.size}
+              idUnverified={!idVerified}
               propertyName={propertyInfo?.name}
               propertyAddress={propertyInfo?.address}
               // Same fallback the real confirmation page uses: the property may
@@ -1545,6 +1551,7 @@ export function RentalFlow2Step({
                     mailingAddress: details.mailingAddress,
                   });
                 }
+                setIdVerified(details?.idVerified ?? true);
                 setAccessGranted(true);
               }}
             />

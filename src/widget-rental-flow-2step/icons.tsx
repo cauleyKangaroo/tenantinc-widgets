@@ -59,16 +59,27 @@ export function CalendarIcon({ size = 24, className }: { size?: number; classNam
  * 4.9 → 19.1 = 14.2.
  */
 export function CloseIcon({ size = 18, className }: { size?: number; className?: string }) {
+  /* The exact export from Figma (node 8509:35699 > Icon), which is a FILLED
+     mark, not a stroked one — its arms are ~1.28px thick in an 18px box with
+     mitred ends. The hand-drawn version this replaces was a 2.2px round-capped
+     stroke in a 14.2-unit viewBox, so at size=18 the browser scaled the stroke
+     to 2.79px: the same footprint drawn more than twice as heavy, which read as
+     an oversized X beside the lighter one in the frame. Filled scales cleanly,
+     so the 14px one in the lease modal stays in proportion. */
   return (
     <svg
       className={className}
       width={size}
       height={size}
-      viewBox="4.9 4.9 14.2 14.2"
+      viewBox="0 0 18 18"
       fill="none"
       aria-hidden="true"
+      focusable="false"
     >
-      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path
+        d="M18 1.81286L16.1871 0L9 7.18714L1.81286 0L0 1.81286L7.18714 9L0 16.1871L1.81286 18L9 10.8129L16.1871 18L18 16.1871L10.8129 9L18 1.81286Z"
+        fill="currentColor"
+      />
     </svg>
   );
 }
