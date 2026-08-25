@@ -941,8 +941,16 @@ export function RentalFlow2Step({
   holdRef.current = hold;
   /** True while the arrival hold is in flight — the form waits on it. */
   const [holding, setHolding] = useState(false);
-  // Guards re-entry without joining the dependency list, which would restart
-  // the effect the moment it set its own state.
+  /**
+   * Stops the effect re-entering while its own POST is in flight.
+   *
+   * A ref rather than state, because state would join the dependency list and
+   * restart the effect the moment it flagged that it was running. Lowered as
+   * soon as the attempt ends, either way: on success the guard's own `hold`
+   * check takes over, and leaving it up would latch out every later attempt —
+   * including Reacquire after an expiry, which clears the hold and would then
+   * meet a latch that never lifted.
+   */
   const holdingRef2 = useRef(false);
   const holdContextRef = useRef<{ key: string; ctx: RentalCtx } | undefined>(undefined);
 
@@ -1009,6 +1017,12 @@ export function RentalFlow2Step({
         }
         setPayError('We couldn’t secure this space. Please return and choose another available space.');
       }
+      // Down again once the attempt ends, either way. On success the `hold`
+      // check in the guard prevents re-entry, so this only ever needs to cover
+      // the in-flight window — and leaving it up would latch out every later
+      // attempt, including the Reacquire button after an expiry, which clears
+      // the hold and would then find a guard that never lifted.
+      holdingRef2.current = false;
       if (!cancelled) setHolding(false);
     })();
     return () => { cancelled = true; };
