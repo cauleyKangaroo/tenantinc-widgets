@@ -56,13 +56,35 @@ function ensureStyles() {
   width: auto; min-width: 0; height: auto; min-height: 0; cursor: pointer;
   -webkit-tap-highlight-color: transparent; }
 .ti-crumb-sep { flex-shrink: 0; color: #101318; }
-.ti-crumbs--hero { gap: 4px; font-size: 14px; line-height: 1.25; color: #fff; flex-wrap: nowrap; min-width: 0; }
+/* 2px, not the page-top trail's 4px. A truncated crumb already leaves a blank of
+   up to one character between its ellipsis and the next slash — the leftover when
+   text-overflow clips at a whole character but flex sized the box to a fraction.
+   Nothing in CSS can close that, so the gaps either side of the slash are halved
+   instead, which is the only part of the space that IS ours to give back. */
+.ti-crumbs--hero { gap: 2px; font-size: 14px; line-height: 1.25; color: #fff; flex-wrap: nowrap; min-width: 0; }
 .ti-crumb-nowrap { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* nowrap + the ellipsis above: on a phone the trail sits inside the hero image
    with the expand button beside it, so a long final crumb has to give way
    rather than wrap onto a second line over the photo. */
-.ti-crumbs--hero .ti-crumb { gap: 4px; min-width: 0; }
-.ti-crumbs--hero .ti-crumb:last-child { overflow: hidden; }
+.ti-crumbs--hero .ti-crumb { gap: 2px; min-width: 0; overflow: hidden; }
+/* EVERY hero label gets the nowrap + ellipsis treatment, not just the last one.
+   collapseMiddle keeps the last TWO crumbs named, so the city sits second from
+   the end with its real name — and a two-word city ("Chula Vista") broke between
+   its words, making that crumb two lines tall. The row is align-items:center, so
+   the trail then looked like it had stacked, with the short crumbs floating
+   against a tall one and dead space to the right.
+   The overflow above is on every crumb for the same reason: min-width:0 lets a
+   crumb shrink below its content, but without overflow the text simply spilled
+   out of its box and ran into the next crumb past the slash. */
+.ti-crumbs--hero .ti-crumb > :not(.ti-crumb-slash) {
+  display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* An ellipsis crumb is already as short as a crumb goes, so it must not take a
+   share of the shrinking — compressing "..." only clips it to ".." or ".", which
+   reads as a rendering fault rather than as a collapsed step. The named crumbs
+   absorb it instead, longest first, which is what flex shrinking does by size. */
+.ti-crumbs--hero .ti-crumb--ellipsis { flex: 0 0 auto; }
 /* No underline here, unlike the page-top trail: over a photo it reads as
    clutter, and the frame draws none.
    Pinned across hover/focus/active as well. The base rule flips decoration on
@@ -176,8 +198,16 @@ export function Breadcrumb({ items, variant = 'default', className }: Breadcrumb
         // linked, and still NAMED for a screen reader via aria-label below.
         const showSep = i > 0;
         const label = hero && i === 0 && items.length > 2 ? '...' : c.label;
+        // Collapsed steps — either shortened by `collapseMiddle` or by the rule
+        // above — are pinned against flex shrinking, so the named crumbs give way
+        // first. Read off the RESOLVED label so both routes to an ellipsis are
+        // caught, not just the one this component applies.
+        const isEllipsis = hero && label === '...';
         return (
-          <span className="ti-crumb" key={`${c.label}-${i}`}>
+          <span
+            className={`ti-crumb${isEllipsis ? ' ti-crumb--ellipsis' : ''}`}
+            key={`${c.label}-${i}`}
+          >
             {showSep && (hero
               ? <span className="ti-crumb-slash" aria-hidden="true">/</span>
               : <ChevronRight className="ti-crumb-sep" />)}
