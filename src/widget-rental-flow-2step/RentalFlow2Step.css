@@ -2072,3 +2072,14 @@
 /* An email or a lease id has no spaces to break at, so a long one would push
    the column wide instead of wrapping. */
 .rfc-info-break { overflow-wrap: anywhere; }
+
+/* "Securing your space…" — stands in for step 1 while the arrival hold is in
+   flight, so nobody fills a form for a unit that turns out to be gone. Uses the
+   card's own shell so the panel does not jump size when the form replaces it. */
+.rf-holding { min-height: 220px; }
+.rf-holding-note {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--hb-grayscale-medium, #637381);
+}
