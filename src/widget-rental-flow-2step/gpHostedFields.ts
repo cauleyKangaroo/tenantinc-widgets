@@ -38,7 +38,7 @@ interface GlobalPaymentsApi {
   ui: {
     form(options: {
       fields: Record<string, unknown>;
-      styles?: Record<string, Record<string, string>>;
+      styles?: Record<string, Record<string, string> | string>;
     }): UIFormLike;
   };
 }
@@ -91,6 +91,16 @@ export interface MountHostedCardOptions {
   onError(message: string): void;
   /** All frames have registered; the caller can stop showing a placeholder. */
   onReady(): void;
+  /**
+   * A hosted field has been typed in, and whether what is in it now validates.
+   *
+   * GP posts `card-number-test` / `card-expiration-test` on EVERY input, not
+   * just on success — the invalid branch posts `{ valid: false }` too — so this
+   * is the only view the parent gets of a frame's contents. It is enough to
+   * tell a filled field from an empty one, which is what the floating label
+   * needs; it is not enough to see the value, and nothing here ever should.
+   */
+  onFieldValid?(field: 'number' | 'expiry', valid: boolean): void;
 }
 
 /**
@@ -99,7 +109,19 @@ export interface MountHostedCardOptions {
  * so `var(--hb-field-text)` would resolve to nothing. Kept in step with
  * `.rf-cardrow-input` in screens.css — if that changes, change this too.
  */
-const FIELD_STYLES: Record<string, Record<string, string>> = {
+const FIELD_STYLES: Record<string, Record<string, string> | string> = {
+  /*
+   * The webfont, INSIDE the frame.
+   *
+   * field.html is served from GP's origin, so it inherits nothing from this
+   * page — not our @font-face, not the family on .rf-wrapper. `font-family:
+   * inherit`, which is what this used to say, therefore resolved against GP's
+   * own document and landed on its default, which is why the digits were not
+   * Montserrat while everything around them was. The frame has to fetch the
+   * font itself.
+   */
+  '@import': "url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap')",
+
   '#secure-payment-field': {
     // The frame is exactly the box the value occupies, and .rf-gpfield has
     // already pushed that box down to clear the floated label. Repeating the
@@ -119,9 +141,29 @@ const FIELD_STYLES: Record<string, Record<string, string>> = {
     'box-shadow': 'none',
     background: 'transparent',
     color: '#101318',
-    'font-family': 'inherit',
-    'font-size': '16px',
+    // Named, not `inherit` — see the @import above. The stack after it is the
+    // kit's own, so an environment that cannot fetch the webfont degrades the
+    // same way the rest of the flow does rather than to GP's default.
+    'font-family': "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    /*
+     * Pinned, and the browser told to leave it alone.
+     *
+     * The digits were shrinking as the card number filled. These frames are
+     * ~20px tall and only as wide as their cell, and a narrow iframe is exactly
+     * what triggers mobile text auto-sizing — the engine rescales text it
+     * decides is too small or too wide for its block. `text-size-adjust: 100%`
+     * is the switch for that, and the two vendor spellings are both still
+     * needed. `!important` because GP's own sheet loads after this one.
+     */
+    'font-size': '16px !important',
+    '-webkit-text-size-adjust': '100%',
+    '-moz-text-size-adjust': '100%',
+    'text-size-adjust': '100%',
     'line-height': '20px',
+    // A shrink-to-fit input would otherwise scale its own text down as the
+    // value grows past the box; let it scroll instead, as a plain input does.
+    'text-overflow': 'clip',
+    'min-width': '0',
   },
   // Focus is drawn by the row's own border, exactly as it is for the plain
   // inputs — a second ring inside the frame would sit inside the first.
@@ -187,6 +229,15 @@ export async function mountHostedCard(
     });
 
     form.ready(() => opts.onReady());
+
+    if (opts.onFieldValid) {
+      const report = (field: 'number' | 'expiry') => (resp: unknown) => {
+        const valid = !!(resp as { valid?: boolean } | undefined)?.valid;
+        opts.onFieldValid?.(field, valid);
+      };
+      form.on('card-number-test', report('number'));
+      form.on('card-expiration-test', report('expiry'));
+    }
 
     form.on('token-success', (resp) => {
       /*

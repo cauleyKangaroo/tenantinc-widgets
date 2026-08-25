@@ -274,6 +274,46 @@ export function CardForm({ total, onPay, busy, gpPublicKey }: {
   const uid = useId().replace(/:/g, '');
   const numId = `gp-num-${uid}`, expId = `gp-exp-${uid}`, subId = `gp-sub-${uid}`;
 
+  /**
+   * Whether each hosted cell's label should float.
+   *
+   * It used to be pinned for the whole of hosted mode, so both frames sat there
+   * looking permanently focused beside a resting CVV. It cannot be left to CSS
+   * either: the value is in GP's frame, where `:placeholder-shown` cannot see
+   * it, and a label that dropped back over live digits is worse than one stuck
+   * up. So the two halves of "float it" are tracked by hand.
+   *
+   * FOCUS. A cross-origin frame tells us nothing about its contents, but when
+   * it takes focus the PARENT window blurs and `document.activeElement` becomes
+   * the <iframe> element — enough to say which of the two has the caret.
+   *
+   * CONTENT. GP posts card-number-test / card-expiration-test on every input,
+   * so `valid` standing true is our only sight of a filled field.
+   */
+  const [gpFocus, setGpFocus] = useState({ number: false, expiry: false });
+  const [gpFilled, setGpFilled] = useState({ number: false, expiry: false });
+  useEffect(() => {
+    if (!hosted) return undefined;
+    const onWindowBlur = () => {
+      const el = document.activeElement;
+      if (!el || el.tagName !== 'IFRAME') return;
+      setGpFocus({
+        number: !!document.getElementById(numId)?.contains(el),
+        expiry: !!document.getElementById(expId)?.contains(el),
+      });
+    };
+    // The page itself has the caret again, so neither frame does.
+    const onWindowFocus = () => setGpFocus({ number: false, expiry: false });
+    window.addEventListener('blur', onWindowBlur);
+    window.addEventListener('focus', onWindowFocus);
+    return () => {
+      window.removeEventListener('blur', onWindowBlur);
+      window.removeEventListener('focus', onWindowFocus);
+    };
+  }, [hosted, numId, expId]);
+  const floatNumber = hosted && (gpFocus.number || gpFilled.number);
+  const floatExpiry = hosted && (gpFocus.expiry || gpFilled.expiry);
+
   /* The token handler is rebuilt on every keystroke in the billing fields, but
      the frames are mounted ONCE — remounting would wipe the card mid-entry. So
      the live handler is read through a ref. */
@@ -369,6 +409,9 @@ export function CardForm({ total, onPay, busy, gpPublicKey }: {
       onReady: () => { if (!dead) setGpReady(true); },
       onToken: (t) => onTokenRef.current(t),
       onError: (m) => { if (!dead) setGpError(m); },
+      onFieldValid: (field, valid) => {
+        if (!dead) setGpFilled((f) => (f[field] === valid ? f : { ...f, [field]: valid }));
+      },
     }).then((h) => {
       if (dead) { h?.dispose(); return; }
       handle = h;
@@ -416,7 +459,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey }: {
               aria-label="Card Number (required)"
             />
           )}
-          <label className={`rf-cardcell-label${hosted ? ' rf-cardcell-label--pinned' : ''}`}>Card Number<span className="rf-req">*</span></label>
+          <label className={`rf-cardcell-label${floatNumber ? ' rf-cardcell-label--pinned' : ''}`}>Card Number<span className="rf-req">*</span></label>
         </span>
 
         {/* Expiry and CVV are wrapped together so they move to a second line as
@@ -424,7 +467,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey }: {
             and there is a band of widths where CVV sits alone under a row that
             still has expiry on it. */}
         <span className="rf-cardrow-short">
-          <span className="rf-cardcell rf-cardcell--exp">
+          <span className={`rf-cardcell rf-cardcell--exp${hosted ? ' rf-cardcell--exp-wide' : ''}`}>
             <span id={expId} className={`rf-gpfield${hosted === false ? ' rf-gpfield--off' : ''}`} />
             {hosted === false && (
               <input
@@ -439,7 +482,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey }: {
               />
             )}
             {/* GP's frame renders MM / YYYY. */}
-            <label className={`rf-cardcell-label${hosted ? ' rf-cardcell-label--pinned' : ''}`}>{hosted ? 'MM / YYYY' : 'MM / YY'}<span className="rf-req">*</span></label>
+            <label className={`rf-cardcell-label${floatExpiry ? ' rf-cardcell-label--pinned' : ''}`}>{hosted ? 'MM / YYYY' : 'MM / YY'}<span className="rf-req">*</span></label>
           </span>
 
           <span className="rf-cardcell rf-cardcell--cvv">

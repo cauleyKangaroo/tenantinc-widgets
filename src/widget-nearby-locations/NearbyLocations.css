@@ -553,10 +553,15 @@
 /* Overrides the image block's own gradient background, keeping its 234px height */
 .nl-skeleton-card .nl-card-image { border-radius: 0; }
 
-/* Mirrors .nl-card-body's 16px column gap. The promo and .nl-spaces are siblings
-   in the real card and get that gap from the body itself; the skeleton wraps them
-   in one element, so without this the body's gap lands around the pair and the
-   promo bar touches the first space row. */
+/* The skeleton's promo bar and space rows are wrapped in one element, so they are
+   ONE child of .nl-card-body and its `gap: 16px` cannot fall between them — the
+   44px promo bar ends up flush against the first space row. Restating the column
+   here puts the gap back where the real card has it.
+
+   16px is .nl-card-body's own gap, deliberately: in a finished card `.nl-promo`
+   and `.nl-spaces` are direct children of that flex column, so matching it is what
+   keeps the reservation EXACT and the hand-off free of layout shift. Change one
+   and the other has to follow. */
 .nl-skeleton-spaces {
   display: flex;
   flex-direction: column;

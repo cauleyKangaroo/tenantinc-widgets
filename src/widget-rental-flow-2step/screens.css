@@ -478,6 +478,11 @@
   min-width: 0;
 }
 .rf-cardcell--exp { flex: 0 0 88px; }
+/* GP's frame is labelled MM / YYYY where ours is MM / YY, and the label is
+   absolutely positioned with `white-space: nowrap` — so at its resting 16px it
+   ran straight out of the 88px cell and under CVV. Only wide in hosted mode;
+   the plain input keeps the narrower cell its shorter label fits. */
+.rf-cardcell--exp-wide { flex: 0 0 116px; }
 .rf-cardcell--cvv { flex: 0 0 58px; }
 
 .rf-cardrow-input {
@@ -1150,10 +1155,14 @@
 
 /*
    A hosted cell's value lives in the iframe, so :placeholder-shown can never
-   see it and the label would sit centred on top of the digits. There is no
-   empty state to animate back to either — the frame is mounted or it is not —
-   so the label is simply pinned where the plain input's floats to. Same
-   numbers as the :focus/:not(:placeholder-shown) rule above, deliberately.
+   see it and a label left to CSS would sit centred on top of the digits.
+
+   This used to be applied for the whole of hosted mode, which left both frames
+   looking permanently focused beside a resting CVV. It is applied from FIRST
+   FOCUS now instead — see gpTouched in PaymentSection — so the untouched state
+   matches every other field and the label still clears the value before one can
+   exist. Same numbers as the :focus/:not(:placeholder-shown) rule above,
+   deliberately, and a transition so it travels rather than jumps.
 */
 .rf-cardcell-label--pinned {
   transform: translateY(-18px);

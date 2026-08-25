@@ -165,7 +165,10 @@ export function SummaryRail({
                 own rule and fill, so a chip here would double the border. */}
             <span className="ts-pay-buttons">
               <span className="ts-pay-box"><ApplePayMark /></span>
-              <span className="ts-pay-box ts-pay-box--pill"><GooglePayMark /></span>
+              {/* The same chip as the four card marks and Apple Pay — it used
+                  to carry a --pill modifier that rounded it to 12px against
+                  their 2.7px, so the row ended on an odd shape. */}
+              <span className="ts-pay-box"><GooglePayMark /></span>
             </span>
           </div>
         )}
