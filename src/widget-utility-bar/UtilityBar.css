@@ -8,6 +8,11 @@
   box-sizing: border-box;
 }
 
+/* Dismissed, and not in the editor: no box at all, so the header above closes
+   up. The effect in UtilityBar.tsx hides the two host elements as well — this
+   only guarantees OUR node contributes nothing while it does. */
+.ub-wrapper--empty { display: none; }
+
 .ub-wrapper *,
 .ub-wrapper *::before,
 .ub-wrapper *::after {
