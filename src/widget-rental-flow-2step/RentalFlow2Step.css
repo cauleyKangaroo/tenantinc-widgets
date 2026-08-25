@@ -1069,7 +1069,13 @@
        scroll to it. This engages only when the rail genuinely does not fit.
        The sticky header eats into the available height too, so subtract it
        alongside the 24px above and below. */
-    max-height: calc(100vh - var(--rf-hdr-h, 100px) - 48px);
+    /* Fixed rail slot: the skeleton and the loaded rail are exactly the same
+       height, so the card cannot reflow when the quote breakdown lands —
+       overflowing content scrolls internally. Capped to the sticky window so a
+       short viewport still fits. Desktop only (>=901px); mobile/tablet untouched. */
+    height: min(684px, calc(100vh - var(--rf-hdr-h, 100px) - 48px));
+    min-height: 0;
+    max-height: none;
     overflow-y: auto;
   }
 }

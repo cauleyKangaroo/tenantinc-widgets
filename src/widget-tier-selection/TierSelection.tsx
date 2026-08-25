@@ -33,7 +33,6 @@ import type {
   TierKey, Tier, RowType, FeatureRow, O2Tier, O3Tier, O3Row, O3Weight, TierData, TierQuoteState,
 } from './types';
 import { onOpenTiers, isValidTierRequest } from '@shared/tierBus';
-import { holdTierUnit } from './api';
 
 // Branded Small/Medium/Large size illustrations served from Cloudinary — the
 // same CDN assets the live Storage Outlet site uses, so they stay out of the JS
@@ -132,11 +131,6 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
       unitId: b.unitId,
     };
   });
-  // "Most Popular" badge on Better when it's available, else the priciest
-  // available tier.
-  const availIdx = slots.map((k, i) => (bySlot[k] ? i : -1)).filter((i) => i >= 0);
-  const popularIdx = bySlot.better ? slots.indexOf('better') : (availIdx.length >= 2 ? availIdx[availIdx.length - 1] : -1);
-
   const hasKey = (k: TierKey, label: string) => !!bySlot[k]?.features.includes(label);
   const checkRows = data.featureLabels.slice(0, 6).map((label, ri) => ({
     label,
@@ -151,25 +145,25 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
     ...checkRows.map((r) => ({ ...r, type: 'check' as RowType })),
   ];
 
-  const o2: O2Tier[] = tiers.map((t, i) => ({
+  const o2: O2Tier[] = tiers.map((t) => ({
     key: t.key,
     name: t.name,
     tagline: t.tagline,
     price: t.price,
     promoRate: t.promoRate,
-    popular: i === popularIdx,
     promo: t.promo,
     soldOut: t.soldOut,
-    features: (t.features ?? []).slice(0, 5).map((label) => ({ label })),
+    // Pricing cards intentionally show only the four highest-priority website
+    // amenities. The API has already applied show_in_website + sort_order.
+    features: (t.features ?? []).slice(0, 4).map((label) => ({ label })),
   }));
 
-  const o3: O3Tier[] = tiers.map((t, i) => ({
+  const o3: O3Tier[] = tiers.map((t) => ({
     key: t.key,
     name: t.name,
     tagline: t.tagline,
     price: t.price,
     promoRate: t.promoRate,
-    popular: i === popularIdx,
     promo: t.promo,
     soldOut: t.soldOut,
   }));
@@ -380,6 +374,7 @@ export function TierSelection({
   elementId,
 }: TierSelectionProps) {
   const [selected, setSelected] = useState<TierKey>('better');
+  const [featuredTier, setFeaturedTier] = useState<TierKey>('better');
   const { ref, isMobile } = useIsMobile(MOBILE_BP);
 
   // Modal mode: closed until the Space List fires the open event, which carries
@@ -523,52 +518,23 @@ export function TierSelection({
       .then((result) => setQuotes((prev) => ({ ...prev, [key]: result })));
   }, [ctx]);
 
-  /**
-   * Select was pressed: take the hold, then go.
-   *
-   * The hold happens HERE rather than when a tier is highlighted — highlighting
-   * is browsing, and a hold is a real unit out of inventory for fifteen
-   * minutes. Merely opening the popup must not cost anyone a space.
-   *
-   * That means intercepting the anchor, because the token only exists after an
-   * async POST and the href was built before the click. The <a href> is kept so
-   * middle-click and "copy link address" still behave; a plain click comes here.
-   *
-   * NAVIGATION MIRRORS THE SPACE LIST: absolute URL on the published site,
-   * relative in the Duda editor/preview, because a programmatic
-   * window.location bypasses Duda's routing and 404s on my.duda.co.
-   *
-   * A failed hold still navigates. The rental page acquires its own when none
-   * is handed over, so a 409 costs the shopper nothing but a later countdown.
-   */
-  const holdingRef = useRef(false);
+  /** Navigate without taking inventory first. Rental Flow verifies the exact
+   * handed-off offer and owns hold creation at Step 2. Holding here made the
+   * offers endpoint omit that same unit on the destination page, which the
+   * strict correlation check correctly refused but mislabeled unavailable. */
   const onSelectClick = useCallback((key: TierKey) => (e: React.MouseEvent) => {
     // Leave the browser to handle the ways a user asks for a new tab.
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     const href = rentHrefRef.current?.(key);
     if (!href) return;
     e.preventDefault();
-    if (holdingRef.current) return; // a second click must not hold twice
-    holdingRef.current = true;
-
-    const bundle = bundlesRef.current.find((b) => b.key === key);
-    const unitId = bundle?.unitId;
     const go = (target: string) => {
       const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
       const isLive = typeof dm !== 'undefined' && dm?.getCurrentEnvironment?.() === 'live';
       window.location.href = isLive ? window.location.origin + target : target;
     };
-
-    if (inEditor || !unitId) { go(href); return; }
-    void holdTierUnit(ctx, unitId).then((h) => {
-      if (!h) { go(href); return; }
-      // The token travels in the link; heldAt is absolute, so the countdown on
-      // the rental page continues rather than restarting.
-      const sep = href.includes('?') ? '&' : '?';
-      const q = 'holdToken=' + encodeURIComponent(h.holdToken) + '&heldAt=' + h.heldAt;
-      go(href + sep + q);
-    }).catch(() => go(href));
-  }, [ctx, inEditor]);
+    go(href);
+  }, []);
 
 
 
@@ -656,8 +622,13 @@ export function TierSelection({
         const realKeys = value.bundles.map((b) => b.key);
         const handoff = tierProp && realKeys.includes(tierProp as TierKey) ? (tierProp as TierKey) : undefined;
         if (tierProp && !handoff) console.warn(`[TierSelection] handoff tier ${JSON.stringify(tierProp)} not in offers — keeping default selection`);
-        const opDefault = defaultTier && realKeys.includes(defaultTier as TierKey) ? (defaultTier as TierKey) : undefined;
-        setSelected(handoff ?? opDefault ?? (realKeys.includes('better') ? 'better' : realKeys[0]));
+        // Normalise the operator value: the content field may arrive as "Best"
+        // or with stray whitespace, while realKeys are lowercase good/better/best.
+        const normDefault = defaultTier?.trim().toLowerCase();
+        const opDefault = normDefault && realKeys.includes(normDefault as TierKey) ? (normDefault as TierKey) : undefined;
+        const initialTier = handoff ?? opDefault ?? (realKeys.includes('better') ? 'better' : realKeys[0]);
+        setSelected(initialTier);
+        setFeaturedTier(initialTier);
       } catch (err) {
         unavailable('offers fetch failed', err);
       }
@@ -688,6 +659,9 @@ export function TierSelection({
     ?? (displaySize ? `Choose a ${displaySize} Option` : 'Choose an Option');
   const urgency = urgencyProp ?? data?.urgency ?? '';
   const promo = promoProp ?? tier?.promo ?? '';
+  const effectiveAdminFeeText = mode === 'modal'
+    ? (modalFeeText ?? adminFeeText)
+    : adminFeeText;
 
   // In modal mode the shell owns the header, so the body layouts render
   // chromeless — their own heading row is suppressed to avoid a duplicate.
@@ -726,7 +700,7 @@ export function TierSelection({
     );
   } else if (variant === 'option2') {
     body = isMobile ? (
-      <Option2Mobile heading={headingMobile} urgency={urgency} adminFeeText={adminFeeText} chromeless={chromeless} />
+      <Option2Mobile heading={headingMobile} urgency={urgency} adminFeeText={effectiveAdminFeeText} chromeless={chromeless} />
     ) : (
       <Option2Layout heading={heading} subheading={subheading} urgency={urgency} adminFeeText={adminFeeText} chromeless={chromeless} />
     );
@@ -740,6 +714,7 @@ export function TierSelection({
         setSelected={setSelected}
         heading={headingMobile}
         urgency={urgency}
+        adminFeeText={effectiveAdminFeeText}
         promo={promo}
         chromeless={chromeless}
       />
@@ -817,6 +792,7 @@ export function TierSelection({
       onSelectClick,
       selected,
       setSelected,
+      featuredTier,
       quotes,
       ensureQuote,
       ctaLabel: modalCtaLabel ?? ctaLabel,
@@ -851,7 +827,7 @@ export function TierSelection({
                   heading={isMobile ? headingMobile : heading}
                   subheading={isMobile ? undefined : subheading}
                   urgency={modalShowUrgency === false ? '' : urgency}
-                  adminFeeText={modalFeeText ?? adminFeeText}
+                  adminFeeText={isMobile ? undefined : effectiveAdminFeeText}
                   onClose={() => setModalOpen(false)}
                 />
               </header>
@@ -1326,10 +1302,10 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgen
 // ── Mobile (Layout 2) ───────────────────────────────────────────────────────
 
 function MobileLayout({
-  tier, selected, setSelected, heading, urgency, promo, chromeless,
+  tier, selected, setSelected, heading, urgency, adminFeeText, promo, chromeless,
 }: {
   tier: Tier; selected: TierKey; setSelected: (k: TierKey) => void;
-  heading: string; urgency: string; promo: string; chromeless?: boolean;
+  heading: string; urgency: string; adminFeeText?: string; promo: string; chromeless?: boolean;
 }) {
   const { tiers, rows, live, rentHref, onSelectClick, ctaLabel } = useTierData();
   const [open, setOpen] = useState(false);
@@ -1461,6 +1437,8 @@ function MobileLayout({
           </div>
         ))}
       </div>
+
+      <MobileAdminFee text={adminFeeText} />
     </div>
   );
 }
@@ -1509,8 +1487,9 @@ function Option2Layout({ heading, subheading, urgency, adminFeeText, chromeless 
 }
 
 function O2Card({ card }: { card: O2Tier }) {
-  const { rentHref, onSelectClick, selected, setSelected, ctaLabel } = useTierData();
+  const { rentHref, onSelectClick, selected, setSelected, featuredTier, ctaLabel } = useTierData();
   const isSelected = selected === card.key;
+  const isFeatured = featuredTier === card.key;
   if (card.soldOut) {
     return (
       <div className="ts-o2-card ts-o2-card--soldout">
@@ -1520,7 +1499,7 @@ function O2Card({ card }: { card: O2Tier }) {
             <p className="ts-o2-tag">{card.tagline}</p>
           </div>
           <ul className="ts-o2-features ts-o2-features--soldout" aria-hidden="true">
-            {Array.from({ length: 5 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <li className="ts-o2-skel" key={i} />
             ))}
           </ul>
@@ -1539,14 +1518,14 @@ function O2Card({ card }: { card: O2Tier }) {
   }
   return (
     <div
-      className={`ts-o2-card${card.promo ? '' : ' ts-o2-card--no-promo'}${card.popular ? ' ts-o2-card--popular' : ''}${isSelected ? ' ts-o2-card--selected' : ''}`}
+      className={`ts-o2-card${card.promo ? '' : ' ts-o2-card--no-promo'}${isFeatured ? ' ts-o2-card--popular' : ''}${isSelected ? ' ts-o2-card--selected' : ''}`}
       onClick={() => setSelected?.(card.key)}
       onKeyDown={activateOnKey(() => setSelected?.(card.key))}
       role="button"
       tabIndex={0}
       aria-pressed={isSelected}
     >
-      {card.popular && <span className="ts-o2-badge">Most Popular</span>}
+      {isFeatured && <span className="ts-o2-badge">Most Popular</span>}
 
       <div className="ts-o2-card-top">
         <div className="ts-o2-card-head">
@@ -1575,6 +1554,7 @@ function O2Card({ card }: { card: O2Tier }) {
               <span className="ts-o2-promo-label ts-o2-promo-label--promo">PROMO RATE</span>
               <span className="ts-o2-strike">{priceFmt(card.price)}/mo.</span>
               <span className="ts-o2-amt">{priceFmt(card.promoRate)}</span>
+              <span className="ts-o2-price-divider" aria-hidden="true" />
             </div>
           ) : (
             <div className="ts-o2-price">
@@ -1620,15 +1600,20 @@ function O2Card({ card }: { card: O2Tier }) {
 // ── Option 2 mobile — accordion (one expanded, others collapsed) ────────────
 
 function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading: string; urgency: string; adminFeeText?: string; chromeless?: boolean }) {
-  const { o2 } = useTierData();
+  const { o2, selected, setSelected } = useTierData();
   // Mobile has no room for sold-out placeholders — show real tiers only.
   const cards = o2.filter((c) => !c.soldOut);
-  const initial = cards.find((c) => c.key === 'better') ?? cards[cards.length - 1];
+  const initial = cards.find((c) => c.key === selected)
+    ?? cards.find((c) => c.key === 'better')
+    ?? cards[cards.length - 1];
   const [expanded, setExpanded] = useState<TierKey | undefined>(initial?.key);
   // Reconcile if the data changes and the expanded tier is gone (no remount).
   const cardKeys = cards.map((c) => c.key).join(',');
   useEffect(() => {
-    if (!cards.some((c) => c.key === expanded)) setExpanded(initial?.key);
+    if (!cards.some((c) => c.key === expanded)) {
+      setExpanded(initial?.key);
+      if (initial) setSelected?.(initial.key);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardKeys]);
 
@@ -1638,10 +1623,6 @@ function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading
         <div className="ts-m-headwrap">
           <h2 className="ts-m-title">{heading}</h2>
           {urgency && <p className="ts-m-urgency">{urgency}</p>}
-          <p className="ts-o2m-admin">
-            {adminFeeText}
-            <InfoCircle size={20} className="ts-o2-admin-info" />
-          </p>
         </div>
       )}
 
@@ -1654,7 +1635,10 @@ function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading
               type="button"
               key={card.key}
               className="ts-o2m-bar"
-              onClick={() => setExpanded(card.key)}
+              onClick={() => {
+                setExpanded(card.key);
+                setSelected?.(card.key);
+              }}
               aria-expanded={false}
             >
               <O2MHead card={card} />
@@ -1662,7 +1646,18 @@ function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading
           ),
         )}
       </div>
+      <MobileAdminFee text={adminFeeText} />
     </div>
+  );
+}
+
+function MobileAdminFee({ text }: { text?: string }) {
+  if (!text) return null;
+  return (
+    <p className="ts-o2m-admin ts-mobile-admin">
+      {text}
+      <InfoCircle size={20} className="ts-o2-admin-info" />
+    </p>
   );
 }
 
@@ -1687,10 +1682,11 @@ function O2MHead({ card }: { card: O2Tier }) {
 }
 
 function O2MExpanded({ card }: { card: O2Tier }) {
-  const { ctaLabel, rentHref, onSelectClick } = useTierData();
+  const { ctaLabel, rentHref, onSelectClick, featuredTier } = useTierData();
+  const isFeatured = featuredTier === card.key;
   return (
-    <div className={`ts-o2m-card${card.popular ? ' ts-o2m-card--popular' : ''}`}>
-      {card.popular && <span className="ts-o2-badge ts-o2m-badge">Most Popular</span>}
+    <div className={`ts-o2m-card${isFeatured ? ' ts-o2m-card--popular' : ''}`}>
+      {isFeatured && <span className="ts-o2-badge ts-o2m-badge">Most Popular</span>}
       <O2MHead card={card} />
       <ul className="ts-o2-features ts-o2m-features">
         {card.features.map((f) => (
@@ -1779,11 +1775,12 @@ function Option3Layout({ heading, subheading, urgency, adminFeeText, chromeless 
 }
 
 function O3Column({ card }: { card: O3Tier }) {
-  const { rows3, rentHref, onSelectClick, selected, setSelected, ctaLabel } = useTierData();
+  const { rows3, rentHref, onSelectClick, selected, setSelected, featuredTier, ctaLabel } = useTierData();
   const isSelected = selected === card.key;
+  const isFeatured = featuredTier === card.key;
   return (
     <div
-      className={`ts-o3-col ts-o3-tier${card.popular ? ' ts-o3-col--popular' : ''}${isSelected ? ' ts-o3-col--selected' : ''}`}
+      className={`ts-o3-col ts-o3-tier${isFeatured ? ' ts-o3-col--popular' : ''}${isSelected ? ' ts-o3-col--selected' : ''}`}
       onClick={() => !card.soldOut && setSelected?.(card.key)}
       onKeyDown={card.soldOut ? undefined : activateOnKey(() => setSelected?.(card.key))}
       role="button"
@@ -1791,7 +1788,7 @@ function O3Column({ card }: { card: O3Tier }) {
       aria-pressed={isSelected}
       aria-disabled={card.soldOut || undefined}
     >
-      {card.popular && <span className="ts-o2-badge ts-o3-badge">Most Popular</span>}
+      {isFeatured && <span className="ts-o2-badge ts-o3-badge">Most Popular</span>}
 
       <div className="ts-o3-head ts-o3-card">
         <div className="ts-o3-cardhead">

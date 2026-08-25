@@ -554,6 +554,18 @@
           </select>
         </label>
       </div>
+      <div class="controls-group">
+        <span class="controls-group-label">Default Selected Tier</span>
+        <label>
+          Tier:
+          <select id="ts-default-tier" onchange="reinitTierSelection()">
+            <option value="">(none — falls back to Better)</option>
+            <option value="good">Good</option>
+            <option value="better">Better</option>
+            <option value="best">Best</option>
+          </select>
+        </label>
+      </div>
     </div>
   </div>
 
@@ -1036,7 +1048,10 @@
     var tierSelectionWidget = null;
 
     function getTierSelectionProps() {
-      return { variant: document.getElementById('ts-variant').value };
+      return {
+        variant: document.getElementById('ts-variant').value,
+        defaultTier: document.getElementById('ts-default-tier').value || undefined,
+      };
     }
 
     function reinitTierSelection() {
