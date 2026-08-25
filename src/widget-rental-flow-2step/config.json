@@ -6,5 +6,6 @@
   "propertyId": "OBZ5dhPmjZ",
   "spaceGroupId": "7jP5qtVeBg",
   "proxyBaseUrl": "",
-  "enableDirectWrites": true
+  "enableDirectWrites": true,
+  "gpPublicKey": "pkapi_cert_a3ujFfhmq3EPW8k0ZP"
 }

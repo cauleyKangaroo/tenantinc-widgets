@@ -12,6 +12,7 @@ import {
 } from './api';
 import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
+import { cardBrand, tokenizeCard } from './gpTokenize';
 import { OrderRail } from './OrderRail';
 import { ChevronSolidIcon } from './icons';
 /* The ASSET ONLY, deliberately — not the #02 component, its config, its props
@@ -710,6 +711,8 @@ export function RentalFlow2Step({
     .filter(Boolean).join(', ');
   const logTag = `[RentalFlow2Step${where ? ` ${where}` : ''}${inEditor ? ' (editor)' : ''}]`;
 
+  // Global Payments PUBLIC key — tokenization only; it cannot charge or read.
+  const gpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
   const cfgCtx = React.useMemo(() => defaultRentalCtx(), []);
   const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp }, cfgCtx.propertyId);
   const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
@@ -1764,7 +1767,19 @@ export function RentalFlow2Step({
                 setPayError(undefined);
                 const start = ymd(moveIn);
                 const c = info.contact;
-                rentSpace(ctx, {
+                // Captured before the async hop: inside the callback below
+                // TypeScript can no longer see that info.card is defined.
+                const card = info.card;
+                // Tokenize first, so the payload can carry `token` and
+                // `card_type` alongside the number. Additive and fail-soft:
+                // the lease succeeds on the number alone today, so a gateway
+                // outage must not stop someone renting.
+                void tokenizeCard(gpKey, {
+                  number: card.cardNumber,
+                  cvv: card.cvv,
+                  expMonth: card.expMonth,
+                  expYear: card.expYear,
+                }).then((tok) => rentSpace(ctx, {
                   unit: { id: hold.unitId, number: hold.unitNumber },
                   holdToken: hold.holdToken,
                   contact: {
@@ -1775,12 +1790,20 @@ export function RentalFlow2Step({
                     businessName: c?.businessName,
                     // The tenant's address is the billing address they just
                     // typed — the form asks for one address, not two.
-                    address: info.card.address,
-                    city: info.card.city,
-                    state: info.card.state,
-                    zip: info.card.zip,
+                    address: card.address,
+                    city: card.city,
+                    state: card.state,
+                    zip: card.zip,
                   },
-                  card: { ...info.card, autoCharge: info.autopay },
+                  card: {
+                    ...card,
+                    autoCharge: info.autopay,
+                    token: tok?.token,
+                    // Held, not sent: the API rejects a masked_credit_card_number
+                    // key outright, so it waits here for the field to exist.
+                    maskedCardNumber: tok?.masked,
+                    cardType: cardBrand(card.cardNumber),
+                  },
                   startDate: start,
                   spaceMixId: selection?.spaceMixId,
                   billDay: quote.billDay,
@@ -1817,7 +1840,7 @@ export function RentalFlow2Step({
                     setPaying(false);
                     console.error(`${logTag} rental threw unexpectedly:`, err);
                     setPayError('Something went wrong completing your rental. Please try again.');
-                  });
+                  }));
                 return;
               }
               // Published checkout must never fall through to the harness

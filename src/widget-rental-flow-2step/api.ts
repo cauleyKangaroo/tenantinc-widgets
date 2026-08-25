@@ -1214,6 +1214,22 @@ export interface CardPayment extends RentAddress {
   nameOnCard: string;
   /** Enrol this card for recurring rent (drives API 11). */
   autoCharge?: boolean;
+  /** Single-use gateway token. Documented and accepted; the lease still reads
+   *  `card_number` today, so this rides along ready for the swap. */
+  token?: string;
+  /** VISA | MasterCard | AMEX | … sent as `payment_method.card_type`. */
+  cardType?: string;
+  /**
+   * The gateway's masked number, e.g. "************1111".
+   *
+   * DELIBERATELY NOT SENT. The API validates `payment_method` strictly and
+   * answers '"payment_method.masked_credit_card_number" is not allowed'
+   * (verified 2026-08-25) — there is no field for a mask anywhere in the
+   * payload. Carried here so that when TenantInc adds one, or makes
+   * `card_number` accept the mask, it is already in hand and the change is one
+   * line in cardPaymentMethod().
+   */
+  maskedCardNumber?: string;
 }
 
 /** A documented cost line. `costType` is a closed set; dates are YYYY-MM-DD. */
@@ -1383,8 +1399,12 @@ function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<strin
     city: card.city,
     state: card.state,
     zip: card.zip,
-    save_to_account: false,
+    save_to_account: true,
   };
+  // Both documented, both accepted. maskedCardNumber is deliberately absent —
+  // see the note on that field.
+  if (card.token) body.token = card.token;
+  if (card.cardType) body.card_type = card.cardType;
   if (autoCharge) body.auto_charge = true;
   return body;
 }
