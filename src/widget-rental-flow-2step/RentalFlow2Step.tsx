@@ -12,6 +12,7 @@ import {
 } from './api';
 import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
+import { tokenizeCard } from './gpTokenize';
 import { OrderRail } from './OrderRail';
 import { ChevronSolidIcon } from './icons';
 /* The ASSET ONLY, deliberately — not the #02 component, its config, its props
@@ -710,6 +711,8 @@ export function RentalFlow2Step({
     .filter(Boolean).join(', ');
   const logTag = `[RentalFlow2Step${where ? ` ${where}` : ''}${inEditor ? ' (editor)' : ''}]`;
 
+  // Global Payments PUBLIC key — tokenization only; it cannot charge or read.
+  const gpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
   const cfgCtx = React.useMemo(() => defaultRentalCtx(), []);
   const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp }, cfgCtx.propertyId);
   const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
@@ -939,58 +942,22 @@ export function RentalFlow2Step({
   const [holdExpired, setHoldExpired] = useState(false);
   const holdRef = useRef<UnitHold | undefined>(undefined);
   holdRef.current = hold;
-  /** True while the arrival hold is in flight — the form waits on it. */
-  const [holding, setHolding] = useState(false);
-  /**
-   * Stops the effect re-entering while its own POST is in flight.
-   *
-   * A ref rather than state, because state would join the dependency list and
-   * restart the effect the moment it flagged that it was running. Lowered as
-   * soon as the attempt ends, either way: on success the guard's own `hold`
-   * check takes over, and leaving it up would latch out every later attempt —
-   * including Reacquire after an expiry, which clears the hold and would then
-   * meet a latch that never lifted.
-   */
-  const holdingRef2 = useRef(false);
   const holdContextRef = useRef<{ key: string; ctx: RentalCtx } | undefined>(undefined);
 
-  /**
-   * Hold the space ON ARRIVAL, before the form is shown.
-   *
-   * The shopper chose a specific tier in the value-tiers popup and landed here
-   * for that unit, so it is secured before they are asked to fill anything in.
-   * Holding at Rent instead meant they could complete step 1 and only then
-   * discover the space had gone.
-   *
-   * It deliberately does NOT wait for the quote: the handed-off unitId is
-   * enough to hold, and holding first is the whole point. The quote that
-   * follows is hold-aware, which is the only way to price a held unit anyway —
-   * the plain GET 409s on one, including our own.
-   *
-   * Falls back to the quote's unit when nothing was handed over, which is the
-   * legacy route in.
-   */
   useEffect(() => {
-    const target = unitIdProp
-      ? { id: unitIdProp, number: quote?.unitNumber }
-      : (quote ? { id: quote.unitId, number: quote.unitNumber } : undefined);
-    if (!target || hold || holdExpired || holdingRef2.current) return;
-    // Context still resolving — holding now would post companies//units/...
-    if (!effectiveCompanyId || !ctx.companyId) return;
+    if (step !== 2 || !quote || hold || holdExpired) return;
     if (inEditor) {
       console.log(`${logTag} editor mode — real unit hold suppressed`);
       return;
     }
     let cancelled = false;
-    holdingRef2.current = true;
-    setHolding(true);
     (async () => {
       setPayError(undefined);
-      let result = await holdUnit(ctx, target);
+      let result = await holdUnit(ctx, { id: quote.unitId, number: quote.unitNumber });
       if (result.ok === false && result.reason === 'conflict' && !cancelled) {
         console.warn(`${logTag} unit already held — re-picking:`, result.detail);
-        const other = await findUnitForSelection(ctx, selection?.size, selection?.price ?? quote?.rent, true); // fresh list — cached one contains the 409'd unit
-        if (other && other.id !== target.id && !cancelled) {
+        const other = await findUnitForSelection(ctx, selection?.size, selection?.price ?? quote.rent, true); // fresh list — cached one contains the 409'd unit
+        if (other && other.id !== quote.unitId && !cancelled) {
           const q = await fetchMoveInQuote(ctx, other);
           if (q && !cancelled) {
             // The replacement is the same selected size/rate, but correlation
@@ -1017,16 +984,9 @@ export function RentalFlow2Step({
         }
         setPayError('We couldn’t secure this space. Please return and choose another available space.');
       }
-      // Down again once the attempt ends, either way. On success the `hold`
-      // check in the guard prevents re-entry, so this only ever needs to cover
-      // the in-flight window — and leaving it up would latch out every later
-      // attempt, including the Reacquire button after an expiry, which clears
-      // the hold and would then find a guard that never lifted.
-      holdingRef2.current = false;
-      if (!cancelled) setHolding(false);
     })();
     return () => { cancelled = true; };
-  }, [unitIdProp, quote, hold, holdExpired, selection, inEditor, logTag, ctx, effectiveCompanyId]);
+  }, [step, quote, hold, holdExpired, selection, inEditor, logTag, ctx, insuranceId, moveIn]);
 
   /**
    * Quote the HELD unit.
@@ -1765,21 +1725,7 @@ export function RentalFlow2Step({
             </div>
           )}
           <div className={`rf-step rf-step--${phase}`}>
-        {step === 1 && holding && !hold ? (
-          /* The space is being secured. The form waits on it deliberately:
-             asking for a name and email before the unit is actually held means
-             someone can fill the whole step and only then be told it has gone.
-             Brief — one POST — and the countdown starts the moment it lands. */
-          <div className="rf-card rf-holding" role="status" aria-live="polite">
-            <div className="rf-title">
-              <p className="rf-eyebrow">Just a moment</p>
-              <h2 className="rf-heading">Securing your space…</h2>
-            </div>
-            <p className="rf-holding-note">
-              We’re holding this space for you. This only takes a second.
-            </p>
-          </div>
-        ) : step === 1 ? (
+        {step === 1 ? (
           <Step1Form
             eyebrow={eyebrow}
             heading={heading}
@@ -1808,6 +1754,7 @@ export function RentalFlow2Step({
             payNowTotal={railQuote?.totalDue}
             paying={paying}
             payError={payError}
+            gpPublicKey={gpKey}
             onPaymentComplete={(info) => {
               // REAL RENTAL. A card plus a live hold and quote means we have
               // everything the documented flow needs (guide APIs 9→10→11), so
@@ -1821,7 +1768,23 @@ export function RentalFlow2Step({
                 setPayError(undefined);
                 const start = ymd(moveIn);
                 const c = info.contact;
-                rentSpace(ctx, {
+                // Captured before the async hop: inside the callback below
+                // TypeScript can no longer see that info.card is defined.
+                const card = info.card;
+                // Hosted fields already minted a real token inside GP's iframe,
+                // and there is no PAN on this side to tokenize a second time.
+                // Only the plain-input fallback has to ask for one — and that
+                // ask is fail-soft, because the lease succeeds on the number
+                // alone today and a gateway outage must not stop a rental.
+                const withToken = card.token
+                  ? Promise.resolve({ token: card.token, masked: card.maskedCardNumber ?? '' })
+                  : tokenizeCard(gpKey, {
+                    number: card.cardNumber,
+                    cvv: card.cvv,
+                    expMonth: card.expMonth,
+                    expYear: card.expYear,
+                  });
+                void withToken.then((tok) => rentSpace(ctx, {
                   unit: { id: hold.unitId, number: hold.unitNumber },
                   holdToken: hold.holdToken,
                   contact: {
@@ -1832,12 +1795,22 @@ export function RentalFlow2Step({
                     businessName: c?.businessName,
                     // The tenant's address is the billing address they just
                     // typed — the form asks for one address, not two.
-                    address: info.card.address,
-                    city: info.card.city,
-                    state: info.card.state,
-                    zip: info.card.zip,
+                    address: card.address,
+                    city: card.city,
+                    state: card.state,
+                    zip: card.zip,
                   },
-                  card: { ...info.card, autoCharge: info.autopay },
+                  card: {
+                    ...card,
+                    autoCharge: info.autopay,
+                    token: tok?.token,
+                    // Held, not sent: the API rejects a masked_credit_card_number
+                    // key outright, so it waits here for the field to exist.
+                    maskedCardNumber: tok?.masked,
+                    // card_type is derived by cardPaymentMethod() from the
+                    // number it actually sends — in hosted mode there is no
+                    // PAN here to read a brand from.
+                  },
                   startDate: start,
                   spaceMixId: selection?.spaceMixId,
                   billDay: quote.billDay,
@@ -1874,7 +1847,7 @@ export function RentalFlow2Step({
                     setPaying(false);
                     console.error(`${logTag} rental threw unexpectedly:`, err);
                     setPayError('Something went wrong completing your rental. Please try again.');
-                  });
+                  }));
                 return;
               }
               // Published checkout must never fall through to the harness

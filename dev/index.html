@@ -292,6 +292,24 @@
             style="width: 240px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;"
             oninput="reinitPromotions()" />
         </label>
+        <label>
+          Mobile banner URL:
+          <input id="pr-banner-mobile" type="text" placeholder="(blank = same as desktop)"
+            style="width: 240px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;"
+            oninput="reinitPromotions()" />
+        </label>
+        <label>
+          How many (bar mode):
+          <select id="pr-count" onchange="reinitPromotions()">
+            <option value="0" selected>live (from the API)</option>
+            <option value="1">1 — full-width band</option>
+            <option value="2">2 across</option>
+            <option value="3">3 across</option>
+            <option value="4">4 across</option>
+            <option value="5">5 — paginates</option>
+            <option value="6">6 — paginates</option>
+          </select>
+        </label>
       </div>
     </div>
   </div>
@@ -885,9 +903,14 @@
     // Bar content is API-only — no static promo props here on purpose.
     function getPromotionsProps() {
       var url = document.getElementById('pr-banner').value.trim();
+      var mobileUrl = document.getElementById('pr-banner-mobile').value.trim();
+      // 0 = leave it alone and show whatever the API returns.
+      var count = parseInt(document.getElementById('pr-count').value, 10) || 0;
       return {
         mode: document.getElementById('pr-mode').value,
         bannerImage: url || undefined,
+        bannerImageMobile: mobileUrl || undefined,
+        demoBars: count || undefined,
       };
     }
 

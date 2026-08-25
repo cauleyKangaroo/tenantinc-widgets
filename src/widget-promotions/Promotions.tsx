@@ -11,7 +11,7 @@ import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { imageUrl } from '@shared/dudaCollections';
 import { emitShowPromo, scrollToSpaceList } from '@shared/promoBus';
 import { DisclaimerModal } from './DisclaimerModal';
-import { TagIcon, InfoIcon, ChevronRight } from './icons';
+import { TagIcon, InfoIcon, ChevronRight, CarouselChevron } from './icons';
 import promoBanner from './assets/promo-banner.png';
 import promoBannerMobile from './assets/promo-banner-mobile.png';
 
@@ -28,11 +28,14 @@ interface BarItem { id: string; title: string; info?: string; url: string; ctaLa
 
 /** Max bars shown at once; also the carousel's page size. */
 /**
- * Bars per desktop page: 1 fills the row, 2 split 50/50, 3 split 33/33/33, and
- * from FOUR promos the row becomes a paged carousel of three rather than
- * squeezing to quarter-width.
+ * Bars visible at once on DESKTOP: 1 fills the row, 2 split 50/50, 3 split
+ * 33/33/33, 4 split into quarters. From FIVE promos the row becomes a sliding
+ * window over them — still four wide, moving one at a time.
+ *
+ * Tablet shows 2 and phone 1, so on those the window starts one promotion
+ * sooner and two sooner respectively.
  */
-const PAGE_SIZE = 3;
+const PAGE_SIZE = 4;
 
 /**
  * Hold off on the skeleton for this long. A fast API response then renders the
@@ -139,80 +142,123 @@ function PromoBarItem({ item }: { item: BarItem }) {
 }
 
 function PromoBars({ items }: { items: BarItem[] }) {
-  const [page, setPage] = useState(0);
+  const [offset, setOffset] = useState(0);
 
-  // 560px is where the CSS used to drop every bar to flex-basis: 100% and stack
-  // them vertically — the thing this carousel replaces — so JS and CSS agree on
-  // the boundary. One bar per slide on a phone; desktop keeps its columns.
+  /* How many fit at once. The two boundaries are the CSS's own — 560px is
+     where the bars used to stack vertically, 900px where three and four across
+     already collapsed to two — so JS and CSS never disagree about which layout
+     is on screen. Anything past the count becomes a slide. */
   const isMobile = useMediaQuery('(max-width: 560px)');
-  const pageSize = isMobile ? 1 : PAGE_SIZE;
+  const isTablet = useMediaQuery('(max-width: 900px)');
+  const visibleCount = isMobile ? 1 : isTablet ? 2 : PAGE_SIZE;
 
-  const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
-  const paged = items.length > pageSize;
-  // Clamp rather than store-and-correct, so a shrinking `items` (API load
-  // replacing demo data) can't leave us on a page that no longer exists.
-  const current = Math.min(page, pageCount - 1);
-  const visible = paged ? items.slice(current * pageSize, current * pageSize + pageSize) : items;
-  // Column count drives the width + type scale in CSS.
-  const cols = Math.min(items.length, pageSize);
-  const go = (i: number) => setPage((i + pageCount) % pageCount);
+  /**
+   * A sliding WINDOW, not pages of N. Six promotions with four visible give
+   * offsets 0, 1 and 2 — three stops — and every press moves the row by exactly
+   * one promotion. Paging in blocks of four instead put the fifth and sixth on
+   * a slide of their own, stretched across a width meant for four.
+   */
+  const maxOffset = Math.max(0, items.length - visibleCount);
+  const paged = maxOffset > 0;
+  // Clamp rather than store-and-correct, so a shrinking `items` (the API load
+  // replacing demo data) cannot leave us past the end.
+  const current = Math.min(offset, maxOffset);
+  const go = (i: number) => setOffset(Math.min(Math.max(i, 0), maxOffset));
 
-  // Mobile has no arrows (hidden in CSS — they'd eat the width), so swipe is the
-  // only way through.
+  // Dots and swipe. There are no flanking arrows: at four across they took a
+  // column's worth of room off the row.
   const swipe = useSwipe({
     onSwipeLeft: () => go(current + 1),
     onSwipeRight: () => go(current - 1),
   });
 
-  const row = (
-    <div className="promo-bars" data-cols={cols}>
-      {visible.map((item) => (
-        <PromoBarItem key={item.id} item={item} />
-      ))}
-    </div>
-  );
-
-  if (!paged) return row;
+  if (!paged) {
+    return (
+      <div className="promo-bars" data-cols={Math.min(items.length, visibleCount)}>
+        {items.map((item) => (
+          <PromoBarItem key={item.id} item={item} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="promo-bars-carousel" {...swipe.handlers}>
-      <div className="promo-bars-track">
-        <button
-          className="promo-bar-arrow promo-bar-arrow--prev"
-          aria-label="Previous promotions"
-          onClick={() => go(current - 1)}
+      {/* The viewport clips; the track slides inside it. Clipping HERE is what
+          makes this safe — the note this replaces avoided a transform track
+          because Duda's row wrappers clip, but a track that never leaves its own
+          viewport is never theirs to cut. */}
+      <div className="promo-bars-viewport">
+        <div
+          className="promo-bars promo-bars--track"
+          data-cols={visibleCount}
+          /* One number, because calc() cannot divide by a custom property in
+             every engine. offset x step, where step = (100% + gap) / visible,
+             is the same as (offset / visible) x (100% + gap) — so the division
+             happens here and the CSS only multiplies. */
+          style={{ '--promo-shift': current / visibleCount } as React.CSSProperties}
         >
-          <ChevronRight size={24} />
-        </button>
-        {row}
-        <button
-          className="promo-bar-arrow promo-bar-arrow--next"
-          aria-label="Next promotions"
-          onClick={() => go(current + 1)}
-        >
-          <ChevronRight size={24} />
-        </button>
+          {/* Every promotion is mounted, not just the visible window — that is
+              what lets one transform carry the whole row past the edge. */}
+          {items.map((item) => (
+            <PromoBarItem key={item.id} item={item} />
+          ))}
+        </div>
       </div>
 
-      <div className="promo-dots" role="tablist" aria-label="Promotion pages">
-        {Array.from({ length: pageCount }, (_, i) => (
-          <button
-            key={i}
-            className={`promo-dot${i === current ? ' promo-dot--active' : ''}`}
-            role="tab"
-            aria-selected={i === current}
-            aria-label={`Promotions page ${i + 1} of ${pageCount}`}
-            onClick={() => setPage(i)}
-          />
-        ))}
+      {/* Chevron, dots, chevron — the same row #05's Local Blogs carousel uses
+          (.sl-blog2-pagination), down to the glyph, the 40px round buttons and
+          the dot colours, so the two widgets page identically. */}
+      <div className="promo-pager">
+        <button
+          type="button"
+          className="promo-pager-arrow"
+          aria-label="Previous promotions"
+          disabled={current === 0}
+          onClick={() => go(current - 1)}
+        >
+          <CarouselChevron dir="left" />
+        </button>
+
+        <div className="promo-dots" role="tablist" aria-label="Promotion pages">
+          {Array.from({ length: maxOffset + 1 }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`promo-dot${i === current ? ' promo-dot--active' : ''}`}
+              role="tab"
+              aria-selected={i === current}
+              aria-label={`Promotions ${i + 1} of ${maxOffset + 1}`}
+              onClick={() => go(i)}
+            />
+          ))}
+        </div>
+
+        <button
+          type="button"
+          className="promo-pager-arrow"
+          aria-label="Next promotions"
+          disabled={current === maxOffset}
+          onClick={() => go(current + 1)}
+        >
+          <CarouselChevron dir="right" />
+        </button>
       </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
+
+/** Titles for `demoBars`. Mixed lengths on purpose — see the prop's note. */
+const DEMO_TITLES = [
+  '$1 MOVE IN SPECIAL',
+  'First Full Month Free!',
+  'First 3 Months 30% Off',
+  'Half Price Storage For Your First Two Months When You Book Online Today',
+  '50% Off Selected Units',
+  'Free Lock With Every Rental',
+];
 
 export interface PromotionsProps {
   /** View mode (Duda dropdown). Default 'bar'. */
@@ -255,6 +301,17 @@ export interface PromotionsProps {
    * "Website Group", or set it to pin one.
    */
   spaceGroupId?: string;
+
+  /**
+   * PREVIEW ONLY — render this many placeholder promotions instead of whatever
+   * the API returned, and skip the fetch's loading state.
+   *
+   * The 1/2/3/4-across layouts, the phone carousel and its dots all key off how
+   * many promos there are, and a property with exactly that many live promos is
+   * not something you can conjure on demand. Duda never sets this, so unset —
+   * which is every real page — nothing here changes.
+   */
+  demoBars?: number;
 }
 
 export function Promotions({
@@ -263,6 +320,7 @@ export function Promotions({
   bannerImageMobile,
   bannerUrl = '#',
   bannerAlt = '',
+  demoBars,
   barText,
   barUrl = '#',
   barCtaLabel = 'See Qualifying Units',
@@ -352,15 +410,29 @@ export function Promotions({
   }
 
   // ── Mode 2: promotion bars ────────────────────────────────────────────
+  // Deliberately varied lengths: a one-word promo and a promo that wraps onto
+  // two lines exercise different halves of the layout, and the wrapping one is
+  // where the icon alignment and the centring actually get tested.
+  const demoCount = Math.max(0, Math.min(Math.floor(demoBars ?? 0), 12));
+
   // Still fetching: show the skeleton once we're past the delay, nothing before
-  // (a sub-200ms response shouldn't flash a placeholder).
-  if (loading) {
+  // (a sub-200ms response shouldn't flash a placeholder). Placeholders do not
+  // wait on a request they are standing in for.
+  if (loading && !demoCount) {
     return pastDelay ? <div className="promo-wrapper"><PromoBarsSkeleton /></div> : null;
   }
 
   // One bar per live promo. `barText` remains an explicit editor override for
   // sites that want to hand-write a single bar instead.
-  const barItems: BarItem[] = apiPromos.length
+  const barItems: BarItem[] = demoCount
+    ? Array.from({ length: demoCount }, (_, i) => ({
+        id: `demo-${i}`,
+        title: DEMO_TITLES[i % DEMO_TITLES.length],
+        info: 'Placeholder terms. Offer applies to new rentals only and cannot be combined with any other promotion.',
+        url: barUrl,
+        ctaLabel: barCtaLabel,
+      }))
+    : apiPromos.length
     ? apiPromos.map((p) => ({
         id: p.id,
         title: p.title,

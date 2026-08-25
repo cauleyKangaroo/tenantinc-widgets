@@ -153,7 +153,7 @@ const PLAN_HOVER_QUERY = '(min-width: 901px) and (hover: hover) and (pointer: fi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, paying, payError, contact,
+  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey,
 }: {
   moveIn: Date;
   /** Protection plans to choose between, already narrowed to the space type
@@ -197,6 +197,8 @@ export function Step2({
    *  shopper sees it next to the button they pressed, with their details still
    *  filled in. */
   payError?: string;
+  /** Global Payments PUBLIC key — turns on hosted (iframe) card fields. */
+  gpPublicKey?: string;
 }) {
   // Ticked when step 1 said this is a business rental, so the shopper does not
   // answer the same question twice and its fields open ready to fill.
@@ -665,7 +667,7 @@ export function Step2({
               {formLoading ? (
                 <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
               ) : payMethod === 'card' ? (
-                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} />
+                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} />
               ) : (
                 <BankForm total={payNowTotal ?? 0} onPay={() => payStatically()} />
               )}

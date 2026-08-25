@@ -73,3 +73,25 @@ export function ChevronRight({ size = 24 }: { size?: number }) {
     </svg>
   );
 }
+
+/**
+ * Left/right chevron for the pagination row — the SAME Pika glyph #05 draws in
+ * its sidebar carousels (widget-space-list/components/chevron.tsx), copied here
+ * rather than imported because each widget is its own AMD bundle.
+ *
+ * Drawn pointing DOWN in a 24x24 box and rotated, so no mirrored Bezier
+ * coordinates have to be kept by hand. Rendered at 24 with no scaling, which
+ * keeps the stroke a true 2px.
+ */
+export function CarouselChevron({ dir }: { dir: 'left' | 'right' }) {
+  return (
+    <svg
+      width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ transform: `rotate(${dir === 'left' ? 90 : -90}deg)` }}
+      aria-hidden="true"
+    >
+      <path d="M6 9C7.57701 11.1808 9.42293 13.1364 11.4899 14.8172C11.7897 15.0609 12.2103 15.0609 12.5101 14.8172C14.5771 13.1364 16.423 11.1808 18 9" />
+    </svg>
+  );
+}

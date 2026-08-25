@@ -641,19 +641,24 @@
 .rf-sx-idv--instore {
   display: flex;
   gap: 24px;
-  align-items: flex-start;
+  /* stretch, not flex-start: the aside has to be as tall as the column beside
+     it before it can push its own contents to the bottom of the card. */
+  align-items: stretch;
   flex-wrap: wrap;
 }
 .rf-sx-idv-instore-main { flex: 1 1 300px; min-width: 0; }
-/* Aligned to the lede rather than the heading: the aside is a second thought
-   ("changed your mind?"), not a second column of the same rank. */
+/* Bottom-aligned: the aside is a second thought ("changed your mind?"), not a
+   second column of the same rank, so it sits at the foot of the card rather
+   than level with the heading or the lede. Once the row wraps this is the only
+   item on its line and flex-end has nothing left to do — which is right, the
+   two are simply stacked by then. */
 .rf-sx-idv-instore-aside {
   display: flex;
   flex: 1 1 260px;
   min-width: 0;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 10px;
-  padding-top: 42px;
 }
 .rf-sx-idv-instore-aside .rf-sx-btn { width: 100%; }
 
@@ -829,7 +834,6 @@
   .rf-idm-illus { width: 100%; }
   .rf-idm-resend { flex-direction: column; }
   .rf-idm-resend-btn { width: 100%; }
-  .rf-sx-idv-instore-aside { padding-top: 0; }
 }
 
 /* Layered line art (Figma 10078-25475). Every layer is a percentage of that
@@ -1121,3 +1125,67 @@
 /* The slot rotates its icon 90deg to point the chevron down. A calendar is not
    a chevron, so this variant sits in the same place upright. */
 .rf-select-ico--plain { transform: none; }
+
+/* ---------------------------------------------------------------------------
+   Global Payments hosted fields.
+
+   The card number and expiry are iframes on GP's origin, so none of the rules
+   above can reach the input inside them — that styling is handed to GP as a
+   literal-value object (FIELD_STYLES in gpHostedFields.ts). What is left for
+   us is the box the frame sits in, which has to occupy the cell exactly as the
+   plain input did or the row changes height when hosted mode wins.
+--------------------------------------------------------------------------- */
+.rf-gpfield {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  /* Same offset as .rf-cardrow-input: the value sits on the lower line and
+     leaves the floated label its room above. The frame is exactly this box —
+     the offset must NOT be repeated on the input inside it. */
+  margin-top: 15px;
+  height: 20px;
+  /* GP sizes its own iframe; clip rather than let a tall one push the row. */
+  overflow: hidden;
+}
+
+/*
+   A hosted cell's value lives in the iframe, so :placeholder-shown can never
+   see it and the label would sit centred on top of the digits. There is no
+   empty state to animate back to either — the frame is mounted or it is not —
+   so the label is simply pinned where the plain input's floats to. Same
+   numbers as the :focus/:not(:placeholder-shown) rule above, deliberately.
+*/
+.rf-cardcell-label--pinned {
+  transform: translateY(-18px);
+  font-size: var(--hb-font-size-label, 12px);
+  line-height: var(--hb-line-height-label, 15px);
+}
+.rf-gpfield iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+/* Kept in the DOM — GP resolves its targets by selector — but out of the way
+   whenever the plain inputs are the ones in use. */
+.rf-gpfield--off { display: none; }
+
+.rf-paynow-wrap { position: relative; }
+/* GP's submit frame covers our button completely. It is transparent (see
+   FIELD_STYLES) so ours is what shows through, while the click lands inside
+   their iframe, which is the only place a token can be asked for. */
+.rf-gp-submit {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.rf-gp-submit iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.rf-gp-submit--off { display: none; }
+/* Frames requested but not yet registered. Dimmed rather than hidden: the row
+   keeps its height, so nothing shifts when the fields appear. */
+.rf-cardrow--loading { opacity: 0.55; }

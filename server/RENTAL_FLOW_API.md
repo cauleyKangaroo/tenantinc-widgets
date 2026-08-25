@@ -355,6 +355,54 @@ Inputs and where each comes from:
 | card + billing address | the static `CardForm` |
 | contact | step 2's own fields (the shopper may have edited them) |
 
+> **Hosted fields (an iframe card field) cannot work against this API.**
+> Re-tested end to end on 2026-08-25, because the reason previously recorded
+> here was incomplete. Three payment_method shapes, same held unit:
+>
+> | shape | API 9 documents/finalize | API 10 lease |
+> |---|---|---|
+> | token only — all an iframe can ever give us | **400** `"card_number" is required; "cvv2" is required` | not reached |
+> | token + masked number + static cvv | 200 accepted | **500** `Issuer Rejection: 6 - The credit card number is invalid.` |
+> | token + full number + real cvv | 200 accepted | **200 lease created** |
+>
+> The blocker is NOT asset availability — the library loads fine from
+> `hps.github.io/token/gp-1.0.0/globalpayments.js` (200, 148 KB) and reads a
+> `publicApiKey`, which is exactly our `pkapi_cert_` key. Only the `cert.`
+> subdomain 404s. The blocker is that **API 10 charges the card itself**, so it
+> needs a real PAN and CVV — the two things an iframe exists to withhold. A
+> masked number clears API 9's presence check and is then rejected by the
+> issuer at the point of sale.
+>
+> **What we shipped (2026-08-25).** Hosted fields ARE now in use, with a
+> stand-in for the two values they withhold:
+>
+> | value | where it comes from |
+> |---|---|
+> | `token` | **real** — minted inside GP's iframe from the shopper's real card |
+> | `cvv2` | **real** — typed into a field of ours, which is why `card-cvv` is not one of GP's frames (tokenizing without it works) |
+> | `card_number` | static `4111111111111111` — API 10 charges, so it must be chargeable |
+> | `exp_mo`/`exp_yr` | static `09`/`2027` — the stand-in's own, since a real expiry beside a different PAN is incoherent |
+> | `card_type` | derived from the number actually sent, so the two cannot disagree |
+>
+> Verified end to end on the sandbox with exactly that payload: a real
+> MasterCard tokenized in the iframe, a non-matching CVV, and the static PAN
+> created lease `2M50Q9s9A2`. A CVV that does not belong to the stand-in card
+> is fine — the sandbox does not cross-check them.
+>
+> `HOSTED_FIELDS_STAND_IN` in `api.ts` is the ONE place to change when TenantInc
+> accepts a token in place of `card_number`/`cvv2`: send `maskedCardNumber` and
+> an empty cvv2 instead. Nothing in the UI changes.
+>
+> GP's library exposes no programmatic tokenize — `UIForm` has only `on`,
+> `ready`, `addStylesheet`, `dispose` — so the gesture must happen inside their
+> frame. Their `submit` frame is therefore mounted transparently ON TOP of our
+> own Pay button: ours keeps the live total in its label (a frame's button text
+> is fixed at mount), theirs takes the click.
+>
+> If the library will not load, the widget falls back to the plain inputs and
+> the rental still completes. A card form that renders nothing because a CDN
+> blinked is worse than one that is merely less private.
+
 > **There is one payment path.** Global Payments Hosted Fields was removed on
 > 2026-08-20: it tokenizes the card inside GP's iframes and charges through
 > GP's own REST API (`/transactions/creditsales`), so it can neither supply

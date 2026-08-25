@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './UtilityBar.css';
 import { InfoIcon, CloseIcon } from './icons';
 
@@ -133,7 +133,31 @@ export function UtilityBar({
 
   const showBar = !flagActive;
   const showDebug = inEditor;
-  if (!showBar && !showDebug) return null;
+  const empty = !showBar && !showDebug;
+
+  /**
+   * Collapse the HOST too, not just our own output.
+   *
+   * Returning null already leaves nothing of ours on the page, but the element
+   * Duda wraps an external app in keeps its own box — so a visitor who dismissed
+   * the bar was left with a band of the row's padding sitting above the header.
+   * Nothing inside React can reach that, because it is not ours to render.
+   *
+   * Walks up from our own node and hides what it finds, restoring the previous
+   * inline value on the way back — never a blanket `display: ''`, which would
+   * wipe a display the theme had set deliberately. Two levels: createWidget's
+   * mount div, then the element Duda handed it.
+   */
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return undefined;
+    const nodes: HTMLElement[] = [];
+    for (let n = el.parentElement, i = 0; n && i < 2; n = n.parentElement, i++) nodes.push(n);
+    const previous = nodes.map((n) => n.style.display);
+    if (empty) nodes.forEach((n) => { n.style.display = 'none'; });
+    return () => { nodes.forEach((n, i) => { n.style.display = previous[i]; }); };
+  }, [empty]);
 
   const flag = getFlag();
   const remaining = flag ? flag.expires - Date.now() : 0;
@@ -151,8 +175,10 @@ export function UtilityBar({
       </button>
     ));
 
+  // Rendered even when empty — the effect above needs a node to walk up from,
+  // and .ub-wrapper--empty keeps it out of the layout in the meantime.
   return (
-    <div className="ub-wrapper">
+    <div className={`ub-wrapper${empty ? ' ub-wrapper--empty' : ''}`} ref={rootRef}>
       {showBar && (
         <div className={`ub-bar ${sticky ? 'ub-bar--sticky' : 'ub-bar--block'}`}>
           <div className="ub-inner">
