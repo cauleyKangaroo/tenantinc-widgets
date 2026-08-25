@@ -952,6 +952,13 @@ export function RentalFlow2Step({
    * meet a latch that never lifted.
    */
   const holdingRef2 = useRef(false);
+  // Read inside the hold effect without joining its dependency list: they
+  // change as the page loads, and re-running the hold on every change is what
+  // produced the stranded "securing" state.
+  const selectionRef = useRef<SelectionContext | undefined>(undefined);
+  const quoteRef = useRef<MoveInQuote | undefined>(undefined);
+  selectionRef.current = selection;
+  quoteRef.current = quote;
   const holdContextRef = useRef<{ key: string; ctx: RentalCtx } | undefined>(undefined);
 
   /**
@@ -989,7 +996,8 @@ export function RentalFlow2Step({
       let result = await holdUnit(ctx, target);
       if (result.ok === false && result.reason === 'conflict' && !cancelled) {
         console.warn(`${logTag} unit already held — re-picking:`, result.detail);
-        const other = await findUnitForSelection(ctx, selection?.size, selection?.price ?? quote?.rent, true); // fresh list — cached one contains the 409'd unit
+        const sel = selectionRef.current;
+        const other = await findUnitForSelection(ctx, sel?.size, sel?.price ?? quoteRef.current?.rent, true); // fresh list — cached one contains the 409'd unit
         if (other && other.id !== target.id && !cancelled) {
           const q = await fetchMoveInQuote(ctx, other);
           if (q && !cancelled) {
@@ -1023,10 +1031,16 @@ export function RentalFlow2Step({
       // attempt, including the Reacquire button after an expiry, which clears
       // the hold and would then find a guard that never lifted.
       holdingRef2.current = false;
-      if (!cancelled) setHolding(false);
+      // NOT guarded on `cancelled`. Only one attempt can be in flight (the ref
+      // sees to that), so when it ends the "securing" state is over no matter
+      // which render owns it. Guarding it here left the form hidden forever:
+      // quote and selection land mid-flight, the effect re-runs, the superseded
+      // run skipped this line, and the re-run bailed on the ref.
+      setHolding(false);
     })();
     return () => { cancelled = true; };
-  }, [unitIdProp, quote, hold, holdExpired, selection, inEditor, logTag, ctx, effectiveCompanyId]);
+    // `selection` is deliberately absent: it is read through a ref above.
+  }, [unitIdProp, quote, hold, holdExpired, inEditor, logTag, ctx, effectiveCompanyId]);
 
   /**
    * Quote the HELD unit.
@@ -1186,7 +1200,12 @@ export function RentalFlow2Step({
     // Read through the ref, not the state: a hold arriving must not re-run this
     // whole load, and the one that matters was adopted from the URL before the
     // first render anyway.
-    const adoptedHold = !!holdRef.current;
+    // The plain GET lease-set-up 409s on a HELD unit — including one we hold
+    // ourselves. Since arrival now takes a hold for any handed-off unitId, that
+    // GET can only ever fail here, so it is skipped and the hold-aware effect
+    // owns the price. (Verified live 2026-08-25: GET .../lease-set-up → 409
+    // right after our own POST .../hold succeeded on the same unit.)
+    const willHoldHere = !!holdRef.current || (!!unitIdProp && !inEditor);
 
     /**
      * Quote the unit with the PLAIN GET.
@@ -1202,7 +1221,7 @@ export function RentalFlow2Step({
      */
     const runQuote = (
       resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string } | undefined>,
-    ): Promise<void> => (adoptedHold
+    ): Promise<void> => (willHoldHere
       ? // Still resolve the unit: it carries the space type the protection
         // plans narrow by, which the quote does not.
         resolveUnit.then((unit) => {
