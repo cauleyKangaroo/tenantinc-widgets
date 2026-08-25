@@ -56,11 +56,28 @@ function ensureStyles() {
   width: auto; min-width: 0; height: auto; min-height: 0; cursor: pointer;
   -webkit-tap-highlight-color: transparent; }
 .ti-crumb-sep { flex-shrink: 0; color: #101318; }
-.ti-crumbs--hero { gap: 8px; font-size: 14px; line-height: 1.25; color: #fff; }
-.ti-crumbs--hero .ti-crumb { gap: 8px; }
-.ti-crumbs--hero .ti-crumb-link { color: inherit; }
+.ti-crumbs--hero { gap: 4px; font-size: 14px; line-height: 1.25; color: #fff; flex-wrap: nowrap; min-width: 0; }
+.ti-crumb-nowrap { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* nowrap + the ellipsis above: on a phone the trail sits inside the hero image
+   with the expand button beside it, so a long final crumb has to give way
+   rather than wrap onto a second line over the photo. */
+.ti-crumbs--hero .ti-crumb { gap: 4px; min-width: 0; }
+.ti-crumbs--hero .ti-crumb:last-child { overflow: hidden; }
+/* No underline here, unlike the page-top trail: over a photo it reads as
+   clutter, and the frame draws none.
+   Pinned across hover/focus/active as well. The base rule flips decoration on
+   hover, and a host stylesheet's own a:hover — Duda themes all ship one — lands
+   on these too, which is what made a single crumb light up differently from the
+   rest. Nothing about a hero crumb changes on hover now. */
+.ti-crumbs--hero .ti-crumb-link,
+.ti-crumbs--hero .ti-crumb-link:hover,
+.ti-crumbs--hero .ti-crumb-link:focus,
+.ti-crumbs--hero .ti-crumb-link:active {
+  color: inherit;
+  text-decoration: none;
+  background: none;
+}
 .ti-crumbs--hero .ti-crumb-slash { flex-shrink: 0; }
-.ti-crumbs--hero .ti-crumb-home { flex-shrink: 0; display: block; }
 @media (max-width: 768px) { .ti-crumbs--hero { font-size: 14px; line-height: 1.25; } }`;
   document.head.appendChild(style);
 }
@@ -98,33 +115,6 @@ function ChevronRight({ className }: { className?: string }) {
   );
 }
 
-/**
- * home/home-default (Figma 9693:40590) — stands in for the word "Home" in the
- * hero variant. A FILLED glyph, not a stroked one, so it takes `currentColor`
- * as a fill. 20x20 artwork at the node's 8.33% inset, i.e. translate(2, 2) in
- * the 24x24 frame.
- */
-function HomeGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width={24}
-      height={24}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <g transform="translate(2 2)">
-        <path
-          fill="currentColor"
-          d="M11.4907 0.227375C10.5201 -0.0757916 9.48007 -0.0757916 8.50943 0.227375C7.90008 0.417695 7.37371 0.753448 6.82909 1.19141C6.30102 1.61608 5.69688 2.18667 4.94919 2.89283L2.23281 5.45827C1.57635 6.07789 1.122 6.50674 0.789962 7.02502C0.496591 7.48294 0.279894 7.98567 0.14841 8.51338C-0.000403047 9.11063 -0.000215526 9.73541 5.5437e-05 10.6381L3.86285e-05 14.4782C-0.000353093 15.4205 -0.000630617 16.0878 0.153413 16.6627C0.569515 18.2156 1.78248 19.4286 3.33539 19.8447C3.91028 19.9987 4.57762 19.9985 5.51991 19.9981C5.85238 19.9982 6.19372 20.0167 6.51772 19.9299C7.2079 19.745 7.747 19.2059 7.93193 18.5157C8.00181 18.2549 8.00093 17.9671 8.00022 17.7322L8.00008 14.998C8.00008 14.4953 8.00318 14.3604 8.01855 14.2634C8.1202 13.6215 8.62359 13.1182 9.26543 13.0165C9.36243 13.0011 9.49736 12.998 10.0001 12.998C10.5028 12.998 10.6377 13.0011 10.7347 13.0165C11.3766 13.1182 11.88 13.6215 11.9816 14.2634C11.997 14.3604 12.0001 14.4953 12.0001 14.998L11.9999 17.7323C11.9992 17.9671 11.9983 18.2549 12.0682 18.5157C12.2532 19.2059 12.7923 19.745 13.4824 19.9299C13.8064 20.0167 14.1478 19.9982 14.4802 19.9981C15.4225 19.9985 16.0899 19.9987 16.6648 19.8447C18.2177 19.4286 19.4306 18.2156 19.8467 16.6627C20.0008 16.0878 20.0005 15.4205 20.0001 14.4782L20.0001 10.6381C20.0004 9.73542 20.0006 9.11063 19.8517 8.51338C19.7203 7.98567 19.5036 7.48294 19.2102 7.02502C18.8782 6.50674 18.4238 6.0779 17.7674 5.45828L15.051 2.89286C14.3033 2.18668 13.6991 1.61608 13.1711 1.19141C12.6264 0.753448 12.1001 0.417695 11.4907 0.227375Z"
-        />
-      </g>
-    </svg>
-  );
-}
 
 export interface Crumb {
   label: string;
@@ -179,25 +169,27 @@ export function Breadcrumb({ items, variant = 'default', className }: Breadcrumb
     >
       {items.map((c, i) => {
         const isLast = i === items.length - 1;
-        // The hero frame hangs its separators off the crumbs, and the home icon
-        // sits OUTSIDE that group — so there is no "/" between the icon and the
-        // crumb after it, only between the crumbs themselves. Reproduced rather
-        // than tidied: it is what the frame draws.
-        // The `> 2` guard covers a trail the frame does not draw: with only a
-        // home icon and the current page, dropping that separator would run
-        // the two together as "<icon> Some Page". The rule exists to sit an
-        // icon beside a RUN of ellipses, not to remove the only separator.
-        const showSep = i > 0 && !(hero && i === 1 && items.length > 2);
-        const label = hero && i === 0
-          ? <HomeGlyph className="ti-crumb-home" />
-          : c.label;
+        // Every pair gets a slash, the home crumb included. The icon that used
+        // to stand in for Home is gone: on a phone it read as a button rather
+        // than the first step of a trail, and the frame the hero copies shows
+        // an unbroken run of ellipses. Home collapses to one of them — still
+        // linked, and still NAMED for a screen reader via aria-label below.
+        const showSep = i > 0;
+        const label = hero && i === 0 && items.length > 2 ? '...' : c.label;
         return (
           <span className="ti-crumb" key={`${c.label}-${i}`}>
             {showSep && (hero
               ? <span className="ti-crumb-slash" aria-hidden="true">/</span>
               : <ChevronRight className="ti-crumb-sep" />)}
             {isLast || (!c.href && !c.onSelect)
-              ? <span aria-current={isLast ? 'page' : undefined}>{label}</span>
+              ? (
+                <span
+                  className={isLast && hero ? 'ti-crumb-nowrap' : undefined}
+                  aria-current={isLast ? 'page' : undefined}
+                >
+                  {label}
+                </span>
+              )
               : c.onSelect
                 ? (
                   <button
@@ -231,18 +223,34 @@ export function Breadcrumb({ items, variant = 'default', className }: Breadcrumb
   );
 }
 
+/** Ellipsis crumbs shown before the two named ones. */
+const MAX_ELLIPSES = 3;
+
 /**
- * Shorten a trail for the hero variant: keep the first crumb (drawn as the home
- * icon) and the last (the page you are on), and replace every label between
- * them with an ellipsis — one per crumb, NOT one for the whole run.
+ * Shorten a trail for the hero variant: name the last TWO crumbs — the page you
+ * are on and the one above it — and replace everything before them with an
+ * ellipsis, one per crumb.
  *
- * That is what the frame shows: `home / … / … / … / 1301 E. Mission Ave`. The
- * hidden crumbs keep their hrefs, so each ellipsis is still a way back up.
+ * `home / … / … / … / Fullerton / 3050 Bowling Dr`, as the frame shows it.
+ * Naming the parent is the point: an ellipsis says a level exists but not which
+ * one, so a trail that ellipsised everything but the current page told you
+ * nothing about where you were.
+ *
+ * At most MAX_ELLIPSES of them. Beyond that they stop carrying information —
+ * they are indistinguishable from one another — and on a phone they crowd out
+ * the two crumbs that do. When there are more, the FIRST is kept (Home, the one
+ * people actually reach for) along with the two nearest the current page, and
+ * the levels in between are dropped rather than rendered as more of the same.
+ *
+ * Every ellipsis keeps its href, so each is still a way back up.
  */
 export function collapseMiddle(items: Crumb[]): Crumb[] {
   if (items.length <= 2) return items;
-  return items.map((c, i) =>
-    (i === 0 || i === items.length - 1 ? c : { ...c, label: '...' }));
+  // The last two keep their names; everything before is a candidate ellipsis.
+  const named = items.slice(-2);
+  let head = items.slice(0, -2);
+  if (head.length > MAX_ELLIPSES) head = [head[0], ...head.slice(-(MAX_ELLIPSES - 1))];
+  return [...head.map((c) => ({ ...c, label: '...' })), ...named];
 }
 
 /**

@@ -1019,6 +1019,11 @@ span.pi-lb-img {
   justify-content: space-between;
   gap: 12px;
 }
+/* min-width: 0 is what lets the trail shrink below its content so the ellipsis
+   inside it has something to do — a flex item's default `min-width: auto`
+   would keep it at its full text width and push the expand button off. */
+.pi-m-hero-top > .pi-m-breadcrumb { flex: 1 1 auto; min-width: 0; }
+.pi-m-hero-top > .pi-m-expand { flex: 0 0 auto; }
 
 /* Type and colour come from @shared/Breadcrumb's `hero` variant, which draws
    this frame (9693:40309). Kept as a hook in case the hero ever needs to place
@@ -1040,11 +1045,19 @@ span.pi-lb-img {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  /* 8px between the name, the rating row and the address (Figma 7112-58294).
+     Was 3px plus a 4px bottom margin on the name — the three ran together as
+     one block, which is what made the address look like part of the rating. */
+  gap: 8px;
+  min-width: 0;
 }
 
 .pi-m-name {
-  margin: 0 0 4px;
+  margin: 0;
+  min-width: 0;
+  /* Wraps — the frame runs a long name onto a second line — but never past the
+     edge, and a third line is cut rather than pushing the rating off. */
+  overflow-wrap: anywhere;
   font-size: 20px;
   font-weight: 700;
   line-height: 1.2;
@@ -1072,10 +1085,19 @@ span.pi-lb-img {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   font-size: 16px;
   font-weight: 500;
   color: #fff;
   text-decoration: none;
+}
+/* One line, ellipsised. A full US address is three lines on a phone, and it
+   was running off the right edge and over the photo. */
+.pi-m-address .pi-underline {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pi-m-address svg {
