@@ -218,13 +218,9 @@ function PropertyCard({ property }: { property: Property }) {
  */
 function SpacesSkeleton() {
   return (
-    // The wrapper carries .nl-card-body's own 16px column gap. In a real card the
-    // promo and .nl-spaces are SIBLINGS in that flex body, so the gap falls
-    // between them; here they are wrapped in one element, so the body's gap falls
-    // around the pair instead and the promo bar sat flush on the first space row.
-    // Reproducing the gap inside the wrapper puts it back where the real card has
-    // it — which is the point of this component, since a real card swaps to these
-    // exact blocks.
+    // The class is not decoration: this wrapper is a SINGLE child of
+    // `.nl-card-body`, so that column's 16px gap falls outside it rather than
+    // between the promo bar and the rows. Without it they touch.
     <div className="nl-skeleton-spaces" aria-hidden="true">
       <div className="nl-skeleton-line nl-skeleton-promo" />
       <div className="nl-spaces">
@@ -302,7 +298,8 @@ export interface NearbyLocationsProps {
    * How the list is ordered.
    *
    *  - `'nearest'` (default) — every property, closest to the visitor first.
-   *  - `'featured'` — the operator's own order, from the `priorityOrder` column of
+   *  - `'featured'` — the operator's own order, from the
+   *    `nearbyLocationPriorityOrder` column of
    *    the `PropertiesInternal` collection (ties, and everything left unranked,
    *    fall back to the property name).
    *
@@ -323,7 +320,8 @@ export interface NearbyLocationsProps {
    */
   maxProperties?: number;
   /**
-   * Collection holding the site's own per-property extras — `priorityOrder` and
+   * Collection holding the site's own per-property extras —
+   * `nearbyLocationPriorityOrder` and
    * the hero photos. Overridable only because a collection name is site data.
    */
   internalCollection?: string;
@@ -382,7 +380,8 @@ export function NearbyLocations({
         // Properties + a geolocation attempt run together (geo may prompt).
         //
         // FEATURED DOES NOT ASK. Its order comes from the operator's
-        // `priorityOrder`, so the answer would be thrown away — and a permission
+        // `nearbyLocationPriorityOrder`, so the answer would be thrown away — and
+        // a permission
         // prompt whose result is discarded is the worst of both outcomes.
         const [raw, userLoc] = await Promise.all([
           fetchProperties(internalCollection),
@@ -421,7 +420,8 @@ export function NearbyLocations({
         let ranked: typeof measured;
         if (featured) {
           const priorities = await fetchPriorityOrder(internalCollection);
-          // FEATURED IS AN OPT-IN LIST. A property with no `priorityOrder` is not
+          // FEATURED IS AN OPT-IN LIST. A property with no
+          // `nearbyLocationPriorityOrder` is not
           // "ranked last", it is not featured at all — so it is filtered out
           // rather than sorted to the tail. The operator's column IS the list.
           //
@@ -433,7 +433,7 @@ export function NearbyLocations({
           if (!chosen.length && measured.length) {
             // eslint-disable-next-line no-console
             console.warn(
-              `[#07 nearby] featured mode: no row in ${internalCollection} has a priorityOrder, so there is nothing to feature`,
+              `[#07 nearby] featured mode: no row in ${internalCollection} has a nearbyLocationPriorityOrder, so there is nothing to feature`,
             );
           }
           ranked = sortByPriorityThenName(chosen, priorities);
@@ -518,14 +518,15 @@ export function NearbyLocations({
    * unreachable-API case, which keeps the existing demo-card fallback so the
    * section never renders blank in the Duda editor or a preview.
    *
-   * Featured is a filter (the `priorityOrder` column), and it is the one worth
+   * Featured is a filter (the `nearbyLocationPriorityOrder` column), and it is
+   * the one worth
    * naming: an operator who has selected "featured facilities" and filled nothing
    * in needs to be told that, not shown six invented facilities.
    */
   const emptyMessage =
     !loading && apiProperties!.length === 0
       ? featured
-        ? `No featured facilities yet — set “priorityOrder” on the properties to feature.`
+        ? `No featured facilities yet — set “nearbyLocationPriorityOrder” on the properties to feature.`
         : radiusMiles > 0
           ? `No properties found within ${radiusMiles} miles.`
           : null
