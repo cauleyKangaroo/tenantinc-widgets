@@ -1179,17 +1179,18 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
 .ts-o2-price--promo {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+  grid-template-rows: auto auto;
   width: 100%;
-  column-gap: 12px;
-  align-items: stretch;
+  column-gap: 16px;
+  row-gap: 2px;
+  align-items: end;
 }
-.ts-o2-price-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-}
+.ts-o2-price--promo .ts-o2-promo-label--std { grid-area: 1 / 1; }
+.ts-o2-price--promo .ts-o2-promo-label--promo { grid-area: 1 / 3; }
+.ts-o2-price--promo .ts-o2-strike { grid-area: 2 / 1; text-align: center; line-height: 1.2; }
+.ts-o2-price--promo .ts-o2-amt { grid-area: 2 / 3; text-align: center; line-height: 1.2; }
 .ts-o2-price-divider {
+  grid-area: 1 / 2 / 3 / 3;
   width: 1px;
   align-self: stretch;
   background: #c4cdd5;

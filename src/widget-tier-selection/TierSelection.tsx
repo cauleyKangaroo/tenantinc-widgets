@@ -1550,15 +1550,11 @@ function O2Card({ card }: { card: O2Tier }) {
         <div className="ts-o2-foot-top">
           {card.promoRate != null ? (
             <div className="ts-o2-price ts-o2-price--promo">
-              <span className="ts-o2-price-col">
-                <span className="ts-o2-promo-label ts-o2-promo-label--std">STANDARD</span>
-                <span className="ts-o2-strike">{priceFmt(card.price)}/mo.</span>
-              </span>
+              <span className="ts-o2-promo-label ts-o2-promo-label--std">STANDARD</span>
+              <span className="ts-o2-promo-label ts-o2-promo-label--promo">PROMO RATE</span>
+              <span className="ts-o2-strike">{priceFmt(card.price)}/mo.</span>
+              <span className="ts-o2-amt">{priceFmt(card.promoRate)}</span>
               <span className="ts-o2-price-divider" aria-hidden="true" />
-              <span className="ts-o2-price-col">
-                <span className="ts-o2-promo-label ts-o2-promo-label--promo">PROMO RATE</span>
-                <span className="ts-o2-amt">{priceFmt(card.promoRate)}</span>
-              </span>
             </div>
           ) : (
             <div className="ts-o2-price">
