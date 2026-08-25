@@ -398,7 +398,9 @@
   gap: 4px;
   height: 36px;
   padding: 0 15px;
-  border: 1px solid #101318;
+  /* 2px, matching #05's filter modal (.sl-filter-modal .sl-pill) — the two
+     panels sit on the same page and read as one control set. */
+  border: 2px solid #101318;
   border-radius: 100px;
   background: #fff;
   color: #101318;
@@ -490,45 +492,17 @@
   gap: 12px;
 }
 
+/* The box, the tick, the focus ring and the disabled state all come from
+   @shared/ui's Checkbox now. What was here drew a SECOND checkbox by hand — a
+   hidden input beside a .ml-fp-box square — which had to be kept in step with
+   the kit's by eye and had its own hardcoded #f26500 focus ring. Only the
+   label's type is set here, because the kit leaves that to the caller. */
 .ml-fp-check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   font-size: 14px;
   font-weight: 400;
   line-height: 18px;
   color: #101318;
-  cursor: pointer;
 }
-
-/* The real input stays focusable but invisible; .ml-fp-box is the visual. */
-.ml-fp-check input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.ml-fp-box {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #919eab;
-  border-radius: 4px;
-  background: #fff;
-}
-
-.ml-fp-check input:checked + .ml-fp-box {
-  background: #101318;
-  border-color: #101318;
-}
-
-.ml-fp-check input:focus-visible + .ml-fp-box { outline: 2px solid #f26500; outline-offset: 2px; }
-
-.ml-fp-check-label { min-width: 0; }
 
 /* Footer */
 .ml-fp-foot {
@@ -750,6 +724,10 @@
   bottom: 20px;
   display: flex;
   flex-direction: column;
+  /* The name, rating, address and phone had nothing but their line boxes
+     between them, and .ml-card-name is 1.1 — tight enough that the four ran
+     together as one block over the photo. */
+  gap: 4px;
   color: #fff;
 }
 

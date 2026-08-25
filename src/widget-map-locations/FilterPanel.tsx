@@ -5,7 +5,8 @@
 // scroll locked while open. Selections are real local state so the panel
 // demonstrates properly, but nothing is filtered yet: #08 is still static.
 
-import { FilterIcon, CloseIcon, AiSparkleIcon, ChevronDownIcon, ClearCircleIcon, CheckboxIcon } from './icons';
+import { FilterIcon, CloseIcon, ChevronDownIcon, ClearCircleIcon } from './icons';
+import { Checkbox } from '@shared/ui';
 import React, { useEffect } from 'react';
 import {
   type FilterState, type FilterOptions,
@@ -47,22 +48,29 @@ function PillGroup({
   );
 }
 
-/** Checkbox list — 24px box + 14px label. */
+/**
+ * Checkbox list — @shared/ui's Checkbox, the same control the rental flow uses.
+ *
+ * This drew its own: a hidden <input> beside a CheckboxIcon, which meant a
+ * second box to keep in step with the kit's and none of its focus ring,
+ * disabled state or token colours. The kit's is the one every widget is meant
+ * to use; there was no reason for this to be the exception.
+ */
 function CheckList({
   options, selected, onToggle,
 }: { options: string[]; selected: string[]; onToggle: (v: string) => void }) {
   return (
     <div className="ml-fp-checks">
-      {options.map((opt) => {
-        const on = selected.includes(opt);
-        return (
-          <label key={opt} className="ml-fp-check">
-            <input type="checkbox" checked={on} onChange={() => onToggle(opt)} />
-            <CheckboxIcon checked={on} size={24} className="ml-fp-box" />
-            <span className="ml-fp-check-label">{opt}</span>
-          </label>
-        );
-      })}
+      {options.map((opt) => (
+        <Checkbox
+          key={opt}
+          className="ml-fp-check"
+          checked={selected.includes(opt)}
+          onChange={() => onToggle(opt)}
+        >
+          {opt}
+        </Checkbox>
+      ))}
     </div>
   );
 }
@@ -151,8 +159,9 @@ export function FilterPanel({
 
         {/* Body */}
         <div className="ml-fp-body">
-          {/* Figma 10557:146418 — 54px pill, dark circular AI button inset right.
-              Same .ml-search block the mobile header uses, one size down. */}
+          {/* A plain search, matching #05's filter modal — the AI sparkle that
+              was here belongs to the map header's own search, not to a filter
+              field, and it promised something this box does not do. */}
           <div className="ml-search ml-search--sm">
             <input
               className="ml-search-input"
@@ -161,7 +170,14 @@ export function FilterPanel({
               aria-label="Filter spaces by"
             />
             <button type="button" className="ml-search-btn" aria-label="Search">
-              <AiSparkleIcon size={24} />
+              <svg
+                width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
             </button>
           </div>
 
