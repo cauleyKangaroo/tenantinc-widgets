@@ -1035,6 +1035,12 @@
        scroll to it. This engages only when the rail genuinely does not fit.
        The sticky header eats into the available height too, so subtract it
        alongside the 24px above and below. */
+    /* Reserve the rail's loaded height (~684px) so rent-or-reserve opens at its
+       final size: the RailSkeleton fills this and the real rail replaces it in
+       place, instead of the page growing when the quote breakdown lands. Capped
+       to the sticky window with min() so a short viewport still scrolls
+       internally (min-height would otherwise win over max-height and overflow). */
+    min-height: min(684px, calc(100vh - var(--rf-hdr-h, 100px) - 48px));
     max-height: calc(100vh - var(--rf-hdr-h, 100px) - 48px);
     overflow-y: auto;
   }

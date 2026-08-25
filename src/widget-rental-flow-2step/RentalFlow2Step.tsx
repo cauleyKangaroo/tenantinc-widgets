@@ -872,7 +872,11 @@ export function RentalFlow2Step({
     if (!node) return undefined;
     // Synchronous seed: RO's first callback is async (and throttled to
     // nothing in hidden tabs) — without this a phone gets a desktop flash.
-    setIsMobile(node.getBoundingClientRect().width < MOBILE_BP);
+    // Guard on width > 0 like the observer below: Duda can mount the widget
+    // before layout, and a 0 width would read as mobile (0 < 640), flashing the
+    // mobile layout on desktop and expanding the page when it corrects.
+    const seedWidth = node.getBoundingClientRect().width;
+    if (seedWidth) setIsMobile(seedWidth < MOBILE_BP);
     if (typeof ResizeObserver === 'undefined') return undefined;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
@@ -899,10 +903,11 @@ export function RentalFlow2Step({
     }
     let cancelled = false;
     (async () => {
+      setPayError(undefined);
       let result = await holdUnit(ctx, { id: quote.unitId, number: quote.unitNumber });
       if (result.ok === false && result.reason === 'conflict' && !cancelled) {
         console.warn(`${logTag} unit already held — re-picking:`, result.detail);
-        const other = await findUnitForSelection(ctx, selection?.size, selection?.price, true); // fresh list — cached one contains the 409'd unit
+        const other = await findUnitForSelection(ctx, selection?.size, selection?.price ?? quote.rent, true); // fresh list — cached one contains the 409'd unit
         if (other && other.id !== quote.unitId && !cancelled) {
           const q = await fetchMoveInQuote(ctx, other);
           if (q && !cancelled) {
@@ -924,8 +929,11 @@ export function RentalFlow2Step({
         // Drop any quote that is not the held unit's — the effect below then
         // re-quotes hold-aware. Fail CLOSED: never show another unit's money.
         setQuote((prev) => (prev && prev.unitId === held.unitId ? prev : undefined));
-      } else if (!result.ok && result.reason !== 'writes-disabled') {
-        console.warn(`${logTag} hold not acquired:`, result.reason, result.detail);
+      } else if (!result.ok) {
+        if (result.reason !== 'writes-disabled') {
+          console.warn(`${logTag} hold not acquired:`, result.reason, result.detail);
+        }
+        setPayError('We couldn’t secure this space. Please return and choose another available space.');
       }
     })();
     return () => { cancelled = true; };
@@ -1126,9 +1134,10 @@ export function RentalFlow2Step({
         if (!cancelled) setQuoteFailed(true);
       }));
 
-    // Selection from /offers (richer than space-groups). `fallback` is the
-    // space-groups selection, used ONLY on a technical failure of the offers read
-    // for display — it carries no unit identity and never authorizes a transaction.
+    // Selection from /offers enriches the rail but does NOT decide availability.
+    // If it cannot correlate the exact unit, retain only the authoritative
+    // handoff identity + size. Never borrow another offer's amenities, promo,
+    // token or price; the exact-unit quote and Step-2 hold remain authoritative.
     const runOffers = (fallback?: SelectionContext): Promise<void> => fetchSelectionFromOffers(
       ctx,
       unitGroupIdProp as string,
@@ -1141,21 +1150,29 @@ export function RentalFlow2Step({
           setSelection(result.selection);
           setSelectionStatus('matched');
         } else {
-          setSelection(undefined);
+          setSelection(unitIdProp
+            ? { unitId: unitIdProp, size: sizeProp ?? '' }
+            : fallback);
           setSelectionStatus(result.status);
         }
       })
       .catch((err) => {
         console.warn(`${logTag} offers selection unavailable:`, err);
         if (cancelled) return;
-        setSelection(fallback ?? undefined);
+        setSelection(unitIdProp
+          ? { unitId: unitIdProp, size: sizeProp ?? '' }
+          : fallback);
         setSelectionStatus('network-error');
       });
 
     if (authoritative) {
       // FAST PATH — offers + unit-info + quote start immediately; no space-groups
-      // round-trip in front of the price. No display fallback: a technical offers
-      // failure shows the retry/unavailable state with the buttons disabled.
+      // round-trip in front of the price. If offer enrichment fails, the rail
+      // falls back to the handed-off unit/size while the exact-unit quote and
+      // Step-2 hold continue to govern readiness and availability.
+      // Seed that minimal identity before /offers settles, so a slow enrichment
+      // request cannot delay readiness after the exact-unit quote succeeds.
+      setSelection({ unitId: unitIdProp, size: sizeProp ?? '' });
       const selectionDone = runOffers();
       const quoteDone = runQuote(
         fetchUnitInfo(ctx, unitIdProp).then((info) => ({ id: unitIdProp, ...info })),
@@ -1443,8 +1460,7 @@ export function RentalFlow2Step({
   // transaction readiness on a published page.
   const previewEnabled = previewContent && inEditor;
   const transactionReady = previewEnabled || !!(
-    selectionStatus === 'matched'
-    && correlatedSelection
+    correlatedSelection
     && propertyInfo
     && effectiveCompanyId
     && effectivePropertyId
@@ -1453,11 +1469,11 @@ export function RentalFlow2Step({
   );
   const transactionState: 'loading' | 'ready' | 'unavailable' | 'error' = transactionReady
     ? 'ready'
-    : selectionStatus === 'unit-unavailable'
+    : !unitIdProp && selectionStatus === 'unit-unavailable'
       ? 'unavailable'
-      : selectionStatus === 'unit-unverified' || selectionStatus === 'malformed' || selectionStatus === 'network-error' || selectionStatus === 'legacy-display' || quoteFailed
+      : quoteFailed
         ? 'error'
-        : loading || selectionStatus === 'loading'
+        : loading || !quote || selectionStatus === 'loading'
           ? 'loading'
           : 'error';
 
@@ -1736,6 +1752,12 @@ export function RentalFlow2Step({
                     console.error(`${logTag} rental threw unexpectedly:`, err);
                     setPayError('Something went wrong completing your rental. Please try again.');
                   });
+                return;
+              }
+              // Published checkout must never fall through to the harness
+              // completion when the authoritative hold failed or is pending.
+              if (!previewEnabled) {
+                setPayError('We couldn’t secure this space. Please return and choose another available space.');
                 return;
               }
               // No card, or no hold/quote to rent against — nothing to

@@ -131,11 +131,6 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
       unitId: b.unitId,
     };
   });
-  // "Most Popular" badge on Better when it's available, else the priciest
-  // available tier.
-  const availIdx = slots.map((k, i) => (bySlot[k] ? i : -1)).filter((i) => i >= 0);
-  const popularIdx = bySlot.better ? slots.indexOf('better') : (availIdx.length ? availIdx[availIdx.length - 1] : -1);
-
   const hasKey = (k: TierKey, label: string) => !!bySlot[k]?.features.includes(label);
   const checkRows = data.featureLabels.slice(0, 6).map((label, ri) => ({
     label,
@@ -150,13 +145,12 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
     ...checkRows.map((r) => ({ ...r, type: 'check' as RowType })),
   ];
 
-  const o2: O2Tier[] = tiers.map((t, i) => ({
+  const o2: O2Tier[] = tiers.map((t) => ({
     key: t.key,
     name: t.name,
     tagline: t.tagline,
     price: t.price,
     promoRate: t.promoRate,
-    popular: i === popularIdx,
     promo: t.promo,
     soldOut: t.soldOut,
     // Pricing cards intentionally show only the four highest-priority website
@@ -164,13 +158,12 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
     features: (t.features ?? []).slice(0, 4).map((label) => ({ label })),
   }));
 
-  const o3: O3Tier[] = tiers.map((t, i) => ({
+  const o3: O3Tier[] = tiers.map((t) => ({
     key: t.key,
     name: t.name,
     tagline: t.tagline,
     price: t.price,
     promoRate: t.promoRate,
-    popular: i === popularIdx,
     promo: t.promo,
     soldOut: t.soldOut,
   }));
@@ -381,6 +374,7 @@ export function TierSelection({
   elementId,
 }: TierSelectionProps) {
   const [selected, setSelected] = useState<TierKey>('better');
+  const [featuredTier, setFeaturedTier] = useState<TierKey>('better');
   const { ref, isMobile } = useIsMobile(MOBILE_BP);
 
   // Modal mode: closed until the Space List fires the open event, which carries
@@ -628,8 +622,13 @@ export function TierSelection({
         const realKeys = value.bundles.map((b) => b.key);
         const handoff = tierProp && realKeys.includes(tierProp as TierKey) ? (tierProp as TierKey) : undefined;
         if (tierProp && !handoff) console.warn(`[TierSelection] handoff tier ${JSON.stringify(tierProp)} not in offers — keeping default selection`);
-        const opDefault = defaultTier && realKeys.includes(defaultTier as TierKey) ? (defaultTier as TierKey) : undefined;
-        setSelected(handoff ?? opDefault ?? (realKeys.includes('better') ? 'better' : realKeys[0]));
+        // Normalise the operator value: the content field may arrive as "Best"
+        // or with stray whitespace, while realKeys are lowercase good/better/best.
+        const normDefault = defaultTier?.trim().toLowerCase();
+        const opDefault = normDefault && realKeys.includes(normDefault as TierKey) ? (normDefault as TierKey) : undefined;
+        const initialTier = handoff ?? opDefault ?? (realKeys.includes('better') ? 'better' : realKeys[0]);
+        setSelected(initialTier);
+        setFeaturedTier(initialTier);
       } catch (err) {
         unavailable('offers fetch failed', err);
       }
@@ -793,6 +792,7 @@ export function TierSelection({
       onSelectClick,
       selected,
       setSelected,
+      featuredTier,
       quotes,
       ensureQuote,
       ctaLabel: modalCtaLabel ?? ctaLabel,
@@ -1487,8 +1487,9 @@ function Option2Layout({ heading, subheading, urgency, adminFeeText, chromeless 
 }
 
 function O2Card({ card }: { card: O2Tier }) {
-  const { rentHref, onSelectClick, selected, setSelected, ctaLabel } = useTierData();
+  const { rentHref, onSelectClick, selected, setSelected, featuredTier, ctaLabel } = useTierData();
   const isSelected = selected === card.key;
+  const isFeatured = featuredTier === card.key;
   if (card.soldOut) {
     return (
       <div className="ts-o2-card ts-o2-card--soldout">
@@ -1517,14 +1518,14 @@ function O2Card({ card }: { card: O2Tier }) {
   }
   return (
     <div
-      className={`ts-o2-card${card.promo ? '' : ' ts-o2-card--no-promo'}${card.popular ? ' ts-o2-card--popular' : ''}${isSelected ? ' ts-o2-card--selected' : ''}`}
+      className={`ts-o2-card${card.promo ? '' : ' ts-o2-card--no-promo'}${isFeatured ? ' ts-o2-card--popular' : ''}${isSelected ? ' ts-o2-card--selected' : ''}`}
       onClick={() => setSelected?.(card.key)}
       onKeyDown={activateOnKey(() => setSelected?.(card.key))}
       role="button"
       tabIndex={0}
       aria-pressed={isSelected}
     >
-      {card.popular && <span className="ts-o2-badge">Most Popular</span>}
+      {isFeatured && <span className="ts-o2-badge">Most Popular</span>}
 
       <div className="ts-o2-card-top">
         <div className="ts-o2-card-head">
@@ -1549,10 +1550,15 @@ function O2Card({ card }: { card: O2Tier }) {
         <div className="ts-o2-foot-top">
           {card.promoRate != null ? (
             <div className="ts-o2-price ts-o2-price--promo">
-              <span className="ts-o2-promo-label ts-o2-promo-label--std">STANDARD</span>
-              <span className="ts-o2-promo-label ts-o2-promo-label--promo">PROMO RATE</span>
-              <span className="ts-o2-strike">{priceFmt(card.price)}/mo.</span>
-              <span className="ts-o2-amt">{priceFmt(card.promoRate)}</span>
+              <span className="ts-o2-price-col">
+                <span className="ts-o2-promo-label ts-o2-promo-label--std">STANDARD</span>
+                <span className="ts-o2-strike">{priceFmt(card.price)}/mo.</span>
+              </span>
+              <span className="ts-o2-price-divider" aria-hidden="true" />
+              <span className="ts-o2-price-col">
+                <span className="ts-o2-promo-label ts-o2-promo-label--promo">PROMO RATE</span>
+                <span className="ts-o2-amt">{priceFmt(card.promoRate)}</span>
+              </span>
             </div>
           ) : (
             <div className="ts-o2-price">
@@ -1598,15 +1604,20 @@ function O2Card({ card }: { card: O2Tier }) {
 // ── Option 2 mobile — accordion (one expanded, others collapsed) ────────────
 
 function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading: string; urgency: string; adminFeeText?: string; chromeless?: boolean }) {
-  const { o2 } = useTierData();
+  const { o2, selected, setSelected } = useTierData();
   // Mobile has no room for sold-out placeholders — show real tiers only.
   const cards = o2.filter((c) => !c.soldOut);
-  const initial = cards.find((c) => c.key === 'better') ?? cards[cards.length - 1];
+  const initial = cards.find((c) => c.key === selected)
+    ?? cards.find((c) => c.key === 'better')
+    ?? cards[cards.length - 1];
   const [expanded, setExpanded] = useState<TierKey | undefined>(initial?.key);
   // Reconcile if the data changes and the expanded tier is gone (no remount).
   const cardKeys = cards.map((c) => c.key).join(',');
   useEffect(() => {
-    if (!cards.some((c) => c.key === expanded)) setExpanded(initial?.key);
+    if (!cards.some((c) => c.key === expanded)) {
+      setExpanded(initial?.key);
+      if (initial) setSelected?.(initial.key);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardKeys]);
 
@@ -1628,7 +1639,10 @@ function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading
               type="button"
               key={card.key}
               className="ts-o2m-bar"
-              onClick={() => setExpanded(card.key)}
+              onClick={() => {
+                setExpanded(card.key);
+                setSelected?.(card.key);
+              }}
               aria-expanded={false}
             >
               <O2MHead card={card} />
@@ -1672,10 +1686,11 @@ function O2MHead({ card }: { card: O2Tier }) {
 }
 
 function O2MExpanded({ card }: { card: O2Tier }) {
-  const { ctaLabel, rentHref, onSelectClick } = useTierData();
+  const { ctaLabel, rentHref, onSelectClick, featuredTier } = useTierData();
+  const isFeatured = featuredTier === card.key;
   return (
-    <div className={`ts-o2m-card${card.popular ? ' ts-o2m-card--popular' : ''}`}>
-      {card.popular && <span className="ts-o2-badge ts-o2m-badge">Most Popular</span>}
+    <div className={`ts-o2m-card${isFeatured ? ' ts-o2m-card--popular' : ''}`}>
+      {isFeatured && <span className="ts-o2-badge ts-o2m-badge">Most Popular</span>}
       <O2MHead card={card} />
       <ul className="ts-o2-features ts-o2m-features">
         {card.features.map((f) => (
@@ -1764,11 +1779,12 @@ function Option3Layout({ heading, subheading, urgency, adminFeeText, chromeless 
 }
 
 function O3Column({ card }: { card: O3Tier }) {
-  const { rows3, rentHref, onSelectClick, selected, setSelected, ctaLabel } = useTierData();
+  const { rows3, rentHref, onSelectClick, selected, setSelected, featuredTier, ctaLabel } = useTierData();
   const isSelected = selected === card.key;
+  const isFeatured = featuredTier === card.key;
   return (
     <div
-      className={`ts-o3-col ts-o3-tier${card.popular ? ' ts-o3-col--popular' : ''}${isSelected ? ' ts-o3-col--selected' : ''}`}
+      className={`ts-o3-col ts-o3-tier${isFeatured ? ' ts-o3-col--popular' : ''}${isSelected ? ' ts-o3-col--selected' : ''}`}
       onClick={() => !card.soldOut && setSelected?.(card.key)}
       onKeyDown={card.soldOut ? undefined : activateOnKey(() => setSelected?.(card.key))}
       role="button"
@@ -1776,7 +1792,7 @@ function O3Column({ card }: { card: O3Tier }) {
       aria-pressed={isSelected}
       aria-disabled={card.soldOut || undefined}
     >
-      {card.popular && <span className="ts-o2-badge ts-o3-badge">Most Popular</span>}
+      {isFeatured && <span className="ts-o2-badge ts-o3-badge">Most Popular</span>}
 
       <div className="ts-o3-head ts-o3-card">
         <div className="ts-o3-cardhead">

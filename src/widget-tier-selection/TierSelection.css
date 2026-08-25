@@ -172,10 +172,10 @@
   margin-top: 26px;
   padding: 12px;
   background: #fff;
-  border: 2px dashed #509E2F;
+  border: 2px dashed var(--color_2, #509e2f);
   border-radius: 8px;
 }
-.ts-promo-icon { color: #509E2F; flex: 0 0 auto; }
+.ts-promo-icon { color: var(--color_2, #509e2f); flex: 0 0 auto; }
 .ts-promo-text {
   font-size: 14px;
   font-weight: 700;
@@ -595,7 +595,7 @@
 
 .ts-o2-card {
   position: relative;
-  min-height: 500px;
+  min-height: 440px;
   background: #fff;
   border: 4px solid transparent; /* 4pt outline (Figma); transparent keeps box model equal */
   border-radius: 16px;
@@ -782,8 +782,8 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
   text-align: left;
 }
 
-/* Expanded card — the open accordion panel always gets the dark outline
-   (the "Most Popular" badge, rendered separately, stays exclusive to Better). */
+/* Expanded card — the open accordion panel always gets the dark outline.
+   The recommendation badge remains tied to the initial/default tier. */
 .ts-o2m-card {
   position: relative;
   background: #fff;
@@ -1028,7 +1028,7 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
 .ts-modal {
   position: relative;
   font-family: 'Montserrat', sans-serif; /* portaled outside .ts-wrapper — pin the font */
-  background: #fff;
+  background: #f4f6f8;
   border-radius: 20px;
   width: 100%;
   max-width: 1470px; /* Figma "Facility Page" popup width */
@@ -1048,7 +1048,7 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
   flex: 0 0 auto;
   position: relative;
   z-index: 2;
-  background: #fff;
+  background: #f4f6f8;
   padding: 40px 36px 4px 40px;
 }
 .ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; }
@@ -1060,7 +1060,7 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
 .ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #e53935; }
 .ts-modal-admin { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 40px; margin: 0; font-size: 20px; font-weight: 400; color: #101318; }
 .ts-modal-admin-info { color: #101318; flex: 0 0 auto; }
-.ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 8px 32px 32px; }
+.ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 16px 32px 32px; background: #f4f6f8; }
 /* Keep a 48px touch target while drawing the 40px Figma circle inside it. The
    button participates in the header layout so its center follows the optional
    urgency/admin block whether either, both, or neither message is present. */
@@ -1176,15 +1176,33 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
 .ts-pill-strike { display: block; font-size: 18px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.3; }
 .ts-pill-promo { display: block; font-size: 18px; font-weight: 700; color: #101318; line-height: 1.3; }
 .ts-cell-strike { font-size: 12px; font-weight: 400; text-decoration: line-through; color: #637381; }
-.ts-o2-price--promo, .ts-o3-price--promo {
+.ts-o2-price--promo {
   display: grid;
-  grid-template-columns: auto auto;
-  column-gap: 20px;
-  row-gap: 2px;
-  justify-content: center;
-  align-items: baseline;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+  width: 100%;
+  column-gap: 12px;
+  align-items: stretch;
 }
-.ts-o2-promo-label, .ts-o3-promo-label { font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; line-height: 1.4; text-align: center; }
+.ts-o2-price-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+.ts-o2-price-divider {
+  width: 1px;
+  align-self: stretch;
+  background: #c4cdd5;
+}
+.ts-o2-promo-label, .ts-o3-promo-label {
+  align-self: end;
+  margin-bottom: -4px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  line-height: 1;
+  text-align: center;
+}
 .ts-o2-promo-label--std, .ts-o3-promo-label--std { font-weight: 500; color: #637381; }
 .ts-o2-promo-label--promo, .ts-o3-promo-label--promo { font-weight: 700; color: #101318; }
 .ts-o2-strike, .ts-o3-strike { font-size: 24px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.2; text-align: center; }
