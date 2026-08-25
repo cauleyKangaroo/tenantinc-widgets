@@ -433,6 +433,27 @@
   color: #111;
 }
 
+/* Call + menu, mobile only. Hidden with the burger rather than on its own, so
+   the two can never disagree about which widths they belong to. */
+.nav-mobile-actions {
+  display: none;
+  align-items: center;
+  /* The frame's gap between the phone and the mark after it. */
+  gap: 20px;
+}
+.nav-mobile-call {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* #111 (PikaDark), the frame's stroke — not the theme link colour a bare <a>
+     would inherit, and no underline for the same reason. */
+  color: #111;
+  text-decoration: none;
+}
+.nav-mobile-call:hover,
+.nav-mobile-call:focus,
+.nav-mobile-call:active { color: #111; text-decoration: none; }
+
 /* ── Mobile full-screen menu (hamburger) ────────────────────────────────── */
 
 .nav-mobile-menu {
@@ -536,12 +557,22 @@
 
 /* Quick actions grid — minmax(0, 1fr) columns can't force the row wider than
    the menu (equal columns that shrink to 0), so it never overflows. */
+/* ONE inset for everything down the drawer. The circles, the search bar, the
+   account links and the nav accordion were on 16px, 34px and 48px respectively,
+   so nothing lined up with anything above it. 34px is the frame's
+   (7101-46038: a 305px row inside 373). */
+.nav-mm-body { --nav-mm-inset: 34px; }
+
+/* The grey block: circles AND search (Figma 7101-46038). */
+.nav-mm-top {
+  background: #f9fafb;
+  padding: 32px var(--nav-mm-inset) 24px;
+}
+
 .nav-mm-quick {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  background: #f9fafb;
-  padding: 32px 16px;
 }
 
 .nav-mm-quick-item {
@@ -565,7 +596,8 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  border: 1px solid #101318;
+  /* 2px, per the frame — 1px read as a hairline against the 22px glyph. */
+  border: 2px solid #101318;
   border-radius: 50%;
   color: #101318;
 }
@@ -583,7 +615,8 @@
   align-items: center;
   gap: 8px;
   height: 50px;
-  margin: 0 34px 20px;
+  /* Inside .nav-mm-top now, so the block's own padding places it. */
+  margin: 32px 0 0;
   padding: 0 6px 0 16px;
   background: #fefefe;
   border: 1px solid #101318;
@@ -657,7 +690,7 @@
    .nav-mm-nav-inset below: an id-scoped list reset in Duda's own stylesheet beats
    a padded <ul> of ours and slams the links to the drawer's left edge. */
 .nav-mm-account-inset {
-  padding: 8px 48px 24px;
+  padding: 24px var(--nav-mm-inset);
 }
 
 .nav-mm-account {
@@ -703,7 +736,7 @@
    A div can't be caught by a list reset, so this is immune rather than merely
    more specific. `!important` on the ul is belt-and-braces for the same fight. */
 .nav-mm-nav-inset {
-  padding: 4px 48px 40px;
+  padding: 4px var(--nav-mm-inset) 40px;
 }
 
 .nav-mm-nav {
@@ -867,6 +900,10 @@
   }
 
   .nav-burger {
+    display: flex;
+  }
+
+  .nav-mobile-actions {
     display: flex;
   }
 

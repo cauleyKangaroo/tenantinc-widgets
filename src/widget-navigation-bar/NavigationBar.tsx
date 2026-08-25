@@ -10,6 +10,7 @@ import {
   UsFlagIcon,
   UserCircleIcon,
   HamburgerIcon,
+  PhoneCallIcon,
   CloseIcon,
   SelfStorageIcon,
   BusinessStorageIcon,
@@ -747,9 +748,18 @@ export function NavigationBar({
             {navLinks}
             {!showTopBar && actions}
           </div>
-          <button className="nav-burger" onClick={() => setMenuOpen(true)} aria-label="Open menu">
-            <HamburgerIcon size={28} />
-          </button>
+          {/* Call and menu, in that order (Figma 11665-237163). The number is
+              the same one the top bar shows — live from the Company collection
+              when there is one, the `phone` prop otherwise — so a visitor never
+              gets two different numbers for the same site. */}
+          <div className="nav-mobile-actions">
+            <a className="nav-mobile-call" href={telHref} aria-label={`Call ${displayPhone}`}>
+              <PhoneCallIcon size={30} />
+            </a>
+            <button className="nav-burger" onClick={() => setMenuOpen(true)} aria-label="Open menu">
+              <HamburgerIcon />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -784,6 +794,11 @@ export function NavigationBar({
           </div>
 
           <div className="nav-mm-body">
+            {/* The grey block (Figma 7101-46038) holds BOTH the four circles and
+                the search bar. The search used to sit outside it on white, which
+                is why it read as a separate strip rather than part of the
+                header. */}
+            <div className="nav-mm-top">
             {/* Quick actions */}
             <div className="nav-mm-quick">
               <a className="nav-mm-quick-item" href="#">
@@ -831,6 +846,7 @@ export function NavigationBar({
                 <SearchIcon size={20} />
               </button>
             </form>
+            </div>
 
             {/* Account / utility links — inset on the wrapping div, see below */}
             <div className="nav-mm-account-inset">
