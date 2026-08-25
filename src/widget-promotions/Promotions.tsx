@@ -8,6 +8,7 @@ import cfg from './config.json';
 import { fetchWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolvePropertyId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { imageUrl } from '@shared/dudaCollections';
 import { emitShowPromo, scrollToSpaceList } from '@shared/promoBus';
 import { DisclaimerModal } from './DisclaimerModal';
 import { TagIcon, InfoIcon, ChevronRight } from './icons';
@@ -218,7 +219,15 @@ export interface PromotionsProps {
   mode?: 'banner' | 'bar';
 
   // ── Mode 1: banner (uploaded image + link) ──
-  bannerImage?: string;
+  /**
+   * Content-menu IMAGE inputs. `unknown`, not `string`: a Duda image field
+   * hands over an OBJECT ({url, ...}) rather than a URL, and which key holds it
+   * varies — `imageUrl()` normalises every shape, and still passes a plain
+   * string straight through for a JS tab that already unwrapped it.
+   */
+  bannerImage?: unknown;
+  /** Swapped in below 640px, the same width the bundled default art swaps at. */
+  bannerImageMobile?: unknown;
   bannerUrl?: string;
   bannerAlt?: string;
 
@@ -251,6 +260,7 @@ export interface PromotionsProps {
 export function Promotions({
   mode = 'bar',
   bannerImage,
+  bannerImageMobile,
   bannerUrl = '#',
   bannerAlt = '',
   barText,
@@ -318,19 +328,24 @@ export function Promotions({
 
   // ── Mode 1: banner ────────────────────────────────────────────────────
   if (view === 'banner') {
+    const uploaded = imageUrl(bannerImage);
+    const desktopSrc = uploaded || promoBanner;
+    /* The bundled mobile art is a fallback for the bundled DESKTOP art, so it
+       only applies while nothing has been uploaded. An editor who supplies a
+       desktop banner and no mobile one gets that banner at every width — the
+       old behaviour — rather than their artwork above 640px and ours below. */
+    const mobileSrc = imageUrl(bannerImageMobile) || (uploaded ? '' : promoBannerMobile);
+
     return (
       <div className="promo-wrapper">
         <a className="promo-banner" href={bannerUrl}>
-          {bannerImage ? (
-            <img className="promo-banner-img" src={bannerImage} alt={bannerAlt} />
-          ) : (
-            // Default banner (used until a Duda banner image is uploaded). Mobile
-            // art swaps in below 640px.
-            <picture>
-              <source media="(max-width: 640px)" srcSet={promoBannerMobile} />
-              <img className="promo-banner-img" src={promoBanner} alt={bannerAlt || 'Current promotion'} />
-            </picture>
-          )}
+          {/* Always a <picture>: <source> is what lets the browser pick before
+              it fetches, so the wrong-size image is never downloaded. With no
+              mobile art there is simply no <source> and the <img> stands alone. */}
+          <picture>
+            {mobileSrc && <source media="(max-width: 640px)" srcSet={mobileSrc} />}
+            <img className="promo-banner-img" src={desktopSrc} alt={bannerAlt || 'Current promotion'} />
+          </picture>
         </a>
       </div>
     );

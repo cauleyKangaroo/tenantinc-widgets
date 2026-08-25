@@ -65,6 +65,21 @@ function Select({
  *
  * Replace with the app's real response; nothing else here has to change.
  */
+/**
+ * ID verification is switched OFF.
+ *
+ * Nothing behind it is wired to a real service yet, so it must not appear on a
+ * demo or a live page. One flag rather than a hundred commented-out lines: the
+ * whole flow — the card, the in-store branch, the three results, the modal and
+ * the read-only summaries — stays compiled and type-checked, so it cannot rot
+ * while it waits.
+ *
+ * Off, step 3 is exactly what it was before any of it existed: mailing address,
+ * licence and additional information all on the page, and Get Access grants
+ * access. Flip to `true` to bring it back; nothing else has to change.
+ */
+const IDV_ENABLED = false;
+
 const IDV_SOURCE = {
   mailing: {
     line: '4920 Campus Drive Suite B, Newport Beach, CA 92660',
@@ -136,7 +151,9 @@ export function SuccessStep({ onGetAccess, chosen }: {
      in-store (the counter needs them), complete (the scan supplies them, and
      they can be overridden) and failed (nothing was captured, so they are typed
      by hand). Not `choose` or `later` — nothing has been decided yet. */
-  const detailsShown = idv === 'instore' || idv === 'complete' || idv === 'failed';
+  // Off, the two groups are simply always on the page — there is no branch
+  // left to decide otherwise.
+  const detailsShown = !IDV_ENABLED || idv === 'instore' || idv === 'complete' || idv === 'failed';
   const mailReadOnly = idv === 'complete' && !mailEditing;
   const dlReadOnly = idv === 'complete' && !dlEditing;
 
@@ -264,7 +281,9 @@ export function SuccessStep({ onGetAccess, chosen }: {
     // Only what was filled — the update must not blank a value the tenant may
     // have given at the counter.
     onGetAccess?.({
-      idVerified: idv === 'complete',
+      // Off, nothing is being verified, so nothing may be withheld for it —
+      // the confirmation page must not claim verification is required.
+      idVerified: !IDV_ENABLED || idv === 'complete',
       driverLicense: dlNumber.trim() || undefined,
       driverLicenseExp: dlExp.trim() || undefined,
       driverLicenseState: dlState.trim() || undefined,
@@ -317,7 +336,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
           service can be wired to `idv` and the modal without redesigning. What
           the contact record actually stores — driver_license / _exp / _state —
           is still collected by the Driver's Licence group below. */}
-      {idv === 'choose' && (
+      {IDV_ENABLED && idv === 'choose' && (
         <section className="rf-sx-idv">
           <h3 className="rf-sx-idv-title">ID Verification</h3>
           <div className="rf-sx-idv-body">
@@ -346,7 +365,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
           property's — SuccessStep is not passed the property, and the record
           separates access hours from office hours, so picking one here would be
           a guess. Thread the real pair in when the verification work lands. */}
-      {idv === 'instore' && (
+      {IDV_ENABLED && idv === 'instore' && (
         <section className="rf-sx-idv rf-sx-idv--instore">
           <div className="rf-sx-idv-instore-main">
             <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
@@ -383,7 +402,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
       {/* The three results a verification can end in (Figma 8507-24189 /
           8507-24120 / 8507-24130). Reachable from the modal today so the flow
           can be walked through; the real service sets `idv` instead. */}
-      {idv === 'complete' && (
+      {IDV_ENABLED && idv === 'complete' && (
         <section className="rf-sx-idv rf-sx-idv--done">
           <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
             <TickSingleIcon size={24} className="rf-sx-idv-tick" />
@@ -392,7 +411,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
         </section>
       )}
 
-      {idv === 'failed' && (
+      {IDV_ENABLED && idv === 'failed' && (
         <section className="rf-sx-idv rf-sx-idv--alert">
           <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
             <AlertTriangleIcon size={24} className="rf-sx-idv-alert" />
@@ -412,7 +431,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
         </section>
       )}
 
-      {idv === 'later' && (
+      {IDV_ENABLED && idv === 'later' && (
         <section className="rf-sx-idv rf-sx-idv--alert">
           <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
             <AlertTriangleIcon size={24} className="rf-sx-idv-alert" />
@@ -442,7 +461,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
           component, so switching back and forth keeps whatever was typed. */}
       {detailsShown && (
         <>
-        {idv === 'complete' && (
+        {IDV_ENABLED && idv === 'complete' && (
           <p className="rf-sx-idv-current">
             For the purpose of important notifications, please make sure the address captured from
             your license is current.
@@ -628,11 +647,13 @@ export function SuccessStep({ onGetAccess, chosen }: {
 
       <button type="button" className="rf-sx-access" onClick={submit}>Get Access</button>
 
+      {IDV_ENABLED && (
       <IdVerifyModal
         open={idvModal}
         onClose={() => setIdvModal(false)}
         onResult={setIdv}
       />
+      )}
     </div>
   );
 }

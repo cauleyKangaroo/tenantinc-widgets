@@ -4,9 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tenantinc Widget Dev Harness</title>
+  <!-- Montserrat, as a real <link> rather than relying on the @import inside a
+       bundle's injected <style> — an @import is only honoured at the very top of
+       a sheet, and style-loader gives no guarantee about that.
+
+       This matters because the widgets deliberately do NOT hardcode a font: the
+       rental flow sets `font-family: inherit` and points --hb-font at it, so the
+       whole widget and every @shared/ui component inside it follow the PAGE's
+       font. That is what lets a Duda site keep its own theme font. The harness
+       page was sans-serif, so everything faithfully inherited sans-serif and
+       Montserrat was never seen here. Setting the page font is the fix; the
+       widgets are already correct. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 24px; background: #f9fafb; font-family: sans-serif; }
+    body { margin: 0; padding: 24px; background: #f9fafb; font-family: 'Montserrat', sans-serif; }
     @media (max-width: 768px) { body { padding: 0; } }
     h1 { font-size: 18px; color: #374151; margin: 0 0 4px; }
     .subtitle { font-size: 13px; color: #9ca3af; margin: 0 0 32px; }
@@ -522,6 +536,18 @@
           </select>
         </label>
       </div>
+      <div class="controls-group">
+        <span class="controls-group-label">Default Selected Tier</span>
+        <label>
+          Tier:
+          <select id="ts-default-tier" onchange="reinitTierSelection()">
+            <option value="">(none — falls back to Better)</option>
+            <option value="good">Good</option>
+            <option value="better">Better</option>
+            <option value="best">Best</option>
+          </select>
+        </label>
+      </div>
     </div>
   </div>
 
@@ -999,7 +1025,10 @@
     var tierSelectionWidget = null;
 
     function getTierSelectionProps() {
-      return { variant: document.getElementById('ts-variant').value };
+      return {
+        variant: document.getElementById('ts-variant').value,
+        defaultTier: document.getElementById('ts-default-tier').value || undefined,
+      };
     }
 
     function reinitTierSelection() {

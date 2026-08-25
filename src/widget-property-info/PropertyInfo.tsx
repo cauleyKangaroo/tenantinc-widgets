@@ -370,7 +370,7 @@ export function PropertyInfo(props: Props) {
     const stateLabel = stateName(property.state);
     const stateSlug = placeSlug(stateLabel);
     const citySlug = placeSlug(property.city);
-    const head = locationCrumbHead(base);
+    const head = locationCrumbHead();
     const trail: Crumb[] = [...head];
     if (stateSlug) trail.push({ label: stateLabel, href: `${base}/${stateSlug}` });
     if (stateSlug && citySlug) trail.push({ label: property.city, href: `${base}/${stateSlug}/${citySlug}` });

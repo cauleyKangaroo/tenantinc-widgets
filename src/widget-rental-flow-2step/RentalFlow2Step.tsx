@@ -229,33 +229,71 @@ function Field({
   );
 }
 
-/** Rail-only placeholder used while Step 1 is already interactive. */
+/**
+ * Rail-only placeholder used while Step 1 is already interactive.
+ *
+ * GROWTH-ONLY. What is drawn is only what the loaded card ALWAYS has at a size it
+ * always has: the 208px hero, the 29px size line, the flat 50px price pair, the
+ * payments row. Everything whose height is decided by the data — the amenity
+ * list, the summary line, the promo pill, the breakdown's line items — is
+ * deliberately NOT drawn.
+ *
+ * Those parts cannot be predicted: their sizes ARE the payload of the request
+ * being waited on, so any figure typed here is right for one dataset and wrong
+ * for the rest. Amenity rows reserve ~99px against a real 0 for a space with no
+ * features, the promo pill reserves 72px for a promotion that may never exist,
+ * and a three-row breakdown was tuned to a three-line quote on sites that bill
+ * seven (rent, deposit, admin, key deposit, lock cut, lien notice, tax).
+ * Reserving nothing for them means the card can only GROW when the data lands —
+ * it can never come up short and snap.
+ *
+ * Growing is close to free: .rf-layout is a two-column grid with
+ * align-items:start and the card is position:sticky above 901px, so its top edge
+ * is pinned and the extra height extends downward into empty space. Between
+ * 640-900px it sits below the form in one column and grows downward there too.
+ * In no layout does the rail's height move the form beside it.
+ *
+ * The payments row IS drawn: SummaryRail defaults showPayments to true and
+ * OrderRail never overrides it, so it is always present at a fixed height —
+ * reserving it costs no shrink risk and takes that much out of the jump.
+ *
+ * "Change Space" is NOT drawn: that link needs a same-origin referrer
+ * (backToSpacesUrl) and is absent on a direct navigation, so its 20px + 24px gap
+ * would over-reserve in exactly the case where someone opens /rental cold.
+ */
 function RailSkeleton() {
   return (
     <aside className="ts-card" aria-hidden="true">
       <div className="ts-card-hero"><Shimmer w="100%" h="100%" r={0} /></div>
       <div className="ts-card-body">
+        {/* .ts-card-top is a two-column flex, so its height is the TALLER of the
+            two. Both sides are at their minimum, making this row 50px — exactly
+            what the real card measures with no features and no "Change Space",
+            and less than it measures in every other case. */}
         <div className="ts-card-top">
           <div className="ts-card-top-left">
+            {/* .ts-card-size is 24px/1.2. No sub-line and no amenity rows below
+                it: both are slices of `selection.features`, routinely empty. */}
             <Shimmer w={152} h={29} r={4} />
-            <Shimmer w={188} h={20} r={4} style={{ marginTop: 6 }} />
-            <div className="ts-card-amenities">
-              <Shimmer w={116} h={17} r={4} />
-              <Shimmer w={96} h={17} r={4} />
-              <Shimmer w={108} h={17} r={4} />
-            </div>
           </div>
           <div className="ts-card-top-right">
-            <Shimmer w={104} h={20} r={4} />
+            {/* .ts-card-prices is a flat 50px in BOTH the single-price and the
+                struck-through variants, so this one is safe to reserve. */}
             <Shimmer w={124} h={50} r={4} />
           </div>
         </div>
-        <div style={{ marginTop: 24 }}><Shimmer w="100%" h={48} r={8} /></div>
+        {/* The breakdown at ITS minimum: the single-line note and the total row
+            OrderRail renders before a quote resolves. The line items are whatever
+            the property bills, which varies most of all, so they are left to
+            arrive rather than guessed at. */}
         <div className="ts-card-breakdown">
-          <Shimmer w="100%" h={34} mb={10} r={4} />
-          <Shimmer w="100%" h={20} mb={10} r={4} />
-          <Shimmer w="100%" h={20} r={4} />
-          <div style={{ marginTop: 8 }}><Shimmer w="100%" h={28} r={4} /></div>
+          <Shimmer w="100%" h={20} mb={12} r={4} />
+          <div style={{ marginTop: 8 }}><Shimmer w="100%" h={22} r={4} /></div>
+        </div>
+        <div className="ts-card-payments">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <Shimmer key={i} w={39} h={24} r={3} />
+          ))}
         </div>
       </div>
     </aside>
@@ -726,7 +764,7 @@ export function RentalFlow2Step({
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
   const [selectionStatus, setSelectionStatus] = useState<
-    'loading' | 'matched' | 'unit-unavailable' | 'malformed' | 'network-error' | 'legacy-display'
+    'loading' | 'matched' | 'unit-unavailable' | 'unit-unverified' | 'malformed' | 'network-error' | 'legacy-display'
   >('loading');
   const [quote, setQuote] = useState<MoveInQuote | undefined>(undefined);
   const [quoteFailed, setQuoteFailed] = useState(false);
@@ -810,7 +848,9 @@ export function RentalFlow2Step({
   const onRailToggle = () => setRailOpen((o) => !o);
 
   /**
-   * How tall the sheet may be: whatever is left of the viewport below the bar.
+   * How tall the sheet may be: whatever is left of the viewport below the bar's
+   * slot — which is also exactly what drops the bar onto the bottom of the
+   * screen, since the bar rides the sheet's bottom edge.
    *
    * Measured rather than assumed. The bar only sits at the top of the screen
    * once the page has scrolled past the widget; before that it is wherever the
@@ -831,9 +871,15 @@ export function RentalFlow2Step({
       // absolutely positioned box past the viewport bottom lengthens the page
       // and creates the very scrollbar this is here to suppress.
       wrap.style.setProperty('--rfm-room', `${room}px`);
-      // The sheet gets a floor: on a very short viewport a scrollable 200px is
-      // more usable than a faithfully-measured 20px.
-      wrap.style.setProperty('--rfm-sheet-max', `${Math.max(room, 200)}px`);
+      // Exactly `room`, and no floor. The bar now sits on the sheet's BOTTOM
+      // edge, so this number is what puts it on the bottom of the browser once
+      // the card is taller than the screen: sheet top is .rfm-top's top, plus
+      // `room`, plus the bar's own height, lands on innerHeight.
+      //
+      // The old 200px floor traded a faithfully-measured 20px sheet for a
+      // usable scrollable one. That trade has inverted — overflow used to run
+      // harmlessly off the bottom, where now it carries the bar off with it.
+      wrap.style.setProperty('--rfm-sheet-max', `${room}px`);
     };
     measure();
     // The bar can still move: it is only pinned once the page has scrolled past
@@ -872,7 +918,11 @@ export function RentalFlow2Step({
     if (!node) return undefined;
     // Synchronous seed: RO's first callback is async (and throttled to
     // nothing in hidden tabs) — without this a phone gets a desktop flash.
-    setIsMobile(node.getBoundingClientRect().width < MOBILE_BP);
+    // Guard on width > 0 like the observer below: Duda can mount the widget
+    // before layout, and a 0 width would read as mobile (0 < 640), flashing the
+    // mobile layout on desktop and expanding the page when it corrects.
+    const seedWidth = node.getBoundingClientRect().width;
+    if (seedWidth) setIsMobile(seedWidth < MOBILE_BP);
     if (typeof ResizeObserver === 'undefined') return undefined;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
@@ -889,6 +939,7 @@ export function RentalFlow2Step({
   const [holdExpired, setHoldExpired] = useState(false);
   const holdRef = useRef<UnitHold | undefined>(undefined);
   holdRef.current = hold;
+  const holdContextRef = useRef<{ key: string; ctx: RentalCtx } | undefined>(undefined);
 
   useEffect(() => {
     if (step !== 2 || !quote || hold || holdExpired) return;
@@ -898,10 +949,11 @@ export function RentalFlow2Step({
     }
     let cancelled = false;
     (async () => {
+      setPayError(undefined);
       let result = await holdUnit(ctx, { id: quote.unitId, number: quote.unitNumber });
       if (result.ok === false && result.reason === 'conflict' && !cancelled) {
         console.warn(`${logTag} unit already held — re-picking:`, result.detail);
-        const other = await findUnitForSelection(ctx, selection?.size, selection?.price, true); // fresh list — cached one contains the 409'd unit
+        const other = await findUnitForSelection(ctx, selection?.size, selection?.price ?? quote.rent, true); // fresh list — cached one contains the 409'd unit
         if (other && other.id !== quote.unitId && !cancelled) {
           const q = await fetchMoveInQuote(ctx, other);
           if (q && !cancelled) {
@@ -923,8 +975,11 @@ export function RentalFlow2Step({
         // Drop any quote that is not the held unit's — the effect below then
         // re-quotes hold-aware. Fail CLOSED: never show another unit's money.
         setQuote((prev) => (prev && prev.unitId === held.unitId ? prev : undefined));
-      } else if (!result.ok && result.reason !== 'writes-disabled') {
-        console.warn(`${logTag} hold not acquired:`, result.reason, result.detail);
+      } else if (!result.ok) {
+        if (result.reason !== 'writes-disabled') {
+          console.warn(`${logTag} hold not acquired:`, result.reason, result.detail);
+        }
+        setPayError('We couldn’t secure this space. Please return and choose another available space.');
       }
     })();
     return () => { cancelled = true; };
@@ -1019,8 +1074,11 @@ export function RentalFlow2Step({
   // Release on unmount. (Navigating away entirely skips this — the server
   // expires the hold on its own; release is best-effort by design.)
   useEffect(() => () => {
-    if (holdRef.current) void releaseHold(ctx, holdRef.current);
-  }, [ctx]);
+    const releaseContext = holdContextRef.current?.ctx;
+    if (releaseContext?.companyId && holdRef.current) {
+      void releaseHold(releaseContext, holdRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1032,6 +1090,20 @@ export function RentalFlow2Step({
       const confType = new URLSearchParams(window.location.search).get('type');
       if (confType === 'rental' || confType === 'reservation') { setLoading(false); return () => { cancelled = true; }; }
     } catch { /* ignore */ }
+    // The initial context intentionally has companyId='' while collection/config
+    // resolution is pending. Do not reset or release a hold with that incomplete
+    // context — it produced DELETE .../companies//units/... requests.
+    if (!effectiveCompanyId || !ctx.companyId) return () => { cancelled = true; };
+
+    const contextKey = [ctx.companyId, ctx.propertyId, unitGroupIdProp ?? '', unitIdProp ?? ''].join('|');
+    const priorHoldContext = holdContextRef.current;
+    const contextChanged = !!priorHoldContext && priorHoldContext.key !== contextKey;
+    if (contextChanged && holdRef.current) {
+      void releaseHold(priorHoldContext.ctx, holdRef.current);
+      setHold(undefined);
+    }
+    holdContextRef.current = { key: contextKey, ctx };
+
     // Duda re-renders the same root when panel props change — reset all
     // derived state so a stale selection/quote can't survive a context switch.
     setLoading(true);
@@ -1043,12 +1115,6 @@ export function RentalFlow2Step({
     setQuoteFailed(false);
     setUnitTypeId(undefined);
     setInsuranceId(undefined);
-    if (holdRef.current) {
-      void releaseHold(ctx, holdRef.current);
-      setHold(undefined);
-    }
-    // Wait for the async company id before hitting the facility API.
-    if (effectiveCompanyId === null) return () => { cancelled = true; };
     const settle = () => { if (!cancelled && ++settled >= 2) setLoading(false); };
     fetchProperty(ctx)
       .then((p) => {
@@ -1114,9 +1180,10 @@ export function RentalFlow2Step({
         if (!cancelled) setQuoteFailed(true);
       }));
 
-    // Selection from /offers (richer than space-groups). `fallback` is the
-    // space-groups selection, used ONLY on a technical failure of the offers read
-    // for display — it carries no unit identity and never authorizes a transaction.
+    // Selection from /offers enriches the rail but does NOT decide availability.
+    // If it cannot correlate the exact unit, retain only the authoritative
+    // handoff identity + size. Never borrow another offer's amenities, promo,
+    // token or price; the exact-unit quote and Step-2 hold remain authoritative.
     const runOffers = (fallback?: SelectionContext): Promise<void> => fetchSelectionFromOffers(
       ctx,
       unitGroupIdProp as string,
@@ -1129,21 +1196,29 @@ export function RentalFlow2Step({
           setSelection(result.selection);
           setSelectionStatus('matched');
         } else {
-          setSelection(undefined);
+          setSelection(unitIdProp
+            ? { unitId: unitIdProp, size: sizeProp ?? '' }
+            : fallback);
           setSelectionStatus(result.status);
         }
       })
       .catch((err) => {
         console.warn(`${logTag} offers selection unavailable:`, err);
         if (cancelled) return;
-        setSelection(fallback ?? undefined);
+        setSelection(unitIdProp
+          ? { unitId: unitIdProp, size: sizeProp ?? '' }
+          : fallback);
         setSelectionStatus('network-error');
       });
 
     if (authoritative) {
       // FAST PATH — offers + unit-info + quote start immediately; no space-groups
-      // round-trip in front of the price. No display fallback: a technical offers
-      // failure shows the retry/unavailable state with the buttons disabled.
+      // round-trip in front of the price. If offer enrichment fails, the rail
+      // falls back to the handed-off unit/size while the exact-unit quote and
+      // Step-2 hold continue to govern readiness and availability.
+      // Seed that minimal identity before /offers settles, so a slow enrichment
+      // request cannot delay readiness after the exact-unit quote succeeds.
+      setSelection({ unitId: unitIdProp, size: sizeProp ?? '' });
       const selectionDone = runOffers();
       const quoteDone = runQuote(
         fetchUnitInfo(ctx, unitIdProp).then((info) => ({ id: unitIdProp, ...info })),
@@ -1184,7 +1259,7 @@ export function RentalFlow2Step({
       .then((doc) => { if (!cancelled) setLeaseDoc(doc); })
       .catch((err) => console.error(`${logTag} fetchLeaseDocument error:`, err));
     return () => { cancelled = true; };
-  }, [sizeProp, tierProp, unitIdProp, unitGroupIdProp, logTag, ctx, effectiveCompanyId, loadAttempt, stored?.size, stored?.price]);
+  }, [sizeProp, tierProp, unitIdProp, unitGroupIdProp, logTag, ctx, effectiveCompanyId, effectivePropertyId, loadAttempt, stored?.size, stored?.price]);
 
   const goToStep = useCallback((next: 1 | 2) => {
     setPhase('out');
@@ -1365,19 +1440,26 @@ export function RentalFlow2Step({
             and rebuilding it would be a second thing to keep in step. */}
         {isMobile && (
           <div className="rfm-top" ref={railBarRef}>
-            <MobileLeaseBar
-              total={snap?.quote?.totalDue}
-              expanded={railOpen}
-              onToggle={onRailToggle}
-            />
             <div
               ref={scrimRef}
               className={`rfm-scrim${railOpen ? ' rfm-scrim--open' : ''}`}
               onClick={() => setRailOpen(false)}
               aria-hidden="true"
             />
-            <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
-              <div className="rfm-sheet">{confirmationRail}</div>
+            {/* Bar BELOW the sheet, per the frame: the panel opens downward and
+                pushes the bar to its bottom edge. Absolutely positioned so the
+                page behind still does not move — .rfm-top keeps the bar's own
+                80px in flow, and everything inside this grows over the content
+                instead of displacing it. */}
+            <div className="rfm-panel">
+              <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
+                <div className="rfm-sheet">{confirmationRail}</div>
+              </div>
+              <MobileLeaseBar
+                total={snap?.quote?.totalDue}
+                expanded={railOpen}
+                onToggle={onRailToggle}
+              />
             </div>
           </div>
         )}
@@ -1431,8 +1513,7 @@ export function RentalFlow2Step({
   // transaction readiness on a published page.
   const previewEnabled = previewContent && inEditor;
   const transactionReady = previewEnabled || !!(
-    selectionStatus === 'matched'
-    && correlatedSelection
+    correlatedSelection
     && propertyInfo
     && effectiveCompanyId
     && effectivePropertyId
@@ -1441,11 +1522,11 @@ export function RentalFlow2Step({
   );
   const transactionState: 'loading' | 'ready' | 'unavailable' | 'error' = transactionReady
     ? 'ready'
-    : selectionStatus === 'unit-unavailable'
+    : !unitIdProp && selectionStatus === 'unit-unavailable'
       ? 'unavailable'
-      : selectionStatus === 'malformed' || selectionStatus === 'network-error' || selectionStatus === 'legacy-display' || quoteFailed
+      : quoteFailed
         ? 'error'
-        : loading || selectionStatus === 'loading'
+        : loading || !quote || selectionStatus === 'loading'
           ? 'loading'
           : 'error';
 
@@ -1478,7 +1559,6 @@ export function RentalFlow2Step({
       // start_date, while the hold-aware POST sends the chosen one and the
       // engine honours it (verified against a held unit 2026-08-20). Warning
       // about a date the quote already reflects would be its own small lie.
-      quoteAssumesToday={!hold && moveIn.getTime() > startOfToday().getTime()}
     />
   );
   const rail = loading ? <RailSkeleton /> : railFor(false);
@@ -1504,21 +1584,28 @@ export function RentalFlow2Step({
             screen and should not behave differently. */}
         {isMobile && (
           <div className="rfm-top" ref={railBarRef}>
-            <MobileLeaseBar
-              total={railQuote?.totalDue}
-              expanded={railOpen}
-              onToggle={onRailToggle}
-            />
             <div
               ref={scrimRef}
               className={`rfm-scrim${railOpen ? ' rfm-scrim--open' : ''}`}
               onClick={() => setRailOpen(false)}
               aria-hidden="true"
             />
-            <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
-              <div className="rfm-sheet">
-                {railFor(true)}
+            {/* Bar BELOW the sheet, per the frame: the panel opens downward and
+                pushes the bar to its bottom edge. Absolutely positioned so the
+                page behind still does not move — .rfm-top keeps the bar's own
+                80px in flow, and everything inside this grows over the content
+                instead of displacing it. */}
+            <div className="rfm-panel">
+              <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
+                <div className="rfm-sheet">
+                  {railFor(true)}
+                </div>
               </div>
+              <MobileLeaseBar
+                total={railQuote?.totalDue}
+                expanded={railOpen}
+                onToggle={onRailToggle}
+              />
             </div>
           </div>
         )}
@@ -1590,14 +1677,8 @@ export function RentalFlow2Step({
               was invisible. The sample value is harness-only, on the same gate
               as the rail's preview content: a live page must never claim to be
               holding a space it has not held. */}
-          <MobileRailBar
-            total={quote?.totalDue}
-            holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
-            expanded={railOpen}
-            onToggle={onRailToggle}
-          />
           {/* Click-outside target, and the thing that keeps the page behind
-              from scrolling. Before the sheet in the DOM so the sheet paints
+              from scrolling. Before the panel in the DOM so the panel paints
               over it. */}
           <div
             ref={scrimRef}
@@ -1605,17 +1686,30 @@ export function RentalFlow2Step({
             onClick={() => setRailOpen(false)}
             aria-hidden="true"
           />
-          {/* INSIDE .rfm-top, absolutely positioned off its bottom edge, so it
-              hangs from the bar wherever the bar happens to be — pinned to the
-              top of the screen or still down in the flow — and overlays the
-              content rather than pushing it down. .rf-wrapper is a container
-              (container-type: inline-size ⇒ contain: layout), which would make
-              a `fixed` sheet resolve against the widget instead of the
-              viewport; anchoring to the bar sidesteps that entirely.
+          {/* INSIDE .rfm-top and absolutely positioned, so the whole thing —
+              sheet and the bar under it — hangs from wherever the bar happens
+              to be, pinned to the top of the screen or still down in the flow,
+              and overlays the content rather than pushing it down. .rf-wrapper
+              is a container (container-type: inline-size ⇒ contain: layout),
+              which would make a `fixed` sheet resolve against the widget
+              instead of the viewport; anchoring here sidesteps that entirely.
+
+              The bar comes LAST: the panel opens downward and carries it to the
+              bottom edge. .rfm-top still reserves the bar's 80px in flow, so
+              the page behind is unmoved either way.
+
               Always mounted, visibility driven by the class — a conditionally
               rendered element cannot transition, it can only appear. */}
-          <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
-            <div className="rfm-sheet">{rail}</div>
+          <div className="rfm-panel">
+            <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
+              <div className="rfm-sheet">{rail}</div>
+            </div>
+            <MobileRailBar
+              total={quote?.totalDue}
+              holdRemaining={holdRemaining ?? (previewContent ? HOLD_TTL_SECONDS : undefined)}
+              expanded={railOpen}
+              onToggle={onRailToggle}
+            />
           </div>
         </div>
       )}
@@ -1724,6 +1818,12 @@ export function RentalFlow2Step({
                     console.error(`${logTag} rental threw unexpectedly:`, err);
                     setPayError('Something went wrong completing your rental. Please try again.');
                   });
+                return;
+              }
+              // Published checkout must never fall through to the harness
+              // completion when the authoritative hold failed or is pending.
+              if (!previewEnabled) {
+                setPayError('We couldn’t secure this space. Please return and choose another available space.');
                 return;
               }
               // No card, or no hold/quote to rent against — nothing to

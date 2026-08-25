@@ -386,6 +386,10 @@
   border: 0;
   background: transparent;
   color: transparent;
+  /* Form controls do not inherit the page font — browsers give them the system
+     UI one unless told otherwise. Invisible on the closed control (the text is
+     transparent; the face behind it is what shows) but not in the open list. */
+  font-family: inherit;
   font-size: 16px;
   cursor: pointer;
   -webkit-appearance: none;

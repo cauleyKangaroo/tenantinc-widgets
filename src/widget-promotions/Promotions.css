@@ -6,7 +6,12 @@
   font-family: 'Montserrat', sans-serif;
   width: 100%;
   box-sizing: border-box;
-  padding: 30px 24px;
+  /* No vertical padding: the Duda editor sets the space above and below this
+     widget, and the 30px that used to be here added to whatever was set there.
+     The horizontal 24px stays — that is the widget's own gutter, not page
+     rhythm. The two top-level blocks (.promo-banner, .promo-bars) carry only
+     `margin: 0 auto`, so nothing else contributes height at the edges. */
+  padding: 0 24px;
 }
 
 .promo-wrapper *,
@@ -147,11 +152,90 @@ img.promo-banner-img {
    overrides. Figma only specifies the 2-across bar; the counts below scale
    around it so a full-width bar isn't undersized and a quarter-width one stays
    readable. Icon rules override the SVG width/height attributes. */
-.promo-bars[data-cols='1'] .promo-bar { padding: 40px; }
-.promo-bars[data-cols='1'] .promo-bar-title { font-size: clamp(24px, 4.5vw, 60px); }
-.promo-bars[data-cols='1'] .promo-bar-titlewrap { gap: 12px; }
-.promo-bars[data-cols='1'] .promo-bar-titlewrap svg { width: 48px; height: 48px; }
-.promo-bars[data-cols='1'] .promo-bar-info svg { width: 48px; height: 48px; }
+/* ONE promotion is a full-bleed band, not a wide card (Figma 6242-44625): no
+   radius, no shadow, edge to edge, everything centred. `cols` counts the whole
+   item list rather than the current page, so this cannot catch a 5th promotion
+   sitting alone on page two. */
+.promo-bars[data-cols='1'] {
+  max-width: none;
+  /* Out through .promo-wrapper's 24px gutter, which this cancels exactly, so
+     the band reaches both edges of the widget. */
+  width: auto;
+  margin-inline: -24px;
+}
+.promo-bars[data-cols='1'] .promo-bar {
+  border-radius: 0;
+  box-shadow: none;
+  /* 48px is the frame's; the 24px replaces the gutter given up above, so the
+     text still clears the edge on a narrow screen. */
+  padding: 48px 24px;
+  justify-content: center;
+}
+.promo-bars[data-cols='1'] .promo-bar-inner {
+  align-items: center;
+  justify-content: center;
+  /* 4px, where the frame has none — at 60px the title's line box supplies the
+     separation, but a short title on a narrow screen would otherwise collide
+     with the CTA. */
+  gap: 4px;
+  width: auto;
+  /* 1320px, not the frame's 723px content column — at that width a real
+     promotion title wrapped onto a second line on a desktop that had room to
+     spare. The band is full-bleed either way; this is only how far the text
+     inside it may run. */
+  max-width: 1320px;
+  text-align: center;
+}
+/* Centred as one group: the base rule pushes the info button to the far right
+   with space-between, which at full width would strand it in the margin. The
+   info mark sits directly after the title instead and moves with it, however
+   long the text runs.
+
+   flex-start on both, so the tag and the info mark hold the FIRST line. The
+   base centres them, which is right for one line but drops both icons to the
+   middle of a two-line title — floating beside the gap between the lines
+   rather than beside any text. */
+.promo-bars[data-cols='1'] .promo-bar-titlerow {
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  width: auto;
+  /* The TITLE's size, set on the row and inherited by it. Nothing else in here
+     is text, and it is what lets the two margins below be written in `em`:
+     they resolve against the title's own size, so the optical alignment holds
+     across the whole clamp instead of only at its top end. */
+  font-size: clamp(24px, 4.5vw, 50px);
+}
+.promo-bars[data-cols='1'] .promo-bar-titlewrap {
+  flex: 0 1 auto;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+}
+.promo-bars[data-cols='1'] .promo-bar-title { font-size: inherit; }
+
+/* Centred ON THE FIRST LINE, not at the top of it. flex-start alone parked
+   both marks on the line box's upper edge, which is 1.12em tall against a 48px
+   and a 36px icon — so they floated well above the letters. Half the leftover
+   puts each back on the line's middle while keeping it anchored to the first
+   line when the title wraps.
+   max(0px, …) because below roughly a 36px title the line box is shorter than
+   the tag itself, and the raw result would go negative and pull it up. */
+.promo-bars[data-cols='1'] .promo-bar-titlewrap svg {
+  width: 40px;
+  height: 40px;
+  margin-top: max(0px, calc((1.12em - 40px) / 2));
+}
+.promo-bars[data-cols='1'] .promo-bar-info {
+  /* `font-size: inherit` is doing the work here. This is a <button>, and the UA
+     stylesheet gives buttons their own ~13px font rather than letting them
+     inherit — so `1.12em` measured 15px, not 56px, the max() below clamped to
+     zero, and the mark got no offset at all while the tag beside it (a plain
+     <svg>, which does inherit) was placed correctly. */
+  font-size: inherit;
+  margin-top: max(0px, calc((1.12em - 36px) / 2));
+}
+.promo-bars[data-cols='1'] .promo-bar-info svg { width: 36px; height: 36px; }
 
 .promo-bars[data-cols='3'] .promo-bar { padding: 26px; }
 .promo-bars[data-cols='3'] .promo-bar-title { font-size: clamp(18px, 1.8vw, 26px); }

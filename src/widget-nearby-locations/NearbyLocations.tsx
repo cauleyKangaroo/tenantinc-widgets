@@ -218,7 +218,14 @@ function PropertyCard({ property }: { property: Property }) {
  */
 function SpacesSkeleton() {
   return (
-    <div aria-hidden="true">
+    // The wrapper carries .nl-card-body's own 16px column gap. In a real card the
+    // promo and .nl-spaces are SIBLINGS in that flex body, so the gap falls
+    // between them; here they are wrapped in one element, so the body's gap falls
+    // around the pair instead and the promo bar sat flush on the first space row.
+    // Reproducing the gap inside the wrapper puts it back where the real card has
+    // it — which is the point of this component, since a real card swaps to these
+    // exact blocks.
+    <div className="nl-skeleton-spaces" aria-hidden="true">
       <div className="nl-skeleton-line nl-skeleton-promo" />
       <div className="nl-spaces">
         {[0, 1, 2].map((i) => (

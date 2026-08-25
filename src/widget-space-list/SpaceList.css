@@ -4088,6 +4088,50 @@
   color: #ffffff;
 }
 
+/* Sticky footer — Figma 10557-146399 / 10622-79186 (same on mobile).
+   `flex-shrink: 0` is the whole trick: .sl-filter-modal is already a flex
+   column whose body is the scroller, so a non-shrinking sibling after it holds
+   the bottom edge at any height. No `position: sticky`, which would need the
+   footer inside the scroller and would then scroll with it at short heights. */
+.sl-wrapper .sl-modal-footer {
+  display: flex;
+  flex-shrink: 0;
+  padding: 24px;
+  background: #ffffff;
+  /* NOT in the frame. The body scrolls under this, and without a line the last
+     row of amenities bleeds into the white as it passes behind the button.
+     Same hairline .sl-filter-separator draws under the header, so it reads as
+     the modal's own rule rather than a new one. */
+  border-top: 1px solid #dfe3e8;
+}
+.sl-wrapper .sl-apply-filters {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 50px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  /* Duda's primary, like the other 31 places in this widget — not the frame's
+     flat #f26500, which would ignore the site's theme. */
+  background: var(--color_1, #f45f30);
+  color: #ffffff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+/* Additions — the frame only describes the resting state. A real background
+   rather than a filter, so a host's `button:hover` cannot paint over it. */
+.sl-wrapper .sl-apply-filters:hover {
+  background: color-mix(in srgb, var(--color_1, #f45f30) 88%, #000);
+}
+.sl-wrapper .sl-apply-filters:active {
+  background: color-mix(in srgb, var(--color_1, #f45f30) 78%, #000);
+}
+
 /* On phones let the lightbox use the full width comfortably */
 @media (max-width: 480px) {
   .sl-wrapper .sl-modal-overlay { padding: 12px; align-items: flex-start; }

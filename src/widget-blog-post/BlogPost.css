@@ -42,8 +42,8 @@
   /* Figma opens 80px between the crumb row and the title (crumbs end at y=24,
      the content block starts at y=104); 40px of that is the wrapper's own gap. */
   margin-bottom: 40px;
-  font-size: 18px;
-  line-height: 22.5px;
+  font-size: 16px;
+  line-height: 20px;
   /* The current-page crumb is the full post title, which is far too long to sit
      on one line at narrow widths. Wrapping the row is better than truncating
      the title or scrolling it out of reach. */

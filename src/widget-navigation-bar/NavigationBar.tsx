@@ -458,10 +458,18 @@ export function NavigationBar({
   // The panel has its own mobile layout now, so these work at every width. The
   // drawer is closed on the way in: the two are full-screen layers and would
   // otherwise stack.
+  //
+  // Each handler ACKNOWLEDGES by calling preventDefault, so a caller that sends a
+  // `cancelable` CustomEvent can tell whether a nav was actually here to answer
+  // (see @shared/findStorageBus, and the same handshake in tierBus). The
+  // breadcrumb's "Find Storage" crumb needs that: it is in a different bundle, a
+  // page need not have a nav, and it must warn rather than look inert.
+  // preventDefault on a NON-cancelable event is a no-op, so the plain
+  // `new Event(...)` one-liner above keeps working exactly as documented.
   useEffect(() => {
-    const open = () => { setMenuOpen(false); setMegaOpen(true); };
-    const close = () => setMegaOpen(false);
-    const toggle = () => { setMenuOpen(false); setMegaOpen((o) => !o); };
+    const open = (e: Event) => { setMenuOpen(false); setMegaOpen(true); e.preventDefault(); };
+    const close = (e: Event) => { setMegaOpen(false); e.preventDefault(); };
+    const toggle = (e: Event) => { setMenuOpen(false); setMegaOpen((o) => !o); e.preventDefault(); };
     window.addEventListener('tenantinc:find-storage:open', open);
     window.addEventListener('tenantinc:find-storage:close', close);
     window.addEventListener('tenantinc:find-storage:toggle', toggle);
