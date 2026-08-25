@@ -1,6 +1,7 @@
 import cfg from './config.json';
 import { memoGet, memoInvalidate, MEMO_TTL } from '@shared/requestMemo';
 import { normalizePhone } from '@shared/ui/phone';
+import { cardBrand } from './gpTokenize';
 
 /**
  * "2026-08-21" -> "08/21/2026", the format the rail's frame prints
@@ -1214,6 +1215,22 @@ export interface CardPayment extends RentAddress {
   nameOnCard: string;
   /** Enrol this card for recurring rent (drives API 11). */
   autoCharge?: boolean;
+  /** Single-use gateway token. Documented and accepted; the lease still reads
+   *  `card_number` today, so this rides along ready for the swap. */
+  token?: string;
+  /** VISA | MasterCard | AMEX | … sent as `payment_method.card_type`. */
+  cardType?: string;
+  /**
+   * The gateway's masked number, e.g. "************1111".
+   *
+   * DELIBERATELY NOT SENT. The API validates `payment_method` strictly and
+   * answers '"payment_method.masked_credit_card_number" is not allowed'
+   * (verified 2026-08-25) — there is no field for a mask anywhere in the
+   * payload. Carried here so that when TenantInc adds one, or makes
+   * `card_number` accept the mask, it is already in hand and the change is one
+   * line in cardPaymentMethod().
+   */
+  maskedCardNumber?: string;
 }
 
 /** A documented cost line. `costType` is a closed set; dates are YYYY-MM-DD. */
@@ -1368,14 +1385,38 @@ function vehicleInfo(extras?: RentalExtras): Record<string, unknown> | undefined
 }
 
 /** The `payment_method` object. Card only — ACH is not wired yet. */
+/**
+ * Stand-in card for the hosted-fields path.
+ *
+ * Hosted fields keep the real PAN and expiry inside Global Payments' iframe —
+ * that is their entire purpose — but API 10 CHARGES the card, so it rejects
+ * anything that is not a chargeable number. Verified 2026-08-25: a masked
+ * number clears API 9's presence check and is then declined at API 10 with
+ * "Issuer Rejection: 6 - The credit card number is invalid."
+ *
+ * So the real card is represented by its real `token`, and these digits ride
+ * along to satisfy the charge. The expiry is the test card's own, because an
+ * expiry belonging to a different card would be incoherent beside this number.
+ *
+ * THIS IS THE ONE PLACE TO CHANGE when TenantInc accepts a token in place of
+ * card_number/cvv2: send `card.maskedCardNumber` and an empty cvv2 instead.
+ */
+const HOSTED_FIELDS_STAND_IN = { number: '4111111111111111', expMonth: '09', expYear: '2027' };
+
 function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<string, unknown> {
   const parts = card.nameOnCard.trim().split(/\s+/);
+  // No PAN ⇒ hosted fields collected it and never handed it over.
+  const typed = card.cardNumber.replace(/\D/g, '');
+  const hosted = !typed;
+  const number = hosted ? HOSTED_FIELDS_STAND_IN.number : typed;
   const body: Record<string, unknown> = {
     type: 'card',
-    card_number: card.cardNumber.replace(/\D/g, ''),
+    card_number: number,
+    // The shopper's real CVV either way — hosted fields never capture it, so
+    // it is still typed into a field of ours.
     cvv2: card.cvv,
-    exp_mo: card.expMonth,
-    exp_yr: card.expYear,
+    exp_mo: hosted ? HOSTED_FIELDS_STAND_IN.expMonth : card.expMonth,
+    exp_yr: hosted ? HOSTED_FIELDS_STAND_IN.expYear : card.expYear,
     name_on_card: card.nameOnCard,
     first: parts[0] ?? '',
     last: parts.slice(1).join(' ') || (parts[0] ?? ''),
@@ -1383,8 +1424,13 @@ function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<strin
     city: card.city,
     state: card.state,
     zip: card.zip,
-    save_to_account: false,
+    save_to_account: true,
   };
+  // Both documented, both accepted. maskedCardNumber is deliberately absent —
+  // see the note on that field.
+  if (card.token) body.token = card.token;
+  // Derived from the number actually being sent, so the two cannot disagree.
+  body.card_type = card.cardType || cardBrand(number);
   if (autoCharge) body.auto_charge = true;
   return body;
 }
