@@ -64,10 +64,17 @@ const UNITS: CityUnit[] = [
   { id: 'u3', dimensions: '10’ x 12’', subtype: 'Drive Up',           inStorePrice: 580, startingPrice: 450 },
 ];
 
+/* Every entry carries a `slug`. It is what the property-page links are built
+   from — the popup card and "See All Spaces" both render only when one is
+   present, because without it there is nowhere to point. The demo rows had
+   none, so in the harness those links silently did not exist while the live
+   mapper (api.ts: `slug: p.slug ?? ''`) supplied them fine. Same shape the
+   live data uses: state/city/property-name-id. */
 export const CITY_FACILITIES: CityFacility[] = [
   {
     id: 'f1',
     name: '3rd Street Storage',
+    slug: 'california/fullerton/3rd-street-storage-f1',
     address: '8478 3rd Street, Fullerton, CA 02027',
     phone: '(555) 555-5555',
     lat: 33.8703, lng: -117.9243,
@@ -86,6 +93,7 @@ export const CITY_FACILITIES: CityFacility[] = [
   {
     id: 'f2',
     name: 'Upper Fullerton Self Storage',
+    slug: 'california/fullerton/upper-fullerton-self-storage-f2',
     address: '8478 3rd Street, Fullerton, CA 02027',
     phone: '(555) 555-5555',
     lat: 33.8847, lng: -117.9089,
@@ -99,6 +107,7 @@ export const CITY_FACILITIES: CityFacility[] = [
   {
     id: 'f3',
     name: 'Jamboree RV Parking',
+    slug: 'california/fullerton/jamboree-rv-parking-f3',
     address: '8478 3rd Street, Fullerton, CA 02027',
     phone: '(555) 555-5555',
     lat: 33.8579, lng: -117.9502,

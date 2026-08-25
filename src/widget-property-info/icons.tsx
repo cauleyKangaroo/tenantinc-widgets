@@ -15,6 +15,27 @@ const stroke = {
   'aria-hidden': true,
 };
 
+/**
+ * map/map-pin (Figma 7112-58297 / 6382:28502) — the FILLED mark, path verbatim
+ * from the export, on the frame's own 16 grid.
+ *
+ * Separate from MapPinIcon rather than replacing it: that one is the stroked
+ * outline pin the DESKTOP address rows and the mobile contact circle draw, and
+ * they follow different frames. This is only the mobile hero's address line.
+ */
+export function MapPinSolidIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8.00027 1.33333C6.89219 1.33333 5.44063 1.71745 4.25329 2.68153C3.04102 3.66586 2.14062 5.2271 2.14062 7.48148C2.14062 9.75511 3.21704 11.6241 4.43297 12.9076C5.0426 13.5511 5.70019 14.0619 6.30394 14.4159C6.88105 14.7544 7.49439 15 8.00027 15C8.50615 15 9.1195 14.7544 9.69661 14.4159C10.3004 14.0619 10.9579 13.5511 11.5676 12.9076C12.7835 11.6241 13.8599 9.75511 13.8599 7.48148C13.8599 5.2271 12.9595 3.66586 11.7473 2.68153C10.5599 1.71745 9.10835 1.33333 8.00027 1.33333ZM5.71973 7.19297C5.71973 5.93338 6.74083 4.91227 8.00043 4.91227C9.26003 4.91227 10.2811 5.93338 10.2811 7.19297C10.2811 8.45257 9.26003 9.47368 8.00043 9.47368C6.74083 9.47368 5.71973 8.45257 5.71973 7.19297Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 export function MapPinIcon({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>

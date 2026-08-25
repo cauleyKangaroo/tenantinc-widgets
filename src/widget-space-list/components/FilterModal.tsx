@@ -3,6 +3,7 @@ import type { SpaceType, UnitSize } from '../types';
 import type { FilterState } from '../filters';
 import { TYPE_OPTIONS, SIZE_OPTIONS } from '../data';
 import { SearchIcon } from './TopFilterBar';
+import { Checkbox } from '@shared/ui';
 
 interface FilterModalProps {
   filters: FilterState;
@@ -200,19 +201,23 @@ export function FilterModal({
           {/* Amenities — multi select, AND */}
           <div className="sl-filter-section">
             <div className="sl-filter-label">Amenities</div>
+            {/* @shared/ui's Checkbox — the kit control, as #08's filter panel
+                and the rental flow use. The bare <input type="checkbox"> this
+                replaces was the browser's own, restyled with accent-color, so
+                it took its tick, its focus ring and its disabled look from the
+                platform rather than from the design. */}
             <div className="sl-checkboxes">
               {amenityOptions.map((amenity) => (
-                <label key={amenity} className="sl-checkbox-item">
-                  <input
-                    type="checkbox"
-                    className="sl-checkbox"
-                    checked={filters.amenities.includes(amenity)}
-                    onChange={() =>
-                      onChange({ ...filters, amenities: toggle(filters.amenities, amenity) })
-                    }
-                  />{' '}
+                <Checkbox
+                  key={amenity}
+                  className="sl-filter-check"
+                  checked={filters.amenities.includes(amenity)}
+                  onChange={() =>
+                    onChange({ ...filters, amenities: toggle(filters.amenities, amenity) })
+                  }
+                >
                   {amenity}
-                </label>
+                </Checkbox>
               ))}
             </div>
           </div>
@@ -222,17 +227,16 @@ export function FilterModal({
             <div className="sl-filter-label">Promotions</div>
             <div className="sl-checkboxes">
               {promotionOptions.map((promo) => (
-                <label key={promo} className="sl-checkbox-item">
-                  <input
-                    type="checkbox"
-                    className="sl-checkbox"
-                    checked={filters.promotions.includes(promo)}
-                    onChange={() =>
-                      onChange({ ...filters, promotions: toggle(filters.promotions, promo) })
-                    }
-                  />{' '}
+                <Checkbox
+                  key={promo}
+                  className="sl-filter-check"
+                  checked={filters.promotions.includes(promo)}
+                  onChange={() =>
+                    onChange({ ...filters, promotions: toggle(filters.promotions, promo) })
+                  }
+                >
                   {promo}
-                </label>
+                </Checkbox>
               ))}
             </div>
           </div>

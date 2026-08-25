@@ -130,6 +130,36 @@
           </select>
         </label>
       </div>
+      <div class="controls-group">
+        <span class="controls-group-label">Header layout</span>
+        <label>Logo:
+          <select id="nav-logo-style" onchange="reinitNavigationBar()">
+            <option value="banner">Banner (raised tile)</option>
+            <option value="inline">Inline (left of the bar)</option>
+          </select>
+        </label>
+        <label>Top bar:
+          <select id="nav-show-topbar" onchange="reinitNavigationBar()">
+            <option value="1">Two bars (utility bar on top)</option>
+            <option value="0">Single bar (actions inline)</option>
+          </select>
+        </label>
+        <label>Separator:
+          <select id="nav-separator" onchange="reinitNavigationBar()">
+            <option value="shadow">Shadow</option>
+            <option value="line">Line</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+      </div>
+      <div class="controls-group">
+        <span class="controls-group-label">Utility items</span>
+        <label><input id="nav-show-phone" type="checkbox" checked onchange="reinitNavigationBar()" /> Phone</label>
+        <label><input id="nav-show-chat" type="checkbox" checked onchange="reinitNavigationBar()" /> Live Chat</label>
+        <label><input id="nav-show-account" type="checkbox" checked onchange="reinitNavigationBar()" /> Account</label>
+        <label><input id="nav-show-paybill" type="checkbox" checked onchange="reinitNavigationBar()" /> Pay Bill</label>
+        <label><input id="nav-show-language" type="checkbox" checked onchange="reinitNavigationBar()" /> Language</label>
+      </div>
     </div>
     <div id="navigation-bar-container" class="widget-container"></div>
   </div>
@@ -604,9 +634,9 @@
               oninput="reinitMapLocations()" />
           </label>
           <label>
-            Map height:
-            <input id="ml-row-height" type="number" value="900" min="400" step="50"
-              style="width:80px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+            Map height (blank = full window):
+            <input id="ml-row-height" type="number" placeholder="auto" min="400" step="50"
+              style="width:90px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
               oninput="reinitMapLocations()" />
           </label>
         </div>
@@ -714,12 +744,30 @@
     var navigationBarWidget = null;
     var footerWidget        = null;
 
+    // Every control is read defensively: the nav is mounted on four different
+    // tabs and only the first carries this panel, so on the others these
+    // elements are absent and each falls back to the widget's own default.
+    function navVal(id, fallback) {
+      var el = document.getElementById(id);
+      return el ? el.value : fallback;
+    }
+    function navChecked(id) {
+      var el = document.getElementById(id);
+      return el ? el.checked : true;
+    }
+
     function getNavProps() {
-      var el = document.getElementById('nav-find-storage-style');
-      var demo = document.getElementById('nav-demo-portfolio');
       return {
-        findStorageStyle: el ? el.value : 'mega',
-        demoPortfolio: demo ? demo.value : 'full',
+        findStorageStyle: navVal('nav-find-storage-style', 'mega'),
+        demoPortfolio: navVal('nav-demo-portfolio', 'full'),
+        logoStyle: navVal('nav-logo-style', 'banner'),
+        showTopBar: navVal('nav-show-topbar', '1') === '1',
+        separator: navVal('nav-separator', 'shadow'),
+        showPhone: navChecked('nav-show-phone'),
+        showChat: navChecked('nav-show-chat'),
+        showAccount: navChecked('nav-show-account'),
+        showPayBill: navChecked('nav-show-paybill'),
+        showLanguage: navChecked('nav-show-language'),
       };
     }
 
@@ -1090,7 +1138,11 @@
       return {
         city:      document.getElementById('ml-city').value,
         sortLabel: document.getElementById('ml-sort').value,
-        rowHeight: Number(document.getElementById('ml-row-height').value) || 900,
+        // Blank = send NOTHING, so the widget's own default applies and the map
+        // scales with the window. `|| 900` here used to pin it at 900px
+        // whatever the widget did, which is what made the viewport-height
+        // change look like it had not worked.
+        rowHeight: Number(document.getElementById('ml-row-height').value) || undefined,
       };
     }
 

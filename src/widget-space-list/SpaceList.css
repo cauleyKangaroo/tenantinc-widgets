@@ -1267,8 +1267,8 @@
   .sl-wrapper .sl-unit-img { width: 100%; max-width: 100%; }
 
   /* Grid unit card → mobile (Figma node 9697-48905): one column; the image sits
-     beside the info as a compact 132px thumbnail (not stacked full-width), and
-     "See what fits" is dropped. */
+     beside the info as a compact 132px thumbnail rather than stacked
+     full-width. */
   .sl-wrapper .sl-cards-grid { grid-template-columns: 1fr; gap: 16px; }
   .sl-wrapper .sl-card-display-panel { padding: 16px; }
   .sl-wrapper .sl-card-action-panel { padding: 16px; }
@@ -1276,7 +1276,13 @@
   .sl-wrapper .sl-card-info { width: auto; flex: 1 1 auto; min-width: 0; }
   .sl-wrapper .sl-card-image-col { flex: 0 0 auto; width: 132px; }
   .sl-wrapper .sl-unit-img { max-width: 132px; }
-  .sl-wrapper .sl-see-fits { display: none; }
+  /* Kept, not dropped. The frame omits it at this width, but it is the only
+     way into the fit visualiser and there is nowhere else on the card to reach
+     it from. It already sits under the image — .sl-card-image-col is a flex
+     column — so it needs no repositioning, only room: 13px and a 4px gap fit
+     inside the 132px the thumbnail column gets, where 15px did not. */
+  .sl-wrapper .sl-see-fits { font-size: 13px; gap: 4px; }
+  .sl-wrapper .sl-see-fits svg { width: 16px; height: 16px; }
 
   /* Size-group dropdown headers */
   .sl-wrapper .sl-accordion-header { padding: 14px 0 12px; }
@@ -4073,7 +4079,22 @@
   flex-direction: column;
   gap: 12px;
 }
-.sl-wrapper .sl-filter-modal .sl-checkbox { accent-color: #101318; }
+/* The modal's checkboxes are @shared/ui's Checkbox now, so the box, tick,
+   focus ring and disabled state all come from the kit — the `accent-color`
+   that used to be here was restyling the BROWSER's own control, which meant
+   the tick and the focus ring were the platform's rather than the design's.
+
+   A class of its own rather than .sl-checkbox-item: that rule is (0,2,0) and
+   would override .hb-check's display and gap, silently re-laying-out the kit's
+   label. It also belongs to the removed sidebar FilterPanel, which is no
+   longer imported anywhere. Only type is set here; the kit leaves that to the
+   caller. */
+.sl-wrapper .sl-filter-check {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+  color: #101318;
+}
 
 /* Filter-modal pills use a heavier 2px border. */
 .sl-wrapper .sl-filter-modal .sl-pill { border-width: 2px; }

@@ -10,6 +10,7 @@ import {
   UsFlagIcon,
   UserCircleIcon,
   HamburgerIcon,
+  PhoneCallIcon,
   CloseIcon,
   SelfStorageIcon,
   BusinessStorageIcon,
@@ -693,20 +694,25 @@ export function NavigationBar({
         </a>
       )}
       {showPayBill && <a className="nav-paybill" href={payBillUrl}>{payBillLabel}</a>}
-      {showChat && (
-        <button className="nav-icon-btn" aria-label="AI chat">
-          <MessageAiIcon size={24} />
-        </button>
-      )}
+      {/* Language first, then chat, then account. */}
       {showLanguage && (
         <button className="nav-icon-btn nav-lang" type="button" aria-label="Language">
-          <UsFlagIcon />
+          <UsFlagIcon width={26} height={18} />
           <ChevronDown size={20} className="nav-link-chevron" />
+        </button>
+      )}
+      {/* The glyph IS the control (6380-125980 draws these at the size of their
+          box), rather than a small mark floating in the middle of one. 40 by
+          preference over the frame's 44. The stroke stays a true 2px either
+          way — see the note on MessageAiIcon. */}
+      {showChat && (
+        <button className="nav-icon-btn" aria-label="AI chat">
+          <MessageAiIcon size={40} />
         </button>
       )}
       {showAccount && (
         <a className="nav-icon-btn" href={accountUrl} aria-label="Account">
-          <UserCircleIcon size={26} />
+          <UserCircleIcon size={40} />
         </a>
       )}
     </div>
@@ -747,9 +753,18 @@ export function NavigationBar({
             {navLinks}
             {!showTopBar && actions}
           </div>
-          <button className="nav-burger" onClick={() => setMenuOpen(true)} aria-label="Open menu">
-            <HamburgerIcon size={28} />
-          </button>
+          {/* Call and menu, in that order (Figma 11665-237163). The number is
+              the same one the top bar shows — live from the Company collection
+              when there is one, the `phone` prop otherwise — so a visitor never
+              gets two different numbers for the same site. */}
+          <div className="nav-mobile-actions">
+            <a className="nav-mobile-call" href={telHref} aria-label={`Call ${displayPhone}`}>
+              <PhoneCallIcon size={30} />
+            </a>
+            <button className="nav-burger" onClick={() => setMenuOpen(true)} aria-label="Open menu">
+              <HamburgerIcon />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -784,6 +799,11 @@ export function NavigationBar({
           </div>
 
           <div className="nav-mm-body">
+            {/* The grey block (Figma 7101-46038) holds BOTH the four circles and
+                the search bar. The search used to sit outside it on white, which
+                is why it read as a separate strip rather than part of the
+                header. */}
+            <div className="nav-mm-top">
             {/* Quick actions */}
             <div className="nav-mm-quick">
               <a className="nav-mm-quick-item" href="#">
@@ -831,6 +851,7 @@ export function NavigationBar({
                 <SearchIcon size={20} />
               </button>
             </form>
+            </div>
 
             {/* Account / utility links — inset on the wrapping div, see below */}
             <div className="nav-mm-account-inset">

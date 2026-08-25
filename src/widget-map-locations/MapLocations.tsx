@@ -184,7 +184,12 @@ function PropertyCard({
   ].filter(Boolean).join(' ');
 
   return (
-    <article className={cls} onMouseEnter={onActivate}>
+    /* data-facility-id is the hook the map uses to scroll this card into view
+       when its marker is clicked — see `revealCard`. An attribute rather than a
+       ref map: the cards are rendered by a child component from a list that
+       re-orders on sort, and threading refs back up for that is more moving
+       parts than one lookup. */
+    <article className={cls} data-facility-id={facility.id} onMouseEnter={onActivate}>
       {/* Photo header — image, dark scrim, distance, and the property details */}
       <div className="ml-card-head">
         <img className="ml-card-photo" src={PROPERTY_IMAGES[index % PROPERTY_IMAGES.length]} alt="" />
@@ -233,10 +238,11 @@ function PropertyCard({
           )}
 
           <a
-            className="ml-card-row"
+            className="ml-card-row ml-card-row--address"
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(facility.address)}`}
             target="_blank"
             rel="noreferrer"
+            title={facility.address}
           >
             {Icon.pin}<span>{facility.address}</span>
           </a>
@@ -320,7 +326,7 @@ function PropertyCard({
  */
 function CardSkeleton({ compact }: { compact: boolean }) {
   return (
-    <article className="ml-card" aria-hidden="true">
+    <article className="ml-card ml-card--skeleton" aria-hidden="true">
       {/* `.ml-card-head` is a fixed 234px and clips to the card's 16px radius. */}
       <div className="ml-card-head">
         <Shimmer w="100%" h="100%" r={0} />
@@ -335,9 +341,15 @@ function CardSkeleton({ compact }: { compact: boolean }) {
             <div className="ml-units">
               {[0, 1, 2].map((i) => (
                 <div className="ml-unit" key={i}>
+                  {/* 17 + 4 + 14 = the 19 + 16 these stand in for. .ml-unit-info
+                      carries no gap — in a real card its two children are TEXT,
+                      held apart by their line boxes — so two solid bars fused
+                      into one 35px block. The gap comes out of the bars rather
+                      than being added to them, because the heights here are what
+                      reserve the row and stop the column jumping on arrival. */}
                   <div className="ml-unit-info">
-                    <Shimmer w={86} h={19} />
-                    <Shimmer w={104} h={16} />
+                    <Shimmer w={86} h={17} />
+                    <Shimmer w={104} h={14} />
                   </div>
                   <div className="ml-unit-prices">
                     <Shimmer w={64} h={36} />
@@ -410,7 +422,11 @@ export interface MapLocationsProps {
   seoHeading?: string;
   /** SEO copy. HTML is parsed (see @shared/richText); blank hides the block. */
   seoContent?: string;
-  /** Height of the pinned map. Capped to the viewport so it can't overflow it. */
+  /**
+   * CEILING on the pinned map's height, not its height. Left unset it scales
+   * with the browser window; set it to hold the map shorter than the viewport.
+   * Either way it is capped to the viewport so it cannot overflow it.
+   */
   rowHeight?: number | string;
   /**
    * Where a unit's Select goes. Default '/rental'. The chosen unit rides in
@@ -578,7 +594,7 @@ export function MapLocations({
   companyId,
   seoHeading,
   seoContent = DEFAULT_SEO,
-  rowHeight = 900,
+  rowHeight = '100vh',
   rentalPageUrl,
   propertyBasePath = DEFAULT_PROPERTY_BASE_PATH,
   featuredPropertyId,
@@ -830,6 +846,8 @@ export function MapLocations({
     };
   }, [sortOpen]);
   // Which card/bubble is highlighted — a card and its bubble share the outline.
+  /** The widget's own root — scopes the card lookup in `revealCard`. */
+  const wrapRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string>('');
   /** Which bubble has its popup open. Null = none. */
   const [openId, setOpenId] = useState<string | null>(null);
@@ -875,93 +893,178 @@ export function MapLocations({
   // is. Centre on the active facility when there is one, else the first
   // plottable, else nothing renders the map at all (see hasMap below).
   const centerOf = plottable.find((f) => f.id === activeId) ?? plottable[0];
-  const center = centerOf ? { lat: centerOf.lat, lng: centerOf.lng } : null;
+
+  /**
+   * Centre the MAP so the open marker sits up and to the right of the middle,
+   * not on it — the popup hangs below-left of its bubble, so a dead-centred
+   * marker pushed the card into the bottom-left corner. Shifting the centre
+   * south-west by the same amount moves the pair back into the middle.
+   *
+   * Measured as a fraction of the plotted SPREAD rather than a fixed number of
+   * degrees, because NearbyMap picks its own zoom to fit every point: a tight
+   * cluster of city facilities and a whole state need the same visual nudge but
+   * wildly different degree offsets, and the spread tracks the zoom.
+   *
+   * Only while a popup is open. With none there is nothing to make room for,
+   * and the default view stays exactly where it was — including on hover, which
+   * moves `activeId` but opens nothing.
+   */
+  const center = useMemo(() => {
+    if (!centerOf) return null;
+    if (openId !== centerOf.id) return { lat: centerOf.lat, lng: centerOf.lng };
+    const lats = plottable.map((f) => f.lat);
+    const lngs = plottable.map((f) => f.lng);
+    // A single plotted property has no spread; fall back to something small
+    // enough to read as a nudge at the zoom one point gets.
+    const latSpan = (Math.max(...lats) - Math.min(...lats)) || 0.03;
+    const lngSpan = (Math.max(...lngs) - Math.min(...lngs)) || 0.03;
+    return { lat: centerOf.lat - latSpan * 0.10, lng: centerOf.lng - lngSpan * 0.15 };
+  }, [centerOf, openId, plottable]);
+
   const hasMap = center !== null;
 
-  // Figma bubble: white pill, dark border — orange + shadow when active, with a
-  // star ahead of the price. Clicking one opens the popup above it
-  // (Figma 10626:79939); the pin render-prop draws both, since NearbyMap only
-  // gives us this one hook inside the map box.
+  // Figma bubble: white pill, 4px border — primary when active, black when not
+  // (10622-77299 / -77303). Clicking one opens the popup above it; the pin
+  // render-prop draws both, since NearbyMap only gives us this one hook inside
+  // the map box.
+  /**
+   * Bring a marker's card to the top of the screen.
+   *
+   * `.ml-cards` is not a scroll box — it is a plain column, and the MAP is what
+   * is `position: sticky` — so the cards move with the PAGE. This scrolls the
+   * window, and the map stays pinned beside it.
+   *
+   * Scoped to this widget's own wrapper rather than the document: two map
+   * widgets on one page would otherwise fight over the same facility ids.
+   *
+   * rAF because the click also sets `activeId`, and the active card takes a
+   * heavier outline — measuring before that paints can land a few pixels out.
+   */
+  const revealCard = (id: string) => {
+    requestAnimationFrame(() => {
+      const el = wrapRef.current?.querySelector(`[data-facility-id="${CSS.escape(id)}"]`);
+      if (!el) return;   // mobile shows the map OR the cards, never both
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    });
+  };
+
   const renderPin = (p: PositionedPoint) => {
     const isActive = p.id === activeId;
     const facility = facilities.find((f) => f.id === p.id);
     const isOpen = p.id === openId;
 
+    /* On a phone the frame parks this across the top of the MAP rather than by
+       its bubble, which also keeps it clear of the edges — and .ml-pin is
+       shrink-wrapped around the bubble, so a popup inside it has nothing
+       map-sized to position against. Rendered outside the pin there, inside it
+       on desktop where `right: 0` has to mean the bubble's right edge. */
+    const popup = isOpen && facility ? (
+
+      <div
+        /* On a phone the frame parks the popup across the top of the map
+           rather than over its bubble, which also keeps it from being
+           clipped when the bubble sits near an edge. */
+        className={`ml-popup${isMobile ? ' ml-popup--centred' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* The CARD is the link, not any one line in it — an <a> laid over
+            the whole thing rather than a click handler, so it opens in a new
+            tab on a middle click, shows its target in the status bar, and is
+            reachable by keyboard like any other link.
+            The close button, the address and the reviews link sit ABOVE it
+            on z-index and keep their own destinations; everything else is
+            the property page. Rendered only when the row has a slug, since
+            there is nowhere to point without one. */}
+        {facility.slug && (
+          <a
+            className="ml-popup-link"
+            href={`${normalisedPropertyBase}/${facility.slug.replace(/^\/+/, '')}`}
+            aria-label={facility.name}
+          />
+        )}
+        <img
+          className="ml-popup-photo"
+          src={PROPERTY_IMAGES[facilities.indexOf(facility) % PROPERTY_IMAGES.length]}
+          alt=""
+        />
+        {/* The address and the review count are TEXT here, not links.
+            The whole card is one destination, so a second target inside it
+            would send some clicks somewhere else — and pointer-events alone
+            would not have stopped that: it blocks the mouse but not Enter,
+            so tabbing to a link and pressing it would still have opened
+            Google Maps. They keep the frame's underline; the left-hand
+            cards keep their real links. */}
+        <div className="ml-popup-body">
+          <p className="ml-popup-name">{facility.name}</p>
+          <span className="ml-popup-address">{facility.address}</span>
+          <div className="ml-popup-rating">
+            <StarIcon size={16} />
+            <span className="ml-popup-score">{facility.rating}</span>
+            <span className="ml-popup-reviews">{facility.reviewCount} Reviews</span>
+          </div>
+          <span className="ml-popup-from">Units starting at {facility.priceLabel}</span>
+          {/* The mobile frame adds a CTA here; the desktop one doesn't. */}
+          {isMobile && <button type="button" className="ml-cta">See All Units</button>}
+        </div>
+        <button
+          type="button"
+          className="ml-popup-close"
+          aria-label="Close"
+          onClick={(e) => { e.stopPropagation(); setOpenId(null); }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+    ) : null;
+
     return (
       <>
+        {/* One box at the point, shrink-wrapped to the bubble. The popup used to
+            be a SIBLING anchored to the same coordinates, which meant it could
+            only ever be centred on the point or offset by a guess — the bubble's
+            width changes with the price, so its edges were not knowable. Inside
+            here, `right: 0` is the bubble's right edge exactly. */}
+        <span className="ml-pin" style={{ left: p.left, top: p.top }}>
         <button
           type="button"
           className={`ml-bubble${isActive ? ' ml-bubble--active' : ''}`}
-          style={{ left: p.left, top: p.top }}
           onClick={(e) => {
             e.stopPropagation();
             setActiveId(p.id);
             setOpenId((cur) => (cur === p.id ? null : p.id));
+            revealCard(p.id);
           }}
           title={p.name}
         >
-          {isActive && <StarIcon size={24} color="#101318" />}
+          {/* NO STAR YET.
+              The frame puts one ahead of the price, but it marks a FEATURED
+              property — not the selected one, which is what this drew before.
+              There is no `featured` flag on the API yet (confirmed with Jaweed,
+              2026-08-25), and showing it on selection made every property look
+              featured in turn. Restore as `{facility?.featured && <StarIcon
+              size={24} color="#101318" />}` once the field exists. */}
           <span>{p.label}</span>
         </button>
 
         {/* "Selected Location" tab under the active bubble — mobile only. */}
         {isMobile && isActive && (
-          <span className="ml-bubble-tag" style={{ left: p.left, top: p.top }}>
+          <span className="ml-bubble-tag">
             Selected Location
           </span>
         )}
 
-        {isOpen && facility && (
-          <div
-            /* On a phone the frame parks the popup across the top of the map
-               rather than over its bubble, which also keeps it from being
-               clipped when the bubble sits near an edge. */
-            className={`ml-popup${isMobile ? ' ml-popup--centred' : ''}`}
-            style={isMobile ? undefined : { left: p.left, top: p.top }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              className="ml-popup-photo"
-              src={PROPERTY_IMAGES[facilities.indexOf(facility) % PROPERTY_IMAGES.length]}
-              alt=""
-            />
-            <div className="ml-popup-body">
-              <p className="ml-popup-name">{facility.name}</p>
-              <a
-                className="ml-popup-address"
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(facility.address)}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {facility.address}
-              </a>
-              <div className="ml-popup-rating">
-                <StarIcon size={16} />
-                <span className="ml-popup-score">{facility.rating}</span>
-                <a className="ml-popup-reviews" href="#">{facility.reviewCount} Reviews</a>
-              </div>
-              <span className="ml-popup-from">Units starting at {facility.priceLabel}</span>
-              {/* The mobile frame adds a CTA here; the desktop one doesn't. */}
-              {isMobile && <button type="button" className="ml-cta">See All Units</button>}
-            </div>
-            <button
-              type="button"
-              className="ml-popup-close"
-              aria-label="Close"
-              onClick={(e) => { e.stopPropagation(); setOpenId(null); }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
-            </button>
-          </div>
-        )}
+        {!isMobile && popup}
+        </span>
+        {isMobile && popup}
       </>
     );
   };
 
   return (
-    <div className="ml-wrapper" style={{ ['--ml-row-h' as string]: typeof rowHeight === 'number' ? `${rowHeight}px` : rowHeight }}>
+    <div className="ml-wrapper" ref={wrapRef} style={{ ['--ml-row-h' as string]: typeof rowHeight === 'number' ? `${rowHeight}px` : rowHeight }}>
       {/* Breadcrumb strip. `.ml-wrapper` is a 24px-gap column, so it spaces
           itself against the header below without a margin of its own. Desktop
           only: the node this comes from is the 1316px frame, and #08's mobile

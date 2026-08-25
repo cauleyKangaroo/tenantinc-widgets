@@ -152,11 +152,15 @@
   z-index: 5;
 }
 
-/* Single-bar mode (top bar off): shorter nav → smaller tile. */
+/* Single-bar mode (top bar off): one 85px bar, so the tile carries the brand
+   on its own and hangs below it. The logo is `width: 100%` of this box at a
+   ~2.25:1 aspect, so the WIDTH is what sets how far it drops: 250 gives a
+   ~111px logo against an 85px bar — about 26px of overhang, where 210 gave 8px
+   and read as a logo that had merely been placed slightly low. */
 .nav-bar:not(.has-topbar) .nav-logo {
   top: 0;
-  width: 210px;
-  height: 104px;
+  width: 250px;
+  height: 112px;
 }
 
 /* Wide height → taller banner tile. */
@@ -407,8 +411,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  /* Matches the glyphs inside, so the control is the mark and nothing more. */
+  width: 40px;
+  height: 40px;
   background: none;
   border: none;
   padding: 0;
@@ -418,8 +423,30 @@
   flex-shrink: 0;
 }
 
+/* ONLY the colour moves on hover.
+   background/border/padding are restated across every state because a host's
+   bare `button:hover` — the dev harness ships one, and Duda themes do too — is
+   (0,1,1) and outranks the single class above it. That is where the grey pill
+   behind these icons was coming from; nothing of ours drew it. */
+.nav-icon-btn,
+.nav-icon-btn:hover,
+.nav-icon-btn:focus,
+.nav-icon-btn:active {
+  background: none;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
 .nav-icon-btn:hover {
   color: var(--color_1, #f45f30);
+}
+
+/* Wider than the 44px square: a flag plus a chevron does not fit one, and the
+   pair was overflowing its own button. Height stays, so it lines up with the
+   two icons beside it. */
+.nav-actions .nav-lang {
+  width: auto;
+  gap: 6px;
 }
 
 /* ── Mobile burger (hidden on desktop) ──────────────────────────────────── */
@@ -432,6 +459,27 @@
   cursor: pointer;
   color: #111;
 }
+
+/* Call + menu, mobile only. Hidden with the burger rather than on its own, so
+   the two can never disagree about which widths they belong to. */
+.nav-mobile-actions {
+  display: none;
+  align-items: center;
+  /* The frame's gap between the phone and the mark after it. */
+  gap: 20px;
+}
+.nav-mobile-call {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* #111 (PikaDark), the frame's stroke — not the theme link colour a bare <a>
+     would inherit, and no underline for the same reason. */
+  color: #111;
+  text-decoration: none;
+}
+.nav-mobile-call:hover,
+.nav-mobile-call:focus,
+.nav-mobile-call:active { color: #111; text-decoration: none; }
 
 /* ── Mobile full-screen menu (hamburger) ────────────────────────────────── */
 
@@ -536,12 +584,22 @@
 
 /* Quick actions grid — minmax(0, 1fr) columns can't force the row wider than
    the menu (equal columns that shrink to 0), so it never overflows. */
+/* ONE inset for everything down the drawer. The circles, the search bar, the
+   account links and the nav accordion were on 16px, 34px and 48px respectively,
+   so nothing lined up with anything above it. 34px is the frame's
+   (7101-46038: a 305px row inside 373). */
+.nav-mm-body { --nav-mm-inset: 34px; }
+
+/* The grey block: circles AND search (Figma 7101-46038). */
+.nav-mm-top {
+  background: #f9fafb;
+  padding: 32px var(--nav-mm-inset) 24px;
+}
+
 .nav-mm-quick {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  background: #f9fafb;
-  padding: 32px 16px;
 }
 
 .nav-mm-quick-item {
@@ -565,7 +623,8 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  border: 1px solid #101318;
+  /* 2px, per the frame — 1px read as a hairline against the 22px glyph. */
+  border: 2px solid #101318;
   border-radius: 50%;
   color: #101318;
 }
@@ -583,7 +642,8 @@
   align-items: center;
   gap: 8px;
   height: 50px;
-  margin: 0 34px 20px;
+  /* Inside .nav-mm-top now, so the block's own padding places it. */
+  margin: 32px 0 0;
   padding: 0 6px 0 16px;
   background: #fefefe;
   border: 1px solid #101318;
@@ -657,7 +717,7 @@
    .nav-mm-nav-inset below: an id-scoped list reset in Duda's own stylesheet beats
    a padded <ul> of ours and slams the links to the drawer's left edge. */
 .nav-mm-account-inset {
-  padding: 8px 48px 24px;
+  padding: 24px var(--nav-mm-inset);
 }
 
 .nav-mm-account {
@@ -703,7 +763,7 @@
    A div can't be caught by a list reset, so this is immune rather than merely
    more specific. `!important` on the ul is belt-and-braces for the same fight. */
 .nav-mm-nav-inset {
-  padding: 4px 48px 40px;
+  padding: 4px var(--nav-mm-inset) 40px;
 }
 
 .nav-mm-nav {
@@ -870,24 +930,44 @@
     display: flex;
   }
 
+  .nav-mobile-actions {
+    display: flex;
+  }
+
   .nav-inner {
     justify-content: flex-end;
-    /* 85px, matching the base. This was 88 when the base was 100 — a reduction
-       then, but left behind by that change it became an INCREASE, so the bar
-       grew slightly on tablet instead of shrinking. */
-    min-height: 85px;
+    /* Shorter than the desktop 85px: below 1024 the bar holds only the logo,
+       the call mark and the burger, so the height the nav links needed is
+       just empty air. */
+    min-height: 72px;
     padding: 0 24px;
   }
 
+  /* Bigger against that shorter bar — ~82px of logo over 72px of bar. */
   .nav-bar .nav-logo,
   .nav-bar:not(.has-topbar) .nav-logo {
     top: 0;
-    width: 150px;
-    height: 92px;
+    width: 185px;
+    height: 96px;
   }
 
   .nav-logo-img {
     width: 120px !important;
     height: auto !important;
+  }
+}
+
+/* Phones. Same trade as tablet, one step further: the bar gives up height and
+   the tile keeps it, so the brand stays the biggest thing on the row rather
+   than shrinking with everything around it. ~73px of logo over a 64px bar. */
+@media (max-width: 640px) {
+  .nav-inner {
+    min-height: 64px;
+  }
+
+  .nav-bar .nav-logo,
+  .nav-bar:not(.has-topbar) .nav-logo {
+    width: 165px;
+    height: 86px;
   }
 }

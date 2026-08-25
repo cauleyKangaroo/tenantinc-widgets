@@ -12,7 +12,7 @@ import {
 import { fetchPropertyImages } from '@shared/propertyImages';
 import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
-  MapPinIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
+  MapPinIcon, MapPinSolidIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
   CloseIcon, CloseSolidIcon, LightboxChevron,
 } from './icons';
@@ -829,7 +829,7 @@ export function PropertyInfo(props: Props) {
             <a className="pi-reviews pi-m-reviews" href={reviewsUrl}>{displayReviewCount} Reviews</a>
           </div>
           <a className="pi-m-address" href={mapsHref}>
-            <MapPinIcon size={16} />
+            <MapPinSolidIcon size={16} />
             <span className="pi-underline">{displayAddress}</span>
           </a>
         </div>
