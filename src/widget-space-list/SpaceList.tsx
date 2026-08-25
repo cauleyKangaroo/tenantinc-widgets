@@ -71,6 +71,7 @@ export function SpaceList({
   apLocation = 'right',
   showSideAccordions = true,
   propertyHeader,
+  showHeading = true,
   showInstorePrice = true,
   instorePriceLabel = 'IN-STORE',
   instorePriceMode = 'percentOfWeb',
@@ -553,6 +554,8 @@ export function SpaceList({
   return (
     <PropertyIdProvider propertyId={effectivePropertyId}>
     <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
+      {/* Off when #18 draws the heading instead — see showHeading. */}
+      {showHeading && (
       <div className="sl-heading">
         <p className="sl-select-heading">Select a Space {totalVacant > 0 && `— ${totalVacant} Available`}</p>
         <h1 className="sl-page-title">
@@ -566,6 +569,7 @@ export function SpaceList({
               `Storage Units in ${propertyExtras?.name || cfg.propertyName}`}
         </h1>
       </div>
+      )}
       {/* Outside .sl-heading on purpose: a feature page's explanation and its way
           back out are their own block, not part of the title. (.sl-heading used
           to be display:none on mobile, which is what made that separation

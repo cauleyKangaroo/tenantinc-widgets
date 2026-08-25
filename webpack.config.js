@@ -23,6 +23,11 @@ const widgetEntries = {
   'widget-blogs-page':       './src/widget-blogs-page/index.tsx',       // #15
   'widget-blog-post':        './src/widget-blog-post/index.tsx',        // #16
   'widget-account-login':    './src/widget-account-login/index.tsx',    // #17
+  // #05's <h1>, on its own, so #06 can sit between it and the filter bar.
+  // #18 HERE, but the Duda widget is called "#15 Space List Heading" — Duda
+  // numbers its own widgets and #15 was free there. Bundle name is the link
+  // between them, not the number.
+  'widget-space-list-heading':'./src/widget-space-list-heading/index.tsx',// #18
   'widget-rental-flow-2step':'./src/widget-rental-flow-2step/index.tsx',// #99 (TBD)
   // Living styleguide for @shared/ui — DEV HARNESS ONLY, never a Duda widget.
   // Deliberately unnumbered so it can't be mistaken for one.

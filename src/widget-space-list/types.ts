@@ -210,6 +210,15 @@ export interface SpaceListProps {
    * instead of printing "{{propertyHeader}}".
    */
   propertyHeader?: string;
+  /**
+   * Draw the <h1> above the filter bar. Default true.
+   *
+   * Turn it OFF when #18 widget-space-list-heading is placed above this widget
+   * — that exists so #06 promotions can sit BETWEEN the heading and the filter
+   * bar on mobile, which is impossible while the heading is inside this
+   * widget's own layout. With both on, the page has two <h1>s.
+   */
+  showHeading?: boolean;
   /** Toggle: show or hide the in-store strike-through price block. Default true. */
   showInstorePrice?: boolean;
   /** Text label above the in-store strike price. Default 'IN-STORE'. */
