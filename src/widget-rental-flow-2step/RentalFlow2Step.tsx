@@ -12,7 +12,7 @@ import {
 } from './api';
 import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
-import { cardBrand, tokenizeCard } from './gpTokenize';
+import { tokenizeCard } from './gpTokenize';
 import { OrderRail } from './OrderRail';
 import { ChevronSolidIcon } from './icons';
 /* The ASSET ONLY, deliberately — not the #02 component, its config, its props
@@ -1754,6 +1754,7 @@ export function RentalFlow2Step({
             payNowTotal={railQuote?.totalDue}
             paying={paying}
             payError={payError}
+            gpPublicKey={gpKey}
             onPaymentComplete={(info) => {
               // REAL RENTAL. A card plus a live hold and quote means we have
               // everything the documented flow needs (guide APIs 9→10→11), so
@@ -1770,16 +1771,20 @@ export function RentalFlow2Step({
                 // Captured before the async hop: inside the callback below
                 // TypeScript can no longer see that info.card is defined.
                 const card = info.card;
-                // Tokenize first, so the payload can carry `token` and
-                // `card_type` alongside the number. Additive and fail-soft:
-                // the lease succeeds on the number alone today, so a gateway
-                // outage must not stop someone renting.
-                void tokenizeCard(gpKey, {
-                  number: card.cardNumber,
-                  cvv: card.cvv,
-                  expMonth: card.expMonth,
-                  expYear: card.expYear,
-                }).then((tok) => rentSpace(ctx, {
+                // Hosted fields already minted a real token inside GP's iframe,
+                // and there is no PAN on this side to tokenize a second time.
+                // Only the plain-input fallback has to ask for one — and that
+                // ask is fail-soft, because the lease succeeds on the number
+                // alone today and a gateway outage must not stop a rental.
+                const withToken = card.token
+                  ? Promise.resolve({ token: card.token, masked: card.maskedCardNumber ?? '' })
+                  : tokenizeCard(gpKey, {
+                    number: card.cardNumber,
+                    cvv: card.cvv,
+                    expMonth: card.expMonth,
+                    expYear: card.expYear,
+                  });
+                void withToken.then((tok) => rentSpace(ctx, {
                   unit: { id: hold.unitId, number: hold.unitNumber },
                   holdToken: hold.holdToken,
                   contact: {
@@ -1802,7 +1807,9 @@ export function RentalFlow2Step({
                     // Held, not sent: the API rejects a masked_credit_card_number
                     // key outright, so it waits here for the field to exist.
                     maskedCardNumber: tok?.masked,
-                    cardType: cardBrand(card.cardNumber),
+                    // card_type is derived by cardPaymentMethod() from the
+                    // number it actually sends — in hosted mode there is no
+                    // PAN here to read a brand from.
                   },
                   startDate: start,
                   spaceMixId: selection?.spaceMixId,

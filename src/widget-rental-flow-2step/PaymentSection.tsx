@@ -17,12 +17,13 @@
 // composed by hand from the same tokens.
 // ===========================================================================
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { FormField, CheckIcon } from '@shared/ui';
 import { Shimmer } from '@shared/Shimmer';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { BankIcon, CreditCardIcon, CheckTick, InfoIcon } from './icons';
 import { ChevronBig } from './planIcons';
+import { mountHostedCard, type HostedCardHandle } from './gpHostedFields';
 
 export type PayMethod = 'googlepay' | 'applepay' | 'card' | 'bank' | null;
 
@@ -221,10 +222,16 @@ export function BankForm({ total, onPay }: { total: number; onPay: () => void })
 
 /** What the rental APIs need from this form. `expiry` is split for them. */
 export interface CardFormValue {
+  /** Empty in hosted-fields mode — GP's iframe never gives us the digits.
+   *  cardPaymentMethod() substitutes the static test PAN in that case. */
   cardNumber: string;
   expMonth: string;
   expYear: string;
   cvv: string;
+  /** Real single-use gateway token, when hosted fields produced one. */
+  token?: string;
+  /** The gateway's mask. Carried, deliberately not sent — see CardPayment. */
+  maskedCardNumber?: string;
   nameOnCard: string;
   address: string;
   city: string;
@@ -232,13 +239,16 @@ export interface CardFormValue {
   zip: string;
 }
 
-export function CardForm({ total, onPay, busy }: {
+export function CardForm({ total, onPay, busy, gpPublicKey }: {
   total: number;
   /** Receives the entered card when the form is complete. Callers that only
    *  need the click (the demo/preview path) can ignore the argument. */
   onPay: (card: CardFormValue) => void;
   /** Payment in flight — the button locks so a double-tap cannot double-charge. */
   busy?: boolean;
+  /** Global Payments PUBLIC key. Present ⇒ try hosted fields for the number
+   *  and expiry. Absent, or the library will not load, ⇒ plain inputs. */
+  gpPublicKey?: string;
 }) {
   const [number, setNumber] = useState('');
   const [expiry, setExpiry] = useState('');
@@ -253,10 +263,30 @@ export function CardForm({ total, onPay, busy }: {
   const [city, setCity] = useState('');
   const [stateCode, setStateCode] = useState('');
 
+  /*
+   * Hosted fields. `null` while we find out whether GP's library loads, so the
+   * plain inputs are not rendered and then yanked away underneath a shopper who
+   * has already started typing. Once it settles it never flips again.
+   */
+  const [hosted, setHosted] = useState<boolean | null>(gpPublicKey ? null : false);
+  const [gpReady, setGpReady] = useState(false);
+  const [gpError, setGpError] = useState('');
+  const uid = useId().replace(/:/g, '');
+  const numId = `gp-num-${uid}`, expId = `gp-exp-${uid}`, subId = `gp-sub-${uid}`;
+
+  /* The token handler is rebuilt on every keystroke in the billing fields, but
+     the frames are mounted ONCE — remounting would wipe the card mid-entry. So
+     the live handler is read through a ref. */
+  const onTokenRef = useRef<(t: { token: string; masked: string }) => void>(() => {});
+
   /* The row is one bordered box holding three inputs, so it turns green as a
      unit rather than per-input — there is only one border to turn. */
-  const cardRowValid = validCard(number) && validExpiry(expiry) && validCvv(cvv);
-  const expError = expiryError(expiry);
+  const cardRowValid = hosted
+    ? validCvv(cvv)
+    : validCard(number) && validExpiry(expiry) && validCvv(cvv);
+  // GP's frame reports its own expiry problems; ours would be judging a field
+  // it cannot see.
+  const expError = hosted ? '' : expiryError(expiry);
   const [payAttempted, setPayAttempted] = useState(false);
   /** A suggestion has been chosen, so the address parts below are real. */
   const [addressPicked, setAddressPicked] = useState(false);
@@ -295,6 +325,62 @@ export function CardForm({ total, onPay, busy }: {
     }
   };
 
+  /* Build the payload the rental needs. In hosted mode the PAN and expiry are
+     left empty on purpose — cardPaymentMethod() fills in the static test card,
+     which is the single place that changes when the API takes a token. */
+  const valueFrom = (tok?: { token: string; masked: string }): CardFormValue => {
+    const [mm, yy] = digits(expiry).match(/.{1,2}/g) ?? ['', ''];
+    return {
+      cardNumber: hosted ? '' : digits(number),
+      expMonth: hosted ? '' : mm,
+      // The row takes MM/YY; the API wants a full year.
+      expYear: hosted ? '' : (yy.length === 2 ? `20${yy}` : yy),
+      cvv,
+      token: tok?.token,
+      maskedCardNumber: tok?.masked,
+      nameOnCard: name.trim(),
+      address: address.trim(),
+      city: city.trim(),
+      state: stateCode.trim(),
+      zip: zip.trim(),
+    };
+  };
+
+  /* Latest handler, read by the mount effect through a ref so the frames are
+     never rebuilt just because a billing field changed. */
+  onTokenRef.current = (tok) => {
+    setGpError('');
+    // Validated HERE rather than before tokenizing: GP owns the click, so the
+    // first moment we can check the rest of the form is once it comes back.
+    // A spent token costs nothing — they are single-use and expire anyway.
+    if (!complete) { setPayAttempted(true); return; }
+    onPay(valueFrom(tok));
+  };
+
+  useEffect(() => {
+    if (!gpPublicKey) return undefined;
+    let handle: HostedCardHandle | null = null;
+    let dead = false;
+    void mountHostedCard({
+      publicKey: gpPublicKey,
+      numberTarget: `#${numId}`,
+      expiryTarget: `#${expId}`,
+      submitTarget: `#${subId}`,
+      onReady: () => { if (!dead) setGpReady(true); },
+      onToken: (t) => onTokenRef.current(t),
+      onError: (m) => { if (!dead) setGpError(m); },
+    }).then((h) => {
+      if (dead) { h?.dispose(); return; }
+      handle = h;
+      // null ⇒ the library never arrived. Fall back to plain inputs rather
+      // than leaving the shopper with no way to pay.
+      setHosted(!!h);
+    });
+    return () => { dead = true; handle?.dispose(); };
+    // Mounted once per key. The frames outlive every other bit of state here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gpPublicKey]);
+
   return (
     <>
       {/*
@@ -303,7 +389,7 @@ export function CardForm({ total, onPay, busy }: {
         would mean fighting its internals. Same tokens, so it sits flush with the
         real form fields above and below it.
       */}
-      <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${expError ? ' rf-cardrow--error' : ''}`}>
+      <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${expError ? ' rf-cardrow--error' : ''}${hosted && !gpReady ? ' rf-cardrow--loading' : ''}`}>
         <CreditCardIcon size={24} className="rf-cardrow-ico" />
 
         {/*
@@ -315,16 +401,22 @@ export function CardForm({ total, onPay, busy }: {
           FormField.css.
         */}
         <span className="rf-cardcell rf-cardcell--number">
-          <input
-            className="rf-cardrow-input"
-            value={number}
-            onChange={(e) => onNumber(e.target.value)}
-            placeholder=" "
-            inputMode="numeric"
-            autoComplete="cc-number"
-            aria-label="Card Number (required)"
-          />
-          <label className="rf-cardcell-label">Card Number<span className="rf-req">*</span></label>
+          {/* Both are always in the DOM: GP resolves its targets by selector,
+              so the container must exist before the frames are mounted. Only
+              one is ever visible. */}
+          <span id={numId} className={`rf-gpfield${hosted === false ? ' rf-gpfield--off' : ''}`} />
+          {hosted === false && (
+            <input
+              className="rf-cardrow-input"
+              value={number}
+              onChange={(e) => onNumber(e.target.value)}
+              placeholder=" "
+              inputMode="numeric"
+              autoComplete="cc-number"
+              aria-label="Card Number (required)"
+            />
+          )}
+          <label className={`rf-cardcell-label${hosted ? ' rf-cardcell-label--pinned' : ''}`}>Card Number<span className="rf-req">*</span></label>
         </span>
 
         {/* Expiry and CVV are wrapped together so they move to a second line as
@@ -333,17 +425,21 @@ export function CardForm({ total, onPay, busy }: {
             still has expiry on it. */}
         <span className="rf-cardrow-short">
           <span className="rf-cardcell rf-cardcell--exp">
-            <input
-              className="rf-cardrow-input"
-              ref={expiryRef}
-              value={expiry}
-              onChange={(e) => onExpiry(e.target.value)}
-              placeholder=" "
-              inputMode="numeric"
-              autoComplete="cc-exp"
-              aria-label="Card expiry, MM / YY (required)"
-            />
-            <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>
+            <span id={expId} className={`rf-gpfield${hosted === false ? ' rf-gpfield--off' : ''}`} />
+            {hosted === false && (
+              <input
+                className="rf-cardrow-input"
+                ref={expiryRef}
+                value={expiry}
+                onChange={(e) => onExpiry(e.target.value)}
+                placeholder=" "
+                inputMode="numeric"
+                autoComplete="cc-exp"
+                aria-label="Card expiry, MM / YY (required)"
+              />
+            )}
+            {/* GP's frame renders MM / YYYY. */}
+            <label className={`rf-cardcell-label${hosted ? ' rf-cardcell-label--pinned' : ''}`}>{hosted ? 'MM / YYYY' : 'MM / YY'}<span className="rf-req">*</span></label>
           </span>
 
           <span className="rf-cardcell rf-cardcell--cvv">
@@ -431,32 +527,41 @@ export function CardForm({ total, onPay, busy }: {
       {payAttempted && !complete && (
         <p className="rf-cardrow-msg" role="alert">Complete the card and billing details to pay.</p>
       )}
+      {gpError && <p className="rf-cardrow-msg" role="alert">{gpError}</p>}
 
-      <button
-        type="button"
-        className="rf-paynow"
-        disabled={busy}
-        onClick={() => {
-          // Validate HERE rather than disabling the button: a disabled control
-          // gives no reason, and the shopper is one field from paying.
-          if (!complete) { setPayAttempted(true); return; }
-          const [mm, yy] = digits(expiry).match(/.{1,2}/g) ?? ['', ''];
-          onPay({
-            cardNumber: digits(number),
-            expMonth: mm,
-            // The row takes MM/YY; the API wants a full year.
-            expYear: yy.length === 2 ? `20${yy}` : yy,
-            cvv,
-            nameOnCard: name.trim(),
-            address: address.trim(),
-            city: city.trim(),
-            state: stateCode.trim(),
-            zip: zip.trim(),
-          });
-        }}
-      >
-        {busy ? 'Processing…' : `Pay Now ${money(total)}`}
-      </button>
+      {/*
+        In hosted mode GP's own submit frame sits invisibly on top of this
+        button and takes the click, because the library exposes no way to ask
+        for a token programmatically — the gesture must happen inside their
+        iframe. Ours stays as the thing the shopper sees, so the label keeps
+        following the live total; a frame's button text is fixed at mount.
+      */}
+      <div className={`rf-paynow-wrap${hosted ? ' rf-paynow-wrap--hosted' : ''}`}>
+        <button
+          type="button"
+          className="rf-paynow"
+          disabled={busy}
+          /* Hosted: the frame above is the real control, so this one is taken
+             out of the tab order rather than offering a second, dead one. */
+          tabIndex={hosted ? -1 : undefined}
+          aria-hidden={hosted ? true : undefined}
+          onClick={() => {
+            if (hosted) return;
+            // Validate HERE rather than disabling the button: a disabled control
+            // gives no reason, and the shopper is one field from paying.
+            if (!complete) { setPayAttempted(true); return; }
+            onPay(valueFrom());
+          }}
+        >
+          {busy ? 'Processing…' : `Pay Now ${money(total)}`}
+        </button>
+        {/* Hidden while paying so a second click cannot reach the frame. */}
+        <span
+          id={subId}
+          className={`rf-gp-submit${hosted === false || busy ? ' rf-gp-submit--off' : ''}`}
+          aria-label={`Pay Now ${money(total)}`}
+        />
+      </div>
     </>
   );
 }
