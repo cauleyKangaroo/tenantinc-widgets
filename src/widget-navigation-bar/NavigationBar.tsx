@@ -694,20 +694,25 @@ export function NavigationBar({
         </a>
       )}
       {showPayBill && <a className="nav-paybill" href={payBillUrl}>{payBillLabel}</a>}
-      {showChat && (
-        <button className="nav-icon-btn" aria-label="AI chat">
-          <MessageAiIcon size={24} />
-        </button>
-      )}
+      {/* Language first, then chat, then account. */}
       {showLanguage && (
         <button className="nav-icon-btn nav-lang" type="button" aria-label="Language">
-          <UsFlagIcon />
+          <UsFlagIcon width={26} height={18} />
           <ChevronDown size={20} className="nav-link-chevron" />
+        </button>
+      )}
+      {/* The glyph IS the control (6380-125980 draws these at the size of their
+          box), rather than a small mark floating in the middle of one. 40 by
+          preference over the frame's 44. The stroke stays a true 2px either
+          way — see the note on MessageAiIcon. */}
+      {showChat && (
+        <button className="nav-icon-btn" aria-label="AI chat">
+          <MessageAiIcon size={40} />
         </button>
       )}
       {showAccount && (
         <a className="nav-icon-btn" href={accountUrl} aria-label="Account">
-          <UserCircleIcon size={26} />
+          <UserCircleIcon size={40} />
         </a>
       )}
     </div>

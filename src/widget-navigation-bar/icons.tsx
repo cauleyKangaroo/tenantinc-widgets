@@ -44,24 +44,36 @@ export function PhoneIcon({ size = 24 }: { size?: number }) {
   );
 }
 
-export function MessageAiIcon({ size = 24 }: { size?: number }) {
+/**
+ * `strokeWidth` is in RENDERED pixels, not viewBox units, and is converted
+ * against `size` below.
+ *
+ * A stroke scales with the box: this path lives on a 24 grid, so drawing it at
+ * 44px turned its 2px into 3.67px and the mark came out visibly heavier than
+ * the account circle beside it. Figma's own 44px export of user/user-circle is
+ * a 44-grid path with stroke-width 2 — a TRUE 2px — which is what the pair are
+ * meant to share. Converting here keeps one path serving every size at the
+ * weight the frame draws.
+ */
+export function MessageAiIcon({ size = 24, strokeWidth = 2 }: { size?: number; strokeWidth?: number }) {
+  const sw = (strokeWidth * 24) / size;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V12.2C3 13.8802 3 14.7202 3.32698 15.362C3.6146 15.9265 4.07354 16.3854 4.63803 16.673C5.27976 17 6.11984 17 7.8 17H8V21L13 17H16.2C17.8802 17 18.7202 17 19.362 16.673C19.9265 16.3854 20.3854 15.9265 20.673 15.362C21 14.7202 21 13.8802 21 12.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8.5 13.6748H8.501M12.5 6.6748C11.8625 8.29127 11.1609 9.01977 9.5 9.6748C11.1609 10.3298 11.8625 11.0583 12.5 12.6748C13.1375 11.0583 13.8391 10.3298 15.5 9.6748C13.8391 9.01976 13.1375 8.29127 12.5 6.6748Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V12.2C3 13.8802 3 14.7202 3.32698 15.362C3.6146 15.9265 4.07354 16.3854 4.63803 16.673C5.27976 17 6.11984 17 7.8 17H8V21L13 17H16.2C17.8802 17 18.7202 17 19.362 16.673C19.9265 16.3854 20.3854 15.9265 20.673 15.362C21 14.7202 21 13.8802 21 12.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3Z" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8.5 13.6748H8.501M12.5 6.6748C11.8625 8.29127 11.1609 9.01977 9.5 9.6748C11.1609 10.3298 11.8625 11.0583 12.5 12.6748C13.1375 11.0583 13.8391 10.3298 15.5 9.6748C13.8391 9.01976 13.1375 8.29127 12.5 6.6748Z" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-export function UserCircleIcon({ size = 24 }: { size?: number }) {
-  // Pika user/user-circle (Figma node 7101:46283). 24-unit viewBox so the 2px
-  // stroke renders at full weight — the old 44-unit box made it look too thin.
+/** Pika user/user-circle. `strokeWidth` in rendered px — see MessageAiIcon. */
+export function UserCircleIcon({ size = 24, strokeWidth = 2 }: { size?: number; strokeWidth?: number }) {
+  const sw = (strokeWidth * 24) / size;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M18.9946 19.1467C18.893 17.3926 17.3672 16 15.5 16H8.5C6.63276 16 5.10703 17.3926 5.00539 19.1467M5.00539 19.1467C6.80867 20.9119 9.27726 22 12 22C14.7227 22 17.1913 20.9119 18.9946 19.1467C20.8491 17.3314 22 14.8001 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.8001 3.15087 17.3314 5.00539 19.1467ZM15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth={sw}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
