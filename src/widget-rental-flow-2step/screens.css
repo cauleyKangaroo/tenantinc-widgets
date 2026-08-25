@@ -641,19 +641,24 @@
 .rf-sx-idv--instore {
   display: flex;
   gap: 24px;
-  align-items: flex-start;
+  /* stretch, not flex-start: the aside has to be as tall as the column beside
+     it before it can push its own contents to the bottom of the card. */
+  align-items: stretch;
   flex-wrap: wrap;
 }
 .rf-sx-idv-instore-main { flex: 1 1 300px; min-width: 0; }
-/* Aligned to the lede rather than the heading: the aside is a second thought
-   ("changed your mind?"), not a second column of the same rank. */
+/* Bottom-aligned: the aside is a second thought ("changed your mind?"), not a
+   second column of the same rank, so it sits at the foot of the card rather
+   than level with the heading or the lede. Once the row wraps this is the only
+   item on its line and flex-end has nothing left to do — which is right, the
+   two are simply stacked by then. */
 .rf-sx-idv-instore-aside {
   display: flex;
   flex: 1 1 260px;
   min-width: 0;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 10px;
-  padding-top: 42px;
 }
 .rf-sx-idv-instore-aside .rf-sx-btn { width: 100%; }
 
@@ -829,7 +834,6 @@
   .rf-idm-illus { width: 100%; }
   .rf-idm-resend { flex-direction: column; }
   .rf-idm-resend-btn { width: 100%; }
-  .rf-sx-idv-instore-aside { padding-top: 0; }
 }
 
 /* Layered line art (Figma 10078-25475). Every layer is a percentage of that
