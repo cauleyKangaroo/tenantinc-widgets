@@ -617,6 +617,15 @@
   width: 100%;
 }
 
+/* Where a card lands when its marker is clicked (see `revealCard`). Without
+   this, `block: 'start'` puts the card's top edge flush against the viewport's
+   — and on a published page that is behind the site's own sticky nav. 100px
+   clears #02's 85px bar with a little air; a taller host header is the one
+   thing that would need this raised. */
+.ml-card {
+  scroll-margin-top: 100px;
+}
+
 .ml-cards {
   flex: 0 0 425px;
   max-width: 100%;
@@ -633,9 +642,17 @@
   top: 16px;
   flex: 1 1 auto;
   min-width: 0;
-  /* Never taller than the viewport, or the pinned map's lower half would be
-     permanently off-screen. */
-  height: min(var(--ml-row-h, 900px), calc(100vh - 32px));
+  /* Fills the window, and keeps filling it as the window resizes — the map is
+     the thing being read while the cards scroll past it, so leaving 300px of
+     empty page beside it on a tall monitor wasted the half that mattered.
+     `--ml-row-h` is now a CEILING an editor can lower, not the height: unset,
+     it does nothing and the viewport decides. Still minus 32px for the 16px
+     sticky offset above and the same below, so the pinned map never runs off
+     the bottom edge.
+     The row is a flex container, so it grows to whatever this resolves to —
+     which is what stops the map overhanging a short list of properties: the
+     column of cards and the map end together. */
+  height: min(var(--ml-row-h, 100vh), calc(100vh - 32px));
   border-radius: 16px;
   overflow: hidden;
 }
@@ -655,18 +672,24 @@
    one" — a meaning that must belong to exactly one card on the page. */
 .ml-card--featured { border-color: #509e2f; }
 
-/* ACTIVE is the card paired with the hovered/open map bubble. It deliberately
-   does NOT take a coloured border: doing so made every card look featured in
-   turn as the pointer moved down the list, which is the one thing the featured
-   outline is supposed to say. A lift and a neutral edge are enough to show the
-   pairing without borrowing that meaning. */
+/* ACTIVE is the card paired with the hovered/open map bubble, and it takes the
+   site's PRIMARY — the same colour that bubble takes when active, so the two
+   read as one selection.
+
+   This was a neutral grey, on the grounds that a coloured border made every
+   card look featured in turn as the pointer ran down the list. Primary is not
+   that colour: featured is the green below it, so the two stay legible as
+   different things.
+
+   The `.ml-card--featured.ml-card--active` override that kept featured green
+   is gone with it — active wins on source order now. A featured card still
+   says so with its star badge, so giving up the outline while the pointer is
+   on it costs nothing; leaving it green would light a map bubble with no card
+   answering it. */
 .ml-card--active {
-  border-color: #dfe3e8;
+  border-color: var(--color_1, #f45f30);
   filter: drop-shadow(0px 8px 9px rgba(71, 84, 116, 0.2));
 }
-
-/* Featured stays green even while it is the active card. */
-.ml-card--featured.ml-card--active { border-color: #509e2f; }
 
 /* Photo header */
 .ml-card-head {
@@ -764,6 +787,17 @@
 }
 
 .ml-card-row svg { flex-shrink: 0; }
+/* One line, ellipsised. A full address wrapped to two or three lines and pushed
+   the phone row and the price block down with it, so cards in the same column
+   ended up different heights. min-width: 0 on the span is what lets a flex
+   child shrink below its own text and give text-overflow something to do; the
+   full address stays reachable as the link's title. */
+.ml-card-row--address > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* Available spaces */
 .ml-card-body {
@@ -805,6 +839,12 @@
 }
 
 .ml-unit-info { display: flex; flex-direction: column; min-width: 0; }
+/* Skeleton only. The real rule above needs no gap — its children are text, and
+   their line boxes do the separating — but placeholder bars are solid to their
+   full height and would otherwise touch. Scoped so the live card is untouched;
+   see the note at the Shimmer pair in CardSkeleton for why the total is
+   unchanged. */
+.ml-card--skeleton .ml-unit-info { gap: 4px; }
 .ml-unit-dims { font-size: 16px; font-weight: 600; color: #101318; }
 .ml-unit-subtype { font-size: 12px; line-height: 16px; color: #637381; }
 
@@ -888,17 +928,27 @@
 
 /* Positioned by @shared/NearbyMap (it sets left/top inline); everything here is
    the Figma's look. translate puts the point of the bubble on the coordinate. */
-.ml-bubble {
+/* The anchor. Centred on the point, shrink-wrapped to the bubble, so anything
+   inside can position against the bubble's real edges. */
+.ml-pin {
   position: absolute;
   transform: translate(-50%, -50%);
+  display: block;
+  width: max-content;
+}
+
+.ml-bubble {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 7px 28px;
-  /* 1px like every other pill on the site (the Figma's 3px/4px predates that
-     rule) — the active state carries its weight with colour + shadow instead. */
-  border: 1px solid #101318;
+  /* 4px, per 10622-77299 / -77303 — asked for explicitly, replacing the 1px
+     this carried on the grounds that every other pill on the site is 1px. On a
+     map the bubble is not a pill in a form, it is the whole control, and it has
+     to hold against photography behind it. */
+  border: 4px solid #101318;
   border-radius: 100px;
   background: #fff;
   color: #000;
@@ -911,7 +961,9 @@
 }
 
 .ml-bubble--active {
-  border: 1px solid #f26500;
+  /* The site's primary, not the frame's flat #f26500 — this widget follows the
+     Duda theme everywhere else. The fallback is that same orange. */
+  border-color: var(--color_1, #f26500);
   box-shadow: 0px 8px 18px rgba(71, 84, 116, 0.2);
   z-index: 1;
 }
@@ -920,8 +972,11 @@
 .ml-bubble-tag {
   position: absolute;
   z-index: 2;
-  /* Half the bubble's 50px height, so it seats just under it. */
-  transform: translate(-50%, 27px);
+  /* Off the pin box now, so it seats under the bubble without having to know
+     how tall the bubble is. */
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
   height: 21px;
   padding: 0 9px;
   display: flex;
@@ -944,11 +999,26 @@
 .ml-popup {
   position: absolute;
   z-index: 3;
-  transform: translate(-50%, calc(-100% - 14px));
+  /* BELOW the bubble, right edges flush, 8px between the two. `right: 0` is the
+     bubble's own right edge — which is why the pair share a box: the bubble's
+     width changes with the price, so from outside it there is nothing to align
+     to. */
+  top: calc(100% + 8px);
+  right: 0;
   display: flex;
+  /* Stretch, so the photo column matches whatever height the body settles on. */
+  align-items: stretch;
   width: 357px;
-  max-width: calc(100% - 24px);
-  height: 156px;
+  /* NOT a percentage. Inside .ml-pin, `100%` is the BUBBLE's width — about
+     100px — so `calc(100% - 24px)` crushed the card to ~76px and it rendered as
+     a tall column of photo. The pin is shrink-wrapped by design; anything here
+     that needs to know how wide the MAP is has to say so in viewport units. */
+  max-width: min(357px, calc(100vw - 48px));
+  /* The frame's height is a FLOOR, not a fixture. A longer name or a
+     three-line address used to be squeezed into 156px against a body that was
+     vertically centred; now the card grows and the 16px inset around the right
+     column stays put whatever is in it. */
+  min-height: 156px;
   background: #fff;
   border-radius: 12px;
   overflow: hidden;
@@ -956,10 +1026,39 @@
   text-align: left;
 }
 
+/* The whole card, as one link. It sits UNDER the content so the close button,
+   the address and the reviews link keep their own destinations — those three
+   are raised above it below. An <a> laid over the card rather than an onClick,
+   so a middle click opens a tab, the target shows in the status bar, and it is
+   reachable by keyboard like any other link. `inset: 0` rather than a size, so
+   it tracks the card as it grows with its content. */
+.ml-popup-link {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+}
+/* Raised so its text paints over the link rather than under it — but it takes
+   no clicks (see below), so the card stays one destination. The photo is left
+   beneath the overlay entirely: clicking it opens the property, which is the
+   point. */
+.ml-popup-body {
+  position: relative;
+  z-index: 1;
+}
+/* Nothing in the body takes a click: every part of the card is the same
+   destination, so they all fall through to the overlay beneath. */
+.ml-popup-body {
+  pointer-events: none;
+}
+
 .ml-popup-photo {
   flex: 0 0 156px;
   width: 156px;
-  height: 156px;
+  /* Fills the card's height rather than pinning it. `cover` crops instead of
+     distorting when the body makes the card taller than the photo is. */
+  height: auto;
+  align-self: stretch;
   object-fit: cover;
   display: block;
 }
@@ -1007,6 +1106,8 @@
 
 .ml-popup-close {
   position: absolute;
+  /* Above the whole-card link — the ONE thing in here that is not it. */
+  z-index: 2;
   top: 12px;
   right: 12px;
   width: 24px;
@@ -1104,8 +1205,12 @@
 
   /* Parked across the top of the map instead of over its bubble. */
   .ml-popup--centred {
+    /* Outside the pin on mobile, so these resolve against the map again. */
     left: 50%;
+    right: auto;
     top: 16px;
+    width: calc(100% - 24px);
+    max-width: calc(100% - 24px);
     transform: translateX(-50%);
   }
   .ml-popup-photo { flex: 0 0 130px; width: 130px; height: auto; align-self: stretch; }

@@ -634,9 +634,9 @@
               oninput="reinitMapLocations()" />
           </label>
           <label>
-            Map height:
-            <input id="ml-row-height" type="number" value="900" min="400" step="50"
-              style="width:80px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+            Map height (blank = full window):
+            <input id="ml-row-height" type="number" placeholder="auto" min="400" step="50"
+              style="width:90px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
               oninput="reinitMapLocations()" />
           </label>
         </div>
@@ -1138,7 +1138,11 @@
       return {
         city:      document.getElementById('ml-city').value,
         sortLabel: document.getElementById('ml-sort').value,
-        rowHeight: Number(document.getElementById('ml-row-height').value) || 900,
+        // Blank = send NOTHING, so the widget's own default applies and the map
+        // scales with the window. `|| 900` here used to pin it at 900px
+        // whatever the widget did, which is what made the viewport-height
+        // change look like it had not worked.
+        rowHeight: Number(document.getElementById('ml-row-height').value) || undefined,
       };
     }
 
