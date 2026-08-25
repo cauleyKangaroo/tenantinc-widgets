@@ -317,13 +317,28 @@
             oninput="reinitNearby()" />
         </label>
       </div>
+      <label style="display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px;">
+        <input id="nl-mock-collections" type="checkbox" onchange="toggleCollectionsMock(this.checked)" />
+        Mock the <code>PropertiesInternal</code> / <code>Company</code> collections (reloads)
+      </label>
       <p style="margin: 8px 0 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
-        No <code>dmAPI</code> in the harness, so <code>PropertiesInternal</code> reads empty:
-        the list falls back to <code>Properties</code>/REST, and <strong>featured</strong> has no
-        <code>priorityOrder</code> to apply so it sorts by name.
-        <strong>Max properties</strong> empty = the whole portfolio; spaces are fetched only for
-        the cards on the visible page (3 or 6 parallel calls), so watch the network tab on a
-        page turn.
+        <strong>Unchecked (default)</strong> — no <code>dmAPI</code>, so
+        <code>PropertiesInternal</code> reads empty: the list falls back to
+        <code>Properties</code>/REST, <strong>featured</strong> has no
+        <code>nearbyLocationPriorityOrder</code> to apply so it sorts by name, and there is no
+        <code>spaceGroupId</code> either — so spaces load the OLD way, two REST calls per
+        property for the 3 or 6 cards on the visible page.
+        <br />
+        <strong>Checked</strong> — the harness serves a mock collection built from live data
+        (company <code>kQoBXA8vpn</code> and each property's real "Website Group"), which is what
+        a configured site looks like: <strong>ONE</strong>
+        <code>space-groups?space_group_id=…</code> call prices <em>every</em> facility, so all the
+        cards fill at once and a page turn fetches nothing. Watch the network tab to see the
+        difference. Note this also switches off other widgets' no-<code>dmAPI</code> demo
+        fallbacks — the mega menu loses its demo location tree and star ratings — so leave it off
+        unless you are looking at #07.
+        <br />
+        <strong>Max properties</strong> empty = the whole portfolio.
       </p>
     </div>
   </div>
@@ -648,6 +663,95 @@
        reports (attributed to whichever bundle's dev-client handler caught it,
        not to the actual source). cdnjs sends Access-Control-Allow-Origin: *,
        so this gets real stack traces back. -->
+  <!-- ── OPT-IN Duda Collections mock (?mockCollections=1) ───────────────────
+       `window.dmAPI` is PUBLISHED-SITE ONLY, so nothing collection-backed can be
+       exercised here — which for #07 means the batched space-groups call (it
+       needs `company_id` + `spaceGroupId` from `PropertiesInternal`) could never
+       run locally, and the widget always fell back to the per-property fan-out.
+       This serves just enough of the API to reproduce a configured site.
+
+       OFF BY DEFAULT, and it must stay that way: defining `dmAPI` makes
+       `hasCollectionsApi()` true for EVERY widget on the page, which switches off
+       the demo fallbacks that assume its absence — the mega menu's demo location
+       tree and its star ratings, in particular, go empty because this mock does
+       not serve those collections. Turn it on to look at #07, off for anything
+       else.
+
+       Values are wrapped in `<p class="rteBlock">` on purpose: `PropertiesInternal`
+       and `Company` are NATIVE collections on a real site, so this is the shape
+       that actually reaches the widget — and an id that keeps its wrapper is
+       exactly the bug that would 404 the batch call.
+
+       The data is real: the 7 rows of the site's own PropertiesInternal export
+       (2026-08-25), whose spaceGroupIds are each property's actual "Website Group".
+       The LOWER-CASE column names are the point — `address`, not `Address`. With
+       the capitalised ones the widget rejects every row as "photos only", sources
+       its list from REST against config.json's company instead, and then no card's
+       id matches the spaceGroupId map, so the batch appears unused. -->
+  <script>
+    (function () {
+      if (new URLSearchParams(location.search).get('mockCollections') !== '1') return;
+
+      var rte = function (v) { return '<p class="rteBlock">' + v + '</p>'; };
+
+      // Seven rows copied from the site's own PropertiesInternal export
+      // (2026-08-25) — same ids, same company, same "Website Group" ids, and
+      // crucially the same LOWER-CASE column names (`address`, `phones`, `images`),
+      // which is what makes the widget source its list from here rather than
+      // falling through to REST. JSON columns are strings and `company_id` carries
+      // its rteBlock wrapper because that is how the live collection returns them.
+      var P = [
+        ['nB9olhgl26', 'Storage Outlet - COFFEE', 'california/bakersfield/storage-outlet-chino-340079518', 'Ej67atdZBe',
+         '{"address":"1330 Coffee Rd.","city":"Bakersfield","state":"CA","zip":"93308","lat":35.36992,"lng":-119.090489}', '18888888888'],
+        ['OBZ5dhPmjZ', 'Storage Outlet - Bellflower', 'california/bellflower/storage-outlet-bellflower-340079517', '7jP5qtVeBg',
+         '{"address":"10326 Foster Rd.","city":"Bellflower","state":"CA","zip":"90706","lat":33.909678,"lng":-118.110325}', '18888888888'],
+        ['MjR57iZ82O', 'Storage Outlet - Chino', 'california/chino/storage-outlet-chino-340079516', '5B7PbH89vG',
+         '{"address":"13879 Central Ave","city":"Chino","state":"CA","zip":"91710","lat":34.00115,"lng":-117.68796}', '18888888888'],
+        ['6v10bcopBy', 'Storage Outlet - Chula Vista', 'california/chula-vista/optima-storage-340079550', 'qvQ9GC8Jvm',
+         '{"address":"1160 3rd Ave","city":"Chula Vista","state":"CA","zip":"91911","lat":32.61123,"lng":-117.06936}', ''],
+        ['kjVAaUgV25', 'Storage Outlet - Fullerton', 'california/fullerton/storage-outlet-fullerton-340079520', 'e2L7NTLxvg',
+         '{"address":"999 S Raymond first Ave","city":"Fullerton","state":"CA","zip":"92831","lat":33.86093,"lng":-117.90596}', '18888888888'],
+        ['NjG9lcpNvK', 'Storage Outlet - Gardena', 'california/gardena/storage-outlet-escondido-340079519', 'ojDoWioK2Y',
+         '{"address":"13401 S Western Ave","city":"Gardena","state":"CA","zip":"90249","lat":33.91109,"lng":-118.30973}', '13109841846'],
+        ['gj8AXuoGBJ', 'Storage Outlet - Bakersfield1', 'california/bakersfield/apex-storage-340079549', '8vxxns9xv5',
+         '{"address":"101 Mt. Vernon Ave.","city":"Bakersfield","state":"CA","zip":"93307-2739","lat":35.355421,"lng":-118.966436}', '17602300039']
+      ];
+
+      var COLLECTIONS = {
+        Company: [{ data: { id: rte('kQoBXA8vpn') } }],
+        PropertiesInternal: P.map(function (r, i) {
+          return { data: {
+            id: r[0], name: r[1], slug: r[2], spaceGroupId: r[3],
+            address: r[4],
+            phones: r[5] ? '[{"type":"Main","phone":"' + r[5] + '","status":1}]' : '[]',
+            images: '[]',
+            company_id: rte('kQoBXA8vpn'),
+            // Ranks only the first three, so "featured" is a genuine opt-in list
+            // here rather than the whole portfolio in a different order.
+            nearbyLocationPriorityOrder: i < 3 ? String(i + 1) : ''
+          } };
+        })
+      };
+
+      window.dmAPI = {
+        loadCollectionsAPI: function () {
+          return Promise.resolve({
+            data: function (name) {
+              return { get: function () {
+                var values = COLLECTIONS[name] || [];
+                console.log('[harness dmAPI] read "' + name + '" → ' + values.length + ' rows');
+                // The real envelope, as verified live and documented in CLAUDE.md.
+                return Promise.resolve({ name: name, values: values,
+                  page: { pageSize: 100, pageNumber: 0, totalPages: 1 } });
+              } };
+            }
+          });
+        }
+      };
+      console.log('[harness dmAPI] collections mock ON (?mockCollections=1)');
+    })();
+  </script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js" crossorigin="anonymous"></script>
   <script>
     // Dev bundles are large and served uncompressed, so the default 7s require.js
@@ -672,6 +776,24 @@
     function navContainerId(page)    { return NAV_CONTAINERS[page]    || 'navigation-bar-container'; }
     function footerContainerId(page) { return FOOTER_CONTAINERS[page] || 'footer-container'; }
     function activePage() { return new URLSearchParams(window.location.search).get('page') || 'property'; }
+
+    // The collections mock has to exist BEFORE any bundle reads a collection (the
+    // reads are promise-cached per page), so it is installed by a script in the
+    // <head> path and toggled by RELOADING with ?mockCollections=1 rather than by
+    // flipping a flag at runtime. Other params are preserved so the active tab
+    // survives the round trip.
+    function toggleCollectionsMock(on) {
+      var params = new URLSearchParams(window.location.search);
+      if (on) params.set('mockCollections', '1');
+      else params.delete('mockCollections');
+      window.location.search = params.toString();
+    }
+
+    // Reflect the current state on load, so the box matches the URL after a reload.
+    document.addEventListener('DOMContentLoaded', function () {
+      var box = document.getElementById('nl-mock-collections');
+      if (box) box.checked = new URLSearchParams(window.location.search).get('mockCollections') === '1';
+    });
 
     // Shared singleton widgets (createWidget binds each module to a single
     // container). When the visible page changes we re-init them onto the

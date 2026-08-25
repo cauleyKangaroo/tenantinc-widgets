@@ -3,18 +3,21 @@ import {
   fetchProperties as sharedFetchProperties,
   extractNearbyProperties,
   fetchPropertySpaces as sharedFetchPropertySpaces,
+  fetchSpaceGroupSpaces,
   getUserLocation,
   haversineMiles,
   formatDistance,
   type NearbyApiConfig,
   type NearbyBaseProperty,
   type NearbySpace,
+  type PropertySpaceData,
 } from '@shared/nearbyProperties';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { asPropertiesResponse } from '@shared/propertiesSource';
 import {
   INTERNAL_PROPERTIES_COLLECTION,
   fetchPriorityOrder,
+  fetchSpaceGroupBinding,
   propertyLikeRows,
   readInternalProperties,
   sortByPriorityThenName,
@@ -53,10 +56,12 @@ async function creds(): Promise<NearbyApiConfig> {
  * SOURCE ORDER: `PropertiesInternal` → `Properties` → keyed REST.
  *
  * `PropertiesInternal` comes first because it is the site's OWN collection: it is
- * where the operator curates this widget (`priorityOrder`, hero photos), so where
+ * where the operator curates this widget (`nearbyLocationPriorityOrder`, hero
+ * photos), so where
  * it also carries property data that data is the operator's intent. But it exists
  * mainly to hold those extras, and on a site where it has only
- * `id`/`heroimage`/`images`/`priorityOrder` there is no name, address or phone to
+ * `id`/`heroimage`/`images`/`nearbyLocationPriorityOrder` there is no name,
+ * address or phone to
  * render — `propertyLikeRows` is the check, and a photos-only collection falls
  * through to `Properties` instead of producing a grid of blank cards.
  *
@@ -100,28 +105,91 @@ export const fetchPropertySpaces = async (propertyId: string) =>
   sharedFetchPropertySpaces(await creds(), propertyId);
 
 /** What one property's space lookup yields. */
-export interface PropertySpaces {
-  promo?: string;
-  spaces: NearbySpace[];
+export type PropertySpaces = PropertySpaceData;
+
+/**
+ * The whole portfolio's spaces, from ONE request — promise-cached for the page.
+ *
+ * `PropertiesInternal` curates a `spaceGroupId` per property and the `company_id`
+ * they belong to, which together are everything the batched endpoint needs
+ * (`fetchSpaceGroupBinding`). One call then prices EVERY facility, so the widget
+ * no longer pays two REST round trips per card — and paging, re-sorting and
+ * swiping cost nothing at all afterwards.
+ *
+ * Resolves **null** when the collection cannot supply that binding: no `dmAPI`
+ * (the Duda editor, the dev harness), no collection, or the two columns simply
+ * not filled in yet. Null means "no batch available", and the caller keeps the
+ * per-property chain — which is what every site does today, so an operator who
+ * has not filled the columns in sees exactly the current behaviour rather than a
+ * grid of price-less cards.
+ *
+ * The PROMISE is cached, so the several page-turns that can fire before the
+ * first one lands all join the same request instead of each issuing their own.
+ *
+ * The company for this call comes from the collection when it states one, NOT
+ * from `Company`/config: these `spaceGroupId`s belong to that company, and
+ * pairing them with a different id would ask the API for groups it does not own.
+ */
+let portfolioPromise: Promise<Map<string, PropertySpaces> | null> | null = null;
+
+async function loadPortfolioSpaces(): Promise<Map<string, PropertySpaces> | null> {
+  const { companyId, groupByProperty } = await fetchSpaceGroupBinding();
+  if (!groupByProperty.size) return null;
+
+  const c = await creds();
+  const withCompany = companyId ? { ...c, companyId } : c;
+  const byGroup = await fetchSpaceGroupSpaces(withCompany, [...groupByProperty.values()]);
+  // An empty answer is a FAILED batch (the fetch fails soft), not a portfolio
+  // with no spaces — returning the empty map would pin every card at "no spaces"
+  // for the life of the page, so hand back null and let the per-property chain
+  // try instead.
+  if (!byGroup.size) {
+    console.warn('[#07 nearby] batched space-groups call returned nothing; falling back per property');
+    return null;
+  }
+
+  logSource('#07 nearby', 'spaces', true, `1 batched call, ${byGroup.size}/${groupByProperty.size} groups`);
+
+  // Re-key from space group to PROPERTY, which is what the cards are keyed by.
+  // A group missing from the response is simply absent here, so that one property
+  // falls back on its own rather than dragging the whole batch down with it.
+  const byProperty = new Map<string, PropertySpaces>();
+  for (const [propertyId, groupId] of groupByProperty) {
+    const hit = byGroup.get(groupId);
+    if (hit) byProperty.set(propertyId, hit);
+  }
+  return byProperty;
+}
+
+function portfolioSpaces(): Promise<Map<string, PropertySpaces> | null> {
+  portfolioPromise ??= loadPortfolioSpaces().catch(() => null);
+  return portfolioPromise;
 }
 
 /**
- * Spaces + promo for SEVERAL properties — **the seam for the batch endpoint.**
+ * Spaces + promo for several properties — **the batch endpoint, when available.**
  *
- * Today there is no single API for this, so this fans out one
- * `fetchPropertySpaces` per id (each of which is two sequential REST round
- * trips: list the property's space-groups, then read the website group). The
- * caller therefore asks only for the cards actually on screen — 3 for a
- * one-row layout, 6 for two — instead of the whole portfolio.
+ * Two routes, and the first is one request for the entire portfolio:
  *
- * When the single property-spaces API lands, **this function is the only thing
- * that changes**: it already takes a list of ids and reports per id, so the
- * component above it does not move. Credentials are resolved ONCE here rather
- * than per id, which is also what a batch call will want.
+ *  1. **Batched** — `PropertiesInternal` gives a `spaceGroupId` per property and
+ *     the `company_id` they sit under, so a single
+ *     `space-groups?space_group_id=…&space_group_id=…` call prices every
+ *     facility at once. Cached for the page, so only the FIRST batch of ids
+ *     pays for it and every page turn after that is free.
+ *  2. **Per property** — the original chain (list the property's space-groups,
+ *     then read the website one: two sequential round trips each), used for any
+ *     property the batch could not answer for, and for every property on a site
+ *     that has not curated the columns yet.
  *
- * `onResult` fires **as each property resolves**, not after all of them, so a
- * fast card paints without waiting on the slowest in its page. The returned
- * promise settles when every id has reported.
+ * The signature is unchanged, which is the point: `onResult` still fires **per
+ * property as it resolves** and the returned promise still settles when every id
+ * has reported, so the component above — its cache, its in-flight set, its
+ * `SpacesSkeleton` — did not move.
+ *
+ * On the batched route `onResult` fires for **every facility in the portfolio**,
+ * not only the ids passed in: the single call already fetched them, so every card
+ * fills at once and the caller's cache is seeded for pages it has not reached yet.
+ * `propertyIds` is then only "the ids that must be answered", not a limit.
  *
  * Fails soft PER ID: a property whose lookup throws reports empty spaces, so one
  * bad property can never reject the batch and blank the rest of the page.
@@ -131,9 +199,44 @@ export async function fetchSpacesForProperties(
   onResult: (propertyId: string, data: PropertySpaces) => void,
 ): Promise<void> {
   if (!propertyIds.length) return;
-  const c = await creds();
+
+  const batched = await portfolioSpaces();
+
+  // REPORT EVERY FACILITY THE BATCH COVERED, not just the ids asked for.
+  //
+  // The one call already paid for the whole portfolio, so holding back the rest
+  // would leave cards on later pages showing skeletons that a request has
+  // already answered — and would make the batch look, from the outside, exactly
+  // like the per-page fan-out it replaced. Reporting them fills every card at
+  // once and seeds the caller's cache, so no later page turn fetches anything.
+  //
+  // Safe against the caller's bookkeeping: its in-flight set is a Set (deleting
+  // an id that was never added is a no-op) and its updater matches on id, so an
+  // unrequested id simply lands in the cache and on its own card. React 18
+  // batches the resulting state updates into one render.
+  const reported = new Set<string>();
+  if (batched) {
+    for (const [id, data] of batched) {
+      reported.add(id);
+      onResult(id, data);
+    }
+  }
+
+  // Only ids the batch could not answer for — an uncurated property, or a site
+  // with no binding at all — fall through to the per-property chain.
+  const missing = propertyIds.filter((id) => !reported.has(id));
+  if (!missing.length) return;
+
+  // The collection's `company_id` wins here too. These are properties the
+  // collection listed but curated no `spaceGroupId` for, so they belong to the
+  // company it names — asking config.json's company for them would 404 every
+  // lookup and render price-less cards. Re-reading the binding is free: it is a
+  // second pass over the same cached rows, not a second request.
+  const { companyId } = await fetchSpaceGroupBinding();
+  const base = await creds();
+  const c = companyId ? { ...base, companyId } : base;
   await Promise.all(
-    propertyIds.map(async (id) => {
+    missing.map(async (id) => {
       try {
         onResult(id, await sharedFetchPropertySpaces(c, id));
       } catch {

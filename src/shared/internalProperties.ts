@@ -5,7 +5,8 @@
 // `Properties` is EXTERNAL: it mirrors the Hummingbird endpoint and the operator
 // cannot add columns to it. `PropertiesInternal` is the site's own, so anything
 // the API doesn't carry lives here — the gallery/hero photos (see
-// ./propertyImages) and now **`priorityOrder`**, the hand-curated rank behind
+// ./propertyImages) and now **`nearbyLocationPriorityOrder`**, the hand-curated
+// rank behind
 // #07's "featured facilities" mode.
 //
 // Read-only and fails soft everywhere: no dmAPI (the Duda editor and the dev
@@ -30,7 +31,19 @@ import { boundJson } from './propertyBinding';
 export const INTERNAL_PROPERTIES_COLLECTION = 'PropertiesInternal';
 
 /** Column holding the curated rank. Lower sorts first. */
-const PRIORITY_FIELD = 'priorityOrder';
+const PRIORITY_FIELD = 'nearbyLocationPriorityOrder';
+
+/**
+ * Columns behind the BATCHED space-groups call (see `fetchSpaceGroupBinding`).
+ *
+ * `spaceGroupId` is the one thing the Hummingbird API cannot tell us on its own:
+ * it is not a column on `Properties`, each property has several groups and only
+ * one is the public list, so it has to be curated per property — which is exactly
+ * what this collection is for. `company_id` rides along because the batch call is
+ * scoped to a company and this collection is where the operator states which one.
+ */
+const COMPANY_FIELD = 'company_id';
+const SPACE_GROUP_FIELD = 'spaceGroupId';
 
 /** Rank with no usable value — sorts after every real one. */
 export const NO_PRIORITY = Number.POSITIVE_INFINITY;
@@ -52,15 +65,47 @@ const JSON_FIELDS = [
 ] as const;
 
 /**
+ * **This collection names its columns in lower case; the API does not.**
+ *
+ * `PropertiesInternal` mirrors the property object, but its columns are
+ * `address` / `phones` / `emails` / `accesshours` / `socialmedia` / `images`,
+ * where `Properties` (and therefore `extractNearbyProperties`, which parses both)
+ * reads `Address` / `Phones` / … . Verified against the site's actual collection
+ * export, 2026-08-25.
+ *
+ * Getting this wrong is silent and total, not partial: `propertyLikeRows` admits a
+ * row only if it has an `Address` OBJECT, so with the capitalised name alone every
+ * row failed that test, the whole collection looked like "photos only", and #07
+ * fell through to REST — **against config.json's company, which is a different
+ * company entirely**. The visible symptom is a list of the wrong facilities whose
+ * ids match nothing in the `spaceGroupId` map, so every card then also falls back
+ * to the per-property chain and the batched call appears not to be used at all.
+ *
+ * Copied onto the canonical key rather than renamed, so `propertyImages.ts` — which
+ * reads `images`/`heroimage` off the same rows — is untouched. An existing
+ * capitalised value always wins: a collection already shaped like the API must not
+ * be overwritten by a lower-case column that happens to sit beside it.
+ */
+const FIELD_ALIASES: Array<readonly [string, string]> = [
+  ['address', 'Address'],
+  ['phones', 'Phones'],
+  ['emails', 'Emails'],
+  ['accesshours', 'AccessHours'],
+  ['socialmedia', 'SocialMedia'],
+  ['images', 'Images'],
+];
+
+/**
  * Scalar columns that must be plain TEXT before anything keys or renders off them.
  *
  * `id` is the critical one: it is the join key between this collection, the
- * property rows and the `priorityOrder` map. `str()` does not strip markup, so on
+ * property rows and the `nearbyLocationPriorityOrder` map. `str()` does not strip
+ * markup, so on
  * a native collection an id would arrive as `<p class="rteBlock">340079517</p>`
  * and match NOTHING — featured ordering would silently apply to no property at
  * all. `name` is here because it is rendered and is the sort tie-break.
  */
-const TEXT_FIELDS = ['id', 'name', 'slug'] as const;
+const TEXT_FIELDS = ['id', 'name', 'slug', COMPANY_FIELD, SPACE_GROUP_FIELD] as const;
 
 /**
  * Make one row's structured columns actual objects/arrays.
@@ -84,21 +129,36 @@ const TEXT_FIELDS = ['id', 'name', 'slug'] as const;
  */
 function normalizeRow(row: CollectionRow): CollectionRow {
   let out: CollectionRow | null = null;
+  const get = (field: string) => (out ?? row)[field];
+  const set = (field: string, value: unknown) => {
+    out = out ?? { ...row };
+    out[field] = value;
+  };
+
+  // FIRST, because the parse below works on the canonical names: lift this
+  // collection's lower-case columns onto the keys the extractors read. An
+  // existing capitalised value wins — see FIELD_ALIASES.
+  for (const [lower, canonical] of FIELD_ALIASES) {
+    const existing = get(canonical);
+    if (existing != null && existing !== '') continue;
+    const v = get(lower);
+    if (v == null || v === '') continue;
+    set(canonical, v);
+  }
+
   for (const field of JSON_FIELDS) {
-    const v = row[field];
+    const v = get(field);
     if (v == null || typeof v === 'object') continue;
     const parsed = boundJson<unknown>(plainText(v));
     if (parsed == null) continue;
-    out = out ?? { ...row };
-    out[field] = parsed;
+    set(field, parsed);
   }
   for (const field of TEXT_FIELDS) {
-    const v = row[field];
+    const v = get(field);
     if (typeof v !== 'string') continue;
     const text = plainText(v);
     if (text === v) continue;
-    out = out ?? { ...row };
-    out[field] = text;
+    set(field, text);
   }
   return out ?? row;
 }
@@ -107,7 +167,8 @@ function normalizeRow(row: CollectionRow): CollectionRow {
  * All rows of the collection, promise-cached so #07 reads it once per page.
  *
  * The PROMISE is cached, not the rows, so this widget's two callers — the source
- * list (`fetchProperties`) and the `priorityOrder` map — join one in-flight
+ * list (`fetchProperties`) and the `nearbyLocationPriorityOrder` map — join one
+ * in-flight
  * request instead of each firing their own. Page-lifetime only; a reload picks up
  * collection edits.
  *
@@ -132,7 +193,7 @@ export async function readInternalProperties(
 }
 
 /**
- * One row's `priorityOrder`, or `NO_PRIORITY` when it has none.
+ * One row's `nearbyLocationPriorityOrder`, or `NO_PRIORITY` when it has none.
  *
  * `num()` alone would turn a blank cell into 0 — the STRONGEST rank — so an
  * operator who set a priority on three facilities would see the other ninety
@@ -146,7 +207,8 @@ export function rowPriority(row: CollectionRow): number {
 }
 
 /**
- * `priorityOrder` per property id, for the whole collection, in ONE read.
+ * `nearbyLocationPriorityOrder` per property id, for the whole collection, in ONE
+ * read.
  *
  * Ids missing from the map simply have no curated rank; callers must treat that
  * as `NO_PRIORITY` rather than as an error, because the collection is allowed to
@@ -168,10 +230,71 @@ export async function fetchPriorityOrder(
 }
 
 /**
- * Sort by curated `priorityOrder`, then by name.
+ * The inputs the BATCHED space-groups call needs, in ONE collection read.
+ *
+ *   `{ companyId, groupByProperty: Map<propertyId, spaceGroupId> }`
+ *
+ * #07 used to price its cards with two REST round trips PER PROPERTY (list the
+ * property's space-groups, then read the website one), which is why it only ever
+ * priced the cards on screen. Both of those calls exist to answer one question —
+ * *which group is this property's public list* — and the operator can simply
+ * state the answer here. With `spaceGroupId` curated per row, every facility's
+ * spaces come back in a single request (see `fetchSpaceGroupSpaces`).
+ *
+ * **`company_id` is read from this collection, not from `Company`**, because it
+ * is the id these `spaceGroupId`s belong to: the two are one setting written on
+ * one row, and pairing group ids from here with a company id from somewhere else
+ * would ask the API for groups that company does not own. Only the FIRST
+ * non-empty value is used; a second, different one is a misconfiguration and
+ * warns rather than being guessed between.
+ *
+ * Fails soft to `{ companyId: '', groupByProperty: new Map() }` — no dmAPI (the
+ * Duda editor, the dev harness), no collection, or the columns simply not filled
+ * in yet. The caller must then keep the per-property path; see
+ * `fetchSpacesForProperties`.
+ */
+export interface SpaceGroupBinding {
+  /** '' when the column is empty — the caller falls back to its own creds. */
+  companyId: string;
+  /** Property id → the space group holding its public list. */
+  groupByProperty: Map<string, string>;
+}
+
+export async function fetchSpaceGroupBinding(
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<SpaceGroupBinding> {
+  const groupByProperty = new Map<string, string>();
+  let companyId = '';
+
+  for (const row of await readInternalProperties(collectionName)) {
+    // Already plain text — normalizeRow put both columns through plainText(), so
+    // a native collection's `<p class="rteBlock">Ej67atdZBe</p>` cannot reach the
+    // request URL and 404 the whole batch.
+    const company = str(row[COMPANY_FIELD]).trim();
+    if (company) {
+      if (!companyId) companyId = company;
+      else if (company !== companyId) {
+        console.warn(
+          `[#07 nearby] ${collectionName} has more than one ${COMPANY_FIELD} (“${companyId}” and “${company}”); using the first`,
+        );
+      }
+    }
+
+    const id = str(row.id).trim();
+    const group = str(row[SPACE_GROUP_FIELD]).trim();
+    // Both or neither: the map is a join, so a group with no property to hang it
+    // on is unusable and a property with no group has to keep the old path.
+    if (id && group) groupByProperty.set(id, group);
+  }
+
+  return { companyId, groupByProperty };
+}
+
+/**
+ * Sort by curated `nearbyLocationPriorityOrder`, then by name.
  *
  * Name is the tie-break the spec asks for: two properties sharing a
- * `priorityOrder` order by name. `localeCompare` with `numeric` keeps
+ * `nearbyLocationPriorityOrder` order by name. `localeCompare` with `numeric` keeps
  * "Storage Outlet 2" before "Storage Outlet 10".
  *
  * Unranked properties still sort to the tail (`NO_PRIORITY`) rather than being
@@ -200,7 +323,8 @@ export function sortByPriorityThenName<T extends { id: string; name: string }>(
  *
  * #07 is asked to source its list from `PropertiesInternal`, but that collection
  * exists primarily to hold the extras — on a site where it only has `id`,
- * `heroimage`, `images` and `priorityOrder` there is no name, address, phone or
+ * `heroimage`, `images` and `nearbyLocationPriorityOrder` there is no name,
+ * address, phone or
  * coordinates to render, and handing those rows to the extractor would produce a
  * grid of blank cards. So the caller checks first and falls back to `Properties`
  * when the answer is "photos only".

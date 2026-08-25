@@ -7,6 +7,7 @@
 //   • getUserLocation()      – browser geolocation (allow/deny prompt), or null
 //   • haversineMiles()       – great-circle distance
 //   • fetchPropertySpaces()  – per-property spaces + promo via the space-groups calls
+//   • fetchSpaceGroupSpaces() – spaces + promo for MANY space groups in one call
 
 import {
   fetchPropertiesPreferCollection,
@@ -25,6 +26,12 @@ export interface NearbySpace {
   subtype: string;
   inStorePrice: number;
   startingPrice: number;
+}
+
+/** One facility's card data: its cheapest spaces and its first promotion. */
+export interface PropertySpaceData {
+  promo?: string;
+  spaces: NearbySpace[];
 }
 
 /** A property before distance/spaces/promo are attached. */
@@ -63,8 +70,15 @@ const headers = (cfg: NearbyApiConfig) => ({
   'x-storageapi-key': cfg.apiKey,
 });
 
-const companyBase = (cfg: NearbyApiConfig) =>
-  `${cfg.baseUrl}/applications/${cfg.appId}/v2/companies/${cfg.companyId}`;
+/**
+ * `…/applications/{appId}/{version}/companies/{companyId}`.
+ *
+ * v2 for properties and the per-property space-group chain; the BATCHED
+ * space-groups endpoint (`fetchSpaceGroupSpaces`) is **v1** — it is a different
+ * route, not a newer one, so the version is a parameter rather than a constant.
+ */
+const companyBase = (cfg: NearbyApiConfig, version: 'v1' | 'v2' = 'v2') =>
+  `${cfg.baseUrl}/applications/${cfg.appId}/${version}/companies/${cfg.companyId}`;
 
 // ---------------------------------------------------------------------------
 // Raw response types (only what we read)
@@ -115,6 +129,22 @@ interface ApiTier {
 interface ApiGroup { name: string; tiers: ApiTier[]; }
 interface GroupsResponse {
   applicationData: Record<string, Array<{ status: number; data: { spaceGroupProfile: Record<string, { groups: ApiGroup[] }> } }>>;
+}
+
+/**
+ * The BATCHED endpoint's envelope. Same `spaceGroupProfile`, but keyed by SPACE
+ * GROUP ID first and then by space TYPE id, so its groups sit one level deeper
+ * than the per-property route's:
+ *
+ *   per property: spaceGroupProfile[<spaceTypeId>].groups
+ *   batched:      spaceGroupProfile[<spaceGroupId>][<spaceTypeId>].groups
+ *
+ * Typed as `unknown` under the group id and walked by `groupsUnder`, which reads
+ * either depth — the two routes are documented separately and this is the seam
+ * where a shape change would otherwise silently price every card at zero.
+ */
+interface BatchGroupsResponse {
+  applicationData: Record<string, Array<{ status: number; data: { spaceGroupProfile: Record<string, unknown> } }>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -267,7 +297,7 @@ export function extractNearbyProperties(
 export async function fetchPropertySpaces(
   cfg: NearbyApiConfig,
   propertyId: string,
-): Promise<{ promo?: string; spaces: NearbySpace[] }> {
+): Promise<PropertySpaceData> {
   const base = companyBase(cfg);
   try {
     const listRes = await fetch(`${base}/properties/${propertyId}/space-groups`, { headers: headers(cfg) });
@@ -284,34 +314,119 @@ export async function fetchPropertySpaces(
     const profile = grpJson?.applicationData?.[cfg.appId]?.[0]?.data?.spaceGroupProfile;
     if (!profile) return { spaces: [] };
 
-    const tiers: ApiTier[] = [];
-    for (const prof of Object.values(profile)) for (const g of prof.groups ?? []) tiers.push(...(g.tiers ?? []));
-
-    let promo: string | undefined;
-    const spaces: NearbySpace[] = [];
-    for (const t of tiers) {
-      if (!promo && t.allocated_promo && 'id' in t.allocated_promo && t.allocated_promo.name) {
-        promo = t.allocated_promo.name;
-      }
-      // Only offer tiers that have vacancy and a real starting price.
-      if ((t.vacant?.count ?? 0) <= 0) continue;
-      const startingPrice = t.sell_rate ?? t.units?.min_price ?? 0;
-      if (startingPrice <= 0) continue;
-      const website = [...(t.amenities ?? [])]
-        .filter((a) => a.show_in_website === 1)
-        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-      spaces.push({
-        size: t.description,
-        subtype: website[0] ? amenityLabel(website[0]) : '',
-        inStorePrice: t.set_rate ?? t.units?.max_price ?? 0,
-        startingPrice,
-      });
-    }
-
-    // Cheapest three, so the card leads with the best-value spaces.
-    const ranked = spaces.sort((a, b) => a.startingPrice - b.startingPrice).slice(0, 3);
-    return { promo, spaces: ranked };
+    const profileGroups: ApiGroup[] = [];
+    for (const prof of Object.values(profile)) profileGroups.push(...(prof.groups ?? []));
+    return spacesFromGroups(profileGroups);
   } catch {
     return { spaces: [] };
   }
+}
+
+/**
+ * Every space group's spaces + promo in **ONE** request.
+ *
+ *   GET …/v1/companies/{companyId}/space-groups?space_group_id=A&space_group_id=B…
+ *
+ * The group ids repeat as a query parameter, one per group, exactly as the API
+ * documents it. This replaces the per-property chain for #07: that route costs
+ * two sequential round trips per facility, so a page could only afford to price
+ * the cards actually on screen, whereas this prices the whole portfolio at once
+ * and every later page turn is free.
+ *
+ * Keyed by SPACE GROUP id, not property id — this layer has no idea which
+ * property a group belongs to. `PropertiesInternal` holds that join, and the
+ * caller applies it (see `fetchSpacesForProperties` in the widget's nearbyApi).
+ *
+ * Fails soft to an EMPTY MAP, never throws: an unreachable batch is the same
+ * situation as an unreachable per-property lookup, and the caller renders cards
+ * without prices rather than no cards.
+ */
+export async function fetchSpaceGroupSpaces(
+  cfg: NearbyApiConfig,
+  spaceGroupIds: string[],
+): Promise<Map<string, PropertySpaceData>> {
+  const out = new Map<string, PropertySpaceData>();
+  // De-duplicated: two properties sharing a group would otherwise repeat the
+  // parameter, and the URL is capped in practice by servers and proxies.
+  const ids = [...new Set(spaceGroupIds.filter(Boolean))];
+  if (!ids.length) return out;
+
+  try {
+    const query = ids.map((id) => `space_group_id=${encodeURIComponent(id)}`).join('&');
+    const res = await fetch(`${companyBase(cfg, 'v1')}/space-groups?${query}`, { headers: headers(cfg) });
+    if (!res.ok) return out;
+    const json = (await res.json()) as BatchGroupsResponse;
+    const profile = json?.applicationData?.[cfg.appId]?.[0]?.data?.spaceGroupProfile;
+    if (!profile) return out;
+
+    for (const [groupId, node] of Object.entries(profile)) {
+      out.set(groupId, spacesFromGroups(groupsUnder(node)));
+    }
+    return out;
+  } catch {
+    return out;
+  }
+}
+
+/**
+ * The `groups` arrays under one `spaceGroupProfile` entry, at EITHER depth.
+ *
+ * The batched route nests by space TYPE id first (`{ wNjG5IpNvK: { groups: […] } }`)
+ * where the per-property one does not (`{ groups: […] }`). Reading both costs a
+ * single `in` check and means a route that drops or gains that level cannot
+ * silently yield zero tiers — which would render as a card with no prices rather
+ * than as an error.
+ */
+function groupsUnder(node: unknown): ApiGroup[] {
+  if (!node || typeof node !== 'object') return [];
+  const direct = (node as { groups?: ApiGroup[] }).groups;
+  if (Array.isArray(direct)) return direct;
+  const out: ApiGroup[] = [];
+  for (const child of Object.values(node as Record<string, unknown>)) {
+    if (child && typeof child === 'object') {
+      const groups = (child as { groups?: ApiGroup[] }).groups;
+      if (Array.isArray(groups)) out.push(...groups);
+    }
+  }
+  return out;
+}
+
+/**
+ * Groups → the card's cheapest three spaces and its first promotion.
+ *
+ * Shared by both routes so the batched call cannot drift from the per-property
+ * one: a card must look identical whichever fetched it.
+ *
+ * The promo is read from ALL tiers, before the vacancy filter, because a promo
+ * belongs to the facility rather than to the space that happens to be cheapest —
+ * dropping it with a full tier would make the banner flicker in and out as
+ * occupancy changes.
+ */
+function spacesFromGroups(groups: ApiGroup[]): PropertySpaceData {
+  const tiers: ApiTier[] = [];
+  for (const g of groups) tiers.push(...(g.tiers ?? []));
+
+  let promo: string | undefined;
+  const spaces: NearbySpace[] = [];
+  for (const t of tiers) {
+    if (!promo && t.allocated_promo && 'id' in t.allocated_promo && t.allocated_promo.name) {
+      promo = t.allocated_promo.name;
+    }
+    // Only offer tiers that have vacancy and a real starting price.
+    if ((t.vacant?.count ?? 0) <= 0) continue;
+    const startingPrice = t.sell_rate ?? t.units?.min_price ?? 0;
+    if (startingPrice <= 0) continue;
+    const website = [...(t.amenities ?? [])]
+      .filter((a) => a.show_in_website === 1)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    spaces.push({
+      size: t.description,
+      subtype: website[0] ? amenityLabel(website[0]) : '',
+      inStorePrice: t.set_rate ?? t.units?.max_price ?? 0,
+      startingPrice,
+    });
+  }
+
+  // Cheapest three, so the card leads with the best-value spaces.
+  return { promo, spaces: spaces.sort((a, b) => a.startingPrice - b.startingPrice).slice(0, 3) };
 }
