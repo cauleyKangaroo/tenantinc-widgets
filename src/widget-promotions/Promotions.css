@@ -6,12 +6,17 @@
   font-family: 'Montserrat', sans-serif;
   width: 100%;
   box-sizing: border-box;
-  /* No vertical padding: the Duda editor sets the space above and below this
+  /* Matches .sl-wrapper in #05 exactly. That one is fluid — 20px on a phone,
+     4vw through the middle, capped at 64px — where this was a flat 24px, so the
+     two widgets only lined up at phone width and drifted apart everywhere else.
+     Named, because the full-width band below has to cancel it precisely.
+
+     No vertical padding: the Duda editor sets the space above and below this
      widget, and the 30px that used to be here added to whatever was set there.
-     The horizontal 24px stays — that is the widget's own gutter, not page
-     rhythm. The two top-level blocks (.promo-banner, .promo-bars) carry only
+     The two top-level blocks (.promo-banner, .promo-bars) carry only
      `margin: 0 auto`, so nothing else contributes height at the edges. */
-  padding: 0 24px;
+  --promo-gutter: clamp(20px, 4vw, 64px);
+  padding: 0 var(--promo-gutter);
 }
 
 .promo-wrapper *,
@@ -156,20 +161,31 @@ img.promo-banner-img {
    radius, no shadow, edge to edge, everything centred. `cols` counts the whole
    item list rather than the current page, so this cannot catch a 5th promotion
    sitting alone on page two. */
-.promo-bars[data-cols='1'] {
-  max-width: none;
-  /* Out through .promo-wrapper's 24px gutter, which this cancels exactly, so
-     the band reaches both edges of the widget. */
-  width: auto;
-  margin-inline: -24px;
-}
+/* Boxed everywhere BELOW desktop: same 16px radius and same elevation as every
+   other promo card, because at tablet and phone width a full-bleed band reads
+   as a broken card rather than a deliberate one. Only the centring, the type
+   and the icon placement carry across. */
 .promo-bars[data-cols='1'] .promo-bar {
-  border-radius: 0;
-  box-shadow: none;
-  /* 48px is the frame's; the 24px replaces the gutter given up above, so the
-     text still clears the edge on a narrow screen. */
-  padding: 48px 24px;
+  padding: 40px;
   justify-content: center;
+}
+
+/* Desktop only. The band drops its radius and elevation and runs edge to edge,
+   cancelling .promo-wrapper's gutter exactly — which is why that gutter is a
+   custom property rather than a number repeated here. */
+@media (min-width: 901px) {
+  .promo-bars[data-cols='1'] {
+    max-width: none;
+    width: auto;
+    margin-inline: calc(var(--promo-gutter) * -1);
+  }
+  .promo-bars[data-cols='1'] .promo-bar {
+    border-radius: 0;
+    box-shadow: none;
+    /* 48px is the frame's; the 24px replaces the gutter given up above, so the
+       text still clears the edge. */
+    padding: 48px 24px;
+  }
 }
 .promo-bars[data-cols='1'] .promo-bar-inner {
   align-items: center;
@@ -219,12 +235,15 @@ img.promo-banner-img {
    and a 36px icon — so they floated well above the letters. Half the leftover
    puts each back on the line's middle while keeping it anchored to the first
    line when the title wraps.
-   max(0px, …) because below roughly a 36px title the line box is shorter than
-   the tag itself, and the raw result would go negative and pull it up. */
+   The result GOES NEGATIVE once the icon is taller than the line box — below
+   roughly a 36px title — and that is correct: the icon has to hang above the
+   line to keep its middle on it. Clamping at zero, which this did at first,
+   pinned it to the line box's top instead and left it sitting high beside a
+   small heading. It overflows into the card's padding, never past it. */
 .promo-bars[data-cols='1'] .promo-bar-titlewrap svg {
   width: 40px;
   height: 40px;
-  margin-top: max(0px, calc((1.12em - 40px) / 2));
+  margin-top: calc((1.12em - 40px) / 2);
 }
 .promo-bars[data-cols='1'] .promo-bar-info {
   /* `font-size: inherit` is doing the work here. This is a <button>, and the UA
@@ -233,7 +252,7 @@ img.promo-banner-img {
      zero, and the mark got no offset at all while the tag beside it (a plain
      <svg>, which does inherit) was placed correctly. */
   font-size: inherit;
-  margin-top: max(0px, calc((1.12em - 36px) / 2));
+  margin-top: calc((1.12em - 36px) / 2);
 }
 .promo-bars[data-cols='1'] .promo-bar-info svg { width: 36px; height: 36px; }
 
@@ -424,6 +443,12 @@ img.promo-banner-img {
   align-items: center;
   justify-content: center;
   gap: 10px;
+  /* The active dot is scale(1.2)'d, so it grows 1px past the row on each side.
+     With the wrapper's vertical padding gone this row is the widget's last
+     pixel, and that 1px was landing outside it — clipped by whatever Duda wraps
+     the section in. Reserved here rather than by giving the wrapper padding
+     back, which is the editor's to set. */
+  padding: 2px 0;
 }
 
 .promo-dot {
@@ -536,6 +561,40 @@ img.promo-banner-img {
     width: 16px;
     height: 16px;
   }
+
+  /* One promotion is left-aligned here, not centred (Figma 9689-38392): tag and
+     heading together on the left, info hard right, link beneath. That IS the
+     base card — these undo the centring the desktop band needs, rather than
+     inventing a third layout. Last in the block so they beat the [data-cols]
+     rules above on source order, which they tie with on specificity. */
+  .promo-bars[data-cols='1'] .promo-bar { justify-content: flex-start; }
+  .promo-bars[data-cols='1'] .promo-bar-inner {
+    align-items: flex-start;
+    text-align: left;
+    width: 100%;
+    max-width: none;
+  }
+  .promo-bars[data-cols='1'] .promo-bar-titlerow {
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+    /* The heading's real size at this width, so the `em` the icon offsets are
+       written in resolves against it. Left at the desktop clamp, the margins
+       were computed from a 24px line for a 20px heading. */
+    font-size: 20px;
+  }
+  .promo-bars[data-cols='1'] .promo-bar-titlewrap {
+    flex: 1 1 0;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .promo-bars[data-cols='1'] .promo-bar-titlewrap svg {
+    width: 24px;
+    height: 24px;
+    margin-top: calc((1.12em - 24px) / 2);
+  }
+  .promo-bars[data-cols='1'] .promo-bar-info { margin-top: calc((1.12em - 24px) / 2); }
+  .promo-bars[data-cols='1'] .promo-bar-info svg { width: 24px; height: 24px; }
 }
 
 /* ── Disclaimer modal (Figma 7158:80964) ─────────────────────────────────── */
