@@ -27,7 +27,7 @@ import {
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID } from '@shared/propertyContact';
 import { fetchLocationTree, DEFAULT_CITY_BASE_PATH, type NavState } from '@shared/propertyNav';
 import { imageUrl } from '@shared/dudaCollections';
-import { FindStorageMegaMenu, demoLocationTree } from './FindStorageMegaMenu';
+import { FindStorageMegaMenu, demoLocationTree, type DemoPortfolio } from './FindStorageMegaMenu';
 
 // ---------------------------------------------------------------------------
 // Types + defaults
@@ -346,7 +346,7 @@ export interface NavigationBarProps {
    * which is what triggers the map frame. Has NO effect on a published page — the
    * collection answers there and the demo tree is never built.
    */
-  demoPortfolio?: 'full' | 'small';
+  demoPortfolio?: DemoPortfolio;
 }
 
 export function NavigationBar({

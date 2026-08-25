@@ -127,6 +127,7 @@
           <select id="nav-demo-portfolio" onchange="reinitNavigationBar()">
             <option value="full">Full (many facilities)</option>
             <option value="small">3 facilities (map frame)</option>
+            <option value="one-state">One state (no state column)</option>
           </select>
         </label>
       </div>
@@ -378,6 +379,10 @@
             style="width: 100px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;"
             oninput="reinitNearby()" />
         </label>
+        <label style="display: flex; align-items: center; gap: 6px;">
+          <input id="nl-value-tiers" type="checkbox" onchange="reinitNearby()" />
+          Value tiers on Select
+        </label>
       </div>
       <label style="display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px;">
         <input id="nl-mock-collections" type="checkbox" onchange="toggleCollectionsMock(this.checked)" />
@@ -401,6 +406,13 @@
         unless you are looking at #07.
         <br />
         <strong>Max properties</strong> empty = the whole portfolio.
+        <br />
+        <strong>Value tiers on Select</strong> — routes a card's Select through #14 exactly as
+        #05 does: it emits on <code>tierBus</code> and the modal on this page opens for
+        <em>that card's</em> facility (#14 adopts the emitted <code>propertyId</code> rather than
+        being scoped to the page's). With no #14 mounted the click falls through to the rental
+        page and logs why. Off ⇒ Select goes straight to <code>/rental</code> with the tier in
+        localStorage.
       </p>
     </div>
   </div>
@@ -1058,6 +1070,7 @@
         sortMode: document.getElementById('nl-sort-mode').value,
         radiusMiles: parseInt(document.getElementById('nl-radius').value, 10) || 0,
         maxProperties: isNaN(max) ? 0 : max,
+        enableValueTiers: document.getElementById('nl-value-tiers').checked,
       };
     }
 

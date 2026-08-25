@@ -89,16 +89,38 @@
   width: 100%;
 }
 
+/* pointer-events: none so the scrim can't swallow a click meant for the photo's
+   stretched link below it — they cover exactly the same box. */
 .nl-card-image-overlay {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* The photo's stretched link to the facility page.
+   Above the scrim so the whole tile is clickable, but BELOW .nl-card-data's own
+   links — that block is pointer-events: none, so a click on the name or the
+   empty space around it falls through here while phone/map still work. */
+.nl-card-image-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.nl-card-image-link:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
 }
 
 .nl-card-distance {
   position: absolute;
   top: 24px;
   right: 24px;
+  /* Painted after the photo link and therefore above it — transparent to the
+     pointer so the top-right corner of the tile still navigates. */
+  z-index: 2;
+  pointer-events: none;
   color: #fff;
   font-size: 24px;
   font-weight: 700;
@@ -119,6 +141,16 @@
   flex-direction: column;
   gap: 2px;
   max-width: calc(100% - 48px);
+  z-index: 2;
+  /* Transparent to the pointer so the stretched photo link underneath receives
+     clicks on the name, the rating and the gaps between rows. The links inside
+     opt back in below — remove that pair and either the tile stops being
+     clickable or the phone number does. */
+  pointer-events: none;
+}
+
+.nl-card-data a {
+  pointer-events: auto;
 }
 
 .nl-card-name {
@@ -312,9 +344,17 @@
   line-height: 1.2;
 }
 
+/* An <a>, not a <button> — see SpaceRow. The flex centring and the reset of the
+   anchor defaults (text-decoration, colour) are what keep it looking identical
+   to the button it replaced. */
 .nl-select-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   background: var(--color_2, #509e2f);
   color: #fff;
+  text-decoration: none;
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
   font-weight: 700;
@@ -328,8 +368,22 @@
   transition: background 0.15s;
 }
 
+/* Demo/fixture spaces carry no tier id, so there is nothing to hand the rental
+   page — the control still occupies its slot (the card's geometry is fixed) but
+   states that it does nothing. */
+.nl-select-btn--inert {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .nl-select-btn:hover {
   background: color-mix(in srgb, var(--color_2, #509e2f) 85%, black);
+}
+
+/* After the generic hover, not before it: the two selectors have the same
+   specificity, so source order is what decides. */
+.nl-select-btn--inert:hover {
+  background: var(--color_2, #509e2f);
 }
 
 /* ── Card footer ────────────────────────────────────────────────────────── */
@@ -357,6 +411,14 @@
   font-weight: 600;
   text-decoration: underline;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+/* An <a> WITHOUT href when the row carries no slug — there is nowhere to point,
+   but the footer must look identical from card to card, so it keeps the full
+   `.nl-see-all` treatment (CTA colour, underline) rather than greying out.
+   Browsers drop the pointer cursor on a hrefless anchor, so restate it. */
+.nl-see-all:not([href]) {
   cursor: pointer;
 }
 

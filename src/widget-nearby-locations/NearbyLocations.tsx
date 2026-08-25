@@ -11,8 +11,11 @@ import {
 } from './icons';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
 import { useSwipe } from '@shared/useSwipe';
+import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
+import { emitOpenTiers } from '@shared/tierBus';
 import {
   fetchProperties,
+  resolveNearbyCompanyId,
   extractProperties,
   getUserLocation,
   haversineMiles,
@@ -80,6 +83,19 @@ const DEMO_PROPERTIES: Property[] = [
  */
 const COLUMNS = 3;
 
+/** Where the property pages live. Matches #02's `locationBasePath` and #08's. */
+const DEFAULT_PROPERTY_BASE_PATH = '/storage-units';
+
+/**
+ * Duda content-menu fields are TEXT inputs, so a toggle can arrive as the STRING
+ * `'false'` — which is truthy, and would switch a feature on for every operator
+ * who explicitly turned it off. Same coercion the `rows`/`sortMode` props do.
+ */
+function boolProp(v: unknown): boolean {
+  if (typeof v === 'string') return !/^(|false|0|no|off)$/i.test(v.trim());
+  return Boolean(v);
+}
+
 /**
  * Compare by distance, nearest first, with the NAME as the tie-break.
  *
@@ -103,7 +119,87 @@ function byDistanceThenName(
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function SpaceRow({ space }: { space: Space }) {
+function SpaceRow({
+  space,
+  propertyId,
+  companyId,
+  rentalPageUrl,
+  enableValueTiers,
+  valueTiersChannel,
+  valueTiersPageUrl,
+}: {
+  space: Space;
+  /** The facility this space belongs to — what makes the handoff unambiguous on
+   *  a widget that lists several properties at once. */
+  propertyId: string;
+  companyId: string;
+  rentalPageUrl?: string;
+  /** Select goes through the #14 value-tiers step, exactly as #05's does. */
+  enableValueTiers: boolean;
+  valueTiersChannel?: string;
+  valueTiersPageUrl?: string;
+}) {
+  /**
+   * Where Select points, mirroring #05's `CtaButton`:
+   *
+   *  1. **Value tiers as a PAGE** — an href carrying the same four params #05
+   *     sends, so the target prices the same group. `propertyId` is THIS CARD's
+   *     facility, not the page's: every row on this widget is a different
+   *     property, which is the whole difference from #05.
+   *  2. **Value tiers as a MODAL** (enabled, no page URL) — the href stays the
+   *     rental page and the click emits on `tierBus` instead; see onSelect.
+   *  3. **No value-tiers step** — straight to the rental page.
+   */
+  const tiersHref = enableValueTiers && valueTiersPageUrl
+    ? `${valueTiersPageUrl}?${new URLSearchParams({
+        size: space.size,
+        ...(space.unitGroupId ? { unitGroupId: space.unitGroupId } : {}),
+        ...(propertyId ? { propertyId } : {}),
+        ...(companyId ? { companyId } : {}),
+      }).toString()}`
+    : undefined;
+
+  function onSelect(e: React.MouseEvent<HTMLAnchorElement>) {
+    // The tiers PAGE is a plain navigation — nothing to hand over in storage,
+    // the params carry it.
+    if (tiersHref) return;
+
+    if (enableValueTiers) {
+      // #14's modal is not scoped by property — it ADOPTS the emitted one as its
+      // API context (see onOpenTiers in TierSelection.tsx), so an unchanneled
+      // modal on this page serves a nearby facility correctly.
+      const handled = emitOpenTiers({
+        size: space.size,
+        unitGroupId: space.unitGroupId,
+        unitId: space.tierId,
+        propertyId: propertyId || undefined,
+        channel: valueTiersChannel || undefined,
+      });
+      if (handled) { e.preventDefault(); return; }
+      // UNHANDLED FALLS THROUGH TO THE RENTAL PAGE rather than dead-ending.
+      // #05 shows an error here because its Select is the page's primary action
+      // and a missing modal is a misconfiguration to fix. #07's cards point at
+      // OTHER facilities, on pages that may legitimately carry no #14 at all, so
+      // the honest degradation is the step the tiers modal would have led to.
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[#07 nearby] value tiers enabled but no modal handled the Select — place a '
+        + 'mode="modal" #14 on this page, or set valueTiersPageUrl. Going to the rental page.',
+      );
+    }
+
+    saveUnitSelection({
+      tierId: space.tierId!,
+      unitGroupId: space.unitGroupId,
+      size: space.size,
+      // Size AND price, so the rental flow resolves the tier that was clicked
+      // rather than the cheapest unit of that size.
+      price: space.startingPrice,
+      propertyId,
+      companyId: companyId || undefined,
+    });
+  }
+
   return (
     <div className="nl-space-row">
       <div className="nl-space-info">
@@ -121,17 +217,81 @@ function SpaceRow({ space }: { space: Space }) {
           <span className="nl-price-start-label">STARTING AT</span>
           <span className="nl-price-start-value">${space.startingPrice}</span>
         </div>
-        <button className="nl-select-btn">Select</button>
+        {/* Same routing as #05's Select: value tiers when configured, else the
+            rental page with the picked tier in localStorage (@shared/unitHandoff).
+            An ANCHOR, not a button — Duda's router handles a real link in preview
+            and published alike, and middle-click still works.
+
+            No tier id means no API row behind this space (demo/fixture data), and
+            neither route can price what was clicked — so the control renders
+            inert rather than sending the visitor somewhere that resolves to
+            nothing. */}
+        {space.tierId ? (
+          <a
+            className="nl-select-btn"
+            href={tiersHref ?? rentalHref(rentalPageUrl)}
+            onClick={onSelect}
+          >
+            Select
+          </a>
+        ) : (
+          <span className="nl-select-btn nl-select-btn--inert">Select</span>
+        )}
       </div>
     </div>
   );
 }
 
-function PropertyCard({ property }: { property: Property }) {
+function PropertyCard({
+  property,
+  propertyBasePath,
+  rentalPageUrl,
+  companyId,
+  enableValueTiers,
+  valueTiersChannel,
+  valueTiersPageUrl,
+}: {
+  property: Property;
+  /** Where the property pages live, e.g. '/storage-units'. */
+  propertyBasePath: string;
+  rentalPageUrl?: string;
+  companyId: string;
+  /** Passed straight down to each space's Select — see SpaceRow. */
+  enableValueTiers: boolean;
+  valueTiersChannel?: string;
+  valueTiersPageUrl?: string;
+}) {
+  /**
+   * The facility's own page. The SLUG is the path — `state/city/name-<id>`, the
+   * same value #02's nav and #08's cards build their links from — so this is
+   * `/storage-units/california/bellflower/storage-outlet-bellflower-340079517`.
+   *
+   * Undefined when the row carries no slug: there is then nowhere to point, and
+   * a link to the base path alone would drop the visitor on a page that is not
+   * this facility. The photo stops being clickable and "See All Spaces" renders
+   * as plain text instead.
+   */
+  const propertyHref = property.slug
+    ? `${propertyBasePath}/${property.slug.replace(/^\/+/, '')}`
+    : undefined;
+
   return (
     <div className="nl-card">
       <div className="nl-card-image" style={{ background: property.image }}>
         <div className="nl-card-image-overlay" />
+        {/* The whole photo is the link to the facility's page — a STRETCHED
+            anchor rather than a wrapper, because the details block over it holds
+            its own links (phone, map) and an <a> cannot nest inside an <a>.
+            `.nl-card-data` is pointer-events: none so a click on the name or the
+            empty space around it falls through to this; its real links opt back
+            in. See NearbyLocations.css. */}
+        {propertyHref && (
+          <a
+            className="nl-card-image-link"
+            href={propertyHref}
+            aria-label={`View ${property.name}`}
+          />
+        )}
         {property.distanceMiles != null && (
           <span className="nl-card-distance">{formatDistance(property.distanceMiles)}</span>
         )}
@@ -141,11 +301,18 @@ function PropertyCard({ property }: { property: Property }) {
             <div className="nl-card-rating">
               <span className="nl-card-rating-num">{property.rating}</span>
               <StarRating rating={property.rating} size={16} />
-              <a className="nl-card-reviews" href="#">{property.reviewCount} Reviews</a>
+              {/* A span, not an <a href="#">: there is no reviews destination
+                  here, and "#" scrolls the host page to the top when clicked. */}
+              <span className="nl-card-reviews">{property.reviewCount} Reviews</span>
             </div>
           )}
           {property.address && (
-            <a className="nl-card-meta" href="#">
+            <a
+              className="nl-card-meta"
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address)}`}
+              target="_blank"
+              rel="noreferrer"
+            >
               <MapPinIcon size={16} />
               <span>{property.address}</span>
             </a>
@@ -179,7 +346,15 @@ function PropertyCard({ property }: { property: Property }) {
                 {property.spaces.map((space, i) => (
                   <React.Fragment key={`${space.size}-${i}`}>
                     {i > 0 && <span className="nl-space-divider" />}
-                    <SpaceRow space={space} />
+                    <SpaceRow
+                      space={space}
+                      propertyId={property.id}
+                      companyId={companyId}
+                      rentalPageUrl={rentalPageUrl}
+                      enableValueTiers={enableValueTiers}
+                      valueTiersChannel={valueTiersChannel}
+                      valueTiersPageUrl={valueTiersPageUrl}
+                    />
                   </React.Fragment>
                 ))}
               </div>
@@ -189,7 +364,14 @@ function PropertyCard({ property }: { property: Property }) {
 
         <div className="nl-card-footer">
           <span className="nl-admin-fee">+ Plus ${property.adminFee} Admin Fee</span>
-          <a className="nl-see-all" href="#">
+          {/* Offered however few spaces the card lists — it goes to the
+              facility's own page, not just "more of this list". Absent only when
+              the row carries no slug and there is nowhere to point. */}
+          {/* Always rendered, and always the CTA colour + underline: the footer
+              must read the same from card to card. `href` is simply absent when
+              the row carries no slug — there is nowhere to point, and the base
+              path alone would land on a page that is not this facility. */}
+          <a className="nl-see-all" href={propertyHref}>
             See All Spaces
           </a>
         </div>
@@ -325,6 +507,35 @@ export interface NearbyLocationsProps {
    * the hero photos. Overridable only because a collection name is site data.
    */
   internalCollection?: string;
+  /**
+   * Where the facility pages live. A property's `slug` is `state/city/name-<id>`,
+   * so a card links to `/storage-units/<slug>` — the same base #02's nav and
+   * #08's cards use, and the default is the same `/storage-units`.
+   *
+   * Normalised before use: a missing leading slash would make the link relative
+   * to the page the widget happens to sit on, and a trailing one would double up
+   * into `/storage-units//california/…`.
+   */
+  propertyBasePath?: string;
+  /**
+   * Where a Select lands. Default `/rental` (see @shared/unitHandoff) — the
+   * picked tier travels in localStorage, so the href stays clean.
+   */
+  rentalPageUrl?: string;
+  /**
+   * Select goes through the #14 value-tiers step first, exactly as #05's does —
+   * the modal on this page (`tierBus`) or `valueTiersPageUrl` when one is set.
+   *
+   * Typed loosely because a Duda content-menu field is a TEXT input: an operator
+   * who turned this OFF can send the string `'false'`, which is truthy. See
+   * `boolProp`.
+   */
+  enableValueTiers?: boolean | string;
+  /** Disambiguates several #14 modals on one page. Both sides must match. */
+  valueTiersChannel?: string;
+  /** Value tiers as a PAGE rather than a modal. Set ⇒ Select navigates there
+   *  with `size`/`unitGroupId`/`propertyId`/`companyId`, as #05 does. */
+  valueTiersPageUrl?: string;
 }
 
 export function NearbyLocations({
@@ -337,13 +548,48 @@ export function NearbyLocations({
   sortMode = 'nearest',
   maxProperties = 0,
   internalCollection = INTERNAL_PROPERTIES_COLLECTION,
+  propertyBasePath = DEFAULT_PROPERTY_BASE_PATH,
+  rentalPageUrl,
+  enableValueTiers = false,
+  valueTiersChannel,
+  valueTiersPageUrl,
 }: NearbyLocationsProps) {
+  const valueTiers = boolProp(enableValueTiers);
   // Duda hands these over as strings, so coerce before deriving anything.
   const rowCount = Number(rows) >= 2 ? 2 : 1;
   const cardsPerPage = COLUMNS * rowCount;
   const featured = /featur/i.test(String(sortMode));
   // 0 / unset / junk ⇒ no cap: the whole sorted portfolio, paged.
   const cap = Math.max(0, Number(maxProperties) || 0);
+
+  /**
+   * Normalised like #02's and #08's base paths — a missing leading slash makes
+   * the card link relative to whatever page the widget sits on (fatal on a
+   * property page at /storage-units/california/…) and a trailing one doubles up.
+   */
+  const propertyBase = useMemo(() => {
+    const t = String(propertyBasePath ?? '').trim().replace(/\/+$/, '');
+    if (!t) return '';
+    return t.startsWith('/') ? t : `/${t}`;
+  }, [propertyBasePath]);
+
+  /**
+   * The company the cards' facilities belong to — carried by a Select handoff so
+   * the rental flow resolves the unit against the right company.
+   *
+   * Resolved asynchronously (collection reads), and `''` until it lands. That is
+   * fine here where it would not be for the space lookups: nothing is fetched
+   * with it, and a Select in the first moments simply hands over one fewer hint —
+   * the rental flow still has the property id, the size and the price.
+   */
+  const [handoffCompanyId, setHandoffCompanyId] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    resolveNearbyCompanyId(internalCollection)
+      .then((id) => { if (!cancelled) setHandoffCompanyId(id); })
+      .catch(() => { /* no company hint — the handoff degrades, nothing breaks */ });
+    return () => { cancelled = true; };
+  }, [internalCollection]);
 
   /**
    * Spaces per property id, for the lifetime of the page.
@@ -476,6 +722,26 @@ export function NearbyLocations({
         const heroes = await fetchPropertyHeroImages(internalCollection).catch(
           () => new Map<string, string>(),
         );
+
+        // THE SLUG IS COLLECTION-ONLY. Verified live 2026-08-25: the REST
+        // `/properties` response carries no `slug` field on either company, so
+        // it exists solely on the Duda collections (`PropertiesInternal`, and
+        // `Properties`). Whenever the widget is on the REST path — the Duda
+        // editor and the dev harness, where there is no `dmAPI` — every card is
+        // slug-less and its photo and "See All Spaces" have nowhere to point.
+        //
+        // Said out loud, once, because the symptom (links that do nothing) looks
+        // identical to a coding bug and gives no hint that the cause is the
+        // source the list came from.
+        if (top.length && !top.some((p) => p.slug)) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[#07 nearby] no property carries a "slug", so the card photos and "See All Spaces" `
+            + `have no facility page to link to. The slug lives on the Duda collections only `
+            + `(${internalCollection} / Properties) — in the dev harness, reload with `
+            + `?mockCollections=1 to exercise it.`,
+          );
+        }
 
         const cards: Property[] = top.map((p, i) => {
           const cached = spacesCache.current.get(p.id);
@@ -646,7 +912,16 @@ export function NearbyLocations({
               {loading
                 ? Array.from({ length: cardsPerPage }, (_, i) => <SkeletonCard key={i} />)
                 : pageCards.map((property) => (
-                    <PropertyCard key={property.id} property={property} />
+                    <PropertyCard
+                      key={property.id}
+                      property={property}
+                      propertyBasePath={propertyBase}
+                      rentalPageUrl={rentalPageUrl}
+                      companyId={handoffCompanyId}
+                      enableValueTiers={valueTiers}
+                      valueTiersChannel={valueTiersChannel}
+                      valueTiersPageUrl={valueTiersPageUrl}
+                    />
                   ))}
             </div>
 
@@ -688,7 +963,15 @@ export function NearbyLocations({
                   {/* Dots are the indicator, swiping is the control — this view
                       never had arrows to begin with. */}
                   <div {...mobileSwipe.handlers}>
-                    <PropertyCard property={properties[Math.min(mobileIdx, properties.length - 1)]} />
+                    <PropertyCard
+                      property={properties[Math.min(mobileIdx, properties.length - 1)]}
+                      propertyBasePath={propertyBase}
+                      rentalPageUrl={rentalPageUrl}
+                      companyId={handoffCompanyId}
+                      enableValueTiers={valueTiers}
+                      valueTiersChannel={valueTiersChannel}
+                      valueTiersPageUrl={valueTiersPageUrl}
+                    />
                   </div>
                   <div className="nl-pagination nl-pagination-dots">
                     <Dots count={properties.length} active={Math.min(mobileIdx, properties.length - 1)} onPick={setMobileIdx} />

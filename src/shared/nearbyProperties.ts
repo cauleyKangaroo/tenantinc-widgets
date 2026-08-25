@@ -26,6 +26,18 @@ export interface NearbySpace {
   subtype: string;
   inStorePrice: number;
   startingPrice: number;
+  /**
+   * The PRICING TIER's id — what a card's "Select" hands to the rental flow
+   * (see @shared/unitHandoff). Not a rentable unit id; the flow resolves a real
+   * unit from `size` + price, exactly as #05 and #08 already do.
+   *
+   * Optional because hand-written demo/fixture spaces have no API row behind
+   * them; a card whose space carries no tier id simply renders Select inert
+   * rather than handing the rental page an id it cannot resolve.
+   */
+  tierId?: string;
+  /** The tier's group (`tier_id` on the API row) — context for the same handoff. */
+  unitGroupId?: string;
 }
 
 /** One facility's card data: its cheapest spaces and its first promotion. */
@@ -118,6 +130,12 @@ interface SpaceGroupsResponse {
 
 interface ApiAmenity { name: string; value?: string; type?: string | null; sort_order?: number; show_in_website?: number; }
 interface ApiTier {
+  // Identity of the tier row. Both are what #05 maps to `Unit.id`/`unitGroupId`,
+  // and they ride through to the card's Select handoff. Optional here (the older
+  // per-property route was only ever read for prices) so a response missing them
+  // degrades to an inert Select instead of failing the whole parse.
+  id?: string;
+  tier_id?: string;
   description: string;
   sell_rate: number | null;
   set_rate: number | null;
@@ -424,6 +442,8 @@ function spacesFromGroups(groups: ApiGroup[]): PropertySpaceData {
       subtype: website[0] ? amenityLabel(website[0]) : '',
       inStorePrice: t.set_rate ?? t.units?.max_price ?? 0,
       startingPrice,
+      tierId: t.id,
+      unitGroupId: t.tier_id,
     });
   }
 
