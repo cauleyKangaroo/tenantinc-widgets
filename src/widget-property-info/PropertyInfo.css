@@ -559,14 +559,10 @@
    margin, so it cannot stay. */
 @media (max-width: 900px) {
   .pi-lb-thumb { flex-basis: calc((100% - 4 * 8px) / 5); }
-  .pi-lb-close { top: 28px; right: 28px; }
 }
 @media (max-width: 560px) {
   .pi-lb-thumbs { gap: 6px; }
   .pi-lb-thumb { flex-basis: calc((100% - 3 * 6px) / 4); }
-  .pi-lb-close { top: 14px; right: 14px; }
-  /* Smaller circles too, so the pair do not crowd the photo on a phone. */
-  .pi-lb-arrow { width: 34px; height: 34px; }
 }
 
 .pi-lb-img-wrap {
@@ -608,7 +604,9 @@ span.pi-lb-img {
   position: absolute;
   /* Inset from the corner rather than tucked into it (Figma 9697-21860).
      Cut right back on smaller screens, where 70px is a real slice of the
-     viewport — see the media queries at the end of this block. */
+     viewport — see the media queries AFTER .pi-lb-arrow below. They have to
+     come after this rule to beat it; they used to sit above it and never
+     applied at all. */
   top: 70px;
   right: 70px;
   z-index: 1;
@@ -668,6 +666,27 @@ span.pi-lb-img {
    turns. Rotating the glyph rather than the button leaves :active's scale on
    the circle free to work. */
 .pi-lb-arrow:not(.pi-lb-arrow--prev) .pi-lb-chev { transform: rotate(180deg); }
+
+/* ── Lightbox, small screens ─────────────────────────────────────────────
+   Down HERE, not up beside the thumbnail overrides, because these two selectors
+   are the same specificity as the rules they override — .pi-lb-close (0,1,0)
+   and .pi-lb-arrow (0,1,0) — so the tie is settled by source order alone. Both
+   base rules are declared BELOW that block, which is why the close button kept
+   its desktop 70px inset on a phone however the media query read: it was being
+   overridden by the very rule it was written to beat. The thumbnail rules there
+   work because .pi-lb-thumbs and .pi-lb-thumb are declared above it.
+
+   Anything added for these two later belongs in here, not up there. */
+@media (max-width: 900px) {
+  .pi-lb-close { top: 28px; right: 28px; }
+}
+@media (max-width: 560px) {
+  /* 70px is a fifth of a phone's width in from each edge — the mark ended up
+     floating over the middle of the photo rather than reading as its corner. */
+  .pi-lb-close { top: 14px; right: 14px; }
+  /* Smaller circles too, so the pair do not crowd the photo on a phone. */
+  .pi-lb-arrow { width: 34px; height: 34px; }
+}
 
 .pi-lb-counter {
   position: absolute;
