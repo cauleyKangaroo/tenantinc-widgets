@@ -476,6 +476,7 @@ interface SelOffer {
 export type OfferResolution =
   | { status: 'matched'; selection: SelectionContext & { unitId: string } }
   | { status: 'unit-unavailable' }
+  | { status: 'unit-unverified' }
   | { status: 'malformed' };
 
 function offerAmenityLabel(a: OfferAmenity): string | undefined {
@@ -526,7 +527,11 @@ export async function fetchSelectionFromOffers(
     const pick = sel.unitId
       ? avail.find((o) => o.unit_id === sel.unitId)
       : (sel.tier ? avail.find((o) => o.value_tier?.type === sel.tier) : undefined) ?? avail[0];
-    if (!pick) return { status: 'unit-unavailable' };
+    // /offers may return one representative unit per tier rather than a full
+    // inventory list. A nonempty response that omits the handed-off unit does
+    // not prove it is unavailable; keep the transaction fail-closed but report
+    // a verification failure instead of making a false sold-out claim.
+    if (!pick) return { status: 'unit-unverified' };
     if ((pick.amenities != null && !Array.isArray(pick.amenities))
       || (pick.promotions != null && !Array.isArray(pick.promotions))
       || (pick.costs?.Discounts != null && !Array.isArray(pick.costs.Discounts))) {

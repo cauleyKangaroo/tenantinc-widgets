@@ -40,7 +40,6 @@ export interface O2Tier {
   tagline: string;
   price: number;
   promoRate?: number;
-  popular?: boolean;
   promo?: string;
   soldOut?: boolean;
   features: O2Feature[];
@@ -52,7 +51,6 @@ export interface O3Tier {
   tagline: string;
   price: number;
   promoRate?: number;
-  popular?: boolean;
   promo?: string;
   soldOut?: boolean;
 }
@@ -83,6 +81,9 @@ export interface TierData {
    *  (option2/3) can select-on-click like option1's pills. */
   selected?: TierKey;
   setSelected?: (key: TierKey) => void;
+  /** Tier that owned the initial/default selection for this load. Unlike the
+   *  active selection, its recommendation badge does not move as users compare. */
+  featuredTier?: TierKey;
   tiers: Tier[];
   rows: FeatureRow[];
   o2: O2Tier[];
