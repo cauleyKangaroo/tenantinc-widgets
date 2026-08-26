@@ -73,11 +73,12 @@ export function IdVerifyModal({
             Verify ID Now
           </h2>
           {/* The kit's mark at the size #03's "Send us a Message" modal uses:
-              18 in a 32px button. Same glyph, same box, so the two modals close
-              the same way. */}
+              32, filling the 32px button. Same glyph, same box, so the two
+              modals close the same way — change one, change both (and the
+              !important pin in screens.css, which would otherwise win). */}
           <button type="button" className="rf-modal-close" onClick={onClose} aria-label="Close">
             {/* Filled disc: .rf-modal is #fff. */}
-            <CloseCircleIcon size={18} />
+            <CloseCircleIcon size={32} />
           </button>
         </div>
 

@@ -48,6 +48,12 @@
   color: #101318; cursor: pointer;
 }
 .pi-msg-close:hover { background: #f4f6f8; }
+/* Pinned, not left to the width ATTRIBUTE: a Duda theme sheet styling bare
+   `svg { width: ... }` outranks an attribute, which is exactly how the same
+   mark came out undersized in the rental flow (see .rf-idm .rf-modal-close svg
+   in screens.css). Invisible in the dev harness — there is no theme sheet
+   there to lose to. */
+.pi-msg-close svg { flex: 0 0 auto; width: 32px !important; height: 32px !important; }
 
 .pi-msg-body { background: #fff; padding: 30px 42px; display: flex; flex-direction: column; gap: 16px; }
 .pi-req { color: #e53935; margin-left: 2px; }

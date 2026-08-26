@@ -221,8 +221,10 @@ export function MessageModal({
       <div className="pi-msg-modal" role="dialog" aria-modal="true" aria-label="Send us a Message" onMouseDown={(e) => e.stopPropagation()}>
         <div className="pi-msg-head">
           <span className="pi-msg-title"><EnvelopeIcon size={24} /><span>Send us a Message</span></span>
-          {/* Filled disc: .pi-msg-modal is #fff. */}
-          <button type="button" className="pi-msg-close" aria-label="Close" onClick={onClose}><CloseCircleIcon size={18} /></button>
+          {/* Filled disc: .pi-msg-modal is #fff. 32 desktop AND mobile — the
+              box is 32px with no padding and has no mobile override, so one
+              size serves both. Pinned in CSS too; see .pi-msg-close svg. */}
+          <button type="button" className="pi-msg-close" aria-label="Close" onClick={onClose}><CloseCircleIcon size={32} /></button>
         </div>
 
         {status === 'success' ? (
