@@ -939,6 +939,32 @@
   /* Elevation / 2 - Dropdown, both layers. */
   box-shadow: 0 1.5px 2px -1px rgba(0, 0, 0, 0.5), 0 1px 2px 1px rgba(11, 11, 11, 0.05);
 }
+
+/* ── On a phone the tooltip spans the row, not the icon ───────────────────
+   The (i) follows the end of "Autopay Enrollment" rather than sitting at a
+   known edge (.rf2-autopay-head is a plain flex row with an 8px gap, no
+   space-between), so it lands roughly 215px into a 393px screen. A 200px box
+   growing right from `left: 50%` of that runs off the right edge — and simply
+   flipping it to `right: 0` would run off the LEFT on a narrower phone or a
+   shorter translation of the label. Either way the overflow depends on where
+   the icon happens to be.
+
+   So stop anchoring to the icon: make the anchor static and position the box
+   against the row instead, edge to edge. The row is already inside the card's
+   padding, so the tooltip cannot reach either side of the screen whatever the
+   label does. It sits above the row rather than over it, hence bottom rather
+   than the desktop rule's bottom: 50%. */
+@media (max-width: 640px) {
+  .rf2-tip-anchor { position: static; }
+  .rf2-autopay-head { position: relative; }
+  .rf2-tip {
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
+    width: auto;
+  }
+}
+
 .rf2-paygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 /* With a panel open the grid holds only the two wallets, and the relocated
    method button sits outside it, full width, below the panel. */
