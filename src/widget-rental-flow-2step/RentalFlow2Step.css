@@ -812,21 +812,21 @@
    source — so the ring is reserved at every width. At rest it is invisible
    either way, so that flush mobile treatment is unchanged until it is ticked. */
 .rf2-agree {
-  background: #f4f6f8;
+  /* One ground for the box AND its resting border, so the two can never
+     disagree: the border is the same colour as what is behind it, which is
+     what makes it invisible until it is coloured. */
+  --rf2-agree-ground: #f4f6f8;
+  background: var(--rf2-agree-ground);
   border-radius: 16px;
   overflow: hidden;
-  /* The ring is an OUTLINE, not a border — see .rf2-agree--on. So there is no
-     border here to reserve, and this box's 30px is now the panel's 30px
-     exactly rather than 30px inside a 2px edge. */
-  transition: outline-color 0.15s ease;
-  outline: 2px solid transparent;
-  outline-offset: -2px;
-  /* The SAME 30px .rf2-panel uses — this section sits between two of them.
-     The gutter used to be carried by the three children instead, at 29px on
-     the head and 24px on the document and the checkbox row, so nothing in
-     here lined up with the panels above and below, or with each other. One
-     padding on the container, and the children carry none. */
-  padding: 30px;
+  /* Always 2px. ONLY the colour changes on .rf2-agree--on, so there is no
+     geometry to recompute when the box is ticked and nothing can move. */
+  border: 2px solid var(--rf2-agree-ground);
+  transition: border-color 0.15s ease;
+  /* 28 + the 2px border = the 30px .rf2-panel uses, so the content column
+     lines up with the payment box beside it rather than sitting 2px narrower.
+     Keep the pair in step: change one, change the other. */
+  padding: 28px;
 }
 /* Agreed. --hb-cta is the kit's CTA token, which follows Duda's --color_2 —
    the same one the flow's seven other CTA rules use.
@@ -840,7 +840,7 @@
    this section's chrome. `outline-offset: -2px` draws it just inside the edge,
    where the border sat, and outlines follow border-radius, so the 16px corner
    is kept. */
-.rf2-agree--on { outline-color: var(--hb-cta, #f45f30); }
+.rf2-agree--on { border-color: var(--hb-cta, #f45f30); }
 .rf2-agree-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 20px; }
 /* Long label by default, short one on mobile — see the note at the call site. */
 .rf2-link-short { display: none; }
@@ -1107,7 +1107,9 @@
   .rf2-row { flex-direction: column; }
   /* .rf2-row stacks here, so its fields are full width — match them. */
   .rf2-movein { width: 100%; }
-  .rf2-panel, .rf2-payment, .rf2-agree { padding: 20px; }
+  .rf2-panel, .rf2-payment { padding: 20px; }
+  /* 18 + the 2px border = the panels' 20px above. */
+  .rf2-agree { padding: 18px; }
   /* Payment goes flat white and full width on mobile.
      NOTE this repeats what the "flat white sheet" block near the top of the
      file already says for .rf2-panel and .rf-method-panel — that block has
