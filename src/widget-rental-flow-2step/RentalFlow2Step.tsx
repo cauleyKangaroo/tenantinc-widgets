@@ -972,6 +972,22 @@ export function RentalFlow2Step({
   const [holdExpired, setHoldExpired] = useState(false);
   const holdRef = useRef<UnitHold | undefined>(undefined);
   holdRef.current = hold;
+  /*
+   * One acquisition at a time, and `selection` read without depending on it.
+   *
+   * The acquire effect below WRITES `selection` and `quote` on the conflict
+   * re-pick, and both were in its own dependency list — so it re-entered
+   * itself mid-flight. The superseded run then finished its `holdUnit` call
+   * and threw the token away because `cancelled` had been set, leaving a real
+   * hold on a real unit that nothing would ever release. Every re-pick leaked
+   * one, which is what "This unit is currently being held by another customer"
+   * turned out to be: our own orphans.
+   */
+  const acquiringRef = useRef(false);
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+  const unitTypeIdRef = useRef(unitTypeId);
+  unitTypeIdRef.current = unitTypeId;
   const holdContextRef = useRef<{ key: string; ctx: RentalCtx } | undefined>(undefined);
 
   useEffect(() => {
@@ -991,8 +1007,14 @@ export function RentalFlow2Step({
       console.log(`${logTag} editor mode — real unit hold suppressed`);
       return;
     }
+    // Re-entry guard. This effect writes selection and quote below, so without
+    // it a re-pick starts a second acquisition while the first is still in
+    // flight and both take holds.
+    if (acquiringRef.current) return;
+    acquiringRef.current = true;
     let cancelled = false;
     (async () => {
+      try {
       setPayError(undefined);
       let result = await holdUnit(ctx, { id: quote.unitId, number: quote.unitNumber });
       if (result.ok === false && result.reason === 'conflict' && !cancelled) {
@@ -1000,7 +1022,8 @@ export function RentalFlow2Step({
         // fresh list — the cached one still contains the 409'd unit. The type is
         // passed so the replacement is the same kind of space, not merely the
         // same size.
-        const other = await findUnitForSelection(ctx, selection?.size, selection?.price ?? quote.rent, true, unitTypeId);
+        const sel = selectionRef.current;
+        const other = await findUnitForSelection(ctx, sel?.size, sel?.price ?? quote.rent, true, unitTypeIdRef.current);
         if (other && other.id !== quote.unitId && !cancelled) {
           const q = await fetchMoveInQuote(ctx, other);
           if (q && !cancelled) {
@@ -1012,7 +1035,11 @@ export function RentalFlow2Step({
           result = await holdUnit(ctx, other);
         }
       }
-      if (!cancelled && result.ok) {
+      // NOT guarded on `cancelled`. A hold that was acquired EXISTS on the
+      // server whether or not this run is still the current one, so dropping
+      // it here is what stranded units for the full 15 minutes. Storing it is
+      // also what lets the release-on-unmount effect give it back.
+      if (result.ok) {
         setHold(result.hold);
         // The held unit is now authoritative. Drop any quote that isn't its
         // own (e.g. the pre-hold unit after a conflict re-pick) and re-quote
@@ -1022,15 +1049,25 @@ export function RentalFlow2Step({
         // Drop any quote that is not the held unit's — the effect below then
         // re-quotes hold-aware. Fail CLOSED: never show another unit's money.
         setQuote((prev) => (prev && prev.unitId === held.unitId ? prev : undefined));
-      } else if (!result.ok) {
+      } else if (!cancelled) {
         if (result.reason !== 'writes-disabled') {
           console.warn(`${logTag} hold not acquired:`, result.reason, result.detail);
         }
         setPayError('We couldn’t secure this space. Please return and choose another available space.');
       }
+      } finally {
+        acquiringRef.current = false;
+      }
     })();
     return () => { cancelled = true; };
-  }, [step, quote, hold, holdExpired, rental, selection, inEditor, logTag, ctx, insuranceId, moveIn]);
+    // selection and unitTypeId are deliberately ABSENT. Both are only read on
+    // the re-pick, through refs. selection in particular is WRITTEN by this
+    // effect, so depending on it made the effect restart itself mid-flight —
+    // which is how holds were being leaked. insuranceId/moveIn stay: they
+    // change the money, not the unit, and the guards above stop a re-run once
+    // a hold exists.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, quote, hold, holdExpired, rental, inEditor, logTag, ctx, insuranceId, moveIn]);
 
   /**
    * Quote the HELD unit.
