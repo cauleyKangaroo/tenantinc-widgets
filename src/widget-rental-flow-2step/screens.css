@@ -1101,6 +1101,16 @@
   background: #f4f6f8;
   border-top: 1px solid #dfe3e8;
 }
+/* The box sits on the FIRST LINE of the sentence, not halfway down it. The
+   line wraps to two on a narrow modal and the tick drifted to the middle.
+   Targeted as a descendant because this RfCheckbox is passed no className of
+   its own — so the row is bare .hb-check, which sets align-items: center at
+   (0,1,0). (0,2,0) here settles it, and needs no ancestor beyond this footer,
+   which matters: the modal is portalled to <body>, so a .rf-wrapper scope like
+   the one on .rf2-agree-bar could never have reached it.
+   Nothing needed for the one-line case — an 18px box with 3px margins against
+   an 18px line reads as centred either way. */
+.rf2-lease-foot .hb-check { align-items: flex-start; }
 
 /* A real PDF will arrive as an <iframe>/<embed> in place of the static copy.
    Sizing it here means the swap is a markup change only — the viewport above
