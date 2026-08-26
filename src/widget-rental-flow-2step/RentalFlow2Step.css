@@ -1118,18 +1118,20 @@
        grid item is full-height and therefore can never stick, and that failure
        is silent if the container rule is ever changed. */
     align-self: start;
-    /* The rail runs ~684px. On a short viewport a plain sticky top pins the
-       header and parks the move-in total permanently off-screen with no way to
-       scroll to it. This engages only when the rail genuinely does not fit.
-       The sticky header eats into the available height too, so subtract it
-       alongside the 24px above and below. */
-    /* Fixed rail slot: the skeleton and the loaded rail are exactly the same
-       height, so the card cannot reflow when the quote breakdown lands —
-       overflowing content scrolls internally. Capped to the sticky window so a
-       short viewport still fits. Desktop only (>=901px); mobile/tablet untouched. */
-    height: min(684px, calc(100vh - var(--rf-hdr-h, 100px) - 48px));
+    /* Sizes to its CONTENT, and only scrolls when the content is taller than
+       the window it is pinned in.
+       This was `height: min(684px, ...)` — a FIXED slot, so that the skeleton
+       and the loaded rail matched exactly and the card could not reflow when
+       the quote breakdown landed. The cost was that a rail with more lines in
+       it than 684px — a long breakdown, a promo, a wrapping address — was cut
+       off and scrolled internally on a viewport with room to spare, which is
+       the more visible fault of the two. A little reflow on load is the price.
+       The ceiling subtracts the sticky header as well as 24px above and below,
+       so the whole card stays inside the window it sticks in.
+       Desktop only (>=901px); mobile/tablet untouched. */
+    height: auto;
     min-height: 0;
-    max-height: none;
+    max-height: calc(100vh - var(--rf-hdr-h, 100px) - 48px);
     overflow-y: auto;
   }
 }
