@@ -79,7 +79,13 @@ export function OrderRail({
       size={unitLabel ?? (selection ? selection.size.replace(/'/g, '’') : '')}
       tierName={unitLabel ? selection?.size.replace(/'/g, '’') : undefined}
       summary={selection?.features?.[0]}
-      amenities={selection?.features?.slice(1)}
+      /* Four at most. features[0] is the summary line above, so the list is
+         everything after it — slice(1, 5) is indices 1-4, i.e. four rows.
+         Capped HERE rather than in SummaryRail because that component is
+         shared with #14, whose cards show the full set; and because every
+         rail in this flow, desktop column and mobile sheet alike, is the same
+         OrderRail element, so one cap covers both. */
+      amenities={selection?.features?.slice(1, 5)}
       changeSpaceUrl={changeSpaceUrl}
       standardPrice={
         showStrike ? selection!.inStore
