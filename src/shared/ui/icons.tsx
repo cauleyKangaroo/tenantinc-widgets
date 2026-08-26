@@ -242,8 +242,14 @@ export function CloseCircleIcon({
   size = 52,
   className,
   outlined = false,
-  color = 'var(--hb-white)',
-  background = 'var(--hb-text-night)',
+  /* Literal fallbacks are load-bearing, not belt-and-braces: a widget that
+     imports this module directly (rather than the @shared/ui barrel) never
+     loads tokens.css, so these custom properties are undefined there. As SVG
+     presentation attributes an undefined var() is invalid at computed-value
+     time and falls back to the INHERITED value — stroke: none — so the mark
+     would simply not draw. */
+  color = 'var(--hb-white, #ffffff)',
+  background = 'var(--hb-text-night, #101318)',
 }: IconProps & {
   /** Stroked ring with a transparent centre — the dark-surface treatment. */
   outlined?: boolean;
