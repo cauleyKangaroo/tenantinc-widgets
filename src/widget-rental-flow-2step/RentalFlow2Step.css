@@ -916,6 +916,16 @@
 }
 
 .rf2-autopay--on { border-color: var(--color_2, #509e2f); }
+/* PRESELECTED never takes the CTA colour, and loses its outline entirely once
+   ticked — the blue border and the blue notice are one argument, so they
+   arrive and leave together.
+   This rule has to exist at (0,2,0): .rf2-autopay--withbar sets the blue forty
+   lines above, and .rf2-autopay--on is later in the file at the same (0,1,0),
+   so ticking the box repainted the border in --color_2. That is the amber ring
+   this replaces.
+   transparent rather than `border: none`, so the 2px stays reserved and the
+   head does not shift 2px a side at the moment of the click. */
+.rf2-autopay--withbar.rf2-autopay--on { border-color: transparent; }
 .rf2-autopay-label { font-size: 16px; font-weight: 600; color: #101318; }
 /* The (i) is a real button now (it opens the tooltip), so it needs the button
    reset AND the host-theme guard — a bare `button:hover { background }` on the

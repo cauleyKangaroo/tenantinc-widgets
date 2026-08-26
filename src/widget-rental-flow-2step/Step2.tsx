@@ -671,7 +671,12 @@ export function Step2({
             {/* Attached, INSIDE the box (11940-18948) — where the fee notice
                 below is a separate box. One argues for a choice the shopper is
                 making here; the other states a fact about the whole payment. */}
-            {mode === 'preselected' && (
+            {/* Only while it is UNticked. The bar argues for staying enrolled;
+                once the shopper has stayed enrolled there is nothing left to
+                argue, and the blue box would read as a warning about a choice
+                they already made. The border goes with it — see
+                .rf2-autopay--withbar.rf2-autopay--on. */}
+            {mode === 'preselected' && !autopay && (
               <p className="rf2-autopay-bar">
                 <InfoIcon size={20} className="rf2-autopay-bar-ico" />
                 Stay enrolled to make sure you get the best price available.
