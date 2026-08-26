@@ -345,6 +345,9 @@ export function NearbySection() {
   const loading = apiProps === null;
   const properties = apiProps && apiProps.length ? apiProps : DEMO_PROPERTIES;
   const total = properties.length;
+  /* The header badge is counted in SectionAccordion, not here: this component
+     is unmounted while the section is closed, so anything it reported would
+     vanish the moment somebody collapsed it. */
   const safePage = Math.min(page, total - 1);
   const property = properties[safePage];
 

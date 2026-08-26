@@ -2152,6 +2152,25 @@
   flex-shrink: 0;
 }
 
+/* The circle before the count arrives. Exactly the badge's own size, so the
+   header does not shift when the number lands, and grey rather than the
+   primary — an orange pill with nothing in it reads as a rendering fault. */
+.sl-wrapper .sl-sa-badge--loading {
+  min-width: 28px;
+  width: 28px;
+  padding: 0;
+  background: linear-gradient(90deg, #e6eaee 25%, #dbe1e6 37%, #e6eaee 63%);
+  background-size: 400% 100%;
+  animation: sl-sa-badge-shimmer 1.4s ease infinite;
+}
+@keyframes sl-sa-badge-shimmer {
+  from { background-position: 100% 50%; }
+  to   { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-wrapper .sl-sa-badge--loading { animation: none; }
+}
+
 .sl-wrapper .sl-sa-chevron {
   flex-shrink: 0;
   color: #101318;
