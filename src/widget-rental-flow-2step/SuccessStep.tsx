@@ -497,11 +497,15 @@ export function SuccessStep({ onGetAccess, chosen }: {
                 not one the counter can post to. */}
             {showMailParts && (
               <>
-                <div className="rf-pay-grid">
+                {/* One row of three, sharing .rf-sx-grid3 with the licence
+                    row above — ZIP used to sit on a line of its own under a
+                    50/50 City/State pair. Collapses to one column at the same
+                    widths that row does. */}
+                <div className="rf-sx-grid3">
                   <FormField label="City" required value={mailCity} onChange={setMailCity} autoComplete="address-level2" state={mailCity.trim() ? 'success' : 'default'} error={bad('mailCity')} />
                   <FormField label="State" required value={mailState} onChange={(v) => setMailState(v.toUpperCase().slice(0, 2))} autoComplete="address-level1" state={mailState.trim().length === 2 ? 'success' : 'default'} error={bad('mailState')} />
+                  <FormField label="ZIP Code" required value={mailZip} onChange={setMailZip} autoComplete="postal-code" state={mailZip.trim().length >= 5 ? 'success' : 'default'} error={bad('mailZip')} />
                 </div>
-                <FormField label="ZIP Code" required value={mailZip} onChange={setMailZip} autoComplete="postal-code" state={mailZip.trim().length >= 5 ? 'success' : 'default'} error={bad('mailZip')} />
               </>
             )}
           </div>
@@ -574,6 +578,13 @@ export function SuccessStep({ onGetAccess, chosen }: {
         {/* .rf2-checks is step 2's column — reused rather than matched by eye,
             so the 4px pitch between checkboxes cannot drift apart again. */}
         <div className="rf2-checks">
+        {/* Business is the one section that does NOT reappear here unasked.
+            `chosen.business` is what step 2 was told, and if the answer was no
+            then it has been answered — re-offering it invites a shopper to
+            reclassify their rental after the lease is signed, which the other
+            three sections cannot do. Ticked in step 2, the row is here so the
+            rep's details can be filled in. */}
+        {chosen?.business && (
         <div className="rf-sx-group">
           <Checkbox checked={business} onChange={setBusiness}>I am renting as a business</Checkbox>
           {business && (
@@ -588,6 +599,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
             </div>
           )}
         </div>
+        )}
 
         <div className="rf-sx-group">
           <Checkbox checked={military} onChange={setMilitary}>I am active military</Checkbox>
@@ -601,7 +613,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
         </div>
 
         <div className="rf-sx-group">
-          <Checkbox checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Checkbox>
+          <Checkbox checked={altContact} onChange={setAltContact}>I want to provide an alternate contact</Checkbox>
           {altContact && (
             <div className="rf-sx-fields">
               <div className="rf-pay-grid">

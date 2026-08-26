@@ -332,7 +332,7 @@ function MobileLeaseBar({
   );
 }
 
-// Sticky collapsed cost bar (mobile): "Total Cost to Move-In: $X /
+// Sticky collapsed cost bar (mobile): "Total Paid to Move-In: $X /
 // Holding Space for 14:59" + chevron. Tapping toggles the full rail
 // card in a drop-down sheet (spec-05 Total Cost Dropdown Card).
 function MobileRailBar({
@@ -348,7 +348,7 @@ function MobileRailBar({
       {/* Two rows, each space-between (Figma 8509-51290): title | price, then
           countdown | chevron. */}
       <span className="rfm-bar-row">
-        <span className="rfm-bar-title">Total Cost to Move-In:</span>
+        <span className="rfm-bar-title">Total Paid to Move-In:</span>
         <span className="rfm-bar-total">{total != null ? `$${total.toFixed(2)}` : '\u2014'}</span>
       </span>
       <span className="rfm-bar-row">
@@ -1402,6 +1402,30 @@ export function RentalFlow2Step({
     const top = wrapRef.current?.getBoundingClientRect().top;
     if (top == null) return;
     window.scrollTo({ top: Math.max(0, window.scrollY + top), behavior: 'auto' });
+
+    /*
+     * Step 2 then travels down to just under the email row.
+     *
+     * Two moves on purpose, not one: the jump above puts the widget's top on
+     * screen so the shopper sees WHERE they are, and the glide gives them the
+     * sense of having moved past work already done. Landing straight there
+     * would look like the page had simply opened halfway down.
+     *
+     * The sticky header overlaps whatever it is scrolled to, so the anchor is
+     * offset by its measured height (--rf-hdr-h) plus a margin.
+     */
+    if (screen !== 'step2') return;
+    const id = requestAnimationFrame(() => {
+      const rest = wrapRef.current?.querySelector('[data-rf2-rest]');
+      if (!rest) return;
+      const hdr = parseFloat(
+        getComputedStyle(wrapRef.current!).getPropertyValue('--rf-hdr-h'),
+      ) || 0;
+      const y = window.scrollY + rest.getBoundingClientRect().top - hdr - 16;
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: Math.max(0, y), behavior: reduce ? 'auto' : 'smooth' });
+    });
+    return () => cancelAnimationFrame(id);
   }, [screen]);
 
   if (confirmation) {

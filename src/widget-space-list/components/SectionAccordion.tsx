@@ -1,4 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { usePropertyId } from '../propertyContext';
+import { fetchProperties, extractNearbyProperties } from '@shared/nearbyProperties';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
+import cfg from '../config.json';
 import { ReviewsSection } from './sections/ReviewsSection';
 import { NearbySection } from './sections/NearbySection';
 import { SizeGuideSection } from './sections/SizeGuideSection';
@@ -117,7 +121,8 @@ function IconReorder() {
 
 interface AccordionVisual {
   icon: React.ReactNode;
-  badge?: number;
+  /** A number, or 'loading' for the placeholder circle. */
+  badge?: number | 'loading';
   content: React.ReactNode;
 }
 
@@ -129,7 +134,11 @@ const VISUALS: Record<AccordionKey, AccordionVisual> = {
   // "Features & Amenities" (6513:146326) icons are the same vector. Content is
   // always supplied by the special case below (it needs the page's callbacks).
   highlights: { icon: <IconFeatures />, content: null },
-  nearby:    { icon: <IconBuilding />, badge: 5, content: <NearbySection /> },
+  // No `badge` here on purpose: NearbySection reports its own count through
+  // useReportSectionCount, because only it knows how many the API returned.
+  // This said `badge: 5` — a literal that never moved while the carousel under
+  // it paged through however many actually came back.
+  nearby:    { icon: <IconBuilding />, content: <NearbySection /> },
   reviews:   { icon: <IconReview />,   content: <ReviewsSection /> },
   faq:       { icon: <IconQuestion />, content: <FaqsSection /> },
   blog:      { icon: <IconFile />,     content: <BlogSection /> },
@@ -147,7 +156,8 @@ interface AccordionItemDef {
   key: AccordionKey;
   label: string;
   icon: React.ReactNode;
-  badge?: number;
+  /** A number, or 'loading' for the placeholder circle. */
+  badge?: number | 'loading';
   content: React.ReactNode;
 }
 
@@ -189,9 +199,11 @@ function AccordionRow({ item, open, onToggle }: { item: AccordionItemDef; open: 
         <div className="sl-sa-header-left">
           <span className="sl-sa-icon">{item.icon}</span>
           <span className="sl-sa-title">{item.label}</span>
-          {item.badge !== undefined && (
-            <span className="sl-sa-badge">{item.badge}</span>
-          )}
+          {item.badge === 'loading'
+            ? <span className="sl-sa-badge sl-sa-badge--loading" aria-hidden="true" />
+            : item.badge !== undefined && (
+              <span className="sl-sa-badge">{item.badge}</span>
+            )}
         </div>
         <svg className="sl-sa-chevron" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d={CHEVRON_PATH} />
@@ -201,6 +213,10 @@ function AccordionRow({ item, open, onToggle }: { item: AccordionItemDef; open: 
     </div>
   );
 }
+
+/** Mirrors MAX_NEARBY in NearbySection — the badge must not promise more
+ *  cards than that section will draw. Change both together. */
+const NEARBY_BADGE_MAX = 6;
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -229,6 +245,40 @@ export function SectionAccordion({
   // rows ARE the property's filter-bar amenities. With none there is no empty
   // state worth a header, so drop the whole row (header included) rather than
   // offering an accordion that opens onto nothing.
+  /**
+   * The Nearby Storage badge, counted HERE rather than inside the section.
+   *
+   * Closed sections are not mounted — `{open && ...}` below — so the section
+   * cannot report its own count until somebody expands it, and the badge is
+   * meant to be readable before that. Mounting it eagerly is not an option
+   * either: its data path calls getUserLocation(), which puts a browser
+   * permission prompt on page load.
+   *
+   * Geolocation only decides the ORDER of the list, never its length, so the
+   * count needs none of it: every other property the company has, capped the
+   * same way the section caps it. The properties read is promise-cached, so
+   * this shares the one the page already makes.
+   */
+  const currentPropertyId = usePropertyId();
+  const [nearbyCount, setNearbyCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const creds = {
+          ...cfg,
+          companyId: await resolveCompanyIdFromSources('#05 nearby badge', {}, cfg.companyId),
+        };
+        const all = extractNearbyProperties(await fetchProperties(creds, {}), cfg.appId);
+        const others = all.filter((p) => p.id !== currentPropertyId).length;
+        if (!cancelled) setNearbyCount(Math.min(others, NEARBY_BADGE_MAX));
+      } catch (err) {
+        console.error('[SpaceList] nearby badge count failed:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentPropertyId]);
+
   const allKeys = ACCORDION_SECTIONS.map((s) => s.key).filter(
     (k) => k !== 'highlights' || featureHighlights.length > 0,
   );
@@ -238,7 +288,9 @@ export function SectionAccordion({
     // The About heading is editor-editable; everything else uses the registry label.
     label: key === 'about' ? (aboutTitle?.trim() || LABELS.about) : LABELS[key],
     icon: VISUALS[key].icon,
-    badge: VISUALS[key].badge,
+    // A reported count wins; the map's literal is the fallback for sections
+    // that do not report one.
+    badge: key === 'nearby' ? (nearbyCount ?? 'loading') : VISUALS[key].badge,
     // A few sections take live API data or editor copy; the rest are static.
     content:
       key === 'sizeguide' ? <SizeGuideSection showVideos={showSizeGuideVideos} />

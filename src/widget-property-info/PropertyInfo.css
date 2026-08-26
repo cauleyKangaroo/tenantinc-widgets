@@ -824,11 +824,19 @@ span.pi-lb-img {
   top: 20px;
   right: 20px;
   display: flex;
-  background: none;
-  border: none;
   padding: 0;
   cursor: pointer;
   color: #fff;
+}
+/* Same fight as .pi-m-expand above — the hero's own expand button is a
+   <button> over a photo and must stay chromeless in every state. */
+.pi-hero-expand,
+.pi-hero-expand:hover,
+.pi-hero-expand:focus,
+.pi-hero-expand:active {
+  background: none;
+  border: none;
+  box-shadow: none;
 }
 
 /* Anchored to the BOTTOM at the same 40px as the sides, so the inset is uniform
@@ -1033,11 +1041,22 @@ span.pi-lb-img {
 .pi-m-expand {
   flex-shrink: 0;
   display: flex;
-  background: none;
-  border: none;
   padding: 0;
   cursor: pointer;
   color: #fff;
+}
+/* Pinned across every state, exactly as .pi-lb-close is and for the same
+   reason: this is a <button>, and a host's bare `button:hover` is (0,1,1) —
+   it outranks the single class that sets `background: none`, so a Duda theme
+   (and the dev harness) painted a grey pill behind the mark on hover. Nothing
+   of ours was drawing it. The icon sits over a photo; it takes no chrome. */
+.pi-m-expand,
+.pi-m-expand:hover,
+.pi-m-expand:focus,
+.pi-m-expand:active {
+  background: none;
+  border: none;
+  box-shadow: none;
 }
 
 .pi-m-hero-content {

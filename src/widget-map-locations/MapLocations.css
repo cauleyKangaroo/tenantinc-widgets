@@ -35,9 +35,11 @@
 }
 
 .ml-heading {
-  font-size: 32px;
+  font-size: 28px;
+  /* 1.25, as 40/32 was — kept as a ratio so the leading follows the size
+     rather than having to be recalculated next time it moves. */
+  line-height: 1.25;
   font-weight: 700;
-  line-height: 40px;
   color: #141a2b;
   margin: 0;
 }
@@ -158,7 +160,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 100px;
-  background: #509e2f;
+  background: var(--color_1, #f45f30);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -173,7 +175,7 @@
   height: 22px;
   padding: 0 6px;
   border-radius: 100px;
-  background: #509e2f;
+  background: var(--color_1, #f45f30);
   color: #fff;
   font-size: 13px;
   font-weight: 700;
@@ -267,7 +269,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #509e2f;
+  background: var(--color_1, #f45f30);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -290,7 +292,7 @@
 }
 
 .ml-fp-reset:hover,
-.ml-fp-close:hover { color: #509e2f; }
+.ml-fp-close:hover { color: var(--color_1, #f45f30); }
 
 .ml-fp-close {
   width: 32px;
@@ -644,7 +646,9 @@
 /* FEATURED is the only card that gets a coloured outline. It pairs with the
    "Featured Property" ribbon, and together they mean "the operator chose this
    one" — a meaning that must belong to exactly one card on the page. */
-.ml-card--featured { border-color: #509e2f; }
+/* Stays GREEN, deliberately. .ml-card--active is the site primary — see the
+   note there — and featured has to read as a different thing from selected. */
+.ml-card--featured { border-color: var(--hb-secondary, #509e2f); }
 
 /* ACTIVE is the card paired with the hovered/open map bubble, and it takes the
    site's PRIMARY — the same colour that bubble takes when active, so the two
@@ -698,7 +702,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #509e2f;
+  background: var(--hb-secondary, #509e2f);
   color: #fff;
   font-size: 15px;
   font-weight: 700;
@@ -792,9 +796,11 @@
   gap: 4px;
   width: 100%;
   padding: 12px;
-  border: 2px dashed #509e2f;
+  border: 2px dashed var(--color_1, #f45f30);
   border-radius: 8px;
   background: #fff;
+  /* TagIcon inside draws in currentColor. */
+  color: var(--color_1, #f45f30);
 }
 
 .ml-promo-text {
@@ -827,7 +833,8 @@
 .ml-unit-subtype { font-size: 12px; line-height: 16px; color: #637381; }
 
 .ml-unit-prices { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
-.ml-unit-tag { display: flex; flex-shrink: 0; }
+/* TagIcon draws in currentColor now, so its colour lives here. */
+.ml-unit-tag { display: flex; flex-shrink: 0; color: var(--color_1, #f45f30); }
 
 .ml-price-strike,
 .ml-price-start { display: flex; flex-direction: column; align-items: flex-end; }
@@ -914,6 +921,22 @@
   display: block;
   width: max-content;
 }
+/*
+ * Raising the clicked marker has to happen HERE, on the pin.
+ *
+ * `transform` above creates a stacking context, so every z-index inside a pin
+ * — the bubble's, the popup's — is sealed within it and orders nothing against
+ * a neighbouring pin. Pins themselves were all `z-index: auto`, which leaves
+ * them in DOM order: whichever property came later in the list painted over
+ * the ones before it, clicked or not. `.ml-bubble--active { z-index: 1 }` could
+ * never fix that from inside.
+ *
+ * Two levels, because active and open are not the same thing: hovering a card
+ * lifts its marker clear of its neighbours, and a marker with its popup open
+ * goes above that again so the card cannot be covered by a pin standing on it.
+ */
+.ml-pin--active { z-index: 2; }
+.ml-pin--open { z-index: 3; }
 
 .ml-bubble {
   position: relative;

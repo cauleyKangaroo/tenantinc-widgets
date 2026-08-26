@@ -43,6 +43,7 @@ import { instanceKey, readAccordionConfig, saveAccordionConfig } from './accordi
 import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, type PromoSelection } from '@shared/promoBus';
 import { RichText } from '@shared/richText';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
+import { PromoTagIcon } from './components/Pricing';
 
 // Wrapper-width breakpoint below which we count as mobile. Keyed off the widget's
 // own width, not the viewport, for the same reason as the CSS container queries:
@@ -593,9 +594,12 @@ export function SpaceList({
           {promoId && (
             <div className="sl-promo-banner">
               <span className="sl-promo-banner-tag">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M21.41 11.58l-9-9A2 2 0 0011 2H4a2 2 0 00-2 2v7a2 2 0 00.59 1.42l9 9a2 2 0 002.82 0l7-7a2 2 0 000-2.84zM6.5 8A1.5 1.5 0 115 6.5 1.5 1.5 0 016.5 8z" />
-                </svg>
+                {/* PromoTagIcon, the Figma vector (429:46379) the grid and
+                    list-card promo banners already draw. This banner had its
+                    own inline path — a generic rounded tag on a 24 grid, not
+                    the frame's — so the same idea appeared as two different
+                    marks on one page. */}
+                <PromoTagIcon size={20} />
                 <span className="sl-promo-banner-text">
                   Showing spaces with <strong>{promoTitle}</strong>
                 </span>

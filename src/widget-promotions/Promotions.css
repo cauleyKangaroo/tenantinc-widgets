@@ -61,7 +61,9 @@ img.promo-banner-img {
   padding: 16px;
   text-align: center;
   color: #fff;
-  background: linear-gradient(90deg, #509e2f 0%, #f45f30 118.87%);
+  /* Both stops follow the theme. Hardcoded, a rebranded site got a
+     green-to-orange banner whatever its own palette was. */
+  background: linear-gradient(90deg, var(--hb-secondary, #509e2f) 0%, var(--color_1, #f45f30) 118.87%);
 }
 
 .promo-banner-title {

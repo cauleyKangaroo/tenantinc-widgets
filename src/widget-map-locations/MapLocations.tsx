@@ -1027,7 +1027,10 @@ export function MapLocations({
             only ever be centred on the point or offset by a guess — the bubble's
             width changes with the price, so its edges were not knowable. Inside
             here, `right: 0` is the bubble's right edge exactly. */}
-        <span className="ml-pin" style={{ left: p.left, top: p.top }}>
+        <span
+          className={`ml-pin${isActive ? ' ml-pin--active' : ''}${isOpen ? ' ml-pin--open' : ''}`}
+          style={{ left: p.left, top: p.top }}
+        >
         <button
           type="button"
           className={`ml-bubble${isActive ? ' ml-bubble--active' : ''}`}

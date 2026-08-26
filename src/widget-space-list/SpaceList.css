@@ -158,7 +158,7 @@
   line-height: 1;
 }
 .sl-wrapper .sl-filter-badge {
-  background: #509e2f;
+  background: var(--color_1, #f45f30);
   color: #ffffff;
   font-size: 13px;
   font-weight: 600;
@@ -173,7 +173,7 @@
 }
 .sl-wrapper .sl-reset-btn {
   background: #ffffff;
-  border: 2px solid #509e2f;
+  border: 2px solid var(--color_1, #f45f30);
   border-radius: 8px;
   font-size: 14px;
   padding: 4px 12px;
@@ -249,7 +249,7 @@
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #509e2f;
+  accent-color: var(--hb-secondary, #509e2f);
   flex-shrink: 0;
   position: relative;
   z-index: 2;
@@ -289,7 +289,7 @@
   gap: 8px;
   color: #101318;
 }
-.sl-wrapper .sl-promo-banner-tag svg { color: #509e2f; flex: 0 0 auto; }
+.sl-wrapper .sl-promo-banner-tag svg { color: var(--color_1, #f45f30); flex: 0 0 auto; }
 .sl-wrapper .sl-promo-banner-text {
   font-family: 'Montserrat', sans-serif;
   font-size: 16px;
@@ -547,7 +547,9 @@
   line-height: 16px;
   font-weight: 400;
 }
-.sl-wrapper .sl-check { color: #509e2f; font-weight: 700; flex-shrink: 0; }
+/* Green, not primary: a tick here means INCLUDED. The brand colour would
+   make a feature list read as an alert. */
+.sl-wrapper .sl-check { color: var(--hb-secondary, #509e2f); font-weight: 700; flex-shrink: 0; }
 .sl-wrapper .sl-card-image-col {
   flex: 1;
   min-width: 0;
@@ -897,8 +899,8 @@
   transition: border-color 0.15s;
   flex-shrink: 0;
 }
-.sl-wrapper .sl-lc-size:hover:not(.selected) { border-color: #509e2f; }
-.sl-wrapper .sl-lc-size.selected { border: 4px solid #509e2f; font-weight: 600; }
+.sl-wrapper .sl-lc-size:hover:not(.selected) { border-color: var(--color_1, #f45f30); }
+.sl-wrapper .sl-lc-size.selected { border: 4px solid var(--color_1, #f45f30); font-weight: 600; }
 .sl-wrapper .sl-lc-size.unavail {
   border-style: dashed;
   border-width: 2.5px;
@@ -908,7 +910,9 @@
    read as a separate label rather than merging into the border. Stacked 0-blur
    drop-shadows trace the tag's actual silhouette (notch and all) and paint
    behind it — no SVG stroke, so nothing can clip against the viewBox. */
+/* SizeTagIcon draws in currentColor now, so its colour lives here. */
 .sl-wrapper .sl-lc-size-tag {
+  color: var(--color_1, #f45f30);
   position: absolute;
   top: -7px;
   right: -5px;
@@ -1430,7 +1434,7 @@
   text-decoration: underline;
   cursor: pointer;
 }
-.sl-wrapper .sl-rv-more:hover { color: #509e2f; }
+.sl-wrapper .sl-rv-more:hover { color: var(--color_1, #f45f30); }
 
 /* Review cards grid */
 .sl-wrapper .sl-rv-grid {
@@ -1584,7 +1588,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1.5px dashed #509e2f;
+  border: 1.5px dashed var(--color_1, #f45f30);
   border-radius: 100px;
   padding: 6px 14px;
   font-size: 13px;
@@ -1595,7 +1599,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #509e2f;
+  background: var(--color_1, #f45f30);
   flex-shrink: 0;
 }
 
@@ -2130,7 +2134,7 @@
 
 .sl-wrapper .sl-sa-title {
   font-family: 'Montserrat', sans-serif;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #101318;
   line-height: 1.2;
@@ -2150,6 +2154,25 @@
   font-weight: 600;
   font-family: 'Montserrat', sans-serif;
   flex-shrink: 0;
+}
+
+/* The circle before the count arrives. Exactly the badge's own size, so the
+   header does not shift when the number lands, and grey rather than the
+   primary — an orange pill with nothing in it reads as a rendering fault. */
+.sl-wrapper .sl-sa-badge--loading {
+  min-width: 28px;
+  width: 28px;
+  padding: 0;
+  background: linear-gradient(90deg, #e6eaee 25%, #dbe1e6 37%, #e6eaee 63%);
+  background-size: 400% 100%;
+  animation: sl-sa-badge-shimmer 1.4s ease infinite;
+}
+@keyframes sl-sa-badge-shimmer {
+  from { background-position: 100% 50%; }
+  to   { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-wrapper .sl-sa-badge--loading { animation: none; }
 }
 
 .sl-wrapper .sl-sa-chevron {
@@ -4006,7 +4029,7 @@
   text-decoration: underline;
   cursor: pointer;
 }
-.sl-wrapper .sl-modal-reset:hover { color: #509e2f; }
+.sl-wrapper .sl-modal-reset:hover { color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-modal-close {
   background: none;
   border: none;
@@ -4020,7 +4043,7 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.sl-wrapper .sl-modal-close:hover { color: #509e2f; }
+.sl-wrapper .sl-modal-close:hover { color: var(--color_1, #f45f30); }
 
 /* Body — scrolls internally when content exceeds the viewport */
 .sl-wrapper .sl-modal-body {
@@ -4252,7 +4275,7 @@
   cursor: pointer;
   transition: background 0.18s ease;
 }
-.sl-wrapper .sl-reorder-toggle.on { background: #509e2f; }
+.sl-wrapper .sl-reorder-toggle.on { background: var(--color_1, #f45f30); }
 .sl-wrapper .sl-reorder-toggle-knob {
   position: absolute;
   top: 2px;
@@ -4309,8 +4332,8 @@
 }
 .sl-wrapper .sl-reorder-arrow:hover:not(:disabled) {
   background: #f0f7ec;
-  border-color: #509e2f;
-  color: #509e2f;
+  border-color: var(--color_1, #f45f30);
+  color: var(--color_1, #f45f30);
 }
 .sl-wrapper .sl-reorder-arrow:disabled {
   opacity: 0.35;
@@ -4360,8 +4383,8 @@
 }
 .sl-wrapper .sl-reorder-cancel:hover { background: #f6f7f8; }
 .sl-wrapper .sl-reorder-save {
-  background: #509e2f;
-  border: 1px solid #509e2f;
+  background: var(--color_1, #f45f30);
+  border: 1px solid var(--color_1, #f45f30);
   color: #ffffff;
 }
 .sl-wrapper .sl-reorder-save:hover { background: #468a29; }

@@ -201,7 +201,7 @@ export function StarIcon({
 }
 
 /**
- * tag — "label, price tag, categorize". FILLED #509E2F with a knocked-out hole,
+ * tag — "label, price tag, categorize". FILLED with a knocked-out hole,
  * 13.3817 square in a 16 box at 8.33% inset. Used by the promotion banner and
  * the in-store price marker.
  */
@@ -209,7 +209,10 @@ export function TagIcon({ size = 16, className }: IconProps) {
   return (
     <svg
       className={className} width={size} height={size} viewBox="0 0 16 16"
-      fill="#509E2F" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"
+      /* currentColor, not a hex. A `fill` ATTRIBUTE cannot be themed and cannot
+         even be overridden from CSS — it was #509E2F, so a rebranded site got a
+         green tag whatever its palette said. Callers set the colour now. */
+      fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"
     >
       <path
         transform="translate(1.333 1.333)"
