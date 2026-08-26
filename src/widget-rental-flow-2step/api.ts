@@ -20,6 +20,27 @@ function usDate(v?: string): string | undefined {
   return m ? `${m[2]}/${m[3]}/${m[1]}` : v;
 }
 
+/**
+ * The inverse of `usDate`, for anything going back to the API.
+ *
+ * Quote lines carry their dates in the US display form because
+ * `MoneyBreakdown` prints them straight out as "(05/06/2026 – 05/31/2026)".
+ * The rental payload needs YYYY-MM-DD, and sending the display form is what
+ * produced, on every live rental:
+ *
+ *   400 "costs[0].start" must be in YYYY-MM-DD format; …
+ *
+ * `fallback` is used when the value is missing or in neither shape, because a
+ * cost line with an unparseable date is worth sending against the move-in date
+ * rather than failing the whole rental over a display string.
+ */
+function isoDate(v: string | undefined, fallback: string): string {
+  if (!v) return fallback;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v);
+  return m ? `${m[3]}-${m[1]}-${m[2]}` : fallback;
+}
+
 
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
@@ -1653,8 +1674,10 @@ export function quoteToCosts(quote: MoveInQuote, startDate: string): RentCostLin
       amount,
       description: l.name,
       costType,
-      start: l.startDate ?? startDate,
-      end: l.endDate ?? l.startDate ?? startDate,
+      // The API wants YYYY-MM-DD; these arrive as MM/DD/YYYY because the same
+      // objects are printed by MoneyBreakdown. See isoDate().
+      start: isoDate(l.startDate, startDate),
+      end: isoDate(l.endDate ?? l.startDate, startDate),
       tax: 0,
       total: amount,
       pmsRaw: null,
