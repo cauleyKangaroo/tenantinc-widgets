@@ -154,7 +154,7 @@ export function PaymentFormSkeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
-export function BankForm({ total, onPay }: { total: number; onPay: () => void }) {
+export function BankForm({ total, onPay, payLabel }: { total: number; onPay: () => void; payLabel?: string }) {
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [accountType, setAccountType] = useState('');
@@ -214,7 +214,7 @@ export function BankForm({ total, onPay }: { total: number; onPay: () => void })
       </div>
 
       <button type="button" className="rf-paynow" onClick={onPay}>
-        {`Pay Now ${money(total)}`}
+        {payLabel ?? `Pay Now ${money(total)}`}
       </button>
     </>
   );
@@ -239,8 +239,12 @@ export interface CardFormValue {
   zip: string;
 }
 
-export function CardForm({ total, onPay, busy, gpPublicKey }: {
+export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
   total: number;
+  /** Overrides "Pay Now $X" — the always-on autopay frame reads
+   *  "Agree & Pay $X", because that button is where the recurring
+   *  authorisation is accepted. */
+  payLabel?: string;
   /** Receives the entered card when the form is complete. Callers that only
    *  need the click (the demo/preview path) can ignore the argument. */
   onPay: (card: CardFormValue) => void;
@@ -596,13 +600,13 @@ export function CardForm({ total, onPay, busy, gpPublicKey }: {
             onPay(valueFrom());
           }}
         >
-          {busy ? 'Processing…' : `Pay Now ${money(total)}`}
+          {busy ? 'Processing…' : (payLabel ?? `Pay Now ${money(total)}`)}
         </button>
         {/* Hidden while paying so a second click cannot reach the frame. */}
         <span
           id={subId}
           className={`rf-gp-submit${hosted === false || busy ? ' rf-gp-submit--off' : ''}`}
-          aria-label={`Pay Now ${money(total)}`}
+          aria-label={payLabel ?? `Pay Now ${money(total)}`}
         />
       </div>
     </>

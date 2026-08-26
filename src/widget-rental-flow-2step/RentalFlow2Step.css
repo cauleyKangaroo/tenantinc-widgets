@@ -837,6 +837,80 @@
   border-radius: 10px;
   padding: 18px 28px;
 }
+/* With a bar attached the box stops being one row: the padding moves onto the
+   head so the bar can run edge to edge.
+   NOT `overflow: hidden`. That was the obvious way to keep the bar's square
+   corners inside the box's radius, and it clipped the autopay tooltip — which
+   rises out of the top of this box — at the border. The bar rounds its own
+   bottom corners instead, so nothing has to be clipped: 8px, the box's 10px
+   less its 2px border, which is the inner radius the bar actually meets. */
+.rf2-autopay--withbar {
+  display: block;
+  padding: 0;
+  border-color: #3d8fff;
+}
+.rf2-autopay--withbar .rf2-autopay-head { padding: 18px 28px; }
+.rf2-autopay--withbar .rf2-autopay-bar { border-radius: 0 0 8px 8px; }
+.rf2-autopay-head { display: flex; align-items: center; gap: 8px; }
+
+/* The blue notices. Two of them, and the difference is structural rather than
+   decorative: --bar is ATTACHED inside the checkbox's box and argues for the
+   choice being made there; --note is a box of its own and states a fact about
+   every payment method, not about the tick. */
+.rf2-autopay-bar,
+.rf2-autopay-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 28px;
+  background: #e7f1ff;
+  color: var(--hb-text-night, #101318);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.rf2-autopay-note {
+  border: 1px solid #3d8fff;
+  border-radius: 10px;
+}
+.rf2-autopay-bar-ico { flex: 0 0 auto; margin-top: 2px; color: #3d8fff; }
+
+/* Terms for always-on autopay. Grey and unboxed — it is the small print under
+   the section, not another notice competing with the two above. */
+.rf2-autopay-terms {
+  margin: 0;
+  color: var(--hb-grayscale-medium, #637381);
+  font-size: 13px;
+  line-height: 22px;
+}
+
+/* Demo picker — removed by passing `autopayMode`. Deliberately plain so it
+   never reads as part of the design. */
+.rf2-autopay-demo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border: 1px dashed var(--hb-cloud-darker, #a5b4bf);
+  border-radius: 8px;
+}
+.rf2-autopay-demo-label { color: var(--hb-grayscale-medium, #637381); font-size: 12px; }
+.rf2-autopay-demo-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--hb-cloud-darker, #a5b4bf);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--hb-text-night, #101318);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.rf2-autopay-demo-btn.is-on {
+  border-color: var(--hb-text-night, #101318);
+  background: var(--hb-text-night, #101318);
+  color: #fff;
+}
 .rf2-autopay--on { border-color: var(--color_2, #509e2f); }
 .rf2-autopay-label { font-size: 16px; font-weight: 600; color: #101318; }
 /* The (i) is a real button now (it opens the tooltip), so it needs the button
