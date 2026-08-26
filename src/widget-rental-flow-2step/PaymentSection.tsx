@@ -165,6 +165,19 @@ export function BankForm({ total, onPay, payLabel }: { total: number; onPay: () 
   const [country, setCountry] = useState('United States');
   const [address, setAddress] = useState('');
 
+  /* ── Account number / confirm ────────────────────────────────────────────
+     The PAIR validates, never either field alone. The left one used to turn
+     green at four digits, which claimed "correct" about a number nothing had
+     checked yet — the whole point of asking twice is that one copy proves
+     nothing. So both go green on the match and neither before it. */
+  const accountsMatch = digits(account).length >= 4 && confirm === account;
+  /* A mismatch is only worth saying once the confirm field has caught up in
+     length. Shorter than the original it is simply unfinished, not wrong, and
+     "do not match" under a field mid-typing is noise that clears itself. */
+  const confirmMismatch = filled(account)
+    && confirm.length >= account.length
+    && confirm !== account;
+
   return (
     <>
       <div className="rf-pay-grid">
@@ -190,16 +203,15 @@ export function BankForm({ total, onPay, payLabel }: { total: number; onPay: () 
         <FormField
           label="Account Number" required type="password"
           value={account} onChange={setAccount}
-          state={ok(digits(account).length >= 4)}
+          // Green only once the pair matches — see accountsMatch.
+          state={ok(accountsMatch)}
         />
         <FormField
           label="Confirm Account Number" required type="password"
           value={confirm} onChange={setConfirm}
-          // Only complain once there's enough typed to be a real mismatch, not on
-          // the first keystroke of the second field.
-          error={confirm && account && confirm !== account ? 'Account numbers do not match' : undefined}
+          error={confirmMismatch ? 'Account numbers do not match' : undefined}
           infoTitle="Re-enter to confirm"
-          className={okQuiet(digits(account).length >= 4 && confirm === account)}
+          className={okQuiet(accountsMatch)}
         />
 
         <SelectField
