@@ -154,8 +154,9 @@ export function FilterPanel({
           <div className="ml-fp-head-actions">
             <button type="button" className="ml-fp-reset" onClick={onReset}>Reset</button>
             <button type="button" className="ml-fp-close" aria-label="Close" onClick={onClose}>
-              {/* Filled disc: .ml-fp is #fff. */}
-              <CloseCircleIcon size={18} />
+              {/* Filled disc: .ml-fp is #fff. 32 fills the 32px button box
+                  exactly; the box has no padding to inset it. */}
+              <CloseCircleIcon size={32} />
             </button>
           </div>
         </div>

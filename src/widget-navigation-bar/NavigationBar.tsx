@@ -830,8 +830,9 @@ export function NavigationBar({
               <img className="nav-mm-logo-img" src={logoSrc} alt="storelocal storage" />
             </a>
             <button className="nav-mm-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
-              {/* Filled disc: .nav-mm-panel is #fff. */}
-              <CloseCircleIcon size={24} />
+              {/* Filled disc: .nav-mm-panel is #fff. 32 fills the button box,
+                  which lost its 4px padding so the mark is a true 32. */}
+              <CloseCircleIcon size={32} />
             </button>
           </div>
 

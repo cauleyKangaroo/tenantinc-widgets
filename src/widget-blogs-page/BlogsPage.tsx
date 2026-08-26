@@ -306,8 +306,9 @@ function FilterPopup({ tags, activeTags, onToggle, onClear, onClose }: FilterPop
               <button type="button" className="bpg-modal-reset" onClick={onClear}>Clear all</button>
             )}
             <button type="button" className="bpg-modal-close" onClick={onClose} aria-label="Close filters">
-              {/* Filled disc: .bpg-filter-modal is #fff. */}
-              <CloseCircleIcon size={18} />
+              {/* Filled disc: .bpg-filter-modal is #fff. 32 fills the 32px
+                  button box exactly; the box has no padding to inset it. */}
+              <CloseCircleIcon size={32} />
             </button>
           </div>
         </div>

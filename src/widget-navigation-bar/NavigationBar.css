@@ -545,7 +545,10 @@
 
 .nav-mm-header {
   display: flex;
-  align-items: flex-start;
+  /* Centred, not flex-start: the logo is the tall item and sets the bar's
+     height, so a top-aligned close sat high against it rather than on its
+     centre line. */
+  align-items: center;
   justify-content: space-between;
   padding: 0 20px 10px;
   flex-shrink: 0;
@@ -570,7 +573,12 @@
   justify-content: center;
   background: none;
   border: none;
-  padding: 4px;
+  /* No padding: the mark is a 32px disc and the box is 32px, so the SVG fills
+     it exactly. The old 4px drew a 40px box around a 24px mark. */
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
   cursor: pointer;
   color: #101318;
 }

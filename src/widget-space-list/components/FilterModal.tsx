@@ -81,9 +81,10 @@ export function FilterModal({
           <div className="sl-modal-header-right">
             <button className="sl-modal-reset" onClick={onReset}>Reset</button>
             <button className="sl-modal-close" onClick={onClose} aria-label="Close filters">
-              {/* Filled disc: the filter modal is #ffffff. 18 keeps the mark the
-                  size the local CloseIcon drew inside the 32px button box. */}
-              <CloseCircleIcon size={18} />
+              {/* Filled disc: the filter modal is #ffffff. 32 is the mark's own
+                  Figma size and it fills the 32px button box exactly — the box
+                  carries no padding, so nothing insets it back down. */}
+              <CloseCircleIcon size={32} />
             </button>
           </div>
         </div>
