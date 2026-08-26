@@ -617,7 +617,7 @@ export function PropertyInfo(props: Props) {
           <span className="pi-hours-title"><ClockIcon size={24} /><span>Hours</span></span>
           <button type="button" className="pi-hours-close" aria-label="Close" onClick={() => setHoursOpen(false)}>
             {/* Filled disc: the hours panel is on a white card. */}
-            <CloseCircleIcon size={18} />
+            <CloseCircleIcon size={32} />
           </button>
         </div>
         <div className="pi-hours-body">

@@ -70,7 +70,12 @@
   top: 10px;
   right: 10px;
   display: flex;
-  padding: 4px;
+  align-items: center;
+  justify-content: center;
+  /* Box IS the mark: 4px around an 18px icon drew a 26px target. */
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border: 0;
   border-radius: 6px;
   background: none;
@@ -1019,7 +1024,7 @@
 .rf2-lease-title { margin: 0; font-size: 20px; font-weight: 700; color: #000; }
 .rf2-lease-close {
   flex: 0 0 auto;
-  width: 24px; height: 24px;
+  width: 32px; height: 32px;
   display: flex; align-items: center; justify-content: center;
   padding: 0; border: none; background: none; border-radius: 4px;
   color: #101318; cursor: pointer;
@@ -1031,6 +1036,12 @@
 .rf2-lease-close:focus,
 .rf2-lease-close:active { background: none !important; }
 .rf2-lease-close:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
+/* Pinned for the same reason as .rf-idm .rf-modal-close svg: both of these
+   lightboxes are portalled to <body>, so they render OUTSIDE Duda's `#dm`,
+   where the theme's un-scoped `svg { width: ... }` outranks a width ATTRIBUTE.
+   Invisible in the dev harness, which has no theme sheet to lose to. */
+.rf2-lease-close svg,
+.rf-pp-close svg { flex: 0 0 auto; width: 32px !important; height: 32px !important; }
 
 /* The scrolling viewport. The document is the only thing that scrolls — the
    header and the agree bar stay put, so the checkbox is always reachable. */

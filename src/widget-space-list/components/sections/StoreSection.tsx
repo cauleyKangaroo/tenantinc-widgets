@@ -234,7 +234,7 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
               <span className="sl-hours-title"><ClockIcon /><span>Hours</span></span>
               <button type="button" className="sl-hours-close" aria-label="Close" onClick={() => setHoursOpen(false)}>
                 {/* Filled disc: .sl-hours-modal is #fff. */}
-                <CloseCircleIcon size={18} />
+                <CloseCircleIcon size={32} />
               </button>
             </div>
             <div className="sl-hours-body">
