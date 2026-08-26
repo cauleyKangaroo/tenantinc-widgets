@@ -72,26 +72,32 @@
   margin: 0 auto;
   /* Top padding clears the close ✕, which sits in the popup's own top-right
      corner. Without it the ✕ lands on the "See all cities" link at the widths
-     where the card fills the viewport. */
-  padding: 64px 24px 32px;
+     where the card fills the viewport (roughly 1024–1394px, where the card is
+     wider than the ✕'s 40px inset). 80px = the ✕'s 40px top + its 30px height +
+     the 10px of breathing room it has always had, so this MUST be re-derived
+     whenever .nav-mega-close moves. */
+  padding: 80px 24px 32px;
   /* Anything the columns can't shrink into scrolls inside the popup, never the
      page behind it. */
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-/* The Figma puts the ✕ outside the 1322px card, against the viewport's top-right
-   corner. `max()` keeps that gap on wide screens and pulls it back to a 24px
-   inset once the card fills the width. */
+/* Parked 40px in from the viewport's top-right corner. It used to track the
+   CARD's right edge (`max(24px, calc(50% - 731px))`), which put it in a
+   different place at every width; a fixed inset is what was asked for and reads
+   the same on any monitor. Safe as a viewport offset because this button is
+   `display: none` below 1024px — the mobile frames put their ✕ in the header
+   row instead — so it can never collide with the narrow layout. */
 .nav-mega-close {
   position: absolute;
-  top: 20px;
-  right: max(24px, calc(50% - 731px));
+  top: 40px;
+  right: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: none;
   background: none;
@@ -103,19 +109,27 @@
   color: var(--nav-mega-accent);
 }
 
-/* ── The ✕ is 34×34, stated in CSS ────────────────────────────────────────
-   Figma's Close component is a 34×34 frame, so that is the size of the mark.
-   Both close buttons draw it, and the size is pinned HERE rather than left to
-   the SVG's own width/height attributes: a CSS declaration beats a presentation
-   attribute, so a host rule of the kind themes ship — `svg { width: 1em;
-   height: 1em }`, `svg { max-width: 100% }` — can no longer shrink it (an
-   inherited 11px font-size renders an `em`-sized icon at 11px, which is exactly
-   how this went wrong). Same fight as the `!important` typography above: it only
-   ever shows on a themed page, never in the dev harness.
+/* ── The ✕'s size is stated in CSS, never left to the SVG ─────────────────
+   A CSS declaration beats a presentation attribute, so a host rule of the kind
+   themes ship — `svg { width: 1em; height: 1em }`, `svg { max-width: 100% }` —
+   can no longer shrink it. An inherited 11px font-size rendering an `em`-sized
+   icon at 11px is exactly how this went wrong once. Same fight as the
+   `!important` typography above: it only ever shows on a themed page, never in
+   the dev harness.
+
+   The two marks are deliberately DIFFERENT sizes now: the desktop overlay ✕ is
+   30, the mobile in-header one stays at the 34 the audit asked for ("Make the X
+   bigger according to design") — it sits in a header row beside a heading
+   rather than alone in a corner.
 
    `flex-shrink: 0` for the mobile one, whose header row would otherwise be
    allowed to squeeze it. */
-.nav-mega-close svg,
+.nav-mega-close svg {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
 .nav-mega-m-close svg {
   width: 34px;
   height: 34px;
@@ -131,6 +145,13 @@
   display: grid;
   grid-template-columns: minmax(0, 440fr) minmax(0, 294fr) minmax(0, 588fr);
   align-items: stretch;
+}
+
+/* Single-state portfolio: the SELECT STATE column is not rendered, so the cities
+   take its 294fr on top of their own 588fr. The search column keeps its divider,
+   which leaves exactly one hairline — between search and cities — as it should. */
+.nav-mega-panels--one-state {
+  grid-template-columns: minmax(0, 440fr) minmax(0, 882fr);
 }
 
 .nav-mega-col {
@@ -373,16 +394,21 @@
    two copies of one look drift apart. `min(…, 12rem)` caps a long list so it
    scrolls inside the panel instead of running past the panel's bottom edge —
    the popup's wheel handler finds this scroller and lets it move. */
+/* NO max-height and NO scroller: the list drops open at its full height.
+   `min(12rem, 40vh)` was ~4.5 of the 42px rows, so Size (five options) opened as
+   a short scrollbox with its last row cut in half — a native <select> would have
+   shown all five, and the audit note this component answers asked for the nav's
+   dropdown, not a scroller. Safe to uncap because both option lists are
+   module-level constants (TYPE_OPTIONS: 2, SIZE_OPTIONS: 5) that nothing
+   populates at runtime; a list that could grow would need the cap back. */
 .nav-mega-dd {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
   right: 0;
   z-index: 5;
-  max-height: min(12rem, 40vh);
   margin: 0;
   padding: 0;
-  overflow-y: auto;
   list-style: none;
   background: #fff;
   border: 1px solid #eee;
@@ -516,7 +542,7 @@
 /* Figma: Montserrat Regular 18 / 1.1 — the facility name and its distance. */
 .nav-mega-loc-name {
   font-family: 'Montserrat', sans-serif !important;
-  font-size: 18px !important;
+  font-size: 16px !important;
   font-weight: 400 !important;
   line-height: 1.1 !important;
   color: #fff;

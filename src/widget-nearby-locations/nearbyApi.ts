@@ -51,6 +51,23 @@ async function creds(): Promise<NearbyApiConfig> {
 }
 
 /**
+ * The company these cards' facilities belong to.
+ *
+ * A card's "Select" hands the picked tier to the rental flow (see
+ * @shared/unitHandoff), and on a multi-property site the company is part of what
+ * makes that unambiguous. Same precedence the space lookups use:
+ * `PropertiesInternal`'s own `company_id` when it states one — those curated
+ * `spaceGroupId`s belong to that company, so the tiers they priced do too — else
+ * the `Company` collection, else config.json.
+ *
+ * Both reads are cached, so resolving this costs the page nothing extra.
+ */
+export async function resolveNearbyCompanyId(collectionName?: string): Promise<string> {
+  const { companyId } = await fetchSpaceGroupBinding(collectionName);
+  return companyId || (await creds()).companyId;
+}
+
+/**
  * Every property in the company — this widget lists locations, so it wants them all.
  *
  * SOURCE ORDER: `PropertiesInternal` → `Properties` → keyed REST.
