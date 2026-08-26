@@ -815,8 +815,12 @@
   background: #f4f6f8;
   border-radius: 16px;
   overflow: hidden;
-  border: 2px solid transparent;
-  transition: border-color 0.15s ease;
+  /* The ring is an OUTLINE, not a border — see .rf2-agree--on. So there is no
+     border here to reserve, and this box's 30px is now the panel's 30px
+     exactly rather than 30px inside a 2px edge. */
+  transition: outline-color 0.15s ease;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
   /* The SAME 30px .rf2-panel uses — this section sits between two of them.
      The gutter used to be carried by the three children instead, at 29px on
      the head and 24px on the document and the checkbox row, so nothing in
@@ -825,8 +829,18 @@
   padding: 30px;
 }
 /* Agreed. --hb-cta is the kit's CTA token, which follows Duda's --color_2 —
-   the same one the flow's seven other CTA rules use. */
-.rf2-agree--on { border-color: var(--hb-cta, #f45f30); }
+   the same one the flow's seven other CTA rules use.
+
+   OUTLINE rather than border, and this is the point: an outline is not part of
+   the box model, so it cannot change the box's height or width by any amount,
+   under any box-sizing, at any breakpoint. A reserved transparent border was
+   the previous answer and it did hold the size — but it also meant this box
+   was 30px inside a 2px edge while .rf2-panel beside it was a flat 30px, and
+   it re-added 4px of height under the <=1024px rule that deliberately strips
+   this section's chrome. `outline-offset: -2px` draws it just inside the edge,
+   where the border sat, and outlines follow border-radius, so the 16px corner
+   is kept. */
+.rf2-agree--on { outline-color: var(--hb-cta, #f45f30); }
 .rf2-agree-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 20px; }
 /* Long label by default, short one on mobile — see the note at the call site. */
 .rf2-link-short { display: none; }
