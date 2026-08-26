@@ -993,6 +993,10 @@ export function RentalFlow2Step({
      later render updates holdRef and the unmount cleanup has been and gone
      — so that one would leak. This lets the run hand it straight back. */
   const unmountedRef = useRef(false);
+  /* space_mix_id from the resolved unit row, kept for the case where /offers
+     cannot supply a selection. API 9 requires the field, so the fallback
+     selection needs a source that does not depend on the offers call. */
+  const resolvedSpaceMixRef = useRef<string | undefined>(undefined);
   const holdContextRef = useRef<{ key: string; ctx: RentalCtx } | undefined>(undefined);
 
   useEffect(() => {
@@ -1034,7 +1038,12 @@ export function RentalFlow2Step({
           if (q && !cancelled) {
             // The replacement is the same selected size/rate, but correlation
             // must follow the actual unit or the rail will mix identities.
-            setSelection((prev) => prev ? { ...prev, unitId: other.id, unitNumber: other.number } : prev);
+            // space_mix_id must follow the unit. It is REQUIRED by API 9, and
+            // keeping the original one described a unit we could not have —
+            // silently filing the rental against the wrong space mix.
+            setSelection((prev) => prev
+              ? { ...prev, unitId: other.id, unitNumber: other.number, spaceMixId: other.spaceMixId ?? prev.spaceMixId }
+              : prev);
             setQuote(q);
           }
           result = await holdUnit(ctx, other);
@@ -1277,16 +1286,18 @@ export function RentalFlow2Step({
      * The hold-aware effect owns the price in that case.
      */
     const runQuote = (
-      resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string } | undefined>,
+      resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string; spaceMixId?: string } | undefined>,
     ): Promise<void> => (adoptedHold
       ? // Still resolve the unit: it carries the space type the protection
         // plans narrow by, which the quote does not.
         resolveUnit.then((unit) => {
           if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
+          if (unit?.spaceMixId) resolvedSpaceMixRef.current = unit.spaceMixId;
         }).catch(() => {})
       : resolveUnit
       .then((unit) => {
         if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
+        if (unit?.spaceMixId) resolvedSpaceMixRef.current = unit.spaceMixId;
         return unit ? fetchMoveInQuote(ctx, unit) : undefined;
       })
       .then((q) => {
@@ -1315,8 +1326,10 @@ export function RentalFlow2Step({
           setSelection(result.selection);
           setSelectionStatus('matched');
         } else {
+          // spaceMixId from the resolved unit row: API 9 REQUIRES it, and
+          // this fallback runs exactly when /offers could not supply one.
           setSelection(unitIdProp
-            ? { unitId: unitIdProp, size: sizeProp ?? '' }
+            ? { unitId: unitIdProp, size: sizeProp ?? '', spaceMixId: resolvedSpaceMixRef.current }
             : fallback);
           setSelectionStatus(result.status);
         }
@@ -1324,8 +1337,9 @@ export function RentalFlow2Step({
       .catch((err) => {
         console.warn(`${logTag} offers selection unavailable:`, err);
         if (cancelled) return;
+        // Same reason as above: without spaceMixId, API 9 rejects the rental.
         setSelection(unitIdProp
-          ? { unitId: unitIdProp, size: sizeProp ?? '' }
+          ? { unitId: unitIdProp, size: sizeProp ?? '', spaceMixId: resolvedSpaceMixRef.current }
           : fallback);
         setSelectionStatus('network-error');
       });
