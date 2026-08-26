@@ -238,6 +238,13 @@ export interface SpaceListProps {
    */
   enablePromoLogic?: boolean | string;
   /**
+   * Alias for the above, because the Duda content panel's field is named
+   * `enablePromoPricing` and its JS tab forwards that name. Without this the
+   * toggle silently did nothing: the widget read enablePromoLogic, found
+   * undefined, and defaulted to off however the checkbox was set.
+   */
+  enablePromoPricing?: boolean | string;
+  /**
    * DYNAMIC PAGES — content-menu field connected to `Properties > id` via Duda's
    * "Connect to data". Selects which property's units, sidebar details and nearby
    * list this instance renders. Unset = the config.json property, i.e. the old

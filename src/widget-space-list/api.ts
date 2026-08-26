@@ -157,6 +157,22 @@ function promoKindFromName(name: string | undefined): 'percent' | 'fixed' | null
   return null;
 }
 
+/**
+ * The promo's kind, trusting `type` when it is meaningful and falling back to
+ * the name.
+ *
+ * `type` is NOT always 'regular' — verified live 2026-08-26, the values in use
+ * are 'regular' and 'percent', and "50% Off Three Full Months" carries
+ * 'percent'. A type that names a kind is better evidence than any string
+ * search. 'regular' says nothing, and then the name is all there is.
+ */
+function promoKind(promo: ApiPromoEntry | null): 'percent' | 'fixed' | null {
+  const t = promo?.type?.toLowerCase();
+  if (t === 'percent' || t === 'percentage') return 'percent';
+  if (t === 'fixed' || t === 'flat') return 'fixed';
+  return promoKindFromName(promo?.name);
+}
+
 function tierPromo(tier: ApiTier): ApiPromoEntry | null {
   const fromArray = tier.promo?.find((p) => p && p.id);
   if (fromArray) return fromArray;
@@ -288,11 +304,11 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           promo: promo?.name || undefined,
           // Promo pricing inputs for `enablePromoLogic` (see promoRate in
           // components/Pricing.tsx). promotionPrice is the API's own computed
-          // figure and wins when present — it's null on every tier today, which
-          // is why the value/kind pair exists as the fallback.
+          // figure and wins when it holds one — it is 0 on every live tier that
+          // has a promo, which is why the value/kind pair below is what runs.
           promotionPrice: tier.promotion_sell_rate ?? undefined,
           promoValue: typeof promo?.value === 'number' ? promo.value : undefined,
-          promoKind: promoKindFromName(promo?.name) ?? undefined,
+          promoKind: promoKind(promo) ?? undefined,
         });
       }
     }
