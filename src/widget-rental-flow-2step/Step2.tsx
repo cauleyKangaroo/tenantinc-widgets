@@ -241,11 +241,11 @@ export function Step2({
    *   fee          unticked, with a separate blue box below stating the card
    *                processing fee. 11940-18880.
    *
-   * Hummingbird will say which; until it does, `autopayMode` is unset and the
-   * picker below appears so all four can be seen.
+   * Comes from the content panel's `enrollmentAutoCheck` radio, mapped in
+   * RentalFlow2Step. Falling back to `optional` matches that radio's own
+   * default, so an instance saved before the field existed behaves as it did.
    */
-  const [demoMode, setDemoMode] = useState<AutopayMode>('default');
-  const mode: AutopayMode = autopayMode ?? demoMode;
+  const mode: AutopayMode = autopayMode ?? 'optional';
   /* With no checkbox to tick, the pay button is where the shopper accepts the
      recurring charge — so it says so. undefined elsewhere, leaving the forms'
      own "Pay Now $X". */
@@ -639,26 +639,6 @@ export function Step2({
         {/* Payment */}
         <section className="rf2-panel rf2-payment">
           <span className="rf2-h">Payment</span>
-          {/* Demo only — no API supplies the mode yet. Pass `autopayMode` and
-              this disappears; it is gated on the prop being ABSENT rather than
-              on a separate flag, so wiring the real value removes it without
-              anyone having to remember to. */}
-          {!autopayMode && (
-            <div className="rf2-autopay-demo">
-              <span className="rf2-autopay-demo-label">Demo — autopay treatment:</span>
-              {(['default', 'optional', 'preselected', 'fee'] as AutopayMode[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  className={`rf2-autopay-demo-btn${mode === m ? ' is-on' : ''}`}
-                  onClick={() => setDemoMode(m)}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* `default` is always enrolled, so it has no control at all — the
               terms move to the foot of the section and the pay button carries
               the consent. The other three keep the checkbox. */}

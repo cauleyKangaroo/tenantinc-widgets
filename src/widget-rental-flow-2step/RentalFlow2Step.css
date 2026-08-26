@@ -884,33 +884,6 @@
   line-height: 22px;
 }
 
-/* Demo picker — removed by passing `autopayMode`. Deliberately plain so it
-   never reads as part of the design. */
-.rf2-autopay-demo {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 8px 10px;
-  border: 1px dashed var(--hb-cloud-darker, #a5b4bf);
-  border-radius: 8px;
-}
-.rf2-autopay-demo-label { color: var(--hb-grayscale-medium, #637381); font-size: 12px; }
-.rf2-autopay-demo-btn {
-  padding: 4px 10px;
-  border: 1px solid var(--hb-cloud-darker, #a5b4bf);
-  border-radius: 6px;
-  background: #fff;
-  color: var(--hb-text-night, #101318);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-.rf2-autopay-demo-btn.is-on {
-  border-color: var(--hb-text-night, #101318);
-  background: var(--hb-text-night, #101318);
-  color: #fff;
-}
 .rf2-autopay--on { border-color: var(--color_2, #509e2f); }
 .rf2-autopay-label { font-size: 16px; font-weight: 600; color: #101318; }
 /* The (i) is a real button now (it opens the tooltip), so it needs the button
