@@ -41,7 +41,7 @@ export {
 
 export {
   SearchIcon, CalendarIcon, CheckIcon, AlertIcon, InfoIcon, EyeOnIcon, EyeOffIcon, CloseIcon,
-  CloseSolidIcon, CheckTickSolid,
+  CloseSolidIcon, CloseCircleIcon, CheckTickSolid,
   TagIcon, MapPinIcon, PhoneIcon,
 } from './icons';
 export type { IconProps } from './icons';

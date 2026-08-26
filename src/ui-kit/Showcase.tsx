@@ -12,7 +12,7 @@
 // ===========================================================================
 
 import React, { useState } from 'react';
-import { FormField, Button } from '@shared/ui';
+import { FormField, Button, CloseCircleIcon } from '@shared/ui';
 import './Showcase.css';
 
 function Column({ title, children }: { title: string; children: React.ReactNode }) {
@@ -157,6 +157,53 @@ export function Showcase() {
             <State label="Busy (blocks double submit)"><Button tone="cta" block busy>Sending…</Button></State>
             <State label="As a link (renders an <a>)"><Button tone="secondary" block href="#showcase">View Details</Button></State>
             <State label="Auto width (default)"><Button tone="dark">Pay Now</Button></State>
+          </Column>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="uik__heading">Close button</h2>
+        <p className="uik__note">
+          One component for all six Figma frames — the mobile 32 is the desktop
+          52 scaled by 1.625, so <code>size</code> reproduces each exactly and the
+          stroke stays proportional. It draws its own circle, so unlike the other
+          icons it takes <code>color</code> and <code>background</code> rather
+          than inheriting <code>currentColor</code>. <code>outlined</code> swaps
+          the filled disc for a stroked ring with a transparent centre; the dark
+          swatch behind it is the styleguide standing in for a real surface, not
+          part of the icon.
+        </p>
+
+        <div className="uik-grid">
+          <Column title="Filled — dark disc">
+            <State label="Desktop — 52">
+              <CloseCircleIcon />
+            </State>
+            <State label="Mobile — 32">
+              <CloseCircleIcon size={32} />
+            </State>
+          </Column>
+
+          <Column title="Outlined — ring on a dark surface">
+            <State label="Desktop — 52">
+              <div className="uik-onDark">
+                <CloseCircleIcon outlined />
+              </div>
+            </State>
+            <State label="Mobile — 32">
+              <div className="uik-onDark">
+                <CloseCircleIcon outlined size={32} />
+              </div>
+            </State>
+          </Column>
+
+          <Column title="Outlined — ring on a light surface">
+            <State label="Desktop — 52">
+              <CloseCircleIcon outlined color="var(--hb-text-night)" />
+            </State>
+            <State label="Mobile — 32">
+              <CloseCircleIcon outlined size={32} color="var(--hb-text-night)" />
+            </State>
           </Column>
         </div>
       </section>

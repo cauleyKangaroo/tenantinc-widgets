@@ -5,7 +5,8 @@
 // scroll locked while open. Selections are real local state so the panel
 // demonstrates properly, but nothing is filtered yet: #08 is still static.
 
-import { FilterIcon, CloseIcon, ChevronDownIcon, ClearCircleIcon } from './icons';
+import { CloseCircleIcon } from '@shared/ui';
+import { FilterIcon, ChevronDownIcon } from './icons';
 import { Checkbox } from '@shared/ui';
 import React, { useEffect } from 'react';
 import {
@@ -39,7 +40,8 @@ function PillGroup({
             onClick={() => onToggle(opt)}
             aria-pressed={on}
           >
-            {on && <ClearCircleIcon size={20} />}
+            {/* Outlined ring: a selected pill's background is #101318. */}
+            {on && <CloseCircleIcon outlined size={20} />}
             <span>{opt}</span>
           </button>
         );
@@ -152,7 +154,8 @@ export function FilterPanel({
           <div className="ml-fp-head-actions">
             <button type="button" className="ml-fp-reset" onClick={onReset}>Reset</button>
             <button type="button" className="ml-fp-close" aria-label="Close" onClick={onClose}>
-              <CloseIcon size={18} />
+              {/* Filled disc: .ml-fp is #fff. */}
+              <CloseCircleIcon size={18} />
             </button>
           </div>
         </div>

@@ -17,7 +17,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CloseSolidIcon, FormField, isPossiblePhone } from '@shared/ui';
+import { CloseCircleIcon, FormField, isPossiblePhone } from '@shared/ui';
 import { IdCardIcon } from './planIcons';
 import { IdIllustration } from './IdIllustration';
 
@@ -76,7 +76,8 @@ export function IdVerifyModal({
               18 in a 32px button. Same glyph, same box, so the two modals close
               the same way. */}
           <button type="button" className="rf-modal-close" onClick={onClose} aria-label="Close">
-            <CloseSolidIcon size={18} />
+            {/* Filled disc: .rf-modal is #fff. */}
+            <CloseCircleIcon size={18} />
           </button>
         </div>
 

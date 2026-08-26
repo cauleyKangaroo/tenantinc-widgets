@@ -3,7 +3,7 @@ import type { SpaceType, UnitSize } from '../types';
 import type { FilterState } from '../filters';
 import { TYPE_OPTIONS, SIZE_OPTIONS } from '../data';
 import { SearchIcon } from './TopFilterBar';
-import { Checkbox } from '@shared/ui';
+import { Checkbox, CloseCircleIcon } from '@shared/ui';
 
 interface FilterModalProps {
   filters: FilterState;
@@ -28,26 +28,6 @@ function FilterIcon() {
   return (
     <svg width="17" height="15" viewBox="0 0 17 15" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M5 8.33333C3.45 8.33333 2.15833 9.4 1.78333 10.8333H0V12.5H1.78333C2.15833 13.9333 3.45 15 5 15C6.55 15 7.84167 13.9333 8.21667 12.5H16.6667V10.8333H8.21667C7.84167 9.4 6.55 8.33333 5 8.33333ZM5 13.3333C4.08333 13.3333 3.33333 12.5833 3.33333 11.6667C3.33333 10.75 4.08333 10 5 10C5.91667 10 6.66667 10.75 6.66667 11.6667C6.66667 12.5833 5.91667 13.3333 5 13.3333ZM14.8833 2.5C14.5083 1.06667 13.2167 0 11.6667 0C10.1167 0 8.825 1.06667 8.45 2.5H0V4.16667H8.45C8.825 5.6 10.1167 6.66667 11.6667 6.66667C13.2167 6.66667 14.5083 5.6 14.8833 4.16667H16.6667V2.5H14.8833ZM11.6667 5C10.75 5 10 4.25 10 3.33333C10 2.41667 10.75 1.66667 11.6667 1.66667C12.5833 1.66667 13.3333 2.41667 13.3333 3.33333C13.3333 4.25 12.5833 5 11.6667 5Z" fill="currentColor"/>
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
-/** Circle-with-X shown inside an active (removable) pill. */
-function PillRemoveIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="8" r="8" fill="currentColor" />
-      <line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   );
 }
@@ -101,7 +81,9 @@ export function FilterModal({
           <div className="sl-modal-header-right">
             <button className="sl-modal-reset" onClick={onReset}>Reset</button>
             <button className="sl-modal-close" onClick={onClose} aria-label="Close filters">
-              <CloseIcon />
+              {/* Filled disc: the filter modal is #ffffff. 18 keeps the mark the
+                  size the local CloseIcon drew inside the 32px button box. */}
+              <CloseCircleIcon size={18} />
             </button>
           </div>
         </div>
@@ -146,7 +128,7 @@ export function FilterModal({
                       });
                     }}
                   >
-                    {active && <span className="sl-pill-x"><PillRemoveIcon /></span>}
+                    {active && <span className="sl-pill-x"><CloseCircleIcon outlined size={24} /></span>}
                     {opt.label}
                   </button>
                 );
@@ -169,7 +151,7 @@ export function FilterModal({
                         onChange({ ...filters, sizes: toggle<UnitSize>(filters.sizes, opt.value) })
                       }
                     >
-                      {active && <span className="sl-pill-x"><PillRemoveIcon /></span>}
+                      {active && <span className="sl-pill-x"><CloseCircleIcon outlined size={24} /></span>}
                       {opt.label}
                     </button>
                   );
@@ -190,7 +172,7 @@ export function FilterModal({
                     className={`sl-pill${active ? ' active' : ''}`}
                     onClick={() => onChange({ ...filters, features: toggle(filters.features, name) })}
                   >
-                    {active && <span className="sl-pill-x"><PillRemoveIcon /></span>}
+                    {active && <span className="sl-pill-x"><CloseCircleIcon outlined size={24} /></span>}
                     {name}
                   </button>
                 );

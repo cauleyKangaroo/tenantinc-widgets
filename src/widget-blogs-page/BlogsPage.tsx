@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './BlogsPage.css';
-import { ShareIcon, FilterHorizontalIcon, SearchIcon, PillRemoveIcon, CloseIcon } from './icons';
+import { CloseCircleIcon } from '@shared/ui';
+import { ShareIcon, FilterHorizontalIcon, SearchIcon } from './icons';
 import { BLOG_IMAGES, cover } from '@shared/demoImages';
 import { Breadcrumb } from '@shared/Breadcrumb';
 import { hasCollectionsApi, logSource } from '@shared/dudaCollections';
@@ -244,7 +245,8 @@ function TagChip({ tag, active, onToggle }: { tag: string; active: boolean; onTo
       onClick={onToggle}
       aria-pressed={active}
     >
-      {active && <span className="bpg-chip-x"><PillRemoveIcon /></span>}
+      {/* Outlined ring: an active chip's background is #101318. */}
+      {active && <span className="bpg-chip-x"><CloseCircleIcon outlined size={20} /></span>}
       <span>{tag}</span>
     </button>
   );
@@ -304,7 +306,8 @@ function FilterPopup({ tags, activeTags, onToggle, onClear, onClose }: FilterPop
               <button type="button" className="bpg-modal-reset" onClick={onClear}>Clear all</button>
             )}
             <button type="button" className="bpg-modal-close" onClick={onClose} aria-label="Close filters">
-              <CloseIcon />
+              {/* Filled disc: .bpg-filter-modal is #fff. */}
+              <CloseCircleIcon size={18} />
             </button>
           </div>
         </div>

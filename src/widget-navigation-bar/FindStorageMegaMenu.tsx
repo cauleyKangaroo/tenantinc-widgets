@@ -70,9 +70,9 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './FindStorageMegaMenu.css';
+import { CloseCircleIcon } from '@shared/ui';
 import {
   ChevronLeft,
-  CloseFilledIcon,
   MapPinFilledIcon,
   PhoneIcon,
   SearchIcon,
@@ -922,7 +922,8 @@ export function FindStorageMegaMenu({
   // page.
   const mobileClose = (
     <button className="nav-mega-m-close" type="button" onClick={onClose} aria-label="Close menu">
-      <CloseFilledIcon size={34} />
+      {/* Outlined ring: .nav-mega is a near-black overlay. */}
+      <CloseCircleIcon outlined size={34} />
     </button>
   );
 
@@ -1000,9 +1001,8 @@ export function FindStorageMegaMenu({
       {/* Outside .nav-mega-inner on purpose: the Figma parks the ✕ against the
           viewport corner, past the right edge of the card. */}
       <button className="nav-mega-close" type="button" onClick={onClose} aria-label="Close menu">
-        {/* CSS pins this to 30×30 (see .nav-mega-close svg) — the attribute is
-            only the pre-CSS size. The mobile ✕ stays 34. */}
-        <CloseFilledIcon size={30} />
+        {/* Outlined ring: .nav-mega is a near-black overlay. */}
+        <CloseCircleIcon outlined size={34} />
       </button>
 
       <div className="nav-mega-inner">

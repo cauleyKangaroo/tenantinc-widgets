@@ -20,6 +20,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './MapLocations.css';
 import { NearbyMap, type MapPoint, type PositionedPoint } from '@shared/NearbyMap';
 import { RichText } from '@shared/richText';
+import { CloseCircleIcon } from '@shared/ui';
 import { CITY_FACILITIES, type CityFacility, type CityUnit } from './data';
 import { PROPERTY_IMAGES } from '@shared/demoImages';
 import { FilterPanel } from './FilterPanel';
@@ -1013,9 +1014,8 @@ export function MapLocations({
           aria-label="Close"
           onClick={(e) => { e.stopPropagation(); setOpenId(null); }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          {/* Filled disc: the popup card is #fff. */}
+          <CloseCircleIcon size={14} />
         </button>
       </div>
     ) : null;

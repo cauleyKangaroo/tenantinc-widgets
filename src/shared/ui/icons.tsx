@@ -208,3 +208,89 @@ export function PhoneIcon({ size = 24, className }: IconProps) {
     </svg>
   );
 }
+
+// --- Circular close button ---------------------------------------------------
+
+/**
+ * The dark circular close button — Figma exports `Frame 1321316547` (52, desktop)
+ * and `Frame 1321316546` (32, mobile).
+ *
+ * ONE component, not two: the two frames are the same drawing at two scales.
+ * 52/32 = 1.625, and every value scales by exactly that — stroke 3.25/2, the
+ * arm inset 16.25/10, the radius 26/16. So the 32 export is reproduced by
+ * rendering the 52 geometry at `size={32}`, and a `viewBox` scale keeps the
+ * stroke proportional instead of pinning it at a fixed px like the 24-grid
+ * icons above.
+ *
+ * Unlike the rest of this file this is a BUTTON FACE, not a glyph: it carries
+ * its own circle, so it does not take `currentColor` for the ground.
+ * `color` sets the X and `background` the disc, both overridable.
+ *
+ * `outlined` is a stroked ring with a TRANSPARENT centre, so the surface shows
+ * through and `background` is unused. Figma ships it in both colourways, which
+ * are the same geometry and differ only in `color`: white for a dark surface
+ * (`Frame 1321316550` / `1321316551`) and night for a light one
+ * (`Frame 1321316549` / `1321316548`).
+ *
+ * The ring is the one part that does NOT scale by 1.625: Figma insets it 1.5 at
+ * stroke 3 on the 52, but 1 at stroke 2 on the 32 — a 1.5 ratio. So its two
+ * values are chosen per size rather than scaled, which is why `outlined` reads
+ * the size instead of leaving everything to the viewBox. The X is untouched by
+ * this and still scales.
+ */
+export function CloseCircleIcon({
+  size = 52,
+  className,
+  outlined = false,
+  color = 'var(--hb-white)',
+  background = 'var(--hb-text-night)',
+}: IconProps & {
+  /** Stroked ring with a transparent centre — the dark-surface treatment. */
+  outlined?: boolean;
+  /** The X stroke, and the ring when `outlined`. */
+  color?: string;
+  /** The disc behind it. Ignored when `outlined` — the centre stays transparent. */
+  background?: string;
+}) {
+  // Figma draws the ring thinner on the small frame; anything at or below 32
+  // takes the 32's values so the mobile export is reproduced exactly.
+  //
+  // Both are given in the SOURCE frame's units and converted into this 52
+  // viewBox, because the 32's `stroke-width: 2` means 2px of a 32 frame — left
+  // as a literal 2 here the viewBox would shrink it to 1.23px on screen.
+  const small = size <= 32;
+  const toViewBox = small ? 52 / 32 : 1;
+  const ringWidth = (small ? 2 : 3) * toViewBox;
+  const ringInset = (small ? 1 : 1.5) * toViewBox;
+
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 52 52"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {outlined ? (
+        <rect
+          x={ringInset}
+          y={ringInset}
+          width={52 - ringInset * 2}
+          height={52 - ringInset * 2}
+          rx={26 - ringInset}
+          stroke={color}
+          strokeWidth={ringWidth}
+        />
+      ) : (
+        <rect width="52" height="52" rx="26" fill={background} />
+      )}
+      <g stroke={color} strokeWidth="3.25" strokeLinecap="round">
+        <path d="M16.25 35.75L35.75 16.25" />
+        <path d="M16.25 16.25L35.75 35.75" />
+      </g>
+    </svg>
+  );
+}

@@ -1,5 +1,4 @@
 import React from 'react';
-import { CloseSolidIcon } from '@shared/ui';
 
 // Check-tick — green validation mark inside a filled field, and the tick shown
 // in the "renting as a business" checkbox when checked.
@@ -46,24 +45,6 @@ export function CalendarIcon({ size = 24, className }: { size?: number; classNam
       />
     </svg>
   );
-}
-
-// Close (×) — modal dismiss button.
-/**
- * Close (mdiClose). Figma draws a 14px mark inside a 24px button
- * (8507-23575), so `size` here has to mean the size of the X you actually see.
- *
- * The viewBox is cropped to the glyph's own bounds rather than left at
- * 0 0 24 24: the cross spans only 6→18, i.e. HALF the 24 box, so a 24-box
- * viewBox made `size` render at half its value — size={14} drew a 7px mark.
- * Bounds are 6→18 grown by half the 2.2 stroke at each end (round caps), giving
- * 4.9 → 19.1 = 14.2.
- */
-/* The kit's mark, re-exported at this module's name so the flow's two other
-   modals keep their import. One definition: the geometry is Figma's exact
-   filled path, which @shared/ui already carried. */
-export function CloseIcon({ size = 18, className }: { size?: number; className?: string }) {
-  return <CloseSolidIcon size={size} className={className} />;
 }
 
 // ── Step 2 icons — exact Figma (Pika) vectors, currentColor stroke/fill. ────
