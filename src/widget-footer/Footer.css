@@ -36,10 +36,15 @@
   flex-wrap: wrap;
 }
 
+/* Four columns now (Company Information / Storage Types / Locations / Connect),
+   not two, so the gap comes down from the old 138px to the ~64px the Figma
+   measures between them. `flex: 1` lets them take the width the aside leaves. */
 .ft-links {
   display: flex;
-  gap: 138px;
+  gap: 64px;
   flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .ft-col {
@@ -78,13 +83,54 @@
   text-underline-offset: 2px;
 }
 
+/* Find Storage and All Locations are CONTROLS, not pages — a <button> that has
+   to read as one of the links around it. font: inherit is the load-bearing bit:
+   a button does not inherit the wrapper's font family or size. */
+.ft-link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: -0.31px;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ft-link-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Drawn pointing right (that is the Figma component), so it rotates to point
+   DOWN while collapsed and UP once the panel is open — which is the state the
+   frame captures. */
+.ft-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transform: rotate(90deg);
+  transition: transform 0.18s ease;
+}
+
+.ft-chevron--open {
+  transform: rotate(-90deg);
+}
+
 /* ── Aside (Need Help card + description) ───────────────────────────────── */
 
+/* 362px is the frame's own width for this block inside its 1322px container. */
 .ft-aside {
   display: flex;
   flex-direction: column;
   gap: 32px;
-  width: 417px;
+  width: 362px;
+  flex-shrink: 0;
   max-width: 100%;
 }
 
@@ -150,6 +196,65 @@
   height: 1px;
   background: rgba(255, 255, 255, 0.2);
   margin-top: 40px;
+}
+
+/* ── All Storage Locations panel ────────────────────────────────────────── */
+/* Sits between the divider and the Follow row, exactly where the frame puts it,
+   and is toggled by the Locations column's "All Locations" control. */
+
+.ft-locations {
+  width: 100%;
+  padding-top: 64px;
+  padding-bottom: 24px;
+}
+
+.ft-locations-heading {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.44px;
+  line-height: 40px;
+  color: #fff;
+  margin: 0 0 48px;
+}
+
+/* MULTI-COLUMN, not a grid. The frame draws four columns of five, but the real
+   portfolio is whatever length it is — columns flow the list down and across,
+   which is how the mega menu's city list works too, and a grid would run the
+   entries A, B, C, D across each row instead. `break-inside: avoid` is what
+   stops an entry being split across a column boundary. */
+.ft-locations-grid {
+  column-count: 4;
+  column-gap: 88px;
+}
+
+.ft-loc {
+  display: flex;
+  flex-direction: column;
+  break-inside: avoid;
+  margin-bottom: 33px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  letter-spacing: -0.31px;
+  color: #fff;
+  /* The frame underlines all three lines, so the decoration is on the block. */
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ft-loc:hover {
+  color: #f45f30;
+}
+
+/* A facility with no slug — the address is still worth reading, but nothing is
+   clickable, so drop the affordance rather than faking a link. */
+.ft-loc--plain {
+  text-decoration: none;
+  cursor: default;
+}
+
+.ft-loc--plain:hover {
+  color: #fff;
 }
 
 /* ── Follow / powered-by row ────────────────────────────────────────────── */
@@ -251,6 +356,13 @@
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
+@media (max-width: 1200px) {
+  .ft-locations-grid {
+    column-count: 3;
+    column-gap: 48px;
+  }
+}
+
 @media (max-width: 900px) {
   .ft-top {
     flex-direction: column;
@@ -264,11 +376,30 @@
   .ft-aside {
     width: 100%;
   }
+
+  .ft-locations {
+    padding-top: 40px;
+  }
+
+  .ft-locations-heading {
+    font-size: 26px;
+    line-height: 34px;
+    margin-bottom: 32px;
+  }
+
+  .ft-locations-grid {
+    column-count: 2;
+    column-gap: 32px;
+  }
 }
 
 @media (max-width: 560px) {
   .ft-links {
     flex-direction: column;
+  }
+
+  .ft-locations-grid {
+    column-count: 1;
   }
 
   .ft-follow {
@@ -292,6 +423,20 @@
   color: #fff !important;
   font-size: 18px !important;
   font-weight: 600 !important;
+}
+
+/* Same fight, one size up: the panel heading is a <p> for exactly this reason. */
+.ft-locations-heading {
+  color: #fff !important;
+  font-size: 32px !important;
+  font-weight: 600 !important;
+}
+
+/* The collapsed panel relies on the UA's `[hidden] { display: none }`, and this
+   file gives .ft-locations no display of its own — but a host reset that sets one
+   on a descendant selector would beat the attribute. State it. */
+.ft-locations[hidden] {
+  display: none !important;
 }
 
 /* The tenant logo SVG uses preserveAspectRatio="none" (stretches to its box);

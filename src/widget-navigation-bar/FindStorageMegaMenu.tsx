@@ -163,6 +163,9 @@ interface NearbyItem {
 // parenthetical dimensions. The "(5x5 - 5x10)" verbiage was invented here to make
 // the placeholder look plausible and read as clutter in the audited dropdown; the
 // size guide is where dimensions belong.
+/** Which stand-in portfolio the editor/harness builds its demo tree from. */
+export type DemoPortfolio = 'full' | 'small' | 'one-state';
+
 const TYPE_OPTIONS = ['Storage', 'Parking'];
 const SIZE_OPTIONS = ['All Sizes', 'Small', 'Medium', 'Large', 'XLarge'];
 
@@ -381,6 +384,19 @@ export function FindStorageMegaMenu({
     [filteredTree, activeKey],
   );
 
+  /**
+   * A single-state portfolio has nothing to choose, so the SELECT STATE column
+   * is dropped and the cities show directly — desktop and mobile alike.
+   *
+   * Measured on the UNFILTERED `tree`, deliberately, not on `filteredTree`: a
+   * query that happens to narrow a multi-state portfolio to one state would
+   * otherwise make the column vanish and the panel re-flow mid-keystroke. It is
+   * a property of the site, so it must not change while someone is typing.
+   * Filtering down to one state is already handled — desktop auto-selects the
+   * first match and fills the cities column.
+   */
+  const singleState = tree.length === 1;
+
   // Keep the selection honest against the filter, and on desktop always land on
   // a state: the first one when the menu opens, and the first with a hit while
   // searching, so the cities column is never an empty third of the panel.
@@ -391,8 +407,12 @@ export function FindStorageMegaMenu({
   // fills a third column, so it still helps.
   useEffect(() => {
     if (activeKey && filteredTree.some((s) => s.key === activeKey)) return;
-    setActiveKey(!isMobile && filteredTree.length ? filteredTree[0].key : null);
-  }, [filteredTree, activeKey, isMobile]);
+    // Mobile normally lands on NO state (picking one replaces the panel), but a
+    // single-state portfolio has no state to pick — its cities are page 1, so
+    // the one state has to be active from the start there too.
+    const autoSelect = !isMobile || singleState;
+    setActiveKey(autoSelect && filteredTree.length ? filteredTree[0].key : null);
+  }, [filteredTree, activeKey, isMobile, singleState]);
 
   // ── Nearby facilities ────────────────────────────────────────────────────
   const allProperties = useMemo(
@@ -906,7 +926,12 @@ export function FindStorageMegaMenu({
     </button>
   );
 
-  const mobilePanel = activeState ? (
+  // Page 2 (a state's cities, with the chevron back to page 1) only exists when
+  // there IS a state to have picked. With one state its cities are already on
+  // page 1, and pushing them onto a second page would put a back control in
+  // front of a list nobody navigated to — and lose the search field and the
+  // nearby facilities on the way.
+  const mobilePanel = activeState && !singleState ? (
     <div className="nav-mega-m">
       <div className="nav-mega-m-head">
         <button className="nav-mega-back" type="button" onClick={() => setActiveKey(null)}>
@@ -936,11 +961,25 @@ export function FindStorageMegaMenu({
         {nearbyBlock}
         <div className="nav-mega-rule" />
         <div className="nav-mega-block">
-          {heading('Select State', filteredTree.length)}
-          {noMatches}
-          <div className="nav-mega-m-list">
-            {filteredTree.map(stateButton)}
-          </div>
+          {/* One state ⇒ no "Select State" step: its cities ARE this block,
+              under the state's own heading. */}
+          {singleState ? (
+            <>
+              {activeState && heading(activeState.label, activeState.cities.length)}
+              {noMatches}
+              <div className="nav-mega-m-list">
+                {activeState?.cities.map(cityLink)}
+              </div>
+            </>
+          ) : (
+            <>
+              {heading('Select State', filteredTree.length)}
+              {noMatches}
+              <div className="nav-mega-m-list">
+                {filteredTree.map(stateButton)}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -961,7 +1000,9 @@ export function FindStorageMegaMenu({
       {/* Outside .nav-mega-inner on purpose: the Figma parks the ✕ against the
           viewport corner, past the right edge of the card. */}
       <button className="nav-mega-close" type="button" onClick={onClose} aria-label="Close menu">
-        <CloseFilledIcon size={34} />
+        {/* CSS pins this to 30×30 (see .nav-mega-close svg) — the attribute is
+            only the pre-CSS size. The mobile ✕ stays 34. */}
+        <CloseFilledIcon size={30} />
       </button>
 
       <div className="nav-mega-inner">
@@ -987,7 +1028,7 @@ export function FindStorageMegaMenu({
             </div>
           </div>
         ) : (
-          <div className="nav-mega-panels">
+          <div className={`nav-mega-panels${singleState ? ' nav-mega-panels--one-state' : ''}`}>
             {/* ── Search + nearby ─────────────────────────────────────────── */}
             <section className="nav-mega-col nav-mega-col--search">
               <div className="nav-mega-block">
@@ -1000,22 +1041,31 @@ export function FindStorageMegaMenu({
               {nearbyBlock}
             </section>
 
-            {/* ── States: one column, scrolls ─────────────────────────────── */}
-            <section className="nav-mega-col nav-mega-col--states">
-              {heading('Select State', filteredTree.length)}
-              {noMatches}
-              <div className="nav-mega-scroll nav-mega-states">
-                {filteredTree.map(stateButton)}
-              </div>
-            </section>
+            {/* ── States: one column, scrolls ───────────────────────────────
+                Dropped entirely on a single-state portfolio: a column offering
+                one choice that is already made is noise, and the cities take the
+                width it frees (see .nav-mega-panels--one-state). */}
+            {!singleState && (
+              <section className="nav-mega-col nav-mega-col--states">
+                {heading('Select State', filteredTree.length)}
+                {noMatches}
+                <div className="nav-mega-scroll nav-mega-states">
+                  {filteredTree.map(stateButton)}
+                </div>
+              </section>
+            )}
 
-            {/* ── Cities: two columns, scrolls ────────────────────────────── */}
-            {activeState && (
+            {/* ── Cities: two columns, scrolls ──────────────────────────────
+                Rendered whenever a state is active, and ALSO with one state and
+                no match at all — the "no locations match" message lived in the
+                states column, and without this it would have nowhere to go and
+                a query with no hits would show an empty panel. */}
+            {(activeState || singleState) && (
               <section className="nav-mega-col nav-mega-col--cities">
                 <div className="nav-mega-cities-head">
-                  {heading(activeState.label, activeState.cities.length)}
+                  {activeState && heading(activeState.label, activeState.cities.length)}
                   {/* Only once the list actually scrolls — see the header note. */}
-                  {cityOverflow && (
+                  {activeState && cityOverflow && (
                     <button
                       className="nav-mega-seeall"
                       type="button"
@@ -1025,12 +1075,13 @@ export function FindStorageMegaMenu({
                     </button>
                   )}
                 </div>
+                {singleState && noMatches}
                 {/* Two columns filled alphabetically DOWN the first and on into the
                     second (Anaheim…Oceanside | Ontario…Torrance in the Figma), which
                     is what CSS columns do — a grid would run A, B across the row. */}
                 <div className="nav-mega-scroll nav-mega-cities" ref={cityListRef}>
                   <div className="nav-mega-city-cols">
-                    {activeState.cities.map(cityLink)}
+                    {activeState?.cities.map(cityLink)}
                   </div>
                 </div>
               </section>
@@ -1160,17 +1211,26 @@ const DEMO_SMALL_ROWS = [
   },
 ];
 
+/** California only — a one-state portfolio, so the SELECT STATE column is
+ *  dropped and the cities show directly. Reuses DEMO_ROWS rather than a second
+ *  hand-written set, so the two demos cannot drift. */
+const DEMO_ONE_STATE_ROWS = DEMO_ROWS.filter((r) => r.slug.startsWith('california/'));
+
 /**
  * Stand-in tree for the Duda editor and the dev harness. Takes the same base
  * paths as the live tree so the demo links match the ones a visitor would get.
  *
  * `portfolio: 'small'` swaps in the three-facility set above so the map frame can
- * be seen somewhere other than a live three-property site.
+ * be seen somewhere other than a live three-property site; `'one-state'` narrows
+ * to California so the state-less two-column layout can be seen without one.
  */
 export function demoLocationTree(
   basePath: string,
   cityBasePath?: string,
-  portfolio: 'full' | 'small' = 'full',
+  portfolio: DemoPortfolio = 'full',
 ): NavState[] {
-  return buildLocationTree(portfolio === 'small' ? DEMO_SMALL_ROWS : DEMO_ROWS, { basePath, cityBasePath });
+  const rows = portfolio === 'small' ? DEMO_SMALL_ROWS
+    : portfolio === 'one-state' ? DEMO_ONE_STATE_ROWS
+      : DEMO_ROWS;
+  return buildLocationTree(rows, { basePath, cityBasePath });
 }
