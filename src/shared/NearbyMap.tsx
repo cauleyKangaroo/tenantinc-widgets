@@ -203,7 +203,7 @@ export function NearbyMap({
             <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#101318' }}>{open.name}</p>
           )}
           {open.distance && (
-            <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: '#509e2f' }}>{open.distance}</p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: 'var(--color_1, #f45f30)' }}>{open.distance}</p>
           )}
           {open.address && (
             <p style={{ margin: '6px 0 0', fontSize: 12, color: '#55606b', lineHeight: 1.4 }}>{open.address}</p>

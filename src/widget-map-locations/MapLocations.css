@@ -160,7 +160,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 100px;
-  background: #509e2f;
+  background: var(--color_1, #f45f30);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -175,7 +175,7 @@
   height: 22px;
   padding: 0 6px;
   border-radius: 100px;
-  background: #509e2f;
+  background: var(--color_1, #f45f30);
   color: #fff;
   font-size: 13px;
   font-weight: 700;
@@ -269,7 +269,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #509e2f;
+  background: var(--color_1, #f45f30);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -292,7 +292,7 @@
 }
 
 .ml-fp-reset:hover,
-.ml-fp-close:hover { color: #509e2f; }
+.ml-fp-close:hover { color: var(--color_1, #f45f30); }
 
 .ml-fp-close {
   width: 32px;
@@ -646,7 +646,9 @@
 /* FEATURED is the only card that gets a coloured outline. It pairs with the
    "Featured Property" ribbon, and together they mean "the operator chose this
    one" — a meaning that must belong to exactly one card on the page. */
-.ml-card--featured { border-color: #509e2f; }
+/* Stays GREEN, deliberately. .ml-card--active is the site primary — see the
+   note there — and featured has to read as a different thing from selected. */
+.ml-card--featured { border-color: var(--hb-secondary, #509e2f); }
 
 /* ACTIVE is the card paired with the hovered/open map bubble, and it takes the
    site's PRIMARY — the same colour that bubble takes when active, so the two
@@ -700,7 +702,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #509e2f;
+  background: var(--hb-secondary, #509e2f);
   color: #fff;
   font-size: 15px;
   font-weight: 700;
@@ -794,9 +796,11 @@
   gap: 4px;
   width: 100%;
   padding: 12px;
-  border: 2px dashed #509e2f;
+  border: 2px dashed var(--color_1, #f45f30);
   border-radius: 8px;
   background: #fff;
+  /* TagIcon inside draws in currentColor. */
+  color: var(--color_1, #f45f30);
 }
 
 .ml-promo-text {
@@ -829,7 +833,8 @@
 .ml-unit-subtype { font-size: 12px; line-height: 16px; color: #637381; }
 
 .ml-unit-prices { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
-.ml-unit-tag { display: flex; flex-shrink: 0; }
+/* TagIcon draws in currentColor now, so its colour lives here. */
+.ml-unit-tag { display: flex; flex-shrink: 0; color: var(--color_1, #f45f30); }
 
 .ml-price-strike,
 .ml-price-start { display: flex; flex-direction: column; align-items: flex-end; }
