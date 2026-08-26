@@ -99,3 +99,25 @@ export function AiSparkleIcon({ size = 24 }: { size?: number }) {
     </svg>
   );
 }
+
+/**
+ * `chevron-big/chevron-big-right` (Figma 6769:4399), the exact path off the
+ * frame's own export — inlined rather than linked because the AMD bundle can't
+ * load remote assets and Figma's asset URLs expire in ~7 days.
+ *
+ * Drawn pointing RIGHT and rotated in CSS, which is how the frame uses it
+ * (`-rotate-90` for the expanded "All Locations" state).
+ */
+export function ChevronBigRightIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M9 18C11.1808 16.423 13.1364 14.5771 14.8172 12.5101C15.0609 12.2103 15.0609 11.7897 14.8172 11.4899C13.1364 9.42294 11.1808 7.57701 9 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

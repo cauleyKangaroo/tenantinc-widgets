@@ -766,8 +766,8 @@
        `hasCollectionsApi()` true for EVERY widget on the page, which switches off
        the demo fallbacks that assume its absence — the mega menu's demo location
        tree and its star ratings, in particular, go empty because this mock does
-       not serve those collections. Turn it on to look at #07, off for anything
-       else.
+       not serve those collections. Turn it on to look at #07 (or #13's
+       route-driven footer column), off for anything else.
 
        Values are wrapped in `<p class="rteBlock">` on purpose: `PropertiesInternal`
        and `Company` are NATIVE collections on a real site, so this is the shape
@@ -825,7 +825,65 @@
         })
       };
 
+      // The site's page tree, as `dmAPI.getNavItemsAsync()` returns it — a
+      // DIFFERENT dmAPI surface from the collections one above (no collection is
+      // involved; it is the Pages panel's own structure). This is what #13's
+      // footer reads to build its first two columns from the pages under
+      // /company-information and /storage-types, and there is no other way to
+      // see that locally.
+      // Shapes copied from Duda's Live Site JS Reference: relative `path`, a
+      // `visible` flag that is respective to the DEVICE, `subNav` nesting up to
+      // three page levels. "Careers" is visible:false on purpose — a page hidden
+      // from the NAV, which the footer lists anyway (that is what a footer column
+      // is for) unless skipHiddenPages is set.
+      var NAV_ITEMS = [
+        { title: 'Home', alias: 'home', uuid: 'p-home', path: 'home', visible: true, subNav: [] },
+        { title: 'Company Information', alias: 'company-information', uuid: 'p-ci',
+          path: 'company-information', visible: true, subNav: [
+            { title: 'Why Choose Storage Outlet', alias: 'why-choose-storage-outlet', uuid: 'p-ci-1',
+              path: 'company-information/why-choose-storage-outlet', visible: true, subNav: [] },
+            { title: 'Supplies', alias: 'supplies', uuid: 'p-ci-2',
+              path: 'company-information/supplies', visible: true, subNav: [] },
+            { title: 'Tenant Protection Plan', alias: 'tenant-protection-plan', uuid: 'p-ci-3',
+              path: 'company-information/tenant-protection-plan', visible: true, subNav: [] },
+            { title: 'Careers', alias: 'careers', uuid: 'p-ci-4',
+              path: 'company-information/careers', visible: false, subNav: [] },
+            // A third page level, to prove the column flattens it rather than
+            // dropping it.
+            { title: 'Legal', alias: 'legal', uuid: 'p-ci-5',
+              path: 'company-information/legal', visible: true, subNav: [
+                { title: 'SMS Terms', alias: 'sms-terms', uuid: 'p-ci-5a',
+                  path: 'company-information/legal/sms-terms', visible: true, subNav: [] },
+                { title: 'Privacy Policy and Terms', alias: 'privacy-policy-and-terms', uuid: 'p-ci-5b',
+                  path: 'company-information/legal/privacy-policy-and-terms', visible: true, subNav: [] },
+                { title: 'Accessibility', alias: 'accessibility', uuid: 'p-ci-5c',
+                  path: 'company-information/legal/accessibility', visible: true, subNav: [] }
+              ] }
+          ] },
+        { title: 'Storage Types', alias: 'storage-types', uuid: 'p-st',
+          path: 'storage-types', visible: true, subNav: [
+            { title: 'Climate Controlled Storage', alias: 'climate-controlled-storage', uuid: 'p-st-1',
+              path: 'storage-types/climate-controlled-storage', visible: true, subNav: [] },
+            { title: 'Car, RV Boat Storage', alias: 'car-rv-boat-storage', uuid: 'p-st-2',
+              path: 'storage-types/car-rv-boat-storage', visible: true, subNav: [] },
+            { title: 'Business Storage', alias: 'business-storage', uuid: 'p-st-3',
+              path: 'storage-types/business-storage', visible: true, subNav: [] },
+            { title: 'Drive up Storage', alias: 'drive-up-storage', uuid: 'p-st-4',
+              path: 'storage-types/drive-up-storage', visible: true, subNav: [] },
+            { title: 'Wine Storage', alias: 'wine-storage', uuid: 'p-st-5',
+              path: 'storage-types/wine-storage', visible: true, subNav: [] }
+          ] },
+        // The dynamic property pages are ONE entry here — the template — never
+        // one per collection row. See the note in @shared/sitePages.
+        { title: 'Storage Units', alias: 'storage-units', uuid: 'p-su',
+          path: 'storage-units', visible: true, subNav: [] }
+      ];
+
       window.dmAPI = {
+        getNavItemsAsync: function () {
+          console.log('[harness dmAPI] getNavItemsAsync → ' + NAV_ITEMS.length + ' top-level pages');
+          return Promise.resolve(NAV_ITEMS);
+        },
         loadCollectionsAPI: function () {
           return Promise.resolve({
             data: function (name) {
