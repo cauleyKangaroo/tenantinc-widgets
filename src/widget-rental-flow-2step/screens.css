@@ -601,6 +601,18 @@
   cursor: pointer;
 }
 .rf-sx-btn--solid { border: 0; background: var(--hb-secondary, #509e2f); color: var(--hb-white, #fff); }
+
+/* Stacked label (Figma 11940-47764). .rf-sx-btn is a 16px/700 flex ROW, so the
+   two lines need their own direction and their own sizes — 12px each, the lede
+   regular and the action bold, centred. The 50px box is unchanged (the frame
+   is 49px), and the two 12px lines clear it comfortably.
+   The green already comes from --hb-secondary, whose fallback IS the frame's
+   #509e2f, so nothing about the fill changes. Radius stays the kit's 8px
+   rather than the frame's 3.881px: every button in this widget is on the kit
+   token, and one odd corner radius would read as a mistake. */
+.rf-sx-btn--stack { flex-direction: column; gap: 2px; line-height: normal; }
+.rf-sx-btn-lede { font-size: 12px; font-weight: 400; line-height: normal; }
+.rf-sx-btn-main { font-size: 12px; font-weight: 700; line-height: normal; }
 .rf-sx-btn--outline { border: 2px solid var(--hb-secondary, #509e2f); background: #fefefe; color: var(--hb-text-night, #101318); }
 /* The kit's model on all three buttons below: a real BACKGROUND rather than a
    brightness filter. A filter leaves `background` unset, so a host rule like
