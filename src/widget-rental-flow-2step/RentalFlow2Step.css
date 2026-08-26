@@ -804,7 +804,23 @@
 .rf2-checkline--sm .rf2-checklabel { font-size: 14px; }
 
 /* Rental Agreement */
-.rf2-agree { background: #f4f6f8; border-radius: 16px; overflow: hidden; }
+/* The 2px is RESERVED at rest, transparent, rather than appearing on check: a
+   border coming from nothing would pull the content in 2px a side at the exact
+   moment of the click. Only the colour changes.
+   It is declared here, after the <=1024px rule that sets `border: none` to
+   strip this section's chrome on smaller screens — same (0,1,0), later in
+   source — so the ring is reserved at every width. At rest it is invisible
+   either way, so that flush mobile treatment is unchanged until it is ticked. */
+.rf2-agree {
+  background: #f4f6f8;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: border-color 0.15s ease;
+}
+/* Agreed. --hb-cta is the kit's CTA token, which follows Duda's --color_2 —
+   the same one the flow's seven other CTA rules use. */
+.rf2-agree--on { border-color: var(--hb-cta, #f45f30); }
 .rf2-agree-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 28px 29px 20px; }
 /* Long label by default, short one on mobile — see the note at the call site. */
 .rf2-link-short { display: none; }

@@ -602,8 +602,9 @@ export function Step2({
           </div>
         </section>
 
-        {/* Rental Agreement */}
-        <section className="rf2-agree">
+        {/* Rental Agreement. Ringed in the CTA colour once agreed — the tick
+            is 18px in a tall section, so the box itself confirms the state. */}
+        <section className={`rf2-agree${agree ? ' rf2-agree--on' : ''}`}>
           <div className="rf2-agree-head">
             <span className="rf2-h">Rental Agreement <span className="rf-req">*</span></span>
             <button type="button" className="rf2-link rf2-link--btn" onClick={() => setLeaseOpen(true)}>
