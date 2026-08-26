@@ -4,7 +4,7 @@ import { Step2, type AutopayMode } from './Step2';
 import {
   fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
-  holdUnit, releaseHold, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
+  holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
   type RentResult,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
@@ -988,6 +988,11 @@ export function RentalFlow2Step({
   selectionRef.current = selection;
   const unitTypeIdRef = useRef(unitTypeId);
   unitTypeIdRef.current = unitTypeId;
+  /* The acquire effect stores a hold even when its run was superseded,
+     because the hold is real. But if the component has already gone, no
+     later render updates holdRef and the unmount cleanup has been and gone
+     — so that one would leak. This lets the run hand it straight back. */
+  const unmountedRef = useRef(false);
   const holdContextRef = useRef<{ key: string; ctx: RentalCtx } | undefined>(undefined);
 
   useEffect(() => {
@@ -1039,7 +1044,10 @@ export function RentalFlow2Step({
       // server whether or not this run is still the current one, so dropping
       // it here is what stranded units for the full 15 minutes. Storing it is
       // also what lets the release-on-unmount effect give it back.
-      if (result.ok) {
+      if (result.ok && unmountedRef.current) {
+        // Nothing left to hold it for.
+        void releaseHold(ctx, result.hold);
+      } else if (result.ok) {
         setHold(result.hold);
         // The held unit is now authoritative. Drop any quote that isn't its
         // own (e.g. the pre-hold unit after a conflict re-pick) and re-quote
@@ -1155,13 +1163,40 @@ export function RentalFlow2Step({
     return () => window.clearInterval(id);
   }, [hold, logTag]);
 
-  // Release on unmount. (Navigating away entirely skips this — the server
-  // expires the hold on its own; release is best-effort by design.)
+  // Release on unmount.
   useEffect(() => () => {
+    unmountedRef.current = true;
     const releaseContext = holdContextRef.current?.ctx;
     if (releaseContext?.companyId && holdRef.current) {
       void releaseHold(releaseContext, holdRef.current);
     }
+  }, []);
+
+  /*
+   * Release when the PAGE goes away — refresh, tab close, navigating off.
+   *
+   * React's unmount cleanup does not run for any of those, so before this the
+   * unit stayed held for the full 15 minutes every time someone reloaded the
+   * rent page. Over a round of testing that quietly ate the available list and
+   * made every later attempt meet "currently being held by another customer".
+   *
+   * "pagehide" rather than "beforeunload": it fires on mobile Safari and on
+   * bfcache navigations, where beforeunload does not. The cost is that going
+   * BACK to a bfcached page finds its hold released — the acquire effect just
+   * takes a new one, exactly as it does after an expiry.
+   *
+   * A completed rental has already cleared the hold, so nothing is handed back
+   * after the money has been taken.
+   */
+  useEffect(() => {
+    const onHide = () => {
+      const releaseContext = holdContextRef.current?.ctx;
+      if (releaseContext?.companyId && holdRef.current) {
+        releaseHoldOnUnload(releaseContext, holdRef.current);
+      }
+    };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
   }, []);
 
   useEffect(() => {
@@ -1942,7 +1977,10 @@ export function RentalFlow2Step({
                     if (info.extras) setChosenSections(info.extras);
                     // The unit is LEASED now, so the hold is spent: forget it so
                     // the countdown stops and unmount does not try to release a
-                    // hold that no longer exists.
+                    // hold that no longer exists. Ref cleared by hand too —
+                    // setHold only reaches holdRef on the next render, and a
+                    // pagehide before that would release a leased unit's hold.
+                    holdRef.current = undefined;
                     setHold(undefined);
                     clearUnitSelection();
                     setFinalizing(info);
@@ -2059,6 +2097,14 @@ export function RentalFlow2Step({
               });
               setDateModalOpen(false);
               if (result.ok) {
+                // The reservation has consumed the hold, exactly as a lease
+                // does. Forget it so the navigation below cannot fire the
+                // pagehide release against a unit that is now reserved.
+                // The ref is cleared by hand as well: setHold only reaches
+                // holdRef on the next render, and the navigation below happens
+                // in this same tick.
+                holdRef.current = undefined;
+                setHold(undefined);
                 // Bind the confirmation to a one-time nonce: the payload (incl.
                 // PII + code) lives in sessionStorage; only the nonce is in the URL.
                 const nonce = stashConfirmation({

@@ -647,9 +647,42 @@ async function getJsonV1(path: string, fresh = false): Promise<unknown> {
 }
 
 /** First Available storage unit matching the selection's size (and price when known). */
+/**
+ * EVERY available unit, not the first page of them.
+ *
+ * `units/available` is paginated and **defaults to 20**, which is not
+ * mentioned anywhere in the guide — the tell is the `paging` object it returns
+ * alongside `units`. Verified 2026-08-26: the default page carried 20 units
+ * covering two sizes, while the property actually had 64 available across
+ * THIRTEEN sizes. So 15'x15' — with nineteen units free — was invisible, and
+ * anyone who needed a replacement unit in one of those sizes was told
+ * "We couldn't secure this space" against a list that never contained it.
+ *
+ * Pages by offset until `paging.total` is reached. The server clamps the page
+ * size to 100 whatever is asked for, so the loop is what makes this complete;
+ * the iteration cap is a stop against a malformed `total` spinning forever.
+ */
+const AVAILABLE_PAGE_SIZE = 100;
+
+async function fetchAvailableUnits(ctx: RentalCtx, fresh = false): Promise<ApiUnitRow[]> {
+  const all: ApiUnitRow[] = [];
+  let offset = 0;
+  for (let page = 0; page < 25; page += 1) {
+    const data = unwrap(await getJsonV1(
+      `companies/${ctx.companyId}/properties/${ctx.propertyId}/units/available?limit=${AVAILABLE_PAGE_SIZE}&offset=${offset}`,
+      fresh,
+    ));
+    const rows = (data?.units as ApiUnitRow[] | undefined) ?? [];
+    all.push(...rows);
+    const total = Number((data?.paging as { total?: number } | undefined)?.total ?? all.length);
+    offset += rows.length;
+    if (!rows.length || all.length >= total) break;
+  }
+  return all;
+}
+
 export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?: number, fresh = false, unitTypeId?: string): Promise<{ id: string; number?: string; unitTypeId?: string } | undefined> {
-  const data = unwrap(await getJsonV1(`companies/${ctx.companyId}/properties/${ctx.propertyId}/units/available`, fresh));
-  const units = (data?.units as ApiUnitRow[] | undefined) ?? [];
+  const units = await fetchAvailableUnits(ctx, fresh);
   const wantSize = size ? size.toLowerCase().replace(/[^0-9x.]/g, '') : undefined;
   /*
    * NO FILTER ON `u.type`.
@@ -695,8 +728,9 @@ export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?
  *  Fails soft — an unresolvable unit must never stop the rental. */
 export async function fetchUnitInfo(ctx: RentalCtx, unitId: string): Promise<{ number?: string; unitTypeId?: string }> {
   try {
-    const data = unwrap(await getJsonV1(`companies/${ctx.companyId}/properties/${ctx.propertyId}/units/available`));
-    const units = (data?.units as ApiUnitRow[] | undefined) ?? [];
+    // Paged for the same reason as findUnitForSelection: on the default page a
+    // unit past the first 20 simply is not there, and "Space #…" came up blank.
+    const units = await fetchAvailableUnits(ctx);
     const u = units.find((x) => x.id === unitId);
     return { number: u?.number, unitTypeId: u?.unit_type_id };
   } catch { return {}; }
@@ -894,6 +928,35 @@ export async function holdUnit(ctx: RentalCtx, unit: { id: string; number?: stri
   } catch (err) {
     return { ok: false, reason: 'error', detail: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/**
+ * Release during page unload — refresh, tab close, navigating away.
+ *
+ * Separate from `releaseHold` because an ordinary fetch is CANCELLED by the
+ * browser once the document starts going away, so the DELETE never left and
+ * the unit sat held for the full 15 minutes. That is why a round of testing
+ * would steadily eat the available list.
+ *
+ * `keepalive` is what makes the request outlive the page. It is used instead
+ * of `navigator.sendBeacon` because a beacon can only POST, and releasing is
+ * a DELETE.
+ *
+ * Fire and forget by definition: there is no page left to report a failure to,
+ * and the server expires the hold anyway. Synchronous on purpose — an `await`
+ * here would not be honoured during unload.
+ */
+export function releaseHoldOnUnload(ctx: RentalCtx, hold: UnitHold): void {
+  try {
+    if (shouldUseProxyWrites(ctx)) {
+      const url = `${tenantPath(ctx, hold.unitId, `hold/${encodeURIComponent(hold.holdToken)}`)}?unitGroupId=${encodeURIComponent(ctx.unitGroupId as string)}`;
+      void fetch(url, { method: 'DELETE', keepalive: true });
+      return;
+    }
+    if (!writesEnabled(ctx) || !ctx.companyId) return;
+    const url = `${BASE_URL}/applications/${APP_ID}/v1/companies/${ctx.companyId}/units/${hold.unitId}/hold/${encodeURIComponent(hold.holdToken)}`;
+    void fetch(url, { method: 'DELETE', headers: headers(), keepalive: true });
+  } catch { /* unloading — there is nowhere to report this */ }
 }
 
 /** Fail-soft release — the server expires holds on its own if this never lands. */
