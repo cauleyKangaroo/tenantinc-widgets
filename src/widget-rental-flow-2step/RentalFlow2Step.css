@@ -574,7 +574,9 @@
   cursor: pointer;
   background: #fff;
   border: 2px solid var(--color_2, #509e2f);
-  border-radius: 4px;
+  /* The kit's button radius, not a number of its own — this control sits in a
+     column of buttons and was the only 4px corner among them. */
+  border-radius: var(--hb-button-radius, 8px);
   box-shadow: 0 4px 5px rgba(71, 84, 116, 0.1);
   overflow: hidden;
 }
@@ -684,7 +686,7 @@
   padding: 10px;
   background: #fff;
   border: 1px solid #dfe3e8;
-  border-radius: 8px;
+  border-radius: var(--hb-button-radius, 8px);
   box-shadow: 0 4px 5px rgba(71, 84, 116, 0.1);
 }
 
@@ -708,11 +710,16 @@
   flex-wrap: wrap;
   align-content: center;
   min-height: clamp(40px, 11cqi, 46px);
-  padding: 8px;
+  /* More room at the sides than top and bottom: the rows sit inside the
+     menu's own 10px, and at a flat 8px the coverage label started almost
+     against the highlight's edge. */
+  padding: 8px 14px;
+  /* Matching the control and the menu, so the highlighted row's corners are
+     the same shape as everything around them. */
+  border-radius: var(--hb-button-radius, 8px);
   font: inherit;
   text-align: left;
   border: none;
-  border-radius: 4px;
   background: none;
   cursor: pointer;
 }
@@ -730,7 +737,7 @@
 
 /* The operator's flagged plan sits on the brand tint at 8%, with its own 8px
    inset and 4px radius (the plain rows are 4px 8px and square). */
-.rf2-plan-opt--best { background: #f1f7ee; border-radius: 4px; }
+.rf2-plan-opt--best { background: #f1f7ee; }
 
 .rf2-plan-opt:hover { background: #f4f6f8; }
 .rf2-plan-opt--best:hover { background: #e9f2e4; }
