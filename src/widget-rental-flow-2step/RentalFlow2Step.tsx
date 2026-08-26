@@ -4,7 +4,7 @@ import { Step2, type AutopayMode } from './Step2';
 import {
   fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
-  holdUnit, releaseHold, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
+  holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
   type RentResult,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
@@ -972,6 +972,31 @@ export function RentalFlow2Step({
   const [holdExpired, setHoldExpired] = useState(false);
   const holdRef = useRef<UnitHold | undefined>(undefined);
   holdRef.current = hold;
+  /*
+   * One acquisition at a time, and `selection` read without depending on it.
+   *
+   * The acquire effect below WRITES `selection` and `quote` on the conflict
+   * re-pick, and both were in its own dependency list — so it re-entered
+   * itself mid-flight. The superseded run then finished its `holdUnit` call
+   * and threw the token away because `cancelled` had been set, leaving a real
+   * hold on a real unit that nothing would ever release. Every re-pick leaked
+   * one, which is what "This unit is currently being held by another customer"
+   * turned out to be: our own orphans.
+   */
+  const acquiringRef = useRef(false);
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+  const unitTypeIdRef = useRef(unitTypeId);
+  unitTypeIdRef.current = unitTypeId;
+  /* The acquire effect stores a hold even when its run was superseded,
+     because the hold is real. But if the component has already gone, no
+     later render updates holdRef and the unmount cleanup has been and gone
+     — so that one would leak. This lets the run hand it straight back. */
+  const unmountedRef = useRef(false);
+  /* space_mix_id from the resolved unit row, kept for the case where /offers
+     cannot supply a selection. API 9 requires the field, so the fallback
+     selection needs a source that does not depend on the offers call. */
+  const resolvedSpaceMixRef = useRef<string | undefined>(undefined);
   const holdContextRef = useRef<{ key: string; ctx: RentalCtx } | undefined>(undefined);
 
   useEffect(() => {
@@ -991,8 +1016,14 @@ export function RentalFlow2Step({
       console.log(`${logTag} editor mode — real unit hold suppressed`);
       return;
     }
+    // Re-entry guard. This effect writes selection and quote below, so without
+    // it a re-pick starts a second acquisition while the first is still in
+    // flight and both take holds.
+    if (acquiringRef.current) return;
+    acquiringRef.current = true;
     let cancelled = false;
     (async () => {
+      try {
       setPayError(undefined);
       let result = await holdUnit(ctx, { id: quote.unitId, number: quote.unitNumber });
       if (result.ok === false && result.reason === 'conflict' && !cancelled) {
@@ -1000,19 +1031,32 @@ export function RentalFlow2Step({
         // fresh list — the cached one still contains the 409'd unit. The type is
         // passed so the replacement is the same kind of space, not merely the
         // same size.
-        const other = await findUnitForSelection(ctx, selection?.size, selection?.price ?? quote.rent, true, unitTypeId);
+        const sel = selectionRef.current;
+        const other = await findUnitForSelection(ctx, sel?.size, sel?.price ?? quote.rent, true, unitTypeIdRef.current);
         if (other && other.id !== quote.unitId && !cancelled) {
           const q = await fetchMoveInQuote(ctx, other);
           if (q && !cancelled) {
             // The replacement is the same selected size/rate, but correlation
             // must follow the actual unit or the rail will mix identities.
-            setSelection((prev) => prev ? { ...prev, unitId: other.id, unitNumber: other.number } : prev);
+            // space_mix_id must follow the unit. It is REQUIRED by API 9, and
+            // keeping the original one described a unit we could not have —
+            // silently filing the rental against the wrong space mix.
+            setSelection((prev) => prev
+              ? { ...prev, unitId: other.id, unitNumber: other.number, spaceMixId: other.spaceMixId ?? prev.spaceMixId }
+              : prev);
             setQuote(q);
           }
           result = await holdUnit(ctx, other);
         }
       }
-      if (!cancelled && result.ok) {
+      // NOT guarded on `cancelled`. A hold that was acquired EXISTS on the
+      // server whether or not this run is still the current one, so dropping
+      // it here is what stranded units for the full 15 minutes. Storing it is
+      // also what lets the release-on-unmount effect give it back.
+      if (result.ok && unmountedRef.current) {
+        // Nothing left to hold it for.
+        void releaseHold(ctx, result.hold);
+      } else if (result.ok) {
         setHold(result.hold);
         // The held unit is now authoritative. Drop any quote that isn't its
         // own (e.g. the pre-hold unit after a conflict re-pick) and re-quote
@@ -1022,15 +1066,25 @@ export function RentalFlow2Step({
         // Drop any quote that is not the held unit's — the effect below then
         // re-quotes hold-aware. Fail CLOSED: never show another unit's money.
         setQuote((prev) => (prev && prev.unitId === held.unitId ? prev : undefined));
-      } else if (!result.ok) {
+      } else if (!cancelled) {
         if (result.reason !== 'writes-disabled') {
           console.warn(`${logTag} hold not acquired:`, result.reason, result.detail);
         }
         setPayError('We couldn’t secure this space. Please return and choose another available space.');
       }
+      } finally {
+        acquiringRef.current = false;
+      }
     })();
     return () => { cancelled = true; };
-  }, [step, quote, hold, holdExpired, rental, selection, inEditor, logTag, ctx, insuranceId, moveIn]);
+    // selection and unitTypeId are deliberately ABSENT. Both are only read on
+    // the re-pick, through refs. selection in particular is WRITTEN by this
+    // effect, so depending on it made the effect restart itself mid-flight —
+    // which is how holds were being leaked. insuranceId/moveIn stay: they
+    // change the money, not the unit, and the guards above stop a re-run once
+    // a hold exists.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, quote, hold, holdExpired, rental, inEditor, logTag, ctx, insuranceId, moveIn]);
 
   /**
    * Quote the HELD unit.
@@ -1118,13 +1172,40 @@ export function RentalFlow2Step({
     return () => window.clearInterval(id);
   }, [hold, logTag]);
 
-  // Release on unmount. (Navigating away entirely skips this — the server
-  // expires the hold on its own; release is best-effort by design.)
+  // Release on unmount.
   useEffect(() => () => {
+    unmountedRef.current = true;
     const releaseContext = holdContextRef.current?.ctx;
     if (releaseContext?.companyId && holdRef.current) {
       void releaseHold(releaseContext, holdRef.current);
     }
+  }, []);
+
+  /*
+   * Release when the PAGE goes away — refresh, tab close, navigating off.
+   *
+   * React's unmount cleanup does not run for any of those, so before this the
+   * unit stayed held for the full 15 minutes every time someone reloaded the
+   * rent page. Over a round of testing that quietly ate the available list and
+   * made every later attempt meet "currently being held by another customer".
+   *
+   * "pagehide" rather than "beforeunload": it fires on mobile Safari and on
+   * bfcache navigations, where beforeunload does not. The cost is that going
+   * BACK to a bfcached page finds its hold released — the acquire effect just
+   * takes a new one, exactly as it does after an expiry.
+   *
+   * A completed rental has already cleared the hold, so nothing is handed back
+   * after the money has been taken.
+   */
+  useEffect(() => {
+    const onHide = () => {
+      const releaseContext = holdContextRef.current?.ctx;
+      if (releaseContext?.companyId && holdRef.current) {
+        releaseHoldOnUnload(releaseContext, holdRef.current);
+      }
+    };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
   }, []);
 
   useEffect(() => {
@@ -1205,16 +1286,18 @@ export function RentalFlow2Step({
      * The hold-aware effect owns the price in that case.
      */
     const runQuote = (
-      resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string } | undefined>,
+      resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string; spaceMixId?: string } | undefined>,
     ): Promise<void> => (adoptedHold
       ? // Still resolve the unit: it carries the space type the protection
         // plans narrow by, which the quote does not.
         resolveUnit.then((unit) => {
           if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
+          if (unit?.spaceMixId) resolvedSpaceMixRef.current = unit.spaceMixId;
         }).catch(() => {})
       : resolveUnit
       .then((unit) => {
         if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
+        if (unit?.spaceMixId) resolvedSpaceMixRef.current = unit.spaceMixId;
         return unit ? fetchMoveInQuote(ctx, unit) : undefined;
       })
       .then((q) => {
@@ -1243,8 +1326,10 @@ export function RentalFlow2Step({
           setSelection(result.selection);
           setSelectionStatus('matched');
         } else {
+          // spaceMixId from the resolved unit row: API 9 REQUIRES it, and
+          // this fallback runs exactly when /offers could not supply one.
           setSelection(unitIdProp
-            ? { unitId: unitIdProp, size: sizeProp ?? '' }
+            ? { unitId: unitIdProp, size: sizeProp ?? '', spaceMixId: resolvedSpaceMixRef.current }
             : fallback);
           setSelectionStatus(result.status);
         }
@@ -1252,8 +1337,9 @@ export function RentalFlow2Step({
       .catch((err) => {
         console.warn(`${logTag} offers selection unavailable:`, err);
         if (cancelled) return;
+        // Same reason as above: without spaceMixId, API 9 rejects the rental.
         setSelection(unitIdProp
-          ? { unitId: unitIdProp, size: sizeProp ?? '' }
+          ? { unitId: unitIdProp, size: sizeProp ?? '', spaceMixId: resolvedSpaceMixRef.current }
           : fallback);
         setSelectionStatus('network-error');
       });
@@ -1905,7 +1991,10 @@ export function RentalFlow2Step({
                     if (info.extras) setChosenSections(info.extras);
                     // The unit is LEASED now, so the hold is spent: forget it so
                     // the countdown stops and unmount does not try to release a
-                    // hold that no longer exists.
+                    // hold that no longer exists. Ref cleared by hand too —
+                    // setHold only reaches holdRef on the next render, and a
+                    // pagehide before that would release a leased unit's hold.
+                    holdRef.current = undefined;
                     setHold(undefined);
                     clearUnitSelection();
                     setFinalizing(info);
@@ -2022,6 +2111,14 @@ export function RentalFlow2Step({
               });
               setDateModalOpen(false);
               if (result.ok) {
+                // The reservation has consumed the hold, exactly as a lease
+                // does. Forget it so the navigation below cannot fire the
+                // pagehide release against a unit that is now reserved.
+                // The ref is cleared by hand as well: setHold only reaches
+                // holdRef on the next render, and the navigation below happens
+                // in this same tick.
+                holdRef.current = undefined;
+                setHold(undefined);
                 // Bind the confirmation to a one-time nonce: the payload (incl.
                 // PII + code) lives in sessionStorage; only the nonce is in the URL.
                 const nonce = stashConfirmation({
