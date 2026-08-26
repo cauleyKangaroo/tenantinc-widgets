@@ -52,3 +52,11 @@
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
+
+/* Dark swatch behind the inverted close button, so a white disc is visible. */
+.uik-onDark {
+  display: inline-flex;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--hb-text-night);
+}

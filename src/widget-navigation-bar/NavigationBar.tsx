@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './NavigationBar.css';
 import storelocalLogo from './Storelocal_logo.png';
+import { CloseCircleIcon } from '@shared/ui';
 import {
   ChevronDown,
   ChevronRight,
@@ -12,6 +13,12 @@ import {
   HamburgerIcon,
   PhoneCallIcon,
   CloseIcon,
+  SelfStorageIcon,
+  BusinessStorageIcon,
+  DriveUpIcon,
+  VehicleRvIcon,
+  MailboxIcon,
+  ClimateControlledIcon,
   EnvelopeIcon,
   MapPinIcon,
   LoginIcon,
@@ -823,7 +830,8 @@ export function NavigationBar({
               <img className="nav-mm-logo-img" src={logoSrc} alt="storelocal storage" />
             </a>
             <button className="nav-mm-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
-              <CloseIcon size={24} />
+              {/* Filled disc: .nav-mm-panel is #fff. */}
+              <CloseCircleIcon size={24} />
             </button>
           </div>
 

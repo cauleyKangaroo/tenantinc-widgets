@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { TagOutlineIcon, CloseIcon } from './icons';
+import { CloseCircleIcon } from '@shared/ui';
+import { TagOutlineIcon } from './icons';
 
 /**
  * Promotion disclaimer / fine-print modal (Figma 7158:80964).
@@ -63,7 +64,8 @@ export function DisclaimerModal({
             <span>{title}</span>
           </p>
           <button type="button" className="promo-modal-close" onClick={onClose} aria-label="Close">
-            <CloseIcon size={18} />
+            {/* Filled disc: .promo-modal is #ffffff. */}
+            <CloseCircleIcon size={18} />
           </button>
         </div>
         <div className="promo-modal-body">

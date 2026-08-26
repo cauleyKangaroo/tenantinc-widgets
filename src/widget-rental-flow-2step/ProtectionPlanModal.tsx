@@ -16,7 +16,7 @@
 
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { CloseIcon } from './icons';
+import { CloseCircleIcon } from '@shared/ui';
 import { FireGlyph, DropGlyph, EyeGlyph, WindGlyph, SnowGlyph, DownloadIcon } from './planIcons';
 
 /** The covered causes, in the design's order. */
@@ -112,7 +112,8 @@ export function ProtectionPlanModal({
         onClick={(e) => e.stopPropagation()}
       >
         <button type="button" className="rf-pp-close" onClick={onClose} aria-label="Close">
-          <CloseIcon size={18} />
+          {/* Filled disc: .rf-pp modal is #fff. */}
+          <CloseCircleIcon size={18} />
         </button>
 
         <PlanCoverageBody brochureUrl={brochureUrl} titleId="rf-pp-title" />

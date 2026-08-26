@@ -13,7 +13,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CloseIcon } from './icons';
+import { CloseCircleIcon } from '@shared/ui';
 import { RfCheckbox } from './RfCheckbox';
 
 /** Zoom limits for the document viewport. 1 = as rendered on the page. */
@@ -69,7 +69,8 @@ export function LeaseModal({
             Rental Agreement <span className="rf-req">*</span>
           </p>
           <button type="button" className="rf2-lease-close" onClick={onClose} aria-label="Close">
-            <CloseIcon size={14} />
+            {/* Filled disc: .rf2-lease is #f4f6f8. */}
+            <CloseCircleIcon size={14} />
           </button>
         </div>
 

@@ -7,7 +7,7 @@ import {
   type TierContext,
 } from './api';
 import { Shimmer } from '@shared/Shimmer';
-import { MoneyBreakdown, SummaryRail, formatPrice } from '@shared/ui';
+import { MoneyBreakdown, SummaryRail, formatPrice, CloseCircleIcon } from '@shared/ui';
 import { resolvePropertyId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import {
@@ -877,7 +877,11 @@ function TierModalHeader({ heading, subheading, urgency, adminFeeText, onClose }
             )}
           </div>
         )}
-        <button type="button" className="ts-modal-close" aria-label="Close" onClick={onClose}>&times;</button>
+        {/* Filled disc: the CSS drew this by hand (a #101318 ::before behind a
+            white &times;) — the icon is the same mark, 40px like that disc. */}
+        <button type="button" className="ts-modal-close" aria-label="Close" onClick={onClose}>
+          <CloseCircleIcon size={40} />
+        </button>
       </div>
     </div>
   );

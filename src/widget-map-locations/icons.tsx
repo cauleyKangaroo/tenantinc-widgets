@@ -64,18 +64,6 @@ export function FilterIcon(props: IconProps) {
   );
 }
 
-/** Close (mdiClose) — the modal's dismiss. Filled, 18×18 in a 32px hit area. */
-export function CloseIcon({ size = 18, className }: IconProps) {
-  return (
-    <svg
-      className={className} width={size} height={size} viewBox="0 0 18 18"
-      fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"
-    >
-      <path d="M18 1.81286L16.1871 0L9 7.18714L1.81286 0L0 1.81286L7.18714 9L0 16.1871L1.81286 18L9 10.8129L16.1871 18L18 16.1871L10.8129 9L18 1.81286Z" />
-    </svg>
-  );
-}
-
 /**
  * ai/ai-01 — the sparkle in the "Filter Spaces by…" search pill's dark button.
  * Three sparkles at different sizes; 20×20 artwork inset 12.5%.
@@ -105,21 +93,6 @@ export function ChevronDownIcon(props: IconProps) {
         d="M13.8103 1.58599C14.0392 1.26945 14.0629 0.84859 13.8708 0.508414C13.6788 0.168238 13.3062 -0.0289722 12.917 0.00346865C8.97915 0.33162 5.02086 0.331619 1.08305 0.00346813C0.69376 -0.0289726 0.321219 0.168238 0.129182 0.508414C-0.062856 0.84859 -0.0392306 1.26945 0.189675 1.58599C1.81746 3.837 3.72356 5.8566 5.85898 7.59304C6.52629 8.13567 7.47372 8.13567 8.14103 7.59304C10.2764 5.8566 12.1825 3.837 13.8103 1.58599Z"
       />
     </Frame>
-  );
-}
-
-/**
- * Clear (mdiCloseCircle) — the × on a SELECTED feature pill, which removes it.
- * Filled circle with a knocked-out cross, so it reads on the dark pill.
- */
-export function ClearCircleIcon({ size = 20, className }: IconProps) {
-  return (
-    <svg
-      className={className} width={size} height={size} viewBox="0 0 20 20"
-      fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"
-    >
-      <path d="M10 0C15.53 0 20 4.47 20 10C20 15.53 15.53 20 10 20C4.47 20 0 15.53 0 10C0 4.47 4.47 0 10 0ZM13.59 5L10 8.59L6.41 5L5 6.41L8.59 10L5 13.59L6.41 15L10 11.41L13.59 15L15 13.59L11.41 10L15 6.41L13.59 5Z" />
-    </svg>
   );
 }
 

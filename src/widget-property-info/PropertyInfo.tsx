@@ -14,9 +14,10 @@ import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
   MapPinIcon, MapPinSolidIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
-  CloseIcon, CloseSolidIcon, LightboxChevron,
+  LightboxChevron,
 } from './icons';
 import { MessageModal } from '@shared/components/MessageModal';
+import { CloseCircleIcon } from '@shared/ui';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -543,7 +544,8 @@ export function PropertyInfo(props: Props) {
         <div className="pi-hours-head">
           <span className="pi-hours-title"><ClockIcon size={24} /><span>Hours</span></span>
           <button type="button" className="pi-hours-close" aria-label="Close" onClick={() => setHoursOpen(false)}>
-            <CloseIcon size={18} />
+            {/* Filled disc: the hours panel is on a white card. */}
+            <CloseCircleIcon size={18} />
           </button>
         </div>
         <div className="pi-hours-body">
@@ -586,7 +588,8 @@ export function PropertyInfo(props: Props) {
         aria-label="Close gallery"
         onClick={(e) => { e.stopPropagation(); setLightbox(false); }}
       >
-        <CloseSolidIcon size={24} />
+        {/* Outlined ring: .pi-lightbox is rgba(0,0,0,.88). */}
+        <CloseCircleIcon outlined size={24} />
       </button>
       <span className="pi-lb-arrow pi-lb-arrow--prev" role="button" tabIndex={0} aria-label="Previous photo"
         onClick={(e) => { e.stopPropagation(); prev(); }}>

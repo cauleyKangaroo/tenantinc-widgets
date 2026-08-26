@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './UtilityBar.css';
+import { CloseCircleIcon } from '@shared/ui';
 import { InfoIcon, CloseIcon } from './icons';
 
 // ---------------------------------------------------------------------------
@@ -190,7 +191,8 @@ export function UtilityBar({
             <div className="ub-close-wrap">
               {showClose && (
                 <button className="ub-close" onClick={handleClose} aria-label="Close">
-                  <CloseIcon size={20} />
+                  {/* Outlined ring: .ub-bar is #000, so the white-on-dark treatment. */}
+                  <CloseCircleIcon outlined size={20} />
                 </button>
               )}
             </div>
