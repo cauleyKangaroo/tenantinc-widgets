@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './RentalFlow2Step.css';
-import { Step2 } from './Step2';
+import { Step2, type AutopayMode } from './Step2';
 import {
   fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
@@ -29,7 +29,7 @@ import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
 import { FormField, Button, DateModal, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
-import { resolvePropertyId } from '@shared/propertyBinding';
+import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 
 const startOfToday = () => {
@@ -94,6 +94,22 @@ export interface RentalFlow2StepProps {
    *  per instance like #14 (bound → Company collection → config), never hardcoded. */
   propertyId?: string;
   companyId?: string;
+  /**
+   * The property's autopay treatment, from the content panel's
+   * `enrollmentAutoCheck` radio: optional | required | preselected.
+   *
+   * `required` is the always-enrolled frame — no checkbox at all, the terms at
+   * the foot of the section and the consent on the pay button — which the
+   * component calls `default`, so it is mapped rather than renamed: the radio's
+   * words are the editor's, and "required" reads better than "default" beside
+   * the other two in a Duda panel.
+   *
+   * The fourth treatment, the card processing fee, has no option here — it
+   * describes a fee the property charges rather than how enrolment is offered,
+   * so it will come from Hummingbird, not this radio. Until either arrives the
+   * demo picker in step 2 covers all four.
+   */
+  autopay?: string;
   /** Tier's group id from the value-tiers handoff (?unitGroupId=) — the proxy
    *  reserve route needs it for the ownership check. */
   unitGroupId?: string;
@@ -648,6 +664,7 @@ function readConfirmationPayload(inEditor: boolean): ConfirmationData | undefine
 }
 
 export function RentalFlow2Step({
+  autopay,
   logoImage,
   logoUrl,
   eyebrow = 'Great choice!',
@@ -710,6 +727,19 @@ export function RentalFlow2Step({
   const where = [siteId && `site ${siteId}`, elementId && `element ${elementId}`]
     .filter(Boolean).join(', ');
   const logTag = `[RentalFlow2Step${where ? ` ${where}` : ''}${inEditor ? ' (editor)' : ''}]`;
+
+  /* The radio's three words to the component's four modes. `boundText` throws
+     away an unsubstituted {{token}} and Duda's empty-string default, so an
+     unset field falls through to undefined and the demo picker stays — rather
+     than an empty string quietly selecting a mode nobody chose. */
+  const autopayMode: AutopayMode | undefined = (() => {
+    switch (boundText(autopay).toLowerCase()) {
+      case 'required': return 'default';
+      case 'preselected': return 'preselected';
+      case 'optional': return 'optional';
+      default: return undefined;
+    }
+  })();
 
   // Global Payments PUBLIC key — tokenization only; it cannot charge or read.
   const gpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
@@ -1764,6 +1794,7 @@ export function RentalFlow2Step({
           />
         ) : (
           <Step2
+            autopayMode={autopayMode}
             moveIn={moveIn}
             // Everything step 1 already asked for, so step 2 opens filled in.
             contact={contact}

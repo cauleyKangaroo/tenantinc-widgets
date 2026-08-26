@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
@@ -151,11 +151,19 @@ export interface RentalExtras {
 /** Desktop pointer devices only — mirrored by a @media block in the CSS. */
 const PLAN_HOVER_QUERY = '(min-width: 901px) and (hover: hover) and (pointer: fine)';
 
+/** The four autopay treatments a property can be configured with. */
+export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
+
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey,
+  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode,
 }: {
   moveIn: Date;
+  /**
+   * The property's autopay treatment, from Hummingbird. Unset shows a small
+   * demo picker so all four can be reviewed — pass a value and it disappears.
+   */
+  autopayMode?: AutopayMode;
   /** Protection plans to choose between, already narrowed to the space type
    *  being rented. Empty → the "confirmed at checkout" note, which now means
    *  the property has no coverage products configured for that type. */
@@ -221,7 +229,46 @@ export function Step2({
   const [vehicle, setVehicle] = useState(false);
 
   const [agree, setAgree] = useState(false);
-  const [autopay, setAutopay] = useState(false);
+  /**
+   * Which autopay treatment this property uses.
+   *
+   *   default      always enrolled. No checkbox at all — the terms sit at the
+   *                foot of the section and the pay button carries the consent
+   *                ("Agree & Pay"). Figma 11940-18784.
+   *   optional     an unticked checkbox and nothing else. 11940-18948's base.
+   *   preselected  ticked, with a blue bar attached under it arguing for
+   *                staying enrolled. 11940-18948.
+   *   fee          unticked, with a separate blue box below stating the card
+   *                processing fee. 11940-18880.
+   *
+   * Comes from the content panel's `enrollmentAutoCheck` radio, mapped in
+   * RentalFlow2Step. Falling back to `optional` matches that radio's own
+   * default, so an instance saved before the field existed behaves as it did.
+   */
+  const mode: AutopayMode = autopayMode ?? 'optional';
+  /* With no checkbox to tick, the pay button is where the shopper accepts the
+     recurring charge — so it says so. undefined elsewhere, leaving the forms'
+     own "Pay Now $X". */
+  /* One month on from the move-in, which is what the terms below name. Built
+     from `moveIn` rather than today: a shopper booking three weeks out is not
+     billed a month from now. */
+  const nextBillingDate = useMemo(() => {
+    const d = new Date(moveIn);
+    d.setMonth(d.getMonth() + 1);
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }, [moveIn]);
+
+  const agreeLabel = mode === 'default' && payNowTotal != null
+    ? `Agree & Pay ${payNowTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`
+    : undefined;
+
+  /* Ticked to begin with for the two modes whose frames show it ticked. Keyed
+     on `mode` so the demo picker re-seeds it, which is the whole point of the
+     picker. `default` is enrolled and cannot be turned off. */
+  const [autopay, setAutopay] = useState(mode === 'default' || mode === 'preselected');
+  useEffect(() => {
+    setAutopay(mode === 'default' || mode === 'preselected');
+  }, [mode]);
   // "Learn More" coverage card (Figma 8509-36480). The plan CARD in the page is
   // API-driven (see `plan`); this is the explanatory content behind it.
   //
@@ -592,7 +639,12 @@ export function Step2({
         {/* Payment */}
         <section className="rf2-panel rf2-payment">
           <span className="rf2-h">Payment</span>
-          <div className={`rf2-autopay${autopay ? ' rf2-autopay--on' : ''}`}>
+          {/* `default` is always enrolled, so it has no control at all — the
+              terms move to the foot of the section and the pay button carries
+              the consent. The other three keep the checkbox. */}
+          {mode !== 'default' && (
+          <div className={`rf2-autopay${autopay ? ' rf2-autopay--on' : ''}${mode === 'preselected' ? ' rf2-autopay--withbar' : ''}`}>
+            <div className="rf2-autopay-head">
             <Check checked={autopay} onChange={setAutopay}>
               <span className="rf2-autopay-label">Autopay Enrollment</span>
             </Check>
@@ -614,7 +666,26 @@ export function Step2({
                 </span>
               )}
             </span>
+            </div>
+            {/* Attached, INSIDE the box (11940-18948) — where the fee notice
+                below is a separate box. One argues for a choice the shopper is
+                making here; the other states a fact about the whole payment. */}
+            {mode === 'preselected' && (
+              <p className="rf2-autopay-bar">
+                <InfoIcon size={20} className="rf2-autopay-bar-ico" />
+                Stay enrolled to make sure you get the best price available.
+              </p>
+            )}
           </div>
+          )}
+
+          {mode === 'fee' && (
+            <p className="rf2-autopay-note">
+              <InfoIcon size={20} className="rf2-autopay-bar-ico" />
+              A processing fee of 2.5% will be added to all payments made on a card.
+              No fee for ACH bank transfer.
+            </p>
+          )}
           {/* Wallets always sit at the top. The two method buttons only share
               that grid while NEITHER is open — once one is, the open panel
               takes their place and the other method moves below it
@@ -673,9 +744,9 @@ export function Step2({
               {formLoading ? (
                 <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
               ) : payMethod === 'card' ? (
-                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} />
+                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} payLabel={agreeLabel} />
               ) : (
-                <BankForm total={payNowTotal ?? 0} onPay={() => payStatically()} />
+                <BankForm total={payNowTotal ?? 0} onPay={() => payStatically()} payLabel={agreeLabel} />
               )}
             </section>
           )}
@@ -692,6 +763,22 @@ export function Step2({
             >
               {payMethod === 'card' ? 'Pay by Bank' : 'Credit / Debit'}
             </Button>
+          )}
+
+          {/* Always-on autopay states its terms here instead of behind a
+              tooltip on a checkbox that no longer exists (11940-18784). Last in
+              the section, below every payment method, because it governs all of
+              them rather than the one that happens to be open. */}
+          {mode === 'default' && (
+            <p className="rf2-autopay-terms">
+              Your next monthly rent payment is due on {nextBillingDate}, and will recur monthly
+              thereafter. Rental rates are subject to change in accordance with your Rental
+              Agreement and applicable law. To avoid the next month&rsquo;s charge, you must
+              complete your move-out before your next billing date. You may initiate a move-out
+              through your account or by contacting the facility. By entering a payment method,
+              you accept these terms and authorize recurring automatic payments using your
+              selected payment method.
+            </p>
           )}
 
         </section>
