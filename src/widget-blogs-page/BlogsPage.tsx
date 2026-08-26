@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './BlogsPage.css';
-import { CloseCircleIcon } from '@shared/ui';
+import { CloseCircleIcon } from '@shared/ui/icons';
 import { ShareIcon, FilterHorizontalIcon, SearchIcon } from './icons';
 import { BLOG_IMAGES, cover } from '@shared/demoImages';
 import { Breadcrumb } from '@shared/Breadcrumb';

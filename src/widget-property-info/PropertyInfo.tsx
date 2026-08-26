@@ -17,7 +17,7 @@ import {
   LightboxChevron,
 } from './icons';
 import { MessageModal } from '@shared/components/MessageModal';
-import { CloseCircleIcon } from '@shared/ui';
+import { CloseCircleIcon } from '@shared/ui/icons';
 
 // ---------------------------------------------------------------------------
 // Types + demo data

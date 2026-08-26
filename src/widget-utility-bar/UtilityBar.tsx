@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './UtilityBar.css';
-import { CloseCircleIcon } from '@shared/ui';
+import { CloseCircleIcon } from '@shared/ui/icons';
 import { InfoIcon, CloseIcon } from './icons';
 
 // ---------------------------------------------------------------------------
