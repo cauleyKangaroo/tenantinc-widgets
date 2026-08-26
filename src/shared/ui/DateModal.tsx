@@ -122,7 +122,7 @@ export interface DateModalProps {
 
 export function DateModal({
   open, onClose, selected, onSelect, onConfirm,
-  title = 'Confirm your Move-In Date',
+  title = 'Select your Move-In Date',
   ctaLabel = 'Rent Today',
   busy = false,
   minDate,
@@ -170,6 +170,19 @@ export function DateModal({
   const m0 = floor.getMonth();
   const nextYear = m0 === 11 ? y0 + 1 : y0;
   const nextMonth = m0 === 11 ? 0 : m0 + 1;
+
+  /*
+   * Draw the second month only if anything in it can be picked.
+   *
+   * A day is selectable when it falls inside [minDate, maxDate], so the whole
+   * of next month is dead exactly when its FIRST day is already past maxDate.
+   * Rendering it anyway gave the shopper a grid of greyed-out numbers to scan
+   * before finding there was nothing there.
+   *
+   * .hb-datemodal-cals already centres its children, so dropping the second one
+   * centres the first with no rule of its own.
+   */
+  const showNextMonth = !maxDate || new Date(nextYear, nextMonth, 1) <= startOfDay(maxDate);
 
   const overlay = (
     <div className="hb-datemodal-overlay" onMouseDown={onClose}>
@@ -231,8 +244,10 @@ export function DateModal({
             </div>
           ) : (
             <div className="hb-datemodal-cals">
-              <MonthCalendar year={y0} month={m0} selected={selected} minDate={floor} onSelect={onSelect} />
-              <MonthCalendar year={nextYear} month={nextMonth} selected={selected} minDate={floor} onSelect={onSelect} />
+              <MonthCalendar year={y0} month={m0} selected={selected} minDate={floor} maxDate={maxDate} onSelect={onSelect} />
+              {showNextMonth && (
+                <MonthCalendar year={nextYear} month={nextMonth} selected={selected} minDate={floor} maxDate={maxDate} onSelect={onSelect} />
+              )}
             </div>
           )}
           <div className="hb-datemodal-cta">

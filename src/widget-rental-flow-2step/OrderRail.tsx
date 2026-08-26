@@ -104,7 +104,7 @@ export function OrderRail({
               showTotal={false}
             />
             <div className="ts-bd-row ts-bd-row--total">
-              <span className="ts-bd-total-label">{estimate ? 'Estimated Move-In Total:' : 'Total Cost to Move-In:'}</span>
+              <span className="ts-bd-total-label">{estimate ? 'Estimated Move-In Total:' : 'Total Paid to Move-In:'}</span>
               <span className="ts-bd-total-amt">${quote.totalDue.toFixed(2)}</span>
             </div>
             {estimate && (
@@ -118,7 +118,7 @@ export function OrderRail({
           <>
             <p className="ts-bd-note">{railMoneyNote(!!selection, quoteFailed)}</p>
             <div className="ts-bd-row ts-bd-row--total">
-              <span className="ts-bd-total-label">Total Cost to Move-In:</span>
+              <span className="ts-bd-total-label">Total Paid to Move-In:</span>
               <span className="ts-bd-total-amt">—</span>
             </div>
           </>

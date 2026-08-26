@@ -1402,6 +1402,15 @@
 .rfc-info-ico { flex: 0 0 auto; color: var(--hb-text-night, #101318); }
 .rfc-info-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .rfc-info-row--top { align-items: flex-start; gap: 10px; }
+/* Address and phone: hidden on desktop, kept on mobile.
+   The summary rail beside this card already carries both, so on desktop they
+   are the same two facts twice, a column apart. On mobile that rail is a
+   collapsed sheet behind a tap, so here is the only place they are readable.
+   Keyed off .rf-wrapper--mobile — the widget's own JS-measured breakpoint, the
+   same one that decides whether the rail is a column or a sheet — rather than
+   a width guess that could disagree with it. */
+.rfc-info-row--dup { display: none; }
+.rf-wrapper--mobile .rfc-info-row--dup { display: flex; }
 /* .rfc-details-qualified for SPECIFICITY: this is a <p>, and the generic
    `.rfc-details p { font-weight: 400 }` below is (0,1,1) against a bare class's
    (0,1,0) — so the facility name was rendering regular no matter what this

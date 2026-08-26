@@ -260,8 +260,14 @@ export function Confirmation({
           </div>
 
           <div className="rfc-details">
+            {/* Address and phone are DESKTOP-HIDDEN: the summary rail beside
+                this card already carries both, and repeating them a column
+                apart reads as a mistake. On mobile the rail is a collapsed
+                sheet the shopper has to open, so they stay. Hidden in CSS
+                rather than unmounted — the widths are a container query, and
+                this is one card that must not re-render to change shape. */}
             {(propertyName || propertyAddress) && (
-              <div className="rfc-info-row rfc-info-row--top">
+              <div className="rfc-info-row rfc-info-row--top rfc-info-row--dup">
                 <MapPinGlyph size={24} className="rfc-info-ico" />
                 <div>
                   {propertyName && <p className="rfc-info-strong">{propertyName}</p>}
@@ -279,7 +285,7 @@ export function Confirmation({
               </div>
             )}
             {facilityPhone && (
-              <div className="rfc-info-row">
+              <div className="rfc-info-row rfc-info-row--dup">
                 <PhoneGlyph size={24} className="rfc-info-ico" />
                 <a className="rfc-info-link" href={`tel:${facilityPhone.replace(/\D/g, '')}`}>{facilityPhone}</a>
               </div>

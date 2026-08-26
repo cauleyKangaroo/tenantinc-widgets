@@ -393,6 +393,12 @@ export function Step2({
           <FieldAbove label={business ? 'Business Email' : 'Email'} required value={email} onChange={setEmail} type="email" error={bad('email')} />
           <FieldAbove label={business ? 'Business Phone' : 'Phone Number'} required value={phone} onChange={setPhone} type="tel" phoneCountry="US" error={bad('phone')} />
         </div>
+        {/* Where step 2 comes to rest. The shopper filled their contact details
+            in step 1, so landing on them again is a screen of finished work;
+            the protection plan below is the decision actually being asked for.
+            Marked here rather than measured from the top of the form, so it
+            follows the field if the layout changes. */}
+        <span data-rf2-rest aria-hidden="true" />
         {business ? (
           <FieldAbove label="Business Name" required value={bizName} onChange={setBizName} error={bad('bizName')} />
         ) : (
@@ -544,7 +550,7 @@ export function Step2({
                 post-purchase screen, which opens the matching sections already
                 ticked. Choosing here, filling there. */}
             <Check checked={military} onChange={setMilitary}>I am active military</Check>
-            <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
+            <Check checked={altContact} onChange={setAltContact}>I want to provide an alternate contact</Check>
             <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
           </div>
         </section>
