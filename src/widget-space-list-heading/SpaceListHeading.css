@@ -3,16 +3,26 @@
 /* ---------------------------------------------------------------------------
    Widget #18 — Space List Heading
 
-   A COPY of #05's .sl-page-title rules, not an import: each widget is its own
-   AMD bundle and cannot reach another's stylesheet. The class names are shared
-   deliberately so the two headings render identically — if the type changes in
-   SpaceList.css, change it here too.
+   A COPY of #05's title rules, not an import: each widget is its own AMD
+   bundle and cannot reach another's stylesheet.
+
+   The class names are this widget's OWN (`slh-`), NOT #05's. Both widgets sit
+   on the same page, so a shared class name is not a shared rule — it is a
+   collision: `.sl-wrapper` carries `min-height: 600px` over there, and while
+   this widget used that name it inherited a 600px box from a stylesheet it
+   does not contain. If the title's type changes in SpaceList.css, change it
+   here too.
    --------------------------------------------------------------------------- */
 
 .slh-wrapper {
   font-family: 'Montserrat', sans-serif;
+  display: block;
   width: 100%;
   box-sizing: border-box;
+  /* This widget is ONE heading. Nothing here may reserve height beyond the
+     text — Duda auto-sizes the app element from what it measures, so a stray
+     min-height or a tall child becomes a tall section. */
+  min-height: 0;
   /* No vertical padding: the gap to whatever sits under this — on mobile, the
      promotions widget — is the editor's to set in Duda, and a margin here would
      add to it. The side gutter matches #05's own so the heading lines up with
@@ -31,7 +41,7 @@
    so every property the theme touches has to be answered or the heading loses
    the cascade on a published page — invisible in the dev harness, which has no
    such rules. Same fight #02 documents in NavigationBar.css. */
-.slh-wrapper .sl-page-title {
+.slh-wrapper .slh-title {
   font-family: 'Montserrat', sans-serif !important;
   font-size: 30px !important;
   font-weight: 700 !important;
@@ -47,10 +57,33 @@
   overflow-wrap: break-word;
 }
 
+/* The loading state. Exactly the height of the line it stands in for — 30px
+   of text on a 1.3 leading — so the box Duda measures does not change when the
+   real heading arrives. */
+.slh-skeleton {
+  height: 39px;
+  max-width: 420px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #eef1f4 25%, #e3e8ec 37%, #eef1f4 63%);
+  background-size: 400% 100%;
+  animation: slh-shimmer 1.4s ease infinite;
+}
+@keyframes slh-shimmer {
+  from { background-position: 100% 50%; }
+  to   { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slh-skeleton { animation: none; }
+}
+
 @media (max-width: 1149px) {
   .slh-wrapper { padding: 0 24px; }
-  .slh-wrapper .sl-page-title {
-    font-size: 22px !important;
-    text-align: center !important;
+  /* 18px and left-aligned. #05's own mobile heading is 22px centred; this one
+     is asked to sit tighter and read as the start of the page rather than a
+     title over it. */
+  .slh-wrapper .slh-title {
+    font-size: 18px !important;
+    text-align: left !important;
   }
+  .slh-skeleton { height: 23px; }
 }
