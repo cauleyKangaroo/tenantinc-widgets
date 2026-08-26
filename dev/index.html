@@ -127,6 +127,7 @@
           <select id="nav-demo-portfolio" onchange="reinitNavigationBar()">
             <option value="full">Full (many facilities)</option>
             <option value="small">3 facilities (map frame)</option>
+            <option value="one-state">One state (no state column)</option>
           </select>
         </label>
       </div>
@@ -378,6 +379,10 @@
             style="width: 100px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;"
             oninput="reinitNearby()" />
         </label>
+        <label style="display: flex; align-items: center; gap: 6px;">
+          <input id="nl-value-tiers" type="checkbox" onchange="reinitNearby()" />
+          Value tiers on Select
+        </label>
       </div>
       <label style="display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px;">
         <input id="nl-mock-collections" type="checkbox" onchange="toggleCollectionsMock(this.checked)" />
@@ -401,6 +406,13 @@
         unless you are looking at #07.
         <br />
         <strong>Max properties</strong> empty = the whole portfolio.
+        <br />
+        <strong>Value tiers on Select</strong> — routes a card's Select through #14 exactly as
+        #05 does: it emits on <code>tierBus</code> and the modal on this page opens for
+        <em>that card's</em> facility (#14 adopts the emitted <code>propertyId</code> rather than
+        being scoped to the page's). With no #14 mounted the click falls through to the rental
+        page and logs why. Off ⇒ Select goes straight to <code>/rental</code> with the tier in
+        localStorage.
       </p>
     </div>
   </div>
@@ -676,6 +688,12 @@
       <div class="controls">
         <div class="controls-group">
           <span class="controls-group-label">Search widget</span>
+          <label>Layout:
+            <select id="hs-layout" onchange="reinitHomepageSearch()" style="padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
+              <option value="search-bar">Layout 1 — Search bar</option>
+              <option value="promo-card">Layout 2 — Promo card</option>
+            </select>
+          </label>
           <label>Search URL:
             <input id="hs-search-url" type="text" value="/property-landing-page--value-tiers-test" style="width:260px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
           </label>
@@ -697,6 +715,18 @@
           </label>
           <label>Accent color:
             <input id="hs-accent" type="text" placeholder="(theme --color_2 / red)" style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Card heading:
+            <input id="hs-card-heading" type="text" value="Find Storage Near Me" style="width:190px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Promotion:
+            <input id="hs-promotion" type="text" value="$1 Summer Move-In" style="width:175px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Final line:
+            <input id="hs-promotion-suffix" type="text" value="Special" style="width:100px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          </label>
+          <label>Promo disclaimer:
+            <input id="hs-promotion-disclaimer" type="text" value="*All new rentals are subject to a $30 Admin Fee. Other fees like coverage may apply, select a space to see price details." style="width:360px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
           </label>
         </div>
       </div>
@@ -736,8 +766,8 @@
        `hasCollectionsApi()` true for EVERY widget on the page, which switches off
        the demo fallbacks that assume its absence — the mega menu's demo location
        tree and its star ratings, in particular, go empty because this mock does
-       not serve those collections. Turn it on to look at #07, off for anything
-       else.
+       not serve those collections. Turn it on to look at #07 (or #13's
+       route-driven footer column), off for anything else.
 
        Values are wrapped in `<p class="rteBlock">` on purpose: `PropertiesInternal`
        and `Company` are NATIVE collections on a real site, so this is the shape
@@ -795,7 +825,65 @@
         })
       };
 
+      // The site's page tree, as `dmAPI.getNavItemsAsync()` returns it — a
+      // DIFFERENT dmAPI surface from the collections one above (no collection is
+      // involved; it is the Pages panel's own structure). This is what #13's
+      // footer reads to build its first two columns from the pages under
+      // /company-information and /storage-types, and there is no other way to
+      // see that locally.
+      // Shapes copied from Duda's Live Site JS Reference: relative `path`, a
+      // `visible` flag that is respective to the DEVICE, `subNav` nesting up to
+      // three page levels. "Careers" is visible:false on purpose — a page hidden
+      // from the NAV, which the footer lists anyway (that is what a footer column
+      // is for) unless skipHiddenPages is set.
+      var NAV_ITEMS = [
+        { title: 'Home', alias: 'home', uuid: 'p-home', path: 'home', visible: true, subNav: [] },
+        { title: 'Company Information', alias: 'company-information', uuid: 'p-ci',
+          path: 'company-information', visible: true, subNav: [
+            { title: 'Why Choose Storage Outlet', alias: 'why-choose-storage-outlet', uuid: 'p-ci-1',
+              path: 'company-information/why-choose-storage-outlet', visible: true, subNav: [] },
+            { title: 'Supplies', alias: 'supplies', uuid: 'p-ci-2',
+              path: 'company-information/supplies', visible: true, subNav: [] },
+            { title: 'Tenant Protection Plan', alias: 'tenant-protection-plan', uuid: 'p-ci-3',
+              path: 'company-information/tenant-protection-plan', visible: true, subNav: [] },
+            { title: 'Careers', alias: 'careers', uuid: 'p-ci-4',
+              path: 'company-information/careers', visible: false, subNav: [] },
+            // A third page level, to prove the column flattens it rather than
+            // dropping it.
+            { title: 'Legal', alias: 'legal', uuid: 'p-ci-5',
+              path: 'company-information/legal', visible: true, subNav: [
+                { title: 'SMS Terms', alias: 'sms-terms', uuid: 'p-ci-5a',
+                  path: 'company-information/legal/sms-terms', visible: true, subNav: [] },
+                { title: 'Privacy Policy and Terms', alias: 'privacy-policy-and-terms', uuid: 'p-ci-5b',
+                  path: 'company-information/legal/privacy-policy-and-terms', visible: true, subNav: [] },
+                { title: 'Accessibility', alias: 'accessibility', uuid: 'p-ci-5c',
+                  path: 'company-information/legal/accessibility', visible: true, subNav: [] }
+              ] }
+          ] },
+        { title: 'Storage Types', alias: 'storage-types', uuid: 'p-st',
+          path: 'storage-types', visible: true, subNav: [
+            { title: 'Climate Controlled Storage', alias: 'climate-controlled-storage', uuid: 'p-st-1',
+              path: 'storage-types/climate-controlled-storage', visible: true, subNav: [] },
+            { title: 'Car, RV Boat Storage', alias: 'car-rv-boat-storage', uuid: 'p-st-2',
+              path: 'storage-types/car-rv-boat-storage', visible: true, subNav: [] },
+            { title: 'Business Storage', alias: 'business-storage', uuid: 'p-st-3',
+              path: 'storage-types/business-storage', visible: true, subNav: [] },
+            { title: 'Drive up Storage', alias: 'drive-up-storage', uuid: 'p-st-4',
+              path: 'storage-types/drive-up-storage', visible: true, subNav: [] },
+            { title: 'Wine Storage', alias: 'wine-storage', uuid: 'p-st-5',
+              path: 'storage-types/wine-storage', visible: true, subNav: [] }
+          ] },
+        // The dynamic property pages are ONE entry here — the template — never
+        // one per collection row. See the note in @shared/sitePages.
+        { title: 'Storage Units', alias: 'storage-units', uuid: 'p-su',
+          path: 'storage-units', visible: true, subNav: [] }
+      ];
+
       window.dmAPI = {
+        getNavItemsAsync: function () {
+          console.log('[harness dmAPI] getNavItemsAsync → ' + NAV_ITEMS.length + ' top-level pages');
+          return Promise.resolve(NAV_ITEMS);
+        },
         loadCollectionsAPI: function () {
           return Promise.resolve({
             data: function (name) {
@@ -811,6 +899,49 @@
         }
       };
       console.log('[harness dmAPI] collections mock ON (?mockCollections=1)');
+    })();
+  </script>
+
+  <!-- ── OPT-IN Duda navigation mock (?mockNav=1) ────────────────────────────
+       Serves `dmAPI.getNavItemsAsync()` — the site page/navigation tree #02 reads
+       for its page-driven sections (Storage Types, Resources, Size Guide, Blog).
+       Separate flag from mockCollections so it adds ONLY getNavItemsAsync: that
+       keeps `hasCollectionsApi()` false, so the mega menu's demo tree and star
+       ratings still work. The `visible:false` row proves Hide-in-navigation
+       filtering; child aliases match navigationMapper's icon map. -->
+  <script>
+    (function () {
+      if (new URLSearchParams(location.search).get('mockNav') !== '1') return;
+      var page = function (title, alias, path, visible, subNav) {
+        return { title: title, alias: alias, path: path, visible: visible !== false, subNav: subNav || [] };
+      };
+      var NAV = [
+        page('Home', 'home', '/', true),
+        // Find Storage stays custom (Properties-driven); listed to show the mapper ignores it.
+        page('Find Storage', 'find-storage', '/find-storage', true),
+        page('Storage Types', 'storage-types', '/storage-types', true, [
+          page('Self Storage', 'self-storage', '/storage-types/self-storage', true),
+          page('Business Storage', 'business-storage', '/storage-types/business-storage', true),
+          page('Drive-Up Access', 'drive-up-access', '/storage-types/drive-up-access', true),
+          page('Vehicle & RV Storage', 'vehicle-rv-storage', '/storage-types/vehicle-rv-storage', true),
+          page('Mailboxes', 'mailboxes', '/storage-types/mailboxes', true),
+          page('Climate Controlled Storage', 'climate-controlled-storage', '/storage-types/climate-controlled', true),
+          page('Hidden Type (should NOT show)', 'hidden-type', '/storage-types/hidden', false)
+        ]),
+        page('Resources', 'resources', '/resources', true, [
+          page('Storage Tips', 'storage-tips', '/resources/storage-tips', true),
+          page('FAQ', 'faq', '/resources/faq', true),
+          page('About Us', 'about-us', '/resources/about-us', true)
+        ]),
+        page('Size Guide', 'size-guide', '/size-guide', true),
+        page('Blog', 'blog', '/blogs', true)
+      ];
+      window.dmAPI = window.dmAPI || {};
+      window.dmAPI.getNavItemsAsync = function () {
+        console.log('[harness dmAPI] getNavItemsAsync mock → ' + NAV.length + ' top-level items');
+        return Promise.resolve(NAV);
+      };
+      console.log('[harness dmAPI] nav mock ON (?mockNav=1)');
     })();
   </script>
 
@@ -1058,6 +1189,7 @@
         sortMode: document.getElementById('nl-sort-mode').value,
         radiusMiles: parseInt(document.getElementById('nl-radius').value, 10) || 0,
         maxProperties: isNaN(max) ? 0 : max,
+        enableValueTiers: document.getElementById('nl-value-tiers').checked,
       };
     }
 
@@ -1298,6 +1430,14 @@
         showStorageType: document.getElementById('hs-show-type').checked,
         storageTypes:   document.getElementById('hs-types').value,
         accentColor:    document.getElementById('hs-accent').value.trim() || undefined,
+        // Belongs here, not in getNavProps() where fd156c6 put it — `layout`
+        // is a homepage-search prop, so from the nav's object it never
+        // reached this widget and the selector did nothing.
+        layout:         document.getElementById('hs-layout').value,
+        cardHeading:    document.getElementById('hs-card-heading').value,
+        promotionText:  document.getElementById('hs-promotion').value,
+        promotionSuffix: document.getElementById('hs-promotion-suffix').value,
+        promotionDisclaimer: document.getElementById('hs-promotion-disclaimer').value,
       };
     }
 

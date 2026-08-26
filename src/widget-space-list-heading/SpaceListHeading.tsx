@@ -10,14 +10,18 @@
 // them is for the heading to BE a widget. Set #05's "Show heading" to off,
 // place this above it, and #06 between the two.
 //
-// It deliberately shares #05's class names (.sl-wrapper, .sl-page-title) and
-// copies its rules, so the two render identically. Each widget is its own AMD
-// bundle and cannot reach another's CSS, which is why the rules are duplicated
-// rather than imported — the same reason #06's disclaimer modal duplicates
-// #05's hours modal. If the title's type changes in one, change it in both.
+// EVERY class here is `slh-`. It briefly borrowed #05's `.sl-` names on the
+// theory that both would then be styled from one set of rules — which was
+// wrong twice over. Each widget is its own AMD bundle and cannot reach
+// another's CSS, so the rules had to be copied anyway; and both stylesheets
+// load on the SAME PAGE, where a class is global. `.sl-wrapper` carries
+// `min-height: 600px` in #05's sheet, so this widget inherited a 600px box
+// from a stylesheet it does not even contain. Its own names cannot collide.
+// The type is duplicated from #05's title — if it changes there, change it
+// here too.
 // ===========================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './SpaceListHeading.css';
 import cfg from './config.json';
 import { fetchProperties, extractPropertyExtras } from '../widget-space-list/propertyApi';
@@ -44,7 +48,34 @@ export function SpaceListHeading({
   propertyId,
   companyId,
 }: SpaceListHeadingProps) {
-  const effectivePropertyId = resolvePropertyId({ propertyId }, cfg.propertyId);
+  /**
+   * The id, when the content field cannot supply it.
+   *
+   * "Connect to data" on a content-menu field is the intended route, but it is
+   * not always offered for an external app — the open question CLAUDE.md
+   * records. A dynamic page WILL substitute handlebars in the widget's HTML
+   * tab, though, so a hidden token there is a second way in:
+   *
+   *     <span data-slh-property-id="{{propertyId}}" hidden></span>
+   *
+   * Read once on mount from this widget's own subtree — never the document, so
+   * two of these on one page cannot read each other's. boundText() throws away
+   * an unsubstituted `{{...}}`, so the tag being present but unfilled leaves us
+   * exactly where we started rather than searching for a property called
+   * "{{propertyId}}".
+   */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [domId, setDomId] = useState<string | undefined>();
+  useEffect(() => {
+    if (boundText(propertyId)) return;   // the prop already arrived
+    const host = rootRef.current?.closest('[data-slh-host]') ?? rootRef.current?.parentElement?.parentElement;
+    const tag = host?.querySelector('[data-slh-property-id]');
+    const raw = tag?.getAttribute('data-slh-property-id') ?? '';
+    const clean = boundText(raw);
+    if (clean) setDomId(clean);
+  }, [propertyId]);
+
+  const effectivePropertyId = resolvePropertyId({ propertyId: propertyId || domId }, cfg.propertyId);
 
   /* null while resolving. #05 holds the company the same way and waits for it
      before firing: starting from cfg.companyId and correcting later would ask
@@ -63,14 +94,14 @@ export function SpaceListHeading({
     if (!resolvedCompanyId) return undefined;
     let cancelled = false;
     // Trust-check only against a Duda-bound id; see resolveRequireId.
-    fetchProperties(resolveRequireId({ propertyId }, cfg.propertyId), resolvedCompanyId)
+    fetchProperties(resolveRequireId({ propertyId: propertyId || domId }, cfg.propertyId), resolvedCompanyId)
       .then((raw) => {
         if (cancelled) return;
         setPropertyName(extractPropertyExtras(raw, effectivePropertyId)?.name ?? null);
       })
       .catch((err) => console.error('[SpaceListHeading] fetchProperties error:', err));
     return () => { cancelled = true; };
-  }, [effectivePropertyId, resolvedCompanyId, propertyId]);
+  }, [effectivePropertyId, resolvedCompanyId, propertyId, domId]);
 
   /* Same precedence as #05's own title: an authored heading wins, else the
      property's live name, else the configured one — so the two never disagree
@@ -84,9 +115,22 @@ export function SpaceListHeading({
   const title = boundText(propertyHeader)
     || `Storage Units in ${propertyName || cfg.propertyName}`;
 
+  /* Nothing until the name is known.
+     The fallback below it is config.json's, which on this site names a
+     property of the OLD company — so rendering early flashed a heading for the
+     wrong facility and then swapped it. A skeleton reserves the same line
+     instead, and Duda measures a box that is already the right height. */
+  if (propertyName === null && !boundText(propertyHeader)) {
+    return (
+      <div className="slh-wrapper" ref={rootRef}>
+        <div className="slh-skeleton" aria-hidden="true" />
+      </div>
+    );
+  }
+
   return (
-    <div className="sl-wrapper slh-wrapper">
-      <h1 className="sl-page-title">{title}</h1>
+    <div className="slh-wrapper" ref={rootRef}>
+      <h1 className="slh-title">{title}</h1>
     </div>
   );
 }

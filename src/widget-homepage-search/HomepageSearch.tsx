@@ -3,6 +3,9 @@ import './HomepageSearch.css';
 import { fetchLocationTree } from '@shared/propertyNav';
 
 export interface HomepageSearchProps {
+  /** Operator-selectable presentation. `search-bar` is the original horizontal
+   *  control; `promo-card` is the white Figma promotional card. */
+  layout?: 'search-bar' | 'promo-card';
   /** Placeholder for the location input (Figma: "City, ZIP or Address"). */
   searchPlaceholder?: string;
   /** Find button label (desktop Figma: "Find Storage"). */
@@ -24,6 +27,14 @@ export interface HomepageSearchProps {
   locationsLabel?: string;
   /** Accent (button + locations bar). Defaults to the theme's --color_2, then red. */
   accentColor?: string;
+  /** Layout-2 card heading. */
+  cardHeading?: string;
+  /** Layout-2 accent promotion copy; wraps naturally to the available width. */
+  promotionText?: string;
+  /** Layout-2 final promotion line, rendered in black. */
+  promotionSuffix?: string;
+  /** Layout-2 legal/disclosure copy below the promotion. */
+  promotionDisclaimer?: string;
   /** Recent resolved city searches kept on this device (0 disables, max 5). */
   historyLimit?: number;
   inEditor?: boolean;
@@ -71,6 +82,7 @@ function Chevron() {
 }
 
 export function HomepageSearch({
+  layout = 'search-bar',
   searchPlaceholder = 'City, ZIP or Address',
   ctaLabel = 'Find Storage',
   storageTypes = DEFAULT_TYPES,
@@ -81,6 +93,10 @@ export function HomepageSearch({
   locationsCount = 29,
   locationsLabel = 'See our {n} Locations',
   accentColor,
+  cardHeading = 'Find Storage Near Me',
+  promotionText = '$1 Summer Move-In',
+  promotionSuffix = 'Special',
+  promotionDisclaimer = '*All new rentals are subject to a $30 Admin Fee. Other fees like coverage may apply, select a space to see price details.',
   historyLimit = 5,
   inEditor,
   siteId,
@@ -215,14 +231,17 @@ export function HomepageSearch({
 
   const style = accentColor ? ({ ['--hs-accent']: accentColor } as React.CSSProperties) : undefined;
   const locationsText = locationsLabel.replace('{n}', String(locationsCount));
+  const promoCard = layout === 'promo-card';
 
   return (
     <div
-      className="hs"
+      className={`hs hs--${layout}`}
       style={style}
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSuggestionsOpen(false); }}
     >
-      <form className="hs-bar" onSubmit={(e) => { e.preventDefault(); if (href) findRef.current?.click(); }}>
+      <div className={promoCard ? 'hs-card' : 'hs-search-layout'}>
+        {promoCard && <h2 className="hs-card-heading">{cardHeading}</h2>}
+        <form className="hs-bar" onSubmit={(e) => { e.preventDefault(); if (href) findRef.current?.click(); }}>
         <div className="hs-field">
           <input
             className="hs-input"
@@ -279,10 +298,10 @@ export function HomepageSearch({
           <span className="hs-find-label">{ctaLabel}</span>
           <SearchIcon />
         </a>
-      </form>
+        </form>
 
-      {suggestionsOpen && visibleSuggestions.length > 0 && (
-        <ul className="hs-suggestions" id={suggestionsId} role="listbox" aria-label="Cities we serve">
+        {suggestionsOpen && visibleSuggestions.length > 0 && (
+          <ul className="hs-suggestions" id={suggestionsId} role="listbox" aria-label="Cities we serve">
           {!q.trim() && <li className="hs-history-head" role="presentation"><span>Recent searches</span><button type="button" onClick={clearHistory}>Clear</button></li>}
           {visibleSuggestions.map((city, index) => (
             <li key={`${city.label}-${city.href}`} role="presentation">
@@ -299,10 +318,18 @@ export function HomepageSearch({
               </button>
             </li>
           ))}
-        </ul>
-      )}
+          </ul>
+        )}
 
-      {q.trim() && !match && !citySuggestions.length && <p className="hs-error" role="status">No matching city, ZIP, or address found.</p>}
+        {q.trim() && !match && !citySuggestions.length && <p className="hs-error" role="status">No matching city, ZIP, or address found.</p>}
+
+        {promoCard && (
+          <div className="hs-promotion">
+            <p className="hs-promotion-title"><span>{promotionText}</span><strong>{promotionSuffix}</strong></p>
+            {promotionDisclaimer && <p className="hs-promotion-disclaimer">{promotionDisclaimer}</p>}
+          </div>
+        )}
+      </div>
 
       {locationsHref && (
         <a className="hs-locations" href={locationsHref}>{locationsText}</a>
