@@ -1841,6 +1841,15 @@
    same reason as the size above: .hb-money is shared with #14. */
 .rf-wrapper .hb-money { gap: 6px; }
 
+/* The rail's "#SPACE16 | 8' x 6'" heading, 24px -> 21px, to buy the row
+   beneath it room on a narrow screen. Scoped to .rf-wrapper for the same
+   reason as the two rules above — SummaryRail is shared with #14, which also
+   carries its OWN .ts-card-size at 24px in TierSelection.css. Editing the
+   component's rule would have set the two copies fighting on source order in
+   #14's bundle; a (0,2,0) scope cannot reach #14 at all.
+   Keep the Shimmer in RentalFlow2Step.tsx in step: it reserves 21 * 1.2. */
+.rf-wrapper .ts-card-size { font-size: 21px; }
+
 /* ── The rail hero's address never wraps ──────────────────────────────────
    One line, ellipsised. "10326 Foster Rd.,, Bellflower, CA 90706" is long
    enough to take two lines in a 422px rail and most of three in the mobile

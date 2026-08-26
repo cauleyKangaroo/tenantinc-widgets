@@ -289,9 +289,11 @@ function RailSkeleton() {
             and less than it measures in every other case. */}
         <div className="ts-card-top">
           <div className="ts-card-top-left">
-            {/* .ts-card-size is 24px/1.2. No sub-line and no amenity rows below
-                it: both are slices of `selection.features`, routinely empty. */}
-            <Shimmer w={152} h={29} r={4} />
+            {/* .ts-card-size is 21px/1.2 here — see the .rf-wrapper override
+                in RentalFlow2Step.css; the component's own rule is 24px. No
+                sub-line and no amenity rows below it: both are slices of
+                `selection.features`, routinely empty. */}
+            <Shimmer w={152} h={25} r={4} />
           </div>
           <div className="ts-card-top-right">
             {/* .ts-card-prices is a flat 50px in BOTH the single-price and the
