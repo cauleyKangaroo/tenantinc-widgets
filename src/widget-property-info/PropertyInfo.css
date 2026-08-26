@@ -191,6 +191,37 @@
   padding: 0;
   cursor: pointer;
   display: block;
+  /* pan-y is what lets the page still scroll under a drag: the browser keeps
+     vertical gestures and hands us horizontal ones, so nothing has to be
+     cancelled from JS and a vertical flick is never swallowed. */
+  touch-action: pan-y;
+}
+
+/* Every slide side by side; the transform picks which one is showing. The
+   transition is what carries it the rest of the way after the finger lifts —
+   it is switched off from JS for the duration of the drag, so while the
+   finger is down the track tracks it exactly. */
+.pi-gallery-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+}
+.pi-gallery-slide {
+  position: relative;   /* .pi-gallery-img is inset:0 against THIS, not the frame */
+  flex: 0 0 100%;
+  height: 100%;
+}
+/* Chrome and Safari start a native image drag on mousedown, which cancels the
+   pointer stream mid-gesture and leaves the track stranded. */
+.pi-gallery-track img {
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pi-gallery-track { transition: none; }
 }
 
 .pi-gallery-img {
