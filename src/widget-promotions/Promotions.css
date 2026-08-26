@@ -496,6 +496,15 @@ img.promo-banner-img {
     flex-basis: 100%;
     padding: 30px;
   }
+
+  /* ONE placeholder here, not the two SKELETON_BARS draws. The rule above
+     gives every bar flex-basis: 100%, which on a phone stacks the pair
+     vertically — but the real carousel shows a single bar per slide at this
+     width, so the second one promises a row that never arrives and the block
+     halves in height the moment the fetch lands. The count stays 2 in the TSX
+     because that is still right above 560px.
+     (0,3,0), so it clears the [data-cols='N'] rules it has to beat. */
+  .promo-bars--skeleton .promo-bar--skeleton:not(:first-child) { display: none; }
   .promo-bars[data-cols='3'] .promo-bar-title,
   .promo-bars[data-cols='4'] .promo-bar-title { font-size: clamp(20px, 5vw, 34px); }
 
