@@ -975,7 +975,18 @@ export function RentalFlow2Step({
   const holdContextRef = useRef<{ key: string; ctx: RentalCtx } | undefined>(undefined);
 
   useEffect(() => {
-    if (step !== 2 || !quote || hold || holdExpired) return;
+    /*
+     * `rental` is in this guard because the success path calls
+     * setHold(undefined) — correct, the hold is spent once the unit is leased
+     * and the countdown must stop — but that clears the `hold` term above and
+     * re-opens this effect while step is still 2. It then tried to hold the
+     * unit it had just leased, took a 409 "This unit is currently leased", and
+     * went off hunting for a replacement (findUnitForSelection +
+     * fetchMoveInQuote) behind the confirmation. That search was the delay
+     * after Pay Now, and on a slow list it could re-point the rail at some
+     * other unit after the money had already been taken.
+     */
+    if (step !== 2 || !quote || hold || holdExpired || rental) return;
     if (inEditor) {
       console.log(`${logTag} editor mode — real unit hold suppressed`);
       return;
@@ -1016,7 +1027,7 @@ export function RentalFlow2Step({
       }
     })();
     return () => { cancelled = true; };
-  }, [step, quote, hold, holdExpired, selection, inEditor, logTag, ctx, insuranceId, moveIn]);
+  }, [step, quote, hold, holdExpired, rental, selection, inEditor, logTag, ctx, insuranceId, moveIn]);
 
   /**
    * Quote the HELD unit.
