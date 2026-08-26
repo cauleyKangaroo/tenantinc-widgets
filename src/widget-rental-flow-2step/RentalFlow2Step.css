@@ -825,6 +825,15 @@
 .rf2-doc-h { margin: 0 0 6px; font-size: 12px; font-weight: 700; font-style: italic; color: #101318; }
 .rf2-doc-p { margin: 0 0 10px; font-size: 11px; line-height: 1.5; color: #45505c; }
 .rf2-agree-bar { display: flex; align-items: center; gap: 8px; padding: 16px 24px; cursor: pointer; }
+/* Box to the TOP, not centred on a sentence that wraps to two or three lines
+   on a phone. Scoped to .rf-wrapper for specificity, not for sharing: the row
+   carries the kit's .hb-check as well, which sets align-items: center at the
+   same (0,1,0) as .rf2-agree-bar — whichever stylesheet happened to load last
+   would win. (0,2,0) settles it either way.
+   No nudge needed to sit on the first line: .hb-check__box is 18px with a 3px
+   margin and the text's line-height is 18px, so the box lands 3px into an
+   18px line and reads as centred against it. */
+.rf-wrapper .rf2-agree-bar { align-items: flex-start; }
 .rf2-agree-text { font-size: 16px; line-height: 18px; color: #101318; }
 .rf2-agree-text b { font-weight: 600; }
 
@@ -1892,6 +1901,9 @@
    disagree by a hair at exactly 640; for a font size that is harmless.) */
 @media (max-width: 640px) {
   .rf-wrapper .ts-card-change { font-size: 14px; }
+  /* "I agree to the terms..." 16px -> 14px. Line-height stays 18px, which is
+     what keeps the top-aligned checkbox sitting on the first line. */
+  .rf2-agree-text { font-size: 14px; }
 }
 
 /* ── The rail hero's address never wraps ──────────────────────────────────
@@ -2082,11 +2094,26 @@
   -webkit-overflow-scrolling: touch;
   background: #fff;
   box-shadow: 0 8px 12px rgba(71, 84, 116, 0.16);
+  /* SLIDES down out of the bar rather than being unveiled in place. The wrap
+     above is overflow: hidden, so at -100% the sheet sits entirely above the
+     opening and travels down into it while the wrap's max-height grows.
+     Same duration and curve as that max-height on purpose: the content's
+     bottom edge and the bar riding on it have to arrive together, or the bar
+     appears to detach from the sheet on the way down.
+     The max-height alone could not do this — it moves the OPENING, not the
+     content, which is why the card used to appear from its top edge with
+     every line already in its final place. */
+  transform: translateY(-100%);
+  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
+.rfm-sheet-wrap--open .rfm-sheet { transform: translateY(0); }
 @media (prefers-reduced-motion: reduce) {
   /* No curtain to wait out, so nothing to delay — the wrap would otherwise
      stay visible for 280ms after close with nothing animating. */
   .rfm-sheet-wrap { transition: none; }
+  /* Sits where it lands, no travel. Closed it is still clipped by the wrap's
+     max-height: 0, so dropping the offset cannot leak the sheet. */
+  .rfm-sheet { transition: none; transform: none; }
 }
 /* The rail is built for a 422px desktop column; inside the sheet it has to fit
    a 393px phone, so everything that carried a fixed width goes fluid rather

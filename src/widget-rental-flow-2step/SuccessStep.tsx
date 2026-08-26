@@ -388,12 +388,18 @@ export function SuccessStep({ onGetAccess, chosen }: {
           </div>
           <div className="rf-sx-idv-instore-aside">
             <p className="rf-sx-idv-strong">Changed your mind?</p>
+            {/* Two-line label (Figma 11940-47763, whose text is the sibling
+                11940-47764 drawn over it): a regular lede above the bold
+                action. Both lines are the button's own content, not a caption
+                beside it — the green CTA is 286x49 and the text box sits
+                inside it. */}
             <button
               type="button"
-              className="rf-sx-btn rf-sx-btn--solid"
+              className="rf-sx-btn rf-sx-btn--solid rf-sx-btn--stack"
               onClick={() => { setIdv('choose'); setIdvModal(true); }}
             >
-              Verify ID Now
+              <span className="rf-sx-btn-lede">Save time and skip the office!</span>
+              <span className="rf-sx-btn-main">Verify ID Now</span>
             </button>
           </div>
         </section>
