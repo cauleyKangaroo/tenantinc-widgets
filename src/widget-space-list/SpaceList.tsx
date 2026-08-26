@@ -78,6 +78,7 @@ export function SpaceList({
   instorePriceMode = 'percentOfWeb',
   instorePriceAmount = 0,
   enablePromoLogic = false,
+  enablePromoPricing,
   // Dynamic-page bindings — see types.ts and @shared/propertyBinding.
   propertyId,
   companyId,
@@ -193,7 +194,10 @@ export function SpaceList({
     })(),
     // Duda toggles can arrive as the strings 'true'/'false', so coerce rather than
     // trusting truthiness ('false' is truthy).
-    enablePromoLogic: enablePromoLogic === true || enablePromoLogic === 'true',
+    // Either name turns it on. The Duda panel field is enablePromoPricing and
+    // that is what the JS tab forwards; enablePromoLogic is the original prop.
+    enablePromoLogic: [enablePromoLogic, enablePromoPricing]
+      .some((v) => v === true || v === 'true'),
     contactPhone: propertyExtras?.phones[0]?.number ?? '',
     facilityName: propertyExtras?.name ?? '',
   };
