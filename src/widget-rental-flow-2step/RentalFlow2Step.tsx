@@ -997,7 +997,10 @@ export function RentalFlow2Step({
       let result = await holdUnit(ctx, { id: quote.unitId, number: quote.unitNumber });
       if (result.ok === false && result.reason === 'conflict' && !cancelled) {
         console.warn(`${logTag} unit already held — re-picking:`, result.detail);
-        const other = await findUnitForSelection(ctx, selection?.size, selection?.price ?? quote.rent, true); // fresh list — cached one contains the 409'd unit
+        // fresh list — the cached one still contains the 409'd unit. The type is
+        // passed so the replacement is the same kind of space, not merely the
+        // same size.
+        const other = await findUnitForSelection(ctx, selection?.size, selection?.price ?? quote.rent, true, unitTypeId);
         if (other && other.id !== quote.unitId && !cancelled) {
           const q = await fetchMoveInQuote(ctx, other);
           if (q && !cancelled) {

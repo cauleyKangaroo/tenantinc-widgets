@@ -647,19 +647,44 @@ async function getJsonV1(path: string, fresh = false): Promise<unknown> {
 }
 
 /** First Available storage unit matching the selection's size (and price when known). */
-export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?: number, fresh = false): Promise<{ id: string; number?: string; unitTypeId?: string } | undefined> {
+export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?: number, fresh = false, unitTypeId?: string): Promise<{ id: string; number?: string; unitTypeId?: string } | undefined> {
   const data = unwrap(await getJsonV1(`companies/${ctx.companyId}/properties/${ctx.propertyId}/units/available`, fresh));
   const units = (data?.units as ApiUnitRow[] | undefined) ?? [];
   const wantSize = size ? size.toLowerCase().replace(/[^0-9x.]/g, '') : undefined;
+  /*
+   * NO FILTER ON `u.type`.
+   *
+   * This used to require `(u.type ?? 'storage') === 'storage'`, which threw
+   * away every unit whose row says `commercial_storage` — and on this property
+   * that is ALL of them bar four:
+   *
+   *   10x10  commercial_storage  15 units
+   *   12x12  commercial_storage   1 unit
+   *     9x9  storage              4 units
+   *
+   * So a shopper on any size but 9x9 whose unit had to be re-picked found no
+   * candidate at all and met "We couldn't secure this space", with fifteen
+   * identical units sitting free.
+   *
+   * `type` is the wrong key regardless: it is the one field whose wording
+   * disagrees across endpoints — the row says `commercial_storage` where the
+   * space-type and coverage endpoints both say `Commercial`. `unit_type_id` is
+   * the join key everywhere, so that is what narrows below, as a PREFERENCE
+   * rather than a filter: the size is what the shopper actually chose.
+   */
   const candidates = units.filter((u) =>
     u.state === 'Available'
-    && (u.type ?? 'storage') === 'storage'
     && (!wantSize || unitDims(u) === wantSize),
   );
   if (!candidates.length) return undefined;
+  // Same space type as the one being replaced, when we know it — a preference,
+  // not a filter, so an unknown or unmatched type still yields a unit of the
+  // right size rather than nothing.
+  const sameType = unitTypeId ? candidates.filter((u) => u.unit_type_id === unitTypeId) : [];
+  const pool = sameType.length ? sameType : candidates;
   // Exact price match ties the unit to the clicked tier; else cheapest of the size.
-  const exact = price != null ? candidates.find((u) => u.price === price) : undefined;
-  const pick = exact ?? candidates.sort((a, b) => (a.price ?? 1e9) - (b.price ?? 1e9))[0];
+  const exact = price != null ? pool.find((u) => u.price === price) : undefined;
+  const pick = exact ?? pool.slice().sort((a, b) => (a.price ?? 1e9) - (b.price ?? 1e9))[0];
   return { id: pick.id, number: pick.number, unitTypeId: pick.unit_type_id };
 }
 
