@@ -142,7 +142,13 @@
 .ub-close {
   background: transparent;
   border: none;
-  padding: 4px;
+  /* No padding, and the box IS the mark: 4px around a 20px icon drew a 28px
+     button. The 40px .ub-close-wrap still sets the track, so the spacer that
+     balances it is untouched and the message stays centred. */
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
   margin: 0;
   cursor: pointer;
   color: #fff;
@@ -319,7 +325,10 @@
   }
 
   .ub-close-wrap {
-    flex-basis: 28px;
+    /* 32, not 28: the mark is the same 32 here as on desktop and a 28px track
+       would squeeze it. The spacer is display:none at this width, so widening
+       the track cannot pull the message off centre. */
+    flex-basis: 32px;
   }
 
   .ub-tooltip {

@@ -191,8 +191,12 @@ export function UtilityBar({
             <div className="ub-close-wrap">
               {showClose && (
                 <button className="ub-close" onClick={handleClose} aria-label="Close">
-                  {/* Outlined ring: .ub-bar is #000, so the white-on-dark treatment. */}
-                  <CloseCircleIcon outlined size={20} />
+                  {/* Outlined ring: .ub-bar is #000, so the white-on-dark
+                      treatment. 32 desktop and mobile, and it is the icon's own
+                      32 FRAME rather than a scaled 52: `outlined` picks the
+                      ring per size (stroke 2 / inset 1 at 32, stroke 3 / inset
+                      1.5 at 52), and `size <= 32` is the switch. */}
+                  <CloseCircleIcon outlined size={32} />
                 </button>
               )}
             </div>
