@@ -1001,6 +1001,17 @@ export function RentalFlow2Step({
      cannot supply a selection. API 9 requires the field, so the fallback
      selection needs a source that does not depend on the offers call. */
   const resolvedSpaceMixRef = useRef<string | undefined>(undefined);
+  /*
+   * The unit's display number, from the unit row.
+   *
+   * Needed as its own source since the hold moved to arrival: the hold used to
+   * be handed quote.unitNumber, but on arrival there is no quote yet, so the
+   * hold carried no number and "#111" disappeared from the rail — and would
+   * have been missing from the confirmation too. The ref feeds the hold call
+   * without putting this in the effect's dependencies; the state feeds render.
+   */
+  const [resolvedUnitNumber, setResolvedUnitNumber] = useState<string | undefined>(undefined);
+  const resolvedUnitNumberRef = useRef<string | undefined>(undefined);
   const holdContextRef = useRef<{ key: string; ctx: RentalCtx } | undefined>(undefined);
 
   useEffect(() => {
@@ -1050,7 +1061,30 @@ export function RentalFlow2Step({
     (async () => {
       try {
       setPayError(undefined);
-      let result = await holdUnit(ctx, { id: targetUnitId, number: quote?.unitNumber });
+      /*
+       * Read the unit's own row BEFORE holding it.
+       *
+       * A held unit DISAPPEARS from units/available, and that list is the only
+       * source for its display number, space_mix_id and space type. Holding on
+       * arrival therefore hid the very row the rest of the flow needs: the rail
+       * lost "#111", and documents/finalize was rejected with
+       * '"space_mix_id" is required'.
+       *
+       * Skipped when the offers response has already supplied them.
+       */
+      if (!resolvedUnitNumberRef.current || !resolvedSpaceMixRef.current) {
+        const info = await fetchUnitInfo(ctx, targetUnitId);
+        if (info.number) {
+          resolvedUnitNumberRef.current = info.number;
+          if (!cancelled) setResolvedUnitNumber(info.number);
+        }
+        if (info.spaceMixId) resolvedSpaceMixRef.current = info.spaceMixId;
+        if (info.unitTypeId) {
+          unitTypeIdRef.current = info.unitTypeId;
+          if (!cancelled) setUnitTypeId(info.unitTypeId);
+        }
+      }
+      let result = await holdUnit(ctx, { id: targetUnitId, number: quote?.unitNumber ?? resolvedUnitNumberRef.current });
       if (result.ok === false && result.reason === 'conflict' && !cancelled) {
         console.warn(`${logTag} unit already held — re-picking:`, result.detail);
         // fresh list — the cached one still contains the 409'd unit. The type is
@@ -1344,11 +1378,13 @@ export function RentalFlow2Step({
         resolveUnit.then((unit) => {
           if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
           if (unit?.spaceMixId) resolvedSpaceMixRef.current = unit.spaceMixId;
+          if (unit?.number) { resolvedUnitNumberRef.current = unit.number; if (!cancelled) setResolvedUnitNumber(unit.number); }
         }).catch(() => {})
       : resolveUnit
       .then((unit) => {
         if (!cancelled && unit?.unitTypeId) setUnitTypeId(unit.unitTypeId);
         if (unit?.spaceMixId) resolvedSpaceMixRef.current = unit.spaceMixId;
+        if (unit?.number) { resolvedUnitNumberRef.current = unit.number; if (!cancelled) setResolvedUnitNumber(unit.number); }
         return unit ? fetchMoveInQuote(ctx, unit) : undefined;
       })
       .then((q) => {
@@ -1743,7 +1779,7 @@ export function RentalFlow2Step({
           : 'error';
 
   const realUnitNumber = rental?.unitNumber ?? hold?.unitNumber
-    ?? railQuote?.unitNumber ?? railSelection?.unitNumber;
+    ?? railQuote?.unitNumber ?? railSelection?.unitNumber ?? resolvedUnitNumber;
   const unitNumberLabel = realUnitNumber ? `#${realUnitNumber}` : undefined;
 
   // ONE aside for the whole flow. Steps 1, 2 and 3 show the same order — the
@@ -2022,7 +2058,9 @@ export function RentalFlow2Step({
                     // PAN here to read a brand from.
                   },
                   startDate: start,
-                  spaceMixId: selection?.spaceMixId,
+                  // Falls back to the unit row captured before the hold —
+                  // API 9 REQUIRES this, and /offers cannot always supply it.
+                  spaceMixId: selection?.spaceMixId ?? resolvedSpaceMixRef.current,
                   billDay: quote.billDay,
                   // Non-prorated monthly rate. The quote's own rent is the
                   // authority; the tier price is the fallback.
