@@ -1850,6 +1850,18 @@
    Keep the Shimmer in RentalFlow2Step.tsx in step: it reserves 21 * 1.2. */
 .rf-wrapper .ts-card-size { font-size: 21px; }
 
+/* "Change Space", 16px -> 14px on a phone. Same .rf-wrapper scope and the same
+   reason as the heading above: .ts-card-change is shared with #14, which keeps
+   its own 16px copy in TierSelection.css, so a (0,2,0) scope is what keeps the
+   two apart.
+   640px is MOBILE_BP in RentalFlow2Step.tsx — the width the rail stops being a
+   column and becomes the bottom bar with this card inside its dropdown. (The
+   JS measures the WRAPPER and the query measures the viewport, so they can
+   disagree by a hair at exactly 640; for a font size that is harmless.) */
+@media (max-width: 640px) {
+  .rf-wrapper .ts-card-change { font-size: 14px; }
+}
+
 /* ── The rail hero's address never wraps ──────────────────────────────────
    One line, ellipsised. "10326 Foster Rd.,, Bellflower, CA 90706" is long
    enough to take two lines in a 422px rail and most of three in the mobile
