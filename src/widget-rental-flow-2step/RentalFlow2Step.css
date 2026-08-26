@@ -432,6 +432,12 @@
 
 /* ═══ Step 2 — "Secure your space now" ═══════════════════════════════════ */
 .rf2-h { font-size: 20px; font-weight: 700; color: #101318; }
+/* 18px on a phone. One rule covers every step-2 section heading — .rf2-h is
+   the only rf2-h* class there is. 640px is MOBILE_BP in RentalFlow2Step.tsx,
+   the same width the rail collapses at. */
+@media (max-width: 640px) {
+  .rf2-h { font-size: 18px; }
+}
 .rf2-link {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 16px; color: #101318; text-decoration: underline; cursor: pointer;
@@ -933,6 +939,32 @@
   /* Elevation / 2 - Dropdown, both layers. */
   box-shadow: 0 1.5px 2px -1px rgba(0, 0, 0, 0.5), 0 1px 2px 1px rgba(11, 11, 11, 0.05);
 }
+
+/* ── On a phone the tooltip spans the row, not the icon ───────────────────
+   The (i) follows the end of "Autopay Enrollment" rather than sitting at a
+   known edge (.rf2-autopay-head is a plain flex row with an 8px gap, no
+   space-between), so it lands roughly 215px into a 393px screen. A 200px box
+   growing right from `left: 50%` of that runs off the right edge — and simply
+   flipping it to `right: 0` would run off the LEFT on a narrower phone or a
+   shorter translation of the label. Either way the overflow depends on where
+   the icon happens to be.
+
+   So stop anchoring to the icon: make the anchor static and position the box
+   against the row instead, edge to edge. The row is already inside the card's
+   padding, so the tooltip cannot reach either side of the screen whatever the
+   label does. It sits above the row rather than over it, hence bottom rather
+   than the desktop rule's bottom: 50%. */
+@media (max-width: 640px) {
+  .rf2-tip-anchor { position: static; }
+  .rf2-autopay-head { position: relative; }
+  .rf2-tip {
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
+    width: auto;
+  }
+}
+
 .rf2-paygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 /* With a panel open the grid holds only the two wallets, and the relocated
    method button sits outside it, full width, below the panel. */
@@ -1840,6 +1872,27 @@
 /* 6px between the line items, down from the component's 10px. Scoped for the
    same reason as the size above: .hb-money is shared with #14. */
 .rf-wrapper .hb-money { gap: 6px; }
+
+/* The rail's "#SPACE16 | 8' x 6'" heading, 24px -> 21px, to buy the row
+   beneath it room on a narrow screen. Scoped to .rf-wrapper for the same
+   reason as the two rules above — SummaryRail is shared with #14, which also
+   carries its OWN .ts-card-size at 24px in TierSelection.css. Editing the
+   component's rule would have set the two copies fighting on source order in
+   #14's bundle; a (0,2,0) scope cannot reach #14 at all.
+   Keep the Shimmer in RentalFlow2Step.tsx in step: it reserves 21 * 1.2. */
+.rf-wrapper .ts-card-size { font-size: 21px; }
+
+/* "Change Space", 16px -> 14px on a phone. Same .rf-wrapper scope and the same
+   reason as the heading above: .ts-card-change is shared with #14, which keeps
+   its own 16px copy in TierSelection.css, so a (0,2,0) scope is what keeps the
+   two apart.
+   640px is MOBILE_BP in RentalFlow2Step.tsx — the width the rail stops being a
+   column and becomes the bottom bar with this card inside its dropdown. (The
+   JS measures the WRAPPER and the query measures the viewport, so they can
+   disagree by a hair at exactly 640; for a font size that is harmless.) */
+@media (max-width: 640px) {
+  .rf-wrapper .ts-card-change { font-size: 14px; }
+}
 
 /* ── The rail hero's address never wraps ──────────────────────────────────
    One line, ellipsised. "10326 Foster Rd.,, Bellflower, CA 90706" is long

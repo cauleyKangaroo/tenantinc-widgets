@@ -264,9 +264,23 @@ function PropertyCard({
         )}
 
         {compact ? (
-          <button type="button" className="ml-cta">
-            Units starting at {facility.priceLabel}
-          </button>
+          /* Goes to the property page — the same propertyHref "See All Spaces"
+             uses on the wide card. It was a bare <button> with no handler, so
+             the one control the mobile card offers did nothing at all.
+
+             Unlike "See All Spaces" it cannot simply be dropped when the row
+             has no slug: collapsing the unit rows makes this the ONLY place a
+             mobile card shows its price. So it degrades to a plain <span>
+             carrying the same text and no click affordance. */
+          propertyHref ? (
+            <a className="ml-cta" href={propertyHref}>
+              Units starting at {facility.priceLabel}
+            </a>
+          ) : (
+            <span className="ml-cta ml-cta--static">
+              Units starting at {facility.priceLabel}
+            </span>
+          )
         ) : (
           <>
             <div className="ml-units">

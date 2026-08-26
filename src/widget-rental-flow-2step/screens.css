@@ -748,9 +748,9 @@
    containment, which puts it OUTSIDE `#dm` — a different cascade, where the
    theme's own un-scoped rules land on it and `#dm`-scoped ones do not. An
    `svg { width: ... }` anywhere in that sheet beats a width ATTRIBUTE, which is
-   how an 18px mark ends up drawn smaller here than the identical 18px mark in
-   #03. Pinned in CSS so the size is ours either way; 18 in a 32px button is
-   exactly what .pi-msg-close does.
+   how a mark ends up drawn smaller here than the identical mark in #03. Pinned
+   in CSS so the size is ours either way; 32 filling a 32px button is exactly
+   what .pi-msg-close does, which now carries the same pin for the same reason.
 
    Same fight #02 documents in NavigationBar.css, and invisible in the dev
    harness — there is no theme sheet there to lose to. */
@@ -759,8 +759,8 @@
 }
 .rf-idm .rf-modal-close svg {
   flex: 0 0 auto;
-  width: 18px !important;
-  height: 18px !important;
+  width: 32px !important;
+  height: 32px !important;
 }
 .rf-idm .rf-modal-title svg {
   width: 24px !important;

@@ -1067,33 +1067,32 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
 .ts-modal-close {
   position: relative;
   top: -4px;
-  width: 48px;
-  height: 48px;
-  flex: 0 0 48px;
+  /* 52px desktop, 32px in the 640px block below — the icon's own two Figma
+     sizes. The SVG fills the box, so box and mark are one number in each. */
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: transparent;
-  color: #fff;
   border: 0;
   padding: 0;
-  font-family: Arial, sans-serif;
-  font-size: 38px;
-  font-weight: 300;
-  line-height: 1;
+  /* The Arial/38px/#fff type here drew the old hand-rolled "×". The mark is an
+     SVG now and inherits none of it. */
   cursor: pointer;
   z-index: 3;
 }
-.ts-modal-close::before {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  z-index: -1;
-  border-radius: 50%;
-  background: #101318;
-}
-.ts-modal-close:hover { color: #fff; }
-.ts-modal-close:hover::before { background: #000; }
+/* Pinned, not left to the SVG's width ATTRIBUTE. This modal is portalled to
+   <body>, so it renders OUTSIDE Duda's `#dm` — the cascade where the theme's
+   un-scoped `svg { width: ... }` rules land on it and an attribute loses. Same
+   guard and same reason as .rf-idm .rf-modal-close svg in the rental flow. */
+.ts-modal-close svg { flex: 0 0 auto; width: 52px !important; height: 52px !important; }
+/* The disc is the icon's own <rect> now. A #101318 ::before used to draw one
+   behind the text "×"; it was invisible only while the icon happened to match
+   it at 40px, and would have ringed the 32px mark and been clipped by the
+   52px one. Hover re-fills that rect instead of the pseudo. */
+.ts-modal-close:hover svg rect { fill: #000; }
 .ts-modal-close:focus-visible { outline: 3px solid #101318; outline-offset: 2px; border-radius: 50%; }
 /* Editor-only placeholder for a closed modal (invisible on the live site) so it
    can be selected and configured in the Duda editor. */
@@ -1153,7 +1152,8 @@ a.ts-o2-select { display: flex; align-items: center; justify-content: center; }
   /* Keep the close control out of the mobile message row. Previously it sat
      after the centered metadata, which pushed it down and made its position
      vary as urgency/admin copy appeared or disappeared. */
-  .ts-modal-close { position: absolute; top: 12px; right: 12px; }
+  .ts-modal-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; flex: 0 0 32px; }
+  .ts-modal-close svg { width: 32px !important; height: 32px !important; }
   .ts-modal-meta { align-items: center; text-align: center; width: auto; flex: 1 1 auto; min-width: 0; padding-top: 0; }
   /* Defensive: an operator-set heading can't blow up the fixed header height —
      clamp to two lines and break unbreakable strings. Ordinary titles are

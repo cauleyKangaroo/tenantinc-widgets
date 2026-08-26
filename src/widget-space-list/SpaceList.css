@@ -1166,6 +1166,16 @@
      participant in .sl-wrapper's flex column exactly as it is on desktop. */
   /* !important to clear the base guard above — equal specificity, so this wins
      on source order, but only if it is guarded too. */
+  /* HIDDEN on mobile — #18 widget-space-list-heading draws it instead, so that
+     #06 promotions can sit between the heading and the filter bar. Both are
+     inside this widget's own layout, so there is no Duda row between them to
+     drop a widget into; the only way to get one there is for the heading to be
+     a widget of its own.
+     767px is THE boundary: #18 shows from 767 down and hides from 768 up, so
+     there is never a width with two headings or none. Change one, change both.
+     The type below is kept for the same reason the markup is: `showHeading`
+     can put this heading back, and it should look right when it does. */
+  .sl-wrapper .sl-heading { display: none !important; }
   .sl-wrapper .sl-page-title {
     font-size: 22px !important;
     text-align: center !important;

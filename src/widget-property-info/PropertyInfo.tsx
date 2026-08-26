@@ -17,7 +17,7 @@ import {
   LightboxChevron,
 } from './icons';
 import { MessageModal } from '@shared/components/MessageModal';
-import { CloseCircleIcon } from '@shared/ui';
+import { CloseCircleIcon } from '@shared/ui/icons';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -588,8 +588,14 @@ export function PropertyInfo(props: Props) {
         aria-label="Close gallery"
         onClick={(e) => { e.stopPropagation(); setLightbox(false); }}
       >
-        {/* Outlined ring: .pi-lightbox is rgba(0,0,0,.88). */}
-        <CloseCircleIcon outlined size={24} />
+        {/* Outlined ring: .pi-lightbox is rgba(0,0,0,.88).
+            52 and 32 are the icon's two Figma frames, and the SIZE PROP picks
+            between them rather than CSS: the ring is inset 1.5 at stroke 3 on
+            the 52 but 1 at stroke 2 on the 32, so it is chosen per size, not
+            scaled. Rendering the 52 at 32px through CSS would give a 1.85px
+            ring instead of 2px. Same 768px boundary as .pi-lb-close's own
+            width/height below, so the box and the mark can never disagree. */}
+        <CloseCircleIcon outlined size={isMobileViewport ? 32 : 52} />
       </button>
       <span className="pi-lb-arrow pi-lb-arrow--prev" role="button" tabIndex={0} aria-label="Previous photo"
         onClick={(e) => { e.stopPropagation(); prev(); }}>

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { CloseCircleIcon } from '@shared/ui';
+import { CloseCircleIcon } from '@shared/ui/icons';
 import { TagOutlineIcon } from './icons';
 
 /**

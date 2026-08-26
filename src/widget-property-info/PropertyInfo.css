@@ -613,8 +613,11 @@ span.pi-lb-img {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  /* 52px desktop / 32px mobile — the icon's own two Figma sizes, and the SVG
+     fills the box exactly. The 768px switch is duplicated in the JSX, which
+     picks the matching size prop; change one, change both. */
+  width: 52px;
+  height: 52px;
   padding: 0;
   border: none;
   border-radius: 50%;
@@ -679,6 +682,11 @@ span.pi-lb-img {
    Anything added for these two later belongs in here, not up there. */
 @media (max-width: 900px) {
   .pi-lb-close { top: 28px; right: 28px; }
+}
+@media (max-width: 768px) {
+  /* Matches MOBILE_STICKY_QUERY, which is what the JSX switches the size prop
+     on — the box and the mark have to change at the same width. */
+  .pi-lb-close { width: 32px; height: 32px; }
 }
 @media (max-width: 560px) {
   /* 70px is a fifth of a phone's width in from each edge — the mark ended up

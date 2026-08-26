@@ -142,19 +142,32 @@
 .ub-close {
   background: transparent;
   border: none;
-  padding: 4px;
+  /* No padding, and the box IS the mark: 4px around a 20px icon drew a 28px
+     button. The 40px .ub-close-wrap still sets the track, so the spacer that
+     balances it is untouched and the message stays centred. */
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
   margin: 0;
   cursor: pointer;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.85;
-  transition: opacity 0.2s ease;
   line-height: 1;
 }
 
-.ub-close:hover {
+/* No hover treatment at all. The 0.85 opacity that used to sit on the resting
+   state is gone too — it greyed a mark that is meant to read as white on the
+   black bar. `background` is restated here because a host theme's bare
+   `button:hover { background: ... }` is (0,1,1) and would otherwise paint one;
+   .ub-close:hover is (0,2,0) and beats it, but only because the pseudo-class
+   is part of OUR selector too. */
+.ub-close:hover,
+.ub-close:focus,
+.ub-close:active {
+  background: transparent;
   opacity: 1;
 }
 
@@ -295,6 +308,17 @@
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
+/* Tablet. 24px is a desktop size: on a ~768-1024px viewport an ordinary
+   message wraps to a second line and the bar grows taller than it is on
+   desktop. Stepping the type down keeps it on one line, so the bar's height
+   does not change between the two. Declared BEFORE the 767px block so the
+   phone size below overrides it — no min-width needed. */
+@media (max-width: 1024px) {
+  .ub-message {
+    font-size: 18px;
+  }
+}
+
 @media (max-width: 767px) {
   /* Left-aligned on mobile. Centring needs the message to be shorter than the
      bar; on a phone it usually wraps to two or three lines, and centred wrapped
@@ -302,7 +326,7 @@
      alignment, the flex centring that holds the message block, and the empty
      left spacer that only exists to balance the close button. */
   .ub-message {
-    font-size: 18px;
+    font-size: 16px;
     text-align: left;
   }
 
@@ -319,7 +343,10 @@
   }
 
   .ub-close-wrap {
-    flex-basis: 28px;
+    /* 32, not 28: the mark is the same 32 here as on desktop and a 28px track
+       would squeeze it. The spacer is display:none at this width, so widening
+       the track cannot pull the message off centre. */
+    flex-basis: 32px;
   }
 
   .ub-tooltip {

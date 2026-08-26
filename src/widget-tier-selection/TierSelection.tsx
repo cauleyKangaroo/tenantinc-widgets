@@ -877,10 +877,15 @@ function TierModalHeader({ heading, subheading, urgency, adminFeeText, onClose }
             )}
           </div>
         )}
-        {/* Filled disc: the CSS drew this by hand (a #101318 ::before behind a
-            white &times;) — the icon is the same mark, 40px like that disc. */}
+        {/* Filled disc: the CSS used to draw this by hand (a #101318 ::before
+            behind a white &times;); the icon is the same mark and that pseudo is
+            gone. 52 desktop / 32 mobile, but the SIZE LIVES IN CSS — see
+            .ts-modal-close svg. The filled mark is a plain <rect rx=26> and two
+            strokes, all of which scale losslessly with the viewBox, so unlike
+            #03's OUTLINED mark there is no per-size geometry for a prop to
+            pick and no breakpoint for this component to know about. */}
         <button type="button" className="ts-modal-close" aria-label="Close" onClick={onClose}>
-          <CloseCircleIcon size={40} />
+          <CloseCircleIcon size={52} />
         </button>
       </div>
     </div>

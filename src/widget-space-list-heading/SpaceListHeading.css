@@ -76,6 +76,15 @@
   .slh-skeleton { animation: none; }
 }
 
+/* MOBILE ONLY. #05 draws its own <h1> at 768px and up and hides it below —
+   this widget is the inverse, so exactly one heading is on the page at every
+   width. 767/768 is the boundary in both stylesheets; change one, change both.
+   (It exists at all so #06 promotions can sit between the heading and #05's
+   filter bar, which is impossible while the heading is inside #05's layout.) */
+@media (min-width: 768px) {
+  .slh-wrapper { display: none; }
+}
+
 @media (max-width: 1149px) {
   .slh-wrapper { padding: 0 24px; }
   /* 18px and left-aligned. #05's own mobile heading is 22px centred; this one
