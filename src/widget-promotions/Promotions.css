@@ -460,6 +460,18 @@ img.promo-banner-img {
 .promo-pager-arrow:hover:not(:disabled) { background: #f4f6f8; }
 .promo-pager-arrow:disabled { color: #a5b4bf; cursor: default; }
 
+/* Dots only on a phone. The row is one card across down here and already
+   swipes (useSwipe in Promotions.tsx), so the chevrons are a second way to do
+   what the finger does, costing 96px of a ~300px row to say it.
+   560px is this widget's mobile line in BOTH places — the CSS layout blocks
+   below and useMediaQuery('(max-width: 560px)') in the component — so the
+   arrows go exactly when the carousel becomes swipeable.
+   display: none, so they leave the accessibility tree with the pixels rather
+   than staying as invisible tab stops. */
+@media (max-width: 560px) {
+  .promo-pager-arrow { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .promo-dot { transition: none; }
 }
