@@ -970,6 +970,10 @@ export function RentalFlow2Step({
   const [loading, setLoading] = useState(true);
   const [holdRemaining, setHoldRemaining] = useState<number | undefined>(undefined);
   const [holdExpired, setHoldExpired] = useState(false);
+  /* The arrival hold could not be taken and no replacement was free. Step 1
+     then shows its existing 'unavailable' state, so nobody fills a whole
+     form against a space that was never secured. */
+  const [holdFailed, setHoldFailed] = useState(false);
   const holdRef = useRef<UnitHold | undefined>(undefined);
   holdRef.current = hold;
   /*
@@ -1011,7 +1015,28 @@ export function RentalFlow2Step({
      * after Pay Now, and on a slow list it could re-point the rail at some
      * other unit after the money had already been taken.
      */
-    if (step !== 2 || !quote || hold || holdExpired || rental) return;
+    /*
+     * ON ARRIVAL, not at step 2.
+     *
+     * The unit is known from the handoff the moment the page loads, so it is
+     * secured before the shopper types anything rather than after they have
+     * filled step 1 and picked a move-in date. It also does not wait for the
+     * quote: the quote for a held unit has to be hold-aware anyway (the plain
+     * GET 409s once anyone holds it, us included), so holding first REMOVES a
+     * round-trip rather than adding one.
+     *
+     * The cost, and it is a real one: the 15-minute clock now covers reading
+     * the page, the date modal, the form and the card. Expiry mid-flow is
+     * likelier, which is what holdExpired and the re-acquire path are for.
+     */
+    const targetUnitId = quote?.unitId ?? unitIdProp;
+    if (!targetUnitId || hold || holdExpired || rental) return;
+    /*
+     * Never hold against a half-resolved context. The company id arrives from
+     * the Company collection a beat after mount, and holding before it lands
+     * produced DELETE .../companies//units/... on release.
+     */
+    if (!effectiveCompanyId || !ctx.companyId) return;
     if (inEditor) {
       console.log(`${logTag} editor mode — real unit hold suppressed`);
       return;
@@ -1025,15 +1050,15 @@ export function RentalFlow2Step({
     (async () => {
       try {
       setPayError(undefined);
-      let result = await holdUnit(ctx, { id: quote.unitId, number: quote.unitNumber });
+      let result = await holdUnit(ctx, { id: targetUnitId, number: quote?.unitNumber });
       if (result.ok === false && result.reason === 'conflict' && !cancelled) {
         console.warn(`${logTag} unit already held — re-picking:`, result.detail);
         // fresh list — the cached one still contains the 409'd unit. The type is
         // passed so the replacement is the same kind of space, not merely the
         // same size.
         const sel = selectionRef.current;
-        const other = await findUnitForSelection(ctx, sel?.size, sel?.price ?? quote.rent, true, unitTypeIdRef.current);
-        if (other && other.id !== quote.unitId && !cancelled) {
+        const other = await findUnitForSelection(ctx, sel?.size, sel?.price ?? quote?.rent, true, unitTypeIdRef.current);
+        if (other && other.id !== targetUnitId && !cancelled) {
           const q = await fetchMoveInQuote(ctx, other);
           if (q && !cancelled) {
             // The replacement is the same selected size/rate, but correlation
@@ -1058,6 +1083,7 @@ export function RentalFlow2Step({
         void releaseHold(ctx, result.hold);
       } else if (result.ok) {
         setHold(result.hold);
+        setHoldFailed(false);
         // The held unit is now authoritative. Drop any quote that isn't its
         // own (e.g. the pre-hold unit after a conflict re-pick) and re-quote
         // hold-aware — the plain GET 409s once held, so POST { hold_token } is
@@ -1067,10 +1093,23 @@ export function RentalFlow2Step({
         // re-quotes hold-aware. Fail CLOSED: never show another unit's money.
         setQuote((prev) => (prev && prev.unitId === held.unitId ? prev : undefined));
       } else if (!cancelled) {
-        if (result.reason !== 'writes-disabled') {
+        if (result.reason === 'writes-disabled') {
+          /*
+           * No hold will ever be taken in this environment (harness, or a
+           * build with writes off), and the initial plain quote was skipped
+           * on the assumption one would be. Price it the ordinary way so the
+           * rail still shows money instead of the technical-difficulty note.
+           */
+          const q = await fetchMoveInQuote(ctx, { id: targetUnitId, number: quote?.unitNumber });
+          if (!cancelled && q) { setQuote(q); setQuoteFailed(false); }
+          else if (!cancelled && !q) setQuoteFailed(true);
+        } else {
           console.warn(`${logTag} hold not acquired:`, result.reason, result.detail);
+          setPayError('We couldn’t secure this space. Please return and choose another available space.');
+          // Step 1 shows its existing "unavailable" state rather than letting
+          // the shopper fill a whole form against a space we cannot secure.
+          setHoldFailed(true);
         }
-        setPayError('We couldn’t secure this space. Please return and choose another available space.');
       }
       } finally {
         acquiringRef.current = false;
@@ -1084,7 +1123,7 @@ export function RentalFlow2Step({
     // change the money, not the unit, and the guards above stop a re-run once
     // a hold exists.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, quote, hold, holdExpired, rental, inEditor, logTag, ctx, insuranceId, moveIn]);
+  }, [quote, unitIdProp, hold, holdExpired, rental, inEditor, logTag, ctx, effectiveCompanyId]);
 
   /**
    * Quote the HELD unit.
@@ -1272,6 +1311,18 @@ export function RentalFlow2Step({
     // whole load, and the one that matters was adopted from the URL before the
     // first render anyway.
     const adoptedHold = !!holdRef.current;
+    /*
+     * This page will hold the unit on arrival, so the plain quote below would
+     * ask the one endpoint that cannot answer: GET lease-set-up 409s on a held
+     * unit, INCLUDING our own hold. Skip it and let the hold-aware effect own
+     * the price — exactly as an adopted hold already does.
+     *
+     * Previously this skip covered only a hold adopted from the URL, which is
+     * why the arrival hold produced a 409 on every load the last time it was
+     * tried.
+     */
+    const willHoldOnArrival = !inEditor && !!unitIdProp;
+    const skipPlainQuote = adoptedHold || willHoldOnArrival;
 
     /**
      * Quote the unit with the PLAIN GET.
@@ -1287,7 +1338,7 @@ export function RentalFlow2Step({
      */
     const runQuote = (
       resolveUnit: Promise<{ id: string; number?: string; unitTypeId?: string; spaceMixId?: string } | undefined>,
-    ): Promise<void> => (adoptedHold
+    ): Promise<void> => (skipPlainQuote
       ? // Still resolve the unit: it carries the space type the protection
         // plans narrow by, which the quote does not.
         resolveUnit.then((unit) => {
@@ -1392,6 +1443,10 @@ export function RentalFlow2Step({
       .then((doc) => { if (!cancelled) setLeaseDoc(doc); })
       .catch((err) => console.error(`${logTag} fetchLeaseDocument error:`, err));
     return () => { cancelled = true; };
+    // inEditor is read via skipPlainQuote. It is fixed for the lifetime of the
+    // widget — Duda does not toggle a page between editor and published — so
+    // adding it would only risk re-running this whole load for no change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sizeProp, tierProp, unitIdProp, unitGroupIdProp, logTag, ctx, effectiveCompanyId, effectivePropertyId, loadAttempt, stored?.size, stored?.price]);
 
   const goToStep = useCallback((next: 1 | 2) => {
@@ -1679,7 +1734,7 @@ export function RentalFlow2Step({
   );
   const transactionState: 'loading' | 'ready' | 'unavailable' | 'error' = transactionReady
     ? 'ready'
-    : !unitIdProp && selectionStatus === 'unit-unavailable'
+    : holdFailed || (!unitIdProp && selectionStatus === 'unit-unavailable')
       ? 'unavailable'
       : quoteFailed
         ? 'error'
