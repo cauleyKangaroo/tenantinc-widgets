@@ -914,6 +914,22 @@
   display: block;
   width: max-content;
 }
+/*
+ * Raising the clicked marker has to happen HERE, on the pin.
+ *
+ * `transform` above creates a stacking context, so every z-index inside a pin
+ * — the bubble's, the popup's — is sealed within it and orders nothing against
+ * a neighbouring pin. Pins themselves were all `z-index: auto`, which leaves
+ * them in DOM order: whichever property came later in the list painted over
+ * the ones before it, clicked or not. `.ml-bubble--active { z-index: 1 }` could
+ * never fix that from inside.
+ *
+ * Two levels, because active and open are not the same thing: hovering a card
+ * lifts its marker clear of its neighbours, and a marker with its popup open
+ * goes above that again so the card cannot be covered by a pin standing on it.
+ */
+.ml-pin--active { z-index: 2; }
+.ml-pin--open { z-index: 3; }
 
 .ml-bubble {
   position: relative;
