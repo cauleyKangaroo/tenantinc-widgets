@@ -72,7 +72,7 @@
 .hb-datemodal-body { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 42px; }
 /* 64px between the two months (Figma 8507-23638's frame). Wide on purpose —
    at 24px the two grids read as one continuous run of dates. */
-.hb-datemodal-cals { display: flex; gap: 64px; justify-content: center; flex-wrap: wrap; }
+.hb-datemodal-cals { display: flex; gap: 64px; justify-content: center; flex-wrap: wrap; max-width: 100%; }
 .hb-datemodal-cta { width: 100%; max-width: 343px; }
 
 /* Browse mode: one month with month/year pickers above it. */
@@ -181,6 +181,24 @@
 .hb-cal-cell--disabled { color: #c4cdd5; cursor: default; }
 .hb-cal-cell:not(.hb-cal-cell--disabled):not(.hb-cal-cell--selected):hover { background: #f4f6f8; }
 .hb-cal-cell--selected { background: var(--hb-text-night); color: var(--hb-white); }
+
+/* ── Two months stop fitting side by side ─────────────────────────────────
+   A month grid is 7 * 30px + 6 * 10px = 270px. Two of them plus the 64px
+   gutter and the body's 42px padding need a 688px modal, and the overlay's
+   24px sides make that a 736px viewport. Below that they stack.
+
+   flex-wrap was doing this implicitly, and implicitly is the problem: this row
+   is a flex item of a column with `align-items: center`, so its width is
+   fit-content, and wrap only fires while an ancestor actually constrains it.
+   When one does not, the row takes its 604px max-content width, runs past the
+   modal's edge, and drags the centred CTA out with it — the modal scrolls
+   sideways instead of stacking. Declaring the stack removes the dependency.
+
+   BEFORE the 640px block on purpose: that block re-tightens the gap to 16px,
+   and at equal specificity the later rule wins. */
+@media (max-width: 760px) {
+  .hb-datemodal-cals { flex-direction: column; align-items: center; gap: 24px; }
+}
 
 @media (max-width: 640px) {
   /* Full-bleed sheet (Figma 8509-52040, whose root frame is simply
