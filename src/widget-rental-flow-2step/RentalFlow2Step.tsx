@@ -1105,6 +1105,25 @@ export function RentalFlow2Step({
               : prev);
             setQuote(q);
           }
+          /*
+           * Into the refs as well, not only the selection.
+           *
+           * setSelection above is a NO-OP when /offers has not resolved yet
+           * (it returns prev), and a held unit cannot be looked up afterwards
+           * — it leaves units/available the moment it is held, and
+           * lease-set-up does not return space_mix_id (checked). So if these
+           * are not captured here they are gone, and Pay Now fails with
+           * '"space_mix_id" is required'.
+           */
+          if (other.spaceMixId) resolvedSpaceMixRef.current = other.spaceMixId;
+          if (other.unitTypeId) {
+            unitTypeIdRef.current = other.unitTypeId;
+            if (!cancelled) setUnitTypeId(other.unitTypeId);
+          }
+          if (other.number) {
+            resolvedUnitNumberRef.current = other.number;
+            if (!cancelled) setResolvedUnitNumber(other.number);
+          }
           result = await holdUnit(ctx, other);
         }
       }
@@ -2010,6 +2029,16 @@ export function RentalFlow2Step({
               // form with their details intact.
               if (info.card && hold && quote) {
                 if (paying) return; // in flight — never double-charge
+                /*
+                 * space_mix_id is REQUIRED by documents/finalize and there is
+                 * no way to recover it once the unit is held — it leaves
+                 * units/available, and lease-set-up does not return it. If it
+                 * is missing here, say so by name rather than letting the API
+                 * answer with a bare 400 that reads like a payload bug.
+                 */
+                if (!(selection?.spaceMixId ?? resolvedSpaceMixRef.current)) {
+                  console.error(`${logTag} space_mix_id missing at Pay Now — it must be captured BEFORE the unit is held (offers, the pre-hold unit read, or the re-pick). documents/finalize will reject this.`);
+                }
                 setPaying(true);
                 setPayError(undefined);
                 const start = ymd(moveIn);
