@@ -170,7 +170,7 @@ export function BankForm({ total, onPay, payLabel }: { total: number; onPay: () 
      green at four digits, which claimed "correct" about a number nothing had
      checked yet — the whole point of asking twice is that one copy proves
      nothing. So both go green on the match and neither before it. */
-  const accountsMatch = digits(account).length >= 4 && confirm === account;
+  const accountsMatch = filled(account) && confirm === account;
   /* A mismatch is only worth saying once the confirm field has caught up in
      length. Shorter than the original it is simply unfinished, not wrong, and
      "do not match" under a field mid-typing is noise that clears itself. */
@@ -211,7 +211,12 @@ export function BankForm({ total, onPay, payLabel }: { total: number; onPay: () 
           value={confirm} onChange={setConfirm}
           error={confirmMismatch ? 'Account numbers do not match' : undefined}
           infoTitle="Re-enter to confirm"
-          className={okQuiet(accountsMatch)}
+          /* `state`, not okQuiet: okQuiet only paints the green BORDER, so this
+             field could never draw the tick its partner draws. The tick and the
+             info icon share one slot and the field already picks between them
+             (state icon when not default, info icon when it is), so there is no
+             double-icon to avoid here. */
+          state={ok(accountsMatch)}
         />
 
         <SelectField
