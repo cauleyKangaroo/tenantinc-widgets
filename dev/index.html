@@ -826,6 +826,49 @@
     })();
   </script>
 
+  <!-- ── OPT-IN Duda navigation mock (?mockNav=1) ────────────────────────────
+       Serves `dmAPI.getNavItemsAsync()` — the site page/navigation tree #02 reads
+       for its page-driven sections (Storage Types, Resources, Size Guide, Blog).
+       Separate flag from mockCollections so it adds ONLY getNavItemsAsync: that
+       keeps `hasCollectionsApi()` false, so the mega menu's demo tree and star
+       ratings still work. The `visible:false` row proves Hide-in-navigation
+       filtering; child aliases match navigationMapper's icon map. -->
+  <script>
+    (function () {
+      if (new URLSearchParams(location.search).get('mockNav') !== '1') return;
+      var page = function (title, alias, path, visible, subNav) {
+        return { title: title, alias: alias, path: path, visible: visible !== false, subNav: subNav || [] };
+      };
+      var NAV = [
+        page('Home', 'home', '/', true),
+        // Find Storage stays custom (Properties-driven); listed to show the mapper ignores it.
+        page('Find Storage', 'find-storage', '/find-storage', true),
+        page('Storage Types', 'storage-types', '/storage-types', true, [
+          page('Self Storage', 'self-storage', '/storage-types/self-storage', true),
+          page('Business Storage', 'business-storage', '/storage-types/business-storage', true),
+          page('Drive-Up Access', 'drive-up-access', '/storage-types/drive-up-access', true),
+          page('Vehicle & RV Storage', 'vehicle-rv-storage', '/storage-types/vehicle-rv-storage', true),
+          page('Mailboxes', 'mailboxes', '/storage-types/mailboxes', true),
+          page('Climate Controlled Storage', 'climate-controlled-storage', '/storage-types/climate-controlled', true),
+          page('Hidden Type (should NOT show)', 'hidden-type', '/storage-types/hidden', false)
+        ]),
+        page('Resources', 'resources', '/resources', true, [
+          page('Storage Tips', 'storage-tips', '/resources/storage-tips', true),
+          page('FAQ', 'faq', '/resources/faq', true),
+          page('About Us', 'about-us', '/resources/about-us', true)
+        ]),
+        page('Size Guide', 'size-guide', '/size-guide', true),
+        page('Blog', 'blog', '/blogs', true)
+      ];
+      window.dmAPI = window.dmAPI || {};
+      window.dmAPI.getNavItemsAsync = function () {
+        console.log('[harness dmAPI] getNavItemsAsync mock → ' + NAV.length + ' top-level items');
+        return Promise.resolve(NAV);
+      };
+      console.log('[harness dmAPI] nav mock ON (?mockNav=1)');
+    })();
+  </script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js" crossorigin="anonymous"></script>
   <script>
     // Dev bundles are large and served uncompressed, so the default 7s require.js

@@ -12,12 +12,6 @@ import {
   HamburgerIcon,
   PhoneCallIcon,
   CloseIcon,
-  SelfStorageIcon,
-  BusinessStorageIcon,
-  DriveUpIcon,
-  VehicleRvIcon,
-  MailboxIcon,
-  ClimateControlledIcon,
   EnvelopeIcon,
   MapPinIcon,
   LoginIcon,
@@ -27,6 +21,8 @@ import {
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID } from '@shared/propertyContact';
 import { fetchLocationTree, DEFAULT_CITY_BASE_PATH, type NavState } from '@shared/propertyNav';
 import { imageUrl } from '@shared/dudaCollections';
+import { fetchDudaNavigation, type DudaNavItem } from '@shared/dudaNav';
+import { navTreeToLinks } from './navigationMapper';
 import { FindStorageMegaMenu, demoLocationTree, type DemoPortfolio } from './FindStorageMegaMenu';
 
 // ---------------------------------------------------------------------------
@@ -51,6 +47,8 @@ interface NavMenuItem {
 }
 
 interface NavLink {
+  /** Duda page alias — stable id used to recognise Find Storage across renames. */
+  alias?: string;
   label: string;
   href: string;
   hasDropdown?: boolean;
@@ -111,24 +109,6 @@ const FIND_STORAGE_MENU: NavMenuItem[] = [
   },
 ];
 
-const STORAGE_TYPES_MENU: NavMenuItem[] = [
-  { label: 'Self Storage', href: '#', icon: <SelfStorageIcon /> },
-  { label: 'Business Storage', href: '#', icon: <BusinessStorageIcon /> },
-  { label: 'Drive-Up Access', href: '#', icon: <DriveUpIcon /> },
-  { label: 'Vehicle & RV Storage', href: '#', icon: <VehicleRvIcon /> },
-  { label: 'Mailboxes', href: '#', icon: <MailboxIcon /> },
-  { label: 'Climate Controlled Storage', href: '#', icon: <ClimateControlledIcon /> },
-];
-
-const RESOURCES_MENU: NavMenuItem[] = [
-  { label: 'Storage Blog', href: '#' },
-  { label: 'Storage Tips', href: '#' },
-  { label: 'About Us', href: '#' },
-  { label: 'Careers', href: '#' },
-  { label: '3rd Party Management', href: '#' },
-  { label: 'Customer Service', href: '#' },
-];
-
 // Destinations for Find Storage › California › Irvine › 5281 California.
 //
 // SITE-RELATIVE, not absolute. These used to be pinned to one site's preview
@@ -137,8 +117,8 @@ const RESOURCES_MENU: NavMenuItem[] = [
 // host sent visitors to somebody else's site. A path resolves against whichever
 // host is serving the page, so one value is correct on the preview host
 // (*.multiscreensite.com), the live domain and any custom domain without the
-// bundle needing to know which it is. Same reasoning as BLOG_URL below and the
-// hrefs @shared/propertyNav builds.
+// bundle needing to know which it is. Same reasoning as the hrefs
+// @shared/propertyNav builds.
 //
 // A plain path on a real <a> also keeps Duda's own routing in charge. Building
 // an absolute URL from window.location.origin would break the editor preview
@@ -171,10 +151,6 @@ const FACILITY_URL = '/property-landing-page';
 const DEFAULT_LOCATION_BASE_PATH = '/storage-units';
 /** Where the pinned "All Locations" row points. */
 const ALL_LOCATIONS_URL = '#';
-/** The blogs listing page (#12). Site-relative on purpose — an absolute URL would
- *  pin the nav to one Duda site, and the link picker only ever hands back editor
- *  URLs (see EDITOR_URL_RE). Override the whole nav via `links` to move it. */
-const BLOG_URL = '/blogs';
 const IRVINE_LABEL = 'Irvine';
 const FACILITY_LABEL = '5281 California';
 
@@ -252,12 +228,12 @@ function buildDefaultLinks(): NavLink[] {
         }
       : state,
   );
+  // Only Find Storage is built-in (its own custom mega menu). Every other menu
+  // item comes from Duda's page tree at runtime. So while the tree is loading OR
+  // if the read fails, the bar shows just Find Storage — no page-driven links and
+  // no '#' placeholders (fail closed), rather than stale hardcoded sections.
   return [
     { label: 'Find Storage', href: '#', hasDropdown: true, menu: findStorageMenu },
-    { label: 'Storage Types', href: '#', hasDropdown: true, menu: STORAGE_TYPES_MENU },
-    { label: 'Resources', href: '#', hasDropdown: true, menu: RESOURCES_MENU },
-    { label: 'Size Guide', href: '#' },
-    { label: 'Blog', href: BLOG_URL },
   ];
 }
 
@@ -341,6 +317,13 @@ export interface NavigationBarProps {
    */
   findStorageStyle?: 'mega' | 'dropdown';
   /**
+   * Which page-tree entry becomes the custom Find Storage mega menu. Matched by
+   * Duda page `alias` first (most stable), then `path`, then the `Find Storage`
+   * title as a last resort. Set these to the site's actual values if they differ.
+   */
+  findStorageAlias?: string;
+  findStoragePath?: string;
+  /**
    * Which DEMO portfolio the mega menu falls back to where there is no `dmAPI`
    * (the Duda editor and the dev harness). `'small'` is a three-facility company,
    * which is what triggers the map frame. Has NO effect on a published page — the
@@ -377,8 +360,13 @@ export function NavigationBar({
   locationBasePath = DEFAULT_LOCATION_BASE_PATH,
   cityBasePath = DEFAULT_CITY_BASE_PATH,
   findStorageStyle = 'mega',
+  findStorageAlias = 'storage-units',
+  findStoragePath = '/storage-units',
   demoPortfolio = 'full',
 }: NavigationBarProps) {
+  // Recognise the Find Storage page across renames: alias → path → title.
+  const isFindStorageLink = (l: NavLink): boolean =>
+    (!!l.alias && l.alias === findStorageAlias) || l.href === findStoragePath || l.label === FIND_STORAGE_LABEL;
   // Normalise so an unknown value from Duda falls back to the popup rather than
   // a link that does nothing.
   const useMega = findStorageStyle !== 'dropdown';
@@ -431,6 +419,19 @@ export function NavigationBar({
       .catch((err) => console.error('[NavigationBar] location tree error:', err));
     return () => { cancelled = true; };
   }, [locationBasePath, cityBasePath]);
+
+  // The whole menu, read from the site's page tree via dmAPI: every page marked
+  // "show in navigation", in Duda's order, with visible sub-pages nested. Empty
+  // in the Duda editor and the harness (no dmAPI) — the hardcoded defaults cover
+  // those, same as the location tree above.
+  const [navTree, setNavTree] = useState<DudaNavItem[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchDudaNavigation()
+      .then((tree) => { if (!cancelled) setNavTree(tree); })
+      .catch((err) => console.error('[NavigationBar] nav tree error:', err));
+    return () => { cancelled = true; };
+  }, []);
 
   // What the mega menu renders. The Duda EDITOR and the dev harness have no
   // dmAPI, so the tree above stays empty there — the demo tree keeps the panel
@@ -498,10 +499,19 @@ export function NavigationBar({
 
   // Swap Find Storage's menu for the live one once the collection answers. An
   // explicit `links` override still wins — that's the caller taking full control.
-  const linkList: NavLink[] =
-    locationTree.length && !links
-      ? baseLinks.map((l) =>
-          l.label === 'Find Storage' ? { ...l, menu: locationTreeToMenu(locationTree) } : l,
+  // The menu, in priority order:
+  //  1. explicit `links` override — caller takes full control.
+  //  2. live: the whole visible page tree, in Duda's order (dmAPI present).
+  //  3. editor / harness (no dmAPI): the hardcoded defaults, so the bar isn't empty.
+  // Find Storage keeps the custom mega menu — the render claims it by label — and
+  // its dropdown-mode menu is filled from the Properties location tree.
+  const linkList: NavLink[] = links
+    ? baseLinks
+    : navTree.length
+      ? (navTreeToLinks(navTree) as NavLink[]).map((l) =>
+          isFindStorageLink(l) && locationTree.length
+            ? { ...l, hasDropdown: true, menu: locationTreeToMenu(locationTree) }
+            : l,
         )
       : baseLinks;
 
@@ -558,10 +568,14 @@ export function NavigationBar({
         // Only claim Find Storage for the mega popup when the editor has actually
         // opted into it — otherwise Find Storage falls into the same hover cascade
         // Storage Types / Resources use, driven by `link.menu`.
-        const isFindStorage = useMega && link.label === FIND_STORAGE_LABEL;
+        const isFindStorage = useMega && isFindStorageLink(link);
         const hasMenu = !!link.menu?.length && !isFindStorage;
         const isOpen = hasMenu && openLink === link.label;
         const activeItem = isOpen && subIndex != null ? link.menu![subIndex] : undefined;
+        // A dropdown parent with no real destination (a Duda folder → '#' or empty
+        // path) must toggle, not navigate — <a href="#"> jumps to top and href=""
+        // reloads the page. Render it as a button instead.
+        const isFolderToggle = hasMenu && (!link.href || link.href === '#');
         return (
           <li
             key={link.label}
@@ -590,6 +604,21 @@ export function NavigationBar({
                 <span>{link.label}</span>
                 {link.hasDropdown && (
                   <ChevronDown size={20} className={`nav-link-chevron${megaOpen ? ' is-open' : ''}`} />
+                )}
+              </button>
+            ) : isFolderToggle ? (
+              <button
+                type="button"
+                className="nav-link nav-link-trigger"
+                aria-expanded={isOpen}
+                onClick={() => {
+                  setMegaOpen(false);
+                  setOpenLink(isOpen ? null : link.label);
+                }}
+              >
+                <span>{link.label}</span>
+                {link.hasDropdown && (
+                  <ChevronDown size={20} className={`nav-link-chevron${isOpen ? ' is-open' : ''}`} />
                 )}
               </button>
             ) : (
