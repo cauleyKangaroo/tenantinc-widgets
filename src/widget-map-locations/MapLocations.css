@@ -35,9 +35,11 @@
 }
 
 .ml-heading {
-  font-size: 32px;
+  font-size: 28px;
+  /* 1.25, as 40/32 was — kept as a ratio so the leading follows the size
+     rather than having to be recalculated next time it moves. */
+  line-height: 1.25;
   font-weight: 700;
-  line-height: 40px;
   color: #141a2b;
   margin: 0;
 }
