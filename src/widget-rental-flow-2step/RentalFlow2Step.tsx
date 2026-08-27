@@ -918,7 +918,19 @@ export function RentalFlow2Step({
       // The old 200px floor traded a faithfully-measured 20px sheet for a
       // usable scrollable one. That trade has inverted — overflow used to run
       // harmlessly off the bottom, where now it carries the bar off with it.
-      wrap.style.setProperty('--rfm-sheet-max', `${room}px`);
+      //
+      // CLAMPED TO THE CONTENT, not just to `room`. `room` is a CAP, and
+      // max-height only caps: a card shorter than the screen leaves the wrap at
+      // its content height while this variable says otherwise. The opening
+      // animation then finishes early — the clip stops growing at the content
+      // height while .rfm-sheet's translateY, which travels its OWN height, is
+      // still running. That gap between the two is the sheet visibly parting
+      // from the bar riding on its bottom edge. Taking the smaller of the two
+      // makes the distance the clip grows and the distance the sheet travels
+      // the same number, so they arrive together.
+      const sheet = wrap.querySelector<HTMLElement>('.rfm-sheet');
+      const content = sheet ? sheet.scrollHeight : room;
+      wrap.style.setProperty('--rfm-sheet-max', `${Math.min(room, content)}px`);
     };
     measure();
     // The bar can still move: it is only pinned once the page has scrolled past
@@ -1852,8 +1864,12 @@ export function RentalFlow2Step({
   // same property, space and money — so they render the same element rather
   // than three OrderRails that can drift apart. The post-purchase variant only
   // drops "Change Space", which is meaningless once the unit is rented.
-  const railFor = (rented: boolean) => (
+  /* `sheet` is the mobile dropdown's copy. Only it swaps the photo hero for
+     the logo row — the desktop column keeps the image, and the two are never
+     rendered at once, so one flag on this builder is enough. */
+  const railFor = (rented: boolean, sheet = false) => (
     <OrderRail
+      sheetLogo={sheet ? headerLogo : undefined}
       property={railProperty}
       selection={railSelection}
       quote={railQuote}
@@ -1875,7 +1891,7 @@ export function RentalFlow2Step({
       // about a date the quote already reflects would be its own small lie.
     />
   );
-  const rail = loading ? <RailSkeleton /> : railFor(false);
+  const rail = loading ? <RailSkeleton /> : railFor(false, true);
 
   if (staticPaid) {
     // The held unit is real even on the static path — the hold and quote both

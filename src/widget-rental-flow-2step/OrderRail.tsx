@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { PROPERTY_IMAGES } from '@shared/demoImages';
 import { fetchPropertyHeroImage } from '@shared/propertyImages';
 import { MoneyBreakdown, SummaryRail } from '@shared/ui';
+import { PhoneIcon } from '@shared/ui/icons';
 import type { PropertyInfo, SelectionContext, MoveInQuote } from './api';
 
 // ---------------------------------------------------------------------------
@@ -34,6 +35,7 @@ export function OrderRail({
   quoteFailed = false,
   estimate = false,
   paid = false,
+  sheetLogo,
 }: {
   property?: PropertyInfo;
   selection?: SelectionContext;
@@ -53,6 +55,11 @@ export function OrderRail({
    *  not a step in the flow. Only then can the total be described in the past
    *  tense; before it, the same figure is what the shopper is ABOUT to pay. */
   paid?: boolean;
+  /** Mobile dropdown only. With a logo the image hero is replaced by a
+   *  logo-and-contact row (Figma 12028-86142) — inside the sheet the photo is
+   *  a second copy of what the page already showed, and the shopper opened the
+   *  panel for the numbers. */
+  sheetLogo?: string;
 }) {
   const phone = property?.phone
     ? property.phone.replace(/^1?(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')
@@ -72,6 +79,25 @@ export function OrderRail({
       .catch(() => { /* no collection — the demo image stands in */ });
     return () => { cancelled = true; };
   }, [property?.id]);
+  /* Figma 12028-86142: logo left, address over phone on the right, both 12px.
+     No address icon, and the phone mark is the kit's own rather than the
+     frame's export. Built here rather than passed in because the address and
+     phone are already resolved on this component. */
+  const sheetHead = sheetLogo ? (
+    <div className="rf-sheethead">
+      <img className="rf-sheethead-logo" src={sheetLogo} alt="" />
+      <div className="rf-sheethead-info">
+        {property?.address && <p className="rf-sheethead-addr">{property.address}</p>}
+        {phone && (
+          <a className="rf-sheethead-phone" href={`tel:${phone.replace(/\D/g, '')}`}>
+            <PhoneIcon size={16} />
+            <span>{phone}</span>
+          </a>
+        )}
+      </div>
+    </div>
+  ) : undefined;
+
   /* Three states, one label. `estimate` outranks `paid` because a reservation
      confirms without taking money — it is neither a cost still to come nor an
      amount already paid. */
@@ -83,6 +109,7 @@ export function OrderRail({
 
   return (
     <SummaryRail
+      heroSlot={sheetHead}
       imageUrl={hero || PROPERTY_IMAGES[0]}
       name={property?.name}
       address={property?.address}
