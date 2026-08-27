@@ -3936,6 +3936,20 @@
 /* 2px to match the pills inside the filter modal (.sl-filter-modal .sl-pill),
    so the same control is not thinner outside the popup than in it. */
 .sl-wrapper .sl-top-bar-pill {
+  /* Centred EXPLICITLY, not left to the UA.
+     The .active variant below already declares inline-flex + align-items, so
+     an unticked pill was the only one relying on a <button>'s default
+     centring of its own text — and that default is only as reliable as the
+     host's own button rules. A theme line-height taller than the 14px text
+     inflates the line box inside a fixed 44px pill and the label rides up in
+     it, which is invisible here (the harness sets no line-height) and shows on
+     a live page.
+     line-height: 1 removes the other half of it: the label's box is then the
+     glyphs, and align-items has something predictable to centre. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   height: 44px;
   padding: 0 21px;
   border-radius: 100px;
