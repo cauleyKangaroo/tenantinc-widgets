@@ -312,7 +312,10 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
    * so `valid` standing true is our only sight of a filled field.
    */
   const [gpFocus, setGpFocus] = useState({ number: false, expiry: false });
+  /** Sticky: has this frame ever held a valid value. Drives the LABEL. */
   const [gpFilled, setGpFilled] = useState({ number: false, expiry: false });
+  /** Live: does it hold one RIGHT NOW. Gates the row's valid state. */
+  const [gpValid, setGpValid] = useState({ number: false, expiry: false });
   useEffect(() => {
     if (!hosted) return undefined;
     const onWindowBlur = () => {
@@ -332,8 +335,15 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
       window.removeEventListener('focus', onWindowFocus);
     };
   }, [hosted, numId, expId]);
+  /* In hosted mode our overlay draws ONLY the floated label; the frame's own
+     placeholder is the resting one (see FIELD_STYLES in gpHostedFields). That
+     is what ends the guessing: the frame knows whether it is empty and the
+     parent never has to infer it, so the label can neither drop onto live
+     digits nor strand itself over an empty field. */
   const floatNumber = hosted && (gpFocus.number || gpFilled.number);
   const floatExpiry = hosted && (gpFocus.expiry || gpFilled.expiry);
+  const showNumberLabel = !hosted || floatNumber;
+  const showExpiryLabel = !hosted || floatExpiry;
 
   /* The token handler is rebuilt on every keystroke in the billing fields, but
      the frames are mounted ONCE — remounting would wipe the card mid-entry. So
@@ -343,7 +353,10 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
   /* The row is one bordered box holding three inputs, so it turns green as a
      unit rather than per-input — there is only one border to turn. */
   const cardRowValid = hosted
-    ? validCvv(cvv)
+    /* All THREE, not the CVV alone. GP reports each frame's validity on every
+       keystroke, so the number and the expiry are knowable — reading only the
+       CVV turned the row green, and its tick on, beside an empty expiry. */
+    ? gpValid.number && gpValid.expiry && validCvv(cvv)
     : validCard(number) && validExpiry(expiry) && validCvv(cvv);
   // GP's frame reports its own expiry problems; ours would be judging a field
   // it cannot see.
@@ -357,10 +370,14 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
      submit: four digits of a sixteen-digit number is already wrong, and
      waiting for the pay button to say so wastes the trip. Empty cells stay
      quiet until a pay attempt — nothing has been got wrong yet.
-     In hosted mode the number and expiry live in GP's frames, which report
-     their own problems and whose contents we cannot see, so only the CVV is
-     ours to judge. */
+     In hosted mode the contents are GP's, but its per-keystroke validity is
+     not — gpValid tracks it, so an empty or half-typed frame can be named here
+     too rather than only the CVV. */
   const cardCellError = (() => {
+    if (hosted) {
+      if ((payAttempted || gpFilled.number) && !gpValid.number) return 'Enter a complete card number';
+      if ((payAttempted || gpFilled.expiry) && !gpValid.expiry) return 'Enter the expiry date as MM / YYYY';
+    }
     if (!hosted) {
       const n = digits(number);
       if ((payAttempted || n.length > 0) && !validCard(number)) {
@@ -505,7 +522,9 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
            to valid, then blurred. That drops. It needs a length GP does not
            expose, and stranding the label over an empty field is the worse of
            the two. */
-        if (!dead && valid) setGpFilled((f) => (f[field] ? f : { ...f, [field]: true }));
+        if (dead) return;
+        setGpValid((v) => (v[field] === valid ? v : { ...v, [field]: valid }));
+        if (valid) setGpFilled((f) => (f[field] ? f : { ...f, [field]: true }));
       },
     }).then((h) => {
       if (dead) { h?.dispose(); return; }
@@ -561,7 +580,9 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
               aria-label="Card Number (required)"
             />
           )}
-          <label className={`rf-cardcell-label${floatNumber ? ' rf-cardcell-label--pinned' : ''}`}>Card Number<span className="rf-req">*</span></label>
+          {showNumberLabel && (
+            <label className={`rf-cardcell-label${floatNumber ? ' rf-cardcell-label--pinned' : ''}`}>Card Number<span className="rf-req">*</span></label>
+          )}
         </span>
 
         {/* Expiry and CVV are wrapped together so they move to a second line as
@@ -585,7 +606,9 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
               />
             )}
             {/* GP's frame renders MM / YYYY. */}
-            <label className={`rf-cardcell-label${floatExpiry ? ' rf-cardcell-label--pinned' : ''}`}>{hosted ? 'MM / YYYY' : 'MM / YY'}<span className="rf-req">*</span></label>
+            {showExpiryLabel && (
+              <label className={`rf-cardcell-label${floatExpiry ? ' rf-cardcell-label--pinned' : ''}`}>{hosted ? 'MM / YYYY' : 'MM / YY'}<span className="rf-req">*</span></label>
+            )}
           </span>
 
           <span className="rf-cardcell rf-cardcell--cvv">

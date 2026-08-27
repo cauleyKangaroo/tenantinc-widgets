@@ -173,7 +173,21 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
     'border-bottom': '0',
     'box-shadow': 'none',
   },
-  '#secure-payment-field::placeholder': { color: 'transparent' },
+  /*
+   * VISIBLE, and styled as the resting label. The frame is the only thing that
+   * knows whether it is empty — GP reports neither length nor emptiness to the
+   * parent — so the placeholder is what shows the label at rest, and our
+   * overlay only ever draws the small floated one. Transparent, as it was,
+   * meant the parent had to guess "is it empty", and every guess available was
+   * wrong in one direction or the other.
+   * Matches .rf-cardcell-label at rest: 16px, --hb-field-label.
+   */
+  '#secure-payment-field::placeholder': {
+    color: '#637381',
+    'font-size': '16px',
+    'font-family': "'Montserrat', system-ui, sans-serif",
+    opacity: '1',
+  },
   /*
    * field.html zeroes its own margins but never sets a HEIGHT — html, body and
    * the wrapper are all `flex: 1 1 auto` with no height, so a `height: 100%`
@@ -218,8 +232,9 @@ export async function mountHostedCard(
     gp.configure({ publicApiKey: key });
     const form = gp.ui.form({
       fields: {
-        'card-number': { target: opts.numberTarget, placeholder: ' ' },
-        'card-expiration': { target: opts.expiryTarget, placeholder: ' ' },
+        // Real text, not a space: this IS the resting label for a hosted cell.
+        'card-number': { target: opts.numberTarget, placeholder: 'Card Number' },
+        'card-expiration': { target: opts.expiryTarget, placeholder: 'MM / YYYY' },
         // GP will only tokenize from a gesture inside its own frame — the
         // form object exposes no programmatic equivalent — so this button
         // has to exist even though ours is the one the shopper sees.
