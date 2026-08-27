@@ -233,6 +233,10 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  /* Centred: this used to be one pager for the whole section (the parent's
+     `align-items: center` did the work). It now sits inside each column, which
+     is a stretched flex child, so it has to centre itself. */
+  justify-content: center;
 }
 
 .rw-page-btn {
@@ -251,9 +255,12 @@
   background: #F4F6F8;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way. */
 .rw-page-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .rw-page-btn-prev svg {

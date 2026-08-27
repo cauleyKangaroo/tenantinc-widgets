@@ -9,6 +9,8 @@ import {
 } from './icons';
 import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
 import { Shimmer } from '@shared/Shimmer';
+import { useCarousel } from '@shared/useCarousel';
+import { CarouselDots } from '@shared/CarouselDots';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -129,19 +131,78 @@ function ReviewCard({ review, source }: { review: Review; source: ReviewSource }
   );
 }
 
-function Pagination({ page, total, onPrev, onNext, onDot }: {
+/**
+ * One source column with its OWN pager.
+ *
+ * Josh Wright asked for "their own carousel dots per column instead of scrolling
+ * the whole section" (2026-08-27): Google and Yelp hold different numbers of
+ * reviews, so a single shared page number ran one column out of cards while the
+ * other still had plenty, and paging moved both at once.
+ *
+ * A component per column rather than state in the parent, because each column
+ * needs its own hook and hooks cannot be called inside a `.map()`.
+ *
+ * The cards stay a 2-up vertical grid — `.rw-column-cards` equalises row heights
+ * ACROSS the columns, so Google's first card lines up with Yelp's. Sliding the
+ * column would break that alignment, which is the "retaining the testimonials
+ * layout" Josh asked about, so the page swap is kept and the dots are what move.
+ */
+function SourceColumn({ source }: { source: ReviewSource }) {
+  const totalPages = Math.max(1, Math.ceil(source.reviews.length / REVIEWS_PER_PAGE));
+  const carousel = useCarousel({ count: totalPages, perView: 1 });
+  const start = carousel.index * REVIEWS_PER_PAGE;
+  const pageReviews = source.reviews.slice(start, start + REVIEWS_PER_PAGE);
+
+  return (
+    <div className="rw-column">
+      <SourceHeader source={source} />
+      <div className="rw-column-cards">
+        {pageReviews.map((review) => (
+          <ReviewCard key={review.id} review={review} source={source} />
+        ))}
+      </div>
+
+      {/* Only when this column has more than one page of its own. */}
+      {totalPages > 1 && (
+        <Pagination
+          page={carousel.index}
+          total={totalPages}
+          onPrev={carousel.prev}
+          onNext={carousel.next}
+          onDot={carousel.goTo}
+          canPrev={carousel.canPrev}
+          canNext={carousel.canNext}
+        />
+      )}
+    </div>
+  );
+}
+
+function Pagination({ page, total, onPrev, onNext, onDot, canPrev, canNext }: {
   page: number; total: number;
   onPrev: () => void; onNext: () => void; onDot: (i: number) => void;
+  /* Optional so the mobile pager, which still owns its own bounds, can omit
+     them and keep the original first/last comparison. */
+  canPrev?: boolean; canNext?: boolean;
 }) {
+  const prevOff = canPrev === undefined ? page === 0 : !canPrev;
+  const nextOff = canNext === undefined ? page === total - 1 : !canNext;
+
   return (
     <div className="rw-pagination">
-      <button className="rw-page-btn rw-page-btn-prev" onClick={onPrev} disabled={page === 0} aria-label="Previous">
+      <button className="rw-page-btn rw-page-btn-prev" onClick={onPrev} disabled={prevOff} aria-label="Previous">
         <ChevronRight size={40} />
       </button>
-      {Array.from({ length: total }).map((_, i) => (
-        <button key={i} className={`rw-page-dot${i === page ? ' active' : ''}`} onClick={() => onDot(i)} aria-label={`Page ${i + 1}`} />
-      ))}
-      <button className="rw-page-btn" onClick={onNext} disabled={page === total - 1} aria-label="Next">
+      {/* Capped at 6 with the window sliding — a source with 40 reviews is 20
+          pages, and 20 dots would not fit under a column. */}
+      <CarouselDots
+        count={total}
+        active={page}
+        onPick={onDot}
+        dotClass="rw-page-dot"
+        label="Go to page {n}"
+      />
+      <button className="rw-page-btn" onClick={onNext} disabled={nextOff} aria-label="Next">
         <ChevronRight size={40} />
       </button>
     </div>
@@ -195,8 +256,6 @@ export function Reviews({
     return () => { cancelled = true; };
   }, []);
 
-  const totalDesktopPages = Math.max(1, ...sources.map((s) => Math.ceil(s.reviews.length / REVIEWS_PER_PAGE)));
-  const [desktopPage, setDesktopPage] = useState(0);
   const [mobileSourceIdx, setMobileSourceIdx] = useState(0);
   const [mobilePage, setMobilePage] = useState(0);
 
@@ -275,30 +334,15 @@ export function Reviews({
           <p className="rw-subtitle">{subheading}</p>
         </div>
 
+        {/* Each column pages itself — see SourceColumn. There is deliberately no
+            pager for the section as a whole any more: Google and Yelp hold
+            different numbers of reviews, so one shared page number ran the
+            shorter column out of cards while the other still had plenty. */}
         <div className="rw-columns">
-          {sources.map((source) => {
-            const start = desktopPage * REVIEWS_PER_PAGE;
-            const pageReviews = source.reviews.slice(start, start + REVIEWS_PER_PAGE);
-            return (
-              <div key={source.key} className="rw-column">
-                <SourceHeader source={source} />
-                <div className="rw-column-cards">
-                  {pageReviews.map((review) => (
-                    <ReviewCard key={review.id} review={review} source={source} />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+          {sources.map((source) => (
+            <SourceColumn key={source.key} source={source} />
+          ))}
         </div>
-
-        <Pagination
-          page={desktopPage}
-          total={totalDesktopPages}
-          onPrev={() => setDesktopPage((p) => Math.max(0, p - 1))}
-          onNext={() => setDesktopPage((p) => Math.min(totalDesktopPages - 1, p + 1))}
-          onDot={setDesktopPage}
-        />
       </div>
 
       {/* ── Mobile layout ───────────────────────────────────────────────── */}
