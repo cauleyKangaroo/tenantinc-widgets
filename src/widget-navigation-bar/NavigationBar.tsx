@@ -193,10 +193,12 @@ const FIND_STORAGE_LABEL = 'Find Storage';
  * drawer and the mega menu now point at the same places. "All Locations" stays
  * pinned to the top.
  *
- * Every city keeps its third level, however few facilities it holds — the
- * accordion is the quickest route to a specific facility on a phone. Tapping the
- * city name itself follows `NavCity.href`: the facility's landing page when the
- * city holds one, the city page when it holds several.
+ * TWO LEVELS ONLY: state › city. A city does not expand to its facilities — it
+ * is a link, and tapping it follows `NavCity.href`, which is already the right
+ * destination either way: the facility's landing page when the city holds one,
+ * the city page when it holds several. A third tier of accordions inside a
+ * drawer that is itself inside an accordion buries the thing being looked for
+ * behind three taps, and the city page lists the same facilities on arrival.
  */
 function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
   return [
@@ -204,21 +206,23 @@ function locationTreeToMenu(tree: NavState[]): NavMenuItem[] {
     ...tree.map((state) => ({
       label: state.label,
       href: state.href,
+      // No `children`: a city is a leaf here, so the row renders as a link
+      // rather than a third dropdown. city.properties is still read by the
+      // desktop mega menu, which has the room for the extra tier.
       children: state.cities.map((city) => ({
         label: city.label,
         href: city.href,
-        // EVERY city expands to its facilities, including a city holding just
-        // one — the levels mean the same thing everywhere, state › city ›
-        // facility, and the single facility's row is the shorter tap of the two
-        // routes to the same page (`city.href` shortcuts there as well).
-        children: city.properties.map((prop) => ({ label: prop.label, href: prop.href })),
       })),
     })),
   ];
 }
 
-/** Build the default nav, injecting Irvine + its "5281 California" facility
- *  under Find Storage › California. */
+/** Build the default nav, injecting Irvine under Find Storage › California.
+ *
+ *  Irvine is a LEAF, matching locationTreeToMenu above — the drawer is two
+ *  levels throughout, so the "5281 California" tier it used to nest is gone.
+ *  Its own href still comes from forceHardcodedLinks, which pins any row
+ *  labelled "Irvine" to IRVINE_URL whatever this sets. */
 function buildDefaultLinks(): NavLink[] {
   const findStorageMenu: NavMenuItem[] = FIND_STORAGE_MENU.map((state) =>
     state.label === 'California'
@@ -226,11 +230,7 @@ function buildDefaultLinks(): NavLink[] {
           ...state,
           children: [
             ...(state.children ?? []),
-            {
-              label: IRVINE_LABEL,
-              href: IRVINE_URL,
-              children: [{ label: FACILITY_LABEL, href: FACILITY_URL }],
-            },
+            { label: IRVINE_LABEL, href: IRVINE_URL },
           ],
         }
       : state,
