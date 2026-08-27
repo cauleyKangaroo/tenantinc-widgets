@@ -373,7 +373,7 @@ export function Reviews({
             <div
               className="rw-mobile-track"
               style={{
-                transform: `translateX(calc(${(mobileCarousel.offsetPct / 100).toFixed(6)} * 100%))`,
+                transform: `translateX(calc(${(mobileCarousel.offsetPct / 100).toFixed(6)} * (100% + 10px)))`,
                 transition:
                   reduceMotion || mobileCarousel.dragging
                     ? 'none'

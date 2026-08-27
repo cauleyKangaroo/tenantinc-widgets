@@ -570,11 +570,25 @@
     justify-content: center;
   }
 
-  /* One card fills the frame here, so the 16px inter-card padding would inset it
-     from the panel's own 24px. The card is the full step width instead, and the
-     drag reads a clean 1:1 with the finger. */
+  /* One card fills the frame here, so the desktop's symmetric 16px would inset
+     it from the panel's own 24px. The item carries no padding at all; the 10px
+     Josh Wright asked for (2026-08-27) comes from the track's flex gap below,
+     which is REAL space — padding on the item leaves it butting the clip edge
+     and the neighbour shows through the rounded corner's notch. */
   .blog-mobile .blog-track-item {
     padding: 0;
+  }
+
+  .blog-mobile .blog-track {
+    gap: 10px;
+  }
+
+  /* The step the transform moves by has to include that gap, or the row lands
+     10px short with every swipe. --blog-step is the single place the step is
+     defined (see the desktop rule), so widening it here keeps the transform and
+     the card pitch the same quantity. */
+  .blog-mobile .blog-track-window {
+    --blog-step: calc(100% / var(--blog-per-view) + 10px);
   }
 
   .blog-mobile .blog-track-window {

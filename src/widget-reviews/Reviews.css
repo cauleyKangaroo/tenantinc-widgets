@@ -403,6 +403,11 @@
   display: flex;
   align-items: stretch;
   will-change: transform;
+  /* Real space between cards (Josh Wright asked for >=10px, 2026-08-27 — set to exactly 10). It is a
+     flex gap, not padding or a narrower card: those leave the item butting the
+     clip edge, so the neighbour shows through the rounded corner's notch. The
+     transform's step includes it — see the inline style in the TSX. */
+  gap: 10px;
 }
 
 /* Exactly one window wide, so the pitch the transform steps by and the card
@@ -414,6 +419,10 @@
   display: flex;
 }
 
+/* The 12px gap Josh Wright asked for (2026-08-27), taken off the CARD rather
+   than the item — padding on the item makes the clip end 12px past the card and
+   the next one peeks through, and a margin on the track changes what
+   `flex: 0 0 100%` resolves against and the cards drift. */
 .rw-mobile-track-item > .rw-card {
   width: 100%;
 }
