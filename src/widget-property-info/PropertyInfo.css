@@ -368,13 +368,18 @@
 .pi-skel-line.short { width: 62%; }
 .pi-skel-crumb { height: 18px; width: 60%; }
 
-/* Matches .pi-gallery's height so the real cards drop straight in. */
+/* Matches .pi-gallery's height so the real cards drop straight in — and it is
+   317px at EVERY width, because .pi-gallery has no responsive height. */
 .pi-skel-block {
   flex: 1 1 0;
   min-width: 0;
   height: 317px;
   border-radius: 16px;
 }
+/* The second card is the hero/map at 302px, not another 317px gallery — see
+   .pi-hero-card. Scoped under .pi-skel-cards so it cannot reach
+   .pi-gallery-skel, which shares this class but sizes itself to its parent. */
+.pi-skel-cards > .pi-skel-block:last-child { height: 302px; }
 
 @keyframes pi-skel-shimmer {
   from { background-position: 100% 50%; }
@@ -386,11 +391,21 @@
   .pi-skel-block { animation: none; }
 }
 
-/* Single column on the mobile frame, matching the real layout. */
-@media (max-width: 900px) {
+/* Single column, matching the real layout — which stacks at 1180px, NOT 900.
+   .pi-row, .pi-cards and .pi-card-col all change at 1180, so a skeleton that
+   waited until 900 stayed two-up across a 280px band where the real content is
+   already one column, and the page re-flowed when the fetch landed.
+
+   The rules mirror those three exactly rather than approximating them: wrap
+   like .pi-cards and take .pi-card-col's `1 1 360px`, instead of forcing a
+   column — same result on a phone, but correct in the band between.
+
+   No height override. The old 220px was the other half of the jump: neither
+   real card shrinks on mobile, so the placeholder was ~100px short of each. */
+@media (max-width: 1180px) {
   .pi-skel { flex-direction: column; }
-  .pi-skel-cards { flex-direction: column; }
-  .pi-skel-block { height: 220px; }
+  .pi-skel-cards { flex-wrap: wrap; }
+  .pi-skel-cards > .pi-skel-block { flex: 1 1 360px; }
 }
 
 /* Visually hidden, still announced. */
