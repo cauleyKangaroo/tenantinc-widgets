@@ -173,7 +173,22 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
     'border-bottom': '0',
     'box-shadow': 'none',
   },
-  '#secure-payment-field::placeholder': { color: 'transparent' },
+  /*
+   * The frame's placeholder IS the label for a hosted cell, and the parent
+   * draws none. Only the frame knows whether it is empty — GP reports neither
+   * length nor emptiness — so anything the parent drew had to infer it, and
+   * every available inference was wrong in one direction: over live digits, or
+   * stranded above an empty field.
+   * Matches .rf-cardcell-label at rest, and goes on focus rather than on the
+   * first keystroke, which is the behaviour asked for.
+   */
+  '#secure-payment-field::placeholder': {
+    color: '#637381',
+    'font-size': '16px',
+    'font-family': "'Montserrat', system-ui, sans-serif",
+    opacity: '1',
+  },
+  '#secure-payment-field:focus::placeholder': { color: 'transparent' },
   /*
    * field.html zeroes its own margins but never sets a HEIGHT — html, body and
    * the wrapper are all `flex: 1 1 auto` with no height, so a `height: 100%`
@@ -218,8 +233,9 @@ export async function mountHostedCard(
     gp.configure({ publicApiKey: key });
     const form = gp.ui.form({
       fields: {
-        'card-number': { target: opts.numberTarget, placeholder: ' ' },
-        'card-expiration': { target: opts.expiryTarget, placeholder: ' ' },
+        // Real text: this IS the label for a hosted cell (see FIELD_STYLES).
+        'card-number': { target: opts.numberTarget, placeholder: 'Card Number' },
+        'card-expiration': { target: opts.expiryTarget, placeholder: 'MM / YYYY' },
         // GP will only tokenize from a gesture inside its own frame — the
         // form object exposes no programmatic equivalent — so this button
         // has to exist even though ours is the one the shopper sees.
