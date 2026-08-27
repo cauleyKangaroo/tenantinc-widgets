@@ -326,24 +326,86 @@ export function descendantPages(branch: SitePage, opts: PageLinkOptions = {}): S
   return out;
 }
 
+export interface PageColumn {
+  /** The first matched branch's own title — the column heading. */
+  heading: string;
+  /** Every linkable page under the matched routes, de-duplicated by href. */
+  links: { label: string; href: string }[];
+  /** Routes that matched a branch with at least one linkable page under it. */
+  matched: string[];
+  /** Routes that are not in the tree, or whose branch has nothing linkable. */
+  missing: string[];
+}
+
 /**
- * The footer-ready form: `{ label, href }` per page under `route`, plus the
- * branch's own title for the column heading. Null when the route isn't in the
- * tree or has nothing under it — callers keep their hardcoded column, which is
- * what the Duda editor and the dev harness always see.
+ * Split a route FIELD into routes. A Duda content-menu field is one text input,
+ * so several routes have to share it — comma separated
+ * (`company-information, legal-pages`). Order is the operator's: it decides
+ * which branch supplies the heading and which pages come first.
+ *
+ * Duplicates are dropped here; overlapping BRANCHES are handled by the href
+ * de-duplication in `pageColumnFor` (a `legal-pages` branch nested under
+ * `company-information` is matched by both routes and must not list twice).
+ */
+export function parseRoutes(v: string | string[] | undefined | null): string[] {
+  const raw = Array.isArray(v) ? v : String(v ?? '').split(/[,\n]/);
+  const out: string[] = [];
+  for (const r of raw) {
+    const route = String(r ?? '').trim();
+    if (route && !out.includes(route)) out.push(route);
+  }
+  return out;
+}
+
+/**
+ * The footer-ready form: one column's worth of `{ label, href }` gathered from
+ * EVERY route in `routes`, in the order given, plus the heading to print above
+ * them.
+ *
+ * `links` is empty when no route matched. That is a real answer, not a failure:
+ * the caller renders NO COLUMN rather than a hardcoded stand-in, because a
+ * placeholder list is indistinguishable from a working one and its links go
+ * nowhere on a deployed site. `matched`/`missing` are what a caller warns with.
  */
 export function pageColumnFor(
   pages: SitePage[],
-  route: string,
+  routes: string | string[],
   opts: PageLinkOptions = {},
-): { heading: string; links: { label: string; href: string }[] } | null {
-  const branch = findSitePage(pages, route);
-  if (!branch) return null;
-  const links = descendantPages(branch, opts)
-    // No path means nothing to link to; a label with no destination is worse
-    // than one fewer row.
-    .filter((p) => p.path)
-    .map((p) => ({ label: p.title || p.path.split('/').filter(Boolean).pop() || p.path, href: p.path }));
-  if (!links.length) return null;
-  return { heading: branch.title || route, links };
+): PageColumn {
+  const links: { label: string; href: string }[] = [];
+  const seen = new Set<string>();
+  const matched: string[] = [];
+  const missing: string[] = [];
+  let heading = '';
+
+  for (const route of parseRoutes(routes)) {
+    const branch = findSitePage(pages, route);
+    const found = branch
+      ? descendantPages(branch, opts)
+        // No path means nothing to link to; a label with no destination is
+        // worse than one fewer row.
+        .filter((p) => p.path)
+        .map((p) => ({
+          label: p.title || p.path.split('/').filter(Boolean).pop() || p.path,
+          href: p.path,
+        }))
+      : [];
+    if (!found.length) {
+      missing.push(route);
+      continue;
+    }
+    matched.push(route);
+    if (!heading) heading = branch!.title || route;
+    for (const link of found) {
+      // Two routes can name overlapping branches — most obviously a
+      // `legal-pages` section that lives UNDER `company-information`, which the
+      // parent route already flattened. First occurrence wins, so the column
+      // follows the operator's route order.
+      if (seen.has(link.href)) continue;
+      seen.add(link.href);
+      links.push(link);
+    }
+  }
+
+  return { heading, links, matched, missing };
 }

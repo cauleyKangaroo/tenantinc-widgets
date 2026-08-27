@@ -207,7 +207,6 @@ function SpaceRow({
         <span className="nl-space-subtype">{space.subtype}</span>
       </div>
       <div className="nl-space-prices">
-        <span className="nl-price-tag"><TagIcon size={16} /></span>
         <div className="nl-price-strike">
           <span className="nl-price-strike-label">IN-STORE</span>
           <span className="nl-price-strike-value">${space.inStorePrice}</span>
@@ -237,6 +236,53 @@ function SpaceRow({
         ) : (
           <span className="nl-select-btn nl-select-btn--inert">Select</span>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * How many space rows every card reserves — see `ReservedSpaceRow`. It is also
+ * what `fetchPropertySpaces` returns at most (the cheapest three), so a fully
+ * stocked facility fills the slots exactly and none of them go to waste.
+ */
+const SPACE_SLOTS = 3;
+
+/**
+ * An INVISIBLE copy of a real space row, used to pad a facility that lists
+ * fewer than `SPACE_SLOTS` spaces.
+ *
+ * The point is constant card height: the mobile carousel shows one card at a
+ * time and the desktop grid pages three or six, so a facility with one bookable
+ * size next to one with three made the card jump as the visitor moved between
+ * them. Padding the list keeps every card the same height whatever it holds.
+ *
+ * **It is the real markup with `visibility: hidden`, deliberately not a
+ * `min-height` in pixels.** The row's height comes from its own contents — the
+ * size/subtype lines against the Select button — so a copy of those contents
+ * tracks any change to them automatically, where a hardcoded number silently
+ * stops matching the moment the button's padding or a font size moves. The text
+ * is placeholder and never read: `visibility: hidden` takes it out of the
+ * accessibility tree, and `aria-hidden` says so for anything that disagrees.
+ */
+function ReservedSpaceRow() {
+  return (
+    <div className="nl-space-row nl-space-row--reserved" aria-hidden="true">
+      <div className="nl-space-info">
+        <span className="nl-space-size">5&apos; x 5&apos;</span>
+        <span className="nl-space-subtype">Reserved</span>
+      </div>
+      <div className="nl-space-prices">
+        <div className="nl-price-strike">
+          <span className="nl-price-strike-label">IN-STORE</span>
+          <span className="nl-price-strike-value">$0</span>
+        </div>
+        <span className="nl-price-divider" />
+        <div className="nl-price-start">
+          <span className="nl-price-start-label">STARTING AT</span>
+          <span className="nl-price-start-value">$0</span>
+        </div>
+        <span className="nl-select-btn">Select</span>
       </div>
     </div>
   );
@@ -341,11 +387,24 @@ function PropertyCard({
               </div>
             )}
 
-            {property.spaces.length > 0 && (
-              <div className="nl-spaces">
-                {property.spaces.map((space, i) => (
-                  <React.Fragment key={`${space.size}-${i}`}>
-                    {i > 0 && <span className="nl-space-divider" />}
+            {/* ALWAYS `SPACE_SLOTS` rows, real ones first and invisible ones
+                after, so every card is the same height whether the facility
+                lists three bookable sizes or one. The block is unconditional
+                for the same reason — a facility with nothing bookable used to
+                omit it entirely and come out dramatically shorter than its
+                neighbours.
+
+                A divider belongs BETWEEN two real rows, so the one that would
+                introduce a reserved row is reserved too: it keeps its 25px of
+                height (1px rule + 12px margins) and draws nothing, which is
+                what stops a hairline trailing off under the last real row. */}
+            <div className="nl-spaces">
+              {Array.from({ length: SPACE_SLOTS }, (_, i) => property.spaces?.[i]).map((space, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && (
+                    <span className={`nl-space-divider${space ? '' : ' nl-space-divider--reserved'}`} />
+                  )}
+                  {space ? (
                     <SpaceRow
                       space={space}
                       propertyId={property.id}
@@ -355,26 +414,47 @@ function PropertyCard({
                       valueTiersChannel={valueTiersChannel}
                       valueTiersPageUrl={valueTiersPageUrl}
                     />
-                  </React.Fragment>
-                ))}
+                  ) : (
+                    <ReservedSpaceRow />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* The promo's height, reserved when the facility has no promo —
+                and placed AFTER the spaces so the visible content still moves
+                UP to fill the gap rather than sitting under a blank band. The
+                footer's `margin-top: auto` keeps it on the bottom edge either
+                way, so the card's total height is the same as a promo card's.
+                A hidden copy of the real bar rather than a pixel height, for
+                the reason `ReservedSpaceRow` is one. */}
+            {!property.promo && (
+              <div className="nl-promo nl-promo--reserved" aria-hidden="true">
+                <TagIcon size={16} />
+                <span className="nl-promo-text">Reserved</span>
               </div>
             )}
           </>
         )}
 
-        <div className="nl-card-footer">
+        {/* THE WHOLE FOOTER IS THE LINK, not just "See All Spaces" — the
+            admin-fee line and the space between the two are the same target as
+            the label. So the footer is the <a> and the label is a SPAN: an <a>
+            cannot nest inside an <a>, and the outer one is the bigger hit area.
+            An anchor rather than a click handler for the reason the photo link
+            is one — Duda's router handles a real link in preview and published
+            alike, and middle-click survives.
+            Offered however few spaces the card lists: it goes to the facility's
+            own page, not just "more of this list".
+            Always rendered, and the label always keeps the CTA colour +
+            underline: the footer must read the same from card to card. `href` is
+            simply absent when the row carries no slug — there is nowhere to
+            point, and the base path alone would land on a page that is not this
+            facility. */}
+        <a className="nl-card-footer" href={propertyHref}>
           <span className="nl-admin-fee">+ Plus ${property.adminFee} Admin Fee</span>
-          {/* Offered however few spaces the card lists — it goes to the
-              facility's own page, not just "more of this list". Absent only when
-              the row carries no slug and there is nowhere to point. */}
-          {/* Always rendered, and always the CTA colour + underline: the footer
-              must read the same from card to card. `href` is simply absent when
-              the row carries no slug — there is nowhere to point, and the base
-              path alone would land on a page that is not this facility. */}
-          <a className="nl-see-all" href={propertyHref}>
-            See All Spaces
-          </a>
-        </div>
+          <span className="nl-see-all">See All Spaces</span>
+        </a>
       </div>
     </div>
   );
