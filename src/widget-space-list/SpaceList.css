@@ -3427,6 +3427,15 @@
 .sl-wrapper .sl-blog2-track-window {
   overflow: hidden;
   touch-action: pan-y;
+  /* Matches .sl-blog2-card's radius. The next card starts at the very pixel the
+     clip ends, and the visible card's ROUNDED corner curves away from that edge
+     — leaving a notch through which the neighbour's SQUARE corner showed as a
+     sliver of the next image. Rounding the clip itself removes that notch.
+
+     Deliberately not solved by spacing the cards apart: the item must stay
+     exactly one window wide or the pitch stops matching the distance the
+     transform steps by, and the cards drift 16px further out with every step. */
+  border-radius: 16px;
 }
 
 .sl-wrapper .sl-blog2-track {
@@ -3436,7 +3445,9 @@
 }
 
 /* Exactly one window wide, so the pitch the transform steps by and the card
-   width are the same quantity. */
+   width are the SAME quantity. Anything that makes the item wider than the
+   window (padding, margins, a gap on the track) desyncs the two and the cards
+   drift further out of place with every step. */
 .sl-wrapper .sl-blog2-track-item {
   flex: 0 0 100%;
   min-width: 0;
