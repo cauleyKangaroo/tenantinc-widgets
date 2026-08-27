@@ -349,6 +349,34 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
   // it cannot see.
   const expError = hosted ? '' : expiryError(expiry);
   const [payAttempted, setPayAttempted] = useState(false);
+
+  /* The row is one box with three inputs, so it cannot ring the offending cell
+     on its own — it says which one underneath instead. The banner above only
+     reports THAT something is wrong; this is the detail.
+     Shown as soon as a cell has content and does not validate, not only on
+     submit: four digits of a sixteen-digit number is already wrong, and
+     waiting for the pay button to say so wastes the trip. Empty cells stay
+     quiet until a pay attempt — nothing has been got wrong yet.
+     In hosted mode the number and expiry live in GP's frames, which report
+     their own problems and whose contents we cannot see, so only the CVV is
+     ours to judge. */
+  const cardCellError = (() => {
+    if (!hosted) {
+      const n = digits(number);
+      if ((payAttempted || n.length > 0) && !validCard(number)) {
+        return n.length === 0 ? 'Enter your card number' : `Enter all ${CARD_DIGITS} digits of your card number`;
+      }
+      if (expError) return expError;
+      if ((payAttempted || digits(expiry).length > 0) && !validExpiry(expiry)) {
+        return 'Enter the expiry date as MM / YY';
+      }
+    }
+    const c = digits(cvv);
+    if ((payAttempted || c.length > 0) && !validCvv(cvv)) {
+      return c.length === 0 ? 'Enter the security code' : `Enter all ${CVV_DIGITS} digits of the security code`;
+    }
+    return '';
+  })();
   /** A suggestion has been chosen, so the address parts below are real. */
   const [addressPicked, setAddressPicked] = useState(false);
   const showBillingParts = addressPicked || payAttempted
@@ -369,8 +397,27 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
       : '');
 
   /** "1234567812345678" → "1234 5678 1234 5678" as it's typed. */
+  const numberRef = useRef<HTMLInputElement>(null);
   const expiryRef = useRef<HTMLInputElement>(null);
   const cvvRef = useRef<HTMLInputElement>(null);
+
+  /* Backspace at the very start of a cell carries on into the one before it,
+     so the row deletes as continuously as it fills. Forward auto-advance
+     already existed (see onNumber/onExpiry); this is the other direction.
+     Only when the caret is collapsed at 0 — mid-field or with a selection,
+     backspace means what it always means. */
+  const backspaceInto = (prev: React.RefObject<HTMLInputElement>) =>
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key !== 'Backspace') return;
+      const el = e.currentTarget;
+      if (el.selectionStart !== 0 || el.selectionEnd !== 0) return;
+      const target = prev.current;
+      if (!target) return;
+      e.preventDefault();
+      target.focus();
+      const end = target.value.length;
+      target.setSelectionRange(end, end);
+    };
 
   /*
    * Auto-advance: filling a field hands focus to the next one, so the whole row
@@ -442,8 +489,17 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
       onReady: () => { if (!dead) setGpReady(true); },
       onToken: (t) => onTokenRef.current(t),
       onError: (m) => { if (!dead) setGpError(m); },
-      onFieldValid: (field, valid) => {
-        if (!dead) setGpFilled((f) => (f[field] === valid ? f : { ...f, [field]: valid }));
+      onFieldValid: (field) => {
+        /* The EVENT is the signal, not its `valid` flag. GP posts this on every
+           keystroke, so its arrival means the frame has been typed into; `valid`
+           only says whether what is in there yet passes. Keying the label off
+           `valid` is what made a half-typed card number read as empty, so
+           blurring dropped the label back on top of the digits — the glitch.
+           GP exposes no length and no emptiness, so this cannot be unset: a
+           field typed into and then fully cleared keeps its label up. That is
+           the lesser of the two wrongs, and only reachable by deleting every
+           character. */
+        if (!dead) setGpFilled((f) => (f[field] ? f : { ...f, [field]: true }));
       },
     }).then((h) => {
       if (dead) { h?.dispose(); return; }
@@ -471,7 +527,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
         would mean fighting its internals. Same tokens, so it sits flush with the
         real form fields above and below it.
       */}
-      <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${expError ? ' rf-cardrow--error' : ''}${hosted && !gpReady ? ' rf-cardrow--loading' : ''}`}>
+      <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${cardCellError ? ' rf-cardrow--error' : ''}${hosted && !gpReady ? ' rf-cardrow--loading' : ''}`}>
         <CreditCardIcon size={24} className="rf-cardrow-ico" />
 
         {/*
@@ -490,6 +546,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
           {hosted === false && (
             <input
               className="rf-cardrow-input"
+              ref={numberRef}
               value={number}
               onChange={(e) => onNumber(e.target.value)}
               placeholder=" "
@@ -514,6 +571,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
                 ref={expiryRef}
                 value={expiry}
                 onChange={(e) => onExpiry(e.target.value)}
+                onKeyDown={backspaceInto(numberRef)}
                 placeholder=" "
                 inputMode="numeric"
                 autoComplete="cc-exp"
@@ -530,6 +588,9 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
               ref={cvvRef}
               value={cvv}
               onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, CVV_DIGITS))}
+              /* In hosted mode the expiry lives in GP's frame, which cannot be
+                 focused from here, so the chain stops at the CVV. */
+              onKeyDown={hosted ? undefined : backspaceInto(expiryRef)}
               placeholder=" "
               inputMode="numeric"
               autoComplete="cc-csc"
@@ -550,9 +611,20 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
           aria-hidden="true"
         />
       </div>
-      {expError && <p className="rf-cardrow-msg" role="alert">{expError}</p>}
+      {/* Which of the row's three is wrong. Replaces the expiry-only message
+          that used to sit here — an incomplete card number or CVV said nothing
+          at all before, so the row went red with no reason given. */}
+      {cardCellError && <p className="rf-cardrow-msg" role="alert">{cardCellError}</p>}
 
-      <FormField label="Name on Card" required value={name} onChange={setName} autoComplete="cc-name" state={ok(filled(name))} />
+      {/* `error` rather than a bare red state: the kit treats a message as
+          what PUTS a field in the error state, so a red box always says why.
+          Only after a pay attempt — ringing a field the shopper has not
+          reached yet would be scolding them for not having got there. */}
+      <FormField
+        label="Name on Card" required value={name} onChange={setName} autoComplete="cc-name"
+        state={ok(filled(name))}
+        error={payAttempted && !filled(name) ? 'Enter the name on the card' : undefined}
+      />
 
       {/* type="search" for the magnifier — the kit's affordance for a lookup
           field, ready for address search to be wired to it. The bank form's
@@ -577,7 +649,11 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
           setAddressPicked(true);
         }}
       >
-        <FormField label="Billing Address" required type="search" value={address} onChange={setAddress} autoComplete="billing street-address" state={ok(filled(address))} />
+        <FormField
+          label="Billing Address" required type="search" value={address} onChange={setAddress}
+          autoComplete="billing street-address" state={ok(filled(address))}
+          error={payAttempted && !filled(address) ? 'Enter your billing address' : undefined}
+        />
       </AddressAutocomplete>
 
       {/* City, state, country and ZIP stay hidden until the address lookup
@@ -591,8 +667,16 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
       {showBillingParts && (
         <>
           <div className="rf-pay-grid">
-            <FormField label="Billing City" required value={city} onChange={setCity} autoComplete="billing address-level2" state={ok(filled(city))} />
-            <FormField label="Billing State" required value={stateCode} onChange={(v) => setStateCode(v.toUpperCase().slice(0, 2))} autoComplete="billing address-level1" state={ok(stateCode.trim().length === 2)} />
+            <FormField
+              label="Billing City" required value={city} onChange={setCity} autoComplete="billing address-level2"
+              state={ok(filled(city))}
+              error={payAttempted && !filled(city) ? 'Enter your billing city' : undefined}
+            />
+            <FormField
+              label="Billing State" required value={stateCode} onChange={(v) => setStateCode(v.toUpperCase().slice(0, 2))}
+              autoComplete="billing address-level1" state={ok(stateCode.trim().length === 2)}
+              error={payAttempted && stateCode.trim().length !== 2 ? 'Two-letter state code' : undefined}
+            />
           </div>
 
           <div className="rf-pay-grid">
@@ -601,7 +685,11 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
               options={['United States', 'Canada']}
               state={country ? 'success' : 'default'}
             />
-            <FormField label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code" state={ok(zip.trim().length >= 3)} />
+            <FormField
+              label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code"
+              state={ok(zip.trim().length >= 3)}
+              error={payAttempted && zip.trim().length < 3 ? 'Enter your billing ZIP code' : undefined}
+            />
           </div>
         </>
       )}
