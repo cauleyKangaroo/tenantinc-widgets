@@ -501,8 +501,12 @@
   font-family: inherit;
   font-size: var(--hb-font-size-value, 16px);
   line-height: var(--hb-line-height-value, 20px);
-  /* Value sits on the lower line, leaving room for the floated label above. */
-  margin-top: 15px;
+  /* CENTRED, no offset. The 15px that used to be here pushed the value onto a
+     lower line to clear a floated label — but these cells hide their label
+     rather than float it, so there is nothing above to clear, and the offset
+     only meant the text landed 15px below where the placeholder had been.
+     .rf-cardcell is justify-content: center, so removing it puts the value
+     exactly where the label sits. */
   text-overflow: ellipsis;
 }
 /* placeholder=" " must never paint — the label is the placeholder here. */
@@ -1202,10 +1206,10 @@
   display: block;
   width: 100%;
   min-width: 0;
-  /* Same offset as .rf-cardrow-input: the value sits on the lower line and
-     leaves the floated label its room above. The frame is exactly this box —
-     the offset must NOT be repeated on the input inside it. */
-  margin-top: 15px;
+  /* Centred with .rf-cardrow-input, and for the same reason — the label is
+     hidden rather than floated, so the frame's own placeholder has to land on
+     the line its digits will take. The frame IS this box; the offset must not
+     be repeated on the input inside it either. */
   height: 20px;
   /* GP sizes its own iframe; clip rather than let a tall one push the row. */
   overflow: hidden;

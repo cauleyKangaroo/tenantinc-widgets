@@ -183,9 +183,15 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
    * first keystroke, which is the behaviour asked for.
    */
   '#secure-payment-field::placeholder': {
+    /* COLOUR ONLY. A placeholder inherits its input's type, and that input is
+       already pinned above: Montserrat with the kit's fallback stack, 16px
+       !important against mobile auto-sizing, line-height 20px in a 20px frame.
+       Re-declaring any of it here was the mistake — a shorter stack degrades
+       differently if the webfont fails, and a size without !important loses to
+       GP's own sheet, which loads after this one. Inheriting puts the
+       placeholder in exactly the type and the position the value will take.
+       opacity is for Firefox, which dims placeholders by default. */
     color: '#637381',
-    'font-size': '16px',
-    'font-family': "'Montserrat', system-ui, sans-serif",
     opacity: '1',
   },
   '#secure-payment-field:focus::placeholder': { color: 'transparent' },
