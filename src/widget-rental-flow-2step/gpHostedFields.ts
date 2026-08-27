@@ -111,16 +111,23 @@ export interface MountHostedCardOptions {
  */
 const FIELD_STYLES: Record<string, Record<string, string> | string> = {
   /*
-   * The webfont, INSIDE the frame.
+   * THE WEBFONT CANNOT BE LOADED INTO THESE FRAMES. Verified against GP's own
+   * globalpayments.js (gp-1.0.0):
    *
-   * field.html is served from GP's origin, so it inherits nothing from this
-   * page — not our @font-face, not the family on .rf-wrapper. `font-family:
-   * inherit`, which is what this used to say, therefore resolved against GP's
-   * own document and landed on its default, which is why the digits were not
-   * Montserrat while everything around them was. The frame has to fetch the
-   * font itself.
+   *   - json2css() turns a STRING value into a declaration (`key:value;`) and
+   *     an OBJECT value into a rule (`key { … }`). An @import can be neither,
+   *     so this entry was emitted as the invalid declaration
+   *     `@import:url(…);` and dropped. The library contains no occurrence of
+   *     "@import" or "font-face" at all.
+   *   - field.html is served from GP's origin, so nothing on this page reaches
+   *     it and the frame cannot be styled any other way.
+   *
+   * So the DIGITS in the card-number and expiry cells fall back to the stack
+   * below and will not be Montserrat while hosted fields are in use. Their
+   * LABELS are drawn by the parent and are. The only way to make the digits
+   * match is to stop using hosted fields — a PCI-scope decision, not a styling
+   * one.
    */
-  '@import': "url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap')",
 
   '#secure-payment-field': {
     // The frame is exactly the box the value occupies, and .rf-gpfield has
@@ -173,6 +180,15 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
     'border-bottom': '0',
     'box-shadow': 'none',
   },
+  /*
+   * The frame's placeholder IS the label for a hosted cell, and the parent
+   * draws none. Only the frame knows whether it is empty — GP reports neither
+   * length nor emptiness — so anything the parent drew had to infer it, and
+   * every available inference was wrong in one direction: over live digits, or
+   * stranded above an empty field.
+   * Matches .rf-cardcell-label at rest, and goes on focus rather than on the
+   * first keystroke, which is the behaviour asked for.
+   */
   '#secure-payment-field::placeholder': { color: 'transparent' },
   /*
    * field.html zeroes its own margins but never sets a HEIGHT — html, body and
@@ -218,6 +234,12 @@ export async function mountHostedCard(
     gp.configure({ publicApiKey: key });
     const form = gp.ui.form({
       fields: {
+        /* A SPACE, not the label text. Real placeholder text tips Chrome's
+           card-field heuristics over, and on a non-secure origin that raises
+           its "Automatic payment methods filling is disabled…" bar over the
+           form. The label is drawn by the parent instead — which also puts it
+           in Montserrat, which the frame cannot be (see the note by
+           '@import' below). */
         'card-number': { target: opts.numberTarget, placeholder: ' ' },
         'card-expiration': { target: opts.expiryTarget, placeholder: ' ' },
         // GP will only tokenize from a gesture inside its own frame — the
