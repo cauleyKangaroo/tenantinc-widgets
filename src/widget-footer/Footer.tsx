@@ -36,8 +36,14 @@ interface LinkColumn {
  * behind it is now simply NOT RENDERED — see `column()` below.
  *
  * The visible consequence, and it is intended: in the Duda editor and the dev
- * harness (no `dmAPI`, so no tree) those columns are absent. Use
- * `?mockCollections=1` in the harness to see them populated.
+ * harness (no `dmAPI`, so no tree) Storage Types is absent and Company
+ * Information shows Sitemap alone. Use `?mockCollections=1` in the harness to
+ * see them populated.
+ *
+ * SITEMAP IS THE ONE EXCEPTION, and it is not a placeholder: `/sitemap.xml` is a
+ * file every published Duda site serves, so it always resolves and needs nothing
+ * from the page tree. That is enough to earn a column on its own — see
+ * `companyColumn`.
  */
 
 /**
@@ -58,6 +64,13 @@ interface LinkColumn {
  * XML file — the visitor keeps the page they were on.
  */
 const SITEMAP_LINK: FooterLink = { label: 'Sitemap', href: '/sitemap.xml', external: true };
+
+/**
+ * Heading for the Company Information column when no route matched — i.e. the
+ * Sitemap-only case. Every other column takes its heading from the branch page
+ * the operator pointed it at.
+ */
+const COMPANY_HEADING = 'Company Information';
 
 const DEFAULT_PROPERTY_BASE_PATH = '/storage-units';
 
@@ -232,7 +245,9 @@ export function Footer({
 
   /**
    * One column's links gathered from every route in the field, or **null** when
-   * the tree has nothing under any of them.
+   * the tree has nothing under any of them. Used by Storage Types; Company
+   * Information assembles its own below, because Sitemap keeps it alive with no
+   * pages at all.
    *
    * `null` covers three cases that used to render placeholder rows and must not:
    * the tree has not been read yet (`pages === null`), there is no tree at all
@@ -255,11 +270,32 @@ export function Footer({
     return { heading: heading || col.heading, links: col.links };
   };
 
-  const companyColumn = useMemo(() => {
-    const col = column(companyRoute, companyHeading);
-    if (!col) return null;
-    // Sitemap last — and only under real rows, never as a column of its own.
-    return boolProp(showSitemapLink) ? { ...col, links: [...col.links, SITEMAP_LINK] } : col;
+  /**
+   * Company Information: the pages under `companyRoute` — by default BOTH
+   * `company-information/*` and `legal-pages/*` — with **Sitemap always last**.
+   *
+   * This column is the one exception to "no pages ⇒ no column". Sitemap is a
+   * real, always-present Duda URL rather than a guessed placeholder, so it is
+   * worth a column on its own: an operator who has not built either route yet
+   * still gets a working link, and it is the only footer row that needs nothing
+   * from the page tree. So the column renders even where the tree is unreadable
+   * — the Duda editor and the dev harness included.
+   *
+   * `showSitemapLink={false}` opts out, and then this column behaves like
+   * Storage Types: no pages, no column.
+   */
+  const companyColumn = useMemo<LinkColumn | null>(() => {
+    const col = companyRoute && pages?.length
+      ? pageColumnFor(pages, companyRoute, { skipHidden })
+      : null;
+    const links = col ? [...col.links] : [];
+    if (boolProp(showSitemapLink)) links.push(SITEMAP_LINK);
+    if (!links.length) return null;
+    // The heading comes from the first matched branch where there is one, so a
+    // site that named its section something else is followed. COMPANY_HEADING is
+    // only reached with no matched route at all — a heading is a section label,
+    // not a link, so unlike the old fallback rows it cannot point anywhere wrong.
+    return { heading: companyHeading || col?.heading || COMPANY_HEADING, links };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pages, skipHidden, companyRoute, companyHeading, showSitemapLink]);
 
@@ -293,8 +329,13 @@ export function Footer({
         console.warn(`[Footer] no pages under "${route}" in the site's page tree — that route contributes nothing`);
       }
       if (!matched.length) {
+        // The Company Information column still renders — Sitemap needs no page
+        // tree — so the two cases get different advice.
+        const tail = field === companyRoute
+          ? 'that column shows only the Sitemap link'
+          : 'that footer column is not rendered';
         // eslint-disable-next-line no-console
-        console.warn(`[Footer] none of "${parseRoutes(field).join('", "')}" matched — that footer column is not rendered`);
+        console.warn(`[Footer] none of "${parseRoutes(field).join('", "')}" matched — ${tail}`);
       }
     }
   }, [pages, companyRoute, storageTypesRoute, skipHidden]);
