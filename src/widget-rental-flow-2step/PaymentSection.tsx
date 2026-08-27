@@ -335,15 +335,8 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
       window.removeEventListener('focus', onWindowFocus);
     };
   }, [hosted, numId, expId]);
-  /* In hosted mode our overlay draws ONLY the floated label; the frame's own
-     placeholder is the resting one (see FIELD_STYLES in gpHostedFields). That
-     is what ends the guessing: the frame knows whether it is empty and the
-     parent never has to infer it, so the label can neither drop onto live
-     digits nor strand itself over an empty field. */
   const floatNumber = hosted && (gpFocus.number || gpFilled.number);
   const floatExpiry = hosted && (gpFocus.expiry || gpFilled.expiry);
-  const showNumberLabel = !hosted || floatNumber;
-  const showExpiryLabel = !hosted || floatExpiry;
 
   /* The token handler is rebuilt on every keystroke in the billing fields, but
      the frames are mounted ONCE — remounting would wipe the card mid-entry. So
@@ -580,9 +573,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
               aria-label="Card Number (required)"
             />
           )}
-          {showNumberLabel && (
-            <label className={`rf-cardcell-label${floatNumber ? ' rf-cardcell-label--pinned' : ''}`}>Card Number<span className="rf-req">*</span></label>
-          )}
+          <label className={`rf-cardcell-label${floatNumber ? ' rf-cardcell-label--pinned' : ''}`}>Card Number<span className="rf-req">*</span></label>
         </span>
 
         {/* Expiry and CVV are wrapped together so they move to a second line as
@@ -606,9 +597,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
               />
             )}
             {/* GP's frame renders MM / YYYY. */}
-            {showExpiryLabel && (
-              <label className={`rf-cardcell-label${floatExpiry ? ' rf-cardcell-label--pinned' : ''}`}>{hosted ? 'MM / YYYY' : 'MM / YY'}<span className="rf-req">*</span></label>
-            )}
+            <label className={`rf-cardcell-label${floatExpiry ? ' rf-cardcell-label--pinned' : ''}`}>{hosted ? 'MM / YYYY' : 'MM / YY'}<span className="rf-req">*</span></label>
           </span>
 
           <span className="rf-cardcell rf-cardcell--cvv">
