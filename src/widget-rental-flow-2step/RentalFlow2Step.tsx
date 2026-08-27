@@ -281,7 +281,18 @@ function Field({
 function RailSkeleton() {
   return (
     <aside className="ts-card" aria-hidden="true">
-      <div className="ts-card-hero"><Shimmer w="100%" h="100%" r={0} /></div>
+      {/* The sheet's logo header (.rf-sheethead), not the photo hero it
+          replaced — this skeleton is only ever drawn inside .rfm-sheet, so it
+          has no other shape to stand in for. Reuses the real header's classes
+          so the two cannot drift: same padding, same 8px gap, same column.
+          The address reserves 30px because it is one <p> of two 15px lines. */}
+      <div className="rf-sheethead">
+        <Shimmer w={184} h={82} r={4} />
+        <div className="rf-sheethead-info">
+          <Shimmer w={128} h={30} r={4} />
+          <Shimmer w={116} h={15} r={4} />
+        </div>
+      </div>
       <div className="ts-card-body">
         {/* .ts-card-top is a two-column flex, so its height is the TALLER of the
             two. Both sides are at their minimum, making this row 50px — exactly

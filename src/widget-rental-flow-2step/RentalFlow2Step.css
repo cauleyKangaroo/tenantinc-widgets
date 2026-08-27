@@ -1992,8 +1992,11 @@
   justify-content: space-between;
   gap: 16px;
   /* No top padding: the frame starts the logo at the container's edge and
-     insets only the text column, which is what .rf-sheethead-info does. */
-  padding: 0 24px 24px;
+     insets only the text column, which is what .rf-sheethead-info does.
+     None at the bottom either. .ts-card-body opens with 20px of its own
+     (.rfm-sheet .ts-card-body), and 24 + 20 left a 44px band between the logo
+     row and the first line of the summary — this halves it to that 20. */
+  padding: 0 24px;
   background: #fff;
 }
 .rf-wrapper .rf-sheethead-logo {
@@ -2013,7 +2016,10 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 8px;
-  padding-top: 24px;
+  /* 12, not the frame's 24: the address sat low against an 82px logo beside
+     it, and the column reads as belonging to the logo rather than floating
+     under it at half that inset. */
+  padding-top: 12px;
 }
 .rf-wrapper .rf-sheethead-addr {
   margin: 0;
