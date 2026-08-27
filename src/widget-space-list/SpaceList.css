@@ -3968,6 +3968,24 @@
   }
 }
 
+/* A real phone keeps EVERY tag, whatever the container above resolves to.
+   The truncation is a container query so it can follow the bar's own width
+   rather than the browser's — right for the sidebar layout, but it means the
+   bar's container changes underneath it: normally .sl-listing-area, and
+   .sl-wrapper.sl-top-bar-pinned once the bar is portaled out to the sticky
+   stack. If either resolves over 600px on a phone the tags after the second
+   one vanish with no "More" to reach them, because "More" is a desktop-only
+   affordance. This is the backstop: same selectors, same specificity, later in
+   the file, keyed to the VIEWPORT so it cannot be argued with.
+   .sl-top-bar-pills is already flex + overflow-x: auto, so the full row
+   scrolls under the finger. */
+@media (max-width: 600px) {
+  .sl-wrapper .sl-top-bar-pills > .sl-top-bar-pill:not(.sl-top-bar-more):nth-of-type(n+3) {
+    display: inline-flex;
+  }
+  .sl-wrapper .sl-top-bar-more { display: none; }
+}
+
 /* When FilterPanel drops down below the top bar, make it full-width */
 .sl-wrapper.filter-top .sl-filter-panel {
   width: 100%;
