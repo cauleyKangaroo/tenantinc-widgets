@@ -46,6 +46,18 @@
 .ub-bar--primary { background: var(--color_1, #f45f30); }
 .ub-bar--cta { background: var(--color_2, #509e2f); }
 
+/* Text colour (Duda content menu: textColour). White is the base every rule
+   below already sets, so only black needs saying — (0,2,0) against those
+   (0,1,0) rules, which is what lets one block cover all three marks.
+   #101318 rather than pure #000: it is the design system's near-black, the
+   same one every other widget uses for type.
+   The TOOLTIP is deliberately absent. It is a dark floating box with its own
+   palette, not part of the bar's surface, so it stays white-on-black whichever
+   way this is set. */
+.ub-bar--text-black .ub-message,
+.ub-bar--text-black .ub-info,
+.ub-bar--text-black .ub-close { color: #101318; }
+
 .ub-bar--block {
   position: relative;
 }
