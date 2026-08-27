@@ -2441,6 +2441,38 @@
 }
 
 /* Review card */
+/* ── Sliding track (Customer Reviews carousel) ────────────────────────────
+   One review per view. `border-radius` matches the card's: the next review
+   starts at the pixel the clip ends, and without it the visible card's ROUNDED
+   corner leaves a notch through which the neighbour's square corner shows.
+   `touch-action: pan-y` keeps a vertical drag scrolling the page while a
+   horizontal one belongs to the carousel — see @shared/useCarousel. */
+.sl-wrapper .sl-rv2-track-window {
+  overflow: hidden;
+  touch-action: pan-y;
+  border-radius: 16px;
+}
+
+.sl-wrapper .sl-rv2-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+}
+
+/* Exactly one window wide, so the pitch the transform steps by and the card
+   width are the SAME quantity. Anything that makes this wider than the window
+   (padding, margin, a gap on the track) desyncs the two and the cards drift
+   further out of place with every step. */
+.sl-wrapper .sl-rv2-track-item {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+}
+
+.sl-wrapper .sl-rv2-track-item > .sl-rv2-card {
+  width: 100%;
+}
+
 .sl-wrapper .sl-rv2-card {
   background: #f9fafb;
   border-radius: 16px;
@@ -2511,9 +2543,13 @@
   flex-shrink: 0;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
 .sl-wrapper .sl-rv2-arrow:disabled {
-  color: #a5b4bf;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .sl-wrapper .sl-rv2-dot {
@@ -2586,6 +2622,29 @@
    that 24px itself or the map sits flush against the accordion's bottom edge. */
 .sl-wrapper .sl-nb2-content--no-pager {
   padding-bottom: 24px;
+}
+
+/* ── Sliding track (Nearby Storage carousel) ──────────────────────────────
+   One card per view: every property renders once and a single transform moves
+   the row, so advancing animates instead of swapping the card out. The window
+   clips the rest. `touch-action: pan-y` keeps a vertical drag scrolling the
+   page while a horizontal one belongs to the carousel — see @shared/useCarousel. */
+.sl-wrapper .sl-nb2-track-window {
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.sl-wrapper .sl-nb2-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+}
+
+/* Exactly one window wide, so the pitch the transform steps by and the card
+   width are the same quantity. */
+.sl-wrapper .sl-nb2-track-item {
+  flex: 0 0 100%;
+  min-width: 0;
 }
 
 .sl-wrapper .sl-nb2-map-placeholder {
@@ -2815,7 +2874,8 @@
 }
 /* The tag mark here is the SAME currentColor icon as the promo banner's, but it
    sits outside .sl-nb2-promo, so it needs its own colour or it would inherit the
-   dark price text. Primary, matching #07's .nl-price-tag. */
+   dark price text. Primary, matching #07's promo banner (#07's own price rows
+   no longer carry a tag mark — only its promo bar does). */
 .sl-wrapper .sl-nb2-unit-pricing > svg {
   color: var(--color_1, #f45f30);
   flex-shrink: 0;
@@ -2957,9 +3017,13 @@
   flex-shrink: 0;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
 .sl-wrapper .sl-nb2-arrow:disabled {
-  color: #a5b4bf;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .sl-wrapper .sl-nb2-dot {
@@ -3392,6 +3456,40 @@
   padding: 21px 28px 0;
 }
 
+/* ── Sliding track (Self Storage Blog carousel) ───────────────────────────
+   One post per view: every post renders once and a single transform moves the
+   row, so advancing animates instead of swapping the card out. The window clips
+   the rest. `touch-action: pan-y` keeps a vertical drag scrolling the page while
+   a horizontal one belongs to the carousel — see @shared/useCarousel. */
+.sl-wrapper .sl-blog2-track-window {
+  overflow: hidden;
+  touch-action: pan-y;
+  /* Matches .sl-blog2-card's radius. The next card starts at the very pixel the
+     clip ends, and the visible card's ROUNDED corner curves away from that edge
+     — leaving a notch through which the neighbour's SQUARE corner showed as a
+     sliver of the next image. Rounding the clip itself removes that notch.
+
+     Deliberately not solved by spacing the cards apart: the item must stay
+     exactly one window wide or the pitch stops matching the distance the
+     transform steps by, and the cards drift 16px further out with every step. */
+  border-radius: 16px;
+}
+
+.sl-wrapper .sl-blog2-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+}
+
+/* Exactly one window wide, so the pitch the transform steps by and the card
+   width are the SAME quantity. Anything that makes the item wider than the
+   window (padding, margins, a gap on the track) desyncs the two and the cards
+   drift further out of place with every step. */
+.sl-wrapper .sl-blog2-track-item {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
 /* White card */
 .sl-wrapper .sl-blog2-card {
   background: #ffffff;
@@ -3594,9 +3692,13 @@
   background: #f4f6f8;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
 .sl-wrapper .sl-blog2-arrow:disabled {
-  color: #a5b4bf;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .sl-wrapper .sl-blog2-dot {
