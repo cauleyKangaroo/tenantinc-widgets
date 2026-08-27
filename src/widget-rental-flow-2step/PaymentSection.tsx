@@ -489,17 +489,23 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
       onReady: () => { if (!dead) setGpReady(true); },
       onToken: (t) => onTokenRef.current(t),
       onError: (m) => { if (!dead) setGpError(m); },
-      onFieldValid: (field) => {
-        /* The EVENT is the signal, not its `valid` flag. GP posts this on every
-           keystroke, so its arrival means the frame has been typed into; `valid`
-           only says whether what is in there yet passes. Keying the label off
-           `valid` is what made a half-typed card number read as empty, so
-           blurring dropped the label back on top of the digits — the glitch.
-           GP exposes no length and no emptiness, so this cannot be unset: a
-           field typed into and then fully cleared keeps its label up. That is
-           the lesser of the two wrongs, and only reachable by deleting every
-           character. */
-        if (!dead) setGpFilled((f) => (f[field] ? f : { ...f, [field]: true }));
+      onFieldValid: (field, valid) => {
+        /* STICKY ONCE VALID, and nothing weaker.
+           GP tells us neither length nor emptiness, so "has content" has to be
+           inferred. Two weaker readings both fail:
+             - `valid` alone drops the label back onto a half-typed number the
+               moment the frame blurs;
+             - the event's mere ARRIVAL sticks the label up over an empty
+               field, because GP posts the expiration test without any input.
+           `valid` having been true at least once cannot happen to an empty
+           frame, and does not un-happen when a digit is deleted — so the label
+           stays up over a value being edited and never strands itself above
+           nothing.
+           What this still does not catch: a frame typed into but never brought
+           to valid, then blurred. That drops. It needs a length GP does not
+           expose, and stranding the label over an empty field is the worse of
+           the two. */
+        if (!dead && valid) setGpFilled((f) => (f[field] ? f : { ...f, [field]: true }));
       },
     }).then((h) => {
       if (dead) { h?.dispose(); return; }
