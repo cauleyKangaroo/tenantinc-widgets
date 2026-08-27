@@ -1646,7 +1646,7 @@ export function RentalFlow2Step({
     window.scrollTo({ top: Math.max(0, window.scrollY + top), behavior: 'auto' });
 
     /*
-     * Step 2 then travels down to just under the email row.
+     * Step 2 then travels down to the name row, after a short pause.
      *
      * Two moves on purpose, not one: the jump above puts the widget's top on
      * screen so the shopper sees WHERE they are, and the glide gives them the
@@ -1657,17 +1657,57 @@ export function RentalFlow2Step({
      * offset by its measured height (--rf-hdr-h) plus a margin.
      */
     if (screen !== 'step2') return;
-    const id = requestAnimationFrame(() => {
+
+    let raf = 0;
+    /* Half a second on the jumped-to top before anything moves. Without it the
+       glide starts under the shopper's hand as the screen is still settling
+       and reads as the page lurching rather than travelling. */
+    const timer = window.setTimeout(() => {
       const rest = wrapRef.current?.querySelector('[data-rf2-rest]');
       if (!rest) return;
       const hdr = parseFloat(
         getComputedStyle(wrapRef.current!).getPropertyValue('--rf-hdr-h'),
       ) || 0;
-      const y = window.scrollY + rest.getBoundingClientRect().top - hdr - 16;
-      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      window.scrollTo({ top: Math.max(0, y), behavior: reduce ? 'auto' : 'smooth' });
-    });
-    return () => cancelAnimationFrame(id);
+      const to = Math.max(0, window.scrollY + rest.getBoundingClientRect().top - hdr - 16);
+      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        window.scrollTo({ top: to, behavior: 'auto' });
+        return;
+      }
+      const from = window.scrollY;
+      const dist = to - from;
+      if (!dist) return;
+
+      /* Animated here rather than with `behavior: 'smooth'`, because the
+         native one takes no duration — the browser picks it (Chrome lands
+         around half a second for a trip this size) and there is no way to ask
+         for slower. 1.8ms per pixel is roughly twice that, clamped so a short
+         hop is still unhurried and a long one on a phone does not crawl. */
+      const duration = Math.min(1500, Math.max(700, Math.abs(dist) * 1.8));
+      const start = performance.now();
+      // easeInOutCubic — starts and ends still, so the halved speed reads as
+      // deliberate rather than as the page being slow to respond.
+      const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2);
+
+      /* A scroll this long is easy to overtake, and fighting the shopper for
+         the scrollbar is worse than not animating at all. Any real input hands
+         the page straight back. */
+      let cancelled = false;
+      const stop = () => { cancelled = true; };
+      const opts = { passive: true, once: true } as const;
+      window.addEventListener('wheel', stop, opts);
+      window.addEventListener('touchstart', stop, opts);
+      window.addEventListener('keydown', stop, opts);
+
+      const step = (now: number) => {
+        if (cancelled) return;
+        const t = Math.min(1, (now - start) / duration);
+        window.scrollTo(0, from + dist * ease(t));
+        if (t < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    }, 500);
+
+    return () => { window.clearTimeout(timer); cancelAnimationFrame(raf); };
   }, [screen]);
 
   if (confirmation) {
