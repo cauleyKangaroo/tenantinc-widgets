@@ -971,7 +971,7 @@ export function NearbyLocations({
     let cancelled = false;
     missing.forEach((id) => spacesInFlight.current.add(id));
 
-    void fetchSpacesForProperties(missing, (id, data) => {
+    fetchSpacesForProperties(missing, (id, data) => {
       spacesCache.current.set(id, data);
       spacesInFlight.current.delete(id);
       if (cancelled) return;
@@ -982,6 +982,16 @@ export function NearbyLocations({
             )
           : prev,
       );
+    }).catch((err) => {
+      // `fetchSpacesForProperties` now guarantees a result per id even when it
+      // throws, so the cards are already resolved by the time this runs — this
+      // is the unhandled-rejection guard, plus the in-flight release for any id
+      // that somehow slipped through. Without the release those ids are pinned:
+      // the set is only cleared BY a result, so a skipped one would never be
+      // requested again and its card would shimmer for the life of the page.
+      missing.forEach((id) => spacesInFlight.current.delete(id));
+      // eslint-disable-next-line no-console
+      console.warn('[#07 nearby] space lookup failed for', missing, err);
     });
 
     return () => { cancelled = true; };
