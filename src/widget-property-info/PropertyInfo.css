@@ -403,7 +403,16 @@
    No height override. The old 220px was the other half of the jump: neither
    real card shrinks on mobile, so the placeholder was ~100px short of each. */
 @media (max-width: 1180px) {
-  .pi-skel { flex-direction: column; }
+  /* `align-items: stretch` is the load-bearing half of this rule, not tidying.
+     .pi-skel is align-items: flex-start for the side-by-side layout, and once
+     the direction turns to column that starts sizing both children
+     SHRINK-TO-FIT on the cross axis. The real .pi-row survives that because
+     its columns are full of text and cards with natural widths; the skeleton
+     is percentage-width bars (72%, 88%) and empty blocks, which have no
+     natural width at all — so they collapsed to slivers a few pixels wide.
+     Stretch gives each column the full row, and the percentages resolve
+     against something real again. */
+  .pi-skel { flex-direction: column; align-items: stretch; }
   .pi-skel-cards { flex-wrap: wrap; }
   .pi-skel-cards > .pi-skel-block { flex: 1 1 360px; }
 }
