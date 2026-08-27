@@ -3419,6 +3419,29 @@
   padding: 21px 28px 0;
 }
 
+/* ── Sliding track (Self Storage Blog carousel) ───────────────────────────
+   One post per view: every post renders once and a single transform moves the
+   row, so advancing animates instead of swapping the card out. The window clips
+   the rest. `touch-action: pan-y` keeps a vertical drag scrolling the page while
+   a horizontal one belongs to the carousel — see @shared/useCarousel. */
+.sl-wrapper .sl-blog2-track-window {
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.sl-wrapper .sl-blog2-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+}
+
+/* Exactly one window wide, so the pitch the transform steps by and the card
+   width are the same quantity. */
+.sl-wrapper .sl-blog2-track-item {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
 /* White card */
 .sl-wrapper .sl-blog2-card {
   background: #ffffff;
@@ -3621,9 +3644,13 @@
   background: #f4f6f8;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
 .sl-wrapper .sl-blog2-arrow:disabled {
-  color: #a5b4bf;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .sl-wrapper .sl-blog2-dot {
