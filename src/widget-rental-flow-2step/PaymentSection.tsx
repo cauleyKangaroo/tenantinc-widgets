@@ -18,7 +18,7 @@
 // ===========================================================================
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { FormField, CheckIcon } from '@shared/ui';
+import { FormField, CheckIcon, AlertIcon } from '@shared/ui';
 import { Shimmer } from '@shared/Shimmer';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { BankIcon, CreditCardIcon, CheckTick, InfoIcon } from './icons';
@@ -356,6 +356,18 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
   const complete = cardRowValid && filled(name) && filled(address) && filled(city)
     && stateCode.trim().length === 2 && zip.trim().length >= 3;
 
+  /* ONE banner, whichever went wrong, shown under the "Credit / Debit" head
+     rather than down beside the pay button (Figma 12029-93132). A shopper who
+     reaches a dead button looks at the button, not two hundred pixels above
+     it — and the fields it is talking about are all below this line.
+     A processing failure outranks an incomplete form: gpError means the card
+     itself was refused or the tokeniser broke, which is the more specific
+     thing and not something filling in a field will fix. */
+  const payError = gpError
+    || (payAttempted && !complete
+      ? 'Complete Billing Information details before processing payment'
+      : '');
+
   /** "1234567812345678" → "1234 5678 1234 5678" as it's typed. */
   const expiryRef = useRef<HTMLInputElement>(null);
   const cvvRef = useRef<HTMLInputElement>(null);
@@ -447,6 +459,12 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
 
   return (
     <>
+      {payError && (
+        <div className="rf-payerr" role="alert">
+          <AlertIcon size={24} className="rf-payerr-ico" />
+          <span>{payError}</span>
+        </div>
+      )}
       {/*
         One bordered box holding three inputs — the design's card row. Not a
         FormField: that models a single labelled input, and forcing three into it
@@ -587,11 +605,6 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
           </div>
         </>
       )}
-
-      {payAttempted && !complete && (
-        <p className="rf-cardrow-msg" role="alert">Complete the card and billing details to pay.</p>
-      )}
-      {gpError && <p className="rf-cardrow-msg" role="alert">{gpError}</p>}
 
       {/*
         In hosted mode GP's own submit frame sits invisibly on top of this

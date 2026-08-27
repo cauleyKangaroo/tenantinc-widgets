@@ -540,6 +540,27 @@
 .rf-cardrow-tick--pending { visibility: hidden; }
 /* An expiry that is complete but unusable. */
 .rf-cardrow--error { border-color: var(--hb-field-border-error, #e53935); }
+/* ── Payment error banner (Figma 12029-93132) ─────────────────────────────
+   White card on the panel's #f9fafb, sitting directly under the "Credit /
+   Debit" head so the message is beside the fields it is about rather than
+   beside the button that refused. 16px round, 16px padding, a 24px alert mark
+   and 14px/18px red text — the frame's #d73632, which is a shade off the kit's
+   --hb-ada-red used for the per-field messages; the banner is a heavier thing
+   than a field hint and the design distinguishes them. */
+.rf-payerr {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 16px;
+  color: #d73632;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+}
+.rf-payerr-ico { flex: 0 0 auto; color: #d73632; }
+
 .rf-cardrow-msg {
   /* .rf-method-panel is a 20px flex column, so these siblings already sit 20px
      apart; -16px pulls the message back to 4px under the row it belongs to. */
