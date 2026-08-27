@@ -1031,8 +1031,19 @@ span.pi-lb-img {
      column reads as stranded rather than placed. */
   .pi-media > .pi-breadcrumb { justify-content: flex-start; }
 
+  /* `align-items: stretch` is doing the work here, not the direction change.
+     .pi-row is align-items: flex-start for the side-by-side layout, and once
+     it turns to a column that sizes both children SHRINK-TO-FIT on the cross
+     axis: .pi-info fell back to its 280px min-width and .pi-media — which is
+     flex-shrink: 0 — took whatever .pi-cards happened to measure. So the whole
+     widget stopped a few hundred pixels short of the column it was given.
+     Same fault, same fix as .pi-skel in d448e40; I assumed there that the real
+     row survived it because its columns hold real content. It does not — it
+     just lands on a content width instead of collapsing, which is harder to
+     see than an empty skeleton doing the same thing. */
   .pi-row {
     flex-direction: column;
+    align-items: stretch;
   }
 
   /* Gallery and map stay side by side, half each. They used to be `1 1 360px`
