@@ -470,7 +470,14 @@ img.promo-banner-img {
   transition: background 0.15s;
 }
 .promo-pager-arrow:hover:not(:disabled) { background: #f4f6f8; }
-.promo-pager-arrow:disabled { color: #a5b4bf; cursor: default; }
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
+.promo-pager-arrow:disabled {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+}
 
 /* Dots only on a phone. The row is one card across down here and already
    swipes (useSwipe in Promotions.tsx), so the chevrons are a second way to do
@@ -592,7 +599,12 @@ img.promo-banner-img {
    Clipping happens on OUR viewport. The fade this replaces existed because
    Duda's row wrappers clip with overflow:hidden and would have cut a track —
    but a track that never leaves its own viewport is never theirs to cut. */
-.promo-bars-viewport { overflow: hidden; }
+/* `touch-action: pan-y` keeps a vertical drag scrolling the page while a
+   horizontal one belongs to the carousel — see @shared/useCarousel. */
+.promo-bars-viewport {
+  touch-action: pan-y;
+  overflow: hidden;
+}
 
 .promo-bars--track {
   flex-wrap: nowrap;
