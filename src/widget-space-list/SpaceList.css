@@ -2441,6 +2441,38 @@
 }
 
 /* Review card */
+/* ── Sliding track (Customer Reviews carousel) ────────────────────────────
+   One review per view. `border-radius` matches the card's: the next review
+   starts at the pixel the clip ends, and without it the visible card's ROUNDED
+   corner leaves a notch through which the neighbour's square corner shows.
+   `touch-action: pan-y` keeps a vertical drag scrolling the page while a
+   horizontal one belongs to the carousel — see @shared/useCarousel. */
+.sl-wrapper .sl-rv2-track-window {
+  overflow: hidden;
+  touch-action: pan-y;
+  border-radius: 16px;
+}
+
+.sl-wrapper .sl-rv2-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+}
+
+/* Exactly one window wide, so the pitch the transform steps by and the card
+   width are the SAME quantity. Anything that makes this wider than the window
+   (padding, margin, a gap on the track) desyncs the two and the cards drift
+   further out of place with every step. */
+.sl-wrapper .sl-rv2-track-item {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+}
+
+.sl-wrapper .sl-rv2-track-item > .sl-rv2-card {
+  width: 100%;
+}
+
 .sl-wrapper .sl-rv2-card {
   background: #f9fafb;
   border-radius: 16px;
@@ -2511,9 +2543,13 @@
   flex-shrink: 0;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
 .sl-wrapper .sl-rv2-arrow:disabled {
-  color: #a5b4bf;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .sl-wrapper .sl-rv2-dot {
