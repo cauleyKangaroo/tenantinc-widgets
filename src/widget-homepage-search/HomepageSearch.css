@@ -1,5 +1,5 @@
 .hs {
-  /* Accent (Find button + locations bar). Operator can pass accentColor; else the
+  /* Accent (the Find button). Operator can pass accentColor; else the
      Duda theme's --color_2; else a brand red. */
   --hs-accent: var(--color_2, #e4002b);
   font-family: 'Montserrat', sans-serif;
@@ -97,7 +97,7 @@
   cursor: pointer;
 }
 .hs-find:hover { background: color-mix(in srgb, var(--hs-accent) 88%, black); }
-.hs-find:focus-visible, .hs-locations:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.hs-find:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .hs-find[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
 .hs-find .hs-search-icon { display: none; color: #fff; }
 
@@ -143,98 +143,7 @@
 .hs-history-head button { border: 0; background: transparent; color: var(--hs-accent); font: inherit; cursor: pointer; }
 .hs-history-head button:focus-visible { outline: 2px solid var(--hs-accent); outline-offset: 2px; }
 
-/* ── "See our N Locations" bar ───────────────────────────────────────────── */
-.hs-locations {
-  display: block;
-  width: 100vw;
-  margin-top: 93px;
-  margin-left: calc(50% - 50vw);
-  padding: 24px 20px;
-  border-radius: 0;
-  background: var(--hs-accent);
-  color: #fff;
-  font-family: inherit;
-  font-size: 32px;
-  font-weight: 700;
-  text-align: center;
-  text-decoration: none;
-}
 .hs-error { width: min(834px, 100%); margin: 10px auto 0; padding: 8px 18px; border-radius: 8px; background: rgba(255,255,255,.95); color: #b3261e; font-size: 14px; }
-.hs-locations:hover { background: color-mix(in srgb, var(--hs-accent) 88%, black); }
-
-/* ── Layout 2: promotional search card (latest Figma Locations Modal) ───── */
-.hs-card {
-  position: relative;
-  width: min(560px, 100%);
-  margin: 0 0 0 auto;
-  padding: 52px 52px 58px;
-  border-radius: 30px;
-  background: #fff;
-  color: #101318;
-}
-.hs-card-heading {
-  margin: 0 0 16px;
-  color: #101318;
-  font-family: inherit;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.2;
-  text-transform: none;
-  letter-spacing: normal;
-}
-.hs--promo-card .hs-bar {
-  position: relative;
-  display: block;
-  width: 100%;
-  min-height: 68px;
-  margin: 0;
-  padding: 0;
-  border: 2px solid #101318;
-  border-radius: 999px;
-  box-shadow: 0 3px 6px rgba(16, 19, 24, .16);
-}
-.hs--promo-card .hs-field { min-height: 64px; padding: 0 76px 0 26px; }
-.hs--promo-card .hs-type { display: none; }
-.hs--promo-card .hs-find {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-}
-.hs--promo-card .hs-find-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.hs--promo-card .hs-find .hs-search-icon { display: block; }
-.hs--promo-card .hs-suggestions {
-  top: 182px;
-  width: calc(100% - 104px);
-  border-radius: 14px;
-}
-.hs--promo-card .hs-error { width: 100%; }
-.hs-promotion { margin-top: 24px; }
-.hs-promotion-title {
-  margin: 0;
-  font-family: inherit;
-  font-size: 64px;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -1px;
-}
-.hs-promotion-title span, .hs-promotion-title strong { display: block; }
-.hs-promotion-title span { color: var(--hs-accent); }
-.hs-promotion-title strong { color: #000; font-weight: 800; }
-.hs-promotion-disclaimer {
-  margin: 26px 0 0;
-  color: #101318;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.25;
-}
-.hs--promo-card .hs-locations {
-  margin-top: 44px;
-  padding-left: max(20px, calc((100vw - 1270px) / 2));
-  text-align: left;
-}
 
 /* ── Mobile: stack the pill into full-width rows ─────────────────────────── */
 @media (max-width: 768px) {
@@ -264,11 +173,4 @@
   .hs-find-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .hs-find .hs-search-icon { display: block; }
   .hs-suggestions { top: 75px; width: 100%; border-radius: 14px; }
-  .hs-locations { margin-top: 52px; padding: 23px 16px; font-size: 28px; }
-  .hs-card { margin: 0 auto; padding: 28px 22px 32px; border-radius: 22px; }
-  .hs-card-heading { padding-right: 0; font-size: 26px; }
-  .hs--promo-card .hs-suggestions { top: 151px; width: calc(100% - 44px); }
-  .hs-promotion-title { font-size: clamp(40px, 12vw, 54px); }
-  .hs-promotion-disclaimer { font-size: 11px; }
-  .hs--promo-card .hs-locations { margin-top: 32px; padding-left: 16px; text-align: center; }
 }

@@ -2838,7 +2838,8 @@
 }
 /* The tag mark here is the SAME currentColor icon as the promo banner's, but it
    sits outside .sl-nb2-promo, so it needs its own colour or it would inherit the
-   dark price text. Primary, matching #07's .nl-price-tag. */
+   dark price text. Primary, matching #07's promo banner (#07's own price rows
+   no longer carry a tag mark — only its promo bar does). */
 .sl-wrapper .sl-nb2-unit-pricing > svg {
   color: var(--color_1, #f45f30);
   flex-shrink: 0;

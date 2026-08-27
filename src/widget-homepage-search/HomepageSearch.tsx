@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './HomepageSearch.css';
 import { fetchLocationTree } from '@shared/propertyNav';
 
+// ONE layout, the horizontal search bar. The white "promo card" (Layout 2) and
+// the full-bleed "See our N Locations" bar are both retired — their CSS is gone
+// from HomepageSearch.css, so the `layout`, `cardHeading` and `promotion*` props
+// that drove them have gone with it rather than being left declared but dead.
 export interface HomepageSearchProps {
-  /** Operator-selectable presentation. `search-bar` is the original horizontal
-   *  control; `promo-card` is the white Figma promotional card. */
-  layout?: 'search-bar' | 'promo-card';
   /** Placeholder for the location input (Figma: "City, ZIP or Address"). */
   searchPlaceholder?: string;
   /** Find button label (desktop Figma: "Find Storage"). */
@@ -19,22 +20,12 @@ export interface HomepageSearchProps {
   searchUrl?: string;
   /** Duda external collection containing property slugs and addresses. */
   propertiesCollection?: string;
-  /** "See our N Locations" link target, e.g. "/locations". */
+  /** Base path for a CITY page — where a city with more than one facility
+   *  points. (A one-facility city links straight to that facility instead.)
+   *  Not a rendered link of its own. */
   locationsUrl?: string;
-  /** Number shown in the locations link. */
-  locationsCount?: number;
-  /** Locations link text; "{n}" is replaced with locationsCount. */
-  locationsLabel?: string;
-  /** Accent (button + locations bar). Defaults to the theme's --color_2, then red. */
+  /** Accent (the Find button). Defaults to the theme's --color_2, then red. */
   accentColor?: string;
-  /** Layout-2 card heading. */
-  cardHeading?: string;
-  /** Layout-2 accent promotion copy; wraps naturally to the available width. */
-  promotionText?: string;
-  /** Layout-2 final promotion line, rendered in black. */
-  promotionSuffix?: string;
-  /** Layout-2 legal/disclosure copy below the promotion. */
-  promotionDisclaimer?: string;
   /** Recent resolved city searches kept on this device (0 disables, max 5). */
   historyLimit?: number;
   inEditor?: boolean;
@@ -82,7 +73,6 @@ function Chevron() {
 }
 
 export function HomepageSearch({
-  layout = 'search-bar',
   searchPlaceholder = 'City, ZIP or Address',
   ctaLabel = 'Find Storage',
   storageTypes = DEFAULT_TYPES,
@@ -90,13 +80,7 @@ export function HomepageSearch({
   searchUrl = '/property-landing-page--value-tiers-test',
   propertiesCollection = 'Properties',
   locationsUrl = '/locations',
-  locationsCount = 29,
-  locationsLabel = 'See our {n} Locations',
   accentColor,
-  cardHeading = 'Find Storage Near Me',
-  promotionText = '$1 Summer Move-In',
-  promotionSuffix = 'Special',
-  promotionDisclaimer = '*All new rentals are subject to a $30 Admin Fee. Other fees like coverage may apply, select a space to see price details.',
   historyLimit = 5,
   inEditor,
   siteId,
@@ -220,27 +204,16 @@ export function HomepageSearch({
     return editorSafeHref(url.pathname + url.search, inEditor, siteId);
   })();
 
-  const locationsHref = (() => {
-    try {
-      const url = new URL(locationsUrl, window.location.origin);
-      return url.origin === window.location.origin
-        ? editorSafeHref(url.pathname + url.search, inEditor, siteId)
-        : undefined;
-    } catch { return undefined; }
-  })();
-
   const style = accentColor ? ({ ['--hs-accent']: accentColor } as React.CSSProperties) : undefined;
-  const locationsText = locationsLabel.replace('{n}', String(locationsCount));
-  const promoCard = layout === 'promo-card';
 
   return (
     <div
-      className={`hs hs--${layout}`}
+      className="hs"
       style={style}
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSuggestionsOpen(false); }}
     >
-      <div className={promoCard ? 'hs-card' : 'hs-search-layout'}>
-        {promoCard && <h2 className="hs-card-heading">{cardHeading}</h2>}
+      {/* The positioning context `.hs-suggestions` is absolutely placed against. */}
+      <div className="hs-search-layout">
         <form className="hs-bar" onSubmit={(e) => { e.preventDefault(); if (href) findRef.current?.click(); }}>
         <div className="hs-field">
           <input
@@ -320,20 +293,9 @@ export function HomepageSearch({
           ))}
           </ul>
         )}
-
-        {q.trim() && !match && !citySuggestions.length && <p className="hs-error" role="status">No matching city, ZIP, or address found.</p>}
-
-        {promoCard && (
-          <div className="hs-promotion">
-            <p className="hs-promotion-title"><span>{promotionText}</span><strong>{promotionSuffix}</strong></p>
-            {promotionDisclaimer && <p className="hs-promotion-disclaimer">{promotionDisclaimer}</p>}
-          </div>
-        )}
       </div>
 
-      {locationsHref && (
-        <a className="hs-locations" href={locationsHref}>{locationsText}</a>
-      )}
+      {q.trim() && !match && !citySuggestions.length && <p className="hs-error" role="status">No matching city, ZIP, or address found.</p>}
     </div>
   );
 }
