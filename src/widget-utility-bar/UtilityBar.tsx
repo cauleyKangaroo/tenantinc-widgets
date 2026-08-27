@@ -181,15 +181,29 @@ export function UtilityBar({
    *
    * Walks up from our own node and hides what it finds, restoring the previous
    * inline value on the way back — never a blanket `display: ''`, which would
-   * wipe a display the theme had set deliberately. Two levels: createWidget's
-   * mount div, then the element Duda handed it.
+   * wipe a display the theme had set deliberately.
+   *
+   * AS FAR AS THE CHAIN IS AN ONLY CHILD, not a fixed two levels. Two was a
+   * guess at Duda's nesting — createWidget's mount div, then the element Duda
+   * handed it — and on a real page the box holding the row's padding sits
+   * further up, so the band survived every one of them and the header still
+   * did not close to the top of the screen.
+   *
+   * `children.length > 1` is the stop, and it is the safety as well: an
+   * ancestor holding anything besides this chain is a row shared with other
+   * content, and hiding it would take that content with it. So the walk
+   * collapses exactly the boxes that exist only to hold this widget, however
+   * many Duda decides that is, and stops the moment one is shared.
    */
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return undefined;
     const nodes: HTMLElement[] = [];
-    for (let n = el.parentElement, i = 0; n && i < 2; n = n.parentElement, i++) nodes.push(n);
+    for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+      if (n.children.length > 1) break;
+      nodes.push(n);
+    }
     const previous = nodes.map((n) => n.style.display);
     if (empty) nodes.forEach((n) => { n.style.display = 'none'; });
     return () => { nodes.forEach((n, i) => { n.style.display = previous[i]; }); };
