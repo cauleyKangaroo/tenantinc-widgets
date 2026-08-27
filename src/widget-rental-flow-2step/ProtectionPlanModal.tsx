@@ -113,7 +113,7 @@ export function ProtectionPlanModal({
       >
         <button type="button" className="rf-pp-close" onClick={onClose} aria-label="Close">
           {/* Filled disc: .rf-pp modal is #fff. */}
-          <CloseCircleIcon size={18} />
+          <CloseCircleIcon size={32} />
         </button>
 
         <PlanCoverageBody brochureUrl={brochureUrl} titleId="rf-pp-title" />

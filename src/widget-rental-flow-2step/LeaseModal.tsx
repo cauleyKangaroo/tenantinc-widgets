@@ -70,7 +70,7 @@ export function LeaseModal({
           </p>
           <button type="button" className="rf2-lease-close" onClick={onClose} aria-label="Close">
             {/* Filled disc: .rf2-lease is #f4f6f8. */}
-            <CloseCircleIcon size={14} />
+            <CloseCircleIcon size={32} />
           </button>
         </div>
 

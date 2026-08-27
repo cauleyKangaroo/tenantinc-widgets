@@ -221,7 +221,15 @@
    were here are gone. What remains is the one thing the kit's root does not
    do: this consent line runs to three or four lines, so the box must sit with
    the FIRST line rather than centred against the whole paragraph. */
-.pi-msg-consent { align-items: flex-start; }
+/* Box to the TOP of the consent paragraph, which runs to four lines — centred
+   against it, the tick floated in the middle of the block with nothing beside
+   it to read against.
+   Written as .hb-check.pi-msg-consent, NOT .pi-msg-consent alone: the row
+   carries both classes, and the kit's .hb-check sets align-items: center at
+   the same (0,1,0). Which of the two won came down to which stylesheet the
+   bundler happened to emit last — and it emitted .hb-check last in both #03
+   and #05, so this rule had no effect at all until it was made (0,2,0). */
+.hb-check.pi-msg-consent { align-items: flex-start; }
 
 .pi-msg-consent-text { font-size: 16px; line-height: 20px; color: #101318; }
 /* Left, with the rest of the footer — it was align-self:center inside a

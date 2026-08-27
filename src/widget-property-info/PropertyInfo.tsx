@@ -487,6 +487,78 @@ export function PropertyInfo(props: Props) {
   const prev = () => setIndex((i) => (i - 1 + slides.length) % slides.length);
   const next = () => setIndex((i) => (i + 1) % slides.length);
 
+  /* ── Drag-to-slide ──────────────────────────────────────────────────────
+     The gallery used to be ONE <img> whose src was swapped, so a swipe could
+     only ever cut to the next photo — there was nothing to move. It is a track
+     of every slide now: the finger drags it, and letting go animates it the
+     rest of the way onto whichever slide it settled towards.
+
+     Pointer events rather than touch: one code path covers finger, mouse and
+     pen. `touch-action: pan-y` on the frame is what keeps the page scrollable
+     — the browser hands us horizontal gestures and keeps vertical ones. */
+  const galleryRef = useRef<HTMLButtonElement>(null);
+  const dragRef = useRef<
+    { x: number; y: number; w: number; axis: 'none' | 'x' | 'y'; dx: number } | null
+  >(null);
+  const [dragDx, setDragDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  /* A drag ends in a click on the button, which would open the lightbox. */
+  const draggedRef = useRef(false);
+
+  const onGalleryDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Arrows and dots are inside the frame and have their own jobs.
+    if ((e.target as HTMLElement).closest?.('.pi-gallery-nav')) return;
+    dragRef.current = {
+      x: e.clientX, y: e.clientY, axis: 'none', dx: 0,
+      w: galleryRef.current?.clientWidth || 1,
+    };
+    draggedRef.current = false;
+  };
+
+  const onGalleryMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    /* Which way is this going? Decided ONCE, after 8px, and never revisited —
+       re-deciding mid-gesture makes a diagonal swipe flip between scrolling
+       the page and moving the track. A vertical verdict abandons the drag for
+       good and the page scrolls as usual. */
+    if (d.axis === 'none') {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      d.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (d.axis === 'x') {
+        setDragging(true);
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+      }
+    }
+    if (d.axis !== 'x') return;
+    draggedRef.current = true;
+    /* Resistance at the two ends: there is no slide beyond the first or last,
+       so the track gives about a third as much rather than pulling away from
+       the frame and showing empty space. */
+    const atEnd = (index === 0 && dx > 0) || (index === slides.length - 1 && dx < 0);
+    d.dx = atEnd ? dx / 3 : dx;
+    setDragDx(d.dx);
+  };
+
+  const onGalleryUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    setDragDx(0);
+    setDragging(false);
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    if (!d || d.axis !== 'x') return;
+    /* A fifth of the frame commits, capped at 60px so a wide desktop card does
+       not demand an unreasonably long drag. Below that it settles back. */
+    const threshold = Math.min(60, d.w * 0.2);
+    if (d.dx <= -threshold && index < slides.length - 1) setIndex(index + 1);
+    else if (d.dx >= threshold && index > 0) setIndex(index - 1);
+  };
+
   // There's no reservation-lookup endpoint yet, so "Go" just follows the
   // configured reservationUrl (what the old link did). Once a lookup exists,
   // reservationCode is what it needs.
@@ -545,7 +617,7 @@ export function PropertyInfo(props: Props) {
           <span className="pi-hours-title"><ClockIcon size={24} /><span>Hours</span></span>
           <button type="button" className="pi-hours-close" aria-label="Close" onClick={() => setHoursOpen(false)}>
             {/* Filled disc: the hours panel is on a white card. */}
-            <CloseCircleIcon size={18} />
+            <CloseCircleIcon size={32} />
           </button>
         </div>
         <div className="pi-hours-body">
@@ -744,8 +816,36 @@ export function PropertyInfo(props: Props) {
                 <span className="pi-skel-block pi-gallery-skel" />
               </div>
             ) : (
-            <button className="pi-gallery" onClick={() => setLightbox(true)} aria-label="Open photo gallery">
-              <ImageFill className="pi-gallery-img" src={current} />
+            <button
+              className="pi-gallery"
+              ref={galleryRef}
+              onClick={() => {
+                /* Swallow the click that ends a drag — otherwise every swipe
+                   would also open the lightbox. */
+                if (draggedRef.current) { draggedRef.current = false; return; }
+                setLightbox(true);
+              }}
+              onPointerDown={onGalleryDown}
+              onPointerMove={onGalleryMove}
+              onPointerUp={onGalleryUp}
+              onPointerCancel={onGalleryUp}
+              aria-label="Open photo gallery"
+            >
+              {/* Every slide, side by side. `current` is still what the
+                  lightbox opens on; this is only what is on screen. */}
+              <span
+                className="pi-gallery-track"
+                style={{
+                  transform: `translate3d(calc(${-index * 100}% + ${dragDx}px), 0, 0)`,
+                  ...(dragging ? { transition: 'none' } : null),
+                }}
+              >
+                {slides.map((src, i) => (
+                  <span className="pi-gallery-slide" key={`${src}-${i}`}>
+                    <ImageFill className="pi-gallery-img" src={src} />
+                  </span>
+                ))}
+              </span>
               <span className="pi-gallery-overlay" />
               <span className="pi-gallery-expand"><PhotoExpandIcon size={48} /></span>
               <span className="pi-gallery-nav" onClick={(e) => e.stopPropagation()}>

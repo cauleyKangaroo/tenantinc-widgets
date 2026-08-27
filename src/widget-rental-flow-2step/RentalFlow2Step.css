@@ -804,8 +804,44 @@
 .rf2-checkline--sm .rf2-checklabel { font-size: 14px; }
 
 /* Rental Agreement */
-.rf2-agree { background: #f4f6f8; border-radius: 16px; overflow: hidden; }
-.rf2-agree-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 28px 29px 20px; }
+/* The 2px is RESERVED at rest, transparent, rather than appearing on check: a
+   border coming from nothing would pull the content in 2px a side at the exact
+   moment of the click. Only the colour changes.
+   It is declared here, after the <=1024px rule that sets `border: none` to
+   strip this section's chrome on smaller screens — same (0,1,0), later in
+   source — so the ring is reserved at every width. At rest it is invisible
+   either way, so that flush mobile treatment is unchanged until it is ticked. */
+.rf2-agree {
+  /* One ground for the box AND its resting border, so the two can never
+     disagree: the border is the same colour as what is behind it, which is
+     what makes it invisible until it is coloured. */
+  --rf2-agree-ground: #f4f6f8;
+  background: var(--rf2-agree-ground);
+  border-radius: 16px;
+  overflow: hidden;
+  /* Always 2px. ONLY the colour changes on .rf2-agree--on, so there is no
+     geometry to recompute when the box is ticked and nothing can move. */
+  border: 2px solid var(--rf2-agree-ground);
+  transition: border-color 0.15s ease;
+  /* 28 + the 2px border = the 30px .rf2-panel uses, so the content column
+     lines up with the payment box beside it rather than sitting 2px narrower.
+     Keep the pair in step: change one, change the other. */
+  padding: 28px;
+}
+/* Agreed. --hb-cta is the kit's CTA token, which follows Duda's --color_2 —
+   the same one the flow's seven other CTA rules use.
+
+   OUTLINE rather than border, and this is the point: an outline is not part of
+   the box model, so it cannot change the box's height or width by any amount,
+   under any box-sizing, at any breakpoint. A reserved transparent border was
+   the previous answer and it did hold the size — but it also meant this box
+   was 30px inside a 2px edge while .rf2-panel beside it was a flat 30px, and
+   it re-added 4px of height under the <=1024px rule that deliberately strips
+   this section's chrome. `outline-offset: -2px` draws it just inside the edge,
+   where the border sat, and outlines follow border-radius, so the 16px corner
+   is kept. */
+.rf2-agree--on { border-color: var(--hb-cta, #f45f30); }
+.rf2-agree-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 20px; }
 /* Long label by default, short one on mobile — see the note at the call site. */
 .rf2-link-short { display: none; }
 /* A fixed 250px PREVIEW, not a reader. `overflow: hidden` deliberately: this
@@ -814,7 +850,7 @@
    to be read. "View Document" opens the lightbox that IS the reader, so this
    only has to show enough to identify what is being agreed to. */
 .rf2-agree-doc {
-  margin: 0 24px;
+  margin: 0;
   height: 250px;
   overflow: hidden;
   background: #fff;
@@ -824,7 +860,7 @@
 .rf2-doc-title { margin: 0 0 14px; font-size: 16px; font-weight: 700; color: #101318; }
 .rf2-doc-h { margin: 0 0 6px; font-size: 12px; font-weight: 700; font-style: italic; color: #101318; }
 .rf2-doc-p { margin: 0 0 10px; font-size: 11px; line-height: 1.5; color: #45505c; }
-.rf2-agree-bar { display: flex; align-items: center; gap: 8px; padding: 16px 24px; cursor: pointer; }
+.rf2-agree-bar { display: flex; align-items: center; gap: 8px; padding: 16px 0 0; cursor: pointer; }
 /* Box to the TOP, not centred on a sentence that wraps to two or three lines
    on a phone. Scoped to .rf-wrapper for specificity, not for sharing: the row
    carries the kit's .hb-check as well, which sets align-items: center at the
@@ -900,6 +936,16 @@
 }
 
 .rf2-autopay--on { border-color: var(--color_2, #509e2f); }
+/* PRESELECTED never takes the CTA colour, and loses its outline entirely once
+   ticked — the blue border and the blue notice are one argument, so they
+   arrive and leave together.
+   This rule has to exist at (0,2,0): .rf2-autopay--withbar sets the blue forty
+   lines above, and .rf2-autopay--on is later in the file at the same (0,1,0),
+   so ticking the box repainted the border in --color_2. That is the amber ring
+   this replaces.
+   transparent rather than `border: none`, so the 2px stays reserved and the
+   head does not shift 2px a side at the moment of the click. */
+.rf2-autopay--withbar.rf2-autopay--on { border-color: transparent; }
 .rf2-autopay-label { font-size: 16px; font-weight: 600; color: #101318; }
 /* The (i) is a real button now (it opens the tooltip), so it needs the button
    reset AND the host-theme guard — a bare `button:hover { background }` on the
@@ -1062,6 +1108,8 @@
   /* .rf2-row stacks here, so its fields are full width — match them. */
   .rf2-movein { width: 100%; }
   .rf2-panel, .rf2-payment { padding: 20px; }
+  /* 18 + the 2px border = the panels' 20px above. */
+  .rf2-agree { padding: 18px; }
   /* Payment goes flat white and full width on mobile.
      NOTE this repeats what the "flat white sheet" block near the top of the
      file already says for .rf2-panel and .rf-method-panel — that block has
@@ -1107,10 +1155,13 @@
     min-height: 64px;
     padding: 0 28px;
   }
-  .rf2-agree-head { padding: 20px 20px 16px; }
+  /* Gutters only, no sides: .rf2-agree carries the 20px here, same as the
+     panels. These two kept their own 20px and 16px, which on top of the
+     container's would have double-inset the head and the document. */
+  .rf2-agree-head { padding: 0 0 16px; }
   .rf2-link-long { display: none; }
   .rf2-link-short { display: inline; }
-  .rf2-agree-doc { margin: 0 16px; }
+  .rf2-agree-doc { margin: 0; }
   .rf2-paygrid { grid-template-columns: 1fr; }
 }
 
@@ -1853,11 +1904,11 @@
 /* Required-agreement message. Replaces a 2px red outline that used to ring the
    whole row: it flagged that something was wrong without ever saying what, and
    a box drawn around a single checkbox reads as a container, not an error.
-   Inset to 24px to match .rf2-agree-bar's gutter, so it lines up under the
-   label rather than under the checkbox. Colour is the same #b3261e the other
-   validation messages use (.rf-form-error). */
+   The container carries the gutter now, so this needs none of its own — it
+   lines up with the checkbox row above it either way. Colour is the same
+   #b3261e the other validation messages use (.rf-form-error). */
 .rf2-agree-error {
-  margin: 0 24px 16px;
+  margin: 0;
   font-size: 14px;
   line-height: 18px;
   color: #b3261e;
