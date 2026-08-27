@@ -119,7 +119,16 @@ export function UtilityBar({
       if (e.key === 'Escape') setModalOpen(false);
     }
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    /* The page behind must not scroll under the overlay. Body overflow, the
+       same lock every other modal in the repo uses — safe here because this
+       widget's bar is `position: fixed`, not sticky, so an overflow-hidden
+       body cannot take away a scrollport it never used. */
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [modalOpen]);
 
   function handleClose() {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './NavigationBar.css';
 import storelocalLogo from './Storelocal_logo.png';
 import { CloseCircleIcon } from '@shared/ui';
@@ -386,6 +386,22 @@ export function NavigationBar({
   const logoSrc = imageUrl(logoImage) || (logoUrl ?? '').trim() || storelocalLogo;
 
   const [menuOpen, setMenuOpen] = useState(false);
+  /* Wheel over the overlay must not scroll the page behind it. touch-action
+     handles the finger (see .nav-mm-overlay) but there is no CSS equivalent
+     for a wheel, and React attaches its own wheel listener PASSIVELY — so
+     preventDefault has to come from a native non-passive one. Same shape as
+     the rental flow's scrim.
+     Deliberately not the body-overflow lock the other modals use: this bar is
+     position: sticky, and an overflow-hidden ancestor would take away the
+     scrollport it sticks against. */
+  const mmOverlayRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = mmOverlayRef.current;
+    if (!menuOpen || !el) return undefined;
+    const stop = (e: WheelEvent) => e.preventDefault();
+    el.addEventListener('wheel', stop, { passive: false });
+    return () => el.removeEventListener('wheel', stop);
+  }, [menuOpen]);
   // Desktop "Find Storage" mega menu. Click-to-open: it holds three columns and a
   // scroll region, which a hover panel loses the moment the pointer clips a gap.
   const [megaOpen, setMegaOpen] = useState(false);
@@ -823,7 +839,7 @@ export function NavigationBar({
       {/* Mobile slide-out menu (hamburger). Always mounted so it animates both
           in and out; `is-open` drives the slide + overlay fade. */}
       <div className={`nav-mobile-menu${menuOpen ? ' is-open' : ''}`} role="dialog" aria-modal="true" aria-hidden={!menuOpen}>
-        <div className="nav-mm-overlay" onClick={() => setMenuOpen(false)} />
+        <div className="nav-mm-overlay" ref={mmOverlayRef} onClick={() => setMenuOpen(false)} />
         <div className="nav-mm-panel">
           <div className="nav-mm-header">
             <a className="nav-mm-logo" href={homeLink} aria-label="Home">
