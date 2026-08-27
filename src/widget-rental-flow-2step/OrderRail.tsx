@@ -33,6 +33,7 @@ export function OrderRail({
   changeSpaceUrl,
   quoteFailed = false,
   estimate = false,
+  paid = false,
 }: {
   property?: PropertyInfo;
   selection?: SelectionContext;
@@ -48,6 +49,10 @@ export function OrderRail({
    *  server-side and does not echo the final breakdown, so the shown total is
    *  an ESTIMATE, not a confirmed charge. Labels it accordingly. */
   estimate?: boolean;
+  /** The money has actually been taken — i.e. this is the confirmation page,
+   *  not a step in the flow. Only then can the total be described in the past
+   *  tense; before it, the same figure is what the shopper is ABOUT to pay. */
+  paid?: boolean;
 }) {
   const phone = property?.phone
     ? property.phone.replace(/^1?(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')
@@ -67,6 +72,12 @@ export function OrderRail({
       .catch(() => { /* no collection — the demo image stands in */ });
     return () => { cancelled = true; };
   }, [property?.id]);
+  /* Three states, one label. `estimate` outranks `paid` because a reservation
+     confirms without taking money — it is neither a cost still to come nor an
+     amount already paid. */
+  const totalLabel = estimate
+    ? 'Estimated Move-In Total:'
+    : paid ? 'Total Paid to Move-In:' : 'Total Cost to Move-In:';
   const showStrike = selection?.inStore != null && selection?.online != null
     && selection.inStore > selection.online;
 
@@ -110,7 +121,7 @@ export function OrderRail({
               showTotal={false}
             />
             <div className="ts-bd-row ts-bd-row--total">
-              <span className="ts-bd-total-label">{estimate ? 'Estimated Move-In Total:' : 'Total Paid to Move-In:'}</span>
+              <span className="ts-bd-total-label">{totalLabel}</span>
               <span className="ts-bd-total-amt">${quote.totalDue.toFixed(2)}</span>
             </div>
             {estimate && (
@@ -124,7 +135,7 @@ export function OrderRail({
           <>
             <p className="ts-bd-note">{railMoneyNote(!!selection, quoteFailed)}</p>
             <div className="ts-bd-row ts-bd-row--total">
-              <span className="ts-bd-total-label">Total Paid to Move-In:</span>
+              <span className="ts-bd-total-label">{totalLabel}</span>
               <span className="ts-bd-total-amt">—</span>
             </div>
           </>

@@ -350,9 +350,13 @@ function MobileLeaseBar({
   );
 }
 
-// Sticky collapsed cost bar (mobile): "Total Paid to Move-In: $X /
+// Sticky collapsed cost bar (mobile): "Total Cost to Move-In: $X /
 // Holding Space for 14:59" + chevron. Tapping toggles the full rail
 // card in a drop-down sheet (spec-05 Total Cost Dropdown Card).
+//
+// COST, not paid: this bar only exists inside the flow, where nothing has been
+// charged yet — there is still a hold counting down beside it. The
+// confirmation page has its own bar, MobileLeaseBar, which says "Total Paid:".
 function MobileRailBar({
   total, holdRemaining, expanded, onToggle,
 }: {
@@ -366,7 +370,7 @@ function MobileRailBar({
       {/* Two rows, each space-between (Figma 8509-51290): title | price, then
           countdown | chevron. */}
       <span className="rfm-bar-row">
-        <span className="rfm-bar-title">Total Paid to Move-In:</span>
+        <span className="rfm-bar-title">Total Cost to Move-In:</span>
         <span className="rfm-bar-total">{total != null ? `$${total.toFixed(2)}` : '\u2014'}</span>
       </span>
       <span className="rfm-bar-row">
@@ -1739,6 +1743,7 @@ export function RentalFlow2Step({
         selection={snap?.selection}
         quote={snap?.quote}
         estimate={confirmation.kind === 'reservation'}
+        paid
       />
     );
     return (
