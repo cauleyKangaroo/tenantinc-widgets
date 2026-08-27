@@ -264,7 +264,13 @@ function Track({
           const visible = i >= index && i < index + perView;
           return (
             <div
-              className="blog-track-item"
+              // `is-offscreen` drops the card's shadow while it is outside the
+              // window. The window clips X but leaves Y visible (so a card's own
+              // shadow can show), and with no gap between items on mobile the
+              // NEXT card's shadow reached back across the clip seam and drew a
+              // hard line down the card on screen. A card nobody can see has no
+              // reason to cast one — see the rule in the CSS.
+              className={`blog-track-item${visible ? '' : ' is-offscreen'}`}
               key={post.id}
               // Sized off the SAME variable the transform steps by, so the card
               // pitch and the slide distance can never disagree.

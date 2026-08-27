@@ -90,21 +90,38 @@
 .blog-track-window {
   width: 100%;
   max-width: 1330px;
-  overflow: hidden;
-  touch-action: pan-y;
-  /* The cards' box-shadow is drawn outside their border-box and would be sliced
-     off by the clip, so the window is padded VERTICALLY to give it room and
-     pulled back by an equal negative margin.
+  /* Clip the X axis ONLY. The track is wider than the window so it must be
+     clipped horizontally, but there is nothing to clip vertically except the
+     cards' own box-shadow — which reaches 13px past the card (blur 10 + spread
+     3) and 17px below once the 4px y-offset counts, and was being sliced off.
 
-     Horizontally the margin is negative with NO matching padding, and that is
+     `overflow-y: visible` is what lets the shadow through. It needs `clip` (not
+     `hidden`) on X: pairing `hidden` with `visible` makes the browser compute
+     the visible axis to `auto`, which adds a scrollbar. `clip` has no such rule,
+     so the two axes stay independent.
+
+     Deliberately NOT `overflow-clip-margin` — that value applies to all four
+     sides at once, so buying vertical room also widens the horizontal clip and
+     leaks a sliver of the neighbouring card past the widget's edge.
+
+     `hidden` first is the fallback for browsers without `clip` (Safari < 16):
+     they clip both axes exactly as before, so the shadow is cropped but nothing
+     shifts or scrolls. */
+  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
+  touch-action: pan-y;
+  /* Horizontally the margin is negative with NO matching padding, and that is
      deliberate. Each track item carries `padding: 0 16px` to make the 32px gap
      between cards, which also insets the outer two by 16px. Widening the border
      box by exactly that — without padding it back in — puts the first and last
      card edges flush with the widget while the inner gaps stay 32px (measured).
      Adding `padding: 0 16px` here would hand the 16px straight back and the row
-     would sit 32px narrower than the Figma grid. */
-  padding: 6px 0;
-  margin: -6px -16px;
+     would sit 32px narrower than the Figma grid.
+
+     No vertical padding: the shadow is handled by `overflow-y: visible` above,
+     which does not move this element's box. */
+  margin: 0 -16px;
 
   /* One step = one card = 1/perView of the window's CONTENT box (which the
      -16px sides make exactly perView cards wide). The JS transform multiplies
@@ -139,6 +156,23 @@
 
 .blog-track-item > .blog-card {
   width: 100%;
+  /* Faded rather than switched: a hard toggle as a card crosses the edge reads
+     as a flicker. See .is-offscreen below. */
+  transition: box-shadow 0.2s ease;
+}
+
+/* A card outside the window casts no shadow.
+   The window clips X but leaves Y visible so a card's own shadow can show —
+   which also lets the NEXT card's shadow reach ~13px back across the clip seam.
+   On mobile, where items sit flush with no gap, that painted a hard vertical
+   line down the card on screen. Dropping the shadow on cards nobody can see
+   removes the source without touching any spacing. */
+.blog-track-item.is-offscreen > .blog-card {
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blog-track-item > .blog-card { transition: none; }
 }
 
 /* ── Blog card ──────────────────────────────────────────────────────────── */
@@ -543,11 +577,8 @@
     padding: 0;
   }
 
-  /* …and with no item padding to absorb, the window's -16px sides would push the
-     card past the panel's own padding. Reset to a plain vertical inset. */
   .blog-mobile .blog-track-window {
-    padding: 6px 0;
-    margin: -6px 0;
+    margin: 0;
   }
 }
 
