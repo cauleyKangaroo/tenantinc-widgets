@@ -278,21 +278,26 @@ function Field({
  * (backToSpacesUrl) and is absent on a direct navigation, so its 20px + 24px gap
  * would over-reserve in exactly the case where someone opens /rental cold.
  */
-function RailSkeleton() {
+function RailSkeleton({ sheet = false }: { sheet?: boolean }) {
   return (
     <aside className="ts-card" aria-hidden="true">
-      {/* The sheet's logo header (.rf-sheethead), not the photo hero it
-          replaced — this skeleton is only ever drawn inside .rfm-sheet, so it
-          has no other shape to stand in for. Reuses the real header's classes
-          so the two cannot drift: same padding, same 8px gap, same column.
-          The address reserves 30px because it is one <p> of two 15px lines. */}
-      <div className="rf-sheethead rf-sheethead--skel">
-        <Shimmer w={184} h={82} r={4} />
-        <div className="rf-sheethead-info">
-          <Shimmer w={128} h={30} r={4} />
-          <Shimmer w={116} h={15} r={4} />
+      {/* Whichever header this copy of the rail will show. The sheet's is the
+          logo row (.rf-sheethead), reusing the real header's classes so the
+          two cannot drift — same padding, same 8px gap, same column, and the
+          address reserves 30px because it is one <p> of two 15px lines. The
+          desktop column still opens with the photo, so it keeps the full-bleed
+          block it always had. */}
+      {sheet ? (
+        <div className="rf-sheethead rf-sheethead--skel">
+          <Shimmer w={184} h={82} r={4} />
+          <div className="rf-sheethead-info">
+            <Shimmer w={128} h={30} r={4} />
+            <Shimmer w={116} h={15} r={4} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="ts-card-hero"><Shimmer w="100%" h="100%" r={0} /></div>
+      )}
       <div className="ts-card-body">
         {/* .ts-card-top is a two-column flex, so its height is the TALLER of the
             two. Both sides are at their minimum, making this row 50px — exactly
@@ -1902,7 +1907,12 @@ export function RentalFlow2Step({
       // about a date the quote already reflects would be its own small lie.
     />
   );
-  const rail = loading ? <RailSkeleton /> : railFor(false, true);
+  /* TWO of them. `rail` is rendered in both places — the desktop column at
+     `{!isMobile && rail}` and the mobile sheet — so a single flagged copy put
+     the sheet's logo header on the desktop rail as well. The desktop one keeps
+     the photo hero; only the sheet's is flagged. */
+  const rail = loading ? <RailSkeleton /> : railFor(false);
+  const sheetRail = loading ? <RailSkeleton sheet /> : railFor(false, true);
 
   if (staticPaid) {
     // The held unit is real even on the static path — the hold and quote both
@@ -2043,7 +2053,7 @@ export function RentalFlow2Step({
               rendered element cannot transition, it can only appear. */}
           <div className="rfm-panel">
             <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
-              <div className="rfm-sheet">{rail}</div>
+              <div className="rfm-sheet">{sheetRail}</div>
             </div>
             <MobileRailBar
               total={quote?.totalDue}
