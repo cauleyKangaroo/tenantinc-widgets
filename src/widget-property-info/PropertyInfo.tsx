@@ -79,6 +79,13 @@ type Props = PropertyInfoProps & BoundPropertyProps;
 function PropertySkeleton() {
   return (
     <>
+      {/* Wrapped in the SAME .pi-desktop / .pi-mobile switch the real layouts
+          use, so the placeholder cannot show a composition the content will
+          not. Mobile is not a narrower desktop here: it is a full-bleed hero,
+          a row of five circles and a centred hours block — see `mobile` in
+          PropertyInfo. The desktop skeleton was being drawn at every width,
+          which is why a phone got two big cards and no hero. */}
+      <div className="pi-desktop">
       <div className="pi-skel" aria-hidden="true">
         <div className="pi-skel-info">
           <span className="pi-skel-bar pi-skel-name" />
@@ -94,6 +101,27 @@ function PropertySkeleton() {
           <div className="pi-skel-cards">
             <span className="pi-skel-block" />
             <span className="pi-skel-block" />
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div className="pi-mobile">
+        <div className="pi-skel-m" aria-hidden="true">
+          <span className="pi-skel-block pi-skel-m-hero" />
+          <div className="pi-skel-m-circles">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div className="pi-skel-m-circle-item" key={i}>
+                <span className="pi-skel-bar pi-skel-m-circle" />
+                <span className="pi-skel-bar pi-skel-m-circle-label" />
+              </div>
+            ))}
+          </div>
+          <div className="pi-skel-m-hours">
+            <span className="pi-skel-bar pi-skel-m-hour" />
+            <span className="pi-skel-bar pi-skel-m-hour" />
+            <span className="pi-skel-bar pi-skel-m-hour" />
+            <span className="pi-skel-bar pi-skel-m-seehours" />
           </div>
         </div>
       </div>

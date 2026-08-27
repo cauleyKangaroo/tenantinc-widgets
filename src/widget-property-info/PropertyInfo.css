@@ -417,6 +417,55 @@
   .pi-skel-cards > .pi-skel-block { flex: 1 1 360px; }
 }
 
+/* ── Mobile skeleton ──────────────────────────────────────────────────────
+   The mobile view is a DIFFERENT composition, not a narrower desktop one, so
+   it needs its own placeholder: full-bleed hero, a row of five circles, then
+   a centred hours block. Which one shows is decided by .pi-desktop /
+   .pi-mobile in the markup — the same switch the real layouts use, so the two
+   cannot disagree about where the boundary is.
+   Every number below is taken from the rule it stands in for: .pi-m-hero's
+   min-height, .pi-m-circles' padding and gap, .pi-m-circle's 44px, and
+   .pi-m-hours' padding and gap. Change one, change the other. */
+.pi-skel-m-hero {
+  /* No radius: .pi-wrapper drops its inline padding under 768px so the real
+     hero runs edge to edge. */
+  height: 250px;
+  border-radius: 0;
+}
+.pi-skel-m-circles {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 24px 12px;
+}
+.pi-skel-m-circle-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.pi-skel-m-circle {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+.pi-skel-m-circle-label { height: 14px; width: 76%; }
+.pi-skel-m-hours {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px 24px;
+}
+/* Three status lines of uneven length, then the underlined link below them. */
+.pi-skel-m-hour { height: 20px; width: 72%; }
+.pi-skel-m-hour:nth-of-type(2) { width: 64%; }
+.pi-skel-m-hour:nth-of-type(3) { width: 78%; }
+.pi-skel-m-seehours { height: 20px; width: 40%; margin-top: 8px; }
+
 /* Visually hidden, still announced. */
 .pi-sr-only {
   position: absolute;
