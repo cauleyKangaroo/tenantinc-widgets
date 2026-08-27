@@ -417,6 +417,29 @@
   .pi-skel-cards > .pi-skel-block { flex: 1 1 0; min-width: 0; }
 }
 
+/* ── Hero-mode skeleton ───────────────────────────────────────────────────
+   The hero layout is a banner beside a map, not an info column beside two
+   cards, so it needs its own placeholder. It reuses the REAL .pi-hero-wrap
+   and .pi-hero-row containers — both are plain flex boxes with a gap — so the
+   stacking at 1180px comes from the same rule the content obeys. Only the two
+   boxes are stood in for, mirroring .pi-hero-card and .pi-hero-map. */
+.pi-skel-hero-card {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 302px;
+}
+.pi-skel-hero-map {
+  flex-shrink: 0;
+  width: 422px;
+  max-width: 100%;
+  height: 302px;
+}
+@media (max-width: 1180px) {
+  /* Both halves of the tablet fix above, for the same reasons. */
+  .pi-skel-hero-card { flex: 0 0 auto; }
+  .pi-skel-hero-map { width: auto; }
+}
+
 /* ── Mobile skeleton ──────────────────────────────────────────────────────
    The mobile view is a DIFFERENT composition, not a narrower desktop one, so
    it needs its own placeholder: full-bleed hero, a row of five circles, then
@@ -1068,6 +1091,18 @@ span.pi-lb-img {
 
   .pi-hero-row {
     flex-direction: column;
+  }
+
+  /* `flex: 1 1 0` sets the basis on the MAIN axis, and the row just became a
+     column — so that zero basis started governing HEIGHT and overrode the
+     302px below it, collapsing the banner to nothing. There is no free space
+     for flex-grow to give back either, because .pi-hero-row has no height of
+     its own. Basis auto hands the 302px back.
+     The map never hit this: it only sets flex-shrink, so its basis stayed
+     auto and its own height kept applying — which is why the map was there
+     and the banner above it was not. */
+  .pi-hero-card {
+    flex: 0 0 auto;
   }
 
   .pi-hero-map {
