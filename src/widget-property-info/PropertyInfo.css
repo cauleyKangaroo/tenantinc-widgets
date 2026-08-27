@@ -376,10 +376,9 @@
   height: 317px;
   border-radius: 16px;
 }
-/* The second card is the hero/map at 302px, not another 317px gallery — see
-   .pi-hero-card. Scoped under .pi-skel-cards so it cannot reach
-   .pi-gallery-skel, which shares this class but sizes itself to its parent. */
-.pi-skel-cards > .pi-skel-block:last-child { height: 302px; }
+/* Both cards in .pi-cards are 317px: .pi-gallery and .pi-map carry the same
+   height. The 302px this used to set belongs to .pi-hero-card, which is the
+   HERO display mode — a different layout that .pi-cards is not part of. */
 
 @keyframes pi-skel-shimmer {
   from { background-position: 100% 50%; }
@@ -413,8 +412,9 @@
      Stretch gives each column the full row, and the percentages resolve
      against something real again. */
   .pi-skel { flex-direction: column; align-items: stretch; }
-  .pi-skel-cards { flex-wrap: wrap; }
-  .pi-skel-cards > .pi-skel-block { flex: 1 1 360px; }
+  /* Half each, exactly as .pi-cards and .pi-card-col above. */
+  .pi-skel-cards { flex-wrap: nowrap; }
+  .pi-skel-cards > .pi-skel-block { flex: 1 1 0; min-width: 0; }
 }
 
 /* ── Mobile skeleton ──────────────────────────────────────────────────────
@@ -1035,12 +1035,23 @@ span.pi-lb-img {
     flex-direction: column;
   }
 
+  /* Gallery and map stay side by side, half each. They used to be `1 1 360px`
+     in a wrapping row, which needs 360 + 360 + 24 = 744px of column before
+     both fit — so anything narrower than that dropped the map under the
+     gallery, and anything wider gave the two unequal widths (each grew from a
+     360px basis, so the free space split evenly on top of it rather than
+     producing halves).
+     A zero basis with min-width: 0 is what makes them true halves: nothing to
+     distribute unevenly, and each can shrink under its content. Only this
+     block below 768px, where .pi-desktop is display:none and the mobile
+     composition takes over entirely. */
   .pi-cards {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .pi-card-col {
-    flex: 1 1 360px;
+    flex: 1 1 0;
+    min-width: 0;
     width: auto;
   }
 
