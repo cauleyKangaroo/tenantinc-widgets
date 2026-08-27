@@ -1999,6 +1999,11 @@
   padding: 0 24px;
   background: #fff;
 }
+/* The skeleton's version needs the top padding the real one does not: a logo
+   PNG carries its own transparent margin, so it never touches the edge, but a
+   shimmer block is solid to its corners and sat flush against it. Only the
+   placeholder is inset, so nothing about the real header moves. */
+.rf-wrapper .rf-sheethead--skel { padding-top: 16px; }
 .rf-wrapper .rf-sheethead-logo {
   flex: 0 0 auto;
   /* 184x82 in the frame. Width auto against a max keeps a customer's own logo
@@ -2234,6 +2239,11 @@
 .rfm-sheet .ts-card,
 .rfm-sheet .rfr-card { width: 100%; max-width: none; border-radius: 0; box-shadow: none; }
 .rfm-sheet .ts-card-body { padding: 20px; }
+/* Amenities 14px -> 12px in the dropdown. Scoped to .rfm-sheet rather than
+   .rf-wrapper: .ts-feat is SummaryRail's and #14 uses it too, and the desktop
+   rail in this very widget keeps the 14px — only the sheet is tight enough to
+   need the smaller line. */
+.rfm-sheet .ts-feat { font-size: 12px; }
 .rfm-sheet .ts-card-top { flex-wrap: wrap; gap: 12px; }
 .rfm-sheet .ts-card-prices { height: auto; }
 .rfm-sheet .ts-card-line span,
