@@ -67,6 +67,7 @@
 
 /* ── Grid ───────────────────────────────────────────────────────────────── */
 
+/* Still used by the skeleton, which is a static 3-up and has nothing to slide. */
 .blog-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -78,6 +79,66 @@
      `1fr` rows keep that true when the grid wraps to 2 or 1 column. */
   align-items: stretch;
   grid-auto-rows: 1fr;
+}
+
+/* ── Sliding track ──────────────────────────────────────────────────────── */
+
+/* The viewport. Everything past `perView` cards is clipped here, so the track
+   inside can be as wide as the collection without widening the widget.
+   `touch-action: pan-y` is what lets a vertical drag still scroll the page
+   while a horizontal one is ours — see @shared/useCarousel. */
+.blog-track-window {
+  width: 100%;
+  max-width: 1330px;
+  overflow: hidden;
+  touch-action: pan-y;
+  /* The cards' box-shadow is drawn outside their border-box and would be sliced
+     off by the clip, so the window is padded VERTICALLY to give it room and
+     pulled back by an equal negative margin.
+
+     Horizontally the margin is negative with NO matching padding, and that is
+     deliberate. Each track item carries `padding: 0 16px` to make the 32px gap
+     between cards, which also insets the outer two by 16px. Widening the border
+     box by exactly that — without padding it back in — puts the first and last
+     card edges flush with the widget while the inner gaps stay 32px (measured).
+     Adding `padding: 0 16px` here would hand the 16px straight back and the row
+     would sit 32px narrower than the Figma grid. */
+  padding: 6px 0;
+  margin: -6px -16px;
+
+  /* One step = one card = 1/perView of the window's CONTENT box (which the
+     -16px sides make exactly perView cards wide). The JS transform multiplies
+     this and the items are sized by it, so the card pitch and the slide
+     distance are the same quantity and cannot drift apart. --blog-per-view is
+     set inline per frame: 3 on desktop, 1 on mobile. */
+  --blog-per-view: 3;
+  --blog-step: calc(100% / var(--blog-per-view));
+}
+
+.blog-track {
+  display: flex;
+  align-items: stretch;
+  /* No `gap`: a gap is not part of the step the transform moves by, so it would
+     desync the slide from the card pitch a little more with every step. The
+     spacing is padding INSIDE each item instead, which is part of the step. */
+  gap: 0;
+  will-change: transform;
+}
+
+.blog-track-item {
+  /* Half the old 32px grid gap on each side sums back to 32px between cards. */
+  padding: 0 16px;
+  box-sizing: border-box;
+  display: flex;
+}
+
+/* Deliberately NOT trimming the first/last item's padding: every item must be
+   exactly the same width or the transform (which assumes a uniform pitch) drifts
+   further out of alignment with every step. The 16px bleed at the two outer
+   edges is absorbed by the window's negative margin instead. */
+
+.blog-track-item > .blog-card {
+  width: 100%;
 }
 
 /* ── Blog card ──────────────────────────────────────────────────────────── */
@@ -402,9 +463,13 @@
   background: #f4f6f8;
 }
 
+/* 50% and inert at the ends — the agreed signal that there's nothing further
+   this way. `pointer-events: none` is belt-and-braces over the `disabled`
+   attribute, which already blocks the click. */
 .blog-page-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .blog-page-btn-prev svg {
@@ -469,6 +534,20 @@
 
   .blog-mobile .blog-pagination {
     justify-content: center;
+  }
+
+  /* One card fills the frame here, so the 16px inter-card padding would inset it
+     from the panel's own 24px. The card is the full step width instead, and the
+     drag reads a clean 1:1 with the finger. */
+  .blog-mobile .blog-track-item {
+    padding: 0;
+  }
+
+  /* …and with no item padding to absorb, the window's -16px sides would push the
+     card past the panel's own padding. Reset to a plain vertical inset. */
+  .blog-mobile .blog-track-window {
+    padding: 6px 0;
+    margin: -6px 0;
   }
 }
 
