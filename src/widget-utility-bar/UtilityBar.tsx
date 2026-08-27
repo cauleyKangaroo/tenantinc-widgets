@@ -84,6 +84,14 @@ export interface UtilityBarProps {
   showClose?: boolean;
   sticky?: boolean;
   dismissDurationHours?: number;
+  /**
+   * Bar colour, from the Duda content menu's radio group
+   * (`data.config.utilitybarColour`): `black` | `primary` | `cta`.
+   *
+   * Anything else — unset, an unsubstituted token, a value someone renames in
+   * Duda — falls back to black, which is what the bar has always been.
+   */
+  utilitybarColour?: string;
   inEditor?: boolean;
 }
 
@@ -95,8 +103,16 @@ export function UtilityBar({
   showClose = true,
   sticky = false,
   dismissDurationHours = 24,
+  utilitybarColour,
   inEditor = false,
 }: UtilityBarProps) {
+  /* Normalised, not trusted: Duda sends whatever the radio's value column
+     holds, and an unbound field can arrive as '', undefined, or a literal
+     '{{utilitybarColour}}'. Only the three known values do anything. */
+  const barTone = (() => {
+    const v = String(utilitybarColour ?? '').trim().toLowerCase();
+    return v === 'primary' || v === 'cta' ? v : 'black';
+  })();
   // Read the flag synchronously on first render so the bar never flashes.
   const [flagActive, setFlagActive] = useState<boolean>(() => isFlagActive());
   const [, setTick] = useState(0);
@@ -190,7 +206,7 @@ export function UtilityBar({
   return (
     <div className={`ub-wrapper${empty ? ' ub-wrapper--empty' : ''}`} ref={rootRef}>
       {showBar && (
-        <div className={`ub-bar ${sticky ? 'ub-bar--sticky' : 'ub-bar--block'}`}>
+        <div className={`ub-bar ub-bar--${barTone} ${sticky ? 'ub-bar--sticky' : 'ub-bar--block'}`}>
           <div className="ub-inner">
             <div className="ub-spacer" />
             <div className="ub-message-wrap">
