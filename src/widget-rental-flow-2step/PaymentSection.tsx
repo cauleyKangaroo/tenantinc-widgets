@@ -491,7 +491,14 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
            the two. */
         if (dead) return;
         setGpValid((v) => (v[field] === valid ? v : { ...v, [field]: valid }));
-        if (valid) setGpFilled((f) => (f[field] ? f : { ...f, [field]: true }));
+        /* ARRIVAL, not `valid`: GP posts this per keystroke, so it means the
+           frame has been typed into — which is what hides the label. `valid`
+           alone left it sitting on a half-typed number. GP publishes no
+           emptiness, no length and no focus (checked against gp-1.0.0: the
+           only public events are the two *-test, token-success/error, error
+           and ready), so a frame typed into and then fully cleared keeps its
+           label hidden. */
+        setGpFilled((f) => (f[field] ? f : { ...f, [field]: true }));
       },
     }).then((h) => {
       if (dead) { h?.dispose(); return; }
@@ -547,10 +554,10 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
               aria-label="Card Number (required)"
             />
           )}
-          {/* Only the plain input gets an overlay label. In hosted mode the
-              frame draws its own placeholder and a second one here would sit
-              on top of it. */}
-          {hosted === false && <label className="rf-cardcell-label">Card Number<span className="rf-req">*</span></label>}
+          {/* Drawn by US in both modes — it is the only way this text is in
+              Montserrat, since the frame cannot load a webfont. Hidden once
+              the frame has been typed into; see gpFilled. */}
+          <label className={`rf-cardcell-label${hosted && gpFilled.number ? ' rf-cardcell-label--gone' : ''}`}>Card Number<span className="rf-req">*</span></label>
         </span>
 
         {/* Expiry and CVV are wrapped together so they move to a second line as
@@ -573,7 +580,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
                 aria-label="Card expiry, MM / YY (required)"
               />
             )}
-            {hosted === false && <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>}
+            <label className={`rf-cardcell-label${hosted && gpFilled.expiry ? ' rf-cardcell-label--gone' : ''}`}>{hosted ? 'MM / YYYY' : 'MM / YY'}<span className="rf-req">*</span></label>
           </span>
 
           <span className="rf-cardcell rf-cardcell--cvv">

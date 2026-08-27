@@ -538,6 +538,9 @@
 .rf-cardrow-input:not(:placeholder-shown) + .rf-cardcell-label {
   opacity: 0;
 }
+/* The hosted cells' equivalent. Their value is in a cross-origin frame, so
+   :placeholder-shown cannot see it and the parent is told from JS instead. */
+.rf-cardcell-label--gone { opacity: 0; }
 
 /* Valid card row — one border, so it turns green as a unit (Figma 10080-28126). */
 .rf-cardrow--valid { border-color: var(--hb-field-border-success, #028a0c); }
