@@ -258,9 +258,13 @@ function slug(v: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/** Every way a page can answer to a route name, cheapest first. */
-function keysFor(page: SitePage): string[] {
-  const keys = [slug(page.alias), slug(page.path), slug(page.title)];
+/**
+ * The page's STRUCTURAL identities — what Duda actually calls it. An alias, its
+ * full path, and its last path segment all come from the site's routing, so a
+ * match on one of these means the route names this page in the URL sense.
+ */
+function routeKeys(page: SitePage): string[] {
+  const keys = [slug(page.alias), slug(page.path)];
   // The last path segment, so `/company-information` is findable as the leaf of
   // a nested path too.
   const tail = page.path.split('/').filter(Boolean).pop();
@@ -269,23 +273,61 @@ function keysFor(page: SitePage): string[] {
 }
 
 /**
+ * The page's DISPLAY name. Matched only as a fallback — see `findSitePage`.
+ */
+function titleKey(page: SitePage): string {
+  return slug(page.title);
+}
+
+/**
  * The page a route names, or null.
  *
  * BREADTH-FIRST on purpose: a top-level `/company-information` must win over a
  * same-named child parked under some other section, otherwise which branch the
  * footer renders would depend on the editor's page ORDER.
+ *
+ * ── STRUCTURE FIRST, TITLE ONLY AS A FALLBACK ───────────────────────────────
+ * These used to be one pass over alias + path + tail + TITLE together, and the
+ * title being equal to the rest is how a route can resolve to a branch the
+ * operator never meant. Delete the `/legal-pages` section but leave any page
+ * anywhere in the tree still TITLED "Legal Pages", and the old single pass
+ * matched that page breadth-first and listed all of ITS children — which reads
+ * exactly like "the deleted pages are still cached in the footer", because the
+ * rows come back with the same labels the deleted section had.
+ *
+ * Two passes fix it without giving up the convenience: a route that names a real
+ * path always wins, and a title match is only reached when nothing in the site's
+ * routing answers to that name at all. A title-only match is `console.warn`ed,
+ * because it is a guess and it is the case worth knowing about.
  */
 export function findSitePage(pages: SitePage[], route: string): SitePage | null {
   const want = slug(route);
   if (!want) return null;
-  let level = pages;
-  while (level.length) {
-    for (const page of level) {
-      if (keysFor(page).includes(want)) return page;
+
+  const breadthFirst = (match: (page: SitePage) => boolean): SitePage | null => {
+    let level = pages;
+    while (level.length) {
+      for (const page of level) {
+        if (match(page)) return page;
+      }
+      level = level.flatMap((p) => p.children);
     }
-    level = level.flatMap((p) => p.children);
+    return null;
+  };
+
+  const structural = breadthFirst((page) => routeKeys(page).includes(want));
+  if (structural) return structural;
+
+  const byTitle = breadthFirst((page) => titleKey(page) === want);
+  if (byTitle) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[sitePages] no page has the path or alias "${route}" — matched the page TITLED `
+      + `"${byTitle.title}" (${byTitle.path}) instead. If that section was deleted, this `
+      + `is a different page answering to its name; set the route to a real path.`,
+    );
   }
-  return null;
+  return byTitle;
 }
 
 export interface PageLinkOptions {

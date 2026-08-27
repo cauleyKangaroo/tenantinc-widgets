@@ -504,6 +504,13 @@ function SpacesSkeleton() {
   );
 }
 
+/**
+ * How long #07 will sit on skeleton cards before giving up. See `stalled` — it
+ * is a backstop for an unbounded `await`, not part of the normal load, and it is
+ * deliberately longer than the bounded chain's worst legitimate case.
+ */
+const STALL_DEADLINE_MS = 30000;
+
 function SkeletonCard() {
   return (
     <div className="nl-card nl-skeleton-card" aria-hidden="true">
@@ -689,6 +696,25 @@ export function NearbyLocations({
 
   // null = still loading; [] = loaded but nothing to show.
   const [apiProperties, setApiProperties] = useState<Property[] | null>(null);
+  /**
+   * Last resort: nothing has painted and we have stopped waiting.
+   *
+   * Every boundary below is bounded now (`@shared/withTimeout`), so this should
+   * not fire — it exists because "the widget never leaves its skeletons" is the
+   * one failure a visitor cannot recover from, and a single unbounded `await`
+   * anywhere in the chain reintroduces it. Cheap insurance against the next one.
+   *
+   * NOT the same as `apiProperties = []`, and the distinction matters:
+   * `emptyMessage` reads an empty ARRAY as "the filter matched nothing" and would
+   * announce "No featured facilities yet — set nearbyLocationPriorityOrder…",
+   * diagnosing an operator error that did not happen. This flag ends the loading
+   * state without claiming anything about the data.
+   *
+   * It is also NOT terminal: the effect keeps running, so a slow answer still
+   * lands and replaces what this fell back to. That is what makes the deadline
+   * safe to set at a length a legitimate load could occasionally exceed.
+   */
+  const [stalled, setStalled] = useState(false);
   // Reference coordinates (map centre).
   const [refLoc, setRefLoc] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -700,6 +726,19 @@ export function NearbyLocations({
     setRefLoc(null);
     setPage(0);
     setMobileIdx(0);
+    setStalled(false);
+
+    // The bounded chain's absolute worst case is a little OVER this — the
+    // collection wait plus a timed-out read plus a timed-out REST fall-back for
+    // the properties, then the priority order and the hero photos in sequence —
+    // so an extraordinarily slow load can be pre-empted. That is deliberate
+    // rather than a miscalculation: sizing the deadline to the theoretical worst
+    // case would put it near a minute, where it stops being a rescue. It is safe
+    // because it is not terminal — see `stalled`; the answer still lands and
+    // replaces what this fell back to.
+    const deadline = setTimeout(() => {
+      if (!cancelled) setStalled(true);
+    }, STALL_DEADLINE_MS);
 
     (async () => {
       try {
@@ -848,14 +887,16 @@ export function NearbyLocations({
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(deadline); };
   }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection]);
 
   // While loading we render skeleton cards — showing DEMO_PROPERTIES here meant
   // real-looking names/prices flashed up and were then replaced. Demo data is
   // still the fallback for an EMPTY result, so the section never renders blank in
   // the editor/preview.
-  const loading = apiProperties === null;
+  // `stalled` ends the loading state without pretending the data arrived — the
+  // fallback below is then the same one the unreachable-API `catch` produces.
+  const loading = apiProperties === null && !stalled;
   const properties = apiProperties && apiProperties.length ? apiProperties : DEMO_PROPERTIES;
   /**
    * Why the list is empty, when it is — or `null` to fall back to demo cards.
@@ -870,7 +911,10 @@ export function NearbyLocations({
    * in needs to be told that, not shown six invented facilities.
    */
   const emptyMessage =
-    !loading && apiProperties!.length === 0
+    // `apiProperties` rather than `!loading`: a stalled load also ends `loading`,
+    // and it has no idea whether a filter matched anything. Only a completed read
+    // that came back empty may name a reason.
+    apiProperties && apiProperties.length === 0
       ? featured
         ? `No featured facilities yet — set “nearbyLocationPriorityOrder” on the properties to feature.`
         : radiusMiles > 0
