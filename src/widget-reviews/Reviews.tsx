@@ -9,7 +9,7 @@ import {
 } from './icons';
 import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
 import { Shimmer } from '@shared/Shimmer';
-import { useCarousel } from '@shared/useCarousel';
+import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
 
 // ---------------------------------------------------------------------------
@@ -257,27 +257,27 @@ export function Reviews({
   }, []);
 
   const [mobileSourceIdx, setMobileSourceIdx] = useState(0);
-  const [mobilePage, setMobilePage] = useState(0);
 
   const mobileSource = sources[Math.min(mobileSourceIdx, sources.length - 1)] ?? sources[0];
   const totalMobilePages = mobileSource.reviews.length;
 
-  // Which way the next card slides in from. Tracked rather than derived inside
-  // the setter, because setMobilePage is also called with an absolute index by
-  // the dots — comparing against the current page is what makes tapping dot 4
-  // from dot 1 slide forwards rather than always one fixed direction.
-  const [mobileDir, setMobileDir] = useState<1 | -1>(1);
-
-  function goToMobilePage(next: number) {
-    const clamped = Math.max(0, Math.min(totalMobilePages - 1, next));
-    setMobileDir(clamped >= mobilePage ? 1 : -1);
-    setMobilePage(clamped);
-  }
+  // One review at a time, dragged with the finger — the same shared hook the
+  // other carousels use, so the feel and the 6-dot cap are identical.
+  //
+  // This replaces a remount-and-replay-a-keyframe approach: the card used to be
+  // keyed by source+page so React rebuilt it, and a CSS animation faded it in
+  // from 28px away. That read as a fade rather than a slide, could not follow a
+  // finger, and needed a `mobileDir` state purely to choose which keyframe to
+  // play. A real track moving under a clip needs none of that.
+  const mobileCarousel = useCarousel({ count: totalMobilePages, perView: 1, draggable: true });
+  const reduceMotion = usePrefersReducedMotion();
+  const mobilePage = mobileCarousel.index;
 
   function switchMobileSource(idx: number) {
     setMobileSourceIdx(idx);
-    setMobileDir(1);
-    setMobilePage(0);
+    // Each source has its own review list, so a switch has to rewind — index 7
+    // of Google is meaningless once Yelp's list is showing.
+    mobileCarousel.goTo(0);
   }
 
   // Skeleton until the collections answer: two source columns of cards, matching
@@ -365,23 +365,43 @@ export function Reviews({
 
         <div className="rw-mobile-body">
           <SourceHeader source={mobileSource} />
-          {/* key by source+page so React REMOUNTS the card on every change —
-              that is what replays the CSS animation. Without the key it would
-              patch the text in place and the slide would only ever run once. */}
-          <div
-            key={`${mobileSource.key}-${mobilePage}`}
-            className={`rw-slide rw-slide--${mobileDir > 0 ? 'next' : 'prev'}`}
-          >
-            <ReviewCard review={mobileSource.reviews[mobilePage]} source={mobileSource} />
+          {/* Every review of the selected source renders once and one transform
+              slides the row; the window clips the rest. The item must stay
+              exactly one window wide or the pitch stops matching the distance
+              the transform steps by, and the cards drift with every step. */}
+          <div className="rw-mobile-track-window" {...mobileCarousel.handlers}>
+            <div
+              className="rw-mobile-track"
+              style={{
+                transform: `translateX(calc(${(mobileCarousel.offsetPct / 100).toFixed(6)} * 100%))`,
+                transition:
+                  reduceMotion || mobileCarousel.dragging
+                    ? 'none'
+                    : 'transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)',
+              }}
+            >
+              {mobileSource.reviews.map((review, i) => (
+                <div
+                  className="rw-mobile-track-item"
+                  key={review.id}
+                  {...(i === mobilePage ? {} : { inert: '' as unknown as boolean })}
+                  aria-hidden={i === mobilePage ? undefined : true}
+                >
+                  <ReviewCard review={review} source={mobileSource} />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         <Pagination
           page={mobilePage}
           total={totalMobilePages}
-          onPrev={() => goToMobilePage(mobilePage - 1)}
-          onNext={() => goToMobilePage(mobilePage + 1)}
-          onDot={goToMobilePage}
+          onPrev={mobileCarousel.prev}
+          onNext={mobileCarousel.next}
+          onDot={mobileCarousel.goTo}
+          canPrev={mobileCarousel.canPrev}
+          canNext={mobileCarousel.canNext}
         />
       </div>
 
