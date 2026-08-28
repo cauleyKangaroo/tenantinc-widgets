@@ -299,6 +299,25 @@
 .pi-msg-success .pi-msg-submit { width: auto; padding: 0 28px; }
 
 @media (max-width: 640px) {
+  /* Full-bleed sheet, the same treatment DateModal already uses on a phone.
+     The overlay's 24px gutter goes — that gutter IS the strip of dimmed
+     backdrop you could see around the card — and the sheet stretches to fill
+     what is left, so there is nothing behind it to show through. With no
+     gutter there is nothing for a radius, border or shadow to sit against
+     either, so all three go with it.
+     height: 100% of an `inset: 0` fixed overlay, deliberately, rather than
+     100vh: vh on mobile browsers measures past the address bar, which would
+     push the footer and its buttons below the fold. */
+  .pi-msg-overlay { padding: 0; align-items: stretch; }
+  .pi-msg-modal {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
   .pi-msg-head { padding: 18px 20px; }
   .pi-msg-body { padding: 20px; }
   .pi-msg-foot { padding: 16px 20px; }
