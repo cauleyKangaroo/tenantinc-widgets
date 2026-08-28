@@ -309,8 +309,6 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
    */
   /** Live: does it hold a valid value RIGHT NOW. Gates the row's valid state. */
   const [gpValid, setGpValid] = useState({ number: false, expiry: false });
-  /** Has anything been typed into each frame — any *-test event proves it. */
-  const [gpTyped, setGpTyped] = useState({ number: false, expiry: false });
   /**
    * Has each cell been LEFT. A message only appears once the shopper has moved
    * on from a cell, never while they are still filling it in.
@@ -383,12 +381,19 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
        fixing. And never for a cell merely passed through, which is why each
        rule needs content as well as a blur. */
     if (hosted) {
-      if ((payAttempted || (touched.number && gpTyped.number)) && !gpValid.number) {
-        return 'Enter a complete card number';
-      }
-      if ((payAttempted || (touched.expiry && gpTyped.expiry)) && !gpValid.expiry) {
-        return 'Enter the expiry date as MM / YYYY';
-      }
+      /* PAY ATTEMPT ONLY for the two frames, and it has to be.
+         "Typed into, then left" needs to tell an empty cell from a partly
+         filled one, and GP cannot: its *-test event is bound inside the frame
+         to focus, blur, input, keydown AND keyup (checked in gp-1.0.0), so it
+         arrives for a cell that was merely clicked through, carrying the same
+         `valid: false` an empty cell and a three-digit one both produce. That
+         is what put "Enter a complete card number" under an empty field.
+         Pressing Pay is the one signal that cannot lie, and it does reach here
+         now — GP's own submit frame takes the click, so onError marks the
+         attempt (see the handler below). The plain cells keep the blur rule:
+         :placeholder-shown lets us see whether they hold anything. */
+      if (payAttempted && !gpValid.number) return 'Enter a complete card number';
+      if (payAttempted && !gpValid.expiry) return 'Enter the expiry date as MM / YYYY';
     } else {
       const n = digits(number);
       if ((payAttempted || (touched.number && n.length > 0)) && !validCard(number)) {
@@ -550,11 +555,10 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
            expose, and stranding the label over an empty field is the worse of
            the two. */
         if (dead) return;
+        /* Whether the frame validates, and nothing more. Its arrival proves
+           nothing about content: GP binds this to focus and blur as well as to
+           typing. */
         setGpValid((v) => (v[field] === valid ? v : { ...v, [field]: valid }));
-        /* The event's arrival means a key landed in the frame. Not used for the
-           label any more — that is the frame's own placeholder — only to tell
-           an empty cell the shopper passed through from one they typed in. */
-        setGpTyped((t) => (t[field] ? t : { ...t, [field]: true }));
       },
     }).then((h) => {
       if (dead) { h?.dispose(); return; }
