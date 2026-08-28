@@ -24,6 +24,11 @@
 // CDN blinked is worse than one that is merely less private.
 // ===========================================================================
 
+/* Inlined by webpack as a data: URI (asset/inline). It has to be a data: URI
+   rather than a URL: the frames are on GP's origin and can fetch nothing of
+   ours. Printable-ASCII subset of Montserrat 400 — see FIELD_STYLES. */
+import montserratWoff2 from './assets/montserrat-400-ascii.woff2';
+
 /** Officially Heartland-hosted; `hps.github.io` serves a byte-identical copy. */
 const LIB = 'https://api2.heartlandportico.com/SecureSubmit.v1/token/gp-1.0.0/globalpayments.js';
 
@@ -111,23 +116,42 @@ export interface MountHostedCardOptions {
  */
 const FIELD_STYLES: Record<string, Record<string, string> | string> = {
   /*
-   * THE WEBFONT CANNOT BE LOADED INTO THESE FRAMES. Verified against GP's own
-   * globalpayments.js (gp-1.0.0):
+   * THE WEBFONT, CARRIED INTO THE FRAME AS A DATA: URI.
    *
-   *   - json2css() turns a STRING value into a declaration (`key:value;`) and
-   *     an OBJECT value into a rule (`key { … }`). An @import can be neither,
-   *     so this entry was emitted as the invalid declaration
-   *     `@import:url(…);` and dropped. The library contains no occurrence of
-   *     "@import" or "font-face" at all.
-   *   - field.html is served from GP's origin, so nothing on this page reaches
-   *     it and the frame cannot be styled any other way.
+   * This block used to say the font could not be loaded here at all. That was
+   * wrong, and wrong for a reason worth keeping: it tested @import and then
+   * generalised from it. Re-verified against the gp-1.0.0 globalpayments.js
+   * production actually loads —
    *
-   * So the DIGITS in the card-number and expiry cells fall back to the stack
-   * below and will not be Montserrat while hosted fields are in use. Their
-   * LABELS are drawn by the parent and are. The only way to make the digits
-   * match is to stop using hosted fields — a PCI-scope decision, not a styling
-   * one.
+   *   - json2css() emits a STRING value as a declaration (`key:value;`) and an
+   *     OBJECT value as a rule (`key{…}`). @import has no block, so it can only
+   *     ever be emitted as the invalid declaration `@import:url(…);` — true,
+   *     and the reason that route failed. But @font-face IS a block, so as a
+   *     nested object it serialises to exactly the rule we want.
+   *   - The stylesheet is injected INSIDE the frame: IframeField.addStylesheet
+   *     posts the CSS to the frame, whose handler calls addStylesheet(), which
+   *     appends a <style> to its own <head>. Our rules already reach it — that
+   *     is how everything below works.
+   *   - A data: URI needs no fetch and no CORS, so the frame's origin stops
+   *     mattering. field.html (hps.github.io) sends no CSP header at all, so
+   *     there is nothing to forbid it.
+   *
+   * The face is subsetted to printable ASCII — 9.5KB, against 16.5KB for the
+   * full latin subset — since all these two frames can ever show is a card
+   * number, an expiry, and their two placeholders.
    */
+  '@font-face': {
+    'font-family': "'Montserrat'",
+    'font-style': 'normal',
+    // Only 400 is inlined: nothing in these frames asks for another weight.
+    'font-weight': '400',
+    // Quoted, so the base64 payload cannot terminate the url() token early.
+    src: `url("${montserratWoff2}") format('woff2')`,
+    // The digits must not render in a fallback face for a frame or two and then
+    // reflow. There is no network fetch to wait on, so there is nothing to gain
+    // by swapping.
+    'font-display': 'block',
+  },
 
   '#secure-payment-field': {
     // The frame is exactly the box the value occupies, and .rf-gpfield has
@@ -148,9 +172,11 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
     'box-shadow': 'none',
     background: 'transparent',
     color: '#101318',
-    // Named, not `inherit` — see the @import above. The stack after it is the
-    // kit's own, so an environment that cannot fetch the webfont degrades the
-    // same way the rest of the flow does rather than to GP's default.
+    // Named, not `inherit`: the frame is a separate document and inherits
+    // nothing from us. Montserrat now resolves against the @font-face above;
+    // the stack after it is the kit's own, so an environment that somehow
+    // cannot use the inlined face degrades the same way the rest of the flow
+    // does rather than to GP's default.
     'font-family': "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
     /*
      * Pinned, and the browser told to leave it alone.
