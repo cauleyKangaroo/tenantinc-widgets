@@ -129,7 +129,15 @@
      distance are the same quantity and cannot drift apart. --blog-per-view is
      set inline per frame: 3 on desktop, 1 on mobile. */
   --blog-per-view: 3;
-  --blog-step: calc(100% / var(--blog-per-view));
+  /* Two quantities, not one. An item is as wide as its share of the window
+     MINUS its share of the gaps; the step is that item plus one gap. Driving
+     both off a single --blog-step made the mobile gap widen the CARD as well,
+     so it overhung the window by the gap and was clipped on the right. */
+  --blog-gap: 0px;
+  --blog-item: calc(
+    (100% - (var(--blog-per-view) - 1) * var(--blog-gap)) / var(--blog-per-view)
+  );
+  --blog-step: calc(var(--blog-item) + var(--blog-gap));
 }
 
 .blog-track {
@@ -583,16 +591,21 @@
     gap: 10px;
   }
 
-  /* The step the transform moves by has to include that gap, or the row lands
-     10px short with every swipe. --blog-step is the single place the step is
-     defined (see the desktop rule), so widening it here keeps the transform and
-     the card pitch the same quantity. */
+  /* Declare the gap and let --blog-item / --blog-step derive from it, so the
+     step grows by 10px while the card stays exactly one window wide. */
   .blog-mobile .blog-track-window {
-    --blog-step: calc(100% / var(--blog-per-view) + 10px);
-  }
-
-  .blog-mobile .blog-track-window {
-    margin: 0;
+    --blog-gap: 10px;
+    /* Clip one gap wider than the card so its shadow is not sliced off at the
+       sides, cancelled by an equal negative margin so the content box, the card
+       width and the step all stay put. One gap is the limit — the neighbour
+       starts there, and offscreen cards already drop their shadow above. */
+    /* Widened by both gaps, or `width: 100%` under border-box sizing keeps the
+       border box at the panel's width: the padding eats the content box and the
+       negative margin merely shifts everything left, leaving one gap more space
+       on the right than the left. */
+    width: calc(100% + 2 * var(--blog-gap));
+    margin: 0 calc(-1 * var(--blog-gap));
+    padding: 0 var(--blog-gap);
   }
 }
 
