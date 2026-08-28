@@ -189,7 +189,13 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
    * Matches .rf-cardcell-label at rest, and goes on focus rather than on the
    * first keystroke, which is the behaviour asked for.
    */
-  '#secure-payment-field::placeholder': { color: 'transparent' },
+  /* Colour only — it inherits the field's own type above, so it cannot land in
+     a different size or place from the digits that replace it. opacity is for
+     Firefox, which dims placeholders. */
+  '#secure-payment-field::placeholder': { color: '#637381', opacity: '1' },
+  /* Hidden on click, back on blur if nothing was typed. The blur half is the
+     browser's own doing: an empty input shows its placeholder again. */
+  '#secure-payment-field:focus::placeholder': { color: 'transparent' },
   /*
    * field.html zeroes its own margins but never sets a HEIGHT — html, body and
    * the wrapper are all `flex: 1 1 auto` with no height, so a `height: 100%`
@@ -234,14 +240,14 @@ export async function mountHostedCard(
     gp.configure({ publicApiKey: key });
     const form = gp.ui.form({
       fields: {
-        /* A SPACE, not the label text. Real placeholder text tips Chrome's
-           card-field heuristics over, and on a non-secure origin that raises
-           its "Automatic payment methods filling is disabled…" bar over the
-           form. The label is drawn by the parent instead — which also puts it
-           in Montserrat, which the frame cannot be (see the note by
-           '@import' below). */
-        'card-number': { target: opts.numberTarget, placeholder: ' ' },
-        'card-expiration': { target: opts.expiryTarget, placeholder: ' ' },
+        /* REAL text, because the frame is the only thing that can do this
+           correctly. A placeholder shows while its input is empty and returns
+           the moment it is emptied — the browser inside the frame knows that;
+           the parent cannot, because GP publishes no emptiness, length or
+           focus. Every parent-drawn version of this label got stuck on one
+           edge or another. */
+        'card-number': { target: opts.numberTarget, placeholder: 'Card Number' },
+        'card-expiration': { target: opts.expiryTarget, placeholder: 'MM / YYYY' },
         // GP will only tokenize from a gesture inside its own frame — the
         // form object exposes no programmatic equivalent — so this button
         // has to exist even though ours is the one the shopper sees.

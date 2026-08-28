@@ -307,9 +307,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
    * or the other every way it was tried, and a focus whose end never reported
    * left the label stuck.
    */
-  /** Sticky: has this frame ever held a valid value. Gates its error message. */
-  const [gpFilled, setGpFilled] = useState({ number: false, expiry: false });
-  /** Live: does it hold one RIGHT NOW. Gates the row's valid state. */
+  /** Live: does it hold a valid value RIGHT NOW. Gates the row's valid state. */
   const [gpValid, setGpValid] = useState({ number: false, expiry: false });
 
   /* The token handler is rebuilt on every keystroke in the billing fields, but
@@ -341,9 +339,16 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
      not — gpValid tracks it, so an empty or half-typed frame can be named here
      too rather than only the CVV. */
   const cardCellError = (() => {
-    if (hosted) {
-      if ((payAttempted || gpFilled.number) && !gpValid.number) return 'Enter a complete card number';
-      if ((payAttempted || gpFilled.expiry) && !gpValid.expiry) return 'Enter the expiry date as MM / YYYY';
+    /* Hosted cells complain only once payment has been ATTEMPTED. The plain
+       cells below can also speak up as soon as they hold a wrong value,
+       because :placeholder-shown tells us they hold one; a frame cannot say
+       that, and gpFilled goes true on the first keystroke — which is what put
+       "Enter a complete card number" under a single digit. Without a blur or
+       emptiness signal from GP there is no honest middle ground, so these wait
+       for the button. */
+    if (hosted && payAttempted) {
+      if (!gpValid.number) return 'Enter a complete card number';
+      if (!gpValid.expiry) return 'Enter the expiry date as MM / YYYY';
     }
     if (!hosted) {
       const n = digits(number);
@@ -489,16 +494,10 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
            to valid, then blurred. That drops. It needs a length GP does not
            expose, and stranding the label over an empty field is the worse of
            the two. */
-        if (dead) return;
-        setGpValid((v) => (v[field] === valid ? v : { ...v, [field]: valid }));
-        /* ARRIVAL, not `valid`: GP posts this per keystroke, so it means the
-           frame has been typed into — which is what hides the label. `valid`
-           alone left it sitting on a half-typed number. GP publishes no
-           emptiness, no length and no focus (checked against gp-1.0.0: the
-           only public events are the two *-test, token-success/error, error
-           and ready), so a frame typed into and then fully cleared keeps its
-           label hidden. */
-        setGpFilled((f) => (f[field] ? f : { ...f, [field]: true }));
+        /* All GP gives the parent, and all it is used for now: whether each
+           frame currently validates. The label is the frame's own placeholder,
+           so nothing here has to guess at content any more. */
+        if (!dead) setGpValid((v) => (v[field] === valid ? v : { ...v, [field]: valid }));
       },
     }).then((h) => {
       if (dead) { h?.dispose(); return; }
@@ -554,10 +553,11 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
               aria-label="Card Number (required)"
             />
           )}
-          {/* Drawn by US in both modes — it is the only way this text is in
-              Montserrat, since the frame cannot load a webfont. Hidden once
-              the frame has been typed into; see gpFilled. */}
-          <label className={`rf-cardcell-label${hosted && gpFilled.number ? ' rf-cardcell-label--gone' : ''}`}>Card Number<span className="rf-req">*</span></label>
+          {/* PLAIN cells only. A hosted cell's label is the frame's own
+              placeholder, which is the only one that comes back when the field
+              is emptied — a second label drawn from here would sit on top of
+              it and could not know when to leave. */}
+          {hosted === false && <label className="rf-cardcell-label">Card Number<span className="rf-req">*</span></label>}
         </span>
 
         {/* Expiry and CVV are wrapped together so they move to a second line as
@@ -580,7 +580,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
                 aria-label="Card expiry, MM / YY (required)"
               />
             )}
-            <label className={`rf-cardcell-label${hosted && gpFilled.expiry ? ' rf-cardcell-label--gone' : ''}`}>{hosted ? 'MM / YYYY' : 'MM / YY'}<span className="rf-req">*</span></label>
+            {hosted === false && <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>}
           </span>
 
           <span className="rf-cardcell rf-cardcell--cvv">
