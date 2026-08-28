@@ -477,7 +477,21 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
       submitTarget: `#${subId}`,
       onReady: () => { if (!dead) setGpReady(true); },
       onToken: (t) => onTokenRef.current(t),
-      onError: (m) => { if (!dead) setGpError(m); },
+      onError: (m) => {
+        if (dead) return;
+        setGpError(m);
+        /* This IS the pay attempt, as far as the hosted row is concerned.
+           GP will only tokenize from a gesture inside its own frame, so its
+           invisible submit button takes the click and OUR handler — the one
+           that sets payAttempted — never runs. Without this the banner showed
+           GP's rejection while the row underneath stayed silent, because every
+           per-field message waits on payAttempted.
+           Safe to treat as an attempt: both paths that reach onError are
+           downstream of a submit (token-error, and a token-success that
+           carried no token). A library that never loads does not come through
+           here — it resolves to null and the plain inputs take over. */
+        setPayAttempted(true);
+      },
       onFieldValid: (field, valid) => {
         /* STICKY ONCE VALID, and nothing weaker.
            GP tells us neither length nor emptiness, so "has content" has to be
