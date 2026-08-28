@@ -161,8 +161,24 @@
   cursor: pointer;
 }
 
-.nav-mega-close:hover {
-  color: var(--nav-mega-accent);
+/* NO hover effect, and `background` has to be said out loud to get one.
+   The grey square that showed up behind the mark is not ours — a host theme
+   styling bare `button:hover { background: … }` is (0,1,1) and outranks
+   .nav-mega-close at (0,1,0). The dev harness ships exactly that rule
+   (`button:hover { background: #f3f4f6 }`), which is why it is visible there
+   as well as on a themed page. Restating it at (0,2,0) settles it.
+   The accent recolour goes too: the ✕ is the popup's escape hatch and does not
+   need to react to being passed over. */
+.nav-mega-close:hover,
+.nav-mega-close:active {
+  background: none;
+  color: #fff;
+}
+/* Keyboard users still need to see where they are — the hover pin above must
+   not take that with it. */
+.nav-mega-close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 /* ── The ✕'s size is stated in CSS, never left to the SVG ─────────────────
