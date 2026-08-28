@@ -414,7 +414,14 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
   })();
   /** A suggestion has been chosen, so the address parts below are real. */
   const [addressPicked, setAddressPicked] = useState(false);
-  const showBillingParts = addressPicked || payAttempted
+  /* The four parts complete an address, so they appear once there IS one —
+     picked from a suggestion, or typed without picking — and once anything is
+     already in them (a browser autofill, or a return to the panel).
+     NOT on a bare pay attempt. Pressing Pay with the search empty used to
+     unfold all four, which answers a question nobody asked: the address has
+     not been started, so there is nothing to complete. The search box carries
+     the error on its own instead. */
+  const showBillingParts = addressPicked || filled(address)
     || filled(city) || filled(stateCode) || filled(zip);
   const complete = cardRowValid && filled(name) && filled(address) && filled(city)
     && stateCode.trim().length === 2 && zip.trim().length >= 3;
