@@ -13,6 +13,7 @@ import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
 import { useSwipe } from '@shared/useSwipe';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { emitOpenTiers } from '@shared/tierBus';
+import { boundText } from '@shared/propertyBinding';
 import {
   fetchProperties,
   resolveNearbyCompanyId,
@@ -87,6 +88,22 @@ const COLUMNS = 3;
 const DEFAULT_PROPERTY_BASE_PATH = '/storage-units';
 
 /**
+ * Where a Select lands when the widget is given no `rentalPageUrl`.
+ *
+ * DELIBERATELY NOT `@shared/unitHandoff`'s `DEFAULT_RENTAL_PATH` ('/rental'):
+ * #07's cards point at OTHER facilities and this site's rental flow is published
+ * at `/rent-or-reserve`, so the shared default sends every nearby Select to a
+ * page that does not exist. Only #07 is changed — #05's Pricing and #08's cards
+ * still take the shared default, so moving this one does not silently retarget
+ * the space list on every property page.
+ *
+ * Nothing else about the handoff changes: the picked tier still travels in
+ * localStorage (`saveUnitSelection`), and the rental flow reads it on whatever
+ * page it is mounted on, so no extra params are needed to make this work.
+ */
+const DEFAULT_NEARBY_RENTAL_PATH = '/rent-or-reserve';
+
+/**
  * Duda content-menu fields are TEXT inputs, so a toggle can arrive as the STRING
  * `'false'` — which is truthy, and would switch a feature on for every operator
  * who explicitly turned it off. Same coercion the `rows`/`sortMode` props do.
@@ -133,6 +150,8 @@ function SpaceRow({
    *  a widget that lists several properties at once. */
   propertyId: string;
   companyId: string;
+  /** Already normalised by the widget (`rentalPath`) — `rentalHref` here is a
+   *  no-op on it, and only guards a direct render of this sub-component. */
   rentalPageUrl?: string;
   /** Select goes through the #14 value-tiers step, exactly as #05's does. */
   enableValueTiers: boolean;
@@ -148,7 +167,8 @@ function SpaceRow({
    *     property, which is the whole difference from #05.
    *  2. **Value tiers as a MODAL** (enabled, no page URL) — the href stays the
    *     rental page and the click emits on `tierBus` instead; see onSelect.
-   *  3. **No value-tiers step** — straight to the rental page.
+   *  3. **No value-tiers step** — straight to the rental page
+   *     (`/rent-or-reserve` by default; see `DEFAULT_NEARBY_RENTAL_PATH`).
    */
   const tiersHref = enableValueTiers && valueTiersPageUrl
     ? `${valueTiersPageUrl}?${new URLSearchParams({
@@ -228,7 +248,7 @@ function SpaceRow({
         {space.tierId ? (
           <a
             className="nl-select-btn"
-            href={tiersHref ?? rentalHref(rentalPageUrl)}
+            href={tiersHref ?? rentalHref(rentalPageUrl || DEFAULT_NEARBY_RENTAL_PATH)}
             onClick={onSelect}
           >
             Select
@@ -300,6 +320,8 @@ function PropertyCard({
   property: Property;
   /** Where the property pages live, e.g. '/storage-units'. */
   propertyBasePath: string;
+  /** Pre-resolved by the widget — `/rent-or-reserve` unless the instance set
+   *  its own `rentalPageUrl`. Passed straight down to each Select. */
   rentalPageUrl?: string;
   companyId: string;
   /** Passed straight down to each space's Select — see SpaceRow. */
@@ -605,8 +627,14 @@ export interface NearbyLocationsProps {
    */
   propertyBasePath?: string;
   /**
-   * Where a Select lands. Default `/rental` (see @shared/unitHandoff) — the
+   * Where a Select lands. Default `/rent-or-reserve`
+   * (`DEFAULT_NEARBY_RENTAL_PATH`, NOT @shared/unitHandoff's `/rental`) — the
    * picked tier travels in localStorage, so the href stays clean.
+   *
+   * A Duda content-menu field is a TEXT input, so an operator who cleared it
+   * sends `''` and a dynamic page can send an unsubstituted `{{token}}`; both go
+   * through `boundText` and fall back to the default rather than resolving to
+   * the shared `/rental`.
    */
   rentalPageUrl?: string;
   /**
@@ -642,6 +670,18 @@ export function NearbyLocations({
   valueTiersPageUrl,
 }: NearbyLocationsProps) {
   const valueTiers = boolProp(enableValueTiers);
+  /**
+   * The Select destination, resolved ONCE for every card on the widget.
+   *
+   * `boundText` first, then the default: an empty Duda field or an
+   * unsubstituted `{{token}}` must fall back to `/rent-or-reserve`, where a
+   * default parameter (`rentalPageUrl = DEFAULT_NEARBY_RENTAL_PATH`) only fires
+   * on `undefined` and would let `''` reach `rentalHref`, which answers the
+   * SHARED `/rental`. `rentalHref` then normalises exactly as before — a missing
+   * leading slash would make the link relative to the page the widget sits on
+   * (fatal at /storage-units/california/…) and a trailing one would double up.
+   */
+  const rentalPath = rentalHref(boundText(rentalPageUrl) || DEFAULT_NEARBY_RENTAL_PATH);
   // Duda hands these over as strings, so coerce before deriving anything.
   const rowCount = Number(rows) >= 2 ? 2 : 1;
   const cardsPerPage = COLUMNS * rowCount;
@@ -1050,7 +1090,7 @@ export function NearbyLocations({
                       key={property.id}
                       property={property}
                       propertyBasePath={propertyBase}
-                      rentalPageUrl={rentalPageUrl}
+                      rentalPageUrl={rentalPath}
                       companyId={handoffCompanyId}
                       enableValueTiers={valueTiers}
                       valueTiersChannel={valueTiersChannel}
@@ -1100,7 +1140,7 @@ export function NearbyLocations({
                     <PropertyCard
                       property={properties[Math.min(mobileIdx, properties.length - 1)]}
                       propertyBasePath={propertyBase}
-                      rentalPageUrl={rentalPageUrl}
+                      rentalPageUrl={rentalPath}
                       companyId={handoffCompanyId}
                       enableValueTiers={valueTiers}
                       valueTiersChannel={valueTiersChannel}
