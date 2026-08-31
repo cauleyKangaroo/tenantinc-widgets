@@ -2457,6 +2457,11 @@
   display: flex;
   align-items: stretch;
   will-change: transform;
+  /* Real space between cards (Josh Wright asked for >=10px, 2026-08-27 — set to exactly 10). It is a
+     flex gap, not padding or a narrower card: those leave the item butting the
+     clip edge, so the neighbour shows through the rounded corner's notch. The
+     transform's step includes it — see the inline style in the TSX. */
+  gap: 10px;
 }
 
 /* Exactly one window wide, so the pitch the transform steps by and the card
@@ -2469,6 +2474,10 @@
   display: flex;
 }
 
+/* The 12px gap Josh Wright asked for (2026-08-27), taken off the CARD rather
+   than the item — padding on the item makes the clip end 12px past the card and
+   the next one peeks through, and a margin on the track changes what
+   `flex: 0 0 100%` resolves against and the cards drift. */
 .sl-wrapper .sl-rv2-track-item > .sl-rv2-card {
   width: 100%;
 }
@@ -2638,6 +2647,11 @@
   display: flex;
   align-items: stretch;
   will-change: transform;
+  /* Real space between cards (Josh Wright asked for >=10px, 2026-08-27 — set to exactly 10). It is a
+     flex gap, not padding or a narrower card: those leave the item butting the
+     clip edge, so the neighbour shows through the rounded corner's notch. The
+     transform's step includes it — see the inline style in the TSX. */
+  gap: 10px;
 }
 
 /* Exactly one window wide, so the pitch the transform steps by and the card
@@ -2646,6 +2660,15 @@
   flex: 0 0 100%;
   min-width: 0;
 }
+
+/* The 12px gap Josh Wright asked for (2026-08-27), taken off the CARD rather
+   than the item — padding on the item makes the clip end 12px past the card and
+   the next one peeks through, and a margin on the track changes what
+   `flex: 0 0 100%` resolves against and the cards drift. */
+.sl-wrapper .sl-nb2-track-item > * {
+  width: 100%;
+}
+
 
 .sl-wrapper .sl-nb2-map-placeholder {
   height: 300px;
@@ -3471,7 +3494,15 @@
 
      Deliberately not solved by spacing the cards apart: the item must stay
      exactly one window wide or the pitch stops matching the distance the
-     transform steps by, and the cards drift 16px further out with every step. */
+     transform steps by, and the cards drift 16px further out with every step.
+
+     The clip is also pulled 12px SHORT of the item. The card is 12px narrower
+     than its item (that is the inter-card gap), so the item's trailing 12px is
+     empty — but the next card begins the instant that item ends, right on the
+     clip edge, and the rounded corner's notch let it show through. Ending the
+     clip on the CARD's edge instead puts the seam outside the visible area.
+     The item keeps its full width, so pitch still equals step and nothing
+     drifts. */
   border-radius: 16px;
 }
 
@@ -3479,15 +3510,38 @@
   display: flex;
   align-items: stretch;
   will-change: transform;
+  /* Real space between cards. The step the transform moves by must include it —
+     see the inline style in BlogSection.tsx. */
+  gap: 10px;
 }
 
 /* Exactly one window wide, so the pitch the transform steps by and the card
-   width are the SAME quantity. Anything that makes the item wider than the
-   window (padding, margins, a gap on the track) desyncs the two and the cards
-   drift further out of place with every step. */
+   width are the SAME quantity. Anything that makes the ITEM wider than the
+   window (padding on the item, margins, a gap on the track) desyncs the two and
+   the cards drift further out of place with every step — that bug shipped once
+   and moved card 2 by 16px, card 3 by 32px.
+
+   The gap between cards therefore has to come from INSIDE the item, where it is
+   already part of the step: the item stays 100% and the card is inset within it.
+   Josh Wright asked for at least 10px (2026-08-27). The trailing 12px is inside
+   the step, so the card is 12px narrower than the window and the next card
+   starts 12px clear of it — measured 12.0px between neighbours, drift 0.0. */
 .sl-wrapper .sl-blog2-track-item {
   flex: 0 0 100%;
   min-width: 0;
+  display: flex;
+}
+
+/* The 12px gap Josh Wright asked for (2026-08-27) lives on the TRACK, as a flex
+   gap, and the transform compensates for it in the JSX (step = 100% + 12px).
+
+   Everything else was tried and failed: padding on the item, or a narrower card,
+   both leave the item butting the clip edge so the neighbour shows through the
+   rounded corner's notch; a margin on the track changed what `flex: 0 0 100%`
+   resolved against and the cards drifted 12px per step. A real gap moves the
+   next card genuinely away from the edge. */
+.sl-wrapper .sl-blog2-track-item > .sl-blog2-card {
+  width: 100%;
 }
 
 /* White card */
@@ -3936,6 +3990,20 @@
 /* 2px to match the pills inside the filter modal (.sl-filter-modal .sl-pill),
    so the same control is not thinner outside the popup than in it. */
 .sl-wrapper .sl-top-bar-pill {
+  /* Centred EXPLICITLY, not left to the UA.
+     The .active variant below already declares inline-flex + align-items, so
+     an unticked pill was the only one relying on a <button>'s default
+     centring of its own text — and that default is only as reliable as the
+     host's own button rules. A theme line-height taller than the 14px text
+     inflates the line box inside a fixed 44px pill and the label rides up in
+     it, which is invisible here (the harness sets no line-height) and shows on
+     a live page.
+     line-height: 1 removes the other half of it: the label's box is then the
+     glyphs, and align-items has something predictable to centre. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   height: 44px;
   padding: 0 21px;
   border-radius: 100px;

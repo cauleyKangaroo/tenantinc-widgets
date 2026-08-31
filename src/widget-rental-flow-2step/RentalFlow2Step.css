@@ -1155,6 +1155,12 @@
     min-height: 64px;
     padding: 0 28px;
   }
+  /* ...but NOT the variant with the notice attached. That one deliberately
+     carries no padding of its own — the inset lives on its head so the blue
+     bar can run edge to edge inside the border — and the (0,2,0) rule above
+     was putting 28px back on both sides, which is what stopped the blue
+     reaching the border. Same (0,2,0), later in source, so it wins. */
+  .rf-wrapper .rf2-autopay--withbar { padding: 0; }
   /* Gutters only, no sides: .rf2-agree carries the 20px here, same as the
      panels. These two kept their own 20px and 16px, which on top of the
      container's would have double-inset the head and the document. */

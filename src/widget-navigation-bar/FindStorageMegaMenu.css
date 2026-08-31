@@ -169,8 +169,24 @@
   cursor: pointer;
 }
 
-.nav-mega-close:hover {
-  color: var(--nav-mega-accent);
+/* NO hover effect, and `background` has to be said out loud to get one.
+   The grey square that showed up behind the mark is not ours — a host theme
+   styling bare `button:hover { background: … }` is (0,1,1) and outranks
+   .nav-mega-close at (0,1,0). The dev harness ships exactly that rule
+   (`button:hover { background: #f3f4f6 }`), which is why it is visible there
+   as well as on a themed page. Restating it at (0,2,0) settles it.
+   The accent recolour goes too: the ✕ is the popup's escape hatch and does not
+   need to react to being passed over. */
+.nav-mega-close:hover,
+.nav-mega-close:active {
+  background: none;
+  color: #fff;
+}
+/* Keyboard users still need to see where they are — the hover pin above must
+   not take that with it. */
+.nav-mega-close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 /* ── The ✕'s size is stated in CSS, never left to the SVG ─────────────────
@@ -816,8 +832,17 @@
   cursor: pointer;
 }
 
-.nav-mega-state:hover {
-  border-color: rgba(255, 255, 255, 0.45);
+/* Hovering a state reads exactly like hovering a city in the third column —
+   the label takes the accent and underlines. The outline this replaces drew a
+   second pill beside the selected one, so two rows looked chosen at once.
+
+   :not(.is-active) is the whole point rather than tidiness: the SELECTED row is
+   already a solid white pill, and recolouring or underlining its label on the
+   way past would undo the one state that is meant to look settled. Hovering it
+   now does nothing, which is right — it is where you already are. */
+.nav-mega-state:not(.is-active):hover .nav-mega-state-name {
+  color: var(--nav-mega-accent);
+  text-decoration: underline;
 }
 
 /* The frame's selected pill is SOLID white with near-black text, not a white
