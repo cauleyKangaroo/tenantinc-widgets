@@ -115,6 +115,7 @@ export function HomepageSearch({
   const [suggestionsBottom, setSuggestionsBottom] = useState(0);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const [typeOpen, setTypeOpen] = useState(false);
+  const [typeAbove, setTypeAbove] = useState(false);
   const [activeType, setActiveType] = useState(-1);
   const [locating, setLocating] = useState(false);
   const safeHistoryLimit = Math.max(0, Math.min(5, Math.floor(historyLimit)));
@@ -131,6 +132,7 @@ export function HomepageSearch({
   const panelContainerRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLFormElement>(null);
   const suggestionsRef = useRef<HTMLUListElement>(null);
+  const typeMenuRef = useRef<HTMLUListElement>(null);
   const typeOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const suggestionsId = 'hs-city-suggestions';
   const typeListId = 'hs-storage-types';
@@ -256,6 +258,32 @@ export function HomepageSearch({
     };
   }, [showLocationPanel, visibleSuggestions.length, q]);
 
+  useLayoutEffect(() => {
+    if (!typeOpen) {
+      setTypeAbove(false);
+      return undefined;
+    }
+
+    const placeMenu = () => {
+      const bar = barRef.current;
+      const menu = typeMenuRef.current;
+      if (!bar || !menu) return;
+      const barRect = bar.getBoundingClientRect();
+      const menuHeight = menu.getBoundingClientRect().height;
+      const below = window.innerHeight - barRect.bottom - 8;
+      const above = barRect.top - 8;
+      setTypeAbove(menuHeight > below && above > below);
+    };
+
+    placeMenu();
+    window.addEventListener('resize', placeMenu);
+    window.addEventListener('scroll', placeMenu, true);
+    return () => {
+      window.removeEventListener('resize', placeMenu);
+      window.removeEventListener('scroll', placeMenu, true);
+    };
+  }, [typeOpen, typeOptions.length]);
+
   useEffect(() => {
     if (typeOpen && activeType >= 0) typeOptionRefs.current[activeType]?.focus();
   }, [typeOpen, activeType]);
@@ -377,7 +405,13 @@ export function HomepageSearch({
               <Chevron />
             </button>
             {typeOpen && (
-              <ul className="hs-type-menu" id={typeListId} role="listbox" aria-label={typePlaceholder}>
+              <ul
+                className={typeAbove ? 'hs-type-menu hs-type-menu--above' : 'hs-type-menu'}
+                ref={typeMenuRef}
+                id={typeListId}
+                role="listbox"
+                aria-label={typePlaceholder}
+              >
                 {typeOptions.map((option, index) => (
                   <li key={option.value} role="presentation">
                     <button
