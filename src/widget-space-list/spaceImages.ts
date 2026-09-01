@@ -55,3 +55,70 @@ export function spaceImageFor(unit: {
   }
   return BY_DIMS[normalizeDims(unit.dimensions)] ?? BY_SIZE[unit.size] ?? s10x10;
 }
+
+// ---------------------------------------------------------------------------
+// Operator artwork from the site's Duda Media Manager.
+//
+// An uploaded file is served from Duda's CDN at a path built only from the
+// SITE ID and the filename (verified live 2026-09-01):
+//
+//   https://irp.cdn-website.com/{siteId}/dms3rep/multi/Small.png
+//
+// The Media Manager FOLDER does not appear in that path — a file dropped into
+// a "spaces" folder is served flat from dms3rep/multi/ like every other. So
+// there is nothing to look up and no proxy to build: the folder is an
+// organising device in Duda's UI, and the only question that matters is
+// whether the FILE resolves, which the browser answers by itself.
+//
+// `siteId` arrives as a Duda prop (data.siteId) and is populated in the editor
+// as well as on a published page — it is what already keys the saved accordion
+// config. That is why this works where anything built on `window.dmAPI` could
+// not: dmAPI is published-site only.
+//
+// Returns undefined rather than a guess when there is no site id, so the card
+// keeps its bundled render instead of requesting a URL that cannot exist.
+// ---------------------------------------------------------------------------
+
+const DUDA_CDN = 'https://irp.cdn-website.com';
+
+/**
+ * Band → filename stem.
+ *
+ * No spaces, deliberately: "Extra Small.png" would need percent-encoding in the
+ * URL and is easy for an operator to get subtly wrong (two spaces, a non-break
+ * space). `other` is absent on purpose — it is the bucket for a tier whose
+ * dimensions did not parse, so there is no meaningful picture to ask for.
+ */
+const MEDIA_FILE_STEM: Partial<Record<UnitSize, string>> = {
+  extra_small: 'ExtraSmall',
+  small: 'Small',
+  medium: 'Medium',
+  large: 'Large',
+  extra_large: 'ExtraLarge',
+};
+
+/**
+ * The operator's own image for a size band, or undefined.
+ *
+ * `.png` only. Trying `.jpg` as well would double the failed requests on every
+ * site that has uploaded nothing, to catch a case an operator can fix by
+ * renaming one file.
+ *
+ * `baseUrl` overrides the derived CDN root — a different region, images hosted
+ * elsewhere, or the dev harness pointing at a real site.
+ */
+export function mediaManagerImageFor(
+  size: UnitSize,
+  siteId?: string,
+  baseUrl?: string,
+): string | undefined {
+  const stem = MEDIA_FILE_STEM[size];
+  if (!stem) return undefined;
+  const base = (baseUrl ?? '').trim().replace(/\/+$/, '');
+  if (base) return `${base}/${stem}.png`;
+  const id = (siteId ?? '').trim();
+  // 'dev-site' is the harness placeholder: a real request against it can only
+  // 403, so it is treated as no site at all.
+  if (!id || id === 'dev-site') return undefined;
+  return `${DUDA_CDN}/${encodeURIComponent(id)}/dms3rep/multi/${stem}.png`;
+}

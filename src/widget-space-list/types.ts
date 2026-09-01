@@ -36,6 +36,16 @@ export interface Unit {
   /** Amenity names where show_in_filter_bar === 1 — drives the Space Features pills */
   filterBarFeatures: string[];
   image: string;
+  /**
+   * The operator's own artwork for this size band, from the site's Duda Media
+   * Manager. Undefined when there is no site id or the band has no file name.
+   *
+   * SEPARATE from `image` on purpose. It is TRIED first and `image` is the
+   * fallback, so a band with nothing uploaded keeps its per-dimension bundled
+   * render. Overwriting `image` would have dropped a 10x20 card to the generic
+   * default whenever Large.png was missing — worse than today.
+   */
+  mediaImage?: string;
   /** Strike-through "in-store" price */
   inStorePrice: number;
   /** Main "starting at" price */
@@ -189,6 +199,14 @@ export interface SpaceListProps {
   elementId?: string;
   /** Duda's site id (data.siteId). */
   siteId?: string;
+  /**
+   * Override for where operator size artwork lives. Empty (the normal case)
+   * derives it from `siteId`:
+   *   https://irp.cdn-website.com/{siteId}/dms3rep/multi/Small.png
+   * Set it for a different CDN region, images hosted elsewhere, or to point
+   * the dev harness at a real site.
+   */
+  spaceImageBaseUrl?: string;
   /**
    * URL of the PHP write-proxy that persists the accordion arrangement to the
    * Duda collection. Set in the Duda JS tab so it can change without a rebuild.

@@ -2,6 +2,7 @@
 import type { Unit, WidgetConfig } from '../types';
 import { PriceBlock, PromoBadge, FeatureList, CtaButton, JunkFeeDisclaimer } from './Pricing';
 import defaultImg from '../assets/tenantinc-default.png';
+import { unitImageSrc, unitImageOnError } from './unitImage';
 
 export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig }) {
   return (
@@ -19,7 +20,7 @@ export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig })
             <FeatureList features={unit.features} />
           </div>
           <div className="sl-card-image-col">
-            <img className="sl-unit-img" src={unit.image} alt="Storage Unit" onError={(e) => { (e.target as HTMLImageElement).src = defaultImg; }} />
+            <img className="sl-unit-img" src={unitImageSrc(unit, defaultImg)} alt="Storage Unit" onError={unitImageOnError(unit, defaultImg)} />
             <a href="#" className="sl-see-fits">
               See what fits
               {/* Pika play/play-circle (outline) — inherits currentColor from .sl-see-fits. */}

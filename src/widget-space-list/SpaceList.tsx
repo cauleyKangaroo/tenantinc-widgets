@@ -112,6 +112,7 @@ export function SpaceList({
   siteId,
   configApiUrl,
   configCollection = 'accordionConfig',
+  spaceImageBaseUrl,
 }: SpaceListProps) {
   const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -286,7 +287,12 @@ export function SpaceList({
         }
         return fetchSpaceGroups(effectivePropertyId, sg, effectiveCompanyId);
       })
-      .then((raw) => { if (raw && !cancelled) setLiveUnits(mapApiToUnits(raw)); })
+      .then((raw) => {
+        // siteId is Duda's own (data.siteId) and is what builds the Media
+        // Manager URL. Absent — the dev harness, or a JS tab that does not
+        // forward it — every card simply keeps its bundled render.
+        if (raw && !cancelled) setLiveUnits(mapApiToUnits(raw, { siteId, baseUrl: spaceImageBaseUrl }));
+      })
       .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };

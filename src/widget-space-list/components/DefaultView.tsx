@@ -10,6 +10,7 @@ import {
   PlayCircleIcon,
 } from './Pricing';
 import defaultImg from '../assets/tenantinc-default.png';
+import { unitImageSrc, unitImageOnError } from './unitImage';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
   other: 'Other',
@@ -51,9 +52,9 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
         <div className="sl-dv-image-col">
           <img
             className="sl-dv-img"
-            src={unit.image || defaultImg}
+            src={unitImageSrc(unit, defaultImg)}
             alt="Storage Unit"
-            onError={(e) => { (e.target as HTMLImageElement).src = defaultImg; }}
+            onError={unitImageOnError(unit, defaultImg)}
           />
           <a href="#" className="sl-dv-see-fits">
             See what fits <PlayCircleIcon />
