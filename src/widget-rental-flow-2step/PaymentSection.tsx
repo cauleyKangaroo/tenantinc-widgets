@@ -307,10 +307,44 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
    * or the other every way it was tried, and a focus whose end never reported
    * left the label stuck.
    */
-  /** Sticky: has this frame ever held a valid value. Gates its error message. */
-  const [gpFilled, setGpFilled] = useState({ number: false, expiry: false });
-  /** Live: does it hold one RIGHT NOW. Gates the row's valid state. */
+  /** Live: does it hold a valid value RIGHT NOW. Gates the row's valid state. */
   const [gpValid, setGpValid] = useState({ number: false, expiry: false });
+  /**
+   * Has each cell been LEFT. A message only appears once the shopper has moved
+   * on from a cell, never while they are still filling it in.
+   *
+   * The two plain cells report this themselves with onBlur. The two frames
+   * cannot — GP publishes no focus or blur — so the parent watches
+   * document.activeElement instead: focus inside a cross-origin iframe makes
+   * the <iframe> ELEMENT the active one, which is enough to say which cell has
+   * the caret without seeing anything in it.
+   *
+   * Polled rather than driven by window blur/focus, which misses a move
+   * straight from one frame to the other (the window is already blurred, so no
+   * second event fires). This only ever sets a one-way flag, so the worst a
+   * missed tick can do is show a message a fraction late.
+   */
+  const [touched, setTouched] = useState({ number: false, expiry: false, cvv: false });
+  const markTouched = (k: 'number' | 'expiry' | 'cvv') =>
+    setTouched((t) => (t[k] ? t : { ...t, [k]: true }));
+  useEffect(() => {
+    if (!hosted) return undefined;
+    let prev: 'number' | 'expiry' | null = null;
+    const focused = (): 'number' | 'expiry' | null => {
+      const el = document.activeElement;
+      if (!el || el.tagName !== 'IFRAME') return null;
+      if (document.getElementById(numId)?.contains(el)) return 'number';
+      if (document.getElementById(expId)?.contains(el)) return 'expiry';
+      return null;
+    };
+    const id = window.setInterval(() => {
+      const now = focused();
+      const left = prev;
+      if (left && left !== now) setTouched((t) => (t[left] ? t : { ...t, [left]: true }));
+      prev = now;
+    }, 150);
+    return () => window.clearInterval(id);
+  }, [hosted, numId, expId]);
 
   /* The token handler is rebuilt on every keystroke in the billing fields, but
      the frames are mounted ONCE — remounting would wipe the card mid-entry. So
@@ -341,29 +375,53 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
      not — gpValid tracks it, so an empty or half-typed frame can be named here
      too rather than only the CVV. */
   const cardCellError = (() => {
+    /* TYPED INTO, THEN LEFT — or a pay attempt. Never while a cell still has
+       the caret: a sixteen-digit number is wrong for fifteen keystrokes out of
+       sixteen, and saying so on each of them is noise the shopper is already
+       fixing. And never for a cell merely passed through, which is why each
+       rule needs content as well as a blur. */
     if (hosted) {
-      if ((payAttempted || gpFilled.number) && !gpValid.number) return 'Enter a complete card number';
-      if ((payAttempted || gpFilled.expiry) && !gpValid.expiry) return 'Enter the expiry date as MM / YYYY';
-    }
-    if (!hosted) {
+      /* PAY ATTEMPT ONLY for the two frames, and it has to be.
+         "Typed into, then left" needs to tell an empty cell from a partly
+         filled one, and GP cannot: its *-test event is bound inside the frame
+         to focus, blur, input, keydown AND keyup (checked in gp-1.0.0), so it
+         arrives for a cell that was merely clicked through, carrying the same
+         `valid: false` an empty cell and a three-digit one both produce. That
+         is what put "Enter a complete card number" under an empty field.
+         Pressing Pay is the one signal that cannot lie, and it does reach here
+         now — GP's own submit frame takes the click, so onError marks the
+         attempt (see the handler below). The plain cells keep the blur rule:
+         :placeholder-shown lets us see whether they hold anything. */
+      if (payAttempted && !gpValid.number) return 'Enter a complete card number';
+      if (payAttempted && !gpValid.expiry) return 'Enter the expiry date as MM / YYYY';
+    } else {
       const n = digits(number);
-      if ((payAttempted || n.length > 0) && !validCard(number)) {
+      if ((payAttempted || (touched.number && n.length > 0)) && !validCard(number)) {
         return n.length === 0 ? 'Enter your card number' : `Enter all ${CARD_DIGITS} digits of your card number`;
       }
+      // A complete but unusable expiry is wrong the moment it is complete, so
+      // this one does not wait to be left.
       if (expError) return expError;
-      if ((payAttempted || digits(expiry).length > 0) && !validExpiry(expiry)) {
+      if ((payAttempted || (touched.expiry && digits(expiry).length > 0)) && !validExpiry(expiry)) {
         return 'Enter the expiry date as MM / YY';
       }
     }
     const c = digits(cvv);
-    if ((payAttempted || c.length > 0) && !validCvv(cvv)) {
+    if ((payAttempted || (touched.cvv && c.length > 0)) && !validCvv(cvv)) {
       return c.length === 0 ? 'Enter the security code' : `Enter all ${CVV_DIGITS} digits of the security code`;
     }
     return '';
   })();
   /** A suggestion has been chosen, so the address parts below are real. */
   const [addressPicked, setAddressPicked] = useState(false);
-  const showBillingParts = addressPicked || payAttempted
+  /* The four parts complete an address, so they appear once there IS one —
+     picked from a suggestion, or typed without picking — and once anything is
+     already in them (a browser autofill, or a return to the panel).
+     NOT on a bare pay attempt. Pressing Pay with the search empty used to
+     unfold all four, which answers a question nobody asked: the address has
+     not been started, so there is nothing to complete. The search box carries
+     the error on its own instead. */
+  const showBillingParts = addressPicked || filled(address)
     || filled(city) || filled(stateCode) || filled(zip);
   const complete = cardRowValid && filled(name) && filled(address) && filled(city)
     && stateCode.trim().length === 2 && zip.trim().length >= 3;
@@ -472,7 +530,21 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
       submitTarget: `#${subId}`,
       onReady: () => { if (!dead) setGpReady(true); },
       onToken: (t) => onTokenRef.current(t),
-      onError: (m) => { if (!dead) setGpError(m); },
+      onError: (m) => {
+        if (dead) return;
+        setGpError(m);
+        /* This IS the pay attempt, as far as the hosted row is concerned.
+           GP will only tokenize from a gesture inside its own frame, so its
+           invisible submit button takes the click and OUR handler — the one
+           that sets payAttempted — never runs. Without this the banner showed
+           GP's rejection while the row underneath stayed silent, because every
+           per-field message waits on payAttempted.
+           Safe to treat as an attempt: both paths that reach onError are
+           downstream of a submit (token-error, and a token-success that
+           carried no token). A library that never loads does not come through
+           here — it resolves to null and the plain inputs take over. */
+        setPayAttempted(true);
+      },
       onFieldValid: (field, valid) => {
         /* STICKY ONCE VALID, and nothing weaker.
            GP tells us neither length nor emptiness, so "has content" has to be
@@ -490,15 +562,10 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
            expose, and stranding the label over an empty field is the worse of
            the two. */
         if (dead) return;
+        /* Whether the frame validates, and nothing more. Its arrival proves
+           nothing about content: GP binds this to focus and blur as well as to
+           typing. */
         setGpValid((v) => (v[field] === valid ? v : { ...v, [field]: valid }));
-        /* ARRIVAL, not `valid`: GP posts this per keystroke, so it means the
-           frame has been typed into — which is what hides the label. `valid`
-           alone left it sitting on a half-typed number. GP publishes no
-           emptiness, no length and no focus (checked against gp-1.0.0: the
-           only public events are the two *-test, token-success/error, error
-           and ready), so a frame typed into and then fully cleared keeps its
-           label hidden. */
-        setGpFilled((f) => (f[field] ? f : { ...f, [field]: true }));
       },
     }).then((h) => {
       if (dead) { h?.dispose(); return; }
@@ -548,16 +615,18 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
               ref={numberRef}
               value={number}
               onChange={(e) => onNumber(e.target.value)}
+              onBlur={() => markTouched('number')}
               placeholder=" "
               inputMode="numeric"
               autoComplete="cc-number"
               aria-label="Card Number (required)"
             />
           )}
-          {/* Drawn by US in both modes — it is the only way this text is in
-              Montserrat, since the frame cannot load a webfont. Hidden once
-              the frame has been typed into; see gpFilled. */}
-          <label className={`rf-cardcell-label${hosted && gpFilled.number ? ' rf-cardcell-label--gone' : ''}`}>Card Number<span className="rf-req">*</span></label>
+          {/* PLAIN cells only. A hosted cell's label is the frame's own
+              placeholder, which is the only one that comes back when the field
+              is emptied — a second label drawn from here would sit on top of
+              it and could not know when to leave. */}
+          {hosted === false && <label className="rf-cardcell-label">Card Number<span className="rf-req">*</span></label>}
         </span>
 
         {/* Expiry and CVV are wrapped together so they move to a second line as
@@ -573,6 +642,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
                 ref={expiryRef}
                 value={expiry}
                 onChange={(e) => onExpiry(e.target.value)}
+                onBlur={() => markTouched('expiry')}
                 onKeyDown={backspaceInto(numberRef)}
                 placeholder=" "
                 inputMode="numeric"
@@ -580,7 +650,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
                 aria-label="Card expiry, MM / YY (required)"
               />
             )}
-            <label className={`rf-cardcell-label${hosted && gpFilled.expiry ? ' rf-cardcell-label--gone' : ''}`}>{hosted ? 'MM / YYYY' : 'MM / YY'}<span className="rf-req">*</span></label>
+            {hosted === false && <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>}
           </span>
 
           <span className="rf-cardcell rf-cardcell--cvv">
@@ -589,6 +659,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
               ref={cvvRef}
               value={cvv}
               onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, CVV_DIGITS))}
+              onBlur={() => markTouched('cvv')}
               /* In hosted mode the expiry lives in GP's frame, which cannot be
                  focused from here, so the chain stops at the CVV. */
               onKeyDown={hosted ? undefined : backspaceInto(expiryRef)}

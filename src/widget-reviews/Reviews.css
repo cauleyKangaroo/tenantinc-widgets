@@ -88,6 +88,33 @@
   min-height: 0;
 }
 
+/* ── Desktop column track ────────────────────────────────────────────────
+   Every page rendered once, one transform moving them. The window is exactly
+   one page wide, so the step is a plain 100% — unlike #12 and #07, whose items
+   are sized off the window at 1/perView and therefore need a pixel step.
+   Both axes clip: a page is a full-height grid, and there is no shadow here
+   reaching past it the way the blog cards' does. */
+.rw-track-window {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.rw-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+}
+.rw-track-page {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+}
+/* The grid inside a page has to fill it, or the equal-height rows collapse. */
+.rw-track-page > .rw-column-cards {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* ── Source header ──────────────────────────────────────────────────────── */
 
 .rw-source-header {
@@ -403,6 +430,11 @@
   display: flex;
   align-items: stretch;
   will-change: transform;
+  /* Real space between cards (Josh Wright asked for >=10px, 2026-08-27 — set to exactly 10). It is a
+     flex gap, not padding or a narrower card: those leave the item butting the
+     clip edge, so the neighbour shows through the rounded corner's notch. The
+     transform's step includes it — see the inline style in the TSX. */
+  gap: 10px;
 }
 
 /* Exactly one window wide, so the pitch the transform steps by and the card
@@ -414,6 +446,10 @@
   display: flex;
 }
 
+/* The 12px gap Josh Wright asked for (2026-08-27), taken off the CARD rather
+   than the item — padding on the item makes the clip end 12px past the card and
+   the next one peeks through, and a margin on the track changes what
+   `flex: 0 0 100%` resolves against and the cards drift. */
 .rw-mobile-track-item > .rw-card {
   width: 100%;
 }

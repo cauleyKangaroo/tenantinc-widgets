@@ -10,7 +10,8 @@ import {
   ChevronRight,
 } from './icons';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
-import { useSwipe } from '@shared/useSwipe';
+import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
+import { CarouselDots } from '@shared/CarouselDots';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { emitOpenTiers } from '@shared/tierBus';
 import { boundText } from '@shared/propertyBinding';
@@ -548,15 +549,10 @@ function SkeletonCard() {
   );
 }
 
-function Dots({ count, active, onPick }: { count: number; active: number; onPick: (i: number) => void }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <button key={i} className={`nl-dot${i === active ? ' active' : ''}`} onClick={() => onPick(i)} aria-label={`Page ${i + 1}`} />
-      ))}
-    </>
-  );
-}
+/* The local one-dot-per-position renderer is gone: @shared/CarouselDots caps
+   the row at MAX_DOTS and slides a window instead, which is what stops a long
+   list drawing a dot per item. It takes our existing `nl-dot` class, so the
+   look is unchanged. */
 
 
 // ---------------------------------------------------------------------------
@@ -730,8 +726,6 @@ export function NearbyLocations({
   /** Ids with a lookup in flight, so a re-render can't fire a second one. */
   const spacesInFlight = useRef(new Set<string>());
 
-  const [page, setPage] = useState(0);
-  const [mobileIdx, setMobileIdx] = useState(0);
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
 
   // null = still loading; [] = loaded but nothing to show.
@@ -764,8 +758,6 @@ export function NearbyLocations({
     // are the wrong ones — back to skeletons rather than stale-then-swap.
     setApiProperties(null);
     setRefLoc(null);
-    setPage(0);
-    setMobileIdx(0);
     setStalled(false);
 
     // The bounded chain's absolute worst case is a little OVER this — the
@@ -963,8 +955,40 @@ export function NearbyLocations({
       : null;
 
   const totalPages = Math.ceil(properties.length / cardsPerPage);
-  const safePage = Math.min(page, Math.max(0, totalPages - 1));
-  const pageCards = properties.slice(safePage * cardsPerPage, safePage * cardsPerPage + cardsPerPage);
+
+  /* Desktop steps ONE CARD at a time, exactly as #12's blog listing does — the
+     arrows advance a position, not a page, so nine properties give seven stops
+     rather than three.
+     The strip's items are COLUMNS, not cards, which is what keeps the `rows: 2`
+     layout: a column holds `rowCount` cards stacked, so three columns are on
+     screen either way and one step is one column. With rows: 1 a column IS a
+     card and this is #12 byte for byte. */
+  const columns = Array.from(
+    { length: Math.ceil(properties.length / rowCount) },
+    (_, i) => properties.slice(i * rowCount, i * rowCount + rowCount),
+  );
+  const deskCar = useCarousel({ count: columns.length, perView: COLUMNS });
+  /* Mobile is one card, dragged. useSwipe only classified a finished gesture,
+     so the card did not move under the finger — it jumped after the fact.
+     useCarousel follows the drag and snaps on release, the same hook and feel
+     #05's nearby section and the blog listing use. */
+  const mobileCar = useCarousel({ count: properties.length, perView: 1, draggable: true });
+  const reduceMotion = usePrefersReducedMotion();
+  const safePage = deskCar.index;
+  const mobileIdx = mobileCar.index;
+  /* Pulled out so the reset effect can depend on THESE rather than on the two
+     carousel objects, which are new every render and would re-run it — and
+     re-running it refetches. Both are useCallback'd inside the hook. */
+  const deskGoTo = deskCar.goTo;
+  const mobileGoTo = mobileCar.goTo;
+  /* Back to the first page whenever the set is refetched. Its own effect, not a
+     line inside the fetch above: the carousels cannot be declared until
+     `totalPages` and `properties` exist, which is below that effect, so the
+     reset has to live down here with them. */
+  useEffect(() => {
+    deskGoTo(0);
+    mobileGoTo(0);
+  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection, deskGoTo, mobileGoTo]);
 
   /**
    * The ids on screen right now — the desktop page's cards plus the one card the
@@ -1037,10 +1061,6 @@ export function NearbyLocations({
     return () => { cancelled = true; };
   }, [visibleIds]);
 
-  const mobileSwipe = useSwipe({
-    onSwipeLeft: () => setMobileIdx((i) => Math.min(properties.length - 1, i + 1)),
-    onSwipeRight: () => setMobileIdx((i) => Math.max(0, i - 1)),
-  });
 
   // Map pins from the live properties (price = cheapest starting rate).
   // Coordinate-less properties are DROPPED here, not plotted: extraction now keeps
@@ -1082,30 +1102,56 @@ export function NearbyLocations({
           <p className="nl-empty">{emptyMessage}</p>
         ) : (
           <>
-            <div className="nl-grid">
-              {loading
-                ? Array.from({ length: cardsPerPage }, (_, i) => <SkeletonCard key={i} />)
-                : pageCards.map((property) => (
-                    <PropertyCard
-                      key={property.id}
-                      property={property}
-                      propertyBasePath={propertyBase}
-                      rentalPageUrl={rentalPath}
-                      companyId={handoffCompanyId}
-                      enableValueTiers={valueTiers}
-                      valueTiersChannel={valueTiersChannel}
-                      valueTiersPageUrl={valueTiersPageUrl}
-                    />
+            {loading ? (
+              <div className="nl-grid">
+                {Array.from({ length: cardsPerPage }, (_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ) : (
+              /* EVERY page rendered once inside a track, and one transform moves
+                 it. The old `pageCards.slice(...)` re-rendered a different set
+                 into a static grid — an instant cut, with nothing on screen to
+                 animate. */
+              <div className="nl-track-window" style={{ '--nl-per-view': COLUMNS } as React.CSSProperties}>
+                <div
+                  className="nl-track"
+                  style={{
+                    /* Pixels, not a percentage. A translateX percentage resolves
+                       against the TRACK's own width, and the items are sized off
+                       the window, so a percentage under-shifts and the last
+                       column never reaches the edge — #12 documents the same
+                       trap. --nl-step is one column, the same quantity the items
+                       are sized by, so pitch and travel cannot drift apart. */
+                    transform: `translateX(calc(${(deskCar.offsetPct / 100).toFixed(6)} * var(--nl-step)))`,
+                    transition: reduceMotion ? 'none' : 'transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)',
+                  }}
+                >
+                  {columns.map((col, i) => (
+                    <div className="nl-track-col" key={col[0]?.id ?? i}>
+                      {col.map((property) => (
+                        <PropertyCard
+                          key={property.id}
+                          property={property}
+                          propertyBasePath={propertyBase}
+                          rentalPageUrl={rentalPath}
+                          companyId={handoffCompanyId}
+                          enableValueTiers={valueTiers}
+                          valueTiersChannel={valueTiersChannel}
+                          valueTiersPageUrl={valueTiersPageUrl}
+                        />
+                      ))}
+                    </div>
                   ))}
-            </div>
+                </div>
+              </div>
+            )}
 
             {!loading && totalPages > 1 && (
               <div className="nl-pagination">
-                <button className="nl-page-btn nl-page-btn-prev" onClick={() => setPage(() => Math.max(0, safePage - 1))} disabled={safePage === 0} aria-label="Previous">
+                <button className="nl-page-btn nl-page-btn-prev" onClick={deskCar.prev} disabled={!deskCar.canPrev} aria-label="Previous">
                   <ChevronRight size={40} />
                 </button>
-                <Dots count={totalPages} active={safePage} onPick={setPage} />
-                <button className="nl-page-btn" onClick={() => setPage(() => Math.min(totalPages - 1, safePage + 1))} disabled={safePage === totalPages - 1} aria-label="Next">
+                <CarouselDots count={deskCar.maxIndex + 1} active={safePage} onPick={deskCar.goTo} dotClass="nl-dot" label="Go to page {n}" />
+                <button className="nl-page-btn" onClick={deskCar.next} disabled={!deskCar.canNext} aria-label="Next">
                   <ChevronRight size={40} />
                 </button>
               </div>
@@ -1136,19 +1182,38 @@ export function NearbyLocations({
                 <>
                   {/* Dots are the indicator, swiping is the control — this view
                       never had arrows to begin with. */}
-                  <div {...mobileSwipe.handlers}>
-                    <PropertyCard
-                      property={properties[Math.min(mobileIdx, properties.length - 1)]}
-                      propertyBasePath={propertyBase}
-                      rentalPageUrl={rentalPath}
-                      companyId={handoffCompanyId}
-                      enableValueTiers={valueTiers}
-                      valueTiersChannel={valueTiersChannel}
-                      valueTiersPageUrl={valueTiersPageUrl}
-                    />
+                  <div
+                    className="nl-track-window nl-track-window--mobile"
+                    style={{ '--nl-per-view': 1 } as React.CSSProperties}
+                    {...mobileCar.handlers}
+                  >
+                    <div
+                      className="nl-track"
+                      style={{
+                        transform: `translateX(calc(${(mobileCar.offsetPct / 100).toFixed(6)} * var(--nl-step)))`,
+                        transition:
+                          reduceMotion || mobileCar.dragging
+                            ? 'none'
+                            : 'transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)',
+                      }}
+                    >
+                      {properties.map((property, i) => (
+                        <div className="nl-track-col" key={property.id} aria-hidden={i === mobileIdx ? undefined : true}>
+                          <PropertyCard
+                            property={property}
+                            propertyBasePath={propertyBase}
+                            rentalPageUrl={rentalPath}
+                            companyId={handoffCompanyId}
+                            enableValueTiers={valueTiers}
+                            valueTiersChannel={valueTiersChannel}
+                            valueTiersPageUrl={valueTiersPageUrl}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="nl-pagination nl-pagination-dots">
-                    <Dots count={properties.length} active={Math.min(mobileIdx, properties.length - 1)} onPick={setMobileIdx} />
+                    <CarouselDots count={properties.length} active={mobileIdx} onPick={mobileCar.goTo} dotClass="nl-dot" />
                   </div>
                 </>
               )}

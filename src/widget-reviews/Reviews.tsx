@@ -150,16 +150,41 @@ function ReviewCard({ review, source }: { review: Review; source: ReviewSource }
 function SourceColumn({ source }: { source: ReviewSource }) {
   const totalPages = Math.max(1, Math.ceil(source.reviews.length / REVIEWS_PER_PAGE));
   const carousel = useCarousel({ count: totalPages, perView: 1 });
-  const start = carousel.index * REVIEWS_PER_PAGE;
-  const pageReviews = source.reviews.slice(start, start + REVIEWS_PER_PAGE);
+  const reduceMotion = usePrefersReducedMotion();
+
+  /* Pages, not cards, and that is the shape of this view rather than a
+     shortcut: a column stacks REVIEWS_PER_PAGE reviews VERTICALLY, so there is
+     no horizontal card to step past — the unit that moves is the pair. #12 and
+     #07 step one card because theirs sit side by side.
+     The strip holds every page and one transform moves it; the slice-and-swap
+     this replaces re-rendered a different pair into a static grid, which is a
+     cut with nothing on screen to animate. */
+  const pages = Array.from(
+    { length: totalPages },
+    (_, i) => source.reviews.slice(i * REVIEWS_PER_PAGE, i * REVIEWS_PER_PAGE + REVIEWS_PER_PAGE),
+  );
 
   return (
     <div className="rw-column">
       <SourceHeader source={source} />
-      <div className="rw-column-cards">
-        {pageReviews.map((review) => (
-          <ReviewCard key={review.id} review={review} source={source} />
-        ))}
+      <div className="rw-track-window">
+        <div
+          className="rw-track"
+          style={{
+            transform: `translateX(calc(${(carousel.offsetPct / 100).toFixed(6)} * 100%))`,
+            transition: reduceMotion ? 'none' : 'transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)',
+          }}
+        >
+          {pages.map((page, i) => (
+            <div className="rw-track-page" key={i} aria-hidden={i === carousel.index ? undefined : true}>
+              <div className="rw-column-cards">
+                {page.map((review) => (
+                  <ReviewCard key={review.id} review={review} source={source} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Only when this column has more than one page of its own. */}
@@ -373,7 +398,7 @@ export function Reviews({
             <div
               className="rw-mobile-track"
               style={{
-                transform: `translateX(calc(${(mobileCarousel.offsetPct / 100).toFixed(6)} * 100%))`,
+                transform: `translateX(calc(${(mobileCarousel.offsetPct / 100).toFixed(6)} * (100% + 10px)))`,
                 transition:
                   reduceMotion || mobileCarousel.dragging
                     ? 'none'
