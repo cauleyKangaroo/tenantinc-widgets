@@ -37,15 +37,17 @@ export interface Unit {
   filterBarFeatures: string[];
   image: string;
   /**
-   * The operator's own artwork for this size band, from the site's Duda Media
-   * Manager. Undefined when there is no site id or the band has no file name.
+   * Operator artwork for this card, MOST SPECIFIC FIRST:
    *
-   * SEPARATE from `image` on purpose. It is TRIED first and `image` is the
-   * fallback, so a band with nothing uploaded keeps its per-dimension bundled
-   * render. Overwriting `image` would have dropped a 10x20 card to the generic
-   * default whenever Large.png was missing — worse than today.
+   *   [0] {Band}_{Amenity}.png   e.g. Small_Driveup.png
+   *   [1] {Band}.png             e.g. Small.png
+   *
+   * SEPARATE from `image`, which stays the per-dimension bundled render and is
+   * the next fallback once this list is exhausted. Overwriting `image` would
+   * have dropped a 10x20 card to the generic default whenever Large.png was
+   * missing — worse than today, and only on sites using the feature.
    */
-  mediaImage?: string;
+  mediaImages?: string[];
   /** Strike-through "in-store" price */
   inStorePrice: number;
   /** Main "starting at" price */

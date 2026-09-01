@@ -107,18 +107,84 @@ const MEDIA_FILE_STEM: Partial<Record<UnitSize, string>> = {
  * `baseUrl` overrides the derived CDN root — a different region, images hosted
  * elsewhere, or the dev harness pointing at a real site.
  */
-export function mediaManagerImageFor(
+/**
+ * Amenity label -> the token used in a filename.
+ *
+ * A MAP RATHER THAN A RULE, because the names operators actually use are not
+ * derivable from the API labels: "Drive-Up Access" is filed as Driveup, and
+ * "Climate Control" as Climate_Controlled — one drops a word and a hyphen, the
+ * other gains a suffix. No single transform produces both.
+ *
+ * Keys are lower-cased and stripped of punctuation before lookup, so
+ * "Drive-Up Access", "drive up access" and "DriveUp  Access" all land on the
+ * same entry. Anything unlisted falls through to amenitySlug() below, which is
+ * predictable and needs no code change — the map exists only to honour names
+ * already chosen for the common ones.
+ */
+const AMENITY_FILE_TOKEN: Record<string, string> = {
+  driveupaccess: 'Driveup',
+  driveup: 'Driveup',
+  climatecontrol: 'Climate_Controlled',
+  climatecontrolled: 'Climate_Controlled',
+  interioraccess: 'Interior_Access',
+};
+
+/** Lookup key: letters and digits only, lower-cased. */
+const amenityKey = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+/**
+ * Fallback for an amenity with no alias: punctuation runs become single
+ * underscores. "24 Hours access" -> "24_Hours_access". Left as the operator
+ * capitalised it, since the filename has to match a real upload and guessing
+ * at title case would be one more way to miss.
+ */
+function amenitySlug(label: string): string {
+  return label.trim().replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+export function amenityFileToken(label?: string): string | undefined {
+  const raw = (label ?? '').trim();
+  if (!raw) return undefined;
+  const alias = AMENITY_FILE_TOKEN[amenityKey(raw)];
+  if (alias) return alias;
+  // An amenity of only punctuation slugs to '', which is not a filename.
+  return amenitySlug(raw) || undefined;
+}
+/**
+ * Operator artwork for a size band, MOST specific first.
+ *
+ *   1. {Band}_{Amenity}.png   e.g. Small_Driveup.png
+ *   2. {Band}.png             e.g. Small.png
+ *
+ * Returned as an ordered list rather than one url because the card walks it:
+ * each entry is tried and the next is used when the browser reports the image
+ * did not load. There is no way to know in advance which exists — a missing
+ * file answers 403 from Duda's CDN, and only a real request reveals that.
+ *
+ * The amenity is the one ALREADY SHOWN as the card subtitle, so the picture
+ * and the caption beside it can never disagree.
+ *
+ * `.png` only. Trying `.jpg` as well would double the failed requests on every
+ * site that has uploaded nothing, to catch a case an operator fixes by
+ * renaming one file.
+ */
+export function mediaManagerImagesFor(
   size: UnitSize,
-  siteId?: string,
-  baseUrl?: string,
-): string | undefined {
+  opts: { siteId?: string; baseUrl?: string; amenity?: string } = {},
+): string[] {
   const stem = MEDIA_FILE_STEM[size];
-  if (!stem) return undefined;
-  const base = (baseUrl ?? '').trim().replace(/\/+$/, '');
-  if (base) return `${base}/${stem}.png`;
-  const id = (siteId ?? '').trim();
-  // 'dev-site' is the harness placeholder: a real request against it can only
-  // 403, so it is treated as no site at all.
-  if (!id || id === 'dev-site') return undefined;
-  return `${DUDA_CDN}/${encodeURIComponent(id)}/dms3rep/multi/${stem}.png`;
+  if (!stem) return [];
+
+  let root = (opts.baseUrl ?? '').trim().replace(/\/+$/, '');
+  if (!root) {
+    const id = (opts.siteId ?? '').trim();
+    // 'dev-site' is the harness placeholder: a request against it can only
+    // 403, so it is treated as no site at all.
+    if (!id || id === 'dev-site') return [];
+    root = `${DUDA_CDN}/${encodeURIComponent(id)}/dms3rep/multi`;
+  }
+
+  const token = amenityFileToken(opts.amenity);
+  const names = token ? [`${stem}_${token}`, stem] : [stem];
+  return names.map((n) => `${root}/${n}.png`);
 }

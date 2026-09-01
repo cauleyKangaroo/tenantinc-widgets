@@ -1,42 +1,58 @@
 // ---------------------------------------------------------------------------
-// One image, three fallbacks, used by every card that shows a space.
+// One image, four steps down, used by every card that shows a space.
 //
-//   1. unit.mediaImage  the operator's own artwork from the Duda Media Manager
-//   2. unit.image       the bundled render for this dimension / size band
-//   3. defaultImg       the generic placeholder
+//   1. mediaImages[0]   {Band}_{Amenity}.png  — Small_Driveup.png
+//   2. mediaImages[1]   {Band}.png            — Small.png
+//   3. unit.image       the bundled render for this dimension / size band
+//   4. defaultImg       the generic placeholder
 //
-// Step 2 is the reason this exists. The cards already fell back on error, but
-// straight to the GENERIC default — so simply pointing `src` at the Media
-// Manager URL would have dropped a 10x20 card from its own 10x20 render to a
-// plain placeholder every time the operator had not uploaded Large.png. That
-// is worse than doing nothing, and it would only show on sites that had
-// started using the feature.
+// Step 3 is the reason this exists. The cards already fell back on error, but
+// straight to the GENERIC default — so pointing `src` at a Media Manager url
+// would have dropped a 10x20 card from its own 10x20 render to a plain
+// placeholder every time the operator had not uploaded Large.png. Worse than
+// doing nothing, and it would only show on sites that had started using it.
 //
-// Missing files come back 403 rather than 404 (Duda's CDN), which changes
-// nothing here: `error` fires either way.
+// Walking the list IS the existence check. There is no way to know in advance
+// which files an operator uploaded: a missing one answers 403 from Duda's CDN
+// (not 404), and only a real request reveals it. `error` fires either way.
+//
+// The cost is one failed request per missing step, once, then cached by the
+// browser. That is why the list is kept to two entries.
 // ---------------------------------------------------------------------------
 import type { Unit } from '../types';
 
-/** What to request first: operator artwork when there is any, else the bundle. */
-export function unitImageSrc(unit: Pick<Unit, 'image' | 'mediaImage'>, fallback: string): string {
-  return unit.mediaImage || unit.image || fallback;
+type ImageUnit = Pick<Unit, 'image' | 'mediaImages'>;
+
+/** The full chain for a unit, most specific first, with no blanks. */
+function chain(unit: ImageUnit, fallback: string): string[] {
+  return [...(unit.mediaImages ?? []), unit.image, fallback].filter(Boolean);
+}
+
+/** What to request first. */
+export function unitImageSrc(unit: ImageUnit, fallback: string): string {
+  return chain(unit, fallback)[0] ?? fallback;
 }
 
 /**
- * Walk down the chain on each failure.
+ * Step to the next candidate whenever one fails.
  *
- * Guarded against a loop: a browser that fails the final image too would
- * otherwise re-fire `error` on the same src forever. Comparing against the
- * value we are about to set stops that, and `dataset` is not needed — the
- * current src IS the position in the chain.
+ * Position is read from the element's CURRENT src rather than kept in state,
+ * so the handler stays pure and a re-render cannot rewind it. Comparing the
+ * resolved `el.src` against each candidate needs `endsWith`, because the
+ * browser reports an absolute URL while a bundled import may be a relative one.
+ *
+ * Stops at the last entry: without that, a browser that also fails the generic
+ * placeholder would re-fire `error` on the same src forever.
  */
 export function unitImageOnError(
-  unit: Pick<Unit, 'image' | 'mediaImage'>,
+  unit: ImageUnit,
   fallback: string,
 ): (e: { currentTarget: HTMLImageElement }) => void {
   return (e) => {
     const el = e.currentTarget;
-    const next = el.src.endsWith(unit.image) || !unit.image ? fallback : unit.image;
-    if (el.src !== next) el.src = next;
+    const list = chain(unit, fallback);
+    const i = list.findIndex((c) => el.src === c || el.src.endsWith(c));
+    const next = list[(i < 0 ? 0 : i) + 1];
+    if (next && el.src !== next) el.src = next;
   };
 }

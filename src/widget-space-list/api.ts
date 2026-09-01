@@ -1,6 +1,6 @@
 import type { Unit, UnitSize } from './types';
 import cfg from './config.json';
-import { spaceImageFor, mediaManagerImageFor } from './spaceImages';
+import { spaceImageFor, mediaManagerImagesFor } from './spaceImages';
 import { fetchWebsiteSpaceGroupId as findWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 
@@ -322,9 +322,15 @@ export function mapApiToUnits(raw: unknown, media?: { siteId?: string; baseUrl?:
           // Tried first by the cards; `image` above is the fallback. Parking
           // is excluded: the bands describe storage, and a parking bay has
           // its own covered/open render that a size file would not match.
-          mediaImage: type === 'parking'
+          mediaImages: type === 'parking'
             ? undefined
-            : mediaManagerImageFor(size, media?.siteId, media?.baseUrl),
+            : mediaManagerImagesFor(size, {
+              siteId: media?.siteId,
+              baseUrl: media?.baseUrl,
+              // The SAME amenity the card prints under the size, so the picture
+              // and its caption can never disagree.
+              amenity: subtype,
+            }),
           inStorePrice,
           startingPrice,
           promoId: promo?.id,
