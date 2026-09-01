@@ -84,17 +84,24 @@ const DUDA_CDN = 'https://irp.cdn-website.com';
 /**
  * Band → filename stem.
  *
- * No spaces, deliberately: "Extra Small.png" would need percent-encoding in the
- * URL and is easy for an operator to get subtly wrong (two spaces, a non-break
- * space). `other` is absent on purpose — it is the bucket for a tier whose
- * dimensions did not parse, so there is no meaningful picture to ask for.
+ * `XSmall` / `XLarge`, NOT `ExtraSmall` / `ExtraLarge`. This is the operator's
+ * convention, confirmed against the live CDN 2026-09-01: XSmall.png and
+ * XLarge.png return 200, the Extra* spellings 403. Guessing the long form
+ * would have meant every extra-small and extra-large card silently skipping
+ * artwork that was sitting there.
+ *
+ * No spaces, since a filename with one needs percent-encoding and is easy to
+ * get subtly wrong (a double space, a non-breaking space).
+ *
+ * `other` is absent on purpose — the bucket for a tier whose dimensions did not
+ * parse, so there is no meaningful picture to ask for.
  */
 const MEDIA_FILE_STEM: Partial<Record<UnitSize, string>> = {
-  extra_small: 'ExtraSmall',
+  extra_small: 'XSmall',
   small: 'Small',
   medium: 'Medium',
   large: 'Large',
-  extra_large: 'ExtraLarge',
+  extra_large: 'XLarge',
 };
 
 /**
