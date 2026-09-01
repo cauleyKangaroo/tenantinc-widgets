@@ -6,7 +6,17 @@
   font-family: 'Montserrat', sans-serif;
   width: 100%;
   box-sizing: border-box;
-  padding: 30px 24px;
+  /* Matches .sl-wrapper in #05 exactly. That one is fluid — 20px on a phone,
+     4vw through the middle, capped at 64px — where this was a flat 24px, so the
+     two widgets only lined up at phone width and drifted apart everywhere else.
+     Named, because the full-width band below has to cancel it precisely.
+
+     No vertical padding: the Duda editor sets the space above and below this
+     widget, and the 30px that used to be here added to whatever was set there.
+     The two top-level blocks (.promo-banner, .promo-bars) carry only
+     `margin: 0 auto`, so nothing else contributes height at the edges. */
+  --promo-gutter: clamp(20px, 4vw, 64px);
+  padding: 0 var(--promo-gutter);
 }
 
 .promo-wrapper *,
@@ -51,7 +61,9 @@ img.promo-banner-img {
   padding: 16px;
   text-align: center;
   color: #fff;
-  background: linear-gradient(90deg, #509e2f 0%, #f45f30 118.87%);
+  /* Both stops follow the theme. Hardcoded, a rebranded site got a
+     green-to-orange banner whatever its own palette was. */
+  background: linear-gradient(90deg, var(--hb-secondary, #509e2f) 0%, var(--color_1, #f45f30) 118.87%);
 }
 
 .promo-banner-title {
@@ -125,7 +137,11 @@ img.promo-banner-img {
 /* Tag + title, flexed so the info icon is pushed to the far right. */
 .promo-bar-titlewrap {
   display: flex;
-  align-items: center;
+  /* flex-start, not center: the tag belongs against the FIRST line of the
+     heading. Centred, a heading that wrapped to two lines — which is most of
+     them at three and four across — dropped the tag to the middle of the pair,
+     floating beside the gap between the lines. */
+  align-items: flex-start;
   gap: 8px;
   flex: 1 1 0;
   min-width: 0;
@@ -147,27 +163,126 @@ img.promo-banner-img {
    overrides. Figma only specifies the 2-across bar; the counts below scale
    around it so a full-width bar isn't undersized and a quarter-width one stays
    readable. Icon rules override the SVG width/height attributes. */
-.promo-bars[data-cols='1'] .promo-bar { padding: 40px; }
-.promo-bars[data-cols='1'] .promo-bar-title { font-size: clamp(24px, 4.5vw, 60px); }
-.promo-bars[data-cols='1'] .promo-bar-titlewrap { gap: 12px; }
-.promo-bars[data-cols='1'] .promo-bar-titlewrap svg { width: 48px; height: 48px; }
-.promo-bars[data-cols='1'] .promo-bar-info svg { width: 48px; height: 48px; }
+/* ONE promotion is a full-bleed band, not a wide card (Figma 6242-44625): no
+   radius, no shadow, edge to edge, everything centred. `cols` counts the whole
+   item list rather than the current page, so this cannot catch a 5th promotion
+   sitting alone on page two. */
+/* Boxed everywhere BELOW desktop: same 16px radius and same elevation as every
+   other promo card, because at tablet and phone width a full-bleed band reads
+   as a broken card rather than a deliberate one. Only the centring, the type
+   and the icon placement carry across. */
+.promo-bars[data-cols='1'] .promo-bar {
+  padding: 40px;
+  justify-content: center;
+}
+
+/* Desktop only. The band drops its radius and elevation and runs edge to edge,
+   cancelling .promo-wrapper's gutter exactly — which is why that gutter is a
+   custom property rather than a number repeated here. */
+@media (min-width: 901px) {
+  .promo-bars[data-cols='1'] {
+    max-width: none;
+    width: auto;
+    margin-inline: calc(var(--promo-gutter) * -1);
+  }
+  .promo-bars[data-cols='1'] .promo-bar {
+    border-radius: 0;
+    box-shadow: none;
+    /* 48px is the frame's; the 24px replaces the gutter given up above, so the
+       text still clears the edge. */
+    padding: 48px 24px;
+  }
+}
+.promo-bars[data-cols='1'] .promo-bar-inner {
+  align-items: center;
+  justify-content: center;
+  /* 4px, where the frame has none — at 60px the title's line box supplies the
+     separation, but a short title on a narrow screen would otherwise collide
+     with the CTA. */
+  gap: 4px;
+  width: auto;
+  /* 1320px, not the frame's 723px content column — at that width a real
+     promotion title wrapped onto a second line on a desktop that had room to
+     spare. The band is full-bleed either way; this is only how far the text
+     inside it may run. */
+  max-width: 1320px;
+  text-align: center;
+}
+/* Centred as one group: the base rule pushes the info button to the far right
+   with space-between, which at full width would strand it in the margin. The
+   info mark sits directly after the title instead and moves with it, however
+   long the text runs.
+
+   flex-start on both, so the tag and the info mark hold the FIRST line. The
+   base centres them, which is right for one line but drops both icons to the
+   middle of a two-line title — floating beside the gap between the lines
+   rather than beside any text. */
+.promo-bars[data-cols='1'] .promo-bar-titlerow {
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  width: auto;
+  /* The TITLE's size, set on the row and inherited by it — nothing else in
+     here is text. Held one level up so the row's own line box matches the
+     heading's, which is what `align-items: flex-start` aligns the marks to.
+     42px, down from 50: a single promotion runs the full width, so the cap is
+     reached on any ordinary desktop and 50 was the largest type on the page. */
+  font-size: clamp(24px, 4.5vw, 42px);
+}
+/* Tablet, 2px off. The band between this file's own two boundaries — 560 is
+   where the bars become a one-per-slide carousel, 901 where the desktop rules
+   start — so it lines up with how the rest of the widget is split.
+   The cap is untouched: 4.5vw never reaches 42px below 900px anyway, so the
+   subtraction has to come off the fluid middle term to have any effect. */
+@media (min-width: 561px) and (max-width: 900px) {
+  .promo-bars[data-cols='1'] .promo-bar-titlerow {
+    font-size: clamp(24px, calc(4.5vw - 2px), 42px);
+  }
+}
+.promo-bars[data-cols='1'] .promo-bar-titlewrap {
+  flex: 0 1 auto;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+}
+.promo-bars[data-cols='1'] .promo-bar-title { font-size: inherit; }
+
+/* TOP-aligned against the first line of the heading — not centred on it, and
+   never centred on the heading BLOCK. `align-items: flex-start` on the row and
+   the wrap is the whole mechanism; no margin offsets, so a heading that wraps
+   to two lines leaves both marks exactly where a one-line heading puts them. */
+.promo-bars[data-cols='1'] .promo-bar-titlewrap svg {
+  width: 40px;
+  height: 40px;
+}
+.promo-bars[data-cols='1'] .promo-bar-info {
+  /* `font-size: inherit` is doing the work here. This is a <button>, and the UA
+     stylesheet gives buttons their own ~13px font rather than letting them
+     inherit — so `1.12em` measured 15px, not 56px, the max() below clamped to
+     zero, and the mark got no offset at all while the tag beside it (a plain
+     <svg>, which does inherit) was placed correctly. */
+  font-size: inherit;
+}
+.promo-bars[data-cols='1'] .promo-bar-info svg { width: 36px; height: 36px; }
 
 .promo-bars[data-cols='3'] .promo-bar { padding: 26px; }
 .promo-bars[data-cols='3'] .promo-bar-title { font-size: clamp(18px, 1.8vw, 26px); }
-.promo-bars[data-cols='3'] .promo-bar-titlewrap svg { width: 30px; height: 30px; }
-.promo-bars[data-cols='3'] .promo-bar-info svg { width: 30px; height: 30px; }
-.promo-bars[data-cols='3'] .promo-bar-cta { font-size: 17px; }
 
 .promo-bars[data-cols='4'] .promo-bar { padding: 22px; }
 .promo-bars[data-cols='4'] .promo-bar-inner { gap: 12px; }
 .promo-bars[data-cols='4'] .promo-bar-title { font-size: clamp(16px, 1.4vw, 22px); }
 .promo-bars[data-cols='4'] .promo-bar-titlerow { gap: 6px; }
 .promo-bars[data-cols='4'] .promo-bar-titlewrap { gap: 6px; }
-.promo-bars[data-cols='4'] .promo-bar-titlewrap svg { width: 26px; height: 26px; }
-.promo-bars[data-cols='4'] .promo-bar-info svg { width: 26px; height: 26px; }
-.promo-bars[data-cols='4'] .promo-bar-cta { font-size: 15px; }
+/* 36px at every desktop count, the Figma 2-across value. The 30px and 26px this
+   replaces shrank the tag as the columns narrowed, which left a four-across row
+   with a mark noticeably smaller than the same mark two across. Only the phone
+   steps down, to the 24px its own frame specifies. */
 
+/* The ICON alone lightens to white on hover — no opacity fade on the whole
+   button, which dimmed the hit area rather than highlighting the mark. Colour
+   on the element, so the currentColor glyph follows it.
+   pointer, always: this opens the disclaimer modal, and it is a real <button>
+   in every case now. */
 .promo-bar-info {
   flex-shrink: 0;
   display: flex;
@@ -176,25 +291,49 @@ img.promo-banner-img {
   background: none;
   border: none;
   padding: 0;
-  color: inherit;
-  cursor: default;
-  opacity: 0.85;
-}
-
-button.promo-bar-info {
-  cursor: help;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: color 0.15s;
 }
 
 .promo-bar-info:hover {
-  opacity: 1;
+  color: #ffffff;
 }
 
+/* HOST-THEME GUARD. A bare `button:hover { background: … }` on the host page
+   (the dev harness has exactly that, and Duda themes do too) is 0,1,1 and beats
+   the 0,1,0 `background: none` above, painting a grey chip behind the icon.
+   Every interactive state is pinned instead, and `background` is shorthand so it
+   also clears any image/gradient a theme sets. `!important` matches how this
+   file already defends .promo-banner-img from host `img` rules.
+   The icon's colour is the only hover feedback this control has. */
+.promo-bar-info,
+.promo-bar-info:hover,
+.promo-bar-info:focus,
+.promo-bar-info:active {
+  background: none !important;
+  box-shadow: none;
+  border: none;
+}
+
+/* Keyboard focus still needs to be visible — it just must not be a background.
+   :focus-visible so a mouse click doesn't leave a ring behind. */
+.promo-bar-info:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* 18px at every column count and width. The size used to step 20/17/15px with
+   the bar count (and back up again on narrow screens); a single value is the
+   design, so those per-column overrides are gone rather than left to fight this
+   rule. The link is inline-flex with no nowrap, so a narrow 4-up bar wraps the
+   label instead of overflowing. */
 .promo-bar-cta {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: #fff;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 400;
   text-decoration: none;
 }
@@ -279,104 +418,96 @@ button.promo-bar-info {
 }
 
 /* Arrows flank the row; the row itself still owns the even-split widths. */
-.promo-bars-track {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-}
-
-.promo-bars-track .promo-bars {
-  max-width: none;
-  margin: 0;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.promo-bar-arrow {
-  flex: 0 0 auto;
-  width: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--color_1, #509e2f);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.promo-bar-arrow:hover { background: rgba(80, 158, 47, 0.1); }
-.promo-bar-arrow--prev svg { transform: rotate(180deg); }
 
 .promo-dots {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
+  /* The active dot is scale(1.2)'d, so it grows 1px past the row on each side.
+     With the wrapper's vertical padding gone this row is the widget's last
+     pixel, and that 1px was landing outside it — clipped by whatever Duda wraps
+     the section in. Reserved here rather than by giving the wrapper padding
+     back, which is the editor's to set. */
+  padding: 2px 0;
 }
 
+/* Pagination, ported value for value from #05's Local Blogs carousel
+   (.sl-blog2-pagination / -arrow / -dot) so the two widgets page identically:
+   40px round buttons, the same Pika chevron at 24px, 16px dots on an 8px gap,
+   #c4cdd5 resting and #637381 current. */
 .promo-dot {
-  width: 10px;
-  height: 10px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(16, 19, 24, 0.25);
+  background: #c4cdd5;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition: background 0.15s;
+}
+.promo-dot.promo-dot--active { background: #637381; }
+
+.promo-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.promo-pager-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: #101318;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.promo-pager-arrow:hover:not(:disabled) { background: #f4f6f8; }
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
+.promo-pager-arrow:disabled {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
 }
 
-.promo-dot:hover { background: rgba(16, 19, 24, 0.45); }
-
-.promo-dot--active {
-  background: var(--color_1, #509e2f);
-  transform: scale(1.2);
+/* Dots only on a phone. The row is one card across down here and already
+   swipes (useSwipe in Promotions.tsx), so the chevrons are a second way to do
+   what the finger does, costing 96px of a ~300px row to say it.
+   560px is this widget's mobile line in BOTH places — the CSS layout blocks
+   below and useMediaQuery('(max-width: 560px)') in the component — so the
+   arrows go exactly when the carousel becomes swipeable.
+   display: none, so they leave the accessibility tree with the pixels rather
+   than staying as invisible tab stops. */
+@media (max-width: 560px) {
+  .promo-pager-arrow { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .promo-dot { transition: none; }
 }
 
-@keyframes promo-slide-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .promo-bars-carousel .promo-bars { animation: none; }
-}
-
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 /* Three or four across is too tight on tablets — wrap to two per row and take
    the 3-column type scale. */
-@media (max-width: 900px) {
-  .promo-bars[data-cols='3'] .promo-bar,
-  .promo-bars[data-cols='4'] .promo-bar {
-    flex-basis: calc((100% - 24px) / 2);
-    padding: 26px;
-  }
-  .promo-bars[data-cols='4'] .promo-bar-title { font-size: clamp(18px, 1.8vw, 26px); }
-  .promo-bars[data-cols='4'] .promo-bar-titlewrap svg,
-  .promo-bars[data-cols='4'] .promo-bar-info svg { width: 30px; height: 30px; }
-  .promo-bars[data-cols='4'] .promo-bar-cta { font-size: 17px; }
-}
+/* Nothing here for tablet any more: it shows two at a time, so [data-cols] is
+   only ever 1 or 2 below 900px and the 3-/4-across rules that used to collapse
+   to two-up could never match. The carousel does that job now. */
 
 /* Single column on phones — everything back to the Figma 2-across scale. */
 @media (max-width: 560px) {
   /* PromoBars switches to one bar per slide here (see the 560px media query it
      mirrors in Promotions.tsx), so multiple promos are a swipeable carousel
-     instead of a vertical stack. The arrows go: at phone width they'd take room
-     from the bar, and swiping replaces them. */
-  .promo-bar-arrow {
-    display: none;
-  }
-
-  /* Each slide swaps rather than sliding — a transform track would be clipped by
-     Duda's overflow:hidden row wrappers. A quick fade covers the swap. */
-  .promo-bars-carousel .promo-bars {
-    animation: promo-slide-in 120ms ease-out;
-  }
+     instead of a vertical stack. */
 
   .promo-bars[data-cols='2'] .promo-bar,
   .promo-bars[data-cols='3'] .promo-bar,
@@ -384,14 +515,229 @@ button.promo-bar-info {
     flex-basis: 100%;
     padding: 30px;
   }
+
+  /* ONE placeholder here, not the two SKELETON_BARS draws. The rule above
+     gives every bar flex-basis: 100%, which on a phone stacks the pair
+     vertically — but the real carousel shows a single bar per slide at this
+     width, so the second one promises a row that never arrives and the block
+     halves in height the moment the fetch lands. The count stays 2 in the TSX
+     because that is still right above 560px.
+     (0,3,0), so it clears the [data-cols='N'] rules it has to beat. */
+  .promo-bars--skeleton .promo-bar--skeleton:not(:first-child) { display: none; }
   .promo-bars[data-cols='3'] .promo-bar-title,
   .promo-bars[data-cols='4'] .promo-bar-title { font-size: clamp(20px, 5vw, 34px); }
-  .promo-bars[data-cols='3'] .promo-bar-titlewrap svg,
-  .promo-bars[data-cols='4'] .promo-bar-titlewrap svg,
-  .promo-bars[data-cols='3'] .promo-bar-info svg,
-  .promo-bars[data-cols='4'] .promo-bar-info svg { width: 36px; height: 36px; }
-  .promo-bars[data-cols='3'] .promo-bar-cta,
-  .promo-bars[data-cols='4'] .promo-bar-cta { font-size: 20px; }
 
-  .promo-bar-arrow { width: 32px; }
+  /* Figma mobile spec: 16px top/bottom + 20px left/right inset, 20px heading,
+     14px link, 24px tag and info icons.
+     ONE set of values for every data-cols variant — at phone width the carousel
+     shows a single bar per slide regardless of how many promos there are, so the
+     1/2/3/4-across scales above stop being meaningful here.
+     Written as [data-cols] (not a bare .promo-bar) to match the specificity of
+     the [data-cols='N'] rules it supersedes, and placed LAST in this block so
+     source order settles the ties. */
+  .promo-bars[data-cols] .promo-bar {
+    padding: 16px 20px;
+  }
+  .promo-bars[data-cols] .promo-bar-title {
+    font-size: 20px;
+  }
+  /* 8px between the heading row and the link (was the base 16px). */
+  .promo-bars[data-cols] .promo-bar-inner {
+    gap: 8px;
+  }
+  .promo-bars[data-cols] .promo-bar-cta {
+    font-size: 14px;
+  }
+  .promo-bars[data-cols] .promo-bar-titlewrap svg,
+  .promo-bars[data-cols] .promo-bar-info svg {
+    width: 24px;
+    height: 24px;
+  }
+  /* The LINK's chevron is 16px, not 24 like the tag/info pair above (Figma
+     7158:80163). Sized here rather than via the `size` prop so it only shrinks
+     on mobile — ChevronRight is shared with the desktop carousel arrows. */
+  .promo-bars[data-cols] .promo-bar-cta svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* One promotion is left-aligned here, not centred (Figma 9689-38392): tag and
+     heading together on the left, info hard right, link beneath. That IS the
+     base card — these undo the centring the desktop band needs, rather than
+     inventing a third layout. Last in the block so they beat the [data-cols]
+     rules above on source order, which they tie with on specificity. */
+  .promo-bars[data-cols='1'] .promo-bar { justify-content: flex-start; }
+  .promo-bars[data-cols='1'] .promo-bar-inner {
+    align-items: flex-start;
+    text-align: left;
+    width: 100%;
+    max-width: none;
+  }
+  .promo-bars[data-cols='1'] .promo-bar-titlerow {
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+    /* The heading's real size at this width — the row carries it, so its line
+       box is the one the marks top-align to. */
+    font-size: 20px;
+  }
+  .promo-bars[data-cols='1'] .promo-bar-titlewrap {
+    flex: 1 1 0;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .promo-bars[data-cols='1'] .promo-bar-titlewrap svg { width: 24px; height: 24px; }
+  .promo-bars[data-cols='1'] .promo-bar-info svg { width: 24px; height: 24px; }
+}
+
+/* ── Sliding carousel ────────────────────────────────────────────────────
+   A WINDOW over the promotions, moving one at a time — not pages of four. The
+   track holds every promotion and is exactly the viewport's width, so the
+   existing [data-cols='N'] flex-basis rules already size each one correctly
+   (100% resolves against the viewport, not the track's overflowing content).
+
+   Clipping happens on OUR viewport. The fade this replaces existed because
+   Duda's row wrappers clip with overflow:hidden and would have cut a track —
+   but a track that never leaves its own viewport is never theirs to cut. */
+/* `touch-action: pan-y` keeps a vertical drag scrolling the page while a
+   horizontal one belongs to the carousel — see @shared/useCarousel. */
+.promo-bars-viewport {
+  touch-action: pan-y;
+  overflow: hidden;
+}
+
+.promo-bars--track {
+  flex-wrap: nowrap;
+  /* step = (100% + gap) / visible, and --promo-shift is offset / visible, so
+     this is offset x step with the division already done in JS. */
+  transform: translateX(calc(var(--promo-shift, 0) * -1 * (100% + 24px)));
+  transition: transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+/* Without this the bars shrink to fit the track instead of overflowing it, and
+   nothing ever leaves the viewport. */
+.promo-bars--track .promo-bar { flex-shrink: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-bars--track { transition: none; }
+}
+
+/* ── Disclaimer modal (Figma 7158:80964) ─────────────────────────────────── */
+
+/* Mirrors #05's "See all Hours" modal (.sl-hours-*) — same radius, elevation,
+   header divider and close-button box — so the two read as one component.
+   Duplicated rather than imported: each widget is its own AMD bundle and cannot
+   reach another's CSS. */
+
+/* Overlay is #454F5B at 40%, the design's Old/Night-Light token. Fixed +
+   centred so it covers the host page rather than the widget's own box, and a
+   high z-index because Duda rows stack their own contexts above the widget. */
+/* The modal is portalled to <body>, so it sits OUTSIDE .promo-wrapper and
+   inherits none of its resets — hence the explicit box-sizing here and the
+   explicit font-family on the text rules below. */
+.promo-modal-overlay,
+.promo-modal-overlay *,
+.promo-modal-overlay *::before,
+.promo-modal-overlay *::after {
+  box-sizing: border-box;
+}
+
+.promo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(69, 79, 91, 0.4);
+}
+
+.promo-modal {
+  width: min(659px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
+  overflow: hidden;
+}
+
+/* Inner shadow rather than a border-bottom: it is the design's own
+   Inner Divider/Bottom token, and it cannot add to the header's height. */
+.promo-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 23px 33px;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+  flex-shrink: 0;
+}
+
+.promo-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 36px;
+  color: #101318;
+}
+
+.promo-modal-title svg {
+  flex: 0 0 auto;
+  color: #101318;
+}
+
+/* 32px button holding an 18px glyph, per the design. */
+.promo-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #101318;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.promo-modal-close:hover {
+  background: #f4f6f8;
+}
+
+/* Scrolls rather than growing: `info` is free text from the API, so it has no
+   length the layout can rely on. */
+.promo-modal-body {
+  padding: 42px;
+  overflow-y: auto;
+}
+
+.promo-modal-text {
+  margin: 0 0 24px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #000000;
+}
+
+.promo-modal-text:last-child {
+  margin-bottom: 0;
+}
+
+/* Phone: the desktop 33px/42px insets leave too little measure for 14px copy. */
+@media (max-width: 560px) {
+  .promo-modal-overlay { padding: 16px; }
+  .promo-modal-head { padding: 16px 20px; }
+  .promo-modal-title { font-size: 18px; line-height: 28px; }
+  .promo-modal-body { padding: 20px; }
 }

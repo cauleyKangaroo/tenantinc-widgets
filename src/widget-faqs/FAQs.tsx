@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './FAQs.css';
 import { SearchIcon, ChevronDown, ChevronRight } from './icons';
-import { fetchProperties, extractFaqs } from './faqApi';
+import { fetchFaqsForProperty, type BoundPropertyProps } from './faqApi';
 import { Shimmer } from '@shared/Shimmer';
 import { RichText } from '@shared/richText';
 import { withLineBreaks } from '@shared/lineBreaks';
@@ -85,10 +85,14 @@ export interface FaqsProps {
   subheading?: string;
 }
 
+/** Widget settings plus the dynamic-page binding — see @shared/propertyBinding. */
+type Props = FaqsProps & BoundPropertyProps;
+
 export function FAQs({
   heading = 'FAQ',
   subheading = 'Find answers to common questions about choosing a storage unit, storage unit rules and regulations, payment procedures, and more.',
-}: FaqsProps) {
+  propertyId,
+}: Props) {
   const [query, setQuery] = useState('');
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
 
@@ -99,18 +103,19 @@ export function FAQs({
   // then swapped for the property's real ones — a visible flash of wrong content.
   const [loading, setLoading] = useState(true);
 
+  // Keyed on propertyId so a dynamic-page row change reloads that property's FAQs.
   useEffect(() => {
     let cancelled = false;
-    fetchProperties()
-      .then((raw) => {
+    setLoading(true);
+    fetchFaqsForProperty({ propertyId })
+      .then((faqs) => {
         if (cancelled) return;
-        const items = extractFaqs(raw).map((f, i) => ({ id: `api-${i}`, question: f.question, answer: f.answer }));
-        setApiFaqs(items);
+        setApiFaqs(faqs.map((f, i) => ({ id: `api-${i}`, question: f.question, answer: f.answer })));
       })
-      .catch((err) => console.error('[FAQs] fetchProperties error:', err))
+      .catch((err) => console.error('[FAQs] fetchFaqsForProperty error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [propertyId]);
 
   // Demo set is the fallback for an EMPTY result only (also covers the harness).
   const source = apiFaqs.length ? apiFaqs : FAQS;

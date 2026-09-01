@@ -1,0 +1,306 @@
+/* ===========================================================================
+   Form fields — Figma "Mariposa Form 2.0" (node 8753-47700).
+
+   Four field types (text entry / search / calendar / masked) share ONE box; only
+   the trailing icon and input behaviour differ. Four states:
+
+     resting   1px  --hb-cloud-darker    #A5B4BF
+     active    1px  --hb-text-night      #101318   (:focus-within — real focus)
+     success   1px  --hb-ada-green       #028A0C   (caller sets state="success")
+     error     1px  --hb-ada-red         #E53935   (caller passes an error)
+
+   Active is driven by `:focus-within`, not a class, so the field lights up from
+   real keyboard/mouse focus and can never disagree with where the caret is.
+   Success and error are caller-controlled because only the caller knows whether
+   the value validated.
+
+   THE FLOATING LABEL is CSS-only, keyed off `:placeholder-shown`. An empty,
+   unfocused field shows the label at 16px sitting where the value will go (the
+   Figma "Empty" state); as soon as it has focus or content the label shrinks to
+   12px and moves up, revealing the value beneath (the "Active"/"Success"
+   states). No JS, so it cannot desync from the input's real value — including
+   browser autofill, which no onChange handler would see.
+   =========================================================================== */
+
+@import './tokens.css';
+
+.hb-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hb-field-error-gap);
+  width: 100%;
+  font-family: var(--hb-font);
+  /* Icons inherit this; the state rules below re-colour it in one place. */
+  color: var(--hb-field-icon);
+}
+
+/* ── The bordered box ─────────────────────────────────────────────────────── */
+
+.hb-field__box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hb-field-icon-gap);
+  box-sizing: border-box;
+  height: var(--hb-field-height);
+  padding: 0 var(--hb-field-padding-x);
+  background: var(--hb-field-bg);
+  border: var(--hb-field-border-width) solid var(--hb-field-border);
+  border-radius: var(--hb-field-radius);
+  transition: border-color var(--hb-transition), box-shadow var(--hb-transition);
+}
+
+/* Active. Also covers keyboard focus, hence the ring — the Figma frames only
+   describe mouse states, so the visible focus indicator is added here to keep
+   the fields operable without a pointer. */
+.hb-field__box:focus-within {
+  border-color: var(--hb-field-border-active);
+  box-shadow: var(--hb-focus-ring);
+}
+
+.hb-field--success .hb-field__box {
+  border-color: var(--hb-field-border-success);
+}
+.hb-field--success .hb-field__box:focus-within {
+  box-shadow: var(--hb-focus-ring-success);
+}
+.hb-field--success {
+  color: var(--hb-ada-green);
+}
+
+.hb-field--error .hb-field__box {
+  border-color: var(--hb-field-border-error);
+}
+.hb-field--error .hb-field__box:focus-within {
+  box-shadow: var(--hb-focus-ring-error);
+}
+.hb-field--error {
+  color: var(--hb-ada-red);
+}
+
+/* Success/error colour the STATE icon, but never the affordance icons beside it
+   (search, calendar, reveal) — those stay neutral so a green tick doesn't turn
+   the eye toggle green too. */
+.hb-field--success .hb-field__icon--affordance,
+.hb-field--error .hb-field__icon--affordance {
+  color: var(--hb-field-icon);
+}
+
+.hb-field--disabled .hb-field__box {
+  background: #f6f8f9;
+  border-color: var(--hb-cloud-darker);
+  cursor: not-allowed;
+}
+
+/* ── Label + input stack ──────────────────────────────────────────────────── */
+
+.hb-field__data {
+  position: relative;
+  display: flex;
+  flex: 1 0 0;
+  min-width: 0;   /* lets a long value ellipsis instead of pushing the icons out */
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+}
+
+.hb-field__label {
+  position: absolute;
+  top: 50%;
+  /* `right: 0` as well as `left: 0` is what BOUNDS it. With only `left` an
+     absolutely positioned box shrink-wraps its content, so a long label
+     ("Confirm Account Number") ran straight out of .hb-field__data and under
+     the trailing icons. .hb-field__data already excludes the icons, so pinning
+     both edges is enough — nothing needs to know how many icons there are. */
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  transform: translateY(-50%);
+  transform-origin: left center;
+  color: var(--hb-field-label);
+  font-size: var(--hb-font-size-value);
+  font-weight: var(--hb-font-weight-regular);
+  line-height: var(--hb-line-height-value);
+  white-space: nowrap;
+  pointer-events: none;   /* clicks fall through to the input */
+  transition: transform var(--hb-transition), font-size var(--hb-transition);
+}
+
+/* The text truncates; the asterisk does not. min-width:0 is what lets a flex
+   item shrink below its content so text-overflow has something to do. */
+.hb-field__label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Floated: focused, or holding a value. `:not(:placeholder-shown)` is what makes
+   autofill work — the browser fills the value without firing input events, but
+   the placeholder stops showing, so the label floats anyway. */
+.hb-field__input:focus + .hb-field__label,
+.hb-field__input:not(:placeholder-shown) + .hb-field__label {
+  /* -18px lifts the 12px label clear of the 20px value line inside the 56px box */
+  transform: translateY(-18px);
+  font-size: var(--hb-font-size-label);
+  line-height: var(--hb-line-height-label);
+}
+
+/* The red required marker, appended inside the label. Never shrinks — a
+   truncated label that has lost its asterisk stops reading as required. */
+.hb-field__required {
+  flex: 0 0 auto;
+  color: var(--hb-ada-red);
+  margin-left: 2px;
+}
+
+.hb-field__input {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;              /* the ring lives on the box, not the input */
+  background: transparent;
+  color: var(--hb-field-text);
+  font-family: inherit;
+  font-size: var(--hb-font-size-value);
+  font-weight: var(--hb-font-weight-regular);
+  line-height: var(--hb-line-height-value);
+  text-overflow: ellipsis;
+}
+
+/* With a label present the value sits on the lower line; without one it centres. */
+.hb-field--labelled .hb-field__input {
+  margin-top: 15px;
+}
+/* The same 15px, as padding — see the note on .hb-field__mask-hint. Keep these
+   two in step: they are what put the mask on the value's line rather than under
+   it. */
+.hb-field--labelled .hb-field__mask-hint {
+  padding-top: 15px;
+}
+
+/* The placeholder is only ever visible on a labelled field once it has focus,
+   because until then the label is occupying that space. */
+.hb-field__input::placeholder {
+  color: var(--hb-field-placeholder);
+  opacity: 1;                 /* Firefox dims placeholders by default */
+}
+
+.hb-field__input:disabled {
+  cursor: not-allowed;
+  -webkit-text-fill-color: var(--hb-grayscale-medium);  /* iOS ignores `color` here */
+  color: var(--hb-grayscale-medium);
+}
+
+/* The greyed-out remainder of a mask, e.g. the "YYYY" of 01/10/YYYY. It is a
+   sibling overlay rather than real input text, so it can never be submitted.
+
+   It must sit on EXACTLY the input's line, and `bottom: 0` did not: the input
+   is centred by .hb-field__data with a top margin, so the hint landed about
+   10px lower and the mask read as a second line under the value.
+   `inset: 0` + centring + a padding-top equal to that margin reproduces the
+   input's own placement rather than guessing at it — for a data box H, line
+   height L and margin M the input's text starts at M + (H - M - L) / 2, and so
+   does this. No pixel values, so it survives a token change. */
+.hb-field__mask-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  color: var(--hb-field-placeholder);
+  font-size: var(--hb-font-size-value);
+  line-height: var(--hb-line-height-value);
+  white-space: pre;
+  pointer-events: none;
+}
+
+/* Hidden at rest. Empty and unfocused, the label is sitting full-size on the
+   value's line, and the mask underneath it read as a filled-in field that had
+   somehow been typed already. `:placeholder-shown` is only true when the value
+   is empty, so a partly typed mask keeps showing its remainder. */
+.hb-field__input:placeholder-shown:not(:focus) ~ .hb-field__mask-hint {
+  visibility: hidden;
+}
+.hb-field__mask-hint > span:first-child {
+  /* Transparent copy of what the user typed, so the hint starts at the caret. */
+  color: transparent;
+}
+
+/* Chrome paints autofilled inputs with its own yellow. Override with a huge
+   inset shadow — the only reliable way — so the field keeps its white box. */
+.hb-field__input:-webkit-autofill,
+.hb-field__input:-webkit-autofill:hover,
+.hb-field__input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--hb-field-bg) inset;
+  -webkit-text-fill-color: var(--hb-field-text);
+}
+
+/* Native affordances we replace with our own icons. */
+.hb-field__input[type='search']::-webkit-search-decoration,
+.hb-field__input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.hb-field__input[type='date']::-webkit-calendar-picker-indicator {
+  /* Hidden but still clickable, stretched over the box so our calendar icon
+     opens the native picker rather than needing a JS shim. */
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* ── Trailing icons ───────────────────────────────────────────────────────── */
+
+.hb-field__icons {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--hb-field-icon-gap);
+}
+
+.hb-field__icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* Reveal / clear toggles are real buttons — keyboard reachable, not decorative. */
+.hb-field__icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.hb-field__icon-button:focus-visible {
+  outline: 2px solid var(--hb-text-night);
+  outline-offset: 2px;
+}
+
+/* ── Error message ────────────────────────────────────────────────────────── */
+
+.hb-field__error {
+  margin: 0;
+  color: var(--hb-ada-red);
+  font-size: var(--hb-font-size-label);
+  font-weight: var(--hb-font-weight-regular);
+  line-height: var(--hb-line-height-label);
+  text-align: right;    /* right-aligned under the field, per the Figma frames */
+}
+
+/* Help text uses the same slot but reads as neutral guidance, not a failure. */
+.hb-field__help {
+  margin: 0;
+  color: var(--hb-grayscale-medium);
+  font-size: var(--hb-font-size-label);
+  line-height: var(--hb-line-height-label);
+}

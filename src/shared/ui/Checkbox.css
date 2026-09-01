@@ -1,0 +1,59 @@
+/* ===========================================================================
+   <Checkbox /> — token-styled square checkbox with a label to the right.
+   Matches the form kit (Mariposa — Duda). Brand fill when checked.
+   =========================================================================== */
+@import './tokens.css';
+
+.hb-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--hb-font);
+}
+.hb-check--disabled { cursor: default; opacity: 0.6; }
+
+/* The real input is visually hidden but stays in the DOM for a11y + focus. */
+.hb-check__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  margin: 0;
+}
+
+.hb-check__box {
+  flex: 0 0 auto;
+  /* 18px box inside a 24px footprint. The margin is what keeps the footprint:
+     shrinking the box alone would move label baselines and change row pitch
+     wherever these are stacked. */
+  width: 18px;
+  height: 18px;
+  margin: 3px;
+  /* Near-square, and a lighter resting outline than the field border — this is
+     a mark to tick, not a box to type in. */
+  border-radius: 2px;
+  border: 2px solid var(--hb-cloud-light, #dfe3e8);
+  background: var(--hb-field-bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--hb-white);
+  transition: background var(--hb-transition), border-color var(--hb-transition);
+}
+/* Fills NEAR-BLACK when on, not the brand colour: a ticked box is a statement
+   of fact, and tinting it brand made it read as a call to action. */
+.hb-check--on .hb-check__box {
+  background: var(--hb-text-night);
+  border-color: var(--hb-text-night);
+}
+.hb-check__input:focus-visible + .hb-check__box { box-shadow: var(--hb-focus-ring); }
+.hb-check__tick { color: var(--hb-white); }
+
+.hb-check__label {
+  font-size: var(--hb-font-size-value);
+  line-height: var(--hb-line-height-value);
+  color: var(--hb-text-night);
+}
+.hb-check__required { color: var(--hb-ada-red); margin-left: 2px; }

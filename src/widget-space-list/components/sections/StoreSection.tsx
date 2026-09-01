@@ -1,15 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { SOCIAL_ICONS } from '@shared/socialIcons';
 import type { HoursStatus, ScheduleRow } from '@shared/accessHours';
-import { MessageModal } from '../MessageModal';
-
-function CloseIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M18 6L6 18M6 6l12 12" />
-    </svg>
-  );
-}
+import { MessageModal } from '@shared/components/MessageModal';
+import { createLead } from '../../propertyApi';
+import { usePropertyId } from '../../propertyContext';
+import { CloseCircleIcon } from '@shared/ui';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -64,16 +59,6 @@ function CalendarCheckIcon() {
   );
 }
 
-function ChevronDownIcon({ rotated }: { rotated?: boolean }) {
-  // Pika chevron-big-right; rotated to point down (collapsed) / up (expanded).
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" {...strokeProps}
-      style={{ transform: `rotate(${rotated ? -90 : 90}deg)`, transition: 'transform 0.2s' }}>
-      <path d="M9 18C11.1808 16.423 13.1364 14.5771 14.8172 12.5101C15.0609 12.2103 15.0609 11.7897 14.8172 11.4899C13.1364 9.42294 11.1808 7.57701 9 6" />
-    </svg>
-  );
-}
-
 // Social icons live in @shared/socialIcons (imported above) so #05 and #03 match.
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -119,6 +104,9 @@ interface StoreSectionProps {
   scheduleSections?: { title: string; rows: ScheduleRow[] }[];
   /** Property name, shown in the "Send us a Message" popup. */
   facilityName?: string;
+  /** Its address, shown under the name in that popup. Without it the modal
+   *  printed a bare facility name with nothing beneath. */
+  facilityAddress?: string;
 }
 
 // Demo per-day hours shown in the popup until the API supplies real ones.
@@ -143,7 +131,11 @@ const DEMO_PHONES = [
   { number: '(877) 847-9487', note: 'Existing Customer' },
 ];
 
-export function StoreSection({ phones, socials, hours, scheduleSections, facilityName }: StoreSectionProps = {}) {
+export function StoreSection({ phones, socials, hours, scheduleSections, facilityName, facilityAddress }: StoreSectionProps = {}) {
+  // The bound property, so the enquiry files against the facility the shopper
+  // is actually looking at. The old clone sent none and fell back to
+  // config.json's — which on this site is another company's property.
+  const leadPropertyId = usePropertyId();
   const [hoursOpen, setHoursOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
   const [reservationCode, setReservationCode] = useState('');
@@ -225,8 +217,10 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
             {officeStatusNote && <span className="sl-pi-status-detail"> ({officeStatusNote})</span>}
           </p>
 
+          {/* No chevron: this opens a modal, it does not expand in place, and a
+              chevron promised disclosure it never delivered. Matches #03's
+              "See all Hours", which has always been plain text. */}
           <button className="sl-pi-see-hours" onClick={() => setHoursOpen(true)}>
-            <ChevronDownIcon rotated={false} />
             See all Hours
           </button>
         </div>
@@ -239,7 +233,8 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
             <div className="sl-hours-head">
               <span className="sl-hours-title"><ClockIcon /><span>Hours</span></span>
               <button type="button" className="sl-hours-close" aria-label="Close" onClick={() => setHoursOpen(false)}>
-                <CloseIcon />
+                {/* Filled disc: .sl-hours-modal is #fff. */}
+                <CloseCircleIcon size={32} />
               </button>
             </div>
             <div className="sl-hours-body">
@@ -295,7 +290,15 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
         ))}
       </div>
 
-      <MessageModal open={messageOpen} onClose={() => setMessageOpen(false)} facilities={[{ name: facilityName || 'This Facility' }]} />
+      {/* The SHARED modal — #05 used to keep its own clone of #03's, which is
+          how it fell two revisions behind. createLead is injected because the
+          creds are this widget's. */}
+      <MessageModal
+        open={messageOpen}
+        onClose={() => setMessageOpen(false)}
+        facilities={[{ name: facilityName || 'This Facility', address: facilityAddress }]}
+        submitLead={(input) => createLead(input, { propertyId: leadPropertyId })}
+      />
 
     </div>
   );

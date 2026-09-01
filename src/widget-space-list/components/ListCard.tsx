@@ -27,7 +27,9 @@ function PlayCircleIcon() {
 /** Small promo tag flag pinned to the top-right of an available size pill. */
 function SizeTagIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="#509e2f" xmlns="http://www.w3.org/2000/svg">
+    /* currentColor — a fill attribute is unthemeable and unstyleable; the
+       colour comes from .sl-lc-size-tag. */
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
       <path d="M5.5 2h7.1c.5 0 1 .2 1.4.6l7.4 7.4c.8.8.8 2 0 2.8l-7.1 7.1c-.8.8-2 .8-2.8 0L4.1 12.5c-.4-.4-.6-.9-.6-1.4V4A2 2 0 0 1 5.5 2Zm2.5 3.5A1.5 1.5 0 1 0 8 8.5 1.5 1.5 0 0 0 8 5.5Z" />
     </svg>
   );

@@ -17,6 +17,20 @@
 .ts-wrapper *::before,
 .ts-wrapper *::after { box-sizing: border-box; }
 
+/* Reserve the loaded layout height while loading so the page doesn't collapse
+   (footer under the header) and then expand when data lands. Breakpoint matches
+   the widget's own mobile switch (MOBILE_BP = 640). Desktop measured: option1
+   select+table+card ~1012px, option2/3 cards ~736px. Mobile (stacked) reserves
+   a floor sized to the mobile skeleton. */
+@media (min-width: 640px) {
+  .ts-wrapper--loading { min-height: 736px; }
+  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 1012px; }
+}
+@media (max-width: 639px) {
+  .ts-wrapper--loading { min-height: 640px; }
+  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 700px; }
+}
+
 .ts-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 422px;
@@ -33,15 +47,15 @@
    specificity. */
 .ts-wrapper .ts-title {
   font-size: 40px;
-  font-weight: 700;
-  line-height: 1.1;
-  margin: 0 0 14px;
-  color: #101318;
+  font-weight: 600;
+  line-height: 1.0;
+  margin: 0 0 10px;
+  color: var(--ts-title-color, #101318) !important; /* operator-overridable; defaults black; beats host theme */
   text-transform: none;
   letter-spacing: normal;
 }
 .ts-subtitle {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 400;
   line-height: 28px;
   margin: 0;
@@ -72,7 +86,8 @@
 .ts-unit-img {
   width: 130px;
   height: 178px;
-  object-fit: contain;
+  object-fit: cover;
+  border-radius: 12px;
 }
 .ts-seewhatfits {
   display: inline-flex;
@@ -82,7 +97,7 @@
   border: 0;
   padding: 0;
   cursor: pointer;
-  color: #509E2F;
+  color: var(--color_1, #509E2F);
   font-family: inherit;
   font-size: 18px;
   font-weight: 700;
@@ -102,10 +117,9 @@
 .ts-pill {
   flex: 1 1 0;
   min-width: 0;
-  height: 116px;
-  overflow: hidden;
+  min-height: 116px;
   background: #fff;
-  border: 1px solid transparent;
+  border: 4px solid transparent; /* 4pt outline (Figma); transparent keeps box model equal */
   border-radius: 16px;
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
   cursor: pointer;
@@ -113,7 +127,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 18px 12px 0;
+  padding: 16px;
   transition: border-color 0.15s ease;
 }
 .ts-pill--active { border-color: #101318; }
@@ -131,14 +145,15 @@
   font-weight: 400;
   line-height: 1.2;
   letter-spacing: 1px;
-  color: #509E2F;
+  color: var(--color_1, #509E2F);
   text-transform: uppercase;
   text-align: center;
+  white-space: nowrap;
 }
 .ts-pill-divider {
-  width: 100%;
+  width: 77px;
   height: 1px;
-  background: #DFE3E8;
+  background: #C4CDD5;
   margin: 12px 0 8px;
 }
 .ts-pill-price {
@@ -157,10 +172,10 @@
   margin-top: 26px;
   padding: 12px;
   background: #fff;
-  border: 2px dashed #509E2F;
+  border: 2px dashed var(--color_1, #f45f30);
   border-radius: 8px;
 }
-.ts-promo-icon { color: #509E2F; flex: 0 0 auto; }
+.ts-promo-icon { color: var(--color_1, #f45f30); flex: 0 0 auto; }
 .ts-promo-text {
   font-size: 14px;
   font-weight: 700;
@@ -199,24 +214,28 @@
   color: #101318;
 }
 
-/* Select button */
-.ts-select-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 50px;
-  margin-top: 19px;
-  background: #F45F30;
-  border: 0;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 700;
-  color: #fff;
+/* Tier CTAs use @shared/ui/Button for semantics, tokens and interaction states.
+   These modifiers retain only this layout's Figma-specific dimensions. */
+.ts-tier-cta {
+  --hb-font-size-button: 20px;
 }
-.ts-select-btn:hover { background: #e5501f; }
+
+.ts-tier-cta--option1 {
+  --hb-button-height: 50px;
+  --hb-font-size-button: 16px;
+  --hb-cta: var(--color_2, #F26500);
+  margin-top: 19px;
+}
+
+/* Hovering anywhere on a tier card previews the pick: its outline Select button
+   fills with the CTA colour, matching the selected state. (A selected card's
+   button is already solid, so it has no .hb-btn--outline and is unaffected.) */
+.ts-o2-card:hover .ts-tier-cta.hb-btn--outline {
+  background: var(--hb-cta);
+  color: #fff;
+  border-color: var(--hb-cta);
+}
+
 
 /* ── Comparison table ──────────────────────────────────────────────────── */
 .ts-table {
@@ -226,7 +245,7 @@
 }
 .ts-thead, .ts-tr {
   display: grid;
-  grid-template-columns: 1.05fr 1fr 1fr 1fr;
+  grid-template-columns: 1.05fr repeat(var(--ts-cols, 3), 1fr);
 }
 .ts-th {
   height: 52px;
@@ -257,7 +276,7 @@
 .ts-td--bold { font-weight: 700; }
 .ts-td--value { justify-content: center; }
 
-.ts-cell-price { font-size: 20px; font-weight: 700; color: #101318; }
+.ts-cell-price { font-size: 16px; font-weight: 700; color: #101318; }
 .ts-cell-hours {
   display: inline-flex;
   align-items: center;
@@ -266,8 +285,8 @@
   font-weight: 600;
   color: #101318;
 }
-.ts-cell-star { color: #509E2F; flex: 0 0 auto; }
-.ts-cell-check { color: #509E2F; }
+.ts-cell-star { color: var(--hb-secondary, #509e2f); flex: 0 0 auto; }
+.ts-cell-check { color: var(--hb-secondary, #509e2f); }
 
 /* Selected-column highlight box */
 .ts-col--active { border-left: 2px solid #101318; border-right: 2px solid #101318; }
@@ -389,7 +408,7 @@
   margin-top: 24px;
   padding: 12px;
   background: #fff;
-  border: 2px dashed #509E2F;
+  border: 2px dashed var(--hb-secondary, #509e2f);
   border-radius: 8px;
 }
 
@@ -438,7 +457,7 @@
   border-radius: 3px;
 }
 .ts-pay-box--amex { background: #006FCF; border-color: #006FCF; }
-.ts-pay-mark { display: inline-flex; align-items: center; }
+.ts-pay-mark { display: inline-flex; align-items: center; justify-content: center; width: 39px; height: 24px; padding: 3px 5px; background: #fff; border: 0.7px solid #101318; border-radius: 3px; }
 /* Keep every brand mark inside its chip regardless of intrinsic svg width. */
 .ts-pay-box svg,
 .ts-pay-mark svg { display: block; max-width: 100%; height: auto; }
@@ -466,9 +485,9 @@
 .ts-wrapper .ts-m-title {
   margin: 0;
   font-size: 26px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: #101318;
+  font-weight: 600;
+  line-height: 1.23;
+  color: var(--ts-title-color, #101318) !important; /* operator-overridable; defaults black; beats host theme */
   text-transform: none;
   letter-spacing: normal;
 }
@@ -480,16 +499,16 @@
 .ts-m-promo { margin-top: 22px; }
 .ts-m-features { margin-top: 20px; padding-left: 0; gap: 24px; }
 
-.ts-m-select {
+.ts-tier-cta--option1-mobile {
+  --hb-button-height: 52px;
+  --hb-font-size-button: 20px;
+  --hb-cta: var(--color_2, #F26500);
   margin-top: 16px;
-  height: 52px;
-  font-size: 20px;
-  background: #f26500;
-  border: 2px solid #f45f30;
 }
-.ts-m-select:hover { background: #d95a00; }
 
 /* Collapsible move-in total */
+.ts-m-rates { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 16px; }
+.ts-m-rates .ts-price-amount { font-size: 20px; }
 .ts-m-total { margin-top: 20px; }
 .ts-m-total-row {
   display: flex;
@@ -515,7 +534,7 @@
   border-radius: 8px;
   overflow: hidden;
 }
-.ts-mt-row { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; }
+.ts-mt-row { display: grid; grid-template-columns: 1.6fr repeat(var(--ts-cols, 3), 1fr); }
 .ts-mt-cell {
   min-height: 30px;
   display: flex;
@@ -531,8 +550,8 @@
 .ts-mt-value { justify-content: center; }
 .ts-mt-head .ts-mt-cell { min-height: 41px; background: #f9fafb; }
 .ts-mt-hcell { justify-content: center; font-weight: 600; }
-.ts-mt-text { font-size: 12px; font-weight: 600; color: #000; text-align: center; }
-.ts-mt-check { color: #509e2f; }
+.ts-mt-text { font-size: 11px; font-weight: 600; color: #000; text-align: center; }
+.ts-mt-check { color: var(--hb-secondary, #509e2f); }
 
 /* Selected-column highlight box (2px) */
 .ts-mt-col--active { border-left: 2px solid #101318; border-right: 2px solid #101318; }
@@ -549,38 +568,46 @@
 
 /* ═══ Option 2 — Good/Better/Best pricing cards ═════════════════════════════ */
 .ts-o2 { max-width: 1320px; margin: 0 auto; }
-.ts-o2-header { text-align: center; margin-bottom: 28px; }
+.ts-o2-urgency, .ts-o3-urgency { margin: 0; text-align: right; font-size: 24px; font-weight: 700; color: #e53935; }
+/* Header row (Figma): heading + subheading on the left, urgency + $30 admin fee
+   stacked on the right, sharing one row. */
+.ts-o2-headrow { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; margin-bottom: 28px; }
+.ts-o2-topright { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; }
+.ts-o2-header { text-align: left; }
 .ts-wrapper .ts-o2-title {
   font-size: 40px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.15;
   margin: 0 0 10px;
   color: #101318;
   text-transform: none;
   letter-spacing: normal;
 }
-.ts-o2-subtitle { font-size: 18px; font-weight: 400; line-height: 28px; color: #000; margin: 0; }
+.ts-o2-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; color: #000; margin: 0; }
 
 .ts-o2-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 422px));
+  grid-template-columns: repeat(var(--ts-cols, 3), minmax(0, 422px));
   gap: 28px;
   justify-content: center;
-  align-items: start;
+  align-items: stretch; /* all cards equal height (tallest wins) */
   padding-top: 16px; /* room for the Most Popular badge */
 }
 
 .ts-o2-card {
   position: relative;
-  min-height: 521px;
+  min-height: 440px;
   background: #fff;
-  border: 2px solid transparent;
+  border: 4px solid transparent; /* 4pt outline (Figma); transparent keeps box model equal */
   border-radius: 16px;
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
   display: flex;
   flex-direction: column;
 }
-.ts-o2-card--popular { border-color: #101318; }
+.ts-o2-card { cursor: pointer; }
+/* "Most Popular" is indicated by the badge only — the black border is reserved
+   for the SELECTED card, so only ever one card reads as highlighted. */
+.ts-o2-card--selected { border-color: #101318; box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1); }
 
 .ts-o2-badge {
   position: absolute;
@@ -603,15 +630,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
-  padding: 30px 44px 24px;
+  gap: 16px;
+  padding: 20px 24px;
 }
 .ts-o2-card-head { text-align: center; }
 .ts-o2-name {
   margin: 0;
   font-size: 28px;
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.2;
   color: #000;
   text-transform: uppercase;
 }
@@ -619,10 +646,11 @@
   margin: 0;
   font-size: 24px;
   font-weight: 400;
-  line-height: 1.4;
+  line-height: 1.2;
   letter-spacing: 3px;
-  color: #509e2f;
+  color: var(--color_1, #509e2f);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .ts-o2-features {
   list-style: none;
@@ -640,20 +668,24 @@
   font-weight: 600;
   color: #101318;
 }
-.ts-o2-feat-star { color: #509e2f; flex: 0 0 auto; }
+.ts-o2-feat-star { color: var(--hb-secondary, #509e2f); flex: 0 0 auto; }
 .ts-o2-feat-check { color: #101318; flex: 0 0 auto; }
 
 .ts-o2-foot {
   flex: 0 0 auto;
-  min-height: 234px;
+  min-height: 210px;
   background: #f9fafb;
-  padding: 16px 52px 32px;
+  padding: 12px 44px 24px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 10px;
   border-bottom-left-radius: 12px;
   border-bottom-right-radius: 12px;
 }
+/* A promotion occupies a 44px pill plus the footer's 10px row gap. Collapse
+   both when no promotion exists instead of rendering an empty white band. */
+.ts-o2-foot--no-promo { min-height: 154px; }
 .ts-o2-foot-top { text-align: center; }
 .ts-o2-price { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
 .ts-o2-amt { font-size: 30px; font-weight: 700; color: #101318; line-height: 1.5; }
@@ -666,32 +698,17 @@
   color: #101318;
   text-decoration: underline;
 }
-.ts-o2-foot-bottom { display: flex; flex-direction: column; }
-.ts-o2-promo { margin-top: 0; margin-bottom: 12px; }
-.ts-o2-select {
-  width: 100%;
-  height: 52px;
-  border: 2px solid #f45f30;
-  border-radius: 8px;
-  background: #fff;
-  color: #101318;
-  font-family: inherit;
-  font-size: 20px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.ts-o2-select:hover { background: #fff5f1; }
-.ts-o2-select--accent { background: #f26500; color: #fff; }
-.ts-o2-select--accent:hover { background: #d95a00; }
-
+.ts-o2-foot-bottom { display: flex; flex-direction: column; gap: 12px; }
+.ts-o2-promo-slot { min-height: 44px; }
+.ts-o2-promo { margin: 0; }
 .ts-o2-admin {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 8px;
-  margin: 40px 0 0;
+  margin: 0;
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 400;
   color: #101318;
 }
 .ts-o2-admin-info { color: #101318; flex: 0 0 auto; }
@@ -725,10 +742,14 @@
   font-weight: 400;
   line-height: 1.4;
   letter-spacing: 3px;
-  color: #509e2f;
+  color: var(--color_1, #509e2f);
   text-transform: uppercase;
 }
 .ts-o2m-price { font-size: 20px; font-weight: 700; color: #101318; white-space: nowrap; }
+.ts-o2m-price-block { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+.ts-wrapper .ts-o2m-details { color: #637381 !important; font-size: 14px; font-weight: 400; line-height: 1.2; text-decoration: underline; }
+.ts-o2m-admin { display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin: 10px 0 0; font-size: 14px; font-weight: 400; color: #101318; }
+.ts-mobile-admin { width: 100%; margin: 24px 0 0; text-align: center; }
 
 /* Collapsed summary bar */
 .ts-o2m-bar {
@@ -742,8 +763,8 @@
   text-align: left;
 }
 
-/* Expanded card — the open accordion panel always gets the dark outline
-   (the "Most Popular" badge, rendered separately, stays exclusive to Better). */
+/* Expanded card — the open accordion panel always gets the dark outline.
+   The recommendation badge remains tied to the initial/default tier. */
 .ts-o2m-card {
   position: relative;
   background: #fff;
@@ -752,9 +773,10 @@
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
   padding: 18px 22px 22px;
 }
+.ts-o2m-card--popular { padding-top: 34px; }
 .ts-o2m-features { margin-top: 16px; }
 .ts-o2m-promo { margin-top: 16px; }
-.ts-o2m .ts-o2-select { height: 46px; margin-top: 16px; }
+.ts-tier-cta--cards-mobile { --hb-button-height: 46px; margin-top: 16px; }
 
 /* ═══ Option 3 — pricing cards fused with a comparison table ════════════════ */
 .ts-o3 { max-width: 1320px; margin: 0 auto; }
@@ -781,7 +803,7 @@
 .ts-o3-scroll { overflow-x: auto; }
 .ts-o3-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  grid-template-columns: minmax(230px, 1.5fr) repeat(var(--ts-cols, 3), minmax(220px, 1fr));
   column-gap: 16px;
   align-items: stretch;
   padding-top: 16px; /* room for the Most Popular badge */
@@ -790,7 +812,7 @@
 .ts-o3-col {
   display: flex;
   flex-direction: column;
-  border: 2px solid transparent; /* keeps box model equal to the popular col */
+  border: 4px solid transparent; /* 4pt outline (Figma); transparent keeps box model equal across cols */
   border-radius: 16px;
 }
 .ts-o3-head { flex: 1 1 auto; display: flex; flex-direction: column; }
@@ -798,14 +820,15 @@
 
 /* Label column */
 .ts-o3-unit { align-items: center; justify-content: center; gap: 22px; padding: 8px 0 24px; }
-.ts-o3-unit-img { width: 180px; height: auto; max-height: 230px; object-fit: contain; }
+.ts-o3-unit-img { width: 180px; height: 150px; object-fit: cover; border-radius: 12px; }
 .ts-o3-lrow {
   height: 48px;
   display: flex;
   align-items: center;
-  padding: 0 16px 0 38px;
-  font-size: 18px;
+  padding: 0 12px 0 20px;
+  font-size: 16px;
   color: #101318;
+  white-space: nowrap;
   box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
 }
 .ts-o3-w-bold { font-weight: 700; }
@@ -820,18 +843,35 @@
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
   overflow: hidden;
 }
+.ts-o3-tier { cursor: pointer; }
 .ts-o3-col--popular {
   position: relative;
-  border-color: #101318;
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+/* Selected column carries the border (single highlight); popular = badge only. */
+.ts-o3-col--selected { position: relative; border-color: #101318; box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1); }
+/* Sold-out: "Sold Out" in the price slot + greyed Select (Figma) */
+.ts-o3-amt--soldout { color: #637381; }
+.ts-o2-amt--soldout { color: #637381; }
+/* Sold-out card: greyed skeleton bars where features would be (Figma "reservation closed") */
+.ts-o2-features--soldout { list-style: none; margin: 24px 0 0; padding: 0; align-self: stretch; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.ts-o2-skel { width: 100%; height: 12px; border-radius: 6px; background: #eef0f2; }
+.ts-tier-cta--soldout,
+.ts-tier-cta--soldout:disabled,
+.ts-tier-cta--soldout:disabled:hover {
+  opacity: 1;
+  color: #c4cdd5;
+  border-color: #c4cdd5;
+  background: #fff;
+  cursor: not-allowed;
 }
 .ts-o3-col--popular .ts-o3-card { border-top-left-radius: 14px; border-top-right-radius: 14px; }
 .ts-o3-col--popular .ts-o3-vrow--last { border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
 .ts-o3-badge { z-index: 2; }
 
 .ts-o3-cardhead { text-align: center; padding: 30px 16px 0; }
-.ts-o3-name { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.2; color: #000; text-transform: uppercase; }
-.ts-o3-tag { margin: 4px 0 0; font-size: 21px; font-weight: 400; line-height: 1.35; letter-spacing: 3px; color: #509e2f; text-transform: uppercase; }
+.ts-o3-name { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.2; color: #000; text-transform: uppercase; text-align: center; }
+.ts-o3-tag { margin: 4px 0 0; font-size: 14px; font-weight: 400; line-height: 1.3; letter-spacing: 1px; color: var(--color_1, #509e2f); text-transform: uppercase; white-space: nowrap; text-align: center; }
 
 .ts-o3-foot {
   margin-top: auto;
@@ -841,12 +881,14 @@
   flex-direction: column;
 }
 .ts-o3-foot-top { text-align: center; }
-.ts-o3-price { display: flex; align-items: baseline; justify-content: center; gap: 6px; }
-.ts-o3-amt { font-size: 30px; font-weight: 700; color: #101318; line-height: 1.5; }
-.ts-o3-per { font-size: 16px; font-weight: 700; color: #101318; }
+.ts-o3-price { display: flex; align-items: baseline; justify-content: center; gap: 6px; white-space: nowrap; }
+.ts-o3-amt { font-size: 22px; font-weight: 700; color: #101318; line-height: 1.4; }
+.ts-o3-per { font-size: 13px; font-weight: 700; color: #101318; }
+/* o3 promo: struck standard price inline before the promo rate (single line) */
+.ts-o3-strike-inline { font-size: 14px; font-weight: 400; color: #637381; text-decoration: line-through; }
 .ts-o3-details { display: inline-block; margin-top: 2px; font-size: 14px; font-weight: 400; color: #101318; text-decoration: underline; }
-.ts-o3-foot-bottom { margin-top: 14px; display: flex; flex-direction: column; }
-.ts-o3-promo-slot { min-height: 46px; margin-bottom: 11px; }
+.ts-o3-foot-bottom { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+.ts-o3-promo-slot { min-height: 44px; }
 .ts-o3-promo { margin: 0; border-color: #101318; }
 .ts-o3-promo .ts-promo-text { font-size: 16px; }
 
@@ -860,8 +902,8 @@
   box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
 }
 .ts-o3-hours { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; color: #101318; }
-.ts-o3-hours-star { color: #509e2f; flex: 0 0 auto; }
-.ts-o3-check { color: #509e2f; }
+.ts-o3-hours-star { color: var(--hb-secondary, #509e2f); flex: 0 0 auto; }
+.ts-o3-check { color: var(--hb-secondary, #509e2f); }
 
 /* ── "Pricing Details" hover tooltip ───────────────────────────────────── */
 .ts-pd { display: inline-block; }
@@ -877,6 +919,7 @@
 .ts-pd-inner {
   box-sizing: border-box;
   width: 278px;
+  min-height: 220px;
   padding: 18px;
   background: #101318;
   border: 2px solid #101318;
@@ -899,3 +942,257 @@
 .ts-pd-total { margin-top: 20px; align-items: flex-end; }
 .ts-pd-total > span:first-child { font-size: 14px; font-weight: 700; }
 .ts-pd-total-amt { font-size: 16px; font-weight: 700; white-space: nowrap; }
+.ts-pd-end-space { display: none; }
+.ts-pd-loading { display: flex; flex-direction: column; gap: 12px; padding-top: 2px; }
+.ts-pd-loading-row, .ts-pd-loading-total { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.ts-pd-loading-row > span, .ts-pd-loading-total > span {
+  display: block;
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255,255,255,.12) 25%, rgba(255,255,255,.28) 50%, rgba(255,255,255,.12) 75%);
+  background-size: 200% 100%;
+  animation: ts-pd-shimmer 1.2s ease-in-out infinite;
+}
+.ts-pd-loading-row > span:last-child { width: 54px; flex: 0 0 54px; }
+.ts-pd-loading-total { margin-top: 8px; padding-top: 14px; border-top: 1px solid rgba(223, 227, 232, 0.35); }
+.ts-pd-loading-total > span:first-child { width: 132px; }
+.ts-pd-loading-total > span:last-child { width: 64px; }
+@keyframes ts-pd-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.ts-pd-modal--mobile .ts-pd-inner {
+  height: min(236px, calc(100svh - 24px));
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.ts-pd-modal--mobile .ts-pd-total { margin-bottom: 0; }
+.ts-pd-modal--mobile .ts-pd-end-space { display: block; height: 12px; min-height: 12px; }
+.ts-pd-modal--mobile .ts-pd-inner::-webkit-scrollbar { display: none; }
+
+/* Visitor-facing notice (e.g. requested size unavailable — showing others). */
+.ts-notice {
+  max-width: 1320px;
+  margin: 0 auto 20px;
+  padding: 12px 16px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  color: #9a3412;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Quote-state notes — money never shows demo numbers (2026-08-03) */
+.ts-quote-note { font-size: 13px; color: #5c6370; line-height: 1.5; margin: 6px 0; }
+.ts-quote-note--pending { color: #8a919c; font-style: italic; }
+.ts-pd-note { font-size: 12px; color: #d5d8dd; line-height: 1.5; margin: 8px 0 0; max-width: 220px; }
+
+/* Neutral facility-image placeholder — never another facility's photo. */
+.ts-card-hero-img--placeholder { background: #e3e5e9; }
+
+/* Neutral size-illustration placeholder (no demo asset shipped). */
+.ts-unit-img--placeholder, .ts-o3-unit-img--placeholder { background: #eef0f3; }
+
+/* Sold-out tier pill — non-selectable placeholder */
+.ts-pill--soldout { opacity: 0.55; cursor: not-allowed; }
+.ts-pill--soldout .ts-pill-tag { color: #b3261e; font-weight: 600; }
+
+/* Modal presentation (mode="modal") — overlay opened from the Space List. */
+.ts-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 19, 24, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Keep the minimum viewport gutter equal on every side. */
+  padding: 16px;
+  /* Portaled to <body>, so this competes directly with the host site's sticky
+     nav — go very high to stay above it. */
+  z-index: 2147483000;
+}
+/* Fixed-height popup (Figma: 747 tall, radius 20). The CONTENT scrolls inside
+   (.ts-modal-body) below a fixed .ts-modal-header — so the header and close
+   stay put while the cards/table scroll. */
+.ts-modal {
+  position: relative;
+  font-family: 'Montserrat', sans-serif; /* portaled outside .ts-wrapper — pin the font */
+  background: #f4f6f8;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 1470px; /* Figma "Facility Page" popup width */
+  /* Use the space inside the equal 16px top/bottom gutters on short screens;
+     retain the 747px Figma height on taller screens. */
+  height: min(747px, calc(100vh - 32px));
+  max-height: min(747px, calc(100vh - 32px));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Fixed header bar (flex:0 0 auto) above a scrolling body (flex:1). The header
+   never overlaps the body or the close button, so every body state — cards,
+   table, loading, sold-out, unavailable — shares one top edge. */
+.ts-modal-header {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  background: #f4f6f8;
+  padding: 40px 36px 4px 40px;
+}
+.ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; }
+.ts-modal-heading-main { text-align: left; }
+.ts-modal-actions { display: flex; align-items: flex-start; justify-content: flex-end; gap: 20px; flex: 0 0 auto; }
+.ts-modal-meta { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; }
+.ts-modal-title { font-size: 36px; font-weight: 700; line-height: 1; margin: 0 0 4px; color: var(--ts-title-color, #101318); text-transform: none; letter-spacing: normal; }
+.ts-modal-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
+.ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #e53935; }
+.ts-modal-admin { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 40px; margin: 0; font-size: 20px; font-weight: 400; color: #101318; }
+.ts-modal-admin-info { color: #101318; flex: 0 0 auto; }
+.ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 16px 32px 32px; background: #f4f6f8; }
+/* Keep a 48px touch target while drawing the 40px Figma circle inside it. The
+   button participates in the header layout so its center follows the optional
+   urgency/admin block whether either, both, or neither message is present. */
+.ts-modal-close {
+  position: relative;
+  top: -4px;
+  /* 52px desktop, 32px in the 640px block below — the icon's own two Figma
+     sizes. The SVG fills the box, so box and mark are one number in each. */
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  /* The Arial/38px/#fff type here drew the old hand-rolled "×". The mark is an
+     SVG now and inherits none of it. */
+  cursor: pointer;
+  z-index: 3;
+}
+/* Pinned, not left to the SVG's width ATTRIBUTE. This modal is portalled to
+   <body>, so it renders OUTSIDE Duda's `#dm` — the cascade where the theme's
+   un-scoped `svg { width: ... }` rules land on it and an attribute loses. Same
+   guard and same reason as .rf-idm .rf-modal-close svg in the rental flow. */
+.ts-modal-close svg { flex: 0 0 auto; width: 52px !important; height: 52px !important; }
+/* The disc is the icon's own <rect> now. A #101318 ::before used to draw one
+   behind the text "×"; it was invisible only while the icon happened to match
+   it at 40px, and would have ringed the 32px mark and been clipped by the
+   52px one. Hover re-fills that rect instead of the pseudo. */
+.ts-modal-close:hover svg rect { fill: #000; }
+.ts-modal-close:focus-visible { outline: 3px solid #101318; outline-offset: 2px; border-radius: 50%; }
+/* Editor-only placeholder for a closed modal (invisible on the live site) so it
+   can be selected and configured in the Duda editor. */
+.ts-modal-editor-hint {
+  border: 2px dashed #c4cdd5; border-radius: 8px; padding: 16px 20px;
+  background: #f9fafb; color: #637381; font-size: 14px; line-height: 1.5;
+  font-family: 'Montserrat', sans-serif;
+}
+.ts-modal-editor-hint b { color: #101318; }
+@media (max-width: 640px) {
+  /* Mobile: fixed-height flex column with the BODY as the single scroll owner.
+     Constrain to 100svh — the SMALL viewport (Safari chrome visible), which is
+     smaller than the content, so the body genuinely overflows and scrolls.
+     100dvh/100vh can equal the full viewport, leaving no overflow to scroll. */
+  .ts-modal-backdrop { padding: 0; align-items: flex-start; overflow: hidden; }
+  .ts-modal {
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;   /* fallback where svh is unsupported */
+    height: 100svh;
+    max-height: 100svh;
+    max-width: none;
+    overflow: hidden;
+  }
+  /* The Figma mobile frame is one continuous gray pricing surface: title/meta
+     flow directly into the cards instead of sitting in a separate white band. */
+  .ts-modal-header {
+    flex: 0 0 auto;
+    position: relative;
+    padding: 20px 16px 8px 20px;
+    background: #f4f6f8;
+  }
+  .ts-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 0;
+    background: #f4f6f8;
+  }
+  /* Remove the generic shell's 8px inset. With 28px on .ts-m, cards land at
+     the Figma x=29 gutter and retain their intended width on a 440px canvas. */
+  .ts-modal-body > .ts-wrapper { padding: 0; }
+  .ts-modal-body .ts-m {
+    min-height: 100%;
+    border-radius: 0;
+    padding: 16px 28px calc(32px + env(safe-area-inset-bottom));
+  }
+  .ts-modal-header {
+    padding: 24px 20px 12px;
+  }
+  .ts-modal-heading { justify-content: center; }
+  .ts-modal-heading-main { text-align: center; width: 100%; padding: 0 44px; }
+  .ts-modal-actions { width: 100%; justify-content: center; }
+  /* Keep the close control out of the mobile message row. Previously it sat
+     after the centered metadata, which pushed it down and made its position
+     vary as urgency/admin copy appeared or disappeared. */
+  .ts-modal-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; flex: 0 0 32px; }
+  .ts-modal-close svg { width: 32px !important; height: 32px !important; }
+  .ts-modal-meta { align-items: center; text-align: center; width: auto; flex: 1 1 auto; min-width: 0; padding-top: 0; }
+  /* Defensive: an operator-set heading can't blow up the fixed header height —
+     clamp to two lines and break unbreakable strings. Ordinary titles are
+     unaffected. */
+  .ts-modal-title {
+    font-size: 24px;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .ts-modal-subtitle { font-size: 16px; overflow-wrap: anywhere; }
+  .ts-modal-urgency { font-size: 16px; line-height: normal; }
+  .ts-modal-admin { justify-content: center; min-height: 0; font-size: 14px; }
+}
+
+/* Promo two-price (STANDARD struck + PROMO RATE) */
+.ts-price-strike { color: #637381; }
+.ts-pill-strike { display: block; font-size: 18px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.3; }
+.ts-pill-promo { display: block; font-size: 18px; font-weight: 700; color: #101318; line-height: 1.3; }
+.ts-cell-strike { font-size: 12px; font-weight: 400; text-decoration: line-through; color: #637381; }
+.ts-o2-price--promo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  width: 100%;
+  column-gap: 16px;
+  row-gap: 2px;
+  align-items: end;
+}
+.ts-o2-price--promo .ts-o2-promo-label--std { grid-area: 1 / 1; }
+.ts-o2-price--promo .ts-o2-promo-label--promo { grid-area: 1 / 3; }
+.ts-o2-price--promo .ts-o2-strike { grid-area: 2 / 1; text-align: center; line-height: 1.2; }
+.ts-o2-price--promo .ts-o2-amt { grid-area: 2 / 3; text-align: center; line-height: 1.2; }
+.ts-o2-price-divider {
+  grid-area: 1 / 2 / 3 / 3;
+  width: 1px;
+  align-self: stretch;
+  background: #c4cdd5;
+}
+.ts-o2-promo-label, .ts-o3-promo-label {
+  align-self: end;
+  margin-bottom: -4px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  line-height: 1;
+  text-align: center;
+}
+.ts-o2-promo-label--std, .ts-o3-promo-label--std { font-weight: 500; color: #637381; }
+.ts-o2-promo-label--promo, .ts-o3-promo-label--promo { font-weight: 700; color: #101318; }
+.ts-o2-strike, .ts-o3-strike { font-size: 24px; font-weight: 400; text-decoration: line-through; color: #637381; line-height: 1.2; text-align: center; }
+.ts-o2m-strike { font-size: 18px; font-weight: 400; text-decoration: line-through; color: #637381; }

@@ -1,7 +1,10 @@
-﻿import React from 'react';
+﻿import React, { useState } from 'react';
 import type { Unit, WidgetConfig } from '../types';
 import { isUnavailable } from '../filters';
 import { withLineBreaks } from '@shared/lineBreaks';
+import { emitOpenTiers } from '@shared/tierBus';
+import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
+import cfg from '../config.json';
 
 // Prices round DOWN to whole dollars: 145.20 → $145.00, 147.99 → $147.00. The
 // cents only ever come from the in-store calculation (a percentage of the web
@@ -49,10 +52,68 @@ export function instorePrice(unit: Unit, config: WidgetConfig): number {
   return unit.startingPrice * (1 + amount / 100);
 }
 
+/** Labels used by the promo-logic pair. Lift these into the content menu if the
+ *  client ever wants them editable; the spec asked for fixed wording. */
+const ONLINE_LABEL = 'Online';
+const PROMO_RATE_LABEL = 'Promo rate';
+
+/**
+ * The unit's price with its promotion applied, or null when we can't work one out.
+ *
+ * Precedence:
+ *  1. `promotionPrice` — the API's own `promotion_sell_rate`. Authoritative, but
+ *     null on every live tier as of 2026-08-03, so 2 is what actually runs.
+ *  2. `promoValue` + `promoKind`, where the kind was inferred from the promo name
+ *     because the API's `type` is 'regular' for every promo (see api.ts):
+ *       percent → starting x (1 - value/100)   e.g. 150 @ "20% OFF"        → 120
+ *       fixed   → value                        e.g. any @ "$1 MOVE IN"     → 1
+ *  3. Otherwise null — the card falls back to showing the starting price alone.
+ *
+ * Sanity-checked before returning: a promo rate that is <= 0, or not actually
+ * cheaper than the starting price, is treated as unusable rather than displayed.
+ * Quoting a wrong price is worse than quoting no promo.
+ */
+export function promoRate(unit: Unit): number | null {
+  const usable = (n: number) => (n > 0 && n < unit.startingPrice ? n : null);
+
+  if (typeof unit.promotionPrice === 'number') return usable(unit.promotionPrice);
+  if (typeof unit.promoValue !== 'number' || !unit.promoKind) return null;
+  if (unit.promoKind === 'percent') return usable(unit.startingPrice * (1 - unit.promoValue / 100));
+  return usable(unit.promoValue);
+}
+
 export function PriceBlock({ unit, config }: { unit: Unit; config: WidgetConfig }) {
+  // Promo mode replaces the in-store pair entirely: "Online" (the starting rate,
+  // struck through) beside "Promo rate" (the discounted one). instorePriceMode /
+  // instorePriceAmount are deliberately not consulted here.
+  const promo = config.enablePromoLogic ? promoRate(unit) : null;
+
+  if (promo !== null) {
+    return (
+      <div className="sl-prices-row">
+        <div className="sl-price-left">
+          <div className="sl-instore-label">{ONLINE_LABEL}</div>
+          <div className="sl-strike">{fmt(unit.startingPrice)}</div>
+        </div>
+        <div className="sl-price-divider" />
+        <div className="sl-price-main">
+          <div className="sl-starting-label">{PROMO_RATE_LABEL}</div>
+          <div className="sl-main-price">{fmt(promo)}</div>
+          {unit.adminFee != null && (
+            <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // With promo logic on but no promotion on this unit, the in-store column stays
+  // hidden — showing it would be the very calculation this mode replaces.
+  const showInstore = config.showInstorePrice && !config.enablePromoLogic;
+
   return (
     <div className="sl-prices-row">
-      {config.showInstorePrice && (
+      {showInstore && (
         <>
           <div className="sl-price-left">
             <div className="sl-instore-label">{config.instorePriceLabel}</div>
@@ -74,9 +135,12 @@ export function PriceBlock({ unit, config }: { unit: Unit; config: WidgetConfig 
 
 // Filled tag — exact Figma vector (node 429:46379). Shared by the grid promo
 // banner and the list-card promo banner.
+// currentColor, so the CALLER sets the colour (.sl-promo-icon / .sl-lc-promo-icon
+// use --color_1). Drop it somewhere that doesn't and it takes the inherited text
+// colour — which on these badges is the dark #101318 label.
 export function PromoTagIcon({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 13.3817 13.3817" fill="#509e2f" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 13.3817 13.3817" fill="currentColor" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
       <path d="M4.37691 0.0456721C5.33683 -0.00499382 5.94003 -0.0368318 6.51907 0.0798287C7.03141 0.183051 7.52277 0.371604 7.97264 0.637617C8.48108 0.93826 8.90814 1.36545 9.58774 2.04526L11.3614 3.81894C12.1484 4.60549 12.6574 5.1142 12.9458 5.68015C13.5271 6.82102 13.5271 8.17122 12.9458 9.31208C12.6574 9.87803 12.1484 10.3867 11.3615 11.1733L11.1733 11.3615C10.3867 12.1484 9.87803 12.6574 9.31208 12.9458C8.17122 13.5271 6.82102 13.5271 5.68015 12.9458C5.1142 12.6574 4.60551 12.1484 3.81894 11.3614L2.04526 9.58775C1.36545 8.90814 0.93826 8.48108 0.637616 7.97264C0.371604 7.52277 0.183051 7.03141 0.0798287 6.51907C-0.0368318 5.94003 -0.00499381 5.33682 0.0456723 4.3769L0.0806964 3.71162C0.106284 3.2253 0.127491 2.82224 0.170667 2.49296C0.21568 2.14968 0.290027 1.83525 0.449052 1.53874C0.697125 1.07618 1.07618 0.697124 1.53874 0.449052C1.83525 0.290027 2.14968 0.21568 2.49297 0.170667C2.82225 0.127491 3.2253 0.106284 3.71162 0.0806962L4.37691 0.0456721ZM4.32633 2.99186C3.58996 2.99186 2.993 3.58882 2.993 4.3252C2.993 5.06158 3.58996 5.65853 4.32633 5.65853C5.06271 5.65853 5.65967 5.06158 5.65967 4.3252C5.65967 3.58882 5.06271 2.99186 4.32633 2.99186Z" />
     </svg>
   );
@@ -160,16 +224,106 @@ export function CtaButton({ unit, config, full }: { unit: Unit; config: WidgetCo
   // Sold out states the fact; anything else can only offer scarcity.
   const note = unavailable ? config.limitedAvailabilityCopy : urgencyMessage(unit, config);
 
+  const [tiersError, setTiersError] = useState(false);
+  function openValueTiers() {
+    const handled = emitOpenTiers({
+      size: unit.dimensions,
+      unitGroupId: unit.unitGroupId,
+      unitId: unit.id,
+      propertyId: config.propertyId || cfg.propertyId || undefined,
+      channel: config.valueTiersChannel || undefined,
+      // Mirror the operator's Space List config so #14 doesn't need it re-entered.
+      ctaLabel: config.ctaButtonCopy || undefined,
+      feeText: config.showJunkFeeDisclaimer ? (config.junkFeeCopy || '') : '',
+      showPricingDetails: config.showJunkFeeDisclaimer,
+      showUrgency: config.showUrgencyMessage,
+      enablePromoLogic: config.enablePromoLogic,
+    });
+    if (handled) return;
+    if (config.valueTiersPageUrl) {
+      try {
+        const url = new URL(config.valueTiersPageUrl, window.location.origin);
+        if (url.origin === window.location.origin) {
+          url.searchParams.set('size', unit.dimensions);
+          if (unit.unitGroupId) url.searchParams.set('unitGroupId', unit.unitGroupId);
+          url.searchParams.set('enablePromoLogic', config.enablePromoLogic ? 'true' : 'false');
+          // Carry the ACTUAL property + company so the value-tiers page prices
+          // the same unit group (critical on dynamic property pages).
+          if (config.propertyId) url.searchParams.set('propertyId', config.propertyId);
+          if (config.companyId) url.searchParams.set('companyId', config.companyId);
+          // Duda's dmAPI (page global) tells us the environment. On 'live' route on
+          // the real origin; in editor/preview keep it relative so Duda's preview
+          // routing handles it. dmAPI is absent off-platform (e.g. dev harness).
+          const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
+          const isLive = typeof dm !== 'undefined' && dm?.getCurrentEnvironment?.() === 'live';
+          const path = url.pathname + url.search;
+          window.location.href = isLive ? window.location.origin + path : path;
+          return;
+        }
+        console.error('[SpaceList] valueTiersPageUrl blocked — cross-origin:', config.valueTiersPageUrl);
+      } catch { /* malformed URL → fall through to the message */ }
+    }
+    console.warn('[SpaceList] Value Tiers enabled but no modal handled the Select — place a mode="modal" #14 on this page.');
+    setTiersError(true);
+    window.setTimeout(() => setTiersError(false), 4000);
+  }
+
+  // Page mode: a real anchor so Duda's router handles the nav in preview AND
+  // published — window.location bypasses Duda's preview routing (→ my.duda.co
+  // 404). Carries the same params the modal handoff does.
+  const valueTiersHref = (() => {
+    if (!config.enableValueTiers || !config.valueTiersPageUrl) return undefined;
+    const p = new URLSearchParams({ size: unit.dimensions });
+    if (unit.unitGroupId) p.set('unitGroupId', unit.unitGroupId);
+    if (config.propertyId) p.set('propertyId', config.propertyId);
+    if (config.companyId) p.set('companyId', config.companyId);
+    return `${config.valueTiersPageUrl}?${p.toString()}`;
+  })();
+
   return (
     <div className="sl-cta-group">
       {waitlistCta ? (
         <button className={`sl-waitlist-btn${fullClass}`}>Join waitlist</button>
       ) : unavailable || callOnly ? (
         <button className={`sl-call-btn${fullClass}`}>Call</button>
+      ) : valueTiersHref ? (
+        <a className={`sl-select-btn${fullClass}`} href={valueTiersHref}>
+          {config.ctaButtonCopy}
+        </a>
+      ) : config.enableValueTiers ? (
+        <button
+          className={`sl-select-btn${fullClass}`}
+          onClick={openValueTiers}
+          disabled={tiersError}
+        >
+          {config.ctaButtonCopy}
+        </button>
       ) : (
-        <button className={`sl-select-btn${fullClass}`}>{config.ctaButtonCopy}</button>
+        // No value-tiers step configured: Select goes straight to the rental
+        // page. An anchor, not a button — Duda's router handles a real link in
+        // preview and published alike, and it keeps middle-click and "open in
+        // new tab" working. The unit travels in localStorage (see
+        // @shared/unitHandoff), so the href stays a clean /rental.
+        <a
+          className={`sl-select-btn${fullClass}`}
+          href={rentalHref(config.rentalPageUrl)}
+          onClick={() => saveUnitSelection({
+            tierId: unit.id,
+            unitGroupId: unit.unitGroupId,
+            size: unit.dimensions,
+            // The rental flow matches a real unit on size AND price, so the
+            // shopper gets the tier they clicked, not the cheapest of that size.
+            price: unit.startingPrice,
+            propertyId: config.propertyId || cfg.propertyId || undefined,
+            companyId: config.companyId || undefined,
+          })}
+        >
+          {config.ctaButtonCopy}
+        </a>
       )}
-      {note && <div className="sl-limited-label">{note}</div>}
+      {tiersError
+        ? <div className="sl-limited-label" role="alert">Pricing is temporarily unavailable — please try again.</div>
+        : note && <div className="sl-limited-label">{note}</div>}
     </div>
   );
 }

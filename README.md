@@ -13,6 +13,7 @@ React + TypeScript widgets for Duda sites, built as AMD bundles and loaded via D
 5. [Deploying a widget to Duda](#deploying-a-widget-to-duda)
 6. [Content panel config — connecting Duda editor fields to your widget](#content-panel-config)
 7. [Hummingbird API client](#hummingbird-api-client)
+8. [Shared UI kit — forms & buttons](#shared-ui-kit)
 
 ---
 
@@ -136,10 +137,10 @@ This produces `dist/widget-hero.js`, `dist/widget-clock.js`, etc. Each file is a
 `dist/` is uploaded to a single S3 bucket, into a **different folder per branch**, so `dev` and
 `demo` can be deployed independently without overwriting each other.
 
-| Branch | S3 folder     |
-| ------ | ------------- |
-| `dev`  | `widgets-dev`  |
-| `demo` | `widgets-demo` |
+| Branch | S3 folder          |
+| ------ | ------------------ |
+| `dev`  | `duda-widgets`     |
+| `demo` | `duda-widgets-ssa` |
 
 One-time setup: copy `.env.example` to `.env` and fill in `AWS_ACCESS_KEY_ID`,
 `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` and `AWS_S3_BUCKET`.
@@ -162,7 +163,7 @@ and it becomes deployable.
 The resulting URL is what you paste into Duda:
 
 ```
-https://<cdn-host>/widgets-dev/widget-hero.js
+https://<cdn-host>/duda-widgets/widget-hero.js
 ```
 
 ### 3. Wire it up in Duda's Widget Builder
@@ -171,7 +172,7 @@ In Duda's Widget Builder, paste the following into the **JS** tab. This is the s
 
 ```js
 function(element, data, api) {
-  var scriptSrc = 'https://cdn.tenantinc.com/widgets-dev/widget-hero.js';
+  var scriptSrc = 'https://cdn.tenantinc.com/duda-widgets/widget-hero.js';
 
   api.scripts.renderExternalApp(scriptSrc, element, {
     title:    data.config.title,
@@ -214,7 +215,7 @@ You then forward whichever fields you need as the `props` argument to `renderExt
 ```js
 function(element, data, api) {
   api.scripts.renderExternalApp(
-    'https://cdn.tenantinc.com/widgets-dev/widget-hero.js',
+    'https://cdn.tenantinc.com/duda-widgets/widget-hero.js',
     element,
     {
       title:    data.config.title,
@@ -236,7 +237,7 @@ This is how you drive multiple layout variants from a single widget — the site
 ```js
 function(element, data, api) {
   api.scripts.renderExternalApp(
-    'https://cdn.tenantinc.com/widgets-dev/widget-hero.js',
+    'https://cdn.tenantinc.com/duda-widgets/widget-hero.js',
     element,
     {
       title:  data.config.title,
@@ -379,6 +380,122 @@ api.scripts.renderExternalApp(scriptSrc, element, props, {
 `createWidget` currently forwards only `props` to your component. The simplest way to consume `additionalData` today is to fold it into the props you pass from the Duda JS tab. If a widget genuinely needs the spread `init({ container, props, ...additionalData })` shape, write that widget's `index.tsx` by hand instead of using `createWidget` — but keep the mount-into-own-child logic from `createWidget`, or it will hit the [blank-on-update bug](#live-editor-updates--how-re-renders-work).
 
 > Never put API keys or secrets in `props` or `additionalData` — both are visible in the browser. All secrets must stay server-side in the proxy.
+
+---
+
+<a id="shared-ui-kit"></a>
+## Shared UI kit — forms & buttons
+
+**Every input and button in every widget comes from `@shared/ui`. Do not hand-roll
+either, and do not re-style them inside a widget.**
+
+Built from the Mariposa — Duda Figma file: forms `8753-47700`, buttons `9215-57188`.
+See them all live: `npm run dev` → the **UI Kit** tab.
+
+```tsx
+import { FormField, Button } from '@shared/ui';
+```
+
+That single import brings the CSS with it. There is nothing else to wire up.
+
+### Form fields
+
+One component covers all four field types from the design — they are the same box
+with a different trailing icon and input behaviour.
+
+```tsx
+const [email, setEmail] = useState('');
+
+<FormField
+  label="Email"
+  type="email"
+  required
+  value={email}
+  onChange={setEmail}
+  error={touched && !valid ? 'Enter a valid email address' : undefined}
+/>
+```
+
+| Prop | What it does |
+|---|---|
+| `label` | Visible label **and** accessible name. Always provide one. |
+| `type` | `text` (default), `email`, `tel`, `search`, `password`, `date`, `number`. Picks the trailing icon. |
+| `mask="date"` | Typed `MM/DD/YYYY` with the remainder greyed. For dates a picker makes worse — DOB, licence expiry. |
+| `required` | Adds the red `*` and sets `required`. |
+| `error` | Any non-empty string turns the field red, shows the alert icon and the message. |
+| `state="success"` | Green border + tick, once a value has validated. |
+| `help` | Neutral hint. Ignored while `error` is set. |
+| `infoTitle` | Adds the info icon, for "where do I find this?" fields. |
+| `disabled`, `name`, `id`, `autoComplete`, `placeholder`, `onFocus`, `onBlur` | As you'd expect. |
+
+**You do not set the resting or focus state.** Those are CSS (`:focus-within`), so
+the border can never disagree with where the caret actually is. You only own
+`success` and `error`, because only you know whether the value validated. Passing
+`error` implies the error state — you cannot get a red border with no message.
+
+**The floating label is CSS-only**, keyed off `:placeholder-shown`. That is
+deliberate: it keeps working with browser autofill, which fires no React event.
+
+### Buttons
+
+Pick the tone by **role**, not colour:
+
+| Tone | Use for | Looks like |
+|---|---|---|
+| `cta` | *The* primary action on a view — "Select", "Rent Now". One per view. | Orange |
+| `secondary` | The alternate action beside it — "View Details". | Green |
+| `dark` | Utility functions — "Pay Now", "Print". Not a sales action. | Black |
+| `light` | Utility on a dark background. | White, black border |
+
+```tsx
+<Button tone="cta" onClick={submit} busy={sending}>Select</Button>
+<Button tone="secondary" fill="outline" shape="pill">View Details</Button>
+<Button tone="dark" href="/pay">Pay Now</Button>   {/* renders a real <a> */}
+```
+
+| Prop | Values |
+|---|---|
+| `tone` | `cta` (default), `secondary`, `dark`, `light` |
+| `fill` | `solid` (default), `outline` — 2px bordered white box |
+| `shape` | `square` (default, 8px), `pill` (100px) |
+| `darkText` | Black label on the brand fill — Figma's "(Black Text)" option |
+| `block` | Stretch to the container width |
+| `busy` | Spinner + blocks clicks. **Use this on anything that submits** — otherwise visitors double-click and file the lead twice. |
+| `href` | Renders an `<a>` instead of a `<button>`, so middle-click and open-in-new-tab work |
+
+`type` defaults to `"button"`, so dropping one inside a `<form>` won't submit it by
+accident.
+
+### Tokens, and rebranding a site
+
+All values live as CSS custom properties in `src/shared/ui/tokens.css`, named after
+the Figma variables (`--hb-text-night`, `--hb-ada-red`, `--hb-cloud-darker`).
+
+To rebrand a site, override the two brand tokens — nothing else, and no rebuild of
+the components:
+
+```css
+:root {
+  --hb-cta: #0f62fe;
+  --hb-secondary: #6f2da8;
+}
+```
+
+Everything else derives from them. **Don't** hardcode `#f45f30` in a widget's CSS;
+use `var(--hb-cta)` so a rebrand reaches it.
+
+`--hb-ada-green` and `--hb-ada-red` are named ADA because they are the
+contrast-checked status colours. Don't swap them for arbitrary greens and reds.
+
+### Icons
+
+The seven form icons are exported inline SVG in `src/shared/ui/icons.tsx`
+(`SearchIcon`, `CalendarIcon`, `CheckIcon`, `AlertIcon`, `InfoIcon`, `EyeOnIcon`,
+`EyeOffIcon`). They stroke in `currentColor`, so colour comes from CSS.
+
+They are inline, not URLs, for the same reason as everything else in these bundles:
+**the AMD bundle cannot load remote assets**, and Figma's export URLs expire after
+about 7 days.
 
 ---
 

@@ -1,0 +1,234 @@
+/* ===========================================================================
+   <SummaryRail /> — order-summary card, shared by value-tiers + rental-flow.
+   Moved verbatim from the value-tiers stylesheet so both widgets render the
+   identical card; atoms (.ts-feat, .ts-promo-*) are duplicated here so the
+   rail is self-contained in either bundle.
+   =========================================================================== */
+
+.ts-card {
+  width: 422px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+/* Hold countdown (rental flow) */
+.ts-card-holdbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #f2f8ee;
+  border-bottom: 1px solid #e2ecd9;
+  font-size: 14px;
+  font-weight: 600;
+  color: #101318;
+}
+.ts-card-holdtime { color: #d64545; font-weight: 700; }
+
+/* Hero */
+.ts-card-hero { position: relative; height: 208px; }
+.ts-card-hero-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ts-card-hero-img--placeholder { background: #e3e5e9; }
+.ts-card-hero-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); }
+.ts-card-hero-content {
+  position: absolute;
+  left: 0; right: 0; bottom: 19px;
+  padding: 0 29px;
+  color: #fff;
+}
+.ts-card-storename {
+  margin: 0 0 7px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+}
+.ts-card-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: underline;
+}
+.ts-card-line-icon { flex: 0 0 auto; color: #fff; }
+
+/* Body */
+.ts-card-body { padding: 20px 30px 24px; }
+
+.ts-card-top { display: flex; justify-content: space-between; gap: 20px; }
+.ts-card-top-left { min-width: 0; }
+.ts-card-size {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #101318;
+}
+.ts-card-bar { font-weight: 300; }
+.ts-card-sub {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 20px;
+  color: #101318;
+}
+.ts-card-amenities {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ts-card-top-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 24px;
+  flex: 0 0 auto;
+}
+.ts-card-change {
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.ts-card-prices { display: flex; align-items: center; gap: 8px; height: 50px; }
+.ts-price-instore, .ts-price-online {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.ts-price-instore { color: #637381; }
+.ts-price-label { font-size: 10px; line-height: 1.5; }
+.ts-price-instore .ts-price-label { font-weight: 500; }
+.ts-price-online .ts-price-label { font-weight: 700; line-height: 16px; color: #101318; }
+.ts-price-strike {
+  font-size: 16px;
+  font-weight: 400;
+  text-decoration: line-through;
+  line-height: 1.5;
+  color: #637381;
+}
+.ts-price-online { color: #101318; }
+.ts-price-amount { font-size: 24px; font-weight: 700; line-height: 1.2; }
+.ts-price-sep { width: 1px; height: 37px; background: #DFE3E8; }
+
+/* Amenity atom */
+.ts-feat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 16px;
+  color: #637381;
+}
+.ts-feat-check { color: #212B36; flex: 0 0 auto; }
+
+/* Card promo banner */
+.ts-card-promo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 24px;
+  padding: 12px;
+  background: #fff;
+  border: 2px dashed var(--color_1, #509E2F);
+  border-radius: 8px;
+}
+/* Duda's primary, with the old hardcoded green as the fallback so nothing moves
+   where --color_1 is undefined (the dev harness). #05's promo badges already
+   follow --color_1 the same way. */
+.ts-promo-icon { color: var(--color_1, #509E2F); flex: 0 0 auto; }
+.ts-promo-text {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 16px;
+  color: #101318;
+}
+
+/* Breakdown */
+.ts-card-breakdown { margin-top: 20px; }
+.ts-bd-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ts-bd-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  color: #333;
+}
+.ts-bd-dates { font-weight: 500; }
+.ts-bd-plain { font-size: 14px; font-weight: 400; color: #000; }
+.ts-bd-amt { font-size: 14px; font-weight: 400; color: #000; white-space: nowrap; }
+.ts-bd-amt--strong { font-size: 14px; font-weight: 600; color: #333; }
+.ts-bd-row--total { margin-top: 8px; margin-bottom: 0; align-items: center; }
+.ts-bd-total-label { font-size: 18px; font-weight: 700; color: #101318; }
+.ts-bd-total-amt { font-size: 18px; font-weight: 700; color: #101318; white-space: nowrap; }
+.ts-bd-note { font-size: 13px; line-height: 1.5; color: #637381; margin: 0 0 12px; }
+
+/* Payment methods */
+/* Payment marks — Figma 8508-33072 (node 8035:10367).
+   ALL SIX share one footprint. The frame's own leaf sizes disagree wildly
+   (Visa 30.5x9.8, Mastercard 26.8x16.5, Google 45x30.3), and used literally
+   they overflowed the chip — Visa's leaf is 30.5px wide against a 24.9px
+   content area. So the box is fixed and each logo is FITTED inside it. */
+.ts-card-payments {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 24px;
+}
+.ts-pay-methods { display: inline-flex; align-items: center; gap: 4px; }
+.ts-pay-buttons { display: inline-flex; align-items: center; gap: 5.219px; }
+
+/* The one shared footprint — every mark, no exceptions. */
+.ts-pay-box {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38.607px;
+  height: 24.022px;
+  flex: 0 0 auto;
+}
+
+/* ONE box for all six. Each brand's own chip was a different shape — Apple's
+   37.186x23.806, Google's 45.015x23.783, the cards' 38.607x24.022 — so letting
+   the artwork supply the chip made a shared size impossible without squashing
+   a brand mark by ~15%. The chip is drawn here instead and the SVGs carry only
+   their lockups. */
+.ts-pay-box {
+  padding: 2px 3px;
+  background: #fff;
+  border: 0.686px solid #101318;
+  border-radius: 2.745px;
+  color: #101318;              /* Apple's lockup is currentColor */
+}
+/* Google's is the one fully-rounded chip (its Figma artwork has a pill
+   outline). Same width and height as the rest — only the radius differs. */
+
+/* Fit, never fill: `contain` semantics, so a wide mark (Visa, 3.1:1) and a tall
+   one (Mastercard, 1.6:1) both shrink to fit without distorting. The width and
+   height attributes on each mark supply nothing but the aspect ratio. */
+.ts-pay-box img,
+.ts-pay-box svg {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+}

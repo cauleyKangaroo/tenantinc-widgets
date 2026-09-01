@@ -1,0 +1,1098 @@
+/* ===========================================================================
+   "Find Storage" mega menu — Figma nodes 10557-106986 and 10692-83507.
+
+   A POPUP: fixed to the viewport, filling everything below the nav bar (the
+   `top` offset is set inline from the measured bar). The Figma frames show the
+   whole area under the nav going dark, not a card floating on the page.
+
+   ON MOBILE IT IS FULL SCREEN — the inline `top` is 0 below 1024px, so the popup
+   covers the bar too. The mobile frames draw it edge to edge, and hanging it off
+   the bar left a strip of the page showing above a layer meant to replace the
+   screen. Safe there only because the mobile layout carries its own ✕ inside its
+   header row (`.nav-mega-m-close`); the desktop ✕ sits OUTSIDE the card and
+   needs the bar's bottom edge to hang from, which is why desktop still measures.
+
+   Column widths come from the frame's 1322px card — search 440, states 294,
+   cities 294 + 294 — expressed as fractions so they scale with the nav's own
+   1314px content width and stay lined up with the bar above.
+
+   FONTS. The Figma mixes Montserrat and Inter; every widget in this repo is
+   Montserrat, so the Inter runs (the "Nearby Storage Facilities" header) are
+   rendered in Montserrat at the same size/weight.
+   =========================================================================== */
+
+.nav-mega {
+  /* Figma "Primary/Notifications" #F26500 — the count bubbles, the search
+     button, the facility pins.
+     AUDIT (11691-240584): "Map the color on this page to the CTA Color not the
+     Primary Color". It followed `--color_1`, the theme's PRIMARY, which on this
+     site is the dark teal the audited screenshot shows. The CTA colour is
+     `--color_2`, which is what the kit's own `--hb-cta` resolves to and what
+     Duda's theme editor actually sets.
+     NOT `var(--hb-cta, …)`: tokens.css defines `--hb-cta` on `:root` with a GREEN
+     default, so reading it made this menu's accent depend on whether some other
+     kit widget happened to be on the page — green here in the dev harness, the
+     frame's orange on a page where the nav loads alone. Straight to `--color_2`
+     is the same colour on a themed site and the frame's orange everywhere else. */
+  --nav-mega-accent: var(--color_2, #f26500);
+  /* Figma "star / star-half-filled" — gold, NOT the accent. The stars are the
+     one thing in the frame that doesn't follow the CTA colour. */
+  --nav-mega-star: #ffd000;
+  /* NOT a solid fill. Figma node 10557-106993 is a near-black at 90% opacity —
+     rgb(6,4,4) / alpha 230 of 255, read off the frame's own pixels — so the page
+     shows faintly through the popup. Anything opaque here reads as a new page
+     rather than a layer over the current one. */
+  --nav-mega-panel: rgba(6, 4, 4, 0.9);
+  /* AUDIT: "Set opacity of the Line to 100%". Was rgba(…, 0.4), which over the
+     90%-opaque panel came out a grey hairline instead of the frame's white. */
+  --nav-mega-rule: #fff;
+
+  position: fixed;
+  /* `top` is set inline — the bar's height varies with its props/breakpoint, and
+     below 1024px it is 0 so the popup is full screen (see the note above). */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* One below the mobile drawer's layer. Duda pages stack their own sections
+     high, which is why the drawer already sits at the top of the range. */
+  z-index: 2147483646;
+  background: var(--nav-mega-panel);
+  color: #fff;
+  overflow: hidden;
+  /* The document is NOT frozen while this is open (freezing it breaks the bar's
+     sticky positioning — see FindStorageMegaMenu.tsx), so the popup refuses the
+     scroll itself. This stops the chaining browsers do natively; the JS handler
+     covers the rest. */
+  overscroll-behavior: contain;
+  /* Closed state: no layout, no tab stops, no geolocation prompt. */
+  display: none;
+}
+
+.nav-mega.is-open {
+  display: block;
+}
+
+.nav-mega-inner {
+  position: relative;
+  box-sizing: border-box;
+  max-width: 1314px;
+  height: 100%;
+  margin: 0 auto;
+  /* Top padding clears the close ✕, which sits in the popup's own top-right
+     corner. Without it the ✕ lands on the "See all cities" link at the widths
+     where the card fills the viewport (roughly 1024–1394px, where the card is
+     wider than the ✕'s 40px inset). 102px = the ✕'s 40px top + its 52px height
+     + the 10px of breathing room it has always had, so this MUST be re-derived
+     whenever .nav-mega-close changes size or moves. */
+  padding: 102px 24px 32px;
+
+  /* ── THIS BOX NEVER SCROLLS ──────────────────────────────────────────────
+     It used to be `overflow-y: auto`, which was the only reason the popup grew
+     a scrollbar at all — and that scrollbar sat at the right edge of the 1314px
+     CARD, not the viewport, so between roughly 1354 and 1400px wide it ran
+     straight through the ✕ parked at `right: 40px`. A full-screen popup should
+     not have a page-level scrollbar in the first place.
+
+     So the popup is a flex column that hands its height to whichever panel is
+     showing, and EVERY panel owns its own scrollport (see below). Overflow is
+     therefore always resolved one level in — per column on desktop, per page on
+     mobile — and nothing ever reaches this box to scroll.
+
+     `overflow: hidden` is the backstop, not the mechanism: if a panel below ever
+     stops carrying a scroller, its overflow becomes UNREACHABLE rather than
+     scrollable. Every branch of the render is covered today —
+     .nav-mega-panels (columns), .nav-mega-all (.nav-mega-all-scroll),
+     .nav-mega-small, and mobile's .nav-mega-m (.nav-mega-m-page /
+     .nav-mega-m-list) — and a new one must bring its own. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+/* Every panel that can be .nav-mega-inner's child: shrink to the popup rather
+   than overflowing it. `min-height: 0` is the whole trick — a flex item's
+   default `min-height: auto` is its CONTENT height, so without this they refuse
+   to shrink and the overflow lands back on a box that no longer scrolls.
+
+   They keep `flex-shrink: 1` / `flex-basis: auto` (the default), so a panel
+   SHORTER than the popup stays its own height and is not stretched. That is what
+   keeps the audit's "Dividing Lines Match Length on Column Content" true: with
+   room to spare the grid row is still as tall as its tallest column. */
+.nav-mega-panels,
+.nav-mega-all,
+.nav-mega-small,
+.nav-mega-m {
+  min-height: 0;
+}
+
+
+/* Parked 40px in from the viewport's top-right corner. It used to track the
+   CARD's right edge (`max(24px, calc(50% - 731px))`), which put it in a
+   different place at every width; a fixed inset is what was asked for and reads
+   the same on any monitor. Safe as a viewport offset because this button is
+   `display: none` below 1024px — the mobile frames put their ✕ in the header
+   row instead — so it can never collide with the narrow layout. */
+.nav-mega-close {
+  position: absolute;
+  top: 40px;
+  right: 40px;
+  /* ── WITHOUT THIS ONLY PART OF THE ✕ IS CLICKABLE ─────────────────────────
+     This button and `.nav-mega-inner` are siblings, both POSITIONED, and both
+     were `z-index: auto` — so they painted in DOM order and the inner, which
+     comes second, sat on top. It is `height: 100%` and `max-width: 1314px` with
+     102px of top padding, i.e. a transparent box directly over the ✕, and it
+     swallowed every pointer event that landed within the card.
+
+     The pixels that still worked were the ones sticking out past the card's
+     right edge: the mark spans 40–92px in from the viewport's right, the card's
+     side gap is `(100vw - 1314px) / 2`, so at 1440px only 40–63px responded —
+     23 of its 52. It reads as a dead button with a live sliver, and it gets
+     worse the narrower the window, because the gap shrinks to nothing.
+
+     Above `.nav-mega-dd`'s 5 as well (the Type/Size dropdown). Those can't reach
+     the ✕ today — the inner's 102px top padding keeps them below it — but the
+     ✕ is the popup's escape hatch and nothing inside the card should ever be
+     able to cover it again. */
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Figma's "Desktop — 52" close frame. The box has to hold the mark, or the
+     flex centring clips it. */
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* NO hover effect, and `background` has to be said out loud to get one.
+   The grey square that showed up behind the mark is not ours — a host theme
+   styling bare `button:hover { background: … }` is (0,1,1) and outranks
+   .nav-mega-close at (0,1,0). The dev harness ships exactly that rule
+   (`button:hover { background: #f3f4f6 }`), which is why it is visible there
+   as well as on a themed page. Restating it at (0,2,0) settles it.
+   The accent recolour goes too: the ✕ is the popup's escape hatch and does not
+   need to react to being passed over. */
+.nav-mega-close:hover,
+.nav-mega-close:active {
+  background: none;
+  color: #fff;
+}
+/* Keyboard users still need to see where they are — the hover pin above must
+   not take that with it. */
+.nav-mega-close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* ── The ✕'s size is stated in CSS, never left to the SVG ─────────────────
+   A CSS declaration beats a presentation attribute, so a host rule of the kind
+   themes ship — `svg { width: 1em; height: 1em }`, `svg { max-width: 100% }` —
+   can no longer shrink it. An inherited 11px font-size rendering an `em`-sized
+   icon at 11px is exactly how this went wrong once. Same fight as the
+   `!important` typography above: it only ever shows on a themed page, never in
+   the dev harness.
+
+   The two marks are deliberately DIFFERENT sizes, and both are now one of the
+   TWO SIZES FIGMA ACTUALLY SHIPS the close component in — "Desktop — 52" for
+   the overlay ✕ that sits alone in the viewport's corner, "Mobile — 32" for the
+   in-header one beside a heading. They used to be 30 and 34, neither of which is
+   a frame: `CloseCircleIcon` branches on `size <= 32` to draw the mobile
+   export's thinner ring (stroke 2, inset 1) rather than the desktop's (stroke 3,
+   inset 1.5), so at 34 even the MOBILE ✕ was rendering the desktop mark scaled
+   down. Keep these two numbers in step with the `size` props in
+   FindStorageMegaMenu.tsx.
+
+   `flex-shrink: 0` for the mobile one, whose header row would otherwise be
+   allowed to squeeze it. */
+/* `pointer-events: none` so the BUTTON is the hit target for its whole box, not
+   the glyph. `CloseCircleIcon outlined` is a stroked ring over `fill="none"`, so
+   hit-testing the artwork alone would only catch the 3px ring and the X strokes
+   — the ring's interior paints nothing. Browsers do fall the event through to
+   the <svg> and on to the button, but stating it here means the 52×52 target is
+   the button's box by construction rather than by that fallback. */
+.nav-mega-close svg,
+.nav-mega-m-close svg {
+  pointer-events: none;
+}
+
+.nav-mega-close svg {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+.nav-mega-m-close svg {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+/* ── Three columns ───────────────────────────────────────────────────────── */
+
+/* The Figma card's own proportions (440 / 294 / 588 of 1322). Fixed tracks, not
+   `auto`: the states column must not stretch to fill the space the cities column
+   leaves behind before a state is picked. */
+.nav-mega-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 440fr) minmax(0, 294fr) minmax(0, 588fr);
+  align-items: stretch;
+}
+
+/* Single-state portfolio: the SELECT STATE column is not rendered, so the cities
+   take its 294fr on top of their own 588fr. The search column keeps its divider,
+   which leaves exactly one hairline — between search and cities — as it should. */
+.nav-mega-panels--one-state {
+  grid-template-columns: minmax(0, 440fr) minmax(0, 882fr);
+}
+
+/* EACH COLUMN SCROLLS ITSELF. With .nav-mega-inner no longer scrolling, this is
+   where a too-tall panel is absorbed — and per column rather than for the whole
+   card, so scrolling the search column can't drag the state list away with it.
+
+   In practice only the SEARCH column ever engages: the states and cities lists
+   below are capped at `52vh`, which scales with the viewport and so always fits
+   the room the popup has, whereas column one (two fields, the search row, a rule
+   and three facility rows each with a rating line) runs ~680px and overflows a
+   laptop. That was the scrollbar being reported.
+
+   `min-height: 0` so the grid item can shrink below its content height —
+   `align-items: stretch` on .nav-mega-panels then gives every column the row's
+   height to scroll within. `overflow-x: hidden` because setting `overflow-y`
+   makes CSS compute the x axis to `auto` too, and the states list bleeds 12px
+   left for the selected pill. */
+.nav-mega-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 32px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* THE COLUMN SCROLLS; ITS CONTENTS DO NOT SHRINK. Without this, flex resolves a
+   too-tall column by squeezing the children instead — and the states/cities
+   lists are scroll containers, whose automatic minimum size is 0, so they would
+   collapse into ~100px portholes and the column would never scroll at all. Same
+   trap the mobile panel documents for its own single scrollport. Natural heights
+   plus a scrolling parent is the behaviour that was asked for. */
+.nav-mega-col > * {
+  flex-shrink: 0;
+}
+
+/* Hairlines between the columns.
+   AUDIT frame title: "Dividing Lines Match Length on Column Content". They do:
+   the grid row is as tall as the TALLEST column's content, and the reference
+   frame draws both lines that same full length rather than clipping each to its
+   own neighbour.
+
+   Still true now that .nav-mega-panels is a flex item: it keeps the default
+   `flex-basis: auto`, so with room to spare it is its CONTENT height and the
+   lines stop where the content does. It only shrinks — and the lines only reach
+   the popup's full height — once the content would have overflowed, which is
+   exactly when the columns start scrolling. */
+.nav-mega-col--search,
+.nav-mega-col--states {
+  border-right: 1px solid var(--nav-mega-rule);
+}
+
+.nav-mega-col--search {
+  gap: 24px;
+  padding-left: 0;
+}
+
+/* ── Three facilities or fewer: one map card each ─────────────────────────
+   Figma 10630-54517 ("Storage Locations 3"). A centred block — the frame's cards
+   run 448…1238 of a 1600px canvas, i.e. ~790px in the middle — holding the row of
+   cards with the search field beneath it. */
+
+.nav-mega-small {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 798px;
+  margin: 0 auto;
+  /* Its own scrollport: this frame is one centred block with no columns to
+     distribute overflow into, and .nav-mega-inner no longer scrolls for it. */
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Cards and the field below them keep their drawn heights; the block scrolls.
+   Same reasoning as `.nav-mega-col > *`. */
+.nav-mega-small > * {
+  flex-shrink: 0;
+}
+
+/* Three across in the frame; `auto-fit` so one or two facilities centre instead
+   of hugging the left edge with a hole beside them. */
+.nav-mega-locmaps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 249px));
+  justify-content: center;
+  gap: 21px;
+}
+
+.nav-mega-locmap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.nav-mega-locmap-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.nav-mega-locmap-head:hover .nav-mega-locmap-city {
+  color: var(--nav-mega-accent);
+  text-decoration: underline;
+}
+
+.nav-mega-locmap-city {
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+}
+
+.nav-mega-locmap-street {
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+}
+
+/* The map itself is a plain rectangle in the frame — the 16px radius NearbyMap
+   applies inline is softened to the 4px the card uses. */
+.nav-mega-locmap-canvas {
+  border-radius: 4px !important;
+}
+
+.nav-mega-block {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* The frame's nearby group is tighter than the search group above it: 8px from
+   the heading to the first row, against the search block's 16. */
+.nav-mega-block--nearby {
+  gap: 8px;
+}
+
+.nav-mega-rule {
+  height: 1px;
+  background: var(--nav-mega-rule);
+}
+
+/* ── Typography is `!important` on purpose ────────────────────────────────
+   Duda's theme sizes headings and links from ID-SCOPED selectors (`#dm h3`,
+   `#dm a`, …). An id beats any number of classes, so `.nav-mega-heading` loses
+   the cascade on a published page and SELECT STATE / NEARBY STORAGE FACILITIES
+   render at the theme's heading size instead of the Figma's 16 / 14. Same fight
+   the drawer's `ul` reset already fights in NavigationBar.css — and it only shows
+   up on the live site, never in the dev harness, which has no such rules.
+
+   Font size, weight, family and line-height carry `!important` on every text
+   node in the panel for that reason. Colour and spacing do not: the theme has no
+   equivalent id-scoped rules for them here. */
+
+.nav-mega-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 !important;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: normal !important;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+/* Figma 10557-107158: "NEARBY STORAGE FACILITIES" is 14, not the 16 above. */
+.nav-mega-heading--sm {
+  font-size: 14px !important;
+}
+
+.nav-mega-heading-count {
+  font-weight: 400 !important;
+}
+
+/* Shared scroll behaviour for the states / cities lists, mobile's pages, and
+   now the desktop columns and the map frame. The scrollbar is styled for the
+   dark panel — the default light one is nearly invisible on #111.
+
+   The look is on a comma list rather than `.nav-mega-scroll` alone because the
+   columns are scrollports by their own rule (they are not tagged in the JSX),
+   and an unstyled native scrollbar appearing on only some of the popup's boxes
+   is worse than none. */
+.nav-mega-scroll {
+  overflow-y: auto;
+}
+
+.nav-mega-scroll,
+.nav-mega-col,
+.nav-mega-small {
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.45) transparent;
+}
+
+.nav-mega-scroll::-webkit-scrollbar,
+.nav-mega-col::-webkit-scrollbar,
+.nav-mega-small::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nav-mega-scroll::-webkit-scrollbar-thumb,
+.nav-mega-col::-webkit-scrollbar-thumb,
+.nav-mega-small::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 3px;
+}
+
+.nav-mega-scroll::-webkit-scrollbar-track,
+.nav-mega-col::-webkit-scrollbar-track,
+.nav-mega-small::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Column 1: search + nearby facilities ────────────────────────────────── */
+
+.nav-mega-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nav-mega-selects {
+  display: flex;
+  gap: 16px;
+}
+
+/* The shared kit has no Select yet, so these are built from the same Figma
+   ".Form 2.0" box as <FormField> — white, 1px #a5b4bf, 8px radius, 56px tall.
+   The list that drops out of it is the NAV's dropdown (see .nav-mega-dd below);
+   it used to be a native <select>, whose open list was drawn by the OS. Swap the
+   whole thing for the kit component when one lands. */
+.nav-mega-select {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* The box itself. A <button>, so it opens the listbox and is reachable by
+   keyboard without a native control. */
+.nav-mega-select-btn {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  /* Explicit, not the default: host stylesheets love to write
+     `button { align-items: center }` (the dev harness does, and Duda themes do
+     the same). Inherited into a COLUMN flex, `center` is the horizontal axis — it
+     floated "Type" into the middle of the box while the value below it stayed
+     left. Same class of trap as Duda's `ul` padding reset. */
+  align-items: stretch;
+  text-align: left;
+  gap: 2px;
+  height: 56px;
+  padding: 0 16px;
+  background: #fff;
+  border: 1px solid #a5b4bf;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* The box was a <label> wrapping a native select, which brought its own focus
+   ring; a <button> needs one stated. Border + ring rather than the UA outline so
+   it reads against the white field on the dark panel. */
+.nav-mega-select-btn:focus-visible {
+  outline: none;
+  border-color: #101318;
+  box-shadow: 0 0 0 3px rgba(16, 19, 24, 0.25);
+}
+
+/* Figma: the value sits under the label, 16px, near-black. */
+.nav-mega-select-value {
+  display: block;
+  width: 100%;
+  padding-right: 24px;
+  overflow: hidden;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 16px !important;
+  line-height: 20px !important;
+  color: #101318;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── The open list — Figma "Sub Tab Element" (11691-240556) ───────────────
+   Deliberately the same look as NavigationBar.css's `.nav-dd-panel`/`.nav-dd-item`
+   (white, 12px radius, #eee hairline, one inset bottom rule per row, rows 42px
+   at 15/10 padding, Montserrat 14): the audit asks for the nav's dropdown, and
+   two copies of one look drift apart. `min(…, 12rem)` caps a long list so it
+   scrolls inside the panel instead of running past the panel's bottom edge —
+   the popup's wheel handler finds this scroller and lets it move. */
+/* NO max-height and NO scroller: the list drops open at its full height.
+   `min(12rem, 40vh)` was ~4.5 of the 42px rows, so Size (five options) opened as
+   a short scrollbox with its last row cut in half — a native <select> would have
+   shown all five, and the audit note this component answers asked for the nav's
+   dropdown, not a scroller. Safe to uncap because both option lists are
+   module-level constants (TYPE_OPTIONS: 2, SIZE_OPTIONS: 5) that nothing
+   populates at runtime; a list that could grow would need the cap back. */
+.nav-mega-dd {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+.nav-mega-dd-item {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 10px 15px;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  color: #000;
+  cursor: pointer;
+}
+
+/* One highlight for hover AND the keyboard cursor, so arrowing through the list
+   looks like moving the mouse down it. */
+.nav-mega-dd-item.is-active {
+  background: #f9fafb;
+}
+
+.nav-mega-dd-item[aria-selected='true'] {
+  font-weight: 600 !important;
+}
+
+/* The last row owns the panel's rounded bottom corners, so its inset rule can't
+   draw a line across them. */
+.nav-mega-dd-item:last-child {
+  box-shadow: none;
+  border-radius: 0 0 12px 12px;
+}
+
+/* Figma: 12px label directly above the 16px value, both flush to the box's 16px
+   left padding. `display: block` so it fills the row and can't be re-centred. */
+.nav-mega-select-label {
+  display: block;
+  width: 100%;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 12px !important;
+  line-height: 15px !important;
+  color: #637381;
+  text-align: left;
+}
+
+/* Chevron (Figma's caret-down), drawn on the wrapper so it sits over the button
+   without being part of its flex column. */
+.nav-mega-select::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 12px;
+  height: 8px;
+  transform: translateY(-50%);
+  background: #101318;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  pointer-events: none;
+}
+
+.nav-mega-search-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.nav-mega-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 56×56 icon-only square, in the same accent as the count bubbles and the pins.
+   Since the audit moved that accent onto `--hb-cta`, this tone override now
+   resolves to the kit's own CTA colour — which is the point of the note: the
+   button is a CTA and follows the CTA token. Kept explicit so the button, the
+   bubbles and the pins can never drift apart. */
+.nav-mega-search-btn.hb-btn {
+  --hb-btn-tone: var(--nav-mega-accent);
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: 8px;
+}
+
+/* Visually hidden label — the button shows only the magnifier, but a screen
+   reader (and a failed icon render) still gets "Search". */
+.nav-mega-search-btn.hb-btn > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.nav-mega-locations {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* One link per facility, covering the name, address and phone lines. */
+.nav-mega-loc {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  color: #fff;
+  text-decoration: none;
+}
+
+.nav-mega-loc > svg {
+  flex-shrink: 0;
+  color: var(--nav-mega-accent);
+}
+
+.nav-mega-loc-data {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Figma: Montserrat Regular 18 / 1.1 — the facility name and its distance. */
+.nav-mega-loc-name {
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  line-height: 1.1 !important;
+  color: #fff;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Hover belongs to the row now — the name is no longer a link of its own. */
+.nav-mega-loc:hover .nav-mega-loc-name {
+  color: var(--nav-mega-accent);
+}
+
+/* ── Facility rating row — AUDIT: "Add in Reviews" ───────────────────────
+   Figma 11681-240163: `4.5` (SemiBold 16) · five 16px stars, no gap between
+   them · `32 Reviews` (Medium 14, underlined), the three groups 8px apart. It
+   sits between the facility name and its address line. */
+.nav-mega-loc-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-mega-loc-score {
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  line-height: 1.5 !important;
+  color: #fff;
+}
+
+/* Gold, not the CTA accent — the stars are the frame's one exception. */
+.nav-mega-stars {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--nav-mega-star);
+}
+
+.nav-mega-loc-reviews {
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  color: #fff;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+/* Figma: Montserrat Medium 14 / 1.5, underlined, 4px from its 16px icon. */
+.nav-mega-loc-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  color: #fff;
+  text-decoration: underline;
+}
+
+.nav-mega-loc-line svg {
+  flex-shrink: 0;
+}
+
+.nav-mega-empty {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 14px !important;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Column 2: states (one column) ───────────────────────────────────────── */
+
+.nav-mega-states {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* ~13 rows before it scrolls; capped against the viewport so a laptop-height
+     window doesn't push the panel off-screen. */
+  max-height: min(52vh, 442px);
+  /* ROOM FOR THE PILL'S LEFT BLEED. This box is a scrollport
+     (`.nav-mega-scroll` sets `overflow-y: auto`, and CSS then computes
+     `overflow-x` to `auto` too), and a scrollport CLIPS at its padding box — so
+     the selected pill's `margin-left: -12px` was being sliced off square, giving
+     the capsule one rounded end and one flat one. The 12px of padding is the
+     room it needs; the equal negative margin puts the label back on the column's
+     own text edge, and the widened box keeps the scrollbar at the right edge
+     where it was. */
+  box-sizing: border-box;
+  width: calc(100% + 12px);
+  margin-left: -12px;
+  padding-left: 12px;
+}
+
+/* The selected state is a white outline pill (Figma). The 12px padding is on
+   every row and cancelled by the negative margin, so switching state can't nudge
+   the column sideways — only the border colour changes. */
+.nav-mega-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* AUDIT: "Pill is cut off - Please match the design from Figma".
+     It was `width: 100%`, so the pill was as wide as the whole column and its
+     right end ran under the column divider. In the frame every state-item is a
+     different width (100 / 122 / 149px) — the pill HUGS its label and count, and
+     the `-12px` bleed into the column's padding is what keeps the label itself
+     lined up with the unselected rows. `max-width` keeps a long state name from
+     reaching the divider again. */
+  width: fit-content;
+  max-width: 100%;
+  min-height: 34px;
+  margin-left: -12px;
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-radius: 100px;
+  background: none;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  line-height: normal !important;
+  color: #fff;
+  text-align: left;
+  /* This row is an <a> (the state page) that also opens its city list, so it
+     needs the link decoration stripped back to the button it looks like. */
+  text-decoration: none;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+/* Hovering a state reads exactly like hovering a city in the third column —
+   the label takes the accent and underlines. The outline this replaces drew a
+   second pill beside the selected one, so two rows looked chosen at once.
+
+   :not(.is-active) is the whole point rather than tidiness: the SELECTED row is
+   already a solid white pill, and recolouring or underlining its label on the
+   way past would undo the one state that is meant to look settled. Hovering it
+   now does nothing, which is right — it is where you already are. */
+.nav-mega-state:not(.is-active):hover .nav-mega-state-name {
+  color: var(--nav-mega-accent);
+  text-decoration: underline;
+}
+
+/* The frame's selected pill is SOLID white with near-black text, not a white
+   outline over the panel — see the audit's reference frame (California 38). The
+   count bubble inside stays the accent colour with white text, which is why the
+   bubble's own rule comes after this one. */
+.nav-mega-state.is-active {
+  border-color: #fff;
+  background: #fff;
+  color: #101318;
+}
+
+.nav-mega-bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--nav-mega-accent);
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 20px !important;
+  color: #fff;
+}
+
+/* ── Column 3: cities (two columns) ──────────────────────────────────────── */
+
+.nav-mega-cities-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 20px;
+}
+
+.nav-mega-cities {
+  width: 100%;
+  max-height: min(52vh, 442px);
+  /* A third column (the sequential fill above overflowing) is CLIPPED, not
+     scrolled sideways: the way to the rest of the list is "See all cities", which
+     is what the designer's "Data Overflow" note asks for. Without this, `overflow-y`
+     forces the x axis to `auto` and the panel grows a horizontal scrollbar. */
+  overflow-x: hidden;
+}
+
+/* CSS columns, not a grid: the list runs alphabetically DOWN column one and on
+   into column two, which is how the Figma fills it. The scroll lives on the
+   parent, so both columns move together under one scrollbar.
+
+   AUDIT: "Only go to 2 columns if there is no more room in column 1".
+   `column-count: 2` alone BALANCES — five cities came out three and two, which
+   is what the audited screenshot shows. `column-fill: auto` fills column one to
+   the container's height first and only then starts column two, but it needs a
+   DEFINITE height to fill to: hence the height here rather than on the parent
+   (which keeps its max-height for the scroll). Same value both places.
+
+   The definite height reserves 442px even for a five-city list, which would
+   normally show as dead space — it doesn't here: the search column beside it
+   (two fields, the search row, a rule and three facility rows, each now with a
+   rating line) is taller than 442px in every case, so the panel's height is set
+   there and this reservation never shows. */
+.nav-mega-city-cols {
+  column-count: 2;
+  column-gap: 24px;
+  column-fill: auto;
+  height: min(52vh, 442px);
+}
+
+.nav-mega-city {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 12px 6px 0;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  line-height: normal !important;
+  color: #fff;
+  text-decoration: none;
+  /* Never let a row be split across the column break. */
+  break-inside: avoid;
+}
+
+.nav-mega-city:hover .nav-mega-city-name {
+  color: var(--nav-mega-accent);
+  text-decoration: underline;
+}
+
+.nav-mega-city-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sits at the right-hand end of the cities header row (Figma: Montserrat
+   regular 16, underlined, uppercase). Shown only when the list scrolls. */
+.nav-mega-seeall {
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 16px !important;
+  line-height: normal !important;
+  color: #fff;
+  text-decoration: underline;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.nav-mega-seeall:hover {
+  color: var(--nav-mega-accent);
+}
+
+/* ── Page 2: every city in one state, four columns ───────────────────────── */
+
+/* No side padding: the header and first city column line up with the search
+   column on page 1, which starts at the card's own edge. */
+.nav-mega-all {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+}
+
+/* The whole header is the back control — chevron + STATE + ( count ). It stays
+   put while the columns scroll underneath, per the Figma's scroll note. */
+.nav-mega-back {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 16px !important;
+  line-height: normal !important;
+  color: #fff;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.nav-mega-back:hover {
+  color: var(--nav-mega-accent);
+}
+
+.nav-mega-back-state {
+  font-weight: 700;
+}
+
+.nav-mega-back-count {
+  font-weight: 400;
+}
+
+.nav-mega-all-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.nav-mega-all-cols {
+  column-count: 4;
+  column-gap: 24px;
+}
+
+/* ── Mobile: Figma 10692-81757 (search + states) and 10692-82124 (cities) ──
+   One column at a time. The markup for these two pages is chosen in JS at the
+   same 1024px breakpoint (see useIsMobile), so a rule here only ever has the
+   mobile pages to style — but it stays inside the media query anyway, so the two
+   can never disagree about which layout is on screen. */
+
+.nav-mega-m {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: 100%;
+}
+
+/* Heading (or the back control) on the left, ✕ on the right — both frames. */
+.nav-mega-m-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.nav-mega-m-close {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  /* Figma's "Mobile — 32" close frame — the box has to hold the mark, or the
+     flex centring clips it. The desktop overlay ✕ is the 52 frame instead. */
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* Page 1's body: search rule → nearby facilities → rule → states, scrolling as
+   ONE column below the fixed header (Figma 10692-81165). */
+.nav-mega-m-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 0;
+}
+
+/* The states / cities list: one column filling whatever is left below the
+   header. On page 2 it is the scrollport itself; on page 1 it rides inside
+   .nav-mega-m-page and grows instead. */
+.nav-mega-m-list {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Full width on a phone — the desktop rows reserve room for a second column. */
+.nav-mega-m-list .nav-mega-city {
+  padding-right: 0;
+}
+
+/* The Figma draws the picked state as a FILLED white pill. `:active`, not
+   `.is-active`: a tap goes straight to the city list, so a persistent selection
+   would never be seen — this is the touch feedback on the way there. */
+.nav-mega-m .nav-mega-state:active {
+  border-color: #fff;
+  background: #fff;
+  color: #101318;
+}
+
+@media (max-width: 1024px) {
+  /* Figma's 440px frame has 36px gutters and 40px above the header row, clamped
+     so they don't eat a 360px phone alive. */
+  .nav-mega-inner {
+    max-width: none;
+    padding: 32px clamp(20px, 6vw, 36px) 24px;
+  }
+
+  /* The ✕ moves INTO the header row on mobile (both frames); the desktop one is
+     parked against the viewport's corner, past the card's edge. */
+  .nav-mega-close {
+    display: none;
+  }
+}

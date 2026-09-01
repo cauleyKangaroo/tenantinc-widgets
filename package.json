@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "smoke": "npm run build && node dev/smoke-test.js",
+    "test:phone": "tsc src/shared/ui/phone.ts --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck --outDir .tmp-test && node dev/phone-test.js",
     "deploy": "gulp upload:dry && npm run build && gulp upload",
     "deploy:dev": "cross-env DEPLOY_TARGET=dev npm run deploy",
     "deploy:demo": "cross-env DEPLOY_TARGET=demo npm run deploy",
@@ -15,8 +16,10 @@
     "upload:dry": "gulp upload:dry"
   },
   "dependencies": {
+    "libphonenumber-js": "^1.13.10",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-qr-code": "^2.2.0"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",

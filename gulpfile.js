@@ -11,9 +11,8 @@ const parallelize = require('concurrent-transform');
 // ---------------------------------------------------------------------------
 // Branch -> S3 folder
 //
-// REPLACE the two folder names below with the real folders in the bucket.
-// Everything else keys off this map: add a branch here and it becomes
-// deployable, remove it and deploys from that branch are refused.
+// Everything keys off this map: add a branch here and it becomes deployable,
+// remove it and deploys from that branch are refused.
 // ---------------------------------------------------------------------------
 const BRANCH_PREFIX_MAP = {
   dev: 'duda-widgets',

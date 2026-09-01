@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { propertyImage } from '@shared/demoImages';
+import { fetchPropertyHeroImages } from '@shared/propertyImages';
 import {
   fetchProperties,
   extractNearbyProperties,
@@ -8,9 +9,14 @@ import {
   fetchPropertySpaces,
   formatDistance,
 } from '@shared/nearbyProperties';
-import { useSwipe } from '@shared/useSwipe';
+import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
+import { CarouselDots } from '@shared/CarouselDots';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
 import cfg from '../../config.json';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { usePropertyId } from '../../propertyContext';
+import { PromoTagIcon } from '../Pricing';
+import { CarouselChevron } from '../chevron';
 
 type ViewMode = 'list' | 'map';
 
@@ -53,13 +59,12 @@ const DEMO_PROPERTIES: NearbyProperty[] = [
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
-function TagIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="#509e2f" xmlns="http://www.w3.org/2000/svg">
-      <path d="M21.41 11.58l-9-9A2 2 0 0011 2H4a2 2 0 00-2 2v7a2 2 0 00.59 1.42l9 9a2 2 0 002.82 0l7-7a2 2 0 000-2.84zM6.5 8A1.5 1.5 0 115 6.5 1.5 1.5 0 016.5 8z"/>
-    </svg>
-  );
-}
+// Tag mark: the exact Figma vector, same as #07 nearby-locations uses. Imported
+// as PromoTagIcon (identical path, already in this widget) rather than kept as a
+// third copy — the local one here was a rough 24x24 stand-in with a hardcoded
+// #509e2f fill, so it neither matched the shape nor could be themed.
+const TagIcon = PromoTagIcon;
+
 
 function MapPinIcon() {
   return (
@@ -232,8 +237,12 @@ function SkeletonCard() {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function NearbySection() {
+  // Which facility this Space List is showing — from Duda via SpaceList, '' when
+  // unbound. Deliberately NOT cfg.propertyId: that build-time value belongs to a
+  // different company on this site, so using it would anchor "nearby" to a
+  // property that isn't in the list and exclude nothing.
+  const currentPropertyId = usePropertyId();
   const [view, setView] = useState<ViewMode>('list');
-  const [page, setPage] = useState(0);
 
   // null = still loading; [] = loaded but nothing nearby.
   const [apiProps, setApiProps] = useState<NearbyProperty[] | null>(null);
@@ -247,13 +256,21 @@ export function NearbySection() {
 
     (async () => {
       try {
+        // Company comes from the `Company` collection, not config.json — see
+        // @shared/companySource. Cached, so this shares the page's single read.
+        const creds = {
+          ...cfg,
+          companyId: await resolveCompanyIdFromSources('#05 nearby', {}, cfg.companyId),
+        };
         const [raw, userLoc] = await Promise.all([
-          fetchProperties(cfg, { requirePropertyId: cfg.propertyId }),
+          // No requirePropertyId: this section wants ALL the company's properties,
+          // and the collection is the site's own data — nothing to distrust.
+          fetchProperties(creds, {}),
           getUserLocation(),
         ]);
         const all = extractNearbyProperties(raw, cfg.appId);
 
-        const current = all.find((p) => p.id === cfg.propertyId);
+        const current = currentPropertyId ? all.find((p) => p.id === currentPropertyId) : undefined;
         const ref = userLoc
           ? { ...userLoc, source: 'user' as const }
           : current
@@ -262,10 +279,14 @@ export function NearbySection() {
         if (!ref) { if (!cancelled) setApiProps([]); return; }
 
         const ranked = all
-          .filter((p) => p.id !== cfg.propertyId)
+          .filter((p) => p.id !== currentPropertyId)
           .map((p) => ({ p, distanceMiles: haversineMiles(ref, p) }))
           .sort((a, b) => a.distanceMiles - b.distanceMiles)
           .slice(0, MAX_NEARBY);
+
+        // Hero photos for the whole list in one read (see @shared/propertyImages).
+        // Fails soft: without it each card keeps the API's own image.
+        const heroes = await fetchPropertyHeroImages().catch(() => new Map<string, string>());
 
         // Stage 1: paint cards with distance/name/address/phone immediately.
         const base: NearbyProperty[] = ranked.map(({ p, distanceMiles }) => ({
@@ -273,7 +294,8 @@ export function NearbySection() {
           name: p.name,
           lat: p.lat,
           lng: p.lng,
-          imageUrl: p.imageUrl,
+          // The operator's chosen hero beats the API's Images field.
+          imageUrl: heroes.get(p.id) || p.imageUrl,
           distanceMiles,
           address: p.address,
           phone: p.phone,
@@ -314,7 +336,7 @@ export function NearbySection() {
     })();
 
     return () => { cancelled = true; };
-  }, []);
+  }, [currentPropertyId]);
 
   // While loading we render a skeleton card — showing DEMO_PROPERTIES here meant
   // real-looking names/prices flashed up and were then replaced. Demo data is
@@ -323,13 +345,14 @@ export function NearbySection() {
   const loading = apiProps === null;
   const properties = apiProps && apiProps.length ? apiProps : DEMO_PROPERTIES;
   const total = properties.length;
-  const safePage = Math.min(page, total - 1);
-  const property = properties[safePage];
-
-  const swipe = useSwipe({
-    onSwipeLeft: () => setPage(Math.min(total - 1, safePage + 1)),
-    onSwipeRight: () => setPage(Math.max(0, safePage - 1)),
-  });
+  /* The header badge is counted in SectionAccordion, not here: this component
+     is unmounted while the section is closed, so anything it reported would
+     vanish the moment somebody collapsed it. */
+  // One card at a time, dragged with the finger — same shared hook the blog
+  // listing uses, so the feel and the 6-dot cap stay identical across widgets.
+  const carousel = useCarousel({ count: total, perView: 1, draggable: true });
+  const reduceMotion = usePrefersReducedMotion();
+  const safePage = carousel.index;
 
   // Map pins from the live nearby list (price = cheapest starting rate).
   const mapPoints: MapPoint[] = (apiProps ?? []).map((p, i) => ({
@@ -354,7 +377,10 @@ export function NearbySection() {
 
       {/* Content */}
       {/* Swipeable: the arrows are hidden on mobile (see SpaceList.css). */}
-      <div className="sl-nb2-content" {...swipe.handlers}>
+      {/* Swipe pages the cards, so it is list-view only too: on the map it would
+          be invisible navigation with no dots to reflect it, and it would fight
+          the map's own drag-to-pan. */}
+      <div className={`sl-nb2-content${view === 'list' ? '' : ' sl-nb2-content--no-pager'}`}>
         {loading && view === 'list' ? (
           <SkeletonCard />
         ) : view === 'map' ? (
@@ -366,26 +392,59 @@ export function NearbySection() {
             </div>
           )
         ) : (
-          <PropertyCard p={property} index={safePage} />
+          /* Every property renders once and one transform slides the row; the
+             window clips the rest. Drag handlers live on the window so a swipe
+             anywhere over the card moves it. List view only — on the map a drag
+             would fight the map's own pan. */
+          <div className="sl-nb2-track-window" {...carousel.handlers}>
+            <div
+              className="sl-nb2-track"
+              style={{
+                transform: `translateX(calc(${(carousel.offsetPct / 100).toFixed(6)} * (100% + 10px)))`,
+                transition:
+                  reduceMotion || carousel.dragging
+                    ? 'none'
+                    : 'transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)',
+              }}
+            >
+              {properties.map((p, i) => (
+                <div
+                  className="sl-nb2-track-item"
+                  key={p.id ?? i}
+                  {...(i === safePage ? {} : { inert: '' as unknown as boolean })}
+                  aria-hidden={i === safePage ? undefined : true}
+                >
+                  <PropertyCard p={p} index={i} />
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Pagination — hidden while loading, since the count isn't known yet */}
-      <div className="sl-nb2-pagination" style={loading ? { visibility: 'hidden' } : undefined}>
-        <button className="sl-nb2-arrow" onClick={() => setPage(Math.max(0, safePage - 1))} disabled={safePage === 0}>
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="24 12 16 20 24 28"/>
-          </svg>
-        </button>
-        {properties.map((_, i) => (
-          <button key={i} className={`sl-nb2-dot${i === safePage ? ' active' : ''}`} onClick={() => setPage(i)} />
-        ))}
-        <button className="sl-nb2-arrow" onClick={() => setPage(Math.min(total - 1, safePage + 1))} disabled={safePage === total - 1}>
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="16 12 24 20 16 28"/>
-          </svg>
-        </button>
-      </div>
+      {/* Pagination — LIST VIEW ONLY. The map plots every property at once, so
+          there is nothing to page through there. Still only hidden (not
+          unmounted) while loading, so the row keeps its height instead of the
+          cards jumping when the count arrives. */}
+      {view === 'list' && (
+        <div className="sl-nb2-pagination" style={loading ? { visibility: 'hidden' } : undefined}>
+          <button className="sl-nb2-arrow" onClick={carousel.prev} disabled={!carousel.canPrev} aria-label="Previous property">
+            <CarouselChevron dir="left" />
+          </button>
+          {/* Capped at 6 with the window sliding — a company with 20 nearby
+              properties must not print 20 dots. */}
+          <CarouselDots
+            count={total}
+            active={safePage}
+            onPick={carousel.goTo}
+            dotClass="sl-nb2-dot"
+            label="Go to nearby property {n}"
+          />
+          <button className="sl-nb2-arrow" onClick={carousel.next} disabled={!carousel.canNext} aria-label="Next property">
+            <CarouselChevron dir="right" />
+          </button>
+        </div>
+      )}
 
     </div>
   );

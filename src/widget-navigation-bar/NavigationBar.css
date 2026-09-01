@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+/* 500 is here for the mega menu's address/phone lines, which the Figma sets in
+   Montserrat MEDIUM. Without it the browser synthesises the weight off 400 and
+   those lines render visibly lighter and narrower than the frame. */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
@@ -58,7 +61,7 @@
   align-items: center;
   gap: 9px;
   font-family: 'Montserrat', sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
   color: #000;
@@ -93,14 +96,14 @@
   position: relative;
   max-width: 1314px;
   margin: 0 auto;
-  min-height: 100px;
+  min-height: 85px;
   padding: 0 24px 0 285px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
 }
 
-/* Height (content-menu: Height) — Narrow 100px (default) / Wide 180px. */
+/* Height (content-menu: Height) — Narrow 85px (default) / Wide 180px. */
 .nav-bar.is-wide .nav-inner {
   min-height: 180px;
 }
@@ -149,11 +152,15 @@
   z-index: 5;
 }
 
-/* Single-bar mode (top bar off): shorter nav → smaller tile. */
+/* Single-bar mode (top bar off): one 85px bar, so the tile carries the brand
+   on its own and hangs below it. The logo is `width: 100%` of this box at a
+   ~2.25:1 aspect, so the WIDTH is what sets how far it drops: 250 gives a
+   ~111px logo against an 85px bar — about 26px of overhang, where 210 gave 8px
+   and read as a logo that had merely been placed slightly low. */
 .nav-bar:not(.has-topbar) .nav-logo {
   top: 0;
-  width: 210px;
-  height: 104px;
+  width: 250px;
+  height: 112px;
 }
 
 /* Wide height → taller banner tile. */
@@ -212,7 +219,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.5;
   color: #000;
@@ -225,8 +232,23 @@
   color: var(--color_1, #f45f30);
 }
 
+/* "Find Storage" is a <button> — it toggles the mega menu rather than navigating,
+   so it must not be a link. Reset the button chrome back to the link's look. */
+.nav-link-trigger {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
 .nav-link-chevron {
   color: #111;
+  transition: transform 0.15s ease;
+}
+
+.nav-link-chevron.is-open {
+  transform: rotate(180deg);
 }
 
 /* ── Two-level hover mega-menu ───────────────────────────────────────────── */
@@ -241,11 +263,9 @@
   z-index: 50;
 }
 
-/* First-level (states), second-level (cities) and third-level (facilities)
-   panels share a look. */
+/* First-level (states) and second-level (cities) panels share a look. */
 .nav-dd-panel,
-.nav-subpanel,
-.nav-subsubpanel {
+.nav-subpanel {
   list-style: none;
   margin: 0;
   /* 4px white spacers top/bottom, matching the Figma frame. */
@@ -257,10 +277,11 @@
   box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
 }
 
-/* The first-level panel and the leaf third-level panel clip their own rows; the
-   middle panel must stay visible so its third-level flyout can escape right. */
+/* Both panels clip their own rows to the 12px radius. The second-level one used
+   to be left un-clipped so its third-level flyout could escape to the right;
+   that flyout is gone, so it clips like the first now. */
 .nav-dd-panel,
-.nav-subsubpanel {
+.nav-subpanel {
   overflow: hidden;
 }
 
@@ -340,29 +361,6 @@
   white-space: nowrap;
 }
 
-.nav-sub-arrow {
-  flex-shrink: 0;
-  color: #000;
-}
-
-/* Third-level flyout (a city's facilities), revealed on hover, aligned so its
-   first row lines up with the hovered city. It opens to the LEFT of the cities
-   column: the nav links are right-aligned, so a rightward cascade would run off
-   the right edge of the viewport on wide screens. A left flyout is always
-   on-screen and paints above the (now-behind) first-level panel. */
-.nav-subsubpanel {
-  position: absolute;
-  right: 100%;
-  top: -4px;
-  min-width: 220px;
-  z-index: 10;
-  display: none;
-}
-
-.nav-sub-item:hover > .nav-subsubpanel {
-  display: block;
-}
-
 /* ── Inline actions — single-bar mode only (top bar toggled off) ─────────── */
 
 .nav-actions {
@@ -399,7 +397,7 @@
   font-size: 16px;
   font-weight: 700;
   line-height: 16px;
-  border-radius: 4px;
+  border-radius: 8px;
   text-decoration: none;
   white-space: nowrap;
   transition: background 0.15s;
@@ -413,8 +411,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  /* Matches the glyphs inside, so the control is the mark and nothing more. */
+  width: 40px;
+  height: 40px;
   background: none;
   border: none;
   padding: 0;
@@ -424,8 +423,30 @@
   flex-shrink: 0;
 }
 
+/* ONLY the colour moves on hover.
+   background/border/padding are restated across every state because a host's
+   bare `button:hover` — the dev harness ships one, and Duda themes do too — is
+   (0,1,1) and outranks the single class above it. That is where the grey pill
+   behind these icons was coming from; nothing of ours drew it. */
+.nav-icon-btn,
+.nav-icon-btn:hover,
+.nav-icon-btn:focus,
+.nav-icon-btn:active {
+  background: none;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
 .nav-icon-btn:hover {
   color: var(--color_1, #f45f30);
+}
+
+/* Wider than the 44px square: a flag plus a chevron does not fit one, and the
+   pair was overflowing its own button. Height stays, so it lines up with the
+   two icons beside it. */
+.nav-actions .nav-lang {
+  width: auto;
+  gap: 6px;
 }
 
 /* ── Mobile burger (hidden on desktop) ──────────────────────────────────── */
@@ -438,6 +459,27 @@
   cursor: pointer;
   color: #111;
 }
+
+/* Call + menu, mobile only. Hidden with the burger rather than on its own, so
+   the two can never disagree about which widths they belong to. */
+.nav-mobile-actions {
+  display: none;
+  align-items: center;
+  /* The frame's gap between the phone and the mark after it. */
+  gap: 20px;
+}
+.nav-mobile-call {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* #111 (PikaDark), the frame's stroke — not the theme link colour a bare <a>
+     would inherit, and no underline for the same reason. */
+  color: #111;
+  text-decoration: none;
+}
+.nav-mobile-call:hover,
+.nav-mobile-call:focus,
+.nav-mobile-call:active { color: #111; text-decoration: none; }
 
 /* ── Mobile full-screen menu (hamburger) ────────────────────────────────── */
 
@@ -465,6 +507,16 @@
   opacity: 0;
   transition: opacity 0.32s ease;
   cursor: pointer;
+  /* The page behind must not scroll while the drawer is open, and this widget
+     CANNOT use the body-overflow lock the other modals use: the nav bar is
+     `position: sticky`, and an overflow-hidden ancestor becomes a sticky
+     element's scrollport — a box that never scrolls — which drops the bar back
+     to its document position. FindStorageMegaMenu documents that exact
+     regression. So the scroll is refused here instead, the same way
+     .rfm-scrim does it in the rental flow.
+     Wheel has no CSS equivalent; a native non-passive listener covers it. */
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .nav-mobile-menu.is-open .nav-mm-overlay {
@@ -485,6 +537,9 @@
      extends the document scroll width (the white gap down the right). */
   overflow-x: hidden;
   overflow-y: auto;
+  /* The drawer scrolls; the page under it does not inherit the gesture when
+     the list reaches its end. */
+  overscroll-behavior: contain;
   box-shadow: -8px 0 24px rgba(16, 19, 24, 0.12);
   transform: translateX(100%);
   transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
@@ -503,7 +558,10 @@
 
 .nav-mm-header {
   display: flex;
-  align-items: flex-start;
+  /* Centred, not flex-start: the logo is the tall item and sets the bar's
+     height, so a top-aligned close sat high against it rather than on its
+     centre line. */
+  align-items: center;
   justify-content: space-between;
   padding: 0 20px 10px;
   flex-shrink: 0;
@@ -528,7 +586,12 @@
   justify-content: center;
   background: none;
   border: none;
-  padding: 4px;
+  /* No padding: the mark is a 32px disc and the box is 32px, so the SVG fills
+     it exactly. The old 4px drew a 40px box around a 24px mark. */
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
   cursor: pointer;
   color: #101318;
 }
@@ -542,12 +605,22 @@
 
 /* Quick actions grid — minmax(0, 1fr) columns can't force the row wider than
    the menu (equal columns that shrink to 0), so it never overflows. */
+/* ONE inset for everything down the drawer. The circles, the search bar, the
+   account links and the nav accordion were on 16px, 34px and 48px respectively,
+   so nothing lined up with anything above it. 34px is the frame's
+   (7101-46038: a 305px row inside 373). */
+.nav-mm-body { --nav-mm-inset: 34px; }
+
+/* The grey block: circles AND search (Figma 7101-46038). */
+.nav-mm-top {
+  background: #f9fafb;
+  padding: 32px var(--nav-mm-inset) 24px;
+}
+
 .nav-mm-quick {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  background: #f9fafb;
-  padding: 32px 16px;
 }
 
 .nav-mm-quick-item {
@@ -571,7 +644,8 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  border: 1px solid #101318;
+  /* 2px, per the frame — 1px read as a hairline against the 22px glyph. */
+  border: 2px solid #101318;
   border-radius: 50%;
   color: #101318;
 }
@@ -589,12 +663,15 @@
   align-items: center;
   gap: 8px;
   height: 50px;
-  margin: 0 34px 20px;
+  /* Inside .nav-mm-top now, so the block's own padding places it. */
+  margin: 32px 0 0;
   padding: 0 6px 0 16px;
   background: #fefefe;
   border: 1px solid #101318;
   border-radius: 100px;
   box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+  /* The whole bar is one button into the Find Storage panel — see the markup. */
+  cursor: pointer;
 }
 
 .nav-mm-search-input {
@@ -604,8 +681,9 @@
   outline: none;
   background: none;
   font-family: 'Montserrat', sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   color: #101318;
+  cursor: pointer;
 }
 
 .nav-mm-search-input::placeholder {
@@ -660,7 +738,7 @@
    .nav-mm-nav-inset below: an id-scoped list reset in Duda's own stylesheet beats
    a padded <ul> of ours and slams the links to the drawer's left edge. */
 .nav-mm-account-inset {
-  padding: 8px 48px 24px;
+  padding: 24px var(--nav-mm-inset);
 }
 
 .nav-mm-account {
@@ -706,7 +784,7 @@
    A div can't be caught by a list reset, so this is immune rather than merely
    more specific. `!important` on the ul is belt-and-braces for the same fight. */
 .nav-mm-nav-inset {
-  padding: 4px 48px 40px;
+  padding: 4px var(--nav-mm-inset) 40px;
 }
 
 .nav-mm-nav {
@@ -800,6 +878,8 @@
   }
 
   .nav-top-item {
+    /* The base is 14px now, so this holds the size rather than stepping it
+       down; the gap is what this rule is still here for. */
     font-size: 14px;
     gap: 6px;
   }
@@ -817,6 +897,9 @@
   }
 
   .nav-link {
+    /* Was the 18 -> 16 step. The base is 16 now, so this holds the size rather
+       than changing it — kept because the rule sets other properties and
+       deleting the line would be the only edit in it. */
     font-size: 16px;
   }
 }
@@ -868,21 +951,44 @@
     display: flex;
   }
 
+  .nav-mobile-actions {
+    display: flex;
+  }
+
   .nav-inner {
     justify-content: flex-end;
-    min-height: 88px;
+    /* Shorter than the desktop 85px: below 1024 the bar holds only the logo,
+       the call mark and the burger, so the height the nav links needed is
+       just empty air. */
+    min-height: 72px;
     padding: 0 24px;
   }
 
+  /* Bigger against that shorter bar — ~82px of logo over 72px of bar. */
   .nav-bar .nav-logo,
   .nav-bar:not(.has-topbar) .nav-logo {
     top: 0;
-    width: 150px;
-    height: 92px;
+    width: 185px;
+    height: 96px;
   }
 
   .nav-logo-img {
     width: 120px !important;
     height: auto !important;
+  }
+}
+
+/* Phones. Same trade as tablet, one step further: the bar gives up height and
+   the tile keeps it, so the brand stays the biggest thing on the row rather
+   than shrinking with everything around it. ~73px of logo over a 64px bar. */
+@media (max-width: 640px) {
+  .nav-inner {
+    min-height: 64px;
+  }
+
+  .nav-bar .nav-logo,
+  .nav-bar:not(.has-topbar) .nav-logo {
+    width: 165px;
+    height: 86px;
   }
 }

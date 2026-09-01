@@ -88,6 +88,33 @@
   min-height: 0;
 }
 
+/* ── Desktop column track ────────────────────────────────────────────────
+   Every page rendered once, one transform moving them. The window is exactly
+   one page wide, so the step is a plain 100% — unlike #12 and #07, whose items
+   are sized off the window at 1/perView and therefore need a pixel step.
+   Both axes clip: a page is a full-height grid, and there is no shadow here
+   reaching past it the way the blog cards' does. */
+.rw-track-window {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.rw-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+}
+.rw-track-page {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+}
+/* The grid inside a page has to fill it, or the equal-height rows collapse. */
+.rw-track-page > .rw-column-cards {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* ── Source header ──────────────────────────────────────────────────────── */
 
 .rw-source-header {
@@ -233,6 +260,10 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  /* Centred: this used to be one pager for the whole section (the parent's
+     `align-items: center` did the work). It now sits inside each column, which
+     is a stretched flex child, so it has to centre itself. */
+  justify-content: center;
 }
 
 .rw-page-btn {
@@ -251,9 +282,12 @@
   background: #F4F6F8;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way. */
 .rw-page-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .rw-page-btn-prev svg {
@@ -297,8 +331,13 @@
   line-height: 1.2;
 }
 
+/* Centred to sit under the centred "Reviews" heading — left-aligned, the pills
+   hung off-axis from it. Safe to set on the base rule: .rw-mobile is
+   display:none until the 900px breakpoint, so this only ever renders on mobile.
+   With flex-wrap, a wrapped second row centres too. */
 .rw-mobile-tabs {
   display: flex;
+  justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
   padding: 12px 23px;
@@ -354,4 +393,63 @@
   .rw-mobile .rw-pagination {
     justify-content: center;
   }
+
+  /* No arrows on mobile — the dots are the control. NB this leaves the dots as
+     the ONLY way to change review here: #09 has no swipe handler, unlike the
+     space-list carousels. */
+  .rw-mobile .rw-page-btn {
+    display: none;
+  }
+}
+
+/* ── Mobile review slide ─────────────────────────────────────────────────── */
+
+/* The card animates in from whichever side matches the direction of travel, so
+   moving forward and back feel different. Remounted per page via a React key
+   (see Reviews.tsx), which is what replays the animation each time.
+   translate + opacity only: both are compositor-friendly, so this does not
+   trigger layout on a phone. .rw-mobile already clips overflow, so the offset
+   start position can't widen the page. */
+/* ── Mobile sliding track ─────────────────────────────────────────────────
+   Replaces a fade-in keyframe that played on a remounted card: it read as a
+   fade rather than a slide and could not follow a finger. The track moves under
+   this clip instead, so the card travels and a drag tracks the thumb 1:1.
+
+   `border-radius` matches .rw-card's: the next review starts at the pixel the
+   clip ends, and without it the visible card's ROUNDED corner leaves a notch
+   through which the neighbour's square corner shows.
+   `touch-action: pan-y` keeps a vertical drag scrolling the page while a
+   horizontal one belongs to the carousel — see @shared/useCarousel. */
+.rw-mobile-track-window {
+  overflow: hidden;
+  touch-action: pan-y;
+  border-radius: 16px;
+}
+
+.rw-mobile-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+  /* Real space between cards (Josh Wright asked for >=10px, 2026-08-27 — set to exactly 10). It is a
+     flex gap, not padding or a narrower card: those leave the item butting the
+     clip edge, so the neighbour shows through the rounded corner's notch. The
+     transform's step includes it — see the inline style in the TSX. */
+  gap: 10px;
+}
+
+/* Exactly one window wide, so the pitch the transform steps by and the card
+   width are the SAME quantity. Anything wider (padding, margin, a track gap)
+   desyncs the two and the cards drift further out with every step. */
+.rw-mobile-track-item {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+}
+
+/* The 12px gap Josh Wright asked for (2026-08-27), taken off the CARD rather
+   than the item — padding on the item makes the clip end 12px past the card and
+   the next one peeks through, and a margin on the track changes what
+   `flex: 0 0 100%` resolves against and the cards drift. */
+.rw-mobile-track-item > .rw-card {
+  width: 100%;
 }

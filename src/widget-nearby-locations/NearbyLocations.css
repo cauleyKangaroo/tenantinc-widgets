@@ -72,6 +72,106 @@
   align-items: stretch;
 }
 
+/* ── Sliding track ───────────────────────────────────────────────────────
+   Built the same way #12's blog listing is, so the two feel identical: the
+   window clips, the track holds every COLUMN, and one transform moves it by
+   one column per step.
+
+   The window keeps .nl-grid's own `max-width: 1314px` and `margin: 0 auto` —
+   without them the row loses its centring and sits against the left edge.
+
+   Horizontally the margin is negative with NO matching padding, exactly as
+   #12's is. Each column carries `padding: 0 12px` to make the 24px gutter,
+   which also insets the outer two by 12px; widening the border box by that,
+   without padding it back, puts the first and last card flush with the widget
+   while the inner gaps stay 24px.
+
+   `overflow-x: clip` with `overflow-y: visible` lets the cards' shadow through
+   while still clipping the strip. `hidden` first is the fallback for Safari
+   < 16, which clips both axes rather than scrolling. */
+.nl-track-window {
+  width: 100%;
+  max-width: 1314px;
+  margin: 0 auto;
+  margin-inline: auto;
+  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
+  touch-action: pan-y;
+  /* One step = one column = 1/per-view of the window's content box. The items
+     are sized by this same quantity, so the pitch and the travel cannot drift
+     apart. Set inline per frame: 3 on desktop, 1 on mobile. */
+  --nl-per-view: 3;
+  --nl-gap: 0px;
+  /* An item is its share of the window minus its share of the gaps; the step is
+     that item plus one gap. Kept as two quantities so a gap can never widen the
+     card itself — see the same split in #12. */
+  --nl-item: calc(
+    (100% - (var(--nl-per-view) - 1) * var(--nl-gap)) / var(--nl-per-view)
+  );
+  --nl-step: calc(var(--nl-item) + var(--nl-gap));
+}
+
+/* The desktop row bleeds its outer 12px so the cards sit flush with the widget;
+   the mobile frame has no such gutter to absorb. */
+@media (min-width: 641px) {
+  .nl-track-window { margin-inline: -12px; }
+}
+
+.nl-track {
+  display: flex;
+  align-items: stretch;
+  /* No `gap`: a gap is not part of the step the transform moves by, so it would
+     desync the slide from the card pitch a little further with every step. The
+     spacing is padding INSIDE each column instead, which IS part of the step. */
+  gap: 0;
+  will-change: transform;
+}
+
+/* A column, not a card — with `rows: 2` it holds two stacked, which is what
+   keeps that layout while still stepping one column at a time. */
+.nl-track-col {
+  flex: 0 0 var(--nl-item);
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+/* One card fills the mobile frame, so the desktop's 12px inset would pull it
+   off the widget's own gutter. The 10px Josh Wright asked for comes from the
+   track's flex gap instead — REAL space, so the cards are not touching as they
+   slide. Padding on the item would leave it butting the clip edge and the
+   neighbour would show through the rounded corner's notch. */
+.nl-track-window--mobile {
+  --nl-gap: 10px;
+  /* The card fills the frame here, so its shadow began exactly at the clip edge
+     and was sliced off down both sides. Push the clip out by one gap and pull
+     the box back by the same amount: the padding box (which is where `overflow`
+     clips) grows, while the CONTENT box — and so the card width and the step —
+     is untouched.
+     One gap is the most it can be. The neighbour sits one gap away, so at
+     exactly this width its edge lands on the seam; any wider and a sliver of the
+     next card shows past the widget. */
+  /* The width has to grow with the padding. `width: 100%` under the widget's
+     border-box sizing keeps the BORDER box at the panel's width, so padding
+     eats into the content and the negative margin only SHIFTS the box left —
+     which is what put 10px more space on the right than the left. Widening by
+     both gaps makes the negative margins symmetric again: the border box spans
+     one gap past each edge and the content box lands back on the panel's. */
+  width: calc(100% + 2 * var(--nl-gap));
+  padding-inline: var(--nl-gap);
+  margin-inline: calc(-1 * var(--nl-gap));
+}
+.nl-track-window--mobile .nl-track { gap: var(--nl-gap); }
+.nl-track-window--mobile .nl-track-col { padding: 0; }
+
+/* A card nobody can see casts no shadow. The neighbour is one gap away, so its
+   shadow reaches into the band we just opened and smudges the edge of the card
+   on screen — the same problem #12 solves with `.is-offscreen`. */
+.nl-track-window--mobile .nl-track-col[aria-hidden] .nl-card { filter: none; }
+
 /* ── Property card ──────────────────────────────────────────────────────── */
 
 .nl-card {
@@ -89,33 +189,68 @@
   width: 100%;
 }
 
+/* pointer-events: none so the scrim can't swallow a click meant for the photo's
+   stretched link below it — they cover exactly the same box. */
 .nl-card-image-overlay {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* The photo's stretched link to the facility page.
+   Above the scrim so the whole tile is clickable, but BELOW .nl-card-data's own
+   links — that block is pointer-events: none, so a click on the name or the
+   empty space around it falls through here while phone/map still work. */
+.nl-card-image-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.nl-card-image-link:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
 }
 
 .nl-card-distance {
   position: absolute;
   top: 24px;
   right: 24px;
+  /* Painted after the photo link and therefore above it — transparent to the
+     pointer so the top-right corner of the tile still navigates. */
+  z-index: 2;
+  pointer-events: none;
   color: #fff;
   font-size: 24px;
   font-weight: 700;
   line-height: 1.1;
 }
 
-/* 8px rather than 2px: the reviews / address / phone links stack here, and at
-   2px adjacent tap targets sat far closer than the 24px WCAG 2.5.8 minimum.
-   With the 24px min-height on each link below, centres are ~32px apart. */
+/* 2px per Figma 9357-54692. This was held at 8px out of a WCAG 2.5.8 concern, but
+   that requirement is carried by the min-height: 24px on each link below, NOT by
+   this gap: those links are full-size 24px targets, so the spacing exception —
+   which only applies to UNDERSIZED targets — never governed them. Tightening here
+   is therefore safe as long as that min-height stays; remove it and this gap does
+   start to matter. */
 .nl-card-data {
   position: absolute;
   left: 24px;
   bottom: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
   max-width: calc(100% - 48px);
+  z-index: 2;
+  /* Transparent to the pointer so the stretched photo link underneath receives
+     clicks on the name, the rating and the gaps between rows. The links inside
+     opt back in below — remove that pair and either the tile stops being
+     clickable or the phone number does. */
+  pointer-events: none;
+}
+
+.nl-card-data a {
+  pointer-events: auto;
 }
 
 .nl-card-name {
@@ -208,6 +343,16 @@
   line-height: 16px;
 }
 
+/* The promo bar's height with nothing drawn — see `ReservedSpaceRow` in
+   NearbyLocations.tsx for why every card reserves it. `visibility: hidden`
+   rather than `opacity: 0`: it still takes its space, but it is out of the
+   accessibility tree and cannot be clicked or tabbed into. */
+.nl-promo--reserved,
+.nl-space-row--reserved,
+.nl-space-divider--reserved {
+  visibility: hidden;
+}
+
 /* ── Spaces list ────────────────────────────────────────────────────────── */
 
 .nl-spaces {
@@ -254,12 +399,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.nl-price-tag {
-  display: inline-flex;
-  color: var(--color_1, #509e2f);
-  flex-shrink: 0;
 }
 
 .nl-price-strike {
@@ -309,9 +448,17 @@
   line-height: 1.2;
 }
 
+/* An <a>, not a <button> — see SpaceRow. The flex centring and the reset of the
+   anchor defaults (text-decoration, colour) are what keep it looking identical
+   to the button it replaced. */
 .nl-select-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   background: var(--color_2, #509e2f);
   color: #fff;
+  text-decoration: none;
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
   font-weight: 700;
@@ -319,14 +466,28 @@
   height: 33px;
   width: 78px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s;
 }
 
+/* Demo/fixture spaces carry no tier id, so there is nothing to hand the rental
+   page — the control still occupies its slot (the card's geometry is fixed) but
+   states that it does nothing. */
+.nl-select-btn--inert {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .nl-select-btn:hover {
   background: color-mix(in srgb, var(--color_2, #509e2f) 85%, black);
+}
+
+/* After the generic hover, not before it: the two selectors have the same
+   specificity, so source order is what decides. */
+.nl-select-btn--inert:hover {
+  background: var(--color_2, #509e2f);
 }
 
 /* ── Card footer ────────────────────────────────────────────────────────── */
@@ -337,6 +498,20 @@
   justify-content: space-between;
   gap: 8px;
   margin-top: auto;
+}
+
+/* The real card's footer is an <a> covering the whole row (the skeleton's is a
+   div, hence the element selector). `text-decoration: none` is the load-bearing
+   declaration: an underline set on an ancestor CANNOT be removed by a
+   descendant, so without it the admin-fee line is underlined too and only
+   `.nl-see-all`'s own underline is intended. `color: inherit` for the same
+   reason in reverse — the fee keeps its own black, not the link colour.
+   Cursor is restated for the hrefless case (no slug on the row): browsers drop
+   the pointer there, and the footer must read the same from card to card. */
+a.nl-card-footer {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
 }
 
 .nl-admin-fee {
@@ -356,6 +531,11 @@
   white-space: nowrap;
   cursor: pointer;
 }
+
+/* `.nl-see-all` is a SPAN inside the footer anchor, so it never carries an
+   href of its own — the pointer cursor comes from `a.nl-card-footer` above,
+   which also covers the hrefless case (a row with no slug still looks
+   identical, rather than greying out). */
 
 /* ── Pagination ─────────────────────────────────────────────────────────── */
 
@@ -509,6 +689,22 @@
 }
 
 @media (max-width: 768px) {
+  /* DUDA'S OWN WRAPPER, not ours — `#widget_srf` is the element Duda renders the
+     external app into, and on mobile its layout gives it a limited width plus
+     side padding, which squeezes the whole section into a narrow column inside
+     the band. The widget cannot restyle its own container from the inside any
+     other way: the id beats every class selector here and the declarations are
+     inline-level in Duda's mobile CSS, hence `!important`.
+
+     Scoped to the mobile breakpoint on purpose — the desktop width is Duda's to
+     set, and the grid is drawn for the 1314px 3-up band it gives us. */
+  #widget_srf {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
   .nl-desktop {
     display: none;
   }
@@ -550,6 +746,21 @@
 /* Overrides the image block's own gradient background, keeping its 234px height */
 .nl-skeleton-card .nl-card-image { border-radius: 0; }
 
+/* The skeleton's promo bar and space rows are wrapped in one element, so they are
+   ONE child of .nl-card-body and its `gap: 16px` cannot fall between them — the
+   44px promo bar ends up flush against the first space row. Restating the column
+   here puts the gap back where the real card has it.
+
+   16px is .nl-card-body's own gap, deliberately: in a finished card `.nl-promo`
+   and `.nl-spaces` are direct children of that flex column, so matching it is what
+   keeps the reservation EXACT and the hand-off free of layout shift. Change one
+   and the other has to follow. */
+.nl-skeleton-spaces {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .nl-skeleton-space-row {
   display: flex;
   align-items: center;
@@ -564,3 +775,21 @@
 .nl-skeleton-btn     { height: 40px; width: 84px; border-radius: 8px; }
 .nl-skeleton-fee     { height: 14px; width: 140px; }
 .nl-skeleton-seeall  { height: 14px; width: 96px; }
+/* Fills .nl-map's own 560px box, so the Map View tab reserves the same space
+   loading as loaded. Square corners — the parent already clips to 16px. */
+.nl-skeleton-map     { display: block; width: 100%; height: 100%; border-radius: 0; }
+
+/* Visually hidden, still read aloud — the skeleton cards are aria-hidden, so this
+   is the only thing announcing that the section is loading. Same rule as #08's
+   .ml-sr-only and #03's .pi-sr-only. */
+.nl-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -1,0 +1,93 @@
+/* ===========================================================================
+   Mariposa design tokens — the single source of truth for form + button styling.
+   Figma: Mariposa — Duda, nodes 8753-47700 (forms) and 9215-57188 (buttons).
+
+   Names mirror the Figma variables so a value can be traced back to the design
+   file: `Text/hb-text-night` → `--hb-text-night`, `ADA/Green` → `--hb-ada-green`.
+
+   HOW TO REBRAND A SITE: override the few brand tokens (`--hb-cta`,
+   `--hb-secondary`) on `:root` in that site's own CSS. Everything below is
+   derived from them, so nothing else needs touching and no widget needs a
+   rebuild.
+
+   Every value is a var() reference at the point of use, so a token override
+   cascades into the components without them knowing about it.
+   =========================================================================== */
+
+:root {
+  /* ── Brand ───────────────────────────────────────────────────────────────
+     The two action colours. These are the ones a new site is most likely to
+     change; everything else is neutral or semantic. */
+  --hb-cta: var(--color_2, #509e2f);  /* CTA Buttons — follows the Duda theme's --color_2 (same convention + fallback as the Space List) */
+  --hb-secondary: #509e2f;       /* Secondary Buttons — the alternate action   */
+
+  /* ── Greyscale ───────────────────────────────────────────────────────── */
+  --hb-text-night: #101318;      /* Primary/Grayscale/Night — body + input text */
+  --hb-grayscale-medium: #637381;/* Primary/Grayscale/Night-Light — labels, placeholders, icons */
+  --hb-cloud-darker: #a5b4bf;    /* Primary/Cloud/Darker — resting input border */
+  --hb-white: #ffffff;
+
+  /* ── Semantic / ADA ──────────────────────────────────────────────────────
+     Named ADA in Figma because these are the contrast-checked status colours.
+     Do NOT swap them for arbitrary greens/reds — they carry the pass/fail
+     meaning and were picked for contrast. */
+  --hb-ada-green: #028a0c;       /* success / validated */
+  --hb-ada-red: #e53935;         /* error / required marker */
+
+  /* ── Typography ──────────────────────────────────────────────────────────
+     Montserrat throughout, matching the rest of the widgets. The stack falls
+     back to system UI so a Duda page that hasn't loaded the webfont still
+     renders sensibly rather than dropping to Times. */
+  --hb-font: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --hb-font-weight-regular: 400;
+  --hb-font-weight-bold: 700;
+
+  --hb-font-size-value: 16px;    /* input value + empty-state label */
+  --hb-line-height-value: 20px;
+  --hb-font-size-label: 12px;    /* floated label + error message */
+  --hb-line-height-label: 15px;
+  --hb-font-size-button: 16px;
+  --hb-line-height-button: 20px;
+
+  /* ── Form fields ─────────────────────────────────────────────────────── */
+  --hb-field-height: 56px;
+  --hb-field-radius: 8px;
+  --hb-field-padding-x: 16px;
+  --hb-field-border-width: 1px;
+  --hb-field-icon-size: 24px;
+  --hb-field-icon-gap: 8px;
+  --hb-field-error-gap: 4px;     /* space between the field and its error line */
+
+  --hb-field-bg: var(--hb-white);
+  --hb-field-border: var(--hb-cloud-darker);
+  --hb-field-border-active: var(--hb-text-night);
+  --hb-field-border-success: var(--hb-ada-green);
+  --hb-field-border-error: var(--hb-ada-red);
+  --hb-field-text: var(--hb-text-night);
+  --hb-field-label: var(--hb-grayscale-medium);
+  --hb-field-placeholder: var(--hb-grayscale-medium);
+  --hb-field-icon: var(--hb-grayscale-medium);
+
+  /* ── Buttons ─────────────────────────────────────────────────────────── */
+  --hb-button-height: 52px;
+  --hb-button-radius: 8px;       /* the default shape (was 4px) */
+  --hb-button-radius-pill: 100px;
+  --hb-button-padding-x: 24px;
+  --hb-button-border-width: 2px; /* outline variants are 2px, not 1px */
+
+  /* ── Motion + focus ──────────────────────────────────────────────────────
+     A visible keyboard focus ring is required for accessibility and is NOT in
+     the Figma frames — the designs only show mouse states. This is the
+     deliberate addition; see FormField.css / Button.css. */
+  --hb-transition: 120ms ease-in-out;
+  --hb-focus-ring: 0 0 0 3px rgba(16, 19, 24, 0.18);
+  --hb-focus-ring-error: 0 0 0 3px rgba(229, 57, 53, 0.22);
+  --hb-focus-ring-success: 0 0 0 3px rgba(2, 138, 12, 0.22);
+}
+
+/* Respect a user's reduced-motion preference — transitions are decorative. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --hb-transition: 0ms;
+  }
+}

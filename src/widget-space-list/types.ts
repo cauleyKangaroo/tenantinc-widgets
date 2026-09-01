@@ -46,12 +46,29 @@ export interface Unit {
   promo?: string;
   /** Allocated promotion id — matches the Promotions widget's promo id for cross-widget filtering */
   promoId?: string;
+  /**
+   * The API's own promo-applied sell rate (`promotion_sell_rate`). Authoritative
+   * when present — but null on every tier as of 2026-08-03, hence the two fields
+   * below. See promoRate() in components/Pricing.tsx.
+   */
+  promotionPrice?: number;
+  /** The promotion's discount amount (`value`): 50 for "50% off", 1 for "$1 move in". */
+  promoValue?: number;
+  /**
+   * How to read `promoValue`, inferred from the promo NAME because the API's own
+   * `type` field is 'regular' for everything. 'percent' → % off the starting
+   * price; 'fixed' → the promo IS the price. Undefined when neither could be
+   * determined, in which case no promo rate is shown at all.
+   */
+  promoKind?: 'percent' | 'fixed';
   /** Promotion categories this unit qualifies for — matched against the Promotions filter checkboxes */
   promotions?: string[];
   /** Optional urgency line, e.g. "Only 1 left · Rent soon!" */
   urgency?: string;
   /** CTA state: absent = normal Select, 'call' = Call button, 'waitlist' = Waitlist button */
   availability?: 'call' | 'waitlist';
+  /** Offer tier id (= tier_id) — the authoritative product identity handed to #14 */
+  unitGroupId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,6 +117,13 @@ export interface WidgetConfig {
    * in-store price alone.
    */
   instorePriceAmount: number;
+  /**
+   * Promo pricing mode. When on, the price pair becomes "Online" (the starting
+   * rate, struck through) beside "Promo rate" (the starting rate with the unit's
+   * promotion applied), and `instorePriceMode` / `instorePriceAmount` are ignored
+   * entirely. A unit with no resolvable promotion shows its starting price alone.
+   */
+  enablePromoLogic: boolean;
   /* Sold-out tiers are governed by TWO toggles: `showUnavailableUnits` decides
      whether they appear at all (default: hidden), and `enableWaitlist` then picks
      the CTA — "Join waitlist" when on, "Call" when off. The former showWishlist
@@ -108,6 +132,17 @@ export interface WidgetConfig {
   contactPhone: string;
   /** Live property name — kept available to the cards. */
   facilityName: string;
+  /** Select opens the #14 value-tiers modal (via tierBus) instead of nothing. */
+  enableValueTiers: boolean;
+  valueTiersChannel?: string;
+  valueTiersPageUrl?: string;
+  /** Where Select goes when there is no value-tiers step. Default '/rental'. */
+  rentalPageUrl?: string;
+  /** Resolved property + company this widget is showing — carried into the
+   *  value-tiers handoff so the target page prices the same unit group
+   *  (dynamic pages vary both; the target can't infer them). */
+  propertyId?: string;
+  companyId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +199,26 @@ export interface SpaceListProps {
   configCollection?: string;
 
   // ── General widget properties ───────────────────────────────────────────
+  /**
+   * Text field "Property Landing Page Header": the page's <h1>. Set it and it
+   * renders verbatim, so an editor can write the whole heading rather than only
+   * the property name. Blank/omitted keeps the previous computed heading
+   * ("Storage Units in {property name}"), so existing instances are unchanged.
+   *
+   * Run through `boundText`, so this can also be connected to a Properties
+   * column — a binding that fails to resolve falls back to the computed heading
+   * instead of printing "{{propertyHeader}}".
+   */
+  propertyHeader?: string;
+  /**
+   * Draw the <h1> above the filter bar. Default true.
+   *
+   * Turn it OFF when #18 widget-space-list-heading is placed above this widget
+   * — that exists so #06 promotions can sit BETWEEN the heading and the filter
+   * bar on mobile, which is impossible while the heading is inside this
+   * widget's own layout. With both on, the page has two <h1>s.
+   */
+  showHeading?: boolean;
   /** Toggle: show or hide the in-store strike-through price block. Default true. */
   showInstorePrice?: boolean;
   /** Text label above the in-store strike price. Default 'IN-STORE'. */
@@ -176,6 +231,33 @@ export interface SpaceListProps {
    * "use the API's in-store price unchanged".
    */
   instorePriceAmount?: number | string;
+  /**
+   * Duda toggle `enablePromoLogic`: swap the in-store/starting pair for
+   * Online/Promo rate. Overrides the two instore-price settings above.
+   * Typed to accept a string because Duda toggles can arrive as 'true'/'false'.
+   */
+  enablePromoLogic?: boolean | string;
+  /**
+   * DYNAMIC PAGES — content-menu field connected to `Properties > id` via Duda's
+   * "Connect to data". Selects which property's units, sidebar details and nearby
+   * list this instance renders. Unset = the config.json property, i.e. the old
+   * static behaviour. See @shared/propertyBinding.
+   */
+  propertyId?: string;
+  /**
+   * The company that owns `propertyId`. A plain content-menu text field — it is NOT
+   * a `Properties` column, so it can't be "connected to data". Required whenever the
+   * bound property belongs to a different company than `config.json`, because
+   * `properties/{id}/…` only resolves inside its own company. Empty = configured.
+   */
+  companyId?: string;
+  /**
+   * The property's space group (unit list). NOT bindable from the Properties
+   * collection — it isn't a column there, and each property has several groups of
+   * which only "Website Group" is public. Leave EMPTY on a dynamic page and the
+   * widget resolves that property's Website Group itself; set it to pin one group.
+   */
+  spaceGroupId?: string;
   /** Text label above the main price. Default 'Starting at'. */
   startingAtLabel?: string;
   /**
@@ -227,6 +309,17 @@ export interface SpaceListProps {
   /** Text for the primary CTA button. Default 'Select'. */
   ctaButtonCopy?: string;
 
+  /** Select opens the #14 value-tiers modal via tierBus. Default false. */
+  enableValueTiers?: boolean;
+  valueTiersChannel?: string;
+  valueTiersPageUrl?: string;
+  /**
+   * Where Select goes when no value-tiers step is configured. Default
+   * '/rental'. The chosen unit rides in localStorage, not the URL — see
+   * @shared/unitHandoff.
+   */
+  rentalPageUrl?: string;
+
   // ── Editable accordion copy (Duda text inputs) ─────────────────────────────
   /** Heading of the "About" accordion. Default 'About Storage Units in Irvine'. */
   aboutTitle?: string;
@@ -241,6 +334,13 @@ export interface SpaceListProps {
   blogCollection?: string;
   /** Path the blog post slugs hang off, e.g. "/blog". Default '/blog'. */
   blogBasePath?: string;
+  /**
+   * Duda collection holding the Feature Highlights copy (case-sensitive).
+   * Default 'featurePage'. Three columns — `name` (matched against the
+   * property's filter-bar amenity), `description` (under the <h1>) and
+   * `content` (rich text, under the listing). See featurePageSource.ts.
+   */
+  featureCollection?: string;
   /**
    * Mobile: pin the filter bar to the top of the page once it scrolls out of
    * view. It shares one fixed stack with #03's contact row and sits below it —
@@ -260,9 +360,11 @@ export interface SpaceListProps {
   // against these keys.
   isReviews?:   boolean;
   isFeatures?:  boolean;
+  isFeatureHighlights?: boolean;
   isNearby?:    boolean;
   isSizeGuide?: boolean;
   isBlog?:      boolean;
+  isLocalBlog?: boolean;
   isStore?:     boolean;
   isNotes?:     boolean;
   isFAQ?:       boolean;

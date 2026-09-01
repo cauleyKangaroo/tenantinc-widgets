@@ -1,6 +1,6 @@
 import cfg from './config.json';
 import {
-  computeStatus, formatSchedule, formatScheduleByDay,
+  computeStatus, formatSchedule,
   type AccessHoursSection, type HoursStatus, type ScheduleRow,
 } from '@shared/accessHours';
 
@@ -10,6 +10,7 @@ import {
 
 import { createLead as submitLead, type LeadInput } from '@shared/leadsApi';
 import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
 
 const BASE_URL = cfg.baseUrl;
 const APP_ID = cfg.appId;
@@ -19,10 +20,27 @@ const PROPERTY_ID = cfg.propertyId;
 
 export type { LeadInput };
 
-/** "Send us a Message" → create an inquiry lead (shared logic, this widget's creds). */
-export function createLead(input: LeadInput): Promise<unknown> {
+/**
+ * "Send us a Message" → create an inquiry lead (shared logic, this widget's creds).
+ *
+ * The lead must be filed against the property the visitor is actually looking at, so
+ * on a dynamic page the caller passes the bound ids; both fall back to config.json.
+ */
+export async function createLead(
+  input: LeadInput,
+  ids: { propertyId?: string; companyId?: string } = {},
+): Promise<unknown> {
   return submitLead(
-    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: COMPANY_ID, propertyId: PROPERTY_ID },
+    {
+      baseUrl: BASE_URL,
+      appId: APP_ID,
+      apiKey: API_KEY,
+      // Caller's resolved id if it has one, else the `Company` collection —
+      // config.json only as the editor/harness fallback. Filing a lead against the
+      // wrong company would lose the enquiry entirely.
+      companyId: ids.companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID),
+      propertyId: ids.propertyId || PROPERTY_ID,
+    },
     input,
   );
 }
@@ -58,9 +76,19 @@ interface ApiAmenity {
   image?: string;  // full image URL
 }
 
+/** As #03 types it: "" when unset, so every read has to guard the object case. */
+interface ApiAddress {
+  address?: string;
+  address2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+}
+
 interface ApiProperty {
   id: string;
   name?: string;
+  Address?: ApiAddress | '';
   utc_offset?: string;      // IANA tz, e.g. "America/Los_Angeles"
   Phones?: ApiPhone[] | '';
   Faq?: ApiFaq[] | '';
@@ -83,6 +111,9 @@ interface ApiResponse {
 export interface PropertyExtras {
   /** Property display name, e.g. "Storelocal Dove Mountain". */
   name: string;
+  /** One-line postal address, for the "Send us a Message" modal. Composed the
+   *  same way #03 does it, so the two widgets print the same string. */
+  address: string;
   phones: { number: string; note?: string }[];
   socials: { platform: string; url: string }[];
   faqs: { question: string; answer: string }[];
@@ -142,15 +173,24 @@ export function formatPhone(rawNumber: string): string {
  * keyed REST call — both return the same envelope, so extractPropertyExtras below
  * is unchanged. See @shared/propertiesSource.
  */
-export async function fetchProperties(): Promise<unknown> {
-  return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, {
-    requirePropertyId: PROPERTY_ID,
-  });
+export async function fetchProperties(
+  requirePropertyId?: string,
+  companyId?: string,
+): Promise<unknown> {
+  // No PROPERTY_ID default — undefined must mean "no trust check", not "use the
+  // build-time id", which belongs to a different company on this site.
+  return fetchPropertiesPreferCollection(
+    APP_ID,
+    () => fetchPropertiesFromApi(companyId),
+    { requirePropertyId },
+  );
 }
 
-async function fetchPropertiesFromApi(): Promise<unknown> {
+async function fetchPropertiesFromApi(companyId?: string): Promise<unknown> {
+  // Omitted → the `Company` collection; config.json is only the last resort.
+  const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
   const params = 'access_hours=true&amenities=true&unit_type_counts=true&faq=true&social_media=true';
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${COMPANY_ID}/properties?${params}`;
+  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${company}/properties?${params}`;
 
   const res = await fetch(url, {
     headers: {
@@ -214,7 +254,9 @@ export function extractPropertyExtras(raw: unknown, propertyId: string = PROPERT
   const titleFor = (type: string) =>
     TYPE_LABELS[type] ?? `${type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} Hours`;
   const scheduleSections = access
-    .map((s) => ({ type: s.type, title: titleFor(s.type), rows: formatScheduleByDay(s) }))
+    // Grouped, not one row per day: consecutive days sharing hours collapse to
+    // "Mon – Sat", matching the design and #03's modal.
+    .map((s) => ({ type: s.type, title: titleFor(s.type), rows: formatSchedule(s) }))
     .filter((s) => s.rows.length > 0)
     .sort((a, b) => {
       const ai = TYPE_ORDER.indexOf(a.type); const bi = TYPE_ORDER.indexOf(b.type);
@@ -228,5 +270,10 @@ export function extractPropertyExtras(raw: unknown, propertyId: string = PROPERT
         .map((a) => ({ name: a.name!, label: amenityLabel(a.name!), image: a.image! }))
     : [];
 
-  return { name: prop.name ?? '', phones, socials, faqs, hours, schedule, scheduleSections, amenities };
+  const addr = prop.Address && typeof prop.Address === 'object' ? prop.Address : null;
+  const address = addr
+    ? `${[addr.address, addr.address2].filter(Boolean).join(' ')}, ${addr.city}, ${addr.state} ${addr.zip}`.trim()
+    : '';
+
+  return { name: prop.name ?? '', address, phones, socials, faqs, hours, schedule, scheduleSections, amenities };
 }

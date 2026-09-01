@@ -9,7 +9,7 @@
 
 import type { SpaceListProps } from './types';
 
-export type AccordionKey = 'store' | 'nearby' | 'reviews' | 'faq' | 'blog' | 'sizeguide' | 'notes' | 'features' | 'about';
+export type AccordionKey = 'store' | 'nearby' | 'reviews' | 'faq' | 'blog' | 'localblog' | 'sizeguide' | 'notes' | 'features' | 'highlights' | 'about';
 
 export interface AccordionSectionMeta {
   key: AccordionKey;
@@ -21,11 +21,17 @@ export interface AccordionSectionMeta {
 /** Canonical default order + labels for the sidebar accordion sections. */
 export const ACCORDION_SECTIONS: AccordionSectionMeta[] = [
   { key: 'store',     label: 'Property Information',   enabledBy: 'isStore' },
-  { key: 'features',  label: 'Features and Amenities', enabledBy: 'isFeatures' },
+  { key: 'features',  label: 'Features & Amenities',   enabledBy: 'isFeatures' },
   { key: 'nearby',    label: 'Nearby Storage',         enabledBy: 'isNearby' },
   { key: 'reviews',   label: 'Reviews',                enabledBy: 'isReviews' },
+  // Sits after Reviews to match the Figma sidebar (10550-32752). Distinct from
+  // 'features' above: that one is the amenity photo grid, this one is the list of
+  // feature links that turn the page into a single-feature landing page.
+  { key: 'highlights', label: 'Feature Highlights',    enabledBy: 'isFeatureHighlights' },
   { key: 'faq',       label: 'FAQ',                    enabledBy: 'isFAQ' },
   { key: 'blog',      label: 'Storage Blogs',          enabledBy: 'isBlog' },
+  // Same collection as 'blog', filtered to the posts tagged for this property.
+  { key: 'localblog', label: 'Local Blogs',            enabledBy: 'isLocalBlog' },
   { key: 'sizeguide', label: 'Size Guide',             enabledBy: 'isSizeGuide' },
   { key: 'notes',     label: 'Notes',                  enabledBy: 'isNotes' },
   // Label is overridable per instance via the `aboutTitle` prop; this is the

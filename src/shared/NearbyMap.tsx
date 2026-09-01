@@ -22,11 +22,36 @@ export interface MapPoint {
   active?: boolean;
 }
 
+/** A point with its projected pixel position inside the map box. */
+export type PositionedPoint = MapPoint & { left: number; top: number };
+
 interface NearbyMapProps {
   center: { lat: number; lng: number };
   points: MapPoint[];
-  height?: number;
+  height?: number | string;
   className?: string;
+  /**
+   * Draw your own bubble instead of the built-in price pin. The projection,
+   * iframe and resize handling stay here; only the marker's look changes.
+   *
+   * Exists because the pins are inline-styled (so a consumer's CSS can't reach
+   * them) and #08's Figma bubbles differ from #07's. Omitted → the original pin,
+   * byte-for-byte, so #05 and #07 are untouched.
+   */
+  renderPin?: (point: PositionedPoint) => React.ReactNode;
+  /**
+   * The dark dot at the map's centre — "you are here". Pass false when the centre
+   * is only a computed midpoint (e.g. the average of the pins) rather than a real
+   * place: a marker there tells the viewer something untrue.
+   */
+  showCenterMarker?: boolean;
+  /**
+   * The same switch, inverted. Both exist because #08 and the nav's map arrived
+   * at it independently and each has live call sites; renaming either would break
+   * the other's. `showCenterMarker={false}` and `hideCenterMarker` are equivalent
+   * — either one hides the dot (see the render below).
+   */
+  hideCenterMarker?: boolean;
 }
 
 const TILE = 256;
@@ -56,23 +81,38 @@ function fitZoom(center: { lat: number; lng: number }, points: MapPoint[], w: nu
   return 1;
 }
 
-export function NearbyMap({ center, points, height = 317, className }: NearbyMapProps) {
+export function NearbyMap({
+  center,
+  points,
+  height = 317,
+  className,
+  renderPin,
+  showCenterMarker = true,
+  hideCenterMarker,
+}: NearbyMapProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
+  // Measured, not the `height` prop: that may be a CSS string ('100%') when the
+  // map fills a flex row, and the projection below needs real pixels.
+  const [boxHeight, setBoxHeight] = useState(typeof height === 'number' ? height : 0);
   const [openId, setOpenId] = useState<string | null>(null);
 
-  // Track the container width so the projection matches the rendered iframe.
+  // Track the container box so the projection matches the rendered iframe.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     setWidth(el.clientWidth);
+    setBoxHeight(el.clientHeight);
     if (typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver((entries) => setWidth(entries[0].contentRect.width));
+    const ro = new ResizeObserver((entries) => {
+      setWidth(entries[0].contentRect.width);
+      setBoxHeight(entries[0].contentRect.height);
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  const zoom = fitZoom(center, points, width, height);
+  const zoom = fitZoom(center, points, width, boxHeight);
   const scale = TILE * 2 ** zoom;
   const c = worldXY(center.lat, center.lng);
 
@@ -81,7 +121,7 @@ export function NearbyMap({ center, points, height = 317, className }: NearbyMap
 
   const positioned = points.map((p) => {
     const wp = worldXY(p.lat, p.lng);
-    return { ...p, left: width / 2 + (wp.x - c.x) * scale, top: height / 2 + (wp.y - c.y) * scale };
+    return { ...p, left: width / 2 + (wp.x - c.x) * scale, top: boxHeight / 2 + (wp.y - c.y) * scale };
   });
 
   const open = positioned.find((p) => p.id === openId) ?? null;
@@ -102,14 +142,21 @@ export function NearbyMap({ center, points, height = 317, className }: NearbyMap
       />
 
       {/* Reference marker (viewer / current property) at the map centre. */}
-      <span style={{
-        position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
-        width: 14, height: 14, borderRadius: '50%', background: '#101318',
-        border: '3px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
-      }} />
+      {/* Either switch hides it; the dot only shows when neither says otherwise. */}
+      {showCenterMarker && !hideCenterMarker && (
+        <span style={{
+          position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+          width: 14, height: 14, borderRadius: '50%', background: '#101318',
+          border: '3px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+        }} />
+      )}
 
       {/* Price pins — clickable (the iframe below is pointer-events:none). */}
-      {width > 0 && positioned.map((p) => {
+      {width > 0 && renderPin && positioned.map((p) => (
+        <React.Fragment key={p.id}>{renderPin(p)}</React.Fragment>
+      ))}
+
+      {width > 0 && !renderPin && positioned.map((p) => {
         const activeLook = p.active || p.id === openId;
         return (
           <button
@@ -156,7 +203,7 @@ export function NearbyMap({ center, points, height = 317, className }: NearbyMap
             <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#101318' }}>{open.name}</p>
           )}
           {open.distance && (
-            <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: '#509e2f' }}>{open.distance}</p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: 'var(--color_1, #f45f30)' }}>{open.distance}</p>
           )}
           {open.address && (
             <p style={{ margin: '6px 0 0', fontSize: 12, color: '#55606b', lineHeight: 1.4 }}>{open.address}</p>

@@ -36,7 +36,7 @@
 }
 
 .pi-name {
-  font-size: 35px;
+  font-size: 30px;
   font-weight: 700;
   line-height: 1.2;
   margin: 0 0 4px;
@@ -96,7 +96,17 @@
 }
 
 .pi-link:hover .pi-underline,
-.pi-contact-row:hover .pi-underline {
+.pi-contact-row:hover .pi-underline,
+/* Same treatment for "Find my Reservation" — it reads as a link and now
+   behaves as one. Only the label changes: the calendar mark beside it keeps
+   its colour, matching how .pi-link leaves everything but .pi-underline. */
+.pi-reservation:hover .pi-underline {
+  color: var(--color_1, #f45f30);
+}
+
+/* "32 Reviews" is a bare <a> with no .pi-underline child — the underline is on
+   the anchor itself — so it takes the colour directly. */
+.pi-reviews:hover {
   color: var(--color_1, #f45f30);
 }
 
@@ -140,20 +150,21 @@
   flex-shrink: 0;
 }
 
-.pi-breadcrumb {
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 22px;
-  color: #101318;
-}
+/* Desktop only: the crumb above the gallery and map sits RIGHT. Scoped to the
+   media column with a child combinator, so the hero view's own breadcrumb —
+   which leads a different layout — is untouched. Reverts to left at 1180,
+   where the columns stack; mobile renders .pi-m-breadcrumb instead and never
+   sees this. */
+/* `justify-content`, not `text-align`: the trail is a FLEX row now (it comes
+   from @shared/Breadcrumb), and text-align only moves inline content inside a
+   flex item — it cannot move the items themselves. The rule below used to say
+   `text-align: right` and silently stopped working when the markup changed. */
+.pi-media > .pi-breadcrumb { justify-content: flex-end; }
 
-.pi-breadcrumb a {
-  color: #101318;
-}
-
-.pi-breadcrumb a:hover {
-  color: var(--color_1, #f45f30);
-}
+/* Positioning hook only. Type, colour, gaps and the hover now come from
+   @shared/Breadcrumb's own stylesheet, which #08's city page shares — the two
+   Figma frames (9499:22620 and 10622:77309) are identical, so one source. */
+.pi-breadcrumb { flex-shrink: 0; }
 
 .pi-cards {
   display: flex;
@@ -180,6 +191,37 @@
   padding: 0;
   cursor: pointer;
   display: block;
+  /* pan-y is what lets the page still scroll under a drag: the browser keeps
+     vertical gestures and hands us horizontal ones, so nothing has to be
+     cancelled from JS and a vertical flick is never swallowed. */
+  touch-action: pan-y;
+}
+
+/* Every slide side by side; the transform picks which one is showing. The
+   transition is what carries it the rest of the way after the finger lifts —
+   it is switched off from JS for the duration of the drag, so while the
+   finger is down the track tracks it exactly. */
+.pi-gallery-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+}
+.pi-gallery-slide {
+  position: relative;   /* .pi-gallery-img is inset:0 against THIS, not the frame */
+  flex: 0 0 100%;
+  height: 100%;
+}
+/* Chrome and Safari start a native image drag on mousedown, which cancels the
+   pointer stream mid-gesture and leaves the track stranded. */
+.pi-gallery-track img {
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pi-gallery-track { transition: none; }
 }
 
 .pi-gallery-img {
@@ -264,6 +306,17 @@
   cursor: pointer;
 }
 
+/* No hover fill. This rule sets background:none at rest but had nothing for
+   :hover, and a host `button:hover { background: #f3f4f6 }` is (0,1,1) against
+   this single class — so the grey was the host's, not ours. Pinned across all
+   three states, because answering only the resting one is what let it back in
+   everywhere else this has come up. */
+.pi-reservation:hover,
+.pi-reservation:focus,
+.pi-reservation:active { background: none; }
+/* Losing the hover box should not lose the keyboard affordance. */
+.pi-reservation:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
+
 .pi-reservation svg {
   flex-shrink: 0;
 }
@@ -315,13 +368,17 @@
 .pi-skel-line.short { width: 62%; }
 .pi-skel-crumb { height: 18px; width: 60%; }
 
-/* Matches .pi-gallery's height so the real cards drop straight in. */
+/* Matches .pi-gallery's height so the real cards drop straight in — and it is
+   317px at EVERY width, because .pi-gallery has no responsive height. */
 .pi-skel-block {
   flex: 1 1 0;
   min-width: 0;
   height: 317px;
   border-radius: 16px;
 }
+/* Both cards in .pi-cards are 317px: .pi-gallery and .pi-map carry the same
+   height. The 302px this used to set belongs to .pi-hero-card, which is the
+   HERO display mode — a different layout that .pi-cards is not part of. */
 
 @keyframes pi-skel-shimmer {
   from { background-position: 100% 50%; }
@@ -333,12 +390,104 @@
   .pi-skel-block { animation: none; }
 }
 
-/* Single column on the mobile frame, matching the real layout. */
-@media (max-width: 900px) {
-  .pi-skel { flex-direction: column; }
-  .pi-skel-cards { flex-direction: column; }
-  .pi-skel-block { height: 220px; }
+/* Single column, matching the real layout — which stacks at 1180px, NOT 900.
+   .pi-row, .pi-cards and .pi-card-col all change at 1180, so a skeleton that
+   waited until 900 stayed two-up across a 280px band where the real content is
+   already one column, and the page re-flowed when the fetch landed.
+
+   The rules mirror those three exactly rather than approximating them: wrap
+   like .pi-cards and take .pi-card-col's `1 1 360px`, instead of forcing a
+   column — same result on a phone, but correct in the band between.
+
+   No height override. The old 220px was the other half of the jump: neither
+   real card shrinks on mobile, so the placeholder was ~100px short of each. */
+@media (max-width: 1180px) {
+  /* `align-items: stretch` is the load-bearing half of this rule, not tidying.
+     .pi-skel is align-items: flex-start for the side-by-side layout, and once
+     the direction turns to column that starts sizing both children
+     SHRINK-TO-FIT on the cross axis. The real .pi-row survives that because
+     its columns are full of text and cards with natural widths; the skeleton
+     is percentage-width bars (72%, 88%) and empty blocks, which have no
+     natural width at all — so they collapsed to slivers a few pixels wide.
+     Stretch gives each column the full row, and the percentages resolve
+     against something real again. */
+  .pi-skel { flex-direction: column; align-items: stretch; }
+  /* Half each, exactly as .pi-cards and .pi-card-col above. */
+  .pi-skel-cards { flex-wrap: nowrap; }
+  .pi-skel-cards > .pi-skel-block { flex: 1 1 0; min-width: 0; }
 }
+
+/* ── Hero-mode skeleton ───────────────────────────────────────────────────
+   The hero layout is a banner beside a map, not an info column beside two
+   cards, so it needs its own placeholder. It reuses the REAL .pi-hero-wrap
+   and .pi-hero-row containers — both are plain flex boxes with a gap — so the
+   stacking at 1180px comes from the same rule the content obeys. Only the two
+   boxes are stood in for, mirroring .pi-hero-card and .pi-hero-map. */
+.pi-skel-hero-card {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 302px;
+}
+.pi-skel-hero-map {
+  flex-shrink: 0;
+  width: 422px;
+  max-width: 100%;
+  height: 302px;
+}
+@media (max-width: 1180px) {
+  /* Both halves of the tablet fix above, for the same reasons. */
+  .pi-skel-hero-card { flex: 0 0 auto; }
+  .pi-skel-hero-map { width: auto; }
+}
+
+/* ── Mobile skeleton ──────────────────────────────────────────────────────
+   The mobile view is a DIFFERENT composition, not a narrower desktop one, so
+   it needs its own placeholder: full-bleed hero, a row of five circles, then
+   a centred hours block. Which one shows is decided by .pi-desktop /
+   .pi-mobile in the markup — the same switch the real layouts use, so the two
+   cannot disagree about where the boundary is.
+   Every number below is taken from the rule it stands in for: .pi-m-hero's
+   min-height, .pi-m-circles' padding and gap, .pi-m-circle's 44px, and
+   .pi-m-hours' padding and gap. Change one, change the other. */
+.pi-skel-m-hero {
+  /* No radius: .pi-wrapper drops its inline padding under 768px so the real
+     hero runs edge to edge. */
+  height: 250px;
+  border-radius: 0;
+}
+.pi-skel-m-circles {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 24px 12px;
+}
+.pi-skel-m-circle-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.pi-skel-m-circle {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+.pi-skel-m-circle-label { height: 14px; width: 76%; }
+.pi-skel-m-hours {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px 24px;
+}
+/* Three status lines of uneven length, then the underlined link below them. */
+.pi-skel-m-hour { height: 20px; width: 72%; }
+.pi-skel-m-hour:nth-of-type(2) { width: 64%; }
+.pi-skel-m-hour:nth-of-type(3) { width: 78%; }
+.pi-skel-m-seehours { height: 20px; width: 40%; margin-top: 8px; }
 
 /* Visually hidden, still announced. */
 .pi-sr-only {
@@ -471,6 +620,78 @@
   box-sizing: border-box;
 }
 
+/* Image and thumbnail rail stack; the arrows stay either side of the pair. */
+.pi-lb-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* 10 + the rail's 6px padding = the 16px this was before. */
+  gap: 10px;
+  min-width: 0;
+  cursor: default;
+}
+
+/* Thumbnail rail — EIGHT across at desktop, per the design.
+   flex-basis is a share of the rail rather than a fixed px width, so eight fit
+   exactly whatever the image above is sized to, and the count drops at narrower
+   widths instead of the thumbs becoming unreadable slivers. */
+.pi-lb-thumbs {
+  display: flex;
+  gap: 8px;
+  /* `safe` centre: a plain `center` would centre the overflow too, putting the
+     first thumbnails off the left edge with no way to scroll back to them.
+     safe falls back to start-alignment the moment the row overflows, so it is
+     centred only while there is room — which is the ask. */
+  justify-content: safe center;
+  width: min(90vw, 1000px);
+  max-width: 100%;
+  overflow-x: auto;
+  /* Headroom for the hover lift and the focus ring. Setting overflow-x to auto
+     forces overflow-y to compute as auto as well — it cannot stay visible on
+     one axis only — so anything reaching outside the box is clipped. The lift
+     is 2px and the focus outline sits 4px proud, hence 6px. */
+  padding: 6px 0;
+  /* The rail scrolls itself; JS centres the active thumb, which is what makes a
+     ninth image roll the row along rather than fall off the end. */
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.pi-lb-thumbs::-webkit-scrollbar { display: none; }
+
+.pi-lb-thumb {
+  flex: 0 0 calc((100% - 7 * 8px) / 8);
+  /* Square. Capped so that when the row is short — or wide with few images —
+     the thumbs stay thumbnails rather than growing into slabs; the cap is what
+     leaves the spare width for the centring above to take up. */
+  max-width: 112px;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: none;
+  overflow: hidden;
+  cursor: pointer;
+  /* Unselected sit back, so the current one reads without a heavy marker. */
+  opacity: 0.55;
+  transition: opacity 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.pi-lb-thumb:hover { opacity: 0.85; transform: translateY(-2px); }
+.pi-lb-thumb.is-active { opacity: 1; border-color: #fff; }
+.pi-lb-thumb:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.pi-lb-thumb-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* Fewer, larger thumbs rather than eight slivers, and the close comes in from
+   the corner — 70px is a fifth of a tablet's width and most of a phone's
+   margin, so it cannot stay. */
+@media (max-width: 900px) {
+  .pi-lb-thumb { flex-basis: calc((100% - 4 * 8px) / 5); }
+}
+@media (max-width: 560px) {
+  .pi-lb-thumbs { gap: 6px; }
+  .pi-lb-thumb { flex-basis: calc((100% - 3 * 6px) / 4); }
+}
+
 .pi-lb-img-wrap {
   width: min(90vw, 1000px);
   height: min(80vh, 680px);
@@ -508,44 +729,98 @@ span.pi-lb-img {
    fills most of the screen, so "anywhere" isn't obvious enough on its own. */
 .pi-lb-close {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  /* Inset from the corner rather than tucked into it (Figma 9697-21860).
+     Cut right back on smaller screens, where 70px is a real slice of the
+     viewport — see the media queries AFTER .pi-lb-arrow below. They have to
+     come after this rule to beat it; they used to sit above it and never
+     applied at all. */
+  top: 70px;
+  right: 70px;
   z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  /* 52px desktop / 32px mobile — the icon's own two Figma sizes, and the SVG
+     fills the box exactly. The 768px switch is duplicated in the JSX, which
+     picks the matching size prop; change one, change both. */
+  width: 52px;
+  height: 52px;
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.14);
+  /* No fill. The frame's close (9697-21860) is the bare mark — the translucent
+     disc here was ours. Pinned across states below, because .pi-lb-close is a
+     <button> and a host `button:hover` would otherwise paint one back. */
+  background: none;
   color: #fff;
   cursor: pointer;
   transition: background 0.15s;
 }
 
-.pi-lb-close:hover {
-  background: rgba(255, 255, 255, 0.26);
+.pi-lb-close:hover,
+.pi-lb-close:focus,
+.pi-lb-close:active {
+  background: none;
 }
 
+/* 40px circle, translucent slate behind a white chevron (Figma 9697-21852).
+   Was a bare chevron floating on the backdrop, which had no hit area to speak
+   of and vanished against a light photo. */
 .pi-lb-arrow {
-  color: #fff;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #fff;
+  background: rgba(69, 79, 91, 0.6);
+  border: 2px solid #fff;
+  border-radius: 50%;
   cursor: pointer;
-  flex-shrink: 0;
-  opacity: 0.85;
-  transition: opacity 0.15s;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
+.pi-lb-arrow:hover { background: rgba(69, 79, 91, 0.85); }
+.pi-lb-arrow:active { transform: scale(0.94); }
+.pi-lb-arrow:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+/* The chevron's own path fills half its viewBox, so 40 renders a 20px-tall
+   mark — the leaf size the frame shows inside this circle. */
+.pi-lb-arrow svg { display: block; }
 
 .pi-lb-arrow:hover {
   opacity: 1;
 }
 
-.pi-lb-arrow--prev {
-  transform: rotate(180deg);
+/* The frame's chevron points LEFT as drawn, so it is the NEXT arrow that
+   turns. Rotating the glyph rather than the button leaves :active's scale on
+   the circle free to work. */
+.pi-lb-arrow:not(.pi-lb-arrow--prev) .pi-lb-chev { transform: rotate(180deg); }
+
+/* ── Lightbox, small screens ─────────────────────────────────────────────
+   Down HERE, not up beside the thumbnail overrides, because these two selectors
+   are the same specificity as the rules they override — .pi-lb-close (0,1,0)
+   and .pi-lb-arrow (0,1,0) — so the tie is settled by source order alone. Both
+   base rules are declared BELOW that block, which is why the close button kept
+   its desktop 70px inset on a phone however the media query read: it was being
+   overridden by the very rule it was written to beat. The thumbnail rules there
+   work because .pi-lb-thumbs and .pi-lb-thumb are declared above it.
+
+   Anything added for these two later belongs in here, not up there. */
+@media (max-width: 900px) {
+  .pi-lb-close { top: 28px; right: 28px; }
+}
+@media (max-width: 768px) {
+  /* Matches MOBILE_STICKY_QUERY, which is what the JSX switches the size prop
+     on — the box and the mark have to change at the same width. */
+  .pi-lb-close { width: 32px; height: 32px; }
+}
+@media (max-width: 560px) {
+  /* 70px is a fifth of a phone's width in from each edge — the mark ended up
+     floating over the middle of the photo rather than reading as its corner. */
+  .pi-lb-close { top: 14px; right: 14px; }
+  /* Smaller circles too, so the pair do not crowd the photo on a phone. */
+  .pi-lb-arrow { width: 34px; height: 34px; }
 }
 
 .pi-lb-counter {
@@ -633,6 +908,12 @@ span.pi-lb-img {
 
 .pi-mobile {
   display: none;
+  /* White ground for the whole mobile view. .pi-wrapper paints nothing, so
+     until now this showed the host page through — which on a Duda page is
+     whatever the section behind it happens to be, not the white the design
+     assumes. Scoped to .pi-mobile, so desktop and tablet keep inheriting the
+     page as before. */
+  background: #fff;
 }
 
 /* ── Hero (image-led) view ──────────────────────────────────────────────── */
@@ -678,18 +959,32 @@ span.pi-lb-img {
   top: 20px;
   right: 20px;
   display: flex;
-  background: none;
-  border: none;
   padding: 0;
   cursor: pointer;
   color: #fff;
 }
+/* Same fight as .pi-m-expand above — the hero's own expand button is a
+   <button> over a photo and must stay chromeless in every state. */
+.pi-hero-expand,
+.pi-hero-expand:hover,
+.pi-hero-expand:focus,
+.pi-hero-expand:active {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
 
+/* Anchored to the BOTTOM at the same 40px as the sides, so the inset is uniform
+   on all three edges the content actually touches. This was top: 91px — a fixed
+   offset measured against the 302px card, which left the block sitting upper-mid
+   rather than bottom-aligned, and pushed it toward the lower edge whenever the
+   name wrapped to a second line. Growing upward from the bottom keeps the inset
+   constant at any content height. */
 .pi-hero-content {
   position: absolute;
   left: 40px;
   right: 40px;
-  top: 91px;
+  bottom: 40px;
   display: flex;
   flex-direction: column;
   color: #fff;
@@ -755,21 +1050,59 @@ span.pi-lb-img {
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 @media (max-width: 1180px) {
+  /* Back to the left once the layout stacks — right-aligned over a full-width
+     column reads as stranded rather than placed. */
+  .pi-media > .pi-breadcrumb { justify-content: flex-start; }
+
+  /* `align-items: stretch` is doing the work here, not the direction change.
+     .pi-row is align-items: flex-start for the side-by-side layout, and once
+     it turns to a column that sizes both children SHRINK-TO-FIT on the cross
+     axis: .pi-info fell back to its 280px min-width and .pi-media — which is
+     flex-shrink: 0 — took whatever .pi-cards happened to measure. So the whole
+     widget stopped a few hundred pixels short of the column it was given.
+     Same fault, same fix as .pi-skel in d448e40; I assumed there that the real
+     row survived it because its columns hold real content. It does not — it
+     just lands on a content width instead of collapsing, which is harder to
+     see than an empty skeleton doing the same thing. */
   .pi-row {
     flex-direction: column;
+    align-items: stretch;
   }
 
+  /* Gallery and map stay side by side, half each. They used to be `1 1 360px`
+     in a wrapping row, which needs 360 + 360 + 24 = 744px of column before
+     both fit — so anything narrower than that dropped the map under the
+     gallery, and anything wider gave the two unequal widths (each grew from a
+     360px basis, so the free space split evenly on top of it rather than
+     producing halves).
+     A zero basis with min-width: 0 is what makes them true halves: nothing to
+     distribute unevenly, and each can shrink under its content. Only this
+     block below 768px, where .pi-desktop is display:none and the mobile
+     composition takes over entirely. */
   .pi-cards {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .pi-card-col {
-    flex: 1 1 360px;
+    flex: 1 1 0;
+    min-width: 0;
     width: auto;
   }
 
   .pi-hero-row {
     flex-direction: column;
+  }
+
+  /* `flex: 1 1 0` sets the basis on the MAIN axis, and the row just became a
+     column — so that zero basis started governing HEIGHT and overrode the
+     302px below it, collapsing the banner to nothing. There is no free space
+     for flex-grow to give back either, because .pi-hero-row has no height of
+     its own. Basis auto hands the 302px back.
+     The map never hit this: it only sets flex-shrink, so its basis stayed
+     auto and its own height kept applying — which is why the map was there
+     and the banner above it was not. */
+  .pi-hero-card {
+    flex: 0 0 auto;
   }
 
   .pi-hero-map {
@@ -778,9 +1111,11 @@ span.pi-lb-img {
 }
 
 @media (max-width: 560px) {
-  .pi-name {
-    font-size: 28px;
-  }
+  /* .pi-wrapper-qualified AND !important, because the host-resilience block
+     at the bottom of this file pins .pi-name unconditionally with !important
+     — so this rule has never applied and the title kept its desktop size on a
+     phone. (0,2,0) beats that rule's (0,1,0) whatever the source order. */
+  .pi-wrapper .pi-name { font-size: 22px !important; }
 
   /* Arrows are dropped on mobile — swiping moves between photos instead (see the
      touch handlers in PropertyInfo.tsx). Give the photo the full width back and
@@ -861,25 +1196,36 @@ span.pi-lb-img {
   justify-content: space-between;
   gap: 12px;
 }
+/* min-width: 0 is what lets the trail shrink below its content so the ellipsis
+   inside it has something to do — a flex item's default `min-width: auto`
+   would keep it at its full text width and push the expand button off. */
+.pi-m-hero-top > .pi-m-breadcrumb { flex: 1 1 auto; min-width: 0; }
+.pi-m-hero-top > .pi-m-expand { flex: 0 0 auto; }
 
-.pi-m-breadcrumb {
-  font-size: 14px;
-  line-height: 22px;
-  color: #fff;
-}
-
-.pi-m-breadcrumb a {
-  color: #fff;
-}
+/* Type and colour come from @shared/Breadcrumb's `hero` variant, which draws
+   this frame (9693:40309). Kept as a hook in case the hero ever needs to place
+   it differently from the page-top trail. */
+.pi-m-breadcrumb { min-width: 0; }
 
 .pi-m-expand {
   flex-shrink: 0;
   display: flex;
-  background: none;
-  border: none;
   padding: 0;
   cursor: pointer;
   color: #fff;
+}
+/* Pinned across every state, exactly as .pi-lb-close is and for the same
+   reason: this is a <button>, and a host's bare `button:hover` is (0,1,1) —
+   it outranks the single class that sets `background: none`, so a Duda theme
+   (and the dev harness) painted a grey pill behind the mark on hover. Nothing
+   of ours was drawing it. The icon sits over a photo; it takes no chrome. */
+.pi-m-expand,
+.pi-m-expand:hover,
+.pi-m-expand:focus,
+.pi-m-expand:active {
+  background: none;
+  border: none;
+  box-shadow: none;
 }
 
 .pi-m-hero-content {
@@ -887,11 +1233,19 @@ span.pi-lb-img {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  /* 8px between the name, the rating row and the address (Figma 7112-58294).
+     Was 3px plus a 4px bottom margin on the name — the three ran together as
+     one block, which is what made the address look like part of the rating. */
+  gap: 8px;
+  min-width: 0;
 }
 
 .pi-m-name {
-  margin: 0 0 4px;
+  margin: 0;
+  min-width: 0;
+  /* Wraps — the frame runs a long name onto a second line — but never past the
+     edge, and a third line is cut rather than pushing the rating off. */
+  overflow-wrap: anywhere;
   font-size: 20px;
   font-weight: 700;
   line-height: 1.2;
@@ -919,10 +1273,19 @@ span.pi-lb-img {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   font-size: 16px;
   font-weight: 500;
   color: #fff;
   text-decoration: none;
+}
+/* One line, ellipsised. A full US address is three lines on a phone, and it
+   was running off the right edge and over the photo. */
+.pi-m-address .pi-underline {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pi-m-address svg {
@@ -974,9 +1337,10 @@ span.pi-lb-img {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   width: 44px;
   height: 44px;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   border-radius: 50%;
   color: #101318;
 }
@@ -1017,7 +1381,7 @@ span.pi-lb-img {
    can still override colour + size. Force ours so it matches local. */
 .pi-name {
   color: #101318 !important;
-  font-size: 35px !important;
+  font-size: 30px !important;
   font-weight: 700 !important;
   line-height: 1.2 !important;
 }
@@ -1036,175 +1400,19 @@ span.pi-lb-img {
   line-height: 1.2 !important;
 }
 
-/* ── "Send Message" modal (lightbox) — Figma 10199-60873 / 10199-67707 ──── */
-.pi-msg-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483647;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  box-sizing: border-box;
-  background: rgba(16, 19, 24, 0.55);
-  animation: pi-hours-fade 0.15s ease-out;
-}
-.pi-msg-modal {
-  width: min(695px, 100%);
-  max-height: calc(100vh - 48px);
-  overflow: auto;
-  box-sizing: border-box;
-  background: #fff;
-  border: 1px solid #f4f6f8;
-  border-radius: 20px;
-  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
-  font-family: 'Montserrat', sans-serif;
-  animation: pi-hours-pop 0.15s ease-out;
-}
-.pi-msg-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 23px 42px;
-  background: #ffffff;
-  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
-}
-.pi-msg-title { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 600; line-height: 36px; color: #101318; }
-.pi-msg-title svg { flex: 0 0 auto; }
-.pi-msg-close {
-  flex: 0 0 auto; width: 32px; height: 32px;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0; border: none; background: none; border-radius: 6px;
-  color: #101318; cursor: pointer;
-}
-.pi-msg-close:hover { background: #f4f6f8; }
 
-.pi-msg-body { background: #fff; padding: 30px 42px; display: flex; flex-direction: column; gap: 16px; }
-.pi-req { color: #e53935; margin-left: 2px; }
-
-/* Facility area */
-.pi-msg-facility-area { position: relative; display: flex; flex-direction: column; gap: 12px; }
-.pi-msg-dd-btn {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  width: 100%; height: 56px; padding: 0 16px;
-  background: #fff; border: 1px solid #a5b4bf; border-radius: 8px;
-  color: #637381; font: 400 16px 'Montserrat', sans-serif; cursor: pointer;
-}
-.pi-msg-dd-btn svg { flex: 0 0 auto; color: #101318; }
-.pi-msg-facility { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 0; border: none; background: none; text-align: left; }
-.pi-msg-facility--btn { cursor: pointer; }
-.pi-msg-facility-name { font-size: 18px; font-weight: 600; color: #101318; }
-.pi-msg-facility-addr { display: flex; align-items: center; gap: 8px; font-size: 16px; color: #637381; }
-.pi-msg-facility-addr svg { flex: 0 0 auto; color: #637381; }
-.pi-msg-dd-list {
-  position: absolute; top: 100%; left: 0; right: 0; z-index: 2;
-  margin: 4px 0 0; padding: 4px; list-style: none;
-  background: #fff; border: 1px solid #a5b4bf; border-radius: 8px;
-  box-shadow: 0 8px 18px rgba(71, 84, 116, 0.2);
-}
-.pi-msg-dd-list li button {
-  display: block; width: 100%; text-align: left; padding: 10px 12px;
-  border: none; background: none; border-radius: 6px;
-  font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer;
-}
-.pi-msg-dd-list li button:hover { background: #f4f6f8; }
-
-/* Form fields (floating label) */
-.pi-msg-form { display: flex; flex-direction: column; gap: 24px; }
-.pi-msg-rows { display: flex; flex-direction: column; gap: 16px; }
-.pi-msg-row { display: flex; gap: 16px; }
-.pi-msg-row > * { flex: 1 1 0; min-width: 0; }
-/* display + height are !important because this is a <label>, and a host
-   stylesheet that sets `label { display: inline }` makes the box ignore height
-   entirely: the field collapses to a text line and the absolutely-positioned
-   input and floating label pile on top of each other (seen on the live Duda
-   site — the fields rendered as overlapping struck-through lines).
-   min-height is the belt-and-braces: even if `height` is overridden, the field
-   cannot collapse. */
-.pi-msg-field { position: relative; display: block !important; height: 56px !important; min-height: 56px; box-sizing: border-box; border: 1px solid #a5b4bf; border-radius: 8px; background: #fff; }
-/* !important is required to beat the forced height on .pi-msg-field above —
-   without it the message textarea collapsed to the 56px single-line height. */
-.pi-msg-field--area { height: 200px !important; min-height: 200px; }
-.pi-msg-field-input {
-  position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
-  padding: 20px 16px 0; border: none; background: transparent; outline: none;
-  font: 400 16px/20px 'Montserrat', sans-serif; color: #101318; resize: none;
-}
-.pi-msg-field--area .pi-msg-field-input { padding-top: 36px; resize: vertical; }
-.pi-msg-field-label {
-  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
-  font: 400 16px/20px 'Montserrat', sans-serif; color: #637381; pointer-events: none;
-  transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
-}
-.pi-msg-field--area .pi-msg-field-label { top: 16px; transform: none; }
-.pi-msg-field:focus-within .pi-msg-field-label,
-.pi-msg-field--filled .pi-msg-field-label { top: 9px; transform: none; font-size: 12px; line-height: 15px; }
-
-/* Footer */
-.pi-msg-foot { background: #f9fafb; padding: 19px 42px; display: flex; flex-direction: column; gap: 16px; }
-.pi-msg-consent { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
-.pi-msg-consent input { position: absolute; width: 0; height: 0; opacity: 0; }
-.pi-msg-check {
-  flex: 0 0 auto; width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  background: #fff; border: 2px solid #c4cdd5; border-radius: 6px;
-}
-.pi-msg-check--on { background: #101318; border-color: #101318; }
-.pi-msg-consent-text { font-size: 16px; line-height: 20px; color: #101318; }
-.pi-msg-terms { align-self: center; padding: 0 32px; font-size: 16px; line-height: 20px; color: #000; text-decoration: underline; }
-
-.pi-msg-actions { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
-.pi-msg-captcha {
-  width: 236px; height: 60px; flex: 0 0 auto;
-  display: flex; align-items: center; gap: 12px; padding: 0 12px;
-  background: #f9fafb; border: 1px solid #d3d3d3; border-radius: 4px;
-}
-.pi-msg-captcha-box { flex: 0 0 auto; width: 24px; height: 24px; background: #fff; border: 2px solid #c4cdd5; border-radius: 2px; }
-.pi-msg-captcha-label { flex: 1 1 auto; font-size: 14px; color: #3c4043; }
-.pi-msg-captcha-brand { font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; color: #9aa0a6; }
-.pi-msg-buttons { display: flex; align-items: center; gap: 16px; }
-.pi-msg-cancel { border: none; background: none; font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer; }
-.pi-msg-submit {
-  width: 127px; height: 40px;
-  display: flex; align-items: center; justify-content: center;
-  border: none; border-radius: 8px;
-  background: var(--color_1, #f45f30); color: #fff;
-  font: 700 16px 'Montserrat', sans-serif; cursor: pointer;
-}
-.pi-msg-submit:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black); }
-.pi-msg-submit:disabled, .pi-msg-cancel:disabled { opacity: 0.6; cursor: default; }
-
-.pi-msg-error {
-  margin: 0 32px;
-  color: #e53935;
-  font: 500 15px 'Montserrat', sans-serif;
+/* Gallery skeleton — shown only while a property's photos are being looked up
+   (the lookup runs after the property itself resolves, so it outlives the
+   widget's own loading gate). Sits in the gallery's exact footprint so nothing
+   shifts when the real images arrive. */
+.pi-gallery--loading {
+  display: block;
+  cursor: default;
+  overflow: hidden;
 }
 
-.pi-msg-success {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 10px;
-  padding: 24px 16px 8px;
-}
-.pi-msg-success-icon {
-  width: 56px; height: 56px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 50%;
-  background: #e7f5e8;
-}
-.pi-msg-success-title { margin: 4px 0 0; font: 700 22px 'Montserrat', sans-serif; color: #101318; }
-.pi-msg-success-text { margin: 0 0 12px; max-width: 420px; font: 400 16px 'Montserrat', sans-serif; line-height: 1.5; color: #55606b; }
-.pi-msg-success .pi-msg-submit { width: auto; padding: 0 28px; }
-
-@media (max-width: 640px) {
-  .pi-msg-head { padding: 18px 20px; }
-  .pi-msg-body { padding: 20px; }
-  .pi-msg-foot { padding: 16px 20px; }
-  .pi-msg-row { flex-direction: column; }
-  .pi-msg-actions { flex-direction: column-reverse; align-items: stretch; }
-  .pi-msg-buttons { justify-content: flex-end; }
-  .pi-msg-captcha { width: 100%; }
+.pi-gallery-skel {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
 }

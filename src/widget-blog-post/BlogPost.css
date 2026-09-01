@@ -1,0 +1,575 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* ===========================================================================
+   Widget #16 — Blog Post
+   Measured from Figma desktop 9340:22850. No mobile frame exists for this page,
+   so the breakpoints follow the conventions #15 set (900px, single column).
+
+   Every rule is prefixed .bpp-* and scoped under .bpp-wrapper — there's no CSS
+   module isolation here, and the bundle injects this stylesheet into the host
+   page. The Featured Articles card values are #15's verbatim so the two pages
+   look like one system.
+   =========================================================================== */
+
+/* ── Root ──────────────────────────────────────────────────────────────────── */
+
+.bpp-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  max-width: 1330px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  color: #101318;
+  display: flex;
+  flex-direction: column;
+  /* Figma's baseline rhythm between the page's blocks; the two that differ
+     (title→hero, body→featured) override it below. */
+  gap: 40px;
+}
+
+.bpp-wrapper *,
+.bpp-wrapper *::before,
+.bpp-wrapper *::after {
+  box-sizing: border-box;
+}
+
+/* ── Breadcrumb ────────────────────────────────────────────────────────────── */
+
+.bpp-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* Figma opens 80px between the crumb row and the title (crumbs end at y=24,
+     the content block starts at y=104); 40px of that is the wrapper's own gap. */
+  margin-bottom: 40px;
+  font-size: 16px;
+  line-height: 20px;
+  /* The current-page crumb is the full post title, which is far too long to sit
+     on one line at narrow widths. Wrapping the row is better than truncating
+     the title or scrolling it out of reach. */
+  flex-wrap: wrap;
+}
+
+.bpp-crumbs svg {
+  flex-shrink: 0;
+  color: #101318;
+}
+
+.bpp-crumb-link {
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bpp-crumb-link:hover {
+  color: var(--color_1, #f45f30);
+}
+
+.bpp-crumb-current {
+  color: #101318;
+}
+
+/* ── Title ─────────────────────────────────────────────────────────────────── */
+
+.bpp-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.bpp-title {
+  margin: 0;
+  /* Figma is 80px/100px on a 1347px canvas. The widget can sit in a much
+     narrower column, and 80px there is unreadable — clamp scales it down
+     without needing a breakpoint per size. */
+  font-size: clamp(32px, 4.2vw, 80px);
+  font-weight: 600;
+  line-height: 1.25;
+  color: #101318;
+  /* Long unbroken words in a headline this large would otherwise overflow. */
+  overflow-wrap: break-word;
+}
+
+.bpp-byline {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 22.5px;
+  color: #101318;
+}
+
+/* ── Hero ──────────────────────────────────────────────────────────────────── */
+
+.bpp-hero {
+  display: block;
+  width: 100%;
+  /* Figma's 1347x743 box, held as a ratio so it scales with the column. */
+  aspect-ratio: 1347 / 743;
+  object-fit: cover;
+  border-radius: 16px;
+  background: #eceef1;
+}
+
+/* ── Share row ─────────────────────────────────────────────────────────────── */
+
+.bpp-share-row {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  flex-wrap: wrap;
+  /* Figma opens 100px between the share row and the body copy. */
+  margin-bottom: 60px;
+}
+
+.bpp-share-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 25px;
+  color: #101318;
+}
+
+.bpp-share-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.bpp-social {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #101318;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.bpp-social:hover {
+  color: var(--color_1, #f45f30);
+}
+
+/* ── Featured-card Share button + popover (Figma 9355:20108 / 9340:23554) ──── */
+
+.bpp-share {
+  /* Above the title anchor's stretched overlay so Share stays clickable. */
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bpp-share:hover {
+  color: var(--color_1, #f45f30);
+}
+
+.bpp-share svg {
+  text-decoration: none;
+}
+
+.bpp-share-pop {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  /* Figma's popup is 24px padding / 40px gap around 32px glyphs — 440px wide,
+     which is wider than the 422px card it sits on. Same padding and radius,
+     but 26px glyphs at a 20px gap so it stays inside the card at every column
+     width (and matches the #12/#15 popovers, which are the same control). */
+  gap: 20px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.18);
+  padding: 16px 22px;
+  z-index: 3;
+}
+
+/* ── Body copy ─────────────────────────────────────────────────────────────
+   Authored HTML from the collection's `content` column, so the element
+   selectors below are the only styling hook there is — the markup carries no
+   classes of ours. Values are Figma's: 16/24 body, 32/40 h2, 16/24 bold h3.  */
+
+.bpp-body {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #101318;
+  /* Authored copy can carry anything, including a pasted table or a long URL.
+     Contain it rather than let it widen the page. */
+  overflow-wrap: break-word;
+}
+
+.bpp-body > *:first-child { margin-top: 0; }
+.bpp-body > *:last-child { margin-bottom: 0; }
+
+.bpp-body p {
+  margin: 0 0 20px;
+}
+
+.bpp-body h1,
+.bpp-body h2 {
+  margin: 40px 0 20px;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 40px;
+  color: #101318;
+}
+
+.bpp-body h3,
+.bpp-body h4,
+.bpp-body h5,
+.bpp-body h6 {
+  margin: 20px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+  color: #101318;
+}
+
+.bpp-body ul,
+.bpp-body ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+}
+
+.bpp-body li {
+  margin-bottom: 8px;
+}
+
+.bpp-body a {
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bpp-body a:hover {
+  color: var(--color_1, #f45f30);
+}
+
+.bpp-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 16px;
+}
+
+.bpp-body blockquote {
+  margin: 24px 0;
+  padding: 4px 0 4px 24px;
+  border-left: 4px solid var(--color_1, #f45f30);
+  font-size: 18px;
+  line-height: 28px;
+}
+
+.bpp-body table {
+  width: 100%;
+  border-collapse: collapse;
+  /* A wide pasted table scrolls its own container rather than the page. */
+  display: block;
+  overflow-x: auto;
+}
+
+.bpp-body th,
+.bpp-body td {
+  border: 1px solid #dfe3e8;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+/* ── Featured articles ─────────────────────────────────────────────────────── */
+
+/* Figma opens 80px between the body and this section; 40px is the wrapper gap. */
+.bpp-featured {
+  margin-top: 40px;
+}
+
+.bpp-featured-title {
+  margin: 0 0 40px;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 40px;
+  color: #101318;
+}
+
+.bpp-featured-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  width: 100%;
+  /* stretch so every card in the row takes the height of the tallest — excerpts
+     vary in length, and self-sized cards leave the row ragged. */
+  align-items: stretch;
+  grid-auto-rows: 1fr;
+}
+
+.bpp-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+.bpp-card-img {
+  width: 100%;
+  height: 234px;
+  flex-shrink: 0;
+}
+
+.bpp-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+  padding: 24px;
+  flex: 1;
+}
+
+.bpp-card-title {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 30px;
+  color: #101318;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bpp-card-byline {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #637381;
+  margin: 0;
+}
+
+.bpp-card-excerpt {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #101318;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  /* Cards are equal height, so a grown excerpt box would be taller than its
+     clamped text and a third line would leak below the ellipsis. Capping at
+     2 x line-height keeps the crop honest (see the same note in #15). */
+  max-height: 48px;
+}
+
+.bpp-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  /* Pin Read more to the bottom rather than letting a short excerpt float it. */
+  margin-top: auto;
+}
+
+.bpp-readmore {
+  font-size: 16px;
+  font-weight: 400;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bpp-readmore:hover {
+  color: var(--color_1, #f45f30);
+}
+
+/* The title anchor stretches its hit area over the whole card, so the card can
+   carry exactly one real link for screen readers and crawlers. Unlike #12/#15
+   there is no Share button inside this card competing for the click. */
+.bpp-card-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.bpp-card-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.bpp-card-link:hover {
+  color: var(--color_1, #f45f30);
+}
+
+/* ── Not found ─────────────────────────────────────────────────────────────── */
+
+.bpp-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.bpp-missing-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 36px;
+  color: #101318;
+}
+
+.bpp-missing-text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  color: #637381;
+}
+
+.bpp-missing-link {
+  margin-top: 8px;
+  height: 44px;
+  padding: 0 21px;
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid #101318;
+  border-radius: 100px;
+  color: #101318;
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.bpp-missing-link:hover {
+  background: #f4f6f8;
+}
+
+/* ── Skeletons ─────────────────────────────────────────────────────────────── */
+
+.bpp-skel {
+  display: block;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #e4e7eb 25%, #eef0f3 37%, #e4e7eb 63%);
+  background-size: 400% 100%;
+  animation: bpp-skel-shimmer 1.4s ease-in-out infinite;
+}
+
+.bpp-skel--title { height: 56px; width: 80%; }
+.bpp-skel--title.short { width: 55%; }
+.bpp-skel--byline { height: 18px; width: 260px; }
+.bpp-skel--hero { width: 100%; aspect-ratio: 1347 / 743; border-radius: 16px; }
+.bpp-skel--text { height: 16px; margin-bottom: 12px; }
+
+@keyframes bpp-skel-shimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bpp-skel { animation: none; }
+}
+
+/* Visually hidden, still announced. */
+.bpp-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Narrow desktop / tablet ───────────────────────────────────────────────── */
+
+/* The widget can sit in a column narrower than the 1330px canvas, so give it
+   gutters and drop to two cards before they get too tight. */
+@media (max-width: 1378px) {
+  .bpp-wrapper {
+    padding: 0 24px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .bpp-featured-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Mobile ────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .bpp-wrapper {
+    gap: 28px;
+  }
+
+  /* No breadcrumb on a phone — the Figma draws none, on this page or on the
+     blog listing (#15 hides its own at this width for the same reason).
+     Replaces a shrunk-down treatment (14px text, 18px chevrons and an
+     ellipsised post title) that is dead once the row is hidden. */
+  .bpp-crumbs {
+    display: none;
+  }
+
+  .bpp-byline {
+    font-size: 16px;
+    line-height: 20px;
+  }
+
+  .bpp-share-row {
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+
+  .bpp-share-label {
+    font-size: 18px;
+  }
+
+  .bpp-body h1,
+  .bpp-body h2 {
+    margin: 28px 0 16px;
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .bpp-featured-title {
+    margin-bottom: 24px;
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .bpp-featured-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Figma's mobile card insets the body 20px rather than 24px. */
+  .bpp-card-body {
+    padding: 20px;
+  }
+}

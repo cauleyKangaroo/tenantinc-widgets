@@ -1,4 +1,5 @@
 import React from 'react';
+import { CloseCircleIcon } from '@shared/ui';
 import type { FilterState } from '../filters';
 
 interface TopFilterBarProps {
@@ -18,16 +19,6 @@ function toggle(list: string[], value: string): string[] {
 }
 
 // White circle with a dark cross — matches the filter panel's active chip.
-function PillRemoveIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="8" r="8" fill="currentColor" />
-      <line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="#101318" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
 function FilterHorizontalIcon() {
@@ -38,7 +29,11 @@ function FilterHorizontalIcon() {
   );
 }
 
-function SearchIcon() {
+/* Exported so the filter modal's search renders the SAME icon as this one —
+   the two searches are meant to look identical, so they share one definition
+   rather than keeping two copies in step by hand. stroke is hardcoded white
+   because both buttons it sits on are #101318. */
+export function SearchIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
       <circle cx="11" cy="11" r="8"/>
@@ -67,8 +62,11 @@ export function TopFilterBar({
     <div className="sl-top-bar">
 
       {/* Filter icon — opens the full panel; bubble shows active filter count */}
+      {/* `active` is panel-open; `has-filters` is "filters are applied" — two
+          different things, so they get two classes. has-filters fills the button
+          black with a white icon. */}
       <button
-        className={`sl-top-bar-icon-btn${panelOpen ? ' active' : ''}`}
+        className={`sl-top-bar-icon-btn${panelOpen ? ' active' : ''}${activeCount > 0 ? ' has-filters' : ''}`}
         onClick={onTogglePanel}
         aria-label="Open filters"
         title="Open filters"
@@ -89,7 +87,8 @@ export function TopFilterBar({
               className={`sl-top-bar-pill${active ? ' active' : ''}`}
               onClick={() => onChange({ ...filters, features: toggle(filters.features, name) })}
             >
-              {active && <span className="sl-top-bar-pill-x"><PillRemoveIcon /></span>}
+              {/* Outlined ring: an active pill's background is #101318. */}
+              {active && <span className="sl-top-bar-pill-x"><CloseCircleIcon outlined size={24} /></span>}
               <span>{name}</span>
             </button>
           );

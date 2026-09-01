@@ -1,0 +1,233 @@
+/* ===========================================================================
+   <DateModal /> — month-grid date picker in a lightbox. Two months (current +
+   next), past days disabled. Promoted from the rental-flow widget into the kit.
+   Figma: Mariposa — Duda — 8507-23637.
+   =========================================================================== */
+@import './tokens.css';
+
+/* Portalled to <body> like the rental flow's overlays, so it inherits nothing
+   from the widget that opened it — including the font. See the note on
+   .rf-overlay in #99's screens.css. */
+.hb-datemodal-overlay {
+  position: fixed;
+  font-family: var(--hb-font, 'Montserrat', sans-serif);
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(16, 19, 24, 0.55);
+  animation: hb-datemodal-overlay-in 0.15s ease-out;
+  font-family: var(--hb-font);
+}
+.hb-datemodal {
+  width: 100%;
+  max-width: 782px;
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  background: var(--hb-white);
+  border: 1px solid #f4f6f8;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
+  animation: hb-datemodal-in 0.15s ease-out;
+}
+@keyframes hb-datemodal-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hb-datemodal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.hb-datemodal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 23px 33px;
+  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
+}
+.hb-datemodal-title { display: flex; align-items: center; gap: 8px; font-size: 24px; font-weight: 600; color: var(--hb-text-night); }
+.hb-datemodal-title svg { flex: 0 0 auto; }
+.hb-datemodal-close {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 32px; height: 32px;
+  /* padding:0 is load-bearing. Hosts style bare <button>s — the dev harness
+     uses `button { padding: 6px 14px }` — and under a border-box reset that
+     leaves this 32px button just 4px of content width. The 18px mark, being a
+     flex item that shrinks by default, then collapsed to a speck. Border and
+     background are already reset below for the same reason; padding was the
+     one this rule missed. */
+  padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; border-radius: 6px;
+  color: var(--hb-text-night); cursor: pointer;
+}
+/* Belt and braces: the glyph keeps its intrinsic size whatever the parent does.
+   .hb-datemodal-title svg already carries this, which is precisely why the
+   calendar mark rendered correctly while the X next to it did not. */
+.hb-datemodal-close svg { flex: 0 0 auto; }
+.hb-datemodal-close:hover { background: #f4f6f8; }
+
+.hb-datemodal-body { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 42px; }
+/* 64px between the two months (Figma 8507-23638's frame). Wide on purpose —
+   at 24px the two grids read as one continuous run of dates. */
+.hb-datemodal-cals { display: flex; gap: 64px; justify-content: center; flex-wrap: wrap; max-width: 100%; }
+.hb-datemodal-cta { width: 100%; max-width: 343px; }
+
+/* Browse mode: one month with month/year pickers above it. */
+.hb-datemodal-browse { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.hb-datemodal-jump { display: flex; align-items: center; gap: 12px; }
+.hb-datemodal-jump-sel {
+  /* Full reset — hosts style bare <select>s just as they do <button>s. */
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--hb-cloud-darker, #a5b4bf);
+  border-radius: 8px;
+  background: var(--hb-white, #fff);
+  color: var(--hb-text-night, #101318);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  cursor: pointer;
+}
+.hb-datemodal-jump-sel:focus-visible {
+  outline: none;
+  border-color: var(--hb-text-night, #101318);
+  box-shadow: var(--hb-focus-ring);
+}
+/* Reset sits with the pickers, not with the confirm CTA — it acts on the
+   calendar's state, not on the form's. Plain text, underlined on hover: it
+   undoes a choice rather than making one, so it should not compete with the
+   confirm button for weight.
+   Everything a host might set on a bare <button> is still reset — padding,
+   border, radius, background, appearance — because "plain text" only holds if
+   nothing paints a box around it. */
+.hb-datemodal-reset {
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--hb-text-night, #101318);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+/* background pinned across every interaction state, not just the resting one.
+   A host `button:hover { background: #f3f4f6 }` is (0,1,1) and outranks the
+   single class above, so resetting the base alone left a grey box appearing on
+   hover. Underline is the only thing that should change. */
+.hb-datemodal-reset:hover,
+.hb-datemodal-reset:focus,
+.hb-datemodal-reset:active { background: none; }
+.hb-datemodal-reset:hover { text-decoration: underline; }
+/* Keyboard focus needs a visible marker too, and an outline reads better than
+   a ring on something with no box of its own. */
+.hb-datemodal-reset:focus-visible {
+  outline: 2px solid var(--hb-text-night, #101318);
+  outline-offset: 2px;
+  text-decoration: underline;
+}
+
+/* Optional nudge under the confirm button (Figma 8507-23907). Centred to the
+   button's own width, not the modal's, so it stays visually tied to it. */
+.hb-datemodal-foot {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--hb-text-night);
+}
+
+/* The action inside reads as a link, not a second button — it is a change of
+   mind, not a second call to action. Styled as a button element so it is
+   keyboard-reachable and announced as an action. */
+.hb-datemodal-foot button {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.hb-datemodal-foot button:hover { color: var(--hb-cta); }
+
+/* Month calendar */
+.hb-cal-head { padding: 10px; text-align: center; font-size: 17px; font-weight: 700; color: var(--hb-text-night); }
+.hb-cal-grid { display: grid; grid-template-columns: repeat(7, 30px); gap: 10px; justify-content: center; }
+.hb-cal-dow { display: flex; align-items: center; justify-content: center; height: 30px; font-size: 15px; color: var(--hb-grayscale-medium); }
+.hb-cal-cell {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  border: none; background: none; border-radius: 50%;
+  font: 500 15px var(--hb-font);
+  color: var(--hb-text-night);
+  cursor: pointer;
+}
+.hb-cal-cell--empty { visibility: hidden; }
+.hb-cal-cell--disabled { color: #c4cdd5; cursor: default; }
+.hb-cal-cell:not(.hb-cal-cell--disabled):not(.hb-cal-cell--selected):hover { background: #f4f6f8; }
+.hb-cal-cell--selected { background: var(--hb-text-night); color: var(--hb-white); }
+
+/* ── Two months stop fitting side by side ─────────────────────────────────
+   A month grid is 7 * 30px + 6 * 10px = 270px. Two of them plus the 64px
+   gutter and the body's 42px padding need a 688px modal, and the overlay's
+   24px sides make that a 736px viewport. Below that they stack.
+
+   flex-wrap was doing this implicitly, and implicitly is the problem: this row
+   is a flex item of a column with `align-items: center`, so its width is
+   fit-content, and wrap only fires while an ancestor actually constrains it.
+   When one does not, the row takes its 604px max-content width, runs past the
+   modal's edge, and drags the centred CTA out with it — the modal scrolls
+   sideways instead of stacking. Declaring the stack removes the dependency.
+
+   BEFORE the 640px block on purpose: that block re-tightens the gap to 16px,
+   and at equal specificity the later rule wins. */
+@media (max-width: 760px) {
+  .hb-datemodal-cals { flex-direction: column; align-items: center; gap: 24px; }
+}
+
+@media (max-width: 640px) {
+  /* Full-bleed sheet (Figma 8509-52040, whose root frame is simply
+     `bg-white size-full` — no radius, border or shadow).
+
+     The overlay's 24px gutter goes: that gutter IS the gap you could see
+     behind the module. With it removed and the sheet stretched, the dimmed
+     backdrop is fully covered, so there is nothing left to show through.
+
+     height:100% of an `inset: 0` fixed overlay, deliberately, rather than
+     100vh — vh on mobile browsers measures past the address bar and would
+     push the footer under it. */
+  .hb-datemodal-overlay { padding: 0; align-items: stretch; }
+  .hb-datemodal {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .hb-datemodal-head { padding: 18px 20px; }
+  /* 18px. "Select your Move-In Date" sits beside a 24px icon in a head padded
+     to 20px a side, and 20px ran it close to the close button on a phone.
+     Safe to set on the component rather than scoped to .rf-wrapper for two
+     reasons: the rental flow is DateModal's only consumer, and the modal is
+     portalled to <body>, so a .rf-wrapper scope could not reach it anyway. */
+  .hb-datemodal-title { font-size: 18px; }
+  .hb-datemodal-body { padding: 24px 16px; }
+  .hb-datemodal-cals { gap: 16px; }
+}

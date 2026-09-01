@@ -1,0 +1,11 @@
+{
+  "baseUrl": "https://edge.tenant.dev/api/v3",
+  "appId": "appbc35600a675841eea5893df84231789e",
+  "apiKey": "309365e7685b4b048d79dc7d29bd4f57",
+  "companyId": "kQoBXA8vpn",
+  "propertyId": "OBZ5dhPmjZ",
+  "spaceGroupId": "7jP5qtVeBg",
+  "proxyBaseUrl": "",
+  "enableDirectWrites": true,
+  "gpPublicKey": "pkapi_cert_a3ujFfhmq3EPW8k0ZP"
+}

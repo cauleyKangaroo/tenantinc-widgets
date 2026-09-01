@@ -8,5 +8,7 @@ node_modules/
 !README.md
 *.docx
 .idea/
+.tmp-test/
+
 # gulp-awspublish upload cache
 .awspublish-*

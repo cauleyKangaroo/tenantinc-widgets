@@ -1,0 +1,1367 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+/* Widget #08 — Map Locations (city page). Figma 10622:77201. */
+
+/* ── Root ──────────────────────────────────────────────────────────────── */
+
+.ml-wrapper {
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  max-width: 1330px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  color: #101318;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-inline: clamp(16px, 4vw, 40px);
+}
+
+.ml-wrapper *,
+.ml-wrapper *::before,
+.ml-wrapper *::after {
+  box-sizing: border-box;
+}
+
+/* ── Header: count + Filter / sort pills ───────────────────────────────── */
+
+.ml-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.ml-heading {
+  font-size: 28px;
+  /* 1.25, as 40/32 was — kept as a ratio so the leading follows the size
+     rather than having to be recalculated next time it moves. */
+  line-height: 1.25;
+  font-weight: 700;
+  color: #141a2b;
+  margin: 0;
+}
+
+.ml-controls { display: flex; gap: 16px; align-items: center; }
+
+/* Canonical pill, same geometry as #11's .sg-tab. 2px border per Figma
+   10622:77655 / :77659 — reverted from the 1px site-wide rule on request, so
+   this widget now matches its design rather than the other widgets' pills.
+   NOTE the filter PANEL's option pills are genuinely 1px in the same file
+   (10557:146427) — the two are different components, not an inconsistency. */
+.ml-pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 8px 21px;
+  border: 2px solid #101318;
+  border-radius: 100px;
+  background: #fff;
+  color: #000;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ml-pill:hover { background: #f4f6f8; }
+.ml-pill-sort { font-weight: 400; }
+
+/* SELECTED (Figma 10629-81025): the Filter pill inverts to a solid dark fill
+   with a 2px border of the same colour, and the count becomes a green badge
+   clipped to the top-right. The icon rides `currentColor`, so it turns white
+   with the label rather than needing a second asset. */
+.ml-pill--on {
+  border-width: 2px;
+  background: #101318;
+  color: #fff;
+}
+.ml-pill--on:hover { background: #22272f; }
+
+/* Its count sits OUTSIDE the pill, unlike the inline .ml-pill-count. */
+.ml-pill--on .ml-pill-count {
+  position: absolute;
+  top: -9px;
+  right: -6px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 14.4px;
+  font-weight: 600;
+}
+
+/* ── Sort dropdown ─────────────────────────────────────────────────────────
+   Figma draws the closed pill only, so the open menu borrows the filter
+   modal's surface — white, 12px radius, the same elevation — rather than
+   inventing a third surface style for one control. */
+
+.ml-sort { position: relative; }
+.ml-pill--open { background: #f4f6f8; }
+/* Chevron flips to point up while the menu is open. */
+.ml-pill--open .ml-pill-chev { transform: rotate(180deg); }
+.ml-pill-chev { transition: transform 120ms ease-in-out; }
+
+.ml-sort-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  min-width: 100%;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid #dfe3e8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+}
+
+.ml-sort-opt {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #101318;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ml-sort-opt:hover { background: #f4f6f8; }
+.ml-sort-opt--on { font-weight: 600; background: #f4f6f8; }
+
+/* "Filter & Sort" on mobile — the same pill, filled. */
+.ml-pill--dark {
+  background: #101318;
+  color: #fff;
+  font-weight: 500;
+}
+
+.ml-pill--dark:hover { background: #22272f; }
+
+/* Count clipped to the pill's top-right corner, per the frame. */
+.ml-pill-badge {
+  position: absolute;
+  top: -8px;
+  right: -3px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 100px;
+  background: var(--color_1, #f45f30);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ml-pill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 100px;
+  background: var(--color_1, #f45f30);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ── Filter panel (Figma 10557:146492) ─────────────────────────────────── */
+
+/* Centred lightbox over a dark overlay — same pattern as #05's filter modal
+   (`.sl-modal-overlay`), so the two widgets feel like one site. */
+.ml-fp-overlay {
+  position: fixed;
+  inset: 0;
+  /* `position: fixed` is only viewport-relative while no ancestor creates a
+     containing block. A `transform` / `filter` / `will-change` anywhere above
+     traps it — which the Duda editor does when it zooms the canvas, and so do
+     resizable preview boxes. When that happens `inset: 0` is that ancestor, not
+     the screen, and the sheet renders wider than the display with its right-hand
+     side (Reset, close, the Apply button) unreachable.
+     Viewport units still measure the real screen, so they cap it either way. */
+  max-width: 100vw;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: rgba(16, 19, 24, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  z-index: 2147483000;
+  animation: ml-fp-fade 0.15s ease;
+}
+
+@keyframes ml-fp-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.ml-fp {
+  width: 100%;
+  /* 436px, the same as #05's filter lightbox — the Figma frame is ~423px.
+     `min()` so a narrow or trapped overlay clamps it instead of overflowing. */
+  max-width: min(436px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  /* 1px everywhere per the site-wide rule (the frame draws 2px). */
+  border: 1px solid #dfe3e8;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(16, 19, 24, 0.25);
+  overflow: hidden;
+  text-align: left;
+  cursor: default;
+  animation: ml-fp-pop 0.18s ease;
+}
+
+@keyframes ml-fp-pop {
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Header */
+.ml-fp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #dfe3e8;
+  /* Header and footer stay put; only the body scrolls. */
+  flex-shrink: 0;
+}
+
+/* 20px/600, not the frame's 24px/700 — every other widget's modal title is
+   20/600 (see #05's .sl-filter-title) and this one sat noticeably larger. */
+.ml-fp-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+  color: #101318;
+}
+
+.ml-fp-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color_1, #f45f30);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ml-fp-head-actions { display: flex; align-items: center; gap: 12px; }
+
+.ml-fp-reset {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #101318;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ml-fp-reset:hover,
+.ml-fp-close:hover { color: var(--color_1, #f45f30); }
+
+.ml-fp-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #101318;
+  cursor: pointer;
+}
+
+/* Body — the scrolling part; the header and Apply footer stay put. */
+.ml-fp-body {
+  flex: 1 1 auto;
+  /* Required for the scroll to work at all: a flex item defaults to
+     `min-height: auto`, which refuses to shrink below its content, so the panel
+     grew instead of the body scrolling. */
+  min-height: 0;
+  overflow-y: auto;
+  /* Momentum scrolling on iOS. */
+  -webkit-overflow-scrolling: touch;
+  padding: 21px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+}
+
+/* Search — a pill field with a dark round button sunk into its right end.
+   Shared by the mobile header (56/40, Figma 10609:72666) and the filter panel
+   (54/38, Figma 10557:146418), which is the --sm size. */
+.ml-search {
+  position: relative;
+  width: 100%;
+  height: 56px;
+  flex-shrink: 0;
+}
+
+.ml-search--sm { height: 54px; }
+
+.ml-search-input {
+  width: 100%;
+  height: 100%;
+  padding: 0 56px 0 21px;
+  /* 2px, confirmed against the filter-panel variant (Figma 10557:146418). The
+     mobile header uses the same design-system pill, so it follows. */
+  border: 2px solid #101318;
+  border-radius: 100px;
+  background: #fff;
+  outline: none;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  color: #101318;
+}
+
+.ml-search-input::placeholder { color: #637381; }
+
+.ml-search-btn {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 100px;
+  background: #101318;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ml-search--sm .ml-search-btn { width: 38px; height: 38px; }
+
+.ml-search-btn:hover { background: #2d3748; }
+
+/* Section card */
+.ml-fp-section {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 10px 30px 25px;
+}
+
+.ml-fp-section-title {
+  margin: 0 0 2px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 36px;
+  color: #101318;
+}
+
+/* Pills — the site's canonical pill (#05's .sl-pill): 36px tall, 14px regular. */
+.ml-fp-pills { display: flex; flex-wrap: wrap; gap: 12px 8px; }
+
+.ml-fp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 15px;
+  /* 2px, matching #05's filter modal (.sl-filter-modal .sl-pill) — the two
+     panels sit on the same page and read as one control set. */
+  border: 2px solid #101318;
+  border-radius: 100px;
+  background: #fff;
+  color: #101318;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ml-fp-pill:hover { background: #f4f6f8; }
+
+/* Selected reads as a removable chip: dark fill, circle-X, tighter left pad. */
+.ml-fp-pill--on {
+  background: #101318;
+  border-color: #101318;
+  color: #fff;
+  font-weight: 600;
+  padding: 0 16px 0 6px;
+}
+
+.ml-fp-pill--on:hover { background: #22272f; }
+.ml-fp-pill svg { flex-shrink: 0; }
+
+/* Selects — the frame's ".Form 2.0" control, which no other widget uses yet. */
+.ml-fp-fields { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.ml-fp-field {
+  position: relative;
+  /* 0 basis so Min/Max Price stay side by side, as the frame has them. */
+  flex: 1 1 0;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 56px;
+  padding: 0 44px 0 16px;
+  border: 1px solid #a5b4bf;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  /* Label and value hug the left edge. Stated on all three elements because a
+     host page that centres text inside its containers would otherwise win —
+     and <select> takes text-align from whatever wins. */
+  align-items: stretch;
+  text-align: left;
+}
+
+.ml-fp-field-label {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 15px;
+  color: #637381;
+  text-align: left;
+}
+
+.ml-fp-field-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  outline: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px;
+  color: #101318;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ml-fp-field-chevron {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #101318;
+  pointer-events: none;
+}
+
+/* Checkbox lists — one column, like #05's modal (the wider two-column grid was
+   mine, and it made the panel read differently from every other widget). */
+.ml-fp-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The box, the tick, the focus ring and the disabled state all come from
+   @shared/ui's Checkbox now. What was here drew a SECOND checkbox by hand — a
+   hidden input beside a .ml-fp-box square — which had to be kept in step with
+   the kit's by eye and had its own hardcoded #f26500 focus ring. Only the
+   label's type is set here, because the kit leaves that to the caller. */
+.ml-fp-check {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+  color: #101318;
+}
+
+/* Footer */
+.ml-fp-foot {
+  padding: 16px 24px;
+  border-top: 1px solid #dfe3e8;
+  flex-shrink: 0;
+}
+
+.ml-fp-apply {
+  width: 100%;
+  height: 50px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color_1, #f26500);
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.ml-fp-apply:hover { filter: brightness(0.94); }
+
+/* ── Mobile controls (Figma 10609:72429 / 10609:72649) ─────────────────── */
+
+.ml-mcontrols {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.ml-mtoggles { display: flex; gap: 12px; align-items: center; }
+
+/* Mobile toggles (Figma 10609:72461 / :72455): same 44px pill as desktop but
+   20px side padding rather than 21px, and the "Map View" label is Regular where
+   the pill's default is Medium — "Filter & Sort" keeps Medium. */
+.ml-mtoggles .ml-pill { padding: 8px 20px; }
+.ml-pill--view { font-weight: 400; }
+
+/* Badge overhangs the top-right corner: right -2.5px, top -12px (10609:72459). */
+.ml-mtoggles .ml-pill-badge {
+  top: -12px;
+  right: -2.5px;
+  width: 24px;
+  height: 24px;
+  font-size: 14.4px;
+  font-weight: 600;
+}
+
+/* ── Orange CTA — mobile card body + map popup ─────────────────────────── */
+
+.ml-cta {
+  /* flex, not a bare block: this is an <a> now, and an inline box ignores
+     `height`. Centring the label explicitly keeps the 33px box exact. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 33px;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color_1, #f45f30);
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* No slug to point at — same pill, but nothing to click. */
+.ml-cta--static { cursor: default; }
+
+/* Slightly darker on hover. `background` and `color` are RESTATED rather than
+   left to the base rule: a host theme styling bare `a:hover` (or `button:hover`,
+   which this used to be) is (0,1,1) and would repaint underneath us, and then
+   brightness() would be darkening the theme's colour instead of ours.
+   .ml-cta:hover is (0,2,0), so pinning them here wins.
+   brightness() rather than a literal shade because --color_1 is Duda's primary
+   and its value is not knowable at build time. */
+.ml-cta:hover,
+.ml-cta:focus,
+.ml-cta:active {
+  background: var(--color_1, #f45f30);
+  color: #fff;
+  text-decoration: none;
+  filter: brightness(0.94);
+}
+.ml-cta--static:hover { filter: none; }
+
+/* ── Map + cards row ───────────────────────────────────────────────────── */
+
+/* The card column is NOT its own scrollbox — it flows at full height and the
+   map is `position: sticky` beside it. So the page's own scroll does the work:
+   the map pins as soon as the row reaches the top, the cards travel past it,
+   and when the last card clears, the row ends and the whole widget releases
+   into the content below. No wheel hijacking, so trackpads, keyboards and
+   screen readers all behave normally.
+   `align-items: flex-start` is load-bearing — a stretched map would be as tall
+   as the row and sticky would have nothing to travel through. */
+.ml-row {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* Where a card lands when its marker is clicked (see `revealCard`). Without
+   this, `block: 'start'` puts the card's top edge flush against the viewport's
+   — and on a published page that is behind the site's own sticky nav. 100px
+   clears #02's 85px bar with a little air; a taller host header is the one
+   thing that would need this raised. */
+.ml-card {
+  scroll-margin-top: 100px;
+}
+
+.ml-cards {
+  flex: 0 0 425px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  /* Room for the card outline + shadow so neither is clipped. */
+  padding: 4px;
+  margin: -4px;
+}
+
+.ml-map {
+  position: sticky;
+  top: 16px;
+  flex: 1 1 auto;
+  min-width: 0;
+  /* Fills the window, and keeps filling it as the window resizes — the map is
+     the thing being read while the cards scroll past it, so leaving 300px of
+     empty page beside it on a tall monitor wasted the half that mattered.
+     `--ml-row-h` is now a CEILING an editor can lower, not the height: unset,
+     it does nothing and the viewport decides. Still minus 32px for the 16px
+     sticky offset above and the same below, so the pinned map never runs off
+     the bottom edge.
+     The row is a flex container, so it grows to whatever this resolves to —
+     which is what stops the map overhanging a short list of properties: the
+     column of cards and the map end together. */
+  height: min(var(--ml-row-h, 100vh), calc(100vh - 32px));
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* ── Property card ─────────────────────────────────────────────────────── */
+
+.ml-card {
+  flex-shrink: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  border: 4px solid transparent;
+}
+
+/* FEATURED is the only card that gets a coloured outline. It pairs with the
+   "Featured Property" ribbon, and together they mean "the operator chose this
+   one" — a meaning that must belong to exactly one card on the page. */
+/* Stays GREEN, deliberately. .ml-card--active is the site primary — see the
+   note there — and featured has to read as a different thing from selected. */
+.ml-card--featured { border-color: var(--hb-secondary, #509e2f); }
+
+/* ACTIVE is the card paired with the hovered/open map bubble, and it takes the
+   site's PRIMARY — the same colour that bubble takes when active, so the two
+   read as one selection.
+
+   This was a neutral grey, on the grounds that a coloured border made every
+   card look featured in turn as the pointer ran down the list. Primary is not
+   that colour: featured is the green below it, so the two stay legible as
+   different things.
+
+   The `.ml-card--featured.ml-card--active` override that kept featured green
+   is gone with it — active wins on source order now. A featured card still
+   says so with its star badge, so giving up the outline while the pointer is
+   on it costs nothing; leaving it green would light a map bubble with no card
+   answering it. */
+.ml-card--active {
+  border-color: var(--color_1, #f45f30);
+  filter: drop-shadow(0px 8px 9px rgba(71, 84, 116, 0.2));
+}
+
+/* Photo header */
+.ml-card-head {
+  position: relative;
+  height: 234px;
+  overflow: hidden;
+}
+
+.ml-card-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* The Figma's 50% black wash — everything above it is white text. */
+.ml-card-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.ml-featured {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--hb-secondary, #509e2f);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.ml-distance {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.ml-card--featured .ml-distance { top: 72px; }
+
+.ml-card-data {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  /* The name, rating, address and phone had nothing but their line boxes
+     between them, and .ml-card-name is 1.1 — tight enough that the four ran
+     together as one block over the photo. */
+  gap: 4px;
+  color: #fff;
+}
+
+.ml-card-name {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ml-rating { display: flex; align-items: center; gap: 8px; }
+.ml-rating-score { font-size: 16px; font-weight: 600; line-height: 1.5; }
+.ml-stars { display: inline-flex; align-items: center; }
+
+.ml-reviews {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #fff;
+  text-decoration: underline;
+}
+
+.ml-card-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #fff;
+  text-decoration: underline;
+}
+
+.ml-card-row svg { flex-shrink: 0; }
+/* One line, ellipsised. A full address wrapped to two or three lines and pushed
+   the phone row and the price block down with it, so cards in the same column
+   ended up different heights. min-width: 0 on the span is what lets a flex
+   child shrink below its own text and give text-overflow something to do; the
+   full address stays reachable as the link's title. */
+.ml-card-row--address > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Available spaces */
+.ml-card-body {
+  background: #fff;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ml-promo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 2px dashed var(--color_1, #f45f30);
+  border-radius: 8px;
+  background: #fff;
+  /* TagIcon inside draws in currentColor. */
+  color: var(--color_1, #f45f30);
+}
+
+.ml-promo-text {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 16px;
+  color: #101318;
+}
+
+.ml-units { display: flex; flex-direction: column; width: 100%; }
+
+/* Divider between rows, per the Figma's Line 25 — a border beats an <img>. */
+.ml-unit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #dfe3e8;
+}
+
+.ml-unit-info { display: flex; flex-direction: column; min-width: 0; }
+/* Skeleton only. The real rule above needs no gap — its children are text, and
+   their line boxes do the separating — but placeholder bars are solid to their
+   full height and would otherwise touch. Scoped so the live card is untouched;
+   see the note at the Shimmer pair in CardSkeleton for why the total is
+   unchanged. */
+.ml-card--skeleton .ml-unit-info { gap: 4px; }
+.ml-unit-dims { font-size: 16px; font-weight: 600; color: #101318; }
+.ml-unit-subtype { font-size: 12px; line-height: 16px; color: #637381; }
+
+.ml-unit-prices { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+/* TagIcon draws in currentColor now, so its colour lives here. */
+.ml-unit-tag { display: flex; flex-shrink: 0; color: var(--color_1, #f45f30); }
+
+.ml-price-strike,
+.ml-price-start { display: flex; flex-direction: column; align-items: flex-end; }
+
+.ml-price-label {
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #637381;
+  white-space: nowrap;
+}
+
+.ml-price-label--dark { color: #101318; font-weight: 700; line-height: 16px; }
+
+.ml-price-was {
+  font-size: 16px;
+  color: #637381;
+  text-decoration: line-through;
+  line-height: 1.5;
+}
+
+.ml-price-now { font-size: 20px; font-weight: 700; line-height: 1.2; color: #101318; }
+
+.ml-price-divider { width: 1px; height: 29px; background: #dfe3e8; flex-shrink: 0; }
+
+/* Renders as an <a> (Duda-routable — see UnitRow), so it needs everything a
+   bare <button> got for free: a block-level box for width/height to apply at
+   all, its own centring, and the link decoration stripped. The colour is stated
+   again after `background` because a host page's `a { color }` outranks the
+   inherited value and would otherwise tint the label. */
+.ml-select {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 78px;
+  height: 33px;
+  border: none;
+  border-radius: 4px;
+  background: var(--color_1, #f45f30);
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ml-select:hover,
+.ml-select:focus,
+.ml-select:visited { color: #fff; text-decoration: none; }
+
+.ml-select:hover { filter: brightness(0.94); }
+
+.ml-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ml-admin-fee { font-size: 12px; font-weight: 600; color: #000; }
+
+.ml-see-all {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color_1, #f45f30);
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+/* ── Map bubbles ───────────────────────────────────────────────────────── */
+
+/* Positioned by @shared/NearbyMap (it sets left/top inline); everything here is
+   the Figma's look. translate puts the point of the bubble on the coordinate. */
+/* The anchor. Centred on the point, shrink-wrapped to the bubble, so anything
+   inside can position against the bubble's real edges. */
+.ml-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: block;
+  width: max-content;
+}
+/*
+ * Raising the clicked marker has to happen HERE, on the pin.
+ *
+ * `transform` above creates a stacking context, so every z-index inside a pin
+ * — the bubble's, the popup's — is sealed within it and orders nothing against
+ * a neighbouring pin. Pins themselves were all `z-index: auto`, which leaves
+ * them in DOM order: whichever property came later in the list painted over
+ * the ones before it, clicked or not. `.ml-bubble--active { z-index: 1 }` could
+ * never fix that from inside.
+ *
+ * Two levels, because active and open are not the same thing: hovering a card
+ * lifts its marker clear of its neighbours, and a marker with its popup open
+ * goes above that again so the card cannot be covered by a pin standing on it.
+ */
+.ml-pin--active { z-index: 2; }
+.ml-pin--open { z-index: 3; }
+
+.ml-bubble {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7px 28px;
+  /* 4px, per 10622-77299 / -77303 — asked for explicitly, replacing the 1px
+     this carried on the grounds that every other pill on the site is 1px. On a
+     map the bubble is not a pill in a form, it is the whole control, and it has
+     to hold against photography behind it. */
+  border: 4px solid #101318;
+  border-radius: 100px;
+  background: #fff;
+  color: #000;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 36px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ml-bubble--active {
+  /* The site's primary, not the frame's flat #f26500 — this widget follows the
+     Duda theme everywhere else. The fallback is that same orange. */
+  border-color: var(--color_1, #f26500);
+  box-shadow: 0px 8px 18px rgba(71, 84, 116, 0.2);
+  z-index: 1;
+}
+
+/* Little dark tab under the active bubble — mobile map view only. */
+.ml-bubble-tag {
+  position: absolute;
+  z-index: 2;
+  /* Off the pin box now, so it seats under the bubble without having to know
+     how tall the bubble is. */
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  height: 21px;
+  padding: 0 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 100px;
+  background: #111;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── Map popup (Figma 10626:79939) ─────────────────────────────────────── */
+
+/* Opens above the clicked bubble. 357x156 in the frame; capped to the map's
+   width so a bubble near an edge can't push it out of the clipped box. */
+.ml-popup {
+  position: absolute;
+  z-index: 3;
+  /* BELOW the bubble, right edges flush, 8px between the two. `right: 0` is the
+     bubble's own right edge — which is why the pair share a box: the bubble's
+     width changes with the price, so from outside it there is nothing to align
+     to. */
+  top: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  /* Stretch, so the photo column matches whatever height the body settles on. */
+  align-items: stretch;
+  width: 357px;
+  /* NOT a percentage. Inside .ml-pin, `100%` is the BUBBLE's width — about
+     100px — so `calc(100% - 24px)` crushed the card to ~76px and it rendered as
+     a tall column of photo. The pin is shrink-wrapped by design; anything here
+     that needs to know how wide the MAP is has to say so in viewport units. */
+  max-width: min(357px, calc(100vw - 48px));
+  /* The frame's height is a FLOOR, not a fixture. A longer name or a
+     three-line address used to be squeezed into 156px against a body that was
+     vertically centred; now the card grows and the 16px inset around the right
+     column stays put whatever is in it. */
+  min-height: 156px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+  text-align: left;
+}
+
+/* The whole card, as one link. It sits UNDER the content so the close button,
+   the address and the reviews link keep their own destinations — those three
+   are raised above it below. An <a> laid over the card rather than an onClick,
+   so a middle click opens a tab, the target shows in the status bar, and it is
+   reachable by keyboard like any other link. `inset: 0` rather than a size, so
+   it tracks the card as it grows with its content. */
+.ml-popup-link {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+}
+/* Raised so its text paints over the link rather than under it — but it takes
+   no clicks (see below), so the card stays one destination. The photo is left
+   beneath the overlay entirely: clicking it opens the property, which is the
+   point. */
+.ml-popup-body {
+  position: relative;
+  z-index: 1;
+}
+/* Nothing in the body takes a click: every part of the card is the same
+   destination, so they all fall through to the overlay beneath. */
+.ml-popup-body {
+  pointer-events: none;
+}
+
+.ml-popup-photo {
+  flex: 0 0 156px;
+  width: 156px;
+  /* Fills the card's height rather than pinning it. `cover` crops instead of
+     distorting when the body makes the card taller than the photo is. */
+  height: auto;
+  align-self: stretch;
+  object-fit: cover;
+  display: block;
+}
+
+.ml-popup-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.ml-popup-name {
+  margin: 0;
+  /* Clears the absolutely-positioned close button. */
+  padding-right: 28px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #101318;
+}
+
+.ml-popup-address {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #101318;
+  text-decoration: underline;
+}
+
+.ml-popup-rating { display: flex; align-items: center; gap: 8px; }
+.ml-popup-score { font-size: 14px; font-weight: 600; color: #101318; line-height: 1.5; }
+
+.ml-popup-reviews {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #101318;
+  text-decoration: underline;
+}
+
+.ml-popup-from { font-size: 14px; font-weight: 600; line-height: 1.5; color: #101318; }
+
+.ml-popup-close {
+  position: absolute;
+  /* Above the whole-card link — the ONE thing in here that is not it. */
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: #101318;
+  cursor: pointer;
+}
+
+/* ── SEO copy ──────────────────────────────────────────────────────────── */
+
+.ml-seo { display: flex; flex-direction: column; gap: 24px; width: 100%; }
+
+.ml-seo-heading {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #101318;
+  margin: 0;
+}
+
+.ml-seo-body { font-size: 16px; line-height: 1.25; color: #000; }
+.ml-seo-body p { margin: 0 0 12px; }
+/* A paragraph that is nothing but a bold run is a block heading, so it sits
+   closer to the text it introduces than blocks sit to each other — 4px under a
+   heading against 12px between blocks. Doing it here rather than with a <br>
+   keeps the rule working for editor-written `seoContent` too, which is authored
+   in a WYSIWYG and arrives as its own paragraphs. */
+.ml-seo-body p:has(> strong:only-child) { margin-bottom: 4px; }
+.ml-seo-body strong { font-weight: 700; }
+
+/* ── Mobile ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  /* Only one of the map or the list is rendered here, so the row is a plain
+     column and nothing pins — pinning would eat the screen and fight the
+     sticky bars #03/#05 already put at the top. */
+  /* Back to stretch: in a column, the desktop's flex-start would shrink the
+     map to its (zero) intrinsic width and it would vanish. */
+  .ml-row { flex-direction: column; align-items: stretch; }
+
+  .ml-cards {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  /* 24px gutters, so a 393px screen gives the 345px card the frame draws. */
+  .ml-wrapper { padding-inline: 24px; gap: 16px; }
+
+  .ml-heading {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 22.5px;
+    color: #141a2b;
+  }
+
+  .ml-seo-heading { font-size: 28px; line-height: 1.25; }
+  .ml-header { align-items: flex-start; }
+  .ml-controls { width: 100%; }
+
+  /* The two toggles share the row evenly rather than sizing to their labels. */
+  .ml-mtoggles .ml-pill {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .ml-mtoggles .ml-pill span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Map view is the whole screen's worth of map (616px in the frame), bled to
+     the wrapper's edges. */
+  .ml-map {
+    position: static;
+    width: auto;
+    height: min(616px, 70vh);
+    flex: 0 0 auto;
+    margin-inline: -24px;
+    border-radius: 0;
+  }
+
+  /* Popup: 371x156 in the frame, but a phone can be narrower than that — let
+     it shrink and keep the photo square. */
+  .ml-popup { width: 371px; height: auto; min-height: 156px; }
+
+  /* Parked across the top of the map instead of over its bubble. */
+  .ml-popup--centred {
+    /* Outside the pin on mobile, so these resolve against the map again. */
+    left: 50%;
+    right: auto;
+    top: 16px;
+    width: calc(100% - 24px);
+    max-width: calc(100% - 24px);
+    transform: translateX(-50%);
+  }
+  .ml-popup-photo { flex: 0 0 130px; width: 130px; height: auto; align-self: stretch; }
+  .ml-popup-body { gap: 4px; padding: 12px; }
+  .ml-popup-name { font-size: 14px; }
+  .ml-popup-from { font-size: 14px; }
+
+  /* Nearly full-bleed on a phone, but still a centred lightbox. */
+  .ml-fp-overlay { padding: 16px 12px; }
+  .ml-fp { max-height: calc(100vh - 32px); }
+
+  .ml-fp-head,
+  .ml-fp-body,
+  .ml-fp-foot { padding-inline: 16px; }
+
+  .ml-fp-section { padding: 10px 16px 20px; }
+}
+
+/* ── Empty state ────────────────────────────────────────────────────────────
+   Shown in the cards column when the city has no facilities, or the visitor's
+   filters excluded them all. Sized to sit where the first card would, so the
+   layout doesn't collapse around the map. */
+.ml-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 24px;
+  border: 1px dashed var(--hb-cloud-darker, #d6dae0);
+  border-radius: 12px;
+  text-align: center;
+}
+.ml-empty-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--hb-text-night, #101318);
+}
+.ml-empty-reset {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--hb-text-night, #101318);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ── Mobile filter panel (Figma 10622-2170) ────────────────────────────────
+   Full-bleed sheet rather than the desktop's centred card, and it carries the
+   Sort group the desktop modal doesn't have. */
+
+.ml-fp--full {
+  width: 100%;
+  /* NOT `none` — that is what let it grow past the screen when the overlay was
+     trapped by a transformed ancestor. */
+  max-width: 100%;
+  border-radius: 0;
+  border: 0;
+  /* `100dvh`, NOT `100vh` and NOT `max-height: none`:
+     - `max-height: none` let the panel grow past the viewport, and because the
+       overlay centres its child, the overflow spilled off BOTH ends where it
+       could not be scrolled to. The header and the Apply button both left the
+       screen.
+     - `100vh` on mobile measures the viewport with the browser chrome
+       COLLAPSED, so the footer sits under the URL bar until you scroll. `dvh`
+       tracks the visible area. `vh` first as the fallback for older browsers. */
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+/* Sort / Distance select, styled as the Form 2.0 box the frame uses. */
+/* Visually hidden but readable by a screen reader — the select needs a name. */
+.ml-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ml-fp-select {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.ml-fp-select select {
+  width: 100%;
+  height: 56px;
+  padding: 0 48px 0 16px;
+  border: 1px solid var(--hb-cloud-darker, #a5b4bf);
+  border-radius: 8px;
+  background: #fff;
+  color: #101318;
+  font-family: inherit;
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.ml-fp-select select:focus-visible {
+  outline: none;
+  border-color: #101318;
+  box-shadow: 0 0 0 3px rgba(16, 19, 24, 0.18);
+}
+.ml-fp-select-chev {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: #637381;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  /* No padding, and `stretch` rather than `center` — a centred flex child that
+     is taller than the overlay overflows equally top and bottom, and neither
+     end can be reached. Stretch pins it to the top so the body scrolls instead. */
+  .ml-fp-overlay { padding: 0; align-items: stretch; }
+  /* Price stacks on mobile — the frame puts Min above Max, full width each. */
+  .ml-fp-fields { grid-template-columns: 1fr; flex-direction: column; }
+}

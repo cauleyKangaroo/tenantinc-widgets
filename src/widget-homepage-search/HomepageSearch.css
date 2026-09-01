@@ -1,0 +1,289 @@
+.hs {
+  /* Search-button accent. Operator can pass accentColor; else the
+     Duda theme's --color_2; else a brand red. */
+  --hs-accent: var(--color_2, #e4002b);
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+}
+.hs *, .hs *::before, .hs *::after { box-sizing: border-box; }
+.hs-search-layout { position: relative; }
+
+/* ── The search pill (desktop: one horizontal bar) ───────────────────────── */
+.hs-bar {
+  display: flex;
+  align-items: stretch;
+  background: #fff;
+  border-radius: 999px;
+  box-shadow: 0 12px 34px rgba(16, 19, 24, 0.18);
+  width: min(834px, 100%);
+  margin: 0 auto;
+  padding: 8px;
+  gap: 4px;
+  min-height: 66px;
+}
+
+.hs-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 24px;
+}
+.hs-search-icon { color: #9aa4b2; flex: 0 0 auto; }
+.hs-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 18px;
+  color: #101318;
+}
+.hs-input::placeholder { color: #9aa4b2; }
+
+/* Storage Type dropdown from the desktop Figma frame. */
+.hs-type {
+  position: relative;
+  flex: 0 0 auto;
+  border-left: 1px solid #e5e8eb;
+  color: #101318;
+  font-size: 18px;
+  white-space: nowrap;
+  min-width: 187px;
+}
+.hs-chevron { color: #101318; flex: 0 0 auto; }
+.hs-type-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 0 22px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.hs-type-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 360px;
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+  border: 1px solid #dfe3e8;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(16, 19, 24, .16);
+}
+.hs-type-option {
+  display: block;
+  width: 100%;
+  padding: 9px 14px;
+  border: 0;
+  outline: 0;
+  background: #fff;
+  color: #101318;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.hs-type-option:hover,
+.hs-type-option--active { background: #f1f4f6; }
+.hs-type-menu--above {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+.hs-find {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 183px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--hs-accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.hs-find:hover { background: color-mix(in srgb, var(--hs-accent) 88%, black); }
+.hs-find:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.hs-find[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+.hs-find .hs-search-icon { display: none; color: #fff; }
+
+/* Accessible city-only autocomplete. It overlays the hero rather than moving
+   the locations strip, and never contains states/facilities outside served cities. */
+.hs-suggestions {
+  position: absolute;
+  z-index: 20;
+  top: 74px;
+  left: max(8px, calc((100% - 834px) / 2 + 8px));
+  width: min(360px, calc(100% - 16px));
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  border: 1px solid #dfe3e8;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 16px 38px rgba(16, 19, 24, .2);
+}
+.hs-suggestions--above {
+  top: auto !important;
+  bottom: var(--hs-suggestions-bottom);
+}
+.hs-current-location {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 13px 16px;
+  border: 0;
+  border-bottom: 1px solid #e5e8eb;
+  background: #fff;
+  color: #101318;
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+.hs-current-location svg { color: var(--hs-accent); }
+.hs-current-location:disabled { cursor: wait; }
+.hs-current-location:hover { background: #f1f4f6; }
+.hs-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: #101318;
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+.hs-suggestion:hover, .hs-suggestion--active { background: #f1f4f6; }
+.hs-suggestion:focus-visible { outline: 3px solid color-mix(in srgb, var(--hs-accent) 40%, white); }
+.hs-history-head { padding: 6px 12px 8px; color: #637381; font-size: 13px; font-weight: 600; }
+
+/* ── Layout 2: promotional search card (latest Figma Locations Modal) ───── */
+.hs-card {
+  position: relative;
+  width: min(560px, 100%);
+  margin: 0 0 0 auto;
+  padding: 52px 52px 58px;
+  border-radius: 30px;
+  background: #fff;
+  color: #101318;
+}
+.hs-card-heading {
+  margin: 0 0 16px;
+  color: #101318;
+  font-family: inherit;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.hs--promo-card .hs-bar {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 68px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #101318;
+  border-radius: 999px;
+  box-shadow: 0 3px 6px rgba(16, 19, 24, .16);
+}
+.hs--promo-card .hs-field { min-height: 64px; padding: 0 76px 0 26px; }
+.hs--promo-card .hs-type { display: none; }
+.hs--promo-card .hs-find {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+}
+.hs--promo-card .hs-find-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.hs--promo-card .hs-find .hs-search-icon { display: block; }
+.hs--promo-card .hs-suggestions {
+  top: 182px;
+  width: calc(100% - 104px);
+  border-radius: 14px;
+}
+.hs-promotion { margin-top: 24px; }
+.hs-promotion-title {
+  margin: 0;
+  font-family: inherit;
+  font-size: 64px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+.hs-promotion-title span, .hs-promotion-title strong { display: block; }
+.hs-promotion-title span { color: var(--hs-accent); }
+.hs-promotion-title strong { color: #000; font-weight: 800; }
+.hs-promotion-disclaimer {
+  margin: 26px 0 0;
+  color: #101318;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+/* ── Mobile: stack the pill into full-width rows ─────────────────────────── */
+@media (max-width: 768px) {
+  .hs-bar {
+    position: relative;
+    display: block;
+    min-height: 67px;
+    border: 0;
+    border-radius: 999px;
+    padding: 0;
+  }
+  .hs-field {
+    min-height: 63px;
+    padding: 0 74px 0 25px;
+  }
+  /* The downloaded mobile frame deliberately omits Storage Type. */
+  .hs-type { display: none; }
+  .hs-find {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  .hs-find-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .hs-find .hs-search-icon { display: block; }
+  .hs-suggestions { top: 75px; left: 8px; width: min(360px, calc(100% - 16px)); border-radius: 14px; }
+  .hs-card { margin: 0 auto; padding: 28px 22px 32px; border-radius: 22px; }
+  .hs-card-heading { padding-right: 0; font-size: 26px; }
+  .hs--promo-card .hs-suggestions { top: 151px; width: calc(100% - 44px); }
+  .hs-promotion-title { font-size: clamp(40px, 12vw, 54px); }
+  .hs-promotion-disclaimer { font-size: 11px; }
+}

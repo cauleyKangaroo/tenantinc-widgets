@@ -158,7 +158,7 @@
   line-height: 1;
 }
 .sl-wrapper .sl-filter-badge {
-  background: #509e2f;
+  background: var(--color_1, #f45f30);
   color: #ffffff;
   font-size: 13px;
   font-weight: 600;
@@ -173,8 +173,8 @@
 }
 .sl-wrapper .sl-reset-btn {
   background: #ffffff;
-  border: 2px solid #509e2f;
-  border-radius: 4px;
+  border: 2px solid var(--color_1, #f45f30);
+  border-radius: 8px;
   font-size: 14px;
   padding: 4px 12px;
   height: 31px;
@@ -249,7 +249,7 @@
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #509e2f;
+  accent-color: var(--hb-secondary, #509e2f);
   flex-shrink: 0;
   position: relative;
   z-index: 2;
@@ -289,7 +289,7 @@
   gap: 8px;
   color: #101318;
 }
-.sl-wrapper .sl-promo-banner-tag svg { color: #509e2f; flex: 0 0 auto; }
+.sl-wrapper .sl-promo-banner-tag svg { color: var(--color_1, #f45f30); flex: 0 0 auto; }
 .sl-wrapper .sl-promo-banner-text {
   font-family: 'Montserrat', sans-serif;
   font-size: 16px;
@@ -309,16 +309,33 @@
   flex: 0 0 auto;
 }
 .sl-wrapper .sl-promo-banner-clear:hover { color: var(--color_1, #f45f30); }
+/* ── This <h1> is !important on purpose ───────────────────────────────────
+   Duda styles headings from ID-SCOPED selectors (`#dm h1`), and an id beats any
+   number of classes — so .sl-wrapper-qualifying to (0,2,0) was never going to
+   be enough and the title took the theme's size on the published page. The
+   harness has no such rules, so it only ever showed live. Same fight #02
+   documents in FindStorageMegaMenu.css, and the same answer.
+
+   Every property the theme touches is guarded together: winning size while
+   losing weight or transform just produces a differently wrong heading. It
+   matches #03's .pi-name — 30px / 22px, 700 — so the two widgets' titles are
+   one size on a page that shows both. */
 .sl-wrapper .sl-page-title {
-  font-family: 'Montserrat', sans-serif;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 40px;
-  color: #101318;
-  margin: 0;
-  /* Guard against host themes restyling bare <h2> (e.g. uppercasing it) */
-  text-transform: none;
-  letter-spacing: normal;
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  /* Unitless on purpose: a long feature-page heading wraps to two lines, and a
+     fixed leading crams them together the moment a host theme scales the font
+     up. 1.3 keeps the desktop line box at ~39px and scales with the text. */
+  line-height: 1.3 !important;
+  color: #101318 !important;
+  margin: 0 !important;
+  text-align: left !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  /* A long facility name ("Storage Outlet - Bellflower") must break rather than
+     push the column wider. Not guarded — no theme sets it. */
+  overflow-wrap: break-word;
 }
 /* "Select a Space" is a mobile-only heading. On desktop .sl-heading collapses
    (display:contents) so only the page title shows — desktop is unchanged. */
@@ -326,17 +343,88 @@
 .sl-wrapper .sl-select-heading { display: none; }
 
 /* ===========================================================================
+   FEATURE PAGE (?feature=<slug>)
+   =========================================================================== */
+/* Sub-heading copy for the selected feature. Deliberately NOT inside
+   .sl-heading — that block is display:none on mobile, and the explanation for
+   why the listing is filtered has to survive there. */
+.sl-wrapper .sl-feature-intro {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: -8px;
+}
+.sl-wrapper .sl-feature-intro-text {
+  flex: 1 1 420px;
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 26px;
+  color: #101318;
+  max-width: 900px;
+}
+/* The only way off a feature page at widths where the sidebar accordion is
+   hidden, so it is a control rather than decoration. */
+.sl-wrapper .sl-feature-intro-clear {
+  flex: 0 0 auto;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #101318;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.sl-wrapper .sl-feature-intro-clear:hover { color: var(--color_1, #f45f30); }
+
+/* Long-form copy under the listing. */
+.sl-wrapper .sl-feature-details {
+  border-top: 1px solid #dfe3e8;
+  padding-top: 24px;
+}
+.sl-wrapper .sl-feature-details-title {
+  margin: 0 0 12px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 30px;
+  color: #101318;
+  text-transform: none;
+  letter-spacing: normal;
+}
+/* RichText puts this class on EACH generated <p> for plain copy, and on the
+   single wrapper for authored HTML — hence the margin rules, which have to read
+   the same either way. */
+.sl-wrapper .sl-feature-details-body {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 26px;
+  color: #101318;
+  max-width: 900px;
+  margin: 0 0 16px;
+}
+.sl-wrapper .sl-feature-details-body:last-child { margin-bottom: 0; }
+
+/* ===========================================================================
    GRID VIEW — ACCORDIONS
    =========================================================================== */
 /* Sections are separated by full-width divider lines: one above each section
-   and a closing line at the very bottom (border-bottom on the container). */
+   and a closing line at the very bottom (border-bottom on the container).
+   Black (#101318, the widget's black — not pure #000) rather than the old
+   #dfe3e8 grey. Both lines change together: they are the same divider, and
+   leaving the closing one grey would make the list look unfinished. */
 .sl-wrapper .sl-grid-view {
   display: flex;
   flex-direction: column;
   gap: 0;
-  border-bottom: 1px solid #dfe3e8;
+  border-bottom: 2px solid #101318;
 }
-.sl-wrapper .sl-accordion { width: 100%; border-top: 1px solid #dfe3e8; }
+.sl-wrapper .sl-accordion { width: 100%; border-top: 2px solid #101318; }
 .sl-wrapper .sl-accordion-header {
   background: transparent;
   padding: 20px 0 16px;
@@ -349,7 +437,7 @@
 /* The section name is a pill: transparent with black text by default; on hover,
    and whenever the section is open, it becomes white text on a black pill. */
 .sl-wrapper .sl-accordion-title {
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 700;
   color: #101318;
   line-height: 1.2;
@@ -362,12 +450,17 @@
   background: #101318;
   color: #ffffff;
 }
-/* Chevron: points right when collapsed, rotates down when the section opens. */
+/* Chevron: points right when collapsed, rotates down when the section opens.
+   margin-right insets it 26px from the right edge. On the chevron rather than as
+   padding on the header, so the divider lines above and below stay full width —
+   padding there would pull the header's contents in but leave the borders, which
+   sit on .sl-accordion, untouched anyway. */
 .sl-wrapper .sl-chevron {
   display: flex;
   align-items: center;
   color: #101318;
   flex-shrink: 0;
+  margin-right: 26px;
   transition: transform 0.2s;
   transform: rotate(-90deg);
 }
@@ -454,7 +547,9 @@
   line-height: 16px;
   font-weight: 400;
 }
-.sl-wrapper .sl-check { color: #509e2f; font-weight: 700; flex-shrink: 0; }
+/* Green, not primary: a tick here means INCLUDED. The brand colour would
+   make a feature list read as an alert. */
+.sl-wrapper .sl-check { color: var(--hb-secondary, #509e2f); font-weight: 700; flex-shrink: 0; }
 .sl-wrapper .sl-card-image-col {
   flex: 1;
   min-width: 0;
@@ -482,10 +577,14 @@
 }
 .sl-wrapper .sl-see-fits:hover { text-decoration: underline; }
 
+/* Border + icon follow Duda's primary (--color_1), matching "See what fits". The
+   label stays #101318 — only the framing is themed. PromoTagIcon is currentColor,
+   so .sl-promo-icon must set the colour: without it the icon would inherit the
+   badge's dark label colour. */
 .sl-wrapper .sl-promo-badge {
   width: 100%;
   box-sizing: border-box;
-  border: 2px dashed #509e2f;
+  border: 2px dashed var(--color_1, #f45f30);
   border-radius: 8px;
   padding: 12px;
   background: #ffffff;
@@ -498,7 +597,7 @@
   font-weight: 700;
   margin-top: 12px;
 }
-.sl-wrapper .sl-promo-icon { display: flex; align-items: center; flex-shrink: 0; }
+.sl-wrapper .sl-promo-icon { display: flex; align-items: center; flex-shrink: 0; color: var(--color_1, #f45f30); }
 
 .sl-wrapper .sl-card-pricing {
   display: flex;
@@ -596,6 +695,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  text-decoration: none; /* the value-tiers Select renders as an <a> (Duda-routable) */
 }
 .sl-wrapper .sl-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
 /* Call / Waitlist are the OUTLINE variant of .sl-select-btn (Figma 7112-47044):
@@ -799,8 +899,8 @@
   transition: border-color 0.15s;
   flex-shrink: 0;
 }
-.sl-wrapper .sl-lc-size:hover:not(.selected) { border-color: #509e2f; }
-.sl-wrapper .sl-lc-size.selected { border: 4px solid #509e2f; font-weight: 600; }
+.sl-wrapper .sl-lc-size:hover:not(.selected) { border-color: var(--color_1, #f45f30); }
+.sl-wrapper .sl-lc-size.selected { border: 4px solid var(--color_1, #f45f30); font-weight: 600; }
 .sl-wrapper .sl-lc-size.unavail {
   border-style: dashed;
   border-width: 2.5px;
@@ -810,7 +910,9 @@
    read as a separate label rather than merging into the border. Stacked 0-blur
    drop-shadows trace the tag's actual silhouette (notch and all) and paint
    behind it — no SVG stroke, so nothing can clip against the viewBox. */
+/* SizeTagIcon draws in currentColor now, so its colour lives here. */
 .sl-wrapper .sl-lc-size-tag {
+  color: var(--color_1, #f45f30);
   position: absolute;
   top: -7px;
   right: -5px;
@@ -836,10 +938,12 @@
   flex-wrap: wrap;
   padding: 30px;
 }
+/* The list layout's copy of the promo badge — themed to match .sl-promo-badge so
+   the same promo is not green here and primary-coloured in the other layouts. */
 .sl-wrapper .sl-lc-promo {
   flex: 1 1 220px;
   min-width: 200px;
-  border: 2px dashed #509e2f;
+  border: 2px dashed var(--color_1, #f45f30);
   border-radius: 8px;
   padding: 12px;
   background: #ffffff;
@@ -851,7 +955,7 @@
   color: #101318;
   line-height: 16px;
 }
-.sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; }
+.sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-lc-price-button {
   display: flex;
   gap: 16px;
@@ -926,7 +1030,9 @@
   min-width: 0;
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  /* 30px inset and a 24px column gap between the image and the text — Figma
+     9417-86254. Both hold at every width; see the 907px step below. */
+  gap: 24px;
   padding: 30px;
   box-sizing: border-box;
 }
@@ -1008,8 +1114,11 @@
   flex-direction: column;
   gap: 12px;
 }
-/* wrap is the safety valve: an unusually long price (five figures, say) drops the
-   CTA below the price instead of overflowing into the card's clipped edge. */
+/* CTA sits to the RIGHT of the price (Figma 9417-86253). wrap is the safety valve,
+   not the intent: an unusually long price (five figures, say) drops the CTA below
+   rather than overflowing into the card's clipped edge. The ≤907px step trims the
+   CTA basis and price size so the pair keeps its one row down to the widths a
+   squeezed Duda listing column actually reaches. */
 .sl-wrapper .sl-dv-price-button {
   display: flex;
   flex-wrap: wrap;
@@ -1038,16 +1147,39 @@
 }
 
 @media (max-width: 767px) {
-  .sl-wrapper { padding: 12px; gap: 14px; }
+  /* 24px, not 12. The base rule's clamp() floors the gutter at 20px, so mobile
+     was the ONE width where the widget sat tighter to the screen edge than
+     anywhere else — cards ran almost to the bezel. */
+  .sl-wrapper { padding: 24px; gap: 14px; }
   /* Stack the columns and stretch them full-width. Without align-items:stretch
      the listing area (which has container-type:inline-size) can't derive a
      width from its content and collapses to ~min-content. */
   .sl-wrapper .sl-row { flex-direction: column; align-items: stretch; }
   .sl-wrapper .sl-listing-area { width: 100%; }
-  /* Both headings are hidden on mobile — the page's own H1 already says where you
-     are, and the vacancy count reads as noise above the fold on a phone.
-     (Desktop keeps the 32px page title; the whole .sl-heading block just goes.) */
-  .sl-wrapper .sl-heading { display: none; }
+  /* The page title STAYS on mobile — it was hidden with the rest of
+     .sl-heading on the reasoning that the host page's own H1 already says where
+     you are, which is not true on every page that mounts this widget, and a
+     listing with no title above it reads as broken. Smaller and centred, per
+     the ask. .sl-select-heading is unaffected: it is display:none at every
+     width already, so nothing else comes back with it.
+     .sl-heading keeps its display:contents, so the title stays a direct
+     participant in .sl-wrapper's flex column exactly as it is on desktop. */
+  /* !important to clear the base guard above — equal specificity, so this wins
+     on source order, but only if it is guarded too. */
+  /* HIDDEN on mobile — #18 widget-space-list-heading draws it instead, so that
+     #06 promotions can sit between the heading and the filter bar. Both are
+     inside this widget's own layout, so there is no Duda row between them to
+     drop a widget into; the only way to get one there is for the heading to be
+     a widget of its own.
+     767px is THE boundary: #18 shows from 767 down and hides from 768 up, so
+     there is never a width with two headings or none. Change one, change both.
+     The type below is kept for the same reason the markup is: `showHeading`
+     can put this heading back, and it should look right when it does. */
+  .sl-wrapper .sl-heading { display: none !important; }
+  .sl-wrapper .sl-page-title {
+    font-size: 22px !important;
+    text-align: center !important;
+  }
   .sl-wrapper .sl-filter-panel,
   .sl-wrapper .sl-additional-panel.ap-left,
   .sl-wrapper .sl-additional-panel.ap-right { width: 100% !important; }
@@ -1099,16 +1231,19 @@
    layout is white panel beside grey panel, so narrowing steps give width back
    from the image and the paddings before anything is allowed to stack. */
 /* Below ~907px of listing, 45% stops being enough for the full-size price row and
-   CTA to share a line (408 = 60 padding + the 348 box). Trim the paddings, the
-   image (to the Figma leaf's own ~97px), the CTA basis and the price size to buy
-   that back — the split itself stays 55/45, since a per-card min-width floor is
-   exactly what would make the seam wander again. */
+   CTA to share a line (408 = 60 padding + the 348 box). Trim the image (to the
+   Figma leaf's own ~97px), the CTA basis and the price size to buy that back — the
+   split itself stays 55/45, since a per-card min-width floor is exactly what would
+   make the seam wander again.
+   The 30px paddings and the 24px display gap are NOT trimmed here any more: they
+   are the design's own values, and the CTA/price trims below recover more width
+   than the 20px paddings did. Between ~600 and ~750 the pair still exceeds the
+   panel and wrap drops the CTA below the price — the safety valve doing its job,
+   at widths only a squeezed Duda column reaches. */
 @container (max-width: 907px) {
-  .sl-wrapper .sl-dv-display { padding: 20px; gap: 12px; }
   .sl-wrapper .sl-dv-img { max-width: 100px; }
   /* 13px keeps the link narrower than the 100px image, so the column stays put */
   .sl-wrapper .sl-dv-see-fits { font-size: 13px; gap: 4px; }
-  .sl-wrapper .sl-dv-action { padding: 20px; }
   .sl-wrapper .sl-dv-actions { max-width: 312px; }
   .sl-wrapper .sl-dv-price-button { gap: 12px; }
   .sl-wrapper .sl-dv-btn-col { flex: 0 1 120px; min-width: max-content; }
@@ -1146,8 +1281,8 @@
   .sl-wrapper .sl-unit-img { width: 100%; max-width: 100%; }
 
   /* Grid unit card → mobile (Figma node 9697-48905): one column; the image sits
-     beside the info as a compact 132px thumbnail (not stacked full-width), and
-     "See what fits" is dropped. */
+     beside the info as a compact 132px thumbnail rather than stacked
+     full-width. */
   .sl-wrapper .sl-cards-grid { grid-template-columns: 1fr; gap: 16px; }
   .sl-wrapper .sl-card-display-panel { padding: 16px; }
   .sl-wrapper .sl-card-action-panel { padding: 16px; }
@@ -1155,7 +1290,13 @@
   .sl-wrapper .sl-card-info { width: auto; flex: 1 1 auto; min-width: 0; }
   .sl-wrapper .sl-card-image-col { flex: 0 0 auto; width: 132px; }
   .sl-wrapper .sl-unit-img { max-width: 132px; }
-  .sl-wrapper .sl-see-fits { display: none; }
+  /* Kept, not dropped. The frame omits it at this width, but it is the only
+     way into the fit visualiser and there is nowhere else on the card to reach
+     it from. It already sits under the image — .sl-card-image-col is a flex
+     column — so it needs no repositioning, only room: 13px and a 4px gap fit
+     inside the 132px the thumbnail column gets, where 15px did not. */
+  .sl-wrapper .sl-see-fits { font-size: 13px; gap: 4px; }
+  .sl-wrapper .sl-see-fits svg { width: 16px; height: 16px; }
 
   /* Size-group dropdown headers */
   .sl-wrapper .sl-accordion-header { padding: 14px 0 12px; }
@@ -1303,7 +1444,7 @@
   text-decoration: underline;
   cursor: pointer;
 }
-.sl-wrapper .sl-rv-more:hover { color: #509e2f; }
+.sl-wrapper .sl-rv-more:hover { color: var(--color_1, #f45f30); }
 
 /* Review cards grid */
 .sl-wrapper .sl-rv-grid {
@@ -1457,7 +1598,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1.5px dashed #509e2f;
+  border: 1.5px dashed var(--color_1, #f45f30);
   border-radius: 100px;
   padding: 6px 14px;
   font-size: 13px;
@@ -1468,7 +1609,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #509e2f;
+  background: var(--color_1, #f45f30);
   flex-shrink: 0;
 }
 
@@ -1938,11 +2079,32 @@
   max-width: 100%;
 }
 
+/* Figma 9403-48439. Three states: flat by default, grey outline on hover,
+   outline + shadow when open. The shadow used to be permanent, which left
+   nothing to distinguish the open section from the closed ones.
+   20px radius, 1px Primary/Cloud-Light #F4F6F8, and hb-elevation-large
+   (0 8px 18px 0 rgba(71,84,116,.20)). Literals rather than
+   var(--Primary-Cloud-Light, …): this file does not import tokens.css, so a
+   named var would silently render as its fallback anyway.
+   The resting border is TRANSPARENT rather than absent: it reserves the 1px the
+   hover and open states occupy, so gaining the outline can't nudge the row or
+   reflow the column. */
 .sl-wrapper .sl-sa-item {
   background: #ffffff;
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0px 4px 5px rgba(71, 84, 116, 0.1);
+  border: 1px solid transparent;
+}
+
+.sl-wrapper .sl-sa-item:hover {
+  border-color: #F4F6F8;
+}
+
+/* After :hover on purpose — equal specificity, so source order decides, and an
+   open section must keep its shadow while the pointer is over it. */
+.sl-wrapper .sl-sa-item.open {
+  border-color: #F4F6F8;
+  box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
 }
 
 .sl-wrapper .sl-sa-header {
@@ -1959,9 +2121,8 @@
   text-align: left;
 }
 
-.sl-wrapper .sl-sa-header:hover {
-  background: #fafafa;
-}
+/* No hover fill — hover is the grey outline on .sl-sa-item above. Leaving the
+   #fafafa tint here would show both at once. */
 
 .sl-wrapper .sl-sa-header-left {
   display: flex;
@@ -1983,7 +2144,7 @@
 
 .sl-wrapper .sl-sa-title {
   font-family: 'Montserrat', sans-serif;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #101318;
   line-height: 1.2;
@@ -2005,6 +2166,25 @@
   flex-shrink: 0;
 }
 
+/* The circle before the count arrives. Exactly the badge's own size, so the
+   header does not shift when the number lands, and grey rather than the
+   primary — an orange pill with nothing in it reads as a rendering fault. */
+.sl-wrapper .sl-sa-badge--loading {
+  min-width: 28px;
+  width: 28px;
+  padding: 0;
+  background: linear-gradient(90deg, #e6eaee 25%, #dbe1e6 37%, #e6eaee 63%);
+  background-size: 400% 100%;
+  animation: sl-sa-badge-shimmer 1.4s ease infinite;
+}
+@keyframes sl-sa-badge-shimmer {
+  from { background-position: 100% 50%; }
+  to   { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-wrapper .sl-sa-badge--loading { animation: none; }
+}
+
 .sl-wrapper .sl-sa-chevron {
   flex-shrink: 0;
   color: #101318;
@@ -2019,6 +2199,48 @@
   border-top: 1px solid #f4f6f8;
   padding: 0;
 }
+
+/* Feature Highlights (Figma 10550-32752) — 24px side padding, 20px top/bottom,
+   rows separated by a hairline. Each row is a button: it navigates the page. */
+.sl-wrapper .sl-sa-body .sl-section--highlights { padding: 20px 24px; }
+.sl-wrapper .sl-fh-list { list-style: none; margin: 0; padding: 0; }
+.sl-wrapper .sl-fh-item + .sl-fh-item { border-top: 1px solid #dfe3e8; }
+.sl-wrapper .sl-fh-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  padding: 24px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: #101318;
+}
+/* The body's own 20px already spaces the first and last rows off the edges. */
+.sl-wrapper .sl-fh-item:first-child .sl-fh-row { padding-top: 4px; }
+.sl-wrapper .sl-fh-item:last-child  .sl-fh-row { padding-bottom: 4px; }
+.sl-wrapper .sl-fh-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: normal;
+  overflow-wrap: anywhere;
+}
+.sl-wrapper .sl-fh-chevron {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+.sl-wrapper .sl-fh-row:hover { color: var(--color_1, #f45f30); }
+/* The feature the page is already showing — marked, and still clickable to clear. */
+.sl-wrapper .sl-fh-row.active { color: var(--color_1, #f45f30); }
+.sl-wrapper .sl-fh-row.active .sl-fh-label { font-weight: 700; }
 
 /* When section components render inside an accordion body, strip their outer padding */
 .sl-wrapper .sl-sa-body .sl-section--nearby,
@@ -2157,10 +2379,16 @@
 }
 
 /* Rating summary */
+/* The score and the stars/count read as ONE group on the left. This was
+   space-between, which pinned the stars to the far right edge of the panel and
+   left a gap that grew with the panel width — the two halves stopped looking
+   related. flex-start keeps them a fixed 16px apart at any width.
+   NB: -left / -right below are positional names from that old split; both sit on
+   the left now. */
 .sl-wrapper .sl-rv2-summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
 }
 
@@ -2185,16 +2413,24 @@
   font-family: 'Montserrat', sans-serif;
 }
 
+/* flex-start so the stars and "N ratings" share a left edge. They were flex-end,
+   which only looked right while the block was pinned to the panel's right side;
+   grouped on the left, ragged-right reads as misaligned. */
 .sl-wrapper .sl-rv2-summary-right {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 4px;
 }
 
 .sl-wrapper .sl-rv2-stars {
   display: flex;
   gap: 4px;
+}
+/* Yelp's badged squares sit closer than bare stars: 4px between filled blocks
+   reads as a gappy row, where the same 4px between star outlines looks right. */
+.sl-wrapper .sl-rv2-stars--badged {
+  gap: 2px;
 }
 
 .sl-wrapper .sl-rv2-count {
@@ -2205,6 +2441,47 @@
 }
 
 /* Review card */
+/* ── Sliding track (Customer Reviews carousel) ────────────────────────────
+   One review per view. `border-radius` matches the card's: the next review
+   starts at the pixel the clip ends, and without it the visible card's ROUNDED
+   corner leaves a notch through which the neighbour's square corner shows.
+   `touch-action: pan-y` keeps a vertical drag scrolling the page while a
+   horizontal one belongs to the carousel — see @shared/useCarousel. */
+.sl-wrapper .sl-rv2-track-window {
+  overflow: hidden;
+  touch-action: pan-y;
+  border-radius: 16px;
+}
+
+.sl-wrapper .sl-rv2-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+  /* Real space between cards (Josh Wright asked for >=10px, 2026-08-27 — set to exactly 10). It is a
+     flex gap, not padding or a narrower card: those leave the item butting the
+     clip edge, so the neighbour shows through the rounded corner's notch. The
+     transform's step includes it — see the inline style in the TSX. */
+  gap: 10px;
+}
+
+/* Exactly one window wide, so the pitch the transform steps by and the card
+   width are the SAME quantity. Anything that makes this wider than the window
+   (padding, margin, a gap on the track) desyncs the two and the cards drift
+   further out of place with every step. */
+.sl-wrapper .sl-rv2-track-item {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+}
+
+/* The 12px gap Josh Wright asked for (2026-08-27), taken off the CARD rather
+   than the item — padding on the item makes the clip end 12px past the card and
+   the next one peeks through, and a margin on the track changes what
+   `flex: 0 0 100%` resolves against and the cards drift. */
+.sl-wrapper .sl-rv2-track-item > .sl-rv2-card {
+  width: 100%;
+}
+
 .sl-wrapper .sl-rv2-card {
   background: #f9fafb;
   border-radius: 16px;
@@ -2275,9 +2552,13 @@
   flex-shrink: 0;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
 .sl-wrapper .sl-rv2-arrow:disabled {
-  color: #a5b4bf;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .sl-wrapper .sl-rv2-dot {
@@ -2345,6 +2626,49 @@
 .sl-wrapper .sl-nb2-content {
   padding: 0 23px;
 }
+/* The section's bottom padding normally comes from .sl-nb2-pagination's
+   `padding: 20px 0 24px`. Map view has no pager, so the content has to supply
+   that 24px itself or the map sits flush against the accordion's bottom edge. */
+.sl-wrapper .sl-nb2-content--no-pager {
+  padding-bottom: 24px;
+}
+
+/* ── Sliding track (Nearby Storage carousel) ──────────────────────────────
+   One card per view: every property renders once and a single transform moves
+   the row, so advancing animates instead of swapping the card out. The window
+   clips the rest. `touch-action: pan-y` keeps a vertical drag scrolling the
+   page while a horizontal one belongs to the carousel — see @shared/useCarousel. */
+.sl-wrapper .sl-nb2-track-window {
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.sl-wrapper .sl-nb2-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+  /* Real space between cards (Josh Wright asked for >=10px, 2026-08-27 — set to exactly 10). It is a
+     flex gap, not padding or a narrower card: those leave the item butting the
+     clip edge, so the neighbour shows through the rounded corner's notch. The
+     transform's step includes it — see the inline style in the TSX. */
+  gap: 10px;
+}
+
+/* Exactly one window wide, so the pitch the transform steps by and the card
+   width are the same quantity. */
+.sl-wrapper .sl-nb2-track-item {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
+/* The 12px gap Josh Wright asked for (2026-08-27), taken off the CARD rather
+   than the item — padding on the item makes the clip end 12px past the card and
+   the next one peeks through, and a margin on the track changes what
+   `flex: 0 0 100%` resolves against and the cards drift. */
+.sl-wrapper .sl-nb2-track-item > * {
+  width: 100%;
+}
+
 
 .sl-wrapper .sl-nb2-map-placeholder {
   height: 300px;
@@ -2411,6 +2735,10 @@
   line-height: 1.1;
 }
 
+/* 8px, a slight loosening of the rows over the image. Both this and the nested
+   .sl-nb2-prop-meta below move together — they were each 6px, and changing only
+   one would make name→rating and address→phone sit at different rhythms in what
+   reads as a single stack. */
 .sl-wrapper .sl-nb2-prop-info {
   position: absolute;
   bottom: 0;
@@ -2420,7 +2748,7 @@
   padding: 0 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .sl-wrapper .sl-nb2-prop-name {
@@ -2464,7 +2792,7 @@
 .sl-wrapper .sl-nb2-prop-meta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   margin-top: 0;
 }
 
@@ -2495,14 +2823,18 @@
 }
 
 /* Promo banner */
+/* Matches #07's .nl-promo: border AND colour on the primary. The colour is
+   load-bearing now — the tag mark is currentColor, so without it the icon would
+   inherit the dark body text instead of the promo's own colour. */
 .sl-wrapper .sl-nb2-promo {
   display: flex;
   align-items: center;
   gap: 6px;
-  border: 2px dashed #509e2f;
+  border: 2px dashed var(--color_1, #f45f30);
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 16px;
+  color: var(--color_1, #f45f30);
 }
 
 .sl-wrapper .sl-nb2-promo-title {
@@ -2561,6 +2893,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
+}
+/* The tag mark here is the SAME currentColor icon as the promo banner's, but it
+   sits outside .sl-nb2-promo, so it needs its own colour or it would inherit the
+   dark price text. Primary, matching #07's promo banner (#07's own price rows
+   no longer carry a tag mark — only its promo bar does). */
+.sl-wrapper .sl-nb2-unit-pricing > svg {
+  color: var(--color_1, #f45f30);
   flex-shrink: 0;
 }
 
@@ -2674,12 +3014,16 @@
 }
 
 /* Pagination */
+/* Equal 24px above and below. Was 20/24 — near enough to look intentional but
+   not actually symmetric. The 24px bottom is load-bearing: .sl-nb2-content
+   --no-pager mirrors it so map view (which has no pager) ends at the same
+   offset, so the TOP moved to match rather than the bottom. */
 .sl-wrapper .sl-nb2-pagination {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: 20px 0 24px;
+  padding: 24px 0;
 }
 
 .sl-wrapper .sl-nb2-arrow {
@@ -2696,9 +3040,13 @@
   flex-shrink: 0;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
 .sl-wrapper .sl-nb2-arrow:disabled {
-  color: #a5b4bf;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .sl-wrapper .sl-nb2-dot {
@@ -2936,159 +3284,6 @@
 .sl-hours-col-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; line-height: 26px; color: #101318; }
 .sl-hours-line { margin: 0; font-size: 15px; font-weight: 400; line-height: 26px; color: #101318; }
 
-/* ── "Send us a Message" popup — clone of the property-info modal ───────── */
-.sl-msg-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483647;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  box-sizing: border-box;
-  background: rgba(16, 19, 24, 0.55);
-  animation: sl-hours-fade 0.15s ease-out;
-}
-.sl-msg-modal {
-  width: min(695px, 100%);
-  max-height: calc(100vh - 48px);
-  overflow: auto;
-  box-sizing: border-box;
-  background: #fff;
-  border: 1px solid #f4f6f8;
-  border-radius: 20px;
-  box-shadow: 0 8px 9px 0 rgba(71, 84, 116, 0.2);
-  font-family: 'Montserrat', sans-serif;
-  animation: sl-hours-pop 0.15s ease-out;
-}
-.sl-msg-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 23px 24px;
-  background: #fffaf7;
-  box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
-}
-.sl-msg-title { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 600; color: #101318; }
-.sl-msg-title svg { flex: 0 0 auto; }
-.sl-msg-close {
-  flex: 0 0 auto; width: 32px; height: 32px;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0; border: none; background: none; border-radius: 6px;
-  color: #101318; cursor: pointer;
-}
-.sl-msg-close:hover { background: #f4f6f8; }
-
-.sl-msg-body { background: #fff; padding: 30px 24px; display: flex; flex-direction: column; gap: 24px; }
-.sl-msg-req { color: #e53935; margin-left: 2px; }
-
-/* Facility area */
-.sl-msg-facility-area { position: relative; display: flex; flex-direction: column; gap: 12px; }
-.sl-msg-facility-heading { margin: 0; font-size: 18px; font-weight: 600; color: #101318; }
-.sl-msg-dd-btn {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  width: 100%; height: 56px; padding: 0 16px;
-  background: #fff; border: 1px solid #a5b4bf; border-radius: 8px;
-  color: #637381; font: 400 16px 'Montserrat', sans-serif; cursor: pointer;
-}
-.sl-msg-dd-btn svg { flex: 0 0 auto; color: #101318; }
-.sl-msg-facility { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 0; border: none; background: none; text-align: left; }
-.sl-msg-facility--btn { cursor: pointer; }
-.sl-msg-facility-name { font-size: 18px; font-weight: 600; color: #101318; }
-.sl-msg-facility-addr { display: flex; align-items: center; gap: 8px; font-size: 16px; color: #637381; }
-.sl-msg-facility-addr svg { flex: 0 0 auto; color: #637381; }
-.sl-msg-dd-list {
-  position: absolute; top: 100%; left: 0; right: 0; z-index: 2;
-  margin: 4px 0 0; padding: 4px; list-style: none;
-  background: #fff; border: 1px solid #a5b4bf; border-radius: 8px;
-  box-shadow: 0 8px 18px rgba(71, 84, 116, 0.2);
-}
-.sl-msg-dd-list li button {
-  display: block; width: 100%; text-align: left; padding: 10px 12px;
-  border: none; background: none; border-radius: 6px;
-  font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer;
-}
-.sl-msg-dd-list li button:hover { background: #f4f6f8; }
-
-/* Form fields (floating label) */
-.sl-msg-form { display: flex; flex-direction: column; gap: 12px; }
-.sl-msg-note { margin: 0; font-size: 16px; color: #101318; }
-.sl-msg-row { display: flex; gap: 12px; }
-.sl-msg-row > * { flex: 1 1 0; min-width: 0; }
-/* See the matching .pi-msg-field note: this is a <label>, and a host rule like
-   `label { display: inline }` collapses it so the input and floating label
-   overlap. Forced display/height, plus min-height as a floor. */
-.sl-msg-field { position: relative; display: block !important; height: 56px !important; min-height: 56px; box-sizing: border-box; border: 1px solid #a5b4bf; border-radius: 8px; background: #fff; }
-/* !important to beat the forced height on .sl-msg-field above — otherwise the
-   message textarea collapses to the 56px single-line height. */
-.sl-msg-field--area { height: 200px !important; min-height: 200px; }
-.sl-msg-field-input {
-  position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
-  padding: 20px 16px 0; border: none; background: transparent; outline: none;
-  font: 400 16px/20px 'Montserrat', sans-serif; color: #101318; resize: none;
-}
-.sl-msg-field--area .sl-msg-field-input { padding-top: 36px; resize: vertical; }
-.sl-msg-field-label {
-  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
-  font: 400 16px/20px 'Montserrat', sans-serif; color: #637381; pointer-events: none;
-  transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
-}
-.sl-msg-field--area .sl-msg-field-label { top: 16px; transform: none; }
-.sl-msg-field:focus-within .sl-msg-field-label,
-.sl-msg-field--filled .sl-msg-field-label { top: 9px; transform: none; font-size: 12px; line-height: 15px; }
-
-/* Footer */
-.sl-msg-foot { background: #f9fafb; padding: 19px 24px; display: flex; flex-direction: column; gap: 16px; }
-.sl-msg-consent { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
-.sl-msg-consent input { position: absolute; width: 0; height: 0; opacity: 0; }
-.sl-msg-check {
-  flex: 0 0 auto; width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  background: #fff; border: 2px solid #c4cdd5; border-radius: 6px;
-}
-.sl-msg-check--on { background: #101318; border-color: #101318; }
-.sl-msg-consent-text { font-size: 16px; line-height: 20px; color: #101318; }
-.sl-msg-terms { align-self: center; padding: 0 32px; font-size: 16px; line-height: 20px; color: #000; text-decoration: underline; }
-
-.sl-msg-actions { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
-.sl-msg-captcha {
-  width: 236px; height: 60px; flex: 0 0 auto;
-  display: flex; align-items: center; gap: 12px; padding: 0 12px;
-  background: #f9fafb; border: 1px solid #d3d3d3; border-radius: 4px;
-}
-.sl-msg-captcha-box { flex: 0 0 auto; width: 24px; height: 24px; background: #fff; border: 2px solid #c4cdd5; border-radius: 2px; }
-.sl-msg-captcha-label { flex: 1 1 auto; font-size: 14px; color: #3c4043; }
-.sl-msg-captcha-brand { font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; color: #9aa0a6; }
-.sl-msg-buttons { display: flex; align-items: center; gap: 16px; }
-.sl-msg-cancel { border: none; background: none; font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer; }
-.sl-msg-submit {
-  width: 127px; height: 40px;
-  display: flex; align-items: center; justify-content: center;
-  border: none; border-radius: 8px;
-  background: var(--color_1, #f45f30); color: #fff;
-  font: 700 16px 'Montserrat', sans-serif; cursor: pointer;
-}
-.sl-msg-submit:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black); }
-.sl-msg-submit:disabled, .sl-msg-cancel:disabled { opacity: 0.6; cursor: default; }
-
-.sl-msg-error { margin: 0 32px; color: #e53935; font: 500 15px 'Montserrat', sans-serif; }
-
-.sl-msg-success { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 24px 16px 8px; }
-.sl-msg-success-icon { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #e7f5e8; }
-.sl-msg-success-title { margin: 4px 0 0; font: 700 22px 'Montserrat', sans-serif; color: #101318; }
-.sl-msg-success-text { margin: 0 0 12px; max-width: 420px; font: 400 16px 'Montserrat', sans-serif; line-height: 1.5; color: #55606b; }
-.sl-msg-success .sl-msg-submit { width: auto; padding: 0 28px; }
-
-@media (max-width: 640px) {
-  .sl-msg-head { padding: 18px 20px; }
-  .sl-msg-body { padding: 20px; }
-  .sl-msg-foot { padding: 16px 20px; }
-  .sl-msg-row { flex-direction: column; }
-  .sl-msg-actions { flex-direction: column-reverse; align-items: stretch; }
-  .sl-msg-buttons { justify-content: flex-end; }
-  .sl-msg-captcha { width: 100%; }
-}
 
 /* Star rating */
 .sl-wrapper .sl-pi-stars {
@@ -3263,15 +3458,90 @@
    BLOG SECTION v2  (.sl-blog2-*)
    =========================================================================== */
 
+/* Grey on the WHOLE section, the same way .sl-nb2 does it. Only .sl-blog2-bg
+   was grey before, and the pagination sits outside it, so the carousel controls
+   landed on a white strip below the section while Nearby Storage's sat on grey.
+   .sl-blog2-bg keeps its own background — harmless now that it matches, and it
+   stays correct if the two ever need to differ again. */
 .sl-wrapper .sl-blog2 {
+  background: #f4f6f8;
   display: flex;
   flex-direction: column;
 }
 
 /* Gray background zone */
+/* No BOTTOM padding: it used to be 24px and stacked with the pagination's own
+   top padding below it, putting 40px above the carousel controls against 22px
+   below. The gap above the controls is the pagination's job alone, exactly as
+   .sl-nb2-content leaves it in Nearby Storage. */
 .sl-wrapper .sl-blog2-bg {
   background: #f4f6f8;
-  padding: 21px 28px 24px;
+  padding: 21px 28px 0;
+}
+
+/* ── Sliding track (Self Storage Blog carousel) ───────────────────────────
+   One post per view: every post renders once and a single transform moves the
+   row, so advancing animates instead of swapping the card out. The window clips
+   the rest. `touch-action: pan-y` keeps a vertical drag scrolling the page while
+   a horizontal one belongs to the carousel — see @shared/useCarousel. */
+.sl-wrapper .sl-blog2-track-window {
+  overflow: hidden;
+  touch-action: pan-y;
+  /* Matches .sl-blog2-card's radius. The next card starts at the very pixel the
+     clip ends, and the visible card's ROUNDED corner curves away from that edge
+     — leaving a notch through which the neighbour's SQUARE corner showed as a
+     sliver of the next image. Rounding the clip itself removes that notch.
+
+     Deliberately not solved by spacing the cards apart: the item must stay
+     exactly one window wide or the pitch stops matching the distance the
+     transform steps by, and the cards drift 16px further out with every step.
+
+     The clip is also pulled 12px SHORT of the item. The card is 12px narrower
+     than its item (that is the inter-card gap), so the item's trailing 12px is
+     empty — but the next card begins the instant that item ends, right on the
+     clip edge, and the rounded corner's notch let it show through. Ending the
+     clip on the CARD's edge instead puts the seam outside the visible area.
+     The item keeps its full width, so pitch still equals step and nothing
+     drifts. */
+  border-radius: 16px;
+}
+
+.sl-wrapper .sl-blog2-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+  /* Real space between cards. The step the transform moves by must include it —
+     see the inline style in BlogSection.tsx. */
+  gap: 10px;
+}
+
+/* Exactly one window wide, so the pitch the transform steps by and the card
+   width are the SAME quantity. Anything that makes the ITEM wider than the
+   window (padding on the item, margins, a gap on the track) desyncs the two and
+   the cards drift further out of place with every step — that bug shipped once
+   and moved card 2 by 16px, card 3 by 32px.
+
+   The gap between cards therefore has to come from INSIDE the item, where it is
+   already part of the step: the item stays 100% and the card is inset within it.
+   Josh Wright asked for at least 10px (2026-08-27). The trailing 12px is inside
+   the step, so the card is 12px narrower than the window and the next card
+   starts 12px clear of it — measured 12.0px between neighbours, drift 0.0. */
+.sl-wrapper .sl-blog2-track-item {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+}
+
+/* The 12px gap Josh Wright asked for (2026-08-27) lives on the TRACK, as a flex
+   gap, and the transform compensates for it in the JSX (step = 100% + 12px).
+
+   Everything else was tried and failed: padding on the item, or a narrower card,
+   both leave the item butting the clip edge so the neighbour shows through the
+   rounded corner's notch; a margin on the track changed what `flex: 0 0 100%`
+   resolved against and the cards drifted 12px per step. A real gap moves the
+   next card genuinely away from the edge. */
+.sl-wrapper .sl-blog2-track-item > .sl-blog2-card {
+  width: 100%;
 }
 
 /* White card */
@@ -3294,6 +3564,35 @@
   font-size: 15px;
   color: #637381;
   text-align: center;
+}
+
+/* ── "See all blogs" (Local Blogs section only) ──────────────────────────
+   Sits under the pagination and leads to the blog listing page pre-filtered to
+   this property's category. A filled CTA rather than the plain text links used
+   inside the card, because it leaves the property page. */
+.sl-wrapper .sl-blog2-see-all-row {
+  display: flex;
+  justify-content: center;
+  padding: 4px 28px 24px;
+}
+
+.sl-wrapper .sl-blog2-see-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: 8px;
+  background: var(--color_1, #f45f30);
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sl-wrapper .sl-blog2-see-all:hover {
+  background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black);
+  color: #fff;
 }
 
 /* ── Skeleton (while the BlogPosts collection read is in flight) ── */
@@ -3419,12 +3718,13 @@
 }
 
 /* Pagination */
+/* Equal 24px above and below, same as .sl-nb2-pagination. */
 .sl-wrapper .sl-blog2-pagination {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px 0 22px;
+  padding: 24px 0;
 }
 
 .sl-wrapper .sl-blog2-arrow {
@@ -3446,9 +3746,13 @@
   background: #f4f6f8;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
 .sl-wrapper .sl-blog2-arrow:disabled {
-  color: #a5b4bf;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .sl-wrapper .sl-blog2-dot {
@@ -3657,6 +3961,17 @@
   background: #f4f6f8;
 }
 
+/* Filters applied → solid black with a white icon (the icon is currentColor).
+   MUST stay after the :hover/.active rule above: same specificity, so source
+   order decides, and otherwise hovering an applied filter would wash it back
+   out to grey. .active here means the PANEL is open, not that filters are set. */
+.sl-wrapper .sl-top-bar-icon-btn.has-filters,
+.sl-wrapper .sl-top-bar-icon-btn.has-filters:hover,
+.sl-wrapper .sl-top-bar-icon-btn.has-filters.active {
+  background: #101318;
+  color: #ffffff;
+}
+
 /* Quick filter pill group — a single row that scrolls horizontally when the
    (dynamic) tags overflow. */
 .sl-wrapper .sl-top-bar-pills {
@@ -3672,11 +3987,27 @@
 }
 .sl-wrapper .sl-top-bar-pills::-webkit-scrollbar { display: none; }  /* WebKit */
 
+/* 2px to match the pills inside the filter modal (.sl-filter-modal .sl-pill),
+   so the same control is not thinner outside the popup than in it. */
 .sl-wrapper .sl-top-bar-pill {
+  /* Centred EXPLICITLY, not left to the UA.
+     The .active variant below already declares inline-flex + align-items, so
+     an unticked pill was the only one relying on a <button>'s default
+     centring of its own text — and that default is only as reliable as the
+     host's own button rules. A theme line-height taller than the 14px text
+     inflates the line box inside a fixed 44px pill and the label rides up in
+     it, which is invisible here (the harness sets no line-height) and shows on
+     a live page.
+     line-height: 1 removes the other half of it: the label's box is then the
+     glyphs, and align-items has something predictable to centre. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   height: 44px;
   padding: 0 21px;
   border-radius: 100px;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   background: #ffffff;
   font-size: 14px;
   font-weight: 400;
@@ -3742,7 +4073,7 @@
 .sl-wrapper .sl-top-bar-search-input {
   width: 100%;
   height: 100%;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   border-radius: 100px;
   padding: 0 60px 0 21px;
   font-size: 16px;
@@ -3805,6 +4136,24 @@
   .sl-wrapper .sl-top-bar-pills > .sl-top-bar-pill:not(.sl-top-bar-more):nth-of-type(n+3) {
     display: none;
   }
+}
+
+/* A real phone keeps EVERY tag, whatever the container above resolves to.
+   The truncation is a container query so it can follow the bar's own width
+   rather than the browser's — right for the sidebar layout, but it means the
+   bar's container changes underneath it: normally .sl-listing-area, and
+   .sl-wrapper.sl-top-bar-pinned once the bar is portaled out to the sticky
+   stack. If either resolves over 600px on a phone the tags after the second
+   one vanish with no "More" to reach them, because "More" is a desktop-only
+   affordance. This is the backstop: same selectors, same specificity, later in
+   the file, keyed to the VIEWPORT so it cannot be argued with.
+   .sl-top-bar-pills is already flex + overflow-x: auto, so the full row
+   scrolls under the finger. */
+@media (max-width: 600px) {
+  .sl-wrapper .sl-top-bar-pills > .sl-top-bar-pill:not(.sl-top-bar-more):nth-of-type(n+3) {
+    display: inline-flex;
+  }
+  .sl-wrapper .sl-top-bar-more { display: none; }
 }
 
 /* When FilterPanel drops down below the top bar, make it full-width */
@@ -3878,7 +4227,7 @@
   text-decoration: underline;
   cursor: pointer;
 }
-.sl-wrapper .sl-modal-reset:hover { color: #509e2f; }
+.sl-wrapper .sl-modal-reset:hover { color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-modal-close {
   background: none;
   border: none;
@@ -3892,7 +4241,7 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.sl-wrapper .sl-modal-close:hover { color: #509e2f; }
+.sl-wrapper .sl-modal-close:hover { color: var(--color_1, #f45f30); }
 
 /* Body — scrolls internally when content exceeds the viewport */
 .sl-wrapper .sl-modal-body {
@@ -3913,7 +4262,7 @@
 .sl-wrapper .sl-modal-search-input {
   width: 100%;
   height: 100%;
-  border: 1px solid #101318;
+  border: 2px solid #101318;
   border-radius: 100px;
   padding: 0 56px 0 21px;
   font-size: 16px;
@@ -3951,7 +4300,22 @@
   flex-direction: column;
   gap: 12px;
 }
-.sl-wrapper .sl-filter-modal .sl-checkbox { accent-color: #101318; }
+/* The modal's checkboxes are @shared/ui's Checkbox now, so the box, tick,
+   focus ring and disabled state all come from the kit — the `accent-color`
+   that used to be here was restyling the BROWSER's own control, which meant
+   the tick and the focus ring were the platform's rather than the design's.
+
+   A class of its own rather than .sl-checkbox-item: that rule is (0,2,0) and
+   would override .hb-check's display and gap, silently re-laying-out the kit's
+   label. It also belongs to the removed sidebar FilterPanel, which is no
+   longer imported anywhere. Only type is set here; the kit leaves that to the
+   caller. */
+.sl-wrapper .sl-filter-check {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+  color: #101318;
+}
 
 /* Filter-modal pills use a heavier 2px border. */
 .sl-wrapper .sl-filter-modal .sl-pill { border-width: 2px; }
@@ -3964,6 +4328,50 @@
   align-items: center;
   margin-right: 4px;
   color: #ffffff;
+}
+
+/* Sticky footer — Figma 10557-146399 / 10622-79186 (same on mobile).
+   `flex-shrink: 0` is the whole trick: .sl-filter-modal is already a flex
+   column whose body is the scroller, so a non-shrinking sibling after it holds
+   the bottom edge at any height. No `position: sticky`, which would need the
+   footer inside the scroller and would then scroll with it at short heights. */
+.sl-wrapper .sl-modal-footer {
+  display: flex;
+  flex-shrink: 0;
+  padding: 24px;
+  background: #ffffff;
+  /* NOT in the frame. The body scrolls under this, and without a line the last
+     row of amenities bleeds into the white as it passes behind the button.
+     Same hairline .sl-filter-separator draws under the header, so it reads as
+     the modal's own rule rather than a new one. */
+  border-top: 1px solid #dfe3e8;
+}
+.sl-wrapper .sl-apply-filters {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 50px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  /* Duda's primary, like the other 31 places in this widget — not the frame's
+     flat #f26500, which would ignore the site's theme. */
+  background: var(--color_1, #f45f30);
+  color: #ffffff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+/* Additions — the frame only describes the resting state. A real background
+   rather than a filter, so a host's `button:hover` cannot paint over it. */
+.sl-wrapper .sl-apply-filters:hover {
+  background: color-mix(in srgb, var(--color_1, #f45f30) 88%, #000);
+}
+.sl-wrapper .sl-apply-filters:active {
+  background: color-mix(in srgb, var(--color_1, #f45f30) 78%, #000);
 }
 
 /* On phones let the lightbox use the full width comfortably */
@@ -4065,7 +4473,7 @@
   cursor: pointer;
   transition: background 0.18s ease;
 }
-.sl-wrapper .sl-reorder-toggle.on { background: #509e2f; }
+.sl-wrapper .sl-reorder-toggle.on { background: var(--color_1, #f45f30); }
 .sl-wrapper .sl-reorder-toggle-knob {
   position: absolute;
   top: 2px;
@@ -4122,8 +4530,8 @@
 }
 .sl-wrapper .sl-reorder-arrow:hover:not(:disabled) {
   background: #f0f7ec;
-  border-color: #509e2f;
-  color: #509e2f;
+  border-color: var(--color_1, #f45f30);
+  color: var(--color_1, #f45f30);
 }
 .sl-wrapper .sl-reorder-arrow:disabled {
   opacity: 0.35;
@@ -4173,8 +4581,8 @@
 }
 .sl-wrapper .sl-reorder-cancel:hover { background: #f6f7f8; }
 .sl-wrapper .sl-reorder-save {
-  background: #509e2f;
-  border: 1px solid #509e2f;
+  background: var(--color_1, #f45f30);
+  border: 1px solid var(--color_1, #f45f30);
   color: #ffffff;
 }
 .sl-wrapper .sl-reorder-save:hover { background: #468a29; }

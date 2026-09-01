@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { usePropertyId } from '../propertyContext';
+import { fetchProperties, extractNearbyProperties } from '@shared/nearbyProperties';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
+import cfg from '../config.json';
 import { ReviewsSection } from './sections/ReviewsSection';
 import { NearbySection } from './sections/NearbySection';
 import { SizeGuideSection } from './sections/SizeGuideSection';
 import { BlogSection } from './sections/BlogSection';
+import { LocalBlogSection } from './sections/LocalBlogSection';
 import { FaqsSection } from './sections/FaqsSection';
 import { StoreSection } from './sections/StoreSection';
 import { NotesSection } from './sections/NotesSection';
 import { AboutSection } from './sections/AboutSection';
 import { FeaturesSection } from './sections/FeaturesSection';
+import { FeatureHighlightsSection } from './sections/FeatureHighlightsSection';
+import { CHEVRON_PATH } from './chevron';
 import {
   ACCORDION_SECTIONS,
   resolveVisibleOrder,
@@ -15,6 +22,7 @@ import {
   type AccordionKey,
 } from '../accordionSections';
 import type { PropertyExtras } from '../propertyApi';
+import type { FeatureHighlight } from '../featureHighlights';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 // Real icons from Figma (Mariposa accordion set, node 9417-86779). Stroke-style,
@@ -61,6 +69,17 @@ function IconFile() {
   );
 }
 
+function IconPin() {
+  // "Local Blogs" — the document icon above with a place marker instead, so the
+  // two blog sections read as related but not interchangeable.
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21C12 21 19 15.5 19 10.2C19 6.22355 15.866 3 12 3C8.13401 3 5 6.22355 5 10.2C5 15.5 12 21 12 21Z" />
+      <path d="M14.5 10C14.5 11.3807 13.3807 12.5 12 12.5C10.6193 12.5 9.5 11.3807 9.5 10C9.5 8.61929 10.6193 7.5 12 7.5C13.3807 7.5 14.5 8.61929 14.5 10Z" />
+    </svg>
+  );
+}
+
 function IconScale() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -70,7 +89,7 @@ function IconScale() {
 }
 
 function IconFeatures() {
-  // Pika star (Figma 6513:146326) — "Features and Amenities".
+  // Pika star (Figma 6513:146326) — "Features & Amenities".
   return (
     <svg width="24" height="24" viewBox="0 0 20.7191 19.9999" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" preserveAspectRatio="xMidYMid meet">
       <path d="M7.50861 4.24743C8.35062 2.48286 8.77163 1.60057 9.32106 1.28045C9.96288 0.906515 10.7562 0.906515 11.398 1.28045C11.9474 1.60057 12.3684 2.48286 13.2105 4.24743C13.4599 4.77026 13.5847 5.03167 13.7632 5.23964C13.9729 5.48393 14.2369 5.67574 14.5341 5.79971C14.7871 5.90525 15.0742 5.9431 15.6486 6.01881C17.587 6.27433 18.5562 6.40209 19.0304 6.82571C19.5844 7.32056 19.8295 8.07504 19.6722 8.801C19.5375 9.42246 18.8285 10.0955 17.4105 11.4416C16.9904 11.8404 16.7803 12.0398 16.6377 12.2739C16.4702 12.5489 16.3693 12.8592 16.3432 13.1801C16.321 13.4533 16.3738 13.7381 16.4792 14.3077C16.8352 16.2302 17.0132 17.1915 16.7569 17.7734C16.4574 18.4532 15.8156 18.9195 15.0766 18.9942C14.4439 19.0582 13.5848 18.5918 11.8664 17.6592C11.3572 17.3829 11.1026 17.2447 10.836 17.1814C10.5227 17.107 10.1964 17.107 9.88311 17.1814C9.61642 17.2447 9.36185 17.3829 8.85271 17.6592C7.13431 18.5918 6.27512 19.0582 5.64246 18.9942C4.90342 18.9195 4.26162 18.4532 3.96218 17.7734C3.70583 17.1915 3.88383 16.2302 4.23982 14.3077C4.34529 13.7381 4.39803 13.4533 4.37582 13.1801C4.34974 12.8592 4.2489 12.5489 4.08138 12.2739C3.93876 12.0398 3.72869 11.8404 3.30854 11.4416C1.89053 10.0955 1.18153 9.42246 1.04686 8.801C0.889558 8.07504 1.1347 7.32056 1.68867 6.82571C2.1629 6.40209 3.13211 6.27433 5.07051 6.01881C5.64484 5.9431 5.93201 5.90525 6.18497 5.79971C6.48212 5.67574 6.74612 5.48393 6.95584 5.23964C7.13439 5.03167 7.25913 4.77026 7.50861 4.24743Z" />
@@ -102,7 +121,8 @@ function IconReorder() {
 
 interface AccordionVisual {
   icon: React.ReactNode;
-  badge?: number;
+  /** A number, or 'loading' for the placeholder circle. */
+  badge?: number | 'loading';
   content: React.ReactNode;
 }
 
@@ -110,10 +130,19 @@ interface AccordionVisual {
 const VISUALS: Record<AccordionKey, AccordionVisual> = {
   store:     { icon: <IconInfo />,     content: <StoreSection /> },
   features:  { icon: <IconFeatures />, content: <FeaturesSection /> },
-  nearby:    { icon: <IconBuilding />, badge: 5, content: <NearbySection /> },
+  // Same star as `features`: the Figma's "Feature Highlights" (9321:25263) and
+  // "Features & Amenities" (6513:146326) icons are the same vector. Content is
+  // always supplied by the special case below (it needs the page's callbacks).
+  highlights: { icon: <IconFeatures />, content: null },
+  // No `badge` here on purpose: NearbySection reports its own count through
+  // useReportSectionCount, because only it knows how many the API returned.
+  // This said `badge: 5` — a literal that never moved while the carousel under
+  // it paged through however many actually came back.
+  nearby:    { icon: <IconBuilding />, content: <NearbySection /> },
   reviews:   { icon: <IconReview />,   content: <ReviewsSection /> },
   faq:       { icon: <IconQuestion />, content: <FaqsSection /> },
   blog:      { icon: <IconFile />,     content: <BlogSection /> },
+  localblog: { icon: <IconPin />,      content: <LocalBlogSection /> },
   sizeguide: { icon: <IconScale />,    content: <SizeGuideSection /> },
   notes:     { icon: <IconNote />,     content: <NotesSection /> },
   about:     { icon: <IconInfo />,     content: <AboutSection /> },
@@ -127,7 +156,8 @@ interface AccordionItemDef {
   key: AccordionKey;
   label: string;
   icon: React.ReactNode;
-  badge?: number;
+  /** A number, or 'loading' for the placeholder circle. */
+  badge?: number | 'loading';
   content: React.ReactNode;
 }
 
@@ -152,6 +182,12 @@ export interface SectionAccordionProps {
   blogCollection?: string;
   /** Path the blog post slugs hang off, e.g. "/blog". */
   blogBasePath?: string;
+  /** Rows for the Feature Highlights section. Empty hides the section. */
+  featureHighlights?: FeatureHighlight[];
+  /** Slug of the feature the page is locked to, so the row can show as active. */
+  activeFeatureSlug?: string | null;
+  /** Select (or, with null, clear) the feature the page is locked to. */
+  onSelectFeature?: (slug: string | null) => void;
 }
 
 // ── Single accordion row ──────────────────────────────────────────────────────
@@ -163,18 +199,24 @@ function AccordionRow({ item, open, onToggle }: { item: AccordionItemDef; open: 
         <div className="sl-sa-header-left">
           <span className="sl-sa-icon">{item.icon}</span>
           <span className="sl-sa-title">{item.label}</span>
-          {item.badge !== undefined && (
-            <span className="sl-sa-badge">{item.badge}</span>
-          )}
+          {item.badge === 'loading'
+            ? <span className="sl-sa-badge sl-sa-badge--loading" aria-hidden="true" />
+            : item.badge !== undefined && (
+              <span className="sl-sa-badge">{item.badge}</span>
+            )}
         </div>
         <svg className="sl-sa-chevron" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 9C7.57701 11.1808 9.42293 13.1364 11.4899 14.8172C11.7897 15.0609 12.2103 15.0609 12.5101 14.8172C14.5771 13.1364 16.423 11.1808 18 9" />
+          <path d={CHEVRON_PATH} />
         </svg>
       </button>
       {open && <div className="sl-sa-body">{item.content}</div>}
     </div>
   );
 }
+
+/** Mirrors MAX_NEARBY in NearbySection — the badge must not promise more
+ *  cards than that section will draw. Change both together. */
+const NEARBY_BADGE_MAX = 6;
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -189,6 +231,9 @@ export function SectionAccordion({
   notesContent,
   blogCollection,
   blogBasePath,
+  featureHighlights = [],
+  activeFeatureSlug = null,
+  onSelectFeature,
 }: SectionAccordionProps) {
   // Only one section open at a time — opening one closes the currently-open one.
   const [openKey, setOpenKey] = useState<AccordionKey | null>(null);
@@ -196,21 +241,65 @@ export function SectionAccordion({
   // Every section is a candidate; the "Manage accordions" modal controls which
   // are visible (config.hidden) and their order (config.order). No config →
   // all sections shown in default order.
-  const allKeys = ACCORDION_SECTIONS.map((s) => s.key);
+  // Feature Highlights is the one section with nothing of its own to say: its
+  // rows ARE the property's filter-bar amenities. With none there is no empty
+  // state worth a header, so drop the whole row (header included) rather than
+  // offering an accordion that opens onto nothing.
+  /**
+   * The Nearby Storage badge, counted HERE rather than inside the section.
+   *
+   * Closed sections are not mounted — `{open && ...}` below — so the section
+   * cannot report its own count until somebody expands it, and the badge is
+   * meant to be readable before that. Mounting it eagerly is not an option
+   * either: its data path calls getUserLocation(), which puts a browser
+   * permission prompt on page load.
+   *
+   * Geolocation only decides the ORDER of the list, never its length, so the
+   * count needs none of it: every other property the company has, capped the
+   * same way the section caps it. The properties read is promise-cached, so
+   * this shares the one the page already makes.
+   */
+  const currentPropertyId = usePropertyId();
+  const [nearbyCount, setNearbyCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const creds = {
+          ...cfg,
+          companyId: await resolveCompanyIdFromSources('#05 nearby badge', {}, cfg.companyId),
+        };
+        const all = extractNearbyProperties(await fetchProperties(creds, {}), cfg.appId);
+        const others = all.filter((p) => p.id !== currentPropertyId).length;
+        if (!cancelled) setNearbyCount(Math.min(others, NEARBY_BADGE_MAX));
+      } catch (err) {
+        console.error('[SpaceList] nearby badge count failed:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentPropertyId]);
+
+  const allKeys = ACCORDION_SECTIONS.map((s) => s.key).filter(
+    (k) => k !== 'highlights' || featureHighlights.length > 0,
+  );
 
   const items: AccordionItemDef[] = resolveVisibleOrder(allKeys, config).map((key) => ({
     key,
     // The About heading is editor-editable; everything else uses the registry label.
     label: key === 'about' ? (aboutTitle?.trim() || LABELS.about) : LABELS[key],
     icon: VISUALS[key].icon,
-    badge: VISUALS[key].badge,
+    // A reported count wins; the map's literal is the fallback for sections
+    // that do not report one.
+    badge: key === 'nearby' ? (nearbyCount ?? 'loading') : VISUALS[key].badge,
     // A few sections take live API data or editor copy; the rest are static.
     content:
       key === 'sizeguide' ? <SizeGuideSection showVideos={showSizeGuideVideos} />
-      : key === 'store'   ? <StoreSection phones={propertyExtras?.phones} socials={propertyExtras?.socials} hours={propertyExtras?.hours} schedule={propertyExtras?.schedule} scheduleSections={propertyExtras?.scheduleSections} facilityName={propertyExtras?.name} />
+      : key === 'store'   ? <StoreSection phones={propertyExtras?.phones} socials={propertyExtras?.socials} hours={propertyExtras?.hours} schedule={propertyExtras?.schedule} scheduleSections={propertyExtras?.scheduleSections} facilityName={propertyExtras?.name} facilityAddress={propertyExtras?.address} />
       : key === 'faq'     ? <FaqsSection faqs={propertyExtras?.faqs} />
       : key === 'features' ? <FeaturesSection amenities={propertyExtras?.amenities} />
+      : key === 'highlights' ? <FeatureHighlightsSection features={featureHighlights} activeSlug={activeFeatureSlug} onSelect={onSelectFeature ?? (() => {})} />
       : key === 'blog'    ? <BlogSection collection={blogCollection} blogBasePath={blogBasePath} />
+      : key === 'localblog' ? <LocalBlogSection collection={blogCollection} blogBasePath={blogBasePath} />
       : key === 'notes'   ? <NotesSection content={notesContent} />
       : key === 'about'   ? <AboutSection content={aboutContent} />
       : VISUALS[key].content,

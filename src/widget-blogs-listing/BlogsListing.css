@@ -7,6 +7,21 @@
   width: 100%;
   box-sizing: border-box;
   color: #101318;
+
+  /* ── Reserved card geometry (Core Web Vitals / CLS) ────────────────────────
+     Same scheme as #15 (.bpg-wrapper), with this listing's own clamps: every
+     part of a card gets a FIXED box, so card height never depends on how long a
+     title or excerpt happens to be. That makes the skeleton an exact stand-in —
+     placeholder grid and loaded grid occupy the same pixels — and .blog-card's
+     height a sum of these tokens, so editing one moves both.                */
+  --blog-img-h: 234px;
+  --blog-body-pad: 24px;
+  --blog-body-gap: 19px;
+  --blog-title-h: 60px;   /* 2 x 30px line-height — .blog-card-title's clamp   */
+  --blog-byline-h: 24px;  /* 1 line (2 on a narrow phone — see the 480px block) */
+  --blog-excerpt-h: 72px; /* 3 x 24px line-height — .blog-card-excerpt's clamp */
+  --blog-footer-h: 24px;  /* the 24px Share glyph is the tallest thing in it   */
+  --blog-dot-size: 16px;  /* pagination dot, and so the mobile dots strip       */
 }
 
 .blog-wrapper *,
@@ -52,6 +67,7 @@
 
 /* ── Grid ───────────────────────────────────────────────────────────────── */
 
+/* Still used by the skeleton, which is a static 3-up and has nothing to slide. */
 .blog-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -65,6 +81,108 @@
   grid-auto-rows: 1fr;
 }
 
+/* ── Sliding track ──────────────────────────────────────────────────────── */
+
+/* The viewport. Everything past `perView` cards is clipped here, so the track
+   inside can be as wide as the collection without widening the widget.
+   `touch-action: pan-y` is what lets a vertical drag still scroll the page
+   while a horizontal one is ours — see @shared/useCarousel. */
+.blog-track-window {
+  width: 100%;
+  max-width: 1330px;
+  /* Clip the X axis ONLY. The track is wider than the window so it must be
+     clipped horizontally, but there is nothing to clip vertically except the
+     cards' own box-shadow — which reaches 13px past the card (blur 10 + spread
+     3) and 17px below once the 4px y-offset counts, and was being sliced off.
+
+     `overflow-y: visible` is what lets the shadow through. It needs `clip` (not
+     `hidden`) on X: pairing `hidden` with `visible` makes the browser compute
+     the visible axis to `auto`, which adds a scrollbar. `clip` has no such rule,
+     so the two axes stay independent.
+
+     Deliberately NOT `overflow-clip-margin` — that value applies to all four
+     sides at once, so buying vertical room also widens the horizontal clip and
+     leaks a sliver of the neighbouring card past the widget's edge.
+
+     `hidden` first is the fallback for browsers without `clip` (Safari < 16):
+     they clip both axes exactly as before, so the shadow is cropped but nothing
+     shifts or scrolls. */
+  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
+  touch-action: pan-y;
+  /* Horizontally the margin is negative with NO matching padding, and that is
+     deliberate. Each track item carries `padding: 0 16px` to make the 32px gap
+     between cards, which also insets the outer two by 16px. Widening the border
+     box by exactly that — without padding it back in — puts the first and last
+     card edges flush with the widget while the inner gaps stay 32px (measured).
+     Adding `padding: 0 16px` here would hand the 16px straight back and the row
+     would sit 32px narrower than the Figma grid.
+
+     No vertical padding: the shadow is handled by `overflow-y: visible` above,
+     which does not move this element's box. */
+  margin: 0 -16px;
+
+  /* One step = one card = 1/perView of the window's CONTENT box (which the
+     -16px sides make exactly perView cards wide). The JS transform multiplies
+     this and the items are sized by it, so the card pitch and the slide
+     distance are the same quantity and cannot drift apart. --blog-per-view is
+     set inline per frame: 3 on desktop, 1 on mobile. */
+  --blog-per-view: 3;
+  /* Two quantities, not one. An item is as wide as its share of the window
+     MINUS its share of the gaps; the step is that item plus one gap. Driving
+     both off a single --blog-step made the mobile gap widen the CARD as well,
+     so it overhung the window by the gap and was clipped on the right. */
+  --blog-gap: 0px;
+  --blog-item: calc(
+    (100% - (var(--blog-per-view) - 1) * var(--blog-gap)) / var(--blog-per-view)
+  );
+  --blog-step: calc(var(--blog-item) + var(--blog-gap));
+}
+
+.blog-track {
+  display: flex;
+  align-items: stretch;
+  /* No `gap`: a gap is not part of the step the transform moves by, so it would
+     desync the slide from the card pitch a little more with every step. The
+     spacing is padding INSIDE each item instead, which is part of the step. */
+  gap: 0;
+  will-change: transform;
+}
+
+.blog-track-item {
+  /* Half the old 32px grid gap on each side sums back to 32px between cards. */
+  padding: 0 16px;
+  box-sizing: border-box;
+  display: flex;
+}
+
+/* Deliberately NOT trimming the first/last item's padding: every item must be
+   exactly the same width or the transform (which assumes a uniform pitch) drifts
+   further out of alignment with every step. The 16px bleed at the two outer
+   edges is absorbed by the window's negative margin instead. */
+
+.blog-track-item > .blog-card {
+  width: 100%;
+  /* Faded rather than switched: a hard toggle as a card crosses the edge reads
+     as a flicker. See .is-offscreen below. */
+  transition: box-shadow 0.2s ease;
+}
+
+/* A card outside the window casts no shadow.
+   The window clips X but leaves Y visible so a card's own shadow can show —
+   which also lets the NEXT card's shadow reach ~13px back across the clip seam.
+   On mobile, where items sit flush with no gap, that painted a hard vertical
+   line down the card on screen. Dropping the shadow on cards nobody can see
+   removes the source without touching any spacing. */
+.blog-track-item.is-offscreen > .blog-card {
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blog-track-item > .blog-card { transition: none; }
+}
+
 /* ── Blog card ──────────────────────────────────────────────────────────── */
 
 .blog-card {
@@ -75,19 +193,28 @@
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
+  /* Sum of the reserved boxes, and the whole trick: every part above is CAPPED at
+     its token, so this floor is also the ceiling — the card is exactly this tall
+     whatever the row contains. A short title, a missing byline, a missing excerpt
+     (all of which happen) give their space back as slack above the pinned footer
+     instead of shortening the card out from under the skeleton. */
+  min-height: calc(
+    var(--blog-img-h) + 2 * var(--blog-body-pad) + 3 * var(--blog-body-gap) +
+    var(--blog-title-h) + var(--blog-byline-h) + var(--blog-excerpt-h) + var(--blog-footer-h)
+  );
 }
 
 .blog-card-img {
   width: 100%;
-  height: 234px;
+  height: var(--blog-img-h);
   flex-shrink: 0;
 }
 
 .blog-card-body {
   display: flex;
   flex-direction: column;
-  gap: 19px;
-  padding: 24px;
+  gap: var(--blog-body-gap);
+  padding: var(--blog-body-pad);
   flex: 1;
 }
 
@@ -101,6 +228,12 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* The ceiling, and the crop where -webkit-line-clamp isn't supported. Capped
+     rather than fixed on purpose: a card whose title runs to one line is held to
+     the full height by .blog-card's floor instead, which pools the slack above the
+     pinned footer. Reserving it here would open the gap between the title and the
+     byline, which reads as a mistake. */
+  max-height: var(--blog-title-h);
 }
 
 .blog-card-byline {
@@ -109,6 +242,11 @@
   line-height: 24px;
   color: #637381;
   margin: 0;
+  /* One line's worth, clipped. The string is "By {author},  {date}" and on a
+     narrow phone it wraps — the 480px block widens the cap there rather than
+     truncating the date away. */
+  max-height: var(--blog-byline-h);
+  overflow: hidden;
 }
 
 .blog-card-excerpt {
@@ -117,11 +255,17 @@
   line-height: 24px;
   color: #101318;
   margin: 0;
-  flex: 1;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* Capped, and NO `flex: 1` (it used to grow). Cards are equal height, so a
+     flex-grown excerpt gets a box taller than its clamped text — `overflow:
+     hidden` then stops cropping and a fourth line leaks out below the clamp's
+     own ellipsis. The footer is pinned by its margin-top:auto, so nothing needs
+     to grow; capping at 3 x line-height keeps the crop honest (and enforces it at
+     all where -webkit-line-clamp isn't supported). */
+  max-height: var(--blog-excerpt-h);
 }
 
 .blog-card-footer {
@@ -132,6 +276,9 @@
   /* Now that cards are equal height, pin Read more / Share to the bottom so a
      card with no excerpt doesn't leave its footer floating mid-card. */
   margin-top: auto;
+  /* Naturally this tall from the Share glyph — stated so the skeleton's plain
+     bars, which are shorter, reserve the same strip. */
+  min-height: var(--blog-footer-h);
 }
 
 .blog-readmore {
@@ -140,6 +287,11 @@
   color: #101318;
   text-decoration: underline;
   text-underline-offset: 2px;
+  /* Both footer labels are fixed two-word strings, and the footer is one of the
+     reserved boxes — let "Read more" break across two lines in a narrow column
+     and the footer grows to 36px, which is 12px of CLS the skeleton can't know
+     about. Measured: it wraps once a card is under ~150px wide. */
+  white-space: nowrap;
 }
 
 .blog-readmore:hover {
@@ -180,18 +332,20 @@
 
 /* ── Skeleton (while the collection read is in flight) ─────────────────────── */
 
+/* The skeleton card reuses .blog-card / .blog-card-img / .blog-card-body /
+   .blog-card-footer verbatim, so radius, shadow, image height, padding, gap and
+   the pinned footer are the real card's by construction rather than by copy. The
+   only additions are the grey fills and the three .blog-skel-box wrappers, which
+   stand in for the title / byline / excerpt at exactly their reserved heights.
+   Net effect: a skeleton card and a loaded card are the same box, so swapping one
+   for the other moves nothing. */
+
 .blog-card--skeleton {
   pointer-events: none;
 }
 
 .blog-card--skeleton .blog-card-img {
   background: #eceef1;
-}
-
-.blog-card--skeleton .blog-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .blog-skel {
@@ -202,10 +356,47 @@
   animation: blog-skel-shimmer 1.4s ease-in-out infinite;
 }
 
-.blog-skel--title { height: 30px; width: 90%; }
-.blog-skel--byline { height: 16px; width: 60%; }
-.blog-skel--text { height: 16px; width: 100%; }
-.blog-skel--text.short { width: 75%; }
+/* One text block's placeholder. Bars share the box out with `flex: 1` instead of
+   carrying hardcoded heights, so the arithmetic can't drift out of step with the
+   --blog-*-h tokens. */
+.blog-skel-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.blog-skel-box .blog-skel {
+  flex: 1;
+  min-height: 0;
+}
+
+.blog-skel-box--title { height: var(--blog-title-h); }
+.blog-skel-box--excerpt { height: var(--blog-excerpt-h); }
+
+/* The byline is a single line inside a box that is two lines tall on a narrow
+   phone, so centre the bar rather than stretching it. */
+.blog-skel-box--byline {
+  height: var(--blog-byline-h);
+  justify-content: center;
+}
+
+.blog-skel-box--byline .blog-skel {
+  flex: 0 0 auto;
+  height: 14px;
+}
+
+.blog-skel--readmore { height: 16px; width: 86px; }
+.blog-skel--share { height: 20px; width: 78px; }
+
+/* Stand-in for a .blog-dot in the mobile skeleton's strip. */
+.blog-skel--dot {
+  width: var(--blog-dot-size);
+  height: var(--blog-dot-size);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 
 @keyframes blog-skel-shimmer {
   from { background-position: 100% 50%; }
@@ -243,6 +434,8 @@
   color: #101318;
   text-decoration: underline;
   text-underline-offset: 2px;
+  /* Same reason as .blog-readmore. */
+  white-space: nowrap;
 }
 
 .blog-share:hover {
@@ -285,6 +478,7 @@
   color: var(--color_1, #f45f30);
 }
 
+
 /* ── Pagination ─────────────────────────────────────────────────────────── */
 
 .blog-pagination {
@@ -311,18 +505,30 @@
   background: #f4f6f8;
 }
 
+/* 50% and inert at the ends — the agreed signal that there's nothing further
+   this way. `pointer-events: none` is belt-and-braces over the `disabled`
+   attribute, which already blocks the click. */
 .blog-page-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .blog-page-btn-prev svg {
   transform: rotate(180deg);
 }
 
+/* The mobile carousel's dots strip. Its height is stated rather than left to the
+   dots, because the row renders empty for a single post — see BlogsListing.tsx.
+   The dots never wrap (.blog-pagination is nowrap), so the count can't change it
+   and the skeleton can reserve it without knowing how many posts there are. */
+.blog-pagination-dots {
+  min-height: var(--blog-dot-size);
+}
+
 .blog-dot {
-  width: 16px;
-  height: 16px;
+  width: var(--blog-dot-size);
+  height: var(--blog-dot-size);
   border-radius: 50%;
   background: #dfe3e8;
   border: none;
@@ -370,5 +576,44 @@
 
   .blog-mobile .blog-pagination {
     justify-content: center;
+  }
+
+  /* One card fills the frame here, so the desktop's symmetric 16px would inset
+     it from the panel's own 24px. The item carries no padding at all; the 10px
+     Josh Wright asked for (2026-08-27) comes from the track's flex gap below,
+     which is REAL space — padding on the item leaves it butting the clip edge
+     and the neighbour shows through the rounded corner's notch. */
+  .blog-mobile .blog-track-item {
+    padding: 0;
+  }
+
+  .blog-mobile .blog-track {
+    gap: 10px;
+  }
+
+  /* Declare the gap and let --blog-item / --blog-step derive from it, so the
+     step grows by 10px while the card stays exactly one window wide. */
+  .blog-mobile .blog-track-window {
+    --blog-gap: 10px;
+    /* Clip one gap wider than the card so its shadow is not sliced off at the
+       sides, cancelled by an equal negative margin so the content box, the card
+       width and the step all stay put. One gap is the limit — the neighbour
+       starts there, and offscreen cards already drop their shadow above. */
+    /* Widened by both gaps, or `width: 100%` under border-box sizing keeps the
+       border box at the panel's width: the padding eats the content box and the
+       negative margin merely shifts everything left, leaving one gap more space
+       on the right than the left. */
+    width: calc(100% + 2 * var(--blog-gap));
+    margin: 0 calc(-1 * var(--blog-gap));
+    padding: 0 var(--blog-gap);
+  }
+}
+
+/* Narrow phones: "By {author},  {date}" no longer fits one 14px line here, so
+   give the byline both of them. Widening the box beats `text-overflow: ellipsis`
+   — the part that would be dropped is the publish date. */
+@media (max-width: 480px) {
+  .blog-wrapper {
+    --blog-byline-h: 48px;
   }
 }
