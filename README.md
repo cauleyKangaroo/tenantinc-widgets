@@ -131,12 +131,38 @@ npm run build
 
 This produces `dist/widget-hero.js`, `dist/widget-clock.js`, etc. Each file is a self-contained AMD module (React included — no external dependencies).
 
-### 2. Host the bundle on a CDN
+### 2. Publish the bundle to S3
 
-Upload the bundle to your CDN, e.g.:
+`dist/` is uploaded to a single S3 bucket, into a **different folder per branch**, so `dev` and
+`demo` can be deployed independently without overwriting each other.
+
+| Branch | S3 folder     |
+| ------ | ------------- |
+| `dev`  | `widgets-dev`  |
+| `demo` | `widgets-demo` |
+
+One-time setup: copy `.env.example` to `.env` and fill in `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY`, `AWS_REGION` and `AWS_S3_BUCKET`.
 
 ```
-https://cdn.tenantinc.com/widgets/widget-hero.js
+npm run deploy        # build, then upload to the folder mapped to the current branch
+npm run deploy:dev    # force the dev folder, whatever branch you're on
+npm run deploy:demo   # force the demo folder
+npm run upload        # upload the existing dist/ without rebuilding
+npm run upload:dry    # print the resolved bucket/folder and exit — uploads nothing
+```
+
+Deploying from a branch that isn't in the map is **refused** rather than guessed, so a stray
+`npm run deploy` from a `feat/*` branch can't overwrite `demo`. To deploy somewhere else on
+purpose, set `S3_PREFIX=<folder>`.
+
+The branch-to-folder map lives at the top of [`gulpfile.js`](gulpfile.js) — add a branch there
+and it becomes deployable.
+
+The resulting URL is what you paste into Duda:
+
+```
+https://<cdn-host>/widgets-dev/widget-hero.js
 ```
 
 ### 3. Wire it up in Duda's Widget Builder
@@ -145,7 +171,7 @@ In Duda's Widget Builder, paste the following into the **JS** tab. This is the s
 
 ```js
 function(element, data, api) {
-  var scriptSrc = 'https://cdn.tenantinc.com/widgets/widget-hero.js';
+  var scriptSrc = 'https://cdn.tenantinc.com/widgets-dev/widget-hero.js';
 
   api.scripts.renderExternalApp(scriptSrc, element, {
     title:    data.config.title,
@@ -188,7 +214,7 @@ You then forward whichever fields you need as the `props` argument to `renderExt
 ```js
 function(element, data, api) {
   api.scripts.renderExternalApp(
-    'https://cdn.tenantinc.com/widgets/widget-hero.js',
+    'https://cdn.tenantinc.com/widgets-dev/widget-hero.js',
     element,
     {
       title:    data.config.title,
@@ -210,7 +236,7 @@ This is how you drive multiple layout variants from a single widget — the site
 ```js
 function(element, data, api) {
   api.scripts.renderExternalApp(
-    'https://cdn.tenantinc.com/widgets/widget-hero.js',
+    'https://cdn.tenantinc.com/widgets-dev/widget-hero.js',
     element,
     {
       title:  data.config.title,
@@ -331,9 +357,13 @@ showInstorePrice: data.config.showInstorePrice,
 showInstorePrice: data.config.clientConfig.showInstorePrice,
 ```
 
-#### GitHub Pages CDN cache — wait after deploying
+#### CDN cache — wait ~5 minutes after deploying
 
-After `git push`, GitHub Pages may serve a stale bundle for up to 10–15 minutes while the CDN invalidates. If a widget appears not to respond to new props immediately after a push, wait a few minutes and hard-refresh before debugging further.
+Bundles are uploaded with `Cache-Control: public, max-age=300`, so a redeploy takes up to
+5 minutes to reach browsers. Widget filenames are not content-hashed (`widget-faqs.js` keeps that
+name forever), which is exactly why the cache window is kept short — there is no hashed URL to
+bust. If a widget doesn't pick up a change immediately after `npm run deploy`, wait a few minutes
+and hard-refresh before debugging further.
 
 ### Passing non-editor data (additionalData)
 
