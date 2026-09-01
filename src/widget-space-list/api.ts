@@ -322,15 +322,16 @@ export function mapApiToUnits(raw: unknown, media?: { siteId?: string; baseUrl?:
           // Tried first by the cards; `image` above is the fallback. Parking
           // is excluded: the bands describe storage, and a parking bay has
           // its own covered/open render that a size file would not match.
-          mediaImages: type === 'parking'
-            ? undefined
-            : mediaManagerImagesFor(size, {
-              siteId: media?.siteId,
-              baseUrl: media?.baseUrl,
-              // The SAME amenity the card prints under the size, so the picture
-              // and its caption can never disagree.
-              amenity: subtype,
-            }),
+          // Parking is included now: it has its own naming (Car_RV_Boat and
+          // friends) rather than a size band. See mediaManagerImagesFor.
+          mediaImages: mediaManagerImagesFor(size, {
+            type,
+            siteId: media?.siteId,
+            baseUrl: media?.baseUrl,
+            // The SAME amenity the card prints under the size, so the picture
+            // and its caption can never disagree.
+            amenity: subtype,
+          }),
           inStorePrice,
           startingPrice,
           promoId: promo?.id,

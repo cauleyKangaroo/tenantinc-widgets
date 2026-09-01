@@ -175,11 +175,25 @@ export function amenityFileToken(label?: string): string | undefined {
  * site that has uploaded nothing, to catch a case an operator fixes by
  * renaming one file.
  */
+/**
+ * Parking's fallback picture.
+ *
+ * Parking is NOT filed by size band. A bay is described by what fits in it, not
+ * by how many square feet it is, so the operator's library is named for the
+ * vehicles — Car.png, Car_RV.png, Car_RV_Boat.png, Covered_Car_RV.png and so
+ * on. The broadest of those is the safe default: a bay that takes a boat also
+ * takes a car, so the picture is never a promise the space cannot keep.
+ */
+const PARKING_DEFAULT_STEM = 'Car_RV_Boat';
+
 export function mediaManagerImagesFor(
   size: UnitSize,
-  opts: { siteId?: string; baseUrl?: string; amenity?: string } = {},
+  opts: { siteId?: string; baseUrl?: string; amenity?: string; type?: SpaceType } = {},
 ): string[] {
-  const stem = MEDIA_FILE_STEM[size];
+  const parking = opts.type === 'parking';
+  // Storage is filed by band; parking has no band of its own and falls back to
+  // the broadest vehicle picture instead.
+  const stem = parking ? PARKING_DEFAULT_STEM : MEDIA_FILE_STEM[size];
   if (!stem) return [];
 
   let root = (opts.baseUrl ?? '').trim().replace(/\/+$/, '');
@@ -192,6 +206,14 @@ export function mediaManagerImagesFor(
   }
 
   const token = amenityFileToken(opts.amenity);
-  const names = token ? [`${stem}_${token}`, stem] : [stem];
+  /*
+   * Parking's specific file is the amenity ALONE — Covered_Car_RV.png, not
+   * Car_RV_Boat_Covered_Car_RV.png. The names already say what the space is,
+   * so prefixing the default would describe it twice and match nothing that
+   * has been uploaded.
+   */
+  const names = token
+    ? [parking ? token : `${stem}_${token}`, stem]
+    : [stem];
   return names.map((n) => `${root}/${n}.png`);
 }
