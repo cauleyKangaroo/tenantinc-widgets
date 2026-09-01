@@ -531,6 +531,13 @@ export function FindStorageMegaMenu({
   // Where the popup starts: the bottom edge of the nav bar, measured rather than
   // assumed. The bar's height changes with the `height` / `showTopBar` props and
   // with the breakpoint, and on a Duda page it can sit below other sections.
+  //
+  // DESKTOP ONLY. On mobile the popup is FULL SCREEN (`top: 0`) — the frames draw
+  // it edge to edge, and starting it under the bar left a strip of the page
+  // showing above a layer that is meant to replace the screen. It is safe to
+  // cover the bar there because the mobile layout carries its own ✕ in its header
+  // row (`.nav-mega-m-close`), where desktop's sits outside the card and needs
+  // the bar's edge to hang from.
   const [topOffset, setTopOffset] = useState(0);
 
   const measureTop = useCallback(() => {
@@ -546,7 +553,11 @@ export function FindStorageMegaMenu({
   // Following the bar instead keeps the panel pinned to its bottom edge whether the
   // bar is sticky or scrolls away with the page.
   useLayoutEffect(() => {
-    if (!open) return;
+    // Nothing to follow when the popup is pinned to the top of the viewport, so
+    // mobile skips the measure and its scroll/resize listeners entirely.
+    // `isMobile` is in the dep list so a rotation or a resize across the
+    // breakpoint re-measures rather than reinstating a stale offset.
+    if (!open || isMobile) return;
     measureTop();
 
     let frame = 0;
@@ -564,7 +575,7 @@ export function FindStorageMegaMenu({
       window.removeEventListener('resize', schedule);
       window.removeEventListener('scroll', schedule, { capture: true });
     };
-  }, [open, measureTop]);
+  }, [open, isMobile, measureTop]);
 
   // Nothing behind the popup scrolls while it is open — only the popup's own
   // lists do. The gesture is REFUSED rather than the page being frozen with
@@ -922,8 +933,12 @@ export function FindStorageMegaMenu({
   // page.
   const mobileClose = (
     <button className="nav-mega-m-close" type="button" onClick={onClose} aria-label="Close menu">
-      {/* Outlined ring: .nav-mega is a near-black overlay. */}
-      <CloseCircleIcon outlined size={34} />
+      {/* Figma's **Mobile — 32** frame. Outlined ring: .nav-mega is a near-black
+          overlay. 32 is not just a number here — `CloseCircleIcon` branches on
+          `size <= 32` to draw the mobile export's thinner ring (stroke 2, inset
+          1) instead of the desktop frame's (stroke 3, inset 1.5), so anything
+          above 32 renders the DESKTOP mark scaled down. */}
+      <CloseCircleIcon outlined size={32} />
     </button>
   );
 
@@ -993,7 +1008,9 @@ export function FindStorageMegaMenu({
       role="dialog"
       aria-label="Find storage"
       aria-hidden={!open}
-      style={{ top: topOffset }}
+      // Full screen on mobile; hung off the measured bottom edge of the bar on
+      // desktop. See the topOffset note above.
+      style={{ top: isMobile ? 0 : topOffset }}
       // A click on the dark area around the card dismisses it, like any popup.
       // Only the backdrop itself — anything inside the card bubbles up here too.
       onMouseDown={(e) => { if (e.target === rootRef.current) onClose(); }}
@@ -1001,8 +1018,9 @@ export function FindStorageMegaMenu({
       {/* Outside .nav-mega-inner on purpose: the Figma parks the ✕ against the
           viewport corner, past the right edge of the card. */}
       <button className="nav-mega-close" type="button" onClick={onClose} aria-label="Close menu">
-        {/* Outlined ring: .nav-mega is a near-black overlay. */}
-        <CloseCircleIcon outlined size={34} />
+        {/* Figma's **Desktop — 52** frame, the component's own default size.
+            Outlined ring: .nav-mega is a near-black overlay. */}
+        <CloseCircleIcon outlined size={52} />
       </button>
 
       <div className="nav-mega-inner">

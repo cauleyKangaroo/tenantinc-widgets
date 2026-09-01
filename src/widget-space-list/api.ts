@@ -1,6 +1,6 @@
 import type { Unit, UnitSize } from './types';
 import cfg from './config.json';
-import { spaceImageFor } from './spaceImages';
+import { spaceImageFor, mediaManagerImagesFor } from './spaceImages';
 import { fetchWebsiteSpaceGroupId as findWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 
@@ -127,6 +127,21 @@ function amenityLabel(a: ApiAmenity): string {
 }
 
 /**
+ * Group names that are bookkeeping, not a description of the unit.
+ *
+ * The group name is the card subtitle's LAST resort, and on some tenants it is
+ * not a label at all: this one names EVERY group "all units" (verified live
+ * 2026-08-27 — one group name across all 39 tiers), which tells a shopper
+ * nothing and reads as a bug sitting under the size. Matched case- and
+ * whitespace-insensitively; anything else is a real name and still prints.
+ */
+const GENERIC_GROUP_NAMES = new Set(['all units', 'all spaces', 'all sizes', 'all']);
+
+function groupSubtitle(name: string): string {
+  return GENERIC_GROUP_NAMES.has(name.trim().toLowerCase()) ? '' : name;
+}
+
+/**
  * The tier's promotion, or null when it has none — reading the current `promo`
  * array first and falling back to the legacy `allocated_promo` object (see the
  * note on ApiTier). Empty tiers send `promo: []` / `allocated_promo: {}`,
@@ -168,7 +183,12 @@ function tierPromo(tier: ApiTier): ApiPromoEntry | null {
 // Mapper — raw API response → Unit[]
 // ---------------------------------------------------------------------------
 
-export function mapApiToUnits(raw: unknown): Unit[] {
+/**
+ * @param media Where operator artwork comes from. `siteId` is Duda's
+ *   data.siteId; `baseUrl` overrides the derived CDN root. Omitted, cards
+ *   keep their bundled renders exactly as before.
+ */
+export function mapApiToUnits(raw: unknown, media?: { siteId?: string; baseUrl?: string }): Unit[] {
   const response = raw as ApiResponse;
   const appEntries = response?.applicationData?.[APP_ID];
   if (!appEntries?.length) return [];
@@ -226,11 +246,28 @@ export function mapApiToUnits(raw: unknown): Unit[] {
         // leads with one. Ungated, the first entry is whatever sorts first —
         // "ID Verification" on Storage Outlet, a facility policy that reads
         // badly as a unit subtitle. Verified unchanged on all 291 live tiers.
-        const subtypeSource = [...(tier.amenities ?? [])]
+        const curatedSource = [...(tier.amenities ?? [])]
           .filter((a) => type === 'parking' || a.show_in_website === 1)
           .sort(bySortOrder)
           .filter(uniqueByName);
-        const subtype = subtypeSource[0] ? amenityLabel(subtypeSource[0]) : group.name;
+
+        // FALLBACK when nothing is curated. This tenant sets show_in_website=0
+        // on every amenity — 0 of 39 tiers curated, verified live 2026-08-27 —
+        // so `curatedSource` is always empty and the subtitle fell through to
+        // the group name ("all units") on every card. The operator's own
+        // sort_order still leads with a real description of the unit, which the
+        // group name is not, so take the first of those instead.
+        //
+        // Curated stays FIRST so tenants that do use the flag are unchanged —
+        // that gate exists to keep "ID Verification" off the Storage Outlet
+        // cards, and this only applies where the gate leaves nothing at all.
+        const subtypeSource = curatedSource.length
+          ? curatedSource
+          : [...(tier.amenities ?? [])].sort(bySortOrder).filter(uniqueByName);
+
+        // '' when there is neither an amenity nor a meaningful group name —
+        // every card renders the subtitle only when it is non-empty.
+        const subtype = subtypeSource[0] ? amenityLabel(subtypeSource[0]) : groupSubtitle(group.name);
 
         // Four bullets, as before. Whichever label became the subtitle is
         // dropped so the card never prints it twice; without the gate that
@@ -282,6 +319,18 @@ export function mapApiToUnits(raw: unknown): Unit[] {
           // DEMO: derive card image from dimensions/size/type until the API
           // returns one per unit — see spaceImages.ts.
           image: spaceImageFor({ type, dimensions: tier.description, size, subtype }),
+          // Tried first by the cards; `image` above is the fallback. Parking
+          // is excluded: the bands describe storage, and a parking bay has
+          // its own covered/open render that a size file would not match.
+          mediaImages: type === 'parking'
+            ? undefined
+            : mediaManagerImagesFor(size, {
+              siteId: media?.siteId,
+              baseUrl: media?.baseUrl,
+              // The SAME amenity the card prints under the size, so the picture
+              // and its caption can never disagree.
+              amenity: subtype,
+            }),
           inStorePrice,
           startingPrice,
           promoId: promo?.id,

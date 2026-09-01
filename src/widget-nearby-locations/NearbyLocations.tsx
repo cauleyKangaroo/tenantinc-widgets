@@ -10,9 +10,11 @@ import {
   ChevronRight,
 } from './icons';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
-import { useSwipe } from '@shared/useSwipe';
+import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
+import { CarouselDots } from '@shared/CarouselDots';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { emitOpenTiers } from '@shared/tierBus';
+import { boundText } from '@shared/propertyBinding';
 import {
   fetchProperties,
   resolveNearbyCompanyId,
@@ -87,6 +89,22 @@ const COLUMNS = 3;
 const DEFAULT_PROPERTY_BASE_PATH = '/storage-units';
 
 /**
+ * Where a Select lands when the widget is given no `rentalPageUrl`.
+ *
+ * DELIBERATELY NOT `@shared/unitHandoff`'s `DEFAULT_RENTAL_PATH` ('/rental'):
+ * #07's cards point at OTHER facilities and this site's rental flow is published
+ * at `/rent-or-reserve`, so the shared default sends every nearby Select to a
+ * page that does not exist. Only #07 is changed — #05's Pricing and #08's cards
+ * still take the shared default, so moving this one does not silently retarget
+ * the space list on every property page.
+ *
+ * Nothing else about the handoff changes: the picked tier still travels in
+ * localStorage (`saveUnitSelection`), and the rental flow reads it on whatever
+ * page it is mounted on, so no extra params are needed to make this work.
+ */
+const DEFAULT_NEARBY_RENTAL_PATH = '/rent-or-reserve';
+
+/**
  * Duda content-menu fields are TEXT inputs, so a toggle can arrive as the STRING
  * `'false'` — which is truthy, and would switch a feature on for every operator
  * who explicitly turned it off. Same coercion the `rows`/`sortMode` props do.
@@ -133,6 +151,8 @@ function SpaceRow({
    *  a widget that lists several properties at once. */
   propertyId: string;
   companyId: string;
+  /** Already normalised by the widget (`rentalPath`) — `rentalHref` here is a
+   *  no-op on it, and only guards a direct render of this sub-component. */
   rentalPageUrl?: string;
   /** Select goes through the #14 value-tiers step, exactly as #05's does. */
   enableValueTiers: boolean;
@@ -148,7 +168,8 @@ function SpaceRow({
    *     property, which is the whole difference from #05.
    *  2. **Value tiers as a MODAL** (enabled, no page URL) — the href stays the
    *     rental page and the click emits on `tierBus` instead; see onSelect.
-   *  3. **No value-tiers step** — straight to the rental page.
+   *  3. **No value-tiers step** — straight to the rental page
+   *     (`/rent-or-reserve` by default; see `DEFAULT_NEARBY_RENTAL_PATH`).
    */
   const tiersHref = enableValueTiers && valueTiersPageUrl
     ? `${valueTiersPageUrl}?${new URLSearchParams({
@@ -207,7 +228,6 @@ function SpaceRow({
         <span className="nl-space-subtype">{space.subtype}</span>
       </div>
       <div className="nl-space-prices">
-        <span className="nl-price-tag"><TagIcon size={16} /></span>
         <div className="nl-price-strike">
           <span className="nl-price-strike-label">IN-STORE</span>
           <span className="nl-price-strike-value">${space.inStorePrice}</span>
@@ -229,7 +249,7 @@ function SpaceRow({
         {space.tierId ? (
           <a
             className="nl-select-btn"
-            href={tiersHref ?? rentalHref(rentalPageUrl)}
+            href={tiersHref ?? rentalHref(rentalPageUrl || DEFAULT_NEARBY_RENTAL_PATH)}
             onClick={onSelect}
           >
             Select
@@ -237,6 +257,53 @@ function SpaceRow({
         ) : (
           <span className="nl-select-btn nl-select-btn--inert">Select</span>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * How many space rows every card reserves — see `ReservedSpaceRow`. It is also
+ * what `fetchPropertySpaces` returns at most (the cheapest three), so a fully
+ * stocked facility fills the slots exactly and none of them go to waste.
+ */
+const SPACE_SLOTS = 3;
+
+/**
+ * An INVISIBLE copy of a real space row, used to pad a facility that lists
+ * fewer than `SPACE_SLOTS` spaces.
+ *
+ * The point is constant card height: the mobile carousel shows one card at a
+ * time and the desktop grid pages three or six, so a facility with one bookable
+ * size next to one with three made the card jump as the visitor moved between
+ * them. Padding the list keeps every card the same height whatever it holds.
+ *
+ * **It is the real markup with `visibility: hidden`, deliberately not a
+ * `min-height` in pixels.** The row's height comes from its own contents — the
+ * size/subtype lines against the Select button — so a copy of those contents
+ * tracks any change to them automatically, where a hardcoded number silently
+ * stops matching the moment the button's padding or a font size moves. The text
+ * is placeholder and never read: `visibility: hidden` takes it out of the
+ * accessibility tree, and `aria-hidden` says so for anything that disagrees.
+ */
+function ReservedSpaceRow() {
+  return (
+    <div className="nl-space-row nl-space-row--reserved" aria-hidden="true">
+      <div className="nl-space-info">
+        <span className="nl-space-size">5&apos; x 5&apos;</span>
+        <span className="nl-space-subtype">Reserved</span>
+      </div>
+      <div className="nl-space-prices">
+        <div className="nl-price-strike">
+          <span className="nl-price-strike-label">IN-STORE</span>
+          <span className="nl-price-strike-value">$0</span>
+        </div>
+        <span className="nl-price-divider" />
+        <div className="nl-price-start">
+          <span className="nl-price-start-label">STARTING AT</span>
+          <span className="nl-price-start-value">$0</span>
+        </div>
+        <span className="nl-select-btn">Select</span>
       </div>
     </div>
   );
@@ -254,6 +321,8 @@ function PropertyCard({
   property: Property;
   /** Where the property pages live, e.g. '/storage-units'. */
   propertyBasePath: string;
+  /** Pre-resolved by the widget — `/rent-or-reserve` unless the instance set
+   *  its own `rentalPageUrl`. Passed straight down to each Select. */
   rentalPageUrl?: string;
   companyId: string;
   /** Passed straight down to each space's Select — see SpaceRow. */
@@ -341,11 +410,24 @@ function PropertyCard({
               </div>
             )}
 
-            {property.spaces.length > 0 && (
-              <div className="nl-spaces">
-                {property.spaces.map((space, i) => (
-                  <React.Fragment key={`${space.size}-${i}`}>
-                    {i > 0 && <span className="nl-space-divider" />}
+            {/* ALWAYS `SPACE_SLOTS` rows, real ones first and invisible ones
+                after, so every card is the same height whether the facility
+                lists three bookable sizes or one. The block is unconditional
+                for the same reason — a facility with nothing bookable used to
+                omit it entirely and come out dramatically shorter than its
+                neighbours.
+
+                A divider belongs BETWEEN two real rows, so the one that would
+                introduce a reserved row is reserved too: it keeps its 25px of
+                height (1px rule + 12px margins) and draws nothing, which is
+                what stops a hairline trailing off under the last real row. */}
+            <div className="nl-spaces">
+              {Array.from({ length: SPACE_SLOTS }, (_, i) => property.spaces?.[i]).map((space, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && (
+                    <span className={`nl-space-divider${space ? '' : ' nl-space-divider--reserved'}`} />
+                  )}
+                  {space ? (
                     <SpaceRow
                       space={space}
                       propertyId={property.id}
@@ -355,26 +437,47 @@ function PropertyCard({
                       valueTiersChannel={valueTiersChannel}
                       valueTiersPageUrl={valueTiersPageUrl}
                     />
-                  </React.Fragment>
-                ))}
+                  ) : (
+                    <ReservedSpaceRow />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* The promo's height, reserved when the facility has no promo —
+                and placed AFTER the spaces so the visible content still moves
+                UP to fill the gap rather than sitting under a blank band. The
+                footer's `margin-top: auto` keeps it on the bottom edge either
+                way, so the card's total height is the same as a promo card's.
+                A hidden copy of the real bar rather than a pixel height, for
+                the reason `ReservedSpaceRow` is one. */}
+            {!property.promo && (
+              <div className="nl-promo nl-promo--reserved" aria-hidden="true">
+                <TagIcon size={16} />
+                <span className="nl-promo-text">Reserved</span>
               </div>
             )}
           </>
         )}
 
-        <div className="nl-card-footer">
+        {/* THE WHOLE FOOTER IS THE LINK, not just "See All Spaces" — the
+            admin-fee line and the space between the two are the same target as
+            the label. So the footer is the <a> and the label is a SPAN: an <a>
+            cannot nest inside an <a>, and the outer one is the bigger hit area.
+            An anchor rather than a click handler for the reason the photo link
+            is one — Duda's router handles a real link in preview and published
+            alike, and middle-click survives.
+            Offered however few spaces the card lists: it goes to the facility's
+            own page, not just "more of this list".
+            Always rendered, and the label always keeps the CTA colour +
+            underline: the footer must read the same from card to card. `href` is
+            simply absent when the row carries no slug — there is nowhere to
+            point, and the base path alone would land on a page that is not this
+            facility. */}
+        <a className="nl-card-footer" href={propertyHref}>
           <span className="nl-admin-fee">+ Plus ${property.adminFee} Admin Fee</span>
-          {/* Offered however few spaces the card lists — it goes to the
-              facility's own page, not just "more of this list". Absent only when
-              the row carries no slug and there is nowhere to point. */}
-          {/* Always rendered, and always the CTA colour + underline: the footer
-              must read the same from card to card. `href` is simply absent when
-              the row carries no slug — there is nowhere to point, and the base
-              path alone would land on a page that is not this facility. */}
-          <a className="nl-see-all" href={propertyHref}>
-            See All Spaces
-          </a>
-        </div>
+          <span className="nl-see-all">See All Spaces</span>
+        </a>
       </div>
     </div>
   );
@@ -424,6 +527,13 @@ function SpacesSkeleton() {
   );
 }
 
+/**
+ * How long #07 will sit on skeleton cards before giving up. See `stalled` — it
+ * is a backstop for an unbounded `await`, not part of the normal load, and it is
+ * deliberately longer than the bounded chain's worst legitimate case.
+ */
+const STALL_DEADLINE_MS = 30000;
+
 function SkeletonCard() {
   return (
     <div className="nl-card nl-skeleton-card" aria-hidden="true">
@@ -439,15 +549,10 @@ function SkeletonCard() {
   );
 }
 
-function Dots({ count, active, onPick }: { count: number; active: number; onPick: (i: number) => void }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <button key={i} className={`nl-dot${i === active ? ' active' : ''}`} onClick={() => onPick(i)} aria-label={`Page ${i + 1}`} />
-      ))}
-    </>
-  );
-}
+/* The local one-dot-per-position renderer is gone: @shared/CarouselDots caps
+   the row at MAX_DOTS and slides a window instead, which is what stops a long
+   list drawing a dot per item. It takes our existing `nl-dot` class, so the
+   look is unchanged. */
 
 
 // ---------------------------------------------------------------------------
@@ -518,8 +623,14 @@ export interface NearbyLocationsProps {
    */
   propertyBasePath?: string;
   /**
-   * Where a Select lands. Default `/rental` (see @shared/unitHandoff) — the
+   * Where a Select lands. Default `/rent-or-reserve`
+   * (`DEFAULT_NEARBY_RENTAL_PATH`, NOT @shared/unitHandoff's `/rental`) — the
    * picked tier travels in localStorage, so the href stays clean.
+   *
+   * A Duda content-menu field is a TEXT input, so an operator who cleared it
+   * sends `''` and a dynamic page can send an unsubstituted `{{token}}`; both go
+   * through `boundText` and fall back to the default rather than resolving to
+   * the shared `/rental`.
    */
   rentalPageUrl?: string;
   /**
@@ -555,6 +666,18 @@ export function NearbyLocations({
   valueTiersPageUrl,
 }: NearbyLocationsProps) {
   const valueTiers = boolProp(enableValueTiers);
+  /**
+   * The Select destination, resolved ONCE for every card on the widget.
+   *
+   * `boundText` first, then the default: an empty Duda field or an
+   * unsubstituted `{{token}}` must fall back to `/rent-or-reserve`, where a
+   * default parameter (`rentalPageUrl = DEFAULT_NEARBY_RENTAL_PATH`) only fires
+   * on `undefined` and would let `''` reach `rentalHref`, which answers the
+   * SHARED `/rental`. `rentalHref` then normalises exactly as before — a missing
+   * leading slash would make the link relative to the page the widget sits on
+   * (fatal at /storage-units/california/…) and a trailing one would double up.
+   */
+  const rentalPath = rentalHref(boundText(rentalPageUrl) || DEFAULT_NEARBY_RENTAL_PATH);
   // Duda hands these over as strings, so coerce before deriving anything.
   const rowCount = Number(rows) >= 2 ? 2 : 1;
   const cardsPerPage = COLUMNS * rowCount;
@@ -603,12 +726,29 @@ export function NearbyLocations({
   /** Ids with a lookup in flight, so a re-render can't fire a second one. */
   const spacesInFlight = useRef(new Set<string>());
 
-  const [page, setPage] = useState(0);
-  const [mobileIdx, setMobileIdx] = useState(0);
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
 
   // null = still loading; [] = loaded but nothing to show.
   const [apiProperties, setApiProperties] = useState<Property[] | null>(null);
+  /**
+   * Last resort: nothing has painted and we have stopped waiting.
+   *
+   * Every boundary below is bounded now (`@shared/withTimeout`), so this should
+   * not fire — it exists because "the widget never leaves its skeletons" is the
+   * one failure a visitor cannot recover from, and a single unbounded `await`
+   * anywhere in the chain reintroduces it. Cheap insurance against the next one.
+   *
+   * NOT the same as `apiProperties = []`, and the distinction matters:
+   * `emptyMessage` reads an empty ARRAY as "the filter matched nothing" and would
+   * announce "No featured facilities yet — set nearbyLocationPriorityOrder…",
+   * diagnosing an operator error that did not happen. This flag ends the loading
+   * state without claiming anything about the data.
+   *
+   * It is also NOT terminal: the effect keeps running, so a slow answer still
+   * lands and replaces what this fell back to. That is what makes the deadline
+   * safe to set at a length a legitimate load could occasionally exceed.
+   */
+  const [stalled, setStalled] = useState(false);
   // Reference coordinates (map centre).
   const [refLoc, setRefLoc] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -618,8 +758,19 @@ export function NearbyLocations({
     // are the wrong ones — back to skeletons rather than stale-then-swap.
     setApiProperties(null);
     setRefLoc(null);
-    setPage(0);
-    setMobileIdx(0);
+    setStalled(false);
+
+    // The bounded chain's absolute worst case is a little OVER this — the
+    // collection wait plus a timed-out read plus a timed-out REST fall-back for
+    // the properties, then the priority order and the hero photos in sequence —
+    // so an extraordinarily slow load can be pre-empted. That is deliberate
+    // rather than a miscalculation: sizing the deadline to the theoretical worst
+    // case would put it near a minute, where it stops being a rescue. It is safe
+    // because it is not terminal — see `stalled`; the answer still lands and
+    // replaces what this fell back to.
+    const deadline = setTimeout(() => {
+      if (!cancelled) setStalled(true);
+    }, STALL_DEADLINE_MS);
 
     (async () => {
       try {
@@ -768,14 +919,16 @@ export function NearbyLocations({
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(deadline); };
   }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection]);
 
   // While loading we render skeleton cards — showing DEMO_PROPERTIES here meant
   // real-looking names/prices flashed up and were then replaced. Demo data is
   // still the fallback for an EMPTY result, so the section never renders blank in
   // the editor/preview.
-  const loading = apiProperties === null;
+  // `stalled` ends the loading state without pretending the data arrived — the
+  // fallback below is then the same one the unreachable-API `catch` produces.
+  const loading = apiProperties === null && !stalled;
   const properties = apiProperties && apiProperties.length ? apiProperties : DEMO_PROPERTIES;
   /**
    * Why the list is empty, when it is — or `null` to fall back to demo cards.
@@ -790,7 +943,10 @@ export function NearbyLocations({
    * in needs to be told that, not shown six invented facilities.
    */
   const emptyMessage =
-    !loading && apiProperties!.length === 0
+    // `apiProperties` rather than `!loading`: a stalled load also ends `loading`,
+    // and it has no idea whether a filter matched anything. Only a completed read
+    // that came back empty may name a reason.
+    apiProperties && apiProperties.length === 0
       ? featured
         ? `No featured facilities yet — set “nearbyLocationPriorityOrder” on the properties to feature.`
         : radiusMiles > 0
@@ -799,8 +955,40 @@ export function NearbyLocations({
       : null;
 
   const totalPages = Math.ceil(properties.length / cardsPerPage);
-  const safePage = Math.min(page, Math.max(0, totalPages - 1));
-  const pageCards = properties.slice(safePage * cardsPerPage, safePage * cardsPerPage + cardsPerPage);
+
+  /* Desktop steps ONE CARD at a time, exactly as #12's blog listing does — the
+     arrows advance a position, not a page, so nine properties give seven stops
+     rather than three.
+     The strip's items are COLUMNS, not cards, which is what keeps the `rows: 2`
+     layout: a column holds `rowCount` cards stacked, so three columns are on
+     screen either way and one step is one column. With rows: 1 a column IS a
+     card and this is #12 byte for byte. */
+  const columns = Array.from(
+    { length: Math.ceil(properties.length / rowCount) },
+    (_, i) => properties.slice(i * rowCount, i * rowCount + rowCount),
+  );
+  const deskCar = useCarousel({ count: columns.length, perView: COLUMNS });
+  /* Mobile is one card, dragged. useSwipe only classified a finished gesture,
+     so the card did not move under the finger — it jumped after the fact.
+     useCarousel follows the drag and snaps on release, the same hook and feel
+     #05's nearby section and the blog listing use. */
+  const mobileCar = useCarousel({ count: properties.length, perView: 1, draggable: true });
+  const reduceMotion = usePrefersReducedMotion();
+  const safePage = deskCar.index;
+  const mobileIdx = mobileCar.index;
+  /* Pulled out so the reset effect can depend on THESE rather than on the two
+     carousel objects, which are new every render and would re-run it — and
+     re-running it refetches. Both are useCallback'd inside the hook. */
+  const deskGoTo = deskCar.goTo;
+  const mobileGoTo = mobileCar.goTo;
+  /* Back to the first page whenever the set is refetched. Its own effect, not a
+     line inside the fetch above: the carousels cannot be declared until
+     `totalPages` and `properties` exist, which is below that effect, so the
+     reset has to live down here with them. */
+  useEffect(() => {
+    deskGoTo(0);
+    mobileGoTo(0);
+  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection, deskGoTo, mobileGoTo]);
 
   /**
    * The ids on screen right now — the desktop page's cards plus the one card the
@@ -847,7 +1035,7 @@ export function NearbyLocations({
     let cancelled = false;
     missing.forEach((id) => spacesInFlight.current.add(id));
 
-    void fetchSpacesForProperties(missing, (id, data) => {
+    fetchSpacesForProperties(missing, (id, data) => {
       spacesCache.current.set(id, data);
       spacesInFlight.current.delete(id);
       if (cancelled) return;
@@ -858,15 +1046,21 @@ export function NearbyLocations({
             )
           : prev,
       );
+    }).catch((err) => {
+      // `fetchSpacesForProperties` now guarantees a result per id even when it
+      // throws, so the cards are already resolved by the time this runs — this
+      // is the unhandled-rejection guard, plus the in-flight release for any id
+      // that somehow slipped through. Without the release those ids are pinned:
+      // the set is only cleared BY a result, so a skipped one would never be
+      // requested again and its card would shimmer for the life of the page.
+      missing.forEach((id) => spacesInFlight.current.delete(id));
+      // eslint-disable-next-line no-console
+      console.warn('[#07 nearby] space lookup failed for', missing, err);
     });
 
     return () => { cancelled = true; };
   }, [visibleIds]);
 
-  const mobileSwipe = useSwipe({
-    onSwipeLeft: () => setMobileIdx((i) => Math.min(properties.length - 1, i + 1)),
-    onSwipeRight: () => setMobileIdx((i) => Math.max(0, i - 1)),
-  });
 
   // Map pins from the live properties (price = cheapest starting rate).
   // Coordinate-less properties are DROPPED here, not plotted: extraction now keeps
@@ -908,30 +1102,56 @@ export function NearbyLocations({
           <p className="nl-empty">{emptyMessage}</p>
         ) : (
           <>
-            <div className="nl-grid">
-              {loading
-                ? Array.from({ length: cardsPerPage }, (_, i) => <SkeletonCard key={i} />)
-                : pageCards.map((property) => (
-                    <PropertyCard
-                      key={property.id}
-                      property={property}
-                      propertyBasePath={propertyBase}
-                      rentalPageUrl={rentalPageUrl}
-                      companyId={handoffCompanyId}
-                      enableValueTiers={valueTiers}
-                      valueTiersChannel={valueTiersChannel}
-                      valueTiersPageUrl={valueTiersPageUrl}
-                    />
+            {loading ? (
+              <div className="nl-grid">
+                {Array.from({ length: cardsPerPage }, (_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ) : (
+              /* EVERY page rendered once inside a track, and one transform moves
+                 it. The old `pageCards.slice(...)` re-rendered a different set
+                 into a static grid — an instant cut, with nothing on screen to
+                 animate. */
+              <div className="nl-track-window" style={{ '--nl-per-view': COLUMNS } as React.CSSProperties}>
+                <div
+                  className="nl-track"
+                  style={{
+                    /* Pixels, not a percentage. A translateX percentage resolves
+                       against the TRACK's own width, and the items are sized off
+                       the window, so a percentage under-shifts and the last
+                       column never reaches the edge — #12 documents the same
+                       trap. --nl-step is one column, the same quantity the items
+                       are sized by, so pitch and travel cannot drift apart. */
+                    transform: `translateX(calc(${(deskCar.offsetPct / 100).toFixed(6)} * var(--nl-step)))`,
+                    transition: reduceMotion ? 'none' : 'transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)',
+                  }}
+                >
+                  {columns.map((col, i) => (
+                    <div className="nl-track-col" key={col[0]?.id ?? i}>
+                      {col.map((property) => (
+                        <PropertyCard
+                          key={property.id}
+                          property={property}
+                          propertyBasePath={propertyBase}
+                          rentalPageUrl={rentalPath}
+                          companyId={handoffCompanyId}
+                          enableValueTiers={valueTiers}
+                          valueTiersChannel={valueTiersChannel}
+                          valueTiersPageUrl={valueTiersPageUrl}
+                        />
+                      ))}
+                    </div>
                   ))}
-            </div>
+                </div>
+              </div>
+            )}
 
             {!loading && totalPages > 1 && (
               <div className="nl-pagination">
-                <button className="nl-page-btn nl-page-btn-prev" onClick={() => setPage(() => Math.max(0, safePage - 1))} disabled={safePage === 0} aria-label="Previous">
+                <button className="nl-page-btn nl-page-btn-prev" onClick={deskCar.prev} disabled={!deskCar.canPrev} aria-label="Previous">
                   <ChevronRight size={40} />
                 </button>
-                <Dots count={totalPages} active={safePage} onPick={setPage} />
-                <button className="nl-page-btn" onClick={() => setPage(() => Math.min(totalPages - 1, safePage + 1))} disabled={safePage === totalPages - 1} aria-label="Next">
+                <CarouselDots count={deskCar.maxIndex + 1} active={safePage} onPick={deskCar.goTo} dotClass="nl-dot" label="Go to page {n}" />
+                <button className="nl-page-btn" onClick={deskCar.next} disabled={!deskCar.canNext} aria-label="Next">
                   <ChevronRight size={40} />
                 </button>
               </div>
@@ -962,19 +1182,38 @@ export function NearbyLocations({
                 <>
                   {/* Dots are the indicator, swiping is the control — this view
                       never had arrows to begin with. */}
-                  <div {...mobileSwipe.handlers}>
-                    <PropertyCard
-                      property={properties[Math.min(mobileIdx, properties.length - 1)]}
-                      propertyBasePath={propertyBase}
-                      rentalPageUrl={rentalPageUrl}
-                      companyId={handoffCompanyId}
-                      enableValueTiers={valueTiers}
-                      valueTiersChannel={valueTiersChannel}
-                      valueTiersPageUrl={valueTiersPageUrl}
-                    />
+                  <div
+                    className="nl-track-window nl-track-window--mobile"
+                    style={{ '--nl-per-view': 1 } as React.CSSProperties}
+                    {...mobileCar.handlers}
+                  >
+                    <div
+                      className="nl-track"
+                      style={{
+                        transform: `translateX(calc(${(mobileCar.offsetPct / 100).toFixed(6)} * var(--nl-step)))`,
+                        transition:
+                          reduceMotion || mobileCar.dragging
+                            ? 'none'
+                            : 'transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)',
+                      }}
+                    >
+                      {properties.map((property, i) => (
+                        <div className="nl-track-col" key={property.id} aria-hidden={i === mobileIdx ? undefined : true}>
+                          <PropertyCard
+                            property={property}
+                            propertyBasePath={propertyBase}
+                            rentalPageUrl={rentalPath}
+                            companyId={handoffCompanyId}
+                            enableValueTiers={valueTiers}
+                            valueTiersChannel={valueTiersChannel}
+                            valueTiersPageUrl={valueTiersPageUrl}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="nl-pagination nl-pagination-dots">
-                    <Dots count={properties.length} active={Math.min(mobileIdx, properties.length - 1)} onPick={setMobileIdx} />
+                    <CarouselDots count={properties.length} active={mobileIdx} onPick={mobileCar.goTo} dotClass="nl-dot" />
                   </div>
                 </>
               )}

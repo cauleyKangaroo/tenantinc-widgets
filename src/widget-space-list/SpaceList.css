@@ -2441,6 +2441,47 @@
 }
 
 /* Review card */
+/* ── Sliding track (Customer Reviews carousel) ────────────────────────────
+   One review per view. `border-radius` matches the card's: the next review
+   starts at the pixel the clip ends, and without it the visible card's ROUNDED
+   corner leaves a notch through which the neighbour's square corner shows.
+   `touch-action: pan-y` keeps a vertical drag scrolling the page while a
+   horizontal one belongs to the carousel — see @shared/useCarousel. */
+.sl-wrapper .sl-rv2-track-window {
+  overflow: hidden;
+  touch-action: pan-y;
+  border-radius: 16px;
+}
+
+.sl-wrapper .sl-rv2-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+  /* Real space between cards (Josh Wright asked for >=10px, 2026-08-27 — set to exactly 10). It is a
+     flex gap, not padding or a narrower card: those leave the item butting the
+     clip edge, so the neighbour shows through the rounded corner's notch. The
+     transform's step includes it — see the inline style in the TSX. */
+  gap: 10px;
+}
+
+/* Exactly one window wide, so the pitch the transform steps by and the card
+   width are the SAME quantity. Anything that makes this wider than the window
+   (padding, margin, a gap on the track) desyncs the two and the cards drift
+   further out of place with every step. */
+.sl-wrapper .sl-rv2-track-item {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+}
+
+/* The 12px gap Josh Wright asked for (2026-08-27), taken off the CARD rather
+   than the item — padding on the item makes the clip end 12px past the card and
+   the next one peeks through, and a margin on the track changes what
+   `flex: 0 0 100%` resolves against and the cards drift. */
+.sl-wrapper .sl-rv2-track-item > .sl-rv2-card {
+  width: 100%;
+}
+
 .sl-wrapper .sl-rv2-card {
   background: #f9fafb;
   border-radius: 16px;
@@ -2511,9 +2552,13 @@
   flex-shrink: 0;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
 .sl-wrapper .sl-rv2-arrow:disabled {
-  color: #a5b4bf;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .sl-wrapper .sl-rv2-dot {
@@ -2602,6 +2647,11 @@
   display: flex;
   align-items: stretch;
   will-change: transform;
+  /* Real space between cards (Josh Wright asked for >=10px, 2026-08-27 — set to exactly 10). It is a
+     flex gap, not padding or a narrower card: those leave the item butting the
+     clip edge, so the neighbour shows through the rounded corner's notch. The
+     transform's step includes it — see the inline style in the TSX. */
+  gap: 10px;
 }
 
 /* Exactly one window wide, so the pitch the transform steps by and the card
@@ -2610,6 +2660,15 @@
   flex: 0 0 100%;
   min-width: 0;
 }
+
+/* The 12px gap Josh Wright asked for (2026-08-27), taken off the CARD rather
+   than the item — padding on the item makes the clip end 12px past the card and
+   the next one peeks through, and a margin on the track changes what
+   `flex: 0 0 100%` resolves against and the cards drift. */
+.sl-wrapper .sl-nb2-track-item > * {
+  width: 100%;
+}
+
 
 .sl-wrapper .sl-nb2-map-placeholder {
   height: 300px;
@@ -2838,7 +2897,8 @@
 }
 /* The tag mark here is the SAME currentColor icon as the promo banner's, but it
    sits outside .sl-nb2-promo, so it needs its own colour or it would inherit the
-   dark price text. Primary, matching #07's .nl-price-tag. */
+   dark price text. Primary, matching #07's promo banner (#07's own price rows
+   no longer carry a tag mark — only its promo bar does). */
 .sl-wrapper .sl-nb2-unit-pricing > svg {
   color: var(--color_1, #f45f30);
   flex-shrink: 0;
@@ -3419,6 +3479,71 @@
   padding: 21px 28px 0;
 }
 
+/* ── Sliding track (Self Storage Blog carousel) ───────────────────────────
+   One post per view: every post renders once and a single transform moves the
+   row, so advancing animates instead of swapping the card out. The window clips
+   the rest. `touch-action: pan-y` keeps a vertical drag scrolling the page while
+   a horizontal one belongs to the carousel — see @shared/useCarousel. */
+.sl-wrapper .sl-blog2-track-window {
+  overflow: hidden;
+  touch-action: pan-y;
+  /* Matches .sl-blog2-card's radius. The next card starts at the very pixel the
+     clip ends, and the visible card's ROUNDED corner curves away from that edge
+     — leaving a notch through which the neighbour's SQUARE corner showed as a
+     sliver of the next image. Rounding the clip itself removes that notch.
+
+     Deliberately not solved by spacing the cards apart: the item must stay
+     exactly one window wide or the pitch stops matching the distance the
+     transform steps by, and the cards drift 16px further out with every step.
+
+     The clip is also pulled 12px SHORT of the item. The card is 12px narrower
+     than its item (that is the inter-card gap), so the item's trailing 12px is
+     empty — but the next card begins the instant that item ends, right on the
+     clip edge, and the rounded corner's notch let it show through. Ending the
+     clip on the CARD's edge instead puts the seam outside the visible area.
+     The item keeps its full width, so pitch still equals step and nothing
+     drifts. */
+  border-radius: 16px;
+}
+
+.sl-wrapper .sl-blog2-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+  /* Real space between cards. The step the transform moves by must include it —
+     see the inline style in BlogSection.tsx. */
+  gap: 10px;
+}
+
+/* Exactly one window wide, so the pitch the transform steps by and the card
+   width are the SAME quantity. Anything that makes the ITEM wider than the
+   window (padding on the item, margins, a gap on the track) desyncs the two and
+   the cards drift further out of place with every step — that bug shipped once
+   and moved card 2 by 16px, card 3 by 32px.
+
+   The gap between cards therefore has to come from INSIDE the item, where it is
+   already part of the step: the item stays 100% and the card is inset within it.
+   Josh Wright asked for at least 10px (2026-08-27). The trailing 12px is inside
+   the step, so the card is 12px narrower than the window and the next card
+   starts 12px clear of it — measured 12.0px between neighbours, drift 0.0. */
+.sl-wrapper .sl-blog2-track-item {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+}
+
+/* The 12px gap Josh Wright asked for (2026-08-27) lives on the TRACK, as a flex
+   gap, and the transform compensates for it in the JSX (step = 100% + 12px).
+
+   Everything else was tried and failed: padding on the item, or a narrower card,
+   both leave the item butting the clip edge so the neighbour shows through the
+   rounded corner's notch; a margin on the track changed what `flex: 0 0 100%`
+   resolved against and the cards drifted 12px per step. A real gap moves the
+   next card genuinely away from the edge. */
+.sl-wrapper .sl-blog2-track-item > .sl-blog2-card {
+  width: 100%;
+}
+
 /* White card */
 .sl-wrapper .sl-blog2-card {
   background: #ffffff;
@@ -3621,9 +3746,13 @@
   background: #f4f6f8;
 }
 
+/* 50% and inert at the ends — the agreed signal that there is nothing further
+   this way (was a grey colour swap, which read as a different icon rather than
+   a disabled one). */
 .sl-wrapper .sl-blog2-arrow:disabled {
-  color: #a5b4bf;
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 
 .sl-wrapper .sl-blog2-dot {
@@ -3861,6 +3990,20 @@
 /* 2px to match the pills inside the filter modal (.sl-filter-modal .sl-pill),
    so the same control is not thinner outside the popup than in it. */
 .sl-wrapper .sl-top-bar-pill {
+  /* Centred EXPLICITLY, not left to the UA.
+     The .active variant below already declares inline-flex + align-items, so
+     an unticked pill was the only one relying on a <button>'s default
+     centring of its own text — and that default is only as reliable as the
+     host's own button rules. A theme line-height taller than the 14px text
+     inflates the line box inside a fixed 44px pill and the label rides up in
+     it, which is invisible here (the harness sets no line-height) and shows on
+     a live page.
+     line-height: 1 removes the other half of it: the label's box is then the
+     glyphs, and align-items has something predictable to centre. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   height: 44px;
   padding: 0 21px;
   border-radius: 100px;
