@@ -43,7 +43,15 @@
 /* 60px is the frame's gap between the trail and the "Self Storage Blogs" hero
    (9340:23373). This widget starts at the filter bar rather than the hero, so
    the gap lands above that instead — same distance, next element along. */
-.bpg-crumbs { margin-bottom: 60px; }
+/* 24px. This started at 60px, taken from a frame (9340:23373) where the gap sat
+   above a HERO — but this widget starts at the filter bar, and that distance
+   above a control row reads as a hole rather than breathing room. #16's
+   .bpp-crumbs uses 40px, which is the sibling blog page's value and was the
+   first step down; 24px is what the trail actually needs to sit WITH the bar it
+   introduces rather than float above it.
+   .bpg-wrapper is a plain block with no gap of its own, so this margin is the
+   whole distance — nothing else contributes to it. */
+.bpg-crumbs { margin-bottom: 24px; }
 
 /* DESKTOP ONLY. There is no mobile frame for this trail and none is wanted, so
    it is hidden rather than shrunk — unlike #16's, which has a designed mobile
