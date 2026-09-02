@@ -12,3 +12,4 @@ node_modules/
 
 # gulp-awspublish upload cache
 .awspublish-*
+dist/
