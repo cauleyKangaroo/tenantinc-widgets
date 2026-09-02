@@ -40,7 +40,7 @@
   outline: 0;
   background: transparent;
   font-family: inherit;
-  font-size: 18px;
+  font-size: 20px;
   color: #101318;
 }
 .hs-input::placeholder { color: #9aa4b2; }
