@@ -1123,9 +1123,17 @@ export function MapLocations({
                 <span>{mobileView === 'map' ? 'List View' : 'Map View'}</span>
               </button>
 
+              {/* Dark only when something is actually selected — it was
+                  hardcoded dark, so an untouched page opened looking as though
+                  filters were already applied, and the Map View pill beside it
+                  disagreed with it for no reason.
+                  --on, NOT the old --dark: --on is the selected treatment from
+                  the frame (10629-81025) and is what the DESKTOP filter pill
+                  already uses, so both now invert the same way. --dark was a
+                  second copy of it that only this button used. */}
               <button
                 type="button"
-                className="ml-pill ml-pill--dark"
+                className={`ml-pill${filterCount > 0 ? ' ml-pill--on' : ''}`}
                 aria-expanded={filtersOpen}
                 onClick={() => setFiltersOpen(true)}
               >

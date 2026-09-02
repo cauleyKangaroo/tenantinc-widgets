@@ -158,14 +158,6 @@
 .ml-sort-opt--on { font-weight: 600; background: #f4f6f8; }
 
 /* "Filter & Sort" on mobile — the same pill, filled. */
-.ml-pill--dark {
-  background: #101318;
-  color: #fff;
-  font-weight: 500;
-}
-
-.ml-pill--dark:hover { background: #22272f; }
-
 /* Count clipped to the pill's top-right corner, per the frame. */
 .ml-pill-badge {
   position: absolute;
