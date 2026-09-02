@@ -1,7 +1,6 @@
 require('dotenv').config();
 
 const path = require('path');
-const { execSync } = require('child_process');
 
 const gulp = require('gulp');
 const rename = require('gulp-rename');
@@ -9,15 +8,13 @@ const awspublish = require('gulp-awspublish');
 const parallelize = require('concurrent-transform');
 
 // ---------------------------------------------------------------------------
-// Branch -> S3 folder
+// S3 folder
 //
-// Everything keys off this map: add a branch here and it becomes deployable,
-// remove it and deploys from that branch are refused.
+// Every environment uses the SAME folder. What changes per environment is the
+// bucket — Jenkins sets AWS_S3_BUCKET per job (dev-website.build.bucket, etc).
+// S3_PREFIX overrides this for a one-off deploy elsewhere.
 // ---------------------------------------------------------------------------
-const BRANCH_PREFIX_MAP = {
-  dev: 'duda-widgets',
-  demo: 'duda-widgets-ssa',
-};
+const S3_PREFIX = process.env.S3_PREFIX || 'duda-widgets';
 
 // Widget bundles are NOT content-hashed (dist/widget-faqs.js keeps that name
 // forever), so a long immutable max-age would pin a stale bundle in Duda with
@@ -34,64 +31,27 @@ function fail(message) {
   return err;
 }
 
-function currentGitBranch() {
-  try {
-    return execSync('git rev-parse --abbrev-ref HEAD', {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-  } catch (err) {
-    return '';
-  }
-}
-
-// Supports `gulp upload --target dev` and `--target=dev`.
-function targetFromArgv() {
-  const argv = process.argv.slice(2);
-  const i = argv.indexOf('--target');
-  if (i !== -1 && argv[i + 1]) return argv[i + 1];
-  const inline = argv.find((a) => a.startsWith('--target='));
-  return inline ? inline.slice('--target='.length) : '';
-}
-
 function resolveDeployment() {
+  // The bucket is the only thing separating environments, so an unset bucket
+  // is the one mistake that must never fall through to a default.
   const bucket = process.env.AWS_S3_BUCKET;
   if (!bucket) {
     throw fail('AWS_S3_BUCKET is not set. Copy .env.example to .env and fill in the AWS values.');
   }
 
-  const branch = currentGitBranch();
+  // Informational only — DEPLOY_TARGET labels the CI log, it does not affect
+  // where anything lands. npm run deploy:dev / deploy:demo set it.
+  const target = process.env.DEPLOY_TARGET || '(unset)';
 
-  // S3_PREFIX is the escape hatch: deploy to an arbitrary folder from any
-  // branch, bypassing the map entirely.
-  if (process.env.S3_PREFIX) {
-    return { bucket, branch, target: '(S3_PREFIX override)', prefix: process.env.S3_PREFIX };
-  }
-
-  const target = targetFromArgv() || process.env.DEPLOY_TARGET || branch;
-  const prefix = BRANCH_PREFIX_MAP[target];
-
-  // Refusing here is the point: a stray `npm run deploy` from a feat/* branch
-  // must never silently overwrite the demo folder.
-  if (!prefix) {
-    throw fail(
-      `No S3 folder is mapped for "${target}". ` +
-        `Known targets: ${Object.keys(BRANCH_PREFIX_MAP).join(', ')}. ` +
-        'Use `npm run deploy:dev` / `npm run deploy:demo`, or set S3_PREFIX=<folder> ' +
-        'to deploy somewhere else.',
-    );
-  }
-
-  return { bucket, branch, target, prefix };
+  return { bucket, target, prefix: S3_PREFIX };
 }
 
 gulp.task('upload', function () {
-  const { bucket, branch, target, prefix } = resolveDeployment();
+  const { bucket, target, prefix } = resolveDeployment();
 
   console.log('');
   console.log('  Uploading dist/ to S3');
-  console.log(`    branch : ${branch || '(unknown)'}`);
-  console.log(`    target : ${target}`);
+  console.log(`    env    : ${target}`);
   console.log(`    bucket : ${bucket}`);
   console.log(`    prefix : ${prefix}/`);
   console.log('');
@@ -105,8 +65,8 @@ gulp.task('upload', function () {
     gulp
       .src('./dist/**/*', { nodir: true, base: './dist' })
 
-      // Prepend the branch's folder to every key, so dev and demo live side by
-      // side in one bucket. dirname is '.' for files at the root of dist/.
+      // Prepend the folder to every key. dirname is '.' for files sitting at
+      // the root of dist/.
       .pipe(
         rename(function (p) {
           p.dirname = path.posix.join(prefix, p.dirname);
@@ -127,11 +87,10 @@ gulp.task('upload', function () {
 // Prints the resolved target without touching S3. Use this to sanity-check the
 // branch mapping before a real deploy.
 gulp.task('upload:dry', function (done) {
-  const { bucket, branch, target, prefix } = resolveDeployment();
+  const { bucket, target, prefix } = resolveDeployment();
   console.log('');
   console.log('  Deploy target resolved — nothing uploaded yet.');
-  console.log(`    branch : ${branch || '(unknown)'}`);
-  console.log(`    target : ${target}`);
+  console.log(`    env    : ${target}`);
   console.log(`    bucket : ${bucket}`);
   console.log(`    prefix : ${prefix}/`);
   console.log(`    would upload dist/** to s3://${bucket}/${prefix}/`);
