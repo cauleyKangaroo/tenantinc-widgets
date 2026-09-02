@@ -1909,7 +1909,26 @@
   line-height: 20px;
   text-align: center;
 }
-.rf-availability--error { color: #b3261e; }
+/* The error states are a BOX, not loose red text (Figma 12029-86499). Same
+   treatment as .rf-payerr, which is the banner already built for the payment
+   step — 16px padding, 16px radius, a 24px alert mark and the text beside it.
+   Only the ground differs, and deliberately: .rf-payerr is white because it
+   sits on the grey method panel, while this one sits on .rf-card, which is
+   white — a white box there would be invisible. The frame's own
+   rgba(253,239,239,0.45) is what it calls for.
+   `text-align: left` because .rf-availability centres its text for the plain
+   loading line; centred text beside a left-hand icon reads as misaligned. */
+.rf-availability--error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(253, 239, 239, 0.45);
+  color: #b3261e;
+  text-align: left;
+}
+.rf-availability-ico { flex: 0 0 auto; color: #b3261e; }
 .rf-availability a,
 .rf-availability button {
   color: inherit;

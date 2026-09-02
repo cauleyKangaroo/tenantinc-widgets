@@ -28,7 +28,7 @@ import { readUnitSelection, clearUnitSelection } from '@shared/unitHandoff';
 import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
-import { FormField, Button, DateModal, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, DateModal, AlertIcon, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 
@@ -572,16 +572,28 @@ function Step1Form({
       {transactionState === 'loading' && (
         <p className="rf-availability" role="status">Checking current availability and move-in pricing…</p>
       )}
+      {/* Both error states are the boxed treatment (Figma 12029-86499), not
+          just the one that could not fetch: they share .rf-availability--error
+          and sit in the same slot, so styling one as a box and leaving the
+          other as loose red text would read as a bug. The LOADING line above
+          stays plain — it is not an error.
+          A div, not a p: it holds the alert mark beside the text now. */}
       {transactionState === 'unavailable' && (
-        <p className="rf-availability rf-availability--error" role="alert">
-          This space is no longer available. {changeSpaceUrl && <a href={changeSpaceUrl}>Choose another space.</a>}
-        </p>
+        <div className="rf-availability rf-availability--error" role="alert">
+          <AlertIcon size={24} className="rf-availability-ico" />
+          <span>
+            This space is no longer available. {changeSpaceUrl && <a href={changeSpaceUrl}>Choose another space.</a>}
+          </span>
+        </div>
       )}
       {transactionState === 'error' && (
-        <p className="rf-availability rf-availability--error" role="alert">
-          We couldn’t verify this space right now. <button type="button" onClick={onRetry}>Try again</button>
-          {changeSpaceUrl && <> or <a href={changeSpaceUrl}>choose another space</a></>}.
-        </p>
+        <div className="rf-availability rf-availability--error" role="alert">
+          <AlertIcon size={24} className="rf-availability-ico" />
+          <span>
+            We couldn’t verify this space right now. <button type="button" onClick={onRetry}>Try again</button>
+            {changeSpaceUrl && <> or <a href={changeSpaceUrl}>choose another space</a></>}.
+          </span>
+        </div>
       )}
       {reserveError && <p className="rf-form-error" role="alert">{reserveError}</p>}
     </div>
