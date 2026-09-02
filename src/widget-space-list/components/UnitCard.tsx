@@ -40,9 +40,7 @@ export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig })
         {unit.promo && <PromoBadge text={unit.promo} />}
         <div className="sl-card-pricing">
           <PriceBlock unit={unit} config={config} />
-          <div className="sl-cta-col">
-            <CtaButton unit={unit} config={config} />
-          </div>
+          <CtaButton unit={unit} config={config} colClass="sl-cta-col" />
         </div>
         {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
       </div>

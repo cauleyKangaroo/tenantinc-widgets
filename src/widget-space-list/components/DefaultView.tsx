@@ -78,9 +78,7 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
               <PriceBlock unit={unit} config={config} />
               {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
             </div>
-            <div className="sl-dv-btn-col">
-              <CtaButton unit={unit} config={config} full />
-            </div>
+            <CtaButton unit={unit} config={config} full colClass="sl-dv-btn-col" />
           </div>
         </div>
       </div>
