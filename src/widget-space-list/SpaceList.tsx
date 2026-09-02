@@ -133,17 +133,30 @@ export function SpaceList({
      (see the `enabled` branch in useStickySlot). Scrolling back up re-arms it,
      because the start sentinel is observed again the moment it is re-enabled. */
   const [pastListing, setPastListing] = useState(false);
-  const listingEndRef = useRef<HTMLDivElement>(null);
+  /* The LISTING AREA itself, not a marker at the end of it. A zero-box marker
+     was tried and could not work here: .sl-listing-area is a flex column, and
+     the static position of an absolutely-positioned child of a FLEX container
+     is the container's content-box START — it is laid out as though it were the
+     sole flex item, wherever it sits in source order. So the "end" marker
+     resolved to the same point as the START sentinel, `pastListing` went true
+     the instant the listing's top crossed the line, and the bar unpinned at
+     exactly the moment it should have pinned. It never pinned at all.
+     Anchoring the marker with `bottom: 0` does not fix it either: nothing up
+     the tree is a containing block, so it resolves against the viewport.
+     The element's own bottom edge is the honest signal, and it needs no
+     marker, no containing block and no assumptions about flex. */
+  const listingAreaRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    const el = listingEndRef.current;
+    const el = listingAreaRef.current;
     if (!el || typeof IntersectionObserver === 'undefined') return undefined;
     const io = new IntersectionObserver(
       ([e]) => {
-        // Past only when the marker has gone ABOVE the line — the same
-        // direction test the stack itself makes. Below the fold it is also
-        // "not intersecting", which would read as past on first paint.
+        // Past only when the listing's BOTTOM has gone above the line — the
+        // same direction test the stack itself makes. Scrolled ABOVE the
+        // listing it is also "not intersecting", but its bottom is below the
+        // line, which is what keeps first paint from reading as past.
         const rootTop = e.rootBounds?.top ?? 0;
-        setPastListing(!e.isIntersecting && e.boundingClientRect.top <= rootTop);
+        setPastListing(!e.isIntersecting && e.boundingClientRect.bottom <= rootTop);
       },
       // The bar's own line, so it lets go exactly where it would have sat.
       { rootMargin: `-${stickyOffsetTop}px 0px 0px 0px`, threshold: 0 },
@@ -654,7 +667,7 @@ export function SpaceList({
       )}
       <div className="sl-row">
         {showSideAccordions && apLocation === 'left' && sectionPanel}
-        <main className="sl-listing-area">
+        <main className="sl-listing-area" ref={listingAreaRef}>
           {topBar}
           {promoId && (
             <div className="sl-promo-banner">
@@ -693,11 +706,6 @@ export function SpaceList({
               <RichText value={activeFeature.details} className="sl-feature-details-body" />
             </section>
           )}
-          {/* End of the listing — where the filter bar stops being sticky.
-              Same zero-box sentinel class as the start marker: absolutely
-              positioned with auto offsets, so it keeps its static position in
-              this flex column without adding a 20px gap to it. */}
-          <div ref={listingEndRef} className="sl-sticky-sentinel" />
         </main>
         {showSideAccordions && apLocation === 'right' && sectionPanel}
       </div>
