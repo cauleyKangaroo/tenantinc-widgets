@@ -23,19 +23,43 @@
 // note at the return.
 // ===========================================================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import storelocalLogo from '../widget-navigation-bar/Storelocal_logo.png';
 
-/** How long the simulated wrap-up runs before `onDone`. */
+/** How long the wrap-up runs before `onDone`, once there is nothing to wait for. */
 const DEFAULT_DURATION_MS = 3200;
 /** Bar refresh interval — 60ms is smooth without thrashing React. */
 const TICK_MS = 60;
+/**
+ * While `waiting`, the bar eases toward this and stops.
+ *
+ * It must never reach 100% with a request still in flight: a full bar that then
+ * sits there is the "raced to the end and stalled" pattern the header warns
+ * about, and it reads as a hang rather than as work.
+ */
+const WAIT_CAP_PCT = 90;
+/**
+ * How long the bar takes to creep to the cap. Deliberately much longer than the
+ * finish, so it is still moving through a slow call rather than parked.
+ */
+const WAIT_DURATION_MS = 15000;
+/** Once the wait ends, the run from wherever the bar is to 100%. */
+const FINISH_MS = 700;
 
 export function ProcessingModal({
-  open, firstName, facilityName, durationMs = DEFAULT_DURATION_MS, onDone, note,
+  open, firstName, facilityName, durationMs = DEFAULT_DURATION_MS, onDone, note, waiting = false,
 }: {
   open: boolean;
+  /**
+   * A request is still in flight, so do not finish.
+   *
+   * The modal opens the moment Pay Now is pressed rather than after the rental
+   * returns — several seconds of a disabled button told the shopper nothing.
+   * While this is true the bar creeps toward WAIT_CAP_PCT and `onDone` is never
+   * called; when it goes false the bar completes and the flow moves on.
+   */
+  waiting?: boolean;
   /** Greeted by name in the heading, as the design shows ("John, we're …"). */
   firstName?: string;
   facilityName?: string;
@@ -44,16 +68,44 @@ export function ProcessingModal({
   /** Extra line under the copy — the demo banner on the prototype bridge. */
   note?: React.ReactNode;
 }) {
-  const [elapsed, setElapsed] = useState(0);
+  const [pct, setPct] = useState(0);
+  /* Where the bar had got to when the wait ended — the finish runs from there
+     rather than snapping back, which would read as the work restarting. */
+  const handoffRef = useRef(0);
 
   useEffect(() => {
-    if (!open) { setElapsed(0); return; }
+    if (!open) { setPct(0); handoffRef.current = 0; return; }
 
     const started = Date.now();
+    /*
+     * Two phases, one timer.
+     *
+     * WAITING: ease toward the cap over WAIT_DURATION_MS and stay there. onDone
+     *   is never called, so nothing downstream fires while the request is out.
+     * FINISHING: ease from wherever the bar reached to 100 over FINISH_MS, then
+     *   onDone once.
+     *
+     * Ease-out in both, so it moves confidently at first and settles rather
+     * than crawling linearly — it reads as "working", not "stuck".
+     */
+    const from = waiting ? 0 : handoffRef.current;
+    const span = waiting ? WAIT_DURATION_MS : (from > 0 ? FINISH_MS : durationMs);
+    let fired = false;
+
     const id = window.setInterval(() => {
-      const next = Date.now() - started;
-      setElapsed(next);
-      if (next >= durationMs) {
+      const t = Math.min(1, (Date.now() - started) / span);
+      const eased = 1 - (1 - t) ** 2;
+      if (waiting) {
+        const next = eased * WAIT_CAP_PCT;
+        handoffRef.current = next;
+        setPct(next);
+        // No onDone: the caller decides when the wait is over.
+        return;
+      }
+      const next = from + (100 - from) * eased;
+      setPct(next);
+      if (t >= 1 && !fired) {
+        fired = true;
         window.clearInterval(id);
         onDone?.();
       }
@@ -66,14 +118,11 @@ export function ProcessingModal({
       window.clearInterval(id);
       document.body.style.overflow = prev;
     };
-  }, [open, durationMs, onDone]);
+  }, [open, durationMs, onDone, waiting]);
 
   if (!open) return null;
 
-  // Ease-out so it moves confidently at first and settles, rather than crawling
-  // linearly — reads as "working" instead of "stuck".
-  const t = Math.min(1, elapsed / durationMs);
-  const pct = Math.round((1 - (1 - t) ** 2) * 100);
+  const shown = Math.round(pct);
 
   const greeting = firstName?.trim();
 
@@ -93,10 +142,10 @@ export function ProcessingModal({
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={pct}
+          aria-valuenow={shown}
           aria-label="Finalizing your lease and payment"
         >
-          <div className="rf-proc-bar-fill" style={{ width: `${pct}%` }} />
+          <div className="rf-proc-bar-fill" style={{ width: `${shown}%` }} />
         </div>
 
         <p className="rf-proc-copy">

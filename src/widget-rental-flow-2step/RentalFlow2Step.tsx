@@ -2134,6 +2134,17 @@ export function RentalFlow2Step({
               if (info.card && hold && quote) {
                 if (paying) return; // in flight — never double-charge
                 /*
+                 * The lightbox opens on the CLICK, not on the response.
+                 *
+                 * APIs 9/10/11 take several seconds, and all the shopper used
+                 * to get for them was a disabled button reading "Processing…",
+                 * followed by a modal that then ran its own timer — so the wait
+                 * was the request PLUS the animation. Now the modal covers the
+                 * request: its bar creeps while `paying` is true and completes
+                 * once the rental returns.
+                 */
+                setFinalizing(info);
+                /*
                  * space_mix_id is REQUIRED by documents/finalize and there is
                  * no way to recover it once the unit is held — it leaves
                  * units/available, and lease-set-up does not return it. If it
@@ -2208,6 +2219,10 @@ export function RentalFlow2Step({
                     setPaying(false);
                     if (!res.ok) {
                       console.error(`${logTag} rental failed at the ${res.stage} step:`, res.error);
+                      // Take the lightbox down: it is now open from the click,
+                      // and leaving it up would hide the error behind a bar
+                      // that can never finish.
+                      setFinalizing(undefined);
                       setPayError(res.error);
                       return;
                     }
@@ -2229,6 +2244,7 @@ export function RentalFlow2Step({
                     // rentSpace never throws, so reaching here is a bug rather
                     // than a payment failure — say something honest either way.
                     setPaying(false);
+                    setFinalizing(undefined);
                     console.error(`${logTag} rental threw unexpectedly:`, err);
                     setPayError('Something went wrong completing your rental. Please try again.');
                   }));
@@ -2263,6 +2279,10 @@ export function RentalFlow2Step({
           open
           firstName={finalizing.firstName}
           facilityName={brandName}
+          /* The rental is still in flight, so hold the bar short of the end.
+             On the preview path there is no request and this is false from the
+             start, which is the original fixed-duration behaviour. */
+          waiting={paying}
           onDone={() => setStaticPaid(true)}
         />
       )}
