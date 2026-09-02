@@ -1020,7 +1020,7 @@
   background: #f4f6f8;
   border-radius: 20px;
   width: 100%;
-  max-width: 1470px; /* Figma "Facility Page" popup width */
+  max-width: 1400px; /* Align the 1320px tier grid with the modal header gutters. */
   /* Use the space inside the equal 16px top/bottom gutters on short screens;
      retain the 747px Figma height on taller screens. */
   height: min(747px, calc(100vh - 32px));
