@@ -616,12 +616,22 @@
   line-height: 16px;
   color: #101318;
   font-weight: 700;
-  margin-top: 12px;
+  /* No margin-top. The badge is either the FIRST child of its panel or absent —
+     both callers render it as `{unit.promo && <PromoBadge/>}` ahead of the
+     price+CTA row, so there is never anything above it for a margin to separate
+     it from. The panel's own padding sets the space above, and the panel's gap
+     sets the space below; the 12px was adding to the padding and nothing else.
+     Margins do not collapse in a flex container, so all 12px of it showed.
+     .sl-lc-promo, the list layout's copy of this badge, never had one. */
 }
 .sl-wrapper .sl-promo-icon { display: flex; align-items: center; flex-shrink: 0; color: var(--color_1, #f45f30); }
 
+/* Wraps so the CTA note can take a full-width line of its own beneath the
+   price and the button — it is a direct child of this row now, not of the
+   button's column. */
 .sl-wrapper .sl-card-pricing {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   align-items: flex-start;
 }
@@ -691,10 +701,12 @@
 }
 .sl-wrapper .sl-cta-col {
   flex: 1;
-  /* max-content rather than 0 so the one-line CTA note reserves its width; with
-     min-width:0 the column collapsed under it and the card's overflow:hidden
-     clipped the text at narrow grid widths. */
-  min-width: max-content;
+  /* 0, NOT max-content. The note used to live in here and was one line, so
+     max-content stretched this column to the note's full length and pushed the
+     row past the card's padding — the button hung off the page. The note is a
+     sibling of this column now and gets the whole row, so nothing in here needs
+     to reserve width for it. */
+  min-width: 0;
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -752,29 +764,35 @@
 .sl-wrapper .sl-waitlist-btn:hover {
   background: color-mix(in srgb, var(--color_2, #509e2f) 8%, #ffffff);
 }
-.sl-wrapper .sl-cta-group {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  width: 100%;
-}
 /* The note under the CTA — "Limited Availability" (sold out, copy configurable
    via limitedAvailabilityCopy) or "Only X left - Rent soon!" (scarcity). One rule
    for both: Figma 7112-47044 and 7112-47400 specify the same 12px/16px SemiBold
    #fb4c4c right-aligned treatment, and the two messages share a slot under the
    button, so they must be pixel-identical. Replaces the old per-layout
    .sl-urgency / .sl-lc-urgency / .sl-dv-urgency rules. */
+/* Spans the whole price+button row: `flex: 0 0 100%` makes it the only thing on
+   its line. It is no longer boxed in by the button.
+   `white-space: normal` because it no longer has to be one line — that was only
+   ever propping up `min-width: max-content` on the columns, which is exactly
+   what pushed the button out of the card. Given the full row it fits on one
+   line anyway at every width the cards use, and wraps rather than overflowing
+   if a configurable limitedAvailabilityCopy is long. */
 .sl-wrapper .sl-limited-label {
+  flex: 0 0 100%;
+  min-width: 0;
   font-size: 12px;
   line-height: 16px;
   color: #fb4c4c;
   font-weight: 600;
   text-align: right;
-  margin-top: 4px;
-  /* One line, always. "Only 125 left - Rent soon!" is ~160px at this size and was
-     wrapping in the narrow CTA columns; the columns below use min-width:max-content
-     so they widen to fit this instead of breaking it. */
-  white-space: nowrap;
+  /* The rows carry gap:16px, which now also separates the note's line from the
+     button's. -12px brings the pair back to the 4px the design has always had.
+     A negative margin rather than a row-gap override, because .sl-dv-price-button
+     was already a wrapping row and its 16px between the price and the button
+     when THEY wrap is not this note's business to change. */
+  margin-top: -12px;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 /* Figma 7112-47056: the price small print is BLACK 12px/16px, and it must wrap
    rather than run on — it used to be grey and, being nowrap-wide, got clipped by
@@ -979,6 +997,7 @@
 .sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-lc-price-button {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   align-items: flex-start;
   flex: 0 1 334px;
@@ -995,11 +1014,9 @@
 }
 .sl-wrapper .sl-lc-btn-col {
   flex: 0 1 140px;
-  /* max-content, not a fixed px floor: the note under the button must stay on one
-     line, and its length varies (vacancy digits, plus configurable
-     limitedAvailabilityCopy). The price column is flex:1 1 auto with min-width:0,
-     so it absorbs the difference. */
-  min-width: max-content;
+  /* See .sl-cta-col — the note no longer sits in this column, so this no longer
+     has to widen to fit it. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -1149,8 +1166,8 @@
 .sl-wrapper .sl-dv-price { flex: 1 1 auto; min-width: 0; }
 .sl-wrapper .sl-dv-btn-col {
   flex: 0 1 146px;
-  /* See .sl-lc-btn-col — sized to keep the CTA note on one line. */
-  min-width: max-content;
+  /* See .sl-cta-col — the note is a sibling of this column now. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -1269,7 +1286,9 @@
   .sl-wrapper .sl-dv-see-fits { font-size: 13px; gap: 4px; }
   .sl-wrapper .sl-dv-actions { max-width: 312px; }
   .sl-wrapper .sl-dv-price-button { gap: 12px; }
-  .sl-wrapper .sl-dv-btn-col { flex: 0 1 120px; min-width: max-content; }
+  /* min-width:0 here too — this is the narrowest step, so it is where a
+     max-content floor pushed the button furthest past the card's padding. */
+  .sl-wrapper .sl-dv-btn-col { flex: 0 1 120px; min-width: 0; }
   /* 22px (vs Figma's 24) is the last few px the price row needs to stay on ONE
      row with the CTA here — the list card drops to 20px at its narrow step. */
   .sl-wrapper .sl-dv-price .sl-main-price { font-size: 22px; }
