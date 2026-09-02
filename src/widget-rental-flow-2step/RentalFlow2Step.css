@@ -1540,7 +1540,16 @@
 /* The "Lease Summary" line on the confirmation bar sits where step 2 puts the
    hold countdown: same row, same 16px, but plain — there is nothing ticking. */
 .rfm-bar-lease { font-size: 16px; line-height: 28px; color: #101318; }
-.rfc-details { min-width: 0; }
+/* A column, and stretched to the row's height, so "the bottom" means the
+   bottom of the CARD rather than the end of this column's own content —
+   .rfc-cols is `align-items: start`, which otherwise sizes each column to
+   whatever it happens to hold. */
+.rfc-details {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
 /* Dates: calendar icon + a column of one-line date rows (never wrap "…, 2026"). */
 .rfc-info-dates { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 /* Every row is icon + block, 24px icon, dark. The gap is the frame's: 10px on
@@ -2342,7 +2351,12 @@
    layouts. Only the in-place rental passes these; the nonce page has none. */
 /* No icon of its own any more, so 34px — the 24px glyph the rows above use
    plus their 10px gap — lines its text up with theirs. */
-.rfc-info-tenant { margin-top: 16px; padding-left: 34px; }
+/* Pinned to the bottom of the column. `margin-top: auto` takes up whatever
+   slack the column has; the padding is what guarantees a gap when there is NO
+   slack — with the hours run long, auto collapses to zero and the reference
+   would otherwise butt straight against the last line of the gate hours.
+   The hours block carries no bottom margin, so this 24px is the whole gap. */
+.rfc-info-tenant { margin-top: auto; padding-top: 24px; padding-left: 34px; }
 .rfc-info-tenant p:last-child { margin-bottom: 0; }
 /* An email or a lease id has no spaces to break at, so a long one would push
    the column wide instead of wrapping. */
