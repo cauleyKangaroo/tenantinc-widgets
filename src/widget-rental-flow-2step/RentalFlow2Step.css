@@ -342,9 +342,13 @@
 }
 
 /* ── "Confirm your Move-In Date" lightbox ──────────────────────────────── */
+/* Shared by every modal in this flow. `overscroll-behavior: contain` stops a
+   wheel or drag over the DIM AREA — which scrolls nothing itself — from being
+   passed to the page behind it. */
 .rf-overlay {
   position: fixed;
   inset: 0;
+  overscroll-behavior: contain;
   z-index: 9999;
   display: flex;
   align-items: center;

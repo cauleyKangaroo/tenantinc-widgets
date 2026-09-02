@@ -1900,6 +1900,14 @@ export function RentalFlow2Step({
       // loads, so a live page never shows a made-up unit.
       unitLabel={unitNumberLabel ?? (previewContent && !selection ? '#111' : undefined)}
       changeSpaceUrl={rented ? undefined : (changeSpaceUrl ?? backToSpacesUrl)}
+      /* `rented` IS "the money has been taken" — it is only ever true on the
+         success screens, and the rail's total there is what was paid, not what
+         is still owed. It had been driving nothing but changeSpaceUrl, so the
+         right-hand rail still read "Total Cost to Move-In:" after payment while
+         MobileLeaseBar beside it already said "Total Paid:".
+         No `estimate` here: a reservation never reaches this builder — it exits
+         through the confirmation early-return above, which passes its own. */
+      paid={rented}
       quoteFailed={quoteFailed}
       // Only an UNHELD quote assumes today: the pre-hold GET carries no
       // start_date, while the hold-aware POST sends the chosen one and the
