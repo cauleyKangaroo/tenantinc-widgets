@@ -290,6 +290,9 @@
         <label>Limited avail. copy:
           <input id="sl-limited-copy" type="text" placeholder="Limited Availability" style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
         </label>
+        <label>Media Manager site id:
+          <input id="sl-media-site" type="text" placeholder="e.g. 37c2908c" title="Duda site id. Its Media Manager images (Small.png, Medium.png, Large.png) replace the bundled renders. Blank = bundled renders." style="width:130px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitSpaceList()" />
+        </label>
         <label class="checkbox"><input type="checkbox" id="sl-show-unavailable" onchange="reinitSpaceList()"> Show unavailable units</label>
         <label class="checkbox"><input type="checkbox" id="sl-enable-waitlist" onchange="reinitSpaceList()"> Enable waitlist</label>
         <label class="checkbox"><input type="checkbox" id="sl-show-urgency" checked onchange="reinitSpaceList()"> Show urgency msg</label>
@@ -1178,6 +1181,13 @@
         inEditor:    document.getElementById('sl-in-editor').checked,
         elementId:   'dev-element-001',
         siteId:      'dev-site',
+        // Media Manager artwork. siteId above is a placeholder, so the derived
+        // CDN url can only 403 here — paste a real site id to see the feature.
+        spaceImageBaseUrl: (function () {
+          var el = document.getElementById('sl-media-site');
+          var id = el && el.value.trim();
+          return id ? 'https://irp.cdn-website.com/' + encodeURIComponent(id) + '/dms3rep/multi' : '';
+        })(),
       };
     }
 
