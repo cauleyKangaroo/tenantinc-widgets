@@ -593,7 +593,10 @@ export function SpaceList({
           onChange={setFilters}
           badge={badge}
           onClose={() => setPanelOpen(false)}
-          onReset={() => setFilters(DEFAULT_FILTERS)}
+          /* Reset CLOSES as well as clearing. Both panels write straight
+             through (`onChange={setFilters}`), so there is no draft for the
+             close to discard — the cleared state is already the live one. */
+          onReset={() => { setFilters(DEFAULT_FILTERS); setPanelOpen(false); }}
           amenityOptions={amenityOptions}
           featureOptions={featureOptions}
           promotionOptions={PROMOTION_OPTIONS}

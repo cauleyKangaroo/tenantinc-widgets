@@ -1324,7 +1324,9 @@ export function MapLocations({
           // Reset means "no filters", which is now also the opening state —
           // it used to reset to the Figma's pre-selected pills, i.e. clearing
           // the filters would have applied five of them.
-          onReset={() => setFilters(INITIAL_FILTERS)}
+          // It CLOSES too. onChange writes straight through, so there is no
+          // draft for the close to discard — same as #05's modal.
+          onReset={() => { setFilters(INITIAL_FILTERS); setFiltersOpen(false); }}
           onApply={() => setFiltersOpen(false)}
         />
       )}
