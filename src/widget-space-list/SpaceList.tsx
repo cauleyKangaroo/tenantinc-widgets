@@ -166,6 +166,11 @@ export function SpaceList({
   // Second API call: property FAQ / phone / socials for the sidebar accordion.
   // Null until loaded (or on failure) → sections fall back to their demo data.
   const [propertyExtras, setPropertyExtras] = useState<PropertyExtras | null>(null);
+  /* Whether the property call has SETTLED, which is not the same question as
+     whether it produced a name. Without it the title cannot tell "still
+     loading" from "loaded, and this property has no name" — and the second
+     case has to fall back to config rather than shimmer forever. */
+  const [propertySettled, setPropertySettled] = useState(false);
 
   // Section visibility + order are managed entirely in the "Manage accordions"
   // modal (persisted to the collection), not via content-panel isX toggles.
@@ -306,7 +311,10 @@ export function SpaceList({
       .then((raw) => {
         if (!cancelled) setPropertyExtras(extractPropertyExtras(raw, effectivePropertyId));
       })
-      .catch((err) => console.error('[SpaceList] fetchProperties error:', err));
+      .catch((err) => console.error('[SpaceList] fetchProperties error:', err))
+      // Settled covers the failure too: a name we will never get must not leave
+      // the heading shimmering for the rest of the visit.
+      .finally(() => { if (!cancelled) setPropertySettled(true); });
     return () => { cancelled = true; };
   }, [effectivePropertyId, effectiveCompanyId]);
 
@@ -583,6 +591,15 @@ export function SpaceList({
     </>
   );
 
+  /* The name the title interpolates. Null means "not known yet" — distinct from
+     the configured fallback, which is only reached once the call has settled. */
+  const propertyLabel = propertyExtras?.name || (propertySettled ? cfg.propertyName : null);
+  /* An authored heading is already here and names no property, so it never
+     waits. Everything else does, because every other branch interpolates a
+     name. */
+  const authoredHeading = activeFeature ? activeFeature.heading?.trim() : boundText(propertyHeader);
+  const titlePending = !authoredHeading && !propertyLabel;
+
   // Filters are always a top bar inside the listing column; the accordion panel
   // sits on whichever side apLocation specifies.
   return (
@@ -592,16 +609,31 @@ export function SpaceList({
       {showHeading && (
       <div className="sl-heading">
         <p className="sl-select-heading">Select a Space {totalVacant > 0 && `— ${totalVacant} Available`}</p>
+        {/* Nothing until the name is known — the same guard #18 already carries,
+            and for the same reason. The fallback is config.json's, which on this
+            site names a property of the OLD company, so rendering early flashed
+            a heading for the wrong facility and then swapped it. A skeleton
+            holds the line at the height the real title will take, so nothing
+            below it jumps when the name lands.
+
+            An AUTHORED heading needs no wait: it is already here, and it does
+            not name the property. Only the branches that interpolate a name are
+            held back. Once the call has settled without one, config is all
+            there is, so it renders rather than shimmering forever. */}
+        {titlePending ? (
+          <div className="sl-title-skeleton" aria-hidden="true" />
+        ) : (
         <h1 className="sl-page-title">
           {activeFeature
             // A feature page names the feature. With no explicit heading on the row
             // it still names the location, the way the unfiltered page does — the
             // page really is "climate controlled units at THIS facility".
             ? activeFeature.heading?.trim() ||
-              `${activeFeature.name} Storage Units in ${propertyExtras?.name || cfg.propertyName}`
+              `${activeFeature.name} Storage Units in ${propertyLabel}`
             : boundText(propertyHeader) ||
-              `Storage Units in ${propertyExtras?.name || cfg.propertyName}`}
+              `Storage Units in ${propertyLabel}`}
         </h1>
+        )}
       </div>
       )}
       {/* Outside .sl-heading on purpose: a feature page's explanation and its way
