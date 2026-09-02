@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './HomepageSearch.css';
 import { fetchLocationTree, type NavUnitType } from '@shared/propertyNav';
-import { MapPinIcon, SearchIcon } from '@shared/ui/icons';
+import { MapPinSolidIcon, SearchIcon } from '@shared/ui/icons';
+import { openFindStorage } from '@shared/findStorageBus';
 
 export interface HomepageSearchProps {
   /** Operator-selectable presentation. `search-bar` is the original horizontal
@@ -352,7 +353,7 @@ export function HomepageSearch({
     >
       <div ref={panelContainerRef} className={promoCard ? 'hs-card' : 'hs-search-layout'}>
         {promoCard && <h2 className="hs-card-heading">{cardHeading}</h2>}
-        <form ref={barRef} className="hs-bar" onSubmit={(e) => { e.preventDefault(); if (href) findRef.current?.click(); }}>
+        <form ref={barRef} className="hs-bar" onSubmit={(e) => { e.preventDefault(); findRef.current?.click(); }}>
         <div className="hs-field">
           <input
             className="hs-input"
@@ -366,7 +367,7 @@ export function HomepageSearch({
             aria-controls={suggestionsId}
             aria-activedescendant={activeSuggestion >= 0 ? `hs-city-option-${activeSuggestion}` : undefined}
             onFocus={() => { setTypeOpen(false); setSuggestionsOpen(true); }}
-            onChange={(e) => { setQ(e.target.value); setSelectedTarget(undefined); setSuggestionsOpen(true); setActiveSuggestion(-1); }}
+            onChange={(e) => { const v = e.target.value; setQ(v.charAt(0).toUpperCase() + v.slice(1)); setSelectedTarget(undefined); setSuggestionsOpen(true); setActiveSuggestion(-1); }}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown' && visibleSuggestions.length) {
                 e.preventDefault(); setSuggestionsOpen(true); setActiveSuggestion((i) => (i + 1) % visibleSuggestions.length);
@@ -443,10 +444,16 @@ export function HomepageSearch({
           ref={findRef}
           className="hs-find"
           href={href ?? undefined}
-          aria-disabled={!href}
-          onClick={(e) => { if (!href) e.preventDefault(); else if (match) remember(match.kind === 'property'
-            ? (filteredTargets.find((target) => target.kind === 'city' && target.haystack.includes(match.label.toLowerCase())) ?? match)
-            : match); }}
+          onClick={(e) => {
+            if (!href) {
+              e.preventDefault();
+              if (!openFindStorage()) console.warn('[HomepageSearch] Find Storage: no navigation bar (#02) answered the open request');
+              return;
+            }
+            if (match) remember(match.kind === 'property'
+              ? (filteredTargets.find((target) => target.kind === 'city' && target.haystack.includes(match.label.toLowerCase())) ?? match)
+              : match);
+          }}
         >
           <span className="hs-find-label">{ctaLabel}</span>
           <SearchIcon className="hs-search-icon" size={22} />
@@ -466,11 +473,13 @@ export function HomepageSearch({
             <>
               <li role="presentation">
                 <button className="hs-current-location" type="button" disabled={locating} onClick={chooseCurrentLocation}>
-                  <MapPinIcon size={16} />
+                  <MapPinSolidIcon size={24} />
                   <span>Current Location</span>
                 </button>
               </li>
-              <li className="hs-history-head" role="presentation">Search History</li>
+              {visibleSuggestions.length > 0 && (
+                <li className="hs-history-head" role="presentation">Search History</li>
+              )}
             </>
           )}
           {visibleSuggestions.map((city, index) => (
