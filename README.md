@@ -134,31 +134,28 @@ This produces `dist/widget-hero.js`, `dist/widget-clock.js`, etc. Each file is a
 
 ### 2. Publish the bundle to S3
 
-`dist/` is uploaded to a single S3 bucket, into a **different folder per branch**, so `dev` and
-`demo` can be deployed independently without overwriting each other.
+`dist/` is uploaded into the `duda-widgets/` folder of an S3 bucket. **Every environment uses that
+same folder name — the bucket is what changes per environment**, and it comes from
+`AWS_S3_BUCKET`. Jenkins sets it per job (`dev-website.build.bucket` for dev, and so on).
 
-| Branch | S3 folder          |
-| ------ | ------------------ |
-| `dev`  | `duda-widgets`     |
-| `demo` | `duda-widgets-ssa` |
-
-One-time setup: copy `.env.example` to `.env` and fill in `AWS_ACCESS_KEY_ID`,
+One-time setup for a local deploy: copy `.env.example` to `.env` and fill in `AWS_ACCESS_KEY_ID`,
 `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` and `AWS_S3_BUCKET`.
 
 ```
-npm run deploy        # build, then upload to the folder mapped to the current branch
-npm run deploy:dev    # force the dev folder, whatever branch you're on
-npm run deploy:demo   # force the demo folder
+npm run deploy        # build, then upload to $AWS_S3_BUCKET/duda-widgets/
+npm run deploy:dev    # same, labelled "dev" in the log (what the Jenkins dev job runs)
+npm run deploy:demo   # same, labelled "demo"
 npm run upload        # upload the existing dist/ without rebuilding
 npm run upload:dry    # print the resolved bucket/folder and exit — uploads nothing
 ```
 
-Deploying from a branch that isn't in the map is **refused** rather than guessed, so a stray
-`npm run deploy` from a `feat/*` branch can't overwrite `demo`. To deploy somewhere else on
-purpose, set `S3_PREFIX=<folder>`.
+`deploy:dev` and `deploy:demo` do exactly the same thing; they differ only in the `DEPLOY_TARGET`
+label printed to the log. Pointing a deploy at dev vs demo is done by setting `AWS_S3_BUCKET`, not
+by picking a script.
 
-The branch-to-folder map lives at the top of [`gulpfile.js`](gulpfile.js) — add a branch there
-and it becomes deployable.
+An unset `AWS_S3_BUCKET` is **refused** rather than defaulted — since the bucket is the only thing
+separating environments, guessing one would be the one mistake worth avoiding. To deploy to a
+different folder for a one-off, set `S3_PREFIX=<folder>`.
 
 The resulting URL is what you paste into Duda:
 
