@@ -9,3 +9,7 @@ node_modules/
 *.docx
 .idea/
 .tmp-test/
+
+# gulp-awspublish upload cache
+.awspublish-*
+dist/
