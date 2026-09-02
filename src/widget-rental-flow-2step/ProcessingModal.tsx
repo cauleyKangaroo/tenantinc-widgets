@@ -69,14 +69,45 @@ export function ProcessingModal({
   note?: React.ReactNode;
 }) {
   const [pct, setPct] = useState(0);
-  /* Where the bar had got to when the wait ended — the finish runs from there
-     rather than snapping back, which would read as the work restarting. */
+  /*
+   * Everything the timer needs lives in refs, and the effect depends only on
+   * things that should genuinely restart it.
+   *
+   * THE BAR USED TO JUMP BACK TO ZERO once a second. `onDone` was in the
+   * dependency list and the caller passes an inline arrow, so it is a new
+   * function on every render — and the parent re-renders every second because
+   * the hold countdown ticks. Each of those tore the effect down and rebuilt
+   * it, resetting the start time and, mid-wait, the bar with it.
+   */
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+  /** When the CURRENT phase began — not when the effect last happened to run. */
+  const startedRef = useRef(0);
+  /** Which phase that timestamp belongs to, so a re-run can tell it is the same one. */
+  const phaseRef = useRef<'wait' | 'finish' | null>(null);
+  /** Where the bar stood when the wait ended; the finish runs from there. */
   const handoffRef = useRef(0);
+  /** Latest value, readable without making `pct` an effect dependency. */
+  const pctRef = useRef(0);
+  pctRef.current = pct;
 
   useEffect(() => {
-    if (!open) { setPct(0); handoffRef.current = 0; return; }
+    if (!open) {
+      setPct(0);
+      pctRef.current = 0;
+      handoffRef.current = 0;
+      phaseRef.current = null;
+      return undefined;
+    }
 
-    const started = Date.now();
+    const phase: 'wait' | 'finish' = waiting ? 'wait' : 'finish';
+    // Only a genuine phase CHANGE restarts the clock. A re-render does not.
+    if (phaseRef.current !== phase) {
+      phaseRef.current = phase;
+      startedRef.current = Date.now();
+      if (phase === 'finish') handoffRef.current = pctRef.current;
+    }
+
     /*
      * Two phases, one timer.
      *
@@ -88,26 +119,26 @@ export function ProcessingModal({
      * Ease-out in both, so it moves confidently at first and settles rather
      * than crawling linearly — it reads as "working", not "stuck".
      */
-    const from = waiting ? 0 : handoffRef.current;
-    const span = waiting ? WAIT_DURATION_MS : (from > 0 ? FINISH_MS : durationMs);
+    const from = phase === 'wait' ? 0 : handoffRef.current;
+    const span = phase === 'wait'
+      ? WAIT_DURATION_MS
+      // Straight to finish with no wait behind it is the preview path, which
+      // keeps its original full-length animation.
+      : (from > 0 ? FINISH_MS : durationMs);
+    const target = phase === 'wait' ? WAIT_CAP_PCT : 100;
     let fired = false;
 
     const id = window.setInterval(() => {
-      const t = Math.min(1, (Date.now() - started) / span);
+      const t = Math.min(1, (Date.now() - startedRef.current) / span);
       const eased = 1 - (1 - t) ** 2;
-      if (waiting) {
-        const next = eased * WAIT_CAP_PCT;
-        handoffRef.current = next;
-        setPct(next);
-        // No onDone: the caller decides when the wait is over.
-        return;
-      }
-      const next = from + (100 - from) * eased;
-      setPct(next);
-      if (t >= 1 && !fired) {
+      const next = from + (target - from) * eased;
+      // MONOTONIC. Whatever else happens, the bar never goes backwards — that
+      // is the one thing a progress bar must not do.
+      setPct((cur) => (next > cur ? next : cur));
+      if (phase === 'finish' && t >= 1 && !fired) {
         fired = true;
         window.clearInterval(id);
-        onDone?.();
+        onDoneRef.current?.();
       }
     }, TICK_MS);
 
@@ -118,7 +149,10 @@ export function ProcessingModal({
       window.clearInterval(id);
       document.body.style.overflow = prev;
     };
-  }, [open, durationMs, onDone, waiting]);
+    // onDone is deliberately absent: it is read through a ref. Including it
+    // restarts this effect on every parent render, which is the bug above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, durationMs, waiting]);
 
   if (!open) return null;
 
