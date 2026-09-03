@@ -693,7 +693,9 @@ img.promo-banner-img {
   color: #101318;
 }
 
-/* 32px button holding an 18px glyph, per the design. */
+/* 32px box holding the 32px mark, desktop and mobile — .pi-msg-close in the
+   shared "Send us a Message" modal, which is the contact-popup standard. The
+   SVG fills the box, so box and mark are one number. */
 .promo-modal-close {
   display: flex;
   align-items: center;
@@ -709,6 +711,12 @@ img.promo-banner-img {
   cursor: pointer;
   transition: background 0.15s;
 }
+
+/* Pinned, not left to the width ATTRIBUTE: a Duda theme sheet styling bare
+   `svg { width: ... }` outranks an attribute, which is how the same mark came
+   out undersized in the rental flow. Invisible in the dev harness — there is no
+   theme sheet there to lose to. Same guard as .pi-msg-close svg. */
+.promo-modal-close svg { flex: 0 0 auto; width: 32px !important; height: 32px !important; }
 
 .promo-modal-close:hover {
   background: #f4f6f8;

@@ -1077,9 +1077,16 @@
 
 /* The scrolling viewport. The document is the only thing that scrolls — the
    header and the agree bar stay put, so the checkbox is always reachable. */
+/* The agreement itself scrolls. `overscroll-behavior: contain` is what stops a
+   flick or wheel that runs PAST its end from chaining out to the host page —
+   the body lock in LeaseModal cannot help with that, because the gesture is
+   being handled by this element, not the body. It is why the page still moved
+   behind an open agreement. The mobile rail sheet and its scrim already carry
+   the same line for the same reason. */
 .rf2-lease-view {
   flex: 1 1 auto;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 0 38px 24px;
   background: #f4f6f8;
 }
