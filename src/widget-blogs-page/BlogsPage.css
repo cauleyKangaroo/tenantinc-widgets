@@ -68,6 +68,50 @@
   box-sizing: border-box;
 }
 
+/* ── Page head ─────────────────────────────────────────────────────────────
+   Breadcrumb, then h1, then the intro paragraph, then the bar. This heading was
+   an 80px "Self Storage Blogs" Duda SECTION above the widget; it is the widget's
+   own now, which is also what puts the breadcrumb genuinely above it rather than
+   under it — the mismatch the scope note in BlogsPage.tsx used to warn about. */
+.bpg-head {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.bpg-title {
+  margin: 0;
+  /* The frame is 80px on a 1347px canvas, and this widget can sit in a much
+     narrower Duda column where 80px is unreadable. Same clamp as #16's
+     .bpp-title, which came from the same 80px origin — one scale across both
+     blog pages, and no breakpoint per size. */
+  font-size: clamp(32px, 4.2vw, 80px);
+  font-weight: 600;
+  line-height: 1.25;
+  color: #101318;
+  /* Keeps a two-line heading from breaking one word onto the second line. */
+  text-wrap: balance;
+}
+
+.bpg-intro {
+  /* Not full-bleed: a centred paragraph running the widget's full 1330px is
+     hard to track back to the next line. 760px is roughly 90 characters at
+     this size, the upper end of comfortable measure. */
+  max-width: 760px;
+  margin: 16px auto 0;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: #101318;
+  text-wrap: pretty;
+}
+
+@media (max-width: 900px) {
+  /* The breadcrumb is display:none here, so the heading is the first thing on
+     the page and needs no gap above it. */
+  .bpg-head { margin-bottom: 32px; }
+  .bpg-intro { font-size: 16px; margin-top: 12px; }
+}
+
 /* ── Filter / search bar ───────────────────────────────────────────────────── */
 
 .bpg-bar {
