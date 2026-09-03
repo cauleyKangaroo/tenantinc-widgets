@@ -760,10 +760,34 @@ export async function findUnitForSelection(ctx: RentalCtx, size?: string, price?
  *  the type id is what narrows the protection plans to the space type rented.
  *  Fails soft — an unresolvable unit must never stop the rental. */
 export async function fetchUnitInfo(ctx: RentalCtx, unitId: string): Promise<{ number?: string; unitTypeId?: string; spaceMixId?: string }> {
+  /*
+   * ONE unit, asked for by id.
+   *
+   * GET v1/companies/{co}/units/{id} returns the row under `data.unit` in about
+   * 300ms. Searching units/available for it instead meant paging a 1308-unit
+   * list — up to fourteen requests, each with its own CORS preflight, roughly
+   * 24 seconds — to answer a question about a unit whose id we already had from
+   * the URL.
+   *
+   * It also answers for a unit that is ALREADY HELD, which units/available
+   * cannot: a held unit leaves that list entirely. So this works whether the
+   * read happens before or after the hold, where the list only worked before.
+   *
+   * Verified 2026-09-03: 200 in ~296ms for a held unit, carrying number,
+   * space_mix_id and unit_type_id.
+   */
   try {
-    // Paged because the default page holds only 20 of 1308 units, so a unit
-    // past the first 20 is simply absent and "Space #…" came up blank. Stops at
-    // the page carrying it rather than reading the whole list.
+    const inner = await getJsonV1(`companies/${ctx.companyId}/units/${encodeURIComponent(unitId)}`);
+    const u = (unwrap(inner) as { unit?: ApiUnitRow } | undefined)?.unit;
+    if (u?.id) return { number: u.number, unitTypeId: u.unit_type_id, spaceMixId: u.space_mix_id };
+  } catch { /* fall through to the list */ }
+
+  /*
+   * Fallback, kept because the per-unit route is undocumented: page the list
+   * and stop at whichever page carries the unit. Only reached if the direct
+   * read fails or returns nothing.
+   */
+  try {
     const units = await fetchAvailableUnits(ctx, {
       enough: (all) => all.some((u) => u.id === unitId),
     });
