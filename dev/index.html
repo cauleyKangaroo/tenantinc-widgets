@@ -530,6 +530,23 @@
 
       <div class="controls">
         <div class="controls-group">
+          <span class="controls-group-label">Page head</span>
+          <label>
+            Heading:
+            <input id="bp-heading" type="text" value="Self Storage Blogs" style="width:190px" oninput="reinitBlogsPage()" />
+          </label>
+          <label>
+            Description:
+            <input id="bp-description" type="text" style="width:260px"
+                   value="Tips, guides and news to help you pack, store and move with confidence."
+                   oninput="reinitBlogsPage()" />
+          </label>
+          <label>
+            <input id="bp-hide-desc" type="checkbox" onchange="reinitBlogsPage()" />
+            hideDescription
+          </label>
+        </div>
+        <div class="controls-group">
           <span class="controls-group-label">Lazy load</span>
           <label>
             Cards per batch:
@@ -1450,6 +1467,11 @@
 
     function getBlogsPageProps() {
       return {
+        // The three Duda content-menu fields, named exactly as the JS tab sends
+        // them (blogHeading / blogDescription / hideDescription).
+        blogHeading:     document.getElementById('bp-heading').value,
+        blogDescription: document.getElementById('bp-description').value,
+        hideDescription: document.getElementById('bp-hide-desc').checked,
         batchSize:       Number(document.getElementById('bp-batch').value),
         visibleTagCount: Number(document.getElementById('bp-visible-tags').value),
       };
