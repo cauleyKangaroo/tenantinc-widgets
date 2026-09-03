@@ -875,17 +875,14 @@
     min-width: 0;
   }
 
+  /* Wider only. The fill used to be hardcoded dark here, so at this width the
+     button always looked as though a filter was applied and disagreed with the
+     same control on desktop — and `.active` was only a slightly lighter dark,
+     so there was no selected state to read at all. Colour is the base rule's
+     now: white at rest, dark once .active is on. */
   .bpg-filter-btn {
     width: 64px;
     height: 44px;
-    background: #101318;
-    color: #fff;
-  }
-
-  .bpg-filter-btn:hover,
-  .bpg-filter-btn.active {
-    background: #22262d;
-    color: #fff;
   }
 
   .bpg-filter-badge {

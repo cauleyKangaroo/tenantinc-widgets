@@ -306,8 +306,10 @@ function FilterPopup({ tags, activeTags, onToggle, onClear, onClose }: FilterPop
             {activeCount > 0 && <span className="bpg-modal-badge">{activeCount}</span>}
           </div>
           <div className="bpg-modal-header-right">
+            {/* "Reset", matching #05 and #08 — three filter popups in the same
+                site should not each name this differently. */}
             {activeCount > 0 && (
-              <button type="button" className="bpg-modal-reset" onClick={onClear}>Clear all</button>
+              <button type="button" className="bpg-modal-reset" onClick={onClear}>Reset</button>
             )}
             <button type="button" className="bpg-modal-close" onClick={onClose} aria-label="Close filters">
               {/* Filled disc: .bpg-filter-modal is #fff. 32 fills the 32px
@@ -565,7 +567,7 @@ export function BlogsPage({
 
   const allTags = useMemo(() => collectTags(posts), [posts]);
 
-  // Turning the deep-linked chip off (its own X, "Clear all", or the empty
+  // Turning the deep-linked chip off (its own X, "Reset", or the empty
   // state's reset) drops the param, so a reload doesn't bring the filter back.
   // `linkedTag` is then forgotten, which is what stops a re-check re-adding it.
   useEffect(() => {
@@ -729,7 +731,11 @@ export function BlogsPage({
           {allTags.length > 0 && (
             <button
               type="button"
-              className={`bpg-filter-btn${panelOpen ? ' active' : ''}`}
+              /* Dark when the panel is open OR a category is actually
+                 selected. It was panel-open only, so a button carrying two
+                 applied filters looked identical to one carrying none the
+                 moment the popup closed. */
+              className={`bpg-filter-btn${panelOpen || activeCount > 0 ? ' active' : ''}`}
               onClick={() => setPanelOpen((o) => !o)}
               aria-label="Filter by category"
               aria-expanded={panelOpen}
@@ -781,7 +787,10 @@ export function BlogsPage({
           tags={allTags}
           activeTags={activeTags}
           onToggle={toggleTag}
-          onClear={() => { setActiveTags([]); resetBatches(); }}
+          /* Reset CLOSES as well as clearing, as it now does in #05 and #08.
+             The tags are widget state, not a draft held by the popup, so the
+             cleared list is already live and the close cannot discard it. */
+          onClear={() => { setActiveTags([]); resetBatches(); setPanelOpen(false); }}
           onClose={() => setPanelOpen(false)}
         />
       )}
