@@ -4,7 +4,7 @@ import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
 import { scrollToSpaceList } from '@shared/promoBus';
-import { createLead, fetchPropertyDetails, propertyBreadcrumb, stateName, type PropertyDetails, type BoundPropertyProps } from './api';
+import { createLead, fetchPropertyDetails, fetchFacilityOptions, propertyBreadcrumb, stateName, type PropertyDetails, type BoundPropertyProps, type FacilityOption } from './api';
 import {
   Breadcrumb, collapseMiddle, locationCrumbHead, normaliseBase, placeSlug,
   LOCATION_BASE_PATH, type Crumb,
@@ -246,6 +246,9 @@ export function PropertyInfo(props: Props) {
     inEditor = false,
     // Dynamic-page bindings (content menu → "Connect to data" → Properties > …).
     propertyId,
+    // Already part of BoundPropertyProps, simply never pulled out here before:
+    // the contact modal's facility list is scoped to the company.
+    companyId,
     propertyName,
     propertyAddress,
     propertyPhones,
@@ -284,6 +287,21 @@ export function PropertyInfo(props: Props) {
   const [reservationOpen, setReservationOpen] = useState(false);
   const [reservationCode, setReservationCode] = useState('');
   const [messageOpen, setMessageOpen] = useState(false);
+  /* The whole portfolio, for the contact modal's dropdown. Fetched only once
+     the modal is first opened: a shopper who never contacts anyone should not
+     pay for a request, and this is the only thing on the page that needs it. */
+  const [facilityOptions, setFacilityOptions] = useState<FacilityOption[]>([]);
+  useEffect(() => {
+    if (!messageOpen || facilityOptions.length) return;
+    let cancelled = false;
+    void fetchFacilityOptions({ companyId }).then((list) => {
+      if (!cancelled) setFacilityOptions(list);
+    });
+    return () => { cancelled = true; };
+    // Deliberately not depending on facilityOptions: the guard above reads it,
+    // and adding it would re-run the effect the moment the list lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messageOpen, companyId]);
 
   // Live property details from the API; null until loaded (or on failure),
   // in which case the props/DEFAULTS above keep rendering unchanged.
@@ -1142,7 +1160,22 @@ export function PropertyInfo(props: Props) {
       <MessageModal
         open={messageOpen}
         onClose={() => setMessageOpen(false)}
-        facilities={[{ name: displayName, address: displayAddress }]}
+        /* The whole portfolio once it lands, so clearing the preselected
+           property leaves a real choice. Until then — and if the call fails —
+           the page's own property, which is what this passed before. */
+        facilities={facilityOptions.length
+          ? facilityOptions
+          : [{ name: displayName, address: displayAddress }]}
+        /* The page's own property, preselected: this widget IS a property page,
+           so there is one right answer to "which facility".
+           Matched OUT of the fetched list by id where possible, so the entry the
+           modal shows is the same object the dropdown holds — otherwise the
+           preselection and its own list item could differ in name formatting
+           and read as two different places. */
+        defaultFacility={
+          facilityOptions.find((f) => f.id === (property?.id ?? propertyId))
+          ?? { name: displayName, address: displayAddress }
+        }
         // This widget's creds and bound property; the modal has no idea which
         // company it is filing against and should not.
         submitLead={(input) => createLead(input, {

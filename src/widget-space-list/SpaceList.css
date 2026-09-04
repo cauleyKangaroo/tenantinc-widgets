@@ -2364,14 +2364,6 @@
    NOTES SECTION  (.sl-notes-*)  — Figma 10199-55239
    =========================================================================== */
 /* Still used by the About section (the Notes section dropped its card wrapper). */
-.sl-wrapper .sl-notes-card {
-  background: #f9fafb;
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
 .sl-wrapper .sl-notes-text {
   margin: 0;
   font-size: 16px;
