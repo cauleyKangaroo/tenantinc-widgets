@@ -43,19 +43,19 @@ export interface PropertyInfoProps {
   reviewCount?: number;
   reviewsUrl?: string;
   /**
-   * Google Maps JavaScript API key, so the map can be dragged with ONE finger
-   * on a phone. An embedded map needs two — that is Google's behaviour inside
-   * the iframe and no CSS of ours reaches it.
+   * Proxy base serving the Maps key, so the map can be dragged with ONE finger
+   * on a phone. An embedded map needs two — Google's behaviour inside the
+   * iframe, which no CSS of ours reaches.
    *
-   * Browser-visible by necessity: the JS API authenticates from the page, so
-   * this cannot be proxied. Use a SEPARATE key restricted by HTTP referrer to
-   * the site's domains — never the one tenant-proxy holds for Places, which is
-   * server-side precisely because it can be billed by anyone who sees it.
+   * NOT the key itself. The JS API authenticates from the page so the key
+   * cannot be hidden, but it need not be hardcoded here or in the Duda JS tab:
+   * the proxy serves it from /api/maps/config and it is rotated in one place.
    *
-   * Left empty the map is the keyless embed it has always been, which still
-   * pans on desktop. Nothing breaks without it.
+   * Unset, the shared default proxy is used; if that has no key configured the
+   * map stays the keyless embed it has always been, which still pans on
+   * desktop. Nothing breaks without it.
    */
-  mapsApiKey?: string;
+  mapsProxyBase?: string;
   address?: string;
   addressUrl?: string;
   phones?: PhoneEntry[];
@@ -247,7 +247,7 @@ export function PropertyInfo(props: Props) {
     rating = DEFAULTS.rating,
     reviewCount = DEFAULTS.reviewCount,
     reviewsUrl = '#',
-    mapsApiKey,
+    mapsProxyBase,
     address = DEFAULTS.address,
     addressUrl = '#',
     phones = DEFAULTS.phones,
@@ -529,7 +529,7 @@ export function PropertyInfo(props: Props) {
           lat={property!.lat as number}
           lng={property!.lng as number}
           title={`Map of ${displayName}`}
-          apiKey={boundText(mapsApiKey) || undefined}
+          proxyBase={boundText(mapsProxyBase) || undefined}
         />
       ) : (
         <span className="pi-map-pin" />

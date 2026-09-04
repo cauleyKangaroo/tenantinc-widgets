@@ -49,6 +49,36 @@ declare global {
 
 /** One load per page however many widgets ask — the API throws on a second. */
 let loader: Promise<GMapsApi | null> | null = null;
+/** One config fetch per page, shared the same way. */
+let keyFetch: Promise<string> | null = null;
+
+/**
+ * The browser key, from the proxy rather than the bundle.
+ *
+ * The Maps JS API authenticates from the page, so this key cannot be hidden —
+ * but it need not be HARDCODED. Serving it from /api/maps/config keeps it out
+ * of the widget bundle, the Duda JS tab and the dev harness, and means rotating
+ * it takes no rebuild. What actually protects it is the HTTP referrer
+ * restriction on the key itself.
+ *
+ * Returns '' on anything unexpected, which the caller treats as "no key" and
+ * falls back to the keyless embed.
+ */
+export function fetchMapsKey(proxyBase: string): Promise<string> {
+  if (keyFetch) return keyFetch;
+  const base = (proxyBase || '').replace(/\/$/, '');
+  if (!base) return Promise.resolve('');
+  keyFetch = fetch(`${base}/api/maps/config`, { headers: { Accept: 'application/json' } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j: { enabled?: boolean; key?: string; reason?: string } | null) => {
+      // The proxy refuses to serve the server-side key and says why; surface
+      // that rather than silently falling back and leaving nobody the wiser.
+      if (j?.reason) console.warn('[googleMaps]', j.reason);
+      return j?.enabled && typeof j.key === 'string' ? j.key : '';
+    })
+    .catch(() => '');
+  return keyFetch;
+}
 
 export function loadGoogleMaps(apiKey: string): Promise<GMapsApi | null> {
   if (loader) return loader;

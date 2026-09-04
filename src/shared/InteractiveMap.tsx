@@ -12,7 +12,8 @@
 // the map — Google's behaviour, unreachable from our CSS.
 // ---------------------------------------------------------------------------
 import React, { useEffect, useRef, useState } from 'react';
-import { loadGoogleMaps, type GMap } from './googleMaps';
+import { loadGoogleMaps, fetchMapsKey, type GMap } from './googleMaps';
+import { DEFAULT_PLACES_BASE } from './placesApi';
 import './InteractiveMap.css';
 
 export interface InteractiveMapProps {
@@ -20,8 +21,14 @@ export interface InteractiveMapProps {
   lng: number;
   /** Accessible name, e.g. "Map of Storage Outlet - Bellflower". */
   title: string;
-  /** Maps JS key, referrer-restricted. Absent → the iframe is kept. */
-  apiKey?: string;
+  /**
+   * Proxy base that serves the Maps key from /api/maps/config.
+   *
+   * The key is NOT a prop: the JS API authenticates from the page so it cannot
+   * be hidden, but it need not be hardcoded into the bundle, the Duda JS tab or
+   * the harness. One place to configure, one place to rotate.
+   */
+  proxyBase?: string;
   zoom?: number;
   className?: string;
 }
@@ -32,7 +39,7 @@ const MIN_ZOOM = 3;
 const MAX_ZOOM = 20;
 
 export function InteractiveMap({
-  lat, lng, title, apiKey, zoom = DEFAULT_ZOOM, className,
+  lat, lng, title, proxyBase, zoom = DEFAULT_ZOOM, className,
 }: InteractiveMapProps) {
   const holder = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<GMap | null>(null);
@@ -40,9 +47,10 @@ export function InteractiveMap({
 
   useEffect(() => {
     let dead = false;
-    if (!apiKey) return undefined;
 
-    void loadGoogleMaps(apiKey).then((api) => {
+    void fetchMapsKey(proxyBase || DEFAULT_PLACES_BASE)
+      .then((key) => (key ? loadGoogleMaps(key) : null))
+      .then((api) => {
       if (dead || !api || !holder.current) return;
       const center = { lat, lng };
       const map = new api.Map(holder.current, {
@@ -69,7 +77,7 @@ export function InteractiveMap({
     });
 
     return () => { dead = true; };
-  }, [apiKey, lat, lng, zoom, title]);
+  }, [proxyBase, lat, lng, zoom, title]);
 
   // Re-centre without rebuilding when the bound property changes on a dynamic
   // page — a fresh Map instance would flash and re-download tiles.
