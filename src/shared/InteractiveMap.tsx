@@ -103,7 +103,17 @@ export function InteractiveMap({
           referrerPolicy="no-referrer-when-downgrade"
         />
       )}
-      <div ref={holder} className="im-canvas" aria-label={title} role="application" />
+      {/* Always mounted and sized: google.maps.Map measures the element it is
+          given, so it cannot be display:none at construction. Idle it is
+          pointer-transparent, and it only claims the application role once
+          there is actually a map to interact with. */}
+      <div
+        ref={holder}
+        className={`im-canvas${live ? '' : ' im-canvas--idle'}`}
+        aria-label={live ? title : undefined}
+        role={live ? 'application' : undefined}
+        aria-hidden={live ? undefined : true}
+      />
 
       {live && (
         <div className="im-zoom">

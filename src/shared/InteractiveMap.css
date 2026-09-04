@@ -21,6 +21,13 @@
    so the iframe shows through in the meantime and there is no blank frame. */
 .im-canvas { z-index: 1; }
 
+/* UNTIL the real map exists, the canvas is an empty box lying on top of the
+   iframe — and an element with a z-index still captures pointer events even
+   with nothing drawn in it. Without this, a site with no key configured would
+   show its map and be unable to drag it at all: every gesture would land on the
+   empty div instead of the embed underneath. Worse than not upgrading. */
+.im-canvas--idle { pointer-events: none; }
+
 /* Google draws its own focus ring inside the canvas; ours would double it. */
 .im-canvas:focus { outline: none; }
 
