@@ -18,6 +18,10 @@ import {
 } from './icons';
 import { MessageModal } from '@shared/components/MessageModal';
 import { CloseCircleIcon } from '@shared/ui/icons';
+import { InteractiveMap } from '@shared/InteractiveMap';
+// boundText: a Duda content field can arrive as an unsubstituted {{handlebars}}
+// token, which would be sent to Google as a key and rejected.
+import { boundText } from '@shared/propertyBinding';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -38,6 +42,20 @@ export interface PropertyInfoProps {
   rating?: number;
   reviewCount?: number;
   reviewsUrl?: string;
+  /**
+   * Google Maps JavaScript API key, so the map can be dragged with ONE finger
+   * on a phone. An embedded map needs two — that is Google's behaviour inside
+   * the iframe and no CSS of ours reaches it.
+   *
+   * Browser-visible by necessity: the JS API authenticates from the page, so
+   * this cannot be proxied. Use a SEPARATE key restricted by HTTP referrer to
+   * the site's domains — never the one tenant-proxy holds for Places, which is
+   * server-side precisely because it can be billed by anyone who sees it.
+   *
+   * Left empty the map is the keyless embed it has always been, which still
+   * pans on desktop. Nothing breaks without it.
+   */
+  mapsApiKey?: string;
   address?: string;
   addressUrl?: string;
   phones?: PhoneEntry[];
@@ -229,6 +247,7 @@ export function PropertyInfo(props: Props) {
     rating = DEFAULTS.rating,
     reviewCount = DEFAULTS.reviewCount,
     reviewsUrl = '#',
+    mapsApiKey,
     address = DEFAULTS.address,
     addressUrl = '#',
     phones = DEFAULTS.phones,
@@ -493,16 +512,24 @@ export function PropertyInfo(props: Props) {
     ? addressUrl
     : hasCoords ? `https://www.google.com/maps?q=${property!.lat},${property!.lng}` : '#';
 
-  // Real embedded map when the API gave us coordinates; CSS placeholder otherwise.
+  /*
+   * The map, when the API gave us coordinates; the CSS placeholder otherwise.
+   *
+   * No longer role="img": it is draggable and zoomable, so calling it an image
+   * told a screen reader the opposite of what it is. InteractiveMap labels the
+   * live canvas itself.
+   *
+   * With no mapsApiKey it renders the same keyless embed as before, so a site
+   * that has not configured one is exactly where it was.
+   */
   const mapEl = (
-    <div className="pi-map" role="img" aria-label="Map showing the property location">
+    <div className="pi-map">
       {hasCoords ? (
-        <iframe
-          className="pi-map-iframe"
+        <InteractiveMap
+          lat={property!.lat as number}
+          lng={property!.lng as number}
           title={`Map of ${displayName}`}
-          src={`https://www.google.com/maps?q=${property!.lat},${property!.lng}&z=15&output=embed`}
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
+          apiKey={boundText(mapsApiKey) || undefined}
         />
       ) : (
         <span className="pi-map-pin" />

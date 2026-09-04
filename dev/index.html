@@ -245,6 +245,9 @@
             <option value="lBNDWS8N2g">Storelocal Waikele — Waipahu, HI</option>
           </select>
         </label>
+        <label>Maps JS API key:
+          <input id="pi-maps-key" type="text" placeholder="optional" title="Google Maps JavaScript API key, referrer-restricted. Blank = the keyless embed, which needs two fingers to pan on mobile." style="width:230px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitPropertyInfo()" />
+        </label>
         <label>
           Display mode:
           <select id="pi-display-mode" onchange="reinitPropertyInfo()">
@@ -1343,6 +1346,10 @@
       // propertyId is OMITTED when blank rather than passed as '', so the widget
       // keeps its config.json fallback instead of being handed an empty id.
       if (id) props.propertyId = id;
+      // Maps JS key. Blank keeps the keyless embed, which is what a site
+      // without one gets — so leaving this empty tests that path too.
+      var mk = document.getElementById('pi-maps-key');
+      if (mk && mk.value.trim()) props.mapsApiKey = mk.value.trim();
       return props;
     }
 
