@@ -480,7 +480,11 @@ export function NearbySection() {
             /* Draggable and zoomable, with the price pins tracking the tiles.
                Falls back to the frozen embed exactly as before whenever the
                proxy serves no Maps key. */
-            <NearbyMap center={refLoc} points={mapPoints} height={280} interactive />
+            /* Framed on the nearby PROPERTIES, not on this property. Centring
+               on the reference put the pins off to one side and often out of
+               frame, so the map opened somewhere the visitor then had to drag
+               away from. The reference dot still marks where they are. */
+            <NearbyMap center={refLoc} points={mapPoints} height={280} interactive fitToPoints />
           ) : (
             <div className="sl-nb2-map-placeholder">
               <span>Map unavailable</span>
