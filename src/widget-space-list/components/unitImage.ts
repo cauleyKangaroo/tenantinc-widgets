@@ -1,8 +1,11 @@
 // ---------------------------------------------------------------------------
-// One image, four steps down, used by every card that shows a space.
+// One image, stepping down, used by every card that shows a space.
 //
-//   1. mediaImages[0]   {Band}_{Amenity}.png  — Small_Driveup.png
-//   2. mediaImages[1]   {Band}.png            — Small.png
+//   1. the site's Media Manager, most specific first (see mediaImages):
+//        {Band}_{Amenity}.png  — Small_Driveup.png
+//        {Band}.png            — Small.png
+//   2. the shared S3 set:
+//        {Band}.png            — the same bands, uploaded once for every site
 //   3. unit.image       the bundled render for this dimension / size band
 //   4. defaultImg       the generic placeholder
 //
@@ -14,10 +17,12 @@
 //
 // Walking the list IS the existence check. There is no way to know in advance
 // which files an operator uploaded: a missing one answers 403 from Duda's CDN
-// (not 404), and only a real request reveals it. `error` fires either way.
+// (not 404) and 403 from CloudFront too, and only a real request reveals it.
+// `error` fires either way.
 //
 // The cost is one failed request per missing step, once, then cached by the
-// browser. That is why the list is kept to two entries.
+// browser — which is why `mediaImages` stays a short list and the S3 tier
+// contributes ONE url, not an amenity variant that is known not to exist.
 // ---------------------------------------------------------------------------
 import type { Unit } from '../types';
 
