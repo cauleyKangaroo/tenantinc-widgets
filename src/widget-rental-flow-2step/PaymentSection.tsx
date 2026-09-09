@@ -351,8 +351,10 @@ export function BankForm({ total, onPay, busy, payLabel }: {
         </>
       )}
 
+      {/* Same busy treatment as the card panel: disabled alone changes nothing
+          the shopper can see, and the lightbox can be dismissed. */}
       <button type="button" className="rf-paynow" onClick={pay} disabled={busy}>
-        {payLabel ?? `Pay Now ${money(total)}`}
+        {busy ? 'Processing…' : (payLabel ?? `Pay Now ${money(total)}`)}
       </button>
     </>
   );
