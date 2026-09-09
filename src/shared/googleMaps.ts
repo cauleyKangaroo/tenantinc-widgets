@@ -38,6 +38,9 @@ export interface GMap {
   setZoom(z: number): void;
   getZoom(): number | undefined;
   panTo(pos: { lat: number; lng: number }): void;
+  /** Live centre — what an overlay must reproject against as the map moves. */
+  getCenter(): { lat(): number; lng(): number } | null | undefined;
+  addListener(event: string, handler: () => void): { remove?: () => void };
 }
 
 /** Only what a draggable pin needs. `addListener` returns a remover. */

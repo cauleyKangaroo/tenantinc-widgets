@@ -477,7 +477,10 @@ export function NearbySection() {
           <SkeletonCard />
         ) : view === 'map' ? (
           refLoc && mapPoints.length ? (
-            <NearbyMap center={refLoc} points={mapPoints} height={280} />
+            /* Draggable and zoomable, with the price pins tracking the tiles.
+               Falls back to the frozen embed exactly as before whenever the
+               proxy serves no Maps key. */
+            <NearbyMap center={refLoc} points={mapPoints} height={280} interactive />
           ) : (
             <div className="sl-nb2-map-placeholder">
               <span>Map unavailable</span>

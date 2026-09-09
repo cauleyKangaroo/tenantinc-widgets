@@ -1,12 +1,28 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { loadGoogleMaps, fetchMapsKey, type GMap } from './googleMaps';
+import { DEFAULT_PLACES_BASE } from './placesApi';
 
-// Self-contained nearby map: a keyless Google `output=embed` iframe as the
-// (non-interactive) background — same approach as the property-info map — with
-// price pins overlaid on top. Pins are positioned by projecting each point's
-// lat/lng to pixels via Web Mercator at the map's zoom, so they align with the
-// embed. The iframe is pointer-events:none so panning can't drift the overlay.
+// Nearby map: price pins overlaid on a Google map. Pins are positioned by
+// projecting each point's lat/lng to pixels via Web Mercator at the map's
+// centre and zoom, so they sit where they belong on the tiles beneath.
 //
-// No external scripts, no API key → safe inside the AMD bundle / Duda CSP.
+// TWO BACKGROUNDS, AND THE OVERLAY MATH IS SHARED
+//
+// Without a Maps key it is the keyless `output=embed` iframe, frozen at a
+// computed fit-zoom and pointer-events:none — panning it would drift the pins
+// out of alignment, and inside an iframe we cannot know it moved. That is the
+// ORIGINAL behaviour and it is still exactly what a keyless site gets.
+//
+// With a key it upgrades to a real google.maps.Map that the visitor can drag
+// and zoom, and the same projection re-runs against the map's LIVE centre and
+// zoom on every move, so the pins track the tiles instead of drifting. Web
+// Mercator is Google's own projection, which is why one set of maths serves
+// both — the static case already proved it lines up.
+//
+// The pins stay OUR React elements in both modes rather than becoming
+// google.maps.Markers: they carry the Figma styling, the click popup and the
+// `renderPin` render-prop that #08 depends on, none of which survives being
+// handed to Google.
 
 export interface MapPoint {
   id: string;
@@ -52,6 +68,23 @@ interface NearbyMapProps {
    * — either one hides the dot (see the render below).
    */
   hideCenterMarker?: boolean;
+  /**
+   * Proxy base serving the Maps key from /api/maps/config. Omitted → the shared
+   * default. No key, a blocked script or a rejected referrer all resolve to the
+   * keyless iframe, so a site without one is exactly where it was.
+   */
+  proxyBase?: string;
+  /**
+   * Opt IN to the draggable, zoomable map. Default false — every existing
+   * caller keeps the frozen embed it was written against.
+   *
+   * Opt-in rather than opt-out because this component has three live callers
+   * (#05's nearby section, #08's map page, the nav's mega-menu) and the last
+   * two draw their pins through `renderPin`, sized and placed against a map
+   * that cannot move. Flipping all three at once on a shared default would
+   * change two widgets nobody asked about.
+   */
+  interactive?: boolean;
 }
 
 const TILE = 256;
@@ -89,8 +122,26 @@ export function NearbyMap({
   renderPin,
   showCenterMarker = true,
   hideCenterMarker,
+  proxyBase,
+  interactive = false,
 }: NearbyMapProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const holder = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<GMap | null>(null);
+  /** The real map is up; the iframe is gone and `view` drives the projection. */
+  const [live, setLive] = useState(false);
+  /**
+   * The map's live centre and zoom, mirrored into React so the pins reproject.
+   * Null until the map reports one — until then the computed fit below is the
+   * truth, which is also the whole of the keyless path.
+   */
+  const [view, setView] = useState<{ lat: number; lng: number; zoom: number } | null>(null);
+  /**
+   * The visitor has grabbed the map. Auto-fitting after that would yank the
+   * view back while they are reading it — pins arrive asynchronously, so
+   * without this the map would jump under them seconds after they moved it.
+   */
+  const userMoved = useRef(false);
   const [width, setWidth] = useState(0);
   // Measured, not the `height` prop: that may be a CSS string ('100%') when the
   // map fills a flex row, and the projection below needs real pixels.
@@ -112,12 +163,88 @@ export function NearbyMap({
     return () => ro.disconnect();
   }, []);
 
-  const zoom = fitZoom(center, points, width, boxHeight);
+  /** The zoom that fits every point — the static view, and the map's start. */
+  const fitted = fitZoom(center, points, width, boxHeight);
+
+  /*
+   * Project against the LIVE map once there is one, else the computed fit.
+   * This single swap is what makes the pins follow a dragged map: everything
+   * below is unchanged arithmetic, fed a different centre and zoom.
+   */
+  const zoom = view ? view.zoom : fitted;
+  const projCenter = view ? { lat: view.lat, lng: view.lng } : center;
   const scale = TILE * 2 ** zoom;
-  const c = worldXY(center.lat, center.lng);
+  const c = worldXY(projCenter.lat, projCenter.lng);
 
   // Classic Maps embed centers on ll at the given zoom without dropping a pin.
-  const src = `https://maps.google.com/maps?ll=${center.lat},${center.lng}&z=${zoom}&output=embed`;
+  const src = `https://maps.google.com/maps?ll=${center.lat},${center.lng}&z=${fitted}&output=embed`;
+
+  /*
+   * Construction inputs, in a ref so they can be current without being effect
+   * dependencies — the map is built ONCE and then steered, never rebuilt.
+   */
+  const initRef = useRef({ center, points, width, boxHeight });
+  initRef.current = { center, points, width, boxHeight };
+
+  useEffect(() => {
+    if (!interactive) return undefined;
+    let dead = false;
+
+    void fetchMapsKey(proxyBase || DEFAULT_PLACES_BASE)
+      .then((key) => (key ? loadGoogleMaps(key) : null))
+      .then((api) => {
+        // `mapRef.current` guards the second run of React 18 StrictMode.
+        if (dead || !api || !holder.current || mapRef.current) return;
+        const { center: ctr, points: pts, width: w, boxHeight: h } = initRef.current;
+
+        const map = new api.Map(holder.current, {
+          center: ctr,
+          zoom: fitZoom(ctr, pts, w, h),
+          // One finger pans, as on #03's map, instead of scrolling the page.
+          gestureHandling: 'greedy',
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          // Google's own zoom buttons here, unlike #03: this map already
+          // carries price pins and a popup, and hand-placed controls would
+          // sooner or later land on top of one.
+          zoomControl: true,
+        });
+
+        /*
+         * Mirror the map's centre and zoom into React on every movement. This
+         * is the whole mechanism: `view` feeds the projection, so the pins are
+         * re-laid-out against the tiles on each frame of a drag rather than
+         * sliding out of alignment.
+         */
+        const sync = () => {
+          const cc = map.getCenter();
+          const cz = map.getZoom();
+          if (!cc || cz == null || dead) return;
+          setView({ lat: cc.lat(), lng: cc.lng(), zoom: cz });
+        };
+        map.addListener('bounds_changed', sync);
+        map.addListener('dragstart', () => { userMoved.current = true; });
+
+        mapRef.current = map;
+        sync();
+        setLive(true);
+      });
+
+    return () => { dead = true; };
+  }, [interactive, proxyBase]);
+
+  /*
+   * Re-fit as the data lands: points arrive from a later call than the card, so
+   * the map is built before it knows what it has to show. Stops for good once
+   * the visitor drags — see `userMoved`.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !live || userMoved.current || !width || !boxHeight) return;
+    map.setCenter(center);
+    map.setZoom(fitted);
+  }, [live, fitted, center.lat, center.lng, width, boxHeight]);
 
   const positioned = points.map((p) => {
     const wp = worldXY(p.lat, p.lng);
@@ -133,13 +260,42 @@ export function NearbyMap({
       style={{ position: 'relative', width: '100%', height, borderRadius: 16, overflow: 'hidden' }}
       onClick={() => setOpenId(null)}
     >
-      <iframe
-        title="Nearby properties map"
-        src={src}
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, pointerEvents: 'none' }}
+      {/* Frozen background. Kept mounted until the real map has painted, so
+          there is never a blank box between the two — and it is the ONLY
+          background when no key is configured. */}
+      {!live && (
+        <iframe
+          title="Nearby properties map"
+          src={src}
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, pointerEvents: 'none' }}
+        />
+      )}
+
+      {/* The live map. Always mounted and sized — google.maps.Map measures the
+          element it is handed, so it cannot be display:none at construction —
+          but pointer-transparent until it exists, or an empty div would sit on
+          top of the iframe swallowing every gesture. */}
+      <div
+        ref={holder}
+        style={{
+          position: 'absolute', inset: 0, width: '100%', height: '100%',
+          pointerEvents: live ? 'auto' : 'none',
+        }}
+        aria-hidden={live ? undefined : true}
       />
+
+      {/*
+        The overlay. pointer-events:none once the map is live so a drag started
+        anywhere between the pins reaches the map underneath; each interactive
+        child turns them back on for itself (pointer-events inherits). Frozen,
+        it stays 'auto' exactly as before — the iframe below cannot use them.
+      */}
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 1,
+        pointerEvents: live ? 'none' : 'auto',
+      }}>
 
       {/* Reference marker (viewer / current property) at the map centre. */}
       {/* Either switch hides it; the dot only shows when neither says otherwise. */}
@@ -151,9 +307,12 @@ export function NearbyMap({
         }} />
       )}
 
-      {/* Price pins — clickable (the iframe below is pointer-events:none). */}
+      {/* Price pins — clickable in both modes. The span is static and
+          zero-sized, so the absolutely-positioned pin inside it still lays out
+          against the overlay; it exists only to hand the pin back its pointer
+          events, which it inherits. */}
       {width > 0 && renderPin && positioned.map((p) => (
-        <React.Fragment key={p.id}>{renderPin(p)}</React.Fragment>
+        <span key={p.id} style={{ pointerEvents: 'auto' }}>{renderPin(p)}</span>
       ))}
 
       {width > 0 && !renderPin && positioned.map((p) => {
@@ -167,6 +326,7 @@ export function NearbyMap({
             style={{
               position: 'absolute', left: p.left, top: p.top, transform: 'translate(-50%, -100%)',
               display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+              pointerEvents: 'auto',
               padding: p.label ? '4px 9px' : 0,
               width: p.label ? 'auto' : 14,
               height: p.label ? 'auto' : 14,
@@ -196,7 +356,7 @@ export function NearbyMap({
             width: 210, maxWidth: '80%',
             background: '#fff', borderRadius: 12, padding: '12px 14px',
             boxShadow: '0 6px 24px rgba(0,0,0,0.22)', border: '1px solid #e6e9ee',
-            textAlign: 'left', zIndex: 2,
+            textAlign: 'left', zIndex: 2, pointerEvents: 'auto',
           }}
         >
           {open.name && (
@@ -220,6 +380,8 @@ export function NearbyMap({
           }} />
         </div>
       )}
+
+      </div>
     </div>
   );
 }
