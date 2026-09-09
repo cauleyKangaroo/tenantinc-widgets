@@ -115,6 +115,15 @@ export function InteractiveMap({
         mapRef.current = map;
         markerRef.current = marker;
         if (!dead) setLive(true);
+      })
+      /*
+       * Construction can throw — a half-initialised namespace, a revoked key,
+       * a CSP refusal mid-load. `live` then stays false, which leaves the
+       * iframe up, so the card still has a map. Without this the rejection
+       * would be unhandled and the reason would never reach the console.
+       */
+      .catch((err) => {
+        console.warn('[InteractiveMap] the live map could not be created — keeping the embed:', err);
       });
 
     return () => { dead = true; };
