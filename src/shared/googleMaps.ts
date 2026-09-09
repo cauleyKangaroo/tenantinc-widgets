@@ -58,10 +58,25 @@ declare global {
   }
 }
 
-/** One load per page however many widgets ask — the API throws on a second. */
+/**
+ * One load per page however many widgets ask — the API throws on a second.
+ *
+ * Deliberately NOT keyed by apiKey: a page can only ever host one Maps API, so
+ * if two widgets somehow resolved different keys the second could not have its
+ * own instance anyway. First key wins, which is the only thing that can happen.
+ */
 let loader: Promise<GMapsApi | null> | null = null;
-/** One config fetch per page, shared the same way. */
-let keyFetch: Promise<string> | null = null;
+
+/**
+ * One config fetch per PROXY BASE.
+ *
+ * Keyed rather than a single slot: #03 takes a `mapsProxyBase` binding while
+ * NearbyMap's callers fall back to the shared default, so two widgets on one
+ * property page can legitimately ask different servers. A single cached promise
+ * meant whichever mounted first won and the other silently read its key from
+ * the wrong proxy — or, if the first had no base at all, never fetched again.
+ */
+const keyFetches = new Map<string, Promise<string>>();
 
 /**
  * The browser key, from the proxy rather than the bundle.
@@ -76,10 +91,13 @@ let keyFetch: Promise<string> | null = null;
  * falls back to the keyless embed.
  */
 export function fetchMapsKey(proxyBase: string): Promise<string> {
-  if (keyFetch) return keyFetch;
+  // Normalise BEFORE the cache lookup, so a trailing slash cannot open a
+  // second request to the same server.
   const base = (proxyBase || '').replace(/\/$/, '');
   if (!base) return Promise.resolve('');
-  keyFetch = fetch(`${base}/api/maps/config`, { headers: { Accept: 'application/json' } })
+  const cached = keyFetches.get(base);
+  if (cached) return cached;
+  const pending = fetch(`${base}/api/maps/config`, { headers: { Accept: 'application/json' } })
     .then((r) => (r.ok ? r.json() : null))
     .then((j: { enabled?: boolean; key?: string; reason?: string } | null) => {
       // The proxy refuses to serve the server-side key and says why; surface
@@ -88,7 +106,8 @@ export function fetchMapsKey(proxyBase: string): Promise<string> {
       return j?.enabled && typeof j.key === 'string' ? j.key : '';
     })
     .catch(() => '');
-  return keyFetch;
+  keyFetches.set(base, pending);
+  return pending;
 }
 
 export function loadGoogleMaps(apiKey: string): Promise<GMapsApi | null> {
@@ -109,8 +128,18 @@ export function loadGoogleMaps(apiKey: string): Promise<GMapsApi | null> {
      * together cannot overwrite each other's.
      */
     const cbName = `__gmapsReady_${Math.random().toString(36).slice(2)}`;
+    let timer = 0;
+    /*
+     * Settles exactly once. `delete window[cbName]` is what the stop below
+     * tests, so a late callback after a timeout — or a timeout after a
+     * callback — cannot resolve a second time. The timer is cleared too: the
+     * script is long-lived and an orphaned 8s handle would keep a closure over
+     * this promise alive for no reason.
+     */
     const done = (api: GMapsApi | null) => {
+      if (!window[cbName]) return;
       delete window[cbName];
+      if (timer) window.clearTimeout(timer);
       resolve(api);
     };
     window[cbName] = () => done(window.google?.maps ?? null);
@@ -130,7 +159,18 @@ export function loadGoogleMaps(apiKey: string): Promise<GMapsApi | null> {
      * console without ever calling back. Without this the caller would wait for
      * a map that is never coming.
      */
-    window.setTimeout(() => { if (window[cbName]) done(window.google?.maps ?? null); }, 8000);
+    timer = window.setTimeout(() => {
+      /*
+       * `window.google.maps` EXISTING is not the same as it being usable: with
+       * `loading=async` the namespace appears before its modules resolve, and
+       * the callback is the only signal that `Map` is really there. Handing
+       * back a half-built namespace would throw inside `new api.Map(...)` in
+       * the caller instead of falling back, so this hands back null unless the
+       * constructor we actually use is present.
+       */
+      const api = window.google?.maps;
+      done(typeof api?.Map === 'function' ? api : null);
+    }, 8000);
   });
 
   return loader;

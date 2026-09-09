@@ -229,6 +229,14 @@ export function NearbyMap({
         mapRef.current = map;
         sync();
         setLive(true);
+      })
+      /*
+       * A throw here leaves `live` false, so the frozen embed and the
+       * projected pins stay exactly as they are — the map is still usable,
+       * just not draggable. Unhandled, the reason would never be seen.
+       */
+      .catch((err) => {
+        console.warn('[NearbyMap] the live map could not be created — keeping the embed:', err);
       });
 
     return () => { dead = true; };
