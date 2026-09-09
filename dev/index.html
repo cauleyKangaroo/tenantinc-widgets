@@ -112,6 +112,7 @@
     <button class="page-tab" data-page="city" onclick="showPage('city')">City page</button>
     <button class="page-tab" data-page="homepage" onclick="showPage('homepage')">Homepage</button>
     <button class="page-tab" data-page="storage-type" onclick="showPage('storage-type')">Storage Type page</button>
+    <button class="page-tab" data-page="storage-types-index" onclick="showPage('storage-types-index')">Storage Types index</button>
     <button class="page-tab" data-page="ui-kit" onclick="showPage('ui-kit')">UI Kit (forms &amp; buttons)</button>
   </div>
 
@@ -910,7 +911,33 @@
            style="max-width:1120px; margin:0 auto; padding:32px 0;"></div>
     </div>
 
+    <!-- #20, related variant. Below 768px it becomes a swipeable carousel with
+         dots; above, the whole row shows at once and the rail never moves. -->
+    <div class="widget-section">
+      <h2>widget-storage-types (#20) — related</h2>
+      <p style="margin:0 0 12px; font-size:13px; color:#637381;">
+        The list comes from the Duda <strong>page tree</strong> under
+        <code>storage-types</code>; the collection only adds copy and imagery.
+        Without <code>?mockCollections=1</code> there is no page tree either, so
+        example cards show instead.
+      </p>
+      <!-- 1330px, the Figma container: 3 x 422px cards + 2 x 32px gaps. A
+           narrower wrapper silently shrinks the cards, so a visual check here
+           would never match the frame. -->
+      <div id="storage-types-related-container" class="widget-container"
+           style="max-width:1330px; margin:0 auto; padding:16px 0;"></div>
+    </div>
+
   </div><!-- /#page-storage-type -->
+
+  <!-- ── Storage Types index (/storage-types/) ─────────────────────────────── -->
+  <div id="page-storage-types-index" class="page" hidden>
+    <div class="widget-section">
+      <h2>widget-storage-types (#20) — index</h2>
+      <div id="storage-types-index-container" class="widget-container"
+           style="max-width:1330px; margin:0 auto; padding:32px 0;"></div>
+    </div>
+  </div><!-- /#page-storage-types-index -->
 
   <!-- ── Shared UI kit styleguide ─────────────────────────────────────────── -->
   <div id="page-ui-kit" class="page" hidden>
@@ -1002,6 +1029,41 @@
 
       var COLLECTIONS = {
         Company: [{ data: { id: rte('kQoBXA8vpn') } }],
+        // Copy/image enrichment for #20. These slugs intentionally match the
+        // page-tree fixtures below so the harness exercises the real join and
+        // renders complete cards instead of featureless page-title fallbacks.
+        StorageTypes: [
+          { data: {
+            slug: rte('climate-controlled-storage'), display_name: rte('Climate Controlled Storage'),
+            abstract: rte("Don't start the year off with overflowing closets, stuffed garages, and just too much..."),
+            card_image: '/demo-assets/property-1.jpg',
+            card_alt: rte('Climate controlled storage hallway'), sort_order: rte('1')
+          } },
+          { data: {
+            slug: rte('car-rv-boat-storage'), display_name: rte('Car, RV & Boat Storage'),
+            abstract: rte("Don't start the year off with overflowing closets, stuffed garages, and just too much..."),
+            card_image: '/demo-assets/property-2.jpg',
+            card_alt: rte('Covered vehicle storage'), sort_order: rte('2')
+          } },
+          { data: {
+            slug: rte('business-storage'), display_name: rte('Business Storage'),
+            abstract: rte("Don't start the year off with overflowing closets, stuffed garages, and just too much..."),
+            card_image: '/demo-assets/property-3.jpg',
+            card_alt: rte('Business storage boxes'), sort_order: rte('3')
+          } },
+          { data: {
+            slug: rte('drive-up-storage'), display_name: rte('Drive-Up Storage'),
+            abstract: rte("Don't start the year off with overflowing closets, stuffed garages, and just too much..."),
+            card_image: '/demo-assets/property-4.jpg',
+            card_alt: rte('Drive-up storage'), sort_order: rte('4')
+          } },
+          { data: {
+            slug: rte('wine-storage'), display_name: rte('Wine Storage'),
+            abstract: rte("Don't start the year off with overflowing closets, stuffed garages, and just too much..."),
+            card_image: '/demo-assets/property-5.jpg',
+            card_alt: rte('Wine storage'), sort_order: rte('5')
+          } }
+        ],
         PropertiesInternal: P.map(function (r, i) {
           return { data: {
             id: r[0], name: r[1], slug: r[2], spaceGroupId: r[3],
@@ -1166,7 +1228,7 @@
   <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
     // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
-    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'my-account', 'value-tiers', 'rental-flow', 'city', 'homepage', 'storage-type', 'ui-kit'];
+    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'my-account', 'value-tiers', 'rental-flow', 'city', 'homepage', 'storage-type', 'storage-types-index', 'ui-kit'];
 
     // Per-page container ids for the widgets that appear on more than one page.
     var NAV_CONTAINERS = {
@@ -1207,6 +1269,7 @@
     // property page only; the blog page's listing is #15 widget-blogs-page.
     var navigationBarWidget = null;
     var footerWidget        = null;
+    var storageTypesWidget  = null;
 
     // Every control is read defensively: the nav is mounted on four different
     // tabs and only the first carries this panel, so on the others these
@@ -1247,6 +1310,24 @@
 
       if (navigationBarWidget && navEl)    navigationBarWidget.init({ container: navEl,    props: getNavProps() });
       if (footerWidget        && footerEl) footerWidget.init({        container: footerEl, props: {} });
+
+      // #20 renders on two tabs with different props, and createWidget binds the
+      // module to ONE container — initing both at load left whichever mounted
+      // first unmounted. Mount only the visible page's instance.
+      if (storageTypesWidget) {
+        if (name === 'storage-types-index') {
+          storageTypesWidget.init({
+            container: document.getElementById('storage-types-index-container'),
+            props: { variant: 'index', storageTypesRoute: 'storage-types' },
+          });
+        } else if (name === 'storage-type') {
+          storageTypesWidget.init({
+            container: document.getElementById('storage-types-related-container'),
+            props: { variant: 'related', currentSlug: 'boat-and-rv-wash-bay',
+                     storageTypesRoute: 'storage-types', limit: 3 },
+          });
+        }
+      }
     }
 
     // Mobile preview. Sits inline and centred; the harness pages are hidden
@@ -1822,6 +1903,11 @@
       if (storageTypeLocationsWidget.clean) storageTypeLocationsWidget.clean({ container: container });
       storageTypeLocationsWidget.init({ container: container, props: getStorageTypeLocationsProps() });
     }
+
+    require(['/dist/widget-storage-types.js'], function (widget) {
+      storageTypesWidget = widget;
+      mountSharedWidgets(activePage());
+    });
 
     require(['/dist/widget-storage-type-locations.js'], function (widget) {
       storageTypeLocationsWidget = widget;

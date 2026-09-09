@@ -29,6 +29,7 @@ const widgetEntries = {
   // between them, not the number.
   'widget-space-list-heading':'./src/widget-space-list-heading/index.tsx',// #18
   'widget-storage-type-locations':'./src/widget-storage-type-locations/index.tsx',// #19
+  'widget-storage-types':    './src/widget-storage-types/index.tsx',    // #20
   'widget-rental-flow-2step':'./src/widget-rental-flow-2step/index.tsx',// #99 (TBD)
   // Living styleguide for @shared/ui — DEV HARNESS ONLY, never a Duda widget.
   // Deliberately unnumbered so it can't be mistaken for one.
@@ -98,9 +99,13 @@ module.exports = (_env, argv) => {
     devServer: isDev
       ? {
           // Serve the dev/ harness HTML from the root
-          static: {
-            directory: path.join(__dirname, 'dev'),
-          },
+          static: [
+            { directory: path.join(__dirname, 'dev') },
+            {
+              directory: path.join(__dirname, 'src/shared/assets/demo'),
+              publicPath: '/demo-assets',
+            },
+          ],
           port: 3000,
           // AMD format is incompatible with webpack HMR; use plain live-reload.
           hot: false,

@@ -1,0 +1,227 @@
+// ===========================================================================
+// #20 — Storage type cards
+//
+// One widget, two layouts:
+//   • variant="index"   — the full grid on /storage-types/
+//   • variant="related" — the "More Space Types" row at the foot of a type
+//                         page, a swipeable carousel on mobile
+//
+// Both read the same source (see ./storageTypeSource): the PAGE TREE decides
+// which types exist, the StorageTypes collection supplies copy and imagery.
+// A page with no collection row still gets a card.
+// ===========================================================================
+
+import { useEffect, useMemo, useState } from 'react';
+import './StorageTypes.css';
+import '@shared/ui/tokens.css';
+import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
+import { CarouselDots } from '@shared/CarouselDots';
+import { hasSitePagesApi } from '@shared/sitePages';
+import { fetchStorageTypes, STORAGE_TYPES_COLLECTION, type StorageType } from './storageTypeSource';
+
+export type StorageTypesVariant = 'index' | 'related';
+
+export interface StorageTypesProps {
+  variant?: StorageTypesVariant;
+  heading?: string;
+  /** Route(s) holding the type pages. Comma separated. */
+  storageTypesRoute?: string;
+  collectionName?: string;
+  /** The page this row sits on, excluded from a "related" list. */
+  currentSlug?: string;
+  /** Cards in the related row. Default 3, as drawn. */
+  limit?: number | string;
+  /** Mirror the nav exactly, dropping pages hidden from it. Default false. */
+  skipHiddenPages?: boolean | string;
+  inEditor?: boolean | string;
+}
+
+const PREVIEW: StorageType[] = [
+  { slug: 'covered-vehicle-storage', title: 'Covered Vehicle Storage', href: '#', sortOrder: 1, hiddenFromListing: false,
+    abstract: "Don't start the year off with overflowing closets, stuffed garages, and just too much…", image: '', imageAlt: 'Covered Vehicle Storage' },
+  { slug: 'drive-up-climate-controlled-storage', title: 'Drive-Up Climate Controlled Storage', href: '#', sortOrder: 2, hiddenFromListing: false,
+    abstract: "Don't start the year off with overflowing closets, stuffed garages, and just too much…", image: '', imageAlt: 'Drive-Up Climate Controlled Storage' },
+  { slug: 'drive-up-storage', title: 'Drive-Up Storage', href: '#', sortOrder: 3, hiddenFromListing: false,
+    abstract: "Don't start the year off with overflowing closets, stuffed garages, and just too much…", image: '', imageAlt: 'Drive-Up Storage' },
+];
+
+function boolProp(v: boolean | string | undefined): boolean {
+  return v === true || v === 'true';
+}
+
+function intProp(v: number | string | undefined, fallback: number): number {
+  const n = typeof v === 'number' ? v : parseInt(String(v ?? ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function isLocalHarness(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(window.location.hostname);
+}
+
+function dudaEnvironment(): string {
+  try {
+    const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
+    return dm?.getCurrentEnvironment?.().trim().toLowerCase() ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/** The related row is a carousel below this width and a static row above it. */
+const NARROW_BP = '(max-width: 768px)';
+
+function useIsNarrow(): boolean {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && !!window.matchMedia?.(NARROW_BP).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia?.(NARROW_BP);
+    if (!mq) return;
+    const onChange = () => setNarrow(mq.matches);
+    onChange();
+    // Safari < 14 has no addEventListener on MediaQueryList.
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else mq.addListener(onChange);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', onChange);
+      else mq.removeListener(onChange);
+    };
+  }, []);
+  return narrow;
+}
+
+/** Cards are the same in both layouts; only their container differs. */
+function Card({ type }: { type: StorageType }) {
+  return (
+    <a className="st-card" href={type.href}>
+      <div className="st-card-media">
+        {type.image
+          ? <img className="st-card-img" src={type.image} alt={type.imageAlt} loading="lazy" />
+          : <div className="st-card-img st-card-img--empty" aria-hidden="true" />}
+      </div>
+      <div className="st-card-body">
+        <h3 className="st-card-title">{type.title}</h3>
+        {type.abstract ? <p className="st-card-abstract">{type.abstract}</p> : null}
+        <span className="st-card-more">Read more</span>
+      </div>
+    </a>
+  );
+}
+
+export function StorageTypes({
+  variant = 'index',
+  heading,
+  storageTypesRoute = 'storage-types',
+  collectionName = STORAGE_TYPES_COLLECTION,
+  currentSlug = '',
+  limit,
+  skipHiddenPages,
+  inEditor,
+}: StorageTypesProps) {
+  const [types, setTypes] = useState<StorageType[] | null>(null);
+  const isRelated = variant === 'related';
+  const perView = intProp(limit, 3);
+
+  useEffect(() => {
+    let cancelled = false;
+    const tag = `[#20 storage-types ${variant}]`;
+    const environment = dudaEnvironment();
+
+    // Same gate as #19. `isLocalHarness()` alone is NOT enough: the harness can
+    // serve a page tree via ?mockCollections=1, and short-circuiting on hostname
+    // would hide the real path behind example cards exactly where we test it.
+    // And never `!hasSitePagesApi()` alone — dmAPI is injected late on a
+    // published page, so that would leak example cards into production.
+    const explicitPreview = boolProp(inEditor) || (!!environment && environment !== 'live');
+    const localPreview = isLocalHarness() && !hasSitePagesApi();
+    if (explicitPreview || localPreview) {
+      setTypes(PREVIEW.slice(0, isRelated ? perView : PREVIEW.length));
+      return;
+    }
+
+    fetchStorageTypes(tag, {
+      route: storageTypesRoute,
+      collectionName,
+      excludeSlug: isRelated ? currentSlug : '',
+      skipHidden: boolProp(skipHiddenPages),
+    })
+      .then((rows) => {
+        if (cancelled) return;
+        if (!rows.length) console.warn(`${tag} no pages under "${storageTypesRoute}"`);
+        setTypes(isRelated ? rows.slice(0, perView) : rows);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        console.error(`${tag} could not build the list:`, err instanceof Error ? err.message : String(err));
+        setTypes([]);
+      });
+
+    return () => { cancelled = true; };
+  }, [variant, storageTypesRoute, collectionName, currentSlug, perView, skipHiddenPages, inEditor, isRelated]);
+
+  const list = types ?? [];
+  const reduceMotion = usePrefersReducedMotion();
+  const isNarrow = useIsNarrow();
+
+  // One structure serves both widths. Desktop shows the whole row at once
+  // (perView === count ⇒ maxIndex 0 ⇒ no transform, no dots); mobile steps one
+  // card at a time. The slide width follows perView through a custom property,
+  // so the CSS never has to know the count.
+  const perViewNow = isRelated && isNarrow ? 1 : Math.max(list.length, 1);
+  const carousel = useCarousel({
+    count: list.length,
+    perView: perViewNow,
+    draggable: isRelated && isNarrow && !reduceMotion,
+  });
+
+  const title = useMemo(
+    () => heading || (isRelated ? 'More Space Types' : 'Storage Types'),
+    [heading, isRelated],
+  );
+
+  if (types === null) return null;
+  // No pages under the route is the honest "this site has no storage types",
+  // and a heading over an empty grid reads as broken.
+  if (!list.length) return null;
+
+  if (!isRelated) {
+    return (
+      <section className="st st--index">
+        <h2 className="st-heading">{title}</h2>
+        <div className="st-grid">
+          {list.map((t) => <Card type={t} key={t.slug} />)}
+        </div>
+      </section>
+    );
+  }
+
+  const railStyle: React.CSSProperties = {
+    transform: `translateX(calc(${carousel.offsetPct}% / ${perViewNow}))`,
+    transition: carousel.dragging || reduceMotion ? 'none' : 'transform 260ms ease',
+  };
+
+  return (
+    <section className="st st--related">
+      <h2 className="st-heading">{title}</h2>
+      <div className="st-track">
+        <div className="st-rail" style={railStyle} {...carousel.handlers}>
+          {list.map((t) => (
+            <div className="st-slide" key={t.slug}><Card type={t} /></div>
+          ))}
+        </div>
+      </div>
+      {carousel.maxIndex > 0 ? (
+        <div className="st-dots">
+          <CarouselDots
+            count={carousel.maxIndex + 1}
+            active={carousel.index}
+            onPick={carousel.goTo}
+            dotClass="st-dot"
+            label="Go to storage type {n}"
+          />
+        </div>
+      ) : null}
+    </section>
+  );
+}
