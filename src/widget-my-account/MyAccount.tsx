@@ -91,6 +91,11 @@ export function MyAccount({
   const [activityOpen, setActivityOpen] = useState(false);
 
   const space = SPACES.find((s) => s.id === selectedId) ?? SPACES[0];
+  /* Make a Payment lists EVERY space with something outstanding, not just the
+     one whose Pay Now was clicked — see the panel's header note. A space with a
+     zero balance has nothing to pay and would only be an unticked distraction. */
+  const outstanding = SPACES.filter((s) => s.balance.amount.replace(/[^0-9.]/g, '') !== ''
+    && Number(s.balance.amount.replace(/[^0-9.-]/g, '')) > 0);
 
   /* The ONE selection action, shared by a unit block and its "Account Info"
      button — which is what links them. Picking a unit always shows ITS account
@@ -142,7 +147,12 @@ export function MyAccount({
               onEdit={() => setView('edit')}
             />
           )}
-          {view === 'payment' && <MakePaymentPanel space={space} />}
+          {view === 'payment' && (
+            <MakePaymentPanel
+              spaces={outstanding.length ? outstanding : [space]}
+              space={space}
+            />
+          )}
           {view === 'edit' && (
             <EditPanel
               space={space}

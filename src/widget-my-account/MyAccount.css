@@ -1229,3 +1229,36 @@
 
   .ma-unit__footer { flex-wrap: wrap; padding: 16px 20px; }
 }
+
+/* ── Make a Payment, multi-space (Figma 8905-133037) ───────────────────────
+   One block per space, each with its own checkbox, autopay strip and totals.
+   The blocks are separated by the same 30px the single-space frame leaves
+   between its sections, so one space still looks exactly as it did. */
+.ma-pay-space + .ma-pay-space {
+  margin-top: 30px;
+}
+
+/* The head is a Checkbox now, not a radio — several spaces can be paid at
+   once. Its own negative inset replaces .ma-space-head's, which was tuned to
+   the radio's wider box. */
+.ma-space-head__check {
+  align-items: center;
+  margin-left: -2px;
+}
+
+/* NOT ENROLLED: the frame swaps the tall enrolled strip for a single opt-in
+   row — no card details to show, so the box shrinks to fit and drops the
+   border, which only ever framed the two-column enrolled layout. */
+.ma-autopay--offer {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  min-height: 58px;
+  padding: 17px 20px;
+  border: 0;
+}
+
+.ma-autopay__info {
+  flex: none;
+  color: var(--ma-ink, #101318);
+}
