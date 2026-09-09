@@ -1402,6 +1402,28 @@ export interface CardPayment extends RentAddress {
   maskedCardNumber?: string;
 }
 
+/**
+ * A bank account, for the Pay by Bank path.
+ *
+ * Separate from CardPayment rather than a widened version of it: an ACH
+ * payment_method shares only the billing address, and every card-shaped field
+ * on it (expiry, cvv, token, card_type) is one the API rejects outright.
+ */
+export interface BankPayment extends RentAddress {
+  /** Digits only. */
+  accountNumber: string;
+  /** Digits only — nine of them. */
+  routingNumber: string;
+  /** 'Checking' | 'Savings', in the API's own capitalisation. */
+  accountType: string;
+  /** Second address line (suite, unit). Omitted from the payload when empty. */
+  address2?: string;
+  /** 'United States' | 'Canada'. */
+  country?: string;
+  /** Enrol this account for recurring rent (drives API 11). */
+  autoCharge?: boolean;
+}
+
 /** A documented cost line. `costType` is a closed set; dates are YYYY-MM-DD. */
 export interface RentCostLine {
   amount: number;
@@ -1451,7 +1473,16 @@ export interface RentArgs {
   unit: { id: string; number?: string };
   holdToken: string;
   contact: RentContact;
-  card: CardPayment;
+  /**
+   * Exactly ONE of `card` / `bank` — whichever the shopper chose.
+   *
+   * Both optional rather than `card` required with a dummy alongside it: a
+   * zeroed CardPayment on the bank path would be a real object full of empty
+   * strings that nothing reads, and the first person to read it by mistake
+   * would post an empty card. paymentMethodFor throws if neither is present.
+   */
+  card?: CardPayment;
+  bank?: BankPayment;
   /** YYYY-MM-DD. */
   startDate: string;
   /** From the offer — documents/finalize rejects the call without it. */
@@ -1604,6 +1635,64 @@ function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<strin
   return body;
 }
 
+/**
+ * The `payment_method` object for a bank account.
+ *
+ * Shape confirmed against TenantInc's own example. Note what is NOT here: no
+ * name fields. An ACH method carries the account and the billing address only
+ * — the account holder is the contact record, which the same call already
+ * sends in `contacts`.
+ *
+ * `auto_charge` is sent unconditionally, unlike the card's, because the
+ * example includes it explicitly as `false`. `save_to_account` matches the
+ * card path: the lease needs a stored method to enrol in autopay at API 11.
+ *
+ * `address2` is omitted rather than sent empty — the API validates
+ * `payment_method` strictly and an empty optional is the kind of thing it
+ * rejects.
+ */
+function achPaymentMethod(bank: BankPayment, autoCharge: boolean): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    type: 'ach',
+    account_number: bank.accountNumber.replace(/\D/g, ''),
+    routing_number: bank.routingNumber.replace(/\D/g, ''),
+    account_type: bank.accountType,
+    save_to_account: true,
+    auto_charge: autoCharge,
+    address: bank.address,
+    city: bank.city,
+    state: bank.state,
+    zip: bank.zip,
+  };
+  const line2 = (bank.address2 ?? '').trim();
+  if (line2) body.address2 = line2;
+  const country = (bank.country ?? '').trim();
+  if (country) body.country = country;
+  return body;
+}
+
+/**
+ * Which payment_method this rental sends.
+ *
+ * One place, so the two calls that post a payment method (documents/finalize
+ * and the lease) can never disagree about which the shopper chose.
+ */
+function paymentMethodFor(args: RentArgs): Record<string, unknown> {
+  if (args.bank) return achPaymentMethod(args.bank, !!args.bank.autoCharge);
+  if (args.card) return cardPaymentMethod(args.card, !!args.card.autoCharge);
+  /*
+   * Neither is a programming error, not a shopper one — the panel cannot be
+   * submitted without a method. Throwing beats posting a payload with no
+   * payment_method and reading the API's generic rejection back.
+   */
+  throw new Error('rentSpace: neither a card nor a bank account was supplied');
+}
+
+/** Autopay was asked for, whichever method is paying. */
+function wantsAutoCharge(args: RentArgs): boolean {
+  return !!(args.bank?.autoCharge ?? args.card?.autoCharge);
+}
+
 /** Browser context the clickwrap signature is stamped with. */
 function signingMetadata(): Record<string, unknown> {
   return {
@@ -1632,7 +1721,7 @@ interface FinalizeData { documents?: unknown[]; signed?: boolean }
 async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseDocumentRef[]> {
   const body: Record<string, unknown> = {
     contacts: rentContacts(args.contact, args.extras),
-    payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
+    payment_method: paymentMethodFor(args),
     start_date: args.startDate,
     space_mix_id: args.spaceMixId,
     total_payment_amount: args.totalPaymentAmount,
@@ -1682,7 +1771,7 @@ async function finalizeLease(
   const body: Record<string, unknown> = {
     contacts: rentContacts(args.contact, args.extras),
     documents,
-    payment_method: cardPaymentMethod(args.card, !!args.card.autoCharge),
+    payment_method: paymentMethodFor(args),
     start_date: args.startDate,
     platform: args.platform ?? 'website',
     source: args.source ?? DEFAULT_SOURCE,
@@ -1780,7 +1869,7 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
   // The rental is DONE at this point. Autopay is an add-on: a failure here is
   // reported alongside success, never as a failed rental.
   let autopay: boolean | undefined;
-  if (a.card.autoCharge && lease.paymentMethodId) {
+  if (wantsAutoCharge(a) && lease.paymentMethodId) {
     try {
       autopay = await enableAutopay(ctx, lease.leaseId, lease.paymentMethodId);
     } catch {

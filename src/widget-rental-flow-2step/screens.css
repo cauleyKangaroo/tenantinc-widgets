@@ -1269,3 +1269,37 @@
 /* Frames requested but not yet registered. Dimmed rather than hidden: the row
    keeps its height, so nothing shifts when the fields appear. */
 .rf-cardrow--loading { opacity: 0.55; }
+
+/* ── Card row on a phone: ONE line ────────────────────────────────────────
+   The wrap above is right in step 2's desktop column, where the row can be
+   squeezed to ~60px. On a phone the row has the full screen width and the
+   design keeps Card Number, MM/YY and CVV on a single line — so here the
+   width is reclaimed instead of the pair being dropped:
+
+     no leading card icon      +32px  (the field is unmistakably a card field
+                                       already, given its own placeholder)
+     14px text, tighter cells  the pair goes 182px -> 136px
+
+   That leaves the number ~150px, enough for 19 formatted characters at 14px.
+   640px matches this stylesheet's other mobile blocks. */
+@media (max-width: 640px) {
+  .rf-cardrow {
+    flex-wrap: nowrap;
+    column-gap: 6px;
+    padding: 0 12px;
+  }
+
+  .rf-cardrow-ico { display: none; }
+
+  /* No floor any more — it is what makes the row wrap. It still gets every
+     pixel the two fixed cells leave, which is the widest it can be. */
+  .rf-cardcell--number { flex: 1 1 auto; min-width: 0; }
+
+  .rf-cardrow-short { gap: 6px; flex: 0 0 auto; }
+  .rf-cardcell--exp,
+  .rf-cardcell--exp-wide { flex: 0 0 76px; }
+  .rf-cardcell--cvv { flex: 0 0 52px; }
+
+  .rf-cardrow-input,
+  .rf-cardcell-label { font-size: 14px; }
+}

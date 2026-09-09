@@ -3,7 +3,7 @@ import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
-import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from './PaymentSection';
+import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankFormValue } from './PaymentSection';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
@@ -187,6 +187,9 @@ export function Step2({
     /** Entered card + billing details. Present only on the static card path —
      *  the hosted-fields path never has card data to give. */
     card?: CardFormValue;
+    /** Entered bank account + billing details, on the Pay by Bank path.
+     *  Mutually exclusive with `card`. */
+    bank?: BankFormValue;
     /** Step 2's own contact fields, which the shopper may have edited after
      *  step 1, so these win over the ones captured there. */
     contact?: { first: string; last: string; email: string; phone: string; businessName?: string };
@@ -414,9 +417,10 @@ export function Step2({
   };
 
   /** "Pay Now" — hands the parent everything the rental APIs need. */
-  const payStatically = (card?: CardFormValue) => onPaymentComplete?.({
+  const payStatically = (card?: CardFormValue, bank?: BankFormValue) => onPaymentComplete?.({
     firstName: first.trim() || 'there',
     card,
+    bank,
     contact: business
       ? { ...splitBusinessName(bizName), email: email.trim(), phone, businessName: bizName.trim() }
       : { first: first.trim(), last: last.trim(), email: email.trim(), phone },
@@ -761,7 +765,7 @@ export function Step2({
               ) : payMethod === 'card' ? (
                 <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} payLabel={agreeLabel} />
               ) : (
-                <BankForm total={payNowTotal ?? 0} onPay={() => payStatically()} payLabel={agreeLabel} />
+                <BankForm total={payNowTotal ?? 0} onPay={(bank) => payStatically(undefined, bank)} busy={paying} payLabel={agreeLabel} />
               )}
             </section>
           )}

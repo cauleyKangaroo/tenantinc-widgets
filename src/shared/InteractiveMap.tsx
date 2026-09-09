@@ -72,6 +72,8 @@ export function InteractiveMap({
 
   useEffect(() => {
     let dead = false;
+    /** Removed on teardown — they outlive the component otherwise. */
+    let listeners: Array<{ remove?: () => void }> = [];
 
     void fetchMapsKey(proxyBase || DEFAULT_PLACES_BASE)
       .then((key) => (key ? loadGoogleMaps(key) : null))
@@ -110,7 +112,9 @@ export function InteractiveMap({
           // on desktop that this pin can be picked up at all.
           cursor: drag ? 'grab' : undefined,
         });
-        if (drag) marker.addListener('dragend', () => { if (!dead) setMoved(true); });
+        if (drag) {
+          listeners.push(marker.addListener('dragend', () => { if (!dead) setMoved(true); }));
+        }
 
         mapRef.current = map;
         markerRef.current = marker;
@@ -126,7 +130,30 @@ export function InteractiveMap({
         console.warn('[InteractiveMap] the live map could not be created — keeping the embed:', err);
       });
 
-    return () => { dead = true; };
+    /*
+     * Tear the map down properly, not just flag the promise.
+     *
+     * The refs are the important part. Construction is guarded by
+     * `mapRef.current` so it cannot run twice, which means a ref left pointing
+     * at the OLD map would block the rebuild entirely if `proxyBase` changed —
+     * the map would keep authenticating against the proxy it no longer uses.
+     *
+     * Google gives a Map no destructor: it becomes collectable once nothing
+     * references it and React has removed the div. What does have to go by
+     * hand is the marker's own listener, and the marker's link to the map.
+     * `live` returns to false so the iframe comes back while the next one
+     * loads, rather than leaving an empty canvas.
+     */
+    return () => {
+      dead = true;
+      listeners.forEach((l) => { try { l?.remove?.(); } catch { /* already gone */ } });
+      listeners = [];
+      try { markerRef.current?.setMap(null); } catch { /* the API may be gone */ }
+      markerRef.current = null;
+      mapRef.current = null;
+      setLive(false);
+      setMoved(false);
+    };
   }, [proxyBase]);
 
   /*
