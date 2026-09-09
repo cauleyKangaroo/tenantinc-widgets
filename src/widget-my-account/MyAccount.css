@@ -1265,3 +1265,136 @@
   flex: none;
   color: var(--ma-ink, #101318);
 }
+
+/* ── Make a Payment, mobile (Figma 9007-22768) ─────────────────────────────
+   Desktop keeps the frame's card; on a phone the panel goes full-bleed on the
+   page's own grey, which is what gives the money rows their full width. */
+
+/* Shown/hidden by width — "Change Coverage" is just "Change" on a phone. */
+.ma-only-mobile { display: none; }
+
+/* Mobile-only control; desktop has no such toggle and room for every row. */
+.ma-billing-toggle { display: none; }
+
+/* 720px, matching this widget's other mobile block — a different number
+   would leave a band where only half the mobile rules applied. */
+@media (max-width: 720px) {
+  .ma-only-desktop { display: none; }
+  .ma-only-mobile { display: inline; }
+
+  .ma-pay {
+    padding: 25px 26px 32px;
+    background: var(--ma-panel, #f9fafb);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* Autopay: the two actions drop BELOW the card details instead of sitting in
+     a right-hand column, which at 340px would leave both halves too narrow. */
+  .ma-autopay {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    min-height: 0;
+    background: #fff;
+  }
+
+  .ma-autopay__actions { padding-left: 29px; }
+
+  /* The not-enrolled strip stays a ROW: it is one short line, and the column
+     rule above would drop its info icon onto a second line. */
+  .ma-autopay--offer { flex-direction: row; align-items: center; }
+  .ma-autopay__detail,
+  .ma-autopay__actions { font-size: 14px; }
+
+  /* 14px money rows, per the frame. */
+  .ma-line__label,
+  .ma-line__amount { font-size: 14px; }
+  .ma-line__label--total,
+  .ma-line__amount--total { font-size: 14px; }
+
+  .ma-billing-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 4px 0 20px 5px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: inherit;
+    font-size: 16px;
+    color: #000;
+    cursor: pointer;
+  }
+
+  .ma-billing-toggle span { text-decoration: underline; }
+  .ma-billing-toggle__chev { width: 24px; height: 24px; transition: transform 150ms ease; }
+  /* Points down when open, so it reads as "collapse this". */
+  .ma-billing-toggle__chev--up { transform: rotate(90deg); }
+
+  .ma-lines--hidden { display: none; }
+
+  /* The balance box grows to hold the prepay stepper the desktop frame has no
+     equivalent of, so it stops being a single row. */
+  .ma-balance {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 14px;
+    padding: 18px;
+  }
+
+  .ma-balance__prepay {
+    order: 3;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ma-balance__right { margin-left: auto; }
+
+  .ma-stepper { display: flex; align-items: center; gap: 6px; padding-left: 22px; }
+
+  .ma-stepper__btn {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--ma-ink, #101318);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ma-ink, #101318);
+    cursor: pointer;
+  }
+
+  .ma-stepper__btn:active { background: var(--ma-ink, #101318); color: #fff; }
+
+  /* Reads a value rather than editing one — the buttons are the control, so a
+     text input would invite typing that nothing validates. */
+  .ma-stepper__value {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #a5b4bf;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 16px;
+    color: var(--ma-ink, #101318);
+  }
+
+  .ma-stepper__unit { font-size: 14px; color: #000; }
+
+  /* Tiles stack full width, and APPLE PAY LEADS on mobile — the frame's order,
+     reversed from desktop. `order` rather than reordering the markup, so one
+     DOM serves both. */
+  .ma-methods { grid-template-columns: 1fr; gap: 12px; }
+  .ma-method { height: 64px; font-size: 18px; font-weight: 700; }
+  /* ALL FOUR need an order. Setting it on only the first two pushed them
+     behind the outline tiles, which kept the default `order: 0`. */
+  .ma-method:nth-child(1) { order: 2; }  /* Google Pay */
+  .ma-method:nth-child(2) { order: 1; }  /* Apple Pay leads on mobile */
+  .ma-method:nth-child(3) { order: 3; }
+  .ma-method:nth-child(4) { order: 4; }
+}

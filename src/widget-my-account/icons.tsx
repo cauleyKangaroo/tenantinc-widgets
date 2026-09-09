@@ -100,3 +100,24 @@ export function FileTextIcon({ className }: AssetIconProps) {
 export function UserArrowRightIcon({ className }: AssetIconProps) {
   return <img src={userArrowRightAsset} alt="" width={24} height={24} className={className} aria-hidden="true" />;
 }
+
+/* Minus / Plus for the mobile prepay stepper (Figma 9023-27879 / 9023-27873).
+   Drawn inline rather than added to the bundled asset set: two strokes each,
+   and they need `currentColor` so the buttons can invert on press. */
+export function MinusIcon({ className }: AssetIconProps) {
+  return (
+    <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
+
+export function PlusIcon({ className }: AssetIconProps) {
+  return (
+    <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}

@@ -21,8 +21,8 @@
 import { useMemo, useState } from 'react';
 import { Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
 import {
-  BankIcon, CreditCardIcon, CreditCardRemoveIcon, CreditCardRepeatIcon,
-  GooglePayLockup, ShieldSettingsIcon,
+  BankIcon, ChevronBigRightIcon, CreditCardIcon, CreditCardRemoveIcon,
+  CreditCardRepeatIcon, GooglePayLockup, MinusIcon, PlusIcon, ShieldSettingsIcon,
 } from './icons';
 import type { AccountSpace } from './data';
 
@@ -60,6 +60,15 @@ export function MakePaymentPanel({
   const [updateMethod, setUpdateMethod] = useState(false);
   const [prepay, setPrepay] = useState(false);
   const [autopayOptIn, setAutopayOptIn] = useState<Set<string>>(() => new Set());
+  /* MOBILE ONLY (Figma 9007-22768). The billing breakdown collapses behind
+     "Hide Billing Details" on a phone, where four money rows per space push the
+     payment buttons off screen. Open by default — the frame shows it open, and
+     hiding what someone owes by default would be the wrong way round. */
+  const [billingOpen, setBillingOpen] = useState(true);
+  /* The mobile balance box prepays by MONTHS, not just a yes/no. 1 is the
+     minimum the stepper can reach: "prepay 0 months" is just not prepaying,
+     which the checkbox already says. */
+  const [prepayMonths, setPrepayMonths] = useState(1);
 
   const toggle = (id: string) => setSelected((prev) => {
     const next = new Set(prev);
@@ -146,7 +155,7 @@ export function MakePaymentPanel({
               </div>
             )}
 
-            <div className="ma-lines">
+            <div className={`ma-lines${billingOpen ? '' : ' ma-lines--hidden'}`}>
               {sp.lines.map((line) => (
                 <div className="ma-line" key={line.label}>
                   <p className="ma-line__label">
@@ -162,7 +171,10 @@ export function MakePaymentPanel({
                 <div className="ma-line__right">
                   <button type="button" className="ma-link-row ma-link-row--tight">
                     <ShieldSettingsIcon />
-                    <span className="ma-link">Change Coverage</span>
+                    <span className="ma-link">
+                      <span className="ma-only-desktop">Change Coverage</span>
+                      <span className="ma-only-mobile">Change</span>
+                    </span>
                   </button>
                   <p className="ma-line__amount">{sp.coverage.amount}</p>
                 </div>
@@ -182,6 +194,18 @@ export function MakePaymentPanel({
         );
       })}
 
+      {/* Mobile only — hidden by the stylesheet on desktop, where the frame has
+          no such control and there is room for every row. */}
+      <button
+        type="button"
+        className="ma-billing-toggle"
+        aria-expanded={billingOpen}
+        onClick={() => setBillingOpen((v) => !v)}
+      >
+        <span>{billingOpen ? 'Hide Billing Details' : 'Show Billing Details'}</span>
+        <ChevronBigRightIcon className={`ma-billing-toggle__chev${billingOpen ? ' ma-billing-toggle__chev--up' : ''}`} />
+      </button>
+
       <div className="ma-balance">
         <div className="ma-balance__left">
           <div className="ma-balance__heading">
@@ -191,9 +215,36 @@ export function MakePaymentPanel({
           <p className="ma-balance__through">{payThrough}</p>
         </div>
 
-        <Checkbox checked={prepay} onChange={setPrepay} className="ma-balance__check">
-          Prepay Additional Month(s)
-        </Checkbox>
+        <div className="ma-balance__prepay">
+          <Checkbox checked={prepay} onChange={setPrepay} className="ma-balance__check">
+            Prepay Additional Month(s)
+          </Checkbox>
+
+          {/* Only once prepay is on: a stepper for something you have not opted
+              into is a control with nothing to control. */}
+          {prepay && (
+            <div className="ma-stepper">
+              <button
+                type="button"
+                className="ma-stepper__btn"
+                aria-label="One month fewer"
+                onClick={() => setPrepayMonths((n) => Math.max(1, n - 1))}
+              >
+                <MinusIcon />
+              </button>
+              <button
+                type="button"
+                className="ma-stepper__btn"
+                aria-label="One month more"
+                onClick={() => setPrepayMonths((n) => n + 1)}
+              >
+                <PlusIcon />
+              </button>
+              <output className="ma-stepper__value">{prepayMonths}</output>
+              <span className="ma-stepper__unit">Month(s)</span>
+            </div>
+          )}
+        </div>
 
         <div className="ma-balance__right">
           <p className="ma-balance__amount">{formatMoney(balanceTotal)}</p>
