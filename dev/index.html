@@ -245,6 +245,9 @@
             <option value="lBNDWS8N2g">Storelocal Waikele — Waipahu, HI</option>
           </select>
         </label>
+        <label>Maps proxy base:
+          <input id="pi-maps-proxy" type="text" placeholder="default proxy" title="Proxy that serves the Maps key from /api/maps/config. No key is held here. Blank uses the shared default; a proxy with no key configured keeps the keyless embed." style="width:250px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitPropertyInfo()" />
+        </label>
         <label>
           Display mode:
           <select id="pi-display-mode" onchange="reinitPropertyInfo()">
@@ -1343,6 +1346,11 @@
       // propertyId is OMITTED when blank rather than passed as '', so the widget
       // keeps its config.json fallback instead of being handed an empty id.
       if (id) props.propertyId = id;
+      // Proxy base, NOT a key — the harness never holds one. Blank uses the
+      // shared default proxy; if that has no key configured the map stays the
+      // keyless embed, so leaving this empty tests the fallback too.
+      var mp = document.getElementById('pi-maps-proxy');
+      if (mp && mp.value.trim()) props.mapsProxyBase = mp.value.trim();
       return props;
     }
 

@@ -262,7 +262,7 @@ export interface CardFormValue {
   zip: string;
 }
 
-export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
+export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payLabel }: {
   total: number;
   /** Overrides "Pay Now $X" — the always-on autopay frame reads
    *  "Agree & Pay $X", because that button is where the recurring
@@ -276,6 +276,15 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
   /** Global Payments PUBLIC key. Present ⇒ try hosted fields for the number
    *  and expiry. Absent, or the library will not load, ⇒ plain inputs. */
   gpPublicKey?: string;
+  /**
+   * The property's gateway lookup has not answered yet, so `gpPublicKey` is
+   * not yet meaningful — an empty key here means "don't know", not "no GP".
+   *
+   * Holds the row in its loading state for the same reason the library check
+   * does: rendering plain inputs and then replacing them with GP's iframe
+   * throws away whatever has been typed into them.
+   */
+  gatewayPending?: boolean;
 }) {
   const [number, setNumber] = useState('');
   const [expiry, setExpiry] = useState('');
@@ -300,7 +309,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
    * plain inputs are not rendered and then yanked away underneath a shopper who
    * has already started typing. Once it settles it never flips again.
    */
-  const [hosted, setHosted] = useState<boolean | null>(gpPublicKey ? null : false);
+  const [hosted, setHosted] = useState<boolean | null>(gpPublicKey || gatewayPending ? null : false);
   const [gpReady, setGpReady] = useState(false);
   const [gpError, setGpError] = useState('');
   const uid = useId().replace(/:/g, '');
@@ -562,6 +571,16 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
     onPay(valueFrom(tok));
   };
 
+  /*
+   * The gateway has answered and it is not tenant_payments: settle on the plain
+   * inputs. Without this the row would sit in its loading state forever on
+   * every non-GP property, because the mount effect below only ever runs when
+   * there IS a key and `hosted` starts null while the lookup is out.
+   */
+  useEffect(() => {
+    if (!gatewayPending && !gpPublicKey) setHosted(false);
+  }, [gatewayPending, gpPublicKey]);
+
   useEffect(() => {
     if (!gpPublicKey) return undefined;
     let handle: HostedCardHandle | null = null;
@@ -667,7 +686,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, payLabel }: {
         would mean fighting its internals. Same tokens, so it sits flush with the
         real form fields above and below it.
       */}
-      <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${cardCellError ? ' rf-cardrow--error' : ''}${hosted && !gpReady ? ' rf-cardrow--loading' : ''}`}>
+      <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${cardCellError ? ' rf-cardrow--error' : ''}${hosted !== false && !gpReady ? ' rf-cardrow--loading' : ''}`}>
         <CreditCardIcon size={24} className="rf-cardrow-ico" />
 
         {/*
