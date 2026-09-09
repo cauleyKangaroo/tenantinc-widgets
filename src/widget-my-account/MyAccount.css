@@ -166,7 +166,10 @@
   box-shadow: var(--ma-shadow-md);
 }
 
-.ma-pay__title {
+/* Scoped under .ma-wrapper deliberately: the `.ma-wrapper h2 { margin: 0 }`
+   reset near the top of this file is a class PLUS a type selector, so it
+   outranks a bare `.ma-pay__title` and this gap silently never applied. */
+.ma-wrapper .ma-pay__title {
   font-size: 24px;
   font-weight: 700;
   line-height: 1.1;
@@ -1183,7 +1186,7 @@
   }
 
   .ma-pay { padding: 24px 20px; }
-  .ma-pay__title { margin-bottom: 24px; }
+  .ma-wrapper .ma-pay__title { margin-bottom: 24px; }
 
   /* Contacts and documents stop being side by side; the fixed 367px column
      would otherwise overflow a phone. */
