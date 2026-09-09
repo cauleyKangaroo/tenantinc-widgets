@@ -19,7 +19,7 @@
 import { useEffect, useState } from 'react';
 import './StorageTypeLocations.css';
 import '@shared/ui/tokens.css';
-import { hasCollectionsApi, str, plainText, type CollectionRow } from '@shared/dudaCollections';
+import { hasCollectionsApi, readCollection, str, plainText, type CollectionRow } from '@shared/dudaCollections';
 import { readInternalPropertiesResult, propertyLikeRows } from '@shared/internalProperties';
 import { AlertIcon, MapPinSolidIcon } from '@shared/ui/icons';
 
@@ -35,6 +35,8 @@ export interface StorageTypeLocationsProps {
   /** Prefix for facility links. Default `/storage-units`. */
   locationBasePath?: string;
   collectionName?: string;
+  /** Existing feature copy/mapping collection. Default `featurePage`. */
+  featureCollectionName?: string;
   inEditor?: boolean | string;
 }
 
@@ -73,6 +75,56 @@ const PREVIEW: Facility[] = [
 
 function boolProp(v: boolean | string | undefined): boolean {
   return v === true || v === 'true';
+}
+
+function keyOf(value: unknown): string {
+  return plainText(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function candidateKeys(...values: unknown[]): string[] {
+  const out = new Set<string>();
+  for (const value of values) {
+    const key = keyOf(value);
+    if (!key) continue;
+    out.add(key);
+    out.add(key.replace(/_(storage|storage_units|units|access)$/, ''));
+  }
+  return [...out].filter(Boolean);
+}
+
+/** Published storage-type pages can identify themselves without a widget field. */
+function slugFromLocation(): string {
+  if (typeof window === 'undefined') return '';
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  const branch = parts.lastIndexOf('storage-types');
+  return branch >= 0 && parts[branch + 1] ? parts[branch + 1].toLowerCase() : '';
+}
+
+function idSet(value: unknown): Set<string> {
+  const values = Array.isArray(value) ? value : plainText(value).split(/[\n,|]+/);
+  return new Set(values.map((id) => plainText(id).trim()).filter(Boolean));
+}
+
+interface FeatureMapping {
+  amenityName: string;
+  propertyIds: Set<string>;
+}
+
+async function readFeatureMapping(collectionName: string, pageSlug: string): Promise<FeatureMapping | null> {
+  if (!collectionName || !pageSlug) return null;
+  const wanted = new Set(candidateKeys(pageSlug));
+  const rows = await readCollection(collectionName).catch(() => [] as CollectionRow[]);
+  const row = rows.find((candidate) =>
+    candidateKeys(candidate.slug, candidate.name).some((key) => wanted.has(key)));
+  if (!row) return null;
+  return {
+    amenityName: keyOf(row.amenity_name),
+    propertyIds: idSet(row.property_ids),
+  };
 }
 
 /** The harness is the only no-dmAPI runtime where example rows are intentional. */
@@ -115,7 +167,7 @@ function amenityNames(row: CollectionRow): string[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((a) => (a && typeof a === 'object' ? plainText((a as Record<string, unknown>).name) : plainText(a)))
-    .map((n) => n.trim().toLowerCase())
+    .map(keyOf)
     .filter(Boolean);
 }
 
@@ -157,13 +209,15 @@ export function StorageTypeLocations({
   subheading = 'Available at the following locations.',
   locationBasePath = '/storage-units',
   collectionName,
+  featureCollectionName = 'featurePage',
   inEditor,
 }: StorageTypeLocationsProps) {
   const [result, setResult] = useState<Result>({ status: 'loading' });
+  const resolvedSlug = storageTypeSlug.trim().toLowerCase() || slugFromLocation();
 
   useEffect(() => {
     let cancelled = false;
-    const tag = `[#19 storage-type-locations${storageTypeSlug ? ` ${storageTypeSlug}` : ''}]`;
+    const tag = `[#19 storage-type-locations${resolvedSlug ? ` ${resolvedSlug}` : ''}]`;
     const environment = dudaEnvironment();
 
     // Preview data is allowed only in an explicitly identified non-live runtime.
@@ -174,15 +228,6 @@ export function StorageTypeLocations({
     const localPreview = isLocalHarness() && !hasCollectionsApi();
     const showDiagnostic = explicitPreview || localPreview;
 
-    const wanted = amenityName.trim().toLowerCase();
-    const ids = new Set(propertyIds.split(',').map((s) => s.trim()).filter(Boolean));
-
-    if (!wanted && !ids.size) {
-      console.error(`${tag} needs either amenityName or propertyIds; neither is set`);
-      setResult({ status: 'error', detail: 'This section is not configured yet.', showDiagnostic });
-      return;
-    }
-
     if (showDiagnostic) {
       setResult({ status: 'preview', facilities: PREVIEW });
       return;
@@ -190,8 +235,11 @@ export function StorageTypeLocations({
 
     setResult({ status: 'loading' });
 
-    readInternalPropertiesResult(collectionName)
-      .then((read) => {
+    Promise.all([
+      readInternalPropertiesResult(collectionName),
+      readFeatureMapping(featureCollectionName, resolvedSlug),
+    ])
+      .then(([read, featureMapping]) => {
         if (cancelled) return;
 
         if (read.status !== 'ok') {
@@ -209,6 +257,27 @@ export function StorageTypeLocations({
         if (!usable.length) {
           console.error(`${tag} PropertiesInternal has no complete property rows`);
           setResult({ status: 'error', detail: 'This locations section is not configured yet.', showDiagnostic });
+          return;
+        }
+
+        let wanted = keyOf(amenityName) || featureMapping?.amenityName || '';
+        const ids = idSet(propertyIds);
+        if (!ids.size && featureMapping?.propertyIds.size) {
+          for (const id of featureMapping.propertyIds) ids.add(id);
+        }
+
+        // Inference is deliberately evidence-based: only accept a key derived
+        // from the page slug when that key actually exists in the live rows.
+        // `business-storage` → `business` works; `wash-bay` never guesses
+        // `washrack`, so that exceptional mapping belongs in featurePage.
+        if (!wanted && !ids.size) {
+          const availableAmenities = new Set(usable.flatMap(amenityNames));
+          wanted = candidateKeys(resolvedSlug).find((key) => availableAmenities.has(key)) || '';
+        }
+
+        if (!wanted && !ids.size) {
+          console.error(`${tag} could not infer an amenity and featurePage has no amenity_name/property_ids mapping`);
+          setResult({ status: 'error', detail: 'This section is not configured yet.', showDiagnostic });
           return;
         }
 
@@ -259,7 +328,7 @@ export function StorageTypeLocations({
       });
 
     return () => { cancelled = true; };
-  }, [storageTypeSlug, amenityName, propertyIds, locationBasePath, collectionName, inEditor]);
+  }, [resolvedSlug, amenityName, propertyIds, locationBasePath, collectionName, featureCollectionName, inEditor]);
 
   if (result.status === 'loading') return null;
 
@@ -277,16 +346,12 @@ export function StorageTypeLocations({
   // an empty list is what the legacy site does, and it reads as broken.
   if (!result.facilities.length) return null;
 
-  const title = heading || `Find ${storageTypeSlug.replace(/-/g, ' ') || 'storage'} near you`;
+  const title = heading || `Find ${resolvedSlug.replace(/-/g, ' ') || 'storage'} near you`;
 
   return (
     <section className="stl">
       <h2 className="stl-heading">{title}</h2>
       {subheading ? <p className="stl-sub">{subheading}</p> : null}
-      {result.status === 'preview' ? (
-        <p className="stl-preview-note">Example locations — the live list is read from the site&apos;s collections.</p>
-      ) : null}
-
       {groupByState(result.facilities).map(([state, list]) => (
         <div className="stl-group" key={state}>
           <h3 className="stl-state">{state}</h3>
