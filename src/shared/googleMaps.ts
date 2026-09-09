@@ -29,7 +29,7 @@
 /** Minimal surface we use — typing the whole API would be noise. */
 export interface GMapsApi {
   Map: new (el: HTMLElement, opts: Record<string, unknown>) => GMap;
-  Marker: new (opts: Record<string, unknown>) => unknown;
+  Marker: new (opts: Record<string, unknown>) => GMarker;
   LatLng: new (lat: number, lng: number) => unknown;
 }
 
@@ -38,6 +38,14 @@ export interface GMap {
   setZoom(z: number): void;
   getZoom(): number | undefined;
   panTo(pos: { lat: number; lng: number }): void;
+}
+
+/** Only what a draggable pin needs. `addListener` returns a remover. */
+export interface GMarker {
+  setPosition(pos: { lat: number; lng: number }): void;
+  getPosition(): { lat(): number; lng(): number } | null | undefined;
+  setMap(map: GMap | null): void;
+  addListener(event: string, handler: () => void): { remove?: () => void };
 }
 
 declare global {
