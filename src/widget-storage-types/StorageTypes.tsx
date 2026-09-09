@@ -64,7 +64,8 @@ function isLocalHarness(): boolean {
 function dudaEnvironment(): string {
   try {
     const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
-    return dm?.getCurrentEnvironment?.().trim().toLowerCase() ?? '';
+    const value = dm?.getCurrentEnvironment?.();
+    return typeof value === 'string' ? value.trim().toLowerCase() : '';
   } catch {
     return '';
   }
@@ -144,6 +145,18 @@ export function StorageTypes({
   const [types, setTypes] = useState<StorageType[] | null>(null);
   const isRelated = variant === 'related';
   const perView = intProp(limit, 3);
+  // Unfilled Duda text fields arrive as null despite the compile-time prop
+  // shape. Normalize them before passing them into collection/page readers.
+  const resolvedRoute = typeof storageTypesRoute === 'string' && storageTypesRoute.trim()
+    ? storageTypesRoute
+    : 'storage-types';
+  const resolvedCollection = typeof collectionName === 'string' && collectionName.trim()
+    ? collectionName
+    : FEATURE_PAGE_COLLECTION;
+  const resolvedInternalCollection = typeof internalCollectionName === 'string' && internalCollectionName.trim()
+    ? internalCollectionName
+    : undefined;
+  const resolvedCurrentSlug = typeof currentSlug === 'string' ? currentSlug : '';
 
   useEffect(() => {
     let cancelled = false;
@@ -163,15 +176,15 @@ export function StorageTypes({
     }
 
     fetchStorageTypes(tag, {
-      route: storageTypesRoute,
-      collectionName,
-      internalCollectionName,
-      excludeSlug: isRelated ? currentSlug : '',
+      route: resolvedRoute,
+      collectionName: resolvedCollection,
+      internalCollectionName: resolvedInternalCollection,
+      excludeSlug: isRelated ? resolvedCurrentSlug : '',
       skipHidden: boolProp(skipHiddenPages),
     })
       .then((rows) => {
         if (cancelled) return;
-        if (!rows.length) console.warn(`${tag} no pages under "${storageTypesRoute}"`);
+        if (!rows.length) console.warn(`${tag} no pages under "${resolvedRoute}"`);
         setTypes(isRelated ? rows.slice(0, perView) : rows);
       })
       .catch((err: unknown) => {
@@ -181,7 +194,7 @@ export function StorageTypes({
       });
 
     return () => { cancelled = true; };
-  }, [variant, storageTypesRoute, collectionName, internalCollectionName, currentSlug, perView, skipHiddenPages, inEditor, isRelated]);
+  }, [variant, resolvedRoute, resolvedCollection, resolvedInternalCollection, resolvedCurrentSlug, perView, skipHiddenPages, inEditor, isRelated]);
 
   const list = types ?? [];
   const reduceMotion = usePrefersReducedMotion();

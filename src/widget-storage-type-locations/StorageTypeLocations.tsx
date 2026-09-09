@@ -136,7 +136,8 @@ function isLocalHarness(): boolean {
 function dudaEnvironment(): string {
   try {
     const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
-    return dm?.getCurrentEnvironment?.().trim().toLowerCase() ?? '';
+    const value = dm?.getCurrentEnvironment?.();
+    return typeof value === 'string' ? value.trim().toLowerCase() : '';
   } catch {
     return '';
   }
@@ -212,7 +213,9 @@ export function StorageTypeLocations({
   inEditor,
 }: StorageTypeLocationsProps) {
   const [result, setResult] = useState<Result>({ status: 'loading' });
-  const resolvedSlug = storageTypeSlug.trim().toLowerCase() || slugFromLocation();
+  // Duda sends unfilled text fields as null. Parameter defaults only handle
+  // undefined, so normalize at the external-data boundary before using them.
+  const resolvedSlug = plainText(storageTypeSlug).trim().toLowerCase() || slugFromLocation();
 
   useEffect(() => {
     let cancelled = false;

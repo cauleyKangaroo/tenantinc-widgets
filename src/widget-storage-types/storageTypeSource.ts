@@ -150,7 +150,7 @@ export async function fetchStorageTypes(
     .filter((b): b is SitePage => b !== null);
   if (!branches.length) return [];
 
-  const exclude = excludeSlug.trim().toLowerCase();
+  const exclude = plainText(excludeSlug).trim().toLowerCase();
   const seen = new Set<string>();
   const out: StorageType[] = [];
 
