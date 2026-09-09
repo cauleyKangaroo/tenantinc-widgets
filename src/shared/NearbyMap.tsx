@@ -85,6 +85,18 @@ interface NearbyMapProps {
    * change two widgets nobody asked about.
    */
   interactive?: boolean;
+  /**
+   * Frame the PINS instead of centring on `center`.
+   *
+   * Default false, so `center` stays what the map shows. Opt-in because #08
+   * recomputes `center` deliberately to shift the view when a popup opens, and
+   * framing the pins instead would fight it.
+   *
+   * `center` still places the reference dot wherever it is — it just stops
+   * dictating the viewport, which is the point: a reference off to one side no
+   * longer pushes every property to the edge of the frame.
+   */
+  fitToPoints?: boolean;
 }
 
 const TILE = 256;
@@ -114,6 +126,52 @@ function fitZoom(center: { lat: number; lng: number }, points: MapPoint[], w: nu
   return 1;
 }
 
+/** Inverse of `worldXY` — a normalised world point back to lat/lng. */
+function latLngFromWorld(x: number, y: number): { lat: number; lng: number } {
+  const lng = x * 360 - 180;
+  // y = 0.5 - ln((1+sin)/(1-sin)) / 4π  ⇒  sin = tanh(((0.5 - y) * 4π) / 2)
+  const k = (0.5 - y) * 4 * Math.PI;
+  const sin = Math.tanh(k / 2);
+  return { lat: (Math.asin(sin) * 180) / Math.PI, lng };
+}
+
+/**
+ * The view that FRAMES THE POINTS, rather than centring on the reference and
+ * fitting them around it.
+ *
+ * `fitZoom` is symmetric about the reference point, so it has to zoom out far
+ * enough to fit the furthest pin on EVERY side — half the viewport is empty
+ * whenever the properties lie to one side, and a reference far from the cluster
+ * zooms out until the pins are a speck. This measures the pins' own bounding
+ * box instead, so they fill the frame.
+ *
+ * One point has no extent and would fit at any zoom, so it takes `SOLO_ZOOM`
+ * rather than the maximum, which would drop the viewer onto a rooftop.
+ */
+const SOLO_ZOOM = 14;
+function fitPoints(points: MapPoint[], w: number, h: number):
+{ center: { lat: number; lng: number }; zoom: number } | null {
+  if (!points.length || w === 0 || h === 0) return null;
+  const xs = points.map((p) => worldXY(p.lat, p.lng).x);
+  const ys = points.map((p) => worldXY(p.lat, p.lng).y);
+  const minX = Math.min(...xs); const maxX = Math.max(...xs);
+  const minY = Math.min(...ys); const maxY = Math.max(...ys);
+  const center = latLngFromWorld((minX + maxX) / 2, (minY + maxY) / 2);
+
+  const spanX = maxX - minX;
+  const spanY = maxY - minY;
+  if (spanX === 0 && spanY === 0) return { center, zoom: SOLO_ZOOM };
+
+  // Same padding as fitZoom, so pins never sit against the edge — and the
+  // popup and price bubbles have somewhere to hang.
+  const pad = 72;
+  for (let z = 16; z >= 1; z--) {
+    const scale = TILE * 2 ** z;
+    if (spanX * scale <= Math.max(w - pad, 1) && spanY * scale <= Math.max(h - pad, 1)) return { center, zoom: z };
+  }
+  return { center, zoom: 1 };
+}
+
 export function NearbyMap({
   center,
   points,
@@ -124,6 +182,7 @@ export function NearbyMap({
   hideCenterMarker,
   proxyBase,
   interactive = false,
+  fitToPoints = false,
 }: NearbyMapProps) {
   const ref = useRef<HTMLDivElement>(null);
   const holder = useRef<HTMLDivElement>(null);
@@ -163,8 +222,19 @@ export function NearbyMap({
     return () => ro.disconnect();
   }, []);
 
+  /*
+   * What the map should SHOW, which is not always where the reference is.
+   *
+   * `fitToPoints` frames the pins' own bounding box; otherwise the reference
+   * point is the centre and the pins are fitted around it, as before. Falls
+   * back to the old behaviour whenever there is nothing to frame (no pins, or
+   * the box has not been measured yet).
+   */
+  const framed = fitToPoints ? fitPoints(points, width, boxHeight) : null;
   /** The zoom that fits every point — the static view, and the map's start. */
-  const fitted = fitZoom(center, points, width, boxHeight);
+  const fitted = framed ? framed.zoom : fitZoom(center, points, width, boxHeight);
+  /** Where the viewport sits. `center` still places the reference dot. */
+  const viewCenter = framed ? framed.center : center;
 
   /*
    * Project against the LIVE map once there is one, else the computed fit.
@@ -172,19 +242,19 @@ export function NearbyMap({
    * below is unchanged arithmetic, fed a different centre and zoom.
    */
   const zoom = view ? view.zoom : fitted;
-  const projCenter = view ? { lat: view.lat, lng: view.lng } : center;
+  const projCenter = view ? { lat: view.lat, lng: view.lng } : viewCenter;
   const scale = TILE * 2 ** zoom;
   const c = worldXY(projCenter.lat, projCenter.lng);
 
   // Classic Maps embed centers on ll at the given zoom without dropping a pin.
-  const src = `https://maps.google.com/maps?ll=${center.lat},${center.lng}&z=${fitted}&output=embed`;
+  const src = `https://maps.google.com/maps?ll=${viewCenter.lat},${viewCenter.lng}&z=${fitted}&output=embed`;
 
   /*
    * Construction inputs, in a ref so they can be current without being effect
    * dependencies — the map is built ONCE and then steered, never rebuilt.
    */
-  const initRef = useRef({ center, points, width, boxHeight });
-  initRef.current = { center, points, width, boxHeight };
+  const initRef = useRef({ center: viewCenter, zoom: fitted });
+  initRef.current = { center: viewCenter, zoom: fitted };
 
   useEffect(() => {
     if (!interactive) return undefined;
@@ -195,11 +265,13 @@ export function NearbyMap({
       .then((api) => {
         // `mapRef.current` guards the second run of React 18 StrictMode.
         if (dead || !api || !holder.current || mapRef.current) return;
-        const { center: ctr, points: pts, width: w, boxHeight: h } = initRef.current;
+        // Already the FRAMED view when fitToPoints is on — the pins' own box,
+        // not the reference point.
+        const { center: ctr, zoom: z0 } = initRef.current;
 
         const map = new api.Map(holder.current, {
           center: ctr,
-          zoom: fitZoom(ctr, pts, w, h),
+          zoom: z0,
           // One finger pans, as on #03's map, instead of scrolling the page.
           gestureHandling: 'greedy',
           mapTypeControl: false,
@@ -254,8 +326,8 @@ export function NearbyMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !live) return;
-    map.panTo({ lat: center.lat, lng: center.lng });
-  }, [live, center.lat, center.lng]);
+    map.panTo({ lat: viewCenter.lat, lng: viewCenter.lng });
+  }, [live, viewCenter.lat, viewCenter.lng]);
 
   /*
    * Re-fit the ZOOM as the data lands: points arrive from a later call than the
