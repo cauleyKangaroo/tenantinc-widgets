@@ -20,11 +20,16 @@
 
 import { useMemo, useState } from 'react';
 import { Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
+import { BankForm, CardForm, PaymentFormSkeleton } from '@shared/paymentForms';
 import {
   BankIcon, ChevronBigRightIcon, CreditCardIcon, CreditCardRemoveIcon,
   CreditCardRepeatIcon, GooglePayLockup, MinusIcon, PlusIcon, ShieldSettingsIcon,
 } from './icons';
 import type { AccountSpace } from './data';
+
+/** Skeleton beat before a payment form appears (Figma 8507-24610). Same 700ms
+ *  as #99's step 2, so the two screens feel like one product. */
+const FORM_SKELETON_MS = 700;
 
 /**
  * "$123.00", "$ 1,234.50" → 123 / 1234.5. Returns 0 for anything unparseable
@@ -69,6 +74,10 @@ export function MakePaymentPanel({
      minimum the stepper can reach: "prepay 0 months" is just not prepaying,
      which the checkbox already says. */
   const [prepayMonths, setPrepayMonths] = useState(1);
+  /* Which payment form is expanded, and the skeleton beat before it appears —
+     both mirror #99's step 2, because they drive the same two forms. */
+  const [payMethod, setPayMethod] = useState<'card' | 'bank' | null>(null);
+  const [formLoading, setFormLoading] = useState(false);
 
   const toggle = (id: string) => setSelected((prev) => {
     const next = new Set(prev);
@@ -86,6 +95,25 @@ export function MakePaymentPanel({
     [list, selected],
   );
   const anyPastDue = list.some((s) => selected.has(s.id) && s.balance.pastDue);
+
+  /** A card/bank panel is open, so its tile is replaced by the panel and the
+   *  other method relocates beneath it. Wallets are one-tap and never expand. */
+  const methodOpen = payMethod === 'card' || payMethod === 'bank';
+
+  const selectMethod = (m: 'card' | 'bank') => {
+    const next = payMethod === m ? null : m;
+    setPayMethod(next);
+    if (next) {
+      setFormLoading(true);
+      window.setTimeout(() => setFormLoading(false), FORM_SKELETON_MS);
+    }
+  };
+
+  /* No account-payment API exists yet — this widget is still entirely static
+     (see data.ts), so "Pay Now" collapses the form rather than pretending to
+     charge anything. The forms hand back a fully validated CardFormValue, so
+     the only thing missing here is the call. */
+  const pay = () => setPayMethod(null);
   /* "Pay through" is per space; with several selected they can disagree, so the
      bar shows the FURTHEST date — that is what paying this total covers. */
   const payThrough = list.find((s) => selected.has(s.id))?.balance.payThrough ?? '';
@@ -253,7 +281,12 @@ export function MakePaymentPanel({
       </div>
 
       {/* 2×2. Not the kit <Button/>: these are 64px tiles with a 12px radius
-          and a 20px label, which is a different control, not a restyled one. */}
+          and a 20px label, which is a different control, not a restyled one.
+
+          Wallets always sit at the top. The two method tiles only share that
+          grid while NEITHER is open — once one is, the open panel takes their
+          place and the other method moves below it, exactly as #99's step 2
+          does with the same forms. */}
       <div className="ma-methods">
         <button type="button" className="ma-method ma-method--dark">
           <GooglePayLockup />
@@ -263,15 +296,64 @@ export function MakePaymentPanel({
             <ApplePayMark />
           </span>
         </button>
-        <button type="button" className="ma-method ma-method--outline">
-          <CreditCardIcon />
-          <span>Credit / Debit</span>
-        </button>
-        <button type="button" className="ma-method ma-method--outline">
-          <BankIcon />
-          <span>Pay by Bank</span>
-        </button>
+        {!methodOpen && (
+          <>
+            <button
+              type="button"
+              className="ma-method ma-method--outline"
+              onClick={() => selectMethod('card')}
+            >
+              <CreditCardIcon />
+              <span>Credit / Debit</span>
+            </button>
+            <button
+              type="button"
+              className="ma-method ma-method--outline"
+              onClick={() => selectMethod('bank')}
+            >
+              <BankIcon />
+              <span>Pay by Bank</span>
+            </button>
+          </>
+        )}
       </div>
+
+      {/* The forms are #99's, from `@shared/paymentForms` — same fields, same
+          validation, same "Pay Now $X". Only the total differs: here it is the
+          selected spaces' balance rather than a move-in cost. Preceded by the
+          same skeleton beat (8507-24610) so the panel does not snap in. */}
+      {methodOpen && (
+        <section
+          className="rf-method-panel ma-payform"
+          aria-label={payMethod === 'card' ? 'Credit / Debit' : 'Pay by Bank'}
+        >
+          <header className="rf-method-panel-head">
+            {payMethod === 'card' ? <CreditCardIcon /> : <BankIcon />}
+            <span>{payMethod === 'card' ? 'Credit / Debit' : 'Pay by Bank'}</span>
+          </header>
+
+          {formLoading ? (
+            <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
+          ) : payMethod === 'card' ? (
+            <CardForm total={balanceTotal} onPay={pay} />
+          ) : (
+            <BankForm total={balanceTotal} onPay={pay} />
+          )}
+        </section>
+      )}
+
+      {/* The method NOT open, relocated below the panel — full width, since it
+          no longer shares a row. */}
+      {methodOpen && (
+        <button
+          type="button"
+          className="ma-method ma-method--outline ma-method--alt"
+          onClick={() => selectMethod(payMethod === 'card' ? 'bank' : 'card')}
+        >
+          {payMethod === 'card' ? <BankIcon /> : <CreditCardIcon />}
+          <span>{payMethod === 'card' ? 'Pay by Bank' : 'Credit / Debit'}</span>
+        </button>
+      )}
     </section>
   );
 }

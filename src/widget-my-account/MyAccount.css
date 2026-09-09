@@ -1398,3 +1398,14 @@
   .ma-method:nth-child(3) { order: 3; }
   .ma-method:nth-child(4) { order: 4; }
 }
+
+/* ── The shared payment forms, expanded (@shared/paymentForms) ────────────
+   The panel and everything inside it is #99's, styled by paymentForms.css.
+   Only its placement in this panel is ours: .ma-methods has an 18px gap and a
+   20px top margin, and the form sits in that same rhythm. */
+.ma-payform { margin-top: 18px; }
+
+/* The method that is NOT open, relocated below the panel. It leaves the 2-up
+   grid, so it has to be told to fill the row — .ma-method itself only sets
+   height and padding, the width came from the grid track. */
+.ma-method--alt { width: 100%; margin-top: 18px; }

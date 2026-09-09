@@ -3,7 +3,7 @@ import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
-import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from './PaymentSection';
+import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from '@shared/paymentForms';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
