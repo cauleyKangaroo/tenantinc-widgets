@@ -2076,3 +2076,74 @@ export async function updateContactDetails(
     return false;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Which payment gateway a property is on
+// ---------------------------------------------------------------------------
+
+/**
+ * The gateway that decides how this property takes a card.
+ *
+ * GET .../v2/companies/{co}/properties/{prop}/gateway
+ *   → { data: { gateway: ['tenant_payments'] } }
+ *
+ * `tenant_payments` is the Global Payments hosted-fields path: the PAN is typed
+ * into GP's iframe, never reaches us, and the payload carries the token plus
+ * the stand-in digits API 10 needs to charge (see HOSTED_FIELDS_STAND_IN).
+ *
+ * Anything else — `authorizenet` today — has no hosted-fields integration, so
+ * the property collects the card in our own inputs and the REAL number, expiry
+ * and CVV go in the payload. That is the path this widget shipped with; it is
+ * still here, and this is what chooses it.
+ *
+ * The response is an ARRAY. Only the first entry is read: a property with two
+ * gateways has no defined "both" behaviour, and picking the first is what the
+ * endpoint's ordering implies. A second is logged rather than silently ignored.
+ */
+export type PaymentGateway = string;
+
+/** GP hosted fields belong to this gateway and no other. */
+export const TENANT_PAYMENTS = 'tenant_payments';
+
+/**
+ * Returns the property's gateway, or null when it cannot be determined.
+ *
+ * Null is NOT "use hosted fields". The caller treats an unknown gateway as the
+ * plain-input path, because that one works on every gateway — sending real card
+ * details to a gateway that wanted them is correct, whereas showing a GP iframe
+ * to a property that is not on GP cannot take a payment at all.
+ */
+export async function fetchPaymentGateway(ctx: RentalCtx): Promise<PaymentGateway | null> {
+  if (!ctx.companyId || !ctx.propertyId) return null;
+  try {
+    const res = await fetch(
+      `${BASE_URL}/applications/${APP_ID}/v2/companies/${ctx.companyId}`
+      + `/properties/${encodeURIComponent(ctx.propertyId)}/gateway`,
+      { headers: headers() },
+    );
+    if (!res.ok) {
+      console.warn(`[rental] gateway lookup failed: ${res.status} ${res.statusText}`);
+      return null;
+    }
+    const env = await res.json() as { applicationData?: Record<string, InnerResult[]> };
+    const inner = env?.applicationData?.[APP_ID]?.[0];
+    // The envelope's inner status is the real one — HTTP 200 carries failures.
+    if (inner?.status !== 200) {
+      console.warn('[rental] gateway lookup rejected:', inner?.status, inner?.msg);
+      return null;
+    }
+    const list = (inner.data as { gateway?: unknown } | undefined)?.gateway;
+    if (!Array.isArray(list) || !list.length) {
+      console.warn('[rental] gateway lookup returned no gateway:', inner.data);
+      return null;
+    }
+    if (list.length > 1) {
+      console.warn('[rental] property reports several gateways, using the first:', list);
+    }
+    const first = list[0];
+    return typeof first === 'string' && first.trim() ? first.trim() : null;
+  } catch (err) {
+    console.warn('[rental] gateway lookup threw:', err);
+    return null;
+  }
+}

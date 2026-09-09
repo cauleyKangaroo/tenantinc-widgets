@@ -157,6 +157,7 @@ export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
   brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode,
+  gatewayPending,
 }: {
   moveIn: Date;
   /**
@@ -207,6 +208,10 @@ export function Step2({
   payError?: string;
   /** Global Payments PUBLIC key — turns on hosted (iframe) card fields. */
   gpPublicKey?: string;
+  /** The property's gateway is still being looked up, so which card form to
+   *  draw is not yet known. The card row waits rather than guessing — swapping
+   *  form mid-typing would throw away what the shopper had entered. */
+  gatewayPending?: boolean;
 }) {
   // Ticked when step 1 said this is a business rental, so the shopper does not
   // answer the same question twice and its fields open ready to fill.
@@ -754,7 +759,7 @@ export function Step2({
               {formLoading ? (
                 <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
               ) : payMethod === 'card' ? (
-                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} payLabel={agreeLabel} />
+                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} payLabel={agreeLabel} />
               ) : (
                 <BankForm total={payNowTotal ?? 0} onPay={() => payStatically()} payLabel={agreeLabel} />
               )}

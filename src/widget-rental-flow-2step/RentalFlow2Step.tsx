@@ -6,6 +6,7 @@ import {
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
+  fetchPaymentGateway, TENANT_PAYMENTS,
   type RentResult,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
@@ -776,7 +777,7 @@ export function RentalFlow2Step({
   })();
 
   // Global Payments PUBLIC key — tokenization only; it cannot charge or read.
-  const gpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
+  const configuredGpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
   const cfgCtx = React.useMemo(() => defaultRentalCtx(), []);
   const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp }, cfgCtx.propertyId);
   const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
@@ -800,6 +801,39 @@ export function RentalFlow2Step({
     }),
     [effectiveCompanyId, effectivePropertyId, propertyIdProp, cfgCtx.spaceGroupId, proxyBaseUrl, unitGroupIdProp],
   );
+
+  /*
+   * WHICH CARD FORM THIS PROPERTY GETS.
+   *
+   * `undefined` = still asking. Not the same as "no gateway": the card row
+   * waits on this rather than guessing, because guessing wrong means either
+   * swapping a plain input the shopper is already typing into for a GP iframe,
+   * or the reverse — and either loses what they have typed.
+   *
+   * Only `tenant_payments` gets the hosted fields. Every other gateway
+   * (`authorizenet` today) has no GP integration, so the card is collected in
+   * our own inputs and the real number, expiry and CVV go in the payload —
+   * which is what cardPaymentMethod does the moment it is handed real digits.
+   *
+   * A failed lookup resolves to null and therefore to the plain inputs. That is
+   * the safe direction: real card details reach a gateway that wanted them,
+   * whereas a GP iframe on a non-GP property cannot take a payment at all.
+   */
+  const [gateway, setGateway] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    // Wait for the resolved company — asking under the config default would
+    // read another tenant's gateway and could pick the wrong form entirely.
+    if (!effectiveCompanyId || !effectivePropertyId) return undefined;
+    let cancelled = false;
+    fetchPaymentGateway(ctx)
+      .then((g) => { if (!cancelled) setGateway(g); })
+      .catch(() => { if (!cancelled) setGateway(null); });
+    return () => { cancelled = true; };
+  }, [effectiveCompanyId, effectivePropertyId, ctx]);
+
+  const gatewayPending = gateway === undefined;
+  /** Hosted fields belong to tenant_payments alone. */
+  const gpKey = gateway === TENANT_PAYMENTS ? configuredGpKey : '';
   const [step, setStep] = useState<1 | 2>(1);
   const [phase, setPhase] = useState<'in' | 'out'>('in');
   const [dateModalOpen, setDateModalOpen] = useState(false);
@@ -2135,6 +2169,7 @@ export function RentalFlow2Step({
             paying={paying}
             payError={payError}
             gpPublicKey={gpKey}
+            gatewayPending={gatewayPending}
             onPaymentComplete={(info) => {
               // REAL RENTAL. A card plus a live hold and quote means we have
               // everything the documented flow needs (guide APIs 9→10→11), so
