@@ -235,16 +235,31 @@ export function NearbyMap({
   }, [interactive, proxyBase]);
 
   /*
-   * Re-fit as the data lands: points arrive from a later call than the card, so
-   * the map is built before it knows what it has to show. Stops for good once
-   * the visitor drags — see `userMoved`.
+   * Follow the caller's centre WHENEVER IT CHANGES, dragged or not.
+   *
+   * A new `center` is the parent saying "show this", not a stale default — #08
+   * shifts it every time a popup opens so the bubble and its card sit in the
+   * middle together. Suppressing that after a drag would leave popups opening
+   * off the edge of the map, so this deliberately ignores `userMoved`; the
+   * primitive deps mean an unchanged centre re-rendered is not a change.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !live) return;
+    map.panTo({ lat: center.lat, lng: center.lng });
+  }, [live, center.lat, center.lng]);
+
+  /*
+   * Re-fit the ZOOM as the data lands: points arrive from a later call than the
+   * card, so the map is built before it knows what it has to show. This one
+   * DOES stop at the first drag — re-zooming someone who has settled on a view
+   * is the jump `userMoved` exists to prevent.
    */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !live || userMoved.current || !width || !boxHeight) return;
-    map.setCenter(center);
     map.setZoom(fitted);
-  }, [live, fitted, center.lat, center.lng, width, boxHeight]);
+  }, [live, fitted, width, boxHeight]);
 
   const positioned = points.map((p) => {
     const wp = worldXY(p.lat, p.lng);
