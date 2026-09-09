@@ -8,9 +8,9 @@
 // WRITES are a different story — they need Partner API credentials and have to
 // go through a server-side proxy (see accordion-sync.php).
 //
-// Everything here fails SOFT: outside Duda `window.dmAPI` is simply undefined,
-// so callers get an empty array and fall back to their own defaults rather
-// than throwing into render.
+// `readCollection()` remains the soft compatibility surface: outside Duda or on
+// failure it returns an empty array. `readCollectionResult()` preserves the
+// distinction for widgets whose configuration must fail closed.
 //
 // Extracted from widget-space-list/accordionConfigApi.ts once a second widget
 // (blogs listing) needed it. The envelope/field-shape tolerance below is
@@ -46,6 +46,18 @@ interface DmAPILike {
 }
 
 export type CollectionRow = Record<string, unknown>;
+
+/**
+ * Lossless collection-read outcome for callers that must distinguish a genuine
+ * empty collection from an unavailable or failed Duda API. Most display widgets
+ * intentionally use the soft `readCollection()` wrapper below; configuration-
+ * critical widgets can use this result without turning an outage into "zero
+ * matching rows".
+ */
+export type CollectionReadResult =
+  | { status: 'ok'; rows: CollectionRow[] }
+  | { status: 'unavailable'; detail: string }
+  | { status: 'error'; detail: string };
 
 function getDmAPI(): DmAPILike | null {
   const w = window as unknown as { dmAPI?: DmAPILike };
@@ -111,8 +123,8 @@ let apiWait: Promise<boolean> | null = null;
  * back to REST. 1.5s is the compromise: comfortably longer than a script-ordering
  * race, short enough to be unremarkable in the editor.
  *
- * Cached page-wide, so the several widgets on a page share ONE wait rather than
- * each polling their own.
+ * Cached per bundle, so callers compiled into the same widget share one wait.
+ * Webpack emits isolated widget bundles; this is not cross-widget page caching.
  *
  * `hasCollectionsApi()` is deliberately NOT changed. It is the SYNCHRONOUS gate
  * several widgets use to decide whether to show demo data (#02's location tree
@@ -140,8 +152,8 @@ function waitForCollectionsApi(): Promise<boolean> {
 
 /**
  * Read every row of a collection by name (case-sensitive — it's the lookup key).
- * Returns [] on ANY failure: not in Duda, no dmAPI, collection absent, network
- * error, or the read not answering at all. Never throws.
+ * Preserves unavailable/error outcomes for strict callers. The legacy
+ * `readCollection()` wrapper below still returns [] on every failure.
  *
  * ── THE TIMEOUT IS NOT BELT-AND-BRACES ──────────────────────────────────────
  * "Never throws" was already true; "always settles" was not, and that is the
@@ -149,41 +161,55 @@ function waitForCollectionsApi(): Promise<boolean> {
  * over by the page's own scripts, and nothing here bounded them — so a read
  * that never answered left this promise pending for the life of the page.
  *
- * Which would be one slow widget, except that `internalProperties.ts` and
- * `propertyImages.ts` cache the PROMISE rather than the result, deliberately, so
- * every widget on the page shares one request. A single hung read is therefore
- * joined by every later caller and never resolves for any of them: #07 sits on
- * skeleton cards, #13's locations panel never appears, #03's hero photo never
- * arrives. Timing-dependent, so it comes and goes between reloads.
+ * Which would be one slow widget, except that consumers such as
+ * `internalProperties.ts` cache the PROMISE rather than the result deliberately,
+ * so every later caller in that bundle joins it. A wall-clock guard keeps one
+ * stalled read from holding those callers forever.
  *
  * Expiry lands on the same `[]` every other failure here does, so it introduces
  * no path a caller doesn't already handle — it just means a stall degrades like
  * a missing collection instead of hanging.
  */
-export async function readCollection(collectionName: string): Promise<CollectionRow[]> {
+export async function readCollectionResult(collectionName: string): Promise<CollectionReadResult> {
   try {
     // Waits rather than checking once — see waitForCollectionsApi.
-    if (!(await waitForCollectionsApi())) return [];
+    if (!(await waitForCollectionsApi())) {
+      return { status: 'unavailable', detail: 'Duda Collections API is unavailable' };
+    }
     const dmAPI = getDmAPI();
-    if (!dmAPI?.loadCollectionsAPI) return [];
+    if (!dmAPI?.loadCollectionsAPI) {
+      return { status: 'unavailable', detail: 'Duda Collections API disappeared before the read' };
+    }
     // Bounded as ONE operation, not two: the budget is for answering the read,
     // and splitting it would let a slow `loadCollectionsAPI()` spend the whole
     // allowance and still leave `.get()` its own.
+    const timedOut: CollectionReadResult = {
+      status: 'error',
+      detail: `Timed out reading collection "${collectionName}"`,
+    };
     return await withTimeout(
       (async () => {
         const collections = await dmAPI.loadCollectionsAPI!();
         const res = await collections.data(collectionName).get();
-        return extractRows(res).map(flattenRow);
+        return { status: 'ok', rows: extractRows(res).map(flattenRow) } as CollectionReadResult;
       })(),
       TIMEOUTS.collection,
-      [] as CollectionRow[],
+      timedOut,
       `dmAPI read of "${collectionName}"`,
     );
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn(`[dudaCollections] read of "${collectionName}" failed`, err);
-    return [];
+    return {
+      status: 'error',
+      detail: err instanceof Error ? err.message : String(err),
+    };
   }
+}
+
+export async function readCollection(collectionName: string): Promise<CollectionRow[]> {
+  const result = await readCollectionResult(collectionName);
+  return result.status === 'ok' ? result.rows : [];
 }
 
 // ── Field coercion helpers ───────────────────────────────────────────────────

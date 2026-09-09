@@ -111,6 +111,7 @@
     <button class="page-tab" data-page="rental-flow" onclick="showPage('rental-flow')">Rental Flow</button>
     <button class="page-tab" data-page="city" onclick="showPage('city')">City page</button>
     <button class="page-tab" data-page="homepage" onclick="showPage('homepage')">Homepage</button>
+    <button class="page-tab" data-page="storage-type" onclick="showPage('storage-type')">Storage Type page</button>
     <button class="page-tab" data-page="ui-kit" onclick="showPage('ui-kit')">UI Kit (forms &amp; buttons)</button>
   </div>
 
@@ -860,6 +861,57 @@
 
   </div><!-- /#page-homepage -->
 
+  <!-- ── Storage Type page ─────────────────────────────────────────────────
+       #19 reads `PropertiesInternal` and nothing else, so it needs the
+       collections mock: open this page with ?mockCollections=1 to exercise
+       filtering against a snapshot of a real collection export. WITHOUT it
+       there is no dmAPI, and the widget shows its
+       editor/harness example rows instead — which is the intended behaviour,
+       not a bug.
+
+       The amenity names were copied from that export. `washrack` and `business` are
+       the two that map cleanly onto storage types; most of the portfolio has no
+       amenities at all, so a real feature legitimately renders nothing. -->
+  <div id="page-storage-type" class="page" hidden>
+
+    <div class="widget-section">
+      <h2>widget-storage-type-locations (#19)</h2>
+
+      <div class="controls">
+        <div class="controls-group">
+          <span class="controls-group-label">Which type</span>
+          <label>Amenity:
+            <select id="stl-amenity" onchange="reinitStorageTypeLocations()">
+              <option value="washrack">washrack — Boat &amp; RV Wash Bay (1 facility)</option>
+              <option value="business">business — Business Storage (1 facility)</option>
+              <option value="wine">wine — Wine Storage (2 facilities)</option>
+              <option value="twentyfour">twentyfour — 24 Hour (2 facilities)</option>
+              <option value="carts">carts — (1 facility)</option>
+              <option value="climate_control">climate_control — no property carries it (renders nothing)</option>
+            </select>
+          </label>
+          <label>Heading:
+            <input id="stl-heading" type="text" value="Find boat storage near you"
+                   style="width:240px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+                   oninput="reinitStorageTypeLocations()" />
+          </label>
+        </div>
+        <div class="controls-group">
+          <span class="controls-group-label">Manual mapping</span>
+          <label>propertyIds (overrides the amenity):
+            <input id="stl-ids" type="text" value="" placeholder="OBZ5dhPmjZ,MjR57iZ82O"
+                   style="width:240px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+                   oninput="reinitStorageTypeLocations()" />
+          </label>
+        </div>
+      </div>
+
+      <div id="storage-type-locations-container" class="widget-container"
+           style="max-width:1120px; margin:0 auto; padding:32px 0;"></div>
+    </div>
+
+  </div><!-- /#page-storage-type -->
+
   <!-- ── Shared UI kit styleguide ─────────────────────────────────────────── -->
   <div id="page-ui-kit" class="page" hidden>
     <div class="widget-section">
@@ -935,6 +987,19 @@
          '{"address":"101 Mt. Vernon Ave.","city":"Bakersfield","state":"CA","zip":"93307-2739","lat":35.355421,"lng":-118.966436}', '17602300039']
       ];
 
+      // Property-level amenities, for #19. From the same export, and deliberately
+      // AS SPARSE AS THE LIVE DATA: only Bellflower and COFFEE carry any, the
+      // other five are empty. Filling all seven in would hide the fact that most
+      // facilities currently match no storage type at all — which is the finding
+      // the widget has to render honestly rather than paper over.
+      var AMENITIES = {
+        OBZ5dhPmjZ: ['talldoors', 'onetwentyvoutlet', 'twentyfour', 'secure', 'kiosk', 'thirtyamppower',
+                     'ada', 'air_and_water', 'alarmedunits', 'box_office', 'boxes', 'breezeway',
+                     'brightledlights', 'business', 'canopy', 'carpeted', 'carts', 'washrack', 'wine'],
+        nB9olhgl26: ['talldoors', 'onetwentyvoutlet', 'twentyfour', 'secure', 'kiosk',
+                     'thirtyamppower', 'ada', 'air_and_water', 'wine']
+      };
+
       var COLLECTIONS = {
         Company: [{ data: { id: rte('kQoBXA8vpn') } }],
         PropertiesInternal: P.map(function (r, i) {
@@ -946,7 +1011,10 @@
             company_id: rte('kQoBXA8vpn'),
             // Ranks only the first three, so "featured" is a genuine opt-in list
             // here rather than the whole portfolio in a different order.
-            nearbyLocationPriorityOrder: i < 3 ? String(i + 1) : ''
+            nearbyLocationPriorityOrder: i < 3 ? String(i + 1) : '',
+            amenities: JSON.stringify((AMENITIES[r[0]] || []).map(function (n) {
+              return { name: n, image: 'https://d1y377jq6m92v5.cloudfront.net/website/amenities/' + n + '.jpg' };
+            }))
           } };
         })
       };
@@ -1098,7 +1166,7 @@
   <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
     // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
-    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'my-account', 'value-tiers', 'rental-flow', 'city', 'homepage', 'ui-kit'];
+    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'my-account', 'value-tiers', 'rental-flow', 'city', 'homepage', 'storage-type', 'ui-kit'];
 
     // Per-page container ids for the widgets that appear on more than one page.
     var NAV_CONTAINERS = {
@@ -1114,7 +1182,7 @@
     function activePage() { return new URLSearchParams(window.location.search).get('page') || 'property'; }
 
     // The collections mock has to exist BEFORE any bundle reads a collection (the
-    // reads are promise-cached per page), so it is installed by a script in the
+    // reads are promise-cached inside each bundle), so it is installed by a script in the
     // <head> path and toggled by RELOADING with ?mockCollections=1 rather than by
     // flipping a flag at runtime. Other params are preserved so the active tab
     // survives the round trip.
@@ -1731,6 +1799,35 @@
       widget.init({
         container: document.getElementById('homepage-search-container'),
         props: getHomepageSearchProps(),
+      });
+    });
+
+    // ── #19 Storage Type Locations ──────────────────────────────────────────
+    var storageTypeLocationsWidget = null;
+
+    function getStorageTypeLocationsProps() {
+      var val = function (id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+      return {
+        storageTypeSlug: 'boat-and-rv-wash-bay',
+        amenityName: val('stl-amenity'),
+        propertyIds: val('stl-ids'),
+        heading: val('stl-heading'),
+        locationBasePath: '/storage-units',
+      };
+    }
+
+    function reinitStorageTypeLocations() {
+      if (!storageTypeLocationsWidget) return;
+      var container = document.getElementById('storage-type-locations-container');
+      if (storageTypeLocationsWidget.clean) storageTypeLocationsWidget.clean({ container: container });
+      storageTypeLocationsWidget.init({ container: container, props: getStorageTypeLocationsProps() });
+    }
+
+    require(['/dist/widget-storage-type-locations.js'], function (widget) {
+      storageTypeLocationsWidget = widget;
+      widget.init({
+        container: document.getElementById('storage-type-locations-container'),
+        props: getStorageTypeLocationsProps(),
       });
     });
   </script>
