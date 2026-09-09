@@ -2,8 +2,9 @@
 // Widget #19 — My Account
 //
 // The signed-in account screen. THREE panels over the same data, sharing one
-// slot; the greeting, promo, sidebar and Payment Activity bar stay put and
-// only the middle panel swaps:
+// slot; the greeting, promo and sidebar stay put and only the middle panel
+// swaps. The Payment Activity accordion belongs to the BILL PAY panel and
+// appears only there:
 //
 //   'account'  Figma 8815-115354 "Account Info - Display"  — THE DEFAULT.
 //              Promo sells autopay; the panel shows contacts and documents.
@@ -163,12 +164,16 @@ export function MyAccount({
             />
           )}
 
-          {/* Common to both screen frames, collapsed in each. */}
-          <PaymentActivity
-            rows={PAYMENT_ACTIVITY}
-            open={activityOpen}
-            onToggle={() => setActivityOpen((v) => !v)}
-          />
+          {/* BILL PAY ONLY. It is a record of payments, which belongs beside
+              the screen that takes one — on Account Info and Edit it was just
+              a second thing competing with the panel's own purpose. */}
+          {view === 'payment' && (
+            <PaymentActivity
+              rows={PAYMENT_ACTIVITY}
+              open={activityOpen}
+              onToggle={() => setActivityOpen((v) => !v)}
+            />
+          )}
         </div>
 
         <aside className="ma-side">
