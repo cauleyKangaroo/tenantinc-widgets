@@ -268,6 +268,21 @@ export function NearbyMap({
 
   const open = positioned.find((p) => p.id === openId) ?? null;
 
+  /*
+   * Where the reference point ("you are here") actually is on screen.
+   *
+   * Frozen, that is the middle of the box by definition, which is why this was
+   * a flat 50%/50% before. On a map the visitor can drag it is NOT: the middle
+   * of the box becomes wherever they dragged to, and a dot left at 50% would
+   * glide across the map still claiming to be their location. So it projects
+   * like any other point once the map is live, and keeps the literal 50% while
+   * frozen so the keyless path stays byte-for-byte what it was.
+   */
+  const refWp = worldXY(center.lat, center.lng);
+  const centerPos = live
+    ? { left: width / 2 + (refWp.x - c.x) * scale, top: boxHeight / 2 + (refWp.y - c.y) * scale }
+    : { left: '50%' as const, top: '50%' as const };
+
   return (
     <div
       ref={ref}
@@ -316,7 +331,8 @@ export function NearbyMap({
       {/* Either switch hides it; the dot only shows when neither says otherwise. */}
       {showCenterMarker && !hideCenterMarker && (
         <span style={{
-          position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+          position: 'absolute', left: centerPos.left, top: centerPos.top,
+          transform: 'translate(-50%, -50%)',
           width: 14, height: 14, borderRadius: '50%', background: '#101318',
           border: '3px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
         }} />
