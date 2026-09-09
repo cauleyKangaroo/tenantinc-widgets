@@ -18,7 +18,6 @@
 
 import { useEffect, useState } from 'react';
 import './StorageTypeLocations.css';
-import '@shared/ui/tokens.css';
 import { hasCollectionsApi, readCollection, str, plainText, type CollectionRow } from '@shared/dudaCollections';
 import { readInternalPropertiesResult, propertyLikeRows } from '@shared/internalProperties';
 import { AlertIcon, MapPinSolidIcon } from '@shared/ui/icons';

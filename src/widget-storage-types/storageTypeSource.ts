@@ -10,8 +10,9 @@
 //   • `PropertiesInternal.amenities[].image` supplies the artwork already
 //     associated with that amenity. No separate StorageTypes collection.
 //
-// Missing enrichment never removes a real page. It keeps the page-tree title,
-// uses sample copy, and shows the card's neutral image placeholder.
+// Missing enrichment never removes a real page. It keeps the page-tree title
+// and uses sample copy; the component supplies temporary Figma artwork when
+// no amenity image is available.
 // ===========================================================================
 
 import { readCollection, plainText, imageUrl, type CollectionRow } from '@shared/dudaCollections';

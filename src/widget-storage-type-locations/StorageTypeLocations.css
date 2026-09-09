@@ -1,39 +1,43 @@
 .stl {
-  /* Shared UI tokens are loaded explicitly by this widget. Duda's colour
-     variables can still override the CTA colour without a rebuild. */
-  --stl-text: var(--hb-text-night, #101318);
-  --stl-muted: var(--hb-grayscale-medium, #637381);
-  --stl-link: var(--color_2, #306fb6);
-  font-family: var(--hb-font, 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  /* Fixed to the facility-page Figma; Duda theme typography must not alter it. */
+  --stl-text: #000000;
+  --stl-link: #306fb6;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   width: 100%;
   box-sizing: border-box;
   color: var(--stl-text);
 }
 .stl *, .stl *::before, .stl *::after { box-sizing: border-box; }
+.stl, .stl * {
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
 
 .stl-heading {
   margin: 0 0 4px;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--stl-text);
-  text-transform: none;
-  letter-spacing: normal;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: #000000 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 .stl-sub {
   margin: 0 0 24px;
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 1.5;
-  color: var(--stl-text);
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  color: #000000 !important;
+  letter-spacing: 0 !important;
 }
 .stl-group + .stl-group { margin-top: 28px; }
 .stl-state {
   margin: 0 0 10px;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--stl-text);
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  color: #000000 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 
 .stl-list {
@@ -49,23 +53,24 @@
   align-items: flex-start;
   gap: 12px;
 }
-/* Figma uses #306FB6. Duda's CTA token wins on a themed site, matching the
-   project-wide convention used by Map Locations and Homepage Search. */
+/* Figma uses #306FB6 for both the pin and location link. */
 .stl-pin {
   flex: 0 0 auto;
   margin-top: 2px;
   color: var(--stl-link);
 }
 .stl-link {
-  font-size: 18px;
-  line-height: 1.5;
-  color: var(--stl-link);
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  color: #306fb6 !important;
+  letter-spacing: 0 !important;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 .stl-link:hover { text-decoration: none; }
 .stl-link:focus-visible {
-  outline: 2px solid var(--color_1, #101318);
+  outline: 2px solid #101318;
   outline-offset: 3px;
   border-radius: 3px;
 }
@@ -75,24 +80,25 @@
   align-items: flex-start;
   gap: 10px;
   padding: 16px;
-  border: 1px solid var(--hb-ada-red, #e53935);
-  border-radius: var(--hb-field-radius, 8px);
-  background: color-mix(in srgb, var(--hb-ada-red, #e53935) 7%, #fff);
-  color: var(--hb-text-night, #101318);
+  border: 1px solid #e53935;
+  border-radius: 8px;
+  background: color-mix(in srgb, #e53935 7%, #fff);
+  color: #101318;
 }
 .stl-error-icon {
   flex: 0 0 auto;
-  color: var(--hb-ada-red, #e53935);
+  color: #e53935;
 }
 .stl-error {
   margin: 1px 0 0;
-  font-size: 16px;
-  line-height: 1.4;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  line-height: 1.4 !important;
   color: inherit;
 }
 
 @media (max-width: 768px) {
-  .stl-heading { font-size: 24px; }
-  .stl-state { font-size: 20px; }
-  .stl-link { font-size: 16px; }
+  .stl-heading { font-size: 24px !important; }
+  .stl-state { font-size: 20px !important; }
+  .stl-link { font-size: 16px !important; }
 }

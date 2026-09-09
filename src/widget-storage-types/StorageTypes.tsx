@@ -13,7 +13,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import './StorageTypes.css';
-import '@shared/ui/tokens.css';
 import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
 import { hasSitePagesApi } from '@shared/sitePages';
@@ -74,6 +73,24 @@ function dudaEnvironment(): string {
 /** The related row is a carousel below this width and a static row above it. */
 const NARROW_BP = '(max-width: 768px)';
 
+/**
+ * Temporary design artwork for a type with no amenity image yet.
+ *
+ * Referenced by URL, NOT imported: webpack's image rule is `asset/inline`, so
+ * an import base64s the file into the bundle — three of these took #20 from
+ * 168KB to 629KB, downloaded and parsed as JavaScript on every page. By URL
+ * they are cached, lazy-loadable, and cost the bundle nothing.
+ *
+ * Served from the same folder as the bundle so the two move together.
+ */
+const FALLBACK_IMAGE_BASE =
+  'https://raymond-tenantinc-widgets-test.s3.us-west-2.amazonaws.com/tenantinc-widgets/dist/storagetypes/assets';
+const FIGMA_CARD_FALLBACKS = [
+  `${FALLBACK_IMAGE_BASE}/figma-card-1.jpg`,
+  `${FALLBACK_IMAGE_BASE}/figma-card-2.jpg`,
+  `${FALLBACK_IMAGE_BASE}/figma-card-3.jpg`,
+] as const;
+
 function useIsNarrow(): boolean {
   const [narrow, setNarrow] = useState(
     () => typeof window !== 'undefined' && !!window.matchMedia?.(NARROW_BP).matches,
@@ -95,13 +112,14 @@ function useIsNarrow(): boolean {
 }
 
 /** Cards are the same in both layouts; only their container differs. */
-function Card({ type }: { type: StorageType }) {
+function Card({ type, position }: { type: StorageType; position: number }) {
+  // Temporary design artwork while a storage type has no amenity image.
+  // Collection data remains authoritative whenever it is available.
+  const image = type.image || FIGMA_CARD_FALLBACKS[position % FIGMA_CARD_FALLBACKS.length];
   return (
     <a className="st-card" href={type.href}>
       <div className="st-card-media">
-        {type.image
-          ? <img className="st-card-img" src={type.image} alt={type.imageAlt} loading="lazy" />
-          : <div className="st-card-img st-card-img--empty" aria-hidden="true" />}
+        <img className="st-card-img" src={image} alt={type.imageAlt} loading="lazy" />
       </div>
       <div className="st-card-body">
         <h3 className="st-card-title">{type.title}</h3>
@@ -195,7 +213,7 @@ export function StorageTypes({
       <section className="st st--index">
         <h2 className="st-heading">{title}</h2>
         <div className="st-grid">
-          {list.map((t) => <Card type={t} key={t.slug} />)}
+          {list.map((t, index) => <Card type={t} position={index} key={t.slug} />)}
         </div>
       </section>
     );
@@ -211,8 +229,8 @@ export function StorageTypes({
       <h2 className="st-heading">{title}</h2>
       <div className="st-track">
         <div className="st-rail" style={railStyle} {...carousel.handlers}>
-          {list.map((t) => (
-            <div className="st-slide" key={t.slug}><Card type={t} /></div>
+          {list.map((t, index) => (
+            <div className="st-slide" key={t.slug}><Card type={t} position={index} /></div>
           ))}
         </div>
       </div>

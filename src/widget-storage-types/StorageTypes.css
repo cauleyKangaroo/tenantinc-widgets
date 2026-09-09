@@ -1,8 +1,8 @@
 .st {
-  --st-text: var(--hb-text-night, #101318);
-  --st-muted: var(--hb-grayscale-medium, #637381);
-  --st-rule: var(--hb-cloud-darker, #a5b4bf);
-  font-family: var(--hb-font, 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  --st-text: #101318;
+  --st-copy: #000000;
+  --st-rule: #a5b4bf;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   width: 100%;
   max-width: 1330px;
   margin-inline: auto;
@@ -10,15 +10,18 @@
   color: var(--st-text);
 }
 .st *, .st *::before, .st *::after { box-sizing: border-box; }
+.st, .st * {
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
 
 .st-heading {
   margin: 0 0 40px;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--st-text);
-  text-transform: none;
-  letter-spacing: normal;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: var(--st-copy) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 
 /* ── Card (identical in both layouts) ─────────────────────────────────────── */
@@ -39,14 +42,12 @@
   box-shadow: 0 6px 14px 4px rgba(71, 84, 116, 0.16);
 }
 .st-card:focus-visible {
-  outline: 2px solid var(--color_1, #101318);
+  outline: 2px solid #101318;
   outline-offset: 3px;
 }
 
-.st-card-media { width: 100%; height: 234px; flex: 0 0 234px; background: var(--hb-cloud-light, #f4f6f8); }
+.st-card-media { width: 100%; height: 234px; flex: 0 0 234px; background: #f4f6f8; }
 .st-card-img { display: block; width: 100%; height: 100%; object-fit: cover; }
-/* No image yet: a flat tone, not a broken <img>. */
-.st-card-img--empty { background: var(--hb-cloud-light, #f4f6f8); }
 
 .st-card-body {
   display: flex;
@@ -57,16 +58,20 @@
 }
 .st-card-title {
   margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--st-text);
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  color: #101318 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 .st-card-abstract {
   margin: 0;
-  font-size: 16px;
-  line-height: 1.5;
-  color: var(--st-text);
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  color: var(--st-copy) !important;
+  letter-spacing: 0 !important;
   /* The abstract is a summary; three lines keeps every card the same height
      whatever the editor typed. */
   display: -webkit-box;
@@ -76,9 +81,11 @@
 }
 .st-card-more {
   margin-top: auto;
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--st-text);
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  color: #101318 !important;
+  letter-spacing: 0 !important;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -121,7 +128,7 @@
   cursor: pointer;
 }
 .st-dot.active { background: var(--st-text); }
-.st-dot:focus-visible { outline: 2px solid var(--color_1, #101318); outline-offset: 3px; }
+.st-dot:focus-visible { outline: 2px solid #101318; outline-offset: 3px; }
 
 @media (max-width: 768px) {
   .st--related {
@@ -129,14 +136,14 @@
     padding: 24px 0 32px;
     background: #f9fafb;
   }
-  .st-heading { font-size: 28px; margin-bottom: 26px; }
+  .st-heading { font-size: 28px !important; margin-bottom: 26px; }
   .st--related .st-heading { text-align: center; }
   .st-grid { grid-template-columns: 1fr; gap: 20px; }
   .st-rail { gap: 0; }
   .st-slide { flex: 0 0 100%; padding-inline: 24px; }
   .st-card-body { padding: 20px 26px 32px; }
-  .st-card-title { font-size: 24px; }
-  .st-card-abstract, .st-card-more { font-size: 16px; }
+  .st-card-title { font-size: 24px !important; }
+  .st-card-abstract, .st-card-more { font-size: 16px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
