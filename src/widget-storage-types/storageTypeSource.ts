@@ -1,22 +1,26 @@
 // ===========================================================================
-// Which storage types exist, and what each card says.
+// Which storage types exist, what each card says, and which image it uses.
 //
-// TWO SOURCES, deliberately:
+// THREE EXISTING SOURCES, deliberately:
 //
-//   • The Duda PAGE TREE decides which types exist. It cannot drift from
-//     reality — a type is listed because a page for it exists — so a card can
-//     never link to a 404, and adding a page is all it takes to list it.
-//   • The `StorageTypes` collection supplies the card copy and imagery, keyed
-//     by slug. It is ENRICHMENT: a page with no row still gets a card, with its
-//     page title and no blurb, rather than disappearing.
+//   • The Duda PAGE TREE owns existence, title, URL, visibility and order.
+//   • `featurePage` supplies the optional card paragraph. Its existing `name`
+//     column is the join key; an optional `amenity_name` handles the few cases
+//     where a marketing name cannot be inferred from the Hummingbird key.
+//   • `PropertiesInternal.amenities[].image` supplies the artwork already
+//     associated with that amenity. No separate StorageTypes collection.
 //
-// A collection row with no page is skipped — it has nowhere to link to.
+// Missing enrichment never removes a real page. It keeps the page-tree title,
+// uses sample copy, and shows the card's neutral image placeholder.
 // ===========================================================================
 
-import { readCollection, plainText, imageUrl, num } from '@shared/dudaCollections';
+import { readCollection, plainText, imageUrl, type CollectionRow } from '@shared/dudaCollections';
+import { readInternalProperties, INTERNAL_PROPERTIES_COLLECTION } from '@shared/internalProperties';
 import { readSitePages, findSitePage, descendantPages, parseRoutes, type SitePage } from '@shared/sitePages';
 
-export const STORAGE_TYPES_COLLECTION = 'StorageTypes';
+export const FEATURE_PAGE_COLLECTION = 'featurePage';
+export const DEFAULT_STORAGE_TYPE_ABSTRACT =
+  'Discover secure, convenient storage options designed to fit your needs.';
 
 export interface StorageType {
   slug: string;
@@ -25,92 +29,119 @@ export interface StorageType {
   abstract: string;
   image: string;
   imageAlt: string;
-  /** Lower sorts first. Absent rows keep the page tree's own order. */
-  sortOrder: number;
-  hiddenFromListing: boolean;
 }
 
-/** Sorts after every curated rank, so uncurated pages keep the editor's order. */
-const NO_ORDER = Number.POSITIVE_INFINITY;
-
-/** `/storage-types/rv-storage` → `rv-storage`. The join key between the two sources. */
+/** `/storage-types/rv-storage` → `rv-storage`. */
 export function slugOf(path: string): string {
   const clean = (path || '').split(/[?#]/)[0].replace(/\/+$/, '');
   const tail = clean.split('/').filter(Boolean).pop();
   return (tail || '').toLowerCase();
 }
 
-interface CopyRow {
-  title: string;
-  abstract: string;
-  image: string;
-  imageAlt: string;
-  sortOrder: number;
-  hiddenFromListing: boolean;
+/** Human labels, URL segments and Hummingbird names share this identity form. */
+function keyOf(value: unknown): string {
+  return plainText(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+/** Generic marketing suffixes are not part of the amenity identity. */
+function candidateKeys(...values: unknown[]): string[] {
+  const out = new Set<string>();
+  for (const value of values) {
+    const key = keyOf(value);
+    if (!key) continue;
+    out.add(key);
+    out.add(key.replace(/_(storage|storage_units|units|access)$/, ''));
+  }
+  return [...out].filter(Boolean);
+}
+
+interface FeatureCopy {
+  description: string;
+  amenityName: string;
 }
 
 /**
- * Card copy per slug. Fails soft to an empty map: the collection is optional,
- * and its absence must leave the page tree's own list intact.
- *
- * `StorageTypes` is a NATIVE collection — a human authors it — so every text
- * value can arrive wrapped as `<p class="rteBlock">…</p>`. `slug` is the lookup
- * key, so it goes through plainText() or it matches nothing at all.
+ * Existing `featurePage` rows indexed by normalized name/optional slug.
+ * `amenity_name` is optional: it is needed only for non-inferable mappings,
+ * e.g. "Boat & RV Wash Bay" → `washrack`.
  */
-export async function readStorageTypeCopy(collectionName: string): Promise<Map<string, CopyRow>> {
-  const out = new Map<string, CopyRow>();
+async function readFeatureCopy(collectionName: string): Promise<Map<string, FeatureCopy>> {
+  const out = new Map<string, FeatureCopy>();
   if (!collectionName) return out;
 
-  let rows;
-  try {
-    rows = await readCollection(collectionName);
-  } catch {
-    return out;
-  }
-
+  const rows = await readCollection(collectionName).catch(() => [] as CollectionRow[]);
   for (const row of rows) {
-    const slug = plainText(row.slug).trim().toLowerCase();
-    if (!slug) continue;
-    if (out.has(slug)) {
-      console.warn(`[#20 storage-types] duplicate row for "${slug}" ignored — the first one wins`);
-      continue;
+    const name = plainText(row.name).trim();
+    const description = plainText(row.description).trim();
+    const amenityName = plainText(row.amenity_name).trim();
+    const keys = candidateKeys(name, row.slug);
+    for (const key of keys) {
+      if (out.has(key)) {
+        console.warn(`[#20 storage-types] duplicate featurePage key "${key}" ignored — the first row wins`);
+        continue;
+      }
+      out.set(key, { description, amenityName });
     }
-    const rank = plainText(row.sort_order);
-    out.set(slug, {
-      title: plainText(row.display_name).trim() || plainText(row.title).trim(),
-      abstract: plainText(row.abstract).trim(),
-      image: imageUrl(row.card_image),
-      imageAlt: plainText(row.card_alt).trim(),
-      sortOrder: rank ? num(rank, NO_ORDER) : NO_ORDER,
-      hiddenFromListing: /^(1|true|yes)$/i.test(plainText(row.hide_from_listing).trim()),
-    });
   }
   return out;
+}
+
+/** One canonical image per amenity key, using the first non-empty URL. */
+async function readAmenityImages(collectionName: string): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const rows = await readInternalProperties(collectionName).catch(() => [] as CollectionRow[]);
+  for (const row of rows) {
+    if (!Array.isArray(row.amenities)) continue;
+    for (const raw of row.amenities) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+      const amenity = raw as Record<string, unknown>;
+      const key = keyOf(amenity.name);
+      const image = imageUrl(amenity.image);
+      if (key && image && !out.has(key)) out.set(key, image);
+    }
+  }
+  return out;
+}
+
+function firstMatch<T>(map: Map<string, T>, keys: string[]): T | undefined {
+  for (const key of keys) {
+    const value = map.get(key);
+    if (value !== undefined) return value;
+  }
+  return undefined;
 }
 
 export interface StorageTypesQuery {
   /** Comma-separated route(s) holding the type pages. */
   route: string;
+  /** Existing collection containing `name` and `description`. */
   collectionName: string;
-  /** Exclude this slug — the page a "related" row is sitting on. */
+  /** Existing per-property collection containing `amenities[].image`. */
+  internalCollectionName?: string;
+  /** Exclude this slug — the page a related row sits on. */
   excludeSlug?: string;
-  /** Include pages the editor hid from navigation. */
+  /** Drop pages hidden from navigation. */
   skipHidden?: boolean;
 }
 
-/**
- * The list a card row renders.
- *
- * Empty when the route names no branch — which is the honest answer to "this
- * site has no storage-type pages", and is what the caller renders nothing for.
- */
 export async function fetchStorageTypes(
   widgetTag: string,
-  { route, collectionName, excludeSlug = '', skipHidden = false }: StorageTypesQuery,
+  {
+    route,
+    collectionName,
+    internalCollectionName = INTERNAL_PROPERTIES_COLLECTION,
+    excludeSlug = '',
+    skipHidden = false,
+  }: StorageTypesQuery,
 ): Promise<StorageType[]> {
-  const [pages, copy] = await Promise.all([
+  const [pages, copy, amenityImages] = await Promise.all([
     readSitePages(widgetTag),
-    readStorageTypeCopy(collectionName),
+    readFeatureCopy(collectionName),
+    readAmenityImages(internalCollectionName),
   ]);
 
   const branches = parseRoutes(route)
@@ -128,26 +159,23 @@ export async function fetchStorageTypes(
       if (!slug || slug === exclude || seen.has(slug)) continue;
       seen.add(slug);
 
-      const row = copy.get(slug);
-      if (row?.hiddenFromListing) continue;
+      const pageKeys = candidateKeys(slug, page.title);
+      const authored = firstMatch(copy, pageKeys);
+      const imageKeys = candidateKeys(authored?.amenityName, slug, page.title);
+      const image = firstMatch(amenityImages, imageKeys) ?? '';
 
       out.push({
         slug,
-        title: row?.title || page.title,
+        title: page.title,
         href: page.path,
-        abstract: row?.abstract ?? '',
-        image: row?.image ?? '',
-        imageAlt: row?.imageAlt || row?.title || page.title,
-        sortOrder: row?.sortOrder ?? NO_ORDER,
-        hiddenFromListing: false,
+        abstract: authored?.description || DEFAULT_STORAGE_TYPE_ABSTRACT,
+        image,
+        imageAlt: page.title,
       });
     }
   }
 
-  // Curated rank first; everything uncurated keeps the editor's own page order,
-  // which is why this is a stable sort on the index rather than on the title.
-  return out
-    .map((t, i) => ({ t, i }))
-    .sort((a, b) => (a.t.sortOrder - b.t.sortOrder) || (a.i - b.i))
-    .map(({ t }) => t);
+  // The page tree is the single ordering source, so index, nav and related rows
+  // cannot drift into three independently curated sequences.
+  return out;
 }

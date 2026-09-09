@@ -6,9 +6,9 @@
 //   • variant="related" — the "More Space Types" row at the foot of a type
 //                         page, a swipeable carousel on mobile
 //
-// Both read the same source (see ./storageTypeSource): the PAGE TREE decides
-// which types exist, the StorageTypes collection supplies copy and imagery.
-// A page with no collection row still gets a card.
+// Both read the same sources (see ./storageTypeSource): the PAGE TREE decides
+// which types exist, featurePage supplies copy, and PropertiesInternal's
+// amenities supply imagery. Missing enrichment never removes a real page.
 // ===========================================================================
 
 import { useEffect, useMemo, useState } from 'react';
@@ -17,7 +17,7 @@ import '@shared/ui/tokens.css';
 import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
 import { hasSitePagesApi } from '@shared/sitePages';
-import { fetchStorageTypes, STORAGE_TYPES_COLLECTION, type StorageType } from './storageTypeSource';
+import { fetchStorageTypes, FEATURE_PAGE_COLLECTION, type StorageType } from './storageTypeSource';
 
 export type StorageTypesVariant = 'index' | 'related';
 
@@ -26,7 +26,10 @@ export interface StorageTypesProps {
   heading?: string;
   /** Route(s) holding the type pages. Comma separated. */
   storageTypesRoute?: string;
+  /** Existing `featurePage` collection providing `name` + `description`. */
   collectionName?: string;
+  /** Existing property collection providing `amenities[].image`. */
+  internalCollectionName?: string;
   /** The page this row sits on, excluded from a "related" list. */
   currentSlug?: string;
   /** Cards in the related row. Default 3, as drawn. */
@@ -37,11 +40,11 @@ export interface StorageTypesProps {
 }
 
 const PREVIEW: StorageType[] = [
-  { slug: 'covered-vehicle-storage', title: 'Covered Vehicle Storage', href: '#', sortOrder: 1, hiddenFromListing: false,
+  { slug: 'covered-vehicle-storage', title: 'Covered Vehicle Storage', href: '#',
     abstract: "Don't start the year off with overflowing closets, stuffed garages, and just too much…", image: '', imageAlt: 'Covered Vehicle Storage' },
-  { slug: 'drive-up-climate-controlled-storage', title: 'Drive-Up Climate Controlled Storage', href: '#', sortOrder: 2, hiddenFromListing: false,
+  { slug: 'drive-up-climate-controlled-storage', title: 'Drive-Up Climate Controlled Storage', href: '#',
     abstract: "Don't start the year off with overflowing closets, stuffed garages, and just too much…", image: '', imageAlt: 'Drive-Up Climate Controlled Storage' },
-  { slug: 'drive-up-storage', title: 'Drive-Up Storage', href: '#', sortOrder: 3, hiddenFromListing: false,
+  { slug: 'drive-up-storage', title: 'Drive-Up Storage', href: '#',
     abstract: "Don't start the year off with overflowing closets, stuffed garages, and just too much…", image: '', imageAlt: 'Drive-Up Storage' },
 ];
 
@@ -113,7 +116,8 @@ export function StorageTypes({
   variant = 'index',
   heading,
   storageTypesRoute = 'storage-types',
-  collectionName = STORAGE_TYPES_COLLECTION,
+  collectionName = FEATURE_PAGE_COLLECTION,
+  internalCollectionName,
   currentSlug = '',
   limit,
   skipHiddenPages,
@@ -143,6 +147,7 @@ export function StorageTypes({
     fetchStorageTypes(tag, {
       route: storageTypesRoute,
       collectionName,
+      internalCollectionName,
       excludeSlug: isRelated ? currentSlug : '',
       skipHidden: boolProp(skipHiddenPages),
     })
@@ -158,7 +163,7 @@ export function StorageTypes({
       });
 
     return () => { cancelled = true; };
-  }, [variant, storageTypesRoute, collectionName, currentSlug, perView, skipHiddenPages, inEditor, isRelated]);
+  }, [variant, storageTypesRoute, collectionName, internalCollectionName, currentSlug, perView, skipHiddenPages, inEditor, isRelated]);
 
   const list = types ?? [];
   const reduceMotion = usePrefersReducedMotion();

@@ -917,7 +917,8 @@
       <h2>widget-storage-types (#20) — related</h2>
       <p style="margin:0 0 12px; font-size:13px; color:#637381;">
         The list comes from the Duda <strong>page tree</strong> under
-        <code>storage-types</code>; the collection only adds copy and imagery.
+        <code>storage-types</code>; <code>featurePage</code> adds copy and
+        <code>PropertiesInternal.amenities</code> supplies imagery.
         Without <code>?mockCollections=1</code> there is no page tree either, so
         example cards show instead.
       </p>
@@ -1029,39 +1030,31 @@
 
       var COLLECTIONS = {
         Company: [{ data: { id: rte('kQoBXA8vpn') } }],
-        // Copy/image enrichment for #20. These slugs intentionally match the
-        // page-tree fixtures below so the harness exercises the real join and
-        // renders complete cards instead of featureless page-title fallbacks.
-        StorageTypes: [
+        // Existing feature-page copy reused by #20. Images do NOT live here:
+        // the widget joins them from PropertiesInternal.amenities[].image.
+        featurePage: [
           { data: {
-            slug: rte('climate-controlled-storage'), display_name: rte('Climate Controlled Storage'),
-            abstract: rte("Don't start the year off with overflowing closets, stuffed garages, and just too much..."),
-            card_image: '/demo-assets/property-1.jpg',
-            card_alt: rte('Climate controlled storage hallway'), sort_order: rte('1')
+            name: rte('Climate Controlled'),
+            description: rte('Climate controlled units help protect sensitive belongings from temperature swings.'),
+            amenity_name: rte('climate_control')
           } },
           { data: {
-            slug: rte('car-rv-boat-storage'), display_name: rte('Car, RV & Boat Storage'),
-            abstract: rte("Don't start the year off with overflowing closets, stuffed garages, and just too much..."),
-            card_image: '/demo-assets/property-2.jpg',
-            card_alt: rte('Covered vehicle storage'), sort_order: rte('2')
+            name: rte('Car, RV Boat'),
+            description: rte('Convenient storage options for cars, recreational vehicles, boats and trailers.'),
+            amenity_name: rte('canopy')
           } },
           { data: {
-            slug: rte('business-storage'), display_name: rte('Business Storage'),
-            abstract: rte("Don't start the year off with overflowing closets, stuffed garages, and just too much..."),
-            card_image: '/demo-assets/property-3.jpg',
-            card_alt: rte('Business storage boxes'), sort_order: rte('3')
+            name: rte('Business'),
+            description: rte('Flexible storage for inventory, equipment, documents and everyday business needs.')
           } },
           { data: {
-            slug: rte('drive-up-storage'), display_name: rte('Drive-Up Storage'),
-            abstract: rte("Don't start the year off with overflowing closets, stuffed garages, and just too much..."),
-            card_image: '/demo-assets/property-4.jpg',
-            card_alt: rte('Drive-up storage'), sort_order: rte('4')
+            name: rte('Drive-Up'),
+            description: rte('Pull directly up to your storage space for quick and convenient loading.'),
+            amenity_name: rte('breezeway')
           } },
           { data: {
-            slug: rte('wine-storage'), display_name: rte('Wine Storage'),
-            abstract: rte("Don't start the year off with overflowing closets, stuffed garages, and just too much..."),
-            card_image: '/demo-assets/property-5.jpg',
-            card_alt: rte('Wine storage'), sort_order: rte('5')
+            name: rte('Wine'),
+            description: rte('Specialized storage options designed for wine collections.')
           } }
         ],
         PropertiesInternal: P.map(function (r, i) {

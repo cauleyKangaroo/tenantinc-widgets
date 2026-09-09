@@ -99,13 +99,9 @@ module.exports = (_env, argv) => {
     devServer: isDev
       ? {
           // Serve the dev/ harness HTML from the root
-          static: [
-            { directory: path.join(__dirname, 'dev') },
-            {
-              directory: path.join(__dirname, 'src/shared/assets/demo'),
-              publicPath: '/demo-assets',
-            },
-          ],
+          static: {
+            directory: path.join(__dirname, 'dev'),
+          },
           port: 3000,
           // AMD format is incompatible with webpack HMR; use plain live-reload.
           hot: false,
