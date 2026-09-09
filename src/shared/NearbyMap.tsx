@@ -259,6 +259,9 @@ export function NearbyMap({
   useEffect(() => {
     if (!interactive) return undefined;
     let dead = false;
+    /** Removed on teardown — `bounds_changed` fires on every frame of a drag,
+     *  so one left attached to an orphaned map is the worst kind to leak. */
+    let listeners: Array<{ remove?: () => void }> = [];
 
     void fetchMapsKey(proxyBase || DEFAULT_PLACES_BASE)
       .then((key) => (key ? loadGoogleMaps(key) : null))
@@ -295,8 +298,8 @@ export function NearbyMap({
           if (!cc || cz == null || dead) return;
           setView({ lat: cc.lat(), lng: cc.lng(), zoom: cz });
         };
-        map.addListener('bounds_changed', sync);
-        map.addListener('dragstart', () => { userMoved.current = true; });
+        listeners.push(map.addListener('bounds_changed', sync));
+        listeners.push(map.addListener('dragstart', () => { userMoved.current = true; }));
 
         mapRef.current = map;
         sync();
@@ -311,7 +314,26 @@ export function NearbyMap({
         console.warn('[NearbyMap] the live map could not be created — keeping the embed:', err);
       });
 
-    return () => { dead = true; };
+    /*
+     * Tear the map down properly, not just flag the promise.
+     *
+     * `mapRef.current` guards construction, so a ref left pointing at the old
+     * map would block the rebuild if `proxyBase` or `interactive` changed.
+     * `view` has to go with it: it mirrors a map that no longer exists, and
+     * the projection would keep laying the pins out against that dead view
+     * while the frozen embed underneath shows a different one — pins on the
+     * wrong part of the world, which is the exact failure the frozen map was
+     * pointer-events:none to avoid.
+     */
+    return () => {
+      dead = true;
+      listeners.forEach((l) => { try { l?.remove?.(); } catch { /* already gone */ } });
+      listeners = [];
+      mapRef.current = null;
+      userMoved.current = false;
+      setLive(false);
+      setView(null);
+    };
   }, [interactive, proxyBase]);
 
   /*
