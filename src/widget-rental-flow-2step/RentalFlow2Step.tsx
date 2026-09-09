@@ -6,6 +6,7 @@ import {
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
+  fetchPaymentGateway, TENANT_PAYMENTS,
   type RentResult,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
@@ -776,7 +777,7 @@ export function RentalFlow2Step({
   })();
 
   // Global Payments PUBLIC key — tokenization only; it cannot charge or read.
-  const gpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
+  const configuredGpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
   const cfgCtx = React.useMemo(() => defaultRentalCtx(), []);
   const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp }, cfgCtx.propertyId);
   const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
@@ -800,6 +801,39 @@ export function RentalFlow2Step({
     }),
     [effectiveCompanyId, effectivePropertyId, propertyIdProp, cfgCtx.spaceGroupId, proxyBaseUrl, unitGroupIdProp],
   );
+
+  /*
+   * WHICH CARD FORM THIS PROPERTY GETS.
+   *
+   * `undefined` = still asking. Not the same as "no gateway": the card row
+   * waits on this rather than guessing, because guessing wrong means either
+   * swapping a plain input the shopper is already typing into for a GP iframe,
+   * or the reverse — and either loses what they have typed.
+   *
+   * Only `tenant_payments` gets the hosted fields. Every other gateway
+   * (`authorizenet` today) has no GP integration, so the card is collected in
+   * our own inputs and the real number, expiry and CVV go in the payload —
+   * which is what cardPaymentMethod does the moment it is handed real digits.
+   *
+   * A failed lookup resolves to null and therefore to the plain inputs. That is
+   * the safe direction: real card details reach a gateway that wanted them,
+   * whereas a GP iframe on a non-GP property cannot take a payment at all.
+   */
+  const [gateway, setGateway] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    // Wait for the resolved company — asking under the config default would
+    // read another tenant's gateway and could pick the wrong form entirely.
+    if (!effectiveCompanyId || !effectivePropertyId) return undefined;
+    let cancelled = false;
+    fetchPaymentGateway(ctx)
+      .then((g) => { if (!cancelled) setGateway(g); })
+      .catch(() => { if (!cancelled) setGateway(null); });
+    return () => { cancelled = true; };
+  }, [effectiveCompanyId, effectivePropertyId, ctx]);
+
+  const gatewayPending = gateway === undefined;
+  /** Hosted fields belong to tenant_payments alone. */
+  const gpKey = gateway === TENANT_PAYMENTS ? configuredGpKey : '';
   const [step, setStep] = useState<1 | 2>(1);
   const [phase, setPhase] = useState<'in' | 'out'>('in');
   const [dateModalOpen, setDateModalOpen] = useState(false);
@@ -1777,8 +1811,14 @@ export function RentalFlow2Step({
     const goToCheckout = () => { if (checkoutUrl) window.location.assign(checkoutUrl); };
     // Same rail the flow used, rebuilt from the immutable success snapshot —
     // one element, placed in the desktop grid OR the mobile sheet, never both.
-    const confirmationRail = (
+    /* TWO of them, for the reason `rail`/`sheetRail` below are two: this rail is
+       rendered in the desktop column AND in the mobile sheet, and only the sheet
+       takes the logo header. One flagged copy would put the sheet's logo on the
+       desktop rail as well — which is the mistake that pair already documents.
+       `paid` is on BOTH, so the total reads "Total Paid to Move-In:" either way. */
+    const makeConfirmationRail = (sheet: boolean) => (
       <OrderRail
+        sheetLogo={sheet ? headerLogo : undefined}
         property={snapProp}
         selection={snap?.selection}
         quote={snap?.quote}
@@ -1786,6 +1826,8 @@ export function RentalFlow2Step({
         paid
       />
     );
+    const confirmationRail = makeConfirmationRail(false);
+    const confirmationSheetRail = makeConfirmationRail(true);
     return (
       <div className={`rf-wrapper${isMobile ? ' rf-wrapper--mobile' : ''}`} ref={wrapRef}>
         {headerDone}
@@ -1807,7 +1849,7 @@ export function RentalFlow2Step({
                 instead of displacing it. */}
             <div className="rfm-panel">
               <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
-                <div className="rfm-sheet">{confirmationRail}</div>
+                <div className="rfm-sheet">{confirmationSheetRail}</div>
               </div>
               <MobileLeaseBar
                 total={snap?.quote?.totalDue}
@@ -1969,7 +2011,10 @@ export function RentalFlow2Step({
             <div className="rfm-panel">
               <div className={`rfm-sheet-wrap${railOpen ? ' rfm-sheet-wrap--open' : ''}`}>
                 <div className="rfm-sheet">
-                  {railFor(true)}
+                  {/* `true, true` — rented AND sheet. The second flag was
+                      missing, so this sheet fell back to the photo hero while
+                      the identical sheet before payment showed the logo. */}
+                  {railFor(true, true)}
                 </div>
               </div>
               <MobileLeaseBar
@@ -2124,6 +2169,7 @@ export function RentalFlow2Step({
             paying={paying}
             payError={payError}
             gpPublicKey={gpKey}
+            gatewayPending={gatewayPending}
             onPaymentComplete={(info) => {
               // REAL RENTAL. A card plus a live hold and quote means we have
               // everything the documented flow needs (guide APIs 9→10→11), so
@@ -2279,6 +2325,9 @@ export function RentalFlow2Step({
           open
           firstName={finalizing.firstName}
           facilityName={brandName}
+          /* The same logo the header shows — content-panel image, then logoUrl,
+             then the bundled fallback. Resolved once, at line ~1635. */
+          logoSrc={headerLogo}
           /* The rental is still in flight, so hold the bar short of the end.
              On the preview path there is no request and this is false from the
              start, which is the original fixed-duration behaviour. */

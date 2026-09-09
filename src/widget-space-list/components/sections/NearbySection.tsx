@@ -15,6 +15,7 @@ import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
 import cfg from '../../config.json';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { usePropertyId } from '../../propertyContext';
+import { useCompanyId } from '../../companyContext';
 import { PromoTagIcon } from '../Pricing';
 import { CarouselChevron } from '../chevron';
 
@@ -42,7 +43,15 @@ interface NearbyProperty {
   address: string;
   phone: string;
   promotion: string;
-  units: NearbyUnit[];
+  /**
+   * **`null` = not looked up yet** — the card renders `SpacesSkeleton` in their
+   * place. Promo and pricing both arrive from the same per-property stage-2
+   * call, so this one flag covers the whole block.
+   *
+   * An empty ARRAY is different and means "looked up, nothing bookable here" —
+   * the block is then omitted, as before. Same convention as #07's `spaces`.
+   */
+  units: NearbyUnit[] | null;
   adminFee: number;
 }
 
@@ -153,39 +162,47 @@ function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
       {/* Available spaces */}
       <div className="sl-nb2-spaces">
 
-        {/* Promo banner */}
-        {p.promotion && (
-          <div className="sl-nb2-promo">
-            <TagIcon />
-            <span className="sl-nb2-promo-title">{p.promotion}</span>
-          </div>
-        )}
-
-        {/* Unit rows */}
-        {p.units.length > 0 && (
-        <div className="sl-nb2-units">
-          {p.units.map((u, i) => (
-            <div key={i} className="sl-nb2-unit-row">
-              <div className="sl-nb2-unit-info">
-                <span className="sl-nb2-unit-dims">{u.dimensions}</span>
-                <span className="sl-nb2-unit-type">{u.subtype}</span>
-              </div>
-              <div className="sl-nb2-unit-pricing">
+        {/* Promo and pricing both come from the per-property stage-2 call, so one
+            flag covers the pair. Until it lands the placeholders hold this
+            block's height: the card used to collapse to image + footer the
+            moment stage 1 painted, then grow again seconds later. */}
+        {p.units === null ? <SpacesSkeleton /> : (
+          <>
+            {/* Promo banner */}
+            {p.promotion && (
+              <div className="sl-nb2-promo">
                 <TagIcon />
-                <div className="sl-nb2-instore">
-                  <span className="sl-nb2-instore-label">IN-STORE</span>
-                  <span className="sl-nb2-instore-price">${u.inStore}</span>
-                </div>
-                <div className="sl-nb2-vdivider" />
-                <div className="sl-nb2-starting">
-                  <span className="sl-nb2-starting-label">STARTING AT</span>
-                  <span className="sl-nb2-starting-price">${u.startingAt}</span>
-                </div>
-                <button className="sl-nb2-select">Select</button>
+                <span className="sl-nb2-promo-title">{p.promotion}</span>
               </div>
+            )}
+
+            {/* Unit rows */}
+            {p.units.length > 0 && (
+            <div className="sl-nb2-units">
+              {p.units.map((u, i) => (
+                <div key={i} className="sl-nb2-unit-row">
+                  <div className="sl-nb2-unit-info">
+                    <span className="sl-nb2-unit-dims">{u.dimensions}</span>
+                    <span className="sl-nb2-unit-type">{u.subtype}</span>
+                  </div>
+                  <div className="sl-nb2-unit-pricing">
+                    <TagIcon />
+                    <div className="sl-nb2-instore">
+                      <span className="sl-nb2-instore-label">IN-STORE</span>
+                      <span className="sl-nb2-instore-price">${u.inStore}</span>
+                    </div>
+                    <div className="sl-nb2-vdivider" />
+                    <div className="sl-nb2-starting">
+                      <span className="sl-nb2-starting-label">STARTING AT</span>
+                      <span className="sl-nb2-starting-price">${u.startingAt}</span>
+                    </div>
+                    <button className="sl-nb2-select">Select</button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            )}
+          </>
         )}
 
         {/* Footer */}
@@ -203,6 +220,44 @@ function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
   );
 }
 
+/**
+ * The promo bar + three unit rows, as placeholders.
+ *
+ * Extracted so ONE piece of markup covers both loading states: the whole card
+ * before stage 1, and this block alone while stage 2's per-property pricing call
+ * is still out. Anything added here lands in both, which is the point — the card
+ * used to hand over from the full skeleton to a card that drew nothing here.
+ *
+ * Three rows because that is what the real card can hold: `fetchPropertySpaces`
+ * returns the three cheapest (nearbyProperties.ts), so this over-reserves for
+ * nothing and under-reserves for no one.
+ *
+ * A fragment, not a wrapper: it renders INSIDE `.sl-nb2-spaces` in both callers,
+ * and that column is `gap: 0`, so a wrapper would have no gap to absorb and only
+ * risk breaking the direct-child geometry.
+ */
+function SpacesSkeleton() {
+  return (
+    <>
+      <div className="sl-nb2-sk-line sl-nb2-sk-promo" aria-hidden="true" />
+      <div className="sl-nb2-units" aria-hidden="true">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="sl-nb2-unit-row">
+            <div className="sl-nb2-unit-info">
+              <span className="sl-nb2-sk-line sl-nb2-sk-dims" />
+              <span className="sl-nb2-sk-line sl-nb2-sk-type" />
+            </div>
+            <div className="sl-nb2-unit-pricing">
+              <span className="sl-nb2-sk-line sl-nb2-sk-price" />
+              <span className="sl-nb2-sk-block sl-nb2-sk-btn" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 /** Loading placeholder mirroring the card's geometry (image, promo, 3 unit rows,
  *  footer) so the panel doesn't jump when the real card arrives. */
 function SkeletonCard() {
@@ -210,21 +265,7 @@ function SkeletonCard() {
     <div className="sl-nb2-card sl-nb2-skeleton" aria-hidden="true">
       <div className="sl-nb2-img sl-nb2-sk-block" />
       <div className="sl-nb2-spaces">
-        <div className="sl-nb2-sk-line sl-nb2-sk-promo" />
-        <div className="sl-nb2-units">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="sl-nb2-unit-row">
-              <div className="sl-nb2-unit-info">
-                <span className="sl-nb2-sk-line sl-nb2-sk-dims" />
-                <span className="sl-nb2-sk-line sl-nb2-sk-type" />
-              </div>
-              <div className="sl-nb2-unit-pricing">
-                <span className="sl-nb2-sk-line sl-nb2-sk-price" />
-                <span className="sl-nb2-sk-block sl-nb2-sk-btn" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <SpacesSkeleton />
         <div className="sl-nb2-footer">
           <span className="sl-nb2-sk-line sl-nb2-sk-fee" />
           <span className="sl-nb2-sk-line sl-nb2-sk-seeall" />
@@ -242,6 +283,9 @@ export function NearbySection() {
   // different company on this site, so using it would anchor "nearby" to a
   // property that isn't in the list and exclude nothing.
   const currentPropertyId = usePropertyId();
+  // Resolved by SpaceList, so the prop from the Duda JS tab reaches this section
+  // too. '' while it is still resolving — see ./companyContext.
+  const boundCompanyId = useCompanyId();
   const [view, setView] = useState<ViewMode>('list');
 
   // null = still loading; [] = loaded but nothing nearby.
@@ -256,12 +300,15 @@ export function NearbySection() {
 
     (async () => {
       try {
-        // Company comes from the `Company` collection, not config.json — see
-        // @shared/companySource. Cached, so this shares the page's single read.
-        const creds = {
-          ...cfg,
-          companyId: await resolveCompanyIdFromSources('#05 nearby', {}, cfg.companyId),
-        };
+        // The company SpaceList already resolved, which honours the `companyId`
+        // prop from the Duda JS tab. Resolving again here with an empty bound
+        // made the prop invisible to this section, so the `Company` collection
+        // won and the sidebar queried a different tenant than the unit list
+        // beside it. Falls back to the shared resolver only when the provider
+        // has nothing yet — the dev harness, or a mount outside SpaceList.
+        const company = boundCompanyId
+          || await resolveCompanyIdFromSources('#05 nearby', {}, cfg.companyId);
+        const creds = { ...cfg, companyId: company };
         const [raw, userLoc] = await Promise.all([
           // No requirePropertyId: this section wants ALL the company's properties,
           // and the collection is the site's own data — nothing to distrust.
@@ -276,13 +323,24 @@ export function NearbySection() {
           : current
             ? { lat: current.lat, lng: current.lng, source: 'property' as const }
             : null;
-        if (!ref) { if (!cancelled) setApiProps([]); return; }
-
-        const ranked = all
-          .filter((p) => p.id !== currentPropertyId)
-          .map((p) => ({ p, distanceMiles: haversineMiles(ref, p) }))
-          .sort((a, b) => a.distanceMiles - b.distanceMiles)
-          .slice(0, MAX_NEARBY);
+        // NO REFERENCE POINT is not "nothing nearby". It happens whenever the
+        // visitor declines geolocation (or just ignores the prompt) on an
+        // instance with no bound propertyId — and this used to `setApiProps([])`
+        // and render an empty section even though every property came back.
+        //
+        // #07 already degrades this way: list the locations WITHOUT distances
+        // rather than showing none. Ordering falls back to the API's own, which
+        // is arbitrary but stable, and each card simply omits its distance line.
+        const ranked = ref
+          ? all
+              .filter((p) => p.id !== currentPropertyId)
+              .map((p) => ({ p, distanceMiles: haversineMiles(ref, p) as number | null }))
+              .sort((a, b) => (a.distanceMiles as number) - (b.distanceMiles as number))
+              .slice(0, MAX_NEARBY)
+          : all
+              .filter((p) => p.id !== currentPropertyId)
+              .map((p) => ({ p, distanceMiles: null as number | null }))
+              .slice(0, MAX_NEARBY);
 
         // Hero photos for the whole list in one read (see @shared/propertyImages).
         // Fails soft: without it each card keeps the API's own image.
@@ -300,14 +358,33 @@ export function NearbySection() {
           address: p.address,
           phone: p.phone,
           promotion: '',
-          units: [],
+          // NOT `[]`: that reads as "looked up, nothing bookable" and drops the
+          // block. `null` says the stage-2 call below is still out, which is
+          // what keeps the placeholders up. See the field's note.
+          units: null,
           adminFee: DEFAULT_ADMIN_FEE,
         }));
-        if (!cancelled) { setRefLoc({ lat: ref.lat, lng: ref.lng }); setApiProps(base); }
+        // No ref ⇒ no map centre either. The map keys off refLoc, so leaving it
+        // null keeps the list view rather than centring the map on nothing.
+        if (!cancelled) {
+          setRefLoc(ref ? { lat: ref.lat, lng: ref.lng } : null);
+          setApiProps(base);
+        }
 
         // Stage 2: enrich each card with spaces + promo as they resolve.
+        //
+        // `creds`, NOT `cfg`. These property ids came back under the company
+        // resolved above, and a property id is only unique WITHIN a company —
+        // so pairing them with config.json's company id asks for a property
+        // that tenant does not have, and every card's prices 400 with
+        // "Invalid ID format" while the cards themselves render fine. Stage 1
+        // was already correct; only this call reverted to the build-time value,
+        // which is why the list appeared but never priced.
+        //
+        // #07 has never had this bug: its fetchPropertySpaces wrapper resolves
+        // creds on every call rather than closing over config.
         ranked.forEach(({ p }) => {
-          fetchPropertySpaces(cfg, p.id).then(({ promo, spaces }) => {
+          fetchPropertySpaces(creds, p.id).then(({ promo, spaces }) => {
             if (cancelled) return;
             setApiProps((prev) =>
               prev
@@ -327,6 +404,16 @@ export function NearbySection() {
                   )
                 : prev,
             );
+          }).catch((err) => {
+            // MUST settle the card. `units` is what holds the placeholders up,
+            // so a rejected lookup that left it null would shimmer for the life
+            // of the page — #07 shipped exactly that bug. `[]` is the honest
+            // answer here: looked up, nothing to show.
+            console.error(`[NearbySection] spaces for ${p.id} failed:`, err);
+            if (cancelled) return;
+            setApiProps((prev) =>
+              prev ? prev.map((c) => (c.id === p.id ? { ...c, units: [] } : c)) : prev,
+            );
           });
         });
       } catch (err) {
@@ -336,7 +423,10 @@ export function NearbySection() {
     })();
 
     return () => { cancelled = true; };
-  }, [currentPropertyId]);
+    // Re-runs when the company lands: the provider starts '' and resolves a tick
+    // later, so without this the section would keep whatever the first pass
+    // fetched against the fallback company.
+  }, [currentPropertyId, boundCompanyId]);
 
   // While loading we render a skeleton card — showing DEMO_PROPERTIES here meant
   // real-looking names/prices flashed up and were then replaced. Demo data is
@@ -359,7 +449,9 @@ export function NearbySection() {
     id: p.id,
     lat: p.lat,
     lng: p.lng,
-    label: p.units[0] ? `$${p.units[0].startingAt}` : undefined,
+    // `?.` because units is null until stage 2 lands: a pin whose price is still
+    // in flight renders without one rather than throwing.
+    label: p.units?.[0] ? `$${p.units[0].startingAt}` : undefined,
     name: p.name,
     address: p.address,
     distance: p.distanceMiles != null ? formatDistance(p.distanceMiles) : undefined,
@@ -385,7 +477,10 @@ export function NearbySection() {
           <SkeletonCard />
         ) : view === 'map' ? (
           refLoc && mapPoints.length ? (
-            <NearbyMap center={refLoc} points={mapPoints} height={280} />
+            /* Draggable and zoomable, with the price pins tracking the tiles.
+               Falls back to the frozen embed exactly as before whenever the
+               proxy serves no Maps key. */
+            <NearbyMap center={refLoc} points={mapPoints} height={280} interactive />
           ) : (
             <div className="sl-nb2-map-placeholder">
               <span>Map unavailable</span>
