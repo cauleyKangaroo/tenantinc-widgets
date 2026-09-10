@@ -71,6 +71,14 @@ function dudaEnvironment(): string {
   }
 }
 
+/** Published storage-type pages identify themselves without a widget field. */
+function slugFromLocation(): string {
+  if (typeof window === 'undefined') return '';
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  const branch = parts.lastIndexOf('storage-types');
+  return branch >= 0 && parts[branch + 1] ? parts[branch + 1].toLowerCase() : '';
+}
+
 /** The related row is a carousel below this width and a static row above it. */
 const NARROW_BP = '(max-width: 768px)';
 
@@ -156,7 +164,10 @@ export function StorageTypes({
   const resolvedInternalCollection = typeof internalCollectionName === 'string' && internalCollectionName.trim()
     ? internalCollectionName
     : undefined;
-  const resolvedCurrentSlug = typeof currentSlug === 'string' ? currentSlug : '';
+  const explicitCurrentSlug = typeof currentSlug === 'string'
+    ? currentSlug.trim().toLowerCase()
+    : '';
+  const resolvedCurrentSlug = explicitCurrentSlug || slugFromLocation();
 
   useEffect(() => {
     let cancelled = false;
