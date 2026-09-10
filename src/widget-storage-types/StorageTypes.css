@@ -24,6 +24,29 @@
   letter-spacing: 0 !important;
 }
 
+/* ── index header (Facility Landing Page FAQS (1), desktop) ─────────────── */
+.st-index-header {
+  margin: 0 0 80px;
+  text-align: center;
+}
+.st-index-title {
+  margin: 0 0 16px;
+  font-size: 80px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  color: #101318 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+.st-index-subheading {
+  margin: 0;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  color: #000000 !important;
+  letter-spacing: 0 !important;
+}
+
 /* ── Card (identical in both layouts) ─────────────────────────────────────── */
 .st-card {
   display: flex;
@@ -98,6 +121,16 @@
   gap: 32px;
   align-items: stretch;
 }
+.st--index .st-card-body {
+  padding: 27px 37px 30px;
+}
+.st--index .st-card-title {
+  font-size: 32px !important;
+  line-height: 1.2 !important;
+}
+.st--index .st-card-abstract {
+  -webkit-line-clamp: 5;
+}
 
 /* ── related: static row on desktop, carousel below 768px ─────────────────── */
 .st--related .st-track { overflow: visible; }
@@ -137,6 +170,12 @@
     background: #f9fafb;
   }
   .st-heading { font-size: 28px !important; margin-bottom: 26px; }
+  .st-index-header { margin-bottom: 40px; }
+  .st-index-title {
+    margin-bottom: 12px;
+    font-size: 40px !important;
+  }
+  .st-index-subheading { font-size: 16px !important; }
   .st--related .st-heading { text-align: center; }
   .st-grid { grid-template-columns: 1fr; gap: 20px; }
   .st--related .st-track {
@@ -146,8 +185,9 @@
   }
   .st-rail { gap: 0; }
   .st-slide { flex: 0 0 100%; padding-inline: 24px; }
-  .st-card-body { padding: 20px 26px 32px; }
+  .st-card-body, .st--index .st-card-body { padding: 20px 26px 32px; }
   .st-card-title { font-size: 24px !important; }
+  .st--index .st-card-title { font-size: 24px !important; }
   .st-card-abstract, .st-card-more { font-size: 16px !important; }
 }
 

@@ -22,7 +22,10 @@ export type StorageTypesVariant = 'index' | 'related';
 
 export interface StorageTypesProps {
   variant?: StorageTypesVariant;
+  /** Index-page H1, or the related-section H2. */
   heading?: string;
+  /** Index-page introductory sentence. Not rendered by the related variant. */
+  subheading?: string;
   /** Route(s) holding the type pages. Comma separated. */
   storageTypesRoute?: string;
   /** Existing `featurePage` collection providing `name` + `description`. */
@@ -142,6 +145,7 @@ function Card({ type, position }: { type: StorageType; position: number }) {
 export function StorageTypes({
   variant = 'index',
   heading,
+  subheading,
   storageTypesRoute = 'storage-types',
   collectionName = FEATURE_PAGE_COLLECTION,
   internalCollectionName,
@@ -168,6 +172,9 @@ export function StorageTypes({
     ? currentSlug.trim().toLowerCase()
     : '';
   const resolvedCurrentSlug = explicitCurrentSlug || slugFromLocation();
+  const resolvedIndexSubheading = typeof subheading === 'string' && subheading.trim()
+    ? subheading.trim()
+    : 'These are all the storage types we offer.';
 
   useEffect(() => {
     let cancelled = false;
@@ -235,7 +242,10 @@ export function StorageTypes({
   if (!isRelated) {
     return (
       <section className="st st--index">
-        <h2 className="st-heading">{title}</h2>
+        <header className="st-index-header">
+          <h1 className="st-index-title">{title}</h1>
+          <p className="st-index-subheading">{resolvedIndexSubheading}</p>
+        </header>
         <div className="st-grid">
           {list.map((t, index) => <Card type={t} position={index} key={t.slug} />)}
         </div>
