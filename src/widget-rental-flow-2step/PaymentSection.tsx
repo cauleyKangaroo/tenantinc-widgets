@@ -379,7 +379,7 @@ export interface CardFormValue {
   zip: string;
 }
 
-export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payLabel }: {
+export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipOnlyBilling, payLabel }: {
   total: number;
   /** Overrides "Pay Now $X" — the always-on autopay frame reads
    *  "Agree & Pay $X", because that button is where the recurring
@@ -402,6 +402,19 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payL
    * throws away whatever has been typed into them.
    */
   gatewayPending?: boolean;
+  /**
+   * Collect ONLY the billing ZIP (beside the country), not a street address.
+   *
+   * On `tenant_payments` the card itself never reaches us — it is typed into
+   * Global Payments' iframe — and the gateway verifies on the postcode alone,
+   * so asking for a street, city and state is three fields of friction that
+   * nothing checks. Verified against documents/finalize: a card
+   * payment_method with only `zip` is accepted.
+   *
+   * Every other gateway keeps the full block: they are billed against the
+   * address, and dropping it there would start failing AVS.
+   */
+  zipOnlyBilling?: boolean;
 }) {
   const [number, setNumber] = useState('');
   const [expiry, setExpiry] = useState('');
@@ -577,8 +590,10 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payL
      let someone pay without ever choosing one — a required field that does not
      gate is just a decoration. The banner below names Billing Information,
      which is where the select now sits. */
-  const complete = cardRowValid && filled(name) && filled(address) && filled(city)
-    && stateCode.trim().length === 2 && zip.trim().length >= 3 && filled(country);
+  const complete = cardRowValid && filled(name) && zip.trim().length >= 3 && filled(country)
+    // Only demanded where they are asked for. Requiring a street the panel
+    // never rendered would be a dead button with nothing to fix.
+    && (zipOnlyBilling || (filled(address) && filled(city) && stateCode.trim().length === 2));
 
   /* ONE banner, whichever went wrong, shown under the "Credit / Debit" head
      rather than down beside the pay button (Figma 12029-93132). A shopper who
@@ -933,6 +948,16 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payL
           options={['United States', 'Canada']}
           state={country ? 'success' : 'default'}
         />
+        {/* tenant_payments verifies on the postcode alone, so ZIP takes the
+            column the address search would have had and the street, city and
+            state below are not rendered at all. */}
+        {zipOnlyBilling ? (
+          <FormField
+            label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code"
+            state={ok(zip.trim().length >= 3)}
+            error={payAttempted && zip.trim().length < 3 ? 'Enter your billing ZIP code' : undefined}
+          />
+        ) : (
         <AddressAutocomplete
         country={CUSTOMER_ADDRESS_COUNTRIES}
         value={address}
@@ -952,6 +977,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payL
           error={payAttempted && !filled(address) ? 'Enter your billing address' : undefined}
         />
         </AddressAutocomplete>
+        )}
       </div>
 
       {/* City, state, country and ZIP stay hidden until the address lookup
@@ -962,7 +988,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payL
           or a return to the panel), and on a pay attempt — they are REQUIRED,
           so a shopper who never picks a suggestion must still be able to see
           and complete them rather than meet a dead button. */}
-      {showBillingParts && (
+      {!zipOnlyBilling && showBillingParts && (
         <>
           <div className="rf-pay-grid">
             <FormField
