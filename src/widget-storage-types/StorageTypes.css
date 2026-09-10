@@ -225,12 +225,19 @@
   .st--related .st-heading { text-align: center; }
   .st-grid { grid-template-columns: 1fr; gap: 32px; }
   .st--related .st-track {
+    /* Clip at the viewport, not at Duda's inner column. Each slide then owns
+       the Figma 24px gutters, leaving room for the card's side shadow while
+       still keeping the neighbouring slides out of view. */
+    position: relative;
+    left: 50%;
+    width: 100vw;
+    transform: translateX(-50%);
     overflow: hidden;
     padding-block: 18px;
     margin-block: -18px;
   }
   .st-rail { gap: 0; }
-  .st-slide { flex: 0 0 100%; }
+  .st-slide { flex: 0 0 100%; padding-inline: 24px; }
   .st-card-body { padding: 20px 26px 32px; }
   .st--index .st-card-body { padding: 20px 24px 32px; }
   .st-card-title { font-size: 24px !important; }
