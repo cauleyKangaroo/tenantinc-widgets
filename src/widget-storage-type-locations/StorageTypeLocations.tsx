@@ -97,6 +97,16 @@ function candidateKeys(...values: unknown[]): string[] {
   return [...out].filter(Boolean);
 }
 
+/** `boat-storage` → `Boat Storage`, while keeping common initialisms readable. */
+function titleFromSlug(slug: string): string {
+  const initialisms: Record<string, string> = { ada: 'ADA', rv: 'RV' };
+  return slug
+    .split('-')
+    .filter(Boolean)
+    .map((word) => initialisms[word] ?? `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(' ');
+}
+
 /** Published storage-type pages can identify themselves without a widget field. */
 function slugFromLocation(): string {
   if (typeof window === 'undefined') return '';
@@ -365,7 +375,9 @@ export function StorageTypeLocations({
   // an empty list is what the legacy site does, and it reads as broken.
   if (!result.facilities.length) return null;
 
-  const title = heading || `Find ${resolvedSlug.replace(/-/g, ' ') || 'storage'} near you`;
+  const explicitHeading = plainText(heading).trim();
+  const storageTypeTitle = titleFromSlug(resolvedSlug) || 'Storage';
+  const title = explicitHeading || `Find ${storageTypeTitle} Near You`;
 
   return (
     <section className="stl">

@@ -99,7 +99,6 @@
 }
 
 @media (max-width: 768px) {
-  .stl { padding-inline: 24px; }
   .stl-heading {
     margin-bottom: 16px;
     font-size: 28px !important;

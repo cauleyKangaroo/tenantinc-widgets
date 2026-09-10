@@ -186,8 +186,19 @@
   }
   .st--index::before { background: #f9fafb; }
   .st--related {
+    position: relative;
+    isolation: isolate;
     max-width: none;
-    padding: 24px 0 32px;
+    padding: 32px 0;
+  }
+  .st--related::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset-block: 0;
+    left: 50%;
+    width: 100vw;
+    transform: translateX(-50%);
     background: #f9fafb;
   }
   .st-heading {
@@ -219,7 +230,7 @@
     margin-block: -18px;
   }
   .st-rail { gap: 0; }
-  .st-slide { flex: 0 0 100%; padding-inline: 24px; }
+  .st-slide { flex: 0 0 100%; }
   .st-card-body { padding: 20px 26px 32px; }
   .st--index .st-card-body { padding: 20px 24px 32px; }
   .st-card-title { font-size: 24px !important; }
