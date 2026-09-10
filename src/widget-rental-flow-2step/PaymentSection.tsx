@@ -231,6 +231,14 @@ export function BankForm({ total, onPay, busy, payLabel }: {
     && filled(country) && filled(address) && filled(city)
     && stateCode.trim().length === 2 && zip.trim().length >= 3;
 
+  /* The same banner the card panel has. Without it the button LOOKED DEAD:
+     an incomplete form only set payAttempted, which revealed City/State/ZIP
+     far below the fold and said nothing at all beside the button that had
+     just been pressed. */
+  const payError = payAttempted && !complete
+    ? 'Complete Billing Information details before processing payment'
+    : '';
+
   const pay = () => {
     // Reveal what is missing rather than silently doing nothing.
     if (!complete) { setPayAttempted(true); return; }
@@ -251,9 +259,23 @@ export function BankForm({ total, onPay, busy, payLabel }: {
 
   return (
     <>
+      {payError && (
+        <div className="rf-payerr" role="alert">
+          <AlertIcon size={24} className="rf-payerr-ico" />
+          <span>{payError}</span>
+        </div>
+      )}
       <div className="rf-pay-grid">
-        <FormField label="First Name" required value={first} onChange={setFirst} autoComplete="given-name" state={ok(filled(first))} />
-        <FormField label="Last Name" required value={last} onChange={setLast} autoComplete="family-name" state={ok(filled(last))} />
+        <FormField
+          label="First Name" required value={first} onChange={setFirst} autoComplete="given-name"
+          state={ok(filled(first))}
+          error={payAttempted && !filled(first) ? 'First name is required' : undefined}
+        />
+        <FormField
+          label="Last Name" required value={last} onChange={setLast} autoComplete="family-name"
+          state={ok(filled(last))}
+          error={payAttempted && !filled(last) ? 'Last name is required' : undefined}
+        />
 
         <SelectField
           label="Account Type" required value={accountType} onChange={setAccountType}
@@ -264,6 +286,7 @@ export function BankForm({ total, onPay, busy, payLabel }: {
           label="Routing Number" required value={routing} onChange={setRouting}
           infoTitle="The 9-digit number on the bottom left of your cheque"
           className={okQuiet(validRouting(routing))}
+          error={payAttempted && !validRouting(routing) ? 'Enter the 9-digit routing number' : undefined}
         />
 
         {/* Masked by default with an eye toggle (Figma 10080-28132 / -28133).
@@ -276,11 +299,14 @@ export function BankForm({ total, onPay, busy, payLabel }: {
           value={account} onChange={setAccount}
           // Green only once the pair matches — see accountsMatch.
           state={ok(accountsMatch)}
+          error={payAttempted && !filled(account) ? 'Enter your account number' : undefined}
         />
         <FormField
           label="Confirm Account Number" required type="password"
           value={confirm} onChange={setConfirm}
-          error={confirmMismatch ? 'Account numbers do not match' : undefined}
+          error={confirmMismatch
+            ? 'Account numbers do not match'
+            : (payAttempted && !accountsMatch ? 'Re-enter your account number to confirm' : undefined)}
           infoTitle="Re-enter to confirm"
           /* `state`, not okQuiet: okQuiet only paints the green BORDER, so this
              field could never draw the tick its partner draws. The tick and the
