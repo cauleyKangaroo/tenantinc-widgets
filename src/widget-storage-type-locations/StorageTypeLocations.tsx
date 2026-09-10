@@ -213,9 +213,11 @@ export function StorageTypeLocations({
   inEditor,
 }: StorageTypeLocationsProps) {
   const [result, setResult] = useState<Result>({ status: 'loading' });
-  // Duda sends unfilled text fields as null. Parameter defaults only handle
+   // Duda sends unfilled text fields as null. Parameter defaults only handle
   // undefined, so normalize at the external-data boundary before using them.
   const resolvedSlug = plainText(storageTypeSlug).trim().toLowerCase() || slugFromLocation();
+  const resolvedSubheading = plainText(subheading).trim()
+    || 'Available at the following locations.';
 
   useEffect(() => {
     let cancelled = false;
@@ -353,7 +355,7 @@ export function StorageTypeLocations({
   return (
     <section className="stl">
       <h2 className="stl-heading">{title}</h2>
-      {subheading ? <p className="stl-sub">{subheading}</p> : null}
+      <p className="stl-sub">{resolvedSubheading}</p>
       {groupByState(result.facilities).map(([state, list]) => (
         <div className="stl-group" key={state}>
           <h3 className="stl-state">{state}</h3>
