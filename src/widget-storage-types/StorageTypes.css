@@ -100,7 +100,7 @@
 }
 
 /* ── related: static row on desktop, carousel below 768px ─────────────────── */
-.st--related .st-track { overflow: hidden; }
+.st--related .st-track { overflow: visible; }
 .st-rail {
   display: flex;
   gap: 32px;
@@ -139,6 +139,11 @@
   .st-heading { font-size: 28px !important; margin-bottom: 26px; }
   .st--related .st-heading { text-align: center; }
   .st-grid { grid-template-columns: 1fr; gap: 20px; }
+  .st--related .st-track {
+    overflow: hidden;
+    padding-block: 18px;
+    margin-block: -18px;
+  }
   .st-rail { gap: 0; }
   .st-slide { flex: 0 0 100%; padding-inline: 24px; }
   .st-card-body { padding: 20px 26px 32px; }
