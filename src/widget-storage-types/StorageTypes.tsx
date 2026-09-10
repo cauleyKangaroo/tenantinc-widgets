@@ -142,6 +142,16 @@ function Card({ type, position }: { type: StorageType; position: number }) {
   );
 }
 
+/** Mobile-only section mark drawn beside the related-section heading. */
+function StorageTypesMark() {
+  return (
+    <svg className="st-heading-mark" viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="1" y="1" width="18" height="18" rx="6" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M7 9h6M7 12h6M7 15h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function StorageTypes({
   variant = 'index',
   heading,
@@ -260,7 +270,7 @@ export function StorageTypes({
 
   return (
     <section className="st st--related">
-      <h2 className="st-heading">{title}</h2>
+      <h2 className="st-heading"><StorageTypesMark /><span>{title}</span></h2>
       <div className="st-track">
         <div className="st-rail" style={railStyle} {...carousel.handlers}>
           {list.map((t, index) => (

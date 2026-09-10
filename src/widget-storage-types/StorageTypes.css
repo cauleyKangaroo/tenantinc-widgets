@@ -23,11 +23,26 @@
   text-transform: none !important;
   letter-spacing: 0 !important;
 }
+.st-heading-mark { display: none; }
 
 /* ── index header (Facility Landing Page FAQS (1), desktop) ─────────────── */
 .st-index-header {
   margin: 0 0 80px;
   text-align: center;
+}
+.st--index {
+  position: relative;
+  isolation: isolate;
+}
+.st--index::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset-block: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  background: #f4f6f8;
 }
 .st-index-title {
   margin: 0 0 16px;
@@ -137,9 +152,10 @@
 .st-rail {
   display: flex;
   gap: 32px;
+  justify-content: flex-start;
 }
 .st-slide {
-  flex: 1 1 0;
+  flex: 0 1 422px;
   min-width: 0;
 }
 
@@ -164,20 +180,39 @@
 .st-dot:focus-visible { outline: 2px solid #101318; outline-offset: 3px; }
 
 @media (max-width: 768px) {
+  .st--index {
+    max-width: none;
+    padding-inline: 24px;
+  }
+  .st--index::before { background: #f9fafb; }
   .st--related {
     max-width: none;
     padding: 24px 0 32px;
     background: #f9fafb;
   }
-  .st-heading { font-size: 28px !important; margin-bottom: 26px; }
-  .st-index-header { margin-bottom: 40px; }
-  .st-index-title {
-    margin-bottom: 12px;
-    font-size: 40px !important;
+  .st-heading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 28px !important;
+    margin-bottom: 26px;
   }
-  .st-index-subheading { font-size: 16px !important; }
+  .st-heading-mark {
+    display: block;
+    flex: 0 0 20px;
+    width: 20px;
+    height: 20px;
+    color: #111111;
+  }
+  .st-index-header { margin-bottom: 24px; }
+  .st-index-title {
+    margin-bottom: 8px;
+    font-size: 28px !important;
+  }
+  .st-index-subheading { font-size: 12px !important; }
   .st--related .st-heading { text-align: center; }
-  .st-grid { grid-template-columns: 1fr; gap: 20px; }
+  .st-grid { grid-template-columns: 1fr; gap: 32px; }
   .st--related .st-track {
     overflow: hidden;
     padding-block: 18px;
@@ -185,9 +220,10 @@
   }
   .st-rail { gap: 0; }
   .st-slide { flex: 0 0 100%; padding-inline: 24px; }
-  .st-card-body, .st--index .st-card-body { padding: 20px 26px 32px; }
+  .st-card-body { padding: 20px 26px 32px; }
+  .st--index .st-card-body { padding: 20px 24px 32px; }
   .st-card-title { font-size: 24px !important; }
-  .st--index .st-card-title { font-size: 24px !important; }
+  .st--index .st-card-title { font-size: 32px !important; }
   .st-card-abstract, .st-card-more { font-size: 16px !important; }
 }
 

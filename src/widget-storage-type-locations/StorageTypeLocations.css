@@ -29,6 +29,7 @@
   color: #000000 !important;
   letter-spacing: 0 !important;
 }
+.stl-sub-emphasis { font-weight: 700 !important; }
 .stl-group + .stl-group { margin-top: 28px; }
 .stl-state {
   margin: 0 0 10px;
@@ -98,7 +99,12 @@
 }
 
 @media (max-width: 768px) {
-  .stl-heading { font-size: 24px !important; }
-  .stl-state { font-size: 20px !important; }
-  .stl-link { font-size: 16px !important; }
+  .stl { padding-inline: 24px; }
+  .stl-heading {
+    margin-bottom: 16px;
+    font-size: 28px !important;
+  }
+  .stl-sub { margin-bottom: 28px; line-height: 1.25 !important; }
+  .stl-state { font-size: 24px !important; }
+  .stl-link { font-size: 16px !important; line-height: 1.25 !important; }
 }

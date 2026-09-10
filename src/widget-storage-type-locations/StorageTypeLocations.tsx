@@ -30,6 +30,8 @@ export interface StorageTypeLocationsProps {
   /** Comma-separated property ids — the fallback when no amenity describes this type. */
   propertyIds?: string;
   heading?: string;
+  /** Optional bold lead-in for the supporting sentence. */
+  subheadingEmphasis?: string;
   subheading?: string;
   /** Prefix for facility links. Default `/storage-units`. */
   locationBasePath?: string;
@@ -206,6 +208,7 @@ export function StorageTypeLocations({
   amenityName = '',
   propertyIds = '',
   heading,
+  subheadingEmphasis = '',
   subheading = 'Available at the following locations.',
   locationBasePath = '/storage-units',
   collectionName,
@@ -218,6 +221,18 @@ export function StorageTypeLocations({
   const resolvedSlug = plainText(storageTypeSlug).trim().toLowerCase() || slugFromLocation();
   const resolvedSubheading = plainText(subheading).trim()
     || 'Available at the following locations.';
+  const explicitEmphasis = plainText(subheadingEmphasis).trim();
+  // Figma treats the opening question as a bold lead-in. Preserve the simple
+  // one-field authoring path by recognizing that structure automatically,
+  // while allowing an explicit lead-in when the copy has no question mark.
+  const questionEnd = resolvedSubheading.indexOf('?');
+  const inferredEmphasis = questionEnd >= 0
+    ? resolvedSubheading.slice(0, questionEnd + 1).trim()
+    : '';
+  const emphasizedCopy = explicitEmphasis || inferredEmphasis;
+  const regularCopy = emphasizedCopy && resolvedSubheading.startsWith(emphasizedCopy)
+    ? resolvedSubheading.slice(emphasizedCopy.length).trim()
+    : resolvedSubheading;
 
   useEffect(() => {
     let cancelled = false;
@@ -355,7 +370,11 @@ export function StorageTypeLocations({
   return (
     <section className="stl">
       <h2 className="stl-heading">{title}</h2>
-      <p className="stl-sub">{resolvedSubheading}</p>
+      <p className="stl-sub">
+        {emphasizedCopy ? <strong className="stl-sub-emphasis">{emphasizedCopy}</strong> : null}
+        {emphasizedCopy && regularCopy ? ' ' : null}
+        {regularCopy}
+      </p>
       {groupByState(result.facilities).map(([state, list]) => (
         <div className="stl-group" key={state}>
           <h3 className="stl-state">{state}</h3>
