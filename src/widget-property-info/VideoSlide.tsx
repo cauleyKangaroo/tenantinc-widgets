@@ -42,6 +42,22 @@ export function videoPoster(url: string): string {
 }
 
 /**
+ * Stands in when no poster can be derived — a non-YouTube host, or a URL with
+ * no id in it.
+ *
+ * A GRADIENT, not ''. `ImageFill` routes a `gradient(` string to a styled span
+ * and everything else to `<img src>`, and an empty src makes the browser
+ * re-request the current document and draw a broken image. Dark, because the
+ * play badge sits on top of it.
+ */
+export const VIDEO_POSTER_FALLBACK = 'linear-gradient(180deg, #1d232b 0%, #101318 100%)';
+
+/** Poster for a video, always a value `ImageFill` can render. */
+export function videoPosterOrFallback(url: string): string {
+  return videoPoster(url) || VIDEO_POSTER_FALLBACK;
+}
+
+/**
  * Player parameters added to whatever the stored URL already carries.
  *
  * `muted` is NOT a style choice — it is the only way autoplay happens at all.
@@ -60,7 +76,7 @@ function playerUrl(url: string, muted: boolean): string {
 }
 
 export function VideoSlide({
-  src, className, active, title, autoPlay = false,
+  src, className, active, title, autoPlay = false, interactive = false,
 }: {
   src: string;
   className?: string;
@@ -81,6 +97,18 @@ export function VideoSlide({
    * not worth it in the lightbox, which nobody reaches by accident.
    */
   autoPlay?: boolean;
+  /**
+   * Render the poster as a BUTTON. Default false, because the caller that
+   * matters cannot allow one.
+   *
+   * The inline gallery is itself `<button className="pi-gallery">` (it opens
+   * the lightbox), so a button inside it would be a nested interactive
+   * control: invalid HTML, and browsers disagree about which one a click or a
+   * keypress reaches. There the poster is an inert span — the video autoplays,
+   * and if the browser blocks that (iOS Low Power Mode), a tap opens the
+   * lightbox, where the poster IS a button and plays on click.
+   */
+  interactive?: boolean;
 }) {
   const [clicked, setClicked] = useState(false);
   const poster = videoPoster(src);
@@ -107,24 +135,36 @@ export function VideoSlide({
     );
   }
 
+  const cls = `pi-video-poster${className ? ` ${className}` : ''}`;
+  // A derived poster is a background image; the fallback is already a gradient.
+  const style = { background: poster ? `#101318 url(${poster}) center / cover no-repeat` : VIDEO_POSTER_FALLBACK };
+  /* Drawn, not an asset: the bundle cannot load remote images, and this is two
+     shapes. */
+  const badge = (
+    <span className="pi-video-play" aria-hidden="true">
+      <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+        <circle cx="36" cy="36" r="35" fill="rgba(16,19,24,0.72)" stroke="#fff" strokeWidth="2" />
+        <path d="M29 24.5 L50 36 L29 47.5 Z" fill="#fff" />
+      </svg>
+    </span>
+  );
+
+  if (!interactive) {
+    // Inert: this one sits INSIDE the gallery's own button — see `interactive`.
+    return <span className={cls} style={style} aria-hidden="true">{badge}</span>;
+  }
+
   return (
     <button
       type="button"
-      className={`pi-video-poster${className ? ` ${className}` : ''}`}
-      /* The gallery opens the lightbox on click, so this must not bubble —
-         otherwise pressing play would open the lightbox instead. */
+      className={cls}
+      /* The lightbox closes on a background click, so this must not bubble —
+         otherwise pressing play would dismiss the lightbox. */
       onClick={(e) => { e.stopPropagation(); setClicked(true); }}
       aria-label={title ? `Play ${title}` : 'Play property video'}
-      style={poster ? { backgroundImage: `url(${poster})` } : undefined}
+      style={style}
     >
-      {/* Drawn, not an asset: the bundle cannot load remote images, and this is
-          two shapes. Inherits currentColor so the CSS owns the colour. */}
-      <span className="pi-video-play" aria-hidden="true">
-        <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
-          <circle cx="36" cy="36" r="35" fill="rgba(16,19,24,0.72)" stroke="#fff" strokeWidth="2" />
-          <path d="M29 24.5 L50 36 L29 47.5 Z" fill="#fff" />
-        </svg>
-      </span>
+      {badge}
     </button>
   );
 }
