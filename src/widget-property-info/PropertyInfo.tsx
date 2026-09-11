@@ -9,7 +9,8 @@ import {
   Breadcrumb, collapseMiddle, locationCrumbHead, normaliseBase, placeSlug,
   LOCATION_BASE_PATH, type Crumb,
 } from '@shared/Breadcrumb';
-import { fetchPropertyImages } from '@shared/propertyImages';
+import { fetchPropertyMedia } from '@shared/propertyImages';
+import { VideoSlide, videoPoster } from './VideoSlide';
 import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
   MapPinIcon, MapPinSolidIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
@@ -392,6 +393,8 @@ export function PropertyInfo(props: Props) {
   // fetchPropertyDetails: that call has a REST fallback and this has none, so a
   // missing collection must not look like a failed property lookup.
   const [collectionImages, setCollectionImages] = useState<string[]>([]);
+  /** The `video` column, appended AFTER the photos. Empty when unset. */
+  const [collectionVideos, setCollectionVideos] = useState<string[]>([]);
   // The photo lookup runs AFTER the property resolves, so it outlives the
   // widget's own loading gate. Without tracking it separately the gallery would
   // paint the fallbacks and then swap them for the real photos a moment later —
@@ -410,8 +413,12 @@ export function PropertyInfo(props: Props) {
     }
     setImagesLoading(true);
     let cancelled = false;
-    fetchPropertyImages(id)
-      .then((urls) => { if (!cancelled) setCollectionImages(urls); })
+    fetchPropertyMedia(id)
+      .then((m) => {
+        if (cancelled) return;
+        setCollectionImages(m.images);
+        setCollectionVideos(m.videos);
+      })
       .catch((err) => console.warn('[PropertyInfo] property images unavailable:', err))
       .finally(() => { if (!cancelled) setImagesLoading(false); });
     return () => { cancelled = true; };
@@ -572,7 +579,18 @@ export function PropertyInfo(props: Props) {
     });
   }, [index, lightbox]);
 
-  const slides = provided.length ? provided : DEFAULT_GALLERY;
+  /*
+   * Photos first, then any video — "after appending images", as asked.
+   *
+   * Slides stay a flat list of URLs rather than becoming tagged objects: the
+   * inline track, the lightbox track, the thumbnail rail and every index
+   * calculation (wrap-around, dots, drag) address this one array, and retyping
+   * it would touch all of them for no gain. Which entries are videos is
+   * answered by the Set below instead.
+   */
+  const slides = [...(provided.length ? provided : DEFAULT_GALLERY), ...collectionVideos];
+  /** Membership, not a scan — the render asks this once per slide per frame. */
+  const videoSlides = React.useMemo(() => new Set(collectionVideos), [collectionVideos]);
   const heroSlide = slides[0];
   const overlay = Math.max(0, Math.min(1, overlayOpacity / 100));
 
@@ -840,7 +858,12 @@ export function PropertyInfo(props: Props) {
           >
             {[slides[slides.length - 1], ...slides, slides[0]].map((src, i) => (
               <span className="pi-lb-cell" key={`lb-${i}-${src}`} aria-hidden={i === lbCell ? undefined : true}>
-                <ImageFill className="pi-lb-img" src={src} onClick={(e) => e.stopPropagation()} />
+                {videoSlides.has(src)
+                  /* The clones at either end mean a video appears three times
+                     in this list; `active` keys off the CELL, so only the one
+                     actually on screen can ever hold a player. */
+                  ? <VideoSlide className="pi-lb-img" src={src} active={i === lbCell} title={displayName} />
+                  : <ImageFill className="pi-lb-img" src={src} onClick={(e) => e.stopPropagation()} />}
               </span>
             ))}
           </span>
@@ -858,7 +881,11 @@ export function PropertyInfo(props: Props) {
                 aria-current={i === index || undefined}
                 onClick={(e) => { e.stopPropagation(); lbGoTo(i); }}
               >
-                <ImageFill className="pi-lb-thumb-img" src={src} />
+                {/* A thumbnail is never a player — it is a target to click.
+                    The poster carries the play badge so a video reads as one
+                    in the rail. */}
+                <ImageFill className="pi-lb-thumb-img" src={videoSlides.has(src) ? videoPoster(src) : src} />
+                {videoSlides.has(src) && <span className="pi-lb-thumb-play" aria-hidden="true" />}
               </button>
             ))}
           </div>
@@ -1007,7 +1034,9 @@ export function PropertyInfo(props: Props) {
               >
                 {slides.map((src, i) => (
                   <span className="pi-gallery-slide" key={`${src}-${i}`}>
-                    <ImageFill className="pi-gallery-img" src={src} />
+                    {videoSlides.has(src)
+                      ? <VideoSlide className="pi-gallery-img" src={src} active={i === index} title={displayName} />
+                      : <ImageFill className="pi-gallery-img" src={src} />}
                   </span>
                 ))}
               </span>
