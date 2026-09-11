@@ -212,10 +212,18 @@ const HOURS_MOBILE: { title: string; rows: string[] }[] = [
  * is a skeleton (see `imagesLoading`); these appear only once the lookup has
  * settled empty, so a facility without uploads still looks like a facility
  * rather than a grey gradient.
+ *
+ * SERVED FROM S3, NOT DUDA'S CDN. These were
+ * `irp.cdn-website.com/37c2908c/dms3rep/multi/…` — a path built from ONE site
+ * id. Every site spun up from this template reuses these same published
+ * bundles, so on any site but 37c2908c that URL 403s (Duda answers a missing
+ * file 403, not 404) and the fallback itself rendered broken. The shared
+ * bucket is not per-site, so it works everywhere. Byte-identical files —
+ * verified 2026-09-11, both hosts return the same 1.7MB / 1.8MB images.
  */
 const DEFAULT_GALLERY = [
-  'https://irp.cdn-website.com/37c2908c/dms3rep/multi/Hallway.png',
-  'https://irp.cdn-website.com/37c2908c/dms3rep/multi/Boxes.png',
+  'https://dr2r4w0s7b8qm.cloudfront.net/duda-unit-images/Boxes.png',
+  'https://dr2r4w0s7b8qm.cloudfront.net/duda-unit-images/Hallway.png',
 ];
 
 const DEFAULTS: Required<Pick<PropertyInfoProps, 'name' | 'rating' | 'reviewCount' | 'address' | 'phones' | 'gateStatus' | 'gateNote' | 'officeStatus' | 'officeNote' | 'breadcrumb'>> = {
@@ -559,7 +567,8 @@ export function PropertyInfo(props: Props) {
   //      they must beat a single hero image set once on the widget, which would
   //      otherwise show the same photo on every dynamic page;
   //   2. the heroImage/images props (a static page, or the Duda editor);
-  //   3. DEFAULT_GALLERY, so a property with no uploads still shows photos.
+  //   3. DEFAULT_GALLERY — the shared S3 pair, so a property with no uploads
+  //      still shows photos rather than grey gradients.
   const provided = (collectionImages.length
     ? collectionImages
     : [heroImage, ...(images ?? [])]
@@ -588,10 +597,22 @@ export function PropertyInfo(props: Props) {
    * it would touch all of them for no gain. Which entries are videos is
    * answered by the Set below instead.
    */
-  const slides = [...(provided.length ? provided : DEFAULT_GALLERY), ...collectionVideos];
+  /** Photos alone — what the hero banners want, and the tail of the slider. */
+  const photoSlides = provided.length ? provided : DEFAULT_GALLERY;
+  /* Video LEADS the gallery: it is the richest thing the property has, so it
+     is what the slider opens on. Photos follow in their existing order. */
+  const slides = [...collectionVideos, ...photoSlides];
   /** Membership, not a scan — the render asks this once per slide per frame. */
   const videoSlides = React.useMemo(() => new Set(collectionVideos), [collectionVideos]);
-  const heroSlide = slides[0];
+  /*
+   * The first PHOTO, not the first slide.
+   *
+   * Both hero banners render this through <ImageFill>, i.e. an <img>. Now that
+   * a video can lead `slides`, taking slides[0] would hand a YouTube URL to an
+   * image tag — a broken picture as the mobile banner and the hero layout's
+   * background. A still is what those want anyway.
+   */
+  const heroSlide = photoSlides[0];
   const overlay = Math.max(0, Math.min(1, overlayOpacity / 100));
 
   const prev = () => setIndex((i) => (i - 1 + slides.length) % slides.length);
@@ -1035,7 +1056,10 @@ export function PropertyInfo(props: Props) {
                 {slides.map((src, i) => (
                   <span className="pi-gallery-slide" key={`${src}-${i}`}>
                     {videoSlides.has(src)
-                      ? <VideoSlide className="pi-gallery-img" src={src} active={i === index} title={displayName} />
+                      /* Muted autoplay HERE only. The lightbox keeps its
+                         poster: a full-screen video starting on its own is
+                         jarring, and nobody opens it by accident. */
+                      ? <VideoSlide className="pi-gallery-img" src={src} active={i === index} title={displayName} autoPlay />
                       : <ImageFill className="pi-gallery-img" src={src} />}
                   </span>
                 ))}

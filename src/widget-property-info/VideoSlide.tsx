@@ -41,13 +41,26 @@ export function videoPoster(url: string): string {
   return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : '';
 }
 
-/** `autoplay=1` added to whatever the stored URL already carries. */
-function withAutoplay(url: string): string {
-  return `${url}${url.includes('?') ? '&' : '?'}autoplay=1`;
+/**
+ * Player parameters added to whatever the stored URL already carries.
+ *
+ * `muted` is NOT a style choice — it is the only way autoplay happens at all.
+ * Chrome, Safari and Firefox all block autoplay WITH SOUND until the viewer
+ * has interacted with the page, and a site cannot opt out. An unmuted
+ * `autoplay=1` is simply ignored, leaving a player sitting there not playing,
+ * which reads as more broken than the poster it replaced. A CLICK is that
+ * interaction, so a manually started video keeps its sound.
+ *
+ * `playsinline=1` keeps iOS from tearing the video out into its own fullscreen
+ * player over the page.
+ */
+function playerUrl(url: string, muted: boolean): string {
+  const params = `autoplay=1&playsinline=1${muted ? '&mute=1' : ''}`;
+  return `${url}${url.includes('?') ? '&' : '?'}${params}`;
 }
 
 export function VideoSlide({
-  src, className, active, title,
+  src, className, active, title, autoPlay = false,
 }: {
   src: string;
   className?: string;
@@ -58,17 +71,31 @@ export function VideoSlide({
    */
   active: boolean;
   title?: string;
+  /**
+   * Start playing, MUTED, as soon as this slide is the active one.
+   *
+   * The trade is real and deliberate: the player is mounted on page load
+   * rather than on a click, so a third-party script and a few hundred KB load
+   * for every visitor whether or not they look at the gallery. Worth it where
+   * the video leads the slider — silent motion is the first thing seen — and
+   * not worth it in the lightbox, which nobody reaches by accident.
+   */
+  autoPlay?: boolean;
 }) {
-  const [playing, setPlaying] = useState(false);
+  const [clicked, setClicked] = useState(false);
   const poster = videoPoster(src);
+  /* Autoplay only while this slide is on screen, so stepping away and back
+     restarts it rather than leaving a player running out of sight. */
+  const playing = clicked || (autoPlay && active);
 
-  useEffect(() => { if (!active) setPlaying(false); }, [active]);
+  useEffect(() => { if (!active) setClicked(false); }, [active]);
 
   if (playing) {
     return (
       <iframe
         className={className}
-        src={withAutoplay(src)}
+        // Muted ONLY when it started itself — see playerUrl.
+        src={playerUrl(src, !clicked)}
         title={title ?? 'Property video'}
         /* `allow` is what lets autoplay actually start once the viewer has
            clicked; fullscreen is the player's own control. */
@@ -86,7 +113,7 @@ export function VideoSlide({
       className={`pi-video-poster${className ? ` ${className}` : ''}`}
       /* The gallery opens the lightbox on click, so this must not bubble —
          otherwise pressing play would open the lightbox instead. */
-      onClick={(e) => { e.stopPropagation(); setPlaying(true); }}
+      onClick={(e) => { e.stopPropagation(); setClicked(true); }}
       aria-label={title ? `Play ${title}` : 'Play property video'}
       style={poster ? { backgroundImage: `url(${poster})` } : undefined}
     >
