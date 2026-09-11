@@ -597,10 +597,22 @@ export function PropertyInfo(props: Props) {
    * it would touch all of them for no gain. Which entries are videos is
    * answered by the Set below instead.
    */
-  const slides = [...(provided.length ? provided : DEFAULT_GALLERY), ...collectionVideos];
+  /** Photos alone — what the hero banners want, and the tail of the slider. */
+  const photoSlides = provided.length ? provided : DEFAULT_GALLERY;
+  /* Video LEADS the gallery: it is the richest thing the property has, so it
+     is what the slider opens on. Photos follow in their existing order. */
+  const slides = [...collectionVideos, ...photoSlides];
   /** Membership, not a scan — the render asks this once per slide per frame. */
   const videoSlides = React.useMemo(() => new Set(collectionVideos), [collectionVideos]);
-  const heroSlide = slides[0];
+  /*
+   * The first PHOTO, not the first slide.
+   *
+   * Both hero banners render this through <ImageFill>, i.e. an <img>. Now that
+   * a video can lead `slides`, taking slides[0] would hand a YouTube URL to an
+   * image tag — a broken picture as the mobile banner and the hero layout's
+   * background. A still is what those want anyway.
+   */
+  const heroSlide = photoSlides[0];
   const overlay = Math.max(0, Math.min(1, overlayOpacity / 100));
 
   const prev = () => setIndex((i) => (i - 1 + slides.length) % slides.length);
@@ -1044,7 +1056,10 @@ export function PropertyInfo(props: Props) {
                 {slides.map((src, i) => (
                   <span className="pi-gallery-slide" key={`${src}-${i}`}>
                     {videoSlides.has(src)
-                      ? <VideoSlide className="pi-gallery-img" src={src} active={i === index} title={displayName} />
+                      /* Muted autoplay HERE only. The lightbox keeps its
+                         poster: a full-screen video starting on its own is
+                         jarring, and nobody opens it by accident. */
+                      ? <VideoSlide className="pi-gallery-img" src={src} active={i === index} title={displayName} autoPlay />
                       : <ImageFill className="pi-gallery-img" src={src} />}
                   </span>
                 ))}
