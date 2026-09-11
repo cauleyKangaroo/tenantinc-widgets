@@ -2177,7 +2177,7 @@ export function RentalFlow2Step({
               // cleared or advanced until the lease actually comes back: this
               // charges the card, and a failure has to leave the shopper on the
               // form with their details intact.
-              if (info.card && hold && quote) {
+              if ((info.card || info.bank) && hold && quote) {
                 if (paying) return; // in flight — never double-charge
                 /*
                  * The lightbox opens on the CLICK, not on the response.
@@ -2207,19 +2207,31 @@ export function RentalFlow2Step({
                 // Captured before the async hop: inside the callback below
                 // TypeScript can no longer see that info.card is defined.
                 const card = info.card;
+                const bank = info.bank;
+                /*
+                 * The billing address, from whichever panel was filled in. Both
+                 * forms ask for the same one, and the tenant contact needs an
+                 * address regardless of how they are paying.
+                 */
+                const billing = card ?? bank!;
                 // Hosted fields already minted a real token inside GP's iframe,
                 // and there is no PAN on this side to tokenize a second time.
                 // Only the plain-input fallback has to ask for one — and that
                 // ask is fail-soft, because the lease succeeds on the number
                 // alone today and a gateway outage must not stop a rental.
-                const withToken = card.token
-                  ? Promise.resolve({ token: card.token, masked: card.maskedCardNumber ?? '' })
-                  : tokenizeCard(gpKey, {
-                    number: card.cardNumber,
-                    cvv: card.cvv,
-                    expMonth: card.expMonth,
-                    expYear: card.expYear,
-                  });
+                //
+                // ACH has nothing to tokenize: the gateway mints card tokens,
+                // and an account/routing pair is posted as it stands.
+                const withToken: Promise<{ token?: string; masked?: string } | null | undefined> = !card
+                  ? Promise.resolve(undefined)
+                  : card.token
+                    ? Promise.resolve({ token: card.token, masked: card.maskedCardNumber ?? '' })
+                    : tokenizeCard(gpKey, {
+                      number: card.cardNumber,
+                      cvv: card.cvv,
+                      expMonth: card.expMonth,
+                      expYear: card.expYear,
+                    });
                 void withToken.then((tok) => rentSpace(ctx, {
                   unit: { id: hold.unitId, number: hold.unitNumber },
                   holdToken: hold.holdToken,
@@ -2231,12 +2243,13 @@ export function RentalFlow2Step({
                     businessName: c?.businessName,
                     // The tenant's address is the billing address they just
                     // typed — the form asks for one address, not two.
-                    address: card.address,
-                    city: card.city,
-                    state: card.state,
-                    zip: card.zip,
+                    address: billing.address,
+                    city: billing.city,
+                    state: billing.state,
+                    zip: billing.zip,
                   },
-                  card: {
+                  // Exactly one of these is set — see RentArgs.
+                  card: card && {
                     ...card,
                     autoCharge: info.autopay,
                     token: tok?.token,
@@ -2247,6 +2260,7 @@ export function RentalFlow2Step({
                     // number it actually sends — in hosted mode there is no
                     // PAN here to read a brand from.
                   },
+                  bank: bank && { ...bank, autoCharge: info.autopay },
                   startDate: start,
                   // Falls back to the unit row captured before the hold —
                   // API 9 REQUIRES this, and /offers cannot always supply it.

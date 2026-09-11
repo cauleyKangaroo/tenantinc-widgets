@@ -13,18 +13,58 @@
 // problem. The per-space checkbox is there for the case where they genuinely
 // mean to pay only some.
 //
-// Each space block is: checkbox + "#310 | address", the autopay strip
-// (enrolled → card + Update/Cancel; not enrolled → "Enroll in Autopay"), then
+// Each space block is: checkbox + "#310 | address", the autopay strip, then
 // its charges and total.
+//
+// THE AUTOPAY STRIP HAS FOUR STATES (Figma 12239-45881), and they are one
+// card in two shapes rather than four separate designs:
+//
+//   not enrolled  an empty "Autopay Enrollment" checkbox, nothing else.
+//   enrolled      the card it is charged to and when, plus Update Payment
+//                 Method and Cancel Autopay.
+//   updating      enrolled with Update Payment Method ticked — the same card
+//                 with the charged-to lines replaced by what will change.
+//   cancelled     enrolled, then Cancel Autopay — back to the empty checkbox,
+//                 with a Guidance-blue notice under it. Ticking the box again
+//                 re-enrols, which is the undo the notice's wording implies.
+//
+// STATE IS PER SPACE, held as sets of space ids. A tenant can be enrolled on
+// one space and not another (the sample data is exactly that), so a single
+// flag would tie every strip to whichever space was last clicked.
+//
+// EVERY SPACE REACHES EVERY STATE, whichever one it starts in. `autopay.enrolled`
+// is only the OPENING position: ticking Autopay Enrollment on a space that
+// arrived unenrolled moves it to the enrolled card, exactly as Cancel Autopay
+// moves an enrolled one back. A space that starts unenrolled has no card on
+// file, so its enrolled card reads "Autopay will be updated to the payment
+// method used in this transaction" — which is what enrolling during a payment
+// actually means — and it has no Update Payment Method tick, because there is
+// no stored method to replace.
+//
+// None of it persists — there is no account API yet, so cancelling and
+// re-enrolling live only in this component, like every other control here.
+//
+// CREDIT / DEBIT AND PAY BY BANK OPEN #99's OWN FORMS. They are imported, not
+// reproduced: a tenant paying a bill and a shopper renting a space are filling
+// in the same card and the same bank account, and a second copy here would be
+// a second place for those fields, their validation and their error messages
+// to drift. #18 already reaches into #05's api.ts the same way.
+//
+// The card form falls back to plain inputs when it is handed no Global
+// Payments key, which is what happens here — #19 has no config.json and makes
+// no API calls. That is the form's own documented behaviour, not a special
+// case added for this panel.
 // ===========================================================================
 
 import { useMemo, useState } from 'react';
 import { Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
 import { BankForm, CardForm, PaymentFormSkeleton } from '@shared/paymentForms';
 import {
-  BankIcon, ChevronBigRightIcon, CreditCardIcon, CreditCardRemoveIcon,
-  CreditCardRepeatIcon, GooglePayLockup, MinusIcon, PlusIcon, ShieldSettingsIcon,
+  BankIcon, ChevronBigRight24Icon, CreditCardIcon, CreditCardRemoveIcon,
+  CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
+  MinusIcon, PlusIcon, ShieldSettingsIcon,
 } from './icons';
+import { AUTOPAY_CANCELLED_NOTE, AUTOPAY_UPDATE_NOTE } from './data';
 import type { AccountSpace } from './data';
 
 /** Skeleton beat before a payment form appears (Figma 8507-24610). Same 700ms
@@ -45,6 +85,16 @@ function formatMoney(n: number): string {
   return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
+/**
+ * `id` flipped in or out of a set, as a NEW set — mutating and returning the
+ * same object would be the same reference and React would not re-render.
+ */
+function flip(prev: Set<string>, id: string): Set<string> {
+  const next = new Set(prev);
+  if (!next.delete(id)) next.add(id);
+  return next;
+}
+
 export function MakePaymentPanel({
   spaces, space,
 }: {
@@ -62,14 +112,35 @@ export function MakePaymentPanel({
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(list.map((s) => s.id)),
   );
-  const [updateMethod, setUpdateMethod] = useState(false);
   const [prepay, setPrepay] = useState(false);
-  const [autopayOptIn, setAutopayOptIn] = useState<Set<string>>(() => new Set());
-  /* MOBILE ONLY (Figma 9007-22768). The billing breakdown collapses behind
-     "Hide Billing Details" on a phone, where four money rows per space push the
-     payment buttons off screen. Open by default — the frame shows it open, and
-     hiding what someone owes by default would be the wrong way round. */
-  const [billingOpen, setBillingOpen] = useState(true);
+  /* The three autopay sets — see the header note on why each is per space and
+     not a flag. All start empty: the strip's opening state comes from the
+     space's own `autopay.enrolled`, and these record what the tenant has
+     changed since. `cancelled` wins over both, so turning autopay off always
+     turns it off no matter which way the space arrived. */
+  const [updateMethod, setUpdateMethod] = useState<Set<string>>(() => new Set());
+  const [cancelled, setCancelled] = useState<Set<string>>(() => new Set());
+  const [enrolledNow, setEnrolledNow] = useState<Set<string>>(() => new Set());
+
+  /** Drop one id from a set — the half of `flip` that is not a toggle. */
+  const clearFor = (
+    set: (fn: (prev: Set<string>) => Set<string>) => void,
+  ) => (id: string) => set((prev) => {
+    if (!prev.has(id)) return prev;
+    const next = new Set(prev);
+    next.delete(id);
+    return next;
+  });
+  const clearUpdateMethod = clearFor(setUpdateMethod);
+  /* MOBILE ONLY (Figma 9038-78423 closed, 9038-78569 open). On a phone the
+     screen opens as a LIST — one line per space, number, address and amount —
+     so the tenant can pick what to pay without scrolling past four money rows
+     and an autopay strip each. "Show Billing Details" opens all of that.
+     Closed by default because that list is the point of the mobile frame; the
+     amount owed is still on every row, so nothing is hidden that decides
+     whether to tick a space. Desktop ignores this entirely — the stylesheet
+     only honours it under 720px, where the frame has the control. */
+  const [billingOpen, setBillingOpen] = useState(false);
   /* The mobile balance box prepays by MONTHS, not just a yes/no. 1 is the
      minimum the stepper can reach: "prepay 0 months" is just not prepaying,
      which the checkbox already says. */
@@ -79,11 +150,7 @@ export function MakePaymentPanel({
   const [payMethod, setPayMethod] = useState<'card' | 'bank' | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
-  const toggle = (id: string) => setSelected((prev) => {
-    const next = new Set(prev);
-    if (!next.delete(id)) next.add(id);
-    return next;
-  });
+  const toggle = (id: string) => setSelected((prev) => flip(prev, id));
 
   /* The bar totals what is TICKED, so the figure always matches what the
      payment buttons would take. Falls back to the space's own printed balance
@@ -124,6 +191,19 @@ export function MakePaymentPanel({
 
       {list.map((sp) => {
         const on = selected.has(sp.id);
+        /* Off beats on: a space is enrolled if it arrived that way OR was
+           enrolled here, unless it has since been cancelled. One rule for
+           both starting positions, so Cancel Autopay and the enrolment tick
+           behave the same on every space. */
+        const justCancelled = cancelled.has(sp.id);
+        const enrolled = !justCancelled && (sp.autopay.enrolled || enrolledNow.has(sp.id));
+        /* The tick ALONE decides which copy shows, on every space. It used to
+           also be forced on for a space with no card on file, which meant one
+           space could read "will be updated" with no tick beside it while its
+           neighbour had one — see the enrol handler for how that case is
+           handled now instead. */
+        const hasCardOnFile = Boolean(sp.autopay.cardLast4);
+        const updating = enrolled && updateMethod.has(sp.id);
         return (
           <div className="ma-pay-space" key={sp.id}>
             {/* A CHECKBOX, not the radio the single-space frame had: several
@@ -140,50 +220,119 @@ export function MakePaymentPanel({
                   <span className="ma-space-head__addr">{sp.paymentAddress}</span>
                 </span>
               </Checkbox>
+              {/* MOBILE ONLY. With the breakdown closed this is the only figure
+                  on the row, and it is what the tick is deciding about — so the
+                  list stays useful collapsed. The desktop frame has no such
+                  column and the stylesheet hides it there. */}
+              <span className="ma-space-head__amount">{sp.total}</span>
             </div>
 
-            {sp.autopay.enrolled ? (
+            {/* ONE disclosure, not two: the frame's closed state shows neither
+                the autopay strip nor the money rows, so they open together. */}
+            <div className={`ma-detail${billingOpen ? '' : ' ma-detail--hidden'}`}>
+            {enrolled ? (
               <div className="ma-autopay">
                 <div className="ma-autopay__left">
                   <div className="ma-autopay__head">
                     <CreditCardRepeatIcon />
                     <span className="ma-autopay__title">Enrolled in Autopay</span>
                   </div>
+                  {/* The SAME slot, either way — ticking Update Payment Method
+                      swaps what is charged today for what is about to change,
+                      because once it is ticked the old card is no longer the
+                      answer to "what pays this". */}
                   <div className="ma-autopay__detail">
-                    <p>Charged to xxxx {sp.autopay.cardLast4}</p>
-                    <p>{sp.autopay.schedule}</p>
+                    {updating ? (
+                      <p className="ma-autopay__updating">{AUTOPAY_UPDATE_NOTE}</p>
+                    ) : (
+                      <>
+                        {/* Only when there IS one. A space enrolled during this
+                            payment has no stored card, and "Charged to xxxx "
+                            with nothing after it is worse than not saying it. */}
+                        {hasCardOnFile && <p>Charged to xxxx {sp.autopay.cardLast4}</p>}
+                        <p>{sp.autopay.schedule}</p>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="ma-autopay__actions">
-                  <Checkbox checked={updateMethod} onChange={setUpdateMethod} className="ma-autopay__check">
+                  {/* On EVERY enrolled space. Two spaces enrolled the same way
+                      must offer the same controls, or the one missing a tick
+                      looks broken next to the one that has it. */}
+                  <Checkbox
+                    checked={updateMethod.has(sp.id)}
+                    onChange={() => setUpdateMethod((prev) => flip(prev, sp.id))}
+                    className="ma-autopay__check"
+                  >
                     Update Payment Method
                   </Checkbox>
-                  <button type="button" className="ma-link-row">
+                  <button
+                    type="button"
+                    className="ma-link-row"
+                    onClick={() => {
+                      setCancelled((prev) => flip(prev, sp.id));
+                      clearUpdateMethod(sp.id);
+                    }}
+                  >
                     <CreditCardRemoveIcon />
                     <span className="ma-link">Cancel Autopay</span>
                   </button>
                 </div>
               </div>
             ) : (
-              /* Not enrolled: the frame replaces the whole strip with a single
-                 opt-in row, shorter than the enrolled one. */
-              <div className="ma-autopay ma-autopay--offer">
-                <Checkbox
-                  checked={autopayOptIn.has(sp.id)}
-                  onChange={() => setAutopayOptIn((prev) => {
-                    const next = new Set(prev);
-                    if (!next.delete(sp.id)) next.add(sp.id);
-                    return next;
-                  })}
-                  className="ma-autopay__check"
-                >
-                  <span className="ma-autopay__title">Enroll in Autopay</span>
-                </Checkbox>
-                <InfoIcon size={24} className="ma-autopay__info" />
+              /* Not enrolled — whether it never was or was just cancelled, the
+                 strip is the same empty checkbox. Cancelling only adds the
+                 notice beneath it and turns the card Guidance blue. */
+              <div className={`ma-autopay ma-autopay--offer${justCancelled ? ' ma-autopay--cancelled' : ''}`}>
+                <div className="ma-autopay__enroll">
+                  {/* The box IS the enrolment control, so it never sits ticked
+                      here: ticking it moves the space to the enrolled card and
+                      this shape stops being rendered. Cancel Autopay is the
+                      way back, on every space. */}
+                  <Checkbox
+                    checked={false}
+                    onChange={() => {
+                      if (justCancelled) {
+                        /* Re-enrol — the notice recommends staying enrolled, so
+                           the box beneath it has to be the way back. Whatever
+                           the space's starting position, dropping it out of
+                           `cancelled` restores that. */
+                        setCancelled((prev) => flip(prev, sp.id));
+                        clearUpdateMethod(sp.id);
+                      } else {
+                        /* Enrol a space that arrived without autopay. With no
+                           card on file the method can only be this payment's,
+                           so the tick starts ON — the frame's "Update Autopay"
+                           state exactly. It can still be turned off, and then
+                           the space just shows its schedule. */
+                        setEnrolledNow((prev) => flip(prev, sp.id));
+                        if (!sp.autopay.cardLast4) {
+                          setUpdateMethod((prev) => {
+                            const next = new Set(prev);
+                            next.add(sp.id);
+                            return next;
+                          });
+                        }
+                      }
+                    }}
+                    className="ma-autopay__check"
+                  >
+                    <span className="ma-autopay__enrollLabel">
+                      Autopay Enrollment
+                      <InfoFilledIcon className="ma-autopay__info" />
+                    </span>
+                  </Checkbox>
+                </div>
+                {justCancelled && (
+                  <div className="ma-autopay__notice">
+                    <InfoNoticeIcon className="ma-autopay__noticeIcon" />
+                    <p>{AUTOPAY_CANCELLED_NOTE}</p>
+                  </div>
+                )}
               </div>
             )}
 
-            <div className={`ma-lines${billingOpen ? '' : ' ma-lines--hidden'}`}>
+            <div className="ma-lines">
               {sp.lines.map((line) => (
                 <div className="ma-line" key={line.label}>
                   <p className="ma-line__label">
@@ -218,6 +367,7 @@ export function MakePaymentPanel({
                 <p className="ma-line__amount ma-line__amount--total">{sp.total}</p>
               </div>
             </div>
+            </div>
           </div>
         );
       })}
@@ -231,7 +381,10 @@ export function MakePaymentPanel({
         onClick={() => setBillingOpen((v) => !v)}
       >
         <span>{billingOpen ? 'Hide Billing Details' : 'Show Billing Details'}</span>
-        <ChevronBigRightIcon className={`ma-billing-toggle__chev${billingOpen ? ' ma-billing-toggle__chev--up' : ''}`} />
+        {/* The 24px export, not the 32px one scaled — both frames draw this
+            chevron at 24, and a 32px stroke squeezed down is a thinner line
+            than the one Payment Activity shows below it. */}
+        <ChevronBigRight24Icon className={`ma-billing-toggle__chev${billingOpen ? ' ma-billing-toggle__chev--up' : ''}`} />
       </button>
 
       <div className="ma-balance">
