@@ -1451,17 +1451,19 @@ span.pi-lb-img {
 .pi-video-poster {
   border: 0;
   padding: 0;
-  cursor: pointer;
-  background-color: #101318;   /* shows through until the poster loads, and IS
-                                  the backdrop when none could be derived */
-  background-size: cover;
-  background-position: center;
   display: flex;
   align-items: center;
   justify-content: center;
+  /* The background is set inline — either the derived poster frame or the
+     gradient fallback — so no background-* defaults are declared here; the
+     shorthand would reset them anyway. */
 }
+/* Only the LIGHTBOX poster is a button. The inline one renders as an inert
+   span inside the gallery's own button (a nested control would be invalid),
+   so it must not advertise a click it cannot take — the gallery handles it. */
+button.pi-video-poster { cursor: pointer; }
 .pi-video-play { display: flex; line-height: 0; transition: transform 0.15s ease; }
-.pi-video-poster:hover .pi-video-play { transform: scale(1.06); }
+button.pi-video-poster:hover .pi-video-play { transform: scale(1.06); }
 .pi-video-poster:focus-visible { outline: 3px solid #fff; outline-offset: -3px; }
 
 /* The player itself. `iframe` is specific enough to beat the generic
