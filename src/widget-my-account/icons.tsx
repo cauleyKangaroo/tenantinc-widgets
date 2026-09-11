@@ -10,12 +10,16 @@
 // keep the geometry they were drawn at.
 //
 // Icons the shared kit ALREADY has — map pin, phone, info circle — are NOT
-// duplicated here; MyAccount.tsx imports those from '@shared/ui'.
+// duplicated here; MyAccount.tsx imports those from '@shared/ui'. The two
+// info marks below are the EXCEPTION: the kit's InfoIcon is an outline
+// circle-i, and the autopay states (12239-45881) draw mdiInformation FILLED,
+// so the kit glyph does not match and the Figma export is used instead.
 // ===========================================================================
 
 import bankAsset from './assets/bank.svg';
 import checkAsset from './assets/check.svg';
 import chevronRightAsset from './assets/chevron-right.svg';
+import chevronRight24Asset from './assets/chevron-right-24.svg';
 import creditCardAsset from './assets/credit-card.svg';
 import creditCardRemoveAsset from './assets/credit-card-remove.svg';
 import creditCardRepeatAsset from './assets/credit-card-repeat.svg';
@@ -27,6 +31,8 @@ import envelopeAsset from './assets/envelope.svg';
 import fileTextAsset from './assets/file-text.svg';
 import userArrowRightAsset from './assets/user-arrow-right.svg';
 import userSettingsAsset from './assets/user-settings.svg';
+import infoFilledAsset from './assets/info-filled.svg';
+import infoNoticeAsset from './assets/info-notice.svg';
 
 interface AssetIconProps {
   className?: string;
@@ -58,9 +64,32 @@ export function AmenityCheckIcon({ className }: AssetIconProps) {
   return <img src={checkAsset} alt="" width={16} height={16} className={className} aria-hidden="true" />;
 }
 
+/**
+ * mdiInformation, FILLED — sits beside "Autopay Enrollment". 16×16 with the
+ * fill baked in at the frame's #101318; the kit's InfoIcon is the outline
+ * variant and is a different glyph, not a recolour of this one.
+ */
+export function InfoFilledIcon({ className }: AssetIconProps) {
+  return <img src={infoFilledAsset} alt="" width={16} height={16} className={className} aria-hidden="true" />;
+}
+
+/** The same mark at the notice banner's own size and Guidance blue. 24×24. */
+export function InfoNoticeIcon({ className }: AssetIconProps) {
+  return <img src={infoNoticeAsset} alt="" width={24} height={24} className={className} aria-hidden="true" />;
+}
+
 /** 32×32 — the Payment Activity disclosure, rotated to point down in CSS. */
 export function ChevronBigRightIcon({ className }: AssetIconProps) {
   return <img src={chevronRightAsset} alt="" width={32} height={32} className={className} aria-hidden="true" />;
+}
+
+/**
+ * The SAME chevron at the size the Edit panel's select draws it — 24, not the
+ * 32 above scaled down. Figma exports the glyph at each size it is used, and
+ * a 32px stroke squeezed into 24 is a thinner line than the one beside it.
+ */
+export function ChevronBigRight24Icon({ className }: AssetIconProps) {
+  return <img src={chevronRight24Asset} alt="" width={24} height={24} className={className} aria-hidden="true" />;
 }
 
 /**
