@@ -231,6 +231,14 @@ export function BankForm({ total, onPay, busy, payLabel }: {
     && filled(country) && filled(address) && filled(city)
     && stateCode.trim().length === 2 && zip.trim().length >= 3;
 
+  /* The same banner the card panel has. Without it the button LOOKED DEAD:
+     an incomplete form only set payAttempted, which revealed City/State/ZIP
+     far below the fold and said nothing at all beside the button that had
+     just been pressed. */
+  const payError = payAttempted && !complete
+    ? 'Complete Billing Information details before processing payment'
+    : '';
+
   const pay = () => {
     // Reveal what is missing rather than silently doing nothing.
     if (!complete) { setPayAttempted(true); return; }
@@ -251,9 +259,23 @@ export function BankForm({ total, onPay, busy, payLabel }: {
 
   return (
     <>
+      {payError && (
+        <div className="rf-payerr" role="alert">
+          <AlertIcon size={24} className="rf-payerr-ico" />
+          <span>{payError}</span>
+        </div>
+      )}
       <div className="rf-pay-grid">
-        <FormField label="First Name" required value={first} onChange={setFirst} autoComplete="given-name" state={ok(filled(first))} />
-        <FormField label="Last Name" required value={last} onChange={setLast} autoComplete="family-name" state={ok(filled(last))} />
+        <FormField
+          label="First Name" required value={first} onChange={setFirst} autoComplete="given-name"
+          state={ok(filled(first))}
+          error={payAttempted && !filled(first) ? 'First name is required' : undefined}
+        />
+        <FormField
+          label="Last Name" required value={last} onChange={setLast} autoComplete="family-name"
+          state={ok(filled(last))}
+          error={payAttempted && !filled(last) ? 'Last name is required' : undefined}
+        />
 
         <SelectField
           label="Account Type" required value={accountType} onChange={setAccountType}
@@ -264,6 +286,7 @@ export function BankForm({ total, onPay, busy, payLabel }: {
           label="Routing Number" required value={routing} onChange={setRouting}
           infoTitle="The 9-digit number on the bottom left of your cheque"
           className={okQuiet(validRouting(routing))}
+          error={payAttempted && !validRouting(routing) ? 'Enter the 9-digit routing number' : undefined}
         />
 
         {/* Masked by default with an eye toggle (Figma 10080-28132 / -28133).
@@ -276,11 +299,14 @@ export function BankForm({ total, onPay, busy, payLabel }: {
           value={account} onChange={setAccount}
           // Green only once the pair matches — see accountsMatch.
           state={ok(accountsMatch)}
+          error={payAttempted && !filled(account) ? 'Enter your account number' : undefined}
         />
         <FormField
           label="Confirm Account Number" required type="password"
           value={confirm} onChange={setConfirm}
-          error={confirmMismatch ? 'Account numbers do not match' : undefined}
+          error={confirmMismatch
+            ? 'Account numbers do not match'
+            : (payAttempted && !accountsMatch ? 'Re-enter your account number to confirm' : undefined)}
           infoTitle="Re-enter to confirm"
           /* `state`, not okQuiet: okQuiet only paints the green BORDER, so this
              field could never draw the tick its partner draws. The tick and the
@@ -351,8 +377,10 @@ export function BankForm({ total, onPay, busy, payLabel }: {
         </>
       )}
 
+      {/* Same busy treatment as the card panel: disabled alone changes nothing
+          the shopper can see, and the lightbox can be dismissed. */}
       <button type="button" className="rf-paynow" onClick={pay} disabled={busy}>
-        {payLabel ?? `Pay Now ${money(total)}`}
+        {busy ? 'Processing…' : (payLabel ?? `Pay Now ${money(total)}`)}
       </button>
     </>
   );
@@ -377,7 +405,7 @@ export interface CardFormValue {
   zip: string;
 }
 
-export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payLabel }: {
+export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipOnlyBilling, payLabel }: {
   total: number;
   /** Overrides "Pay Now $X" — the always-on autopay frame reads
    *  "Agree & Pay $X", because that button is where the recurring
@@ -400,6 +428,19 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payL
    * throws away whatever has been typed into them.
    */
   gatewayPending?: boolean;
+  /**
+   * Collect ONLY the billing ZIP (beside the country), not a street address.
+   *
+   * On `tenant_payments` the card itself never reaches us — it is typed into
+   * Global Payments' iframe — and the gateway verifies on the postcode alone,
+   * so asking for a street, city and state is three fields of friction that
+   * nothing checks. Verified against documents/finalize: a card
+   * payment_method with only `zip` is accepted.
+   *
+   * Every other gateway keeps the full block: they are billed against the
+   * address, and dropping it there would start failing AVS.
+   */
+  zipOnlyBilling?: boolean;
 }) {
   const [number, setNumber] = useState('');
   const [expiry, setExpiry] = useState('');
@@ -575,8 +616,10 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payL
      let someone pay without ever choosing one — a required field that does not
      gate is just a decoration. The banner below names Billing Information,
      which is where the select now sits. */
-  const complete = cardRowValid && filled(name) && filled(address) && filled(city)
-    && stateCode.trim().length === 2 && zip.trim().length >= 3 && filled(country);
+  const complete = cardRowValid && filled(name) && zip.trim().length >= 3 && filled(country)
+    // Only demanded where they are asked for. Requiring a street the panel
+    // never rendered would be a dead button with nothing to fix.
+    && (zipOnlyBilling || (filled(address) && filled(city) && stateCode.trim().length === 2));
 
   /* ONE banner, whichever went wrong, shown under the "Credit / Debit" head
      rather than down beside the pay button (Figma 12029-93132). A shopper who
@@ -931,6 +974,16 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payL
           options={['United States', 'Canada']}
           state={country ? 'success' : 'default'}
         />
+        {/* tenant_payments verifies on the postcode alone, so ZIP takes the
+            column the address search would have had and the street, city and
+            state below are not rendered at all. */}
+        {zipOnlyBilling ? (
+          <FormField
+            label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code"
+            state={ok(zip.trim().length >= 3)}
+            error={payAttempted && zip.trim().length < 3 ? 'Enter your billing ZIP code' : undefined}
+          />
+        ) : (
         <AddressAutocomplete
         country={CUSTOMER_ADDRESS_COUNTRIES}
         value={address}
@@ -950,6 +1003,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payL
           error={payAttempted && !filled(address) ? 'Enter your billing address' : undefined}
         />
         </AddressAutocomplete>
+        )}
       </div>
 
       {/* City, state, country and ZIP stay hidden until the address lookup
@@ -960,7 +1014,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, payL
           or a return to the panel), and on a pay attempt — they are REQUIRED,
           so a shopper who never picks a suggestion must still be able to see
           and complete them rather than meet a dead button. */}
-      {showBillingParts && (
+      {!zipOnlyBilling && showBillingParts && (
         <>
           <div className="rf-pay-grid">
             <FormField
