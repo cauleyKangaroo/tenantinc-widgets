@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './RentalFlow2Step.css';
 import { Step2, type AutopayMode } from './Step2';
+import type { BillingCountry } from '@shared/paymentForms';
 import {
   fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
@@ -111,6 +112,17 @@ export interface RentalFlow2StepProps {
    * demo picker in step 2 covers all four.
    */
   autopay?: string;
+  /**
+   * Content-menu dropdown `countryDefault` — which country BOTH payment forms
+   * (Credit / Debit and Pay by Bank) open their Billing Country select on:
+   * `none` | `us` | `canada`.
+   *
+   * A single-country operator should not make every shopper pick the only
+   * answer, but the field is still theirs to change — this preselects, it does
+   * not lock. `none` is the default and leaves the "Select Billing Country"
+   * placeholder, which is how the forms behaved before this existed.
+   */
+  countryDefault?: string;
   /** Tier's group id from the value-tiers handoff (?unitGroupId=) — the proxy
    *  reserve route needs it for the ownership check. */
   unitGroupId?: string;
@@ -700,6 +712,7 @@ function readConfirmationPayload(inEditor: boolean): ConfirmationData | undefine
 
 export function RentalFlow2Step({
   autopay,
+  countryDefault,
   logoImage,
   logoUrl,
   eyebrow = 'Great choice!',
@@ -773,6 +786,22 @@ export function RentalFlow2Step({
       case 'preselected': return 'preselected';
       case 'optional': return 'optional';
       default: return undefined;
+    }
+  })();
+
+  /* The dropdown's value to the select's own option string. The select carries
+     its labels AS its values, so 'us' has to become 'United States' — a raw
+     'us' would match no option and silently preselect nothing.
+
+     `boundText` first, for the same reason autopay uses it: an unsubstituted
+     {{token}} or Duda's empty-string default must read as "unset" and fall
+     through to no preselection, never as a country nobody chose. Anything
+     unrecognised — including 'none' — lands on '' deliberately. */
+  const defaultBillingCountry: BillingCountry = (() => {
+    switch (boundText(countryDefault).trim().toLowerCase()) {
+      case 'us': case 'usa': case 'united states': return 'United States';
+      case 'canada': case 'ca': return 'Canada';
+      default: return '';
     }
   })();
 
@@ -2171,6 +2200,7 @@ export function RentalFlow2Step({
             gpPublicKey={gpKey}
             gatewayPending={gatewayPending}
             zipOnlyBilling={gateway === TENANT_PAYMENTS}
+            defaultCountry={defaultBillingCountry}
             onPaymentComplete={(info) => {
               // REAL RENTAL. A card plus a live hold and quote means we have
               // everything the documented flow needs (guide APIs 9→10→11), so

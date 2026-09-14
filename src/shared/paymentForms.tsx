@@ -195,6 +195,17 @@ export function PaymentFormSkeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
+/**
+ * Which country the Billing Country select opens on.
+ *
+ * `''` keeps the "Select Billing Country" placeholder — still the default, so
+ * a form nobody configured behaves exactly as it did. The two real values are
+ * the OPTION strings, not codes, because the select carries its labels as its
+ * values; mapping an editor's `us` / `canada` to these belongs to the widget
+ * that reads the content menu, not here.
+ */
+export type BillingCountry = '' | 'United States' | 'Canada';
+
 /** What the rental APIs need from the Pay by Bank form. */
 export interface BankFormValue {
   /** Digits only. */
@@ -213,12 +224,14 @@ export interface BankFormValue {
   country: string;
 }
 
-export function BankForm({ total, onPay, busy, payLabel }: {
+export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: {
   total: number;
   /** Receives the entered account when the form is complete. */
   onPay: (bank: BankFormValue) => void;
   /** Payment in flight — the button locks so a double-tap cannot double-charge. */
   busy?: boolean;
+  /** Country the billing select opens on — see `BillingCountry`. */
+  defaultCountry?: BillingCountry;
   payLabel?: string;
 }) {
   const [first, setFirst] = useState('');
@@ -235,13 +248,16 @@ export function BankForm({ total, onPay, busy, payLabel }: {
      Before it, an untouched form is unfinished, not wrong. Mirrors CardForm. */
   const [payAttempted, setPayAttempted] = useState(false);
   const [addressPicked, setAddressPicked] = useState(false);
-  // Pre-filled and validated in the design — the common case for a US site.
-  /* Nothing preselected. It defaulted to 'United States', which is a value the
-     shopper never chose — and now that the select leads the billing block, a
-     Canadian cardholder would have had to notice it was already wrong rather
-     than simply pick. An empty string shows the "Select Billing Country"
-     option. */
-  const [country, setCountry] = useState('');
+  /* Preselected ONLY when the operator has said which country their shoppers
+     are in (`defaultCountry`). It used to hardcode 'United States', which is a
+     value the shopper never chose — and now that the select leads the billing
+     block, a Canadian cardholder would have had to notice it was already wrong
+     rather than simply pick. Unset stays '' and shows the "Select Billing
+     Country" option, exactly as before.
+
+     Seeded, not synced: this is the shopper's field the moment the form opens,
+     so a late-arriving config must never overwrite what they have picked. */
+  const [country, setCountry] = useState<string>(defaultCountry);
   const [address, setAddress] = useState('');
 
   /* ── Account number / confirm ────────────────────────────────────────────
@@ -445,7 +461,7 @@ export interface CardFormValue {
   zip: string;
 }
 
-export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipOnlyBilling, payLabel }: {
+export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipOnlyBilling, defaultCountry = '', payLabel }: {
   total: number;
   /** Overrides "Pay Now $X" — the always-on autopay frame reads
    *  "Agree & Pay $X", because that button is where the recurring
@@ -481,17 +497,23 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
    * address, and dropping it there would start failing AVS.
    */
   zipOnlyBilling?: boolean;
+  /** Country the billing select opens on — see `BillingCountry`. */
+  defaultCountry?: BillingCountry;
 }) {
   const [number, setNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
   const [name, setName] = useState('');
-  /* Nothing preselected. It defaulted to 'United States', which is a value the
-     shopper never chose — and now that the select leads the billing block, a
-     Canadian cardholder would have had to notice it was already wrong rather
-     than simply pick. An empty string shows the "Select Billing Country"
-     option. */
-  const [country, setCountry] = useState('');
+  /* Preselected ONLY when the operator has said which country their shoppers
+     are in (`defaultCountry`). It used to hardcode 'United States', which is a
+     value the shopper never chose — and now that the select leads the billing
+     block, a Canadian cardholder would have had to notice it was already wrong
+     rather than simply pick. Unset stays '' and shows the "Select Billing
+     Country" option, exactly as before.
+
+     Seeded, not synced: this is the shopper's field the moment the form opens,
+     so a late-arriving config must never overwrite what they have picked. */
+  const [country, setCountry] = useState<string>(defaultCountry);
   const [zip, setZip] = useState('');
   // Billing address. Not in the Figma frame, but the rental APIs require a
   // street/city/state on both the payment method and the tenant contact, and a
