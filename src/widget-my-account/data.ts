@@ -24,7 +24,9 @@
 //     • the unit is #41 in the sidebar and the Account Info heading, but the
 //       payment screen heads it #310 and bills "Monthly Rent #301".
 //     • the payment screen totals $123.00 while its balance box reads $350.00.
-//     • "1rst of each month" is the designer's typo for "1st".
+//     • The frame's "1rst of each month" is a typo and is CORRECTED to "1st"
+//       here — the one place the design is not followed literally, because a
+//       misspelling is a defect rather than a decision.
 //     • the primary contact is sneha@storelocal.com in the panel but
 //       sneha.jose@storelocal.com in the signed-in line above it.
 //     • Payment Activity's first row bills a space "#305" that is not in the
@@ -49,7 +51,7 @@ export interface MoneyLine {
 export interface AutopayInfo {
   enrolled: boolean;
   cardLast4: string;
-  /** Free text — the frame reads "Charged on the 1rst of each month". */
+  /** Free text — "Charged on the 1st of each month". */
   schedule: string;
 }
 
@@ -214,8 +216,7 @@ export const SPACES: AccountSpace[] = [
     autopay: {
       enrolled: true,
       cardLast4: '8746',
-      // sic — the design reads "1rst". See the header note.
-      schedule: 'Charged on the 1rst of each month',
+      schedule: 'Charged on the 1st of each month',
     },
     lines: [
       { label: 'Monthly Rent #301', note: '(06/01/2026 to 06/30/2026)', amount: '$ 100.00' },
@@ -257,8 +258,13 @@ export const SPACES: AccountSpace[] = [
     paymentAddress: '1301 E. Mission Ave, Fullerton, CA 02027',
     autopay: {
       enrolled: false,
-      cardLast4: '',
-      schedule: 'Set up autopay to avoid late fees',
+      /* A card IS on file — autopay is simply switched off. That is an
+         ordinary situation, and it is what lets this space show the same
+         "Charged to" line as #41 once the tenant enrols it. */
+      cardLast4: '4021',
+      /* Shown once the tenant enrols this space during a payment, so it is
+         a schedule and not the sell line it used to be. */
+      schedule: 'Charged on the 1st of each month',
     },
     lines: [
       { label: 'Monthly Rent #42', note: '(07/01/2026 to 07/31/2026)', amount: '$ 215.00' },
@@ -281,53 +287,99 @@ export const SPACES: AccountSpace[] = [
  * alternate contact "Betty Boo" where the display panel reads "Jerry Boo".
  * Reproduced as drawn; see the header note.
  */
-export interface EditForm {
+/**
+ * One person on the account. The Edit panel draws this shape twice — the
+ * alternate contact and the emergency contact — with its own "apply to all
+ * spaces" tick each, because they are separate people and a tenant may well
+ * want one copied across their spaces and not the other.
+ */
+export interface ContactForm {
+  first: string;
+  last: string;
   email: string;
-  mobile: string;
-  /** The lookup field above the split address. Blank in the frame. */
-  mailingLookup: string;
+  phone: string;
+  country: string;
   address: string;
   city: string;
   state: string;
   zip: string;
   applyToAll: boolean;
-  hasAlternate: boolean;
-  altFirst: string;
-  altLast: string;
-  altEmail: string;
-  altPhone: string;
-  altLookup: string;
-  altAddress: string;
-  altCity: string;
-  altState: string;
-  altZip: string;
 }
 
-export const EDIT_DEFAULTS: EditForm = {
-  email: 'sneha.jose@storelocal.com',
-  mobile: '+1 (949) 938-9387',
-  mailingLookup: '',
+export interface EditForm {
+  /* Mailing address. */
+  country: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+
+  /* Drivers licence. `usePassport` swaps the ID being provided; the frame
+     draws it unticked with the licence fields filled. */
+  usePassport: boolean;
+  licenceNumber: string;
+  licenceState: string;
+  licenceExpiry: string;
+
+  /* Communication preferences — both ticked in the frame. */
+  marketingEmails: boolean;
+  textMessages: boolean;
+
+  alternate: ContactForm;
+  emergency: ContactForm;
+}
+
+/**
+ * The countries the address fields offer. Same pair the rental flow (#99)
+ * offers, and the same pair `CUSTOMER_ADDRESS_COUNTRIES` scopes address
+ * lookups to — one list, so a country you can pick here is a country the
+ * lookup can complete.
+ */
+export const EDIT_COUNTRIES = ['United States', 'Canada'];
+
+/* The frame fills the alternate and emergency contacts with the SAME person.
+   Reproduced rather than varied: inventing a second name would be inventing
+   content, and the repetition is the designer's, not an oversight here. */
+const CONTACT_DEFAULT: ContactForm = {
+  first: 'Betty',
+  last: 'Boo',
+  email: 'Betty@boo.com',
+  phone: '+91 938 938 9387',
+  country: 'United States',
   address: '435 Woodland Drive',
   city: 'Laguna Beach',
-  state: 'California',
+  state: 'CA',
   zip: '92651',
-  // Unticked in the frame; the alternate-contact toggle is ticked.
   applyToAll: false,
-  hasAlternate: true,
-  altFirst: 'Betty',
-  altLast: 'Boo',
-  altEmail: 'Betty@boo.com',
-  altPhone: '+91 938 938 9387',
-  altLookup: '',
-  altAddress: '435 Woodland Drive',
-  altCity: 'Laguna Beach',
-  altState: 'California',
-  altZip: '92651',
 };
 
-/** sic — the frame reads "Updates to updates to". See the header note. */
-export const EDIT_ACCOUNT_NOTE =
-  'Updates to updates to email and phone will apply to all spaces associated with this account.';
+export const EDIT_DEFAULTS: EditForm = {
+  /* Laguna Beach, while the display panel's address is Fullerton — the frames
+     disagree and both are reproduced as drawn. See the header note. */
+  country: 'United States',
+  address: '435 Woodland Drive',
+  city: 'Laguna Beach',
+  state: 'CA',
+  zip: '92651',
+
+  usePassport: false,
+  licenceNumber: '7736372728',
+  /* Spelled out here and abbreviated in the addresses above — the frame does
+     both, so both are kept. */
+  licenceState: 'California',
+  licenceExpiry: '02/02/2031',
+
+  marketingEmails: true,
+  textMessages: true,
+
+  alternate: { ...CONTACT_DEFAULT },
+  emergency: { ...CONTACT_DEFAULT },
+};
+
+export const AUTOPAY_UPDATE_NOTE =
+  'Autopay will be updated to the payment method used in this transaction.';
+export const AUTOPAY_CANCELLED_NOTE =
+  'Autopay cancelled. We recommend to stay enrolled to avoid late fees.';
 
 /**
  * Payment Activity (8884-131918). Account-wide, not per-unit — the frame's

@@ -10,7 +10,7 @@ import {
   LOCATION_BASE_PATH, type Crumb,
 } from '@shared/Breadcrumb';
 import { fetchPropertyMedia } from '@shared/propertyImages';
-import { VideoSlide, videoPoster } from './VideoSlide';
+import { VideoSlide, videoPosterOrFallback } from './VideoSlide';
 import { fetchReviewSource } from '@shared/reviewsCollections';
 import {
   MapPinIcon, MapPinSolidIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
@@ -410,9 +410,17 @@ export function PropertyInfo(props: Props) {
   const [imagesLoading, setImagesLoading] = useState(true);
   useEffect(() => {
     const id = property?.id;
-    // Clear first — otherwise switching row in the dynamic-page dropdown shows
-    // the previous property's photos until the new ones land.
+    /*
+     * Clear BOTH first — otherwise switching row in the dynamic-page dropdown
+     * shows the previous property's media until the new lot lands.
+     *
+     * The video needs this at least as much as the photos: a rejected lookup,
+     * or an id that becomes undefined, never reaches the `.then`, so the old
+     * list would survive and the gallery would lead with the PREVIOUS
+     * property's video over this one's photos.
+     */
     setCollectionImages([]);
+    setCollectionVideos([]);
     if (!id) {
       // Nothing to wait for: an unbound widget resolves no property, so the
       // props/defaults are already the final answer.
@@ -883,7 +891,9 @@ export function PropertyInfo(props: Props) {
                   /* The clones at either end mean a video appears three times
                      in this list; `active` keys off the CELL, so only the one
                      actually on screen can ever hold a player. */
-                  ? <VideoSlide className="pi-lb-img" src={src} active={i === lbCell} title={displayName} />
+                  /* `interactive`: the lightbox has no button wrapping the
+                     cell, so the poster can be one and play on click. */
+                  ? <VideoSlide className="pi-lb-img" src={src} active={i === lbCell} title={displayName} interactive />
                   : <ImageFill className="pi-lb-img" src={src} onClick={(e) => e.stopPropagation()} />}
               </span>
             ))}
@@ -905,7 +915,7 @@ export function PropertyInfo(props: Props) {
                 {/* A thumbnail is never a player — it is a target to click.
                     The poster carries the play badge so a video reads as one
                     in the rail. */}
-                <ImageFill className="pi-lb-thumb-img" src={videoSlides.has(src) ? videoPoster(src) : src} />
+                <ImageFill className="pi-lb-thumb-img" src={videoSlides.has(src) ? videoPosterOrFallback(src) : src} />
                 {videoSlides.has(src) && <span className="pi-lb-thumb-play" aria-hidden="true" />}
               </button>
             ))}
