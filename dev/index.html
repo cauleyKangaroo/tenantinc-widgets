@@ -873,6 +873,30 @@
       </div>
     </div>
 
+    <!-- ── widget-locations-banner ──────────────────────────────────────── -->
+    <div class="widget-section">
+      <h2>widget-locations-banner (#20)</h2>
+      <div class="controls">
+        <div class="controls-group">
+          <span class="controls-group-label">Content menu</span>
+          <label>Banner Text:
+            <input id="lb-message" type="text" value="See Our {num} Locations"
+              style="width:280px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+              oninput="reinitLocationsBanner()" />
+          </label>
+          <label>Location Count (blank = count the collection):
+            <input id="lb-count" type="number" min="1" placeholder="auto"
+              style="width:90px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+              oninput="reinitLocationsBanner()" />
+          </label>
+        </div>
+      </div>
+      <!-- No dmAPI in the harness, so the collection cannot be counted here and
+           the banner falls back to its editor demo number. Type into Location
+           Count to see a specific one. -->
+      <div id="locations-banner-container" class="widget-container"></div>
+    </div>
+
   </div><!-- /#page-homepage -->
 
   <!-- ── Shared UI kit styleguide ─────────────────────────────────────────── -->
@@ -1703,6 +1727,34 @@
       // success screen are quick to reach while iterating.
       rentalFlowWidget = widget;
       initRentalFlow();
+    });
+
+    // ── Homepage: #20 locations-banner ───────────────────────────────────
+    var locationsBannerWidget = null;
+
+    function initLocationsBanner() {
+      if (!locationsBannerWidget) return;
+      locationsBannerWidget.init({
+        container: document.getElementById('locations-banner-container'),
+        props: {
+          // The key the Duda JS tab forwards the content field under.
+          propertyHeader: document.getElementById('lb-message').value,
+          // Blank = let the widget count the collection (which the harness has
+          // no dmAPI for, so it shows its demo number).
+          locationCount: document.getElementById('lb-count').value || undefined,
+        },
+      });
+    }
+
+    function reinitLocationsBanner() {
+      if (!locationsBannerWidget) return;
+      locationsBannerWidget.clean();
+      initLocationsBanner();
+    }
+
+    require(['/dist/widget-locations-banner.js'], function (widget) {
+      locationsBannerWidget = widget;
+      initLocationsBanner();
     });
 
     // ── City page: #08 map-locations ─────────────────────────────────────
