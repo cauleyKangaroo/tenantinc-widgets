@@ -1,5 +1,5 @@
 // ===========================================================================
-// #19 — "Find {type} near you"
+// #20 — "Find {type} near you"
 //
 // The facility list on a Storage Type page. Which facilities offer the feature
 // comes from `PropertiesInternal.amenities` (property-level, `[{name, image}]`),
@@ -246,7 +246,7 @@ export function StorageTypeLocations({
 
   useEffect(() => {
     let cancelled = false;
-    const tag = `[#19 storage-type-locations${resolvedSlug ? ` ${resolvedSlug}` : ''}]`;
+    const tag = `[#20 storage-type-locations${resolvedSlug ? ` ${resolvedSlug}` : ''}]`;
     const environment = dudaEnvironment();
 
     // Preview data is allowed only in an explicitly identified non-live runtime.

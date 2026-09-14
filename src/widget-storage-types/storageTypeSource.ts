@@ -82,7 +82,7 @@ async function readFeatureCopy(collectionName: string): Promise<Map<string, Feat
     const keys = candidateKeys(name, row.slug);
     for (const key of keys) {
       if (out.has(key)) {
-        console.warn(`[#20 storage-types] duplicate featurePage key "${key}" ignored — the first row wins`);
+        console.warn(`[#21 storage-types] duplicate featurePage key "${key}" ignored — the first row wins`);
         continue;
       }
       out.set(key, { description, amenityName });

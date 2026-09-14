@@ -1,4 +1,4 @@
-// Widget #20 — Storage Types (index grid + related carousel)
+// Widget #21 — Storage Types (index grid + related carousel)
 import { createWidget } from '@shared/createWidget';
 import { StorageTypes } from './StorageTypes';
 import type { StorageTypesProps } from './StorageTypes';

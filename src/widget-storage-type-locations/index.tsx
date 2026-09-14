@@ -1,4 +1,4 @@
-// Widget #19 — Storage Type Locations
+// Widget #20 — Storage Type Locations
 import { createWidget } from '@shared/createWidget';
 import { StorageTypeLocations } from './StorageTypeLocations';
 import type { StorageTypeLocationsProps } from './StorageTypeLocations';

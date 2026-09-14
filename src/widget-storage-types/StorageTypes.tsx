@@ -1,5 +1,5 @@
 // ===========================================================================
-// #20 — Storage type cards
+// #21 — Storage type cards
 //
 // One widget, two layouts:
 //   • variant="index"   — the full grid on /storage-types/
@@ -89,7 +89,7 @@ const NARROW_BP = '(max-width: 768px)';
  * Temporary design artwork for a type with no amenity image yet.
  *
  * Referenced by URL, NOT imported: webpack's image rule is `asset/inline`, so
- * an import base64s the file into the bundle — three of these took #20 from
+ * an import base64s the file into the bundle — three of these took #21 from
  * 168KB to 629KB, downloaded and parsed as JavaScript on every page. By URL
  * they are cached, lazy-loadable, and cost the bundle nothing.
  *
@@ -188,10 +188,10 @@ export function StorageTypes({
 
   useEffect(() => {
     let cancelled = false;
-    const tag = `[#20 storage-types ${variant}]`;
+    const tag = `[#21 storage-types ${variant}]`;
     const environment = dudaEnvironment();
 
-    // Same gate as #19. `isLocalHarness()` alone is NOT enough: the harness can
+    // Same gate as #20. `isLocalHarness()` alone is NOT enough: the harness can
     // serve a page tree via ?mockCollections=1, and short-circuiting on hostname
     // would hide the real path behind example cards exactly where we test it.
     // And never `!hasSitePagesApi()` alone — dmAPI is injected late on a

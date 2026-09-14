@@ -13,7 +13,7 @@
 // critical callers can use the explicit result form and distinguish an API
 // failure from a legitimate empty collection.
 //
-// Read by #07 (featured ordering, batched space groups) and #19 (which facilities
+// Read by #07 (featured ordering, batched space groups) and #20 (which facilities
 // carry a given amenity). It lives in `shared/` next to `propertyImages` because
 // it describes a collection rather than a widget.
 //
@@ -69,7 +69,7 @@ const JSON_FIELDS = [
   'SocialMedia',
   'unit_type_counts',
   'Images',
-  // `[{name, image}]` per facility — the property-level amenities #19 filters on.
+  // `[{name, image}]` per facility — the property-level amenities #20 filters on.
   'amenities',
 ] as const;
 

@@ -863,7 +863,7 @@
   </div><!-- /#page-homepage -->
 
   <!-- ── Storage Type page ─────────────────────────────────────────────────
-       #19 reads `PropertiesInternal` and nothing else, so it needs the
+       #20 reads `PropertiesInternal` and nothing else, so it needs the
        collections mock: open this page with ?mockCollections=1 to exercise
        filtering against a snapshot of a real collection export. WITHOUT it
        there is no dmAPI, and the widget shows its
@@ -876,7 +876,7 @@
   <div id="page-storage-type" class="page" hidden>
 
     <div class="widget-section">
-      <h2>widget-storage-type-locations (#19)</h2>
+      <h2>widget-storage-type-locations (#20)</h2>
 
       <div class="controls">
         <div class="controls-group">
@@ -911,10 +911,10 @@
            style="max-width:1120px; margin:0 auto; padding:32px 0;"></div>
     </div>
 
-    <!-- #20, related variant. Below 768px it becomes a swipeable carousel with
+    <!-- #21, related variant. Below 768px it becomes a swipeable carousel with
          dots; above, the whole row shows at once and the rail never moves. -->
     <div class="widget-section">
-      <h2>widget-storage-types (#20) — related</h2>
+      <h2>widget-storage-types (#21) — related</h2>
       <p style="margin:0 0 12px; font-size:13px; color:#637381;">
         The list comes from the Duda <strong>page tree</strong> under
         <code>storage-types</code>; <code>featurePage</code> adds copy and
@@ -934,7 +934,7 @@
   <!-- ── Storage Types index (/storage-types/) ─────────────────────────────── -->
   <div id="page-storage-types-index" class="page" hidden>
     <div class="widget-section">
-      <h2>widget-storage-types (#20) — index</h2>
+      <h2>widget-storage-types (#21) — index</h2>
       <div id="storage-types-index-container" class="widget-container"
            style="max-width:1330px; margin:0 auto; padding:32px 0;"></div>
     </div>
@@ -1015,7 +1015,7 @@
          '{"address":"101 Mt. Vernon Ave.","city":"Bakersfield","state":"CA","zip":"93307-2739","lat":35.355421,"lng":-118.966436}', '17602300039']
       ];
 
-      // Property-level amenities, for #19. From the same export, and deliberately
+      // Property-level amenities, for #20. From the same export, and deliberately
       // AS SPARSE AS THE LIVE DATA: only Bellflower and COFFEE carry any, the
       // other five are empty. Filling all seven in would hide the fact that most
       // facilities currently match no storage type at all — which is the finding
@@ -1030,7 +1030,7 @@
 
       var COLLECTIONS = {
         Company: [{ data: { id: rte('kQoBXA8vpn') } }],
-        // Existing feature-page copy reused by #20. Images do NOT live here:
+        // Existing feature-page copy reused by #21. Images do NOT live here:
         // the widget joins them from PropertiesInternal.amenities[].image.
         featurePage: [
           { data: {
@@ -1304,7 +1304,7 @@
       if (navigationBarWidget && navEl)    navigationBarWidget.init({ container: navEl,    props: getNavProps() });
       if (footerWidget        && footerEl) footerWidget.init({        container: footerEl, props: {} });
 
-      // #20 renders on two tabs with different props, and createWidget binds the
+      // #21 renders on two tabs with different props, and createWidget binds the
       // module to ONE container — initing both at load left whichever mounted
       // first unmounted. Mount only the visible page's instance.
       if (storageTypesWidget) {
@@ -1876,7 +1876,7 @@
       });
     });
 
-    // ── #19 Storage Type Locations ──────────────────────────────────────────
+    // ── #20 Storage Type Locations ──────────────────────────────────────────
     var storageTypeLocationsWidget = null;
 
     function getStorageTypeLocationsProps() {
