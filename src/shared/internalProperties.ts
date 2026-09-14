@@ -9,13 +9,13 @@
 // rank behind
 // #07's "featured facilities" mode.
 //
-// Read-only and fails soft everywhere: no dmAPI (the Duda editor and the dev
-// harness), collection missing, column empty → an empty map / an empty list, and
-// the caller keeps its own ordering.
+// Read-only. Existing callers use the soft rows-only wrapper; configuration-
+// critical callers can use the explicit result form and distinguish an API
+// failure from a legitimate empty collection.
 //
-// **Only #07 reads this module.** It lives in `shared/` next to `propertyImages`
-// because it describes a collection rather than a widget, but nothing else
-// imports it and no other widget's data path changed to make room for it.
+// Read by #07 (featured ordering, batched space groups) and #20 (which facilities
+// carry a given amenity). It lives in `shared/` next to `propertyImages` because
+// it describes a collection rather than a widget.
 //
 // It is very likely a NATIVE collection (the operator types into it in Duda's
 // WYSIWYG), so every text value can arrive wrapped as
@@ -24,7 +24,14 @@
 // silently push every property to the bottom of the featured list.
 // ===========================================================================
 
-import { readCollection, str, num, plainText, type CollectionRow } from './dudaCollections';
+import {
+  readCollectionResult,
+  str,
+  num,
+  plainText,
+  type CollectionReadResult,
+  type CollectionRow,
+} from './dudaCollections';
 import { boundJson } from './propertyBinding';
 
 /** Collection name — case-sensitive, it's the lookup key. */
@@ -62,6 +69,8 @@ const JSON_FIELDS = [
   'SocialMedia',
   'unit_type_counts',
   'Images',
+  // `[{name, image}]` per facility — the property-level amenities #20 filters on.
+  'amenities',
 ] as const;
 
 /**
@@ -164,13 +173,13 @@ function normalizeRow(row: CollectionRow): CollectionRow {
 }
 
 /**
- * All rows of the collection, promise-cached so #07 reads it once per page.
+ * All rows of the collection, promise-cached so #07 reads it once per bundle.
  *
  * The PROMISE is cached, not the rows, so this widget's two callers — the source
  * list (`fetchProperties`) and the `nearbyLocationPriorityOrder` map — join one
  * in-flight
- * request instead of each firing their own. Page-lifetime only; a reload picks up
- * collection edits.
+ * request instead of each firing their own. Bundle-lifetime only; a reload picks
+ * up collection edits.
  *
  * `propertyImages.ts` keeps its own identical cache over the same collection, so
  * a page carrying both reads it twice. That duplication is DELIBERATE: hoisting
@@ -178,18 +187,34 @@ function normalizeRow(row: CollectionRow): CollectionRow {
  * path of every other widget's images, and one extra read-only in-page call is
  * the cheaper price.
  */
-const rowCache = new Map<string, Promise<CollectionRow[]>>();
+const rowCache = new Map<string, Promise<CollectionReadResult>>();
+
+/**
+ * Strict form for configuration-critical consumers. Unlike the legacy soft
+ * wrapper it preserves unavailable/error outcomes, so an outage cannot be
+ * mistaken for a legitimate empty collection.
+ */
+export function readInternalPropertiesResult(
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<CollectionReadResult> {
+  const hit = rowCache.get(collectionName);
+  if (hit) return hit;
+  const pending = readCollectionResult(collectionName).then((result): CollectionReadResult => {
+    if (result.status === 'ok') return { status: 'ok', rows: result.rows.map(normalizeRow) };
+    // Do not pin a transient unavailable/error answer for the rest of the page.
+    // Concurrent callers still share this promise; a later mount gets a retry.
+    if (rowCache.get(collectionName) === pending) rowCache.delete(collectionName);
+    return result;
+  });
+  rowCache.set(collectionName, pending);
+  return pending;
+}
 
 export async function readInternalProperties(
   collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
 ): Promise<CollectionRow[]> {
-  const hit = rowCache.get(collectionName);
-  if (hit) return hit;
-  // Normalised once, inside the cache, so every consumer sees `Address` as an
-  // object whichever kind of collection this site's is.
-  const p = readCollection(collectionName).then((rows) => rows.map(normalizeRow));
-  rowCache.set(collectionName, p);
-  return p;
+  const result = await readInternalPropertiesResult(collectionName);
+  return result.status === 'ok' ? result.rows : [];
 }
 
 /**
