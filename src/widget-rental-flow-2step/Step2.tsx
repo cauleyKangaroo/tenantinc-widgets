@@ -3,7 +3,7 @@ import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
-import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankFormValue } from './PaymentSection';
+import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankFormValue, type BillingCountry } from '@shared/paymentForms';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
@@ -157,7 +157,7 @@ export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
   brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode,
-  gatewayPending, zipOnlyBilling,
+  gatewayPending, zipOnlyBilling, defaultCountry,
 }: {
   moveIn: Date;
   /**
@@ -217,6 +217,9 @@ export function Step2({
   gatewayPending?: boolean;
   /** tenant_payments: the card panel asks for the billing ZIP only. */
   zipOnlyBilling?: boolean;
+  /** Country both payment forms open their Billing Country select on, from the
+   *  content menu's Country Default. Unset → no preselection. */
+  defaultCountry?: BillingCountry;
 }) {
   // Ticked when step 1 said this is a business rental, so the shopper does not
   // answer the same question twice and its fields open ready to fill.
@@ -765,9 +768,9 @@ export function Step2({
               {formLoading ? (
                 <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
               ) : payMethod === 'card' ? (
-                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} payLabel={agreeLabel} />
+                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} defaultCountry={defaultCountry} payLabel={agreeLabel} />
               ) : (
-                <BankForm total={payNowTotal ?? 0} onPay={(bank) => payStatically(undefined, bank)} busy={paying} payLabel={agreeLabel} />
+                <BankForm total={payNowTotal ?? 0} onPay={(bank) => payStatically(undefined, bank)} busy={paying} defaultCountry={defaultCountry} payLabel={agreeLabel} />
               )}
             </section>
           )}
