@@ -34,12 +34,17 @@
 import { withTimeout, TIMEOUTS } from './withTimeout';
 
 /** Minimal shape of the bits of the Collections JS API we touch. The real API
- *  also exposes .where()/.orderBy()/limits, which we don't rely on. */
+ *  also exposes .where()/.orderBy()/limits, which we don't rely on.
+ *
+ *  `data()` takes an optional second argument here ONLY so `countCollectionRows`
+ *  can ask for a page other than the first. Nothing else passes it, and that
+ *  function treats the argument being ignored as an expected outcome rather
+ *  than an error — see the comment on its page walk. */
 interface DmCollectionQuery {
   get(): Promise<unknown>;
 }
 interface DmCollectionsAPI {
-  data(collectionName: string): DmCollectionQuery;
+  data(collectionName: string, options?: Record<string, unknown>): DmCollectionQuery;
 }
 interface DmAPILike {
   loadCollectionsAPI?: () => Promise<DmCollectionsAPI>;
@@ -210,6 +215,120 @@ export async function readCollectionResult(collectionName: string): Promise<Coll
 export async function readCollection(collectionName: string): Promise<CollectionRow[]> {
   const result = await readCollectionResult(collectionName);
   return result.status === 'ok' ? result.rows : [];
+}
+
+/** `page` metadata off the envelope, when the API sent any. */
+function extractPageMeta(res: unknown): { pageSize: number; totalPages: number } | null {
+  if (!res || typeof res !== 'object') return null;
+  const page = (res as Record<string, unknown>).page;
+  if (!page || typeof page !== 'object') return null;
+  const p = page as Record<string, unknown>;
+  const pageSize = num(p.pageSize, 0);
+  const totalPages = num(p.totalPages, 0);
+  if (pageSize <= 0 || totalPages <= 0) return null;
+  return { pageSize, totalPages };
+}
+
+/** Identity for de-duplication. `__rowId` is the row's own id where the envelope
+ *  nested its fields; `id` is the column most of these collections key on. */
+function rowKey(row: CollectionRow, index: number): string {
+  const id = str(row.__rowId) || str(row.id);
+  return id || `#${index}`;
+}
+
+/** What `countCollectionRows` resolved to. */
+export interface CollectionCount {
+  /** Rows actually seen. 0 when the collection is missing or unreadable. */
+  count: number;
+  /**
+   * The whole collection was counted.
+   *
+   * False means the walk stopped early — `totalPages` said there was more and
+   * the extra pages could not be fetched — so `count` is a FLOOR, not the
+   * answer. A caller that prints the number must not present an inexact one as
+   * fact.
+   */
+  exact: boolean;
+}
+
+/**
+ * How many rows a collection holds, walking `page` rather than trusting one read.
+ *
+ * ── WHY THIS IS NOT `(await readCollection(name)).length` ───────────────────
+ * `readCollection` makes ONE `.get()`, and Duda's `pageSize` is 100 while a
+ * collection may hold 1000 rows. Every other widget here can live with that —
+ * they render the rows they got. This one renders the COUNT, so the cap is not
+ * a truncated list, it is a wrong number: a 103-location portfolio would read
+ * "See our 100 Locations" permanently.
+ *
+ * ── THE PAGE REQUEST IS UNVERIFIED, AND THAT IS HANDLED ─────────────────────
+ * Nothing in this repo has ever paged, so the argument that selects a page is
+ * the one thing here not confirmed against a live site. It is therefore written
+ * so that being WRONG is safe rather than silently corrupting the count:
+ *
+ *  - rows are de-duplicated by id, so an ignored page argument — which would
+ *    re-serve page 0 — cannot double the total;
+ *  - a page that contributes no new rows ends the walk and marks the result
+ *    INEXACT, rather than looping to `totalPages` adding nothing.
+ *
+ * So if the argument works, the count is exact. If it does not, the count is
+ * the first page's and `exact` is false, which is strictly better than today's
+ * silent cap and is visible to the caller.
+ *
+ * Never throws. Unreadable / absent / not in Duda → `{ count: 0, exact: false }`.
+ */
+export async function countCollectionRows(collectionName: string): Promise<CollectionCount> {
+  try {
+    if (!(await waitForCollectionsApi())) return { count: 0, exact: false };
+    const dmAPI = getDmAPI();
+    if (!dmAPI?.loadCollectionsAPI) return { count: 0, exact: false };
+
+    return await withTimeout(
+      (async (): Promise<CollectionCount> => {
+        const collections = await dmAPI.loadCollectionsAPI!();
+
+        const readPage = async (pageNumber: number) => {
+          const query = pageNumber === 0
+            ? collections.data(collectionName)
+            : collections.data(collectionName, { pageNumber });
+          const res = await query.get();
+          return { rows: extractRows(res).map(flattenRow), meta: extractPageMeta(res) };
+        };
+
+        const first = await readPage(0);
+        const seen = new Set<string>();
+        first.rows.forEach((r, i) => seen.add(rowKey(r, i)));
+
+        const totalPages = first.meta?.totalPages ?? 1;
+        // The common case by far: the whole collection fits in one page, so the
+        // count is exact without ever exercising the page argument above.
+        if (totalPages <= 1) return { count: seen.size, exact: true };
+
+        for (let p = 1; p < totalPages; p += 1) {
+          const before = seen.size;
+          // eslint-disable-next-line no-await-in-loop
+          const next = await readPage(p);
+          next.rows.forEach((r, i) => seen.add(rowKey(r, p * 1000 + i)));
+          if (seen.size === before) {
+            // Nothing new: the page argument is not being honoured, so there is
+            // no way to reach the rest and the total we have is a floor.
+            console.warn(
+              `[dudaCollections] "${collectionName}" reports ${totalPages} pages but page ${p} added no new rows — counted ${seen.size} and stopped`,
+            );
+            return { count: seen.size, exact: false };
+          }
+        }
+        return { count: seen.size, exact: true };
+      })(),
+      TIMEOUTS.collection,
+      { count: 0, exact: false } as CollectionCount,
+      `dmAPI count of "${collectionName}"`,
+    );
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(`[dudaCollections] count of "${collectionName}" failed`, err);
+    return { count: 0, exact: false };
+  }
 }
 
 // ── Field coercion helpers ───────────────────────────────────────────────────
