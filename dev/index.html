@@ -780,6 +780,21 @@
     <!-- ── widget-rental-flow-2step ─────────────────────────────────────── -->
     <div class="widget-section">
       <h2>widget-rental-flow-2step — Rental flow (2 Step) (#99 TBD)</h2>
+      <div class="controls">
+        <div class="controls-group">
+          <span class="controls-group-label">Content menu</span>
+          <label>
+            Country Default:
+            <select id="rf-country-default"
+              style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+              onchange="reinitRentalFlow()">
+              <option value="none">None</option>
+              <option value="us">US</option>
+              <option value="canada">Canada</option>
+            </select>
+          </label>
+        </div>
+      </div>
       <div id="rental-flow-2step-container" class="widget-container"></div>
     </div>
 
@@ -1655,16 +1670,39 @@
       });
     });
 
-    require(['/dist/widget-rental-flow-2step.js'], function (widget) {
-      // processingMs kept short in the harness so the loading lightbox and the
-      // success screen are quick to reach while iterating.
-      widget.init({
+    var rentalFlowWidget = null;
+
+    function initRentalFlow() {
+      if (!rentalFlowWidget) return;
+      rentalFlowWidget.init({
         container: document.getElementById('rental-flow-2step-container'),
         // previewContent fills the order rail with the Figma 8507-23233 sample when
         // no value-tiers handoff has resolved a selection/quote. HARNESS ONLY —
         // never set it in the Duda JS tab (see the prop's doc comment).
-        props: { previewContent: true, inEditor: true },
+        props: {
+          previewContent: true,
+          inEditor: true,
+          // Stands in for the Duda content menu's Country Default dropdown,
+          // which the JS tab forwards as data.config.countryDefault.
+          countryDefault: document.getElementById('rf-country-default').value,
+        },
       });
+    }
+
+    // A full teardown + re-init, because the Billing Country default is SEEDED
+    // into the form's state on mount — it is the shopper's field from then on,
+    // so a live prop change deliberately does not move it.
+    function reinitRentalFlow() {
+      if (!rentalFlowWidget) return;
+      rentalFlowWidget.clean();
+      initRentalFlow();
+    }
+
+    require(['/dist/widget-rental-flow-2step.js'], function (widget) {
+      // processingMs kept short in the harness so the loading lightbox and the
+      // success screen are quick to reach while iterating.
+      rentalFlowWidget = widget;
+      initRentalFlow();
     });
 
     // ── City page: #08 map-locations ─────────────────────────────────────
