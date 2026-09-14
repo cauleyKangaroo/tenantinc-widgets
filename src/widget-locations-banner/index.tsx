@@ -1,4 +1,4 @@
-// Widget #20 — Locations Banner
+// Widget #22 — Locations Banner
 import { createWidget } from '@shared/createWidget';
 import { LocationsBanner } from './LocationsBanner';
 import type { LocationsBannerProps } from './LocationsBanner';

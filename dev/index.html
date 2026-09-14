@@ -111,6 +111,8 @@
     <button class="page-tab" data-page="rental-flow" onclick="showPage('rental-flow')">Rental Flow</button>
     <button class="page-tab" data-page="city" onclick="showPage('city')">City page</button>
     <button class="page-tab" data-page="homepage" onclick="showPage('homepage')">Homepage</button>
+    <button class="page-tab" data-page="storage-type" onclick="showPage('storage-type')">Storage Type page</button>
+    <button class="page-tab" data-page="storage-types-index" onclick="showPage('storage-types-index')">Storage Types index</button>
     <button class="page-tab" data-page="ui-kit" onclick="showPage('ui-kit')">UI Kit (forms &amp; buttons)</button>
   </div>
 
@@ -875,7 +877,7 @@
 
     <!-- ── widget-locations-banner ──────────────────────────────────────── -->
     <div class="widget-section">
-      <h2>widget-locations-banner (#20)</h2>
+      <h2>widget-locations-banner (#22)</h2>
       <div class="controls">
         <div class="controls-group">
           <span class="controls-group-label">Content menu</span>
@@ -898,6 +900,84 @@
     </div>
 
   </div><!-- /#page-homepage -->
+
+  <!-- ── Storage Type page ─────────────────────────────────────────────────
+       #20 reads `PropertiesInternal` and nothing else, so it needs the
+       collections mock: open this page with ?mockCollections=1 to exercise
+       filtering against a snapshot of a real collection export. WITHOUT it
+       there is no dmAPI, and the widget shows its
+       editor/harness example rows instead — which is the intended behaviour,
+       not a bug.
+
+       The amenity names were copied from that export. `washrack` and `business` are
+       the two that map cleanly onto storage types; most of the portfolio has no
+       amenities at all, so a real feature legitimately renders nothing. -->
+  <div id="page-storage-type" class="page" hidden>
+
+    <div class="widget-section">
+      <h2>widget-storage-type-locations (#20)</h2>
+
+      <div class="controls">
+        <div class="controls-group">
+          <span class="controls-group-label">Which type</span>
+          <label>Amenity:
+            <select id="stl-amenity" onchange="reinitStorageTypeLocations()">
+              <option value="washrack">washrack — Boat &amp; RV Wash Bay (1 facility)</option>
+              <option value="business">business — Business Storage (1 facility)</option>
+              <option value="wine">wine — Wine Storage (2 facilities)</option>
+              <option value="twentyfour">twentyfour — 24 Hour (2 facilities)</option>
+              <option value="carts">carts — (1 facility)</option>
+              <option value="climate_control">climate_control — no property carries it (renders nothing)</option>
+            </select>
+          </label>
+          <label>Heading:
+            <input id="stl-heading" type="text" value="Find boat storage near you"
+                   style="width:240px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+                   oninput="reinitStorageTypeLocations()" />
+          </label>
+        </div>
+        <div class="controls-group">
+          <span class="controls-group-label">Manual mapping</span>
+          <label>propertyIds (overrides the amenity):
+            <input id="stl-ids" type="text" value="" placeholder="OBZ5dhPmjZ,MjR57iZ82O"
+                   style="width:240px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+                   oninput="reinitStorageTypeLocations()" />
+          </label>
+        </div>
+      </div>
+
+      <div id="storage-type-locations-container" class="widget-container"
+           style="max-width:1120px; margin:0 auto; padding:32px 0;"></div>
+    </div>
+
+    <!-- #21, related variant. Below 768px it becomes a swipeable carousel with
+         dots; above, the whole row shows at once and the rail never moves. -->
+    <div class="widget-section">
+      <h2>widget-storage-types (#21) — related</h2>
+      <p style="margin:0 0 12px; font-size:13px; color:#637381;">
+        The list comes from the Duda <strong>page tree</strong> under
+        <code>storage-types</code>; <code>featurePage</code> adds copy and
+        <code>PropertiesInternal.amenities</code> supplies imagery.
+        Without <code>?mockCollections=1</code> there is no page tree either, so
+        example cards show instead.
+      </p>
+      <!-- 1330px, the Figma container: 3 x 422px cards + 2 x 32px gaps. A
+           narrower wrapper silently shrinks the cards, so a visual check here
+           would never match the frame. -->
+      <div id="storage-types-related-container" class="widget-container"
+           style="max-width:1330px; margin:0 auto; padding:16px 0;"></div>
+    </div>
+
+  </div><!-- /#page-storage-type -->
+
+  <!-- ── Storage Types index (/storage-types/) ─────────────────────────────── -->
+  <div id="page-storage-types-index" class="page" hidden>
+    <div class="widget-section">
+      <h2>widget-storage-types (#21) — index</h2>
+      <div id="storage-types-index-container" class="widget-container"
+           style="max-width:1330px; margin:0 auto; padding:32px 0;"></div>
+    </div>
+  </div><!-- /#page-storage-types-index -->
 
   <!-- ── Shared UI kit styleguide ─────────────────────────────────────────── -->
   <div id="page-ui-kit" class="page" hidden>
@@ -974,8 +1054,48 @@
          '{"address":"101 Mt. Vernon Ave.","city":"Bakersfield","state":"CA","zip":"93307-2739","lat":35.355421,"lng":-118.966436}', '17602300039']
       ];
 
+      // Property-level amenities, for #20. From the same export, and deliberately
+      // AS SPARSE AS THE LIVE DATA: only Bellflower and COFFEE carry any, the
+      // other five are empty. Filling all seven in would hide the fact that most
+      // facilities currently match no storage type at all — which is the finding
+      // the widget has to render honestly rather than paper over.
+      var AMENITIES = {
+        OBZ5dhPmjZ: ['talldoors', 'onetwentyvoutlet', 'twentyfour', 'secure', 'kiosk', 'thirtyamppower',
+                     'ada', 'air_and_water', 'alarmedunits', 'box_office', 'boxes', 'breezeway',
+                     'brightledlights', 'business', 'canopy', 'carpeted', 'carts', 'washrack', 'wine'],
+        nB9olhgl26: ['talldoors', 'onetwentyvoutlet', 'twentyfour', 'secure', 'kiosk',
+                     'thirtyamppower', 'ada', 'air_and_water', 'wine']
+      };
+
       var COLLECTIONS = {
         Company: [{ data: { id: rte('kQoBXA8vpn') } }],
+        // Existing feature-page copy reused by #21. Images do NOT live here:
+        // the widget joins them from PropertiesInternal.amenities[].image.
+        featurePage: [
+          { data: {
+            name: rte('Climate Controlled'),
+            description: rte('Climate controlled units help protect sensitive belongings from temperature swings.'),
+            amenity_name: rte('climate_control')
+          } },
+          { data: {
+            name: rte('Car, RV Boat'),
+            description: rte('Convenient storage options for cars, recreational vehicles, boats and trailers.'),
+            amenity_name: rte('canopy')
+          } },
+          { data: {
+            name: rte('Business'),
+            description: rte('Flexible storage for inventory, equipment, documents and everyday business needs.')
+          } },
+          { data: {
+            name: rte('Drive-Up'),
+            description: rte('Pull directly up to your storage space for quick and convenient loading.'),
+            amenity_name: rte('breezeway')
+          } },
+          { data: {
+            name: rte('Wine'),
+            description: rte('Specialized storage options designed for wine collections.')
+          } }
+        ],
         PropertiesInternal: P.map(function (r, i) {
           return { data: {
             id: r[0], name: r[1], slug: r[2], spaceGroupId: r[3],
@@ -985,7 +1105,10 @@
             company_id: rte('kQoBXA8vpn'),
             // Ranks only the first three, so "featured" is a genuine opt-in list
             // here rather than the whole portfolio in a different order.
-            nearbyLocationPriorityOrder: i < 3 ? String(i + 1) : ''
+            nearbyLocationPriorityOrder: i < 3 ? String(i + 1) : '',
+            amenities: JSON.stringify((AMENITIES[r[0]] || []).map(function (n) {
+              return { name: n, image: 'https://d1y377jq6m92v5.cloudfront.net/website/amenities/' + n + '.jpg' };
+            }))
           } };
         })
       };
@@ -1137,7 +1260,7 @@
   <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
     // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
-    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'my-account', 'value-tiers', 'rental-flow', 'city', 'homepage', 'ui-kit'];
+    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'my-account', 'value-tiers', 'rental-flow', 'city', 'homepage', 'storage-type', 'storage-types-index', 'ui-kit'];
 
     // Per-page container ids for the widgets that appear on more than one page.
     var NAV_CONTAINERS = {
@@ -1153,7 +1276,7 @@
     function activePage() { return new URLSearchParams(window.location.search).get('page') || 'property'; }
 
     // The collections mock has to exist BEFORE any bundle reads a collection (the
-    // reads are promise-cached per page), so it is installed by a script in the
+    // reads are promise-cached inside each bundle), so it is installed by a script in the
     // <head> path and toggled by RELOADING with ?mockCollections=1 rather than by
     // flipping a flag at runtime. Other params are preserved so the active tab
     // survives the round trip.
@@ -1178,6 +1301,7 @@
     // property page only; the blog page's listing is #15 widget-blogs-page.
     var navigationBarWidget = null;
     var footerWidget        = null;
+    var storageTypesWidget  = null;
 
     // Every control is read defensively: the nav is mounted on four different
     // tabs and only the first carries this panel, so on the others these
@@ -1218,6 +1342,24 @@
 
       if (navigationBarWidget && navEl)    navigationBarWidget.init({ container: navEl,    props: getNavProps() });
       if (footerWidget        && footerEl) footerWidget.init({        container: footerEl, props: {} });
+
+      // #21 renders on two tabs with different props, and createWidget binds the
+      // module to ONE container — initing both at load left whichever mounted
+      // first unmounted. Mount only the visible page's instance.
+      if (storageTypesWidget) {
+        if (name === 'storage-types-index') {
+          storageTypesWidget.init({
+            container: document.getElementById('storage-types-index-container'),
+            props: { variant: 'index', storageTypesRoute: 'storage-types' },
+          });
+        } else if (name === 'storage-type') {
+          storageTypesWidget.init({
+            container: document.getElementById('storage-types-related-container'),
+            props: { variant: 'related', currentSlug: 'boat-and-rv-wash-bay',
+                     storageTypesRoute: 'storage-types', limit: 3 },
+          });
+        }
+      }
     }
 
     // Mobile preview. Sits inline and centred; the harness pages are hidden
@@ -1729,7 +1871,7 @@
       initRentalFlow();
     });
 
-    // ── Homepage: #20 locations-banner ───────────────────────────────────
+    // ── Homepage: #22 locations-banner ───────────────────────────────────
     var locationsBannerWidget = null;
 
     function initLocationsBanner() {
@@ -1821,6 +1963,40 @@
       widget.init({
         container: document.getElementById('homepage-search-container'),
         props: getHomepageSearchProps(),
+      });
+    });
+
+    // ── #20 Storage Type Locations ──────────────────────────────────────────
+    var storageTypeLocationsWidget = null;
+
+    function getStorageTypeLocationsProps() {
+      var val = function (id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+      return {
+        storageTypeSlug: 'boat-and-rv-wash-bay',
+        amenityName: val('stl-amenity'),
+        propertyIds: val('stl-ids'),
+        heading: val('stl-heading'),
+        locationBasePath: '/storage-units',
+      };
+    }
+
+    function reinitStorageTypeLocations() {
+      if (!storageTypeLocationsWidget) return;
+      var container = document.getElementById('storage-type-locations-container');
+      if (storageTypeLocationsWidget.clean) storageTypeLocationsWidget.clean({ container: container });
+      storageTypeLocationsWidget.init({ container: container, props: getStorageTypeLocationsProps() });
+    }
+
+    require(['/dist/widget-storage-types.js'], function (widget) {
+      storageTypesWidget = widget;
+      mountSharedWidgets(activePage());
+    });
+
+    require(['/dist/widget-storage-type-locations.js'], function (widget) {
+      storageTypeLocationsWidget = widget;
+      widget.init({
+        container: document.getElementById('storage-type-locations-container'),
+        props: getStorageTypeLocationsProps(),
       });
     });
   </script>

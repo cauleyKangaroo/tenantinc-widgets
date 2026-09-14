@@ -29,7 +29,9 @@ const widgetEntries = {
   // between them, not the number.
   'widget-space-list-heading':'./src/widget-space-list-heading/index.tsx',// #18
   'widget-my-account':       './src/widget-my-account/index.tsx',        // #19
-  'widget-locations-banner': './src/widget-locations-banner/index.tsx', // #20
+  'widget-storage-type-locations':'./src/widget-storage-type-locations/index.tsx',// #20
+  'widget-storage-types':    './src/widget-storage-types/index.tsx',    // #21
+  'widget-locations-banner': './src/widget-locations-banner/index.tsx', // #22
   'widget-rental-flow-2step':'./src/widget-rental-flow-2step/index.tsx',// #99 (TBD)
   // Living styleguide for @shared/ui — DEV HARNESS ONLY, never a Duda widget.
   // Deliberately unnumbered so it can't be mistaken for one.

@@ -1,5 +1,5 @@
 // ===========================================================================
-// Widget #20 — Locations Banner
+// Widget #22 — Locations Banner
 //
 // A full-width 85px bar with one line of centred text: "See our 103 Locations".
 //
@@ -137,7 +137,7 @@ export function LocationsBanner({
       if (n > 0) {
         if (!exact) {
           console.warn(
-            `[#20 locations-banner] counted ${n} row(s) in "${collection}" but could not reach the whole collection — the banner may under-report. Set the Location Count field to pin it.`,
+            `[#22 locations-banner] counted ${n} row(s) in "${collection}" but could not reach the whole collection — the banner may under-report. Set the Location Count field to pin it.`,
           );
         }
         setCount(n);

@@ -1529,6 +1529,41 @@ export function RentalFlow2Step({
     // If it cannot correlate the exact unit, retain only the authoritative
     // handoff identity + size. Never borrow another offer's amenities, promo,
     // token or price; the exact-unit quote and Step-2 hold remain authoritative.
+    /*
+     * THE HELD UNIT WINS on identity.
+     *
+     * /offers describes the unit we ASKED for. Once a hold exists it may be a
+     * different one — the re-pick after a conflict — and that unit is the only
+     * one we can actually rent. Writing the offer's id over it leaves
+     * `selection.unitId` naming a unit we do not hold while `quote.unitId`
+     * names the one we do, and the two are compared:
+     *
+     *   verifiedQuote      hides the money breakdown when they differ
+     *   correlatedSelection ⇒ transactionReady false ⇒ Pay Now never arms
+     *
+     * So the rail loses "Rent (Prorated)" AND the rental cannot complete —
+     * while a perfectly good quote sits in state. Which happened depended on
+     * whether /offers resolved before or after the hold, so it struck at
+     * random.
+     *
+     * The offer's ENRICHMENT is still wanted (price, promo ids, features,
+     * offer token); only the identity is pinned. Deliberately NOT loosening
+     * the comparison itself: that rule is what stops one unit's money being
+     * shown — or charged — against another's.
+     */
+    const keepHeldIdentity = (s?: SelectionContext): SelectionContext | undefined => {
+      const held = holdRef.current;
+      if (!s || !held?.unitId || s.unitId === held.unitId) return s;
+      return {
+        ...s,
+        unitId: held.unitId,
+        unitNumber: held.unitNumber ?? s.unitNumber,
+        // space_mix_id must describe the unit we hold — API 9 requires it, and
+        // a held unit cannot be looked up again to recover it.
+        spaceMixId: resolvedSpaceMixRef.current ?? s.spaceMixId,
+      };
+    };
+
     const runOffers = (fallback?: SelectionContext): Promise<void> => fetchSelectionFromOffers(
       ctx,
       unitGroupIdProp as string,
@@ -1538,14 +1573,14 @@ export function RentalFlow2Step({
       .then((result) => {
         if (cancelled) return;
         if (result.status === 'matched') {
-          setSelection(result.selection);
+          setSelection(keepHeldIdentity(result.selection));
           setSelectionStatus('matched');
         } else {
           // spaceMixId from the resolved unit row: API 9 REQUIRES it, and
           // this fallback runs exactly when /offers could not supply one.
-          setSelection(unitIdProp
+          setSelection(keepHeldIdentity(unitIdProp
             ? { unitId: unitIdProp, size: sizeProp ?? '', spaceMixId: resolvedSpaceMixRef.current }
-            : fallback);
+            : fallback));
           setSelectionStatus(result.status);
         }
       })
@@ -1553,9 +1588,9 @@ export function RentalFlow2Step({
         console.warn(`${logTag} offers selection unavailable:`, err);
         if (cancelled) return;
         // Same reason as above: without spaceMixId, API 9 rejects the rental.
-        setSelection(unitIdProp
+        setSelection(keepHeldIdentity(unitIdProp
           ? { unitId: unitIdProp, size: sizeProp ?? '', spaceMixId: resolvedSpaceMixRef.current }
-          : fallback);
+          : fallback));
         setSelectionStatus('network-error');
       });
 
@@ -1566,7 +1601,7 @@ export function RentalFlow2Step({
       // Step-2 hold continue to govern readiness and availability.
       // Seed that minimal identity before /offers settles, so a slow enrichment
       // request cannot delay readiness after the exact-unit quote succeeds.
-      setSelection({ unitId: unitIdProp, size: sizeProp ?? '' });
+      setSelection(keepHeldIdentity({ unitId: unitIdProp, size: sizeProp ?? '' }));
       const selectionDone = runOffers();
       const quoteDone = runQuote(
         fetchUnitInfo(ctx, unitIdProp).then((info) => ({ id: unitIdProp, ...info })),
@@ -1583,7 +1618,7 @@ export function RentalFlow2Step({
             if (unitGroupIdProp) {
               selectionDone = runOffers(sel);
             } else if (sel) {
-              setSelection(sel);
+              setSelection(keepHeldIdentity(sel));
               setSelectionStatus('legacy-display');
             } else {
               setSelectionStatus('unit-unavailable');
@@ -1928,11 +1963,25 @@ export function RentalFlow2Step({
   const verifiedQuote = selection?.unitId && quote?.unitId === selection.unitId ? quote : undefined;
   const railQuote = verifiedQuote ?? (previewContent ? PREVIEW_QUOTE : undefined);
 
+  /*
+   * The three identities must name ONE unit: what we selected, what we priced,
+   * and what the space list handed off.
+   *
+   * The handoff clause makes an exception for the unit we actually HOLD. On a
+   * re-pick the held unit is by definition not `unitIdProp` — that one was
+   * taken — so requiring them to match kept `transactionReady` false for the
+   * rest of the session and Pay Now never armed, even once selection and quote
+   * agreed. A held unit is a stronger claim than the id we arrived with: it is
+   * the space this rental can actually be filed against.
+   *
+   * The selection/quote clause is untouched. That is the one that stops a
+   * quote for unit A being shown — or charged — against unit B.
+   */
   const correlatedSelection = !!(
     selection?.unitId
     && quote?.unitId
     && selection.unitId === quote.unitId
-    && (!unitIdProp || quote.unitId === unitIdProp)
+    && (!unitIdProp || quote.unitId === unitIdProp || quote.unitId === hold?.unitId)
   );
   // Preview content may make the harness interactive, but must never weaken
   // transaction readiness on a published page.
