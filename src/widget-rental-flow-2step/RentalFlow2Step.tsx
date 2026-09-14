@@ -2170,6 +2170,7 @@ export function RentalFlow2Step({
             payError={payError}
             gpPublicKey={gpKey}
             gatewayPending={gatewayPending}
+            zipOnlyBilling={gateway === TENANT_PAYMENTS}
             onPaymentComplete={(info) => {
               // REAL RENTAL. A card plus a live hold and quote means we have
               // everything the documented flow needs (guide APIs 9→10→11), so

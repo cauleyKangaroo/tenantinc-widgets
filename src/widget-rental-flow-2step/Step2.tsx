@@ -157,7 +157,7 @@ export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
   brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode,
-  gatewayPending,
+  gatewayPending, zipOnlyBilling,
 }: {
   moveIn: Date;
   /**
@@ -215,6 +215,8 @@ export function Step2({
    *  draw is not yet known. The card row waits rather than guessing — swapping
    *  form mid-typing would throw away what the shopper had entered. */
   gatewayPending?: boolean;
+  /** tenant_payments: the card panel asks for the billing ZIP only. */
+  zipOnlyBilling?: boolean;
 }) {
   // Ticked when step 1 said this is a business rental, so the shopper does not
   // answer the same question twice and its fields open ready to fill.
@@ -763,7 +765,7 @@ export function Step2({
               {formLoading ? (
                 <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
               ) : payMethod === 'card' ? (
-                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} payLabel={agreeLabel} />
+                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} payLabel={agreeLabel} />
               ) : (
                 <BankForm total={payNowTotal ?? 0} onPay={(bank) => payStatically(undefined, bank)} busy={paying} payLabel={agreeLabel} />
               )}

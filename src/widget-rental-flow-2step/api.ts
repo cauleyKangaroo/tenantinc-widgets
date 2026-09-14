@@ -1620,12 +1620,19 @@ function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<strin
     name_on_card: card.nameOnCard,
     first: parts[0] ?? '',
     last: parts.slice(1).join(' ') || (parts[0] ?? ''),
-    address: card.address,
-    city: card.city,
-    state: card.state,
     zip: card.zip,
     save_to_account: true,
   };
+  /*
+   * OMITTED, never blank. On tenant_payments the panel collects the ZIP alone
+   * — the gateway verifies on the postcode and the card never reaches us — so
+   * these arrive empty. Sending them empty is a 400: verified 2026-09-10,
+   * '"payment_method.address" is not allowed to be empty'. Absent is fine;
+   * a card payment_method carrying only `zip` was accepted.
+   */
+  if (card.address?.trim()) body.address = card.address.trim();
+  if (card.city?.trim()) body.city = card.city.trim();
+  if (card.state?.trim()) body.state = card.state.trim();
   // Both documented, both accepted. maskedCardNumber is deliberately absent —
   // see the note on that field.
   if (card.token) body.token = card.token;
@@ -2195,6 +2202,45 @@ export type PaymentGateway = string;
 export const TENANT_PAYMENTS = 'tenant_payments';
 
 /**
+ * The gateway name, out of either shape this endpoint returns.
+ *
+ * IT RETURNS BOTH. Observed 2026-09-09 as an array of names:
+ *
+ *   { "gateway": ["authorizenet"] }
+ *
+ * and 2026-09-10, same company, same property, as an object:
+ *
+ *   { "gateway": { "name": "tenant_payments", "use_hosted_card": 0 } }
+ *
+ * Reading only the array — which is all the first shape ever showed — makes
+ * every property look gateway-less the day the second shape arrives, and the
+ * card form silently falls back for all of them. So both are read, and a bare
+ * string too, since a field that has already changed shape once may do it
+ * again.
+ */
+function readGateway(raw: unknown): PaymentGateway | null {
+  const name = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
+
+  if (name(raw)) return name(raw);
+
+  if (Array.isArray(raw)) {
+    if (!raw.length) return null;
+    if (raw.length > 1) {
+      console.warn('[rental] property reports several gateways, using the first:', raw);
+    }
+    // Entries may themselves be objects in the newer shape.
+    return name(raw[0]) ?? name((raw[0] as { name?: unknown } | null)?.name);
+  }
+
+  if (raw && typeof raw === 'object') {
+    return name((raw as { name?: unknown }).name);
+  }
+
+  console.warn('[rental] gateway lookup returned no usable gateway:', raw);
+  return null;
+}
+
+/**
  * Returns the property's gateway, or null when it cannot be determined.
  *
  * Null is NOT "use hosted fields". The caller treats an unknown gateway as the
@@ -2221,16 +2267,8 @@ export async function fetchPaymentGateway(ctx: RentalCtx): Promise<PaymentGatewa
       console.warn('[rental] gateway lookup rejected:', inner?.status, inner?.msg);
       return null;
     }
-    const list = (inner.data as { gateway?: unknown } | undefined)?.gateway;
-    if (!Array.isArray(list) || !list.length) {
-      console.warn('[rental] gateway lookup returned no gateway:', inner.data);
-      return null;
-    }
-    if (list.length > 1) {
-      console.warn('[rental] property reports several gateways, using the first:', list);
-    }
-    const first = list[0];
-    return typeof first === 'string' && first.trim() ? first.trim() : null;
+    const raw = (inner.data as { gateway?: unknown } | undefined)?.gateway;
+    return readGateway(raw);
   } catch (err) {
     console.warn('[rental] gateway lookup threw:', err);
     return null;
