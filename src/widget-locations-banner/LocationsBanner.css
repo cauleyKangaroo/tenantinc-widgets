@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+
+/* ---------------------------------------------------------------------------
+   Widget #22 — Locations Banner
+
+   One full-width bar, one centred line. Every class is `lb-` and belongs to
+   this widget alone: each widget is its own AMD bundle and cannot reach
+   another's stylesheet, but they all load onto the SAME PAGE, where a class
+   name is global — so a borrowed name is a collision, not a shared rule.
+   --------------------------------------------------------------------------- */
+
+.lb-banner {
+  font-family: 'Montserrat', sans-serif;
+  box-sizing: border-box;
+  width: 100%;
+
+  /* 85px is the spec. `min-height`, not `height`, because the message is the
+     operator's: a long sentence, or a narrow phone, must grow the bar rather
+     than spill out of it. At the default message on any normal width this
+     resolves to exactly 85px. */
+  min-height: 85px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Side gutter so the text never touches the screen edge on a phone. Vertical
+     padding stays 0 — the height above owns it, and adding to it here would
+     make the bar taller than the 85px asked for. */
+  padding: 0 clamp(16px, 4vw, 48px);
+
+  /* Follows the site's Duda theme (Primary), with the designed teal as the
+     fallback — the convention every other accent here uses, so an unthemed
+     site renders exactly as drawn and only a themed one changes. */
+  background: var(--color_1, #10666d);
+}
+
+.lb-text {
+  /* Centred on both axes: `text-align` for a wrapped second line, the flex
+     centring above for the block itself. */
+  text-align: center;
+  color: #fff;
+  /* 700 to match every other heading in this set — the Figma token is 600, and
+     the rest of these widgets deliberately ship 700. */
+  font-weight: 700;
+  font-size: clamp(18px, 2.2vw, 24px);
+  line-height: 1.3;
+  margin: 0;
+}
