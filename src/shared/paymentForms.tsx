@@ -258,6 +258,21 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
      Seeded, not synced: this is the shopper's field the moment the form opens,
      so a late-arriving config must never overwrite what they have picked. */
   const [country, setCountry] = useState<string>(defaultCountry);
+  /*
+   * Adopt a default that arrives AFTER mount.
+   *
+   * The preselect now comes from the property's own Address.country, which is
+   * FETCHED — so it can land while this form is already on screen, and a plain
+   * useState initialiser would miss it entirely. `countryDefault` was a prop
+   * and always there at mount; this one is not.
+   *
+   * Still seeded, not synced: it fires only when the default itself changes,
+   * and `cur || …` fills only a field the shopper has not answered. Their own
+   * choice is never overwritten — which is what the note above promises.
+   */
+  useEffect(() => {
+    if (defaultCountry) setCountry((cur) => cur || defaultCountry);
+  }, [defaultCountry]);
   const [address, setAddress] = useState('');
 
   /* ── Account number / confirm ────────────────────────────────────────────
@@ -514,6 +529,21 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
      Seeded, not synced: this is the shopper's field the moment the form opens,
      so a late-arriving config must never overwrite what they have picked. */
   const [country, setCountry] = useState<string>(defaultCountry);
+  /*
+   * Adopt a default that arrives AFTER mount.
+   *
+   * The preselect now comes from the property's own Address.country, which is
+   * FETCHED — so it can land while this form is already on screen, and a plain
+   * useState initialiser would miss it entirely. `countryDefault` was a prop
+   * and always there at mount; this one is not.
+   *
+   * Still seeded, not synced: it fires only when the default itself changes,
+   * and `cur || …` fills only a field the shopper has not answered. Their own
+   * choice is never overwritten — which is what the note above promises.
+   */
+  useEffect(() => {
+    if (defaultCountry) setCountry((cur) => cur || defaultCountry);
+  }, [defaultCountry]);
   const [zip, setZip] = useState('');
   // Billing address. Not in the Figma frame, but the rental APIs require a
   // street/city/state on both the payment method and the tenant contact, and a

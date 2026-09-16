@@ -797,13 +797,22 @@ export function RentalFlow2Step({
      {{token}} or Duda's empty-string default must read as "unset" and fall
      through to no preselection, never as a country nobody chose. Anything
      unrecognised — including 'none' — lands on '' deliberately. */
-  const defaultBillingCountry: BillingCountry = (() => {
-    switch (boundText(countryDefault).trim().toLowerCase()) {
+  /**
+   * One country name, or '' — the select's two options and nothing else.
+   *
+   * The guard is the point. A value that is not exactly an option renders the
+   * select BLANK, which looks like a bug and silently drops a required field,
+   * so anything unrecognised has to fall through to the placeholder rather
+   * than be passed along hopefully.
+   */
+  const asBillingCountry = (raw: string): BillingCountry => {
+    switch (raw.trim().toLowerCase()) {
       case 'us': case 'usa': case 'united states': return 'United States';
       case 'canada': case 'ca': return 'Canada';
       default: return '';
     }
-  })();
+  };
+  const configuredBillingCountry = asBillingCountry(boundText(countryDefault));
 
   // Global Payments PUBLIC key — tokenization only; it cannot charge or read.
   const configuredGpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
@@ -1959,6 +1968,23 @@ export function RentalFlow2Step({
   // Per-field rather than all-or-nothing so a real property still shows its own
   // name and address while the selection is still resolving.
   const railProperty = propertyInfo ?? (previewContent ? PREVIEW_PROPERTY : undefined);
+
+  /*
+   * Billing Country preselect: THE PROPERTY FIRST, then the content-menu field.
+   *
+   * The property's own `Address.country` is live data that follows the bound
+   * property on a dynamic page, so it is right on a portfolio spanning more
+   * than one country. `countryDefault` is set once per widget INSTANCE and
+   * would be the same answer on every page — fine for a single-country
+   * operator, wrong the moment one property sits elsewhere. So it is the
+   * fallback, used when the API has no country or returns one the select
+   * cannot offer.
+   *
+   * Neither locks anything: this preselects a required field the shopper can
+   * still change.
+   */
+  const defaultBillingCountry: BillingCountry =
+    asBillingCountry(propertyInfo?.country ?? '') || configuredBillingCountry;
   const railSelection = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
   const verifiedQuote = selection?.unitId && quote?.unitId === selection.unitId ? quote : undefined;
   const railQuote = verifiedQuote ?? (previewContent ? PREVIEW_QUOTE : undefined);
