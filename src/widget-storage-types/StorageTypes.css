@@ -1,0 +1,269 @@
+.st {
+  --st-text: #101318;
+  --st-copy: #000000;
+  --st-rule: #a5b4bf;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  width: 100%;
+  max-width: 1330px;
+  margin-inline: auto;
+  box-sizing: border-box;
+  color: var(--st-text);
+}
+.st *, .st *::before, .st *::after { box-sizing: border-box; }
+.st-heading {
+  margin: 0 0 40px;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--st-copy);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.st-heading-mark { display: none; }
+
+/* ── index header (Facility Landing Page FAQS (1), desktop) ─────────────── */
+.st-index-header {
+  margin: 0 0 80px;
+  text-align: center;
+}
+.st--index {
+  position: relative;
+  isolation: isolate;
+}
+.st--index::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset-block: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  background: #f4f6f8;
+}
+.st-index-title {
+  margin: 0 0 16px;
+  font-size: 80px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #101318;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.st-index-subheading {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #000000;
+  letter-spacing: 0;
+}
+
+/* ── Card (identical in both layouts) ─────────────────────────────────────── */
+.st-card {
+  display: flex;
+  flex-direction: column;
+  /* min-height, NOT height. The Figma card is 500px and a grid row stretches
+     every card to the tallest, so the drawn size is what you normally see. But
+     a fixed height plus `overflow: hidden` silently ate the abstract and the
+     "Read more" whenever a title wrapped to a third line. Growing is the honest
+     failure. See the title clamp below, which keeps that rare. */
+  min-height: 500px;
+  border: 0;
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+  transition: box-shadow 120ms ease-in-out;
+}
+.st-card:hover {
+  box-shadow: 0 6px 14px 4px rgba(71, 84, 116, 0.16);
+}
+.st-card:focus-visible {
+  outline: 2px solid #101318;
+  outline-offset: 3px;
+}
+
+.st-card-media { width: 100%; height: 234px; flex: 0 0 234px; background: #f4f6f8; }
+/* No artwork for this type. A gradient is drawn by the browser, so the card
+   keeps its proportions without depending on a hosted placeholder that could
+   move, 404, or belong to someone else. Same approach as #12's NO_IMAGE. */
+.st-card-media--empty { background: linear-gradient(135deg, #dfe3e8 0%, #c4cdd5 100%); }
+.st-card-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+.st-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 42px 32px;
+  flex: 1 1 auto;
+}
+.st-card-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #101318;
+  text-transform: none;
+  letter-spacing: 0;
+  /* Two lines, like #12's card title. `max-height` is both the ceiling and the
+     crop for browsers without -webkit-line-clamp; it is in em so it follows
+     whatever font-size the site's theme ends up applying. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: 2.5em;
+}
+.st-card-abstract {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--st-copy);
+  letter-spacing: 0;
+  /* The abstract is a summary; three lines keeps every card the same height
+     whatever the editor typed. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.st-card-more {
+  margin-top: auto;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #101318;
+  letter-spacing: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.st-card:hover .st-card-more { text-decoration: none; }
+
+/* ── index: the /storage-types/ grid ──────────────────────────────────────── */
+.st-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 32px;
+  align-items: stretch;
+}
+.st--index .st-card-body {
+  padding: 27px 37px 30px;
+}
+.st--index .st-card-title {
+  font-size: 32px;
+  line-height: 1.2;
+  max-height: 2.4em;
+}
+.st--index .st-card-abstract {
+  -webkit-line-clamp: 5;
+}
+
+/* ── related: static row on desktop, carousel below 768px ─────────────────── */
+.st--related .st-track { overflow: visible; }
+.st-rail {
+  display: flex;
+  gap: 32px;
+  justify-content: flex-start;
+  /* The drag handlers sit on this element. `pan-y` leaves a vertical drag to
+     the page while a horizontal one is ours; without it the browser can claim
+     the gesture as a scroll and cancel the touch stream mid-swipe. Same rule
+     the other carousels use — see @shared/useCarousel. */
+  touch-action: pan-y;
+}
+.st-slide {
+  flex: 0 1 422px;
+  min-width: 0;
+}
+
+.st-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin-top: 24px;
+  padding: 0;
+}
+.st-dot {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--st-rule);
+  cursor: pointer;
+}
+.st-dot.active { background: var(--st-text); }
+.st-dot:focus-visible { outline: 2px solid #101318; outline-offset: 3px; }
+
+@media (max-width: 768px) {
+  .st--index {
+    max-width: none;
+    padding-inline: 24px;
+  }
+  .st--index::before { background: #f9fafb; }
+  .st--related {
+    position: relative;
+    isolation: isolate;
+    max-width: none;
+    padding: 32px 0;
+  }
+  .st--related::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset-block: 0;
+    left: 50%;
+    width: 100vw;
+    transform: translateX(-50%);
+    background: #f9fafb;
+  }
+  .st-heading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 28px;
+    margin-bottom: 26px;
+  }
+  .st-heading-mark {
+    display: block;
+    flex: 0 0 20px;
+    width: 20px;
+    height: 20px;
+    color: #111111;
+  }
+  .st-index-header { margin-bottom: 24px; }
+  .st-index-title {
+    margin-bottom: 8px;
+    font-size: 28px;
+  }
+  .st-index-subheading { font-size: 12px; }
+  .st--related .st-heading { text-align: center; }
+  .st-grid { grid-template-columns: 1fr; gap: 32px; }
+  .st--related .st-track {
+    /* Clip at the viewport, not at Duda's inner column. Each slide then owns
+       the Figma 24px gutters, leaving room for the card's side shadow while
+       still keeping the neighbouring slides out of view. */
+    position: relative;
+    left: 50%;
+    width: 100vw;
+    transform: translateX(-50%);
+    overflow: hidden;
+    padding-block: 18px;
+    margin-block: -18px;
+  }
+  .st-rail { gap: 0; }
+  .st-slide { flex: 0 0 100%; padding-inline: 24px; }
+  .st-card-body { padding: 20px 26px 32px; }
+  .st--index .st-card-body { padding: 20px 24px 32px; }
+  .st-card-title { font-size: 24px; }
+  .st--index .st-card-title { font-size: 32px; }
+  .st-card-abstract, .st-card-more { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-card { transition: none; }
+}
