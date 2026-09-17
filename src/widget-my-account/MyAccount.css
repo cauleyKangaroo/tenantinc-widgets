@@ -410,6 +410,73 @@
   color: var(--hb-grayscale-medium);
 }
 
+/* Ticked, it is a choice the tenant has made rather than one on offer, and the
+   frame draws it darker and heavier to say so. */
+.hb-check--on.ma-balance__check .hb-check__label {
+  font-weight: 600;
+  color: var(--hb-text-night);
+}
+
+/* The tick and the stepper are one block, and it needs a column gap of its
+   own: with none, the buttons sat right under the label. Only the phone had a
+   rule for this, so above 720px the two rows were touching. */
+.ma-balance__prepay {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* ── Prepay stepper (9038-78261) ───────────────────────────────────────────
+   THESE USED TO LIVE ONLY INSIDE THE 720px BLOCK, so above that width the
+   stepper had no styling at all: three bare buttons and a naked number running
+   straight into "Month(s)". The control is the same at every width — three
+   40px boxes, 6px apart — so it belongs here, and the phone keeps only the
+   indent that is genuinely its own. */
+.ma-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ma-stepper__btn {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--ma-ink, #101318);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ma-ink, #101318);
+  cursor: pointer;
+}
+
+.ma-stepper__btn:active { background: var(--ma-ink, #101318); color: #fff; }
+
+/* Reads a value rather than editing one — the buttons are the control, so a
+   text input would invite typing that nothing validates. */
+.ma-stepper__value {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #a5b4bf;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 16px;
+  color: var(--ma-ink, #101318);
+}
+
+/* 5 on top of the row's 6 — the frame leaves 11px between the value box and
+   the word, and without it the two ran together as "7Month(s)". */
+.ma-stepper__unit {
+  margin-left: 5px;
+  font-size: 14px;
+  line-height: 20px;
+  color: #000;
+}
+
 .ma-balance__right { margin-left: auto; text-align: right; }
 
 .ma-balance__amount {
@@ -1609,38 +1676,8 @@
 
   .ma-balance__right { margin-left: auto; }
 
-  .ma-stepper { display: flex; align-items: center; gap: 6px; padding-left: 22px; }
-
-  .ma-stepper__btn {
-    width: 40px;
-    height: 40px;
-    display: grid;
-    place-items: center;
-    padding: 0;
-    border: 1px solid var(--ma-ink, #101318);
-    border-radius: 8px;
-    background: #fff;
-    color: var(--ma-ink, #101318);
-    cursor: pointer;
-  }
-
-  .ma-stepper__btn:active { background: var(--ma-ink, #101318); color: #fff; }
-
-  /* Reads a value rather than editing one — the buttons are the control, so a
-     text input would invite typing that nothing validates. */
-  .ma-stepper__value {
-    width: 40px;
-    height: 40px;
-    display: grid;
-    place-items: center;
-    border: 1px solid #a5b4bf;
-    border-radius: 8px;
-    background: #fff;
-    font-size: 16px;
-    color: var(--ma-ink, #101318);
-  }
-
-  .ma-stepper__unit { font-size: 14px; color: #000; }
+  /* The frame indents the row to x=75 in a card whose content starts at 16. */
+  .ma-stepper { padding-left: 59px; }
 
   /* Tiles stack full width, and APPLE PAY LEADS on mobile — the frame's order,
      reversed from desktop. `order` rather than reordering the markup, so one

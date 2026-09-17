@@ -167,6 +167,15 @@
           </select>
         </label>
       </div>
+      <div class="controls-group">
+        <label><input type="checkbox" id="ub-show-button" onchange="reinitUtilityBar()" /> Show button</label>
+        <label>Button text:
+          <input id="ub-button-text" type="text" value="" placeholder="Learn More" oninput="reinitUtilityBar()" />
+        </label>
+        <label>Button link:
+          <input id="ub-button-link" type="text" value="" placeholder="https://example.com" oninput="reinitUtilityBar()" />
+        </label>
+      </div>
     </div>
     <div id="utility-bar-container" class="widget-container"></div>
   </div>
@@ -1666,6 +1675,9 @@
             inEditor: true,
             utilitybarColour: document.getElementById('ub-bar-colour').value,
             textColour: document.getElementById('ub-text-colour').value,
+            showButton: document.getElementById('ub-show-button').checked,
+            buttonText: document.getElementById('ub-button-text').value,
+            buttonLink: document.getElementById('ub-button-link').value,
           },
         });
       };

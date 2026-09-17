@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { propertyImage } from '@shared/demoImages';
 import { fetchPropertyHeroImages } from '@shared/propertyImages';
 import {
@@ -458,11 +458,41 @@ export function NearbySection() {
     active: i === safePage,
   }));
 
+  /* MAP VIEW KEEPS LIST VIEW'S HEIGHT, and it is measured rather than guessed:
+     the card's height depends on how many unit rows the property has, so no
+     constant would match it. Both boxes are read while the LIST is on screen —
+     the section as a whole and the tab strip above it — and the difference is
+     what the map is then given. Re-measured whenever the list is showing and
+     settled, so a taller property updates the figure before the map is opened.
+
+     A number, not '100%': the map is a flex item, and a percentage height on
+     one of those does not resolve against the parent, which collapsed the map
+     to nothing. */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [listHeight, setListHeight] = useState<number | null>(null);
+  const [tabsHeight, setTabsHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (view !== 'list' || loading) return;
+    if (rootRef.current) setListHeight(rootRef.current.offsetHeight);
+    if (tabsRef.current) setTabsHeight(tabsRef.current.offsetHeight);
+  }, [view, loading, safePage, properties.length]);
+
+  /* 280 is what this map was before any of it was measured, so a first paint
+     that never saw the list still gets a usable map rather than a sliver. */
+  const mapHeight = listHeight != null && tabsHeight != null
+    ? Math.max(listHeight - tabsHeight, 280)
+    : 280;
+
   return (
-    <div className="sl-nb2">
+    /* MAP VIEW KEEPS LIST VIEW'S HEIGHT. The map is one element where the list
+       is a card plus a pager, so switching used to shrink the whole section and
+       jump the page. `listHeight` is the height this section last had in list
+       view; in map view it becomes a floor and the map stretches to fill it. */
+    <div className="sl-nb2" ref={rootRef}>
 
       {/* View toggle */}
-      <div className="sl-nb2-view-tabs">
+      <div className="sl-nb2-view-tabs" ref={tabsRef}>
         <button className={`sl-nb2-view-tab${view === 'list' ? ' active' : ''}`} onClick={() => setView('list')}>List View</button>
         <button className={`sl-nb2-view-tab${view === 'map'  ? ' active' : ''}`} onClick={() => setView('map')}>Map View</button>
       </div>
@@ -472,7 +502,7 @@ export function NearbySection() {
       {/* Swipe pages the cards, so it is list-view only too: on the map it would
           be invisible navigation with no dots to reflect it, and it would fight
           the map's own drag-to-pan. */}
-      <div className={`sl-nb2-content${view === 'list' ? '' : ' sl-nb2-content--no-pager'}`}>
+      <div className={`sl-nb2-content${view === 'list' ? '' : ' sl-nb2-content--map'}`}>
         {loading && view === 'list' ? (
           <SkeletonCard />
         ) : view === 'map' ? (
@@ -484,7 +514,17 @@ export function NearbySection() {
                on the reference put the pins off to one side and often out of
                frame, so the map opened somewhere the visitor then had to drag
                away from. The reference dot still marks where they are. */
-            <NearbyMap center={refLoc} points={mapPoints} height={280} interactive fitToPoints />
+            /* Fills the space the list left behind, edge to edge — the
+               accordion card's own overflow:hidden supplies the bottom
+               corners, so the map needs no radius of its own. */
+            <NearbyMap
+              center={refLoc}
+              points={mapPoints}
+              height={mapHeight}
+              className="sl-nb2-map"
+              interactive
+              fitToPoints
+            />
           ) : (
             <div className="sl-nb2-map-placeholder">
               <span>Map unavailable</span>

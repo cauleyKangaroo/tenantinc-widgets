@@ -2664,12 +2664,17 @@
 .sl-wrapper .sl-nb2-content {
   padding: 0 23px;
 }
-/* The section's bottom padding normally comes from .sl-nb2-pagination's
-   `padding: 20px 0 24px`. Map view has no pager, so the content has to supply
-   that 24px itself or the map sits flush against the accordion's bottom edge. */
-.sl-wrapper .sl-nb2-content--no-pager {
-  padding-bottom: 24px;
+/* MAP VIEW IS FULL BLEED. List view insets its card by 23px a side and the
+   pager pads the bottom; the map has neither. It fills what is left under the
+   tabs and runs to all three edges, and the accordion card's own
+   `overflow: hidden` + 20px radius round off the bottom corners for it. */
+.sl-wrapper .sl-nb2-content--map {
+  padding: 0;
 }
+
+/* NearbyMap inline-styles a 16px radius, which beats a class rule — and it is
+   wrong here now that the card clips the corners itself. */
+.sl-wrapper .sl-nb2-map { border-radius: 0 !important; }
 
 /* ── Sliding track (Nearby Storage carousel) ──────────────────────────────
    One card per view: every property renders once and a single transform moves
