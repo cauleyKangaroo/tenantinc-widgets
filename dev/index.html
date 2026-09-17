@@ -80,6 +80,12 @@
       box-shadow: 0 2px 6px rgba(0,0,0,.12); }
     .mobile-btn:hover { background: #f3f4f6; }
     .mobile-btn.on { background: #101318; border-color: #101318; color: #fff; }
+    /* Sits left of Mobile. Red when ON, because a bypassed form is not what
+       the widget really does and the harness should say so loudly. */
+    .skipval-btn { position: fixed; top: 12px; right: 92px; z-index: 99999;
+      padding: 6px 10px; font-size: 12px; cursor: pointer;
+      background: #fff; border: 1px solid #d1d5db; border-radius: 6px; }
+    .skipval-btn.on { background: #b3261e; border-color: #b3261e; color: #fff; }
     /* Sits in normal flow, centred — not an overlay. */
     .mobile-stage { display: none; flex-direction: column; align-items: center; gap: 12px; padding: 8px 0 40px; }
     .mobile-stage.on { display: flex; }
@@ -93,6 +99,14 @@
 <body>
 
   <button class="mobile-btn" id="mobile-btn" onclick="toggleMobile()">Mobile</button>
+  <!-- HARNESS ONLY. Switches off the payment forms' required-field gate so a
+       Pay button can be reached without filling the whole form. The code
+       behind it is compiled out of production builds entirely — see
+       src/shared/devBypass.ts. -->
+  <button class="skipval-btn" id="skipval-btn" onclick="toggleSkipValidation()"
+          title="Harness only — skip required-field validation in the card and bank forms">
+    Validation: on
+  </button>
 
   <h1>Tenantinc Widget Dev Harness</h1>
   <p class="subtitle">
@@ -1385,6 +1399,37 @@
     // while it's on, so you see the phone rather than a modal over the desktop
     // layout. `frame=1` stops the iframe rendering its own button and nesting
     // previews, and carries the open tab so you land where you were.
+    /* HARNESS ONLY — the payment forms' validation bypass.
+       The flag is read by src/shared/devBypass.ts, which refuses outside a
+       local host and is compiled out of production builds altogether. Written
+       to BOTH the global and localStorage: the global is what a re-render
+       picks up now, localStorage is what survives a reload — and devBypass
+       reads localStorage too, so a widget mounted before this runs still sees
+       the right answer. */
+    var SKIPVAL_KEY = '__HB_SKIP_VALIDATION';
+
+    function skipValidationOn() {
+      try { return localStorage.getItem(SKIPVAL_KEY) === '1'; } catch (e) { return false; }
+    }
+
+    function applySkipValidation(on) {
+      window[SKIPVAL_KEY] = on;
+      try { localStorage.setItem(SKIPVAL_KEY, on ? '1' : '0'); } catch (e) { /* private mode */ }
+      var btn = document.getElementById('skipval-btn');
+      btn.classList.toggle('on', on);
+      btn.textContent = on ? 'Validation: OFF' : 'Validation: on';
+    }
+
+    function toggleSkipValidation() {
+      applySkipValidation(!skipValidationOn());
+      /* Only the two widgets that show those forms need redrawing. */
+      if (window.reinitMyAccount) reinitMyAccount();
+      if (window.reinitRentalFlow) reinitRentalFlow();
+    }
+
+    // Restore the choice, and label the button to match, before anything mounts.
+    applySkipValidation(skipValidationOn());
+
     var mobileOn = false;
 
     function toggleMobile() {

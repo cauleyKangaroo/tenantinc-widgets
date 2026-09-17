@@ -33,6 +33,7 @@ import { Shimmer } from '@shared/Shimmer';
 import { FormField, Button, DateModal, AlertIcon, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { skipValidation } from '@shared/devBypass';
 
 const startOfToday = () => {
   const d = new Date();
@@ -519,13 +520,18 @@ function Step1Form({
   // don't proceed until it's present. Which NAME fields count depends on the
   // business toggle, so an unfilled first name cannot block a business rental
   // that never showed the field.
+  /* The harness bypass marks every check passed rather than emptying the
+     list, so `bad()` still finds each id and answers false — an empty list
+     would make it answer true for everything the moment anything set
+     `attempted`. Compiled out of production builds — see @shared/devBypass. */
+  const skip = skipValidation();
   const checks: Array<[string, boolean]> = [
-    ['rf-email', isValidEmail(email)],
-    ['rf-phone', isPossiblePhone(phone, 'US')],
+    ['rf-email', skip || isValidEmail(email)],
+    ['rf-phone', skip || isPossiblePhone(phone, 'US')],
     ...(business
-      ? [['rf-bizname', bizName.trim().length > 0]] as Array<[string, boolean]>
-      : [['rf-first', first.trim().length > 0],
-        ['rf-last', last.trim().length > 0]] as Array<[string, boolean]>),
+      ? [['rf-bizname', skip || bizName.trim().length > 0]] as Array<[string, boolean]>
+      : [['rf-first', skip || first.trim().length > 0],
+        ['rf-last', skip || last.trim().length > 0]] as Array<[string, boolean]>),
   ];
   const gate = (proceed: (c: Contact) => void) => () => {
     if (!transactionReady) return;
