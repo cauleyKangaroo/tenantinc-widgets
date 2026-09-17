@@ -9,6 +9,7 @@ import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankF
 import './screens.css';
 import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { splitBusinessName } from './businessName';
+import { skipValidation } from '@shared/devBypass';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space now" (Figma 8507-23329).
@@ -403,8 +404,13 @@ export function Step2({
     // must not gate payment either: requiring an input nobody can see would
     // disable Pay Now with no way to find out why.
   ];
-  const formComplete = required.every(([, ok]) => ok);
-  const bad = (key: string) => payAttempted && !(required.find(([k]) => k === key)?.[1] ?? true);
+  /* Harness bypass — compiled out of production builds, see @shared/devBypass.
+     Both the gate and the per-field red state read it, so they cannot
+     disagree about whether the form is finished. */
+  const skip = skipValidation();
+  const formComplete = skip || required.every(([, ok]) => ok);
+  const bad = (key: string) => !skip && payAttempted
+    && !(required.find(([k]) => k === key)?.[1] ?? true);
   /** A card/bank panel is open, so its button is replaced by the panel and the
    *  other method relocates beneath it. Wallets are one-tap and never expand. */
   const methodOpen = payMethod === 'card' || payMethod === 'bank';

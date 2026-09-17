@@ -25,6 +25,7 @@ import {
 } from './planIcons';
 import { IdIllustration } from './IdIllustration';
 import { IdVerifyModal } from './IdVerifyModal';
+import { skipValidation } from '@shared/devBypass';
 
 
 function Select({
@@ -249,7 +250,9 @@ export function SuccessStep({ onGetAccess, chosen }: {
     // colour, plate, country and state are all optional.
     ...(vehicle ? { vType: filled(vType) ? '' : 'Select a vehicle type' } : {}),
   };
-  const bad = (k: string) => (attempted && problems[k] ? problems[k] : undefined);
+  /* Harness bypass — compiled out of production builds, see @shared/devBypass. */
+  const skip = skipValidation();
+  const bad = (k: string) => (!skip && attempted && problems[k] ? problems[k] : undefined);
 
   /**
    * Bumped on every FAILED attempt, not just the first, so pressing Get Access
@@ -279,7 +282,9 @@ export function SuccessStep({ onGetAccess, chosen }: {
   const submit = () => {
     setAttempted(true);
     setAttemptedReveal(true);
-    if (Object.values(problems).some(Boolean)) { setFailures((n) => n + 1); return; }
+    /* The bypass belongs here too — `bad()` above only hides the messages,
+       this is what actually refuses. See @shared/devBypass. */
+    if (!skip && Object.values(problems).some(Boolean)) { setFailures((n) => n + 1); return; }
     // Only what was filled — the update must not blank a value the tenant may
     // have given at the counter.
     onGetAccess?.({

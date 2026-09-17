@@ -116,6 +116,14 @@ export interface PropertyInfo {
   /** Human lines like "Mon-Sat: 8:00 AM - 5:00 PM", grouped by identical times. */
   officeHours?: string[];
   gateHours?: string[];
+  /**
+   * `Address.country` verbatim — "United States", "Canada".
+   *
+   * Carried separately from the flattened `address` line, which is for display
+   * and drops everything it does not print. The payment forms preselect their
+   * Billing Country from this, so it has to survive as its own value.
+   */
+  country?: string;
 }
 
 interface ApiAccessHourRow { day?: string; open_time?: string; close_time?: string; is_always_open?: boolean }
@@ -125,7 +133,10 @@ interface ApiProperty {
   name: string;
   Phones?: Array<{ phone?: string; type?: string }>;
   AccessHours?: ApiAccessHours[];
-  Address?: { address?: string; city?: string; state?: string; zip?: string };
+  // `country` IS returned by /properties — verified live, "United States" on
+  // every row — it was simply never declared here, so nothing downstream could
+  // see it.
+  Address?: { address?: string; city?: string; state?: string; zip?: string; country?: string };
 }
 
 const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -198,6 +209,7 @@ export async function fetchProperty(ctx: RentalCtx): Promise<PropertyInfo | unde
       : undefined,
     officeHours: hoursLines(office),
     gateHours: hoursLines(gate),
+    country: a?.country?.trim() || undefined,
   };
 }
 

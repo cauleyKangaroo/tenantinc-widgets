@@ -7,7 +7,6 @@ import cfg from '../config.json';
 import { ReviewsSection } from './sections/ReviewsSection';
 import { NearbySection } from './sections/NearbySection';
 import { SizeGuideSection } from './sections/SizeGuideSection';
-import { BlogSection } from './sections/BlogSection';
 import { LocalBlogSection } from './sections/LocalBlogSection';
 import { FaqsSection } from './sections/FaqsSection';
 import { StoreSection } from './sections/StoreSection';
@@ -58,14 +57,6 @@ function IconQuestion() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9.28149 9.71853C9.28149 8.21713 10.4986 7 12 7C13.5014 7 14.7186 8.21713 14.7186 9.71853C14.7186 10.6748 14.2248 11.5157 13.4784 12.0003C12.7544 12.4704 12 13.1368 12 14M12 17H12.001M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" />
-    </svg>
-  );
-}
-
-function IconFile() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 11C20 9.34315 18.6569 8 17 8L16.4 8C16.0284 8 15.8426 8 15.6871 7.97538C14.8313 7.83983 14.1602 7.16865 14.0246 6.31287C14 6.1574 14 5.9716 14 5.6V5C14 3.34315 12.6569 2 11 2M8 13H16M8 17H13M20 10V18C20 20.2091 18.2091 22 16 22H8C5.79086 22 4 20.2091 4 18V6C4 3.79086 5.79086 2 8 2H12C16.4183 2 20 5.58172 20 10Z" />
     </svg>
   );
 }
@@ -142,7 +133,6 @@ const VISUALS: Record<AccordionKey, AccordionVisual> = {
   nearby:    { icon: <IconBuilding />, content: <NearbySection /> },
   reviews:   { icon: <IconReview />,   content: <ReviewsSection /> },
   faq:       { icon: <IconQuestion />, content: <FaqsSection /> },
-  blog:      { icon: <IconFile />,     content: <BlogSection /> },
   localblog: { icon: <IconPin />,      content: <LocalBlogSection /> },
   sizeguide: { icon: <IconScale />,    content: <SizeGuideSection /> },
   notes:     { icon: <IconNote />,     content: <NotesSection /> },
@@ -304,7 +294,6 @@ export function SectionAccordion({
       : key === 'faq'     ? <FaqsSection faqs={propertyExtras?.faqs} />
       : key === 'features' ? <FeaturesSection amenities={propertyExtras?.amenities} />
       : key === 'highlights' ? <FeatureHighlightsSection features={featureHighlights} activeSlug={activeFeatureSlug} onSelect={onSelectFeature ?? (() => {})} />
-      : key === 'blog'    ? <BlogSection collection={blogCollection} blogBasePath={blogBasePath} />
       : key === 'localblog' ? <LocalBlogSection collection={blogCollection} blogBasePath={blogBasePath} />
       : key === 'notes'   ? <NotesSection content={notesContent} />
       : key === 'about'   ? <AboutSection content={aboutContent} />

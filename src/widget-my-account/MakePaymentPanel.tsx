@@ -86,6 +86,23 @@ function formatMoney(n: number): string {
 }
 
 /**
+ * A money STRING multiplied.
+ *
+ * The charge lines are pre-formatted in data.ts, and the frame writes some of
+ * them "$ 100.00" and others "$123.00"; re-formatting from the number alone
+ * would quietly normalise that away, so the space is put back where the
+ * original had one. A factor of 1 returns the string untouched rather than
+ * round-tripping it, which is what keeps the default view byte-identical.
+ */
+function scaleMoney(v: string, factor: number): string {
+  if (factor === 1) return v;
+  const n = money(v);
+  if (!n) return v;
+  const out = formatMoney(n * factor);
+  return /\$\s/.test(v) ? out.replace('$', '$ ') : out;
+}
+
+/**
  * `id` flipped in or out of a set, as a NEW set — mutating and returning the
  * same object would be the same reference and React would not re-render.
  */
@@ -156,10 +173,18 @@ export function MakePaymentPanel({
      payment buttons would take. Falls back to the space's own printed balance
      when a total will not parse, so a formatting quirk cannot silently
      understate what is owed. */
+  /* PREPAYING N MONTHS MULTIPLIES WHAT IS OWED. Rent, coverage and tax are all
+     monthly charges, so N additional months is N more of each — which is why
+     the whole breakdown scales and not just the bottom line. Unticked is x1,
+     the month already due; ticked at 1 is x2, that month plus one more.
+     The frames show the control but not the arithmetic behind it, so this is
+     the reading, stated here rather than buried in the render. */
+  const monthsFactor = prepay ? 1 + prepayMonths : 1;
+
   const balanceTotal = useMemo(
     () => list.filter((s) => selected.has(s.id))
-      .reduce((sum, s) => sum + (money(s.total) || money(s.balance.amount)), 0),
-    [list, selected],
+      .reduce((sum, s) => sum + (money(s.total) || money(s.balance.amount)), 0) * monthsFactor,
+    [list, selected, monthsFactor],
   );
   const anyPastDue = list.some((s) => selected.has(s.id) && s.balance.pastDue);
 
@@ -224,7 +249,7 @@ export function MakePaymentPanel({
                   on the row, and it is what the tick is deciding about — so the
                   list stays useful collapsed. The desktop frame has no such
                   column and the stylesheet hides it there. */}
-              <span className="ma-space-head__amount">{sp.total}</span>
+              <span className="ma-space-head__amount">{scaleMoney(sp.total, monthsFactor)}</span>
             </div>
 
             {/* ONE disclosure, not two: the frame's closed state shows neither
@@ -339,7 +364,7 @@ export function MakePaymentPanel({
                     <span className="ma-line__strong">{line.label} </span>
                     {line.note && <span className="ma-line__note">{line.note}</span>}
                   </p>
-                  <p className="ma-line__amount ma-line__amount--strong">{line.amount}</p>
+                  <p className="ma-line__amount ma-line__amount--strong">{scaleMoney(line.amount, monthsFactor)}</p>
                 </div>
               ))}
 
@@ -353,18 +378,18 @@ export function MakePaymentPanel({
                       <span className="ma-only-mobile">Change</span>
                     </span>
                   </button>
-                  <p className="ma-line__amount">{sp.coverage.amount}</p>
+                  <p className="ma-line__amount">{scaleMoney(sp.coverage.amount, monthsFactor)}</p>
                 </div>
               </div>
 
               <div className="ma-line">
                 <p className="ma-line__label ma-line__label--plain">{sp.taxes.label}</p>
-                <p className="ma-line__amount">{sp.taxes.amount}</p>
+                <p className="ma-line__amount">{scaleMoney(sp.taxes.amount, monthsFactor)}</p>
               </div>
 
               <div className="ma-line ma-line--total">
                 <p className="ma-line__label ma-line__label--total">Total:</p>
-                <p className="ma-line__amount ma-line__amount--total">{sp.total}</p>
+                <p className="ma-line__amount ma-line__amount--total">{scaleMoney(sp.total, monthsFactor)}</p>
               </div>
             </div>
             </div>
