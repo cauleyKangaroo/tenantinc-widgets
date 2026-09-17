@@ -123,6 +123,21 @@ export interface RentalFlow2StepProps {
    * placeholder, which is how the forms behaved before this existed.
    */
   countryDefault?: string;
+  /**
+   * Content-menu dropdown `gateCodeType` — which confirmation the property
+   * gets: `default` | `nogatecode` | `smartentrysystem`.
+   *
+   * A CONTENT FIELD, not API data, because there is nothing to read. Checked
+   * against the whole Hummingbird rental-flow guide and every live response:
+   * no endpoint returns an entry mode or an access-hardware field. The gate PIN
+   * on API 10's tenant is the only access-related value anywhere, and it is
+   * undocumented. So the operator states it per property page until TenantInc
+   * adds a field, at which point this becomes the fallback rather than the
+   * source.
+   *
+   * Unset or `default` keeps the confirmation exactly as it shipped.
+   */
+  gateCodeType?: string;
   /** Tier's group id from the value-tiers handoff (?unitGroupId=) — the proxy
    *  reserve route needs it for the ownership check. */
   unitGroupId?: string;
@@ -673,7 +688,7 @@ function stashConfirmation(data: ConfirmationData): string {
  * never fake a confirmed page. The editor gets a demo preview; error pages stay
  * URL-driven (they carry no success claim).
  */
-function readConfirmationPayload(inEditor: boolean): ConfirmationData | undefined {
+function readConfirmationPayload(inEditor: boolean, entry: EntryMode): ConfirmationData | undefined {
   try {
     const p = new URLSearchParams(window.location.search);
     const type = p.get('type');
@@ -682,7 +697,10 @@ function readConfirmationPayload(inEditor: boolean): ConfirmationData | undefine
     if (inEditor) {
       return {
         kind: type, name: 'John', unitNumber: '#111', code: '87368976',
-        phone: '(949) 456-8765', moveInDate: 'Jun 20, 2026', reservationDate: 'Jun 18, 2026', entry: 'gate',
+        phone: '(949) 456-8765', moveInDate: 'Jun 20, 2026', reservationDate: 'Jun 18, 2026',
+        // The selected mode, so the harness and the Duda editor can preview all
+        // three confirmations. Live payloads carry their own.
+        entry,
       };
     }
 
@@ -713,6 +731,7 @@ function readConfirmationPayload(inEditor: boolean): ConfirmationData | undefine
 export function RentalFlow2Step({
   autopay,
   countryDefault,
+  gateCodeType,
   logoImage,
   logoUrl,
   eyebrow = 'Great choice!',
@@ -813,6 +832,26 @@ export function RentalFlow2Step({
     }
   };
   const configuredBillingCountry = asBillingCountry(boundText(countryDefault));
+
+  /**
+   * Which confirmation this property gets.
+   *
+   * `boundText` first, like autopay and countryDefault: an unsubstituted
+   * {{token}} or Duda's empty-string default must read as "unset", never as a
+   * mode nobody chose.
+   *
+   * ANYTHING UNRECOGNISED FALLS TO 'gate' — including 'default' and ''. That
+   * is the confirmation this widget has always rendered, so a misspelt option,
+   * a field nobody set, or a value added in Duda before it exists here all
+   * leave the live page exactly as it is rather than blanking the access card.
+   */
+  const entryMode: EntryMode = (() => {
+    switch (boundText(gateCodeType).trim().toLowerCase()) {
+      case 'nogatecode': case 'no-gate-code': case 'none': return 'none';
+      case 'smartentrysystem': case 'smart-entry-system': case 'smart': return 'smart';
+      default: return 'gate';
+    }
+  })();
 
   // Global Payments PUBLIC key — tokenization only; it cannot charge or read.
   const configuredGpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
@@ -1669,7 +1708,7 @@ export function RentalFlow2Step({
   // Read the one-time confirmation payload exactly once (it self-deletes), then
   // reuse it across re-renders via the ref.
   const confirmationRef = useRef<ConfirmationData | undefined | 'unread'>('unread');
-  if (confirmationRef.current === 'unread') confirmationRef.current = readConfirmationPayload(inEditor);
+  if (confirmationRef.current === 'unread') confirmationRef.current = readConfirmationPayload(inEditor, entryMode);
   const confirmation = confirmationRef.current;
 
   // Fill missing office/gate hours on the confirmation page (snapshot may predate
@@ -2141,7 +2180,7 @@ export function RentalFlow2Step({
               reference={rental?.leaseId}
               unitNumber={staticUnitNumber}
               code={rental ? rental.accessCode : STATIC_ACCESS_CODE}
-              entry="gate"
+              entry={entryMode}
               moveInDate={fmtDisplayDate(moveIn)}
               confirmedHeading={rentalHeading}
               facilityPhone={formatUsPhone(propertyInfo?.phone)}
@@ -2544,6 +2583,11 @@ export function RentalFlow2Step({
                   code: result.reservationId,
                   moveInDate: fmtDisplayDate(moveIn),
                   reservationDate: fmtDisplayDate(new Date()),
+                  // Travels WITH the payload: the confirmation is a separate
+                  // page load, so the prop is read there from this snapshot
+                  // rather than from whatever the widget is configured with by
+                  // the time the shopper lands.
+                  entry: entryMode,
                   // Immutable snapshot of the AUTHORITATIVE reserve-time cost
                   // (what we submitted), falling back to the step-2 quote.
                   rail: { property: propertyInfo, selection, quote: result.quote ?? quote },

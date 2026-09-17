@@ -795,6 +795,16 @@
               <option value="canada">Canada</option>
             </select>
           </label>
+          <label>
+            Gate Code Type:
+            <select id="rf-gate-code-type"
+              style="width:190px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+              onchange="reinitRentalFlow()">
+              <option value="default">Default</option>
+              <option value="nogatecode">No Gate Code</option>
+              <option value="smartentrysystem">Smart Entry System</option>
+            </select>
+          </label>
         </div>
       </div>
       <div id="rental-flow-2step-container" class="widget-container"></div>
@@ -1851,6 +1861,10 @@
           // Stands in for the Duda content menu's Country Default dropdown,
           // which the JS tab forwards as data.config.countryDefault.
           countryDefault: document.getElementById('rf-country-default').value,
+          // Same idea for the confirmation's access card: the JS tab forwards
+          // this as data.config.gateCodeType. Reach the confirmation by
+          // completing the flow, or with ?step=confirm.
+          gateCodeType: document.getElementById('rf-gate-code-type').value,
         },
       });
     }
