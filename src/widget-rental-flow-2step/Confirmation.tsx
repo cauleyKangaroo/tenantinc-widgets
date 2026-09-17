@@ -11,6 +11,12 @@ import reviewStars from './assets/review-stars.svg';
 // 128px slot rather than shipping the 1280px original for a 42KB saving.
 import appleWalletBadge from './assets/wallet-apple.png';
 import googleWalletBadge from './assets/wallet-google.svg';
+// Smart Entry card (8507-24845). The store badges are composed from the
+// FIGMA-EXPORTED glyphs rather than redrawn — see StoreBadge below.
+import appleGlyph from './assets/appstore-apple.svg';
+import playGlyph from './assets/googleplay-mark.svg';
+import playWordmark from './assets/googleplay-wordmark.svg';
+import barcodeScan from './assets/barcode-scan.svg';
 
 // ---------------------------------------------------------------------------
 // Confirmation & failure pages (Figma: Reservation Confirmation 8507-24998,
@@ -56,6 +62,10 @@ export interface ConfirmationProps {
   smsSent?: boolean;
   /** Real resend handler — the Resend control renders only when provided. */
   onResend?: () => void;
+  /** Smart Entry app links. Absent → the badges still show, as the frame
+   *  draws them, but as artwork rather than dead links. */
+  appStoreUrl?: string;
+  playStoreUrl?: string;
   /** Wallet-pass URLs — the wallet buttons render only when provided. */
   appleWalletUrl?: string;
   googleWalletUrl?: string;
@@ -123,6 +133,46 @@ function WalletBadge({ brand, href }: { brand: 'apple' | 'google'; href?: string
     : <span className={cls} role="img" aria-label={`Add to ${label} — coming soon`}>{img}</span>;
 }
 
+/**
+ * App Store / Google Play badge (Figma 8509-36325 / 8509-36359).
+ *
+ * COMPOSED, not a single flat image, because Figma builds it that way: the
+ * glyphs and Google's wordmark are exported vectors, and only the small
+ * English text is live type. A flat export would have been a 129x43 raster —
+ * Figma will not render one larger — which is visibly soft on a retina
+ * screen for black artwork with white text.
+ *
+ * The badge text therefore uses a SYSTEM stack rather than the page's
+ * Montserrat: the real badges are set in SF Compact and Product Sans, and the
+ * system stack lands on SF on Apple devices and Roboto on Android, which is
+ * far closer than the body font. Before launch these should be swapped for
+ * Apple's and Google's own downloadable badge artwork, which both ask you to
+ * use unmodified.
+ */
+function StoreBadge({ store, href }: { store: 'apple' | 'google'; href?: string }) {
+  const label = store === 'apple' ? 'Download on the App Store' : 'Get it on Google Play';
+  const inner = store === 'apple' ? (
+    <>
+      <img className="rfc-store-glyph" src={appleGlyph} width={20} height={24} alt="" aria-hidden="true" />
+      <span className="rfc-store-txt">
+        <span className="rfc-store-sm">Download on the</span>
+        <span className="rfc-store-lg">App Store</span>
+      </span>
+    </>
+  ) : (
+    <>
+      <img className="rfc-store-glyph" src={playGlyph} width={21} height={24} alt="" aria-hidden="true" />
+      <span className="rfc-store-txt">
+        <span className="rfc-store-sm rfc-store-sm--play">GET IT ON</span>
+        <img className="rfc-store-word" src={playWordmark} width={74} height={15} alt="" aria-hidden="true" />
+      </span>
+    </>
+  );
+  return href
+    ? <a className="rfc-store" href={href} target="_blank" rel="noreferrer" aria-label={label}>{inner}</a>
+    : <span className="rfc-store" role="img" aria-label={`${label} — link coming soon`}>{inner}</span>;
+}
+
 export function Confirmation({
   kind,
   errorMessage,
@@ -131,6 +181,8 @@ export function Confirmation({
   unitNumber,
   code,
   entry = 'gate',
+  appStoreUrl,
+  playStoreUrl,
   moveInDate,
   reservationDate,
   facilityPhone,
@@ -224,20 +276,43 @@ export function Confirmation({
                 a made-up unit number on a live page, so it wants the same gating
                 as the SMS line before launch. */}
             <div className="rfc-space-head">{spaceTitle}</div>
-            <div className={`rfc-code-card${idUnverified ? ' rfc-code-card--unverified' : ''}`}>
-            {idUnverified ? (
+            {/* THE THREE ACCESS CARDS, one per gateCodeType (see entryMode in
+                RentalFlow2Step). They share the dashed card so the page keeps
+                its shape; only the contents change.
+                  gate  (default)      8507-24357 — access code + wallet
+                  none  (nogatecode)   8509-36024 — the ID-verification notice
+                  smart (smartentry)   8507-24845 — app links, PIN, wallet
+                `none` draws the same notice as an unverified ID because the
+                frame draws the same card: there is no code either way, and the
+                sentence is the one the operator wants shown. */}
+            <div className={`rfc-code-card${idUnverified || entry === 'none' ? ' rfc-code-card--unverified' : ''}`}>
+            {idUnverified || entry === 'none' ? (
               <p className="rfc-code-blocked">In-Store ID verification is required to access your space.</p>
             ) : entry === 'smart' ? (
-              <div className="rfc-code-top">
-                <span className="rfc-code-label">Smart Entry System</span>
-                <span className="rfc-code">App access enabled</span>
-                <span className="rfc-code-note">Doors unlock from the mobile app — no code needed.</span>
-              </div>
-            ) : entry === 'none' ? (
-              <div className="rfc-code-top">
-                <span className="rfc-code-label">Access</span>
-                <span className="rfc-code-note">See the facility manager at move-in for your access details.</span>
-              </div>
+              <>
+                <div className="rfc-smart">
+                  <span className="rfc-smart-title">Download Smart Entry App</span>
+                  <div className="rfc-smart-stores">
+                    <StoreBadge store="apple" href={appStoreUrl} />
+                    <StoreBadge store="google" href={playStoreUrl} />
+                  </div>
+                  <span className="rfc-code-label">
+                    <img src={barcodeScan} width={21} height={21} alt="" aria-hidden="true" />
+                    App PIN Code
+                  </span>
+                  {code
+                    ? <span className="rfc-code">{code}</span>
+                    : <span className="rfc-code-note">Shown in the app once your account is set up.</span>}
+                </div>
+                {/* The smart card keeps the wallet strip — the frame draws it. */}
+                <div className="rfc-wallet">
+                  <span className="rfc-wallet-title">Add to your Wallet</span>
+                  <div className="rfc-wallet-row">
+                    <WalletBadge brand="apple" href={appleWalletUrl} />
+                    <WalletBadge brand="google" href={googleWalletUrl} />
+                  </div>
+                </div>
+              </>
             ) : (
               <>
                 <div className="rfc-code-top">

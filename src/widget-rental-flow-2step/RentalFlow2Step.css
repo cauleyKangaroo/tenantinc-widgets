@@ -1635,6 +1635,98 @@
 .rfc-code-label { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; color: #101318; }
 .rfc-code { font-size: 30px; font-weight: 600; color: #101318; word-break: break-word; line-height: 1.1; }
 .rfc-code-note { font-size: 13px; color: #637381; }
+/* ── Smart Entry card (Figma 8507-24845) ──────────────────────────────────
+   The dashed card's upper half when gateCodeType is smartentrysystem: the two
+   store badges, then the app PIN. The grey wallet strip below is the shared
+   .rfc-wallet, unchanged. */
+.rfc-smart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 20px 20px;
+  text-align: center;
+}
+
+.rfc-smart-title { font-size: 16px; font-weight: 600; color: #101318; }
+
+/* The frame sets the pair 9px apart and lets them shrink together on a narrow
+   card rather than wrapping — two half-width badges read as a pair, one badge
+   per line reads as two choices. */
+.rfc-smart-stores {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  width: 100%;
+  max-width: 267px;
+}
+
+/* The badge. Black pill, hairline border and 6px radius are the artwork's
+   own, per Figma 8509-36325 / 36359. */
+.rfc-store {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 43px;
+  padding: 0 9px;
+  background: #000;
+  border: 1px solid #a6a6a6;
+  border-radius: 6px;
+  text-decoration: none;
+  /* NOT the page's Montserrat: the real badges are SF Compact and Product
+     Sans, and this stack lands on SF for Apple and Roboto for Android. */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.rfc-store-glyph { flex: none; display: block; }
+
+.rfc-store-txt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  color: #fff;
+  line-height: 1;
+}
+
+/* NOWRAP on both lines. The badge shrinks with the card, but its type does
+   not, and "App Store" wrapping to a second line spilled straight out of the
+   pill. The badge shrinks as a unit instead — see the mobile block. */
+.rfc-store-sm { font-size: 9px; white-space: nowrap; }
+/* Google's line is uppercase and a shade larger than Apple's. */
+.rfc-store-sm--play { font-size: 10px; text-transform: uppercase; }
+.rfc-store-lg { font-size: 18px; letter-spacing: -0.47px; white-space: nowrap; }
+/* The wordmark is vector, so it stays crisp; width:100% lets it shrink with
+   the badge instead of forcing the grid track wider.
+   FLIPPED because the export is: Figma draws this node inside a -scale-y-100
+   wrapper, so the asset's own orientation is upside down and "Google Play"
+   renders mirrored without this. */
+.rfc-store-word {
+  display: block;
+  width: 100%;
+  max-width: 74px;
+  height: auto;
+  transform: scaleY(-1);
+}
+
+/* The whole badge a size down on a phone, where the card is ~294px and two
+   129px badges plus their gap will not fit. Everything shrinks together —
+   glyph, both type sizes and the wordmark — so the artwork keeps its
+   proportions instead of the text bursting out of the pill. */
+@media (max-width: 767px) {
+  .rfc-store { height: 38px; padding: 0 7px; gap: 6px; }
+  .rfc-store-glyph { width: 17px; height: 20px; }
+  .rfc-store-sm { font-size: 8px; }
+  .rfc-store-sm--play { font-size: 8.5px; }
+  .rfc-store-lg { font-size: 15px; }
+  .rfc-store-word { max-width: 62px; }
+  .rfc-smart-stores { gap: 8px; }
+}
+
 /* Wallet strip (grey, Figma #DFE3E8) — badges shown even before pass URLs exist. */
 /* Figma 8754-50340: the #DFE3E8 band runs the full width of the card, with the
    title 19px down, the badge row 12px under it and 24px of clearance below. */
