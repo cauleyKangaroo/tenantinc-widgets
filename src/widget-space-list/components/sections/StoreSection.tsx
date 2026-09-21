@@ -4,6 +4,7 @@ import type { HoursStatus, ScheduleRow } from '@shared/accessHours';
 import { MessageModal } from '@shared/components/MessageModal';
 import { createLead } from '../../propertyApi';
 import { usePropertyId } from '../../propertyContext';
+import { useApiCreds } from '../../credsContext';
 import { fetchFacilities, type FacilityOption } from '@shared/facilities';
 import cfg from '../../config.json';
 import { CloseCircleIcon } from '@shared/ui';
@@ -138,6 +139,7 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
   // is actually looking at. The old clone sent none and fell back to
   // config.json's — which on this site is another company's property.
   const leadPropertyId = usePropertyId();
+  const apiCreds = useApiCreds();
 
   /* Every property on the company, for the contact modal's "Select Property".
      Fetched when the modal is first opened rather than on mount: nothing else
@@ -157,7 +159,9 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
   useEffect(() => {
     if (!messageOpen || facilityOptions.length) return undefined;
     let cancelled = false;
-    void fetchFacilities('#05 space-list', cfg).then((list) => {
+    // The instance endpoint — the facility picker must list the same tenant's
+    // properties the rest of the widget is showing.
+    void fetchFacilities('#05 space-list', { ...apiCreds, companyId: cfg.companyId }).then((list) => {
       if (!cancelled) setFacilityOptions(list);
     });
     return () => { cancelled = true; };
@@ -334,7 +338,7 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
           facilityOptions.find((f) => f.id === leadPropertyId)
           ?? { name: facilityName || 'This Facility', address: facilityAddress }
         }
-        submitLead={(input) => createLead(input, { propertyId: leadPropertyId })}
+        submitLead={(input) => createLead(input, { propertyId: leadPropertyId }, apiCreds)}
       />
 
     </div>

@@ -8,6 +8,8 @@ import { boundText, resolvePropertyId, resolveRequireId } from '@shared/property
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { PropertyIdProvider } from './propertyContext';
 import { CompanyIdProvider } from './companyContext';
+import { ApiCredsProvider } from './credsContext';
+import { resolveApiCreds } from './apiCreds';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
   DEFAULT_FILTERS,
@@ -82,6 +84,10 @@ export function SpaceList({
   // Dynamic-page bindings — see types.ts and @shared/propertyBinding.
   propertyId,
   companyId,
+  // Snake_case from the Duda JS tab — see types.ts and ./apiCreds.
+  api_domain: apiDomain,
+  app_id: appId,
+  api_key: apiKey,
   spaceGroupId,
   showJunkFeeDisclaimer = false,
   junkFeeCopy = '',
@@ -256,6 +262,17 @@ export function SpaceList({
   // against config.json's company and then re-firing against the real one.
   const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
 
+  /*
+   * The endpoint for this instance. SYNCHRONOUS, unlike the company id — creds
+   * come from props alone, so there is no resolving state to represent and no
+   * request can fire against the wrong host while we wait. Memoised on the
+   * three values so the effects below do not re-run on every render.
+   */
+  const creds = useMemo(
+    () => resolveApiCreds({ api_domain: apiDomain, app_id: appId, api_key: apiKey }),
+    [apiDomain, appId, apiKey],
+  );
+
   useEffect(() => {
     let cancelled = false;
     resolveCompanyIdFromSources('#05 space-list', { companyId }, cfg.companyId)
@@ -292,7 +309,7 @@ export function SpaceList({
     const resolveGroup = spaceGroupId
       ? Promise.resolve(spaceGroupId)
       : isDynamicTarget || !cfg.spaceGroupId
-        ? fetchWebsiteSpaceGroupId(effectivePropertyId, effectiveCompanyId)
+        ? fetchWebsiteSpaceGroupId(effectivePropertyId, effectiveCompanyId, creds)
         : Promise.resolve(cfg.spaceGroupId);
 
     resolveGroup
@@ -304,13 +321,13 @@ export function SpaceList({
           if (!cancelled) setLiveUnits([]);
           return null;
         }
-        return fetchSpaceGroups(effectivePropertyId, sg, effectiveCompanyId);
+        return fetchSpaceGroups(effectivePropertyId, sg, effectiveCompanyId, creds);
       })
       .then((raw) => {
         // siteId is Duda's own (data.siteId) and is what builds the Media
         // Manager URL. Absent — the dev harness, or a JS tab that does not
         // forward it — every card simply keeps its bundled render.
-        if (raw && !cancelled) setLiveUnits(mapApiToUnits(raw, { siteId, baseUrl: spaceImageBaseUrl }));
+        if (raw && !cancelled) setLiveUnits(mapApiToUnits(raw, { siteId, baseUrl: spaceImageBaseUrl }, creds));
       })
       .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -321,9 +338,9 @@ export function SpaceList({
     if (effectiveCompanyId === null) return;
     let cancelled = false;
     // Trust-check only against a Duda-bound id; see resolveRequireId.
-    fetchProperties(resolveRequireId({ propertyId }, cfg.propertyId), effectiveCompanyId)
+    fetchProperties(resolveRequireId({ propertyId }, cfg.propertyId), effectiveCompanyId, creds)
       .then((raw) => {
-        if (!cancelled) setPropertyExtras(extractPropertyExtras(raw, effectivePropertyId));
+        if (!cancelled) setPropertyExtras(extractPropertyExtras(raw, effectivePropertyId, creds));
       })
       .catch((err) => console.error('[SpaceList] fetchProperties error:', err))
       // Settled covers the failure too: a name we will never get must not leave
@@ -621,6 +638,7 @@ export function SpaceList({
   // sits on whichever side apLocation specifies.
   return (
     <PropertyIdProvider propertyId={effectivePropertyId}>
+     <ApiCredsProvider creds={creds}>
      <CompanyIdProvider companyId={effectiveCompanyId ?? ''}>
     <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
       {/* Off when #18 draws the heading instead — see showHeading. */}
@@ -726,6 +744,7 @@ export function SpaceList({
       )}
     </div>
      </CompanyIdProvider>
+     </ApiCredsProvider>
     </PropertyIdProvider>
   );
 }
