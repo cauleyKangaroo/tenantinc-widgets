@@ -1,22 +1,18 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
-import { TickSingleIcon } from './planIcons';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
 import {
   MilitaryFields, AltContactFields, VehicleFields,
   extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues,
 } from './additionalInfo';
-import { IdVerifyCard } from './IdVerifyCard';
-import { IdVerifyModal } from './IdVerifyModal';
 import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankFormValue, type BillingCountry } from '@shared/paymentForms';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
-import { FormField, Button, AlertIcon, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { splitBusinessName } from './businessName';
-import { dobToIso } from './api';
 import { skipValidation } from '@shared/devBypass';
 
 // ---------------------------------------------------------------------------
@@ -155,17 +151,6 @@ export interface RentalExtras {
   altAddress?: string;
   vehicle: boolean;
   vehicleType?: string;
-  /* The rest of the vehicle group. Carried even though only Vehicle Type is
-     required and today's rental APIs take none of them: the form now ASKS for
-     these, and collecting an answer only to drop it on the floor is worse than
-     not asking. They ride along until there is somewhere to send them. */
-  vehicleMake?: string;
-  vehicleModel?: string;
-  vehicleYear?: string;
-  vehicleColour?: string;
-  vehiclePlate?: string;
-  vehicleCountry?: string;
-  vehicleState?: string;
 }
 
 /** Desktop pointer devices only — mirrored by a @media block in the CSS. */
@@ -177,49 +162,24 @@ export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
   brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode,
-  gatewayPending, zipOnlyBilling, defaultCountry,
-  oneStep = false, eyebrow, heading, brandName, termsHref = '#',
-  transactionState = 'ready', onRetry, changeSpaceUrl,
+  gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
 }: {
   moveIn: Date;
   /**
-   * ONE-STEP LAYOUT (content menu `formType`).
+   * The content menu's `formType` radio, as a flag — the ONE thing that
+   * differs between the two layouts.
    *
-   * The whole rental on one page instead of two. This component already WAS
-   * most of that page — contact details, protection plan, additional
-   * information, rental agreement and payment — so the one-step form is this
-   * one with step 1's remaining pieces folded in, rather than a second
-   * implementation of the payment, validation and tokenization logic that
-   * would then have to be kept in step with this one.
+   * Off (`2step`, the default): the Additional Information checkboxes are
+   * ticks only. What the shopper opted into travels to the post-purchase
+   * screen, which opens the matching sections already ticked and asks for the
+   * values there. Choosing here, filling there.
    *
-   * What the flag adds: the SMS consent paragraph, the ID validation card and
-   * the availability states step 1 used to own. The frame's single column is
-   * NOT one of them — the <=640px block already stacks .rf2-row, so the phone
-   * layout the frame draws is what this form has always done at that width.
+   * On (`1step`): ticking one opens its fields immediately, and its required
+   * fields then gate payment like any other. The post-purchase screen still
+   * shows those sections afterwards — this moves where they are FIRST answered,
+   * it does not remove them from anywhere.
    */
   oneStep?: boolean;
-  /** Title lines. The two-step form is always "Great choice! / Secure your
-   *  space now"; one-step takes the widget's own content fields, which default
-   *  to the same words. */
-  eyebrow?: string;
-  heading?: string;
-  /** Operator/brand name for the SMS consent paragraph. Absent → no paragraph,
-   *  exactly as on step 1: consent naming nobody is not consent. */
-  brandName?: string;
-  /** Terms link at the end of that paragraph. */
-  termsHref?: string;
-  /**
-   * Whether a rentable unit has actually resolved — step 1's gate, which the
-   * one-step layout has to inherit.
-   *
-   * Without it the one-step page would show a working Pay button on a space
-   * that is gone or never resolved: in the two-step flow you could not reach
-   * payment at all until this said `ready`, because step 1's buttons were
-   * disabled. Defaults to 'ready' so the two-step form behaves as before.
-   */
-  transactionState?: 'loading' | 'ready' | 'unavailable' | 'error';
-  onRetry?: () => void;
-  changeSpaceUrl?: string;
   /**
    * The property's autopay treatment, from Hummingbird. Unset shows a small
    * demo picker so all four can be reviewed — pass a value and it disappears.
@@ -302,28 +262,12 @@ export function Step2({
   const [vehicle, setVehicle] = useState(false);
 
   const [agree, setAgree] = useState(false);
-  /* ID validation, one-step only. A local choice with no service behind it —
-     the same dummy flow the post-purchase screen carries, and for the same
-     reason: the rental-flow API exposes no verification endpoint. */
-  const [idv, setIdv] = useState<'choose' | 'instore'>('choose');
-  /* The values behind the three Additional Information ticks. One object
-     rather than fourteen useStates: they are written by one patch setter and
-     read as one payload, and the shape is the shared module's. */
+  /* The values behind the three Additional Information ticks — collected here
+     only when `oneStep` puts the fields on this screen. One object rather than
+     fourteen useStates: they are written by one patch setter, read as one
+     payload, and the shape is the shared module's. */
   const [extraFields, setExtraFields] = useState<ExtraFieldValues>(EMPTY_EXTRA_FIELDS);
   const setExtra = (patch: Partial<ExtraFieldValues>) => setExtraFields((v) => ({ ...v, ...patch }));
-  /*
-   * Step 1's gate, inherited by the one-step layout only.
-   *
-   * Scoped to `oneStep` rather than applied to both, deliberately. On the
-   * two-step flow this state is step 1's job: you cannot press Rent until it
-   * reads `ready`, so gating here would change nothing on a good load — but it
-   * WOULD newly disable payment on a shopper already at step 2 if the state
-   * later turned `unavailable`, which is live behaviour nobody asked to
-   * change. The one-step page has no step 1 to do the gating, so it does it
-   * here.
-   */
-  const transactionReady = !oneStep || transactionState === 'ready';
-  const [idvModal, setIdvModal] = useState(false);
   /**
    * Which autopay treatment this property uses.
    *
@@ -470,7 +414,12 @@ export function Step2({
   // fields inside are not).
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const phoneOk = isPossiblePhone(phone, 'US');
-  const extraProblems = extraFieldProblems({ military, altContact, vehicle }, extraFields);
+  /* Only when the fields are actually on this screen. On 2step they are not,
+     and a rule for an input nobody can see would disable Pay Now with no way
+     to find out why — the exact thing the old comment below warned about. */
+  const extraProblems = oneStep
+    ? extraFieldProblems({ military, altContact, vehicle }, extraFields)
+    : {};
   const required: Array<[key: string, ok: boolean]> = [
     ['email', emailOk],
     ['phone', phoneOk],
@@ -481,10 +430,11 @@ export function Step2({
       : [['first', first.trim().length > 0],
         ['last', last.trim().length > 0]] as Array<[string, boolean]>),
     ['agree', agree],
-    /* The optional sections' own fields, now that ticking one opens them here.
-       `extraFieldProblems` only returns rules for the sections actually
-       switched on, so an unticked section cannot block Pay Now — and a rule it
-       does return is for a field that is on screen and can be fixed. */
+    /* On 2step the optional sections are TICKS — their fields live on the
+       post-purchase screen, so there is nothing here to validate. On 1step
+       they are on screen, so the ones that are open and incomplete do gate
+       payment; `extraProblems` is empty in the other case, so this line adds
+       nothing to the two-step form. */
     ...Object.entries(extraProblems).map(([k, msg]) => [k, !msg] as [string, boolean]),
   ];
   /* Harness bypass — compiled out of production builds, see @shared/devBypass.
@@ -495,7 +445,7 @@ export function Step2({
   const bad = (key: string) => !skip && payAttempted
     && !(required.find(([k]) => k === key)?.[1] ?? true);
   /* The shared groups render FormField's own message, so they need the text
-     rather than Step2's boolean. Same gate as `bad` — nothing is flagged until
+     rather than this screen's boolean. Same gate — nothing is flagged until
      payment has been attempted, and the harness bypass silences both. */
   const extraBad = (key: string) =>
     (!skip && payAttempted && extraProblems[key] ? extraProblems[key] : undefined);
@@ -524,42 +474,17 @@ export function Step2({
       ? { ...splitBusinessName(bizName), email: email.trim(), phone, businessName: bizName.trim() }
       : { first: first.trim(), last: last.trim(), email: email.trim(), phone },
     autopay,
-    /* The sections the shopper opted into AND what they typed into them.
-       Only the ticked ones carry meaning — an unticked section's fields are
-       whatever was typed before it was closed again, so each group is spread
-       in only while its tick is on. */
-    extras: {
-      business,
-      military,
-      ...(military ? { dateOfBirth: dobToIso(extraFields.dob) } : {}),
-      altContact,
-      ...(altContact ? {
-        altFirst: extraFields.altFirst.trim() || undefined,
-        altLast: extraFields.altLast.trim() || undefined,
-        altPhone: extraFields.altPhone.trim() || undefined,
-        altEmail: extraFields.altEmail.trim() || undefined,
-        altAddress: extraFields.altAddress.trim() || undefined,
-      } : {}),
-      vehicle,
-      ...(vehicle ? {
-        vehicleType: extraFields.vType || undefined,
-        vehicleMake: extraFields.make.trim() || undefined,
-        vehicleModel: extraFields.model.trim() || undefined,
-        vehicleYear: extraFields.year.trim() || undefined,
-        vehicleColour: extraFields.colour.trim() || undefined,
-        vehiclePlate: extraFields.plate.trim() || undefined,
-        vehicleCountry: extraFields.country || undefined,
-        vehicleState: extraFields.stateVal || undefined,
-      } : {}),
-    },
+    // Which sections the shopper opted into. The VALUES are collected on the
+    // post-purchase screen, so this step sends the choices and nothing else.
+    extras: { business, military, altContact, vehicle },
   });
 
 
   return (
-    <div className={`rf-card rf2-card${oneStep ? ' rf2-card--one' : ''}`}>
+    <div className="rf-card rf2-card">
       <div className="rf-title">
-        <p className="rf-eyebrow">{oneStep ? eyebrow ?? 'Great choice!' : 'Great choice!'}</p>
-        <h2 className="rf-heading">{oneStep ? heading ?? 'Secure your space now' : 'Secure your space now'}</h2>
+        <p className="rf-eyebrow">Great choice!</p>
+        <h2 className="rf-heading">Secure your space now</h2>
       </div>
 
       <RfCheckbox checked={business} onChange={setBusiness} className="rf-business">
@@ -573,18 +498,6 @@ export function Step2({
           <FieldAbove label={business ? 'Business Email' : 'Email'} required value={email} onChange={setEmail} type="email" error={bad('email')} />
           <FieldAbove label={business ? 'Business Phone' : 'Phone Number'} required value={phone} onChange={setPhone} type="tel" phoneCountry="US" error={bad('phone')} />
         </div>
-        {/* Step 1 carried this paragraph, and in the one-step layout there is
-            no step 1 to carry it — so it moves here rather than being dropped.
-            Same conditions as step 1's: only once a number has been typed, and
-            only when there is a brand to name. */}
-        {oneStep && phone.trim().length > 0 && brandName && (
-          <p className="rf-consent">
-            By providing your mobile number, you agree to receive text messages from
-            {' '}{brandName}. Message frequency may vary. Standard rates apply. Reply HELP
-            for assistance or STOP to unsubscribe.{' '}
-            <a href={termsHref}>See Terms and Privacy Policy.</a>
-          </p>
-        )}
         {business ? (
           <FieldAbove label="Business Name" required value={bizName} onChange={setBizName} error={bad('bizName')} />
         ) : (
@@ -611,37 +524,6 @@ export function Step2({
           <CalendarIcon size={24} />
         </button>
       </div>
-
-      {/* ID VALIDATION (Figma 8624-80648) — one-step only.
-          It sits between the contact details and the plan, where the frame
-          puts it. On the two-step flow the same card lives on the
-          post-purchase screen instead, which is why it is a shared component.
-
-          Deliberately NOT a gate on payment: see `required` on IdVerifyCard.
-          The in-store choice swaps the card for its confirmation line rather
-          than leaving a pair of buttons looking unanswered. */}
-      {oneStep && (idv === 'choose' ? (
-        <IdVerifyCard
-          title="ID Validation required before accessing the property"
-          required
-          variant="form"
-          onVerifyNow={() => setIdvModal(true)}
-          onInStore={() => setIdv('instore')}
-        />
-      ) : (
-        <section className="rf-sx-idv rf-sx-idv--instore">
-          <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
-            <TickSingleIcon size={24} className="rf-sx-idv-tick" />
-            Verify In-Store
-          </h3>
-          <p className="rf-sx-idv-lede">
-            Bring your ID when you move in, or call the store to get access.{' '}
-            <button type="button" className="rf2-link rf2-link--btn" onClick={() => setIdv('choose')}>
-              Verify online instead
-            </button>
-          </p>
-        </section>
-      ))}
 
       <div className="rf2-sections">
         {/* Protection Plan */}
@@ -773,25 +655,27 @@ export function Step2({
         <section className="rf2-plain">
           <span className="rf2-h">Additional Information</span>
           <div className="rf2-checks">
-            {/* Each tick opens its own fields directly beneath it, rather than
-                the three ticks sitting together and the fields appearing
-                lower: a section's question and its answers belong next to each
-                other, and with all three open the page would otherwise ask
-                everything and then ask for it again in a different order.
+            {/* On 2step these are ticks only and the fields are answered on the
+                post-purchase screen — choosing here, filling there. On 1step
+                each tick opens its own fields directly beneath it, rather than
+                the three ticks sitting together and the fields appearing lower
+                down: a section's question and its answers belong next to each
+                other.
 
-                The groups come from ./additionalInfo so the post-purchase
-                screen cannot drift from this one — see the note there. */}
+                The groups come from ./additionalInfo, shared with the
+                post-purchase screen, which asks for exactly the same things
+                and must not drift from this. */}
             <div className="rf-sx-group">
               <Check checked={military} onChange={setMilitary}>I am active military</Check>
-              {military && <MilitaryFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+              {oneStep && military && <MilitaryFields v={extraFields} set={setExtra} bad={extraBad} validated />}
             </div>
             <div className="rf-sx-group">
               <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
-              {altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+              {oneStep && altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated />}
             </div>
             <div className="rf-sx-group">
               <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
-              {vehicle && <VehicleFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+              {oneStep && vehicle && <VehicleFields v={extraFields} set={setExtra} bad={extraBad} validated />}
             </div>
           </div>
         </section>
@@ -891,8 +775,8 @@ export function Step2({
               takes their place and the other method moves below it
               (Figma 10080-28749). */}
           <div className={`rf2-paygrid${methodOpen ? ' rf2-paygrid--wallets' : ''}`}>
-            <button type="button" className="rf2-pay rf2-pay--dark" disabled={!transactionReady} onClick={() => selectPayMethod('gpay')}><GooglePayMark /></button>
-            <button type="button" className="rf2-pay rf2-pay--dark" disabled={!transactionReady} onClick={() => selectPayMethod('apple')}><ApplePayMark /></button>
+            <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('gpay')}><GooglePayMark /></button>
+            <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('apple')}><ApplePayMark /></button>
             {!methodOpen && (
               <>
                 <Button
@@ -901,7 +785,6 @@ export function Step2({
                   block
                   icon={<CreditCardIcon size={24} />}
                   className="rf2-pay-btn"
-                  disabled={!transactionReady}
                   onClick={() => selectPayMethod('card')}
                 >
                   Credit / Debit
@@ -912,7 +795,6 @@ export function Step2({
                   block
                   icon={<BankIcon size={24} />}
                   className="rf2-pay-btn"
-                  disabled={!transactionReady}
                   onClick={() => selectPayMethod('bank')}
                 >
                   Pay by Bank
@@ -920,30 +802,6 @@ export function Step2({
               </>
             )}
           </div>
-          {/* Step 1's availability states, verbatim in behaviour and wording —
-              the one-step page is where a shopper now learns the space went,
-              and it must say so beside the button they were about to press.
-              Loading stays plain text; both failures are the boxed treatment. */}
-          {oneStep && transactionState === 'loading' && (
-            <p className="rf-availability" role="status">Checking current availability and move-in pricing…</p>
-          )}
-          {oneStep && transactionState === 'unavailable' && (
-            <div className="rf-availability rf-availability--error" role="alert">
-              <AlertIcon size={24} className="rf-availability-ico" />
-              <span>
-                This space is no longer available. {changeSpaceUrl && <a href={changeSpaceUrl}>Choose another space.</a>}
-              </span>
-            </div>
-          )}
-          {oneStep && transactionState === 'error' && (
-            <div className="rf-availability rf-availability--error" role="alert">
-              <AlertIcon size={24} className="rf-availability-ico" />
-              <span>
-                We couldn’t verify this space right now. {onRetry && <button type="button" onClick={onRetry}>Try again</button>}
-                {changeSpaceUrl && <> or <a href={changeSpaceUrl}>choose another space</a></>}.
-              </span>
-            </div>
-          )}
           {payAttempted && !formComplete && (
             <p className="rf2-gp-note rf2-gp-note--error">
               Complete the highlighted fields (and accept the rental agreement) to continue to payment.
@@ -1015,18 +873,6 @@ export function Step2({
         onClose={() => setPlanOpen(false)}
         brochureUrl={brochureUrl}
       />
-      {/* The verification lightbox, one-step only. `onResult` is accepted and
-          then ignored beyond closing: there is no service to report, and
-          recording a pass this screen cannot verify would be worse than
-          recording nothing. */}
-      {oneStep && (
-        <IdVerifyModal
-          open={idvModal}
-          onClose={() => setIdvModal(false)}
-          onResult={() => setIdvModal(false)}
-          phone={phone}
-        />
-      )}
       <LeaseModal
         open={leaseOpen}
         onClose={() => setLeaseOpen(false)}

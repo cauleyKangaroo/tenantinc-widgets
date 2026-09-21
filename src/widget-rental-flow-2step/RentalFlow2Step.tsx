@@ -37,8 +37,12 @@ import { skipValidation } from '@shared/devBypass';
 
 /**
  * Which layout the rental flow renders — the content menu's `formType` radio,
- * normalised. `2step` is the shipped two-screen flow; `1step` puts the whole
- * rental on one page (Figma 8602-76056).
+ * normalised.
+ *
+ * The two are the SAME flow: the same first screen, the same move-in date
+ * lightbox, the same form, the same post-purchase screen. They differ in one
+ * respect only — what the Additional Information checkboxes do when ticked.
+ * See the `oneStep` prop on Step2.
  */
 type FormMode = '1step' | '2step';
 
@@ -147,20 +151,20 @@ export interface RentalFlow2StepProps {
    */
   gateCodeType?: string;
   /**
-   * Content-menu radio `formType` — which layout the flow renders:
+   * Content-menu radio `formType` — which layout this instance renders:
    * `2step` (default) | `1step`.
    *
-   * ONE WIDGET, TWO LAYOUTS, like #14's `variant`. Both collect the same
-   * details and run the same transaction; they differ only in how much of it
-   * the shopper sees at once. Everything around the form — the order rail, the
-   * hold timer, the move-in and processing lightboxes, the confirmation — is
-   * shared, so the switch happens at the form itself rather than forking the
-   * widget.
+   * NOT two different flows. Both take the shopper through the same screens in
+   * the same order; the difference is where the Additional Information
+   * sections are FILLED IN. On `2step` the checkboxes are ticks only and their
+   * fields are answered on the post-purchase screen. On `1step` ticking one
+   * opens its fields there and then — and they still appear, ticked, on the
+   * post-purchase screen afterwards.
    *
    * ANYTHING UNRECOGNISED IS `2step`, including '' and an unsubstituted
-   * {{token}}. That is the flow this widget has always rendered, so a field
-   * nobody set, a misspelt option, or a value added in Duda before it exists
-   * here all leave live pages exactly as they are.
+   * {{token}}. That is what this widget has always done, so a field nobody
+   * set, a misspelt option, or a value added in Duda before it exists here all
+   * leave live pages exactly as they are.
    */
   formType?: string;
   /** Tier's group id from the value-tiers handoff (?unitGroupId=) — the proxy
@@ -889,9 +893,9 @@ export function RentalFlow2Step({
    *
    * `boundText` first, like autopay, countryDefault and gateCodeType: an
    * unsubstituted {{token}} or Duda's empty-string default has to read as
-   * "unset" and fall through to the shipped flow, never as a layout nobody
-   * chose. The spellings are generous because the radio's stored values are
-   * the editor's to type — the DEFAULT is what matters, and it is `2step`.
+   * "unset" and fall through to the shipped behaviour, never as a layout
+   * nobody chose. The spellings are generous because the radio's stored values
+   * are the editor's to type — the DEFAULT is what matters, and it is `2step`.
    */
   const formMode: FormMode = (() => {
     switch (boundText(formType).trim().toLowerCase()) {
@@ -958,18 +962,7 @@ export function RentalFlow2Step({
   const gatewayPending = gateway === undefined;
   /** Hosted fields belong to tenant_payments alone. */
   const gpKey = gateway === TENANT_PAYMENTS ? configuredGpKey : '';
-  /*
-   * The one-step layout starts ON step 2, and never leaves it.
-   *
-   * That is not a trick, it is what the layout IS: step 2 already held the
-   * contact details, the plan, the additional information, the agreement and
-   * the payment, so the one-page form is step 2 with step 1's remaining pieces
-   * folded into it. Starting there means everything else in this component
-   * that keys off `step === 2` — the hold-expired banner, the rest marker, the
-   * date modal's "already past step 1" branch — is correct for free, instead
-   * of each one needing a second condition for the new layout.
-   */
-  const [step, setStep] = useState<1 | 2>(formMode === '1step' ? 2 : 1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [phase, setPhase] = useState<'in' | 'out'>('in');
   const [dateModalOpen, setDateModalOpen] = useState(false);
   const [intent, setIntent] = useState<'rent' | 'reserve'>('rent');
@@ -2339,7 +2332,7 @@ export function RentalFlow2Step({
             </div>
           )}
           <div className={`rf-step rf-step--${phase}`}>
-        {formMode === '2step' && step === 1 ? (
+        {step === 1 ? (
           <Step1Form
             eyebrow={eyebrow}
             heading={heading}
@@ -2354,17 +2347,10 @@ export function RentalFlow2Step({
           />
         ) : (
           <Step2
-            /* ONE-STEP: the same component, told to draw step 1's remaining
-               pieces too — the SMS consent, the ID card and the availability
-               states. Everything below is shared by both layouts. */
+            /* The one difference between the layouts: on 1step the Additional
+               Information ticks open their fields here, instead of only on the
+               post-purchase screen. Everything else is shared. */
             oneStep={formMode === '1step'}
-            eyebrow={eyebrow}
-            heading={heading}
-            termsHref={termsHref}
-            brandName={brandName || undefined}
-            transactionState={transactionState}
-            onRetry={() => setLoadAttempt((n) => n + 1)}
-            changeSpaceUrl={changeSpaceUrl ?? backToSpacesUrl}
             autopayMode={autopayMode}
             moveIn={moveIn}
             // Everything step 1 already asked for, so step 2 opens filled in.
@@ -2575,23 +2561,15 @@ export function RentalFlow2Step({
         // Today keeps the shorter "Rent Today" — a date there would just restate
         // the default. Reserve stays label-only per its frame.
         ctaLabel={
-          /* ONE-STEP: this modal only picks a date. Confirming it rents
-             nothing — payment is further down the same page — so the two-step
-             labels ("Rent Today", "Rent Sep 28, 2026") would promise an action
-             the button does not perform. */
-          formMode === '1step'
-            ? (moveIn.getTime() > startOfToday().getTime()
-              ? `Move in ${fmtDisplayDate(moveIn)}`
-              : 'Move in Today')
-            : intent === 'reserve'
-              ? 'Reserve'
-              : moveIn.getTime() > startOfToday().getTime()
-                ? `Rent ${fmtDisplayDate(moveIn)}`
-                : undefined
+          intent === 'reserve'
+            ? 'Reserve'
+            : moveIn.getTime() > startOfToday().getTime()
+              ? `Rent ${fmtDisplayDate(moveIn)}`
+              : undefined
         }
         // Outline for reserve: the softer commitment gets the softer control.
         ctaFill={intent === 'reserve' ? 'outline' : 'solid'}
-        footer={formMode === '2step' && intent === 'reserve' ? (
+        footer={intent === 'reserve' ? (
           <>
             Save Time and Money!{' '}
             {/* Switches the OPEN modal to the rent flow — title, button fill and

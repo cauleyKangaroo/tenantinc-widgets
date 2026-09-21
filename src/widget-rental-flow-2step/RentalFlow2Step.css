@@ -792,10 +792,11 @@
    pitch — a bigger gap would have matched the whitespace but pushed the section
    taller than the design. */
 .rf2-checks { display: flex; flex-direction: column; gap: 4px; }
-/* A tick that opens fields needs room between it and the NEXT question — 4px
-   was spacing three bare checkboxes, and against an open group it reads as the
-   fields belonging to the tick below them as much as the one above. Applied to
-   the group, so closed sections keep the original tight rhythm. */
+/* 1step only, where a tick opens its fields in place. 4px was spacing three
+   bare checkboxes; against an open group it reads as the fields belonging to
+   the tick below them as much as the one above. Keyed on the fields actually
+   being there, so a closed section — and the whole 2step form, which never
+   opens one — keeps the original tight rhythm. */
 .rf2-checks > .rf-sx-group:has(.rf-sx-fields) { margin-block: 12px 20px; }
 
 /* The step-2 checkbox skin that used to live here — 18px near-square box,
@@ -2481,59 +2482,3 @@
 /* An email or a lease id has no spaces to break at, so a long one would push
    the column wide instead of wrapping. */
 .rfc-info-break { overflow-wrap: anywhere; }
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   ONE-STEP LAYOUT (content menu `formType: 1step`) — Figma 8602-76056.
-
-   Almost nothing, and that is the point: the one-step page IS step 2 with step
-   1's remaining pieces folded in, so it inherits .rf2-card, .rf2-form,
-   .rf2-row, .rf2-sections, the panels and the payment grid unchanged —
-   including the ≤640px block above that already stacks .rf2-row into the
-   single column the frame draws.
-
-   The frame is MOBILE-ONLY. Desktop therefore keeps step 2's existing
-   treatment (paired fields, order rail alongside) rather than an invented one:
-   that layout is already designed, already built and already the second half
-   of this very flow, so a shopper on a wide screen sees the form they would
-   have seen anyway — just all at once.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* The ID card sits between .rf2-form (margin-bottom: 30px) and .rf2-sections
-   (gap: 30px), so it carries the same 30px below it to keep one rhythm down
-   the page. */
-.rf2-card--one .rf-sx-idv { margin-bottom: 30px; }
-
-/* The frame's arrangement: the two buttons side by side ABOVE the
-   illustration. column-reverse rather than reordering the markup, so the
-   heading still reads into the actions for a screen reader and the shared
-   component keeps one DOM order for both surfaces. */
-.rf-sx-idv--form .rf-sx-idv-body {
-  flex-direction: column-reverse;
-  align-items: stretch;
-  gap: 16px;
-}
-.rf-sx-idv--form .rf-sx-idv-actions {
-  flex: 0 0 auto;
-  flex-direction: row;
-  gap: 16px;
-}
-/* flex-basis 0 so the pair splits the width evenly however long the words
-   are — "Verify In-Store" is the wider label and would otherwise take more. */
-.rf-sx-idv--form .rf-sx-idv-actions > .rf-sx-btn { flex: 1 1 0; min-width: 0; }
-/* 18px per the frame, against the success screen's 20px. Same !important
-   armour as .rf-sx-idv-title, and for the same reason — a published Duda theme
-   styles h3 from an id-scoped rule, which a bare class cannot beat. */
-.rf-sx-idv--form .rf-sx-idv-title { font-size: 18px !important; }
-/* The in-store answer, once chosen: same box, no buttons, so it needs the
-   lede's spacing rather than the body's. */
-.rf2-card--one .rf-sx-idv--instore .rf-sx-idv-lede { margin: 0; }
-
-/* Step 1's availability line/box, now living inside the payment panel. It
-   follows the pay grid, so it needs the gap the grid does not provide. */
-.rf2-card--one .rf-availability { margin-top: 16px; }
-
-/* Very narrow phones: two 16px-gapped buttons in a row stop being readable
-   well before the layout itself breaks, so they stack. */
-@container (max-width: 400px) {
-  .rf-sx-idv--form .rf-sx-idv-actions { flex-direction: column; }
-}

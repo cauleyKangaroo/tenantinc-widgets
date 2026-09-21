@@ -23,14 +23,13 @@ import { CUSTOMER_ADDRESS_COUNTRIES } from '@shared/placesApi';
 import {
   TickSingleIcon, AlertTriangleIcon, ClockGlyph, PhoneGlyph,
 } from './planIcons';
+import { IdIllustration } from './IdIllustration';
 import { IdVerifyModal } from './IdVerifyModal';
 import {
   MilitaryFields, AltContactFields, VehicleFields,
   extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues,
 } from './additionalInfo';
-import { IdVerifyCard } from './IdVerifyCard';
 import { skipValidation } from '@shared/devBypass';
-
 
 /** What this screen can actually file against the contact after the lease. */
 /**
@@ -161,9 +160,10 @@ export function SuccessStep({ onGetAccess, chosen }: {
   const [bizAddress, setBizAddress] = useState('');
   const [repFirst, setRepFirst] = useState('');
   const [repLast, setRepLast] = useState('');
-  /* Military, alternate contact and vehicle — one object in the shared shape,
-     because the same three groups are now also collected in the rental form
-     and the two must not drift. See ./additionalInfo. */
+  /* Military, alternate contact and vehicle — one object in the shared shape.
+     The same three groups now also render on the rental form when it is set to
+     1step, so the fields and their rules live in ./additionalInfo and both
+     screens import them rather than keeping two copies that drift. */
   const [extraFields, setExtraFields] = useState<ExtraFieldValues>(EMPTY_EXTRA_FIELDS);
   const setExtra = (patch: Partial<ExtraFieldValues>) => setExtraFields((v) => ({ ...v, ...patch }));
 
@@ -298,11 +298,25 @@ export function SuccessStep({ onGetAccess, chosen }: {
           the contact record actually stores — driver_license / _exp / _state —
           is still collected by the Driver's Licence group below. */}
       {IDV_ENABLED && idv === 'choose' && (
-        <IdVerifyCard
-          title="ID Verification"
-          onVerifyNow={() => setIdvModal(true)}
-          onInStore={() => setIdv('instore')}
-        />
+        <section className="rf-sx-idv">
+          <h3 className="rf-sx-idv-title">ID Verification</h3>
+          <div className="rf-sx-idv-body">
+            <IdIllustration />
+            <div className="rf-sx-idv-actions">
+              <button type="button" className="rf-sx-btn rf-sx-btn--solid" onClick={() => setIdvModal(true)}>
+                Verify ID Now
+              </button>
+              <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => setIdv('instore')}>
+                Verify In-Store
+              </button>
+            </div>
+          </div>
+          <p className="rf-sx-idv-note">
+            Get ready to take a photo of your ID and a Selfie.{' '}
+            <a href="#pop-ups" onClick={(e) => e.preventDefault()}>Click here to see how to enable pop-ups</a>{' '}
+            if the link you received did not open the the ID Verification tool.
+          </p>
+        </section>
       )}
 
       {/* Figma 10080-26478. Two columns: what to bring and where to bring it on
