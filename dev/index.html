@@ -809,6 +809,15 @@
         <div class="controls-group">
           <span class="controls-group-label">Content menu</span>
           <label>
+            Form Type:
+            <select id="rf-form-type"
+              style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+              onchange="reinitRentalFlow()">
+              <option value="2step">2-Step</option>
+              <option value="1step">1-Step</option>
+            </select>
+          </label>
+          <label>
             Country Default:
             <select id="rf-country-default"
               style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
@@ -1917,6 +1926,9 @@
           inEditor: true,
           // Stands in for the Duda content menu's Country Default dropdown,
           // which the JS tab forwards as data.config.countryDefault.
+          // The content menu's Form Type radio (data.config.formType) — which
+          // layout renders. '2step' is the Duda default and the shipped flow.
+          formType: document.getElementById('rf-form-type').value,
           countryDefault: document.getElementById('rf-country-default').value,
           // Same idea for the confirmation's access card: the JS tab forwards
           // this as data.config.gateCodeType. Reach the confirmation by
