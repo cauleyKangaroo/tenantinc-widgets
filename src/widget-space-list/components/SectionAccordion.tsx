@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { usePropertyId } from '../propertyContext';
 import { useCompanyId } from '../companyContext';
-import { useApiCreds } from '../credsContext';
 import { fetchProperties, extractNearbyProperties } from '@shared/nearbyProperties';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import cfg from '../config.json';
@@ -253,7 +252,6 @@ export function SectionAccordion({
    */
   const currentPropertyId = usePropertyId();
   const boundCompanyId = useCompanyId();
-  const apiCreds = useApiCreds();
   const [nearbyCount, setNearbyCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -264,10 +262,8 @@ export function SectionAccordion({
         // shared resolver only when the provider is still empty.
         const company = boundCompanyId
           || await resolveCompanyIdFromSources('#05 nearby badge', {}, cfg.companyId);
-        // The instance endpoint, so the badge counts against the same host as
-        // the section beneath it.
-        const creds = { ...apiCreds, companyId: company };
-        const all = extractNearbyProperties(await fetchProperties(creds, {}), apiCreds.appId);
+        const creds = { ...cfg, companyId: company };
+        const all = extractNearbyProperties(await fetchProperties(creds, {}), cfg.appId);
         const others = all.filter((p) => p.id !== currentPropertyId).length;
         if (!cancelled) setNearbyCount(Math.min(others, NEARBY_BADGE_MAX));
       } catch (err) {
