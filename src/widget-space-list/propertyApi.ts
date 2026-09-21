@@ -11,10 +11,11 @@ import {
 import { createLead as submitLead, type LeadInput } from '@shared/leadsApi';
 import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { FALLBACK_CREDS, type ApiCreds } from './apiCreds';
 
-const BASE_URL = cfg.baseUrl;
-const APP_ID = cfg.appId;
-const API_KEY = cfg.apiKey;
+/* Endpoint is a PARAMETER now, not a module constant — see ./apiCreds. */
+
+
 const COMPANY_ID = cfg.companyId;
 const PROPERTY_ID = cfg.propertyId;
 
@@ -29,12 +30,11 @@ export type { LeadInput };
 export async function createLead(
   input: LeadInput,
   ids: { propertyId?: string; companyId?: string } = {},
+  creds: ApiCreds = FALLBACK_CREDS,
 ): Promise<unknown> {
   return submitLead(
     {
-      baseUrl: BASE_URL,
-      appId: APP_ID,
-      apiKey: API_KEY,
+      ...creds,
       // Caller's resolved id if it has one, else the `Company` collection —
       // config.json only as the editor/harness fallback. Filing a lead against the
       // wrong company would lose the enquiry entirely.
@@ -176,26 +176,27 @@ export function formatPhone(rawNumber: string): string {
 export async function fetchProperties(
   requirePropertyId?: string,
   companyId?: string,
+  creds: ApiCreds = FALLBACK_CREDS,
 ): Promise<unknown> {
   // No PROPERTY_ID default — undefined must mean "no trust check", not "use the
   // build-time id", which belongs to a different company on this site.
   return fetchPropertiesPreferCollection(
-    APP_ID,
-    () => fetchPropertiesFromApi(companyId),
+    creds.appId,
+    () => fetchPropertiesFromApi(companyId, creds),
     { requirePropertyId },
   );
 }
 
-async function fetchPropertiesFromApi(companyId?: string): Promise<unknown> {
+async function fetchPropertiesFromApi(companyId?: string, creds: ApiCreds = FALLBACK_CREDS): Promise<unknown> {
   // Omitted → the `Company` collection; config.json is only the last resort.
   const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
   const params = 'access_hours=true&amenities=true&unit_type_counts=true&faq=true&social_media=true';
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${company}/properties?${params}`;
+  const url = `${creds.baseUrl}/applications/${creds.appId}/v2/companies/${company}/properties?${params}`;
 
   const res = await fetch(url, {
     headers: {
       'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
-      'x-storageapi-key': API_KEY,
+      'x-storageapi-key': creds.apiKey,
     },
   });
 
@@ -207,9 +208,13 @@ async function fetchPropertiesFromApi(companyId?: string): Promise<unknown> {
 }
 
 /** Find our property and pull out the phone / social / FAQ bits for the sidebar. */
-export function extractPropertyExtras(raw: unknown, propertyId: string = PROPERTY_ID): PropertyExtras | null {
+export function extractPropertyExtras(
+  raw: unknown,
+  propertyId: string = PROPERTY_ID,
+  creds: ApiCreds = FALLBACK_CREDS,
+): PropertyExtras | null {
   const response = raw as ApiResponse;
-  const list = response?.applicationData?.[APP_ID]?.[0]?.data?.properties ?? [];
+  const list = response?.applicationData?.[creds.appId]?.[0]?.data?.properties ?? [];
   const prop = list.find((p) => p.id === propertyId);
   if (!prop) return null;
 

@@ -3,10 +3,15 @@ import cfg from './config.json';
 import { spaceImageFor, mediaManagerImagesFor } from './spaceImages';
 import { fetchWebsiteSpaceGroupId as findWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { FALLBACK_CREDS, type ApiCreds } from './apiCreds';
 
-const BASE_URL = cfg.baseUrl;
-const APP_ID = cfg.appId;
-const API_KEY = cfg.apiKey;
+/*
+ * baseUrl / appId / apiKey are NO LONGER module constants. They were read from
+ * config.json at import — before any prop exists — which froze the endpoint
+ * into the published bundle, so a new site or API host meant a rebuild. They
+ * are parameters now, defaulting to the build-time values for callers that
+ * have none to offer. See ./apiCreds.
+ */
 const COMPANY_ID = cfg.companyId;
 const PROPERTY_ID = cfg.propertyId;
 const SPACE_GROUP_ID = cfg.spaceGroupId;
@@ -188,9 +193,15 @@ function tierPromo(tier: ApiTier): ApiPromoEntry | null {
  *   data.siteId; `baseUrl` overrides the derived CDN root. Omitted, cards
  *   keep their bundled renders exactly as before.
  */
-export function mapApiToUnits(raw: unknown, media?: { siteId?: string; baseUrl?: string }): Unit[] {
+export function mapApiToUnits(
+  raw: unknown,
+  media?: { siteId?: string; baseUrl?: string },
+  /* The envelope is keyed by APP ID, so parsing needs the same one the request
+     used. A mismatch reads as "no units" rather than an error. */
+  creds: ApiCreds = FALLBACK_CREDS,
+): Unit[] {
   const response = raw as ApiResponse;
-  const appEntries = response?.applicationData?.[APP_ID];
+  const appEntries = response?.applicationData?.[creds.appId];
   if (!appEntries?.length) return [];
 
   const spaceGroupProfile = appEntries[0]?.data?.spaceGroupProfile;
@@ -374,16 +385,17 @@ export async function fetchSpaceGroups(
   propertyId: string = PROPERTY_ID,
   spaceGroupId: string = SPACE_GROUP_ID,
   companyId?: string,
+  creds: ApiCreds = FALLBACK_CREDS,
 ): Promise<unknown> {
   // Omitted → the `Company` collection, never config.json directly. SpaceList
   // passes its already-resolved id; anything else gets it from the same source.
   const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${company}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
+  const url = `${creds.baseUrl}/applications/${creds.appId}/v2/companies/${company}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
 
   const res = await fetch(url, {
     headers: {
       'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
-      'x-storageapi-key': API_KEY,
+      'x-storageapi-key': creds.apiKey,
     },
   });
 
@@ -406,12 +418,10 @@ export async function fetchSpaceGroups(
 export async function fetchWebsiteSpaceGroupId(
   propertyId: string,
   companyId?: string,
+  creds: ApiCreds = FALLBACK_CREDS,
 ): Promise<string | null> {
   // Callers that already resolved the company pass it; anyone else gets it from
   // the `Company` collection rather than config.json.
   const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
-  return findWebsiteSpaceGroupId(
-    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: company },
-    propertyId,
-  );
+  return findWebsiteSpaceGroupId({ ...creds, companyId: company }, propertyId);
 }
