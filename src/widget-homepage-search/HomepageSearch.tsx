@@ -7,8 +7,8 @@ import { fetchPlaceDetails, fetchPlaceSuggestions, newSessionToken } from '@shar
 
 export interface HomepageSearchProps {
   /** Operator-selectable presentation. `search-bar` is the original horizontal
-   *  control; `promo-card` is the white Figma promotional card. */
-  layout?: 'search-bar' | 'promo-card';
+   *  control; `search-card` is the white Figma promotional card. */
+  layout?: 'search-bar' | 'search-card';
   /** Placeholder for the location input (Figma: "City, ZIP or Address"). */
   searchPlaceholder?: string;
   /** Find button label (desktop Figma: "Find Storage"). */
@@ -33,10 +33,22 @@ export interface HomepageSearchProps {
   cardHeading?: string;
   /** Layout-2 accent promotion copy; wraps naturally to the available width. */
   promotionText?: string;
+  /** Optional Layout-2 promotion color; defaults to the search accent/theme color. */
+  promotionColor?: string;
+  /** Optional Layout-2 promotion size in pixels; defaults to the Figma size. */
+  promotionFontSize?: number | string;
   /** Layout-2 final promotion line, rendered in black. */
   promotionSuffix?: string;
+  /** Optional Layout-2 suffix color; defaults to Figma black. */
+  promotionSuffixColor?: string;
+  /** Optional Layout-2 suffix size in pixels; defaults to the Figma size. */
+  promotionSuffixFontSize?: number | string;
   /** Layout-2 legal/disclosure copy below the promotion. */
   promotionDisclaimer?: string;
+  /** Optional Layout-2 disclaimer color; defaults to the Figma text color. */
+  promotionDisclaimerColor?: string;
+  /** Optional Layout-2 disclaimer size in pixels; defaults to the Figma size. */
+  promotionDisclaimerFontSize?: number | string;
   /** Recent resolved city searches kept on this device (0 disables, max 5). */
   historyLimit?: number;
   inEditor?: boolean;
@@ -88,6 +100,29 @@ function distanceSquared(latA: number, lngA: number, latB: number, lngB: number)
   return lat * lat + lng * lng;
 }
 
+/**
+ * Duda's content panel has no Number field, so a size arrives as TEXT — "64",
+ * "64px", "" or null — and `Number.isFinite("64")` is false because it does not
+ * coerce. parseFloat first, then accept only a positive finite result, so a
+ * blank or mistyped field falls back to the Figma size instead of emitting
+ * `NaNpx` (which the browser drops, silently losing the whole declaration).
+ */
+function px(value: unknown): string {
+  const n = typeof value === 'number' ? value : parseFloat(String(value ?? '').trim());
+  return Number.isFinite(n) && n > 0 ? `${n}px` : '';
+}
+
+/** Unfilled Duda fields arrive as null, and a space-only value is not a colour. */
+function text(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+/** Only declare the custom property when there is a value; otherwise the CSS
+ *  fallback in `var(--x, fallback)` is what should win. */
+function cssVar(name: string, value: string): Record<string, string> {
+  return value ? { [name]: value } : {};
+}
+
 export function HomepageSearch({
   layout = 'search-bar',
   searchPlaceholder = 'City, ZIP or Address',
@@ -100,8 +135,14 @@ export function HomepageSearch({
   accentColor,
   cardHeading = 'Find Storage Near Me',
   promotionText = '$1 Summer Move-In',
+  promotionColor,
+  promotionFontSize,
   promotionSuffix = 'Special',
+  promotionSuffixColor,
+  promotionSuffixFontSize,
   promotionDisclaimer = '*All new rentals are subject to a $30 Admin Fee. Other fees like coverage may apply, select a space to see price details.',
+  promotionDisclaimerColor,
+  promotionDisclaimerFontSize,
   historyLimit = 5,
   inEditor,
   siteId,
@@ -396,8 +437,16 @@ export function HomepageSearch({
     return editorSafeHref(url.pathname + url.search, inEditor, siteId);
   })();
 
-  const style = accentColor ? ({ ['--hs-accent']: accentColor } as React.CSSProperties) : undefined;
-  const promoCard = layout === 'promo-card';
+  const style = {
+    ...cssVar('--hs-accent', text(accentColor)),
+    ...cssVar('--hs-promotion-color', text(promotionColor)),
+    ...cssVar('--hs-promotion-font-size', px(promotionFontSize)),
+    ...cssVar('--hs-promotion-suffix-color', text(promotionSuffixColor)),
+    ...cssVar('--hs-promotion-suffix-font-size', px(promotionSuffixFontSize)),
+    ...cssVar('--hs-promotion-disclaimer-color', text(promotionDisclaimerColor)),
+    ...cssVar('--hs-promotion-disclaimer-font-size', px(promotionDisclaimerFontSize)),
+  } as React.CSSProperties;
+  const searchCard = layout === 'search-card';
 
   return (
     <div
@@ -410,8 +459,8 @@ export function HomepageSearch({
         }
       }}
     >
-      <div ref={panelContainerRef} className={promoCard ? 'hs-card' : 'hs-search-layout'}>
-        {promoCard && <h2 className="hs-card-heading">{cardHeading}</h2>}
+      <div ref={panelContainerRef} className={searchCard ? 'hs-card' : 'hs-search-layout'}>
+        {searchCard && <h2 className="hs-card-heading">{cardHeading}</h2>}
         <form ref={barRef} className="hs-bar" onSubmit={(e) => { e.preventDefault(); findRef.current?.click(); }}>
         <div className="hs-field">
           <input
@@ -515,7 +564,7 @@ export function HomepageSearch({
           }}
         >
           <span className="hs-find-label">{ctaLabel}</span>
-          <SearchIcon className="hs-search-icon" size={22} />
+          <SearchIcon className="hs-search-icon" size={searchCard ? 24 : 22} />
         </a>
         </form>
 
@@ -559,7 +608,7 @@ export function HomepageSearch({
           </ul>
         )}
 
-        {promoCard && (
+        {searchCard && (
           <div className="hs-promotion">
             <p className="hs-promotion-title"><span>{promotionText}</span><strong>{promotionSuffix}</strong></p>
             {promotionDisclaimer && <p className="hs-promotion-disclaimer">{promotionDisclaimer}</p>}

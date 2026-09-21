@@ -188,24 +188,25 @@
 /* ── Layout 2: promotional search card (latest Figma Locations Modal) ───── */
 .hs-card {
   position: relative;
-  width: min(560px, 100%);
+  width: min(559px, 100%);
+  min-height: 504px;
   margin: 0 0 0 auto;
-  padding: 52px 52px 58px;
+  padding: 52px 65px 58px 52px;
   border-radius: 30px;
   background: #fff;
   color: #101318;
 }
 .hs-card-heading {
-  margin: 0 0 16px;
+  margin: 0 0 14px 9px;
   color: #101318;
   font-family: inherit;
-  font-size: 32px;
-  font-weight: 700;
+  font-size: 30px;
+  font-weight: 600;
   line-height: 1.2;
   text-transform: none;
   letter-spacing: normal;
 }
-.hs--promo-card .hs-bar {
+.hs--search-card .hs-bar {
   position: relative;
   display: block;
   width: 100%;
@@ -216,9 +217,11 @@
   border-radius: 999px;
   box-shadow: 0 3px 6px rgba(16, 19, 24, .16);
 }
-.hs--promo-card .hs-field { min-height: 64px; padding: 0 76px 0 26px; }
-.hs--promo-card .hs-type { display: none; }
-.hs--promo-card .hs-find {
+.hs--search-card .hs-field { min-height: 64px; padding: 0 76px 0 26px; }
+.hs--search-card .hs-input { font-size: 20px; }
+.hs--search-card .hs-input::placeholder { color: #637381; }
+.hs--search-card .hs-type { display: none; }
+.hs--search-card .hs-find {
   position: absolute;
   top: 6px;
   right: 6px;
@@ -226,32 +229,40 @@
   height: 52px;
   border-radius: 50%;
 }
-.hs--promo-card .hs-find-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.hs--promo-card .hs-find .hs-search-icon { display: block; }
-.hs--promo-card .hs-suggestions {
+.hs--search-card .hs-find-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.hs--search-card .hs-find .hs-search-icon { display: block; }
+.hs--search-card .hs-suggestions {
   top: 182px;
   left: 56px;
   width: calc(100% - 104px);
   border-radius: 12px;
 }
-.hs-promotion { margin-top: 24px; }
+.hs-promotion { margin: 24px 0 0 13px; }
 .hs-promotion-title {
   margin: 0;
   font-family: inherit;
   font-size: 64px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   letter-spacing: -1px;
 }
 .hs-promotion-title span, .hs-promotion-title strong { display: block; }
-.hs-promotion-title span { color: var(--hs-accent); }
-.hs-promotion-title strong { color: #000; font-weight: 800; }
+.hs-promotion-title span {
+  color: var(--hs-promotion-color, var(--hs-accent));
+  font-size: var(--hs-promotion-font-size, inherit);
+}
+.hs-promotion-title strong {
+  color: var(--hs-promotion-suffix-color, #000);
+  font-size: var(--hs-promotion-suffix-font-size, inherit);
+  font-weight: 700;
+}
 .hs-promotion-disclaimer {
   margin: 26px 0 0;
-  color: #101318;
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--hs-promotion-disclaimer-color, #101318);
+  font-size: var(--hs-promotion-disclaimer-font-size, 12px);
+  font-weight: 600;
   line-height: 1.25;
+  white-space: pre-line;
 }
 /* ── Mobile: stack the pill into full-width rows ─────────────────────────── */
 @media (max-width: 768px) {
@@ -281,9 +292,10 @@
   .hs-find-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .hs-find .hs-search-icon { display: block; }
   .hs-suggestions { top: 75px; left: 8px; width: min(360px, calc(100% - 16px)); border-radius: 12px; }
-  .hs-card { margin: 0 auto; padding: 28px 22px 32px; border-radius: 22px; }
-  .hs-card-heading { padding-right: 0; font-size: 26px; }
-  .hs--promo-card .hs-suggestions { top: 151px; left: 26px; width: calc(100% - 44px); }
+  .hs-card { min-height: 0; margin: 0 auto; padding: 28px 22px 32px; border-radius: 22px; }
+  .hs-card-heading { margin-left: 0; padding-right: 0; font-size: 26px; }
+  .hs--search-card .hs-suggestions { top: 151px; left: 26px; width: calc(100% - 44px); }
+  .hs-promotion { margin-left: 0; }
   .hs-promotion-title { font-size: clamp(40px, 12vw, 54px); }
   .hs-promotion-disclaimer { font-size: 11px; }
 }
