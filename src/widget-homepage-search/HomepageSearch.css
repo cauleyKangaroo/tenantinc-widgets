@@ -297,5 +297,9 @@
   .hs--search-card .hs-suggestions { top: 151px; left: 26px; width: calc(100% - 44px); }
   .hs-promotion { margin-left: 0; }
   .hs-promotion-title { font-size: clamp(40px, 12vw, 54px); }
-  .hs-promotion-disclaimer { font-size: 11px; }
+  /* var(), not a literal: this rule and the desktop one sit on the SAME
+     element, so a bare 11px here silently discarded an operator's size below
+     768px. The title/suffix variables are on the child span/strong, which this
+     media block never targets, so only the disclaimer needed this. */
+  .hs-promotion-disclaimer { font-size: var(--hs-promotion-disclaimer-font-size, 11px); }
 }

@@ -7,8 +7,10 @@ import { fetchPlaceDetails, fetchPlaceSuggestions, newSessionToken } from '@shar
 
 export interface HomepageSearchProps {
   /** Operator-selectable presentation. `search-bar` is the original horizontal
-   *  control; `search-card` is the white Figma promotional card. */
-  layout?: 'search-bar' | 'search-card';
+   *  control; `search-card` is the white Figma promotional card. `promo-card`
+   *  is the card's former name, still accepted so a placement configured before
+   *  the rename keeps rendering the card. */
+  layout?: 'search-bar' | 'search-card' | 'promo-card';
   /** Placeholder for the location input (Figma: "City, ZIP or Address"). */
   searchPlaceholder?: string;
   /** Find button label (desktop Figma: "Find Storage"). */
@@ -446,11 +448,22 @@ export function HomepageSearch({
     ...cssVar('--hs-promotion-disclaimer-color', text(promotionDisclaimerColor)),
     ...cssVar('--hs-promotion-disclaimer-font-size', px(promotionDisclaimerFontSize)),
   } as React.CSSProperties;
-  const searchCard = layout === 'search-card';
+  // `promo-card` was this layout's name before it was renamed, and a Duda
+  // placement may still have it saved. Normalize rather than test both: the
+  // root class is built from this value, so an un-normalized 'promo-card' would
+  // emit `hs--promo-card`, which no longer has any CSS — a silently unstyled
+  // search bar instead of the card the operator configured.
+  // Only two layouts are real, and the value becomes a class name, so anything
+  // else is normalized to the default rather than emitted. An unfilled Duda
+  // field arrives as null, which would otherwise render `hs--null`.
+  const resolvedLayout = layout === 'search-card' || layout === 'promo-card'
+    ? 'search-card'
+    : 'search-bar';
+  const searchCard = resolvedLayout === 'search-card';
 
   return (
     <div
-      className={`hs hs--${layout}`}
+      className={`hs hs--${resolvedLayout}`}
       style={style}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
