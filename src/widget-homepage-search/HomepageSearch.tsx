@@ -110,7 +110,14 @@ function distanceSquared(latA: number, lngA: number, latB: number, lngB: number)
  * `NaNpx` (which the browser drops, silently losing the whole declaration).
  */
 function px(value: unknown): string {
-  const n = typeof value === 'number' ? value : parseFloat(String(value ?? '').trim());
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? `${value}px` : '';
+  // Match the WHOLE value, not a numeric prefix. `parseFloat` alone reads
+  // "64garbage" as 64 and "6 4" as 6, applying a size the operator never typed
+  // while this helper claims to reject mistyped input. Digits with an optional
+  // decimal and an optional `px` is the entire accepted form.
+  const text = String(value ?? '').trim();
+  if (!/^\d*\.?\d+\s*(px)?$/i.test(text)) return '';
+  const n = parseFloat(text);
   return Number.isFinite(n) && n > 0 ? `${n}px` : '';
 }
 
