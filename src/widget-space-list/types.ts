@@ -272,23 +272,6 @@ export interface SpaceListProps {
    */
   companyId?: string;
   /**
-   * The Hummingbird endpoint, forwarded by the Duda JS tab from the site's
-   * content library:
-   *
-   *   api_domain: custom.api_domain,   app_id: custom.app_id,
-   *   api_key:    custom.api_key,
-   *
-   * Snake_case because that is what the content library calls them — renaming
-   * here would let the JS tab and this file disagree silently.
-   *
-   * Each falls back to config.json ON ITS OWN, not all-or-nothing: the Duda
-   * editor and the dev harness pass none, and a part-configured site passes
-   * some. See ./apiCreds.
-   */
-  api_domain?: string;
-  app_id?: string;
-  api_key?: string;
-  /**
    * The property's space group (unit list). NOT bindable from the Properties
    * collection — it isn't a column there, and each property has several groups of
    * which only "Website Group" is public. Leave EMPTY on a dynamic page and the

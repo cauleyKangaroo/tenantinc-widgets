@@ -16,7 +16,6 @@ import cfg from '../../config.json';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { usePropertyId } from '../../propertyContext';
 import { useCompanyId } from '../../companyContext';
-import { useApiCreds } from '../../credsContext';
 import { PromoTagIcon } from '../Pricing';
 import { CarouselChevron } from '../chevron';
 
@@ -287,7 +286,6 @@ export function NearbySection() {
   // Resolved by SpaceList, so the prop from the Duda JS tab reaches this section
   // too. '' while it is still resolving — see ./companyContext.
   const boundCompanyId = useCompanyId();
-  const apiCreds = useApiCreds();
   const [view, setView] = useState<ViewMode>('list');
 
   // null = still loading; [] = loaded but nothing nearby.
@@ -310,19 +308,14 @@ export function NearbySection() {
         // has nothing yet — the dev harness, or a mount outside SpaceList.
         const company = boundCompanyId
           || await resolveCompanyIdFromSources('#05 nearby', {}, cfg.companyId);
-        // The instance endpoint, not config.json — otherwise this sidebar queries a
-        // different host than the unit list above it. Same reason as boundCompanyId.
-        const creds = { ...apiCreds, companyId: company };
+        const creds = { ...cfg, companyId: company };
         const [raw, userLoc] = await Promise.all([
           // No requirePropertyId: this section wants ALL the company's properties,
           // and the collection is the site's own data — nothing to distrust.
           fetchProperties(creds, {}),
           getUserLocation(),
         ]);
-        // The app id the REQUEST used — the envelope is keyed by it, so reading
-        // it with config.json's would find no properties at all on a site that
-        // supplies its own.
-        const all = extractNearbyProperties(raw, apiCreds.appId);
+        const all = extractNearbyProperties(raw, cfg.appId);
 
         const current = currentPropertyId ? all.find((p) => p.id === currentPropertyId) : undefined;
         const ref = userLoc
