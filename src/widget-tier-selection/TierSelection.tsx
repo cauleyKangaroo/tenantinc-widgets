@@ -10,6 +10,7 @@ import { Shimmer } from '@shared/Shimmer';
 import { MoneyBreakdown, SummaryRail, formatPrice, CloseCircleIcon } from '@shared/ui';
 import { Button } from '@shared/ui/Button';
 import { resolvePropertyId } from '@shared/propertyBinding';
+import { asInstoreMode, asInstoreAmount, type InstoreMode } from '@shared/instorePrice';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import {
   CheckIcon,
@@ -450,6 +451,12 @@ export function TierSelection({
   const [modalShowPricingDetails, setModalShowPricingDetails] = useState<boolean | undefined>(undefined);
   const [modalShowUrgency, setModalShowUrgency] = useState<boolean | undefined>(undefined);
   const [modalEnablePromoLogic, setModalEnablePromoLogic] = useState<boolean | undefined>(undefined);
+  /* The operator's IN-STORE rule, mirrored from Space List. This widget does
+     not render it today — it is carried so the rental rail can show the same
+     struck-through figure the listing card showed. */
+  const [modalInstore, setModalInstore] = useState<
+    { mode?: InstoreMode; amount?: number; label?: string } | undefined
+  >(undefined);
   // Bumped on every open so reopening the SAME size still refetches (inventory
   // and pricing can change between opens).
   const [openGen, setOpenGen] = useState(0);
@@ -505,6 +512,12 @@ export function TierSelection({
   const sizeProp = mode === 'modal' ? modalSize : (sizeRaw || urlParam('size'));
   const authoritativeGroupId = mode === 'modal' ? modalUnitGroupId : (unitGroupIdProp || urlParam('unitGroupId'));
   const inlinePromoRaw = urlParam('enablePromoLogic') ?? enablePromoLogicRaw;
+  /* Modal mode gets the IN-STORE rule over the bus; the page mode gets it on
+     the URL, because Space List's page-mode CTA is a plain anchor. Either way
+     it is carried, not rendered — #14's cards still show the API price. */
+  const instoreRule = mode === 'modal'
+    ? modalInstore
+    : { mode: asInstoreMode(urlParam('instoreMode')), amount: asInstoreAmount(urlParam('instoreAmount')), label: urlParam('instoreLabel') };
   const inlinePromoEnabled = inlinePromoRaw === true || inlinePromoRaw === 'true';
   const effectivePromoLogic = mode === 'modal'
     ? (modalEnablePromoLogic ?? inlinePromoEnabled)
@@ -556,6 +569,9 @@ export function TierSelection({
       setModalShowPricingDetails(req.showPricingDetails);
       setModalShowUrgency(req.showUrgency);
       setModalEnablePromoLogic(req.enablePromoLogic);
+      setModalInstore(req.instoreAmount
+        ? { mode: req.instoreMode, amount: req.instoreAmount, label: req.instoreLabel }
+        : undefined);
       setOpenGen((g) => g + 1);
       setModalOpen(true);
       return true; // accepted → acknowledge
@@ -836,6 +852,13 @@ export function TierSelection({
     // (not its config default) and the reserve write passes the ownership check.
     if (activePropertyId) url.searchParams.set('propertyId', activePropertyId);
     if (effectiveCompanyId) url.searchParams.set('companyId', effectiveCompanyId);
+    // Pass the operator's IN-STORE rule straight through to the rental rail,
+    // so the struck-through figure there is the one the listing card showed.
+    if (instoreRule?.amount) {
+      if (instoreRule.mode) url.searchParams.set('instoreMode', instoreRule.mode);
+      url.searchParams.set('instoreAmount', String(instoreRule.amount));
+      if (instoreRule.label) url.searchParams.set('instoreLabel', instoreRule.label);
+    }
     const gid = authoritativeGroupId ?? groupIdRef.current;
     if (gid) url.searchParams.set('unitGroupId', gid);
     // Root-relative handoff, same as Space List. Note: like Space List, this only

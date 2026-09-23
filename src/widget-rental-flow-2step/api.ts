@@ -488,41 +488,6 @@ export function extractSelectionContext(
   return best;
 }
 
-/**
- * The tier's struck-through IN-STORE rate — `set_rate`, else the tier's
- * `units.max_price` — read from the space-groups payload.
- *
- * This is the SAME derivation the Space List card uses (see `instorePrice` in
- * widget-space-list/components/Pricing.tsx), and it is deliberately not taken
- * from /offers: that endpoint has no standard-rate field at all, so its
- * "in-store" can only ever be the sell price itself. With no promotion on the
- * offer that made in-store equal to online, the rail suppressed the pair, and
- * the price the listing had just struck through disappeared on the next page.
- *
- * Returns undefined rather than a guess when neither field is usable — the
- * rail then shows the single rate exactly as it does today.
- */
-export function extractTierInStore(raw: unknown, tierId?: string): number | undefined {
-  if (!tierId) return undefined;
-  const env = raw as { applicationData?: Record<string, Array<{ data?: { spaceGroupProfile?: Record<string, unknown> } }>> };
-  const profiles = env?.applicationData?.[APP_ID]?.[0]?.data?.spaceGroupProfile;
-  if (!profiles) return undefined;
-  for (const profile of Object.values(profiles)) {
-    const groups = (profile as { groups?: Array<{ tiers?: CtxTier[] }> })?.groups;
-    if (!Array.isArray(groups)) continue;
-    for (const g of groups) {
-      for (const t of g.tiers ?? []) {
-        if (t.id !== tierId && t.tier_id !== tierId) continue;
-        const rate = typeof t.set_rate === 'number' && t.set_rate > 0
-          ? t.set_rate
-          : t.units?.max_price;
-        return typeof rate === 'number' && rate > 0 ? rate : undefined;
-      }
-    }
-  }
-  return undefined;
-}
-
 // --- Rich selection from the offers endpoint --------------------------------
 //
 // The order rail wants the SAME display data the value-tiers card shows:
