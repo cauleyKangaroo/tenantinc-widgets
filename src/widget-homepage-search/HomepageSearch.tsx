@@ -39,12 +39,6 @@ export interface HomepageSearchProps {
   promotionColor?: string;
   /** Optional Layout-2 promotion size in pixels; defaults to the Figma size. */
   promotionFontSize?: number | string;
-  /** Layout-2 final promotion line, rendered in black. */
-  promotionSuffix?: string;
-  /** Optional Layout-2 suffix color; defaults to Figma black. */
-  promotionSuffixColor?: string;
-  /** Optional Layout-2 suffix size in pixels; defaults to the Figma size. */
-  promotionSuffixFontSize?: number | string;
   /** Layout-2 legal/disclosure copy below the promotion. */
   promotionDisclaimer?: string;
   /** Optional Layout-2 disclaimer color; defaults to the Figma text color. */
@@ -53,7 +47,7 @@ export interface HomepageSearchProps {
   promotionDisclaimerFontSize?: number | string;
   /** Recent resolved city searches kept on this device (0 disables, max 5). */
   historyLimit?: number;
-  inEditor?: boolean;
+  inEditor?: boolean | string;
   siteId?: string;
 }
 
@@ -63,20 +57,56 @@ interface SearchTarget { kind: 'state' | 'city' | 'property'; label: string; hay
 interface GeoTarget { lat: number; lng: number; target: SearchTarget; fallbackTarget: SearchTarget; types: NavUnitType[]; }
 interface StorageTypeOption { value: NavUnitType; label: string; }
 interface RecentSearch { label: string; href: string; savedAt: number; }
+interface Coordinates { latitude: number; longitude: number; }
+type InventoryStatus = 'loading' | 'loaded' | 'unavailable';
 const STORAGE_TYPE_OPTIONS: StorageTypeOption[] = [
   { value: 'storage', label: 'Self Storage' },
   { value: 'parking', label: 'Parking' },
 ];
 const HISTORY_KEY = 'ti.homepageSearch.recentCities';
 const HISTORY_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
+const FALLBACK_BAKERSFIELD: SearchTarget = {
+  kind: 'city',
+  label: 'Bakersfield',
+  haystack: 'bakersfield california 93307 101 mt vernon',
+  href: '/locations/california/bakersfield',
+  types: ['storage', 'parking'],
+};
+const FALLBACK_FULLERTON: SearchTarget = {
+  kind: 'city',
+  label: 'Fullerton',
+  haystack: 'fullerton california 92831 999 s raymond storage outlet fullerton',
+  href: '/property-landing-page--value-tiers-test/california/fullerton/storage-outlet-fullerton-340079520',
+  types: ['storage', 'parking'],
+};
 const FALLBACK_TARGETS: SearchTarget[] = [
   { kind: 'state', label: 'California', haystack: 'california ca', href: '/locations/california', types: ['storage', 'parking'] },
   // Downloaded data plus the supplied URL examples: Bakersfield has multiple
   // facilities, while Fullerton currently has one.
-  { kind: 'city', label: 'Bakersfield', haystack: 'bakersfield california 93307 101 mt vernon', href: '/locations/california/bakersfield', types: ['storage', 'parking'] },
-  { kind: 'city', label: 'Fullerton', haystack: 'fullerton california 92831 999 s raymond storage outlet fullerton', href: '/property-landing-page--value-tiers-test/california/fullerton/storage-outlet-fullerton-340079520', types: ['storage', 'parking'] },
+  FALLBACK_BAKERSFIELD,
+  FALLBACK_FULLERTON,
   { kind: 'property', label: 'Storage Outlet Fullerton', haystack: 'fullerton california 92831 999 s raymond storage outlet fullerton', href: '/property-landing-page--value-tiers-test/california/fullerton/storage-outlet-fullerton-340079520', types: ['storage', 'parking'] },
 ];
+const EDITOR_GEO_TARGETS: GeoTarget[] = [
+  {
+    lat: 35.355421,
+    lng: -118.966436,
+    target: FALLBACK_BAKERSFIELD,
+    fallbackTarget: { ...FALLBACK_BAKERSFIELD, href: '/locations/california/bakersfield' },
+    types: ['storage', 'parking'],
+  },
+  {
+    lat: 33.86093,
+    lng: -117.90596,
+    target: FALLBACK_FULLERTON,
+    fallbackTarget: { ...FALLBACK_FULLERTON, href: '/locations/california/fullerton' },
+    types: ['storage', 'parking'],
+  },
+];
+
+function boolProp(value: boolean | string | undefined): boolean {
+  return value === true || value === 'true';
+}
 
 function editorSafeHref(path: string, inEditor?: boolean, siteId?: string): string {
   let referrerPath = '';
@@ -143,12 +173,9 @@ export function HomepageSearch({
   locationsUrl = '/locations',
   accentColor,
   cardHeading = 'Find Storage Near Me',
-  promotionText = '$1 Summer Move-In',
+  promotionText = '$1 Summer Move-In\nSpecial',
   promotionColor,
   promotionFontSize,
-  promotionSuffix = 'Special',
-  promotionSuffixColor,
-  promotionSuffixFontSize,
   promotionDisclaimer = '*All new rentals are subject to a $30 Admin Fee. Other fees like coverage may apply, select a space to see price details.',
   promotionDisclaimerColor,
   promotionDisclaimerFontSize,
@@ -156,12 +183,15 @@ export function HomepageSearch({
   inEditor,
   siteId,
 }: HomepageSearchProps) {
+  const editorPreview = boolProp(inEditor);
   const [q, setQ] = useState('');
   const [type, setType] = useState<NavUnitType | ''>('');
   const [selectedTarget, setSelectedTarget] = useState<SearchTarget>();
   const [targets, setTargets] = useState<SearchTarget[]>(FALLBACK_TARGETS);
-  const [geoTargets, setGeoTargets] = useState<GeoTarget[]>([]);
-  const [inventoryTypesResolved, setInventoryTypesResolved] = useState(false);
+  // Editor/harness has no published-site dmAPI, so use representative fixture
+  // coordinates there only. Published pages never fall back to these rows.
+  const [geoTargets, setGeoTargets] = useState<GeoTarget[]>(() => editorPreview ? EDITOR_GEO_TARGETS : []);
+  const [inventoryStatus, setInventoryStatus] = useState<InventoryStatus>('loading');
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [suggestionsAbove, setSuggestionsAbove] = useState(false);
   const [suggestionsBottom, setSuggestionsBottom] = useState(0);
@@ -170,6 +200,7 @@ export function HomepageSearch({
   const [typeAbove, setTypeAbove] = useState(false);
   const [activeType, setActiveType] = useState(-1);
   const [locating, setLocating] = useState(false);
+  const [pendingCoordinates, setPendingCoordinates] = useState<Coordinates>();
   const [resolvingCity, setResolvingCity] = useState(false);
   const safeHistoryLimit = Math.max(0, Math.min(5, Math.floor(historyLimit)));
   const [recent, setRecent] = useState<RecentSearch[]>(() => {
@@ -192,13 +223,17 @@ export function HomepageSearch({
 
   useEffect(() => {
     let cancelled = false;
+    setInventoryStatus('loading');
     void fetchLocationTree('#04 homepage-search', {
       collectionName: propertiesCollection,
       basePath: searchUrl,
       cityBasePath: locationsUrl,
     }).then((tree) => {
       if (cancelled) return;
-      if (!tree.length) return;
+      if (!tree.length) {
+        setInventoryStatus('unavailable');
+        return;
+      }
       const mapped: SearchTarget[] = [];
       const mappedGeo: GeoTarget[] = [];
       const cityBase = locationsUrl.trim().replace(/\/+$/, '') || '/locations';
@@ -237,7 +272,11 @@ export function HomepageSearch({
       }
       setTargets(mapped);
       setGeoTargets(mappedGeo);
-      setInventoryTypesResolved(true);
+      setInventoryStatus('loaded');
+    }).catch((error) => {
+      if (cancelled) return;
+      console.warn('[HomepageSearch] Locations could not be loaded', error);
+      setInventoryStatus('unavailable');
     });
     return () => { cancelled = true; };
   }, [propertiesCollection, searchUrl, locationsUrl]);
@@ -246,7 +285,7 @@ export function HomepageSearch({
   const typePlaceholder = parts[0] ?? 'Storage Type';
   const availableTypes = new Set(targets.flatMap((target) => target.types));
   const collectionTypeOptions = STORAGE_TYPE_OPTIONS.filter((option) => availableTypes.has(option.value));
-  const typeOptions = inventoryTypesResolved ? collectionTypeOptions : STORAGE_TYPE_OPTIONS;
+  const typeOptions = inventoryStatus === 'loaded' ? collectionTypeOptions : STORAGE_TYPE_OPTIONS;
   const selectedTypeLabel = typeOptions.find((option) => option.value === type)?.label;
   const selectedTypeAvailable = !type || availableTypes.has(type);
   const filteredTargets = useMemo(
@@ -255,8 +294,8 @@ export function HomepageSearch({
   );
 
   useEffect(() => {
-    if (inventoryTypesResolved && !selectedTypeAvailable) setType('');
-  }, [inventoryTypesResolved, selectedTypeAvailable]);
+    if (inventoryStatus === 'loaded' && !selectedTypeAvailable) setType('');
+  }, [inventoryStatus, selectedTypeAvailable]);
 
   const match = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -370,22 +409,55 @@ export function HomepageSearch({
     setActiveSuggestion(-1);
   };
 
-  const chooseCurrentLocation = () => {
-    if (locating || !navigator.geolocation || !geoTargets.length) return;
+  const nearestCandidate = (candidates: GeoTarget[], coords: Coordinates) => candidates.reduce((best, candidate) => (
+    distanceSquared(coords.latitude, coords.longitude, candidate.lat, candidate.lng)
+      < distanceSquared(coords.latitude, coords.longitude, best.lat, best.lng)
+      ? candidate : best
+  ));
+
+  useEffect(() => {
+    if (!pendingCoordinates || inventoryStatus === 'loading') return;
     const candidates = type ? geoTargets.filter((candidate) => candidate.types.includes(type)) : geoTargets;
-    if (!candidates.length) return;
+    if (!candidates.length) {
+      console.warn('[HomepageSearch] Current Location: no properties with usable coordinates');
+      setPendingCoordinates(undefined);
+      setLocating(false);
+      return;
+    }
+    chooseCity(nearestCandidate(candidates, pendingCoordinates).target);
+    setPendingCoordinates(undefined);
+    setLocating(false);
+  }, [pendingCoordinates, inventoryStatus, geoTargets, type]);
+
+  const chooseCurrentLocation = () => {
+    if (locating) return;
+    if (!navigator.geolocation) {
+      console.warn('[HomepageSearch] Current Location: browser geolocation is unavailable');
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        const nearest = candidates.reduce((best, candidate) => (
-          distanceSquared(coords.latitude, coords.longitude, candidate.lat, candidate.lng)
-            < distanceSquared(coords.latitude, coords.longitude, best.lat, best.lng)
-            ? candidate : best
-        ));
-        chooseCity(nearest.target);
+        const current = { latitude: coords.latitude, longitude: coords.longitude };
+        const candidates = type ? geoTargets.filter((candidate) => candidate.types.includes(type)) : geoTargets;
+        if (candidates.length) {
+          chooseCity(nearestCandidate(candidates, current).target);
+          setLocating(false);
+          return;
+        }
+        if (inventoryStatus === 'loading') {
+          setPendingCoordinates(current);
+          return;
+        }
+        console.warn('[HomepageSearch] Current Location: no properties with usable coordinates');
         setLocating(false);
       },
-      () => setLocating(false),
+      (error) => {
+        console.warn(
+          `[HomepageSearch] Current Location: geolocation failed (code ${error.code}: ${error.message || 'no browser message'})`,
+        );
+        setLocating(false);
+      },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
     );
   };
@@ -429,7 +501,7 @@ export function HomepageSearch({
         label: place.address.city || exact.mainText || query,
         href: destination.href,
       });
-      window.location.assign(editorSafeHref(url.pathname + url.search, inEditor, siteId));
+      window.location.assign(editorSafeHref(url.pathname + url.search, editorPreview, siteId));
     } finally {
       setResolvingCity(false);
     }
@@ -443,15 +515,13 @@ export function HomepageSearch({
     try { url = new URL(match.href, window.location.origin); } catch { return undefined; }
     if (url.origin !== window.location.origin) return undefined;
     if (type) url.searchParams.set('sl_types', type);
-    return editorSafeHref(url.pathname + url.search, inEditor, siteId);
+    return editorSafeHref(url.pathname + url.search, editorPreview, siteId);
   })();
 
   const style = {
     ...cssVar('--hs-accent', text(accentColor)),
     ...cssVar('--hs-promotion-color', text(promotionColor)),
     ...cssVar('--hs-promotion-font-size', px(promotionFontSize)),
-    ...cssVar('--hs-promotion-suffix-color', text(promotionSuffixColor)),
-    ...cssVar('--hs-promotion-suffix-font-size', px(promotionSuffixFontSize)),
     ...cssVar('--hs-promotion-disclaimer-color', text(promotionDisclaimerColor)),
     ...cssVar('--hs-promotion-disclaimer-font-size', px(promotionDisclaimerFontSize)),
   } as React.CSSProperties;
@@ -467,6 +537,7 @@ export function HomepageSearch({
     ? 'search-card'
     : 'search-bar';
   const searchCard = resolvedLayout === 'search-card';
+  const promotionLines = text(promotionText).split(/\r?\n/);
 
   return (
     <div
@@ -630,7 +701,18 @@ export function HomepageSearch({
 
         {searchCard && (
           <div className="hs-promotion">
-            <p className="hs-promotion-title"><span>{promotionText}</span><strong>{promotionSuffix}</strong></p>
+            <p className="hs-promotion-title">
+              {promotionLines.map((line, index) => (
+                <span
+                  className={promotionLines.length > 1 && index === promotionLines.length - 1
+                    ? 'hs-promotion-final-line'
+                    : undefined}
+                  key={`${index}-${line}`}
+                >
+                  {line || '\u00a0'}
+                </span>
+              ))}
+            </p>
             {promotionDisclaimer && <p className="hs-promotion-disclaimer">{promotionDisclaimer}</p>}
           </div>
         )}

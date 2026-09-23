@@ -75,7 +75,7 @@
   z-index: 30;
   top: calc(100% + 16px);
   left: 0;
-  width: 360px;
+  width: 240px;
   margin: 0;
   padding: 6px 0;
   list-style: none;
@@ -88,6 +88,7 @@
 .hs-type-option {
   display: block;
   width: 100%;
+  margin-block: 4px;
   padding: 9px 14px;
   border: 0;
   outline: 0;
@@ -171,9 +172,10 @@
   justify-content: space-between;
   gap: 20px;
   width: 100%;
+  margin-block: 4px;
   padding: 13px 16px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 0;
   background: #fff;
   color: #101318;
   font: inherit;
@@ -183,13 +185,12 @@
 }
 .hs-suggestion:hover, .hs-suggestion--active { background: #f1f4f6; }
 .hs-suggestion:focus-visible { outline: 3px solid color-mix(in srgb, var(--hs-accent) 40%, white); }
-.hs-history-head { padding: 6px 12px 8px; background: #f6f7f8; color: #637381; font-size: 18px; font-weight: 600; }
+.hs-history-head { padding: 6px 12px 8px; background: #f6f7f8; color: #000; font-size: 18px; font-weight: 400; }
 
 /* ── Layout 2: promotional search card (latest Figma Locations Modal) ───── */
 .hs-card {
   position: relative;
   width: min(559px, 100%);
-  min-height: 504px;
   margin: 0 0 0 auto;
   padding: 52px 65px 58px 52px;
   border-radius: 30px;
@@ -218,7 +219,7 @@
   box-shadow: 0 3px 6px rgba(16, 19, 24, .16);
 }
 .hs--search-card .hs-field { min-height: 64px; padding: 0 76px 0 26px; }
-.hs--search-card .hs-input { font-size: 20px; }
+.hs--search-card .hs-input { font-size: 18px; }
 .hs--search-card .hs-input::placeholder { color: #637381; }
 .hs--search-card .hs-type { display: none; }
 .hs--search-card .hs-find {
@@ -246,16 +247,12 @@
   line-height: 1;
   letter-spacing: -1px;
 }
-.hs-promotion-title span, .hs-promotion-title strong { display: block; }
 .hs-promotion-title span {
+  display: block;
   color: var(--hs-promotion-color, var(--hs-accent));
   font-size: var(--hs-promotion-font-size, inherit);
 }
-.hs-promotion-title strong {
-  color: var(--hs-promotion-suffix-color, #000);
-  font-size: var(--hs-promotion-suffix-font-size, inherit);
-  font-weight: 700;
-}
+.hs-promotion-title .hs-promotion-final-line { color: #000; }
 .hs-promotion-disclaimer {
   margin: 26px 0 0;
   color: var(--hs-promotion-disclaimer-color, #101318);
@@ -292,7 +289,7 @@
   .hs-find-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .hs-find .hs-search-icon { display: block; }
   .hs-suggestions { top: 75px; left: 8px; width: min(360px, calc(100% - 16px)); border-radius: 12px; }
-  .hs-card { min-height: 0; margin: 0 auto; padding: 28px 22px 32px; border-radius: 22px; }
+  .hs-card { margin: 0 auto; padding: 28px 22px 32px; border-radius: 22px; }
   .hs-card-heading { margin-left: 0; padding-right: 0; font-size: 26px; }
   .hs--search-card .hs-suggestions { top: 151px; left: 26px; width: calc(100% - 44px); }
   .hs-promotion { margin-left: 0; }
