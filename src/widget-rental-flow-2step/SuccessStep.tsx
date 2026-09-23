@@ -17,45 +17,19 @@
 // ===========================================================================
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Checkbox, FormField, isPossiblePhone } from '@shared/ui';
+import { Checkbox, FormField } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { CUSTOMER_ADDRESS_COUNTRIES } from '@shared/placesApi';
 import {
-  ChevronBig, TickSingleIcon, AlertTriangleIcon, ClockGlyph, PhoneGlyph,
+  TickSingleIcon, AlertTriangleIcon, ClockGlyph, PhoneGlyph,
 } from './planIcons';
 import { IdIllustration } from './IdIllustration';
 import { IdVerifyModal } from './IdVerifyModal';
+import {
+  MilitaryFields, AltContactFields, VehicleFields,
+  extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues,
+} from './additionalInfo';
 import { skipValidation } from '@shared/devBypass';
-
-
-function Select({
-  label, value, onChange, options, required, error,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-  required?: boolean;
-  /** Rendered by the FormField face below, so a select's message sits in the
-   *  same place and style as every other field's. */
-  error?: string;
-}) {
-  return (
-    <div className="rf-select">
-      <label className="rf-select-native">
-        <span className="rf-sr-only">{label}</span>
-        <select value={value} onChange={(e) => onChange(e.target.value)} required={required}>
-          <option value="">{`Select ${label}`}</option>
-          {options.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
-      </label>
-      <div className="rf-select-face" aria-hidden="true">
-        <FormField label={label} required={required} value={value} onChange={() => {}} error={error} />
-        <ChevronBig size={24} className="rf-select-chev" />
-      </div>
-    </div>
-  );
-}
 
 /** What this screen can actually file against the contact after the lease. */
 /**
@@ -186,23 +160,12 @@ export function SuccessStep({ onGetAccess, chosen }: {
   const [bizAddress, setBizAddress] = useState('');
   const [repFirst, setRepFirst] = useState('');
   const [repLast, setRepLast] = useState('');
-  // Military
-  const [dob, setDob] = useState('');
-  // Alternate contact
-  const [altFirst, setAltFirst] = useState('');
-  const [altLast, setAltLast] = useState('');
-  const [altPhone, setAltPhone] = useState('');
-  const [altEmail, setAltEmail] = useState('');
-  const [altAddress, setAltAddress] = useState('');
-  // Vehicle
-  const [vType, setVType] = useState('');
-  const [make, setMake] = useState('');
-  const [model, setModel] = useState('');
-  const [year, setYear] = useState('');
-  const [colour, setColour] = useState('');
-  const [plate, setPlate] = useState('');
-  const [country, setCountry] = useState('');
-  const [stateVal, setStateVal] = useState('');
+  /* Military, alternate contact and vehicle — one object in the shared shape.
+     The same three groups now also render on the rental form when it is set to
+     1step, so the fields and their rules live in ./additionalInfo and both
+     screens import them rather than keeping two copies that drift. */
+  const [extraFields, setExtraFields] = useState<ExtraFieldValues>(EMPTY_EXTRA_FIELDS);
+  const setExtra = (patch: Partial<ExtraFieldValues>) => setExtraFields((v) => ({ ...v, ...patch }));
 
   /**
    * Required fields, and only for the sections actually switched on — an
@@ -236,19 +199,10 @@ export function SuccessStep({ onGetAccess, chosen }: {
       repFirst: filled(repFirst) ? '' : 'Enter the business rep’s first name',
       repLast: filled(repLast) ? '' : 'Enter the business rep’s last name',
     } : {}),
-    // The mask is MM/DD/YYYY, so a complete date is exactly ten characters —
-    // "12/25/" is filled but not a date.
-    ...(military ? { dob: dob.length === 10 ? '' : 'Enter a valid date of birth' } : {}),
-    ...(altContact ? {
-      altFirst: filled(altFirst) ? '' : 'Enter the alternate contact’s first name',
-      altLast: filled(altLast) ? '' : 'Enter the alternate contact’s last name',
-      altPhone: isPossiblePhone(altPhone, 'US') ? '' : 'Enter a valid phone number',
-      altEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(altEmail.trim()) ? '' : 'Enter a valid email address',
-      altAddress: filled(altAddress) ? '' : 'Enter the alternate contact’s address',
-    } : {}),
-    // Vehicle Type alone carries the asterisk in the frame; make, model, year,
-    // colour, plate, country and state are all optional.
-    ...(vehicle ? { vType: filled(vType) ? '' : 'Select a vehicle type' } : {}),
+    /* The three optional groups' rules, from the same module that renders
+       them — so a field this screen marks required cannot disagree with the
+       rental form's copy of the same field. */
+    ...extraFieldProblems({ military, altContact, vehicle }, extraFields),
   };
   /* Harness bypass — compiled out of production builds, see @shared/devBypass. */
   const skip = skipValidation();
@@ -611,56 +565,17 @@ export function SuccessStep({ onGetAccess, chosen }: {
 
         <div className="rf-sx-group">
           <Checkbox checked={military} onChange={setMilitary}>I am active military</Checkbox>
-          {military && (
-            <div className="rf-sx-fields">
-              {/* Typed mask, not a picker: scrolling a calendar back decades to a
-                  birth year is slower than typing it. */}
-              <FormField label="Date of Birth" required mask="date" value={dob} onChange={setDob} error={bad('dob')} />
-            </div>
-          )}
+          {military && <MilitaryFields v={extraFields} set={setExtra} bad={bad} />}
         </div>
 
         <div className="rf-sx-group">
-          <Checkbox checked={altContact} onChange={setAltContact}>I want to provide an alternate contact</Checkbox>
-          {altContact && (
-            <div className="rf-sx-fields">
-              <div className="rf-pay-grid">
-                <FormField label="First Name" required value={altFirst} onChange={setAltFirst} error={bad('altFirst')} />
-                <FormField label="Last Name" required value={altLast} onChange={setAltLast} error={bad('altLast')} />
-                <FormField label="Phone" required type="tel" value={altPhone} onChange={setAltPhone} error={bad('altPhone')} />
-                <FormField label="Email" required type="email" value={altEmail} onChange={setAltEmail} error={bad('altEmail')} />
-              </div>
-              {/* Same lookup as the Business Address above it — this one was
-                  left as a plain field when the others were wired. */}
-              <AddressAutocomplete country={CUSTOMER_ADDRESS_COUNTRIES} value={altAddress} onChange={setAltAddress}>
-                <FormField label="Address" required type="search" value={altAddress} onChange={setAltAddress} error={bad('altAddress')} />
-              </AddressAutocomplete>
-            </div>
-          )}
+          <Checkbox checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Checkbox>
+          {altContact && <AltContactFields v={extraFields} set={setExtra} bad={bad} />}
         </div>
 
         <div className="rf-sx-group">
           <Checkbox checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Checkbox>
-          {vehicle && (
-            <div className="rf-sx-fields">
-              <Select
-                label="Vehicle Type" required value={vType} onChange={setVType}
-                options={['Car', 'Motorcycle', 'RV', 'Boat', 'Trailer']}
-                error={bad('vType')}
-              />
-              <div className="rf-pay-grid">
-                {/* Make/Model/Year/Colour/Plate are NOT required in the frame —
-                    only Vehicle Type carries the asterisk. */}
-                <FormField label="Make" value={make} onChange={setMake} />
-                <FormField label="Model" value={model} onChange={setModel} />
-                <FormField label="Year" value={year} onChange={setYear} />
-                <FormField label="Color" value={colour} onChange={setColour} />
-                <FormField label="License Plate Number" value={plate} onChange={setPlate} />
-                <Select label="Country" value={country} onChange={setCountry} options={['United States', 'Canada']} />
-              </div>
-              <Select label="State" value={stateVal} onChange={setStateVal} options={['California', 'Arizona', 'Nevada', 'Texas']} />
-            </div>
-          )}
+          {vehicle && <VehicleFields v={extraFields} set={setExtra} bad={bad} />}
         </div>
         </div>
       </section>

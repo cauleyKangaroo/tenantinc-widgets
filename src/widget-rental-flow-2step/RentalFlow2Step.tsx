@@ -35,6 +35,17 @@ import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { skipValidation } from '@shared/devBypass';
 
+/**
+ * Which layout the rental flow renders — the content menu's `formType` radio,
+ * normalised.
+ *
+ * The two are the SAME flow: the same first screen, the same move-in date
+ * lightbox, the same form, the same post-purchase screen. They differ in one
+ * respect only — what the Additional Information checkboxes do when ticked.
+ * See the `oneStep` prop on Step2.
+ */
+type FormMode = '1step' | '2step';
+
 const startOfToday = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -139,6 +150,23 @@ export interface RentalFlow2StepProps {
    * Unset or `default` keeps the confirmation exactly as it shipped.
    */
   gateCodeType?: string;
+  /**
+   * Content-menu radio `formType` — which layout this instance renders:
+   * `2step` (default) | `1step`.
+   *
+   * NOT two different flows. Both take the shopper through the same screens in
+   * the same order; the difference is where the Additional Information
+   * sections are FILLED IN. On `2step` the checkboxes are ticks only and their
+   * fields are answered on the post-purchase screen. On `1step` ticking one
+   * opens its fields there and then — and they still appear, ticked, on the
+   * post-purchase screen afterwards.
+   *
+   * ANYTHING UNRECOGNISED IS `2step`, including '' and an unsubstituted
+   * {{token}}. That is what this widget has always done, so a field nobody
+   * set, a misspelt option, or a value added in Duda before it exists here all
+   * leave live pages exactly as they are.
+   */
+  formType?: string;
   /** Tier's group id from the value-tiers handoff (?unitGroupId=) — the proxy
    *  reserve route needs it for the ownership check. */
   unitGroupId?: string;
@@ -738,6 +766,7 @@ export function RentalFlow2Step({
   autopay,
   countryDefault,
   gateCodeType,
+  formType,
   logoImage,
   logoUrl,
   eyebrow = 'Great choice!',
@@ -856,6 +885,22 @@ export function RentalFlow2Step({
       case 'nogatecode': case 'no-gate-code': case 'none': return 'none';
       case 'smartentrysystem': case 'smart-entry-system': case 'smart': return 'smart';
       default: return 'gate';
+    }
+  })();
+
+  /**
+   * Which layout this instance renders.
+   *
+   * `boundText` first, like autopay, countryDefault and gateCodeType: an
+   * unsubstituted {{token}} or Duda's empty-string default has to read as
+   * "unset" and fall through to the shipped behaviour, never as a layout
+   * nobody chose. The spellings are generous because the radio's stored values
+   * are the editor's to type — the DEFAULT is what matters, and it is `2step`.
+   */
+  const formMode: FormMode = (() => {
+    switch (boundText(formType).trim().toLowerCase()) {
+      case '1step': case '1-step': case 'one': case 'onestep': case 'one-step': return '1step';
+      default: return '2step';
     }
   })();
 
@@ -2302,6 +2347,10 @@ export function RentalFlow2Step({
           />
         ) : (
           <Step2
+            /* The one difference between the layouts: on 1step the Additional
+               Information ticks open their fields here, instead of only on the
+               post-purchase screen. Everything else is shared. */
+            oneStep={formMode === '1step'}
             autopayMode={autopayMode}
             moveIn={moveIn}
             // Everything step 1 already asked for, so step 2 opens filled in.

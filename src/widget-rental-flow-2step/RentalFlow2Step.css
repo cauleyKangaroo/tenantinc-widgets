@@ -792,6 +792,12 @@
    pitch — a bigger gap would have matched the whitespace but pushed the section
    taller than the design. */
 .rf2-checks { display: flex; flex-direction: column; gap: 4px; }
+/* 1step only, where a tick opens its fields in place. 4px was spacing three
+   bare checkboxes; against an open group it reads as the fields belonging to
+   the tick below them as much as the one above. Keyed on the fields actually
+   being there, so a closed section — and the whole 2step form, which never
+   opens one — keeps the original tight rhythm. */
+.rf2-checks > .rf-sx-group:has(.rf-sx-fields) { margin-block: 12px 20px; }
 
 /* The step-2 checkbox skin that used to live here — 18px near-square box,
    #dfe3e8 outline, near-black fill, solid tick — is now the kit's default

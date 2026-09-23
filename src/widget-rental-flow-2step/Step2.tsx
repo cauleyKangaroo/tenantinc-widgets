@@ -3,6 +3,10 @@ import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
+import {
+  MilitaryFields, AltContactFields, VehicleFields,
+  extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues,
+} from './additionalInfo';
 import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankFormValue, type BillingCountry } from '@shared/paymentForms';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
@@ -158,9 +162,24 @@ export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
   brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode,
-  gatewayPending, zipOnlyBilling, defaultCountry,
+  gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
 }: {
   moveIn: Date;
+  /**
+   * The content menu's `formType` radio, as a flag — the ONE thing that
+   * differs between the two layouts.
+   *
+   * Off (`2step`, the default): the Additional Information checkboxes are
+   * ticks only. What the shopper opted into travels to the post-purchase
+   * screen, which opens the matching sections already ticked and asks for the
+   * values there. Choosing here, filling there.
+   *
+   * On (`1step`): ticking one opens its fields immediately, and its required
+   * fields then gate payment like any other. The post-purchase screen still
+   * shows those sections afterwards — this moves where they are FIRST answered,
+   * it does not remove them from anywhere.
+   */
+  oneStep?: boolean;
   /**
    * The property's autopay treatment, from Hummingbird. Unset shows a small
    * demo picker so all four can be reviewed — pass a value and it disappears.
@@ -243,6 +262,12 @@ export function Step2({
   const [vehicle, setVehicle] = useState(false);
 
   const [agree, setAgree] = useState(false);
+  /* The values behind the three Additional Information ticks — collected here
+     only when `oneStep` puts the fields on this screen. One object rather than
+     fourteen useStates: they are written by one patch setter, read as one
+     payload, and the shape is the shared module's. */
+  const [extraFields, setExtraFields] = useState<ExtraFieldValues>(EMPTY_EXTRA_FIELDS);
+  const setExtra = (patch: Partial<ExtraFieldValues>) => setExtraFields((v) => ({ ...v, ...patch }));
   /**
    * Which autopay treatment this property uses.
    *
@@ -389,6 +414,12 @@ export function Step2({
   // fields inside are not).
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const phoneOk = isPossiblePhone(phone, 'US');
+  /* Only when the fields are actually on this screen. On 2step they are not,
+     and a rule for an input nobody can see would disable Pay Now with no way
+     to find out why — the exact thing the old comment below warned about. */
+  const extraProblems = oneStep
+    ? extraFieldProblems({ military, altContact, vehicle }, extraFields)
+    : {};
   const required: Array<[key: string, ok: boolean]> = [
     ['email', emailOk],
     ['phone', phoneOk],
@@ -399,10 +430,12 @@ export function Step2({
       : [['first', first.trim().length > 0],
         ['last', last.trim().length > 0]] as Array<[string, boolean]>),
     ['agree', agree],
-    // The optional sections are TICKS here — their fields live on the
-    // post-purchase screen, so there is nothing on this step to validate. They
-    // must not gate payment either: requiring an input nobody can see would
-    // disable Pay Now with no way to find out why.
+    /* On 2step the optional sections are TICKS — their fields live on the
+       post-purchase screen, so there is nothing here to validate. On 1step
+       they are on screen, so the ones that are open and incomplete do gate
+       payment; `extraProblems` is empty in the other case, so this line adds
+       nothing to the two-step form. */
+    ...Object.entries(extraProblems).map(([k, msg]) => [k, !msg] as [string, boolean]),
   ];
   /* Harness bypass — compiled out of production builds, see @shared/devBypass.
      Both the gate and the per-field red state read it, so they cannot
@@ -411,6 +444,11 @@ export function Step2({
   const formComplete = skip || required.every(([, ok]) => ok);
   const bad = (key: string) => !skip && payAttempted
     && !(required.find(([k]) => k === key)?.[1] ?? true);
+  /* The shared groups render FormField's own message, so they need the text
+     rather than this screen's boolean. Same gate — nothing is flagged until
+     payment has been attempted, and the harness bypass silences both. */
+  const extraBad = (key: string) =>
+    (!skip && payAttempted && extraProblems[key] ? extraProblems[key] : undefined);
   /** A card/bank panel is open, so its button is replaced by the panel and the
    *  other method relocates beneath it. Wallets are one-tap and never expand. */
   const methodOpen = payMethod === 'card' || payMethod === 'bank';
@@ -617,12 +655,28 @@ export function Step2({
         <section className="rf2-plain">
           <span className="rf2-h">Additional Information</span>
           <div className="rf2-checks">
-            {/* Ticks only — the fields these used to reveal now live on the
-                post-purchase screen, which opens the matching sections already
-                ticked. Choosing here, filling there. */}
-            <Check checked={military} onChange={setMilitary}>I am active military</Check>
-            <Check checked={altContact} onChange={setAltContact}>I want to provide an alternate contact</Check>
-            <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
+            {/* On 2step these are ticks only and the fields are answered on the
+                post-purchase screen — choosing here, filling there. On 1step
+                each tick opens its own fields directly beneath it, rather than
+                the three ticks sitting together and the fields appearing lower
+                down: a section's question and its answers belong next to each
+                other.
+
+                The groups come from ./additionalInfo, shared with the
+                post-purchase screen, which asks for exactly the same things
+                and must not drift from this. */}
+            <div className="rf-sx-group">
+              <Check checked={military} onChange={setMilitary}>I am active military</Check>
+              {oneStep && military && <MilitaryFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+            </div>
+            <div className="rf-sx-group">
+              <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
+              {oneStep && altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+            </div>
+            <div className="rf-sx-group">
+              <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
+              {oneStep && vehicle && <VehicleFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+            </div>
           </div>
         </section>
 
