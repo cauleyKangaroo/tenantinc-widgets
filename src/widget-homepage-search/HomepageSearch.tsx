@@ -537,7 +537,7 @@ export function HomepageSearch({
     ? 'search-card'
     : 'search-bar';
   const searchCard = resolvedLayout === 'search-card';
-  const promotionLines = text(promotionText).split(/\r?\n/);
+  const promotionLines = text(promotionText).split(/\r?\n|<br\s*\/?>/i);
 
   return (
     <div
