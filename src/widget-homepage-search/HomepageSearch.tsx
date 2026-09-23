@@ -7,8 +7,10 @@ import { fetchPlaceDetails, fetchPlaceSuggestions, newSessionToken } from '@shar
 
 export interface HomepageSearchProps {
   /** Operator-selectable presentation. `search-bar` is the original horizontal
-   *  control; `promo-card` is the white Figma promotional card. */
-  layout?: 'search-bar' | 'promo-card';
+   *  control; `search-card` is the white Figma promotional card. `promo-card`
+   *  is the card's former name, still accepted so a placement configured before
+   *  the rename keeps rendering the card. */
+  layout?: 'search-bar' | 'search-card' | 'promo-card';
   /** Placeholder for the location input (Figma: "City, ZIP or Address"). */
   searchPlaceholder?: string;
   /** Find button label (desktop Figma: "Find Storage"). */
@@ -33,13 +35,19 @@ export interface HomepageSearchProps {
   cardHeading?: string;
   /** Layout-2 accent promotion copy; wraps naturally to the available width. */
   promotionText?: string;
-  /** Layout-2 final promotion line, rendered in black. */
-  promotionSuffix?: string;
+  /** Optional Layout-2 promotion color; defaults to the search accent/theme color. */
+  promotionColor?: string;
+  /** Optional Layout-2 promotion size in pixels; defaults to the Figma size. */
+  promotionFontSize?: number | string;
   /** Layout-2 legal/disclosure copy below the promotion. */
   promotionDisclaimer?: string;
+  /** Optional Layout-2 disclaimer color; defaults to the Figma text color. */
+  promotionDisclaimerColor?: string;
+  /** Optional Layout-2 disclaimer size in pixels; defaults to the Figma size. */
+  promotionDisclaimerFontSize?: number | string;
   /** Recent resolved city searches kept on this device (0 disables, max 5). */
   historyLimit?: number;
-  inEditor?: boolean;
+  inEditor?: boolean | string;
   siteId?: string;
 }
 
@@ -49,20 +57,56 @@ interface SearchTarget { kind: 'state' | 'city' | 'property'; label: string; hay
 interface GeoTarget { lat: number; lng: number; target: SearchTarget; fallbackTarget: SearchTarget; types: NavUnitType[]; }
 interface StorageTypeOption { value: NavUnitType; label: string; }
 interface RecentSearch { label: string; href: string; savedAt: number; }
+interface Coordinates { latitude: number; longitude: number; }
+type InventoryStatus = 'loading' | 'loaded' | 'unavailable';
 const STORAGE_TYPE_OPTIONS: StorageTypeOption[] = [
   { value: 'storage', label: 'Self Storage' },
   { value: 'parking', label: 'Parking' },
 ];
 const HISTORY_KEY = 'ti.homepageSearch.recentCities';
 const HISTORY_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
+const FALLBACK_BAKERSFIELD: SearchTarget = {
+  kind: 'city',
+  label: 'Bakersfield',
+  haystack: 'bakersfield california 93307 101 mt vernon',
+  href: '/locations/california/bakersfield',
+  types: ['storage', 'parking'],
+};
+const FALLBACK_FULLERTON: SearchTarget = {
+  kind: 'city',
+  label: 'Fullerton',
+  haystack: 'fullerton california 92831 999 s raymond storage outlet fullerton',
+  href: '/property-landing-page--value-tiers-test/california/fullerton/storage-outlet-fullerton-340079520',
+  types: ['storage', 'parking'],
+};
 const FALLBACK_TARGETS: SearchTarget[] = [
   { kind: 'state', label: 'California', haystack: 'california ca', href: '/locations/california', types: ['storage', 'parking'] },
   // Downloaded data plus the supplied URL examples: Bakersfield has multiple
   // facilities, while Fullerton currently has one.
-  { kind: 'city', label: 'Bakersfield', haystack: 'bakersfield california 93307 101 mt vernon', href: '/locations/california/bakersfield', types: ['storage', 'parking'] },
-  { kind: 'city', label: 'Fullerton', haystack: 'fullerton california 92831 999 s raymond storage outlet fullerton', href: '/property-landing-page--value-tiers-test/california/fullerton/storage-outlet-fullerton-340079520', types: ['storage', 'parking'] },
+  FALLBACK_BAKERSFIELD,
+  FALLBACK_FULLERTON,
   { kind: 'property', label: 'Storage Outlet Fullerton', haystack: 'fullerton california 92831 999 s raymond storage outlet fullerton', href: '/property-landing-page--value-tiers-test/california/fullerton/storage-outlet-fullerton-340079520', types: ['storage', 'parking'] },
 ];
+const EDITOR_GEO_TARGETS: GeoTarget[] = [
+  {
+    lat: 35.355421,
+    lng: -118.966436,
+    target: FALLBACK_BAKERSFIELD,
+    fallbackTarget: { ...FALLBACK_BAKERSFIELD, href: '/locations/california/bakersfield' },
+    types: ['storage', 'parking'],
+  },
+  {
+    lat: 33.86093,
+    lng: -117.90596,
+    target: FALLBACK_FULLERTON,
+    fallbackTarget: { ...FALLBACK_FULLERTON, href: '/locations/california/fullerton' },
+    types: ['storage', 'parking'],
+  },
+];
+
+function boolProp(value: boolean | string | undefined): boolean {
+  return value === true || value === 'true';
+}
 
 function editorSafeHref(path: string, inEditor?: boolean, siteId?: string): string {
   let referrerPath = '';
@@ -88,6 +132,36 @@ function distanceSquared(latA: number, lngA: number, latB: number, lngB: number)
   return lat * lat + lng * lng;
 }
 
+/**
+ * Duda's content panel has no Number field, so a size arrives as TEXT — "64",
+ * "64px", "" or null — and `Number.isFinite("64")` is false because it does not
+ * coerce. parseFloat first, then accept only a positive finite result, so a
+ * blank or mistyped field falls back to the Figma size instead of emitting
+ * `NaNpx` (which the browser drops, silently losing the whole declaration).
+ */
+function px(value: unknown): string {
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? `${value}px` : '';
+  // Match the WHOLE value, not a numeric prefix. `parseFloat` alone reads
+  // "64garbage" as 64 and "6 4" as 6, applying a size the operator never typed
+  // while this helper claims to reject mistyped input. Digits with an optional
+  // decimal and an optional `px` is the entire accepted form.
+  const text = String(value ?? '').trim();
+  if (!/^\d*\.?\d+\s*(px)?$/i.test(text)) return '';
+  const n = parseFloat(text);
+  return Number.isFinite(n) && n > 0 ? `${n}px` : '';
+}
+
+/** Unfilled Duda fields arrive as null, and a space-only value is not a colour. */
+function text(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+/** Only declare the custom property when there is a value; otherwise the CSS
+ *  fallback in `var(--x, fallback)` is what should win. */
+function cssVar(name: string, value: string): Record<string, string> {
+  return value ? { [name]: value } : {};
+}
+
 export function HomepageSearch({
   layout = 'search-bar',
   searchPlaceholder = 'City, ZIP or Address',
@@ -99,19 +173,25 @@ export function HomepageSearch({
   locationsUrl = '/locations',
   accentColor,
   cardHeading = 'Find Storage Near Me',
-  promotionText = '$1 Summer Move-In',
-  promotionSuffix = 'Special',
+  promotionText = '$1 Summer Move-In\nSpecial',
+  promotionColor,
+  promotionFontSize,
   promotionDisclaimer = '*All new rentals are subject to a $30 Admin Fee. Other fees like coverage may apply, select a space to see price details.',
+  promotionDisclaimerColor,
+  promotionDisclaimerFontSize,
   historyLimit = 5,
   inEditor,
   siteId,
 }: HomepageSearchProps) {
+  const editorPreview = boolProp(inEditor);
   const [q, setQ] = useState('');
   const [type, setType] = useState<NavUnitType | ''>('');
   const [selectedTarget, setSelectedTarget] = useState<SearchTarget>();
   const [targets, setTargets] = useState<SearchTarget[]>(FALLBACK_TARGETS);
-  const [geoTargets, setGeoTargets] = useState<GeoTarget[]>([]);
-  const [inventoryTypesResolved, setInventoryTypesResolved] = useState(false);
+  // Editor/harness has no published-site dmAPI, so use representative fixture
+  // coordinates there only. Published pages never fall back to these rows.
+  const [geoTargets, setGeoTargets] = useState<GeoTarget[]>(() => editorPreview ? EDITOR_GEO_TARGETS : []);
+  const [inventoryStatus, setInventoryStatus] = useState<InventoryStatus>('loading');
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [suggestionsAbove, setSuggestionsAbove] = useState(false);
   const [suggestionsBottom, setSuggestionsBottom] = useState(0);
@@ -120,6 +200,7 @@ export function HomepageSearch({
   const [typeAbove, setTypeAbove] = useState(false);
   const [activeType, setActiveType] = useState(-1);
   const [locating, setLocating] = useState(false);
+  const [pendingCoordinates, setPendingCoordinates] = useState<Coordinates>();
   const [resolvingCity, setResolvingCity] = useState(false);
   const safeHistoryLimit = Math.max(0, Math.min(5, Math.floor(historyLimit)));
   const [recent, setRecent] = useState<RecentSearch[]>(() => {
@@ -142,13 +223,17 @@ export function HomepageSearch({
 
   useEffect(() => {
     let cancelled = false;
+    setInventoryStatus('loading');
     void fetchLocationTree('#04 homepage-search', {
       collectionName: propertiesCollection,
       basePath: searchUrl,
       cityBasePath: locationsUrl,
     }).then((tree) => {
       if (cancelled) return;
-      if (!tree.length) return;
+      if (!tree.length) {
+        setInventoryStatus('unavailable');
+        return;
+      }
       const mapped: SearchTarget[] = [];
       const mappedGeo: GeoTarget[] = [];
       const cityBase = locationsUrl.trim().replace(/\/+$/, '') || '/locations';
@@ -187,7 +272,11 @@ export function HomepageSearch({
       }
       setTargets(mapped);
       setGeoTargets(mappedGeo);
-      setInventoryTypesResolved(true);
+      setInventoryStatus('loaded');
+    }).catch((error) => {
+      if (cancelled) return;
+      console.warn('[HomepageSearch] Locations could not be loaded', error);
+      setInventoryStatus('unavailable');
     });
     return () => { cancelled = true; };
   }, [propertiesCollection, searchUrl, locationsUrl]);
@@ -196,7 +285,7 @@ export function HomepageSearch({
   const typePlaceholder = parts[0] ?? 'Storage Type';
   const availableTypes = new Set(targets.flatMap((target) => target.types));
   const collectionTypeOptions = STORAGE_TYPE_OPTIONS.filter((option) => availableTypes.has(option.value));
-  const typeOptions = inventoryTypesResolved ? collectionTypeOptions : STORAGE_TYPE_OPTIONS;
+  const typeOptions = inventoryStatus === 'loaded' ? collectionTypeOptions : STORAGE_TYPE_OPTIONS;
   const selectedTypeLabel = typeOptions.find((option) => option.value === type)?.label;
   const selectedTypeAvailable = !type || availableTypes.has(type);
   const filteredTargets = useMemo(
@@ -205,8 +294,8 @@ export function HomepageSearch({
   );
 
   useEffect(() => {
-    if (inventoryTypesResolved && !selectedTypeAvailable) setType('');
-  }, [inventoryTypesResolved, selectedTypeAvailable]);
+    if (inventoryStatus === 'loaded' && !selectedTypeAvailable) setType('');
+  }, [inventoryStatus, selectedTypeAvailable]);
 
   const match = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -320,22 +409,55 @@ export function HomepageSearch({
     setActiveSuggestion(-1);
   };
 
-  const chooseCurrentLocation = () => {
-    if (locating || !navigator.geolocation || !geoTargets.length) return;
+  const nearestCandidate = (candidates: GeoTarget[], coords: Coordinates) => candidates.reduce((best, candidate) => (
+    distanceSquared(coords.latitude, coords.longitude, candidate.lat, candidate.lng)
+      < distanceSquared(coords.latitude, coords.longitude, best.lat, best.lng)
+      ? candidate : best
+  ));
+
+  useEffect(() => {
+    if (!pendingCoordinates || inventoryStatus === 'loading') return;
     const candidates = type ? geoTargets.filter((candidate) => candidate.types.includes(type)) : geoTargets;
-    if (!candidates.length) return;
+    if (!candidates.length) {
+      console.warn('[HomepageSearch] Current Location: no properties with usable coordinates');
+      setPendingCoordinates(undefined);
+      setLocating(false);
+      return;
+    }
+    chooseCity(nearestCandidate(candidates, pendingCoordinates).target);
+    setPendingCoordinates(undefined);
+    setLocating(false);
+  }, [pendingCoordinates, inventoryStatus, geoTargets, type]);
+
+  const chooseCurrentLocation = () => {
+    if (locating) return;
+    if (!navigator.geolocation) {
+      console.warn('[HomepageSearch] Current Location: browser geolocation is unavailable');
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        const nearest = candidates.reduce((best, candidate) => (
-          distanceSquared(coords.latitude, coords.longitude, candidate.lat, candidate.lng)
-            < distanceSquared(coords.latitude, coords.longitude, best.lat, best.lng)
-            ? candidate : best
-        ));
-        chooseCity(nearest.target);
+        const current = { latitude: coords.latitude, longitude: coords.longitude };
+        const candidates = type ? geoTargets.filter((candidate) => candidate.types.includes(type)) : geoTargets;
+        if (candidates.length) {
+          chooseCity(nearestCandidate(candidates, current).target);
+          setLocating(false);
+          return;
+        }
+        if (inventoryStatus === 'loading') {
+          setPendingCoordinates(current);
+          return;
+        }
+        console.warn('[HomepageSearch] Current Location: no properties with usable coordinates');
         setLocating(false);
       },
-      () => setLocating(false),
+      (error) => {
+        console.warn(
+          `[HomepageSearch] Current Location: geolocation failed (code ${error.code}: ${error.message || 'no browser message'})`,
+        );
+        setLocating(false);
+      },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
     );
   };
@@ -379,7 +501,7 @@ export function HomepageSearch({
         label: place.address.city || exact.mainText || query,
         href: destination.href,
       });
-      window.location.assign(editorSafeHref(url.pathname + url.search, inEditor, siteId));
+      window.location.assign(editorSafeHref(url.pathname + url.search, editorPreview, siteId));
     } finally {
       setResolvingCity(false);
     }
@@ -393,15 +515,33 @@ export function HomepageSearch({
     try { url = new URL(match.href, window.location.origin); } catch { return undefined; }
     if (url.origin !== window.location.origin) return undefined;
     if (type) url.searchParams.set('sl_types', type);
-    return editorSafeHref(url.pathname + url.search, inEditor, siteId);
+    return editorSafeHref(url.pathname + url.search, editorPreview, siteId);
   })();
 
-  const style = accentColor ? ({ ['--hs-accent']: accentColor } as React.CSSProperties) : undefined;
-  const promoCard = layout === 'promo-card';
+  const style = {
+    ...cssVar('--hs-accent', text(accentColor)),
+    ...cssVar('--hs-promotion-color', text(promotionColor)),
+    ...cssVar('--hs-promotion-font-size', px(promotionFontSize)),
+    ...cssVar('--hs-promotion-disclaimer-color', text(promotionDisclaimerColor)),
+    ...cssVar('--hs-promotion-disclaimer-font-size', px(promotionDisclaimerFontSize)),
+  } as React.CSSProperties;
+  // `promo-card` was this layout's name before it was renamed, and a Duda
+  // placement may still have it saved. Normalize rather than test both: the
+  // root class is built from this value, so an un-normalized 'promo-card' would
+  // emit `hs--promo-card`, which no longer has any CSS — a silently unstyled
+  // search bar instead of the card the operator configured.
+  // Only two layouts are real, and the value becomes a class name, so anything
+  // else is normalized to the default rather than emitted. An unfilled Duda
+  // field arrives as null, which would otherwise render `hs--null`.
+  const resolvedLayout = layout === 'search-card' || layout === 'promo-card'
+    ? 'search-card'
+    : 'search-bar';
+  const searchCard = resolvedLayout === 'search-card';
+  const promotionLines = text(promotionText).split(/\r?\n|<br\s*\/?>/i);
 
   return (
     <div
-      className={`hs hs--${layout}`}
+      className={`hs hs--${resolvedLayout}`}
       style={style}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
@@ -410,8 +550,8 @@ export function HomepageSearch({
         }
       }}
     >
-      <div ref={panelContainerRef} className={promoCard ? 'hs-card' : 'hs-search-layout'}>
-        {promoCard && <h2 className="hs-card-heading">{cardHeading}</h2>}
+      <div ref={panelContainerRef} className={searchCard ? 'hs-card' : 'hs-search-layout'}>
+        {searchCard && <h2 className="hs-card-heading">{cardHeading}</h2>}
         <form ref={barRef} className="hs-bar" onSubmit={(e) => { e.preventDefault(); findRef.current?.click(); }}>
         <div className="hs-field">
           <input
@@ -515,7 +655,7 @@ export function HomepageSearch({
           }}
         >
           <span className="hs-find-label">{ctaLabel}</span>
-          <SearchIcon className="hs-search-icon" size={22} />
+          <SearchIcon className="hs-search-icon" size={searchCard ? 24 : 22} />
         </a>
         </form>
 
@@ -559,9 +699,20 @@ export function HomepageSearch({
           </ul>
         )}
 
-        {promoCard && (
+        {searchCard && (
           <div className="hs-promotion">
-            <p className="hs-promotion-title"><span>{promotionText}</span><strong>{promotionSuffix}</strong></p>
+            <p className="hs-promotion-title">
+              {promotionLines.map((line, index) => (
+                <span
+                  className={promotionLines.length > 1 && index === promotionLines.length - 1
+                    ? 'hs-promotion-final-line'
+                    : undefined}
+                  key={`${index}-${line}`}
+                >
+                  {line || '\u00a0'}
+                </span>
+              ))}
+            </p>
             {promotionDisclaimer && <p className="hs-promotion-disclaimer">{promotionDisclaimer}</p>}
           </div>
         )}
