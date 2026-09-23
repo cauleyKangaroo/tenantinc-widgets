@@ -528,7 +528,7 @@
   border: none;
   border-radius: 8px;
   background: var(--color_2, #509e2f);
-  color: #fff;
+  color: var(--color_3, #fff);
   font-family: inherit;
   font-size: 16px;
   font-weight: 700;
@@ -579,7 +579,7 @@
   border: none;
   border-radius: 8px;
   background: var(--color_2, #509e2f);
-  color: #fff;
+  color: var(--color_3, #fff);
   font-family: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -603,7 +603,7 @@
 .ml-cta:focus,
 .ml-cta:active {
   background: var(--color_2, #509e2f);
-  color: #fff;
+  color: var(--color_3, #fff);
   text-decoration: none;
   filter: brightness(0.94);
 }

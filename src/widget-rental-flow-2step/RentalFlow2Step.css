@@ -263,7 +263,7 @@
   font: 16px 'Montserrat', sans-serif;
   cursor: pointer;
 }
-.rf-btn--rent { border: none; background: var(--color_2, #509e2f); color: #fff; font-weight: 700; }
+.rf-btn--rent { border: none; background: var(--color_2, #509e2f); color: var(--color_3, #fff); font-weight: 700; }
 .rf-btn--rent:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 88%, black); }
 .rf-btn--reserve { background: #fff; border: 2px solid var(--color_2, #509e2f); color: #101318; font-weight: 600; }
 .rf-btn--reserve:hover { background: #fff6f2; }
