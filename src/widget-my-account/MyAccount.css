@@ -368,8 +368,15 @@
 /* ── Balance due ───────────────────────────────────────────────────────── */
 .ma-balance {
   display: flex;
+  /* Wraps whenever it needs to, not only under a phone breakpoint. Same shape
+     as the account columns: a fixed 200px block beside flexible content, which
+     crushes rather than wraps when the panel is cramped. There is slack at the
+     widths this was drawn for, so nothing moves there. */
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  /* 12px between wrapped rows, the frame's 16px between items. One shorthand,
+     because a separate row-gap above a `gap` shorthand would be reset by it. */
+  gap: 12px 16px;
   min-height: 76px;
   margin-top: 20px;
   padding: 16px 20px;
@@ -855,14 +862,36 @@
   border-top: 1px solid rgba(16, 19, 24, 0.12);
 }
 
+/* The two columns WRAP rather than being squeezed.
+
+   They used to be a fixed 367px contact column, a 61px gap, and a documents
+   column of `1 1 0` with min-width 0 — which meant documents took whatever was
+   left, however little that was. Between about 1180px and 1350px the page grid
+   still draws its 422px sidebar beside a main column that has stopped being
+   866px, so the panel lands near 680px, documents gets ~174px, and after the
+   icon, the gaps and the fixed-width "Signed" chip the link is left with about
+   50px — one character per line.
+
+   Wrapping fixes it at the cause and without a breakpoint, which matters here:
+   this widget sits in a Duda column that can be narrower than the viewport, so
+   a @media query measures the wrong box. Below ~700px of ACTUAL panel width the
+   documents column drops to its own full-width row; above it, nothing changes —
+   contact does not grow past 367px and documents still takes the remainder. */
 .ma-account__cols {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 61px;
+  /* Row gap is the stacked spacing, and matches what the phone block used. */
+  gap: 28px 61px;
 }
 
-.ma-account__col--contact { flex: none; width: 367px; }
-.ma-account__col--docs { flex: 1 1 0; min-width: 0; }
+/* Basis, not width, so wrapping can measure it — and no grow, so a wide panel
+   still draws the frame's 367px rather than sharing the slack. */
+.ma-account__col--contact { flex: 0 1 367px; min-width: 0; }
+/* 272px is the narrowest this column stays READABLE: 24px icon + 9px gap +
+   ~130px for the longest document name + 9px + the ~83px chip. Below that it
+   is better off on its own row, which is exactly what this basis triggers. */
+.ma-account__col--docs { flex: 1 1 272px; min-width: 0; }
 
 .ma-account__alt {
   width: 367px;
@@ -1391,12 +1420,13 @@
   .ma-pay { padding: 24px 20px; }
   .ma-wrapper .ma-pay__title { margin-bottom: 24px; }
 
-  /* Contacts and documents stop being side by side; the fixed 367px column
-     would otherwise overflow a phone. */
   .ma-account__body { padding: 24px 20px; }
   .ma-account__title { font-size: 28px; }
-  .ma-account__cols { flex-direction: column; gap: 28px; }
-  .ma-account__col--contact,
+  /* NOT flex-direction: column any more. The columns wrap on their own now (see
+     .ma-account__cols), and in a column-direction container a flex-basis is a
+     HEIGHT — the 367px basis would have become a 367px-tall contact block.
+     Full width is asked for as a basis for the same reason. */
+  .ma-account__col--contact { flex: 1 1 100%; }
   .ma-account__alt { width: 100%; }
 
   .ma-edit__body { padding: 24px 20px; }
@@ -1422,10 +1452,7 @@
 
   /* The balance box stops being a single row: the amount would otherwise sit
      on top of the prepay tick. */
-  .ma-balance {
-    flex-wrap: wrap;
-    row-gap: 12px;
-  }
+  /* .ma-balance wraps at every width now — see the base rule. */
   .ma-balance__left { width: auto; }
   .ma-balance__right { margin-left: auto; }
 
