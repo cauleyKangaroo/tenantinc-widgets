@@ -36,6 +36,21 @@ export interface TierOpenRequest {
   /** Mirror Space List's presentation toggle. false hides promo pricing/copy;
    *  it does not change promotion eligibility or checkout application. */
   enablePromoLogic?: boolean;
+  /**
+   * The operator's struck-through IN-STORE rule, mirrored from Space List —
+   * the RULE, never the computed figure. The receiver applies it to the price
+   * IT is showing, which is a different tier's as soon as the shopper picks
+   * Better or Best; a number calculated from the listing's cheapest tier would
+   * sit below a dearer tier's price and read as a negative saving.
+   *
+   * Absent ⇒ the sender's own card is not showing an in-store price (the
+   * column is off, promo logic is on, or no amount is configured), so the
+   * receiver must not show one either. See @shared/instorePrice.
+   */
+  instoreMode?: 'percentOfWeb' | 'percentDiff' | 'additionOfWeb';
+  instoreAmount?: number;
+  /** The operator's label for it, e.g. "IN-STORE" / "WAS". */
+  instoreLabel?: string;
 }
 
 /** True when the request looks well-formed enough to act on. */

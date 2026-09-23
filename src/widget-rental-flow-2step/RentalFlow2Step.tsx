@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import './RentalFlow2Step.css';
 import { Step2, type AutopayMode } from './Step2';
 import type { BillingCountry } from '@shared/paymentForms';
+import { instoreFrom, asInstoreMode, asInstoreAmount } from '@shared/instorePrice';
 import {
   fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
-  extractSelectionContext, extractTierInStore, fetchSelectionFromOffers, findUnitForSelection,
+  extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection,
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
@@ -818,6 +819,22 @@ export function RentalFlow2Step({
   // rail loses its money breakdown. The tier resolves to a real unit through
   // size + price below, the same route the value-tiers handoff takes.
   const unitIdProp = urlParam('unitId');
+  /*
+   * The struck-through IN-STORE rate the listing card showed.
+   *
+   * It is the OPERATOR's walk-in figure, configured on the Space List widget
+   * in Duda, so it cannot be looked up here — it rides the handoff as a rule
+   * (mode + amount) and is applied below to the price this rail is showing.
+   * Not the finished number: the shopper may have picked a dearer tier than
+   * the card quoted, and a fixed figure would then sit below the price.
+   *
+   * Absent ⇒ the listing is not showing an in-store price either, and the rail
+   * shows the single rate. Falls back to the stored pick for a "Select" that
+   * came straight here without going through the tier popup.
+   */
+  const instoreMode = asInstoreMode(urlParam('instoreMode') ?? stored?.instoreMode);
+  const instoreAmount = asInstoreAmount(urlParam('instoreAmount') ?? stored?.instoreAmount);
+  const instoreLabel = urlParam('instoreLabel') ?? stored?.instoreLabel;
   // "Change Space" returns to the value-tiers page the shopper came from.
   const backToSpacesUrl = (() => {
     try {
@@ -999,11 +1016,6 @@ export function RentalFlow2Step({
   const [quote, setQuote] = useState<MoveInQuote | undefined>(undefined);
   const [quoteFailed, setQuoteFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
-  /* The tier's struck-through IN-STORE rate, from space-groups — /offers has no
-     standard-rate field, so this is the only place it exists. Held apart from
-     `selection` because it arrives on its own request and must not delay, or be
-     cleared by, the offer enrichment. */
-  const [tierInStore, setTierInStore] = useState<number | undefined>(undefined);
 
   // FIRST WRITE: entering step 2 places a real hold on the quoted unit
   // (test tenant only — api.ts writesEnabled() guard fails closed elsewhere).
@@ -1549,7 +1561,6 @@ export function RentalFlow2Step({
     setQuoteFailed(false);
     setUnitTypeId(undefined);
     setInsuranceId(undefined);
-    setTierInStore(undefined);
     const settle = () => { if (!cancelled && ++settled >= 2) setLoading(false); };
     fetchProperty(ctx)
       .then((p) => {
@@ -1567,18 +1578,6 @@ export function RentalFlow2Step({
     fetchProtectionPlans(ctx)
       .then((list) => { if (!cancelled) setPlans(list); })
       .catch((err) => console.error(`${logTag} fetchProtectionPlans error:`, err));
-    /* The tier's IN-STORE rate, so the rail keeps the price the Space List card
-       struck through. Space-groups is the only endpoint carrying it.
-       Fire-and-forget, OUTSIDE the settle() gate and never chained to the
-       quote: the fast path exists precisely so this lookup does not sit in
-       front of the price, and a rail that renders one rate now and the pair a
-       moment later beats a rail that renders nothing. On the legacy path below
-       this is the same URL, which the request memo dedupes to one call. */
-    if (unitGroupIdProp) {
-      fetchSpaceGroups(ctx)
-        .then((raw) => { if (!cancelled) setTierInStore(extractTierInStore(raw, unitGroupIdProp)); })
-        .catch((err) => console.warn(`${logTag} in-store rate unavailable:`, err));
-    }
     // Selection + unit + quote. On a fully authoritative handoff (property,
     // company, group and unit all known) these reads need only those ids — never
     // the broad space-groups lookup — so skip it: it otherwise sits as a serial
@@ -2102,21 +2101,31 @@ export function RentalFlow2Step({
   const defaultBillingCountry: BillingCountry =
     asBillingCountry(propertyInfo?.country ?? '') || configuredBillingCountry;
   /*
-   * The rail's selection, with the tier's IN-STORE rate laid over the offer's
-   * own. /offers reports in-store = the sell price unless a discount is
-   * attached, so on a property running no promotion the pair collapsed and the
-   * strike-through the Space List had just shown vanished.
+   * The rail's selection, carrying the struck-through IN-STORE figure.
    *
-   * Applied ONLY when it is strictly above the online rate: an equal or lower
-   * "standard" price is not a saving, and rendering it as one would be a false
-   * discount claim. The money breakdown is untouched either way — this is the
-   * advertised rate pair, not what gets charged.
+   * /offers reports in-store as the sell price itself unless a discount is
+   * attached, so on a facility running no promotion the pair collapsed and the
+   * strike the listing card had just shown vanished on this page. The figure
+   * the site advertises is the OPERATOR's, configured on the Space List
+   * widget, so it arrives as a rule on the handoff and is applied here to the
+   * price this rail is showing — never as a finished number, which would sit
+   * below the price as soon as a dearer tier was picked.
+   *
+   * The money breakdown is untouched either way: this is the advertised rate
+   * pair, not what gets charged.
    */
   const railSelection = ((): SelectionContext | undefined => {
     const base = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
-    if (!base || tierInStore == null) return base;
+    if (!base) return base;
     const online = base.online ?? base.price;
-    return online != null && tierInStore > online ? { ...base, inStore: tierInStore } : base;
+    if (online == null) return base;
+    /* A real promotion on the offer outranks the calculated figure: the API's
+       own in-store/online pair describes money that is actually being
+       discounted, and the listing card hides its calculated column in promo
+       mode for the same reason. */
+    if (base.inStore != null && base.inStore > online) return base;
+    const calculated = instoreFrom(online, instoreMode, instoreAmount);
+    return calculated != null ? { ...base, inStore: calculated } : base;
   })();
   const verifiedQuote = selection?.unitId && quote?.unitId === selection.unitId ? quote : undefined;
   const railQuote = verifiedQuote ?? (previewContent ? PREVIEW_QUOTE : undefined);
@@ -2178,6 +2187,7 @@ export function RentalFlow2Step({
       sheetLogo={sheet ? headerLogo : undefined}
       property={railProperty}
       selection={railSelection}
+      instoreLabel={instoreLabel}
       quote={railQuote}
       // The frame shows "#111 | 5’ x 7’" — the unit number leads, then the size.
       // SummaryRail composes that as `size | tierName`, so the unit goes in the
