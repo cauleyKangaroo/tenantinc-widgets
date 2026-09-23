@@ -10,18 +10,14 @@
   color: var(--st-text);
 }
 .st *, .st *::before, .st *::after { box-sizing: border-box; }
-.st, .st * {
-  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
-}
-
 .st-heading {
   margin: 0 0 40px;
-  font-size: 32px !important;
-  font-weight: 700 !important;
-  line-height: 1.2 !important;
-  color: var(--st-copy) !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--st-copy);
+  text-transform: none;
+  letter-spacing: 0;
 }
 .st-heading-mark { display: none; }
 
@@ -46,27 +42,32 @@
 }
 .st-index-title {
   margin: 0 0 16px;
-  font-size: 80px !important;
-  font-weight: 600 !important;
-  line-height: 1.2 !important;
-  color: #101318 !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
+  font-size: 80px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #101318;
+  text-transform: none;
+  letter-spacing: 0;
 }
 .st-index-subheading {
   margin: 0;
-  font-size: 18px !important;
-  font-weight: 400 !important;
-  line-height: 1.5 !important;
-  color: #000000 !important;
-  letter-spacing: 0 !important;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #000000;
+  letter-spacing: 0;
 }
 
 /* ── Card (identical in both layouts) ─────────────────────────────────────── */
 .st-card {
   display: flex;
   flex-direction: column;
-  height: 500px;
+  /* min-height, NOT height. The Figma card is 500px and a grid row stretches
+     every card to the tallest, so the drawn size is what you normally see. But
+     a fixed height plus `overflow: hidden` silently ate the abstract and the
+     "Read more" whenever a title wrapped to a third line. Growing is the honest
+     failure. See the title clamp below, which keeps that rare. */
+  min-height: 500px;
   border: 0;
   border-radius: 16px;
   background: #fff;
@@ -85,6 +86,10 @@
 }
 
 .st-card-media { width: 100%; height: 234px; flex: 0 0 234px; background: #f4f6f8; }
+/* No artwork for this type. A gradient is drawn by the browser, so the card
+   keeps its proportions without depending on a hosted placeholder that could
+   move, 404, or belong to someone else. Same approach as #12's NO_IMAGE. */
+.st-card-media--empty { background: linear-gradient(135deg, #dfe3e8 0%, #c4cdd5 100%); }
 .st-card-img { display: block; width: 100%; height: 100%; object-fit: cover; }
 
 .st-card-body {
@@ -96,20 +101,28 @@
 }
 .st-card-title {
   margin: 0;
-  font-size: 24px !important;
-  font-weight: 700 !important;
-  line-height: 1.25 !important;
-  color: #101318 !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #101318;
+  text-transform: none;
+  letter-spacing: 0;
+  /* Two lines, like #12's card title. `max-height` is both the ceiling and the
+     crop for browsers without -webkit-line-clamp; it is in em so it follows
+     whatever font-size the site's theme ends up applying. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: 2.5em;
 }
 .st-card-abstract {
   margin: 0;
-  font-size: 16px !important;
-  font-weight: 400 !important;
-  line-height: 1.5 !important;
-  color: var(--st-copy) !important;
-  letter-spacing: 0 !important;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--st-copy);
+  letter-spacing: 0;
   /* The abstract is a summary; three lines keeps every card the same height
      whatever the editor typed. */
   display: -webkit-box;
@@ -119,11 +132,11 @@
 }
 .st-card-more {
   margin-top: auto;
-  font-size: 16px !important;
-  font-weight: 400 !important;
-  line-height: 1.5 !important;
-  color: #101318 !important;
-  letter-spacing: 0 !important;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #101318;
+  letter-spacing: 0;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -140,8 +153,9 @@
   padding: 27px 37px 30px;
 }
 .st--index .st-card-title {
-  font-size: 32px !important;
-  line-height: 1.2 !important;
+  font-size: 32px;
+  line-height: 1.2;
+  max-height: 2.4em;
 }
 .st--index .st-card-abstract {
   -webkit-line-clamp: 5;
@@ -153,6 +167,11 @@
   display: flex;
   gap: 32px;
   justify-content: flex-start;
+  /* The drag handlers sit on this element. `pan-y` leaves a vertical drag to
+     the page while a horizontal one is ours; without it the browser can claim
+     the gesture as a scroll and cancel the touch stream mid-swipe. Same rule
+     the other carousels use — see @shared/useCarousel. */
+  touch-action: pan-y;
 }
 .st-slide {
   flex: 0 1 422px;
@@ -206,7 +225,7 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    font-size: 28px !important;
+    font-size: 28px;
     margin-bottom: 26px;
   }
   .st-heading-mark {
@@ -219,9 +238,9 @@
   .st-index-header { margin-bottom: 24px; }
   .st-index-title {
     margin-bottom: 8px;
-    font-size: 28px !important;
+    font-size: 28px;
   }
-  .st-index-subheading { font-size: 12px !important; }
+  .st-index-subheading { font-size: 12px; }
   .st--related .st-heading { text-align: center; }
   .st-grid { grid-template-columns: 1fr; gap: 32px; }
   .st--related .st-track {
@@ -240,9 +259,9 @@
   .st-slide { flex: 0 0 100%; padding-inline: 24px; }
   .st-card-body { padding: 20px 26px 32px; }
   .st--index .st-card-body { padding: 20px 24px 32px; }
-  .st-card-title { font-size: 24px !important; }
-  .st--index .st-card-title { font-size: 32px !important; }
-  .st-card-abstract, .st-card-more { font-size: 16px !important; }
+  .st-card-title { font-size: 24px; }
+  .st--index .st-card-title { font-size: 32px; }
+  .st-card-abstract, .st-card-more { font-size: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

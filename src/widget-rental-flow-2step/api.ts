@@ -507,10 +507,22 @@ interface SelOffer {
   space_mix_id?: string;
 }
 
+/**
+ * The parts of an offer that describe the TIER rather than one unit: its rate,
+ * its promotion name and its amenity list. Every unit in a tier carries the
+ * same ones — which is what makes a sibling offer a safe source for them when
+ * the handed-off unit itself is missing from the response.
+ *
+ * Deliberately excludes everything unit-specific: unit id, unit number, the
+ * dossier token, promotion IDS and space_mix_id all authorize or price a
+ * transaction and must describe the exact unit being rented.
+ */
+export type OfferDisplay = Pick<SelectionContext, 'price' | 'online' | 'inStore' | 'promo' | 'features'>;
+
 export type OfferResolution =
   | { status: 'matched'; selection: SelectionContext & { unitId: string } }
   | { status: 'unit-unavailable' }
-  | { status: 'unit-unverified' }
+  | { status: 'unit-unverified'; display?: OfferDisplay }
   | { status: 'malformed' };
 
 function offerAmenityLabel(a: OfferAmenity): string | undefined {
@@ -525,6 +537,33 @@ function offerOnlineRate(price: number, discounts?: OfferDiscount[]): number | u
   if (!d || typeof d.value !== 'number') return undefined;
   const rate = d.type === 'percent' ? price * (1 - d.value / 100) : price - d.value;
   return rate > 0 && rate < price ? rate : undefined;
+}
+
+/** The array fields this reader walks. A non-array where one is declared is a
+ *  contract error, not something to render around. */
+function offerShapeOk(o: SelOffer): boolean {
+  if (o.amenities != null && !Array.isArray(o.amenities)) return false;
+  if (o.promotions != null && !Array.isArray(o.promotions)) return false;
+  if (o.costs?.Discounts != null && !Array.isArray(o.costs.Discounts)) return false;
+  return true;
+}
+
+/** Tier-level display fields off one offer. Same derivation the value-tiers
+ *  cards use, so the rail shows the shopper what they just chose. */
+function offerDisplay(o: SelOffer & { price: number }): OfferDisplay {
+  const price = o.price;
+  return {
+    price,
+    online: offerOnlineRate(price, o.costs?.Discounts) ?? price,
+    inStore: price,
+    promo: o.promotions?.find((p) => p?.name)?.name,
+    features: (o.amenities ?? [])
+      .slice()
+      .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+      .map(offerAmenityLabel)
+      .filter((x): x is string => !!x)
+      .slice(0, 6),
+  };
 }
 
 export async function fetchSelectionFromOffers(
@@ -558,37 +597,35 @@ export async function fetchSelectionFromOffers(
     // A handed-off unit is authoritative. Never replace it with another unit
     // from the same tier (or the first offer): that would combine one unit's
     // amenities/promotion with another unit's quote.
+    const sameTier = sel.tier ? avail.find((o) => o.value_tier?.type === sel.tier) : undefined;
     const pick = sel.unitId
       ? avail.find((o) => o.unit_id === sel.unitId)
-      : (sel.tier ? avail.find((o) => o.value_tier?.type === sel.tier) : undefined) ?? avail[0];
+      : sameTier ?? avail[0];
     // /offers may return one representative unit per tier rather than a full
-    // inventory list. A nonempty response that omits the handed-off unit does
-    // not prove it is unavailable; keep the transaction fail-closed but report
-    // a verification failure instead of making a false sold-out claim.
-    if (!pick) return { status: 'unit-unverified' };
-    if ((pick.amenities != null && !Array.isArray(pick.amenities))
-      || (pick.promotions != null && !Array.isArray(pick.promotions))
-      || (pick.costs?.Discounts != null && !Array.isArray(pick.costs.Discounts))) {
-      return { status: 'malformed' };
+    // inventory list, and it omits a unit that is currently HELD — including
+    // the hold this very page takes on arrival, which is why the miss struck
+    // at random. A nonempty response that omits the handed-off unit does not
+    // prove it is unavailable; keep the transaction fail-closed but report a
+    // verification failure instead of making a false sold-out claim.
+    //
+    // The tier's own display data is still handed back. Without it the rail
+    // lost the rate and the feature list the shopper had just picked in the
+    // value-tiers popup and fell back to the space-groups group name — a list
+    // of amenity BUNDLES rather than the tier's points. `display` carries
+    // nothing that could authorize or re-price the rental (see OfferDisplay).
+    if (!pick) {
+      return {
+        status: 'unit-unverified',
+        display: sameTier && offerShapeOk(sameTier) ? offerDisplay(sameTier) : undefined,
+      };
     }
-    const price = pick.price;
-    const online = offerOnlineRate(price, pick.costs?.Discounts) ?? price;
-    const features = (pick.amenities ?? [])
-      .slice()
-      .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
-      .map(offerAmenityLabel)
-      .filter((x): x is string => !!x)
-      .slice(0, 6);
+    if (!offerShapeOk(pick)) return { status: 'malformed' };
     return {
       status: 'matched',
       selection: {
         unitId: pick.unit_id,
         size: sel.size ?? '',
-        price,
-        online,
-        inStore: price,
-        promo: pick.promotions?.find((p) => p?.name)?.name,
-        features,
+        ...offerDisplay(pick),
         promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
         offerToken: pick.dossier?.token,
         spaceMixId: pick.space_mix_id,
