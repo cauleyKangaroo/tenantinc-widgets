@@ -130,8 +130,8 @@
     <button class="page-tab" data-page="ui-kit" onclick="showPage('ui-kit')">UI Kit (forms &amp; buttons)</button>
   </div>
 
-  <!-- Duda theme (dev-only). A published Duda site defines --color_1 and
-       --color_2 on :root; the harness defines nothing, so every widget was
+  <!-- Duda theme (dev-only). A published Duda site defines --color_1, --color_2
+       and --color_3 on :root; the harness defines nothing, so every widget was
        falling back to the literal baked into each rule. Those fallbacks are not
        consistent across the repo, which is why the harness could show an orange
        accent for something that is green on the real site. Setting them here
@@ -145,6 +145,10 @@
     <span class="theme-field">
       <input type="color" id="theme-color2" value="#509e2f" oninput="setTheme()" />
       <label for="theme-color2">CTA <code>--color_2</code></label>
+    </span>
+    <span class="theme-field">
+      <input type="color" id="theme-color3" value="#ffffff" oninput="setTheme()" />
+      <label for="theme-color3">CTA text <code>--color_3</code></label>
     </span>
     <button type="button" onclick="resetTheme()">Reset</button>
     <button type="button" onclick="clearTheme()" id="theme-clear">Unset (show fallbacks)</button>
@@ -735,6 +739,10 @@
           <label>
             Email:
             <input id="ma-email" type="text" value="sneha.jose@storelocal.com" oninput="reinitMyAccount()" />
+          </label>
+          <label>
+            Log out URL:
+            <input id="ma-logout-url" type="text" value="" placeholder="blank = button does nothing" oninput="reinitMyAccount()" />
           </label>
         </div>
         <div class="controls-group">
@@ -1476,8 +1484,12 @@
     }
 
     /* ── Duda theme ────────────────────────────────────────────────────────
-       Sets --color_1 / --color_2 on :root, which is where a published Duda site
-       puts them, so the widgets need no harness-specific code to pick them up.
+       Sets --color_1 / --color_2 / --color_3 on :root, which is where a
+       published Duda site puts them, so the widgets need no harness-specific
+       code to pick them up. --color_3 is the CTA button LABEL; it defaults to
+       white here because that is the fallback every CTA rule carries, so the
+       harness opens looking exactly as an unthemed site does and the swatch
+       shows what changing it would do.
 
        Persisted, because the mobile preview is a real iframe reloading this
        same page — it reads the same localStorage on load and comes up themed
@@ -1488,16 +1500,18 @@
        is what the harness did before this existed. Useful for spotting rules
        whose fallback disagrees with the theme value. */
     var THEME_KEY = 'harness_duda_theme';
-    var THEME_DEFAULTS = { color_1: '#f45f30', color_2: '#509e2f' };
+    var THEME_DEFAULTS = { color_1: '#f45f30', color_2: '#509e2f', color_3: '#ffffff' };
 
     function applyTheme(t) {
       var root = document.documentElement;
       if (t) {
         root.style.setProperty('--color_1', t.color_1);
         root.style.setProperty('--color_2', t.color_2);
+        root.style.setProperty('--color_3', t.color_3);
       } else {
         root.style.removeProperty('--color_1');
         root.style.removeProperty('--color_2');
+        root.style.removeProperty('--color_3');
       }
       var state = document.getElementById('theme-state');
       if (state) {
@@ -1511,7 +1525,17 @@
       try {
         var raw = localStorage.getItem(THEME_KEY);
         if (raw === 'unset') return null;
-        return raw ? JSON.parse(raw) : THEME_DEFAULTS;
+        if (!raw) return THEME_DEFAULTS;
+        /* Merged over the defaults, not used as-is: a theme saved before
+           --color_3 existed has no color_3, and setProperty with undefined
+           would put the string "undefined" on :root — every CTA label would
+           then resolve to an invalid colour and inherit black. */
+        var saved = JSON.parse(raw);
+        return {
+          color_1: saved.color_1 || THEME_DEFAULTS.color_1,
+          color_2: saved.color_2 || THEME_DEFAULTS.color_2,
+          color_3: saved.color_3 || THEME_DEFAULTS.color_3,
+        };
       } catch (e) { return THEME_DEFAULTS; }
     }
 
@@ -1523,6 +1547,7 @@
       var t = {
         color_1: document.getElementById('theme-color1').value,
         color_2: document.getElementById('theme-color2').value,
+        color_3: document.getElementById('theme-color3').value,
       };
       saveTheme(t); applyTheme(t);
       if (mobileOn) loadMobileFrame();
@@ -1531,6 +1556,7 @@
     function resetTheme() {
       document.getElementById('theme-color1').value = THEME_DEFAULTS.color_1;
       document.getElementById('theme-color2').value = THEME_DEFAULTS.color_2;
+      document.getElementById('theme-color3').value = THEME_DEFAULTS.color_3;
       setTheme();
     }
 
@@ -1544,6 +1570,7 @@
       if (t) {
         document.getElementById('theme-color1').value = t.color_1;
         document.getElementById('theme-color2').value = t.color_2;
+        document.getElementById('theme-color3').value = t.color_3;
       }
       applyTheme(t);
     })();
@@ -1863,6 +1890,9 @@
       return {
         userName:   document.getElementById('ma-name').value,
         userEmail:  document.getElementById('ma-email').value,
+        // Where "Log out" goes. Blank = the button renders but does nothing,
+        // which is what an unconfigured Duda instance does too.
+        logOutUrl:  document.getElementById('ma-logout-url').value || undefined,
         // Blank = send nothing, so the widget falls back to whichever frame's
         // copy the current view calls for rather than an empty heading.
         promoTitle:  document.getElementById('ma-promo-title').value || undefined,
