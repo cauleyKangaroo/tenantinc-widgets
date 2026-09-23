@@ -97,11 +97,26 @@
 .ma-logged-in {
   grid-column: 2;
   align-self: center;
+  /* The sentence and the Log out button on one row, ending at the right edge
+     with the greeting opposite. Wraps rather than squeezes: a long email makes
+     the button drop beneath the line, which is preferable to either the text
+     shrinking to nothing or the row pushing the grid wider. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 16px;
   text-align: right;
   font-size: 16px;
   font-weight: 400;
   line-height: 22px;
   color: var(--hb-text-night);
+}
+
+/* The wrapping belongs to the SENTENCE, not to the row — on the flex container
+   `overflow-wrap` would do nothing, and the button must not be broken up. */
+.ma-logged-in__text {
+  min-width: 0;
   /* An address can be long; wrap rather than widen the column. */
   overflow-wrap: anywhere;
 }
@@ -174,13 +189,45 @@
 /* Scoped under .ma-wrapper deliberately: the `.ma-wrapper h2 { margin: 0 }`
    reset near the top of this file is a class PLUS a type selector, so it
    outranks a bare `.ma-pay__title` and this gap silently never applied. */
+/* Back arrow, then the title to its right. The 42px that used to sit under the
+   title moves to the row, so the heading itself carries no spacing and the two
+   controls line up on their text baseline rather than on stray margin. */
+.ma-pay__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 42px;
+}
+
 .ma-wrapper .ma-pay__title {
   font-size: 24px;
   font-weight: 700;
   line-height: 1.1;
   color: #000;
-  margin-bottom: 42px;
+  /* Was 42px here; it belongs to .ma-pay__head now. */
+  margin-bottom: 0;
 }
+
+/* A 40px hit target around a 24px glyph — the icon alone is under the 44px
+   minimum, and the panel's own padding leaves room for the overhang. */
+.ma-pay__back {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: -8px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--hb-text-night);
+  cursor: pointer;
+  transition: background var(--hb-transition);
+}
+.ma-pay__back:hover { background: var(--ma-chip); }
+.ma-pay__back:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); }
 
 /* Space header — the radio sits outdented, level with the card's text edge. */
 .ma-space-head {
@@ -1403,7 +1450,9 @@
   .ma-main,
   .ma-side { grid-column: 1; }
 
-  .ma-logged-in { text-align: left; }
+  /* Left-aligned once it is stacked under the greeting rather than opposite
+     it — the flex row needs telling as well as the text. */
+  .ma-logged-in { justify-content: flex-start; text-align: left; }
   .ma-side { max-width: 422px; }
 }
 
@@ -1418,7 +1467,7 @@
   }
 
   .ma-pay { padding: 24px 20px; }
-  .ma-wrapper .ma-pay__title { margin-bottom: 24px; }
+  .ma-pay__head { margin-bottom: 24px; }
 
   .ma-account__body { padding: 24px 20px; }
   .ma-account__title { font-size: 28px; }
