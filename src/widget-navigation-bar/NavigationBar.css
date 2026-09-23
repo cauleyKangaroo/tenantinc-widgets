@@ -723,7 +723,7 @@
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  color: #fff;
+  color: var(--color_3, #fff);
 }
 
 /* Keep the magnifying glass its full size — flexbox was shrinking the SVG's

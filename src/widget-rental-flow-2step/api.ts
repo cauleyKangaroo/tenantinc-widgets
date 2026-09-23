@@ -434,7 +434,7 @@ interface CtxTier {
   sell_rate?: number | null;
   set_rate?: number | null;
   promotion_sell_rate?: number | null;
-  units?: { min_price?: number | null };
+  units?: { min_price?: number | null; max_price?: number | null };
   vacant?: { count?: number; min_price?: number | null };
   promo?: Array<{ name?: string }>;
 }
@@ -486,6 +486,41 @@ export function extractSelectionContext(
     }
   }
   return best;
+}
+
+/**
+ * The tier's struck-through IN-STORE rate — `set_rate`, else the tier's
+ * `units.max_price` — read from the space-groups payload.
+ *
+ * This is the SAME derivation the Space List card uses (see `instorePrice` in
+ * widget-space-list/components/Pricing.tsx), and it is deliberately not taken
+ * from /offers: that endpoint has no standard-rate field at all, so its
+ * "in-store" can only ever be the sell price itself. With no promotion on the
+ * offer that made in-store equal to online, the rail suppressed the pair, and
+ * the price the listing had just struck through disappeared on the next page.
+ *
+ * Returns undefined rather than a guess when neither field is usable — the
+ * rail then shows the single rate exactly as it does today.
+ */
+export function extractTierInStore(raw: unknown, tierId?: string): number | undefined {
+  if (!tierId) return undefined;
+  const env = raw as { applicationData?: Record<string, Array<{ data?: { spaceGroupProfile?: Record<string, unknown> } }>> };
+  const profiles = env?.applicationData?.[APP_ID]?.[0]?.data?.spaceGroupProfile;
+  if (!profiles) return undefined;
+  for (const profile of Object.values(profiles)) {
+    const groups = (profile as { groups?: Array<{ tiers?: CtxTier[] }> })?.groups;
+    if (!Array.isArray(groups)) continue;
+    for (const g of groups) {
+      for (const t of g.tiers ?? []) {
+        if (t.id !== tierId && t.tier_id !== tierId) continue;
+        const rate = typeof t.set_rate === 'number' && t.set_rate > 0
+          ? t.set_rate
+          : t.units?.max_price;
+        return typeof rate === 'number' && rate > 0 ? rate : undefined;
+      }
+    }
+  }
+  return undefined;
 }
 
 // --- Rich selection from the offers endpoint --------------------------------
@@ -548,10 +583,48 @@ function offerShapeOk(o: SelOffer): boolean {
   return true;
 }
 
-/** Tier-level display fields off one offer. Same derivation the value-tiers
- *  cards use, so the rail shows the shopper what they just chose. */
-function offerDisplay(o: SelOffer & { price: number }): OfferDisplay {
+/**
+ * Amenity NAMES that are not identical across every tier in this group —
+ * present on one and not another, or carrying a different value.
+ *
+ * These are what the shopper actually chose between. Live example (Storage
+ * Outlet - COFFEE, group 6c384bf4…): all three tiers return the same 23
+ * facility amenities, and only two of them differ — `Climate Control`, on
+ * better/best but not good, and `Convenience`, whose value is "Convenient" /
+ * "More Convenient" / "Most Convenient", one per tier. Everything else is
+ * facility copy that reads the same whichever tier is picked.
+ *
+ * Fewer than two offers means nothing to compare against, so nothing is
+ * claimed to be distinguishing and the order is left exactly as it was.
+ */
+function tierDifferentiators(offers: SelOffer[]): Set<string> {
+  const diff = new Set<string>();
+  if (offers.length < 2) return diff;
+  const names = new Set<string>();
+  for (const o of offers) for (const a of o.amenities ?? []) if (a.name) names.add(a.name);
+  const valueOn = (o: SelOffer, name: string) =>
+    (o.amenities ?? []).find((a) => a.name === name)?.value?.trim();
+  for (const name of names) {
+    const first = valueOn(offers[0], name);
+    if (offers.some((o) => valueOn(o, name) !== first)) diff.add(name);
+  }
+  return diff;
+}
+
+/**
+ * Tier-level display fields off one offer.
+ *
+ * Features lead with this tier's distinguishing amenities, then fall back to
+ * the operator's own `sort_order` for the rest. Without that ranking the
+ * six-item cap was filled entirely by shared facility amenities — every tier
+ * showed "Handcarts & Dollies Available, Moving Supplies Available, Touchless
+ * Rentals…" and the one line that says what the tier buys sat at sort_order
+ * 999, sorted last and cut off. The sort is stable, so within each bucket the
+ * operator's ordering still decides.
+ */
+function offerDisplay(o: SelOffer & { price: number }, distinguishing?: Set<string>): OfferDisplay {
   const price = o.price;
+  const rank = (a: OfferAmenity) => (a.name && distinguishing?.has(a.name) ? 0 : 1);
   return {
     price,
     online: offerOnlineRate(price, o.costs?.Discounts) ?? price,
@@ -559,7 +632,7 @@ function offerDisplay(o: SelOffer & { price: number }): OfferDisplay {
     promo: o.promotions?.find((p) => p?.name)?.name,
     features: (o.amenities ?? [])
       .slice()
-      .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+      .sort((a, b) => rank(a) - rank(b) || (a.sort_order ?? 999) - (b.sort_order ?? 999))
       .map(offerAmenityLabel)
       .filter((x): x is string => !!x)
       .slice(0, 6),
@@ -597,6 +670,9 @@ export async function fetchSelectionFromOffers(
     // A handed-off unit is authoritative. Never replace it with another unit
     // from the same tier (or the first offer): that would combine one unit's
     // amenities/promotion with another unit's quote.
+    // Computed across the WHOLE response, before a tier is picked: what makes
+    // one tier different is only knowable by comparing it with the others.
+    const distinguishing = tierDifferentiators(avail.filter(offerShapeOk));
     const sameTier = sel.tier ? avail.find((o) => o.value_tier?.type === sel.tier) : undefined;
     const pick = sel.unitId
       ? avail.find((o) => o.unit_id === sel.unitId)
@@ -616,7 +692,8 @@ export async function fetchSelectionFromOffers(
     if (!pick) {
       return {
         status: 'unit-unverified',
-        display: sameTier && offerShapeOk(sameTier) ? offerDisplay(sameTier) : undefined,
+        display: sameTier && offerShapeOk(sameTier)
+          ? offerDisplay(sameTier, distinguishing) : undefined,
       };
     }
     if (!offerShapeOk(pick)) return { status: 'malformed' };
@@ -625,7 +702,7 @@ export async function fetchSelectionFromOffers(
       selection: {
         unitId: pick.unit_id,
         size: sel.size ?? '',
-        ...offerDisplay(pick),
+        ...offerDisplay(pick, distinguishing),
         promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
         offerToken: pick.dossier?.token,
         spaceMixId: pick.space_mix_id,
