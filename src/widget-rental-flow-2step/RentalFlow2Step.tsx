@@ -1675,11 +1675,18 @@ export function RentalFlow2Step({
           setSelection(keepHeldIdentity(result.selection));
           setSelectionStatus('matched');
         } else {
+          /* The tier's rate, promo and feature points when /offers had the
+             tier but not this exact unit (a held unit drops out of the list).
+             Display only — it carries no offer token, promotion ids or
+             space_mix_id, so nothing here can price or authorize anything. It
+             layers OVER the space-groups fallback, whose `features` are the
+             group NAME, i.e. amenity bundles rather than the tier's points. */
+          const display = result.status === 'unit-unverified' ? result.display : undefined;
           // spaceMixId from the resolved unit row: API 9 REQUIRES it, and
           // this fallback runs exactly when /offers could not supply one.
           setSelection(keepHeldIdentity(unitIdProp
-            ? { unitId: unitIdProp, size: sizeProp ?? '', spaceMixId: resolvedSpaceMixRef.current }
-            : fallback));
+            ? { unitId: unitIdProp, size: sizeProp ?? '', spaceMixId: resolvedSpaceMixRef.current, ...display }
+            : fallback && { ...fallback, ...display }));
           setSelectionStatus(result.status);
         }
       })
