@@ -60,7 +60,7 @@ import { useMemo, useState } from 'react';
 import { Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
 import { BankForm, CardForm, PaymentFormSkeleton } from '@shared/paymentForms';
 import {
-  BankIcon, ChevronBigRight24Icon, CreditCardIcon, CreditCardRemoveIcon,
+  BankIcon, ChevronBigLeft24Icon, ChevronBigRight24Icon, CreditCardIcon, CreditCardRemoveIcon,
   CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
   MinusIcon, PlusIcon, ShieldSettingsIcon,
 } from './icons';
@@ -113,13 +113,20 @@ function flip(prev: Set<string>, id: string): Set<string> {
 }
 
 export function MakePaymentPanel({
-  spaces, space,
+  spaces, space, onBack,
 }: {
   /** Every space with something outstanding — all listed, all selected. */
   spaces: AccountSpace[];
   /** The unit whose "Pay Now" was clicked. Only used as a fallback when no
    *  list is passed, so an older caller still renders. */
   space?: AccountSpace;
+  /**
+   * Back to Account Info. Optional: without it the control is not drawn at
+   * all, rather than drawn and inert — a back arrow that does nothing is worse
+   * than no back arrow. A sidebar unit's "Account Info" button is still the
+   * other way out, as it was before this existed.
+   */
+  onBack?: () => void;
 }) {
   const list = spaces.length ? spaces : space ? [space] : [];
 
@@ -212,7 +219,17 @@ export function MakePaymentPanel({
 
   return (
     <section className="ma-pay">
-      <h2 className="ma-pay__title">Make a Payment</h2>
+      {/* Back arrow, then the title to its right. The heading keeps its own
+          element and styling; only the row around it is new, so the title reads
+          the same to a screen reader and in the document outline. */}
+      <header className="ma-pay__head">
+        {onBack && (
+          <button type="button" className="ma-pay__back" onClick={onBack} aria-label="Back to account info">
+            <ChevronBigLeft24Icon />
+          </button>
+        )}
+        <h2 className="ma-pay__title">Make a Payment</h2>
+      </header>
 
       {list.map((sp) => {
         const on = selected.has(sp.id);

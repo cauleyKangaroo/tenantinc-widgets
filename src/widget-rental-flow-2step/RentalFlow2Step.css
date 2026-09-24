@@ -914,6 +914,109 @@
 .rf2-autopay--withbar .rf2-autopay-bar { border-radius: 0 0 8px 8px; }
 .rf2-autopay-head { display: flex; align-items: center; gap: 8px; }
 
+/* ── Payment Cycle (Figma 12285-189429) ───────────────────────────────────
+   The same white 10px card as the autopay row above it, one step taller
+   because it carries the disclaimer. The label and the three radios share a
+   row that WRAPS: at 703px the frame fits them side by side, and below that
+   the radios drop under the label rather than crushing "Pay Quarterly". */
+.rf2-cycle {
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 18px 28px;
+}
+
+.rf2-cycle-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  /* 20, not the frame's ~36. The frame draws this card 703px wide and the
+     panel gives it about 612, so the gutters are where that difference has to
+     come from — at the frame's spacing the three radios missed the first row
+     by three pixels. They still wrap below this, see the note above. */
+  gap: 16px 20px;
+}
+
+.rf2-cycle-head { display: flex; align-items: center; gap: 8px; }
+.rf2-cycle-head img { display: block; flex: none; }
+
+.rf2-cycle-title {
+  color: var(--hb-text-night, #101318);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.rf2-cycle-info { color: var(--hb-text-night, #101318); flex-shrink: 0; }
+
+.rf2-cycle-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; }
+
+.rf2-cycle-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+/* The real control, hidden but still focusable and still the thing arrow keys
+   move between — the ring below is drawn for it. */
+.rf2-cycle-opt input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* 18px outer, 2px #C4CDD5 ring, black 10px centre when chosen — the frame's
+   own circles (r=8 stroke 2, r=5 fill). */
+.rf2-cycle-radio {
+  box-sizing: border-box;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #c4cdd5;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.rf2-cycle-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.rf2-cycle-opt input:checked + .rf2-cycle-radio .rf2-cycle-dot { background: #000; }
+.rf2-cycle-opt input:focus-visible + .rf2-cycle-radio { box-shadow: var(--hb-focus-ring); }
+
+/* Label over saving, 14px on a 14px line in the frame — tight enough that the
+   two read as one item rather than two rows. */
+.rf2-cycle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #000;
+  font-size: 14px;
+  line-height: 14px;
+}
+
+/* Unused while no endpoint carries a per-period discount - see PAYMENT_CYCLES
+   in Step2.tsx. Kept so restoring the badge is a render change, not a redesign. */
+.rf2-cycle-save { font-weight: 600; }
+
+.rf2-cycle-disclaimer {
+  margin: 14px 0 0;
+  color: var(--hb-grayscale-medium, #637381);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.rf2-cycle-disclaimer-lead { font-weight: 600; }
+
 /* The blue notices. Two of them, and the difference is structural rather than
    decorative: --bar is ATTACHED inside the checkbox's box and argues for the
    choice being made there; --note is a box of its own and states a fact about
@@ -979,6 +1082,35 @@
 /* ── Autopay tooltip (Figma 8509-34934) ─────────────────────────────────── */
 /* The anchor is the ICON's box, so the tooltip can be placed against the icon's
    centre rather than the row. inline-flex keeps it from adding line-box height. */
+/* ── Nokē Key-Share (Figma 12285-189422) ──────────────────────────────────
+   The section borrows .rf2-panel / .rf2-rowhead / .rf2-plan wholesale — the
+   frame is the protection plan's control with different words in it. These
+   are the only two things that differ. */
+
+/* "Included" where the plan shows a price: 20px semibold, not the plan's
+   bold-number-plus-small-suffix pair. */
+.rf2-ks-price {
+  flex: none;
+  color: var(--hb-text-night, #101318);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+/* The key-share card carries a paragraph where the autopay tip carries one
+   line, so it gets the frame's wider column (244px of text inside 23px
+   padding) rather than .rf2-tip's 176px. */
+/* Doubled selector so it wins wherever it sits in the file — the base
+   .rf2-tip is declared further down, and at equal specificity source order
+   decided, which left this rule doing nothing. */
+.rf2-tip.rf2-tip--wide {
+  width: 290px;
+  padding: 19px 23px;
+  line-height: 18px;
+  border-radius: 16px;
+}
+
 .rf2-tip-anchor {
   position: relative;
   display: inline-flex;

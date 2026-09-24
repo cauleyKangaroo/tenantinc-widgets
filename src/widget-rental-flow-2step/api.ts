@@ -124,6 +124,48 @@ export interface PropertyInfo {
    * Billing Country from this, so it has to survive as its own value.
    */
   country?: string;
+  /**
+   * Which billing periods this property offers, PER SPACE TYPE
+   * (`?payment_cycles=true`). Storage and parking are configured separately:
+   * live on Storage Outlet - COFFEE, storage offers monthly + quarterly +
+   * annual while parking offers monthly alone.
+   *
+   * Empty/absent ⇒ the API said nothing about cycles, which is not the same as
+   * "no cycles". See `cyclesForUnitType`.
+   */
+  paymentCycles?: PaymentCycleConfig[];
+}
+
+/** One space type's billing-period configuration. */
+export interface PaymentCycleConfig {
+  /**
+   * The space type this row configures. MATCH ON THIS, never on `unitType`:
+   * the names disagree between endpoints — Bellflower's row calls the type
+   * `commercial_storage` while /space-management/space-types calls the same id
+   * (`k3BEpHgdjA`) `Commercial`. The id is the same everywhere.
+   */
+  unitTypeId: string;
+  /** The API's own name for it, for logging only. */
+  unitType?: string;
+  monthly: boolean;
+  quarterly: boolean;
+  annual: boolean;
+}
+
+/**
+ * The cycles configured for a space type, or undefined when it cannot be
+ * answered — no config from the API, or the unit's type not resolved yet.
+ *
+ * Undefined is deliberately distinct from "all three false": the first means
+ * *unknown* and the caller should keep its existing behaviour, the second is
+ * the property genuinely offering no choice, which hides the card.
+ */
+export function cyclesForUnitType(
+  property?: PropertyInfo,
+  unitTypeId?: string,
+): PaymentCycleConfig | undefined {
+  if (!unitTypeId || !property?.paymentCycles?.length) return undefined;
+  return property.paymentCycles.find((c) => c.unitTypeId === unitTypeId);
 }
 
 interface ApiAccessHourRow { day?: string; open_time?: string; close_time?: string; is_always_open?: boolean }
@@ -137,6 +179,18 @@ interface ApiProperty {
   // every row — it was simply never declared here, so nothing downstream could
   // see it.
   Address?: { address?: string; city?: string; state?: string; zip?: string; country?: string };
+  payment_cycles?: ApiPaymentCycle[];
+}
+
+interface ApiPaymentCycle {
+  unit_type_id?: string;
+  unit_type?: string;
+  monthly?: boolean;
+  quarterly?: boolean;
+  annual?: boolean;
+  /** Months after which the lease reverts to monthly. Not used by the form —
+   *  the choice is what is being collected, not its expiry. */
+  revert_payment_cycle?: number | null;
 }
 
 const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -191,7 +245,13 @@ function hoursLines(sched?: ApiAccessHours): string[] | undefined {
 }
 
 export async function fetchProperty(ctx: RentalCtx): Promise<PropertyInfo | undefined> {
-  const data = unwrap(await getJson(`companies/${ctx.companyId}/properties?access_hours=true`));
+  /* payment_cycles: which billing periods each space type offers, for the
+     Payment Cycle card. noke_configs: the property's key-share tiers (id,
+     key_limit, price) — requested here so the Nokē section has a source, and
+     served on the same row rather than as a second round-trip. */
+  const data = unwrap(await getJson(
+    `companies/${ctx.companyId}/properties?access_hours=true&noke_configs=true&payment_cycles=true`,
+  ));
   const props = (data?.properties as ApiProperty[] | undefined) ?? [];
   // Fail unavailable rather than showing a DIFFERENT property's facts: the
   // transaction targets ctx.propertyId, so never fall back to props[0].
@@ -210,6 +270,17 @@ export async function fetchProperty(ctx: RentalCtx): Promise<PropertyInfo | unde
     officeHours: hoursLines(office),
     gateHours: hoursLines(gate),
     country: a?.country?.trim() || undefined,
+    // Rows without a unit_type_id are unusable: the id is how a row is matched
+    // to the unit being rented, so one without it can only be guessed at.
+    paymentCycles: (Array.isArray(prop.payment_cycles) ? prop.payment_cycles : [])
+      .filter((c): c is ApiPaymentCycle & { unit_type_id: string } => !!c?.unit_type_id)
+      .map((c) => ({
+        unitTypeId: c.unit_type_id,
+        unitType: c.unit_type,
+        monthly: c.monthly === true,
+        quarterly: c.quarterly === true,
+        annual: c.annual === true,
+      })),
   };
 }
 

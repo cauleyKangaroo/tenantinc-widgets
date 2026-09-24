@@ -85,6 +85,53 @@
   gap: 6px;
 }
 
+/* ── Language menu ──────────────────────────────────────────────────────────
+   The trigger keeps .nav-top-item / .nav-icon-btn, so it still sits in the row
+   exactly as the plain button did; only the panel below it is new. */
+.nav-lang-wrap { position: relative; display: inline-flex; }
+
+/* Anchored to the trigger rather than the bar, so it follows it wherever the
+   row wraps. z-index sits above the bar's own content but below the mega menu's
+   overlay, which must still cover everything when it opens. */
+.nav-lang-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 132px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(16, 19, 24, 0.12);
+}
+
+/* Right-anchored in the single-bar layout: the compact trigger sits at the end
+   of the row, where a left-anchored panel would hang off the screen edge. */
+.nav-actions .nav-lang-menu { left: auto; right: 0; }
+
+.nav-lang-opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #000;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.nav-lang-opt:hover { background: #f4f6f8; color: var(--color_1, #f45f30); }
+.nav-lang-opt:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(16, 19, 24, 0.18); }
+/* The page you are already on. Weight rather than colour, so it reads as
+   "current" and not as a second hover state. */
+.nav-lang-opt--on { font-weight: 700; background: #f9fafb; }
+
 /* ── Primary bar ────────────────────────────────────────────────────────── */
 
 .nav-primary {

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './NavigationBar.css';
 import storelocalLogo from './Storelocal_logo.png';
+import { LanguageMenu } from './LanguageMenu';
 import { CloseCircleIcon } from '@shared/ui';
 import {
   ChevronDown,
@@ -8,7 +9,6 @@ import {
   PhoneIcon,
   MessageAiIcon,
   CreditCardIcon,
-  UsFlagIcon,
   UserCircleIcon,
   HamburgerIcon,
   PhoneCallIcon,
@@ -720,13 +720,7 @@ export function NavigationBar({
           <span>{payBillLabel}</span>
         </a>
       )}
-      {showLanguage && (
-        <button className="nav-top-item nav-lang" type="button">
-          <UsFlagIcon />
-          <span>{language}</span>
-          <ChevronDown size={24} className="nav-link-chevron" />
-        </button>
-      )}
+      {showLanguage && <LanguageMenu enLabel={language} />}
       {showAccount && (
         <a className="nav-top-item" href={accountUrl}>
           <UserCircleIcon size={24} />
@@ -747,12 +741,7 @@ export function NavigationBar({
       )}
       {showPayBill && <a className="nav-paybill" href={payBillUrl}>{payBillLabel}</a>}
       {/* Language first, then chat, then account. */}
-      {showLanguage && (
-        <button className="nav-icon-btn nav-lang" type="button" aria-label="Language">
-          <UsFlagIcon width={26} height={18} />
-          <ChevronDown size={20} className="nav-link-chevron" />
-        </button>
-      )}
+      {showLanguage && <LanguageMenu compact enLabel={language} />}
       {/* The glyph IS the control (6380-125980 draws these at the size of their
           box), rather than a small mark floating in the middle of one. 40 by
           preference over the frame's 44. The stroke stays a true 2px either
