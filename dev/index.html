@@ -836,6 +836,10 @@
             </select>
           </label>
           <label>
+            <input type="checkbox" id="rf-show-payment-cycle" onchange="reinitRentalFlow()" />
+            Payment cycle section
+          </label>
+          <label>
             Gate Code Type:
             <select id="rf-gate-code-type"
               style="width:190px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
@@ -1964,6 +1968,9 @@
           // this as data.config.gateCodeType. Reach the confirmation by
           // completing the flow, or with ?step=confirm.
           gateCodeType: document.getElementById('rf-gate-code-type').value,
+          // Stands in for the Duda content menu's checkbox, which the JS tab
+          // forwards as data.config.showPaymentCycle. Step 2 only.
+          showPaymentCycle: document.getElementById('rf-show-payment-cycle').checked,
         },
       });
     }

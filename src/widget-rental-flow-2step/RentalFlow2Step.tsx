@@ -25,7 +25,7 @@ import { ChevronSolidIcon } from './icons';
    locally. Importing NavigationBar would drag in its nav tree, Properties
    lookups and Duda bindings, none of which belong on a checkout page. */
 import storelocalLogo from '../widget-navigation-bar/Storelocal_logo.png';
-import { imageUrl } from '@shared/dudaCollections';
+import { imageUrl, bool } from '@shared/dudaCollections';
 import { RfCheckbox } from './RfCheckbox';
 import { splitBusinessName } from './businessName';
 import { readUnitSelection, clearUnitSelection } from '@shared/unitHandoff';
@@ -152,6 +152,15 @@ export interface RentalFlow2StepProps {
    * Unset or `default` keeps the confirmation exactly as it shipped.
    */
   gateCodeType?: string;
+  /**
+   * Content-menu checkbox `showPaymentCycle` — draws the Payment Cycle card
+   * between autopay and the payment methods (Figma 12285-189429).
+   *
+   * Typed loosely because a Duda checkbox arrives as a boolean OR as the
+   * strings 'true'/'false', and 'false' is truthy. Off unless turned on: a
+   * property that only bills monthly has nothing to choose.
+   */
+  showPaymentCycle?: boolean | string;
   /**
    * Content-menu radio `formType` — which layout this instance renders:
    * `2step` (default) | `1step`.
@@ -768,6 +777,7 @@ export function RentalFlow2Step({
   autopay,
   countryDefault,
   gateCodeType,
+  showPaymentCycle,
   formType,
   logoImage,
   logoUrl,
@@ -2404,6 +2414,7 @@ export function RentalFlow2Step({
                post-purchase screen. Everything else is shared. */
             oneStep={formMode === '1step'}
             autopayMode={autopayMode}
+            showPaymentCycle={bool(showPaymentCycle)}
             moveIn={moveIn}
             // Everything step 1 already asked for, so step 2 opens filled in.
             contact={contact}

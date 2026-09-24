@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo , useId} from 'react';
 import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
@@ -14,6 +14,7 @@ import './screens.css';
 import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { splitBusinessName } from './businessName';
 import { skipValidation } from '@shared/devBypass';
+import creditCardRepeat from './assets/credit-card-repeat.svg';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space now" (Figma 8507-23329).
@@ -159,9 +160,36 @@ const PLAN_HOVER_QUERY = '(min-width: 901px) and (hover: hover) and (pointer: fi
 /** The four autopay treatments a property can be configured with. */
 export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
 
+/** The three billing periods the Payment Cycle card offers. */
+export type PaymentCycle = 'monthly' | 'quarterly' | 'annual';
+
+/* Labels and savings verbatim from the frame. The saving is COPY, not a
+   calculation — see the note where the state lives. */
+const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string; save?: string }> = [
+  { id: 'monthly',   label: 'Pay Monthly' },
+  { id: 'quarterly', label: 'Pay Quarterly', save: 'Save 10%' },
+  { id: 'annual',    label: 'Pay Annual',    save: 'Save 15%' },
+];
+
+/** One Nokē key-share tier. */
+export interface KeyShareOption { id: string; shares: number; price: string; }
+
+/* No endpoint supplies these — the rental APIs carry nothing about key-shares
+   — so the frame's single tier is the default and `keyShareOptions` is how an
+   operator (or a later API) supplies more. Inventing a ladder of tiers here
+   would be inventing prices. */
+const DEFAULT_KEY_SHARES: KeyShareOption[] = [
+  { id: 'ks-2', shares: 2, price: 'Included' },
+];
+
+/** Verbatim from 12285-189509, the card the Learn More reveals. */
+const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoing unit '
+  + 'access with trusted people. Recipients receive a digital key by text, and access can '
+  + 'be monitored or revoked at any time.';
+
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode,
+  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode, showPaymentCycle = false, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
 }: {
   moveIn: Date;
@@ -185,6 +213,16 @@ export function Step2({
    * demo picker so all four can be reviewed — pass a value and it disappears.
    */
   autopayMode?: AutopayMode;
+  /**
+   * Show the Payment Cycle card between autopay and the payment methods
+   * (Figma 12285-189429). Off unless the operator turns it on: a property
+   * that only bills monthly has nothing to choose, and a radio group with one
+   * real answer is worse than no radio group.
+   */
+  showPaymentCycle?: boolean;
+  /** Nokē key-share tiers. Omitted → the frame's single "2 Key-shares —
+   *  Included" row. */
+  keyShareOptions?: KeyShareOption[];
   /** Protection plans to choose between, already narrowed to the space type
    *  being rented. Empty → the "confirmed at checkout" note, which now means
    *  the property has no coverage products configured for that type. */
@@ -285,6 +323,15 @@ export function Step2({
    * default, so an instance saved before the field existed behaves as it did.
    */
   const mode: AutopayMode = autopayMode ?? 'optional';
+
+  /* PAYMENT CYCLE (Figma 12285-189429). Local state: nothing downstream reads
+     it yet — the rental APIs take no billing period — so this is the control
+     and its selection, and the price does NOT move. Wiring it to the quote is
+     the one change when a term-priced endpoint exists; until then a radio that
+     silently rewrote the total would be inventing a discount.
+     `useId` because a page can hold two of these and radios group by name. */
+  const cycleName = useId();
+  const [cycle, setCycle] = useState<PaymentCycle>('monthly');
   /* With no checkbox to tick, the pay button is where the shopper accepts the
      recurring charge — so it says so. undefined elsewhere, leaving the forms'
      own "Pay Now $X". */
@@ -383,6 +430,29 @@ export function Step2({
   useEffect(() => {
     onPlanChange?.(planChoice === 'own' ? undefined : planChoice);
   }, [planChoice, onPlanChange]);
+
+  /* KEY-SHARE (12285-189422). Same shape as the protection plan above it, so
+     it reuses that section's classes rather than growing a parallel set. */
+  const keyShares = keyShareOptions?.length ? keyShareOptions : DEFAULT_KEY_SHARES;
+  const [ksOpen, setKsOpen] = useState(false);
+  const [ksChoice, setKsChoice] = useState(keyShares[0].id);
+  const [ksTipOpen, setKsTipOpen] = useState(false);
+  const ksRef = useRef<HTMLDivElement>(null);
+  const chosenKeyShare = keyShares.find((k) => k.id === ksChoice) ?? keyShares[0];
+
+  useEffect(() => {
+    if (!ksOpen) return undefined;
+    const onDown = (e: MouseEvent) => {
+      if (ksRef.current && !ksRef.current.contains(e.target as Node)) setKsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setKsOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [ksOpen]);
 
   // Close on outside click / Escape, like a native select.
   const planRef = useRef<HTMLDivElement>(null);
@@ -651,6 +721,79 @@ export function Step2({
           )}
         </section>
 
+        {/* NOKĒ KEY-SHARE (Figma 12285-189422). Deliberately the protection
+            plan's own classes, not a parallel set: the frame draws the
+            identical control, so one stylesheet for both is what keeps them
+            consistent as either moves. Only the price type differs. */}
+        <section className="rf2-panel">
+          <div className="rf2-rowhead">
+            <span className="rf2-h">Select Nokē Key-Share Plan</span>
+            {/* The dark card from 12285-189509. Hover and focus both reveal
+                it; on a touch screen, where neither happens, the tap does. */}
+            <span className="rf2-tip-anchor">
+              <button
+                type="button"
+                className="rf2-link rf2-link--btn"
+                aria-expanded={ksTipOpen}
+                onMouseEnter={() => { if (canHover) setKsTipOpen(true); }}
+                onMouseLeave={() => { if (canHover) setKsTipOpen(false); }}
+                onFocus={() => setKsTipOpen(true)}
+                onBlur={() => setKsTipOpen(false)}
+                onClick={() => { if (!canHover) setKsTipOpen((o) => !o); }}
+              >
+                Learn More
+              </button>
+              {ksTipOpen && (
+                <span className="rf2-tip rf2-tip--wide" role="tooltip">{KEY_SHARE_BLURB}</span>
+              )}
+            </span>
+          </div>
+
+          <div className="rf2-plan-wrap" ref={ksRef}>
+            <button
+              type="button"
+              className="rf2-plan"
+              aria-haspopup="listbox"
+              aria-expanded={ksOpen}
+              onClick={() => setKsOpen((o) => !o)}
+            >
+              <span className="rf2-plan-body">
+                <span className="rf2-plan-left">
+                  <span className="rf2-plan-cov">
+                    <b>{chosenKeyShare.shares} Key-shares</b> Plan
+                  </span>
+                </span>
+                <span className="rf2-ks-price">{chosenKeyShare.price}</span>
+              </span>
+              <span className="rf2-plan-drop">
+                <ChevronSolidIcon size={14} className={`rf2-chev-down${ksOpen ? ' rf2-chev-up' : ''}`} />
+              </span>
+            </button>
+
+            {ksOpen && (
+              <div className="rf2-plan-menu" role="listbox" aria-label="Key-share plans">
+                {keyShares.map((k, i) => (
+                  <React.Fragment key={k.id}>
+                    {i > 0 && <span className="rf2-plan-sep" aria-hidden="true" />}
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={ksChoice === k.id}
+                      className="rf2-plan-opt"
+                      onClick={() => { setKsChoice(k.id); setKsOpen(false); }}
+                    >
+                      <span className="rf2-plan-opt-left">
+                        <span className="rf2-plan-opt-cov"><b>{k.shares} Key-shares</b> Plan</span>
+                      </span>
+                      <span className="rf2-ks-price">{k.price}</span>
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Additional Information */}
         <section className="rf2-plain">
           <span className="rf2-h">Additional Information</span>
@@ -770,6 +913,51 @@ export function Step2({
               No fee for ACH bank transfer.
             </p>
           )}
+          {/* PAYMENT CYCLE (Figma 12285-189429) — between autopay and the
+              payment methods, which is where the frame puts it. A real
+              radiogroup, so arrow keys move between the three and a screen
+              reader announces one of three rather than three checkboxes. */}
+          {showPaymentCycle && (
+            <div className="rf2-cycle">
+              <div className="rf2-cycle-row">
+                <span className="rf2-cycle-head">
+                  <img src={creditCardRepeat} width={24} height={24} alt="" aria-hidden="true" />
+                  <span className="rf2-cycle-title">Payment Cycle</span>
+                  <InfoIcon size={16} className="rf2-cycle-info" />
+                </span>
+
+                <div className="rf2-cycle-opts" role="radiogroup" aria-label="Payment cycle">
+                  {PAYMENT_CYCLES.map((c) => (
+                    <label className="rf2-cycle-opt" key={c.id}>
+                      <input
+                        type="radio"
+                        name={cycleName}
+                        value={c.id}
+                        checked={cycle === c.id}
+                        onChange={() => setCycle(c.id)}
+                      />
+                      <span className="rf2-cycle-radio"><span className="rf2-cycle-dot" /></span>
+                      <span className="rf2-cycle-text">
+                        <span>{c.label}</span>
+                        {/* Only quarterly and annual carry one; monthly is the
+                            baseline the savings are measured against. */}
+                        {c.save && <span className="rf2-cycle-save">{c.save}</span>}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <p className="rf2-cycle-disclaimer">
+                <span className="rf2-cycle-disclaimer-lead">Disclaimer:</span>
+                {' '}Only one discount can be applied at a time. Multiple discounts or
+                promotions cannot be combined. Please choose the discount that provides
+                the greatest benefit to you. Other promotions or offers may not be used
+                simultaneously. Terms and conditions may apply.
+              </p>
+            </div>
+          )}
+
           {/* Wallets always sit at the top. The two method buttons only share
               that grid while NEITHER is open — once one is, the open panel
               takes their place and the other method moves below it
