@@ -917,7 +917,7 @@
   border: none;
   border-radius: 4px;
   background: var(--color_2, #509e2f);
-  color: #fff;
+  color: var(--color_3, #fff);
   font-family: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -928,9 +928,12 @@
   cursor: pointer;
 }
 
+/* These exist to stop a visited link going purple, so they have to carry the
+   themed label too — left at #fff they would undo it on hover and after a
+   visit, which is most of the time. */
 .ml-select:hover,
 .ml-select:focus,
-.ml-select:visited { color: #fff; text-decoration: none; }
+.ml-select:visited { color: var(--color_3, #fff); text-decoration: none; }
 
 .ml-select:hover { filter: brightness(0.94); }
 

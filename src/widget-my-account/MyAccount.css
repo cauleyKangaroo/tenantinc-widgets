@@ -1094,7 +1094,11 @@
   font-size: 16px;
   font-weight: 700;
   line-height: 16px;
-  color: #fff;
+  /* The CTA label follows the Duda theme's --color_3, same as every other CTA
+     button. NOTE its FILL is --ma-notify, the Primary/Notifications orange the
+     frame gives this button, not --color_2 — so the label themes while the
+     background stays the design's. */
+  color: var(--color_3, #fff);
   transition: background var(--hb-transition);
 }
 .ma-paynow:hover { background: color-mix(in srgb, var(--ma-notify) 88%, #000); }
