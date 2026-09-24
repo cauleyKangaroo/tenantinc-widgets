@@ -197,7 +197,7 @@ const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode, showPaymentCycle = false, paymentCycles, keyShareOptions,
+  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
 }: {
   moveIn: Date;
@@ -222,17 +222,16 @@ export function Step2({
    */
   autopayMode?: AutopayMode;
   /**
-   * Show the Payment Cycle card between autopay and the payment methods
-   * (Figma 12285-189429). Off unless the operator turns it on: a property
-   * that only bills monthly has nothing to choose, and a radio group with one
-   * real answer is worse than no radio group.
-   */
-  showPaymentCycle?: boolean;
-  /**
    * Which periods THIS property offers for THIS space type, from
    * `/properties?payment_cycles=true` matched on the unit's `unit_type_id`.
    * Storage and parking are configured separately — live on Storage Outlet -
    * COFFEE, storage offers all three while parking offers monthly alone.
+   *
+   * This ALONE decides whether the Payment Cycle card (Figma 12285-189429)
+   * appears. There is deliberately no operator toggle beside it: the property
+   * already answers the question in its own configuration, and a checkbox that
+   * could only ever contradict it would let a facility advertise a term it
+   * does not sell, or hide one it does.
    *
    * Empty ⇒ the property offers none and the card is hidden entirely.
    * Undefined ⇒ not known yet (the unit's type resolves with the quote, a beat
@@ -957,7 +956,7 @@ export function Step2({
           {/* Hidden outright when the property offers no period for this space
               type — a radiogroup with nothing in it, or with one forced answer,
               is not a choice. */}
-          {showPaymentCycle && cycleOptions.length > 0 && (
+          {cycleOptions.length > 0 && (
             <div className="rf2-cycle">
               <div className="rf2-cycle-row">
                 <span className="rf2-cycle-head">
