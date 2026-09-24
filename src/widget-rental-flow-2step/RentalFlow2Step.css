@@ -1003,6 +1003,8 @@
   line-height: 14px;
 }
 
+/* Unused while no endpoint carries a per-period discount - see PAYMENT_CYCLES
+   in Step2.tsx. Kept so restoring the badge is a render change, not a redesign. */
 .rf2-cycle-save { font-weight: 600; }
 
 .rf2-cycle-disclaimer {

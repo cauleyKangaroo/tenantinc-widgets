@@ -163,12 +163,20 @@ export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
 /** The three billing periods the Payment Cycle card offers. */
 export type PaymentCycle = 'monthly' | 'quarterly' | 'annual';
 
-/* Labels and savings verbatim from the frame. The saving is COPY, not a
-   calculation — see the note where the state lives. */
-const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string; save?: string }> = [
+/*
+ * Labels verbatim from the frame, in the frame's order.
+ *
+ * The frame also put "Save 10%" and "Save 15%" beside quarterly and annual.
+ * Those are GONE: nothing in the API carries a discount for a billing period
+ * — `payment_cycles` returns booleans and a `revert_payment_cycle` month count
+ * and no rates at all — so the figures were frame copy being printed as if
+ * they were this property's terms. Restore them when a real percentage has a
+ * source, per property and per space type.
+ */
+const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string }> = [
   { id: 'monthly',   label: 'Pay Monthly' },
-  { id: 'quarterly', label: 'Pay Quarterly', save: 'Save 10%' },
-  { id: 'annual',    label: 'Pay Annual',    save: 'Save 15%' },
+  { id: 'quarterly', label: 'Pay Quarterly' },
+  { id: 'annual',    label: 'Pay Annual' },
 ];
 
 /** One Nokē key-share tier. */
@@ -189,7 +197,7 @@ const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode, showPaymentCycle = false, keyShareOptions,
+  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode, showPaymentCycle = false, paymentCycles, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
 }: {
   moveIn: Date;
@@ -220,6 +228,18 @@ export function Step2({
    * real answer is worse than no radio group.
    */
   showPaymentCycle?: boolean;
+  /**
+   * Which periods THIS property offers for THIS space type, from
+   * `/properties?payment_cycles=true` matched on the unit's `unit_type_id`.
+   * Storage and parking are configured separately — live on Storage Outlet -
+   * COFFEE, storage offers all three while parking offers monthly alone.
+   *
+   * Empty ⇒ the property offers none and the card is hidden entirely.
+   * Undefined ⇒ not known yet (the unit's type resolves with the quote, a beat
+   * after first paint) and the card stays hidden until it is, so a period the
+   * property does not sell is never briefly on screen.
+   */
+  paymentCycles?: PaymentCycle[];
   /** Nokē key-share tiers. Omitted → the frame's single "2 Key-shares —
    *  Included" row. */
   keyShareOptions?: KeyShareOption[];
@@ -332,6 +352,23 @@ export function Step2({
      `useId` because a page can hold two of these and radios group by name. */
   const cycleName = useId();
   const [cycle, setCycle] = useState<PaymentCycle>('monthly');
+  /* The frame's three rows, narrowed to what this property sells for this
+     space type. Undefined `paymentCycles` means not yet known, which renders
+     nothing rather than all three. */
+  const cycleOptions = paymentCycles
+    ? PAYMENT_CYCLES.filter((c) => paymentCycles.includes(c.id))
+    : [];
+  /* Keep the selection on an offered period. Monthly is the default and is
+     offered by every property in the live data, but it is configurable, so a
+     property that sells quarterly and annual only must not sit on a monthly
+     radio that is not on screen. */
+  useEffect(() => {
+    if (!cycleOptions.length) return;
+    if (!cycleOptions.some((c) => c.id === cycle)) setCycle(cycleOptions[0].id);
+    // cycleOptions is derived from paymentCycles; depending on the array
+    // identity would re-run this on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentCycles?.join(','), cycle]);
   /* With no checkbox to tick, the pay button is where the shopper accepts the
      recurring charge — so it says so. undefined elsewhere, leaving the forms'
      own "Pay Now $X". */
@@ -917,7 +954,10 @@ export function Step2({
               payment methods, which is where the frame puts it. A real
               radiogroup, so arrow keys move between the three and a screen
               reader announces one of three rather than three checkboxes. */}
-          {showPaymentCycle && (
+          {/* Hidden outright when the property offers no period for this space
+              type — a radiogroup with nothing in it, or with one forced answer,
+              is not a choice. */}
+          {showPaymentCycle && cycleOptions.length > 0 && (
             <div className="rf2-cycle">
               <div className="rf2-cycle-row">
                 <span className="rf2-cycle-head">
@@ -927,7 +967,7 @@ export function Step2({
                 </span>
 
                 <div className="rf2-cycle-opts" role="radiogroup" aria-label="Payment cycle">
-                  {PAYMENT_CYCLES.map((c) => (
+                  {cycleOptions.map((c) => (
                     <label className="rf2-cycle-opt" key={c.id}>
                       <input
                         type="radio"
@@ -939,9 +979,6 @@ export function Step2({
                       <span className="rf2-cycle-radio"><span className="rf2-cycle-dot" /></span>
                       <span className="rf2-cycle-text">
                         <span>{c.label}</span>
-                        {/* Only quarterly and annual carry one; monthly is the
-                            baseline the savings are measured against. */}
-                        {c.save && <span className="rf2-cycle-save">{c.save}</span>}
                       </span>
                     </label>
                   ))}
