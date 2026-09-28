@@ -179,16 +179,14 @@ const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string }> = [
   { id: 'annual',    label: 'Pay Annual' },
 ];
 
-/** One Nokē key-share tier. */
-export interface KeyShareOption { id: string; shares: number; price: string; }
-
-/* No endpoint supplies these — the rental APIs carry nothing about key-shares
-   — so the frame's single tier is the default and `keyShareOptions` is how an
-   operator (or a later API) supplies more. Inventing a ladder of tiers here
-   would be inventing prices. */
-const DEFAULT_KEY_SHARES: KeyShareOption[] = [
-  { id: 'ks-2', shares: 2, price: 'Included' },
-];
+/**
+ * One Nokē key-share tier, ready to render.
+ *
+ * `label` and `price` arrive as finished strings because the API's numbers do
+ * not map one-to-one onto the frame's wording — an unlimited tier has no key
+ * count to print, and a zero price reads as "Price Included", not "$0".
+ */
+export interface KeyShareOption { id: string; label: string; price: string; }
 
 /** Verbatim from 12285-189509, the card the Learn More reveals. */
 const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoing unit '
@@ -469,12 +467,25 @@ export function Step2({
 
   /* KEY-SHARE (12285-189422). Same shape as the protection plan above it, so
      it reuses that section's classes rather than growing a parallel set. */
-  const keyShares = keyShareOptions?.length ? keyShareOptions : DEFAULT_KEY_SHARES;
+  /* Straight from the property — no invented fallback tier. A facility with no
+     key-shares configured hides the section rather than offering a plan that
+     does not exist (see the render). The list arrives default-first. */
+  const keyShares = keyShareOptions ?? [];
   const [ksOpen, setKsOpen] = useState(false);
-  const [ksChoice, setKsChoice] = useState(keyShares[0].id);
+  const [ksChoice, setKsChoice] = useState('');
   const [ksTipOpen, setKsTipOpen] = useState(false);
   const ksRef = useRef<HTMLDivElement>(null);
   const chosenKeyShare = keyShares.find((k) => k.id === ksChoice) ?? keyShares[0];
+  /* The tiers land a beat after first paint (they ride the property call), and
+     the operator's default is first in the list, so adopt it once it arrives.
+     Keyed on the ids so a property switch re-adopts the new default rather
+     than holding an id that is no longer on offer. */
+  const ksIds = keyShares.map((k) => k.id).join(',');
+  useEffect(() => {
+    if (keyShares.length && !keyShares.some((k) => k.id === ksChoice)) setKsChoice(keyShares[0].id);
+    // keyShares is derived from the prop; ksIds captures the change that matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ksIds, ksChoice]);
 
   useEffect(() => {
     if (!ksOpen) return undefined;
@@ -761,6 +772,7 @@ export function Step2({
             plan's own classes, not a parallel set: the frame draws the
             identical control, so one stylesheet for both is what keeps them
             consistent as either moves. Only the price type differs. */}
+        {keyShares.length > 0 && (
         <section className="rf2-panel">
           <div className="rf2-rowhead">
             <span className="rf2-h">Select Nokē Key-Share Plan</span>
@@ -796,7 +808,7 @@ export function Step2({
               <span className="rf2-plan-body">
                 <span className="rf2-plan-left">
                   <span className="rf2-plan-cov">
-                    <b>{chosenKeyShare.shares} Key-shares</b> Plan
+                    <b>{chosenKeyShare.label}</b> Plan
                   </span>
                 </span>
                 <span className="rf2-ks-price">{chosenKeyShare.price}</span>
@@ -819,7 +831,7 @@ export function Step2({
                       onClick={() => { setKsChoice(k.id); setKsOpen(false); }}
                     >
                       <span className="rf2-plan-opt-left">
-                        <span className="rf2-plan-opt-cov"><b>{k.shares} Key-shares</b> Plan</span>
+                        <span className="rf2-plan-opt-cov"><b>{k.label}</b> Plan</span>
                       </span>
                       <span className="rf2-ks-price">{k.price}</span>
                     </button>
@@ -829,6 +841,7 @@ export function Step2({
             )}
           </div>
         </section>
+        )}
 
         {/* Additional Information */}
         <section className="rf2-plain">

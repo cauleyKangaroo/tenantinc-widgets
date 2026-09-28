@@ -33,7 +33,7 @@ import { readUnitSelection, clearUnitSelection } from '@shared/unitHandoff';
 import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
-import { FormField, Button, DateModal, AlertIcon, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, DateModal, AlertIcon, formatPrice, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { skipValidation } from '@shared/devBypass';
@@ -1033,6 +1033,25 @@ export function RentalFlow2Step({
    * undefined until the property and the unit's type have both landed; the
    * card stays hidden until then.
    */
+  /*
+   * The property's Nokē tiers, turned into the rows the frame prints.
+   *
+   * The API's numbers do not map one-to-one onto the wording: a price of 0
+   * means the tier comes with the rental ("Price Included", not "$0"), and an
+   * unlimited tier has no key count to show. Only the API's own
+   * `is_unlimited` makes a tier unlimited — the row merely NAMED "Unlimited"
+   * carries key_limit 99 and is_unlimited 0, so it prints as 99 Key-Shares.
+   * That is the API describing itself; guessing from the name would be us
+   * deciding what the operator meant.
+   */
+  const keyShareOptions = React.useMemo(
+    () => propertyInfo?.keyShares?.map((k) => ({
+      id: k.id,
+      label: k.unlimited ? 'Unlimited Key-Shares' : `${k.keyLimit} Key-Shares`,
+      price: k.price > 0 ? formatPrice(k.price) : 'Price Included',
+    })),
+    [propertyInfo],
+  );
   const offeredCycles = React.useMemo(() => {
     const cfg = cyclesForUnitType(propertyInfo, unitTypeId);
     if (!cfg) return undefined;
@@ -2439,6 +2458,7 @@ export function RentalFlow2Step({
             oneStep={formMode === '1step'}
             autopayMode={autopayMode}
             paymentCycles={offeredCycles}
+            keyShareOptions={keyShareOptions}
             moveIn={moveIn}
             // Everything step 1 already asked for, so step 2 opens filled in.
             contact={contact}
