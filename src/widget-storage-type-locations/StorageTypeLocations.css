@@ -1,3 +1,15 @@
+/* ── Why every `color` carries !important ────────────────────────────────────
+   A Duda site theme styles text from id-scoped element rules (`#dm h1`, `#dm h2`
+   …) which outrank any single class of ours, and some themes set a white
+   heading colour. On a white card or section that renders our headings, links
+   and body copy invisible — it did, on the live storage-type pages.
+
+   ONLY `color` is forced. font-size, font-weight and font-family stay
+   unprotected on purpose, so the site's own typography still reaches these
+   elements; it is the colour alone that cannot be allowed to make the widget
+   unreadable. Do not "clean these up" without checking a themed live page.
+   ──────────────────────────────────────────────────────────────────────────── */
+
 .stl {
   /* Fixed to the facility-page Figma; Duda theme typography must not alter it. */
   --stl-text: #000000;
@@ -5,7 +17,7 @@
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   width: 100%;
   box-sizing: border-box;
-  color: var(--stl-text);
+  color: var(--stl-text) !important;
 }
 .stl *, .stl *::before, .stl *::after { box-sizing: border-box; }
 .stl-heading {
@@ -13,7 +25,7 @@
   font-size: 32px;
   font-weight: 700;
   line-height: 1.2;
-  color: #000000;
+  color: #000000 !important;
   text-transform: none;
   letter-spacing: 0;
 }
@@ -22,7 +34,7 @@
   font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
-  color: #000000;
+  color: #000000 !important;
   letter-spacing: 0;
 }
 .stl-sub-emphasis { font-weight: 700; }
@@ -32,8 +44,6 @@
   font-size: 24px;
   font-weight: 700;
   line-height: 1.3;
-  /* Duda's global H3 theme may force headings to white. This state label must
-     stay dark on the facility page's white background. */
   color: #000000 !important;
   text-transform: none;
   letter-spacing: 0;
@@ -56,13 +66,13 @@
 .stl-pin {
   flex: 0 0 auto;
   margin-top: 2px;
-  color: var(--stl-link);
+  color: var(--stl-link) !important;
 }
 .stl-link {
   font-size: 18px;
   font-weight: 400;
   line-height: 1.5;
-  color: #306fb6;
+  color: #306fb6 !important;
   letter-spacing: 0;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -82,11 +92,11 @@
   border: 1px solid #e53935;
   border-radius: 8px;
   background: color-mix(in srgb, #e53935 7%, #fff);
-  color: #101318;
+  color: #101318 !important;
 }
 .stl-error-icon {
   flex: 0 0 auto;
-  color: #e53935;
+  color: #e53935 !important;
 }
 .stl-error {
   margin: 1px 0 0;
