@@ -85,7 +85,9 @@
   background: #fff;
   overflow: hidden;
   text-decoration: none;
-  color: inherit;
+  /* Same reason as every other colour here — a theme's `#dm a` rule would
+     otherwise beat this class and recolour the whole card. */
+  color: inherit !important;
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
   transition: box-shadow 120ms ease-in-out;
 }

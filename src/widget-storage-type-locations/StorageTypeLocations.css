@@ -103,7 +103,10 @@
   font-size: 16px;
   font-weight: 400;
   line-height: 1.4;
-  color: inherit;
+  /* `inherit` still needs forcing: a theme's `#dm p` rule outranks this class,
+     so without it the paragraph takes the theme's colour rather than the
+     protected colour on .stl--error above. */
+  color: inherit !important;
 }
 
 @media (max-width: 768px) {
