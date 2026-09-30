@@ -33,19 +33,27 @@ import { readUnitSelection, clearUnitSelection } from '@shared/unitHandoff';
 import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
-import { FormField, Button, DateModal, AlertIcon, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, DateModal, AlertIcon, formatPrice, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { fetchSingleStep } from '@shared/internalProperties';
 import { skipValidation } from '@shared/devBypass';
 
 /**
- * Which layout the rental flow renders — the content menu's `formType` radio,
- * normalised.
+ * Which layout the rental flow renders.
  *
- * The two are the SAME flow: the same first screen, the same move-in date
- * lightbox, the same form, the same post-purchase screen. They differ in one
- * respect only — what the Additional Information checkboxes do when ticked.
- * See the `oneStep` prop on Step2.
+ * Decided by the FACILITY, via `PropertiesInternal.single_step` — the content
+ * menu's `formType` radio is only the fallback where the collection cannot
+ * answer (the Duda editor and the dev harness have no dmAPI). Two-step is the
+ * default in every unanswered case.
+ *
+ * Same first screen, same move-in lightbox, same form. Two differences:
+ *
+ *   - what the Additional Information checkboxes do when ticked — see the
+ *     `oneStep` prop on Step2
+ *   - single step has NO post-purchase screen: payment goes straight to the
+ *     confirmation, because the mailing address and licence that screen exists
+ *     to collect are not asked for at all
  */
 type FormMode = '1step' | '2step';
 
@@ -168,12 +176,17 @@ export interface RentalFlow2StepProps {
    * Content-menu radio `formType` — which layout this instance renders:
    * `2step` (default) | `1step`.
    *
-   * NOT two different flows. Both take the shopper through the same screens in
-   * the same order; the difference is where the Additional Information
-   * sections are FILLED IN. On `2step` the checkboxes are ticks only and their
+   * FALLBACK ONLY. `PropertiesInternal.single_step` is the real answer and
+   * overrides this whenever the collection can be read; this is what stands in
+   * the Duda editor and the dev harness, where there is no dmAPI. The choice
+   * belongs to the facility because one rental page serves every property on a
+   * dynamic site, so a radio here could only ever say one thing for all of
+   * them.
+   *
+   * On `2step` the Additional Information checkboxes are ticks only and their
    * fields are answered on the post-purchase screen. On `1step` ticking one
-   * opens its fields there and then — and they still appear, ticked, on the
-   * post-purchase screen afterwards.
+   * opens its fields there and then, and there is no post-purchase screen at
+   * all — payment goes straight to the confirmation.
    *
    * ANYTHING UNRECOGNISED IS `2step`, including '' and an unsubstituted
    * {{token}}. That is what this widget has always done, so a field nobody
@@ -927,7 +940,7 @@ export function RentalFlow2Step({
    * nobody chose. The spellings are generous because the radio's stored values
    * are the editor's to type — the DEFAULT is what matters, and it is `2step`.
    */
-  const formMode: FormMode = (() => {
+  const configuredFormMode: FormMode = (() => {
     switch (boundText(formType).trim().toLowerCase()) {
       case '1step': case '1-step': case 'one': case 'onestep': case 'one-step': return '1step';
       default: return '2step';
@@ -938,6 +951,29 @@ export function RentalFlow2Step({
   const configuredGpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
   const cfgCtx = React.useMemo(() => defaultRentalCtx(), []);
   const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp }, cfgCtx.propertyId);
+  /*
+   * PropertiesInternal.single_step — the facility's own ToggleSwitch, and the
+   * answer that wins.
+   *
+   * It belongs to the property rather than the widget: one rental page serves
+   * every property on a dynamic site, so the content-menu radio can only ever
+   * say one thing for all of them. undefined means the collection could not
+   * answer (no dmAPI in the Duda editor or the dev harness, no row, no
+   * column), and then the radio stands — which is how the harness still tests
+   * both layouts.
+   */
+  const [collectionSingleStep, setCollectionSingleStep] = useState<boolean | undefined>(undefined);
+  useEffect(() => {
+    if (!effectivePropertyId) return undefined;
+    let cancelled = false;
+    fetchSingleStep(effectivePropertyId)
+      .then((v) => { if (!cancelled) setCollectionSingleStep(v); })
+      .catch(() => { /* soft: the radio's answer stands */ });
+    return () => { cancelled = true; };
+  }, [effectivePropertyId]);
+  const formMode: FormMode = collectionSingleStep === undefined
+    ? configuredFormMode
+    : (collectionSingleStep ? '1step' : '2step');
   const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -1033,6 +1069,25 @@ export function RentalFlow2Step({
    * undefined until the property and the unit's type have both landed; the
    * card stays hidden until then.
    */
+  /*
+   * The property's Nokē tiers, turned into the rows the frame prints.
+   *
+   * The API's numbers do not map one-to-one onto the wording: a price of 0
+   * means the tier comes with the rental ("Price Included", not "$0"), and an
+   * unlimited tier has no key count to show. Only the API's own
+   * `is_unlimited` makes a tier unlimited — the row merely NAMED "Unlimited"
+   * carries key_limit 99 and is_unlimited 0, so it prints as 99 Key-Shares.
+   * That is the API describing itself; guessing from the name would be us
+   * deciding what the operator meant.
+   */
+  const keyShareOptions = React.useMemo(
+    () => propertyInfo?.keyShares?.map((k) => ({
+      id: k.id,
+      label: k.unlimited ? 'Unlimited Key-Shares' : `${k.keyLimit} Key-Shares`,
+      price: k.price > 0 ? formatPrice(k.price) : 'Price Included',
+    })),
+    [propertyInfo],
+  );
   const offeredCycles = React.useMemo(() => {
     const cfg = cyclesForUnitType(propertyInfo, unitTypeId);
     if (!cfg) return undefined;
@@ -2307,7 +2362,14 @@ export function RentalFlow2Step({
         )}
         {/* One rail for both steps, placed in the desktop grid or the mobile
             sheet. Step 3 was a bare left column with nothing beside it. */}
-        {accessGranted ? (
+        {/* Single step goes straight from payment to the confirmation. The
+            screen in between (Figma 8507-25408) exists to collect the mailing
+            address and licence AFTER the money moves; a single-step property
+            has chosen not to ask for them at all, so there is nothing on it to
+            fill in and it would just be a page between the shopper and their
+            access code. ID verification does not gate this: it is off
+            (IDV_ENABLED), and `idVerified` defaults to true. */}
+        {accessGranted || formMode === '1step' ? (
           <div className="rfc-layout">
             <Confirmation
               kind="rental"
@@ -2439,6 +2501,7 @@ export function RentalFlow2Step({
             oneStep={formMode === '1step'}
             autopayMode={autopayMode}
             paymentCycles={offeredCycles}
+            keyShareOptions={keyShareOptions}
             moveIn={moveIn}
             // Everything step 1 already asked for, so step 2 opens filled in.
             contact={contact}

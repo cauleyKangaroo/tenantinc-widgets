@@ -134,6 +134,34 @@ export interface PropertyInfo {
    * "no cycles". See `cyclesForUnitType`.
    */
   paymentCycles?: PaymentCycleConfig[];
+  /**
+   * The property's Nokē key-share tiers (`?noke_configs=true`), ordered as the
+   * dropdown should list them.
+   *
+   * Empty ⇒ this facility sells no key-shares and the section is hidden.
+   * Absent ⇒ not loaded yet.
+   */
+  keyShares?: NokeKeyShare[];
+}
+
+/** One Nokē key-share tier, as configured on the property. */
+export interface NokeKeyShare {
+  id: string;
+  /** The operator's own name for the tier ("Default", "Medium", "Unlimited"). */
+  name?: string;
+  /** How many keys the tier grants. Meaningless when `unlimited`. */
+  keyLimit: number;
+  /** Monthly price; 0 means it comes with the rental. */
+  price: number;
+  /** The operator's ordering rank; the list is already sorted by it. */
+  tier: number;
+  /** The tier the shopper starts on. */
+  isDefault: boolean;
+  /** No cap on keys. NOTE: this is the API's own flag, and it is 0 on every
+   *  row in the live data — including the row NAMED "Unlimited", which carries
+   *  `key_limit: 99` instead. So a tier only reads as unlimited when the API
+   *  actually says so. */
+  unlimited: boolean;
 }
 
 /** One space type's billing-period configuration. */
@@ -180,6 +208,20 @@ interface ApiProperty {
   // see it.
   Address?: { address?: string; city?: string; state?: string; zip?: string; country?: string };
   payment_cycles?: ApiPaymentCycle[];
+  noke_configs?: ApiNokeConfig[];
+}
+
+interface ApiNokeConfig {
+  id?: string;
+  name?: string;
+  key_limit?: number;
+  tier?: number;
+  is_default?: number;
+  is_unlimited?: number;
+  price?: number;
+  /** Soft-delete flag. A deleted tier is still returned, so it has to be
+   *  filtered out or the dropdown offers a plan the operator retired. */
+  deleted?: number;
 }
 
 interface ApiPaymentCycle {
@@ -281,7 +323,37 @@ export async function fetchProperty(ctx: RentalCtx): Promise<PropertyInfo | unde
         quarterly: c.quarterly === true,
         annual: c.annual === true,
       })),
+    keyShares: nokeKeyShares(prop.noke_configs),
   };
+}
+
+/**
+ * Nokē tiers in the order the dropdown lists them: the default first, the rest
+ * by `tier` ascending.
+ *
+ * The default leads rather than sorting purely by tier because it is also the
+ * preselected row, and a preselected option that is not at the top reads as an
+ * arbitrary highlight. In the live data the default IS tier 1, so the two
+ * rules agree today; they only diverge if an operator promotes a higher tier.
+ *
+ * Rows without an id are dropped (the id is the selection value), as are
+ * soft-deleted ones — the API still returns a retired tier.
+ */
+function nokeKeyShares(rows?: ApiNokeConfig[]): NokeKeyShare[] {
+  if (!Array.isArray(rows)) return [];
+  const out = rows
+    .filter((r): r is ApiNokeConfig & { id: string } => !!r?.id && r.deleted !== 1)
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      keyLimit: typeof r.key_limit === 'number' ? r.key_limit : 0,
+      price: typeof r.price === 'number' && r.price > 0 ? r.price : 0,
+      isDefault: r.is_default === 1,
+      unlimited: r.is_unlimited === 1,
+      tier: typeof r.tier === 'number' ? r.tier : Number.MAX_SAFE_INTEGER,
+    }));
+  out.sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.tier - b.tier);
+  return out;
 }
 
 // --- Protection plans (space-types → property insurances) --------------------

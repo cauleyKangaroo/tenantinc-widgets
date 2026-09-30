@@ -28,6 +28,7 @@ import {
   readCollectionResult,
   str,
   num,
+  bool,
   plainText,
   type CollectionReadResult,
   type CollectionRow,
@@ -313,6 +314,42 @@ export async function fetchSpaceGroupBinding(
   }
 
   return { companyId, groupByProperty };
+}
+
+/** Column behind the rental flow's single-step layout — a Duda ToggleSwitch. */
+const SINGLE_STEP_FIELD = 'single_step';
+
+/**
+ * Whether this property runs the rental flow as a SINGLE step.
+ *
+ * The operator ticks a ToggleSwitch per property rather than configuring the
+ * widget, because the choice belongs to the facility: one rental page serves
+ * every property on a dynamic site, so a content-menu radio there could only
+ * say one thing for all of them.
+ *
+ * `undefined` is deliberately distinct from `false` and means UNANSWERED —
+ * no dmAPI (the Duda editor and the dev harness), no collection, no row for
+ * this property, or the column simply absent. The caller then keeps whatever
+ * it was doing, which is two-step. A missing collection must never silently
+ * switch a facility into a layout nobody chose.
+ *
+ * The switch stores a real boolean (verified live), but it goes through
+ * `bool()` anyway: this collection is native, so any other column here can
+ * arrive as `<p class="rteBlock">true</p>`, and a future editor pass could
+ * change the field type without anyone touching this file.
+ */
+export async function fetchSingleStep(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<boolean | undefined> {
+  const wanted = propertyId.trim();
+  if (!wanted) return undefined;
+  const row = (await readInternalProperties(collectionName))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return undefined;
+  const raw = row[SINGLE_STEP_FIELD];
+  if (raw === undefined || raw === null || str(raw).trim() === '') return undefined;
+  return bool(raw);
 }
 
 /**
