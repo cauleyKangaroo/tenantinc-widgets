@@ -967,10 +967,23 @@ export function RentalFlow2Step({
     if (!effectivePropertyId) return undefined;
     let cancelled = false;
     fetchSingleStep(effectivePropertyId)
-      .then((v) => { if (!cancelled) setCollectionSingleStep(v); })
-      .catch(() => { /* soft: the radio's answer stands */ });
+      .then((v) => {
+        if (cancelled) return;
+        /* Says which property was asked about and what came back, because the
+           three ways this ends up on two-step are indistinguishable on screen:
+           the toggle is off, the row was not found (a property id that is not
+           in the collection), or the collection could not be read at all. */
+        console.info(
+          `${logTag} single_step(${effectivePropertyId}) =`,
+          v,
+          '→',
+          v === undefined ? 'unanswered, using formType' : (v ? '1step' : '2step'),
+        );
+        setCollectionSingleStep(v);
+      })
+      .catch((err) => console.warn(`${logTag} single_step lookup failed:`, err));
     return () => { cancelled = true; };
-  }, [effectivePropertyId]);
+  }, [effectivePropertyId, logTag]);
   const formMode: FormMode = collectionSingleStep === undefined
     ? configuredFormMode
     : (collectionSingleStep ? '1step' : '2step');
