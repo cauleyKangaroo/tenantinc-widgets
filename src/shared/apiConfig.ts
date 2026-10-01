@@ -61,16 +61,26 @@ export const API_CRED_SITE_TEXTS = ['api_domain', 'app_id', 'api_key'] as const;
 /**
  * `api_domain` → a usable REST base.
  *
- * The site text can reasonably be written either way, and both have to work:
+ * Callers append `/applications/{appId}/…`, so what this must return is the base
+ * WITHOUT that segment. There are three ways the site text gets written in
+ * practice and all three have to land on the same URL:
  *
- *   "https://edge.tenant.dev/api/v3"  → used as-is
- *   "edge.tenant.dev"                 → https:// added, and the version path
- *                                       borrowed from the build-time default
+ *   "https://edge.tenant.dev/api/v3/applications" → trailing segment removed
+ *   "https://edge.tenant.dev/api/v3"              → used as-is
+ *   "edge.tenant.dev"                             → https:// added, and the
+ *                                                   version path borrowed from
+ *                                                   the build-time default
  *
- * That second case is the whole reason this is not a bare string assignment: a
- * bare host would produce `https://edge.tenant.dev/applications/…` and 404 every
- * request. Borrowing the path from the fallback keeps a half-filled site text
- * working instead of breaking every widget on the page.
+ * The first two are the ones that actually bite. Left alone, a value ending in
+ * `/applications` produces `…/applications/applications/{appId}` and a bare host
+ * produces `…/applications/{appId}` with no version segment — both 404 every
+ * request on the page. Normalising here means whoever fills in the site text
+ * cannot get it subtly wrong.
+ *
+ * Note the asymmetry: an explicit `/applications` is stripped even when nothing
+ * is left but the origin, because the text then stated the base outright. The
+ * default path is borrowed ONLY when no path was given at all, which is the one
+ * case where the text said nothing about it.
  *
  * Anything unparseable returns the fallback rather than throwing — a typo in a
  * content field must not take the site down.
@@ -89,6 +99,10 @@ export function normalizeApiBase(raw: unknown, fallback: string): string {
   }
 
   const path = url.pathname.replace(/\/+$/, '');
+  const withoutApps = path.replace(/\/applications$/i, '');
+
+  // The text named the segment we append ourselves — everything before it is the base.
+  if (withoutApps !== path) return `${url.origin}${withoutApps}`;
   if (path) return `${url.origin}${path}`;
 
   // Bare host — take the version path off the default so the shape still matches.
