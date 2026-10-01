@@ -111,6 +111,17 @@ export interface RentalFlow2StepProps {
    * nowhere, so the card stays hidden until someone supplies one.
    */
   reviewUrl?: string;
+  /**
+   * Content-menu URLs for the Smart Entry app badges on the confirmation.
+   *
+   * Same rule as `reviewUrl`: the badges render either way, but they are only
+   * LINKS once an operator supplies one. Which app a facility uses is theirs
+   * to say — Nokē, a white-labelled build, none at all — so there is no
+   * default worth inventing, and until these existed as props the badges were
+   * drawn and could never be clicked.
+   */
+  appStoreUrl?: string;
+  playStoreUrl?: string;
   /** Selection handed off from the value-tiers page (?size= / ?tier=) —
    *  display context only; the transaction re-resolves server-side. */
   size?: string;
@@ -804,6 +815,8 @@ export function RentalFlow2Step({
   reservationHeading = 'Your reservation is confirmed!',
   rentalHeading = 'Your Space is ready!',
   reviewUrl,
+  appStoreUrl,
+  playStoreUrl,
   size: sizeArg,
   tier: tierArg,
   propertyId: propertyIdArg,
@@ -2216,6 +2229,8 @@ export function RentalFlow2Step({
             rentUrl={confirmation.kind === 'reservation' ? checkoutUrl : undefined}
             onRetry={goToCheckout}
             reviewUrl={reviewUrl}
+            appStoreUrl={appStoreUrl}
+            playStoreUrl={playStoreUrl}
           />
           {/* Desktop only — on mobile this same element is inside the sheet. */}
           {!isMobile && confirmationRail}
@@ -2483,6 +2498,8 @@ export function RentalFlow2Step({
               officeHours={propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours}
               gateHours={propertyInfo?.gateHours?.length ? propertyInfo.gateHours : confHours?.gateHours}
               reviewUrl={reviewUrl}
+              appStoreUrl={appStoreUrl}
+              playStoreUrl={playStoreUrl}
             />
             {!isMobile && railFor(true)}
           </div>
@@ -2503,6 +2520,16 @@ export function RentalFlow2Step({
                       : undefined,
                     driverLicenseState: details.driverLicenseState,
                     mailingAddress: details.mailingAddress,
+                    /* The date of birth this screen REQUIRES when Military is
+                       ticked. It has a real destination — the contact update's
+                       own `dob` — and was being collected and thrown away.
+                       The alternate contact and vehicle answers have no
+                       documented field on any endpoint we have, so they travel
+                       as far as here and no further; that one is a question
+                       for TenantInc, not a field name to guess at. */
+                    dateOfBirth: details.extras?.dob
+                      ? dobToIso(details.extras.dob)
+                      : undefined,
                   });
                 }
                 setIdVerified(details?.idVerified ?? true);
@@ -2714,6 +2741,9 @@ export function RentalFlow2Step({
                   costs: quoteToCosts(quote, start),
                   promotionIds: selection?.promotionIds,
                   platform: 'website',
+                  // The period the Payment Cycle card was left on. Without it
+                  // documents/finalize was told 'Monthly' whatever was picked.
+                  paymentCycle: info.paymentCycle,
                   extras: info.extras,
                 })
                   .then((res) => {
