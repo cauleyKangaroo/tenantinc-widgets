@@ -60,7 +60,19 @@ export type CollectionRow = Record<string, unknown>;
  * matching rows".
  */
 export type CollectionReadResult =
-  | { status: 'ok'; rows: CollectionRow[] }
+  | {
+    status: 'ok';
+    rows: CollectionRow[];
+    /**
+     * The whole collection was read. Absent means the question was never
+     * asked — a single-page read does not know what it did not fetch.
+     *
+     * Explicitly `false` means `rows` is a PREFIX: a paged walk stopped early.
+     * A caller that presents its result as the complete set must check this
+     * rather than reading 'ok' as "everything".
+     */
+    complete?: boolean;
+  }
   | { status: 'unavailable'; detail: string }
   | { status: 'error'; detail: string };
 
@@ -212,11 +224,6 @@ export async function readCollectionResult(collectionName: string): Promise<Coll
   }
 }
 
-export async function readCollection(collectionName: string): Promise<CollectionRow[]> {
-  const result = await readCollectionResult(collectionName);
-  return result.status === 'ok' ? result.rows : [];
-}
-
 /** `page` metadata off the envelope, when the API sent any. */
 function extractPageMeta(res: unknown): { pageSize: number; totalPages: number } | null {
   if (!res || typeof res !== 'object') return null;
@@ -229,11 +236,11 @@ function extractPageMeta(res: unknown): { pageSize: number; totalPages: number }
   return { pageSize, totalPages };
 }
 
-/** Identity for de-duplication. `__rowId` is the row's own id where the envelope
- *  nested its fields; `id` is the column most of these collections key on. */
-function rowKey(row: CollectionRow, index: number): string {
-  const id = str(row.__rowId) || str(row.id);
-  return id || `#${index}`;
+/** Identity for de-duplication, or '' when the row carries none. `__rowId` is
+ *  the row's own id where the envelope nested its fields; `id` is the column
+ *  most of these collections key on. */
+function rowKey(row: CollectionRow): string {
+  return str(row.__rowId) || str(row.id);
 }
 
 /** What `countCollectionRows` resolved to. */
@@ -277,14 +284,50 @@ export interface CollectionCount {
  *
  * Never throws. Unreadable / absent / not in Duda → `{ count: 0, exact: false }`.
  */
-export async function countCollectionRows(collectionName: string): Promise<CollectionCount> {
+/** Every row of a collection, plus whether the walk actually reached the end. */
+export interface CollectionPagedResult {
+  status: 'ok' | 'unavailable' | 'error';
+  /** Deduplicated, in page order. Empty unless `status` is 'ok'. */
+  rows: CollectionRow[];
+  /**
+   * The whole collection was read.
+   *
+   * False means the walk stopped early, so `rows` is a PREFIX, not the
+   * collection. A caller that presents its result as complete — a count, a
+   * "these are all our locations" list — must not treat a false here as the
+   * answer.
+   */
+  complete: boolean;
+  detail?: string;
+}
+
+/**
+ * Read a collection ACROSS its pages.
+ *
+ * `readCollectionResult` makes a single `.get()`, and Duda's `pageSize` is 100
+ * while a collection holds up to 1000 rows — so anything that must see every
+ * row has to walk `page` instead. One request when the collection fits in a
+ * page (the overwhelmingly common case: the `totalPages <= 1` short-circuit
+ * never touches the page argument), more only where there is genuinely more.
+ *
+ * Deduplicated by row identity, because a backend that ignores the page
+ * argument hands back page 0 forever — which is also how the walk detects that
+ * and stops rather than looping to `totalPages` collecting nothing.
+ */
+export async function readCollectionPaged(collectionName: string): Promise<CollectionPagedResult> {
+  const failed = (status: 'unavailable' | 'error', detail: string): CollectionPagedResult =>
+    ({ status, rows: [], complete: false, detail });
   try {
-    if (!(await waitForCollectionsApi())) return { count: 0, exact: false };
+    if (!(await waitForCollectionsApi())) {
+      return failed('unavailable', 'Duda Collections API is unavailable');
+    }
     const dmAPI = getDmAPI();
-    if (!dmAPI?.loadCollectionsAPI) return { count: 0, exact: false };
+    if (!dmAPI?.loadCollectionsAPI) {
+      return failed('unavailable', 'Duda Collections API disappeared before the read');
+    }
 
     return await withTimeout(
-      (async (): Promise<CollectionCount> => {
+      (async (): Promise<CollectionPagedResult> => {
         const collections = await dmAPI.loadCollectionsAPI!();
 
         const readPage = async (pageNumber: number) => {
@@ -295,40 +338,85 @@ export async function countCollectionRows(collectionName: string): Promise<Colle
           return { rows: extractRows(res).map(flattenRow), meta: extractPageMeta(res) };
         };
 
-        const first = await readPage(0);
         const seen = new Set<string>();
-        first.rows.forEach((r, i) => seen.add(rowKey(r, i)));
+        const rows: CollectionRow[] = [];
+        /* A row with no id of its own. Harmless on one page; fatal to the walk
+           on several, because identity is the ONLY way to tell a fresh page
+           from the first one served again. */
+        let idless = false;
+        const take = (page: CollectionRow[]) => {
+          page.forEach((r) => {
+            const key = rowKey(r);
+            if (!key) { idless = true; rows.push(r); return; }
+            if (seen.has(key)) return;
+            seen.add(key);
+            rows.push(r);
+          });
+        };
+
+        const first = await readPage(0);
+        take(first.rows);
 
         const totalPages = first.meta?.totalPages ?? 1;
-        // The common case by far: the whole collection fits in one page, so the
-        // count is exact without ever exercising the page argument above.
-        if (totalPages <= 1) return { count: seen.size, exact: true };
+        // One page: nothing to deduplicate against, so id-less rows are fine.
+        if (totalPages <= 1) return { status: 'ok', rows, complete: true };
+
+        /*
+         * Multi-page and some row has no id — stop at page one and say so.
+         *
+         * The dedup key used to fall back to the row's INDEX, offset by the
+         * page number. That gave the same row two different keys on two pages,
+         * so a backend ignoring the page argument appended page 0 to itself
+         * instead of being detected: the "nothing new" check never fired, the
+         * walk ran to totalPages, and it returned duplicated rows as
+         * `complete: true`. An inflated count presented as exact is worse than
+         * a short one admitted to be short.
+         */
+        if (idless) {
+          console.warn(
+            `[dudaCollections] "${collectionName}" reports ${totalPages} pages but some rows carry no id — read the first page only, since repeats cannot be told from new rows`,
+          );
+          return { status: 'ok', rows, complete: false };
+        }
 
         for (let p = 1; p < totalPages; p += 1) {
-          const before = seen.size;
+          const before = rows.length;
           // eslint-disable-next-line no-await-in-loop
           const next = await readPage(p);
-          next.rows.forEach((r, i) => seen.add(rowKey(r, p * 1000 + i)));
-          if (seen.size === before) {
+          take(next.rows);
+          if (rows.length === before) {
             // Nothing new: the page argument is not being honoured, so there is
-            // no way to reach the rest and the total we have is a floor.
+            // no way to reach the rest and what we have is a prefix.
             console.warn(
-              `[dudaCollections] "${collectionName}" reports ${totalPages} pages but page ${p} added no new rows — counted ${seen.size} and stopped`,
+              `[dudaCollections] "${collectionName}" reports ${totalPages} pages but page ${p} added no new rows — read ${rows.length} and stopped`,
             );
-            return { count: seen.size, exact: false };
+            return { status: 'ok', rows, complete: false };
           }
         }
-        return { count: seen.size, exact: true };
+        return { status: 'ok', rows, complete: true };
       })(),
       TIMEOUTS.collection,
-      { count: 0, exact: false } as CollectionCount,
-      `dmAPI count of "${collectionName}"`,
+      failed('error', `Timed out reading collection "${collectionName}"`),
+      `dmAPI paged read of "${collectionName}"`,
     );
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn(`[dudaCollections] count of "${collectionName}" failed`, err);
-    return { count: 0, exact: false };
+    console.warn(`[dudaCollections] paged read of "${collectionName}" failed`, err);
+    return failed('error', err instanceof Error ? err.message : String(err));
   }
+}
+
+export async function countCollectionRows(collectionName: string): Promise<CollectionCount> {
+  // The walk IS the count — one page-walker, so the two can never disagree
+  // about how many rows a collection has.
+  const { status, rows, complete } = await readCollectionPaged(collectionName);
+  if (status !== 'ok') return { count: 0, exact: false };
+  return { count: rows.length, exact: complete };
+}
+
+export async function readCollection(collectionName: string): Promise<CollectionRow[]> {
+  const result = await readCollectionResult(collectionName);
+  return result.status === 'ok' ? result.rows : [];
 }
 
 // ── Field coercion helpers ───────────────────────────────────────────────────

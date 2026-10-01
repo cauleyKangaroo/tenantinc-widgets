@@ -145,8 +145,14 @@
 /* Opacity rather than a colour swap: the fill would have to be the bar's own
    colour to keep the label readable, and that is three more rules for a
    default the site is expected to restyle anyway. */
-.ub-cta:hover { opacity: 0.8; }
+.ub-cta:hover:not(:disabled) { opacity: 0.8; }
 .ub-cta:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+/* No link yet — the editor has ticked the box but not pasted a URL. The button
+   renders so the toggle visibly works, but it is a real disabled control
+   rather than an <a> with no href: focusable order and screen readers both
+   treat THAT as plain text, which is how the CTA became unreachable. */
+.ub-cta:disabled { opacity: 0.6; cursor: default; }
 
 /* ── Info icon + tooltip ────────────────────────────────────────────────── */
 

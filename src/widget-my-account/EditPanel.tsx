@@ -360,14 +360,17 @@ export function EditPanel({
           <h3 className="ma-edit__label">Communication Preferences</h3>
 
           <div className="ma-edit__prefs">
-            {/* "occational" is the frame's spelling, kept verbatim like every
-                other string on this screen. */}
+            {/* The frame spells this "occational". Corrected here rather than
+                copied: every other string on this screen is verbatim because
+                the frame is the copy's source, but a misspelling is not copy —
+                it is the one thing worth diverging on, and it is in front of
+                every tenant who opens this form. */}
             <Checkbox
               checked={form.marketingEmails}
               onChange={set('marketingEmails')}
               className="ma-edit__check"
             >
-              I agree to receive occational marketing emails
+              I agree to receive occasional marketing emails
             </Checkbox>
             <Checkbox
               checked={form.textMessages}

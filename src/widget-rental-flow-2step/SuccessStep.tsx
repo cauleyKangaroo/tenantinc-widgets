@@ -83,6 +83,20 @@ export interface SuccessDetails {
    *  result counts — ignoring the card, choosing the counter, failing, or
    *  deferring all leave them without a verified ID, and so without a code. */
   idVerified: boolean;
+  /**
+   * The Additional Information answers, as typed.
+   *
+   * This screen MAKES THEM REQUIRED — `extraFieldProblems` blocks Get Access
+   * until the opted-in sections are complete — and used to send none of them,
+   * so a shopper was stopped by a date of birth and five alternate-contact
+   * fields that were then dropped. Handing them to the parent is the minimum
+   * honest thing; what it can file is its business.
+   *
+   * Only `dateOfBirth` has a documented destination today (the contact update
+   * takes `dob`). The alternate contact and vehicle have none, which is a
+   * question for TenantInc rather than something to invent a field name for.
+   */
+  extras?: ExtraFieldValues;
 }
 
 export function SuccessStep({ onGetAccess, chosen }: {
@@ -256,6 +270,8 @@ export function SuccessStep({ onGetAccess, chosen }: {
           zip: mailZip.trim() || undefined,
         }
         : undefined,
+      // Required on this screen, so they travel with it - see SuccessDetails.
+      extras: extraFields,
     });
   };
 

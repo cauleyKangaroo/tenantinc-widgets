@@ -1,10 +1,10 @@
-import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import './TierSelection.css';
 import {
   fetchUnitGroups, resolveUnitGroupId, fetchOffers, mapOffersToTiers,
-  fetchProperty, fetchTierQuote, defaultContext,
-  type TierContext,
+  fetchProperty, fetchTierQuote, defaultContext, configureApi,
+  type TierContext, type ApiCredProps,
 } from './api';
 import { Shimmer } from '@shared/Shimmer';
 import { MoneyBreakdown, SummaryRail, formatPrice, CloseCircleIcon } from '@shared/ui';
@@ -254,7 +254,7 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
   };
 }
 
-export interface TierSelectionProps {
+export interface TierSelectionProps extends ApiCredProps {
   /** 'option1' = selector + comparison table (+ order card on desktop);
    *  'option2' = three Good/Better/Best pricing cards;
    *  'option3' = pricing cards fused with a comparison table. */
@@ -432,7 +432,20 @@ export function TierSelection({
   inEditor = false,
   siteId,
   elementId,
+  // Site-level REST credentials from the Content Library's custom site texts.
+  api_domain,
+  app_id,
+  api_key,
 }: TierSelectionProps) {
+  /*
+   * Credentials in place BEFORE the data effects fire. During render, not in
+   * an effect — an effect runs a render too late and the first rate-management
+   * and offers calls would go out against config.json.
+   */
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
   const [selected, setSelected] = useState<TierKey>('better');
   const [featuredTier, setFeaturedTier] = useState<TierKey>('better');
   const { ref, isMobile } = useIsMobile(MOBILE_BP);
@@ -455,7 +468,7 @@ export function TierSelection({
      not render it today — it is carried so the rental rail can show the same
      struck-through figure the listing card showed. */
   const [modalInstore, setModalInstore] = useState<
-    { mode?: InstoreMode; amount?: number; label?: string } | undefined
+    { mode?: InstoreMode; amount?: number; value?: number; label?: string } | undefined
   >(undefined);
   // Bumped on every open so reopening the SAME size still refetches (inventory
   // and pricing can change between opens).
@@ -517,7 +530,12 @@ export function TierSelection({
      it is carried, not rendered — #14's cards still show the API price. */
   const instoreRule = mode === 'modal'
     ? modalInstore
-    : { mode: asInstoreMode(urlParam('instoreMode')), amount: asInstoreAmount(urlParam('instoreAmount')), label: urlParam('instoreLabel') };
+    : {
+      mode: asInstoreMode(urlParam('instoreMode')),
+      amount: asInstoreAmount(urlParam('instoreAmount')),
+      value: Number(urlParam('instoreValue')) > 0 ? Number(urlParam('instoreValue')) : undefined,
+      label: urlParam('instoreLabel'),
+    };
   const inlinePromoEnabled = inlinePromoRaw === true || inlinePromoRaw === 'true';
   const effectivePromoLogic = mode === 'modal'
     ? (modalEnablePromoLogic ?? inlinePromoEnabled)
@@ -569,8 +587,8 @@ export function TierSelection({
       setModalShowPricingDetails(req.showPricingDetails);
       setModalShowUrgency(req.showUrgency);
       setModalEnablePromoLogic(req.enablePromoLogic);
-      setModalInstore(req.instoreAmount
-        ? { mode: req.instoreMode, amount: req.instoreAmount, label: req.instoreLabel }
+      setModalInstore(req.instoreAmount || req.instoreValue
+        ? { mode: req.instoreMode, amount: req.instoreAmount, value: req.instoreValue, label: req.instoreLabel }
         : undefined);
       setOpenGen((g) => g + 1);
       setModalOpen(true);
@@ -854,9 +872,10 @@ export function TierSelection({
     if (effectiveCompanyId) url.searchParams.set('companyId', effectiveCompanyId);
     // Pass the operator's IN-STORE rule straight through to the rental rail,
     // so the struck-through figure there is the one the listing card showed.
-    if (instoreRule?.amount) {
+    if (instoreRule?.amount || instoreRule?.value) {
       if (instoreRule.mode) url.searchParams.set('instoreMode', instoreRule.mode);
-      url.searchParams.set('instoreAmount', String(instoreRule.amount));
+      if (instoreRule.amount) url.searchParams.set('instoreAmount', String(instoreRule.amount));
+      if (instoreRule.value) url.searchParams.set('instoreValue', String(instoreRule.value));
       if (instoreRule.label) url.searchParams.set('instoreLabel', instoreRule.label);
     }
     const gid = authoritativeGroupId ?? groupIdRef.current;

@@ -1703,10 +1703,22 @@ export interface RentalExtras {
   vehicleType?: string;
 }
 
+/** How the API spells each billing period — see the note at its use site. */
+export const PAYMENT_CYCLE_NAMES = {
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  annual: 'Annual',
+} as const;
+
+export type PaymentCycleKey = keyof typeof PAYMENT_CYCLE_NAMES;
+
 export interface RentArgs {
   unit: { id: string; number?: string };
   holdToken: string;
   contact: RentContact;
+  /** The billing period chosen on the Payment Cycle card. Absent ⇒ monthly,
+   *  which is both the default and the only value the guide names. */
+  paymentCycle?: PaymentCycleKey;
   /**
    * Exactly ONE of `card` / `bank` — whichever the shopper chose.
    *
@@ -1967,7 +1979,23 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
     space_mix_id: args.spaceMixId,
     total_payment_amount: args.totalPaymentAmount,
     bill_day: args.billDay,
-    payment_cycle: 'Monthly',
+    /*
+     * The period the shopper actually chose.
+     *
+     * It was hardcoded 'Monthly' while the Payment Cycle card offered whatever
+     * the property sells, so picking Quarterly changed a radio and nothing
+     * else: the lease went up monthly and the terms beneath the card promised
+     * monthly recurrence. The selector was a label.
+     *
+     * CAPITALISATION IS AN INFERENCE. The rental guide documents this field as
+     * optional with one instruction — "Send default value as Monthly" — and
+     * never names a value for quarterly or annual. `payment_cycles` on
+     * /properties answers in lower case (`monthly`/`quarterly`/`annual`), so
+     * the two vocabularies are already different and this follows the one the
+     * guide shows for THIS field. Worth confirming with TenantInc; if they
+     * reject it, this single map is the place to correct.
+     */
+    payment_cycle: PAYMENT_CYCLE_NAMES[args.paymentCycle ?? 'monthly'],
     web_rate: args.webRate,
     costs: args.costs,
     metadata: signingMetadata(),

@@ -71,6 +71,7 @@ export interface UnitSelection {
    */
   instoreMode?: string;
   instoreAmount?: number;
+  instoreValue?: number;
   instoreLabel?: string;
   /** Epoch ms, for the staleness check. */
   savedAt: number;

@@ -49,6 +49,9 @@ export interface TierOpenRequest {
    */
   instoreMode?: 'percentOfWeb' | 'percentDiff' | 'additionOfWeb';
   instoreAmount?: number;
+  /** The API-derived figure, when the sender configured no rule — a fixed
+   *  number rather than a rule, applied only above the shown price. */
+  instoreValue?: number;
   /** The operator's label for it, e.g. "IN-STORE" / "WAS". */
   instoreLabel?: string;
 }

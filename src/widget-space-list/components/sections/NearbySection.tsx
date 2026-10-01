@@ -13,6 +13,7 @@ import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
 import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
 import cfg from '../../config.json';
+import { credsWithCompany } from '../../apiCreds';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { usePropertyId } from '../../propertyContext';
 import { useCompanyId } from '../../companyContext';
@@ -308,14 +309,14 @@ export function NearbySection() {
         // has nothing yet — the dev harness, or a mount outside SpaceList.
         const company = boundCompanyId
           || await resolveCompanyIdFromSources('#05 nearby', {}, cfg.companyId);
-        const creds = { ...cfg, companyId: company };
+        const nearbyCreds = credsWithCompany(company);
         const [raw, userLoc] = await Promise.all([
           // No requirePropertyId: this section wants ALL the company's properties,
           // and the collection is the site's own data — nothing to distrust.
-          fetchProperties(creds, {}),
+          fetchProperties(nearbyCreds, {}),
           getUserLocation(),
         ]);
-        const all = extractNearbyProperties(raw, cfg.appId);
+        const all = extractNearbyProperties(raw, nearbyCreds.appId);
 
         const current = currentPropertyId ? all.find((p) => p.id === currentPropertyId) : undefined;
         const ref = userLoc
@@ -373,7 +374,7 @@ export function NearbySection() {
 
         // Stage 2: enrich each card with spaces + promo as they resolve.
         //
-        // `creds`, NOT `cfg`. These property ids came back under the company
+        // `nearbyCreds`, NOT `cfg`. These property ids came back under the company
         // resolved above, and a property id is only unique WITHIN a company —
         // so pairing them with config.json's company id asks for a property
         // that tenant does not have, and every card's prices 400 with
@@ -384,7 +385,7 @@ export function NearbySection() {
         // #07 has never had this bug: its fetchPropertySpaces wrapper resolves
         // creds on every call rather than closing over config.
         ranked.forEach(({ p }) => {
-          fetchPropertySpaces(creds, p.id).then(({ promo, spaces }) => {
+          fetchPropertySpaces(nearbyCreds, p.id).then(({ promo, spaces }) => {
             if (cancelled) return;
             setApiProps((prev) =>
               prev
@@ -476,7 +477,13 @@ export function NearbySection() {
     if (view !== 'list' || loading) return;
     if (rootRef.current) setListHeight(rootRef.current.offsetHeight);
     if (tabsRef.current) setTabsHeight(tabsRef.current.offsetHeight);
-  }, [view, loading, safePage, properties.length]);
+    /* `properties`, not `properties.length`. The list grows AFTER the count
+       settles: stage two replaces each `units: null` with real rows, which is
+       what actually changes the height, and the length never moves while it
+       happens. Measuring on length alone froze the map at the skeleton's
+       height, so a facility with several unit rows opened a map too short for
+       the column beside it. */
+  }, [view, loading, safePage, properties]);
 
   /* 280 is what this map was before any of it was measured, so a first paint
      that never saw the list still gets a usable map rather than a sliver. */

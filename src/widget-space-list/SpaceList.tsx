@@ -2,6 +2,7 @@
 import { createPortal } from 'react-dom';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
+import { configureApi } from './apiCreds';
 import cfg from './config.json';
 import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
 import { boundText, resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
@@ -92,7 +93,24 @@ export function SpaceList({
   configApiUrl,
   configCollection = 'accordionConfig',
   spaceImageBaseUrl,
+  // Site-level REST credentials from the Content Library's custom site texts.
+  api_domain,
+  app_id,
+  api_key,
 }: SpaceListProps) {
+  /*
+   * Hand the credentials to this widget's modules BEFORE anything can fetch.
+   *
+   * During render, not in an effect: #05's data effects fire straight after
+   * the first render, and an effect here would run too late — the first
+   * space-groups and properties calls would go out against config.json. The
+   * store is shared by api.ts, propertyApi.ts and the sidebar sections, so
+   * this one call covers all four.
+   */
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
   const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
 

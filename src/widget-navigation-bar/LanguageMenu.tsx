@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { ChevronDown, EsFlagIcon, UsFlagIcon } from './icons';
 import { currentLang, hrefForLang, type Lang } from './language';
 
@@ -18,7 +18,7 @@ import { currentLang, hrefForLang, type Lang } from './language';
 interface Option {
   lang: Lang;
   label: string;
-  flag: (props: { width?: number; height?: number }) => React.ReactElement;
+  flag: (props: { width?: number; height?: number }) => ReactElement;
   /** What a screen reader hears, since "EN" alone does not say "English". */
   title: string;
 }

@@ -7,6 +7,9 @@ import {
   MilitaryFields, AltContactFields, VehicleFields,
   extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues,
 } from './additionalInfo';
+// The mask writes MM/DD/YYYY; the lease payload wants YYYY-MM-DD. Same
+// converter the post-purchase screen uses, so the two cannot drift.
+import { dobToIso } from './api';
 import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankFormValue, type BillingCountry } from '@shared/paymentForms';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
@@ -274,6 +277,8 @@ export function Step2({
      *  Only the ticked ones carry meaning — an unticked section's fields are
      *  whatever was typed before it was closed again. */
     extras?: RentalExtras;
+    /** The Payment Cycle card's selection. */
+    paymentCycle?: PaymentCycle;
   }) => void;
   /** What the shopper typed in step 1, used as the starting values here so they
    *  do not retype their own name and email one screen later. */
@@ -352,6 +357,13 @@ export function Step2({
   /* The frame's three rows, narrowed to what this property sells for this
      space type. Undefined `paymentCycles` means not yet known, which renders
      nothing rather than all three. */
+  /* The recurrence wording follows the radio. Left fixed, the autopay terms
+     promised a monthly charge directly beneath a Quarterly selection the
+     shopper had just made — the one place on the page where the words are a
+     commitment rather than a label. */
+  const cycleWord = cycle === 'quarterly' ? { adj: 'quarterly', noun: 'quarter' }
+    : cycle === 'annual' ? { adj: 'annual', noun: 'year' }
+      : { adj: 'monthly', noun: 'month' };
   const cycleOptions = paymentCycles
     ? PAYMENT_CYCLES.filter((c) => paymentCycles.includes(c.id))
     : [];
@@ -591,9 +603,40 @@ export function Step2({
       ? { ...splitBusinessName(bizName), email: email.trim(), phone, businessName: bizName.trim() }
       : { first: first.trim(), last: last.trim(), email: email.trim(), phone },
     autopay,
-    // Which sections the shopper opted into. The VALUES are collected on the
-    // post-purchase screen, so this step sends the choices and nothing else.
-    extras: { business, military, altContact, vehicle },
+    /* The billing period chosen on the Payment Cycle card. Monthly unless the
+       property offers more and the shopper picked one. */
+    paymentCycle: cycle,
+    /*
+     * Which sections the shopper opted into — and on ONE-STEP, the values too.
+     *
+     * Two-step collects them on the post-purchase screen, so the choices are
+     * genuinely all this step has. One-step opens the fields right here, and
+     * a single-step property has no post-purchase screen at all: sending only
+     * the booleans meant a shopper filled in a date of birth, an alternate
+     * contact and a vehicle — each of them REQUIRED, each blocking the pay
+     * button until it was right — and every value was dropped on the floor
+     * before the lease was built.
+     *
+     * Gated per section, not sent wholesale: a field belonging to a section
+     * the shopper never opened is not theirs to file.
+     */
+    extras: {
+      business,
+      military,
+      altContact,
+      vehicle,
+      ...(oneStep && military && extraFields.dob
+        ? { dateOfBirth: dobToIso(extraFields.dob) } : {}),
+      ...(oneStep && altContact ? {
+        altFirst: extraFields.altFirst.trim() || undefined,
+        altLast: extraFields.altLast.trim() || undefined,
+        altPhone: extraFields.altPhone.trim() || undefined,
+        altEmail: extraFields.altEmail.trim() || undefined,
+        altAddress: extraFields.altAddress.trim() || undefined,
+      } : {}),
+      ...(oneStep && vehicle && extraFields.vType.trim()
+        ? { vehicleType: extraFields.vType.trim() } : {}),
+    },
   });
 
 
@@ -933,7 +976,8 @@ export function Step2({
               </button>
               {tipOpen && (
                 <span className="rf2-tip" role="tooltip">
-                  Enrolling in autopay automatically charges your payment method each month
+                  Enrolling in autopay automatically charges your payment method each
+                  {' '}{cycleWord.noun}
                 </span>
               )}
             </span>
@@ -1092,9 +1136,10 @@ export function Step2({
               them rather than the one that happens to be open. */}
           {mode === 'default' && (
             <p className="rf2-autopay-terms">
-              Your next monthly rent payment is due on {nextBillingDate}, and will recur monthly
-              thereafter. Rental rates are subject to change in accordance with your Rental
-              Agreement and applicable law. To avoid the next month&rsquo;s charge, you must
+              Your next {cycleWord.adj} rent payment is due on {nextBillingDate}, and will recur
+              {' '}{cycleWord.adj} thereafter. Rental rates are subject to change in accordance
+              with your Rental Agreement and applicable law. To avoid the next
+              {' '}{cycleWord.noun}&rsquo;s charge, you must
               complete your move-out before your next billing date. You may initiate a move-out
               through your account or by contacting the facility. By entering a payment method,
               you accept these terms and authorize recurring automatic payments using your
