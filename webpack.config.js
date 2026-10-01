@@ -24,7 +24,6 @@ const widgetEntries = {
   'widget-blogs-page':       './src/widget-blogs-page/index.tsx',       // #15
   'widget-blog-post':        './src/widget-blog-post/index.tsx',        // #16
   'widget-account-login':    './src/widget-account-login/index.tsx',    // #17
-  'widget-my-account':       './src/widget-my-account/index.tsx',       // #19
   // #05's <h1>, on its own, so #06 can sit between it and the filter bar.
   // #18 HERE, but the Duda widget is called "#15 Space List Heading" — Duda
   // numbers its own widgets and #15 was free there. Bundle name is the link

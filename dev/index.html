@@ -1512,8 +1512,13 @@ Special</textarea>
     }
 
     function loadMobileFrame() {
-      document.getElementById('mobile-frame').src =
-        location.pathname + '?frame=1&page=' + encodeURIComponent(currentPage());
+      // Preserve opt-in integration flags (notably liveCheckoutIdv). Rebuilding
+      // the query from only frame/page silently changed the rental flow back to
+      // its disconnected preview inside the phone frame.
+      var params = new URLSearchParams(location.search);
+      params.set('frame', '1');
+      params.set('page', currentPage());
+      document.getElementById('mobile-frame').src = location.pathname + '?' + params.toString();
     }
 
     function setMobileWidth(px) {
@@ -2016,6 +2021,7 @@ Special</textarea>
           idvRequirementPreview: document.getElementById('rf-idv-requirement').value,
           liveIdvHarness: new URLSearchParams(window.location.search).get('liveIdv') === '1',
           liveCheckoutIdv: new URLSearchParams(window.location.search).get('liveCheckoutIdv') === '1',
+          idvRemoteOperated: new URLSearchParams(window.location.search).get('idvRemote') === '1',
           idvTransport: new URLSearchParams(window.location.search).get('liveCheckoutIdv') === '1'
             ? 'direct' : undefined,
         },

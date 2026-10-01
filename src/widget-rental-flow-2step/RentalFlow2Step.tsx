@@ -15,7 +15,7 @@ import {
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
 } from './api';
-import { RENTAL_IDV_REQUIREMENT, type IdvRequirement } from './idvPolicy';
+import { IDV_SERVICE_CONNECTED, RENTAL_IDV_REQUIREMENT, type IdvRequirement } from './idvPolicy';
 import { createIdvApi, type IdvTransportConfig } from './idvApi';
 import { useIdvController } from './useIdvController';
 import { canRenderLiveIdvHarness } from './LiveIdvHarness';
@@ -225,6 +225,9 @@ export interface RentalFlow2StepProps extends ApiCredProps {
   liveIdvHarness?: boolean;
   /** LOCAL DEV HARNESS ONLY: connect IDV inside the preview checkout. */
   liveCheckoutIdv?: boolean;
+  /** Presentation variant for a remotely operated property. This never
+   * enables/disables IDV; every rental still requires verification. */
+  idvRemoteOperated?: boolean;
   /** "Change Space" link target on the order rail (the value-tiers page). */
   changeSpaceUrl?: string;
   /** Protection-plan brochure PDF, opened from step 2's "Learn More" lightbox. */
@@ -844,6 +847,7 @@ export function RentalFlow2Step({
   idvCapability,
   idvVerificationHosts = cfg.idvVerificationHosts,
   liveCheckoutIdv = false,
+  idvRemoteOperated = false,
   changeSpaceUrl,
   previewContent = false,
   inEditor = false,
@@ -1180,7 +1184,12 @@ export function RentalFlow2Step({
       ? 'disabled'
       : RENTAL_IDV_REQUIREMENT;
   const idvApi = React.useMemo(() => {
-    if ((inEditor && !liveCheckoutIdvEnabled) || idvTransport === 'disabled') return undefined;
+    // Two independent production brakes: transport configuration alone cannot
+    // activate a billable/SMS-sending path. Localhost's explicit harness opt-in
+    // remains available before the release flag is flipped.
+    if ((!IDV_SERVICE_CONNECTED && !liveCheckoutIdvEnabled)
+      || (inEditor && !liveCheckoutIdvEnabled)
+      || idvTransport === 'disabled') return undefined;
     const transport: IdvTransportConfig = idvTransport === 'direct'
       ? { mode: 'direct', baseUrl: cfg.baseUrl, appId: cfg.appId, apiKey: cfg.apiKey }
       : { mode: 'proxy', baseUrl: proxyBaseUrl, capability: idvCapability ?? '', siteId };
@@ -2597,6 +2606,12 @@ export function RentalFlow2Step({
               idvPreview={inEditor === true}
               idvServiceConnected={Boolean(idvApi)}
               idvController={idvController}
+              facility={{
+                address: propertyInfo?.address,
+                phone: formatUsPhone(propertyInfo?.phone),
+                officeHours: propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours,
+              }}
+              remoteOperated={idvRemoteOperated === true}
               onGetAccess={(details) => {
                 // File what this screen collects against the tenant's contact.
                 // Deliberately NOT awaited: the rental is already complete, the

@@ -11,9 +11,9 @@
 // Fields are `@shared/ui` FormField — the frame is built from the same
 // "Mariposa Form 2.0" component the kit was traced from.
 //
-// STATIC, as briefed: nothing is submitted, and "Get Access" / "Verify ID Now"
-// are inert. The ID illustration's line art is bundled; see the note on
-// `IdIllustration` for the one asset that isn't.
+// IDV is connected when an IdvController is supplied. The editor keeps a
+// deterministic presentation preview so every Figma outcome remains reviewable
+// without creating a hosted verification session.
 // ===========================================================================
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -95,6 +95,8 @@ export function SuccessStep({
   idvPreview = false,
   idvServiceConnected = false,
   idvController,
+  facility,
+  remoteOperated = false,
 }: {
   /** Fires with everything the contact update can file. The parent decides
    *  what to do with it; this screen just collects. */
@@ -110,7 +112,20 @@ export function SuccessStep({
   idvPreview?: boolean;
   idvServiceConnected?: boolean;
   idvController?: ReturnType<typeof useIdvController>;
+  facility?: { address?: string; phone?: string; officeHours?: string[] };
+  /** Presentation policy supplied by trusted property configuration once that
+   * source exists. It changes failure copy, never whether IDV is required. */
+  remoteOperated?: boolean;
 }) {
+  const facilityPhoneHref = (() => {
+    const raw = facility?.phone?.trim();
+    // Reject free text and extensions rather than manufacturing a plausible-
+    // looking but incorrect dial target from arbitrary property content.
+    if (!raw || !/^\+?[\d\s().-]+$/.test(raw)) return undefined;
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length < 10 || digits.length > 15) return undefined;
+    return `tel:${raw.startsWith('+') ? '+' : ''}${digits}`;
+  })();
   // Initialisers, not synced props: the boxes stay the shopper's to change here.
   const [business, setBusiness] = useState(chosen?.business ?? false);
   const [military, setMilitary] = useState(chosen?.military ?? false);
@@ -121,9 +136,9 @@ export function SuccessStep({
   // Filed on the contact as an Addresses entry of type "mailing" (verified
   // 2026-08-21: it persists).
   /**
-   * ID verification. DUMMY — there is no verification service wired up yet; the
-   * states and the transitions between them are here so the real one can be
-   * dropped in behind them.
+   * ID verification presentation. Remote complete/failed results come from the
+   * controller; in-store/later are shopper choices local to this post-rental
+   * screen because the IDV API has no endpoint for recording either choice.
    *
    *   choose    the card with the illustration and the two buttons
    *   instore   "Verify ID In-Store" — hours, address, phone, and a way back
@@ -134,6 +149,7 @@ export function SuccessStep({
    * everything already typed — unmounting the markup does not touch the state.
    */
   const [idv, setIdv] = useState<IdvPresentationOutcome>('choose');
+  const [localIdvChoice, setLocalIdvChoice] = useState<'instore' | 'later' | undefined>();
   const [idvModal, setIdvModal] = useState(false);
   /* A completed scan arrives pre-filled and collapsed to a summary; "Edit" is
      how the tenant overrides what the scan read off the card. One flag each,
@@ -147,13 +163,14 @@ export function SuccessStep({
   // Off, the two groups are simply always on the page — there is no branch
   // left to decide otherwise.
   const remoteKind = idvController?.state.kind;
-  const displayedIdv: IdvPresentationOutcome = idvServiceConnected
+  const serviceIdv: IdvPresentationOutcome = idvServiceConnected
     ? remoteKind === 'complete'
       ? 'complete'
       : remoteKind === 'failed' || remoteKind === 'expired' || remoteKind === 'error'
         ? 'failed'
         : 'choose'
     : idv;
+  const displayedIdv: IdvPresentationOutcome = localIdvChoice ?? serviceIdv;
   const idvDecision = resolveIdvPresentation(idvRequirement, displayedIdv, {
     serviceConnected: idvServiceConnected,
     preview: idvPreview === true,
@@ -173,6 +190,9 @@ export function SuccessStep({
     if (remoteKind === 'complete' || remoteKind === 'failed' || remoteKind === 'expired' || remoteKind === 'error') {
       setIdvModal(false);
     }
+    // A verified service result is authoritative even if the shopper selected
+    // the in-store/later presentation while the lookup or poll was pending.
+    if (remoteKind === 'complete') setLocalIdvChoice(undefined);
   }, [idvServiceConnected, remoteKind]);
 
   const [mailAddress, setMailAddress] = useState('');
@@ -186,6 +206,7 @@ export function SuccessStep({
   const [dlNumber, setDlNumber] = useState('');
   const [dlExp, setDlExp] = useState('');
   const [dlState, setDlState] = useState('');
+  const [usePassport, setUsePassport] = useState(false);
 
   /** A picked or typed mailing address — the city/state/ZIP follow it. */
   const [mailPicked, setMailPicked] = useState(false);
@@ -264,6 +285,7 @@ export function SuccessStep({
      alone, so editing afterwards does not re-run it. */
   useEffect(() => {
     if (displayedIdv !== 'complete') return;
+    setUsePassport(false);
     if (idvServiceConnected) {
       const licence = idvController?.state.kind === 'complete'
         ? idvController.state.result.driversLicense
@@ -343,13 +365,8 @@ export function SuccessStep({
         <h2 className="rf-heading">Finish up below for access</h2>
       </div>
 
-      {/* ID VERIFICATION.
-          Un-parked from the comment Jaweed left on 2026-08-21, whose reasoning
-          still stands: the rental flow API has no verification endpoint, so
-          nothing here talks to anything. It is a DUMMY FLOW, built so the real
-          service can be wired to `idv` and the modal without redesigning. What
-          the contact record actually stores — driver_license / _exp / _state —
-          is still collected by the Driver's Licence group below. */}
+      {/* ID VERIFICATION. The connected controller owns lookup/start/poll;
+          local state owns the designed in-store/later alternatives. */}
       {idvEnabled && displayedIdv === 'choose' && (
         <section className="rf-sx-idv">
           <h3 className="rf-sx-idv-title">ID Verification</h3>
@@ -366,11 +383,16 @@ export function SuccessStep({
                   ? 'Verification in progress'
                   : 'Verify ID Now'}
               </button>
-              {!idvServiceConnected && (
-              <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => setIdv('instore')}>
+              <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => setLocalIdvChoice('instore')}>
                 Verify In-Store
               </button>
-              )}
+              <button
+                type="button"
+                className="rf-sx-idv-later"
+                onClick={() => setLocalIdvChoice('later')}
+              >
+                Verify ID Later
+              </button>
             </div>
           </div>
           <p className="rf-sx-idv-note">
@@ -400,13 +422,17 @@ export function SuccessStep({
               <ClockGlyph size={24} className="rf-sx-idv-ico" />
               <div>
                 <p className="rf-sx-idv-strong">Office Hours</p>
-                <p className="rf-sx-idv-line">Mon-Sat: 8:00 AM - 5:00 PM</p>
-                <p className="rf-sx-idv-line">Sun: 10:00 AM - 3:00 PM</p>
+                {(facility?.officeHours?.length ? facility.officeHours : ['Hours unavailable — call the store']).map((line) => (
+                  <p className="rf-sx-idv-line" key={line}>{line}</p>
+                ))}
               </div>
             </div>
+            {facility?.address && <p className="rf-sx-idv-line rf-sx-idv-address">{facility.address}</p>}
             <div className="rf-sx-idv-row rf-sx-idv-row--mid">
               <PhoneGlyph size={24} className="rf-sx-idv-ico" />
-              <a className="rf-sx-idv-link" href="tel:8776577465">(877) 657-7465</a>
+              {facilityPhoneHref && facility?.phone
+                ? <a className="rf-sx-idv-link" href={facilityPhoneHref}>{facility.phone}</a>
+                : <span className="rf-sx-idv-line">Phone unavailable</span>}
             </div>
           </div>
           <div className="rf-sx-idv-instore-aside">
@@ -419,7 +445,7 @@ export function SuccessStep({
             <button
               type="button"
               className="rf-sx-btn rf-sx-btn--solid rf-sx-btn--stack"
-              onClick={() => { setIdv('choose'); setIdvModal(true); }}
+              onClick={() => { setLocalIdvChoice(undefined); setIdv('choose'); setIdvModal(true); }}
             >
               <span className="rf-sx-btn-lede">Save time and skip the office!</span>
               <span className="rf-sx-btn-main">Verify ID Now</span>
@@ -447,12 +473,14 @@ export function SuccessStep({
             ID Verification Failed
           </h3>
           <p className="rf-sx-idv-lede">
-            Your ID must be verified before getting access. Please reverify your ID or contact us to
-            get access (949) 546-7465.{' '}
+            Your ID must be verified before getting access.{remoteOperated
+              ? ' This remotely operated property cannot verify your ID in store.'
+              : ` Please reverify your ID or contact the store${facilityPhoneHref && facility?.phone ? ` at ${facility.phone}` : ''} to get access.`}{' '}
             <button
               type="button"
               className="rf-sx-idv-inline"
               onClick={() => {
+                setLocalIdvChoice(undefined);
                 if (idvServiceConnected) idvController?.retry();
                 else { setIdv('choose'); setIdvModal(true); }
               }}
@@ -476,7 +504,7 @@ export function SuccessStep({
             <button
               type="button"
               className="rf-sx-idv-inline"
-              onClick={() => { setIdv('choose'); setIdvModal(true); }}
+              onClick={() => { setLocalIdvChoice(undefined); setIdv('choose'); setIdvModal(true); }}
             >
               Verify ID Now
             </button>
@@ -551,7 +579,12 @@ export function SuccessStep({
 
         {/* Figma 10078-25737 — three equal columns, all three required. */}
         <section className="rf-sx-extra">
-          <h3 className="rf-sx-extra-title">Driver&rsquo;s Licence</h3>
+          <div className="rf-sx-extra-head">
+            <h3 className="rf-sx-extra-title">{usePassport ? 'Passport' : 'Driver\u2019s Licence'}</h3>
+            {!dlReadOnly && (
+              <Checkbox checked={usePassport} onChange={setUsePassport}>Use passport for ID</Checkbox>
+            )}
+          </div>
           {dlReadOnly ? (
             <div className="rf-sx-readout">
               {/* Three lines, as the frame has them — and the app's own wording:
@@ -574,6 +607,10 @@ export function SuccessStep({
               </p>
               <button type="button" className="rf-sx-edit" onClick={() => setDlEditing(true)}>Edit</button>
             </div>
+          ) : usePassport ? (
+            <p className="rf-sx-idv-lede rf-sx-passport-note">
+              Your passport is captured securely in the hosted ID verification tool. No passport details are entered or stored on this page.
+            </p>
           ) : (
           <div className="rf-sx-fields">
             <div className="rf-sx-grid3">
@@ -665,7 +702,7 @@ export function SuccessStep({
       <IdVerifyModal
         open={idvModal}
         onClose={() => setIdvModal(false)}
-        onResult={setIdv}
+        onResult={(result) => { setLocalIdvChoice(result === 'later' ? 'later' : undefined); setIdv(result); }}
         phone={verificationPhone}
         connected={idvServiceConnected}
         lifecycle={remoteKind}

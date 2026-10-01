@@ -1,15 +1,9 @@
 // ===========================================================================
 // "Verify ID Now" — Figma node 8509-35693.
 //
-// DUMMY. There is no identity-verification service wired up: nothing here
-// sends a text, and "Resend Text" does not resend one. The modal exists so the
-// flow can be walked end to end, and so whoever connects the real service has
-// the finished screen and the three outcomes to hang it on.
-//
-// `onResult` is the seam. The three buttons at the foot are NOT in the Figma —
-// they are a scaffold, clearly labelled as such on screen, standing in for the
-// callback the verification app will fire. Delete that block, call `onResult`
-// from the real response, and everything else here is final.
+// Connected mode starts/resends a hosted verification and reflects its poll
+// lifecycle. Disconnected editor mode keeps three clearly labelled scaffold
+// buttons so every designed outcome can be reviewed without an API call.
 //
 // Same overlay shell as MoveInDateModal and ProtectionPlanModal: Escape, click
 // outside, scroll lock, portalled to <body>.

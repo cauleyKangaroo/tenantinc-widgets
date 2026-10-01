@@ -320,6 +320,18 @@
 }
 .rf-sx-idv-body { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
 .rf-sx-idv-actions { display: flex; flex: 1 1 300px; flex-direction: column; gap: 14px; }
+.rf-sx-idv-later {
+  align-self: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--hb-text-night, #101318);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 .rf-sx-btn {
   display: flex;
@@ -440,6 +452,7 @@
 }
 .rf-sx-idv-row { display: flex; gap: 10px; align-items: flex-start; }
 .rf-sx-idv-row--mid { align-items: center; margin-top: 12px; }
+.rf-sx-idv-address { margin: 12px 0 0 34px; }
 /* Nudged onto the first line of text beside it: the glyphs are drawn in a
    24px frame whose art sits a couple of pixels in from the top. */
 .rf-sx-idv-ico { flex: 0 0 auto; margin-top: 1px; color: var(--hb-text-night, #101318); }
@@ -648,6 +661,13 @@
 }
 
 .rf-sx-extra { display: flex; flex-direction: column; gap: 20px; }
+.rf-sx-extra-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
 /* See the note on .rf-sx-idv-title. */
 .rf-sx-extra-title {
   margin: 0;
@@ -733,6 +753,10 @@
 @media (max-width: 640px) {
   .rf-sx-idv { padding: 20px; }
   .rf-sx-illus { flex: 1 1 100%; }
+  .rf-sx-idv--instore { flex-direction: column; }
+  .rf-sx-idv-instore-main,
+  .rf-sx-idv-instore-aside { flex-basis: auto; width: 100%; }
+  .rf-sx-idv-address { margin-left: 34px; }
 }
 
 /* ── Rental Agreement lightbox (Figma 8507-23558) ───────────────────────── */
