@@ -7,6 +7,8 @@
 // to change. See HANDOFF.md.
 // ---------------------------------------------------------------------------
 
+import type { ApiCredProps } from '@shared/apiConfig';
+
 export type SpaceType = 'storage' | 'parking';
 /** @deprecated — use SpaceType[] in FilterState.types instead */
 export type FilterType = SpaceType;
@@ -170,7 +172,7 @@ export interface FilterOption<T extends string = string> {
 // Widget props — these come straight from the Duda content panel
 // ---------------------------------------------------------------------------
 
-export interface SpaceListProps {
+export interface SpaceListProps extends ApiCredProps {
   /**
    * Dropdown in the content panel: which listing layout to render.
    *   'grid'    — card grid inside size-group accordions
