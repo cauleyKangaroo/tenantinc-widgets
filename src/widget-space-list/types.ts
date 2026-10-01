@@ -9,7 +9,18 @@
 
 import type { ApiCredProps } from '@shared/apiConfig';
 
-export type SpaceType = 'storage' | 'parking';
+/*
+ * A unit type, as the API names it, lower-cased.
+ *
+ * OPEN, not a two-value union. The catalogue
+ * (`space-management/space-types`) holds 11 types for this company and four
+ * are live on Bellflower alone — storage, parking, Commercial and wine. A
+ * closed union silently folded every one of the others into 'storage'.
+ *
+ * The two literals stay for autocomplete and because 'storage' is genuinely
+ * special: it is the ONLY type that renders size bands.
+ */
+export type SpaceType = 'storage' | 'parking' | (string & NonNullable<unknown>);
 /** @deprecated — use SpaceType[] in FilterState.types instead */
 export type FilterType = SpaceType;
 

@@ -205,7 +205,24 @@ export function mapApiToUnits(raw: unknown, media?: { siteId?: string; baseUrl?:
         const size = classifySize(area);
 
         const primaryAssoc = tier.space_type_associations?.find((a) => a.is_primary === 1);
-        const type: Unit['type'] = primaryAssoc?.unit_type_name === 'parking' ? 'parking' : 'storage';
+        /*
+         * The unit's REAL type, not a storage/parking binary.
+         *
+         * This used to be `=== 'parking' ? 'parking' : 'storage'`, which
+         * folded every other type into storage. Bellflower's Website Group
+         * has 19 storage, 14 parking, 5 Commercial and 2 wine tiers (verified
+         * live), so 7 tiers were landing in the Storage section AND picking
+         * up its size bands, which only storage should have.
+         *
+         * Lower-cased so the value is a stable key: the API spells them
+         * inconsistently ('Commercial' but 'wine'), and this string is
+         * compared against filter state and the ?sl_types= URL param. The
+         * views title-case it for display, so 'wine' still reads as 'Wine'.
+         *
+         * Falls back to 'storage' only when the tier names no primary type at
+         * all — a unit with no section is worse than one in the default.
+         */
+        const type: Unit['type'] = primaryAssoc?.unit_type_name?.trim().toLowerCase() || 'storage';
 
         const bySortOrder = (a: ApiAmenity, b: ApiAmenity) => (a.sort_order ?? 0) - (b.sort_order ?? 0);
         const uniqueByName = (a: ApiAmenity, i: number, arr: ApiAmenity[]) =>
