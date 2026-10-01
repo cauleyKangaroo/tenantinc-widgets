@@ -11,6 +11,9 @@ import {
 } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { fetchFacilities, type FacilityOption } from '@shared/facilities';
+import { createApiCredsStore, type ApiCredProps } from '@shared/apiConfig';
+
+export type { ApiCredProps };
 
 export type { LeadInput };
 export type { BoundPropertyProps };
@@ -22,16 +25,30 @@ export type { FacilityOption };
  * one file that owns them, exactly as every other call in this widget does.
  */
 export function fetchFacilityOptions(bound: BoundPropertyProps = {}): Promise<FacilityOption[]> {
+  const { baseUrl, appId, apiKey } = creds();
   return fetchFacilities(
     '#03 property-info',
-    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: COMPANY_ID },
+    { baseUrl, appId, apiKey, companyId: COMPANY_ID },
     boundText(bound.companyId),
   );
 }
 
-const BASE_URL = cfg.baseUrl;
-const APP_ID = cfg.appId;
-const API_KEY = cfg.apiKey;
+/*
+ * The REST credentials for this widget.
+ *
+ * The site supplies them through the Duda JS tab (`api_domain` / `app_id` /
+ * `api_key`, from the Content Library's custom site texts); config.json is now
+ * only the fallback for the Duda editor, the dev harness, and sites whose texts
+ * have not been filled in. See @shared/apiConfig.
+ */
+const { creds, configure: configureApi } = createApiCredsStore('#03 property-info', {
+  baseUrl: cfg.baseUrl,
+  appId: cfg.appId,
+  apiKey: cfg.apiKey,
+});
+
+export { configureApi };
+
 const COMPANY_ID = cfg.companyId;
 const PROPERTY_ID = cfg.propertyId;
 
@@ -194,11 +211,18 @@ export function formatPhone(rawNumber: string): string {
  * REST call. Same envelope either way, so findProperty below is unchanged.
  * See @shared/propertiesSource.
  */
-export async function fetchProperties(requirePropertyId?: string): Promise<unknown> {
+export async function fetchProperties(
+  requirePropertyId?: string,
+  bound: BoundPropertyProps = {},
+): Promise<unknown> {
   // NO default of PROPERTY_ID here: callers pass `resolveRequireId(...)`, which is
   // undefined when Duda bound nothing, and a default would quietly put the stale
   // config id back — rejecting the site's own collection.
-  return fetchPropertiesPreferCollection(APP_ID, fetchPropertiesFromApi, { requirePropertyId });
+  return fetchPropertiesPreferCollection(
+    creds().appId,
+    () => fetchPropertiesFromApi(bound),
+    { requirePropertyId },
+  );
 }
 
 /**
@@ -221,11 +245,11 @@ export async function fetchPropertyDetails(bound: BoundPropertyProps = {}): Prom
   const row = await resolveBoundProperty('#03 property-info', bound, { configPropertyId: PROPERTY_ID });
 
   if (row) {
-    const details = findProperty(asPropertiesResponse([row], APP_ID), String(row.id ?? effectiveId));
+    const details = findProperty(asPropertiesResponse([row], creds().appId), String(row.id ?? effectiveId));
     if (details) return withAddressFallback(details, row);
   }
 
-  const raw = await fetchProperties(resolveRequireId(bound, PROPERTY_ID));
+  const raw = await fetchProperties(resolveRequireId(bound, PROPERTY_ID), bound);
   return findProperty(raw, effectiveId);
 }
 
@@ -252,15 +276,16 @@ function companyId(bound: BoundPropertyProps = {}): Promise<string> {
   return resolveCompanyIdFromSources('#03 property-info', bound, COMPANY_ID);
 }
 
-async function fetchPropertiesFromApi(): Promise<unknown> {
+async function fetchPropertiesFromApi(bound: BoundPropertyProps = {}): Promise<unknown> {
   // Expansion flags pull in the nested sections the widget renders.
   const params = 'access_hours=true&amenities=true&unit_type_counts=true&faq=true&social_media=true';
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${await companyId()}/properties?${params}`;
+  const { baseUrl, appId, apiKey } = creds();
+  const url = `${baseUrl}/applications/${appId}/v2/companies/${await companyId(bound)}/properties?${params}`;
 
   const res = await fetch(url, {
     headers: {
       'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
-      'x-storageapi-key': API_KEY,
+      'x-storageapi-key': apiKey,
     },
   });
 
@@ -282,9 +307,7 @@ async function fetchPropertiesFromApi(): Promise<unknown> {
 export async function createLead(input: LeadInput, bound: BoundPropertyProps = {}): Promise<unknown> {
   return submitLead(
     {
-      baseUrl: BASE_URL,
-      appId: APP_ID,
-      apiKey: API_KEY,
+      ...creds(),
       companyId: await companyId(bound),
       propertyId: resolvePropertyId(bound, PROPERTY_ID),
     },
@@ -295,7 +318,7 @@ export async function createLead(input: LeadInput, bound: BoundPropertyProps = {
 /** Pull the properties array out of the nested response and find ours by id. */
 export function findProperty(raw: unknown, propertyId: string = PROPERTY_ID): PropertyDetails | null {
   const response = raw as ApiResponse;
-  const list = response?.applicationData?.[APP_ID]?.[0]?.data?.properties ?? [];
+  const list = response?.applicationData?.[creds().appId]?.[0]?.data?.properties ?? [];
   const prop = list.find((p) => p.id === propertyId);
   if (!prop) return null;
 
