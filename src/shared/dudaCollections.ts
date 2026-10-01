@@ -60,7 +60,19 @@ export type CollectionRow = Record<string, unknown>;
  * matching rows".
  */
 export type CollectionReadResult =
-  | { status: 'ok'; rows: CollectionRow[] }
+  | {
+    status: 'ok';
+    rows: CollectionRow[];
+    /**
+     * The whole collection was read. Absent means the question was never
+     * asked — a single-page read does not know what it did not fetch.
+     *
+     * Explicitly `false` means `rows` is a PREFIX: a paged walk stopped early.
+     * A caller that presents its result as the complete set must check this
+     * rather than reading 'ok' as "everything".
+     */
+    complete?: boolean;
+  }
   | { status: 'unavailable'; detail: string }
   | { status: 'error'; detail: string };
 
@@ -224,11 +236,11 @@ function extractPageMeta(res: unknown): { pageSize: number; totalPages: number }
   return { pageSize, totalPages };
 }
 
-/** Identity for de-duplication. `__rowId` is the row's own id where the envelope
- *  nested its fields; `id` is the column most of these collections key on. */
-function rowKey(row: CollectionRow, index: number): string {
-  const id = str(row.__rowId) || str(row.id);
-  return id || `#${index}`;
+/** Identity for de-duplication, or '' when the row carries none. `__rowId` is
+ *  the row's own id where the envelope nested its fields; `id` is the column
+ *  most of these collections key on. */
+function rowKey(row: CollectionRow): string {
+  return str(row.__rowId) || str(row.id);
 }
 
 /** What `countCollectionRows` resolved to. */
@@ -328,9 +340,14 @@ export async function readCollectionPaged(collectionName: string): Promise<Colle
 
         const seen = new Set<string>();
         const rows: CollectionRow[] = [];
-        const take = (page: CollectionRow[], pageNumber: number) => {
-          page.forEach((r, i) => {
-            const key = rowKey(r, pageNumber * 1000 + i);
+        /* A row with no id of its own. Harmless on one page; fatal to the walk
+           on several, because identity is the ONLY way to tell a fresh page
+           from the first one served again. */
+        let idless = false;
+        const take = (page: CollectionRow[]) => {
+          page.forEach((r) => {
+            const key = rowKey(r);
+            if (!key) { idless = true; rows.push(r); return; }
             if (seen.has(key)) return;
             seen.add(key);
             rows.push(r);
@@ -338,16 +355,35 @@ export async function readCollectionPaged(collectionName: string): Promise<Colle
         };
 
         const first = await readPage(0);
-        take(first.rows, 0);
+        take(first.rows);
 
         const totalPages = first.meta?.totalPages ?? 1;
+        // One page: nothing to deduplicate against, so id-less rows are fine.
         if (totalPages <= 1) return { status: 'ok', rows, complete: true };
+
+        /*
+         * Multi-page and some row has no id — stop at page one and say so.
+         *
+         * The dedup key used to fall back to the row's INDEX, offset by the
+         * page number. That gave the same row two different keys on two pages,
+         * so a backend ignoring the page argument appended page 0 to itself
+         * instead of being detected: the "nothing new" check never fired, the
+         * walk ran to totalPages, and it returned duplicated rows as
+         * `complete: true`. An inflated count presented as exact is worse than
+         * a short one admitted to be short.
+         */
+        if (idless) {
+          console.warn(
+            `[dudaCollections] "${collectionName}" reports ${totalPages} pages but some rows carry no id — read the first page only, since repeats cannot be told from new rows`,
+          );
+          return { status: 'ok', rows, complete: false };
+        }
 
         for (let p = 1; p < totalPages; p += 1) {
           const before = rows.length;
           // eslint-disable-next-line no-await-in-loop
           const next = await readPage(p);
-          take(next.rows, p);
+          take(next.rows);
           if (rows.length === before) {
             // Nothing new: the page argument is not being honoured, so there is
             // no way to reach the rest and what we have is a prefix.

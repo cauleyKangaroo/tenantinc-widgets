@@ -212,12 +212,23 @@ export function readInternalPropertiesResult(
    */
   const pending = readCollectionPaged(collectionName).then((result): CollectionReadResult => {
     if (result.status === 'ok') {
+      /*
+       * An incomplete read is NOT pinned, and says so in what it returns.
+       *
+       * Dropping `complete` here handed callers a known prefix indistinguishable
+       * from the whole collection — and the cache then held that prefix for the
+       * rest of the page, so facilities past the cut-off disappeared for every
+       * later mount too, with no retry. Keeping the flag lets a caller that
+       * promises the complete set notice; evicting lets the next mount try
+       * again, exactly as a transient failure does.
+       */
       if (!result.complete) {
         console.warn(
           `[internalProperties] "${collectionName}" could not be read past row ${result.rows.length}; lists built on it will be short`,
         );
+        if (rowCache.get(collectionName) === pending) rowCache.delete(collectionName);
       }
-      return { status: 'ok', rows: result.rows.map(normalizeRow) };
+      return { status: 'ok', rows: result.rows.map(normalizeRow), complete: result.complete };
     }
     // Do not pin a transient unavailable/error answer for the rest of the page.
     // Concurrent callers still share this promise; a later mount gets a retry.
