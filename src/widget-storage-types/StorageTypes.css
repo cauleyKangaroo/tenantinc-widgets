@@ -104,7 +104,9 @@
   font-size: 24px;
   font-weight: 700;
   line-height: 1.25;
-  color: #101318;
+  /* Duda's global H3 theme can use an !important white color. Keep the card
+     title on the Figma dark color regardless of that page-level heading rule. */
+  color: #101318 !important;
   text-transform: none;
   letter-spacing: 0;
   /* Two lines, like #12's card title. `max-height` is both the ceiling and the
