@@ -21,14 +21,16 @@
 // here too.
 // ===========================================================================
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './SpaceListHeading.css';
 import cfg from './config.json';
 import { fetchProperties, extractPropertyExtras } from '../widget-space-list/propertyApi';
+import { configureApi } from '../widget-space-list/apiCreds';
+import type { ApiCredProps } from '@shared/apiConfig';
 import { resolvePropertyId, resolveRequireId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 
-export interface SpaceListHeadingProps {
+export interface SpaceListHeadingProps extends ApiCredProps {
   /**
    * The heading itself, when an editor wants to write it. Overrides everything
    * below. Bindable — see @shared/propertyBinding.
@@ -47,7 +49,22 @@ export function SpaceListHeading({
   propertyHeader,
   propertyId,
   companyId,
+  // Site-level REST credentials from the Content Library's custom site texts.
+  api_domain,
+  app_id,
+  api_key,
 }: SpaceListHeadingProps) {
+  /*
+   * #18's one API call runs through #05's propertyApi, so the store it must
+   * configure is #05's — this bundle carries its own copy of that module, so
+   * configuring it here cannot affect the #05 widget on the same page.
+   *
+   * During render, ahead of the effects below.
+   */
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
   /**
    * The id, when the content field cannot supply it.
    *

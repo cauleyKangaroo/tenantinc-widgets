@@ -13,6 +13,7 @@ import {
   type PropertySpaceData,
 } from '@shared/nearbyProperties';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { createApiCredsStore, type ApiCredProps } from '@shared/apiConfig';
 import { asPropertiesResponse } from '@shared/propertiesSource';
 import {
   INTERNAL_PROPERTIES_COLLECTION,
@@ -46,8 +47,51 @@ export interface NearbyProperty extends NearbyBaseProperty {
  * collection yet. The read is cached in @shared/companySource, so resolving it per
  * call costs one collection read for the whole page.
  */
+/*
+ * This widget's REST credentials — the site's, via the Duda JS tab, with
+ * config.json as the editor/harness fallback. See @shared/apiConfig.
+ */
+const store = createApiCredsStore('#07 nearby', {
+  baseUrl: cfg.baseUrl,
+  appId: cfg.appId,
+  apiKey: cfg.apiKey,
+});
+
+/*
+ * The company the Duda JS tab passed, if any.
+ *
+ * #07 had no way to be told its company: creds() resolved with an empty bound,
+ * so a `companyId` prop was silently ignored and the widget fell through to the
+ * `Company` collection or — in the editor, where there is no dmAPI — to
+ * config.json's build-time id, which belongs to a different company on this
+ * site. Every other widget in this set honours the prop; now so does this one.
+ */
+let siteCompanyId = '';
+
+/** Apply the site's credentials, and its company id when one is supplied. */
+export function configureApi(props: ApiCredProps & { companyId?: string }): void {
+  store.configure(props);
+  // Only ever set, never cleared: an instance that was given nothing must not
+  // undo one that was, exactly as the credentials store behaves.
+  if (props.companyId) siteCompanyId = props.companyId;
+}
+
+export type { ApiCredProps };
+
+/*
+ * NOT `{ ...cfg, companyId }`. That spread pinned baseUrl/appId/apiKey to the
+ * build-time file, so every call here would have kept using the old host and
+ * key even after the site supplied its own.
+ */
 async function creds(): Promise<NearbyApiConfig> {
-  return { ...cfg, companyId: await resolveCompanyIdFromSources('#07 nearby', {}, cfg.companyId) };
+  return {
+    ...store.creds(),
+    companyId: await resolveCompanyIdFromSources(
+      '#07 nearby',
+      { companyId: siteCompanyId },
+      cfg.companyId,
+    ),
+  };
 }
 
 /**
@@ -116,7 +160,7 @@ export async function fetchProperties(
  * — callers must check that flag before measuring or plotting them.
  */
 export const extractProperties = (raw: unknown): NearbyBaseProperty[] =>
-  extractNearbyProperties(raw, cfg.appId, { requireCoords: false });
+  extractNearbyProperties(raw, store.creds().appId, { requireCoords: false });
 
 export const fetchPropertySpaces = async (propertyId: string) =>
   sharedFetchPropertySpaces(await creds(), propertyId);
