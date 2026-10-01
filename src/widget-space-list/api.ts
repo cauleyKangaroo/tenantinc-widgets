@@ -3,10 +3,8 @@ import cfg from './config.json';
 import { spaceImageFor, mediaManagerImagesFor } from './spaceImages';
 import { fetchWebsiteSpaceGroupId as findWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { creds } from './apiCreds';
 
-const BASE_URL = cfg.baseUrl;
-const APP_ID = cfg.appId;
-const API_KEY = cfg.apiKey;
 const COMPANY_ID = cfg.companyId;
 const PROPERTY_ID = cfg.propertyId;
 const SPACE_GROUP_ID = cfg.spaceGroupId;
@@ -190,7 +188,7 @@ function tierPromo(tier: ApiTier): ApiPromoEntry | null {
  */
 export function mapApiToUnits(raw: unknown, media?: { siteId?: string; baseUrl?: string }): Unit[] {
   const response = raw as ApiResponse;
-  const appEntries = response?.applicationData?.[APP_ID];
+  const appEntries = response?.applicationData?.[creds().appId];
   if (!appEntries?.length) return [];
 
   const spaceGroupProfile = appEntries[0]?.data?.spaceGroupProfile;
@@ -378,12 +376,13 @@ export async function fetchSpaceGroups(
   // Omitted → the `Company` collection, never config.json directly. SpaceList
   // passes its already-resolved id; anything else gets it from the same source.
   const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${company}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
+  const { baseUrl, appId, apiKey } = creds();
+  const url = `${baseUrl}/applications/${appId}/v2/companies/${company}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
 
   const res = await fetch(url, {
     headers: {
       'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
-      'x-storageapi-key': API_KEY,
+      'x-storageapi-key': apiKey,
     },
   });
 
@@ -411,7 +410,7 @@ export async function fetchWebsiteSpaceGroupId(
   // the `Company` collection rather than config.json.
   const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
   return findWebsiteSpaceGroupId(
-    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: company },
+    { ...creds(), companyId: company },
     propertyId,
   );
 }
