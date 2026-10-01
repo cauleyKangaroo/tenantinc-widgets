@@ -212,11 +212,6 @@ export async function readCollectionResult(collectionName: string): Promise<Coll
   }
 }
 
-export async function readCollection(collectionName: string): Promise<CollectionRow[]> {
-  const result = await readCollectionResult(collectionName);
-  return result.status === 'ok' ? result.rows : [];
-}
-
 /** `page` metadata off the envelope, when the API sent any. */
 function extractPageMeta(res: unknown): { pageSize: number; totalPages: number } | null {
   if (!res || typeof res !== 'object') return null;
@@ -329,6 +324,11 @@ export async function countCollectionRows(collectionName: string): Promise<Colle
     console.warn(`[dudaCollections] count of "${collectionName}" failed`, err);
     return { count: 0, exact: false };
   }
+}
+
+export async function readCollection(collectionName: string): Promise<CollectionRow[]> {
+  const result = await readCollectionResult(collectionName);
+  return result.status === 'ok' ? result.rows : [];
 }
 
 // ── Field coercion helpers ───────────────────────────────────────────────────
