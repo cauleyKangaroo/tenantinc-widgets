@@ -250,7 +250,7 @@
   width: 127px; height: 40px;
   display: flex; align-items: center; justify-content: center;
   border: none; border-radius: 8px;
-  background: var(--color_1, #f45f30); color: #fff;
+  background: var(--color_1, #f45f30); color: var(--color_3, #fff);
   font: 700 16px 'Montserrat', sans-serif; cursor: pointer;
 }
 .pi-msg-submit:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black); }

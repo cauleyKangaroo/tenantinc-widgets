@@ -108,7 +108,13 @@ function UnitRow({
       </div>
 
       <div className="ml-unit-prices">
-        <span className="ml-unit-tag"><TagIcon size={16} /></span>
+        {/* The tag means "this unit has a promotion on it", so it is drawn
+            only when there IS one. It used to render on every row, which made
+            it decoration rather than information — a shopper could not tell a
+            discounted space from a full-price one. `promo` is the promotion's
+            name off the tier (api.ts: tierPromoName), so an empty string or an
+            absent field both correctly show nothing. */}
+        {unit.promo && <span className="ml-unit-tag"><TagIcon size={16} /></span>}
         <div className="ml-price-strike">
           <span className="ml-price-label">IN-STORE</span>
           <span className="ml-price-was">${unit.inStorePrice}</span>

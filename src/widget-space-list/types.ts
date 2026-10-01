@@ -383,6 +383,9 @@ export interface SpaceListProps {
   isFeatureHighlights?: boolean;
   isNearby?:    boolean;
   isSizeGuide?: boolean;
+  /** @deprecated The sidebar's 'Storage Blogs' section was removed; only
+   *  Local Blogs remains. Still accepted so an existing Duda content menu
+   *  sending it cannot break, but nothing reads it any more. */
   isBlog?:      boolean;
   isLocalBlog?: boolean;
   isStore?:     boolean;

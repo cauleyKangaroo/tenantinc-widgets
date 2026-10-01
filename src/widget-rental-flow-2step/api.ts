@@ -116,6 +116,84 @@ export interface PropertyInfo {
   /** Human lines like "Mon-Sat: 8:00 AM - 5:00 PM", grouped by identical times. */
   officeHours?: string[];
   gateHours?: string[];
+  /**
+   * `Address.country` verbatim — "United States", "Canada".
+   *
+   * Carried separately from the flattened `address` line, which is for display
+   * and drops everything it does not print. The payment forms preselect their
+   * Billing Country from this, so it has to survive as its own value.
+   */
+  country?: string;
+  /**
+   * Which billing periods this property offers, PER SPACE TYPE
+   * (`?payment_cycles=true`). Storage and parking are configured separately:
+   * live on Storage Outlet - COFFEE, storage offers monthly + quarterly +
+   * annual while parking offers monthly alone.
+   *
+   * Empty/absent ⇒ the API said nothing about cycles, which is not the same as
+   * "no cycles". See `cyclesForUnitType`.
+   */
+  paymentCycles?: PaymentCycleConfig[];
+  /**
+   * The property's Nokē key-share tiers (`?noke_configs=true`), ordered as the
+   * dropdown should list them.
+   *
+   * Empty ⇒ this facility sells no key-shares and the section is hidden.
+   * Absent ⇒ not loaded yet.
+   */
+  keyShares?: NokeKeyShare[];
+}
+
+/** One Nokē key-share tier, as configured on the property. */
+export interface NokeKeyShare {
+  id: string;
+  /** The operator's own name for the tier ("Default", "Medium", "Unlimited"). */
+  name?: string;
+  /** How many keys the tier grants. Meaningless when `unlimited`. */
+  keyLimit: number;
+  /** Monthly price; 0 means it comes with the rental. */
+  price: number;
+  /** The operator's ordering rank; the list is already sorted by it. */
+  tier: number;
+  /** The tier the shopper starts on. */
+  isDefault: boolean;
+  /** No cap on keys. NOTE: this is the API's own flag, and it is 0 on every
+   *  row in the live data — including the row NAMED "Unlimited", which carries
+   *  `key_limit: 99` instead. So a tier only reads as unlimited when the API
+   *  actually says so. */
+  unlimited: boolean;
+}
+
+/** One space type's billing-period configuration. */
+export interface PaymentCycleConfig {
+  /**
+   * The space type this row configures. MATCH ON THIS, never on `unitType`:
+   * the names disagree between endpoints — Bellflower's row calls the type
+   * `commercial_storage` while /space-management/space-types calls the same id
+   * (`k3BEpHgdjA`) `Commercial`. The id is the same everywhere.
+   */
+  unitTypeId: string;
+  /** The API's own name for it, for logging only. */
+  unitType?: string;
+  monthly: boolean;
+  quarterly: boolean;
+  annual: boolean;
+}
+
+/**
+ * The cycles configured for a space type, or undefined when it cannot be
+ * answered — no config from the API, or the unit's type not resolved yet.
+ *
+ * Undefined is deliberately distinct from "all three false": the first means
+ * *unknown* and the caller should keep its existing behaviour, the second is
+ * the property genuinely offering no choice, which hides the card.
+ */
+export function cyclesForUnitType(
+  property?: PropertyInfo,
+  unitTypeId?: string,
+): PaymentCycleConfig | undefined {
+  if (!unitTypeId || !property?.paymentCycles?.length) return undefined;
+  return property.paymentCycles.find((c) => c.unitTypeId === unitTypeId);
 }
 
 interface ApiAccessHourRow { day?: string; open_time?: string; close_time?: string; is_always_open?: boolean }
@@ -125,7 +203,36 @@ interface ApiProperty {
   name: string;
   Phones?: Array<{ phone?: string; type?: string }>;
   AccessHours?: ApiAccessHours[];
-  Address?: { address?: string; city?: string; state?: string; zip?: string };
+  // `country` IS returned by /properties — verified live, "United States" on
+  // every row — it was simply never declared here, so nothing downstream could
+  // see it.
+  Address?: { address?: string; city?: string; state?: string; zip?: string; country?: string };
+  payment_cycles?: ApiPaymentCycle[];
+  noke_configs?: ApiNokeConfig[];
+}
+
+interface ApiNokeConfig {
+  id?: string;
+  name?: string;
+  key_limit?: number;
+  tier?: number;
+  is_default?: number;
+  is_unlimited?: number;
+  price?: number;
+  /** Soft-delete flag. A deleted tier is still returned, so it has to be
+   *  filtered out or the dropdown offers a plan the operator retired. */
+  deleted?: number;
+}
+
+interface ApiPaymentCycle {
+  unit_type_id?: string;
+  unit_type?: string;
+  monthly?: boolean;
+  quarterly?: boolean;
+  annual?: boolean;
+  /** Months after which the lease reverts to monthly. Not used by the form —
+   *  the choice is what is being collected, not its expiry. */
+  revert_payment_cycle?: number | null;
 }
 
 const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -180,7 +287,13 @@ function hoursLines(sched?: ApiAccessHours): string[] | undefined {
 }
 
 export async function fetchProperty(ctx: RentalCtx): Promise<PropertyInfo | undefined> {
-  const data = unwrap(await getJson(`companies/${ctx.companyId}/properties?access_hours=true`));
+  /* payment_cycles: which billing periods each space type offers, for the
+     Payment Cycle card. noke_configs: the property's key-share tiers (id,
+     key_limit, price) — requested here so the Nokē section has a source, and
+     served on the same row rather than as a second round-trip. */
+  const data = unwrap(await getJson(
+    `companies/${ctx.companyId}/properties?access_hours=true&noke_configs=true&payment_cycles=true`,
+  ));
   const props = (data?.properties as ApiProperty[] | undefined) ?? [];
   // Fail unavailable rather than showing a DIFFERENT property's facts: the
   // transaction targets ctx.propertyId, so never fall back to props[0].
@@ -198,7 +311,49 @@ export async function fetchProperty(ctx: RentalCtx): Promise<PropertyInfo | unde
       : undefined,
     officeHours: hoursLines(office),
     gateHours: hoursLines(gate),
+    country: a?.country?.trim() || undefined,
+    // Rows without a unit_type_id are unusable: the id is how a row is matched
+    // to the unit being rented, so one without it can only be guessed at.
+    paymentCycles: (Array.isArray(prop.payment_cycles) ? prop.payment_cycles : [])
+      .filter((c): c is ApiPaymentCycle & { unit_type_id: string } => !!c?.unit_type_id)
+      .map((c) => ({
+        unitTypeId: c.unit_type_id,
+        unitType: c.unit_type,
+        monthly: c.monthly === true,
+        quarterly: c.quarterly === true,
+        annual: c.annual === true,
+      })),
+    keyShares: nokeKeyShares(prop.noke_configs),
   };
+}
+
+/**
+ * Nokē tiers in the order the dropdown lists them: the default first, the rest
+ * by `tier` ascending.
+ *
+ * The default leads rather than sorting purely by tier because it is also the
+ * preselected row, and a preselected option that is not at the top reads as an
+ * arbitrary highlight. In the live data the default IS tier 1, so the two
+ * rules agree today; they only diverge if an operator promotes a higher tier.
+ *
+ * Rows without an id are dropped (the id is the selection value), as are
+ * soft-deleted ones — the API still returns a retired tier.
+ */
+function nokeKeyShares(rows?: ApiNokeConfig[]): NokeKeyShare[] {
+  if (!Array.isArray(rows)) return [];
+  const out = rows
+    .filter((r): r is ApiNokeConfig & { id: string } => !!r?.id && r.deleted !== 1)
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      keyLimit: typeof r.key_limit === 'number' ? r.key_limit : 0,
+      price: typeof r.price === 'number' && r.price > 0 ? r.price : 0,
+      isDefault: r.is_default === 1,
+      unlimited: r.is_unlimited === 1,
+      tier: typeof r.tier === 'number' ? r.tier : Number.MAX_SAFE_INTEGER,
+    }));
+  out.sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.tier - b.tier);
+  return out;
 }
 
 // --- Protection plans (space-types → property insurances) --------------------
@@ -422,7 +577,7 @@ interface CtxTier {
   sell_rate?: number | null;
   set_rate?: number | null;
   promotion_sell_rate?: number | null;
-  units?: { min_price?: number | null };
+  units?: { min_price?: number | null; max_price?: number | null };
   vacant?: { count?: number; min_price?: number | null };
   promo?: Array<{ name?: string }>;
 }
@@ -495,10 +650,22 @@ interface SelOffer {
   space_mix_id?: string;
 }
 
+/**
+ * The parts of an offer that describe the TIER rather than one unit: its rate,
+ * its promotion name and its amenity list. Every unit in a tier carries the
+ * same ones — which is what makes a sibling offer a safe source for them when
+ * the handed-off unit itself is missing from the response.
+ *
+ * Deliberately excludes everything unit-specific: unit id, unit number, the
+ * dossier token, promotion IDS and space_mix_id all authorize or price a
+ * transaction and must describe the exact unit being rented.
+ */
+export type OfferDisplay = Pick<SelectionContext, 'price' | 'online' | 'inStore' | 'promo' | 'features'>;
+
 export type OfferResolution =
   | { status: 'matched'; selection: SelectionContext & { unitId: string } }
   | { status: 'unit-unavailable' }
-  | { status: 'unit-unverified' }
+  | { status: 'unit-unverified'; display?: OfferDisplay }
   | { status: 'malformed' };
 
 function offerAmenityLabel(a: OfferAmenity): string | undefined {
@@ -513,6 +680,71 @@ function offerOnlineRate(price: number, discounts?: OfferDiscount[]): number | u
   if (!d || typeof d.value !== 'number') return undefined;
   const rate = d.type === 'percent' ? price * (1 - d.value / 100) : price - d.value;
   return rate > 0 && rate < price ? rate : undefined;
+}
+
+/** The array fields this reader walks. A non-array where one is declared is a
+ *  contract error, not something to render around. */
+function offerShapeOk(o: SelOffer): boolean {
+  if (o.amenities != null && !Array.isArray(o.amenities)) return false;
+  if (o.promotions != null && !Array.isArray(o.promotions)) return false;
+  if (o.costs?.Discounts != null && !Array.isArray(o.costs.Discounts)) return false;
+  return true;
+}
+
+/**
+ * Amenity NAMES that are not identical across every tier in this group —
+ * present on one and not another, or carrying a different value.
+ *
+ * These are what the shopper actually chose between. Live example (Storage
+ * Outlet - COFFEE, group 6c384bf4…): all three tiers return the same 23
+ * facility amenities, and only two of them differ — `Climate Control`, on
+ * better/best but not good, and `Convenience`, whose value is "Convenient" /
+ * "More Convenient" / "Most Convenient", one per tier. Everything else is
+ * facility copy that reads the same whichever tier is picked.
+ *
+ * Fewer than two offers means nothing to compare against, so nothing is
+ * claimed to be distinguishing and the order is left exactly as it was.
+ */
+function tierDifferentiators(offers: SelOffer[]): Set<string> {
+  const diff = new Set<string>();
+  if (offers.length < 2) return diff;
+  const names = new Set<string>();
+  for (const o of offers) for (const a of o.amenities ?? []) if (a.name) names.add(a.name);
+  const valueOn = (o: SelOffer, name: string) =>
+    (o.amenities ?? []).find((a) => a.name === name)?.value?.trim();
+  for (const name of names) {
+    const first = valueOn(offers[0], name);
+    if (offers.some((o) => valueOn(o, name) !== first)) diff.add(name);
+  }
+  return diff;
+}
+
+/**
+ * Tier-level display fields off one offer.
+ *
+ * Features lead with this tier's distinguishing amenities, then fall back to
+ * the operator's own `sort_order` for the rest. Without that ranking the
+ * six-item cap was filled entirely by shared facility amenities — every tier
+ * showed "Handcarts & Dollies Available, Moving Supplies Available, Touchless
+ * Rentals…" and the one line that says what the tier buys sat at sort_order
+ * 999, sorted last and cut off. The sort is stable, so within each bucket the
+ * operator's ordering still decides.
+ */
+function offerDisplay(o: SelOffer & { price: number }, distinguishing?: Set<string>): OfferDisplay {
+  const price = o.price;
+  const rank = (a: OfferAmenity) => (a.name && distinguishing?.has(a.name) ? 0 : 1);
+  return {
+    price,
+    online: offerOnlineRate(price, o.costs?.Discounts) ?? price,
+    inStore: price,
+    promo: o.promotions?.find((p) => p?.name)?.name,
+    features: (o.amenities ?? [])
+      .slice()
+      .sort((a, b) => rank(a) - rank(b) || (a.sort_order ?? 999) - (b.sort_order ?? 999))
+      .map(offerAmenityLabel)
+      .filter((x): x is string => !!x)
+      .slice(0, 6),
+  };
 }
 
 export async function fetchSelectionFromOffers(
@@ -546,37 +778,39 @@ export async function fetchSelectionFromOffers(
     // A handed-off unit is authoritative. Never replace it with another unit
     // from the same tier (or the first offer): that would combine one unit's
     // amenities/promotion with another unit's quote.
+    // Computed across the WHOLE response, before a tier is picked: what makes
+    // one tier different is only knowable by comparing it with the others.
+    const distinguishing = tierDifferentiators(avail.filter(offerShapeOk));
+    const sameTier = sel.tier ? avail.find((o) => o.value_tier?.type === sel.tier) : undefined;
     const pick = sel.unitId
       ? avail.find((o) => o.unit_id === sel.unitId)
-      : (sel.tier ? avail.find((o) => o.value_tier?.type === sel.tier) : undefined) ?? avail[0];
+      : sameTier ?? avail[0];
     // /offers may return one representative unit per tier rather than a full
-    // inventory list. A nonempty response that omits the handed-off unit does
-    // not prove it is unavailable; keep the transaction fail-closed but report
-    // a verification failure instead of making a false sold-out claim.
-    if (!pick) return { status: 'unit-unverified' };
-    if ((pick.amenities != null && !Array.isArray(pick.amenities))
-      || (pick.promotions != null && !Array.isArray(pick.promotions))
-      || (pick.costs?.Discounts != null && !Array.isArray(pick.costs.Discounts))) {
-      return { status: 'malformed' };
+    // inventory list, and it omits a unit that is currently HELD — including
+    // the hold this very page takes on arrival, which is why the miss struck
+    // at random. A nonempty response that omits the handed-off unit does not
+    // prove it is unavailable; keep the transaction fail-closed but report a
+    // verification failure instead of making a false sold-out claim.
+    //
+    // The tier's own display data is still handed back. Without it the rail
+    // lost the rate and the feature list the shopper had just picked in the
+    // value-tiers popup and fell back to the space-groups group name — a list
+    // of amenity BUNDLES rather than the tier's points. `display` carries
+    // nothing that could authorize or re-price the rental (see OfferDisplay).
+    if (!pick) {
+      return {
+        status: 'unit-unverified',
+        display: sameTier && offerShapeOk(sameTier)
+          ? offerDisplay(sameTier, distinguishing) : undefined,
+      };
     }
-    const price = pick.price;
-    const online = offerOnlineRate(price, pick.costs?.Discounts) ?? price;
-    const features = (pick.amenities ?? [])
-      .slice()
-      .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
-      .map(offerAmenityLabel)
-      .filter((x): x is string => !!x)
-      .slice(0, 6);
+    if (!offerShapeOk(pick)) return { status: 'malformed' };
     return {
       status: 'matched',
       selection: {
         unitId: pick.unit_id,
         size: sel.size ?? '',
-        price,
-        online,
-        inStore: price,
-        promo: pick.promotions?.find((p) => p?.name)?.name,
-        features,
+        ...offerDisplay(pick, distinguishing),
         promotionIds: (pick.promotions ?? []).map((p) => p?.id).filter((x): x is string => !!x),
         offerToken: pick.dossier?.token,
         spaceMixId: pick.space_mix_id,
@@ -1469,10 +1703,22 @@ export interface RentalExtras {
   vehicleType?: string;
 }
 
+/** How the API spells each billing period — see the note at its use site. */
+export const PAYMENT_CYCLE_NAMES = {
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  annual: 'Annual',
+} as const;
+
+export type PaymentCycleKey = keyof typeof PAYMENT_CYCLE_NAMES;
+
 export interface RentArgs {
   unit: { id: string; number?: string };
   holdToken: string;
   contact: RentContact;
+  /** The billing period chosen on the Payment Cycle card. Absent ⇒ monthly,
+   *  which is both the default and the only value the guide names. */
+  paymentCycle?: PaymentCycleKey;
   /**
    * Exactly ONE of `card` / `bank` — whichever the shopper chose.
    *
@@ -1733,7 +1979,23 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
     space_mix_id: args.spaceMixId,
     total_payment_amount: args.totalPaymentAmount,
     bill_day: args.billDay,
-    payment_cycle: 'Monthly',
+    /*
+     * The period the shopper actually chose.
+     *
+     * It was hardcoded 'Monthly' while the Payment Cycle card offered whatever
+     * the property sells, so picking Quarterly changed a radio and nothing
+     * else: the lease went up monthly and the terms beneath the card promised
+     * monthly recurrence. The selector was a label.
+     *
+     * CAPITALISATION IS AN INFERENCE. The rental guide documents this field as
+     * optional with one instruction — "Send default value as Monthly" — and
+     * never names a value for quarterly or annual. `payment_cycles` on
+     * /properties answers in lower case (`monthly`/`quarterly`/`annual`), so
+     * the two vocabularies are already different and this follows the one the
+     * guide shows for THIS field. Worth confirming with TenantInc; if they
+     * reject it, this single map is the place to correct.
+     */
+    payment_cycle: PAYMENT_CYCLE_NAMES[args.paymentCycle ?? 'monthly'],
     web_rate: args.webRate,
     costs: args.costs,
     metadata: signingMetadata(),

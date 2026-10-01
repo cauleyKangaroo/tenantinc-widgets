@@ -1,14 +1,23 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo , useId} from 'react';
 import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
-import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankFormValue } from './PaymentSection';
+import {
+  MilitaryFields, AltContactFields, VehicleFields,
+  extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues,
+} from './additionalInfo';
+// The mask writes MM/DD/YYYY; the lease payload wants YYYY-MM-DD. Same
+// converter the post-purchase screen uses, so the two cannot drift.
+import { dobToIso } from './api';
+import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankFormValue, type BillingCountry } from '@shared/paymentForms';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
 import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { splitBusinessName } from './businessName';
+import { skipValidation } from '@shared/devBypass';
+import creditCardRepeat from './assets/credit-card-repeat.svg';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space now" (Figma 8507-23329).
@@ -154,17 +163,86 @@ const PLAN_HOVER_QUERY = '(min-width: 901px) and (hover: hover) and (pointer: fi
 /** The four autopay treatments a property can be configured with. */
 export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
 
+/** The three billing periods the Payment Cycle card offers. */
+export type PaymentCycle = 'monthly' | 'quarterly' | 'annual';
+
+/*
+ * Labels verbatim from the frame, in the frame's order.
+ *
+ * The frame also put "Save 10%" and "Save 15%" beside quarterly and annual.
+ * Those are GONE: nothing in the API carries a discount for a billing period
+ * — `payment_cycles` returns booleans and a `revert_payment_cycle` month count
+ * and no rates at all — so the figures were frame copy being printed as if
+ * they were this property's terms. Restore them when a real percentage has a
+ * source, per property and per space type.
+ */
+const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string }> = [
+  { id: 'monthly',   label: 'Pay Monthly' },
+  { id: 'quarterly', label: 'Pay Quarterly' },
+  { id: 'annual',    label: 'Pay Annual' },
+];
+
+/**
+ * One Nokē key-share tier, ready to render.
+ *
+ * `label` and `price` arrive as finished strings because the API's numbers do
+ * not map one-to-one onto the frame's wording — an unlimited tier has no key
+ * count to print, and a zero price reads as "Price Included", not "$0".
+ */
+export interface KeyShareOption { id: string; label: string; price: string; }
+
+/** Verbatim from 12285-189509, the card the Learn More reveals. */
+const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoing unit '
+  + 'access with trusted people. Recipients receive a digital key by text, and access can '
+  + 'be monitored or revoked at any time.';
+
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode,
-  gatewayPending, zipOnlyBilling,
+  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
+  gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
 }: {
   moveIn: Date;
+  /**
+   * The content menu's `formType` radio, as a flag — the ONE thing that
+   * differs between the two layouts.
+   *
+   * Off (`2step`, the default): the Additional Information checkboxes are
+   * ticks only. What the shopper opted into travels to the post-purchase
+   * screen, which opens the matching sections already ticked and asks for the
+   * values there. Choosing here, filling there.
+   *
+   * On (`1step`): ticking one opens its fields immediately, and its required
+   * fields then gate payment like any other. The post-purchase screen still
+   * shows those sections afterwards — this moves where they are FIRST answered,
+   * it does not remove them from anywhere.
+   */
+  oneStep?: boolean;
   /**
    * The property's autopay treatment, from Hummingbird. Unset shows a small
    * demo picker so all four can be reviewed — pass a value and it disappears.
    */
   autopayMode?: AutopayMode;
+  /**
+   * Which periods THIS property offers for THIS space type, from
+   * `/properties?payment_cycles=true` matched on the unit's `unit_type_id`.
+   * Storage and parking are configured separately — live on Storage Outlet -
+   * COFFEE, storage offers all three while parking offers monthly alone.
+   *
+   * This ALONE decides whether the Payment Cycle card (Figma 12285-189429)
+   * appears. There is deliberately no operator toggle beside it: the property
+   * already answers the question in its own configuration, and a checkbox that
+   * could only ever contradict it would let a facility advertise a term it
+   * does not sell, or hide one it does.
+   *
+   * Empty ⇒ the property offers none and the card is hidden entirely.
+   * Undefined ⇒ not known yet (the unit's type resolves with the quote, a beat
+   * after first paint) and the card stays hidden until it is, so a period the
+   * property does not sell is never briefly on screen.
+   */
+  paymentCycles?: PaymentCycle[];
+  /** Nokē key-share tiers. Omitted → the frame's single "2 Key-shares —
+   *  Included" row. */
+  keyShareOptions?: KeyShareOption[];
   /** Protection plans to choose between, already narrowed to the space type
    *  being rented. Empty → the "confirmed at checkout" note, which now means
    *  the property has no coverage products configured for that type. */
@@ -199,6 +277,8 @@ export function Step2({
      *  Only the ticked ones carry meaning — an unticked section's fields are
      *  whatever was typed before it was closed again. */
     extras?: RentalExtras;
+    /** The Payment Cycle card's selection. */
+    paymentCycle?: PaymentCycle;
   }) => void;
   /** What the shopper typed in step 1, used as the starting values here so they
    *  do not retype their own name and email one screen later. */
@@ -217,6 +297,9 @@ export function Step2({
   gatewayPending?: boolean;
   /** tenant_payments: the card panel asks for the billing ZIP only. */
   zipOnlyBilling?: boolean;
+  /** Country both payment forms open their Billing Country select on, from the
+   *  content menu's Country Default. Unset → no preselection. */
+  defaultCountry?: BillingCountry;
 }) {
   // Ticked when step 1 said this is a business rental, so the shopper does not
   // answer the same question twice and its fields open ready to fill.
@@ -239,6 +322,12 @@ export function Step2({
   const [vehicle, setVehicle] = useState(false);
 
   const [agree, setAgree] = useState(false);
+  /* The values behind the three Additional Information ticks — collected here
+     only when `oneStep` puts the fields on this screen. One object rather than
+     fourteen useStates: they are written by one patch setter, read as one
+     payload, and the shape is the shared module's. */
+  const [extraFields, setExtraFields] = useState<ExtraFieldValues>(EMPTY_EXTRA_FIELDS);
+  const setExtra = (patch: Partial<ExtraFieldValues>) => setExtraFields((v) => ({ ...v, ...patch }));
   /**
    * Which autopay treatment this property uses.
    *
@@ -256,6 +345,39 @@ export function Step2({
    * default, so an instance saved before the field existed behaves as it did.
    */
   const mode: AutopayMode = autopayMode ?? 'optional';
+
+  /* PAYMENT CYCLE (Figma 12285-189429). Local state: nothing downstream reads
+     it yet — the rental APIs take no billing period — so this is the control
+     and its selection, and the price does NOT move. Wiring it to the quote is
+     the one change when a term-priced endpoint exists; until then a radio that
+     silently rewrote the total would be inventing a discount.
+     `useId` because a page can hold two of these and radios group by name. */
+  const cycleName = useId();
+  const [cycle, setCycle] = useState<PaymentCycle>('monthly');
+  /* The frame's three rows, narrowed to what this property sells for this
+     space type. Undefined `paymentCycles` means not yet known, which renders
+     nothing rather than all three. */
+  /* The recurrence wording follows the radio. Left fixed, the autopay terms
+     promised a monthly charge directly beneath a Quarterly selection the
+     shopper had just made — the one place on the page where the words are a
+     commitment rather than a label. */
+  const cycleWord = cycle === 'quarterly' ? { adj: 'quarterly', noun: 'quarter' }
+    : cycle === 'annual' ? { adj: 'annual', noun: 'year' }
+      : { adj: 'monthly', noun: 'month' };
+  const cycleOptions = paymentCycles
+    ? PAYMENT_CYCLES.filter((c) => paymentCycles.includes(c.id))
+    : [];
+  /* Keep the selection on an offered period. Monthly is the default and is
+     offered by every property in the live data, but it is configurable, so a
+     property that sells quarterly and annual only must not sit on a monthly
+     radio that is not on screen. */
+  useEffect(() => {
+    if (!cycleOptions.length) return;
+    if (!cycleOptions.some((c) => c.id === cycle)) setCycle(cycleOptions[0].id);
+    // cycleOptions is derived from paymentCycles; depending on the array
+    // identity would re-run this on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentCycles?.join(','), cycle]);
   /* With no checkbox to tick, the pay button is where the shopper accepts the
      recurring charge — so it says so. undefined elsewhere, leaving the forms'
      own "Pay Now $X". */
@@ -355,6 +477,42 @@ export function Step2({
     onPlanChange?.(planChoice === 'own' ? undefined : planChoice);
   }, [planChoice, onPlanChange]);
 
+  /* KEY-SHARE (12285-189422). Same shape as the protection plan above it, so
+     it reuses that section's classes rather than growing a parallel set. */
+  /* Straight from the property — no invented fallback tier. A facility with no
+     key-shares configured hides the section rather than offering a plan that
+     does not exist (see the render). The list arrives default-first. */
+  const keyShares = keyShareOptions ?? [];
+  const [ksOpen, setKsOpen] = useState(false);
+  const [ksChoice, setKsChoice] = useState('');
+  const [ksTipOpen, setKsTipOpen] = useState(false);
+  const ksRef = useRef<HTMLDivElement>(null);
+  const chosenKeyShare = keyShares.find((k) => k.id === ksChoice) ?? keyShares[0];
+  /* The tiers land a beat after first paint (they ride the property call), and
+     the operator's default is first in the list, so adopt it once it arrives.
+     Keyed on the ids so a property switch re-adopts the new default rather
+     than holding an id that is no longer on offer. */
+  const ksIds = keyShares.map((k) => k.id).join(',');
+  useEffect(() => {
+    if (keyShares.length && !keyShares.some((k) => k.id === ksChoice)) setKsChoice(keyShares[0].id);
+    // keyShares is derived from the prop; ksIds captures the change that matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ksIds, ksChoice]);
+
+  useEffect(() => {
+    if (!ksOpen) return undefined;
+    const onDown = (e: MouseEvent) => {
+      if (ksRef.current && !ksRef.current.contains(e.target as Node)) setKsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setKsOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [ksOpen]);
+
   // Close on outside click / Escape, like a native select.
   const planRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -385,6 +543,12 @@ export function Step2({
   // fields inside are not).
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const phoneOk = isPossiblePhone(phone, 'US');
+  /* Only when the fields are actually on this screen. On 2step they are not,
+     and a rule for an input nobody can see would disable Pay Now with no way
+     to find out why — the exact thing the old comment below warned about. */
+  const extraProblems = oneStep
+    ? extraFieldProblems({ military, altContact, vehicle }, extraFields)
+    : {};
   const required: Array<[key: string, ok: boolean]> = [
     ['email', emailOk],
     ['phone', phoneOk],
@@ -395,13 +559,25 @@ export function Step2({
       : [['first', first.trim().length > 0],
         ['last', last.trim().length > 0]] as Array<[string, boolean]>),
     ['agree', agree],
-    // The optional sections are TICKS here — their fields live on the
-    // post-purchase screen, so there is nothing on this step to validate. They
-    // must not gate payment either: requiring an input nobody can see would
-    // disable Pay Now with no way to find out why.
+    /* On 2step the optional sections are TICKS — their fields live on the
+       post-purchase screen, so there is nothing here to validate. On 1step
+       they are on screen, so the ones that are open and incomplete do gate
+       payment; `extraProblems` is empty in the other case, so this line adds
+       nothing to the two-step form. */
+    ...Object.entries(extraProblems).map(([k, msg]) => [k, !msg] as [string, boolean]),
   ];
-  const formComplete = required.every(([, ok]) => ok);
-  const bad = (key: string) => payAttempted && !(required.find(([k]) => k === key)?.[1] ?? true);
+  /* Harness bypass — compiled out of production builds, see @shared/devBypass.
+     Both the gate and the per-field red state read it, so they cannot
+     disagree about whether the form is finished. */
+  const skip = skipValidation();
+  const formComplete = skip || required.every(([, ok]) => ok);
+  const bad = (key: string) => !skip && payAttempted
+    && !(required.find(([k]) => k === key)?.[1] ?? true);
+  /* The shared groups render FormField's own message, so they need the text
+     rather than this screen's boolean. Same gate — nothing is flagged until
+     payment has been attempted, and the harness bypass silences both. */
+  const extraBad = (key: string) =>
+    (!skip && payAttempted && extraProblems[key] ? extraProblems[key] : undefined);
   /** A card/bank panel is open, so its button is replaced by the panel and the
    *  other method relocates beneath it. Wallets are one-tap and never expand. */
   const methodOpen = payMethod === 'card' || payMethod === 'bank';
@@ -427,9 +603,40 @@ export function Step2({
       ? { ...splitBusinessName(bizName), email: email.trim(), phone, businessName: bizName.trim() }
       : { first: first.trim(), last: last.trim(), email: email.trim(), phone },
     autopay,
-    // Which sections the shopper opted into. The VALUES are collected on the
-    // post-purchase screen, so this step sends the choices and nothing else.
-    extras: { business, military, altContact, vehicle },
+    /* The billing period chosen on the Payment Cycle card. Monthly unless the
+       property offers more and the shopper picked one. */
+    paymentCycle: cycle,
+    /*
+     * Which sections the shopper opted into — and on ONE-STEP, the values too.
+     *
+     * Two-step collects them on the post-purchase screen, so the choices are
+     * genuinely all this step has. One-step opens the fields right here, and
+     * a single-step property has no post-purchase screen at all: sending only
+     * the booleans meant a shopper filled in a date of birth, an alternate
+     * contact and a vehicle — each of them REQUIRED, each blocking the pay
+     * button until it was right — and every value was dropped on the floor
+     * before the lease was built.
+     *
+     * Gated per section, not sent wholesale: a field belonging to a section
+     * the shopper never opened is not theirs to file.
+     */
+    extras: {
+      business,
+      military,
+      altContact,
+      vehicle,
+      ...(oneStep && military && extraFields.dob
+        ? { dateOfBirth: dobToIso(extraFields.dob) } : {}),
+      ...(oneStep && altContact ? {
+        altFirst: extraFields.altFirst.trim() || undefined,
+        altLast: extraFields.altLast.trim() || undefined,
+        altPhone: extraFields.altPhone.trim() || undefined,
+        altEmail: extraFields.altEmail.trim() || undefined,
+        altAddress: extraFields.altAddress.trim() || undefined,
+      } : {}),
+      ...(oneStep && vehicle && extraFields.vType.trim()
+        ? { vehicleType: extraFields.vType.trim() } : {}),
+    },
   });
 
 
@@ -604,16 +811,107 @@ export function Step2({
           )}
         </section>
 
+        {/* NOKĒ KEY-SHARE (Figma 12285-189422). Deliberately the protection
+            plan's own classes, not a parallel set: the frame draws the
+            identical control, so one stylesheet for both is what keeps them
+            consistent as either moves. Only the price type differs. */}
+        {keyShares.length > 0 && (
+        <section className="rf2-panel">
+          <div className="rf2-rowhead">
+            <span className="rf2-h">Select Nokē Key-Share Plan</span>
+            {/* The dark card from 12285-189509. Hover and focus both reveal
+                it; on a touch screen, where neither happens, the tap does. */}
+            <span className="rf2-tip-anchor">
+              <button
+                type="button"
+                className="rf2-link rf2-link--btn"
+                aria-expanded={ksTipOpen}
+                onMouseEnter={() => { if (canHover) setKsTipOpen(true); }}
+                onMouseLeave={() => { if (canHover) setKsTipOpen(false); }}
+                onFocus={() => setKsTipOpen(true)}
+                onBlur={() => setKsTipOpen(false)}
+                onClick={() => { if (!canHover) setKsTipOpen((o) => !o); }}
+              >
+                Learn More
+              </button>
+              {ksTipOpen && (
+                <span className="rf2-tip rf2-tip--wide" role="tooltip">{KEY_SHARE_BLURB}</span>
+              )}
+            </span>
+          </div>
+
+          <div className="rf2-plan-wrap" ref={ksRef}>
+            <button
+              type="button"
+              className="rf2-plan"
+              aria-haspopup="listbox"
+              aria-expanded={ksOpen}
+              onClick={() => setKsOpen((o) => !o)}
+            >
+              <span className="rf2-plan-body">
+                <span className="rf2-plan-left">
+                  <span className="rf2-plan-cov">
+                    <b>{chosenKeyShare.label}</b> Plan
+                  </span>
+                </span>
+                <span className="rf2-ks-price">{chosenKeyShare.price}</span>
+              </span>
+              <span className="rf2-plan-drop">
+                <ChevronSolidIcon size={14} className={`rf2-chev-down${ksOpen ? ' rf2-chev-up' : ''}`} />
+              </span>
+            </button>
+
+            {ksOpen && (
+              <div className="rf2-plan-menu" role="listbox" aria-label="Key-share plans">
+                {keyShares.map((k, i) => (
+                  <React.Fragment key={k.id}>
+                    {i > 0 && <span className="rf2-plan-sep" aria-hidden="true" />}
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={ksChoice === k.id}
+                      className="rf2-plan-opt"
+                      onClick={() => { setKsChoice(k.id); setKsOpen(false); }}
+                    >
+                      <span className="rf2-plan-opt-left">
+                        <span className="rf2-plan-opt-cov"><b>{k.label}</b> Plan</span>
+                      </span>
+                      <span className="rf2-ks-price">{k.price}</span>
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+        )}
+
         {/* Additional Information */}
         <section className="rf2-plain">
           <span className="rf2-h">Additional Information</span>
           <div className="rf2-checks">
-            {/* Ticks only — the fields these used to reveal now live on the
-                post-purchase screen, which opens the matching sections already
-                ticked. Choosing here, filling there. */}
-            <Check checked={military} onChange={setMilitary}>I am active military</Check>
-            <Check checked={altContact} onChange={setAltContact}>I want to provide an alternate contact</Check>
-            <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
+            {/* On 2step these are ticks only and the fields are answered on the
+                post-purchase screen — choosing here, filling there. On 1step
+                each tick opens its own fields directly beneath it, rather than
+                the three ticks sitting together and the fields appearing lower
+                down: a section's question and its answers belong next to each
+                other.
+
+                The groups come from ./additionalInfo, shared with the
+                post-purchase screen, which asks for exactly the same things
+                and must not drift from this. */}
+            <div className="rf-sx-group">
+              <Check checked={military} onChange={setMilitary}>I am active military</Check>
+              {oneStep && military && <MilitaryFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+            </div>
+            <div className="rf-sx-group">
+              <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
+              {oneStep && altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+            </div>
+            <div className="rf-sx-group">
+              <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
+              {oneStep && vehicle && <VehicleFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+            </div>
           </div>
         </section>
 
@@ -678,7 +976,8 @@ export function Step2({
               </button>
               {tipOpen && (
                 <span className="rf2-tip" role="tooltip">
-                  Enrolling in autopay automatically charges your payment method each month
+                  Enrolling in autopay automatically charges your payment method each
+                  {' '}{cycleWord.noun}
                 </span>
               )}
             </span>
@@ -707,6 +1006,51 @@ export function Step2({
               No fee for ACH bank transfer.
             </p>
           )}
+          {/* PAYMENT CYCLE (Figma 12285-189429) — between autopay and the
+              payment methods, which is where the frame puts it. A real
+              radiogroup, so arrow keys move between the three and a screen
+              reader announces one of three rather than three checkboxes. */}
+          {/* Hidden outright when the property offers no period for this space
+              type — a radiogroup with nothing in it, or with one forced answer,
+              is not a choice. */}
+          {cycleOptions.length > 0 && (
+            <div className="rf2-cycle">
+              <div className="rf2-cycle-row">
+                <span className="rf2-cycle-head">
+                  <img src={creditCardRepeat} width={24} height={24} alt="" aria-hidden="true" />
+                  <span className="rf2-cycle-title">Payment Cycle</span>
+                  <InfoIcon size={16} className="rf2-cycle-info" />
+                </span>
+
+                <div className="rf2-cycle-opts" role="radiogroup" aria-label="Payment cycle">
+                  {cycleOptions.map((c) => (
+                    <label className="rf2-cycle-opt" key={c.id}>
+                      <input
+                        type="radio"
+                        name={cycleName}
+                        value={c.id}
+                        checked={cycle === c.id}
+                        onChange={() => setCycle(c.id)}
+                      />
+                      <span className="rf2-cycle-radio"><span className="rf2-cycle-dot" /></span>
+                      <span className="rf2-cycle-text">
+                        <span>{c.label}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <p className="rf2-cycle-disclaimer">
+                <span className="rf2-cycle-disclaimer-lead">Disclaimer:</span>
+                {' '}Only one discount can be applied at a time. Multiple discounts or
+                promotions cannot be combined. Please choose the discount that provides
+                the greatest benefit to you. Other promotions or offers may not be used
+                simultaneously. Terms and conditions may apply.
+              </p>
+            </div>
+          )}
+
           {/* Wallets always sit at the top. The two method buttons only share
               that grid while NEITHER is open — once one is, the open panel
               takes their place and the other method moves below it
@@ -765,9 +1109,9 @@ export function Step2({
               {formLoading ? (
                 <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
               ) : payMethod === 'card' ? (
-                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} payLabel={agreeLabel} />
+                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} defaultCountry={defaultCountry} payLabel={agreeLabel} />
               ) : (
-                <BankForm total={payNowTotal ?? 0} onPay={(bank) => payStatically(undefined, bank)} busy={paying} payLabel={agreeLabel} />
+                <BankForm total={payNowTotal ?? 0} onPay={(bank) => payStatically(undefined, bank)} busy={paying} defaultCountry={defaultCountry} payLabel={agreeLabel} />
               )}
             </section>
           )}
@@ -792,9 +1136,10 @@ export function Step2({
               them rather than the one that happens to be open. */}
           {mode === 'default' && (
             <p className="rf2-autopay-terms">
-              Your next monthly rent payment is due on {nextBillingDate}, and will recur monthly
-              thereafter. Rental rates are subject to change in accordance with your Rental
-              Agreement and applicable law. To avoid the next month&rsquo;s charge, you must
+              Your next {cycleWord.adj} rent payment is due on {nextBillingDate}, and will recur
+              {' '}{cycleWord.adj} thereafter. Rental rates are subject to change in accordance
+              with your Rental Agreement and applicable law. To avoid the next
+              {' '}{cycleWord.noun}&rsquo;s charge, you must
               complete your move-out before your next billing date. You may initiate a move-out
               through your account or by contacting the facility. By entering a payment method,
               you accept these terms and authorize recurring automatic payments using your

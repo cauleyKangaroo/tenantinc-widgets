@@ -714,7 +714,7 @@
 }
 .sl-wrapper .sl-select-btn {
   background: var(--color_2, #509e2f);
-  color: #ffffff;
+  color: var(--color_3, #fff);
   border: none;
   border-radius: 8px;
   height: 50px;
@@ -1694,7 +1694,7 @@
 .sl-wrapper .sl-nb-starting-price { font-size: 16px; font-weight: 700; color: #101318; }
 .sl-wrapper .sl-nb-select-btn {
   background: var(--color_2, #509e2f);
-  color: #ffffff;
+  color: var(--color_3, #fff);
   border: none;
   border-radius: 8px;
   font-size: 13px;
@@ -2331,7 +2331,11 @@
   overflow: hidden;
   display: flex;
   align-items: flex-end;
-  background-color: #f26500;
+  /* The ground behind the tile's cover image, so it only shows while that
+     image loads or if it is missing. Themed rather than a literal orange: an
+     unthemed site still gets #f26500, but a rebranded one no longer flashes a
+     colour from nowhere in its own grid. */
+  background-color: var(--color_1, #f26500);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -2660,12 +2664,17 @@
 .sl-wrapper .sl-nb2-content {
   padding: 0 23px;
 }
-/* The section's bottom padding normally comes from .sl-nb2-pagination's
-   `padding: 20px 0 24px`. Map view has no pager, so the content has to supply
-   that 24px itself or the map sits flush against the accordion's bottom edge. */
-.sl-wrapper .sl-nb2-content--no-pager {
-  padding-bottom: 24px;
+/* MAP VIEW IS FULL BLEED. List view insets its card by 23px a side and the
+   pager pads the bottom; the map has neither. It fills what is left under the
+   tabs and runs to all three edges, and the accordion card's own
+   `overflow: hidden` + 20px radius round off the bottom corners for it. */
+.sl-wrapper .sl-nb2-content--map {
+  padding: 0;
 }
+
+/* NearbyMap inline-styles a 16px radius, which beats a class rule — and it is
+   wrong here now that the card clips the corners itself. */
+.sl-wrapper .sl-nb2-map { border-radius: 0 !important; }
 
 /* ── Sliding track (Nearby Storage carousel) ──────────────────────────────
    One card per view: every property renders once and a single transform moves
@@ -2998,7 +3007,7 @@
 /* Select button */
 .sl-wrapper .sl-nb2-select {
   background: var(--color_2, #509e2f);
-  color: #ffffff;
+  color: var(--color_3, #fff);
   font-size: 14px;
   font-weight: 700;
   font-family: 'Montserrat', sans-serif;
@@ -3617,7 +3626,7 @@
   padding: 12px 24px;
   border-radius: 8px;
   background: var(--color_1, #f45f30);
-  color: #fff;
+  color: var(--color_3, #fff);
   font-family: 'Montserrat', sans-serif;
   font-size: 15px;
   font-weight: 600;
@@ -3626,7 +3635,7 @@
 
 .sl-wrapper .sl-blog2-see-all:hover {
   background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black);
-  color: #fff;
+  color: var(--color_3, #fff);
 }
 
 /* ── Skeleton (while the BlogPosts collection read is in flight) ── */
@@ -4390,7 +4399,7 @@
   /* Duda's primary, like the other 31 places in this widget — not the frame's
      flat #f26500, which would ignore the site's theme. */
   background: var(--color_1, #f45f30);
-  color: #ffffff;
+  color: var(--color_3, #fff);
   font-family: 'Montserrat', sans-serif;
   font-size: 16px;
   font-weight: 700;
@@ -4617,7 +4626,7 @@
 .sl-wrapper .sl-reorder-save {
   background: var(--color_1, #f45f30);
   border: 1px solid var(--color_1, #f45f30);
-  color: #ffffff;
+  color: var(--color_3, #fff);
 }
 .sl-wrapper .sl-reorder-save:hover { background: #468a29; }
 .sl-wrapper .sl-reorder-cancel:disabled,

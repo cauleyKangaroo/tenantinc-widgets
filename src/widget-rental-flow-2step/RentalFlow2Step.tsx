@@ -1,9 +1,13 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './RentalFlow2Step.css';
-import { Step2, type AutopayMode } from './Step2';
+import { Step2, type AutopayMode, type PaymentCycle } from './Step2';
+import type { BillingCountry } from '@shared/paymentForms';
+import { instoreFrom, asInstoreMode, asInstoreAmount } from '@shared/instorePrice';
 import {
   fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
-  extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection, fetchMoveInQuote, fetchUnitInfo,
+  cyclesForUnitType,
+  extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection,
+  fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
   fetchPaymentGateway, TENANT_PAYMENTS,
@@ -29,9 +33,29 @@ import { readUnitSelection, clearUnitSelection } from '@shared/unitHandoff';
 import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
-import { FormField, Button, DateModal, AlertIcon, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, DateModal, AlertIcon, formatPrice, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { fetchSingleStep } from '@shared/internalProperties';
+import { skipValidation } from '@shared/devBypass';
+
+/**
+ * Which layout the rental flow renders.
+ *
+ * Decided by the FACILITY, via `PropertiesInternal.single_step` — the content
+ * menu's `formType` radio is only the fallback where the collection cannot
+ * answer (the Duda editor and the dev harness have no dmAPI). Two-step is the
+ * default in every unanswered case.
+ *
+ * Same first screen, same move-in lightbox, same form. Two differences:
+ *
+ *   - what the Additional Information checkboxes do when ticked — see the
+ *     `oneStep` prop on Step2
+ *   - single step has NO post-purchase screen: payment goes straight to the
+ *     confirmation, because the mailing address and licence that screen exists
+ *     to collect are not asked for at all
+ */
+type FormMode = '1step' | '2step';
 
 const startOfToday = () => {
   const d = new Date();
@@ -87,6 +111,17 @@ export interface RentalFlow2StepProps {
    * nowhere, so the card stays hidden until someone supplies one.
    */
   reviewUrl?: string;
+  /**
+   * Content-menu URLs for the Smart Entry app badges on the confirmation.
+   *
+   * Same rule as `reviewUrl`: the badges render either way, but they are only
+   * LINKS once an operator supplies one. Which app a facility uses is theirs
+   * to say — Nokē, a white-labelled build, none at all — so there is no
+   * default worth inventing, and until these existed as props the badges were
+   * drawn and could never be clicked.
+   */
+  appStoreUrl?: string;
+  playStoreUrl?: string;
   /** Selection handed off from the value-tiers page (?size= / ?tier=) —
    *  display context only; the transaction re-resolves server-side. */
   size?: string;
@@ -111,6 +146,65 @@ export interface RentalFlow2StepProps {
    * demo picker in step 2 covers all four.
    */
   autopay?: string;
+  /**
+   * Content-menu dropdown `countryDefault` — which country BOTH payment forms
+   * (Credit / Debit and Pay by Bank) open their Billing Country select on:
+   * `none` | `us` | `canada`.
+   *
+   * A single-country operator should not make every shopper pick the only
+   * answer, but the field is still theirs to change — this preselects, it does
+   * not lock. `none` is the default and leaves the "Select Billing Country"
+   * placeholder, which is how the forms behaved before this existed.
+   */
+  countryDefault?: string;
+  /**
+   * Content-menu dropdown `gateCodeType` — which confirmation the property
+   * gets: `default` | `nogatecode` | `smartentrysystem`.
+   *
+   * A CONTENT FIELD, not API data, because there is nothing to read. Checked
+   * against the whole Hummingbird rental-flow guide and every live response:
+   * no endpoint returns an entry mode or an access-hardware field. The gate PIN
+   * on API 10's tenant is the only access-related value anywhere, and it is
+   * undocumented. So the operator states it per property page until TenantInc
+   * adds a field, at which point this becomes the fallback rather than the
+   * source.
+   *
+   * Unset or `default` keeps the confirmation exactly as it shipped.
+   */
+  gateCodeType?: string;
+  /*
+   * There is NO `showPaymentCycle` content field any more.
+   *
+   * The Payment Cycle card is drawn from the property's own configuration:
+   * /properties?payment_cycles=true says, per space type, which of monthly /
+   * quarterly / annual that facility sells, and the card shows exactly those
+   * — or nothing at all when it sells none. A checkbox on top of that could
+   * only contradict the facility, and left off (its default) it hid the card
+   * even where the API offered three periods. The Duda content field can be
+   * deleted; an instance still sending it is simply ignored.
+   */
+  /**
+   * Content-menu radio `formType` — which layout this instance renders:
+   * `2step` (default) | `1step`.
+   *
+   * FALLBACK ONLY. `PropertiesInternal.single_step` is the real answer and
+   * overrides this whenever the collection can be read; this is what stands in
+   * the Duda editor and the dev harness, where there is no dmAPI. The choice
+   * belongs to the facility because one rental page serves every property on a
+   * dynamic site, so a radio here could only ever say one thing for all of
+   * them.
+   *
+   * On `2step` the Additional Information checkboxes are ticks only and their
+   * fields are answered on the post-purchase screen. On `1step` ticking one
+   * opens its fields there and then, and there is no post-purchase screen at
+   * all — payment goes straight to the confirmation.
+   *
+   * ANYTHING UNRECOGNISED IS `2step`, including '' and an unsubstituted
+   * {{token}}. That is what this widget has always done, so a field nobody
+   * set, a misspelt option, or a value added in Duda before it exists here all
+   * leave live pages exactly as they are.
+   */
+  formType?: string;
   /** Tier's group id from the value-tiers handoff (?unitGroupId=) — the proxy
    *  reserve route needs it for the ownership check. */
   unitGroupId?: string;
@@ -492,13 +586,18 @@ function Step1Form({
   // don't proceed until it's present. Which NAME fields count depends on the
   // business toggle, so an unfilled first name cannot block a business rental
   // that never showed the field.
+  /* The harness bypass marks every check passed rather than emptying the
+     list, so `bad()` still finds each id and answers false — an empty list
+     would make it answer true for everything the moment anything set
+     `attempted`. Compiled out of production builds — see @shared/devBypass. */
+  const skip = skipValidation();
   const checks: Array<[string, boolean]> = [
-    ['rf-email', isValidEmail(email)],
-    ['rf-phone', isPossiblePhone(phone, 'US')],
+    ['rf-email', skip || isValidEmail(email)],
+    ['rf-phone', skip || isPossiblePhone(phone, 'US')],
     ...(business
-      ? [['rf-bizname', bizName.trim().length > 0]] as Array<[string, boolean]>
-      : [['rf-first', first.trim().length > 0],
-        ['rf-last', last.trim().length > 0]] as Array<[string, boolean]>),
+      ? [['rf-bizname', skip || bizName.trim().length > 0]] as Array<[string, boolean]>
+      : [['rf-first', skip || first.trim().length > 0],
+        ['rf-last', skip || last.trim().length > 0]] as Array<[string, boolean]>),
   ];
   const gate = (proceed: (c: Contact) => void) => () => {
     if (!transactionReady) return;
@@ -661,7 +760,7 @@ function stashConfirmation(data: ConfirmationData): string {
  * never fake a confirmed page. The editor gets a demo preview; error pages stay
  * URL-driven (they carry no success claim).
  */
-function readConfirmationPayload(inEditor: boolean): ConfirmationData | undefined {
+function readConfirmationPayload(inEditor: boolean, entry: EntryMode): ConfirmationData | undefined {
   try {
     const p = new URLSearchParams(window.location.search);
     const type = p.get('type');
@@ -670,7 +769,10 @@ function readConfirmationPayload(inEditor: boolean): ConfirmationData | undefine
     if (inEditor) {
       return {
         kind: type, name: 'John', unitNumber: '#111', code: '87368976',
-        phone: '(949) 456-8765', moveInDate: 'Jun 20, 2026', reservationDate: 'Jun 18, 2026', entry: 'gate',
+        phone: '(949) 456-8765', moveInDate: 'Jun 20, 2026', reservationDate: 'Jun 18, 2026',
+        // The selected mode, so the harness and the Duda editor can preview all
+        // three confirmations. Live payloads carry their own.
+        entry,
       };
     }
 
@@ -700,6 +802,9 @@ function readConfirmationPayload(inEditor: boolean): ConfirmationData | undefine
 
 export function RentalFlow2Step({
   autopay,
+  countryDefault,
+  gateCodeType,
+  formType,
   logoImage,
   logoUrl,
   eyebrow = 'Great choice!',
@@ -710,6 +815,8 @@ export function RentalFlow2Step({
   reservationHeading = 'Your reservation is confirmed!',
   rentalHeading = 'Your Space is ready!',
   reviewUrl,
+  appStoreUrl,
+  playStoreUrl,
   size: sizeArg,
   tier: tierArg,
   propertyId: propertyIdArg,
@@ -750,6 +857,29 @@ export function RentalFlow2Step({
   // rail loses its money breakdown. The tier resolves to a real unit through
   // size + price below, the same route the value-tiers handoff takes.
   const unitIdProp = urlParam('unitId');
+  /*
+   * The struck-through IN-STORE rate the listing card showed.
+   *
+   * It is the OPERATOR's walk-in figure, configured on the Space List widget
+   * in Duda, so it cannot be looked up here — it rides the handoff as a rule
+   * (mode + amount) and is applied below to the price this rail is showing.
+   * Not the finished number: the shopper may have picked a dearer tier than
+   * the card quoted, and a fixed figure would then sit below the price.
+   *
+   * Absent ⇒ the listing is not showing an in-store price either, and the rail
+   * shows the single rate. Falls back to the stored pick for a "Select" that
+   * came straight here without going through the tier popup.
+   */
+  const instoreMode = asInstoreMode(urlParam('instoreMode') ?? stored?.instoreMode);
+  const instoreAmount = asInstoreAmount(urlParam('instoreAmount') ?? stored?.instoreAmount);
+  const instoreLabel = urlParam('instoreLabel') ?? stored?.instoreLabel;
+  /* A FIXED figure instead of a rule — the listing configured no percentage
+     and is showing the API's own number, so that is what it hands over. Used
+     only when no rule arrived, and still only above the shown price. */
+  const instoreValue = (() => {
+    const n = Number(urlParam('instoreValue') ?? stored?.instoreValue);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  })();
   // "Change Space" returns to the value-tiers page the shopper came from.
   const backToSpacesUrl = (() => {
     try {
@@ -776,10 +906,107 @@ export function RentalFlow2Step({
     }
   })();
 
+  /* The dropdown's value to the select's own option string. The select carries
+     its labels AS its values, so 'us' has to become 'United States' — a raw
+     'us' would match no option and silently preselect nothing.
+
+     `boundText` first, for the same reason autopay uses it: an unsubstituted
+     {{token}} or Duda's empty-string default must read as "unset" and fall
+     through to no preselection, never as a country nobody chose. Anything
+     unrecognised — including 'none' — lands on '' deliberately. */
+  /**
+   * One country name, or '' — the select's two options and nothing else.
+   *
+   * The guard is the point. A value that is not exactly an option renders the
+   * select BLANK, which looks like a bug and silently drops a required field,
+   * so anything unrecognised has to fall through to the placeholder rather
+   * than be passed along hopefully.
+   */
+  const asBillingCountry = (raw: string): BillingCountry => {
+    switch (raw.trim().toLowerCase()) {
+      case 'us': case 'usa': case 'united states': return 'United States';
+      case 'canada': case 'ca': return 'Canada';
+      default: return '';
+    }
+  };
+  const configuredBillingCountry = asBillingCountry(boundText(countryDefault));
+
+  /**
+   * Which confirmation this property gets.
+   *
+   * `boundText` first, like autopay and countryDefault: an unsubstituted
+   * {{token}} or Duda's empty-string default must read as "unset", never as a
+   * mode nobody chose.
+   *
+   * ANYTHING UNRECOGNISED FALLS TO 'gate' — including 'default' and ''. That
+   * is the confirmation this widget has always rendered, so a misspelt option,
+   * a field nobody set, or a value added in Duda before it exists here all
+   * leave the live page exactly as it is rather than blanking the access card.
+   */
+  const entryMode: EntryMode = (() => {
+    switch (boundText(gateCodeType).trim().toLowerCase()) {
+      case 'nogatecode': case 'no-gate-code': case 'none': return 'none';
+      case 'smartentrysystem': case 'smart-entry-system': case 'smart': return 'smart';
+      default: return 'gate';
+    }
+  })();
+
+  /**
+   * Which layout this instance renders.
+   *
+   * `boundText` first, like autopay, countryDefault and gateCodeType: an
+   * unsubstituted {{token}} or Duda's empty-string default has to read as
+   * "unset" and fall through to the shipped behaviour, never as a layout
+   * nobody chose. The spellings are generous because the radio's stored values
+   * are the editor's to type — the DEFAULT is what matters, and it is `2step`.
+   */
+  const configuredFormMode: FormMode = (() => {
+    switch (boundText(formType).trim().toLowerCase()) {
+      case '1step': case '1-step': case 'one': case 'onestep': case 'one-step': return '1step';
+      default: return '2step';
+    }
+  })();
+
   // Global Payments PUBLIC key — tokenization only; it cannot charge or read.
   const configuredGpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
   const cfgCtx = React.useMemo(() => defaultRentalCtx(), []);
   const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp }, cfgCtx.propertyId);
+  /*
+   * PropertiesInternal.single_step — the facility's own ToggleSwitch, and the
+   * answer that wins.
+   *
+   * It belongs to the property rather than the widget: one rental page serves
+   * every property on a dynamic site, so the content-menu radio can only ever
+   * say one thing for all of them. undefined means the collection could not
+   * answer (no dmAPI in the Duda editor or the dev harness, no row, no
+   * column), and then the radio stands — which is how the harness still tests
+   * both layouts.
+   */
+  const [collectionSingleStep, setCollectionSingleStep] = useState<boolean | undefined>(undefined);
+  useEffect(() => {
+    if (!effectivePropertyId) return undefined;
+    let cancelled = false;
+    fetchSingleStep(effectivePropertyId)
+      .then((v) => {
+        if (cancelled) return;
+        /* Says which property was asked about and what came back, because the
+           three ways this ends up on two-step are indistinguishable on screen:
+           the toggle is off, the row was not found (a property id that is not
+           in the collection), or the collection could not be read at all. */
+        console.info(
+          `${logTag} single_step(${effectivePropertyId}) =`,
+          v,
+          '→',
+          v === undefined ? 'unanswered, using formType' : (v ? '1step' : '2step'),
+        );
+        setCollectionSingleStep(v);
+      })
+      .catch((err) => console.warn(`${logTag} single_step lookup failed:`, err));
+    return () => { cancelled = true; };
+  }, [effectivePropertyId, logTag]);
+  const formMode: FormMode = collectionSingleStep === undefined
+    ? configuredFormMode
+    : (collectionSingleStep ? '1step' : '2step');
   const [effectiveCompanyId, setEffectiveCompanyId] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -862,6 +1089,47 @@ export function RentalFlow2Step({
   // (or if its type is unknown) this is the full list — showing every plan is
   // recoverable, showing none would re-create the "confirmed at checkout" bug.
   const shownPlans = React.useMemo(() => plansForUnitType(plans, unitTypeId), [plans, unitTypeId]);
+  /*
+   * The billing periods this property sells for the space type being rented.
+   *
+   * Matched on `unit_type_id`, never on the type's NAME: the two endpoints
+   * disagree about names — Bellflower's row calls type `k3BEpHgdjA`
+   * "commercial_storage" while space-types calls the same id "Commercial" —
+   * and the id is what both agree on. `unitTypeId` is the unit's own, from
+   * GET v1/units/{id}, so storage and parking are told apart by the unit that
+   * is actually being rented rather than by anything on the page.
+   *
+   * undefined until the property and the unit's type have both landed; the
+   * card stays hidden until then.
+   */
+  /*
+   * The property's Nokē tiers, turned into the rows the frame prints.
+   *
+   * The API's numbers do not map one-to-one onto the wording: a price of 0
+   * means the tier comes with the rental ("Price Included", not "$0"), and an
+   * unlimited tier has no key count to show. Only the API's own
+   * `is_unlimited` makes a tier unlimited — the row merely NAMED "Unlimited"
+   * carries key_limit 99 and is_unlimited 0, so it prints as 99 Key-Shares.
+   * That is the API describing itself; guessing from the name would be us
+   * deciding what the operator meant.
+   */
+  const keyShareOptions = React.useMemo(
+    () => propertyInfo?.keyShares?.map((k) => ({
+      id: k.id,
+      label: k.unlimited ? 'Unlimited Key-Shares' : `${k.keyLimit} Key-Shares`,
+      price: k.price > 0 ? formatPrice(k.price) : 'Price Included',
+    })),
+    [propertyInfo],
+  );
+  const offeredCycles = React.useMemo(() => {
+    const cfg = cyclesForUnitType(propertyInfo, unitTypeId);
+    if (!cfg) return undefined;
+    const out: PaymentCycle[] = [];
+    if (cfg.monthly) out.push('monthly');
+    if (cfg.quarterly) out.push('quarterly');
+    if (cfg.annual) out.push('annual');
+    return out;
+  }, [propertyInfo, unitTypeId]);
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
   const [selectionStatus, setSelectionStatus] = useState<
@@ -1055,7 +1323,25 @@ export function RentalFlow2Step({
      form against a space that was never secured. */
   const [holdFailed, setHoldFailed] = useState(false);
   const holdRef = useRef<UnitHold | undefined>(undefined);
-  holdRef.current = hold;
+  /*
+   * Write the ref and the state TOGETHER, and never assign the ref during
+   * render.
+   *
+   * `holdRef.current = hold` on every render looked equivalent and was not.
+   * Between a bare `setHold(h)` and the render that flushed it, the ref still
+   * held the OLD value — and that gap is where an in-flight /offers promise
+   * lands. `keepHeldIdentity` would read no hold, return the offer's own unit
+   * unchanged, and recreate the selection/quote mismatch it exists to prevent.
+   *
+   * Worse, the render-time assignment could UNDO a correct ref: any unrelated
+   * re-render occurring before the hold state flushed would write the stale
+   * `hold` back over it. Assigning at the point of acquisition is the only
+   * version where the ref is never behind the thing it mirrors.
+   */
+  const applyHold = useCallback((h: UnitHold | undefined) => {
+    holdRef.current = h;
+    setHold(h);
+  }, []);
   /*
    * One acquisition at a time, and `selection` read without depending on it.
    *
@@ -1097,7 +1383,7 @@ export function RentalFlow2Step({
   useEffect(() => {
     /*
      * `rental` is in this guard because the success path calls
-     * setHold(undefined) — correct, the hold is spent once the unit is leased
+     * applyHold(undefined) — correct, the hold is spent once the unit is leased
      * and the countdown must stop — but that clears the `hold` term above and
      * re-opens this effect while step is still 2. It then tried to hold the
      * unit it had just leased, took a 409 "This unit is currently leased", and
@@ -1215,7 +1501,7 @@ export function RentalFlow2Step({
         // Nothing left to hold it for.
         void releaseHold(ctx, result.hold);
       } else if (result.ok) {
-        setHold(result.hold);
+        applyHold(result.hold);
         setHoldFailed(false);
         // The held unit is now authoritative. Drop any quote that isn't its
         // own (e.g. the pre-hold unit after a conflict re-pick) and re-quote
@@ -1335,14 +1621,16 @@ export function RentalFlow2Step({
       setHoldRemaining(Math.max(0, left));
       if (left <= 0) {
         console.warn(`${logTag} hold expired`);
-        setHold(undefined);
+        applyHold(undefined);
         setHoldExpired(true); // stop auto-renew — require an explicit reacquire
       }
     };
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
-  }, [hold, logTag]);
+    // applyHold is a stable useCallback with no deps; listing it would only
+    // restate that, and this effect must re-run on `hold` alone.
+  }, [hold, logTag, applyHold]);
 
   // Release on unmount.
   useEffect(() => () => {
@@ -1400,7 +1688,7 @@ export function RentalFlow2Step({
     const contextChanged = !!priorHoldContext && priorHoldContext.key !== contextKey;
     if (contextChanged && holdRef.current) {
       void releaseHold(priorHoldContext.ctx, holdRef.current);
-      setHold(undefined);
+      applyHold(undefined);
     }
     holdContextRef.current = { key: contextKey, ctx };
 
@@ -1500,6 +1788,57 @@ export function RentalFlow2Step({
     // If it cannot correlate the exact unit, retain only the authoritative
     // handoff identity + size. Never borrow another offer's amenities, promo,
     // token or price; the exact-unit quote and Step-2 hold remain authoritative.
+    /*
+     * THE HELD UNIT WINS on identity.
+     *
+     * /offers describes the unit we ASKED for. Once a hold exists it may be a
+     * different one — the re-pick after a conflict — and that unit is the only
+     * one we can actually rent. Writing the offer's id over it leaves
+     * `selection.unitId` naming a unit we do not hold while `quote.unitId`
+     * names the one we do, and the two are compared:
+     *
+     *   verifiedQuote      hides the money breakdown when they differ
+     *   correlatedSelection ⇒ transactionReady false ⇒ Pay Now never arms
+     *
+     * So the rail loses "Rent (Prorated)" AND the rental cannot complete —
+     * while a perfectly good quote sits in state. Which happened depended on
+     * whether /offers resolved before or after the hold, so it struck at
+     * random.
+     *
+     * The offer's ENRICHMENT is still wanted (price, promo ids, features,
+     * offer token); only the identity is pinned. Deliberately NOT loosening
+     * the comparison itself: that rule is what stops one unit's money being
+     * shown — or charged — against another's.
+     */
+    const keepHeldIdentity = (s?: SelectionContext): SelectionContext | undefined => {
+      const held = holdRef.current;
+      if (!s || !held?.unitId || s.unitId === held.unitId) return s;
+      return {
+        ...s,
+        unitId: held.unitId,
+        unitNumber: held.unitNumber ?? s.unitNumber,
+        /*
+         * space_mix_id must describe the unit we HOLD — API 9 requires it, and
+         * a held unit cannot be looked up again to recover it.
+         *
+         * No `?? s.spaceMixId` fallback. `s` is the offer for the unit we
+         * ASKED about, which this very function is rewriting because it is not
+         * the one we hold, so its space mix belongs to a different space. With
+         * a hold adopted from the URL the ref starts empty, and if /offers
+         * settled before the parallel unit read, that fallback pinned the
+         * wrong mix onto the selection — where it then beat the ref at
+         * finalize (`selection?.spaceMixId ?? resolvedSpaceMixRef.current`)
+         * even after the right value arrived.
+         *
+         * Undefined until the held unit's own read lands is the honest state:
+         * finalize falls through to the ref, and if neither has it the Pay Now
+         * guard says so by name instead of filing a lease against another
+         * space's mix.
+         */
+        spaceMixId: resolvedSpaceMixRef.current,
+      };
+    };
+
     const runOffers = (fallback?: SelectionContext): Promise<void> => fetchSelectionFromOffers(
       ctx,
       unitGroupIdProp as string,
@@ -1509,14 +1848,21 @@ export function RentalFlow2Step({
       .then((result) => {
         if (cancelled) return;
         if (result.status === 'matched') {
-          setSelection(result.selection);
+          setSelection(keepHeldIdentity(result.selection));
           setSelectionStatus('matched');
         } else {
+          /* The tier's rate, promo and feature points when /offers had the
+             tier but not this exact unit (a held unit drops out of the list).
+             Display only — it carries no offer token, promotion ids or
+             space_mix_id, so nothing here can price or authorize anything. It
+             layers OVER the space-groups fallback, whose `features` are the
+             group NAME, i.e. amenity bundles rather than the tier's points. */
+          const display = result.status === 'unit-unverified' ? result.display : undefined;
           // spaceMixId from the resolved unit row: API 9 REQUIRES it, and
           // this fallback runs exactly when /offers could not supply one.
-          setSelection(unitIdProp
-            ? { unitId: unitIdProp, size: sizeProp ?? '', spaceMixId: resolvedSpaceMixRef.current }
-            : fallback);
+          setSelection(keepHeldIdentity(unitIdProp
+            ? { unitId: unitIdProp, size: sizeProp ?? '', spaceMixId: resolvedSpaceMixRef.current, ...display }
+            : fallback && { ...fallback, ...display }));
           setSelectionStatus(result.status);
         }
       })
@@ -1524,9 +1870,9 @@ export function RentalFlow2Step({
         console.warn(`${logTag} offers selection unavailable:`, err);
         if (cancelled) return;
         // Same reason as above: without spaceMixId, API 9 rejects the rental.
-        setSelection(unitIdProp
+        setSelection(keepHeldIdentity(unitIdProp
           ? { unitId: unitIdProp, size: sizeProp ?? '', spaceMixId: resolvedSpaceMixRef.current }
-          : fallback);
+          : fallback));
         setSelectionStatus('network-error');
       });
 
@@ -1537,7 +1883,7 @@ export function RentalFlow2Step({
       // Step-2 hold continue to govern readiness and availability.
       // Seed that minimal identity before /offers settles, so a slow enrichment
       // request cannot delay readiness after the exact-unit quote succeeds.
-      setSelection({ unitId: unitIdProp, size: sizeProp ?? '' });
+      setSelection(keepHeldIdentity({ unitId: unitIdProp, size: sizeProp ?? '' }));
       const selectionDone = runOffers();
       const quoteDone = runQuote(
         fetchUnitInfo(ctx, unitIdProp).then((info) => ({ id: unitIdProp, ...info })),
@@ -1554,7 +1900,7 @@ export function RentalFlow2Step({
             if (unitGroupIdProp) {
               selectionDone = runOffers(sel);
             } else if (sel) {
-              setSelection(sel);
+              setSelection(keepHeldIdentity(sel));
               setSelectionStatus('legacy-display');
             } else {
               setSelectionStatus('unit-unavailable');
@@ -1596,7 +1942,7 @@ export function RentalFlow2Step({
   // Read the one-time confirmation payload exactly once (it self-deletes), then
   // reuse it across re-renders via the ref.
   const confirmationRef = useRef<ConfirmationData | undefined | 'unread'>('unread');
-  if (confirmationRef.current === 'unread') confirmationRef.current = readConfirmationPayload(inEditor);
+  if (confirmationRef.current === 'unread') confirmationRef.current = readConfirmationPayload(inEditor, entryMode);
   const confirmation = confirmationRef.current;
 
   // Fill missing office/gate hours on the confirmation page (snapshot may predate
@@ -1821,6 +2167,12 @@ export function RentalFlow2Step({
         sheetLogo={sheet ? headerLogo : undefined}
         property={snapProp}
         selection={snap?.selection}
+        /* The operator's own wording for the struck column, same as the live
+           rail. Without it a configured "WAS" reverted to "IN-STORE" at the
+           last screen, so the one page the shopper keeps disagreed with the
+           two that got them there. Falls back to "IN-STORE" by itself when the
+           confirmation URL no longer carries the label. */
+        instoreLabel={instoreLabel}
         quote={snap?.quote}
         estimate={confirmation.kind === 'reservation'}
         paid
@@ -1877,6 +2229,8 @@ export function RentalFlow2Step({
             rentUrl={confirmation.kind === 'reservation' ? checkoutUrl : undefined}
             onRetry={goToCheckout}
             reviewUrl={reviewUrl}
+            appStoreUrl={appStoreUrl}
+            playStoreUrl={playStoreUrl}
           />
           {/* Desktop only — on mobile this same element is inside the sheet. */}
           {!isMobile && confirmationRail}
@@ -1895,19 +2249,99 @@ export function RentalFlow2Step({
   // Per-field rather than all-or-nothing so a real property still shows its own
   // name and address while the selection is still resolving.
   const railProperty = propertyInfo ?? (previewContent ? PREVIEW_PROPERTY : undefined);
-  const railSelection = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
+
+  /*
+   * Billing Country preselect: THE PROPERTY FIRST, then the content-menu field.
+   *
+   * The property's own `Address.country` is live data that follows the bound
+   * property on a dynamic page, so it is right on a portfolio spanning more
+   * than one country. `countryDefault` is set once per widget INSTANCE and
+   * would be the same answer on every page — fine for a single-country
+   * operator, wrong the moment one property sits elsewhere. So it is the
+   * fallback, used when the API has no country or returns one the select
+   * cannot offer.
+   *
+   * Neither locks anything: this preselects a required field the shopper can
+   * still change.
+   */
+  const defaultBillingCountry: BillingCountry =
+    asBillingCountry(propertyInfo?.country ?? '') || configuredBillingCountry;
+  /*
+   * The rail's selection, carrying the struck-through IN-STORE figure.
+   *
+   * /offers reports in-store as the sell price itself unless a discount is
+   * attached, so on a facility running no promotion the pair collapsed and the
+   * strike the listing card had just shown vanished on this page. The figure
+   * the site advertises is the OPERATOR's, configured on the Space List
+   * widget, so it arrives as a rule on the handoff and is applied here to the
+   * price this rail is showing — never as a finished number, which would sit
+   * below the price as soon as a dearer tier was picked.
+   *
+   * The money breakdown is untouched either way: this is the advertised rate
+   * pair, not what gets charged.
+   */
+  const railSelection = ((): SelectionContext | undefined => {
+    const base = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
+    if (!base) return base;
+    const online = base.online ?? base.price;
+    if (online == null) return base;
+    /* A real promotion on the offer outranks the calculated figure: the API's
+       own in-store/online pair describes money that is actually being
+       discounted, and the listing card hides its calculated column in promo
+       mode for the same reason. */
+    if (base.inStore != null && base.inStore > online) return base;
+    /* The rule first; the listing's own figure only when no rule was sent.
+       Both are held to the same test — strictly above what is being charged,
+       or it is not a saving and does not render. */
+    const calculated = instoreFrom(online, instoreMode, instoreAmount)
+      ?? (instoreValue != null && instoreValue > online ? instoreValue : undefined);
+    return calculated != null ? { ...base, inStore: calculated } : base;
+  })();
   const verifiedQuote = selection?.unitId && quote?.unitId === selection.unitId ? quote : undefined;
   const railQuote = verifiedQuote ?? (previewContent ? PREVIEW_QUOTE : undefined);
 
+  /*
+   * The three identities must name ONE unit: what we selected, what we priced,
+   * and what the space list handed off.
+   *
+   * The handoff clause makes an exception for the unit we actually HOLD. On a
+   * re-pick the held unit is by definition not `unitIdProp` — that one was
+   * taken — so requiring them to match kept `transactionReady` false for the
+   * rest of the session and Pay Now never armed, even once selection and quote
+   * agreed. A held unit is a stronger claim than the id we arrived with: it is
+   * the space this rental can actually be filed against.
+   *
+   * The selection/quote clause is untouched. That is the one that stops a
+   * quote for unit A being shown — or charged — against unit B.
+   */
   const correlatedSelection = !!(
     selection?.unitId
     && quote?.unitId
     && selection.unitId === quote.unitId
-    && (!unitIdProp || quote.unitId === unitIdProp)
+    && (!unitIdProp || quote.unitId === unitIdProp || quote.unitId === hold?.unitId)
   );
   // Preview content may make the harness interactive, but must never weaken
   // transaction readiness on a published page.
   const previewEnabled = previewContent && inEditor;
+  /*
+   * `holdFailed` and `holdExpired` belong HERE, not only in the state machine
+   * below.
+   *
+   * Down there they are reached only when `transactionReady` is already false,
+   * so a correlated selection and quote outranked them: the arrival hold could
+   * fail outright, or expire and clear `hold` to undefined, and the UI still
+   * said 'ready'. Pay Now then armed against a unit nothing holds, and the
+   * handler refused it — it requires `hold` before it will rent — so the
+   * shopper met "We couldn't secure this space" after pressing a button the
+   * page had told them was good.
+   *
+   * Deliberately NOT a `hold` requirement, which is what a literal reading
+   * would add. This gate gives Rent AND Reserve their state, and reserve does
+   * not need a hold: it takes the hold token only when one happens to match
+   * the picked unit, and reserves without it otherwise. Demanding a hold here
+   * would disable Reserve in the window before the arrival hold lands, and
+   * permanently wherever one is never taken.
+   */
   const transactionReady = previewEnabled || !!(
     correlatedSelection
     && propertyInfo
@@ -1915,10 +2349,16 @@ export function RentalFlow2Step({
     && effectivePropertyId
     && unitGroupIdProp
     && !quoteFailed
+    && !holdFailed
+    && !holdExpired
   );
   const transactionState: 'loading' | 'ready' | 'unavailable' | 'error' = transactionReady
     ? 'ready'
-    : holdFailed || (!unitIdProp && selectionStatus === 'unit-unavailable')
+    /* An expired hold is 'unavailable', not 'error': nothing went wrong, the
+       space simply is not held any more. Step 2 says so in its own banner and
+       offers the reacquire; without this the button beside it would claim a
+       failure instead. */
+    : holdFailed || holdExpired || (!unitIdProp && selectionStatus === 'unit-unavailable')
       ? 'unavailable'
       : quoteFailed
         ? 'error'
@@ -1942,6 +2382,7 @@ export function RentalFlow2Step({
       sheetLogo={sheet ? headerLogo : undefined}
       property={railProperty}
       selection={railSelection}
+      instoreLabel={instoreLabel}
       quote={railQuote}
       // The frame shows "#111 | 5’ x 7’" — the unit number leads, then the size.
       // SummaryRail composes that as `size | tierName`, so the unit goes in the
@@ -2027,7 +2468,14 @@ export function RentalFlow2Step({
         )}
         {/* One rail for both steps, placed in the desktop grid or the mobile
             sheet. Step 3 was a bare left column with nothing beside it. */}
-        {accessGranted ? (
+        {/* Single step goes straight from payment to the confirmation. The
+            screen in between (Figma 8507-25408) exists to collect the mailing
+            address and licence AFTER the money moves; a single-step property
+            has chosen not to ask for them at all, so there is nothing on it to
+            fill in and it would just be a page between the shopper and their
+            access code. ID verification does not gate this: it is off
+            (IDV_ENABLED), and `idVerified` defaults to true. */}
+        {accessGranted || formMode === '1step' ? (
           <div className="rfc-layout">
             <Confirmation
               kind="rental"
@@ -2037,7 +2485,7 @@ export function RentalFlow2Step({
               reference={rental?.leaseId}
               unitNumber={staticUnitNumber}
               code={rental ? rental.accessCode : STATIC_ACCESS_CODE}
-              entry="gate"
+              entry={entryMode}
               moveInDate={fmtDisplayDate(moveIn)}
               confirmedHeading={rentalHeading}
               facilityPhone={formatUsPhone(propertyInfo?.phone)}
@@ -2050,6 +2498,8 @@ export function RentalFlow2Step({
               officeHours={propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours}
               gateHours={propertyInfo?.gateHours?.length ? propertyInfo.gateHours : confHours?.gateHours}
               reviewUrl={reviewUrl}
+              appStoreUrl={appStoreUrl}
+              playStoreUrl={playStoreUrl}
             />
             {!isMobile && railFor(true)}
           </div>
@@ -2070,6 +2520,16 @@ export function RentalFlow2Step({
                       : undefined,
                     driverLicenseState: details.driverLicenseState,
                     mailingAddress: details.mailingAddress,
+                    /* The date of birth this screen REQUIRES when Military is
+                       ticked. It has a real destination — the contact update's
+                       own `dob` — and was being collected and thrown away.
+                       The alternate contact and vehicle answers have no
+                       documented field on any endpoint we have, so they travel
+                       as far as here and no further; that one is a question
+                       for TenantInc, not a field name to guess at. */
+                    dateOfBirth: details.extras?.dob
+                      ? dobToIso(details.extras.dob)
+                      : undefined,
                   });
                 }
                 setIdVerified(details?.idVerified ?? true);
@@ -2153,7 +2613,13 @@ export function RentalFlow2Step({
           />
         ) : (
           <Step2
+            /* The one difference between the layouts: on 1step the Additional
+               Information ticks open their fields here, instead of only on the
+               post-purchase screen. Everything else is shared. */
+            oneStep={formMode === '1step'}
             autopayMode={autopayMode}
+            paymentCycles={offeredCycles}
+            keyShareOptions={keyShareOptions}
             moveIn={moveIn}
             // Everything step 1 already asked for, so step 2 opens filled in.
             contact={contact}
@@ -2171,6 +2637,7 @@ export function RentalFlow2Step({
             gpPublicKey={gpKey}
             gatewayPending={gatewayPending}
             zipOnlyBilling={gateway === TENANT_PAYMENTS}
+            defaultCountry={defaultBillingCountry}
             onPaymentComplete={(info) => {
               // REAL RENTAL. A card plus a live hold and quote means we have
               // everything the documented flow needs (guide APIs 9→10→11), so
@@ -2274,6 +2741,9 @@ export function RentalFlow2Step({
                   costs: quoteToCosts(quote, start),
                   promotionIds: selection?.promotionIds,
                   platform: 'website',
+                  // The period the Payment Cycle card was left on. Without it
+                  // documents/finalize was told 'Monthly' whatever was picked.
+                  paymentCycle: info.paymentCycle,
                   extras: info.extras,
                 })
                   .then((res) => {
@@ -2297,7 +2767,7 @@ export function RentalFlow2Step({
                     // setHold only reaches holdRef on the next render, and a
                     // pagehide before that would release a leased unit's hold.
                     holdRef.current = undefined;
-                    setHold(undefined);
+                    applyHold(undefined);
                     clearUnitSelection();
                     setFinalizing(info);
                   })
@@ -2409,7 +2879,7 @@ export function RentalFlow2Step({
                     : 'This space is no longer available to reserve. Please pick another.');
                   return;
                 }
-                setHold(h.hold);
+                applyHold(h.hold);
                 heldToken = h.hold.holdToken;
               }
               const result = await reserveSpace(ctx, {
@@ -2428,7 +2898,7 @@ export function RentalFlow2Step({
                 // holdRef on the next render, and the navigation below happens
                 // in this same tick.
                 holdRef.current = undefined;
-                setHold(undefined);
+                applyHold(undefined);
                 // Bind the confirmation to a one-time nonce: the payload (incl.
                 // PII + code) lives in sessionStorage; only the nonce is in the URL.
                 const nonce = stashConfirmation({
@@ -2439,6 +2909,11 @@ export function RentalFlow2Step({
                   code: result.reservationId,
                   moveInDate: fmtDisplayDate(moveIn),
                   reservationDate: fmtDisplayDate(new Date()),
+                  // Travels WITH the payload: the confirmation is a separate
+                  // page load, so the prop is read there from this snapshot
+                  // rather than from whatever the widget is configured with by
+                  // the time the shopper lands.
+                  entry: entryMode,
                   // Immutable snapshot of the AUTHORITATIVE reserve-time cost
                   // (what we submitted), falling back to the step-2 quote.
                   rail: { property: propertyInfo, selection, quote: result.quote ?? quote },

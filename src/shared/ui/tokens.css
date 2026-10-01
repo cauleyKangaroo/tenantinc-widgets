@@ -20,6 +20,11 @@
      change; everything else is neutral or semantic. */
   --hb-cta: var(--color_2, #509e2f);  /* CTA Buttons — follows the Duda theme's --color_2 (same convention + fallback as the Space List) */
   --hb-secondary: #509e2f;       /* Secondary Buttons — the alternate action   */
+  /* The LABEL on a CTA button, following the Duda theme's third colour the same
+     way --hb-cta follows its second. #fff is the unthemed fallback and is what
+     every CTA label was before this token existed, so a site that has not set
+     --color_3 looks exactly as it did. */
+  --hb-cta-label: var(--color_3, #fff);
 
   /* ── Greyscale ───────────────────────────────────────────────────────── */
   --hb-text-night: #101318;      /* Primary/Grayscale/Night — body + input text */

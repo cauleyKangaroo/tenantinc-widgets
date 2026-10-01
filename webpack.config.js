@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 
 // ---------------------------------------------------------------------------
 // Widget entries
@@ -28,8 +29,10 @@ const widgetEntries = {
   // numbers its own widgets and #15 was free there. Bundle name is the link
   // between them, not the number.
   'widget-space-list-heading':'./src/widget-space-list-heading/index.tsx',// #18
+  'widget-my-account':       './src/widget-my-account/index.tsx',        // #19
   'widget-storage-type-locations':'./src/widget-storage-type-locations/index.tsx',// #20
   'widget-storage-types':    './src/widget-storage-types/index.tsx',    // #21
+  'widget-locations-banner': './src/widget-locations-banner/index.tsx', // #22
   'widget-rental-flow-2step':'./src/widget-rental-flow-2step/index.tsx',// #99 (TBD)
   // Living styleguide for @shared/ui — DEV HARNESS ONLY, never a Duda widget.
   // Deliberately unnumbered so it can't be mistaken for one.
@@ -91,7 +94,15 @@ module.exports = (_env, argv) => {
       ],
     },
 
-    plugins: [],
+    plugins: [
+      /* HARNESS-ONLY VALIDATION BYPASS — see src/shared/devBypass.ts.
+         `false` under --mode production (what `npm run build` uses), which
+         makes the bypass dead code the minifier removes entirely, so nothing
+         shipped can contain it. */
+      new webpack.DefinePlugin({
+        __HB_DEV_HARNESS__: JSON.stringify(isDev),
+      }),
+    ],
 
     // Source maps in dev only
     devtool: isDev ? 'inline-source-map' : false,

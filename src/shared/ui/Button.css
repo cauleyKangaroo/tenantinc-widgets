@@ -54,6 +54,11 @@
    --hb-cta a site rebrands to, which hardcoded hexes would not. */
 .hb-btn--cta {
   --hb-btn-tone: var(--hb-cta);
+  /* Not --hb-white: a CTA label follows --color_3 off the Duda theme. The
+     `--text-dark` variant below still overrides it — that is Figma's explicit
+     "(Black Text)" option and a deliberate per-instance choice, not a theme
+     colour. Outline CTA buttons are unaffected too; they set their own label. */
+  --hb-btn-label: var(--hb-cta-label);
   --hb-btn-tone-hover: color-mix(in srgb, var(--hb-cta) 88%, #000);
   --hb-btn-tone-active: color-mix(in srgb, var(--hb-cta) 78%, #000);
 }
