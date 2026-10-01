@@ -845,6 +845,12 @@
               <option value="smartentrysystem">Smart Entry System</option>
             </select>
           </label>
+          <label>ID verification preview
+          <select id="rf-idv-requirement" onchange="reinitRentalFlow()">
+            <option value="required">Required</option>
+            <option value="disabled">Disabled</option>
+          </select>
+        </label>
         </div>
       </div>
       <div id="rental-flow-2step-container" class="widget-container"></div>
@@ -1987,6 +1993,7 @@ Special</textarea>
     function initRentalFlow() {
       if (!rentalFlowWidget) return;
       rentalFlowWidget.init({
+
         container: document.getElementById('rental-flow-2step-container'),
         // previewContent fills the order rail with the Figma 8507-23233 sample when
         // no value-tiers handoff has resolved a selection/quote. HARNESS ONLY —
@@ -2004,6 +2011,13 @@ Special</textarea>
           // this as data.config.gateCodeType. Reach the confirmation by
           // completing the flow, or with ?step=confirm.
           gateCodeType: document.getElementById('rf-gate-code-type').value,
+          // IDV: presentation preview only. Live transport is opt-in per URL and
+          // never from a published build — see idvTransport in config.json.
+          idvRequirementPreview: document.getElementById('rf-idv-requirement').value,
+          liveIdvHarness: new URLSearchParams(window.location.search).get('liveIdv') === '1',
+          liveCheckoutIdv: new URLSearchParams(window.location.search).get('liveCheckoutIdv') === '1',
+          idvTransport: new URLSearchParams(window.location.search).get('liveCheckoutIdv') === '1'
+            ? 'direct' : undefined,
         },
       });
     }

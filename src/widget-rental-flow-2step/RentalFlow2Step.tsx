@@ -15,6 +15,10 @@ import {
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
 } from './api';
+import { RENTAL_IDV_REQUIREMENT, type IdvRequirement } from './idvPolicy';
+import { createIdvApi, type IdvTransportConfig } from './idvApi';
+import { useIdvController } from './useIdvController';
+import { canRenderLiveIdvHarness } from './LiveIdvHarness';
 import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
 import { tokenizeCard } from './gpTokenize';
@@ -211,6 +215,16 @@ export interface RentalFlow2StepProps extends ApiCredProps {
   /** Proxy base URL for the Reserve write (e.g. https://proxy.host). Empty →
    *  reserve is unavailable (writes never hit the direct edge key). */
   proxyBaseUrl?: string;
+  /** Current lower environments use direct; proxy is the future drop-in. */
+  idvTransport?: 'disabled' | 'direct' | 'proxy';
+  /** Required only by proxy mode; issued by trusted checkout in the final design. */
+  idvCapability?: string;
+  /** Comma-separated hosts allowed for the hosted capture URL. */
+  idvVerificationHosts?: string;
+  /** LOCAL DEV HARNESS ONLY. Also requires a localhost hostname. */
+  liveIdvHarness?: boolean;
+  /** LOCAL DEV HARNESS ONLY: connect IDV inside the preview checkout. */
+  liveCheckoutIdv?: boolean;
   /** "Change Space" link target on the order rail (the value-tiers page). */
   changeSpaceUrl?: string;
   /** Protection-plan brochure PDF, opened from step 2's "Learn More" lightbox. */
@@ -233,6 +247,9 @@ export interface RentalFlow2StepProps extends ApiCredProps {
    *  fiddles with the page); siteId/elementId identify this placement for
    *  observability and future per-site config lookups. */
   inEditor?: boolean;
+  /** Harness/editor only: exercise required/disabled presentation without a
+   * paid capture. Ignored on published pages. */
+  idvRequirementPreview?: IdvRequirement;
   siteId?: string;
   elementId?: string;
 }
@@ -823,9 +840,14 @@ export function RentalFlow2Step({
   companyId: companyIdArg,
   unitGroupId: unitGroupIdArg,
   proxyBaseUrl = cfg.proxyBaseUrl ?? '',
+  idvTransport = (cfg.idvTransport as 'disabled' | 'direct' | 'proxy') ?? 'disabled',
+  idvCapability,
+  idvVerificationHosts = cfg.idvVerificationHosts,
+  liveCheckoutIdv = false,
   changeSpaceUrl,
   previewContent = false,
   inEditor = false,
+  idvRequirementPreview,
   siteId,
   elementId,
   // Site-level REST credentials from the Content Library's custom site texts.
@@ -846,6 +868,7 @@ export function RentalFlow2Step({
     () => configureApi({ api_domain, app_id, api_key }),
     [api_domain, app_id, api_key],
   );
+  const liveCheckoutIdvEnabled = inEditor === true && canRenderLiveIdvHarness(liveCheckoutIdv);
   // The value-tiers Select hands off via the URL (?size/tier/propertyId/
   // companyId/unitGroupId). Read those first, falling back to props (Duda
   // content fields) — mirrors #14. Without this, companyId is undefined and the
@@ -1149,6 +1172,21 @@ export function RentalFlow2Step({
   }, [propertyInfo, unitTypeId]);
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
+  // Product rule: IDV is required for every rental. The editor-only override
+  // exists solely to review both designed presentation states.
+  const idvRequirement: IdvRequirement = inEditor === true && idvRequirementPreview === 'required'
+    ? 'required'
+    : inEditor === true && idvRequirementPreview === 'disabled'
+      ? 'disabled'
+      : RENTAL_IDV_REQUIREMENT;
+  const idvApi = React.useMemo(() => {
+    if ((inEditor && !liveCheckoutIdvEnabled) || idvTransport === 'disabled') return undefined;
+    const transport: IdvTransportConfig = idvTransport === 'direct'
+      ? { mode: 'direct', baseUrl: cfg.baseUrl, appId: cfg.appId, apiKey: cfg.apiKey }
+      : { mode: 'proxy', baseUrl: proxyBaseUrl, capability: idvCapability ?? '', siteId };
+    if (transport.mode === 'proxy' && (!transport.baseUrl || !transport.capability)) return undefined;
+    return createIdvApi(transport);
+  }, [idvCapability, idvTransport, inEditor, liveCheckoutIdvEnabled, proxyBaseUrl, siteId]);
   const [selectionStatus, setSelectionStatus] = useState<
     'loading' | 'matched' | 'unit-unavailable' | 'unit-unverified' | 'malformed' | 'network-error' | 'legacy-display'
   >('loading');
@@ -1203,6 +1241,36 @@ export function RentalFlow2Step({
   const [staticPaid, setStaticPaid] = useState(false);
   // The real rental (documents → lease → autopay). Present ⇒ money moved.
   const [rental, setRental] = useState<Extract<RentResult, { ok: true }> | undefined>(undefined);
+  const idvIdentity = React.useMemo(() => rentedContact && (rental || liveCheckoutIdvEnabled) ? {
+    first: rentedContact.first,
+    last: rentedContact.last,
+    email: rentedContact.email,
+    phone: rentedContact.phone,
+    contactId: rental?.contactId,
+    leaseId: rental?.leaseId ?? 'local-checkout-harness',
+  } : undefined, [liveCheckoutIdvEnabled, rental, rentedContact]);
+  const allowedIdvHosts = React.useMemo(
+    () => idvVerificationHosts.split(',').map((host) => host.trim()).filter(Boolean),
+    [idvVerificationHosts],
+  );
+  const idvScope = React.useMemo(() => ({
+    companyId: effectiveCompanyId ?? '',
+    propertyId: effectivePropertyId,
+  }), [effectiveCompanyId, effectivePropertyId]);
+  const idvController = useIdvController({
+    enabled: Boolean(
+      idvApi
+      && (rental || liveCheckoutIdvEnabled)
+      && effectiveCompanyId
+      && effectivePropertyId
+      && idvIdentity
+      && idvRequirement === 'required'
+    ),
+    api: idvApi,
+    scope: idvScope,
+    identity: idvIdentity,
+    allowedVerificationHosts: allowedIdvHosts,
+  });
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | undefined>(undefined);
   /** "Get Access" pressed on the static post-purchase form. */
@@ -2524,6 +2592,11 @@ export function RentalFlow2Step({
           <div className="rfc-layout">
             <SuccessStep
               chosen={chosenSections}
+              verificationPhone={rentedContact?.phone}
+              idvRequirement={idvRequirement}
+              idvPreview={inEditor === true}
+              idvServiceConnected={Boolean(idvApi)}
+              idvController={idvController}
               onGetAccess={(details) => {
                 // File what this screen collects against the tenant's contact.
                 // Deliberately NOT awaited: the rental is already complete, the
@@ -2808,6 +2881,7 @@ export function RentalFlow2Step({
               // charge, so this is the harness/preview path: show the
               // finalizing beat and hand to the post-purchase screen.
               setFinalizing(info);
+              if (liveCheckoutIdvEnabled && info.contact) setRentedContact(info.contact);
               if (info.extras) setChosenSections(info.extras);
               // The pick has been acted on — drop it so returning to /rental
               // later starts clean instead of silently re-selecting it.

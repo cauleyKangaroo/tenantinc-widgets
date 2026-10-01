@@ -763,6 +763,10 @@ function offerDisplay(o: SelOffer & { price: number }, distinguishing?: Set<stri
     features: (o.amenities ?? [])
       .slice()
       .sort((a, b) => rank(a) - rank(b) || (a.sort_order ?? 999) - (b.sort_order ?? 999))
+      // IDV is a universal rental-flow step, not a space feature. A user-defined
+      // amenity with this name does not control the workflow and must not print
+      // beside Climate Controlled / Drive Up or displace a real feature.
+      .filter((a) => a.name?.trim().toLowerCase() !== 'id verification')
       .map(offerAmenityLabel)
       .filter((x): x is string => !!x)
       .slice(0, 6),

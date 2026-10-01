@@ -28,6 +28,10 @@ export function IdVerifyModal({
   onClose,
   onResult,
   phone = '',
+  connected = false,
+  lifecycle,
+  notificationStatus,
+  onResend,
 }: {
   open: boolean;
   onClose: () => void;
@@ -35,9 +39,15 @@ export function IdVerifyModal({
   onResult: (result: IdVerifyResult) => void;
   /** The number the text went to — the contact's, pre-filled and editable. */
   phone?: string;
+  connected?: boolean;
+  lifecycle?: string;
+  notificationStatus?: 'sent' | 'failed' | 'skipped';
+  onResend?: () => Promise<'sent' | 'failed' | 'skipped' | undefined>;
 }) {
   const [num, setNum] = useState(phone);
   const [sent, setSent] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -52,7 +62,7 @@ export function IdVerifyModal({
   }, [open, onClose]);
 
   // Re-open should start clean, and pick up a number that arrived after mount.
-  useEffect(() => { if (open) { setNum(phone); setSent(false); } }, [open, phone]);
+  useEffect(() => { if (open) { setNum(phone); setSent(false); setResendMessage(''); } }, [open, phone]);
 
   if (!open) return null;
 
@@ -105,21 +115,42 @@ export function IdVerifyModal({
               type="tel"
               value={num}
               onChange={(v) => { setNum(v); setSent(false); }}
+              disabled={connected}
               state={valid ? 'success' : 'default'}
               autoComplete="tel"
             />
             <button
               type="button"
               className="rf-sx-btn rf-sx-btn--solid rf-idm-resend-btn"
-              onClick={() => setSent(true)}
-              disabled={!valid}
+              onClick={() => {
+                if (!connected) { setSent(true); return; }
+                setResending(true);
+                setResendMessage('');
+                void onResend?.()
+                  .then((status) => setResendMessage(
+                    status === 'sent'
+                      ? 'A new text message was requested.'
+                      : 'The text could not be delivered. Continue with the open Incode page or its QR code.',
+                  ))
+                  .catch(() => setResendMessage('We could not request another text. Continue with the open Incode page or its QR code.'))
+                  .finally(() => setResending(false));
+              }}
+              disabled={!valid || resending || (connected && lifecycle !== 'pending')}
             >
-              Resend Text
+              {resending ? 'Resending…' : 'Resend Text'}
             </button>
           </div>
           {/* Nothing was sent. Said plainly rather than "Text sent!", which
               would be a claim the widget cannot make. */}
-          {sent && <p className="rf-idm-note">No text is sent yet — verification is not connected.</p>}
+          {sent && !connected && <p className="rf-idm-note">No text is sent yet — verification is not connected.</p>}
+          {connected && resendMessage && <p className="rf-idm-note">{resendMessage}</p>}
+          {connected && <p className="rf-idm-note">
+            {lifecycle === 'pending'
+              ? notificationStatus === 'failed'
+                ? 'The first text was not delivered. Use Resend Text, the opened Incode page, or its QR code.'
+                : 'Verification is in progress. You can complete it on your phone or in the opened tab.'
+              : 'Starting verification…'}
+          </p>}
 
           <div className="rf-idm-or"><span>or</span></div>
 
@@ -137,14 +168,14 @@ export function IdVerifyModal({
               Not part of the design. Stands in for the verification app's
               response so all three outcomes can be seen and styled. Remove
               this block once the real service calls `onResult`. */}
-          <div className="rf-idm-stub">
+          {!connected && <div className="rf-idm-stub">
             <p className="rf-idm-stub-label">Demo only — pick the result the ID app would return:</p>
             <div className="rf-idm-stub-row">
               <button type="button" onClick={() => { onResult('complete'); onClose(); }}>Complete</button>
               <button type="button" onClick={() => { onResult('failed'); onClose(); }}>Failed</button>
               <button type="button" onClick={() => { onResult('later'); onClose(); }}>Verify later</button>
             </div>
-          </div>
+          </div>}
         </div>
       </div>
     </div>

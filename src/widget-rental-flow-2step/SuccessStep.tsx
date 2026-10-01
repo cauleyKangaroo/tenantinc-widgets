@@ -30,6 +30,9 @@ import {
   extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues,
 } from './additionalInfo';
 import { skipValidation } from '@shared/devBypass';
+import { RENTAL_IDV_REQUIREMENT, type IdvRequirement } from './idvPolicy';
+import { resolveIdvPresentation, type IdvPresentationOutcome } from './idvPresentation';
+import type { useIdvController } from './useIdvController';
 
 /** What this screen can actually file against the contact after the lease. */
 /**
@@ -41,21 +44,6 @@ import { skipValidation } from '@shared/devBypass';
  *
  * Replace with the app's real response; nothing else here has to change.
  */
-/**
- * ID verification is switched OFF.
- *
- * Nothing behind it is wired to a real service yet, so it must not appear on a
- * demo or a live page. One flag rather than a hundred commented-out lines: the
- * whole flow — the card, the in-store branch, the three results, the modal and
- * the read-only summaries — stays compiled and type-checked, so it cannot rot
- * while it waits.
- *
- * Off, step 3 is exactly what it was before any of it existed: mailing address,
- * licence and additional information all on the page, and Get Access grants
- * access. Flip to `true` to bring it back; nothing else has to change.
- */
-const IDV_ENABLED = false;
-
 const IDV_SOURCE = {
   mailing: {
     line: '4920 Campus Drive Suite B, Newport Beach, CA 92660',
@@ -99,7 +87,15 @@ export interface SuccessDetails {
   extras?: ExtraFieldValues;
 }
 
-export function SuccessStep({ onGetAccess, chosen }: {
+export function SuccessStep({
+  onGetAccess,
+  chosen,
+  verificationPhone,
+  idvRequirement = RENTAL_IDV_REQUIREMENT,
+  idvPreview = false,
+  idvServiceConnected = false,
+  idvController,
+}: {
   /** Fires with everything the contact update can file. The parent decides
    *  what to do with it; this screen just collects. */
   onGetAccess?: (details?: SuccessDetails) => void;
@@ -107,6 +103,13 @@ export function SuccessStep({ onGetAccess, chosen }: {
    *  this one asks for the details, so it opens the same sections already
    *  ticked rather than making them answer twice. */
   chosen?: { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean };
+  /** The only renter identity field this presentational view needs. */
+  verificationPhone?: string;
+  idvRequirement?: IdvRequirement;
+  /** Strictly editor/harness-only until the real proxy service is connected. */
+  idvPreview?: boolean;
+  idvServiceConnected?: boolean;
+  idvController?: ReturnType<typeof useIdvController>;
 }) {
   // Initialisers, not synced props: the boxes stay the shopper's to change here.
   const [business, setBusiness] = useState(chosen?.business ?? false);
@@ -130,7 +133,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
    * VALUES live in this component either way, so switching back and forth keeps
    * everything already typed — unmounting the markup does not touch the state.
    */
-  const [idv, setIdv] = useState<'choose' | 'instore' | 'complete' | 'failed' | 'later'>('choose');
+  const [idv, setIdv] = useState<IdvPresentationOutcome>('choose');
   const [idvModal, setIdvModal] = useState(false);
   /* A completed scan arrives pre-filled and collapsed to a summary; "Edit" is
      how the tenant overrides what the scan read off the card. One flag each,
@@ -143,9 +146,34 @@ export function SuccessStep({ onGetAccess, chosen }: {
      by hand). Not `choose` or `later` — nothing has been decided yet. */
   // Off, the two groups are simply always on the page — there is no branch
   // left to decide otherwise.
-  const detailsShown = !IDV_ENABLED || idv === 'instore' || idv === 'complete' || idv === 'failed';
-  const mailReadOnly = idv === 'complete' && !mailEditing;
-  const dlReadOnly = idv === 'complete' && !dlEditing;
+  const remoteKind = idvController?.state.kind;
+  const displayedIdv: IdvPresentationOutcome = idvServiceConnected
+    ? remoteKind === 'complete'
+      ? 'complete'
+      : remoteKind === 'failed' || remoteKind === 'expired' || remoteKind === 'error'
+        ? 'failed'
+        : 'choose'
+    : idv;
+  const idvDecision = resolveIdvPresentation(idvRequirement, displayedIdv, {
+    serviceConnected: idvServiceConnected,
+    preview: idvPreview === true,
+  });
+  const idvEnabled = idvDecision.enabled;
+  const detailsShown = idvDecision.detailsShown;
+  const mailReadOnly = displayedIdv === 'complete' && !mailEditing;
+  const dlReadOnly = displayedIdv === 'complete' && !dlEditing;
+
+  const beginVerification = () => {
+    setIdvModal(true);
+    if (idvServiceConnected) void idvController?.start();
+  };
+
+  useEffect(() => {
+    if (!idvServiceConnected) return;
+    if (remoteKind === 'complete' || remoteKind === 'failed' || remoteKind === 'expired' || remoteKind === 'error') {
+      setIdvModal(false);
+    }
+  }, [idvServiceConnected, remoteKind]);
 
   const [mailAddress, setMailAddress] = useState('');
   const [mailCity, setMailCity] = useState('');
@@ -235,18 +263,27 @@ export function SuccessStep({ onGetAccess, chosen }: {
      truth, and "Edit" is the documented way to disagree with it. Keyed on `idv`
      alone, so editing afterwards does not re-run it. */
   useEffect(() => {
-    if (idv !== 'complete') return;
-    setMailAddress(IDV_SOURCE.mailing.address);
-    setMailCity(IDV_SOURCE.mailing.city);
-    setMailState(IDV_SOURCE.mailing.state);
-    setMailZip(IDV_SOURCE.mailing.zip);
-    setMailPicked(true);
-    setDlNumber(IDV_SOURCE.licence.number);
-    setDlState(IDV_SOURCE.licence.state);
-    setDlExp(IDV_SOURCE.licence.exp);
+    if (displayedIdv !== 'complete') return;
+    if (idvServiceConnected) {
+      const licence = idvController?.state.kind === 'complete'
+        ? idvController.state.result.driversLicense
+        : undefined;
+      setDlNumber(licence?.number ?? '');
+      setDlState(licence?.state ?? '');
+      setDlExp(licence?.expiration ?? '');
+    } else {
+      setMailAddress(IDV_SOURCE.mailing.address);
+      setMailCity(IDV_SOURCE.mailing.city);
+      setMailState(IDV_SOURCE.mailing.state);
+      setMailZip(IDV_SOURCE.mailing.zip);
+      setMailPicked(true);
+      setDlNumber(IDV_SOURCE.licence.number);
+      setDlState(IDV_SOURCE.licence.state);
+      setDlExp(IDV_SOURCE.licence.exp);
+    }
     setMailEditing(false);
     setDlEditing(false);
-  }, [idv]);
+  }, [displayedIdv, idvController?.state, idvServiceConnected]);
   const submit = () => {
     setAttempted(true);
     setAttemptedReveal(true);
@@ -258,7 +295,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
     onGetAccess?.({
       // Off, nothing is being verified, so nothing may be withheld for it —
       // the confirmation page must not claim verification is required.
-      idVerified: !IDV_ENABLED || idv === 'complete',
+      idVerified: idvDecision.idVerified,
       driverLicense: dlNumber.trim() || undefined,
       driverLicenseExp: dlExp.trim() || undefined,
       driverLicenseState: dlState.trim() || undefined,
@@ -313,18 +350,27 @@ export function SuccessStep({ onGetAccess, chosen }: {
           service can be wired to `idv` and the modal without redesigning. What
           the contact record actually stores — driver_license / _exp / _state —
           is still collected by the Driver's Licence group below. */}
-      {IDV_ENABLED && idv === 'choose' && (
+      {idvEnabled && displayedIdv === 'choose' && (
         <section className="rf-sx-idv">
           <h3 className="rf-sx-idv-title">ID Verification</h3>
           <div className="rf-sx-idv-body">
             <IdIllustration />
             <div className="rf-sx-idv-actions">
-              <button type="button" className="rf-sx-btn rf-sx-btn--solid" onClick={() => setIdvModal(true)}>
-                Verify ID Now
+              <button
+                type="button"
+                className="rf-sx-btn rf-sx-btn--solid"
+                onClick={beginVerification}
+                disabled={idvServiceConnected && remoteKind !== 'ready'}
+              >
+                {idvServiceConnected && (remoteKind === 'checking' || remoteKind === 'starting' || remoteKind === 'pending')
+                  ? 'Verification in progress'
+                  : 'Verify ID Now'}
               </button>
+              {!idvServiceConnected && (
               <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => setIdv('instore')}>
                 Verify In-Store
               </button>
+              )}
             </div>
           </div>
           <p className="rf-sx-idv-note">
@@ -342,7 +388,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
           property's — SuccessStep is not passed the property, and the record
           separates access hours from office hours, so picking one here would be
           a guess. Thread the real pair in when the verification work lands. */}
-      {IDV_ENABLED && idv === 'instore' && (
+      {idvEnabled && displayedIdv === 'instore' && (
         <section className="rf-sx-idv rf-sx-idv--instore">
           <div className="rf-sx-idv-instore-main">
             <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
@@ -385,7 +431,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
       {/* The three results a verification can end in (Figma 8507-24189 /
           8507-24120 / 8507-24130). Reachable from the modal today so the flow
           can be walked through; the real service sets `idv` instead. */}
-      {IDV_ENABLED && idv === 'complete' && (
+      {idvEnabled && displayedIdv === 'complete' && (
         <section className="rf-sx-idv rf-sx-idv--done">
           <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
             <TickSingleIcon size={24} className="rf-sx-idv-tick" />
@@ -394,7 +440,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
         </section>
       )}
 
-      {IDV_ENABLED && idv === 'failed' && (
+      {idvEnabled && displayedIdv === 'failed' && (
         <section className="rf-sx-idv rf-sx-idv--alert">
           <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
             <AlertTriangleIcon size={24} className="rf-sx-idv-alert" />
@@ -406,7 +452,10 @@ export function SuccessStep({ onGetAccess, chosen }: {
             <button
               type="button"
               className="rf-sx-idv-inline"
-              onClick={() => { setIdv('choose'); setIdvModal(true); }}
+              onClick={() => {
+                if (idvServiceConnected) idvController?.retry();
+                else { setIdv('choose'); setIdvModal(true); }
+              }}
             >
               Reverify ID
             </button>
@@ -414,7 +463,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
         </section>
       )}
 
-      {IDV_ENABLED && idv === 'later' && (
+      {idvEnabled && displayedIdv === 'later' && (
         <section className="rf-sx-idv rf-sx-idv--alert">
           <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
             <AlertTriangleIcon size={24} className="rf-sx-idv-alert" />
@@ -444,7 +493,7 @@ export function SuccessStep({ onGetAccess, chosen }: {
           component, so switching back and forth keeps whatever was typed. */}
       {detailsShown && (
         <>
-        {IDV_ENABLED && idv === 'complete' && (
+        {idvEnabled && displayedIdv === 'complete' && (
           <p className="rf-sx-idv-current">
             For the purpose of important notifications, please make sure the address captured from
             your license is current.
@@ -457,7 +506,11 @@ export function SuccessStep({ onGetAccess, chosen }: {
           <h3 className="rf-sx-extra-title">Mailing Address</h3>
           {mailReadOnly ? (
             <div className="rf-sx-readout">
-              <p className="rf-sx-readout-val">{IDV_SOURCE.mailing.line}</p>
+              <p className="rf-sx-readout-val">
+                {idvServiceConnected
+                  ? [mailAddress, mailCity, mailState, mailZip].filter(Boolean).join(', ')
+                  : IDV_SOURCE.mailing.line}
+              </p>
               <button type="button" className="rf-sx-edit" onClick={() => setMailEditing(true)}>Edit</button>
             </div>
           ) : (
@@ -505,9 +558,19 @@ export function SuccessStep({ onGetAccess, chosen }: {
                   the full state name and a written-out date, neither of which the
                   two inputs behind this hold. */}
               <p className="rf-sx-readout-val">
-                {IDV_SOURCE.licence.number}<br />
-                {IDV_SOURCE.licence.stateLabel}<br />
-                {IDV_SOURCE.licence.expLabel}
+                {idvServiceConnected ? (
+                  <>
+                    {dlNumber || 'Not returned'}<br />
+                    {dlState || 'State not returned'}<br />
+                    {dlExp ? `EXP ${dlExp}` : 'Expiration not returned'}
+                  </>
+                ) : (
+                  <>
+                    {IDV_SOURCE.licence.number}<br />
+                    {IDV_SOURCE.licence.stateLabel}<br />
+                    {IDV_SOURCE.licence.expLabel}
+                  </>
+                )}
               </p>
               <button type="button" className="rf-sx-edit" onClick={() => setDlEditing(true)}>Edit</button>
             </div>
@@ -598,11 +661,16 @@ export function SuccessStep({ onGetAccess, chosen }: {
 
       <button type="button" className="rf-sx-access" onClick={submit}>Get Access</button>
 
-      {IDV_ENABLED && (
+      {idvEnabled && (
       <IdVerifyModal
         open={idvModal}
         onClose={() => setIdvModal(false)}
         onResult={setIdv}
+        phone={verificationPhone}
+        connected={idvServiceConnected}
+        lifecycle={remoteKind}
+        notificationStatus={idvController?.state.kind === 'pending' ? idvController.state.notificationStatus : undefined}
+        onResend={idvController?.resend}
       />
       )}
     </div>

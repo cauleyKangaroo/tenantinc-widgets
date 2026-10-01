@@ -20,6 +20,42 @@
   color: #101318;
 }
 
+/* Local integration screen. It is selected only by index.tsx after an
+   explicit harness prop and loopback-host check; Duda can never activate it. */
+.rf-live-idv {
+  max-width: 760px;
+  margin: 32px auto;
+  padding: 28px;
+  border: 2px solid #b42318;
+  border-radius: 12px;
+  background: #fff;
+  color: #101318;
+  font: 400 16px/1.5 'Montserrat', sans-serif;
+}
+.rf-live-idv__warning {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding: 14px 16px;
+  background: #fff1f0;
+  color: #8a1c13;
+}
+.rf-live-idv__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.rf-live-idv__grid label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+.rf-live-idv__grid input { min-height: 42px; padding: 8px 10px; border: 1px solid #637381; border-radius: 4px; font: inherit; }
+.rf-live-idv__wide { grid-column: 1 / -1; }
+.rf-live-idv__status { margin: 20px 0; padding: 12px; background: #f4f6f8; overflow-wrap: anywhere; }
+.rf-live-idv__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.rf-live-idv__actions button { min-height: 42px; padding: 8px 16px; cursor: pointer; }
+.rf-live-idv__actions button:disabled { cursor: not-allowed; opacity: .55; }
+.rf-live-idv__complete { display: flex; flex-direction: column; margin-top: 20px; padding: 14px; background: #eaf7ee; }
+@media (max-width: 640px) {
+  .rf-live-idv { margin: 16px; padding: 20px; }
+  .rf-live-idv__grid { grid-template-columns: 1fr; }
+  .rf-live-idv__wide { grid-column: auto; }
+}
+
 /* ── Desktop checkout header (Figma 8507-23231) ──────────────────────────
    #02's navigation brought across, with two changes: the grey top bar (phone,
    live chat) is not built at all, and the nav links are replaced by the hold
