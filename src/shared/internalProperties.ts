@@ -25,7 +25,7 @@
 // ===========================================================================
 
 import {
-  readCollectionResult,
+  readCollectionPaged,
   str,
   num,
   bool,
@@ -200,12 +200,31 @@ export function readInternalPropertiesResult(
 ): Promise<CollectionReadResult> {
   const hit = rowCache.get(collectionName);
   if (hit) return hit;
-  const pending = readCollectionResult(collectionName).then((result): CollectionReadResult => {
-    if (result.status === 'ok') return { status: 'ok', rows: result.rows.map(normalizeRow) };
+  /*
+   * PAGED, not a single `.get()`.
+   *
+   * Duda's pageSize is 100 and a collection holds up to 1000 rows, so one read
+   * capped this at the first hundred properties — and the widgets built on it
+   * promise the COMPLETE set: #20's storage-type locations says "every
+   * facility with this type", #07 ranks all of them. Facility 101 onward
+   * silently did not exist. Still one request wherever the collection fits in
+   * a page, which is every site we run today.
+   */
+  const pending = readCollectionPaged(collectionName).then((result): CollectionReadResult => {
+    if (result.status === 'ok') {
+      if (!result.complete) {
+        console.warn(
+          `[internalProperties] "${collectionName}" could not be read past row ${result.rows.length}; lists built on it will be short`,
+        );
+      }
+      return { status: 'ok', rows: result.rows.map(normalizeRow) };
+    }
     // Do not pin a transient unavailable/error answer for the rest of the page.
     // Concurrent callers still share this promise; a later mount gets a retry.
     if (rowCache.get(collectionName) === pending) rowCache.delete(collectionName);
-    return result;
+    // Narrowed by hand: the paged result's status union is wider than the read
+    // result's failure shape, and TypeScript cannot see that 'ok' is gone.
+    return { status: result.status, detail: result.detail ?? 'collection read failed' };
   });
   rowCache.set(collectionName, pending);
   return pending;
@@ -333,10 +352,10 @@ const SINGLE_STEP_FIELD = 'single_step';
  * it was doing, which is two-step. A missing collection must never silently
  * switch a facility into a layout nobody chose.
  *
- * The switch stores a real boolean (verified live), but it goes through
- * `bool()` anyway: this collection is native, so any other column here can
- * arrive as `<p class="rteBlock">true</p>`, and a future editor pass could
- * change the field type without anyone touching this file.
+ * The switch stores a real boolean (verified live), but the value still goes
+ * through `plainText()` before `bool()`: this collection is NATIVE, so a
+ * column here can arrive as `<p class="rteBlock">true</p>`, and a future
+ * editor pass could change the field type without anyone touching this file.
  */
 export async function fetchSingleStep(
   propertyId: string,
@@ -348,8 +367,24 @@ export async function fetchSingleStep(
     .find((r) => str(r.id).trim() === wanted);
   if (!row) return undefined;
   const raw = row[SINGLE_STEP_FIELD];
-  if (raw === undefined || raw === null || str(raw).trim() === '') return undefined;
-  return bool(raw);
+  if (raw === undefined || raw === null) return undefined;
+  /*
+   * plainText BEFORE bool, and the empty check after it.
+   *
+   * `bool()` does not strip markup. On a native collection — which this one is
+   * — a value typed into Duda's WYSIWYG arrives as
+   * `<p class="rteBlock">true</p>`, which matches neither its true list nor
+   * its false list and falls through to the `false` DEFAULT. Not undefined:
+   * false. So a property with the switch ON would have been quietly forced
+   * back to two-step, and "unanswered" — the state that exists precisely so a
+   * read we cannot trust changes nothing — would never have been reached.
+   *
+   * It is a real boolean today (verified live), and plainText is a no-op on
+   * one: `str(true)` is "true" and there is no markup to parse.
+   */
+  const text = plainText(raw).trim();
+  if (!text) return undefined;
+  return bool(text);
 }
 
 /**

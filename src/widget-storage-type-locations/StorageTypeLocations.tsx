@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from 'react';
 import './StorageTypeLocations.css';
-import { hasCollectionsApi, readCollection, str, plainText, type CollectionRow } from '@shared/dudaCollections';
+import { hasCollectionsApi, readCollectionPaged, str, plainText, type CollectionRow } from '@shared/dudaCollections';
 import {
   readInternalPropertiesResult,
   propertyLikeRows,
@@ -145,7 +145,12 @@ interface FeatureMapping {
 async function readFeatureMapping(collectionName: string, pageSlug: string): Promise<FeatureMapping | null> {
   if (!collectionName || !pageSlug) return null;
   const wanted = new Set(candidateKeys(pageSlug));
-  const rows = await readCollection(collectionName).catch(() => [] as CollectionRow[]);
+  /* Paged for the same reason the property read is: this looks up ONE row by
+     slug, and a single `.get()` stops at 100 — so a storage type past that
+     point would quietly have no mapping and its page would show nothing. */
+  const rows = await readCollectionPaged(collectionName)
+    .then((r) => r.rows)
+    .catch(() => [] as CollectionRow[]);
   const row = rows.find((candidate) =>
     candidateKeys(candidate.slug, candidate.name).some((key) => wanted.has(key)));
   if (!row) return null;
