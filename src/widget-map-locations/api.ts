@@ -33,8 +33,44 @@ import {
 import { sameState } from '@shared/usStates';
 import { fetchWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import type { CityFacility, CityUnit } from './data';
+// Build-time defaults only. Deliberately NOT named `cfg`: four functions below
+// take a `cfg: CityApiConfig` PARAMETER, and a module-level `cfg` would be
+// shadowed by it — so a future edit could read the build-time file while
+// looking exactly like it reads the caller's credentials.
+import buildTimeCfg from './config.json';
+import { createApiCredsStore, type ApiCredProps } from '@shared/apiConfig';
 
 export type CityApiConfig = NearbyApiConfig;
+
+/*
+ * This widget's REST credentials — the site's, via the Duda JS tab
+ * (api_domain / app_id / api_key), with config.json as the fallback for the
+ * Duda editor, the dev harness, and sites whose texts are not filled in.
+ * See @shared/apiConfig.
+ */
+const store = createApiCredsStore('#08 map-locations', {
+  baseUrl: buildTimeCfg.baseUrl,
+  appId: buildTimeCfg.appId,
+  apiKey: buildTimeCfg.apiKey,
+});
+
+/** The credentials to use right now. */
+export const creds = store.creds;
+/** Apply the site's props. Safe on every render; ignores an empty set. */
+export const configureApi = store.configure;
+export type { ApiCredProps };
+
+/*
+ * Creds plus a company, for the shared API modules.
+ *
+ * Replaces `{ ...cfg, companyId }`, which pinned baseUrl/appId/apiKey to the
+ * build-time file — so the call would have kept using the old host and key
+ * even after the site supplied its own, while still rendering normally.
+ */
+export function credsWithCompany(companyId: string) {
+  return { ...store.creds(), companyId };
+}
+
 
 // ---------------------------------------------------------------------------
 // Raw space-groups shapes — only what we read
