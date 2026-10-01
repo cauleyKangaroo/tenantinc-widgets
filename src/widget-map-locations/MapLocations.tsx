@@ -28,7 +28,7 @@ import {
   INITIAL_FILTERS, activeFilterCount, filterFacilities, deriveFilterOptions, visibleUnits,
   type FilterState,
 } from './filters';
-import { fetchPlaceProperties, fetchCitySpaces, toCityFacility, type PlaceScope } from './api';
+import { fetchPlaceProperties, fetchCitySpaces, toCityFacility, configureApi, credsWithCompany, type PlaceScope, type ApiCredProps } from './api';
 import { getUserLocation } from '@shared/nearbyProperties';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { stateNameFromCode, stateCodeFromName } from '@shared/usStates';
@@ -419,7 +419,7 @@ function CitySkeleton({ compact, count = 3 }: { compact: boolean; count?: number
 
 // ── Props ───────────────────────────────────────────────────────────────────
 
-export interface MapLocationsProps {
+export interface MapLocationsProps extends ApiCredProps {
   /**
    * City shown in the heading and the SEO block, e.g. "Fullerton, CA".
    *
@@ -626,7 +626,21 @@ export function MapLocations({
   propertyBasePath = DEFAULT_PROPERTY_BASE_PATH,
   featuredPropertyId,
   sortLabel = 'Closest Distance',
+  // Site-level REST credentials from the Content Library's custom site texts.
+  api_domain,
+  app_id,
+  api_key,
 }: MapLocationsProps) {
+  /*
+   * Credentials in place BEFORE the data effects fire. During render, not
+   * in an effect — an effect runs a render too late and the first request
+   * would go out against config.json.
+   */
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
+
   // The page URL is the source of truth on /locations/{state}[/{city}], so a
   // real page passes nothing. Props override it for static pages, the harness,
   // and the Duda editor — where the path is the editor's, not the site's.
@@ -761,7 +775,7 @@ export function MapLocations({
   useEffect(() => {
     if (!resolvedCompanyId) return;
     let cancelled = false;
-    const api = { ...cfg, companyId: resolvedCompanyId };
+    const api = credsWithCompany(resolvedCompanyId);
 
     (async () => {
       try {

@@ -1,10 +1,37 @@
 import cfg from './config.json';
+import { createApiCredsStore, type ApiCredProps } from '@shared/apiConfig';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import type { BoundPropertyProps } from '@shared/propertyBinding';
 
-const BASE_URL = cfg.baseUrl;
-const APP_ID = cfg.appId;
-const API_KEY = cfg.apiKey;
+/*
+ * This widget's REST credentials — the site's, via the Duda JS tab
+ * (api_domain / app_id / api_key), with config.json as the fallback for the
+ * Duda editor, the dev harness, and sites whose texts are not filled in.
+ * See @shared/apiConfig.
+ */
+const store = createApiCredsStore('#06 promotions', {
+  baseUrl: cfg.baseUrl,
+  appId: cfg.appId,
+  apiKey: cfg.apiKey,
+});
+
+/** The credentials to use right now. */
+export const creds = store.creds;
+/** Apply the site's props. Safe on every render; ignores an empty set. */
+export const configureApi = store.configure;
+export type { ApiCredProps };
+
+/*
+ * Creds plus a company, for the shared API modules.
+ *
+ * Replaces `{ ...cfg, companyId }`, which pinned baseUrl/appId/apiKey to the
+ * build-time file — so the call would have kept using the old host and key
+ * even after the site supplied its own, while still rendering normally.
+ */
+export function credsWithCompany(companyId: string) {
+  return { ...store.creds(), companyId };
+}
+
 const COMPANY_ID = cfg.companyId;
 const PROPERTY_ID = cfg.propertyId;
 const SPACE_GROUP_ID = cfg.spaceGroupId;
@@ -89,12 +116,13 @@ export async function fetchSpaceGroups(
   company?: string,
 ): Promise<unknown> {
   const co = company || await companyId();
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${co}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
+  const { baseUrl, appId, apiKey } = creds();
+  const url = `${baseUrl}/applications/${appId}/v2/companies/${co}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
 
   const res = await fetch(url, {
     headers: {
       'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
-      'x-storageapi-key': API_KEY,
+      'x-storageapi-key': apiKey,
     },
   });
 
@@ -121,7 +149,7 @@ function tierPromos(tier: ApiTier): ApiAllocatedPromo[] {
 /** Walk every tier, collect the unique promos. */
 export function extractPromos(raw: unknown): ApiPromo[] {
   const response = raw as ApiResponse;
-  const appEntries = response?.applicationData?.[APP_ID];
+  const appEntries = response?.applicationData?.[creds().appId];
   const spaceGroupProfile = appEntries?.[0]?.data?.spaceGroupProfile;
   if (!spaceGroupProfile) return [];
 
