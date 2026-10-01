@@ -326,22 +326,41 @@ export function UtilityBar({
      The label falls back rather than rendering an empty pill, since an editor
      who ticks the box before typing has still asked for a button. */
   const ctaHref = linkHref(buttonLink);
-  const cta = bool(showButton) && (
+  /*
+   * An <a> WITHOUT href is not a link: it drops out of the tab order and is
+   * announced as plain text, so the button a sighted editor can see was
+   * unreachable by keyboard and invisible to a screen reader.
+   *
+   * The intent — show the button the moment the box is ticked, so the toggle
+   * visibly works while the URL is still being pasted in — is kept by
+   * rendering a real disabled control instead. It is in the accessibility
+   * tree, it is announced as unavailable, and it still cannot be followed to
+   * nowhere.
+   */
+  const ctaLabel = boundText(buttonText) || 'Learn More';
+  const cta = bool(showButton) && (ctaHref ? (
     <a
       /* #utility-bar-cta is the hook to style this in Duda — see the note in
          the stylesheet. The class is what this widget's own CSS uses. */
       id="utility-bar-cta"
       className="ub-cta"
-      /* No href until there IS one, rather than manufacturing a link to
-         nowhere: the button still shows the moment the box is ticked, so the
-         toggle visibly works while the link is still being pasted in. */
-      href={ctaHref || undefined}
-      target={ctaHref && linkNewTab(buttonLink) ? '_blank' : undefined}
-      rel={ctaHref && linkNewTab(buttonLink) ? 'noopener noreferrer' : undefined}
+      href={ctaHref}
+      target={linkNewTab(buttonLink) ? '_blank' : undefined}
+      rel={linkNewTab(buttonLink) ? 'noopener noreferrer' : undefined}
     >
-      {boundText(buttonText) || 'Learn More'}
+      {ctaLabel}
     </a>
-  );
+  ) : (
+    <button
+      id="utility-bar-cta"
+      className="ub-cta"
+      type="button"
+      disabled
+      aria-disabled="true"
+    >
+      {ctaLabel}
+    </button>
+  ));
 
   // Rendered even when empty — the effect above needs a node to walk up from,
   // and .ub-wrapper--empty keeps it out of the layout in the meantime.

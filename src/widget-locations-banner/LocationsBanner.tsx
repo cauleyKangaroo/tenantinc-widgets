@@ -135,12 +135,25 @@ export function LocationsBanner({
     void countCollectionRows(collection).then(({ count: n, exact }) => {
       if (cancelled) return;
       if (n > 0) {
+        /*
+         * An inexact count is a FLOOR, and `countCollectionRows` says so in as
+         * many words — it must not be presented as the answer. Printing it
+         * anyway meant a 103-row collection whose second page failed rendered
+         * "See our 100 Locations": a specific, confident, wrong number in the
+         * operator's shop window.
+         *
+         * `null` is the already-built state for "counted, nothing to show":
+         * the token is dropped and the sentence closes up to "See our
+         * Locations", which is vaguer but true. An operator who wants the
+         * number regardless can pin it with the Location Count field, which
+         * the warning below names.
+         */
         if (!exact) {
           console.warn(
-            `[#22 locations-banner] counted ${n} row(s) in "${collection}" but could not reach the whole collection — the banner may under-report. Set the Location Count field to pin it.`,
+            `[#22 locations-banner] counted ${n} row(s) in "${collection}" but could not reach the whole collection — showing no number rather than an under-report. Set the Location Count field to pin it.`,
           );
         }
-        setCount(n);
+        setCount(exact ? n : null);
         return;
       }
 

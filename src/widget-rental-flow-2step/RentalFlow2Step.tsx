@@ -111,6 +111,17 @@ export interface RentalFlow2StepProps {
    * nowhere, so the card stays hidden until someone supplies one.
    */
   reviewUrl?: string;
+  /**
+   * Content-menu URLs for the Smart Entry app badges on the confirmation.
+   *
+   * Same rule as `reviewUrl`: the badges render either way, but they are only
+   * LINKS once an operator supplies one. Which app a facility uses is theirs
+   * to say — Nokē, a white-labelled build, none at all — so there is no
+   * default worth inventing, and until these existed as props the badges were
+   * drawn and could never be clicked.
+   */
+  appStoreUrl?: string;
+  playStoreUrl?: string;
   /** Selection handed off from the value-tiers page (?size= / ?tier=) —
    *  display context only; the transaction re-resolves server-side. */
   size?: string;
@@ -804,6 +815,8 @@ export function RentalFlow2Step({
   reservationHeading = 'Your reservation is confirmed!',
   rentalHeading = 'Your Space is ready!',
   reviewUrl,
+  appStoreUrl,
+  playStoreUrl,
   size: sizeArg,
   tier: tierArg,
   propertyId: propertyIdArg,
@@ -860,6 +873,13 @@ export function RentalFlow2Step({
   const instoreMode = asInstoreMode(urlParam('instoreMode') ?? stored?.instoreMode);
   const instoreAmount = asInstoreAmount(urlParam('instoreAmount') ?? stored?.instoreAmount);
   const instoreLabel = urlParam('instoreLabel') ?? stored?.instoreLabel;
+  /* A FIXED figure instead of a rule — the listing configured no percentage
+     and is showing the API's own number, so that is what it hands over. Used
+     only when no rule arrived, and still only above the shown price. */
+  const instoreValue = (() => {
+    const n = Number(urlParam('instoreValue') ?? stored?.instoreValue);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  })();
   // "Change Space" returns to the value-tiers page the shopper came from.
   const backToSpacesUrl = (() => {
     try {
@@ -1303,7 +1323,25 @@ export function RentalFlow2Step({
      form against a space that was never secured. */
   const [holdFailed, setHoldFailed] = useState(false);
   const holdRef = useRef<UnitHold | undefined>(undefined);
-  holdRef.current = hold;
+  /*
+   * Write the ref and the state TOGETHER, and never assign the ref during
+   * render.
+   *
+   * `holdRef.current = hold` on every render looked equivalent and was not.
+   * Between a bare `setHold(h)` and the render that flushed it, the ref still
+   * held the OLD value — and that gap is where an in-flight /offers promise
+   * lands. `keepHeldIdentity` would read no hold, return the offer's own unit
+   * unchanged, and recreate the selection/quote mismatch it exists to prevent.
+   *
+   * Worse, the render-time assignment could UNDO a correct ref: any unrelated
+   * re-render occurring before the hold state flushed would write the stale
+   * `hold` back over it. Assigning at the point of acquisition is the only
+   * version where the ref is never behind the thing it mirrors.
+   */
+  const applyHold = useCallback((h: UnitHold | undefined) => {
+    holdRef.current = h;
+    setHold(h);
+  }, []);
   /*
    * One acquisition at a time, and `selection` read without depending on it.
    *
@@ -1345,7 +1383,7 @@ export function RentalFlow2Step({
   useEffect(() => {
     /*
      * `rental` is in this guard because the success path calls
-     * setHold(undefined) — correct, the hold is spent once the unit is leased
+     * applyHold(undefined) — correct, the hold is spent once the unit is leased
      * and the countdown must stop — but that clears the `hold` term above and
      * re-opens this effect while step is still 2. It then tried to hold the
      * unit it had just leased, took a 409 "This unit is currently leased", and
@@ -1463,7 +1501,7 @@ export function RentalFlow2Step({
         // Nothing left to hold it for.
         void releaseHold(ctx, result.hold);
       } else if (result.ok) {
-        setHold(result.hold);
+        applyHold(result.hold);
         setHoldFailed(false);
         // The held unit is now authoritative. Drop any quote that isn't its
         // own (e.g. the pre-hold unit after a conflict re-pick) and re-quote
@@ -1583,14 +1621,16 @@ export function RentalFlow2Step({
       setHoldRemaining(Math.max(0, left));
       if (left <= 0) {
         console.warn(`${logTag} hold expired`);
-        setHold(undefined);
+        applyHold(undefined);
         setHoldExpired(true); // stop auto-renew — require an explicit reacquire
       }
     };
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
-  }, [hold, logTag]);
+    // applyHold is a stable useCallback with no deps; listing it would only
+    // restate that, and this effect must re-run on `hold` alone.
+  }, [hold, logTag, applyHold]);
 
   // Release on unmount.
   useEffect(() => () => {
@@ -1648,7 +1688,7 @@ export function RentalFlow2Step({
     const contextChanged = !!priorHoldContext && priorHoldContext.key !== contextKey;
     if (contextChanged && holdRef.current) {
       void releaseHold(priorHoldContext.ctx, holdRef.current);
-      setHold(undefined);
+      applyHold(undefined);
     }
     holdContextRef.current = { key: contextKey, ctx };
 
@@ -1777,9 +1817,25 @@ export function RentalFlow2Step({
         ...s,
         unitId: held.unitId,
         unitNumber: held.unitNumber ?? s.unitNumber,
-        // space_mix_id must describe the unit we hold — API 9 requires it, and
-        // a held unit cannot be looked up again to recover it.
-        spaceMixId: resolvedSpaceMixRef.current ?? s.spaceMixId,
+        /*
+         * space_mix_id must describe the unit we HOLD — API 9 requires it, and
+         * a held unit cannot be looked up again to recover it.
+         *
+         * No `?? s.spaceMixId` fallback. `s` is the offer for the unit we
+         * ASKED about, which this very function is rewriting because it is not
+         * the one we hold, so its space mix belongs to a different space. With
+         * a hold adopted from the URL the ref starts empty, and if /offers
+         * settled before the parallel unit read, that fallback pinned the
+         * wrong mix onto the selection — where it then beat the ref at
+         * finalize (`selection?.spaceMixId ?? resolvedSpaceMixRef.current`)
+         * even after the right value arrived.
+         *
+         * Undefined until the held unit's own read lands is the honest state:
+         * finalize falls through to the ref, and if neither has it the Pay Now
+         * guard says so by name instead of filing a lease against another
+         * space's mix.
+         */
+        spaceMixId: resolvedSpaceMixRef.current,
       };
     };
 
@@ -2111,6 +2167,12 @@ export function RentalFlow2Step({
         sheetLogo={sheet ? headerLogo : undefined}
         property={snapProp}
         selection={snap?.selection}
+        /* The operator's own wording for the struck column, same as the live
+           rail. Without it a configured "WAS" reverted to "IN-STORE" at the
+           last screen, so the one page the shopper keeps disagreed with the
+           two that got them there. Falls back to "IN-STORE" by itself when the
+           confirmation URL no longer carries the label. */
+        instoreLabel={instoreLabel}
         quote={snap?.quote}
         estimate={confirmation.kind === 'reservation'}
         paid
@@ -2167,6 +2229,8 @@ export function RentalFlow2Step({
             rentUrl={confirmation.kind === 'reservation' ? checkoutUrl : undefined}
             onRetry={goToCheckout}
             reviewUrl={reviewUrl}
+            appStoreUrl={appStoreUrl}
+            playStoreUrl={playStoreUrl}
           />
           {/* Desktop only — on mobile this same element is inside the sheet. */}
           {!isMobile && confirmationRail}
@@ -2226,7 +2290,11 @@ export function RentalFlow2Step({
        discounted, and the listing card hides its calculated column in promo
        mode for the same reason. */
     if (base.inStore != null && base.inStore > online) return base;
-    const calculated = instoreFrom(online, instoreMode, instoreAmount);
+    /* The rule first; the listing's own figure only when no rule was sent.
+       Both are held to the same test — strictly above what is being charged,
+       or it is not a saving and does not render. */
+    const calculated = instoreFrom(online, instoreMode, instoreAmount)
+      ?? (instoreValue != null && instoreValue > online ? instoreValue : undefined);
     return calculated != null ? { ...base, inStore: calculated } : base;
   })();
   const verifiedQuote = selection?.unitId && quote?.unitId === selection.unitId ? quote : undefined;
@@ -2255,6 +2323,25 @@ export function RentalFlow2Step({
   // Preview content may make the harness interactive, but must never weaken
   // transaction readiness on a published page.
   const previewEnabled = previewContent && inEditor;
+  /*
+   * `holdFailed` and `holdExpired` belong HERE, not only in the state machine
+   * below.
+   *
+   * Down there they are reached only when `transactionReady` is already false,
+   * so a correlated selection and quote outranked them: the arrival hold could
+   * fail outright, or expire and clear `hold` to undefined, and the UI still
+   * said 'ready'. Pay Now then armed against a unit nothing holds, and the
+   * handler refused it — it requires `hold` before it will rent — so the
+   * shopper met "We couldn't secure this space" after pressing a button the
+   * page had told them was good.
+   *
+   * Deliberately NOT a `hold` requirement, which is what a literal reading
+   * would add. This gate gives Rent AND Reserve their state, and reserve does
+   * not need a hold: it takes the hold token only when one happens to match
+   * the picked unit, and reserves without it otherwise. Demanding a hold here
+   * would disable Reserve in the window before the arrival hold lands, and
+   * permanently wherever one is never taken.
+   */
   const transactionReady = previewEnabled || !!(
     correlatedSelection
     && propertyInfo
@@ -2262,10 +2349,16 @@ export function RentalFlow2Step({
     && effectivePropertyId
     && unitGroupIdProp
     && !quoteFailed
+    && !holdFailed
+    && !holdExpired
   );
   const transactionState: 'loading' | 'ready' | 'unavailable' | 'error' = transactionReady
     ? 'ready'
-    : holdFailed || (!unitIdProp && selectionStatus === 'unit-unavailable')
+    /* An expired hold is 'unavailable', not 'error': nothing went wrong, the
+       space simply is not held any more. Step 2 says so in its own banner and
+       offers the reacquire; without this the button beside it would claim a
+       failure instead. */
+    : holdFailed || holdExpired || (!unitIdProp && selectionStatus === 'unit-unavailable')
       ? 'unavailable'
       : quoteFailed
         ? 'error'
@@ -2405,6 +2498,8 @@ export function RentalFlow2Step({
               officeHours={propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours}
               gateHours={propertyInfo?.gateHours?.length ? propertyInfo.gateHours : confHours?.gateHours}
               reviewUrl={reviewUrl}
+              appStoreUrl={appStoreUrl}
+              playStoreUrl={playStoreUrl}
             />
             {!isMobile && railFor(true)}
           </div>
@@ -2425,6 +2520,16 @@ export function RentalFlow2Step({
                       : undefined,
                     driverLicenseState: details.driverLicenseState,
                     mailingAddress: details.mailingAddress,
+                    /* The date of birth this screen REQUIRES when Military is
+                       ticked. It has a real destination — the contact update's
+                       own `dob` — and was being collected and thrown away.
+                       The alternate contact and vehicle answers have no
+                       documented field on any endpoint we have, so they travel
+                       as far as here and no further; that one is a question
+                       for TenantInc, not a field name to guess at. */
+                    dateOfBirth: details.extras?.dob
+                      ? dobToIso(details.extras.dob)
+                      : undefined,
                   });
                 }
                 setIdVerified(details?.idVerified ?? true);
@@ -2636,6 +2741,9 @@ export function RentalFlow2Step({
                   costs: quoteToCosts(quote, start),
                   promotionIds: selection?.promotionIds,
                   platform: 'website',
+                  // The period the Payment Cycle card was left on. Without it
+                  // documents/finalize was told 'Monthly' whatever was picked.
+                  paymentCycle: info.paymentCycle,
                   extras: info.extras,
                 })
                   .then((res) => {
@@ -2659,7 +2767,7 @@ export function RentalFlow2Step({
                     // setHold only reaches holdRef on the next render, and a
                     // pagehide before that would release a leased unit's hold.
                     holdRef.current = undefined;
-                    setHold(undefined);
+                    applyHold(undefined);
                     clearUnitSelection();
                     setFinalizing(info);
                   })
@@ -2771,7 +2879,7 @@ export function RentalFlow2Step({
                     : 'This space is no longer available to reserve. Please pick another.');
                   return;
                 }
-                setHold(h.hold);
+                applyHold(h.hold);
                 heldToken = h.hold.holdToken;
               }
               const result = await reserveSpace(ctx, {
@@ -2790,7 +2898,7 @@ export function RentalFlow2Step({
                 // holdRef on the next render, and the navigation below happens
                 // in this same tick.
                 holdRef.current = undefined;
-                setHold(undefined);
+                applyHold(undefined);
                 // Bind the confirmation to a one-time nonce: the payload (incl.
                 // PII + code) lives in sessionStorage; only the nonce is in the URL.
                 const nonce = stashConfirmation({

@@ -68,23 +68,43 @@ export function instorePrice(unit: Unit, config: WidgetConfig): number {
  *  written, so the receiver shows a single price exactly as it does today. */
 export function setInstoreParams(
   p: URLSearchParams,
-  instore?: { mode?: InstoreMode; amount: number; label: string },
+  instore?: { mode?: InstoreMode; amount?: number; value?: number; label: string },
 ): void {
   if (!instore) return;
   if (instore.mode) p.set('instoreMode', instore.mode);
-  p.set('instoreAmount', String(instore.amount));
+  if (instore.amount) p.set('instoreAmount', String(instore.amount));
+  // The API's own figure, for an operator who configured no rule — see
+  // instoreHandoff.
+  if (instore.value) p.set('instoreValue', String(instore.value));
   if (instore.label) p.set('instoreLabel', instore.label);
 }
 
-export function instoreHandoff(config: WidgetConfig):
-  { mode: InstoreMode | undefined; amount: number; label: string } | undefined {
+export function instoreHandoff(config: WidgetConfig, unit: Unit):
+  { mode?: InstoreMode; amount?: number; value?: number; label: string } | undefined {
   if (!config.showInstorePrice || config.enablePromoLogic) return undefined;
-  if (!config.instorePriceAmount) return undefined;
-  return {
-    mode: config.instorePriceMode,
-    amount: config.instorePriceAmount,
-    label: config.instorePriceLabel,
-  };
+  if (config.instorePriceAmount) {
+    return {
+      mode: config.instorePriceMode,
+      amount: config.instorePriceAmount,
+      label: config.instorePriceLabel,
+    };
+  }
+  /*
+   * No percentage rule, but this card IS still showing a strike — with no
+   * amount configured `instorePrice()` falls back to the API's own
+   * `inStorePrice`. Sending nothing here meant the listing struck a price
+   * through and the rail it handed off to showed none, which is the exact
+   * mismatch this handoff exists to close.
+   *
+   * A fixed figure rather than a rule, because that is what it is: the tier's
+   * own number, not something derived from a price. The receiver still applies
+   * it only when it sits strictly ABOVE the price being shown, so a shopper
+   * who goes on to pick a dearer tier never meets a "standard" price below
+   * what they are paying.
+   */
+  const value = instorePrice(unit, config);
+  if (!(value > 0)) return undefined;
+  return { value, label: config.instorePriceLabel };
 }
 
 /** Labels used by the promo-logic pair. Lift these into the content menu if the
@@ -270,7 +290,7 @@ export function CtaButton({ unit, config, full, colClass }: {
   const note = unavailable ? config.limitedAvailabilityCopy : urgencyMessage(unit, config);
 
   const [tiersError, setTiersError] = useState(false);
-  const instore = instoreHandoff(config);
+  const instore = instoreHandoff(config, unit);
   function openValueTiers() {
     const handled = emitOpenTiers({
       size: unit.dimensions,
@@ -290,6 +310,7 @@ export function CtaButton({ unit, config, full, colClass }: {
       // which is a different tier's once the shopper picks Better or Best.
       instoreMode: instore?.mode,
       instoreAmount: instore?.amount,
+      instoreValue: instore?.value,
       instoreLabel: instore?.label,
     });
     if (handled) return;
@@ -376,6 +397,7 @@ export function CtaButton({ unit, config, full, colClass }: {
             // the strike this card is showing.
             instoreMode: instore?.mode,
             instoreAmount: instore?.amount,
+            instoreValue: instore?.value,
             instoreLabel: instore?.label,
           })}
         >
