@@ -6,6 +6,8 @@ import { emitOpenTiers } from '@shared/tierBus';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { instoreFrom, type InstoreMode } from '@shared/instorePrice';
 import cfg from '../config.json';
+import { createLead } from '../propertyApi';
+import { WaitlistModal } from './WaitlistModal';
 
 // Prices round DOWN to whole dollars: 145.20 → $145.00, 147.99 → $147.00. The
 // cents only ever come from the in-store calculation (a percentage of the web
@@ -210,7 +212,10 @@ export function CheckIcon() {
 
 export function FeatureList({ features }: { features: string[] }) {
   return (
-    <ul className="sl-features">
+    /* role="list" restores the semantics Safari drops from a <ul> whose
+       display is `contents` — which is what the list layout's narrow frame does
+       to flow these ticks into its amenities grid. Harmless everywhere else. */
+    <ul className="sl-features" role="list">
       {features.map((f) => (
         <li key={f}>
           <CheckIcon /> {f}
@@ -270,6 +275,7 @@ export function CtaButton({ unit, config, full, colClass }: {
   const note = unavailable ? config.limitedAvailabilityCopy : urgencyMessage(unit, config);
 
   const [tiersError, setTiersError] = useState(false);
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
   const instore = instoreHandoff(config);
   function openValueTiers() {
     const handled = emitOpenTiers({
@@ -339,7 +345,9 @@ export function CtaButton({ unit, config, full, colClass }: {
     <>
       <div className={colClass}>
       {waitlistCta ? (
-        <button className={`sl-waitlist-btn${fullClass}`}>Join waitlist</button>
+        <button type="button" className={`sl-waitlist-btn${fullClass}`} onClick={() => setWaitlistOpen(true)}>
+          Join waitlist
+        </button>
       ) : unavailable || callOnly ? (
         <button className={`sl-call-btn${fullClass}`}>Call</button>
       ) : valueTiersHref ? (
@@ -388,6 +396,19 @@ export function CtaButton({ unit, config, full, colClass }: {
       {tiersError
         ? <div className="sl-limited-label" role="alert">Pricing is temporarily unavailable — please try again.</div>
         : note && <div className="sl-limited-label">{note}</div>}
+      {/* Portalled to <body>, so where it sits in this tree does not matter.
+          Filed against the page's own property and company, as Select is. */}
+      {waitlistCta && (
+        <WaitlistModal
+          open={waitlistOpen}
+          onClose={() => setWaitlistOpen(false)}
+          unitLabel={[unit.dimensions, unit.subtype].filter(Boolean).join(' ')}
+          submitLead={(input) => createLead(input, {
+            propertyId: config.propertyId || undefined,
+            companyId: config.companyId || undefined,
+          })}
+        />
+      )}
     </>
   );
 }

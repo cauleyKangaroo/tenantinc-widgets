@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './AccountLogin.css';
-import { CheckTick, CaretDown } from './icons';
+import { CheckTick, CaretDown, UserCircle, InfoSolid } from './icons';
 import { hasCollectionsApi, logSource, str } from '@shared/dudaCollections';
 import { readPropertiesFromCollection, PROPERTIES_COLLECTION } from '@shared/propertiesSource';
 import { skipValidation } from '@shared/devBypass';
@@ -13,11 +13,14 @@ import { skipValidation } from '@shared/devBypass';
 // the same card and are branches of one state machine rather than three
 // screens:
 //
-//   1. "2FA Login with email or Phone" — identify → one-time code → done.
+//   1. "2FA Login with email or Phone" — identify → phone code → email code
+//      → (account picker) → done. Both codes, in that order, whichever the
+//      reader typed to identify themselves.
 //      9451:55590 (empty) · 9503:123086 (valid, green tick) ·
 //      9503:122933 (phone-only, with the extra "Login with Email" button) ·
-//      9503:123533 (code, empty) · 9503:123840 (code, filled) ·
-//      9503:132254 (the email wording of the code step).
+//      9503:123533 (code, empty) · 9503:123840 (phone code, filled) ·
+//      9503:132254 (email code) · 12667:34621 (account picker — only when the
+//      email is linked to more than one account).
 //   2. "Login With Google" / Apple — 9503:125657. NOT BUILT. The social
 //      sign-in buttons were removed for now; only the email/phone code flow
 //      and the 3rd-party handoff below ship. The Google and Apple marks are
@@ -28,11 +31,13 @@ import { skipValidation } from '@shared/devBypass';
 //
 // Mobile: 10640:67357 (350px card).
 //
-// THE CODE CHECK IS A STUB. There is no auth backend wired to this repo, so
-// `bypassCode` (default "000000") is accepted and everything else is rejected —
-// as requested, so the flow is walkable end to end. `verifyCode` below is the
-// single seam to replace when the real endpoint exists; nothing else in this
-// file knows how a code is checked.
+// NOTHING HERE IS CONNECTED. There is no auth backend wired to this repo; the
+// screens are built so the APIs can be hooked up without touching the UI.
+// Two seams, and nothing else in this file knows how either is done:
+//   · `lookupAccount` — who the identifier belongs to: the phone and email the
+//     codes go to, and every account linked to them. Returns demo data.
+//   · `verifyCode`    — checks a code. Accepts `bypassCode` (default "000000")
+//     and rejects everything else, so the flow is walkable end to end.
 // ===========================================================================
 
 /** Digits in the one-time code (Figma draws six boxes). */
@@ -41,7 +46,7 @@ const OTP_LENGTH = 6;
 /** Seconds before "Resend Code" can be used again. */
 const RESEND_COOLDOWN_S = 30;
 
-type Step = 'identify' | 'verify' | 'done';
+type Step = 'identify' | 'verify-phone' | 'verify-email' | 'choose' | 'done';
 type IdentifierKind = 'phone' | 'email';
 
 interface PropertyOption {
@@ -124,6 +129,57 @@ function formatDestination(value: string, kind: IdentifierKind): string {
   const d = digitsOf(value).replace(/^1/, '');
   if (d.length !== 10) return value.trim();
   return `+1 (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
+// ---------------------------------------------------------------------------
+// The account seam
+// ---------------------------------------------------------------------------
+
+/** One account (rental) on file — a row of the picker (Figma 12667:34621). */
+export interface LinkedAccount {
+  id: string;
+  name: string;
+  /** Rented spaces on the account — "(1 Space)" / "(2 Spaces)". */
+  spaces: number;
+  email: string;
+  /** Raw digits. */
+  phone: string;
+}
+
+export interface AccountLookup {
+  /** Where the phone code goes. Raw digits. */
+  phone: string;
+  /** Where the email code goes. */
+  email: string;
+  /** Every account linked to that email. More than one ⇒ the picker. */
+  accounts: LinkedAccount[];
+}
+
+/** The picker frame's own sample rows. */
+const DEMO_ACCOUNTS: Omit<LinkedAccount, 'email'>[] = [
+  { id: 'demo-1', name: 'Jane Doe', spaces: 1, phone: '9497489365' },
+  { id: 'demo-2', name: 'Janey Do', spaces: 2, phone: '9499387777' },
+];
+
+/**
+ * Who `identifier` belongs to. STUB — returns demo data shaped like the real
+ * answer: whichever half the reader typed is echoed back, the other half is
+ * the Figma's sample. Async already, so the real request drops in without
+ * changing a call site.
+ */
+async function lookupAccount(
+  identifier: string, kind: IdentifierKind, demoAccountCount: number,
+): Promise<AccountLookup> {
+  const phone = kind === 'phone' ? digitsOf(identifier) : '9491234567';
+  const email = kind === 'email' ? identifier.trim() : 'john.doe@tenantinc.com';
+  const count = Math.max(1, Math.min(DEMO_ACCOUNTS.length, demoAccountCount));
+  return { phone, email, accounts: DEMO_ACCOUNTS.slice(0, count).map((a) => ({ ...a, email })) };
+}
+
+/** "9497489365" → "(949) 748-9365". */
+function formatPhoneDisplay(digits: string): string {
+  const d = digitsOf(digits).replace(/^1/, '');
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : digits;
 }
 
 // ---------------------------------------------------------------------------
@@ -268,6 +324,11 @@ export interface AccountLoginProps {
   successUrl?: string;
   /** Code accepted while there's no auth backend. See `verifyCode`. */
   bypassCode?: string;
+  /**
+   * Accounts the stubbed `lookupAccount` reports for the email — 1 skips the
+   * picker, 2 shows it. Harness-only knob; it goes away with the stub.
+   */
+  demoAccountCount?: number;
 }
 
 export function AccountLogin({
@@ -280,6 +341,7 @@ export function AccountLogin({
   thirdPartyLoginUrl = '',
   successUrl = '',
   bypassCode = '000000',
+  demoAccountCount = 1,
 }: AccountLoginProps) {
   const [step, setStep] = useState<Step>('identify');
 
@@ -298,6 +360,7 @@ export function AccountLogin({
   const [checking, setChecking] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [resent, setResent] = useState(false);
+  const [lookup, setLookup] = useState<AccountLookup | null>(null);
 
   const otpHeadingRef = useRef<HTMLHeadingElement>(null);
 
@@ -361,7 +424,7 @@ export function AccountLogin({
   // whole contents, and without this a keyboard or screen-reader user is left
   // on a button that no longer exists.
   useEffect(() => {
-    if (step === 'verify') otpHeadingRef.current?.focus();
+    if (step !== 'identify' && step !== 'done') otpHeadingRef.current?.focus();
   }, [step]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -372,7 +435,24 @@ export function AccountLogin({
     setIdentifier(fieldMode === 'email' || !looksNumeric(raw) ? raw : formatPhoneInput(raw));
   };
 
-  const submitIdentifier = () => {
+  /** Fresh code boxes and cooldown — on entering either code step. */
+  const startCodeStep = (next: 'verify-phone' | 'verify-email') => {
+    setCode('');
+    setCodeError('');
+    setResent(false);
+    setResendIn(RESEND_COOLDOWN_S);
+    setStep(next);
+  };
+
+  const finish = () => {
+    if (successUrl) {
+      window.location.href = successUrl;
+      return;
+    }
+    setStep('done');
+  };
+
+  const submitIdentifier = async () => {
     if (showPropertySelect && !propertyId) {
       setIdentifyError('Select a storage property to continue.');
       return;
@@ -390,10 +470,8 @@ export function AccountLogin({
       window.location.href = selectedProperty.loginUrl;
       return;
     }
-    setCode('');
-    setCodeError('');
-    setResendIn(RESEND_COOLDOWN_S);
-    setStep('verify');
+    setLookup(await lookupAccount(identifier, kind, demoAccountCount));
+    startCodeStep('verify-phone');
   };
 
   const submitCode = useCallback(async (candidate: string) => {
@@ -408,15 +486,21 @@ export function AccountLogin({
         setCodeError('That code is incorrect. Check it and try again.');
         return;
       }
-      if (successUrl) {
-        window.location.href = successUrl;
+      // Phone first, then email — both, whichever the reader identified with.
+      if (step === 'verify-phone') {
+        startCodeStep('verify-email');
         return;
       }
-      setStep('done');
+      if ((lookup?.accounts.length ?? 0) > 1) {
+        setStep('choose');
+        return;
+      }
+      finish();
     } finally {
       setChecking(false);
     }
-  }, [checking, bypassCode, successUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checking, bypassCode, successUrl, step, lookup]);
 
   const resend = () => {
     if (resendIn > 0) return;
@@ -441,8 +525,59 @@ export function AccountLogin({
     );
   }
 
-  if (step === 'verify') {
-    const destination = formatDestination(identifier, kind);
+  if (step === 'choose' && lookup) {
+    return (
+      <div className="al-wrapper">
+        <div className="al-card al-card--choose">
+          <div className="al-head al-head--choose">
+            <h1 className="al-title al-title--choose" tabIndex={-1} ref={otpHeadingRef}>
+              Which account would you like to open?
+            </h1>
+            <p className="al-sub al-sub--choose">
+              More than one rental is linked to{' '}
+              <a className="al-sub-link" href={`mailto:${lookup.email}`}>{lookup.email}</a>
+              . Select an account to get started. You can switch to another one later.
+            </p>
+          </div>
+
+          <ul className="al-accounts">
+            {lookup.accounts.map((a) => (
+              <li key={a.id}>
+                {/* The account choice is the seam the real sign-in hangs off;
+                    for now any choice completes the flow. */}
+                <button type="button" className="al-account" onClick={finish}>
+                  <UserCircle className="al-account-avatar" />
+                  <span className="al-account-text">
+                    <span className="al-account-line">
+                      <span className="al-account-name">{a.name}</span>
+                      <span className="al-account-spaces">({a.spaces} {a.spaces === 1 ? 'Space' : 'Spaces'})</span>
+                    </span>
+                    <span className="al-account-detail">
+                      {a.email}, <span className="al-account-phone">{formatPhoneDisplay(a.phone)}</span>
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <div className="al-merge">
+            <InfoSolid className="al-merge-icon" />
+            <p className="al-merge-text">
+              Want to see all your rentals in one place? Get in touch with us, and we’ll help merge
+              your accounts.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'verify-phone' || step === 'verify-email') {
+    const isEmailStep = step === 'verify-email';
+    const destination = isEmailStep
+      ? (lookup?.email ?? formatDestination(identifier, 'email'))
+      : formatDestination(lookup?.phone ?? identifier, 'phone');
     const complete = code.replace(/\s/g, '').length === OTP_LENGTH;
 
     return (
@@ -450,7 +585,7 @@ export function AccountLogin({
         <div className="al-card">
           <div className="al-head">
             <h1 className="al-title" tabIndex={-1} ref={otpHeadingRef}>
-              {kind === 'email' ? 'Verify Email' : 'Verify Phone Number'}
+              {isEmailStep ? 'Verify Email' : 'Verify Phone Number'}
             </h1>
             <p className="al-sub">
               Enter the one time code we sent to
@@ -460,6 +595,7 @@ export function AccountLogin({
           </div>
 
           <OtpInput
+            key={step}
             value={code}
             onChange={(next) => { setCode(next); setCodeError(''); }}
             invalid={!!codeError}
@@ -500,7 +636,7 @@ export function AccountLogin({
 
         <form
           className="al-form"
-          onSubmit={(e) => { e.preventDefault(); submitIdentifier(); }}
+          onSubmit={(e) => { e.preventDefault(); void submitIdentifier(); }}
           noValidate
         >
           <div className="al-fields">

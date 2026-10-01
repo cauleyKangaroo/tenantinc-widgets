@@ -1,0 +1,35 @@
+/* Static-screen framing only. The rental flow's page background, so the cards'
+   shadows read as they do on the live page. */
+.ss-rf {
+  margin: -32px -16px;
+  padding: 32px 0;
+  background: #f7f8fa;
+}
+
+/* The rail sticks at --rf-hdr-h + 24px, where --rf-hdr-h is the flow header's
+   measured height. These screens have no header, and the 100px fallback would
+   pin the rail 124px down the window — so 0, i.e. 24px from the top, the same
+   gap it keeps under the header in the real flow. */
+.ss-rf .rf-wrapper { --rf-hdr-h: 0px; }
+
+/* #05's wrapper brings its own page padding, min-height and max-width — none of
+   which belong inside another widget's card. */
+.ss-rf .ss-rf-cards {
+  padding: 0;
+  min-height: 0;
+  max-width: none;
+}
+
+.ss-rf-note {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: #637381;
+}
+
+/* Below the flow's 640px MOBILE_BP the real widget drops this column for its
+   top bar + sheet (JS-driven, not reproduced here), so the static screen shows
+   the card alone rather than a desktop rail crushed underneath it. */
+@media (max-width: 640px) {
+  .ss-rf .rf-layout > :not(.rf-main) { display: none; }
+}

@@ -277,6 +277,144 @@
 .rf-or { display: flex; align-items: center; gap: 24px; width: 100%; margin: 11px 0; color: #637381; font-size: 16px; }
 .rf-or::before, .rf-or::after { content: ''; flex: 1 1 0; height: 1px; background: #c4cdd5; }
 
+/* ── Space no longer available — Figma 12453-39451 (UnavailableStep) ───── */
+.rf-ua .rf-title { margin-bottom: 20px; }
+.rf-wrapper .rf-ua-text { margin: 0 0 28px; font-size: 16px; line-height: 24px; color: #000; }
+.rf-ua .rf-actions { margin-top: 36px; }
+.rf-ua-error { text-align: center; }
+/* The frame's rules are a fixed 135px either side, not stretched to the card. */
+.rf-ua-or { justify-content: center; margin: 26px 0 0; }
+.rf-ua-or::before, .rf-ua-or::after { flex: 0 1 135px; }
+/* ── Something went wrong — Figma 12454-41003 (RentalErrorStep) ────────── */
+/* Frame: text ends at 207, button at 242 (35 below), art at 341 (49 below the
+   button's 292) and the card ends 80 under the art's 613. */
+.rf-err { padding-bottom: 80px; }
+.rf-err .rf-title { margin-bottom: 20px; }
+.rf-wrapper .rf-err-text { margin: 0; font-size: 16px; line-height: 24px; color: #000; }
+.rf-err .rf-actions { margin-top: 35px; }
+/* Width-led so it scales down inside a narrow card; the intrinsic 590 x 272
+   keeps the ratio. */
+.rf-wrapper .rf-err-art {
+  display: block;
+  width: 100%;
+  max-width: 590px;
+  height: auto;
+  margin: 49px auto 0;
+}
+@media (max-width: 640px) {
+  .rf-err { padding-bottom: 40px; }
+  .rf-wrapper .rf-err-art { margin-top: 32px; }
+}
+
+/* Its own container, so #05's card queries (unnamed @container) measure THIS
+   list rather than .rf-main. */
+.rf-ua-similar { margin-top: 28px; container: rfsimilar / inline-size; }
+/* The frame's cards are 785 wide in an 866 card — wider than the form, ~40px
+   from the card edge. 24px here is what lands them at 785 on .rf-card's 72px. */
+@container rfmain (min-width: 701px) {
+  .rf-ua-similar { margin-inline: -48px; }
+}
+
+/* ── The similar-space card — Figma 12453-39524 ("Retail New Layout") ────
+   NOT #05's default card spec (9417-86254), which is a 55/45 split with 30px
+   insets: this frame has a FIXED 391px display panel (20/30/30/30, 16px gaps)
+   and the actions column bottom-right at 323px. Scoped here so #05's own card
+   is untouched.
+
+   The two rows the frame lines up — Select level with the prices, the admin
+   fee level with "Only 1 left" — are both 50px + 4px + 16px columns. #05's
+   markup nests the fee inside the right-hand price column and makes the note a
+   sibling of the button's column, so a grid places them instead; no markup
+   changes. (0,3,0) selectors, to beat #05's own container steps (0,2,0). */
+@container rfsimilar (min-width: 760px) {
+  .rf-ua-similar .sl-wrapper .sl-default-card { align-items: stretch; border-radius: 16px; }
+
+  .rf-ua-similar .sl-wrapper .sl-dv-display {
+    flex: 0 0 391px;
+    gap: 16px;
+    padding: 30px 30px 30px 20px;
+  }
+  .rf-ua-similar .sl-wrapper .sl-dv-image-col { flex: 0 0 161.8px; width: 161.8px; gap: 16px; }
+  .rf-ua-similar .sl-wrapper .sl-dv-img {
+    width: 96.63px;
+    max-width: none;
+    height: 119px;
+    max-height: none;
+    object-fit: cover;
+  }
+  .rf-ua-similar .sl-wrapper .sl-dv-see-fits { font-size: 15px; line-height: 16px; gap: 8px; }
+  .rf-ua-similar .sl-wrapper .sl-dv-see-fits svg { width: 16px; height: 16px; }
+  .rf-ua-similar .sl-wrapper .sl-dv-info { gap: 16px; }
+
+  .rf-ua-similar .sl-wrapper .sl-dv-action {
+    flex: 1 1 0;
+    padding: 30px;
+    align-items: flex-end;
+    justify-content: flex-end;
+  }
+  /* 323 is the frame's, but its own row is ~4px wider than that and the live
+     font renders the prices ~7px wider again. Growing LEFTWARDS to fit keeps
+     every alignment the frame draws — promo, prices and fee share a left edge,
+     promo and Select a right one, 16px between price and button — rather than
+     crushing that gap or pushing Select past the panel's 30px inset. */
+  .rf-ua-similar .sl-wrapper .sl-dv-actions { width: max-content; min-width: 323px; max-width: none; gap: 12px; }
+  /* Figma strokes INSIDE the box; CSS borders add to it. 10 + 2 = the frame's
+     12px inset, and 10 + 18 + 10 + 4 = its 42px height. */
+  .rf-ua-similar .sl-wrapper .sl-dv-actions .sl-promo-badge { padding: 10px; min-height: 42px; }
+
+  /* Price | Select on one row; fee and note on the next, 4px under each. */
+  .rf-ua-similar .sl-wrapper .sl-dv-price-button {
+    display: grid;
+    grid-template-columns: max-content 146px;
+    grid-template-rows: 50px 16px;
+    grid-template-areas: "price cta" "price note";
+    column-gap: 16px;
+    row-gap: 4px;
+    justify-content: space-between;
+  }
+  .rf-ua-similar .sl-wrapper .sl-dv-price { grid-area: price; }
+  .rf-ua-similar .sl-wrapper .sl-dv-btn-col { grid-area: cta; width: 146px; }
+  .rf-ua-similar .sl-wrapper .sl-dv-price-button > .sl-limited-label {
+    grid-area: note;
+    margin: 0;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* The 50px "Prices" frame: in-store | divider | starting-at, centred on one
+     row, with the fee lifted out of the right column onto the line beneath.
+     The right column is 16 + 28.8 = 44.8 tall, so 2.6px above and below it
+     centres it in the 50 exactly as the frame does. */
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-prices-row {
+    display: grid;
+    grid-template-columns: max-content 1px max-content;
+    grid-template-rows: 16px 28.8px 22.6px;
+    grid-template-areas: "left div label" "left div price" "fee fee fee";
+    column-gap: 8px;
+    row-gap: 0;
+    height: auto;
+    padding-top: 2.6px;
+  }
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-price-left { grid-area: left; align-self: center; }
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-price-divider { grid-area: div; align-self: center; }
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-price-main { display: contents; }
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-starting-label { grid-area: label; justify-self: end; }
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-main-price {
+    grid-area: price;
+    justify-self: end;
+    font-size: 24px;
+    line-height: 1.2;
+  }
+  /* Its row is 2.6 (the centring's lower half) + 4 (the frame's gap under
+     the 50) + 16; the fee sits at the bottom of it, level with the note. */
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-admin-fee {
+    grid-area: fee;
+    align-self: end;
+    margin: 0;
+    white-space: nowrap;
+  }
+}
+
 /* ── Narrow container (mobile / small widget widths) ───────────────────── */
 @container (max-width: 640px) {
   /* Mobile is a flat white sheet. The cards, panels and the agreement box drop

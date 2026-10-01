@@ -37,6 +37,8 @@ const widgetEntries = {
   // Living styleguide for @shared/ui — DEV HARNESS ONLY, never a Duda widget.
   // Deliberately unnumbered so it can't be mistaken for one.
   'ui-kit':                  './src/ui-kit/index.tsx',
+  // Hand-built, data-free flows for other devs to build from — DEV HARNESS ONLY.
+  'static-screens':          './src/static-screens/index.tsx',
 };
 
 module.exports = (_env, argv) => {

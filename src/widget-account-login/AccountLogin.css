@@ -296,7 +296,13 @@
   display: flex;
   gap: 12px;
   width: 100%;
+  /* Figma 9503:123845 insets the row 42px each side: six 49.3px boxes, 356px. */
+  padding: 0 42px;
 }
+
+/* The code steps' Continue is the frame's 360px, centred — not the card's full
+   440 (on the identify step the form column already caps it at 360). */
+.al-card > .al-cta { max-width: 360px; }
 
 .al-otp-box {
   flex: 1 1 0;
@@ -363,6 +369,103 @@
   text-decoration: none;
 }
 
+/* ── Account picker (Figma 12667:34621) ────────────────────────────────────── */
+/* A wider card than the code steps: 475px rows inside 60px sides. The frame's
+   gaps are uneven (15 under the copy, 13 between rows, 20 above the note), so
+   they are margins here rather than the card's single 32px gap.
+   Figma strokes INSIDE its boxes and CSS borders add to them, so every inset
+   below is the frame's value less the 1px border. */
+
+.al-card--choose {
+  max-width: 596px;
+  gap: 0;
+  padding: 61px 59px 58px;
+}
+
+.al-head--choose { gap: 24px; }
+
+/* The live Montserrat sets this line at ~488px, Figma's at under 475 — so the
+   title borrows 10px of each 60px side to stay on one line, as drawn. Narrower
+   cards still wrap it. */
+.al-title--choose { margin: 0 -10px; }
+
+.al-title--choose {
+  font-size: 24px;
+  line-height: 28px;
+}
+
+.al-sub--choose { line-height: 18px; }
+
+.al-sub-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-skip-ink: none;
+  text-underline-position: from-font;
+}
+
+.al-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  width: 100%;
+  margin: 15px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Name at 78px, detail line at 78px, avatar 44px at 18/14 — the frame's row. */
+.al-account {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  min-height: 75px;
+  margin: 0;
+  padding: 13px 17px 11px;
+  border: 1px solid #dfe3e8;
+  border-radius: 4px;
+  background: #fff;
+  color: #101318;
+  font-family: 'Montserrat', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.al-account:hover { border-color: #a5b4bf; }
+.al-account:focus-visible { outline: none; border-color: #101318; }
+/* Pinned in every state: host sheets (Duda themes, the dev harness) style bare
+   `button:hover` with a fill, which turned the row grey. */
+.al-account:hover,
+.al-account:focus,
+.al-account:active { background: #fff; color: #101318; }
+
+.al-account-avatar { flex: 0 0 auto; width: 44px; height: 44px; color: #111; }
+
+.al-account-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.al-account-line { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 8px; }
+.al-account-name { font-size: 16px; font-weight: 600; line-height: 20px; }
+.al-account-spaces { font-size: 14px; line-height: 18px; color: #637381; }
+.al-account-detail { font-size: 14px; line-height: 18px; overflow-wrap: anywhere; }
+/* A phone number never breaks mid-number; the email may. */
+.al-account-phone { white-space: nowrap; }
+
+.al-merge {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  width: 100%;
+  margin-top: 20px;
+  padding: 10px 20px 10px 12px;
+  border: 1px solid #3d8fff;
+  border-radius: 10px;
+  background: #e7f1ff;
+}
+
+.al-merge-icon { flex: 0 0 auto; color: #3d8fff; }
+.al-merge-text { margin: 3px 0 0; font-size: 14px; line-height: 18px; color: #000; }
+
 /* ── Mobile (Figma 10640:67357 — a 350px card) ─────────────────────────────── */
 
 @media (max-width: 560px) {
@@ -387,10 +490,18 @@
 
   .al-otp {
     gap: 8px;
+    padding: 0;
   }
 
   .al-otp-box {
     height: 48px;
     font-size: 20px;
   }
+
+  /* gap: 0 again — the .al-card rule above sets 24px at this width and would
+     stack on top of the picker's own margins. */
+  .al-card--choose { gap: 0; padding: 32px 20px; }
+  .al-title--choose { margin: 0; font-size: 22px; line-height: 26px; }
+  .al-account { gap: 12px; padding: 12px 14px; }
+  .al-account-avatar { width: 36px; height: 36px; }
 }

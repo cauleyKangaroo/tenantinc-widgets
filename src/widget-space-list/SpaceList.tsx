@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
@@ -6,7 +6,7 @@ import cfg from './config.json';
 import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
 import { boundText, resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { PropertyIdProvider } from './propertyContext';
+import { PropertyIdProvider, PropertyExtrasProvider } from './propertyContext';
 import { CompanyIdProvider } from './companyContext';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
@@ -45,28 +45,6 @@ import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, type PromoSelection } f
 import { RichText } from '@shared/richText';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { PromoTagIcon } from './components/Pricing';
-
-// Wrapper-width breakpoint below which we count as mobile. Keyed off the widget's
-// own width, not the viewport, for the same reason as the CSS container queries:
-// in Duda the widget often sits in a narrow column inside a wide window.
-const MOBILE_BP = 640;
-
-function useIsMobile(breakpoint: number) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth < breakpoint : false,
-  );
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver((entries) => {
-      setIsMobile(entries[0].contentRect.width < breakpoint);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [breakpoint]);
-  return { ref, isMobile };
-}
 
 export function SpaceList({
   layoutMode = 'grid',
@@ -118,9 +96,12 @@ export function SpaceList({
   const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // The default layout has no mobile frame of its own — below MOBILE_BP it falls
-  // back to the grid layout, which does.
-  const { ref: wrapperRef, isMobile } = useIsMobile(MOBILE_BP);
+  /* The default layout renders at EVERY width now. It used to fall back to the
+     grid layout below MOBILE_BP because it had no narrow frame of its own;
+     Figma 12418-64891 is that frame, so the fallback — and the width
+     measurement that drove it — are gone. Picking "default" and being given the
+     grid was the bug. */
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Mobile: pin the filter bar to the shared stack, BELOW #03's contact row
   // (order 20 vs 10). Viewport query rather than the container width above,
@@ -621,6 +602,7 @@ export function SpaceList({
   // sits on whichever side apLocation specifies.
   return (
     <PropertyIdProvider propertyId={effectivePropertyId}>
+    <PropertyExtrasProvider extras={propertyExtras}>
      <CompanyIdProvider companyId={effectiveCompanyId ?? ''}>
     <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
       {/* Off when #18 draws the heading instead — see showHeading. */}
@@ -696,7 +678,7 @@ export function SpaceList({
             <SkeletonLoader />
           ) : layoutMode === 'list' ? (
             <ListView units={visibleUnits} config={config} />
-          ) : layoutMode === 'default' && !isMobile ? (
+          ) : layoutMode === 'default' ? (
             <DefaultView units={visibleUnits} config={config} />
           ) : (
             <GridView units={visibleUnits} config={config} />
@@ -726,6 +708,7 @@ export function SpaceList({
       )}
     </div>
      </CompanyIdProvider>
+    </PropertyExtrasProvider>
     </PropertyIdProvider>
   );
 }

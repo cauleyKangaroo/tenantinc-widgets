@@ -74,7 +74,26 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
 
       <div className="sl-dv-action">
         <div className="sl-dv-actions">
-          {unit.promo && <PromoBadge text={unit.promo} />}
+          {/* The grey block of the narrow frame (12418-64891): amenities, the
+              promotion, then the admin fee. `display: contents` at every wider
+              width, so the promo stays exactly the direct child of
+              .sl-dv-actions that it has always been and nothing else moves.
+
+              The two lines below it are NARROW-FRAME ONLY and hidden above the
+              breakpoint. They are restatements rather than the real elements
+              because the frame words them differently: the amenities are one
+              comma-joined sentence instead of a ticked list, and the fee reads
+              "$20 Admin Fee added" rather than the price block's
+              "+ Plus $20 Admin Fee". */}
+          <div className="sl-dv-grey">
+            {unit.promo && <PromoBadge text={unit.promo} />}
+            {unit.features.length > 0 && (
+              <div className="sl-dv-features-line">{unit.features.join(', ')}</div>
+            )}
+            {unit.adminFee != null && (
+              <div className="sl-dv-admin">${unit.adminFee} Admin Fee added</div>
+            )}
+          </div>
           <div className="sl-dv-price-button">
             <div className="sl-dv-price">
               <PriceBlock unit={unit} config={config} />

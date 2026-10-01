@@ -98,6 +98,20 @@ Duda widget and must never be added to a page).
 
 ---
 
+## Static screens (dev harness only)
+
+**Static screens** tab = hand-built, data-free flows that other devs can build
+widgets from. Webpack entry `static-screens` (`src/static-screens/`), unnumbered
+like `ui-kit`, so it is **never a Duda widget**.
+
+- A flow is `{ id, title, description?, screens: [{ id, title, note?, Component }] }`
+  (`types.ts`). Register it in `flows/index.ts`; `flows/example/` is the template.
+- Screens hardcode their data and compose from `@shared/ui`.
+- The selection is kept in the URL (`?page=static-screens&flow=…&screen=…`), so a
+  link opens the exact screen.
+
+---
+
 ## Where widget data comes from — Duda collections vs the Hummingbird API
 
 Widgets used to call the Hummingbird (Tenant/`edge.tenant.dev`) API directly with a
