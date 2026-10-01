@@ -455,7 +455,7 @@ export function TierSelection({
      not render it today — it is carried so the rental rail can show the same
      struck-through figure the listing card showed. */
   const [modalInstore, setModalInstore] = useState<
-    { mode?: InstoreMode; amount?: number; label?: string } | undefined
+    { mode?: InstoreMode; amount?: number; value?: number; label?: string } | undefined
   >(undefined);
   // Bumped on every open so reopening the SAME size still refetches (inventory
   // and pricing can change between opens).
@@ -517,7 +517,12 @@ export function TierSelection({
      it is carried, not rendered — #14's cards still show the API price. */
   const instoreRule = mode === 'modal'
     ? modalInstore
-    : { mode: asInstoreMode(urlParam('instoreMode')), amount: asInstoreAmount(urlParam('instoreAmount')), label: urlParam('instoreLabel') };
+    : {
+      mode: asInstoreMode(urlParam('instoreMode')),
+      amount: asInstoreAmount(urlParam('instoreAmount')),
+      value: Number(urlParam('instoreValue')) > 0 ? Number(urlParam('instoreValue')) : undefined,
+      label: urlParam('instoreLabel'),
+    };
   const inlinePromoEnabled = inlinePromoRaw === true || inlinePromoRaw === 'true';
   const effectivePromoLogic = mode === 'modal'
     ? (modalEnablePromoLogic ?? inlinePromoEnabled)
@@ -569,8 +574,8 @@ export function TierSelection({
       setModalShowPricingDetails(req.showPricingDetails);
       setModalShowUrgency(req.showUrgency);
       setModalEnablePromoLogic(req.enablePromoLogic);
-      setModalInstore(req.instoreAmount
-        ? { mode: req.instoreMode, amount: req.instoreAmount, label: req.instoreLabel }
+      setModalInstore(req.instoreAmount || req.instoreValue
+        ? { mode: req.instoreMode, amount: req.instoreAmount, value: req.instoreValue, label: req.instoreLabel }
         : undefined);
       setOpenGen((g) => g + 1);
       setModalOpen(true);
@@ -854,9 +859,10 @@ export function TierSelection({
     if (effectiveCompanyId) url.searchParams.set('companyId', effectiveCompanyId);
     // Pass the operator's IN-STORE rule straight through to the rental rail,
     // so the struck-through figure there is the one the listing card showed.
-    if (instoreRule?.amount) {
+    if (instoreRule?.amount || instoreRule?.value) {
       if (instoreRule.mode) url.searchParams.set('instoreMode', instoreRule.mode);
-      url.searchParams.set('instoreAmount', String(instoreRule.amount));
+      if (instoreRule.amount) url.searchParams.set('instoreAmount', String(instoreRule.amount));
+      if (instoreRule.value) url.searchParams.set('instoreValue', String(instoreRule.value));
       if (instoreRule.label) url.searchParams.set('instoreLabel', instoreRule.label);
     }
     const gid = authoritativeGroupId ?? groupIdRef.current;

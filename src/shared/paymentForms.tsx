@@ -95,12 +95,68 @@ const digits = (v: string) => v.replace(/\D/g, '');
 /* Field lengths. Every onChange strips non-digits before it reaches state, so
    letters can never be typed into the row in the first place — there is no
    "invalid character" state to render because the character never lands. */
-const CARD_DIGITS = 16;
 const EXPIRY_DIGITS = 4;
-const CVV_DIGITS = 3;
-/** 13–19 digits covers every brand we accept; the row does not brand-detect. */
-const validCard = (v: string) => digits(v).length === CARD_DIGITS;
-const validCvv = (v: string) => digits(v).length === CVV_DIGITS;
+
+/**
+ * Accepted PAN lengths: 13 to 19 digits (ISO/IEC 7812).
+ *
+ * It used to demand exactly 16 — in the validator, in the input's own
+ * truncation and in the error copy — while the comment beside it claimed the
+ * 13–19 range. The form shows an American Express mark and Amex is FIFTEEN
+ * digits, so every Amex card was silently truncated and then rejected before
+ * it could ever be tokenized. Same for 19-digit Visa and 14-digit Diners.
+ *
+ * Validation is the range, never a brand's exact length: a wrong guess about
+ * one issuer's numbering rejects a real card the gateway would have accepted,
+ * and the gateway is the authority on whether a number is good.
+ */
+const CARD_MIN_DIGITS = 13;
+const CARD_MAX_DIGITS = 19;
+
+/**
+ * The standard PAN length for the brands we can identify, or undefined when we
+ * cannot — used ONLY to decide when to hand focus on to the expiry.
+ *
+ * Undefined for anything unidentified — Diners, UnionPay, store cards — which
+ * is deliberate: moving focus off a field someone is still filling is worse
+ * than not moving it at all, and that is where the unusual lengths live.
+ *
+ * It is the brand's STANDARD length, not its only legal one: a 19-digit Visa
+ * exists and will advance at 16, so the shopper has to click back to finish
+ * it. Accepted as the cost of auto-advance working for the vast majority —
+ * and it only moves focus, it no longer TRUNCATES, which is what actually
+ * made such a card unusable before.
+ */
+function panLength(v: string): number | undefined {
+  const n = digits(v);
+  if (/^3[47]/.test(n)) return 15;                             // Amex
+  if (/^(4|5[1-5]|2[2-7]|6011|65|64[4-9])/.test(n)) return 16; // Visa / MC / Discover
+  return undefined;
+}
+
+/**
+ * How many security digits this card takes: Amex prints a 4-digit CID, every
+ * other brand here a 3-digit CVV.
+ *
+ * `undefined` when the PAN is not ours to see — on the Global Payments path
+ * the number lives in GP's own iframe, so the brand is unknowable here and
+ * both lengths have to be accepted rather than guessing one.
+ */
+const cvvDigits = (card: string): number | undefined => {
+  const n = digits(card);
+  if (!n) return undefined;
+  return /^3[47]/.test(n) ? 4 : 3;
+};
+
+const validCard = (v: string) => {
+  const n = digits(v).length;
+  return n >= CARD_MIN_DIGITS && n <= CARD_MAX_DIGITS;
+};
+const validCvv = (card: string, v: string) => {
+  const n = digits(v).length;
+  const want = cvvDigits(card);
+  return want === undefined ? n === 3 || n === 4 : n === want;
+};
 const validRouting = (v: string) => digits(v).length === 9;
 const filled = (v: string) => v.trim().length > 0;
 
@@ -281,6 +337,11 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
      green at four digits, which claimed "correct" about a number nothing had
      checked yet — the whole point of asking twice is that one copy proves
      nothing. So both go green on the match and neither before it. */
+  /* Both inputs strip to digits before they reach state, so `filled` here
+     means at least one real digit and the compared values are the ones that
+     get submitted. Previously "abc" in both fields matched, and pay() then
+     stripped it to an empty accountNumber while BankFormValue promised
+     digits. The length itself is the bank's to judge, not ours. */
   const accountsMatch = filled(account) && confirm === account;
   /* A mismatch is only worth saying once the confirm field has caught up in
      length. Shorter than the original it is simply unfinished, not wrong, and
@@ -359,7 +420,11 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
           state={ok(filled(accountType))}
         />
         <FormField
-          label="Routing Number" required value={routing} onChange={setRouting}
+          /* Stripped at the INPUT, like every card cell, so what is validated
+             is what gets submitted. Holding the raw text meant "abc123456789"
+             satisfied validRouting — which strips before counting — and then
+             pay() sent "123456789", a routing number nobody typed. */
+          label="Routing Number" required value={routing} onChange={(v) => setRouting(digits(v))}
           infoTitle="The 9-digit number on the bottom left of your cheque"
           className={okQuiet(validRouting(routing))}
           error={payAttempted && !validRouting(routing) ? 'Enter the 9-digit routing number' : undefined}
@@ -372,14 +437,14 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
             exports, so there was nothing to re-trace. */}
         <FormField
           label="Account Number" required type="password"
-          value={account} onChange={setAccount}
+          value={account} onChange={(v) => setAccount(digits(v))}
           // Green only once the pair matches — see accountsMatch.
           state={ok(accountsMatch)}
           error={payAttempted && !filled(account) ? 'Enter your account number' : undefined}
         />
         <FormField
           label="Confirm Account Number" required type="password"
-          value={confirm} onChange={setConfirm}
+          value={confirm} onChange={(v) => setConfirm(digits(v))}
           error={confirmMismatch
             ? 'Account numbers do not match'
             : (payAttempted && !accountsMatch ? 'Re-enter your account number to confirm' : undefined)}
@@ -641,8 +706,8 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
     /* All THREE, not the CVV alone. GP reports each frame's validity on every
        keystroke, so the number and the expiry are knowable — reading only the
        CVV turned the row green, and its tick on, beside an empty expiry. */
-    ? gpValid.number && gpValid.expiry && validCvv(cvv)
-    : validCard(number) && validExpiry(expiry) && validCvv(cvv);
+    ? gpValid.number && gpValid.expiry && validCvv('', cvv)
+    : validCard(number) && validExpiry(expiry) && validCvv(number, cvv);
   // GP's frame reports its own expiry problems; ours would be judging a field
   // it cannot see.
   const expError = hosted ? '' : expiryError(expiry);
@@ -681,7 +746,10 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
     } else {
       const n = digits(number);
       if ((payAttempted || (touched.number && n.length > 0)) && !validCard(number)) {
-        return n.length === 0 ? 'Enter your card number' : `Enter all ${CARD_DIGITS} digits of your card number`;
+        /* No fixed count in the copy: the accepted range spans 13 to 19, and
+           naming one of them is how the old message told an Amex holder their
+           own card was wrong. */
+        return n.length === 0 ? 'Enter your card number' : 'Check your card number';
       }
       // A complete but unusable expiry is wrong the moment it is complete, so
       // this one does not wait to be left.
@@ -691,8 +759,14 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
       }
     }
     const c = digits(cvv);
-    if ((payAttempted || (touched.cvv && c.length > 0)) && !validCvv(cvv)) {
-      return c.length === 0 ? 'Enter the security code' : `Enter all ${CVV_DIGITS} digits of the security code`;
+    if ((payAttempted || (touched.cvv && c.length > 0)) && !validCvv(hosted ? '' : number, cvv)) {
+      if (c.length === 0) return 'Enter the security code';
+      /* With the brand unknown (GP owns the PAN) the copy names both lengths
+         rather than picking one and calling a correct code wrong. */
+      const want = cvvDigits(hosted ? '' : number);
+      return want === undefined
+        ? 'Enter the 3 or 4 digit security code'
+        : `Enter all ${want} digits of the security code`;
     }
     return '';
   })();
@@ -780,9 +854,14 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
    * which is worse than not advancing at all.
    */
   const onNumber = (v: string) => {
-    const d = v.replace(/\D/g, '').slice(0, CARD_DIGITS);
+    const d = v.replace(/\D/g, '').slice(0, CARD_MAX_DIGITS);
     setNumber(d.replace(/(.{4})/g, '$1 ').trim());
-    if (d.length === CARD_DIGITS && digits(number).length < CARD_DIGITS) {
+    /* Advance at the BRAND's own length, and only when we recognise the brand.
+       A fixed 16 never fired for an Amex, which stops at 15, and fired in the
+       middle of an unidentified 19-digit number. `panLength` answers undefined
+       for brands it cannot place, so those are left alone entirely. */
+    const want = panLength(d);
+    if (want !== undefined && d.length === want && digits(number).length < want) {
       expiryRef.current?.focus();
     }
   };
@@ -1008,7 +1087,11 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
               className="rf-cardrow-input"
               ref={cvvRef}
               value={cvv}
-              onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, CVV_DIGITS))}
+              /* 4 when the brand is unknown — GP's iframe owns the PAN, so
+                 capping at 3 would truncate an Amex CID into an invalid one. */
+              onChange={(e) => setCvv(
+                e.target.value.replace(/\D/g, '').slice(0, cvvDigits(hosted ? '' : number) ?? 4),
+              )}
               onBlur={() => markTouched('cvv')}
               /* Backspace at the start of the CVV carries on into the expiry,
                  in BOTH modes now. Hosted used to stop here on the grounds that

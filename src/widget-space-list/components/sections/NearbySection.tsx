@@ -476,7 +476,13 @@ export function NearbySection() {
     if (view !== 'list' || loading) return;
     if (rootRef.current) setListHeight(rootRef.current.offsetHeight);
     if (tabsRef.current) setTabsHeight(tabsRef.current.offsetHeight);
-  }, [view, loading, safePage, properties.length]);
+    /* `properties`, not `properties.length`. The list grows AFTER the count
+       settles: stage two replaces each `units: null` with real rows, which is
+       what actually changes the height, and the length never moves while it
+       happens. Measuring on length alone froze the map at the skeleton's
+       height, so a facility with several unit rows opened a map too short for
+       the column beside it. */
+  }, [view, loading, safePage, properties]);
 
   /* 280 is what this map was before any of it was measured, so a first paint
      that never saw the list still gets a usable map rather than a sliver. */

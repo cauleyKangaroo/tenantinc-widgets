@@ -7,6 +7,9 @@ import {
   MilitaryFields, AltContactFields, VehicleFields,
   extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues,
 } from './additionalInfo';
+// The mask writes MM/DD/YYYY; the lease payload wants YYYY-MM-DD. Same
+// converter the post-purchase screen uses, so the two cannot drift.
+import { dobToIso } from './api';
 import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankFormValue, type BillingCountry } from '@shared/paymentForms';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
@@ -591,9 +594,37 @@ export function Step2({
       ? { ...splitBusinessName(bizName), email: email.trim(), phone, businessName: bizName.trim() }
       : { first: first.trim(), last: last.trim(), email: email.trim(), phone },
     autopay,
-    // Which sections the shopper opted into. The VALUES are collected on the
-    // post-purchase screen, so this step sends the choices and nothing else.
-    extras: { business, military, altContact, vehicle },
+    /*
+     * Which sections the shopper opted into — and on ONE-STEP, the values too.
+     *
+     * Two-step collects them on the post-purchase screen, so the choices are
+     * genuinely all this step has. One-step opens the fields right here, and
+     * a single-step property has no post-purchase screen at all: sending only
+     * the booleans meant a shopper filled in a date of birth, an alternate
+     * contact and a vehicle — each of them REQUIRED, each blocking the pay
+     * button until it was right — and every value was dropped on the floor
+     * before the lease was built.
+     *
+     * Gated per section, not sent wholesale: a field belonging to a section
+     * the shopper never opened is not theirs to file.
+     */
+    extras: {
+      business,
+      military,
+      altContact,
+      vehicle,
+      ...(oneStep && military && extraFields.dob
+        ? { dateOfBirth: dobToIso(extraFields.dob) } : {}),
+      ...(oneStep && altContact ? {
+        altFirst: extraFields.altFirst.trim() || undefined,
+        altLast: extraFields.altLast.trim() || undefined,
+        altPhone: extraFields.altPhone.trim() || undefined,
+        altEmail: extraFields.altEmail.trim() || undefined,
+        altAddress: extraFields.altAddress.trim() || undefined,
+      } : {}),
+      ...(oneStep && vehicle && extraFields.vType.trim()
+        ? { vehicleType: extraFields.vType.trim() } : {}),
+    },
   });
 
 
