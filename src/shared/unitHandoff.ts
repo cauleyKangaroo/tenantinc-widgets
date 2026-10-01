@@ -59,6 +59,19 @@ export interface UnitSelection {
   /** The tier's online/starting price — ties the resolved unit to the row the
    *  visitor actually clicked rather than the cheapest of that size. */
   price?: number;
+  /**
+   * The operator's struck-through IN-STORE rule, mirrored from the space list
+   * that wrote this record — the RULE, never the computed figure, so the rail
+   * applies it to the price it is actually showing.
+   *
+   * Carried here because this route bypasses the URL entirely: without it a
+   * "Select" that links straight to /rental loses the strike the card had just
+   * shown, while one routed through the tier popup keeps it. See
+   * @shared/instorePrice.
+   */
+  instoreMode?: string;
+  instoreAmount?: number;
+  instoreLabel?: string;
   /** Epoch ms, for the staleness check. */
   savedAt: number;
 }

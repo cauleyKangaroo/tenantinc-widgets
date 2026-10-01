@@ -219,7 +219,7 @@
   border: none;
   border-radius: 8px;
   background: var(--color_1, #f26500);
-  color: #fff;
+  color: var(--color_3, #fff);
   font-family: 'Montserrat', sans-serif;
   font-size: 16px;
   font-weight: 600;
@@ -234,7 +234,7 @@
 .al-cta:disabled {
   /* Figma's disabled fill is a solid grey, not a dimmed orange. */
   background: #dfe3e8;
-  color: #fff;
+  color: var(--color_3, #fff);
   cursor: not-allowed;
 }
 

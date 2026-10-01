@@ -36,6 +36,7 @@ export function OrderRail({
   estimate = false,
   paid = false,
   sheetLogo,
+  instoreLabel,
 }: {
   property?: PropertyInfo;
   selection?: SelectionContext;
@@ -60,6 +61,8 @@ export function OrderRail({
    *  a second copy of what the page already showed, and the shopper opened the
    *  panel for the numbers. */
   sheetLogo?: string;
+  /** Operator's label for the struck-through column; defaults to "IN-STORE". */
+  instoreLabel?: string;
 }) {
   const phone = property?.phone
     ? property.phone.replace(/^1?(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')
@@ -130,7 +133,11 @@ export function OrderRail({
           : selection?.online ?? undefined
       }
       promoPrice={showStrike ? selection!.online : undefined}
-      priceLabels={{ standard: 'IN-STORE', promo: 'ONLINE' }}
+      /* The operator renames the struck column on the Space List widget
+         ("IN-STORE", "WAS", …); the label travels with the figure so the two
+         pages read the same. "ONLINE" is ours — the listing has no label for
+         that column. */
+      priceLabels={{ standard: instoreLabel || 'IN-STORE', promo: 'ONLINE' }}
       promo={selection?.promo}
     >
       <div className="ts-card-breakdown">

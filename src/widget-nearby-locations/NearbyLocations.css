@@ -457,7 +457,7 @@
   justify-content: center;
   box-sizing: border-box;
   background: var(--color_2, #509e2f);
-  color: #fff;
+  color: var(--color_3, #fff);
   text-decoration: none;
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;

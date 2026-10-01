@@ -101,7 +101,7 @@
   border: 0;
   border-radius: 12px;
   background: var(--hb-cta, #f45f30);
-  color: var(--hb-white, #fff);
+  color: var(--color_3, #fff);
   font-family: inherit;
   font-size: 20px;
   font-weight: 600;

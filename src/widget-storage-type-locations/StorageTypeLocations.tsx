@@ -19,7 +19,11 @@
 import { useEffect, useState } from 'react';
 import './StorageTypeLocations.css';
 import { hasCollectionsApi, readCollection, str, plainText, type CollectionRow } from '@shared/dudaCollections';
-import { readInternalPropertiesResult, propertyLikeRows } from '@shared/internalProperties';
+import {
+  readInternalPropertiesResult,
+  propertyLikeRows,
+  INTERNAL_PROPERTIES_COLLECTION,
+} from '@shared/internalProperties';
 import { AlertIcon, MapPinSolidIcon } from '@shared/ui/icons';
 
 export interface StorageTypeLocationsProps {
@@ -86,13 +90,25 @@ function keyOf(value: unknown): string {
     .replace(/^_+|_+$/g, '');
 }
 
+/**
+ * `&` and the word "and" are the same conjunction, and the two sources spell it
+ * differently: `keyOf` collapses `Boat & RV Wash Bay` to `boat_rv_wash_bay`
+ * while the page URL spells it out, `boat-and-rv-wash-bay` → `boat_and_rv_wash_bay`.
+ * Emit both so a name and its slug can meet.
+ */
+function conjunctionVariants(key: string): string[] {
+  return [key, key.replace(/_and_/g, '_')];
+}
+
 function candidateKeys(...values: unknown[]): string[] {
   const out = new Set<string>();
   for (const value of values) {
     const key = keyOf(value);
     if (!key) continue;
-    out.add(key);
-    out.add(key.replace(/_(storage|storage_units|units|access)$/, ''));
+    for (const variant of conjunctionVariants(key)) {
+      out.add(variant);
+      out.add(variant.replace(/_(storage|storage_units|units|access)$/, ''));
+    }
   }
   return [...out].filter(Boolean);
 }
@@ -115,6 +131,7 @@ function slugFromLocation(): string {
   return branch >= 0 && parts[branch + 1] ? parts[branch + 1].toLowerCase() : '';
 }
 
+/** A comma list, as typed — the same contract as the `propertyIds` prop. */
 function idSet(value: unknown): Set<string> {
   const values = Array.isArray(value) ? value : plainText(value).split(/[\n,|]+/);
   return new Set(values.map((id) => plainText(id).trim()).filter(Boolean));
@@ -231,6 +248,9 @@ export function StorageTypeLocations({
   const resolvedSlug = plainText(storageTypeSlug).trim().toLowerCase() || slugFromLocation();
   const resolvedSubheading = plainText(subheading).trim()
     || 'Available at the following locations.';
+  const resolvedCollection = str(collectionName).trim() || INTERNAL_PROPERTIES_COLLECTION;
+  const resolvedFeatureCollection = str(featureCollectionName).trim() || 'featurePage';
+  const resolvedBasePath = str(locationBasePath).trim() || '/storage-units';
   const explicitEmphasis = plainText(subheadingEmphasis).trim();
   // Figma treats the opening question as a bold lead-in. Preserve the simple
   // one-field authoring path by recognizing that structure automatically,
@@ -265,8 +285,8 @@ export function StorageTypeLocations({
     setResult({ status: 'loading' });
 
     Promise.all([
-      readInternalPropertiesResult(collectionName),
-      readFeatureMapping(featureCollectionName, resolvedSlug),
+      readInternalPropertiesResult(resolvedCollection),
+      readFeatureMapping(resolvedFeatureCollection, resolvedSlug),
     ])
       .then(([read, featureMapping]) => {
         if (cancelled) return;
@@ -330,7 +350,7 @@ export function StorageTypeLocations({
           if (ids.size) return ids.has(str(row.id).trim());
           return amenityNames(row).includes(wanted);
         });
-        const converted = matched.map((row) => toFacility(row, locationBasePath));
+        const converted = matched.map((row) => toFacility(row, resolvedBasePath));
         if (converted.some((facility) => facility === null)) {
           const invalid = matched
             .filter((_, index) => converted[index] === null)
@@ -357,7 +377,7 @@ export function StorageTypeLocations({
       });
 
     return () => { cancelled = true; };
-  }, [resolvedSlug, amenityName, propertyIds, locationBasePath, collectionName, featureCollectionName, inEditor]);
+  }, [resolvedSlug, amenityName, propertyIds, resolvedBasePath, resolvedCollection, resolvedFeatureCollection, inEditor]);
 
   if (result.status === 'loading') return null;
 

@@ -263,7 +263,7 @@
   font: 16px 'Montserrat', sans-serif;
   cursor: pointer;
 }
-.rf-btn--rent { border: none; background: var(--color_2, #509e2f); color: #fff; font-weight: 700; }
+.rf-btn--rent { border: none; background: var(--color_2, #509e2f); color: var(--color_3, #fff); font-weight: 700; }
 .rf-btn--rent:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 88%, black); }
 .rf-btn--reserve { background: #fff; border: 2px solid var(--color_2, #509e2f); color: #101318; font-weight: 600; }
 .rf-btn--reserve:hover { background: #fff6f2; }
@@ -792,6 +792,12 @@
    pitch — a bigger gap would have matched the whitespace but pushed the section
    taller than the design. */
 .rf2-checks { display: flex; flex-direction: column; gap: 4px; }
+/* 1step only, where a tick opens its fields in place. 4px was spacing three
+   bare checkboxes; against an open group it reads as the fields belonging to
+   the tick below them as much as the one above. Keyed on the fields actually
+   being there, so a closed section — and the whole 2step form, which never
+   opens one — keeps the original tight rhythm. */
+.rf2-checks > .rf-sx-group:has(.rf-sx-fields) { margin-block: 12px 20px; }
 
 /* The step-2 checkbox skin that used to live here — 18px near-square box,
    #dfe3e8 outline, near-black fill, solid tick — is now the kit's default
@@ -908,6 +914,109 @@
 .rf2-autopay--withbar .rf2-autopay-bar { border-radius: 0 0 8px 8px; }
 .rf2-autopay-head { display: flex; align-items: center; gap: 8px; }
 
+/* ── Payment Cycle (Figma 12285-189429) ───────────────────────────────────
+   The same white 10px card as the autopay row above it, one step taller
+   because it carries the disclaimer. The label and the three radios share a
+   row that WRAPS: at 703px the frame fits them side by side, and below that
+   the radios drop under the label rather than crushing "Pay Quarterly". */
+.rf2-cycle {
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 18px 28px;
+}
+
+.rf2-cycle-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  /* 20, not the frame's ~36. The frame draws this card 703px wide and the
+     panel gives it about 612, so the gutters are where that difference has to
+     come from — at the frame's spacing the three radios missed the first row
+     by three pixels. They still wrap below this, see the note above. */
+  gap: 16px 20px;
+}
+
+.rf2-cycle-head { display: flex; align-items: center; gap: 8px; }
+.rf2-cycle-head img { display: block; flex: none; }
+
+.rf2-cycle-title {
+  color: var(--hb-text-night, #101318);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.rf2-cycle-info { color: var(--hb-text-night, #101318); flex-shrink: 0; }
+
+.rf2-cycle-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; }
+
+.rf2-cycle-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+/* The real control, hidden but still focusable and still the thing arrow keys
+   move between — the ring below is drawn for it. */
+.rf2-cycle-opt input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* 18px outer, 2px #C4CDD5 ring, black 10px centre when chosen — the frame's
+   own circles (r=8 stroke 2, r=5 fill). */
+.rf2-cycle-radio {
+  box-sizing: border-box;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #c4cdd5;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.rf2-cycle-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.rf2-cycle-opt input:checked + .rf2-cycle-radio .rf2-cycle-dot { background: #000; }
+.rf2-cycle-opt input:focus-visible + .rf2-cycle-radio { box-shadow: var(--hb-focus-ring); }
+
+/* Label over saving, 14px on a 14px line in the frame — tight enough that the
+   two read as one item rather than two rows. */
+.rf2-cycle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #000;
+  font-size: 14px;
+  line-height: 14px;
+}
+
+/* Unused while no endpoint carries a per-period discount - see PAYMENT_CYCLES
+   in Step2.tsx. Kept so restoring the badge is a render change, not a redesign. */
+.rf2-cycle-save { font-weight: 600; }
+
+.rf2-cycle-disclaimer {
+  margin: 14px 0 0;
+  color: var(--hb-grayscale-medium, #637381);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.rf2-cycle-disclaimer-lead { font-weight: 600; }
+
 /* The blue notices. Two of them, and the difference is structural rather than
    decorative: --bar is ATTACHED inside the checkbox's box and argues for the
    choice being made there; --note is a box of its own and states a fact about
@@ -973,6 +1082,35 @@
 /* ── Autopay tooltip (Figma 8509-34934) ─────────────────────────────────── */
 /* The anchor is the ICON's box, so the tooltip can be placed against the icon's
    centre rather than the row. inline-flex keeps it from adding line-box height. */
+/* ── Nokē Key-Share (Figma 12285-189422) ──────────────────────────────────
+   The section borrows .rf2-panel / .rf2-rowhead / .rf2-plan wholesale — the
+   frame is the protection plan's control with different words in it. These
+   are the only two things that differ. */
+
+/* "Included" where the plan shows a price: 20px semibold, not the plan's
+   bold-number-plus-small-suffix pair. */
+.rf2-ks-price {
+  flex: none;
+  color: var(--hb-text-night, #101318);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+/* The key-share card carries a paragraph where the autopay tip carries one
+   line, so it gets the frame's wider column (244px of text inside 23px
+   padding) rather than .rf2-tip's 176px. */
+/* Doubled selector so it wins wherever it sits in the file — the base
+   .rf2-tip is declared further down, and at equal specificity source order
+   decided, which left this rule doing nothing. */
+.rf2-tip.rf2-tip--wide {
+  width: 290px;
+  padding: 19px 23px;
+  line-height: 18px;
+  border-radius: 16px;
+}
+
 .rf2-tip-anchor {
   position: relative;
   display: inline-flex;
@@ -1635,6 +1773,98 @@
 .rfc-code-label { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; color: #101318; }
 .rfc-code { font-size: 30px; font-weight: 600; color: #101318; word-break: break-word; line-height: 1.1; }
 .rfc-code-note { font-size: 13px; color: #637381; }
+/* ── Smart Entry card (Figma 8507-24845) ──────────────────────────────────
+   The dashed card's upper half when gateCodeType is smartentrysystem: the two
+   store badges, then the app PIN. The grey wallet strip below is the shared
+   .rfc-wallet, unchanged. */
+.rfc-smart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 20px 20px;
+  text-align: center;
+}
+
+.rfc-smart-title { font-size: 16px; font-weight: 600; color: #101318; }
+
+/* The frame sets the pair 9px apart and lets them shrink together on a narrow
+   card rather than wrapping — two half-width badges read as a pair, one badge
+   per line reads as two choices. */
+.rfc-smart-stores {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  width: 100%;
+  max-width: 267px;
+}
+
+/* The badge. Black pill, hairline border and 6px radius are the artwork's
+   own, per Figma 8509-36325 / 36359. */
+.rfc-store {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 43px;
+  padding: 0 9px;
+  background: #000;
+  border: 1px solid #a6a6a6;
+  border-radius: 6px;
+  text-decoration: none;
+  /* NOT the page's Montserrat: the real badges are SF Compact and Product
+     Sans, and this stack lands on SF for Apple and Roboto for Android. */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.rfc-store-glyph { flex: none; display: block; }
+
+.rfc-store-txt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  color: #fff;
+  line-height: 1;
+}
+
+/* NOWRAP on both lines. The badge shrinks with the card, but its type does
+   not, and "App Store" wrapping to a second line spilled straight out of the
+   pill. The badge shrinks as a unit instead — see the mobile block. */
+.rfc-store-sm { font-size: 9px; white-space: nowrap; }
+/* Google's line is uppercase and a shade larger than Apple's. */
+.rfc-store-sm--play { font-size: 10px; text-transform: uppercase; }
+.rfc-store-lg { font-size: 18px; letter-spacing: -0.47px; white-space: nowrap; }
+/* The wordmark is vector, so it stays crisp; width:100% lets it shrink with
+   the badge instead of forcing the grid track wider.
+   FLIPPED because the export is: Figma draws this node inside a -scale-y-100
+   wrapper, so the asset's own orientation is upside down and "Google Play"
+   renders mirrored without this. */
+.rfc-store-word {
+  display: block;
+  width: 100%;
+  max-width: 74px;
+  height: auto;
+  transform: scaleY(-1);
+}
+
+/* The whole badge a size down on a phone, where the card is ~294px and two
+   129px badges plus their gap will not fit. Everything shrinks together —
+   glyph, both type sizes and the wordmark — so the artwork keeps its
+   proportions instead of the text bursting out of the pill. */
+@media (max-width: 767px) {
+  .rfc-store { height: 38px; padding: 0 7px; gap: 6px; }
+  .rfc-store-glyph { width: 17px; height: 20px; }
+  .rfc-store-sm { font-size: 8px; }
+  .rfc-store-sm--play { font-size: 8.5px; }
+  .rfc-store-lg { font-size: 15px; }
+  .rfc-store-word { max-width: 62px; }
+  .rfc-smart-stores { gap: 8px; }
+}
+
 /* Wallet strip (grey, Figma #DFE3E8) — badges shown even before pass URLs exist. */
 /* Figma 8754-50340: the #DFE3E8 band runs the full width of the card, with the
    title 19px down, the badge row 12px under it and 24px of clearance below. */

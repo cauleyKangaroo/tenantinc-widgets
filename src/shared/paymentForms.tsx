@@ -31,6 +31,7 @@ import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { CUSTOMER_ADDRESS_COUNTRIES } from '@shared/placesApi';
 import { mountHostedCard, type HostedCardHandle } from '@shared/gpHostedFields';
 import './paymentForms.css';
+import { skipValidation } from '@shared/devBypass';
 
 /* The two glyphs these forms need, inline for the same reason every other
    widget inlines its icons: the AMD bundle cannot load remote assets. Traced
@@ -297,10 +298,14 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
   /* Every required field, in one place, so the button and the errors below can
      never disagree about what "complete" means. The account PAIR counts, not
      the account alone — see accountsMatch. */
-  const complete = filled(first) && filled(last) && filled(accountType)
+  /* `skipValidation()` is the dev harness's bypass and is compiled OUT of any
+     production build — see @shared/devBypass. It short-circuits here, which
+     is the one place that decides, so the button and the error banner cannot
+     disagree about it either. */
+  const complete = skipValidation() || (filled(first) && filled(last) && filled(accountType)
     && validRouting(routing) && accountsMatch
     && filled(country) && filled(address) && filled(city)
-    && stateCode.trim().length === 2 && zip.trim().length >= 3;
+    && stateCode.trim().length === 2 && zip.trim().length >= 3);
 
   /* The same banner the card panel has. Without it the button LOOKED DEAD:
      an incomplete form only set payAttempted, which revealed City/State/ZIP
@@ -708,10 +713,12 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
      let someone pay without ever choosing one — a required field that does not
      gate is just a decoration. The banner below names Billing Information,
      which is where the select now sits. */
-  const complete = cardRowValid && filled(name) && zip.trim().length >= 3 && filled(country)
+  /* Same harness bypass as the bank form, and gone from production the same
+     way — see @shared/devBypass. */
+  const complete = skipValidation() || (cardRowValid && filled(name) && zip.trim().length >= 3 && filled(country)
     // Only demanded where they are asked for. Requiring a street the panel
     // never rendered would be a dead button with nothing to fix.
-    && (zipOnlyBilling || (filled(address) && filled(city) && stateCode.trim().length === 2));
+    && (zipOnlyBilling || (filled(address) && filled(city) && stateCode.trim().length === 2)));
 
   /* ONE banner, whichever went wrong, shown under the "Credit / Debit" head
      rather than down beside the pay button (Figma 12029-93132). A shopper who

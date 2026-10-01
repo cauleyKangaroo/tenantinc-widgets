@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './UtilityBar.css';
 import { CloseCircleIcon } from '@shared/ui/icons';
+import { bool } from '@shared/dudaCollections';
+import { boundText } from '@shared/propertyBinding';
 import { InfoIcon, CloseIcon } from './icons';
 
 // ---------------------------------------------------------------------------
@@ -63,6 +65,32 @@ function clearFlag(): void {
   }
 }
 
+/**
+ * The URL out of Duda's Link content-menu field.
+ *
+ * Duda hands a Link back as a plain string on some field types and as an
+ * object wrapping one on others, so both are accepted rather than guessing
+ * which this site will send. `boundText` strains out the values that mean
+ * "not set" — an unsubstituted {{token}}, "[object Object]", the literal
+ * "undefined" — so a half-configured field yields '' and not a broken href.
+ */
+function linkHref(v: unknown): string {
+  if (typeof v === 'string') return boundText(v);
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return boundText(o.url ?? o.href ?? o.link ?? '');
+  }
+  return '';
+}
+
+/** Whether that Link asked to open in a new tab, under any of its spellings. */
+function linkNewTab(v: unknown): boolean {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  if (String(o.target ?? '') === '_blank') return true;
+  return bool(o.newWindow ?? o.new_window ?? o.openInNewTab, false);
+}
+
 function msToHMS(ms: number): string {
   if (ms <= 0) return '0s';
   const total = Math.floor(ms / 1000);
@@ -99,6 +127,21 @@ export interface UtilityBarProps {
    * a dark box floating off the bar, not part of it.
    */
   textColour?: string;
+  /**
+   * The Duda content menu's CHECKBOX (`data.config.showButton`). Typed loosely
+   * on purpose: a Duda checkbox can arrive as a real boolean or as the strings
+   * 'true'/'false', and 'false' is truthy — so it goes through `bool()` rather
+   * than being tested for truthiness, which would switch the button on for
+   * every editor who turned it off.
+   */
+  showButton?: boolean | string;
+  /** Button label (`data.config.buttonText`). Blank falls back. */
+  buttonText?: string;
+  /**
+   * Where the button goes (`data.config.buttonLink`). A Duda Link field is
+   * either the URL itself or an object around it; `linkHref` takes both.
+   */
+  buttonLink?: string | Record<string, unknown>;
   inEditor?: boolean;
 }
 
@@ -112,6 +155,9 @@ export function UtilityBar({
   dismissDurationHours = 24,
   utilitybarColour,
   textColour,
+  showButton,
+  buttonText,
+  buttonLink,
   inEditor = false,
 }: UtilityBarProps) {
   /* Normalised, not trusted: Duda sends whatever the radio's value column
@@ -276,6 +322,27 @@ export function UtilityBar({
       </button>
     ));
 
+  /* THE CTA. `bool()` because a Duda checkbox can send the string 'false'.
+     The label falls back rather than rendering an empty pill, since an editor
+     who ticks the box before typing has still asked for a button. */
+  const ctaHref = linkHref(buttonLink);
+  const cta = bool(showButton) && (
+    <a
+      /* #utility-bar-cta is the hook to style this in Duda — see the note in
+         the stylesheet. The class is what this widget's own CSS uses. */
+      id="utility-bar-cta"
+      className="ub-cta"
+      /* No href until there IS one, rather than manufacturing a link to
+         nowhere: the button still shows the moment the box is ticked, so the
+         toggle visibly works while the link is still being pasted in. */
+      href={ctaHref || undefined}
+      target={ctaHref && linkNewTab(buttonLink) ? '_blank' : undefined}
+      rel={ctaHref && linkNewTab(buttonLink) ? 'noopener noreferrer' : undefined}
+    >
+      {boundText(buttonText) || 'Learn More'}
+    </a>
+  );
+
   // Rendered even when empty — the effect above needs a node to walk up from,
   // and .ub-wrapper--empty keeps it out of the layout in the meantime.
   return (
@@ -287,6 +354,7 @@ export function UtilityBar({
             <div className="ub-message-wrap">
               <span className="ub-message">{message}</span>
               {info}
+              {cta}
             </div>
             <div className="ub-close-wrap">
               {showClose && (

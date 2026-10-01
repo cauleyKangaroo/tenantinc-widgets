@@ -85,24 +85,6 @@ function slugFromLocation(): string {
 /** The related row is a carousel below this width and a static row above it. */
 const NARROW_BP = '(max-width: 768px)';
 
-/**
- * Temporary design artwork for a type with no amenity image yet.
- *
- * Referenced by URL, NOT imported: webpack's image rule is `asset/inline`, so
- * an import base64s the file into the bundle — three of these took #21 from
- * 168KB to 629KB, downloaded and parsed as JavaScript on every page. By URL
- * they are cached, lazy-loadable, and cost the bundle nothing.
- *
- * Served from the same folder as the bundle so the two move together.
- */
-const FALLBACK_IMAGE_BASE =
-  'https://raymond-tenantinc-widgets-test.s3.us-west-2.amazonaws.com/tenantinc-widgets/dist/storagetypes/assets';
-const FIGMA_CARD_FALLBACKS = [
-  `${FALLBACK_IMAGE_BASE}/figma-card-1.jpg`,
-  `${FALLBACK_IMAGE_BASE}/figma-card-2.jpg`,
-  `${FALLBACK_IMAGE_BASE}/figma-card-3.jpg`,
-] as const;
-
 function useIsNarrow(): boolean {
   const [narrow, setNarrow] = useState(
     () => typeof window !== 'undefined' && !!window.matchMedia?.(NARROW_BP).matches,
@@ -124,14 +106,14 @@ function useIsNarrow(): boolean {
 }
 
 /** Cards are the same in both layouts; only their container differs. */
-function Card({ type, position }: { type: StorageType; position: number }) {
-  // Temporary design artwork while a storage type has no amenity image.
-  // Collection data remains authoritative whenever it is available.
-  const image = type.image || FIGMA_CARD_FALLBACKS[position % FIGMA_CARD_FALLBACKS.length];
+function Card({ type }: { type: StorageType }) {
+  // A type with no amenity image gets a drawn gradient rather than a hosted
+  // placeholder — nothing to own, nothing to 404. See .st-card-media--empty.
+  const image = type.image;
   return (
     <a className="st-card" href={type.href}>
-      <div className="st-card-media">
-        <img className="st-card-img" src={image} alt={type.imageAlt} loading="lazy" />
+      <div className={`st-card-media${image ? '' : ' st-card-media--empty'}`}>
+        {image ? <img className="st-card-img" src={image} alt={type.imageAlt} loading="lazy" /> : null}
       </div>
       <div className="st-card-body">
         <h3 className="st-card-title">{type.title}</h3>
@@ -203,17 +185,29 @@ export function StorageTypes({
       return;
     }
 
-    fetchStorageTypes(tag, {
-      route: resolvedRoute,
-      collectionName: resolvedCollection,
-      internalCollectionName: resolvedInternalCollection,
-      excludeSlug: isRelated ? resolvedCurrentSlug : '',
-      skipHidden: boolProp(skipHiddenPages),
-    })
+    const show = (rows: StorageType[]) => setTypes(isRelated ? rows.slice(0, perView) : rows);
+
+    fetchStorageTypes(
+      tag,
+      {
+        route: resolvedRoute,
+        collectionName: resolvedCollection,
+        internalCollectionName: resolvedInternalCollection,
+        excludeSlug: isRelated ? resolvedCurrentSlug : '',
+        skipHidden: boolProp(skipHiddenPages),
+      },
+      // Optional copy/artwork is taking too long. Show the real cards now and
+      // let the enrichment upgrade them rather than hold the page blank.
+      (partial) => {
+        if (cancelled) return;
+        console.warn(`${tag} rendering without featurePage copy or amenity artwork — the optional reads are slow`);
+        show(partial);
+      },
+    )
       .then((rows) => {
         if (cancelled) return;
         if (!rows.length) console.warn(`${tag} no pages under "${resolvedRoute}"`);
-        setTypes(isRelated ? rows.slice(0, perView) : rows);
+        show(rows);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -257,7 +251,9 @@ export function StorageTypes({
           <p className="st-index-subheading">{resolvedIndexSubheading}</p>
         </header>
         <div className="st-grid">
-          {list.map((t, index) => <Card type={t} position={index} key={t.slug} />)}
+          {list.map((t) => (
+            <Card type={t} key={t.slug} />
+          ))}
         </div>
       </section>
     );
@@ -272,10 +268,38 @@ export function StorageTypes({
     <section className="st st--related">
       <h2 className="st-heading"><StorageTypesMark /><span>{title}</span></h2>
       <div className="st-track">
-        <div className="st-rail" style={railStyle} {...carousel.handlers}>
-          {list.map((t, index) => (
-            <div className="st-slide" key={t.slug}><Card type={t} position={index} /></div>
-          ))}
+        <div
+          className="st-rail"
+          style={railStyle}
+          {...carousel.handlers}
+          // A drag ends in a click on whichever card is under the finger, which
+          // would open that type's page. Swallow it at the capture phase, before
+          // the card's own link sees it. Same guard as #12's carousel.
+          onClickCapture={(e) => {
+            if (carousel.didDrag.current) {
+              carousel.didDrag.current = false;
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+        >
+          {list.map((t, index) => {
+            // Clipped slides keep their links focusable, so tabbing would walk
+            // into a card nobody can see. `inert` removes them from the tab
+            // order and the accessibility tree; aria-hidden covers browsers
+            // that don't support it yet.
+            const visible = index >= carousel.index && index < carousel.index + perViewNow;
+            return (
+              <div
+                className="st-slide"
+                key={t.slug}
+                {...(visible ? {} : { inert: '' as unknown as boolean })}
+                aria-hidden={visible ? undefined : true}
+              >
+                <Card type={t} />
+              </div>
+            );
+          })}
         </div>
       </div>
       {carousel.maxIndex > 0 ? (

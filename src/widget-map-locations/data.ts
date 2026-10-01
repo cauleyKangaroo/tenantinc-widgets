@@ -60,7 +60,10 @@ export interface CityFacility {
 
 const UNITS: CityUnit[] = [
   { id: 'u1', dimensions: '5’ x 5’',   subtype: 'Climate Controlled', inStorePrice: 55,  startingPrice: 25 },
-  { id: 'u2', dimensions: '10’ x 10’', subtype: 'Drive Up',           inStorePrice: 174, startingPrice: 140 },
+  /* One demo unit carries a promotion so the harness shows BOTH states of the
+     tag — the live data has it per tier, and without this every demo row would
+     be tagless and the feature would look broken rather than working. */
+  { id: 'u2', dimensions: '10’ x 10’', subtype: 'Drive Up',           inStorePrice: 174, startingPrice: 140, promo: 'Short Promotion Title' },
   { id: 'u3', dimensions: '10’ x 12’', subtype: 'Drive Up',           inStorePrice: 580, startingPrice: 450 },
 ];
 

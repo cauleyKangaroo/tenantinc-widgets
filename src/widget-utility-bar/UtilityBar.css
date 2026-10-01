@@ -96,6 +96,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Wraps so the button drops under a long message rather than squeezing it;
+     with nothing to wrap this changes nothing. */
+  flex-wrap: wrap;
   gap: 12px;
   min-width: 0;
 }
@@ -107,6 +110,43 @@
   font-weight: 700;
   line-height: 1.4;
 }
+
+/* ── CTA button (Duda content menu: showButton / buttonText / buttonLink) ──
+   STYLE IT IN DUDA WITH  #utility-bar-cta  — that id exists for exactly that,
+   and nothing here depends on how it ends up looking.
+
+   The default is deliberately plain and drawn in `currentColor`, the same
+   trick .ub-close uses: it inherits whichever colour textColour set, so one
+   rule reads correctly on all three bar tones and both text tones instead of
+   six combinations that would each need overriding again. */
+.ub-cta {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 16px;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+/* Follows the message, the same way the info and close marks do. */
+.ub-bar--text-black .ub-cta { color: #101318; }
+
+/* Opacity rather than a colour swap: the fill would have to be the bar's own
+   colour to keep the label readable, and that is three more rules for a
+   default the site is expected to restyle anyway. */
+.ub-cta:hover { opacity: 0.8; }
+.ub-cta:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
 /* ── Info icon + tooltip ────────────────────────────────────────────────── */
 

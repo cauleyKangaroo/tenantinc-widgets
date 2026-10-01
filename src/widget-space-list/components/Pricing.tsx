@@ -4,6 +4,7 @@ import { isUnavailable } from '../filters';
 import { withLineBreaks } from '@shared/lineBreaks';
 import { emitOpenTiers } from '@shared/tierBus';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
+import { instoreFrom, type InstoreMode } from '@shared/instorePrice';
 import cfg from '../config.json';
 
 // Prices round DOWN to whole dollars: 145.20 → $145.00, 147.99 → $147.00. The
@@ -46,10 +47,44 @@ export function urgencyMessage(unit: Unit, config: WidgetConfig): string | null 
  * so an instance that never fills the field in keeps its current numbers.
  */
 export function instorePrice(unit: Unit, config: WidgetConfig): number {
-  const amount = config.instorePriceAmount;
-  if (!amount) return unit.inStorePrice;
-  if (config.instorePriceMode === 'additionOfWeb') return unit.startingPrice + amount;
-  return unit.startingPrice * (1 + amount / 100);
+  // The formula itself lives in @shared/instorePrice — the tier popup and the
+  // rental rail apply the SAME one to their own price, so all three surfaces
+  // quote one saving for a unit. The API fallback stays here: it is this
+  // card's historical behaviour and only this card's.
+  return instoreFrom(unit.startingPrice, config.instorePriceMode, config.instorePriceAmount)
+    ?? unit.inStorePrice;
+}
+
+/**
+ * The in-store settings to hand onward with a selection, or undefined when
+ * this card is not showing an in-store price at all.
+ *
+ * Gated on the SAME condition as the card (`showInstore` below), so the rule
+ * travels with the numbers: an operator who turns the column off here, or
+ * switches promo logic on, turns it off on the tier popup and the rental rail
+ * too rather than leaving them quoting a strike this page no longer shows.
+ */
+/** Write the in-store rule onto a handoff URL. Nothing configured ⇒ nothing
+ *  written, so the receiver shows a single price exactly as it does today. */
+export function setInstoreParams(
+  p: URLSearchParams,
+  instore?: { mode?: InstoreMode; amount: number; label: string },
+): void {
+  if (!instore) return;
+  if (instore.mode) p.set('instoreMode', instore.mode);
+  p.set('instoreAmount', String(instore.amount));
+  if (instore.label) p.set('instoreLabel', instore.label);
+}
+
+export function instoreHandoff(config: WidgetConfig):
+  { mode: InstoreMode | undefined; amount: number; label: string } | undefined {
+  if (!config.showInstorePrice || config.enablePromoLogic) return undefined;
+  if (!config.instorePriceAmount) return undefined;
+  return {
+    mode: config.instorePriceMode,
+    amount: config.instorePriceAmount,
+    label: config.instorePriceLabel,
+  };
 }
 
 /** Labels used by the promo-logic pair. Lift these into the content menu if the
@@ -235,6 +270,7 @@ export function CtaButton({ unit, config, full, colClass }: {
   const note = unavailable ? config.limitedAvailabilityCopy : urgencyMessage(unit, config);
 
   const [tiersError, setTiersError] = useState(false);
+  const instore = instoreHandoff(config);
   function openValueTiers() {
     const handled = emitOpenTiers({
       size: unit.dimensions,
@@ -248,6 +284,13 @@ export function CtaButton({ unit, config, full, colClass }: {
       showPricingDetails: config.showJunkFeeDisclaimer,
       showUrgency: config.showUrgencyMessage,
       enablePromoLogic: config.enablePromoLogic,
+      // The struck-through IN-STORE rate is the operator's own figure, not the
+      // API's, so it only exists on this widget. Send the RULE, not the number:
+      // the popup and the rail apply it to the price they are actually showing,
+      // which is a different tier's once the shopper picks Better or Best.
+      instoreMode: instore?.mode,
+      instoreAmount: instore?.amount,
+      instoreLabel: instore?.label,
     });
     if (handled) return;
     if (config.valueTiersPageUrl) {
@@ -261,6 +304,7 @@ export function CtaButton({ unit, config, full, colClass }: {
           // the same unit group (critical on dynamic property pages).
           if (config.propertyId) url.searchParams.set('propertyId', config.propertyId);
           if (config.companyId) url.searchParams.set('companyId', config.companyId);
+          setInstoreParams(url.searchParams, instore);
           // Duda's dmAPI (page global) tells us the environment. On 'live' route on
           // the real origin; in editor/preview keep it relative so Duda's preview
           // routing handles it. dmAPI is absent off-platform (e.g. dev harness).
@@ -287,6 +331,7 @@ export function CtaButton({ unit, config, full, colClass }: {
     if (unit.unitGroupId) p.set('unitGroupId', unit.unitGroupId);
     if (config.propertyId) p.set('propertyId', config.propertyId);
     if (config.companyId) p.set('companyId', config.companyId);
+    setInstoreParams(p, instore);
     return `${config.valueTiersPageUrl}?${p.toString()}`;
   })();
 
@@ -327,6 +372,11 @@ export function CtaButton({ unit, config, full, colClass }: {
             price: unit.startingPrice,
             propertyId: config.propertyId || cfg.propertyId || undefined,
             companyId: config.companyId || undefined,
+            // So a Select that skips the tier popup still reaches the rail with
+            // the strike this card is showing.
+            instoreMode: instore?.mode,
+            instoreAmount: instore?.amount,
+            instoreLabel: instore?.label,
           })}
         >
           {config.ctaButtonCopy}

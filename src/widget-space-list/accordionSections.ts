@@ -9,7 +9,7 @@
 
 import type { SpaceListProps } from './types';
 
-export type AccordionKey = 'store' | 'nearby' | 'reviews' | 'faq' | 'blog' | 'localblog' | 'sizeguide' | 'notes' | 'features' | 'highlights' | 'about';
+export type AccordionKey = 'store' | 'nearby' | 'reviews' | 'faq' | 'localblog' | 'sizeguide' | 'notes' | 'features' | 'highlights' | 'about';
 
 export interface AccordionSectionMeta {
   key: AccordionKey;
@@ -29,8 +29,11 @@ export const ACCORDION_SECTIONS: AccordionSectionMeta[] = [
   // feature links that turn the page into a single-feature landing page.
   { key: 'highlights', label: 'Feature Highlights',    enabledBy: 'isFeatureHighlights' },
   { key: 'faq',       label: 'FAQ',                    enabledBy: 'isFAQ' },
-  { key: 'blog',      label: 'Storage Blogs',          enabledBy: 'isBlog' },
-  // Same collection as 'blog', filtered to the posts tagged for this property.
+  /* 'Storage Blogs' used to sit here — the whole BlogPosts collection, beside
+     the same collection filtered to this property. Two blog sections in one
+     sidebar was one too many, so only the local one remains. A saved config
+     still naming 'blog' is harmless: resolveVisibleOrder keeps only keys that
+     are enabled, and there is no longer a section to enable. */
   { key: 'localblog', label: 'Local Blogs',            enabledBy: 'isLocalBlog' },
   { key: 'sizeguide', label: 'Size Guide',             enabledBy: 'isSizeGuide' },
   { key: 'notes',     label: 'Notes',                  enabledBy: 'isNotes' },

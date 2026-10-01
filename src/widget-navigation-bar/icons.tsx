@@ -113,6 +113,25 @@ export function UsFlagIcon({ width = 20, height = 14 }: { width?: number; height
   );
 }
 
+/**
+ * Simplified Spanish flag, drawn to the same recipe as the US one above — same
+ * 20x14 box, same 1.5 corner radius — so the two sit level in the menu and
+ * neither looks like a different size of artwork.
+ *
+ * Bands are the flag's own 1:2:1 proportions. The coat of arms is deliberately
+ * omitted: at 20px wide it would be three or four muddy pixels, and every other
+ * flag mark in this bar is simplified the same way.
+ */
+export function EsFlagIcon({ width = 20, height = 14 }: { width?: number; height?: number }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 20 14" fill="none" aria-hidden="true">
+      <rect width="20" height="14" rx="1.5" fill="#F1BF00" />
+      <path d="M1.5 0h17A1.5 1.5 0 0 1 20 1.5V3.5H0V1.5A1.5 1.5 0 0 1 1.5 0Z" fill="#AA151B" />
+      <path d="M0 10.5h20v2A1.5 1.5 0 0 1 18.5 14h-17A1.5 1.5 0 0 1 0 12.5v-2Z" fill="#AA151B" />
+    </svg>
+  );
+}
+
 // ===========================================================================
 // Storage Types dropdown icons — traced from the Figma SVG vectors (16x16,
 // fills swapped to currentColor so they inherit the row's text colour).

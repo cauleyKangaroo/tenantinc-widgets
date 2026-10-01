@@ -59,6 +59,18 @@ export interface MyAccountProps {
   userName?: string;
   /** Shown opposite the greeting: "You're logged in as {email}". */
   userEmail?: string;
+  /**
+   * Where "Log out" goes — the site's sign-out or login page, as a
+   * content-panel URL.
+   *
+   * There is no session to end here: this widget is entirely static and has no
+   * account API (see data.ts), so logging out can only mean "send them
+   * somewhere that does". Unset, the button still renders but does nothing,
+   * which is the same shape as the promo card's CTA above it — the frame draws
+   * a control, so a control is drawn, and it becomes live the moment an editor
+   * supplies the URL.
+   */
+  logOutUrl?: string;
   /** Content-panel overrides for the promo card. Blank falls back. */
   promoTitle?: string;
   promoBody?: string;
@@ -81,6 +93,7 @@ const orElse = (v: string | undefined, fallback: string) => (v?.trim() ? v.trim(
 export function MyAccount({
   userName,
   userEmail,
+  logOutUrl,
   promoTitle,
   promoBody,
   promoCta,
@@ -128,7 +141,15 @@ export function MyAccount({
     <div className="ma-wrapper">
       <div className="ma-grid">
         <h1 className="ma-greeting">Hi {name},</h1>
-        <p className="ma-logged-in">You’re logged in as {email}</p>
+        {/* The line and its Log out control are one flex row, so the button
+            sits with the sentence it belongs to and wraps under it rather than
+            being squeezed when the email is long. */}
+        <div className="ma-logged-in">
+          <span className="ma-logged-in__text">You’re logged in as {email}</span>
+          {logOutUrl
+            ? <Button tone="dark" fill="outline" href={logOutUrl} className="ma-btn-40">Log out</Button>
+            : <Button tone="dark" fill="outline" className="ma-btn-40">Log out</Button>}
+        </div>
 
         <div className="ma-main">
           <section className="ma-promo">
@@ -152,6 +173,7 @@ export function MyAccount({
             <MakePaymentPanel
               spaces={outstanding.length ? outstanding : [space]}
               space={space}
+              onBack={() => setView('account')}
             />
           )}
           {view === 'edit' && (

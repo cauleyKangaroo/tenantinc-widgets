@@ -48,14 +48,25 @@ function keyOf(value: unknown): string {
     .replace(/^_+|_+$/g, '');
 }
 
+/**
+ * `&` and "and" are the same conjunction spelled two ways: `keyOf` collapses
+ * `Boat & RV Wash Bay` to `boat_rv_wash_bay`, while the page URL spells it out
+ * as `boat-and-rv-wash-bay`. Emit both so a name and its slug can meet.
+ */
+function conjunctionVariants(key: string): string[] {
+  return [key, key.replace(/_and_/g, '_')];
+}
+
 /** Generic marketing suffixes are not part of the amenity identity. */
 function candidateKeys(...values: unknown[]): string[] {
   const out = new Set<string>();
   for (const value of values) {
     const key = keyOf(value);
     if (!key) continue;
-    out.add(key);
-    out.add(key.replace(/_(storage|storage_units|units|access)$/, ''));
+    for (const variant of conjunctionVariants(key)) {
+      out.add(variant);
+      out.add(variant.replace(/_(storage|storage_units|units|access)$/, ''));
+    }
   }
   return [...out].filter(Boolean);
 }
@@ -129,6 +140,24 @@ export interface StorageTypesQuery {
   skipHidden?: boolean;
 }
 
+/**
+ * How long the optional enrichment gets before the page tree renders alone.
+ *
+ * The two enrichment reads are bounded by TIMEOUTS.collection (8s), and both
+ * are OPTIONAL — the page tree already carries every title, URL and order the
+ * cards need. Waiting on them left `/storage-types/` completely blank for up to
+ * that full budget, which reads as a broken page rather than a slow one.
+ *
+ * A grace period rather than an unconditional two-stage render: enrichment
+ * normally resolves in well under this, so the usual path still paints once,
+ * fully populated, with no flash of placeholder copy. Only a genuinely slow or
+ * missing collection falls back to showing the real cards first and upgrading
+ * them when it lands.
+ */
+const ENRICHMENT_GRACE_MS = 600;
+
+type Enrichment = [Map<string, FeatureCopy>, Map<string, string>];
+
 export async function fetchStorageTypes(
   widgetTag: string,
   {
@@ -138,12 +167,12 @@ export async function fetchStorageTypes(
     excludeSlug = '',
     skipHidden = false,
   }: StorageTypesQuery,
+  /** Called with un-enriched cards if the optional reads outrun the grace. */
+  onPartial?: (rows: StorageType[]) => void,
 ): Promise<StorageType[]> {
-  const [pages, copy, amenityImages] = await Promise.all([
-    readSitePages(widgetTag),
-    readFeatureCopy(collectionName),
-    readAmenityImages(internalCollectionName),
-  ]);
+  // Authoritative, and awaited on its own: which types exist cannot be answered
+  // without it, and everything below is enrichment.
+  const pages = await readSitePages(widgetTag);
 
   const branches = parseRoutes(route)
     .map((r) => findSitePage(pages, r))
@@ -151,32 +180,47 @@ export async function fetchStorageTypes(
   if (!branches.length) return [];
 
   const exclude = plainText(excludeSlug).trim().toLowerCase();
-  const seen = new Set<string>();
-  const out: StorageType[] = [];
 
-  for (const branch of branches) {
-    for (const page of descendantPages(branch, { skipHidden })) {
-      const slug = slugOf(page.path);
-      if (!slug || slug === exclude || seen.has(slug)) continue;
-      seen.add(slug);
+  const build = (copy: Map<string, FeatureCopy>, amenityImages: Map<string, string>): StorageType[] => {
+    const seen = new Set<string>();
+    const out: StorageType[] = [];
+    for (const branch of branches) {
+      for (const page of descendantPages(branch, { skipHidden })) {
+        const slug = slugOf(page.path);
+        if (!slug || slug === exclude || seen.has(slug)) continue;
+        seen.add(slug);
 
-      const pageKeys = candidateKeys(slug, page.title);
-      const authored = firstMatch(copy, pageKeys);
-      const imageKeys = candidateKeys(authored?.amenityName, slug, page.title);
-      const image = firstMatch(amenityImages, imageKeys) ?? '';
+        const pageKeys = candidateKeys(slug, page.title);
+        const authored = firstMatch(copy, pageKeys);
+        const imageKeys = candidateKeys(authored?.amenityName, slug, page.title);
+        const image = firstMatch(amenityImages, imageKeys) ?? '';
 
-      out.push({
-        slug,
-        title: page.title,
-        href: page.path,
-        abstract: authored?.description || DEFAULT_STORAGE_TYPE_ABSTRACT,
-        image,
-        imageAlt: page.title,
-      });
+        out.push({
+          slug,
+          title: page.title,
+          href: page.path,
+          abstract: authored?.description || DEFAULT_STORAGE_TYPE_ABSTRACT,
+          image,
+          imageAlt: page.title,
+        });
+      }
     }
+    // The page tree is the single ordering source, so index, nav and related
+    // rows cannot drift into three independently curated sequences.
+    return out;
+  };
+
+  const enrichment: Promise<Enrichment> = Promise.all([
+    readFeatureCopy(collectionName),
+    readAmenityImages(internalCollectionName),
+  ]);
+
+  if (onPartial) {
+    const grace = new Promise<null>((resolve) => { setTimeout(() => resolve(null), ENRICHMENT_GRACE_MS); });
+    const settled = await Promise.race([enrichment, grace]);
+    if (settled === null) onPartial(build(new Map(), new Map()));
   }
 
-  // The page tree is the single ordering source, so index, nav and related rows
-  // cannot drift into three independently curated sequences.
-  return out;
+  const [copy, amenityImages] = await enrichment;
+  return build(copy, amenityImages);
 }

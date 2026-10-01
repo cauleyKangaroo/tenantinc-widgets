@@ -3,6 +3,7 @@ import './AccountLogin.css';
 import { CheckTick, CaretDown } from './icons';
 import { hasCollectionsApi, logSource, str } from '@shared/dudaCollections';
 import { readPropertiesFromCollection, PROPERTIES_COLLECTION } from '@shared/propertiesSource';
+import { skipValidation } from '@shared/devBypass';
 
 // ===========================================================================
 // Widget #17 — Account Login
@@ -376,7 +377,8 @@ export function AccountLogin({
       setIdentifyError('Select a storage property to continue.');
       return;
     }
-    if (!identifierValid) {
+    /* Harness bypass, compiled out of production builds — @shared/devBypass. */
+    if (!skipValidation() && !identifierValid) {
       setIdentifyError(
         kind === 'email' ? 'Enter a valid email address.' : 'Enter a valid 10-digit mobile number.',
       );
@@ -472,7 +474,7 @@ export function AccountLogin({
           <button
             type="button"
             className="al-cta"
-            disabled={!complete || checking}
+            disabled={(!skipValidation() && !complete) || checking}
             onClick={() => submitCode(code)}
           >
             {checking ? 'Checking…' : 'Continue'}

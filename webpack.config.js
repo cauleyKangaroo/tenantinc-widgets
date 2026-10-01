@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 
 // ---------------------------------------------------------------------------
 // Widget entries
@@ -93,7 +94,15 @@ module.exports = (_env, argv) => {
       ],
     },
 
-    plugins: [],
+    plugins: [
+      /* HARNESS-ONLY VALIDATION BYPASS — see src/shared/devBypass.ts.
+         `false` under --mode production (what `npm run build` uses), which
+         makes the bypass dead code the minifier removes entirely, so nothing
+         shipped can contain it. */
+      new webpack.DefinePlugin({
+        __HB_DEV_HARNESS__: JSON.stringify(isDev),
+      }),
+    ],
 
     // Source maps in dev only
     devtool: isDev ? 'inline-source-map' : false,

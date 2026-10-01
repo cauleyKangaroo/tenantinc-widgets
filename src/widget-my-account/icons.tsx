@@ -93,6 +93,28 @@ export function ChevronBigRight24Icon({ className }: AssetIconProps) {
 }
 
 /**
+ * The 24px chevron pointing LEFT, for the payment panel's back control.
+ *
+ * The same exported asset turned 180deg rather than a second file: Figma has
+ * no left-facing export of this glyph, and a mirrored stroke chevron is
+ * identical to its own reflection — so rotating costs nothing and cannot drift
+ * from the right-facing one beside it.
+ */
+export function ChevronBigLeft24Icon({ className }: AssetIconProps) {
+  return (
+    <img
+      src={chevronRight24Asset}
+      alt=""
+      width={24}
+      height={24}
+      className={className}
+      style={{ transform: 'rotate(180deg)' }}
+      aria-hidden="true"
+    />
+  );
+}
+
+/**
  * Google Pay lockup. The kit's <GooglePayMark /> is NOT reused here: its "Pay"
  * wordmark is #3C4043, which is invisible on this button's #101318 fill. These
  * are the frame's own two leaves — the four-colour G and the white typeface —
