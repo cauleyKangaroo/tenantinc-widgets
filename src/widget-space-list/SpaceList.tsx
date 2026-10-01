@@ -16,6 +16,7 @@ import {
   filterUnits,
   activeFilterCount,
   isUnavailable,
+  typeOptionsFrom,
 } from './filters';
 import { readFiltersFromUrl, writeFiltersToUrl } from './urlFilters';
 import {
@@ -525,6 +526,20 @@ export function SpaceList({
     return Array.from(seen);
   }, [units, filters.types]);
 
+  /*
+   * Type pills from the units on the page, NOT a fixed pair. Bellflower has
+   * storage, parking, Commercial and wine; the hardcoded list made the last
+   * two unfilterable.
+   *
+   * Deliberately NOT narrowed by filters.types, unlike the amenity and
+   * feature lists below: selecting a type must not remove the other types'
+   * pills, or the selection could never be changed or cleared.
+   */
+  const typeOptions = useMemo(
+    () => typeOptionsFrom(units, config.categoryOrdering),
+    [units, config.categoryOrdering],
+  );
+
   const featureOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
@@ -617,6 +632,7 @@ export function SpaceList({
              close to discard — the cleared state is already the live one. */
           onReset={() => { setFilters(DEFAULT_FILTERS); setPanelOpen(false); }}
           amenityOptions={amenityOptions}
+          typeOptions={typeOptions}
           featureOptions={featureOptions}
           promotionOptions={PROMOTION_OPTIONS}
           searchTerm={searchTerm}
