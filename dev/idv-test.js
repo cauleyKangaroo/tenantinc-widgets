@@ -4,7 +4,7 @@ const { idvReducer, initialIdvState } = require('../.tmp-idv-test/idvState.js');
 const { startIdvPolling } = require('../.tmp-idv-test/idvPolling.js');
 const { resolveIdvPresentation } = require('../.tmp-idv-test/idvPresentation.js');
 const { RENTAL_IDV_REQUIREMENT } = require('../.tmp-idv-test/idvPolicy.js');
-const { createIdvApi } = require('../.tmp-idv-test/idvApi.js');
+const { createIdvApi, captureDevice } = require('../.tmp-idv-test/idvApi.js');
 const {
   allowedVerificationUrl,
   navigateVerificationWindow,
@@ -248,6 +248,14 @@ async function testApiTransports() {
   assert.equal(requests[0].url, 'https://edge.example/api/v3/applications/app_shared/v2/companies/company_one/properties/property_two/identity-verification');
   assert.equal(requests[0].init.headers['x-storageapi-key'], 'shared-key');
   assert.equal(requests[0].init.method, 'POST');
+  assert.equal(JSON.parse(requests[0].init.body).device, 'desktop');
+
+  // The caller's decision wins over the ambient one, so the payload cannot
+  // disagree with the hand-off chosen from the same value.
+  await direct.start({ companyId: 'company_one', propertyId: 'property_two' }, {
+    first: 'Ada', last: 'Lovelace', email: 'ada@example.com', phone: '2125551234',
+  }, 'mobile');
+  assert.equal(JSON.parse(requests[1].init.body).device, 'mobile');
 
   let proxyRequest;
   const proxy = createIdvApi({
@@ -266,12 +274,28 @@ async function testApiTransports() {
   assert.equal(proxyRequest.init.headers['x-storageapi-key'], undefined);
 }
 
+function testCaptureDevice() {
+  assert.equal(captureDevice(), 'desktop');
+
+  const queries = (matches) => ({ matchMedia: (query) => ({ matches: matches[query] === true }) });
+  const withWindow = (stub, run) => {
+    globalThis.window = stub;
+    try { return run(); } finally { delete globalThis.window; }
+  };
+
+  assert.equal(withWindow(queries({ '(max-width: 768px)': true, '(pointer: coarse)': true }), captureDevice), 'mobile');
+  assert.equal(withWindow(queries({ '(max-width: 768px)': true }), captureDevice), 'desktop');
+  assert.equal(withWindow(queries({ '(pointer: coarse)': true }), captureDevice), 'desktop');
+  assert.equal(withWindow({}, captureDevice), 'desktop');
+}
+
 (async () => {
   testReducer();
   testPresentation();
   testUrls();
   await testPolling();
   await testApiTransports();
+  testCaptureDevice();
   console.log('IDV foundation tests passed');
 })().catch((error) => {
   console.error(error);

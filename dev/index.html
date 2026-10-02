@@ -32,6 +32,8 @@
     .widget-section > h2 { font-size: 13px; font-weight: 600; text-transform: uppercase;
       letter-spacing: .05em; color: #6b7280; margin: 0 0 8px; }
     .widget-container { min-height: 60px; }
+    .rf-idv-sent { margin: 8px 0; padding: 8px 12px; border-radius: 6px; background: #101318;
+      color: #7CFFB2; font: 600 13px/1.4 ui-monospace, Menlo, monospace; }
     /* Harness-only explanatory text under a section heading. */
     .section-note { font-size: 12px; line-height: 1.5; color: #6b7280; margin: 0 0 12px; max-width: 78ch; }
     .section-note code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 11px; }
@@ -853,6 +855,7 @@
         </label>
         </div>
       </div>
+      <div id="rf-idv-sent" class="rf-idv-sent" hidden></div>
       <div id="rental-flow-2step-container" class="widget-container"></div>
     </div>
 
@@ -2027,6 +2030,27 @@ Special</textarea>
         },
       });
     }
+
+    // Harness only: report what the widget actually sends to the IDV start
+    // call, so the device flag can be read without opening DevTools.
+    (function () {
+      var orig = window.fetch;
+      window.fetch = function (input, init) {
+        try {
+          var url = typeof input === 'string' ? input : (input && input.url) || '';
+          if (/identity-verification(\?|$)/.test(url) && init && init.body) {
+            var body = JSON.parse(init.body);
+            var line = 'IDV start \u2192 device: ' + body.device
+              + '   (viewport ' + window.innerWidth + 'px, pointer '
+              + (window.matchMedia('(pointer: coarse)').matches ? 'coarse' : 'fine') + ')';
+            console.log('[idv]', line, body);
+            var el = document.getElementById('rf-idv-sent');
+            if (el) { el.textContent = line; el.hidden = false; }
+          }
+        } catch (e) { /* never block the call */ }
+        return orig.apply(this, arguments);
+      };
+    })();
 
     // A full teardown + re-init, because the Billing Country default is SEEDED
     // into the form's state on mount — it is the shopper's field from then on,

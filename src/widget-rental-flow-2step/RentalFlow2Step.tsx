@@ -756,6 +756,53 @@ export interface ConfirmationData {
   };
 }
 
+interface IdvReturnSnapshot {
+  rental?: Extract<RentResult, { ok: true }>;
+  contact: { first: string; last: string; email: string; phone: string };
+  chosen?: { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean };
+  moveIn: string;
+  /** The pending verification this hand-off belongs to. Epoch SECONDS, the
+   *  unit the API and the poller already use. */
+  expiresAt: number;
+}
+
+function idvReturnKey(propertyId: string): string {
+  return `mariposa:idv:return:v1:${propertyId}`;
+}
+
+function readIdvReturnSnapshot(propertyId: string): IdvReturnSnapshot | undefined {
+  if (!propertyId || typeof sessionStorage === 'undefined') return undefined;
+  try {
+    const value = JSON.parse(sessionStorage.getItem(idvReturnKey(propertyId)) ?? 'null') as IdvReturnSnapshot | null;
+    if (!value?.contact?.first || !value.contact.last || !value.contact.email || !value.contact.phone) return undefined;
+    // Restoring on presence alone stranded the shopper: one tap on verify wrote
+    // the snapshot, and every later load in that tab re-entered the
+    // post-purchase screen, so the rental steps (and the move-in date) never
+    // rendered again. The snapshot is only valid while the verification it was
+    // written for is, and a dead one is cleared rather than left to strand the
+    // next visit.
+    if (typeof value.expiresAt !== 'number' || !Number.isFinite(value.expiresAt)
+      || Date.now() >= value.expiresAt * 1_000) {
+      sessionStorage.removeItem(idvReturnKey(propertyId));
+      return undefined;
+    }
+    return value;
+  } catch {
+    sessionStorage.removeItem(idvReturnKey(propertyId));
+    return undefined;
+  }
+}
+
+function writeIdvReturnSnapshot(propertyId: string, value: IdvReturnSnapshot): void {
+  if (!propertyId || typeof sessionStorage === 'undefined') return;
+  sessionStorage.setItem(idvReturnKey(propertyId), JSON.stringify(value));
+}
+
+function clearIdvReturnSnapshot(propertyId: string): void {
+  if (!propertyId || typeof sessionStorage === 'undefined') return;
+  sessionStorage.removeItem(idvReturnKey(propertyId));
+}
+
 /** One-time random id for the confirmation payload handoff. */
 function makeConfirmationNonce(): string {
   try { return crypto.randomUUID().replace(/-/g, ''); } catch { /* older browser */ }
@@ -1239,17 +1286,23 @@ export function RentalFlow2Step({
   // show what was actually filed, not what was typed a screen earlier.
   // Which optional sections the shopper ticked in step 2, carried to the
   // post-purchase screen so it opens them already ticked.
+  const idvReturn = useRef(readIdvReturnSnapshot(effectivePropertyId)).current;
   const [chosenSections, setChosenSections] = useState<
     { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean } | undefined
-  >(undefined);
+  >(idvReturn?.chosen);
   const [rentedContact, setRentedContact] = useState<
     { first: string; last: string; email: string; phone: string } | undefined
-  >(undefined);
+  >(idvReturn?.contact);
   /** Static payment path (no GP key): the lightbox has finished, show the
    *  post-purchase form rather than navigating to the confirmation page. */
-  const [staticPaid, setStaticPaid] = useState(false);
+  const [staticPaid, setStaticPaid] = useState(Boolean(idvReturn));
   // The real rental (documents → lease → autopay). Present ⇒ money moved.
-  const [rental, setRental] = useState<Extract<RentResult, { ok: true }> | undefined>(undefined);
+  const [rental, setRental] = useState<Extract<RentResult, { ok: true }> | undefined>(idvReturn?.rental);
+  useEffect(() => {
+    if (!idvReturn?.moveIn) return;
+    const restored = new Date(idvReturn.moveIn);
+    if (!Number.isNaN(restored.getTime())) setMoveIn(restored);
+  }, [idvReturn]);
   const idvIdentity = React.useMemo(() => rentedContact && (rental || liveCheckoutIdvEnabled) ? {
     first: rentedContact.first,
     last: rentedContact.last,
@@ -1266,6 +1319,20 @@ export function RentalFlow2Step({
     companyId: effectiveCompanyId ?? '',
     propertyId: effectivePropertyId,
   }), [effectiveCompanyId, effectivePropertyId]);
+  // Mobile mode is CONTAINER-width based (widgets embed at any width).
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [railOpen, setRailOpen] = useState(false);
+  const persistMobileIdvReturn = useCallback((pending: { expiresAt: number }) => {
+    if (!rentedContact) return;
+    writeIdvReturnSnapshot(effectivePropertyId, {
+      rental,
+      contact: rentedContact,
+      chosen: chosenSections,
+      moveIn: moveIn.toISOString(),
+      expiresAt: pending.expiresAt,
+    });
+  }, [chosenSections, effectivePropertyId, moveIn, rental, rentedContact]);
   const idvController = useIdvController({
     enabled: Boolean(
       idvApi
@@ -1279,6 +1346,7 @@ export function RentalFlow2Step({
     scope: idvScope,
     identity: idvIdentity,
     allowedVerificationHosts: allowedIdvHosts,
+    beforeSameTabNavigation: persistMobileIdvReturn,
   });
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | undefined>(undefined);
@@ -1295,13 +1363,8 @@ export function RentalFlow2Step({
   // to refetch them here when the snapshot is missing them. Fail-soft.
   const [confHours, setConfHours] = useState<{ officeHours?: string[]; gateHours?: string[] } | undefined>(undefined);
 
-  // Mobile mode is CONTAINER-width based (widgets embed at any width).
   // Observer attaches to the persistent wrapper — both the skeleton and
-  // the live tree share the same root div, so it survives the swap
-  // (lesson learned the hard way on #14).
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
-  const [railOpen, setRailOpen] = useState(false);
+  // the live tree share the same root div, so it survives the swap.
 
   /**
    * Tapping the cost bar opens or closes the sheet. Nothing else — it used to
@@ -2573,7 +2636,7 @@ export function RentalFlow2Step({
           <div className="rfc-layout">
             <Confirmation
               kind="rental"
-              name={finalizing?.firstName}
+              name={finalizing?.firstName ?? rentedContact?.first}
               phone={rentedContact?.phone ?? contact?.phone}
               // Only after a real lease: there is nothing to reference otherwise.
               reference={rental?.leaseId}
@@ -2612,6 +2675,7 @@ export function RentalFlow2Step({
                 officeHours: propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours,
               }}
               remoteOperated={idvRemoteOperated === true}
+              handheld={idvController.sameTab}
               onGetAccess={(details) => {
                 // File what this screen collects against the tenant's contact.
                 // Deliberately NOT awaited: the rental is already complete, the
@@ -2638,6 +2702,7 @@ export function RentalFlow2Step({
                   });
                 }
                 setIdVerified(details?.idVerified ?? true);
+                clearIdvReturnSnapshot(effectivePropertyId);
                 setAccessGranted(true);
               }}
             />

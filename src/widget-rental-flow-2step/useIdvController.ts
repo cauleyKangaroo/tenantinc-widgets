@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useReducer } from 'react';
-import type { IdvApi, IdvIdentity, IdvScope } from './idvApi';
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { captureDevice, type IdvApi, type IdvIdentity, type IdvScope } from './idvApi';
 import { startIdvPolling } from './idvPolling';
 import { idvReducer, initialIdvState, type SafeIdvResult } from './idvState';
 import {
+  allowedVerificationUrl,
   closeVerificationPlaceholder,
   navigateVerificationWindow,
   openVerificationPlaceholder,
@@ -11,6 +12,8 @@ import {
 interface StoredIdvSession {
   idvId: string;
   expiresAt: number;
+  /** Kept so "Return to this Device" still works after a reload. */
+  verificationUrl?: string;
 }
 
 function storageKey(scope: IdvScope, identity: IdvIdentity): string | undefined {
@@ -24,6 +27,7 @@ function readStored(key: string | undefined): StoredIdvSession | undefined {
   try {
     const value = JSON.parse(sessionStorage.getItem(key) ?? 'null') as StoredIdvSession | null;
     if (!value || typeof value.idvId !== 'string' || typeof value.expiresAt !== 'number') return undefined;
+    if (value.verificationUrl !== undefined && typeof value.verificationUrl !== 'string') return undefined;
     if (Date.now() >= value.expiresAt * 1_000) {
       sessionStorage.removeItem(key);
       return undefined;
@@ -41,10 +45,39 @@ export interface IdvControllerOptions {
   scope: IdvScope;
   identity?: IdvIdentity;
   allowedVerificationHosts: readonly string[];
+  /** Persist the completed checkout before a same-tab navigation leaves it.
+   *  Receives the pending verification so the snapshot can expire with it. */
+  beforeSameTabNavigation?: (pending: { idvId: string; expiresAt: number }) => void;
+}
+
+const CAPTURE_QUERIES = ['(max-width: 768px)', '(pointer: coarse)'] as const;
+
+/**
+ * `captureDevice()` re-read whenever either query changes.
+ *
+ * The same value must reach two places — the `device` field Incode is served
+ * from, and whether the renter is handed off in this tab or a popup. Reading
+ * it twice let them disagree (a popup asking Incode for the direct-camera
+ * flow), so it is resolved once here and passed to both.
+ */
+export function useCaptureDevice(): 'mobile' | 'desktop' {
+  const [device, setDevice] = useState(captureDevice);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const sync = () => setDevice(captureDevice());
+    const lists = CAPTURE_QUERIES.map((query) => window.matchMedia(query));
+    lists.forEach((list) => list.addEventListener('change', sync));
+    sync();
+    return () => lists.forEach((list) => list.removeEventListener('change', sync));
+  }, []);
+  return device;
 }
 
 export function useIdvController(options: IdvControllerOptions) {
   const [state, dispatch] = useReducer(idvReducer, initialIdvState);
+  // Validated once, when it arrives. Both the same-tab hand-off and the
+  // modal's "Return to this Device" navigate to it later.
+  const [verificationUrl, setVerificationUrl] = useState<string | undefined>(undefined);
   const { companyId, propertyId } = options.scope;
   const key = useMemo(
     () => options.identity ? storageKey({ companyId, propertyId }, options.identity) : undefined,
@@ -60,7 +93,8 @@ export function useIdvController(options: IdvControllerOptions) {
     dispatch({ type: 'check' });
     const stored = readStored(key);
     if (stored) {
-      dispatch({ type: 'resume', generation, ...stored });
+      setVerificationUrl(stored.verificationUrl);
+      dispatch({ type: 'resume', generation, idvId: stored.idvId, expiresAt: stored.expiresAt });
       return undefined;
     }
     if (!options.identity.contactId) {
@@ -112,55 +146,91 @@ export function useIdvController(options: IdvControllerOptions) {
     });
   }, [companyId, key, options.api, propertyId, state]);
 
+  const device = useCaptureDevice();
+  const sameTab = device === 'mobile';
+  const startApi = options.api;
+  const startIdentity = options.identity;
+  const allowedHosts = options.allowedVerificationHosts;
+  const beforeSameTabNavigation = options.beforeSameTabNavigation;
   const start = useCallback(async () => {
-    if (state.kind !== 'ready' || !options.api || !options.identity) return;
+    if (state.kind !== 'ready' || !startApi || !startIdentity) return;
     const generation = state.generation;
-    const target = openVerificationPlaceholder();
     dispatch({ type: 'start', generation });
     try {
-      const started = await options.api.start({ companyId, propertyId }, options.identity);
-      if (!navigateVerificationWindow(target, started.verificationUrl, options.allowedVerificationHosts)) {
-        closeVerificationPlaceholder(target);
-      }
+      const started = await startApi.start({ companyId, propertyId }, startIdentity, device);
+      const safeUrl = allowedVerificationUrl(started.verificationUrl, allowedHosts);
+      if (!safeUrl) throw new Error('Invalid ID verification URL.');
+      setVerificationUrl(safeUrl.href);
       if (key && typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem(key, JSON.stringify({ idvId: started.idvId, expiresAt: started.expiresAt }));
+        sessionStorage.setItem(key, JSON.stringify({
+          idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl.href,
+        }));
       }
       dispatch({
         type: 'pending', generation, idvId: started.idvId,
         expiresAt: started.expiresAt, notificationStatus: started.notificationStatus,
       });
+      // Desktop opens nothing: the design hands off by text message and keeps
+      // the renter on the modal. Opening the hosted page as well put Incode's
+      // own QR screen in front of them, which the design never asks for.
+      if (sameTab) {
+        beforeSameTabNavigation?.({ idvId: started.idvId, expiresAt: started.expiresAt });
+        window.location.assign(safeUrl.href);
+      }
     } catch {
-      closeVerificationPlaceholder(target);
       dispatch({ type: 'error', generation, retryable: true });
     }
   }, [
     key,
     companyId,
-    options.allowedVerificationHosts,
-    options.api,
-    options.identity,
+    allowedHosts,
+    beforeSameTabNavigation,
+    device,
+    sameTab,
     propertyId,
+    startApi,
+    startIdentity,
     state,
   ]);
 
   const resend = useCallback(async () => {
     if (state.kind !== 'pending' || !options.api || !options.identity) return undefined;
     const generation = state.generation;
-    const started = await options.api.start({ companyId, propertyId }, options.identity);
+    const started = await options.api.start({ companyId, propertyId }, options.identity, device);
+    const safeUrl = allowedVerificationUrl(started.verificationUrl, allowedHosts);
+    if (safeUrl) setVerificationUrl(safeUrl.href);
     if (key && typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem(key, JSON.stringify({ idvId: started.idvId, expiresAt: started.expiresAt }));
+      sessionStorage.setItem(key, JSON.stringify({
+        idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl?.href,
+      }));
     }
     dispatch({
       type: 'refresh-pending', generation, idvId: started.idvId,
       expiresAt: started.expiresAt, notificationStatus: started.notificationStatus,
     });
     return started.notificationStatus;
-  }, [companyId, key, options.api, options.identity, propertyId, state]);
+  }, [allowedHosts, companyId, device, key, options.api, options.identity, propertyId, state]);
+
+  /** The design's escape hatch: capture here instead of on the phone. Opened
+   *  inside the click gesture, which is why the URL is resolved beforehand. */
+  const returnToThisDevice = useCallback((): boolean => {
+    if (!verificationUrl) return false;
+    const target = openVerificationPlaceholder();
+    if (navigateVerificationWindow(target, verificationUrl, allowedHosts)) return true;
+    closeVerificationPlaceholder(target);
+    return false;
+  }, [allowedHosts, verificationUrl]);
 
   return {
     state,
     start,
     resend,
+    returnToThisDevice,
+    canReturnToThisDevice: Boolean(verificationUrl),
+    /** True when start() will leave this tab rather than open a popup. The
+     *  success screen reads it so it does not raise a QR modal over a
+     *  navigation that is already under way. */
+    sameTab,
     retry: () => dispatch({ type: 'retry', generation: state.generation }),
     reset: () => dispatch({ type: 'reset' }),
   };

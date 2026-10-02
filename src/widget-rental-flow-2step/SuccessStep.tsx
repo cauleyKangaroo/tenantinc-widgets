@@ -97,6 +97,7 @@ export function SuccessStep({
   idvController,
   facility,
   remoteOperated = false,
+  handheld = false,
 }: {
   /** Fires with everything the contact update can file. The parent decides
    *  what to do with it; this screen just collects. */
@@ -116,6 +117,9 @@ export function SuccessStep({
   /** Presentation policy supplied by trusted property configuration once that
    * source exists. It changes failure copy, never whether IDV is required. */
   remoteOperated?: boolean;
+  /** Phone-shaped: capture runs here, so no hand-off modal and no
+   *  desktop-only "Verify ID Later". */
+  handheld?: boolean;
 }) {
   const facilityPhoneHref = (() => {
     const raw = facility?.phone?.trim();
@@ -181,7 +185,7 @@ export function SuccessStep({
   const dlReadOnly = displayedIdv === 'complete' && !dlEditing;
 
   const beginVerification = () => {
-    setIdvModal(true);
+    if (!handheld) setIdvModal(true);
     if (idvServiceConnected) void idvController?.start();
   };
 
@@ -383,16 +387,20 @@ export function SuccessStep({
                   ? 'Verification in progress'
                   : 'Verify ID Now'}
               </button>
-              <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => setLocalIdvChoice('instore')}>
-                Verify In-Store
-              </button>
-              <button
-                type="button"
-                className="rf-sx-idv-later"
-                onClick={() => setLocalIdvChoice('later')}
-              >
-                Verify ID Later
-              </button>
+              {handheld && idvRequirement !== 'required' && (
+                <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => setLocalIdvChoice('instore')}>
+                  Verify In-Store
+                </button>
+              )}
+              {!handheld && (
+                <button
+                  type="button"
+                  className="rf-sx-idv-later"
+                  onClick={() => setLocalIdvChoice('later')}
+                >
+                  Verify ID Later
+                </button>
+              )}
             </div>
           </div>
           <p className="rf-sx-idv-note">
@@ -708,6 +716,8 @@ export function SuccessStep({
         lifecycle={remoteKind}
         notificationStatus={idvController?.state.kind === 'pending' ? idvController.state.notificationStatus : undefined}
         onResend={idvController?.resend}
+        onReturnToDevice={idvController?.returnToThisDevice}
+        canReturnToDevice={idvController?.canReturnToThisDevice ?? false}
       />
       )}
     </div>

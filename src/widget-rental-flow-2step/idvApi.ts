@@ -91,6 +91,24 @@ function safeId(value: string): string {
   return encodeURIComponent(value);
 }
 
+/**
+ * Which capture experience Incode should serve.
+ *
+ * Hardcoding 'desktop' showed a hand-off QR code to a renter already holding the
+ * phone that would have to scan it. Incode needs a camera, so desktop gets the
+ * QR and the SMS; a narrow viewport goes straight to capture on the device in
+ * hand. Coarse pointer as well as width: a touch device in landscape is still a
+ * phone. Defaults to 'desktop' with no matchMedia — the QR and the SMS both
+ * still reach a phone, whereas a wrongly-chosen 'mobile' leaves a desktop user
+ * with a camera prompt they cannot satisfy.
+ */
+export function captureDevice(): 'mobile' | 'desktop' {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'desktop';
+  const narrow = window.matchMedia('(max-width: 768px)').matches;
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  return narrow && coarse ? 'mobile' : 'desktop';
+}
+
 export function createIdvApi(config: IdvTransportConfig, fetcher: FetchLike = fetch) {
   const base = config.baseUrl.replace(/\/$/, '');
 
@@ -145,7 +163,11 @@ export function createIdvApi(config: IdvTransportConfig, fetcher: FetchLike = fe
       };
     },
 
-    async start(scope: IdvScope, identity: IdvIdentity): Promise<IdvStartResult> {
+    async start(
+      scope: IdvScope,
+      identity: IdvIdentity,
+      device: 'mobile' | 'desktop' = captureDevice(),
+    ): Promise<IdvStartResult> {
       const data = await call(scope, 'identity-verification', {
         method: 'POST',
         body: JSON.stringify({
@@ -153,7 +175,7 @@ export function createIdvApi(config: IdvTransportConfig, fetcher: FetchLike = fe
           last: identity.last,
           email: identity.email,
           phone: identity.phone,
-          device: 'desktop',
+          device,
           // The guide warns lease_id rejects when email ownership differs. It
           // remains omitted until the backend confirms the relationship rule.
         }),

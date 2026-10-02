@@ -26,6 +26,8 @@ export function IdVerifyModal({
   lifecycle,
   notificationStatus,
   onResend,
+  onReturnToDevice,
+  canReturnToDevice = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -37,11 +39,15 @@ export function IdVerifyModal({
   lifecycle?: string;
   notificationStatus?: 'sent' | 'failed' | 'skipped';
   onResend?: () => Promise<'sent' | 'failed' | 'skipped' | undefined>;
+  /** Opens the hosted capture here. Returns false when the browser blocked it. */
+  onReturnToDevice?: () => boolean;
+  canReturnToDevice?: boolean;
 }) {
   const [num, setNum] = useState(phone);
   const [sent, setSent] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
+  const [returnBlocked, setReturnBlocked] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -56,7 +62,9 @@ export function IdVerifyModal({
   }, [open, onClose]);
 
   // Re-open should start clean, and pick up a number that arrived after mount.
-  useEffect(() => { if (open) { setNum(phone); setSent(false); setResendMessage(''); } }, [open, phone]);
+  useEffect(() => {
+    if (open) { setNum(phone); setSent(false); setResendMessage(''); setReturnBlocked(false); }
+  }, [open, phone]);
 
   if (!open) return null;
 
@@ -124,9 +132,9 @@ export function IdVerifyModal({
                   .then((status) => setResendMessage(
                     status === 'sent'
                       ? 'A new text message was requested.'
-                      : 'The text could not be delivered. Continue with the open Incode page or its QR code.',
+                      : 'The text could not be delivered. Try again, or continue on this device.',
                   ))
-                  .catch(() => setResendMessage('We could not request another text. Continue with the open Incode page or its QR code.'))
+                  .catch(() => setResendMessage('We could not request another text. Try again, or continue on this device.'))
                   .finally(() => setResending(false));
               }}
               disabled={!valid || resending || (connected && lifecycle !== 'pending')}
@@ -141,16 +149,27 @@ export function IdVerifyModal({
           {connected && <p className="rf-idm-note">
             {lifecycle === 'pending'
               ? notificationStatus === 'failed'
-                ? 'The first text was not delivered. Use Resend Text, the opened Incode page, or its QR code.'
-                : 'Verification is in progress. You can complete it on your phone or in the opened tab.'
+                ? 'The first text was not delivered. Try Resend Text, or continue on this device.'
+                : 'Verification is in progress. Complete it on your phone.'
               : 'Starting verification…'}
           </p>}
 
           <div className="rf-idm-or"><span>or</span></div>
 
-          <button type="button" className="rf-sx-btn rf-sx-btn--outline rf-idm-return" onClick={onClose}>
+          <button
+            type="button"
+            className="rf-sx-btn rf-sx-btn--outline rf-idm-return"
+            onClick={() => {
+              if (!onReturnToDevice) { onClose(); return; }
+              setReturnBlocked(!onReturnToDevice());
+            }}
+            disabled={Boolean(onReturnToDevice) && !canReturnToDevice}
+          >
             Return to this Device
           </button>
+          {returnBlocked && <p className="rf-idm-note">
+            The verification window was blocked. Enable pop-ups and try again.
+          </p>}
 
           <p className="rf-idm-para rf-idm-foot">
             If the text link you received did not redirect you to our identity verification tool, then
