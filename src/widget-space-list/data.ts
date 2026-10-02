@@ -249,6 +249,11 @@ export const DEMO_UNITS: Unit[] = [
 // Filter option definitions
 // ---------------------------------------------------------------------------
 
+/**
+ * Fallback only — the demo dataset and any caller with no live units.
+ * Real pages use `typeOptionsFrom(units)` so the filter lists the types the
+ * property actually has (Bellflower has four, not two).
+ */
 export const TYPE_OPTIONS: FilterOption<FilterType>[] = [
   { value: 'storage', label: 'Storage' },
   { value: 'parking', label: 'Parking' },

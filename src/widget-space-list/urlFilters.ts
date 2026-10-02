@@ -7,7 +7,11 @@ import type { SpaceType, UnitSize } from './types';
 
 const P = 'sl_';
 
-const VALID_TYPES: SpaceType[] = ['storage', 'parking'];
+/*
+ * No fixed list any more — the types are whatever the property's catalogue
+ * holds (see SpaceType). An unknown value simply matches no unit and the
+ * list renders empty, which is the same outcome the old allow-list gave.
+ */
 
 export function readFiltersFromUrl(): FilterState {
   try {
@@ -15,7 +19,8 @@ export function readFiltersFromUrl(): FilterState {
 
     const types = (p.get(`${P}types`) ?? '')
       .split(',')
-      .filter((v): v is SpaceType => VALID_TYPES.includes(v as SpaceType));
+      .map((v) => v.trim().toLowerCase())
+      .filter(Boolean) as SpaceType[];
 
     const sizes = (p.get(`${P}sizes`) ?? '')
       .split(',')
