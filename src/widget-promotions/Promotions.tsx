@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useMediaQuery } from '@shared/stickyStack';
 import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
 import './Promotions.css';
-import { fetchSpaceGroups, extractPromos, type ApiPromo } from './api';
+import { fetchSpaceGroups, extractPromos, configureApi, credsWithCompany, type ApiPromo, type ApiCredProps } from './api';
 import cfg from './config.json';
 import { fetchWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolvePropertyId } from '@shared/propertyBinding';
@@ -266,7 +266,7 @@ const DEMO_TITLES = [
   'Free Lock With Every Rental',
 ];
 
-export interface PromotionsProps {
+export interface PromotionsProps extends ApiCredProps {
   /** View mode (Duda dropdown). Default 'bar'. */
   mode?: 'banner' | 'bar';
 
@@ -334,7 +334,21 @@ export function Promotions({
   propertyId,
   companyId,
   spaceGroupId,
+  // Site-level REST credentials from the Content Library's custom site texts.
+  api_domain,
+  app_id,
+  api_key,
 }: PromotionsProps) {
+  /*
+   * Credentials in place BEFORE the data effects fire. During render, not
+   * in an effect — an effect runs a render too late and the first request
+   * would go out against config.json.
+   */
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
+
   // Only two modes. Anything else from Duda (including the retired 'cards')
   // falls through to the bars, which absorbed the old cards layout.
   const view: 'banner' | 'bar' = mode === 'banner' ? 'banner' : 'bar';
@@ -372,7 +386,7 @@ export function Promotions({
       const sg = spaceGroupId
         ? spaceGroupId
         : isDynamicTarget || !cfg.spaceGroupId
-          ? await fetchWebsiteSpaceGroupId({ ...cfg, companyId: company }, effectivePropertyId)
+          ? await fetchWebsiteSpaceGroupId(credsWithCompany(company), effectivePropertyId)
           : cfg.spaceGroupId;
       if (cancelled) return;
 

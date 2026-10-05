@@ -10,8 +10,8 @@ import {
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
-  fetchPaymentGateway, TENANT_PAYMENTS,
-  type RentResult,
+  fetchPaymentGateway, TENANT_PAYMENTS, configureApi,
+  type RentResult, type ApiCredProps,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
 } from './api';
@@ -77,7 +77,7 @@ const ymd = (d: Date): string => {
 // Step 2 ("Secure your space now", 8507-23329): full checkout form.
 // ---------------------------------------------------------------------------
 
-export interface RentalFlow2StepProps {
+export interface RentalFlow2StepProps extends ApiCredProps {
   /**
    * Content-menu IMAGE input (`logoImage`) — the checkout header's logo, so a
    * site that sets its own in #02 can set the same one here.
@@ -828,7 +828,24 @@ export function RentalFlow2Step({
   inEditor = false,
   siteId,
   elementId,
+  // Site-level REST credentials from the Content Library's custom site texts.
+  api_domain,
+  app_id,
+  api_key,
 }: RentalFlow2StepProps) {
+  /*
+   * Credentials in place BEFORE anything can fetch — during render, not in an
+   * effect.
+   *
+   * It matters more here than in the read-only widgets: this flow takes a
+   * HOLD on arrival, and a hold placed with one tenant's credentials cannot
+   * be released with another's. Getting the order wrong would strand the
+   * unit until the server expired it.
+   */
+  React.useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
   // The value-tiers Select hands off via the URL (?size/tier/propertyId/
   // companyId/unitGroupId). Read those first, falling back to props (Duda
   // content fields) — mirrors #14. Without this, companyId is undefined and the

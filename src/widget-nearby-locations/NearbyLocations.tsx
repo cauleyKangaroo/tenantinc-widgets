@@ -25,10 +25,12 @@ import {
   formatDistance,
   fetchPriorityOrder,
   sortByPriorityThenName,
+  configureApi,
   INTERNAL_PROPERTIES_COLLECTION,
   type NearbyProperty,
   type NearbySpace,
   type PropertySpaces,
+  type ApiCredProps,
 } from './nearbyApi';
 
 // ---------------------------------------------------------------------------
@@ -559,7 +561,7 @@ function SkeletonCard() {
 // Main component
 // ---------------------------------------------------------------------------
 
-export interface NearbyLocationsProps {
+export interface NearbyLocationsProps extends ApiCredProps {
   heading?: string;
   subheading?: string;
   /** Duda setting: only show properties within this many miles. 0/unset = nearest-first. */
@@ -573,6 +575,11 @@ export interface NearbyLocationsProps {
    * fall back to config.json's build-time id, which belongs to another company.
    */
   propertyId?: string;
+  /**
+   * The company whose locations this widget lists. A plain JS-tab value, not a
+   * `Properties` column. Unset = the `Company` collection, then config.json.
+   */
+  companyId?: string;
   /**
    * Grid layout: **1 row of 3** (default, one page = 3 cards) or **2 rows of 3**
    * (one page = 6). Columns are fixed at three — see COLUMNS.
@@ -664,7 +671,21 @@ export function NearbyLocations({
   enableValueTiers = false,
   valueTiersChannel,
   valueTiersPageUrl,
+  companyId,
+  // Site-level REST credentials from the Content Library's custom site texts.
+  api_domain,
+  app_id,
+  api_key,
 }: NearbyLocationsProps) {
+  /*
+   * Credentials in place BEFORE the data effects fire. During render, not in
+   * an effect — an effect runs a render too late and the first properties
+   * call would go out against config.json.
+   */
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key, companyId }),
+    [api_domain, app_id, api_key, companyId],
+  );
   const valueTiers = boolProp(enableValueTiers);
   /**
    * The Select destination, resolved ONCE for every card on the widget.

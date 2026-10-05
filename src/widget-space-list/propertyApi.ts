@@ -11,10 +11,8 @@ import {
 import { createLead as submitLead, type LeadInput } from '@shared/leadsApi';
 import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { creds } from './apiCreds';
 
-const BASE_URL = cfg.baseUrl;
-const APP_ID = cfg.appId;
-const API_KEY = cfg.apiKey;
 const COMPANY_ID = cfg.companyId;
 const PROPERTY_ID = cfg.propertyId;
 
@@ -32,9 +30,7 @@ export async function createLead(
 ): Promise<unknown> {
   return submitLead(
     {
-      baseUrl: BASE_URL,
-      appId: APP_ID,
-      apiKey: API_KEY,
+      ...creds(),
       // Caller's resolved id if it has one, else the `Company` collection —
       // config.json only as the editor/harness fallback. Filing a lead against the
       // wrong company would lose the enquiry entirely.
@@ -180,7 +176,7 @@ export async function fetchProperties(
   // No PROPERTY_ID default — undefined must mean "no trust check", not "use the
   // build-time id", which belongs to a different company on this site.
   return fetchPropertiesPreferCollection(
-    APP_ID,
+    creds().appId,
     () => fetchPropertiesFromApi(companyId),
     { requirePropertyId },
   );
@@ -190,12 +186,13 @@ async function fetchPropertiesFromApi(companyId?: string): Promise<unknown> {
   // Omitted → the `Company` collection; config.json is only the last resort.
   const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
   const params = 'access_hours=true&amenities=true&unit_type_counts=true&faq=true&social_media=true';
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${company}/properties?${params}`;
+  const { baseUrl, appId, apiKey } = creds();
+  const url = `${baseUrl}/applications/${appId}/v2/companies/${company}/properties?${params}`;
 
   const res = await fetch(url, {
     headers: {
       'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
-      'x-storageapi-key': API_KEY,
+      'x-storageapi-key': apiKey,
     },
   });
 
@@ -209,7 +206,7 @@ async function fetchPropertiesFromApi(companyId?: string): Promise<unknown> {
 /** Find our property and pull out the phone / social / FAQ bits for the sidebar. */
 export function extractPropertyExtras(raw: unknown, propertyId: string = PROPERTY_ID): PropertyExtras | null {
   const response = raw as ApiResponse;
-  const list = response?.applicationData?.[APP_ID]?.[0]?.data?.properties ?? [];
+  const list = response?.applicationData?.[creds().appId]?.[0]?.data?.properties ?? [];
   const prop = list.find((p) => p.id === propertyId);
   if (!prop) return null;
 

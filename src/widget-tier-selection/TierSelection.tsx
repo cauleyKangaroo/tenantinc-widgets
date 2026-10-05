@@ -1,10 +1,10 @@
-import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import './TierSelection.css';
 import {
   fetchUnitGroups, resolveUnitGroupId, fetchOffers, mapOffersToTiers,
-  fetchProperty, fetchTierQuote, defaultContext,
-  type TierContext,
+  fetchProperty, fetchTierQuote, defaultContext, configureApi,
+  type TierContext, type ApiCredProps,
 } from './api';
 import { Shimmer } from '@shared/Shimmer';
 import { MoneyBreakdown, SummaryRail, formatPrice, CloseCircleIcon } from '@shared/ui';
@@ -254,7 +254,7 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
   };
 }
 
-export interface TierSelectionProps {
+export interface TierSelectionProps extends ApiCredProps {
   /** 'option1' = selector + comparison table (+ order card on desktop);
    *  'option2' = three Good/Better/Best pricing cards;
    *  'option3' = pricing cards fused with a comparison table. */
@@ -432,7 +432,20 @@ export function TierSelection({
   inEditor = false,
   siteId,
   elementId,
+  // Site-level REST credentials from the Content Library's custom site texts.
+  api_domain,
+  app_id,
+  api_key,
 }: TierSelectionProps) {
+  /*
+   * Credentials in place BEFORE the data effects fire. During render, not in
+   * an effect — an effect runs a render too late and the first rate-management
+   * and offers calls would go out against config.json.
+   */
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
   const [selected, setSelected] = useState<TierKey>('better');
   const [featuredTier, setFeaturedTier] = useState<TierKey>('better');
   const { ref, isMobile } = useIsMobile(MOBILE_BP);

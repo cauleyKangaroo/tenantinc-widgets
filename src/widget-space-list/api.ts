@@ -3,10 +3,8 @@ import cfg from './config.json';
 import { spaceImageFor, mediaManagerImagesFor } from './spaceImages';
 import { fetchWebsiteSpaceGroupId as findWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { creds } from './apiCreds';
 
-const BASE_URL = cfg.baseUrl;
-const APP_ID = cfg.appId;
-const API_KEY = cfg.apiKey;
 const COMPANY_ID = cfg.companyId;
 const PROPERTY_ID = cfg.propertyId;
 const SPACE_GROUP_ID = cfg.spaceGroupId;
@@ -190,7 +188,7 @@ function tierPromo(tier: ApiTier): ApiPromoEntry | null {
  */
 export function mapApiToUnits(raw: unknown, media?: { siteId?: string; baseUrl?: string }): Unit[] {
   const response = raw as ApiResponse;
-  const appEntries = response?.applicationData?.[APP_ID];
+  const appEntries = response?.applicationData?.[creds().appId];
   if (!appEntries?.length) return [];
 
   const spaceGroupProfile = appEntries[0]?.data?.spaceGroupProfile;
@@ -207,7 +205,24 @@ export function mapApiToUnits(raw: unknown, media?: { siteId?: string; baseUrl?:
         const size = classifySize(area);
 
         const primaryAssoc = tier.space_type_associations?.find((a) => a.is_primary === 1);
-        const type: Unit['type'] = primaryAssoc?.unit_type_name === 'parking' ? 'parking' : 'storage';
+        /*
+         * The unit's REAL type, not a storage/parking binary.
+         *
+         * This used to be `=== 'parking' ? 'parking' : 'storage'`, which
+         * folded every other type into storage. Bellflower's Website Group
+         * has 19 storage, 14 parking, 5 Commercial and 2 wine tiers (verified
+         * live), so 7 tiers were landing in the Storage section AND picking
+         * up its size bands, which only storage should have.
+         *
+         * Lower-cased so the value is a stable key: the API spells them
+         * inconsistently ('Commercial' but 'wine'), and this string is
+         * compared against filter state and the ?sl_types= URL param. The
+         * views title-case it for display, so 'wine' still reads as 'Wine'.
+         *
+         * Falls back to 'storage' only when the tier names no primary type at
+         * all — a unit with no section is worse than one in the default.
+         */
+        const type: Unit['type'] = primaryAssoc?.unit_type_name?.trim().toLowerCase() || 'storage';
 
         const bySortOrder = (a: ApiAmenity, b: ApiAmenity) => (a.sort_order ?? 0) - (b.sort_order ?? 0);
         const uniqueByName = (a: ApiAmenity, i: number, arr: ApiAmenity[]) =>
@@ -378,12 +393,13 @@ export async function fetchSpaceGroups(
   // Omitted → the `Company` collection, never config.json directly. SpaceList
   // passes its already-resolved id; anything else gets it from the same source.
   const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/companies/${company}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
+  const { baseUrl, appId, apiKey } = creds();
+  const url = `${baseUrl}/applications/${appId}/v2/companies/${company}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`;
 
   const res = await fetch(url, {
     headers: {
       'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
-      'x-storageapi-key': API_KEY,
+      'x-storageapi-key': apiKey,
     },
   });
 
@@ -411,7 +427,7 @@ export async function fetchWebsiteSpaceGroupId(
   // the `Company` collection rather than config.json.
   const company = companyId || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
   return findWebsiteSpaceGroupId(
-    { baseUrl: BASE_URL, appId: APP_ID, apiKey: API_KEY, companyId: company },
+    { ...creds(), companyId: company },
     propertyId,
   );
 }

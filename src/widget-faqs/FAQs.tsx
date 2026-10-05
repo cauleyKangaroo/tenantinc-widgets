@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './FAQs.css';
 import { SearchIcon, ChevronDown, ChevronRight } from './icons';
-import { fetchFaqsForProperty, type BoundPropertyProps } from './faqApi';
+import { fetchFaqsForProperty, configureApi, type BoundPropertyProps, type ApiCredProps } from './faqApi';
 import { Shimmer } from '@shared/Shimmer';
 import { RichText } from '@shared/richText';
 import { withLineBreaks } from '@shared/lineBreaks';
@@ -80,7 +80,7 @@ function FaqItem({ faq, open, onToggle }: { faq: Faq; open: boolean; onToggle: (
 // Main component
 // ---------------------------------------------------------------------------
 
-export interface FaqsProps {
+export interface FaqsProps extends ApiCredProps {
   heading?: string;
   subheading?: string;
 }
@@ -92,7 +92,22 @@ export function FAQs({
   heading = 'FAQ',
   subheading = 'Find answers to common questions about choosing a storage unit, storage unit rules and regulations, payment procedures, and more.',
   propertyId,
+  companyId,
+  // Site-level REST credentials from the Content Library's custom site texts.
+  api_domain,
+  app_id,
+  api_key,
 }: Props) {
+  /*
+   * Credentials in place BEFORE the data effects fire. During render, not
+   * in an effect — an effect runs a render too late and the first request
+   * would go out against config.json.
+   */
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
+
   const [query, setQuery] = useState('');
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
 
@@ -107,7 +122,7 @@ export function FAQs({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchFaqsForProperty({ propertyId })
+    fetchFaqsForProperty({ propertyId, companyId })
       .then((faqs) => {
         if (cancelled) return;
         setApiFaqs(faqs.map((f, i) => ({ id: `api-${i}`, question: f.question, answer: f.answer })));
@@ -115,7 +130,7 @@ export function FAQs({
       .catch((err) => console.error('[FAQs] fetchFaqsForProperty error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [propertyId]);
+  }, [propertyId, companyId]);
 
   // Demo set is the fallback for an EMPTY result only (also covers the harness).
   const source = apiFaqs.length ? apiFaqs : FAQS;

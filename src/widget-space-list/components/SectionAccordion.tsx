@@ -4,6 +4,7 @@ import { useCompanyId } from '../companyContext';
 import { fetchProperties, extractNearbyProperties } from '@shared/nearbyProperties';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import cfg from '../config.json';
+import { credsWithCompany } from '../apiCreds';
 import { ReviewsSection } from './sections/ReviewsSection';
 import { NearbySection } from './sections/NearbySection';
 import { SizeGuideSection } from './sections/SizeGuideSection';
@@ -262,8 +263,8 @@ export function SectionAccordion({
         // shared resolver only when the provider is still empty.
         const company = boundCompanyId
           || await resolveCompanyIdFromSources('#05 nearby badge', {}, cfg.companyId);
-        const creds = { ...cfg, companyId: company };
-        const all = extractNearbyProperties(await fetchProperties(creds, {}), cfg.appId);
+        const nearbyCreds = credsWithCompany(company);
+        const all = extractNearbyProperties(await fetchProperties(nearbyCreds, {}), nearbyCreds.appId);
         const others = all.filter((p) => p.id !== currentPropertyId).length;
         if (!cancelled) setNearbyCount(Math.min(others, NEARBY_BADGE_MAX));
       } catch (err) {
