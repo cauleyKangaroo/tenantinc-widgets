@@ -451,6 +451,8 @@
 /* A phone number never breaks mid-number; the email may. */
 .al-account-phone { white-space: nowrap; }
 
+.al-pick-error { margin-top: 16px; }
+
 .al-merge {
   display: flex;
   align-items: flex-start;

@@ -4,6 +4,11 @@ import { CheckTick, CaretDown, UserCircle, InfoSolid } from './icons';
 import { hasCollectionsApi, logSource, str } from '@shared/dudaCollections';
 import { readPropertiesFromCollection, PROPERTIES_COLLECTION } from '@shared/propertiesSource';
 import { skipValidation } from '@shared/devBypass';
+import {
+  sendCode as apiSendCode, verifyCode as apiVerifyCode, loginApiReady,
+  type LoginApiConfig, type Identifier, type AccountContact,
+} from './api';
+import { saveSession, expiresAtFrom } from '@shared/accountSession';
 
 // ===========================================================================
 // Widget #17 — Account Login
@@ -13,14 +18,13 @@ import { skipValidation } from '@shared/devBypass';
 // the same card and are branches of one state machine rather than three
 // screens:
 //
-//   1. "2FA Login with email or Phone" — identify → phone code → email code
-//      → (account picker) → done. Both codes, in that order, whichever the
-//      reader typed to identify themselves.
+//   1. "2FA Login with email or Phone" — identify → one-time code → done.
 //      9451:55590 (empty) · 9503:123086 (valid, green tick) ·
 //      9503:122933 (phone-only, with the extra "Login with Email" button) ·
-//      9503:123533 (code, empty) · 9503:123840 (phone code, filled) ·
-//      9503:132254 (email code) · 12667:34621 (account picker — only when the
-//      email is linked to more than one account).
+//      9503:123533 (code, empty) · 9503:123840 (code, filled) ·
+//      9503:132254 (the email wording of the code step) ·
+//      12667:34621 (account picker — when the email/phone is linked to more
+//      than one account; the verify call's `select_contact` answer).
 //   2. "Login With Google" / Apple — 9503:125657. NOT BUILT. The social
 //      sign-in buttons were removed for now; only the email/phone code flow
 //      and the 3rd-party handoff below ship. The Google and Apple marks are
@@ -31,13 +35,11 @@ import { skipValidation } from '@shared/devBypass';
 //
 // Mobile: 10640:67357 (350px card).
 //
-// NOTHING HERE IS CONNECTED. There is no auth backend wired to this repo; the
-// screens are built so the APIs can be hooked up without touching the UI.
-// Two seams, and nothing else in this file knows how either is done:
-//   · `lookupAccount` — who the identifier belongs to: the phone and email the
-//     codes go to, and every account linked to them. Returns demo data.
-//   · `verifyCode`    — checks a code. Accepts `bypassCode` (default "000000")
-//     and rejects everything else, so the flow is walkable end to end.
+// THE CODE CHECK IS A STUB. There is no auth backend wired to this repo, so
+// `bypassCode` (default "000000") is accepted and everything else is rejected —
+// as requested, so the flow is walkable end to end. `verifyCode` below is the
+// single seam to replace when the real endpoint exists; nothing else in this
+// file knows how a code is checked.
 // ===========================================================================
 
 /** Digits in the one-time code (Figma draws six boxes). */
@@ -46,7 +48,7 @@ const OTP_LENGTH = 6;
 /** Seconds before "Resend Code" can be used again. */
 const RESEND_COOLDOWN_S = 30;
 
-type Step = 'identify' | 'verify-phone' | 'verify-email' | 'choose' | 'done';
+type Step = 'identify' | 'verify' | 'choose' | 'done';
 type IdentifierKind = 'phone' | 'email';
 
 interface PropertyOption {
@@ -132,69 +134,52 @@ function formatDestination(value: string, kind: IdentifierKind): string {
 }
 
 // ---------------------------------------------------------------------------
-// The account seam
-// ---------------------------------------------------------------------------
-
-/** One account (rental) on file — a row of the picker (Figma 12667:34621). */
-export interface LinkedAccount {
-  id: string;
-  name: string;
-  /** Rented spaces on the account — "(1 Space)" / "(2 Spaces)". */
-  spaces: number;
-  email: string;
-  /** Raw digits. */
-  phone: string;
-}
-
-export interface AccountLookup {
-  /** Where the phone code goes. Raw digits. */
-  phone: string;
-  /** Where the email code goes. */
-  email: string;
-  /** Every account linked to that email. More than one ⇒ the picker. */
-  accounts: LinkedAccount[];
-}
-
-/** The picker frame's own sample rows. */
-const DEMO_ACCOUNTS: Omit<LinkedAccount, 'email'>[] = [
-  { id: 'demo-1', name: 'Jane Doe', spaces: 1, phone: '9497489365' },
-  { id: 'demo-2', name: 'Janey Do', spaces: 2, phone: '9499387777' },
-];
-
-/**
- * Who `identifier` belongs to. STUB — returns demo data shaped like the real
- * answer: whichever half the reader typed is echoed back, the other half is
- * the Figma's sample. Async already, so the real request drops in without
- * changing a call site.
- */
-async function lookupAccount(
-  identifier: string, kind: IdentifierKind, demoAccountCount: number,
-): Promise<AccountLookup> {
-  const phone = kind === 'phone' ? digitsOf(identifier) : '9491234567';
-  const email = kind === 'email' ? identifier.trim() : 'john.doe@tenantinc.com';
-  const count = Math.max(1, Math.min(DEMO_ACCOUNTS.length, demoAccountCount));
-  return { phone, email, accounts: DEMO_ACCOUNTS.slice(0, count).map((a) => ({ ...a, email })) };
-}
-
-/** "9497489365" → "(949) 748-9365". */
-function formatPhoneDisplay(digits: string): string {
-  const d = digitsOf(digits).replace(/^1/, '');
-  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : digits;
-}
-
-// ---------------------------------------------------------------------------
 // The verification seam
 // ---------------------------------------------------------------------------
 
-/**
- * Check a one-time code. THE ONLY PLACE that decides whether a code is good.
+/*
+ * The code check now lives in ./api against the My Account proxy.
  *
- * Stubbed against `bypassCode` until there's an endpoint to call — swap the body
- * for the real request and the rest of the widget is unchanged. Async already,
- * so that swap doesn't change any call site.
+ * `bypassCode` survives as a HARNESS-ONLY fallback, used only when the widget
+ * has not been given a `login_api_base` and site id — i.e. the dev harness and
+ * the Duda editor, where there is nothing to call. On a configured page the
+ * real endpoint is the only thing that can accept a code.
  */
-async function verifyCode(code: string, bypassCode: string): Promise<boolean> {
+async function verifyCodeOffline(code: string, bypassCode: string): Promise<boolean> {
   return code === bypassCode;
+}
+
+// ---------------------------------------------------------------------------
+// Account picker (Figma 12667:34621)
+// ---------------------------------------------------------------------------
+
+/** One row of the picker, from either source below. */
+interface PickerAccount {
+  id: string;
+  name: string;
+  /** Rented spaces — "(1 Space)". The API's contact rows do not carry it yet. */
+  spaces?: number;
+  /** The line under the name: "email, (949) 748-9365" — either part may be absent. */
+  email?: string;
+  phone?: string;
+}
+
+/**
+ * HARNESS/EDITOR ONLY — the picker frame's own sample rows, shown after the
+ * offline bypass when `demoAccountCount` > 1 so the screen can be walked
+ * without an API. A live page shows the server's `select_contact` rows.
+ */
+const DEMO_ACCOUNTS = [
+  { id: 'demo-1', name: 'Jane Doe', spaces: 1, phone: '(949) 748-9365' },
+  { id: 'demo-2', name: 'Janey Do', spaces: 2, phone: '(949) 938-7777' },
+];
+
+/** The verify call's contacts → picker rows. `email` is what the reader typed, if anything. */
+function contactsToAccounts(contacts: AccountContact[], email: string): PickerAccount[] {
+  return contacts.map((c, i) => {
+    const name = [c.first, c.last].filter(Boolean).join(' ') || c.name || `Account ${i + 1}`;
+    return { id: c.id || String(i), name, email: email || undefined, phone: c.maskedPhone };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -322,13 +307,32 @@ export interface AccountLoginProps {
   thirdPartyLoginUrl?: string;
   /** Where a verified reader lands. Blank shows the built-in confirmation. */
   successUrl?: string;
-  /** Code accepted while there's no auth backend. See `verifyCode`. */
+  /**
+   * Code accepted ONLY when the API is not configured (harness, Duda editor).
+   * See `verifyCodeOffline`.
+   */
   bypassCode?: string;
   /**
-   * Accounts the stubbed `lookupAccount` reports for the email — 1 skips the
-   * picker, 2 shows it. Harness-only knob; it goes away with the stub.
+   * My Account proxy base, from the Duda JS tab's `login_api_base` site text.
+   * e.g. https://devus-mariposa-duda-proxy.tenant-platform-dev.com
+   *
+   * Unset, the card stays on the offline bypass rather than firing requests at
+   * nothing — which is what keeps the editor and the harness walkable.
+   */
+  login_api_base?: string;
+  /**
+   * HARNESS/EDITOR ONLY: accounts the offline bypass pretends the email has.
+   * More than 1 shows the picker after the code step. Ignored on a live page,
+   * where the server decides.
    */
   demoAccountCount?: number;
+  /** Duda's `data.siteId` — the proxy identifies the caller by it. */
+  siteId?: string;
+  /**
+   * Duda's `data.inEditor`. The card is INERT in the editor: no request is
+   * sent and no navigation happens — see `live` and `finish` below.
+   */
+  inEditor?: boolean;
 }
 
 export function AccountLogin({
@@ -339,10 +343,31 @@ export function AccountLogin({
   propertiesCollection = PROPERTIES_COLLECTION,
   propertyLoginUrlField = 'accountPortalUrl',
   thirdPartyLoginUrl = '',
-  successUrl = '',
+  successUrl = '/my-account',
   bypassCode = '000000',
+  login_api_base = '',
+  siteId = '',
+  inEditor = false,
   demoAccountCount = 1,
 }: AccountLoginProps) {
+  /*
+   * Where the code is checked. Both values come from the page, so this is the
+   * one place that decides live-vs-offline and every branch below reads it.
+   */
+  const api: LoginApiConfig = useMemo(
+    () => ({ baseUrl: login_api_base.trim(), siteId: siteId.trim() }),
+    [login_api_base, siteId],
+  );
+  /*
+   * Whether this card really signs anyone in.
+   *
+   * NOT in the Duda editor, even with the API configured. Someone laying out
+   * the page would otherwise send real verification emails to whatever they
+   * typed while checking the field — and a redirect would take the editor
+   * off the page they are building. The editor gets the offline bypass and
+   * the built-in confirmation card instead, so every state stays walkable.
+   */
+  const live = loginApiReady(api) && !inEditor;
   const [step, setStep] = useState<Step>('identify');
 
   // 'phone' mode can be switched to email in-session by the "Login with Email"
@@ -359,8 +384,18 @@ export function AccountLogin({
   const [codeError, setCodeError] = useState('');
   const [checking, setChecking] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  /** A send is in flight — the identify button shows it and cannot re-fire. */
+  const [sending, setSending] = useState(false);
+  /*
+   * Contacts returned by a `select_contact` verify.
+   *
+   * Held rather than discarded so the picker is a small follow-up once the
+   * contact-selection endpoint is documented. Nothing renders it yet.
+   */
+  const [pendingContacts, setPendingContacts] = useState<AccountContact[]>([]);
+  /** Shown on the picker when a choice cannot be completed (see `pickAccount`). */
+  const [pickError, setPickError] = useState('');
   const [resent, setResent] = useState(false);
-  const [lookup, setLookup] = useState<AccountLookup | null>(null);
 
   const otpHeadingRef = useRef<HTMLHeadingElement>(null);
 
@@ -402,9 +437,37 @@ export function AccountLogin({
   }, [fieldMode, identifier]);
 
   const identifierValid = kind === 'email' ? isEmail(identifier) : isPhone(identifier);
+
+  /*
+   * The one-of-email-or-phone body the proxy wants. Sending both, or neither,
+   * is a 400, so the channel is decided once here and reused by send AND
+   * verify — the server pairs them, so a code sent to an email cannot be
+   * verified as a phone.
+   *
+   * Phone digits only: the field carries the display formatting the reader
+   * typed, and '(555) 123-4567' is not what was registered.
+   */
+  const identifierPayload = useCallback((): Identifier => (
+    kind === 'email'
+      ? { email: identifier.trim() }
+      : { phone: identifier.replace(/\D/g, '') }
+  ), [kind, identifier]);
+
+  /** Verified: hand over to the account page, or show the built-in card. */
+  const finish = useCallback(() => {
+    // The editor never navigates. A bare '/my-account' there walks out of
+    // the editor shell and the layout session is gone.
+    if (!successUrl || inEditor) {
+      setStep('done');
+      return;
+    }
+    window.location.href = successUrl;
+  }, [successUrl, inEditor]);
   const selectedProperty = properties.find((p) => p.id === propertyId) ?? null;
   const propertyValid = !showPropertySelect || !!propertyId;
-  const canContinue = identifierValid && propertyValid;
+  // `sending` included: a second click while the first send is in flight would
+  // ask the server for two codes and invalidate the one already on its way.
+  const canContinue = identifierValid && propertyValid && !sending;
 
   const placeholder = fieldMode === 'email'
     ? 'Email'
@@ -424,7 +487,7 @@ export function AccountLogin({
   // whole contents, and without this a keyboard or screen-reader user is left
   // on a button that no longer exists.
   useEffect(() => {
-    if (step !== 'identify' && step !== 'done') otpHeadingRef.current?.focus();
+    if (step === 'verify' || step === 'choose') otpHeadingRef.current?.focus();
   }, [step]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -435,24 +498,7 @@ export function AccountLogin({
     setIdentifier(fieldMode === 'email' || !looksNumeric(raw) ? raw : formatPhoneInput(raw));
   };
 
-  /** Fresh code boxes and cooldown — on entering either code step. */
-  const startCodeStep = (next: 'verify-phone' | 'verify-email') => {
-    setCode('');
-    setCodeError('');
-    setResent(false);
-    setResendIn(RESEND_COOLDOWN_S);
-    setStep(next);
-  };
-
-  const finish = () => {
-    if (successUrl) {
-      window.location.href = successUrl;
-      return;
-    }
-    setStep('done');
-  };
-
-  const submitIdentifier = async () => {
+  const submitIdentifier = () => {
     if (showPropertySelect && !propertyId) {
       setIdentifyError('Select a storage property to continue.');
       return;
@@ -467,11 +513,46 @@ export function AccountLogin({
     // 3rd-party flow: the account lives on someone else's portal, so hand off
     // rather than asking for a code we couldn't check.
     if (selectedProperty?.loginUrl) {
+      // Inert in the editor, like every other navigation here.
+      if (inEditor) {
+        setIdentifyError('');
+        setStep('done');
+        return;
+      }
       window.location.href = selectedProperty.loginUrl;
       return;
     }
-    setLookup(await lookupAccount(identifier, kind, demoAccountCount));
-    startCodeStep('verify-phone');
+    setCode('');
+    setCodeError('');
+
+    if (!live) {
+      // Nothing to call — harness/editor. Straight to the code step so the
+      // flow stays walkable against `bypassCode`.
+      setResendIn(RESEND_COOLDOWN_S);
+      setStep('verify');
+      return;
+    }
+
+    /*
+     * Advance ONLY once the server says it sent something.
+     *
+     * Moving to the code step first would ask the reader for a code that is
+     * never arriving when the address is unknown or the send failed, and the
+     * only feedback would be a wrong-code error six digits later.
+     */
+    setSending(true);
+    void apiSendCode(api, identifierPayload())
+      .then((r) => {
+        if (!r.ok) {
+          setIdentifyError(r.message);
+          if (r.detail) console.warn('[#17 login] send failed:', r.detail);
+          return;
+        }
+        // The server's own cooldown, not our guess at one.
+        setResendIn(r.resendAfter || RESEND_COOLDOWN_S);
+        setStep('verify');
+      })
+      .finally(() => setSending(false));
   };
 
   const submitCode = useCallback(async (candidate: string) => {
@@ -481,33 +562,117 @@ export function AccountLogin({
     setChecking(true);
     setCodeError('');
     try {
-      const ok = await verifyCode(candidate, bypassCode);
-      if (!ok) {
-        setCodeError('That code is incorrect. Check it and try again.');
+      if (!live) {
+        const ok = await verifyCodeOffline(candidate, bypassCode);
+        if (!ok) {
+          setCodeError('That code is incorrect. Check it and try again.');
+          return;
+        }
+        if (demoAccountCount > 1) {
+          setPickError('');
+          setStep('choose');
+          return;
+        }
+        finish();
         return;
       }
-      // Phone first, then email — both, whichever the reader identified with.
-      if (step === 'verify-phone') {
-        startCodeStep('verify-email');
+
+      const r = await apiVerifyCode(api, identifierPayload(), candidate.replace(/\s/g, ''));
+      if (!r.ok) {
+        setCodeError(r.message);
+        if (r.detail) console.warn('[#17 login] verify failed:', r.detail);
         return;
       }
-      if ((lookup?.accounts.length ?? 0) > 1) {
+
+      /*
+       * Several contacts share this email/phone, so the server cannot know
+       * which account to open and hands back a SELECTION token, not a
+       * session one.
+       *
+       * The endpoint that spends it is not documented here yet, so this
+       * stops and says so rather than storing a selection token as if it
+       * were a session — which would send the reader to an account page
+       * whose every request then fails. The data is kept so the picker is a
+       * small follow-up once that call exists.
+       */
+      if (r.status === 'select_contact') {
+        setPendingContacts(r.contacts);
+        setPickError('');
         setStep('choose');
+        return;
+      }
+
+      // Stored BEFORE the redirect: /my-account is a full page load and
+      // nothing survives it in memory.
+      const stored = saveSession({
+        token: r.token,
+        expiresAt: expiresAtFrom(r.expiresIn),
+        contactId: r.contact.id,
+        name: r.contact.name,
+      });
+      if (!stored) {
+        // Blocked site data. Sending them on would land an account page that
+        // cannot read the session and bounces straight back here.
+        setCodeError(
+          'Your browser is blocking site storage, so we cannot keep you signed in. '
+          + 'Enable it for this site and try again.',
+        );
         return;
       }
       finish();
     } finally {
       setChecking(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checking, bypassCode, successUrl, step, lookup]);
+  }, [checking, bypassCode, successUrl, live, api, identifierPayload, finish, demoAccountCount]);
+
+  /*
+   * A row of the picker was chosen.
+   *
+   * LIVE: the endpoint that spends the selection token is not documented yet,
+   * so a choice cannot open an account — it says so rather than storing the
+   * selection token as if it were a session (see the select_contact branch
+   * above). This is the one place to wire that call when it exists.
+   * OFFLINE: the demo completes, so the flow can be walked end to end.
+   */
+  const pickAccount = (account: PickerAccount) => {
+    if (!live) {
+      finish();
+      return;
+    }
+    setPickError('Signing in to one of several accounts is not available yet. Please contact the facility to sign in.');
+    console.warn('[#17 login] contact chosen:', account.id, '— the contact-selection endpoint is not wired yet.');
+  };
 
   const resend = () => {
-    if (resendIn > 0) return;
+    if (resendIn > 0 || sending) return;
     setCode('');
     setCodeError('');
-    setResent(true);
-    setResendIn(RESEND_COOLDOWN_S);
+
+    if (!live) {
+      setResent(true);
+      setResendIn(RESEND_COOLDOWN_S);
+      return;
+    }
+
+    /*
+     * A real resend, to the SAME channel as the first send.
+     *
+     * The cooldown starts on success, not on click: starting it up front
+     * would lock the button for a minute after a send that failed, leaving
+     * the reader waiting for a code nobody sent.
+     */
+    setSending(true);
+    void apiSendCode(api, identifierPayload())
+      .then((r) => {
+        if (!r.ok) {
+          setCodeError(r.message);
+          if (r.detail) console.warn('[#17 login] resend failed:', r.detail);
+          return;
+        }
+        setResent(true);
+        setResendIn(r.resendAfter || RESEND_COOLDOWN_S);
+      })
+      .finally(() => setSending(false));
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -525,7 +690,19 @@ export function AccountLogin({
     );
   }
 
-  if (step === 'choose' && lookup) {
+  if (step === 'choose') {
+    const email = kind === 'email' ? identifier.trim() : '';
+    const accounts: PickerAccount[] = live
+      ? contactsToAccounts(pendingContacts, email)
+      : DEMO_ACCOUNTS.slice(0, Math.max(2, demoAccountCount)).map((a) => ({
+        id: a.id,
+        name: a.name,
+        spaces: a.spaces,
+        email: email || 'john.doe@tenantinc.com',
+        phone: a.phone,
+      }));
+    const linkedTo = email || formatDestination(identifier, 'phone');
+
     return (
       <div className="al-wrapper">
         <div className="al-card al-card--choose">
@@ -535,31 +712,38 @@ export function AccountLogin({
             </h1>
             <p className="al-sub al-sub--choose">
               More than one rental is linked to{' '}
-              <a className="al-sub-link" href={`mailto:${lookup.email}`}>{lookup.email}</a>
+              {email
+                ? <a className="al-sub-link" href={`mailto:${email}`}>{email}</a>
+                : linkedTo}
               . Select an account to get started. You can switch to another one later.
             </p>
           </div>
 
           <ul className="al-accounts">
-            {lookup.accounts.map((a) => (
+            {accounts.map((a) => (
               <li key={a.id}>
-                {/* The account choice is the seam the real sign-in hangs off;
-                    for now any choice completes the flow. */}
-                <button type="button" className="al-account" onClick={finish}>
+                <button type="button" className="al-account" onClick={() => pickAccount(a)}>
                   <UserCircle className="al-account-avatar" />
                   <span className="al-account-text">
                     <span className="al-account-line">
                       <span className="al-account-name">{a.name}</span>
-                      <span className="al-account-spaces">({a.spaces} {a.spaces === 1 ? 'Space' : 'Spaces'})</span>
+                      {a.spaces != null && (
+                        <span className="al-account-spaces">({a.spaces} {a.spaces === 1 ? 'Space' : 'Spaces'})</span>
+                      )}
                     </span>
-                    <span className="al-account-detail">
-                      {a.email}, <span className="al-account-phone">{formatPhoneDisplay(a.phone)}</span>
-                    </span>
+                    {(a.email || a.phone) && (
+                      <span className="al-account-detail">
+                        {a.email}{a.email && a.phone && ', '}
+                        {a.phone && <span className="al-account-phone">{a.phone}</span>}
+                      </span>
+                    )}
                   </span>
                 </button>
               </li>
             ))}
           </ul>
+
+          {pickError && <p className="al-error al-pick-error" role="alert">{pickError}</p>}
 
           <div className="al-merge">
             <InfoSolid className="al-merge-icon" />
@@ -573,11 +757,8 @@ export function AccountLogin({
     );
   }
 
-  if (step === 'verify-phone' || step === 'verify-email') {
-    const isEmailStep = step === 'verify-email';
-    const destination = isEmailStep
-      ? (lookup?.email ?? formatDestination(identifier, 'email'))
-      : formatDestination(lookup?.phone ?? identifier, 'phone');
+  if (step === 'verify') {
+    const destination = formatDestination(identifier, kind);
     const complete = code.replace(/\s/g, '').length === OTP_LENGTH;
 
     return (
@@ -585,7 +766,7 @@ export function AccountLogin({
         <div className="al-card">
           <div className="al-head">
             <h1 className="al-title" tabIndex={-1} ref={otpHeadingRef}>
-              {isEmailStep ? 'Verify Email' : 'Verify Phone Number'}
+              {kind === 'email' ? 'Verify Email' : 'Verify Phone Number'}
             </h1>
             <p className="al-sub">
               Enter the one time code we sent to
@@ -595,7 +776,6 @@ export function AccountLogin({
           </div>
 
           <OtpInput
-            key={step}
             value={code}
             onChange={(next) => { setCode(next); setCodeError(''); }}
             invalid={!!codeError}
@@ -636,7 +816,7 @@ export function AccountLogin({
 
         <form
           className="al-form"
-          onSubmit={(e) => { e.preventDefault(); void submitIdentifier(); }}
+          onSubmit={(e) => { e.preventDefault(); submitIdentifier(); }}
           noValidate
         >
           <div className="al-fields">
@@ -687,7 +867,7 @@ export function AccountLogin({
             {identifyError && <p className="al-error" role="alert">{identifyError}</p>}
 
             <button type="submit" className="al-cta" disabled={!canContinue}>
-              Continue
+              {sending ? 'Sending…' : 'Continue'}
             </button>
           </div>
 

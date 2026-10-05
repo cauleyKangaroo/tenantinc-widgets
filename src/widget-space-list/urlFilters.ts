@@ -9,8 +9,12 @@ const P = 'sl_';
 
 /*
  * No fixed list any more — the types are whatever the property's catalogue
- * holds (see SpaceType). An unknown value simply matches no unit and the
- * list renders empty, which is the same outcome the old allow-list gave.
+ * holds (see SpaceType), which is per-property and not known here.
+ *
+ * Parsing is therefore permissive and SpaceList prunes anything the loaded
+ * units do not have, once they arrive. That is NOT the same as letting an
+ * unknown token through: `filterUnits` treats a non-empty `types` as an
+ * allow-list, so a typo would match nothing and blank the listing entirely.
  */
 
 export function readFiltersFromUrl(): FilterState {

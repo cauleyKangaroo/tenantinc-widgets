@@ -335,6 +335,31 @@ export function SpaceList({
   const units = liveUnits;
 
   const [filters, setFilters] = useState<FilterState>(() => readFiltersFromUrl());
+
+  /*
+   * Drop URL type tokens the property does not actually have, ONCE the units
+   * are in.
+   *
+   * `filterUnits` treats a non-empty `types` as an allow-list, so a typo such
+   * as ?sl_types=storagee matched nothing and blanked the whole listing. The
+   * old hardcoded allow-list discarded the token instead and left the listing
+   * unfiltered — a comment of mine wrongly called those two outcomes
+   * equivalent. They are not, and the unfiltered one is right: a bad URL
+   * should not look like an empty property.
+   *
+   * Gated on units.length because the catalogue is per-property and arrives
+   * async — pruning before it loads would discard every valid selection.
+   */
+  useEffect(() => {
+    if (!units.length) return;
+    setFilters((prev) => {
+      if (!prev.types.length) return prev;
+      const present = new Set(units.map((u) => u.type));
+      const kept = prev.types.filter((t) => present.has(t));
+      if (kept.length === prev.types.length) return prev;
+      return { ...prev, types: kept };
+    });
+  }, [units]);
   const [panelOpen, setPanelOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 

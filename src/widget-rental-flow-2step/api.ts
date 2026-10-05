@@ -1,4 +1,5 @@
 import cfg from './config.json';
+import { createApiCredsStore, type ApiCredProps, type ApiCreds } from '@shared/apiConfig';
 import { memoGet, memoInvalidate, MEMO_TTL } from '@shared/requestMemo';
 import { normalizePhone } from '@shared/ui/phone';
 import { cardBrand } from './gpTokenize';
@@ -42,9 +43,29 @@ function isoDate(v: string | undefined, fallback: string): string {
 }
 
 
-const BASE_URL = cfg.baseUrl;
-const APP_ID = cfg.appId;
-const API_KEY = cfg.apiKey;
+/*
+ * This widget's REST credentials — the site's, via the Duda JS tab
+ * (api_domain / app_id / api_key), with config.json as the fallback for the
+ * Duda editor, the dev harness, and sites whose site texts are not filled in.
+ * See @shared/apiConfig.
+ *
+ * STAGE 1 ONLY. `gpPublicKey` and `proxyBaseUrl` are deliberately still
+ * build-time: the GP key decides which gateway host a real card is tokenized
+ * against, and that is a decision to take on its own rather than carry over
+ * with the plumbing.
+ */
+const store = createApiCredsStore('#99 rental-flow', {
+  baseUrl: cfg.baseUrl,
+  appId: cfg.appId,
+  apiKey: cfg.apiKey,
+});
+
+/** Apply the site's props. Safe on every render; ignores an empty set. */
+export const configureApi = store.configure;
+export type { ApiCredProps };
+
+/** The credentials to use right now. */
+const creds = store.creds;
 
 export interface RentalCtx {
   companyId: string;
@@ -86,12 +107,13 @@ const tenantPath = (ctx: RentalCtx, unitId: string, suffix: string) =>
 function headers() {
   return {
     'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
-    'x-storageapi-key': API_KEY,
+    'x-storageapi-key': creds().apiKey,
   };
 }
 
 async function getJson(path: string, fresh = false): Promise<unknown> {
-  const url = `${BASE_URL}/applications/${APP_ID}/v2/${path}`;
+  const { baseUrl, appId } = creds();
+  const url = `${baseUrl}/applications/${appId}/v2/${path}`;
   return memoGet(url, async () => {
     const res = await fetch(url, { headers: headers() });
     if (!res.ok) throw new Error(`GET ${path} failed: ${res.status} ${res.statusText}`);
@@ -102,7 +124,7 @@ async function getJson(path: string, fresh = false): Promise<unknown> {
 /** Unwrap the standard envelope: applicationData.<appId>[0].data */
 function unwrap(raw: unknown): Record<string, unknown> | undefined {
   const env = raw as { applicationData?: Record<string, Array<{ data?: Record<string, unknown> }>> };
-  return env?.applicationData?.[APP_ID]?.[0]?.data;
+  return env?.applicationData?.[creds().appId]?.[0]?.data;
 }
 
 // --- Property (brand name for the SMS consent line, contact phone) ----------
@@ -593,7 +615,7 @@ export function extractSelectionContext(
   size?: string,
 ): SelectionContext | undefined {
   const env = raw as { applicationData?: Record<string, Array<{ data?: { spaceGroupProfile?: Record<string, unknown> } }>> };
-  const profiles = env?.applicationData?.[APP_ID]?.[0]?.data?.spaceGroupProfile;
+  const profiles = env?.applicationData?.[creds().appId]?.[0]?.data?.spaceGroupProfile;
   if (!profiles) return undefined;
   const wanted = size ? normalizeSize(size) : undefined;
 
@@ -871,7 +893,8 @@ function unitDims(u: ApiUnitRow): string | undefined {
 }
 
 async function getJsonV1(path: string, fresh = false): Promise<unknown> {
-  const url = `${BASE_URL}/applications/${APP_ID}/v1/${path}`;
+  const { baseUrl, appId } = creds();
+  const url = `${baseUrl}/applications/${appId}/v1/${path}`;
   // v1 reads here are availability + per-unit quotes — volatile, dedupe only.
   return memoGet(url, async () => {
     const res = await fetch(url, { headers: headers() });
@@ -1163,7 +1186,17 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
 // fallback only.
 export function writesEnabled(ctx: RentalCtx): boolean {
   if (shouldUseProxyWrites(ctx)) return false; // proxy path takes precedence
-  return !!API_KEY && !!BASE_URL && (cfg as { enableDirectWrites?: boolean }).enableDirectWrites !== false;
+  /*
+   * The EFFECTIVE creds rather than the build-time constants, so this agrees
+   * with what the requests will actually send.
+   *
+   * Note what this does NOT do: @shared/apiConfig falls back per field, so a
+   * site text left blank yields the bundled value and this stays true. The
+   * gate only closes when there is no key at all — config.json's included —
+   * or the build sets enableDirectWrites: false.
+   */
+  const { baseUrl, apiKey } = creds();
+  return !!apiKey && !!baseUrl && (cfg as { enableDirectWrites?: boolean }).enableDirectWrites !== false;
 }
 
 /** Assumed TTL — the hold response has no expiry field; 15 min per the live platform. */
@@ -1175,14 +1208,40 @@ export interface UnitHold {
   holdToken: string;
   /** ms epoch when the hold was acquired (client clock). */
   heldAt: number;
+  /*
+   * The credentials that ACQUIRED this hold.
+   *
+   * A hold token is only meaningful to the application that issued it. If the
+   * site texts change on a retained widget root, the store moves but the live
+   * hold does not — releasing it against the new application silently fails
+   * and the unit stays held until the server expires it. Releases therefore
+   * use this snapshot, not whatever is current.
+   *
+   * Optional so a hold restored from older state still releases, on current
+   * creds, exactly as before.
+   */
+  creds?: ApiCreds;
 }
 
 interface InnerResult { status?: number; data?: Record<string, unknown>; msg?: string }
 
-async function sendV1(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<InnerResult> {
-  const res = await fetch(`${BASE_URL}/applications/${APP_ID}/v1/${path}`, {
+async function sendV1(
+  method: 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  body?: unknown,
+  /** Pin to a specific set — used to release a hold on the creds that took it. */
+  pinned?: ApiCreds,
+): Promise<InnerResult> {
+  const { baseUrl, appId, apiKey } = pinned ?? creds();
+  const res = await fetch(`${baseUrl}/applications/${appId}/v1/${path}`, {
     method,
-    headers: { ...headers(), 'Content-Type': 'application/json' },
+    // The pinned KEY too, not just the host — headers() reads the current
+    // store, which would defeat the whole point when releasing a hold.
+    headers: {
+      'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
+      'x-storageapi-key': apiKey,
+      'Content-Type': 'application/json',
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   // Read the envelope EVEN ON A NON-2XX. A validation failure comes back as a
@@ -1191,7 +1250,7 @@ async function sendV1(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: un
   // callers with "failed: 400" and nothing to act on.
   const env = await res.json().catch(() => undefined) as
     { applicationData?: Record<string, InnerResult[]> } | undefined;
-  const inner = env?.applicationData?.[APP_ID]?.[0];
+  const inner = env?.applicationData?.[appId]?.[0];
   if (inner) return inner;
   // No envelope to read: a gateway or transport failure rather than the API
   // rejecting the request.
@@ -1218,7 +1277,16 @@ export async function holdUnit(ctx: RentalCtx, unit: { id: string; number?: stri
     if (inner.status !== 200 || !token) {
       return { ok: false, reason: 'error', detail: inner.msg ?? `status ${inner.status}` };
     }
-    return { ok: true, hold: { unitId: unit.id, unitNumber: unit.number, holdToken: token, heldAt: Date.now() } };
+    return {
+      ok: true,
+      hold: {
+        unitId: unit.id,
+        unitNumber: unit.number,
+        holdToken: token,
+        heldAt: Date.now(),
+        creds: creds(),
+      },
+    };
   } catch (err) {
     return { ok: false, reason: 'error', detail: err instanceof Error ? err.message : String(err) };
   }
@@ -1248,8 +1316,17 @@ export function releaseHoldOnUnload(ctx: RentalCtx, hold: UnitHold): void {
       return;
     }
     if (!writesEnabled(ctx) || !ctx.companyId) return;
-    const url = `${BASE_URL}/applications/${APP_ID}/v1/companies/${ctx.companyId}/units/${hold.unitId}/hold/${encodeURIComponent(hold.holdToken)}`;
-    void fetch(url, { method: 'DELETE', headers: headers(), keepalive: true });
+    // The creds that took the hold, for the reason on UnitHold.creds.
+    const held = hold.creds ?? creds();
+    const url = `${held.baseUrl}/applications/${held.appId}/v1/companies/${ctx.companyId}/units/${hold.unitId}/hold/${encodeURIComponent(hold.holdToken)}`;
+    void fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
+        'x-storageapi-key': held.apiKey,
+      },
+      keepalive: true,
+    });
   } catch { /* unloading — there is nowhere to report this */ }
 }
 
@@ -1258,7 +1335,12 @@ export async function releaseHold(ctx: RentalCtx, hold: UnitHold): Promise<void>
   if (shouldUseProxyWrites(ctx)) { await releaseHoldViaProxy(ctx, hold); return; }
   if (!writesEnabled(ctx)) return;
   try {
-    await sendV1('DELETE', `companies/${ctx.companyId}/units/${hold.unitId}/hold/${hold.holdToken}`);
+    await sendV1(
+      'DELETE',
+      `companies/${ctx.companyId}/units/${hold.unitId}/hold/${hold.holdToken}`,
+      undefined,
+      hold.creds,
+    );
     memoInvalidate('units/available');
     memoInvalidate('/space-groups/');
   } catch (err) {
@@ -2409,7 +2491,7 @@ export async function updateContactDetails(
 
   try {
     const res = await fetch(
-      `${BASE_URL}/applications/${APP_ID}/v2/companies/${ctx.companyId}/contacts/${encodeURIComponent(contactId)}`,
+      `${creds().baseUrl}/applications/${creds().appId}/v2/companies/${ctx.companyId}/contacts/${encodeURIComponent(contactId)}`,
       {
         method: 'PUT',
         headers: { ...headers(), 'Content-Type': 'application/json' },
@@ -2421,7 +2503,7 @@ export async function updateContactDetails(
       return false;
     }
     const env = await res.json() as { applicationData?: Record<string, InnerResult[]> };
-    const inner = env?.applicationData?.[APP_ID]?.[0];
+    const inner = env?.applicationData?.[creds().appId]?.[0];
     if (inner?.status !== 200) {
       // Its validation messages name the offending field, so they are worth
       // keeping verbatim.
@@ -2514,7 +2596,7 @@ export async function fetchPaymentGateway(ctx: RentalCtx): Promise<PaymentGatewa
   if (!ctx.companyId || !ctx.propertyId) return null;
   try {
     const res = await fetch(
-      `${BASE_URL}/applications/${APP_ID}/v2/companies/${ctx.companyId}`
+      `${creds().baseUrl}/applications/${creds().appId}/v2/companies/${ctx.companyId}`
       + `/properties/${encodeURIComponent(ctx.propertyId)}/gateway`,
       { headers: headers() },
     );
@@ -2523,7 +2605,7 @@ export async function fetchPaymentGateway(ctx: RentalCtx): Promise<PaymentGatewa
       return null;
     }
     const env = await res.json() as { applicationData?: Record<string, InnerResult[]> };
-    const inner = env?.applicationData?.[APP_ID]?.[0];
+    const inner = env?.applicationData?.[creds().appId]?.[0];
     // The envelope's inner status is the real one — HTTP 200 carries failures.
     if (inner?.status !== 200) {
       console.warn('[rental] gateway lookup rejected:', inner?.status, inner?.msg);

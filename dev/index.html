@@ -718,9 +718,10 @@
         </div>
       </div>
       <p class="subtitle" style="margin-top:12px">
-        Nothing here is connected. The flow is phone code → email code → account picker
-        (when the email has more than one account); enter <strong>000000</strong> at each
-        code step to pass, anything else is rejected.
+        The harness has no <code>login_api_base</code>, so the code check runs offline:
+        enter <strong>000000</strong> to pass, anything else is rejected. With "Accounts on
+        the email" at 2 the account picker follows the code step (on a live page it appears
+        when the API returns several accounts).
         Outside Duda there is no <code>dmAPI</code>, so the property dropdown falls back
         to the demo locations from #02's Find Storage menu — on the published site it
         reads the <code>Properties</code> collection instead. Picking
