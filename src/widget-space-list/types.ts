@@ -7,7 +7,20 @@
 // to change. See HANDOFF.md.
 // ---------------------------------------------------------------------------
 
-export type SpaceType = 'storage' | 'parking';
+import type { ApiCredProps } from '@shared/apiConfig';
+
+/*
+ * A unit type, as the API names it, lower-cased.
+ *
+ * OPEN, not a two-value union. The catalogue
+ * (`space-management/space-types`) holds 11 types for this company and four
+ * are live on Bellflower alone — storage, parking, Commercial and wine. A
+ * closed union silently folded every one of the others into 'storage'.
+ *
+ * The two literals stay for autocomplete and because 'storage' is genuinely
+ * special: it is the ONLY type that renders size bands.
+ */
+export type SpaceType = 'storage' | 'parking' | (string & NonNullable<unknown>);
 /** @deprecated — use SpaceType[] in FilterState.types instead */
 export type FilterType = SpaceType;
 
@@ -170,7 +183,7 @@ export interface FilterOption<T extends string = string> {
 // Widget props — these come straight from the Duda content panel
 // ---------------------------------------------------------------------------
 
-export interface SpaceListProps {
+export interface SpaceListProps extends ApiCredProps {
   /**
    * Dropdown in the content panel: which listing layout to render.
    *   'grid'    — card grid inside size-group accordions

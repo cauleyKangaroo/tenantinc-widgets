@@ -152,6 +152,24 @@ export function orderTypes(types: SpaceType[], first: CategoryOrdering): SpaceTy
   return [...types].sort((a, b) => rank(a) - rank(b));
 }
 
+/**
+ * The Type filter's options, from the units actually on the page.
+ *
+ * Hardcoding storage/parking hid every other type behind a filter that could
+ * not select it. Labels are title-cased the same way the section headings
+ * are, so the pill and the accordion it filters to always read alike.
+ */
+export function typeOptionsFrom(
+  units: Unit[],
+  first: CategoryOrdering = 'spaces',
+): { value: SpaceType; label: string }[] {
+  const present = Array.from(new Set(units.map((u) => u.type)));
+  return orderTypes(present, first).map((t) => ({
+    value: t,
+    label: t.charAt(0).toUpperCase() + t.slice(1),
+  }));
+}
+
 /** Badge count = number of active filter selections. */
 export function activeFilterCount(f: FilterState): number {
   return (

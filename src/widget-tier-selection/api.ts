@@ -1,4 +1,5 @@
 import cfg from './config.json';
+import { createApiCredsStore, type ApiCredProps } from '@shared/apiConfig';
 import { memoGet, MEMO_TTL } from '@shared/requestMemo';
 import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
 import type { TierKey } from './types';
@@ -13,10 +14,31 @@ import type { TierKey } from './types';
 // former proxy). Business rules of record: VALUE_TIERS_BUSINESS_RULES.md.
 // ---------------------------------------------------------------------------
 
-const BASE = cfg.baseUrl.replace(/\/$/, '');
-const APP = cfg.appId;
-const KEY = cfg.apiKey;
-const appBase = `${BASE}/applications/${APP}`;
+/*
+ * This widget's REST credentials — the site's, via the Duda JS tab
+ * (api_domain / app_id / api_key), with config.json as the fallback for the
+ * Duda editor, the dev harness, and sites whose site texts are not filled in.
+ * See @shared/apiConfig.
+ */
+const store = createApiCredsStore('#14 tier-selection', {
+  baseUrl: cfg.baseUrl.replace(/\/$/, ''),
+  appId: cfg.appId,
+  apiKey: cfg.apiKey,
+});
+
+/** Apply the site's props. Safe on every render; ignores an empty set. */
+export const configureApi = store.configure;
+export type { ApiCredProps };
+
+/*
+ * A FUNCTION, not a const. This was `const appBase = ...` evaluated at import
+ * time, which would have frozen the build-time host and app id before the
+ * widget ever rendered — so no site value could have taken effect.
+ */
+function appBase(): string {
+  const { baseUrl, appId } = store.creds();
+  return `${baseUrl}/applications/${appId}`;
+}
 
 /** The one resolved context threaded through every call — a property is always
  *  priced and quoted against the SAME facility (no cross-mixing). */
@@ -35,7 +57,7 @@ class HttpError extends Error {
 }
 
 function hbHeaders(): Record<string, string> {
-  return { 'x-storageapi-date': String(Math.floor(Date.now() / 1000)), 'x-storageapi-key': KEY };
+  return { 'x-storageapi-date': String(Math.floor(Date.now() / 1000)), 'x-storageapi-key': store.creds().apiKey };
 }
 
 async function hbGet(url: string, opts?: { ttlMs?: number; fresh?: boolean }): Promise<unknown> {
@@ -127,10 +149,10 @@ interface RawGroupTier { tier_id?: string; description?: string; vacant?: { coun
  * its groups payload lists the tiers (`tier_id` = the offers `unitGroupId`).
  */
 export async function fetchUnitGroups(ctx: TierContext): Promise<UnitGroup[]> {
-  const rm = unwrap(await hbGet(`${appBase}/v1/companies/${ctx.companyId}/properties/${ctx.propertyId}/rate-management`, { ttlMs: MEMO_TTL.pricing })) ?? {};
+  const rm = unwrap(await hbGet(`${appBase()}/v1/companies/${ctx.companyId}/properties/${ctx.propertyId}/rate-management`, { ttlMs: MEMO_TTL.pricing })) ?? {};
   const spaceGroupId = (rm.space_group_profile as { id?: string } | undefined)?.id;
   if (!spaceGroupId) return [];
-  const raw = await hbGet(`${appBase}/v2/companies/${ctx.companyId}/properties/${ctx.propertyId}/space-groups/${encodeURIComponent(spaceGroupId)}/groups`, { ttlMs: MEMO_TTL.pricing });
+  const raw = await hbGet(`${appBase()}/v2/companies/${ctx.companyId}/properties/${ctx.propertyId}/space-groups/${encodeURIComponent(spaceGroupId)}/groups`, { ttlMs: MEMO_TTL.pricing });
   const profiles = (unwrap(raw)?.spaceGroupProfile as Record<string, { groups?: Array<{ tiers?: RawGroupTier[] }> }> | undefined) ?? {};
   const out: UnitGroup[] = [];
   for (const prof of Object.values(profiles)) {
@@ -222,7 +244,7 @@ export async function fetchOffers(ctx: TierContext, unitGroupId: string, opts?: 
   let raw: unknown;
   try {
     raw = await hbGet(
-      `${appBase}/v2/companies/${ctx.companyId}/properties/${ctx.propertyId}/offers?amenities=[]&promotions=[]&unitGroupId=${encodeURIComponent(unitGroupId)}`,
+      `${appBase()}/v2/companies/${ctx.companyId}/properties/${ctx.propertyId}/offers?amenities=[]&promotions=[]&unitGroupId=${encodeURIComponent(unitGroupId)}`,
       { ttlMs: MEMO_TTL.pricing, fresh: opts?.fresh },
     );
   } catch (err) {
@@ -340,8 +362,8 @@ export async function fetchProperty(ctx: TierContext): Promise<PropertyCardInfo 
   // key), falling back to the keyed REST call in the editor/harness or if the
   // collection isn't bound to this property. Same pattern/source as #03/#05/#07.
   const raw = await fetchPropertiesPreferCollection(
-    APP,
-    () => hbGet(`${appBase}/v1/companies/${ctx.companyId}/properties?access_hours=true&images=true`, { ttlMs: MEMO_TTL.stable }),
+    store.creds().appId,
+    () => hbGet(`${appBase()}/v1/companies/${ctx.companyId}/properties?access_hours=true&images=true`, { ttlMs: MEMO_TTL.stable }),
     { requirePropertyId: ctx.propertyId },
   );
   // The endpoint returns every property for the company; pick this one by id.
@@ -398,7 +420,7 @@ export async function fetchMoveInQuote(ctx: TierContext, unit: QuoteInput): Prom
     dryrun: true,
     promotions: (unit.promotionIds ?? []).map((id) => ({ promotion_id: id })),
   };
-  const raw = await hbPost(`${appBase}/v2/companies/${ctx.companyId}/units/${encodeURIComponent(unit.unitId)}/configure`, body);
+  const raw = await hbPost(`${appBase()}/v2/companies/${ctx.companyId}/units/${encodeURIComponent(unit.unitId)}/configure`, body);
   const inv = (unwrap(raw)?.invoice as ApiConfigureInvoice[] | undefined)?.[0];
   if (!inv || typeof inv.balance !== 'number' || !Number.isFinite(inv.balance) || inv.balance < 0) return undefined;
   const balance = inv.balance;
@@ -481,14 +503,14 @@ export interface TierHold {
 interface InnerV1 { status?: number; data?: Record<string, unknown>; msg?: string }
 
 async function sendV1(method: 'POST' | 'DELETE', path: string): Promise<InnerV1> {
-  const res = await fetch(`${appBase}/v1/${path}`, {
+  const res = await fetch(`${appBase()}/v1/${path}`, {
     method,
     headers: { ...hbHeaders(), 'Content-Type': 'application/json' },
     body: method === 'POST' ? '{}' : undefined,
   });
   if (!res.ok) throw new Error(`${method} v1/${path} failed: ${res.status} ${res.statusText}`);
   const env = await res.json() as { applicationData?: Record<string, InnerV1[]> };
-  return env?.applicationData?.[APP]?.[0] ?? {};
+  return env?.applicationData?.[store.creds().appId]?.[0] ?? {};
 }
 
 /**

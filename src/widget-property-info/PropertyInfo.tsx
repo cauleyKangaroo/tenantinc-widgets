@@ -4,7 +4,7 @@ import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
 import { scrollToSpaceList } from '@shared/promoBus';
-import { createLead, fetchPropertyDetails, fetchFacilityOptions, propertyBreadcrumb, stateName, type PropertyDetails, type BoundPropertyProps, type FacilityOption } from './api';
+import { createLead, fetchPropertyDetails, fetchFacilityOptions, propertyBreadcrumb, stateName, configureApi, type PropertyDetails, type BoundPropertyProps, type FacilityOption, type ApiCredProps } from './api';
 import {
   Breadcrumb, collapseMiddle, locationCrumbHead, normaliseBase, placeSlug,
   LOCATION_BASE_PATH, type Crumb,
@@ -87,8 +87,13 @@ export interface PropertyInfoProps {
  * `BoundPropertyProps` (`propertyId`, `propertyName`, `propertyAddress`, …) is a
  * content-menu field the editor connects to a `Properties` column with "Connect to
  * data"; see @shared/propertyBinding. All optional — unbound behaves as before.
+ *
+ * `ApiCredProps` (`api_domain` / `app_id` / `api_key`) are the site's REST
+ * credentials, read in the page's JS tab from the Content Library's custom site
+ * texts and passed straight through. Unset, config.json's build-time values
+ * stand — see @shared/apiConfig.
  */
-type Props = PropertyInfoProps & BoundPropertyProps;
+type Props = PropertyInfoProps & BoundPropertyProps & ApiCredProps;
 
 /**
  * Loading state for the whole widget. Mirrors the full-desktop shape (info
@@ -285,7 +290,24 @@ export function PropertyInfo(props: Props) {
     propertySocials,
     propertyUnitCounts,
     propertyTimezone,
+    // Site-level REST credentials from the Content Library's custom site texts.
+    api_domain,
+    app_id,
+    api_key,
   } = props;
+
+  /*
+   * Hand the credentials to the API module BEFORE anything can fetch.
+   *
+   * This runs during render, so it is in place by the time the effects below
+   * fire — an effect would be a render too late and the first request would go
+   * out against config.json's build-time values. `configure` is idempotent and
+   * ignores a call that carries none of the three, so re-running it is free.
+   */
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
 
   // Pin the mobile contact row to the shared stack (order 10 — above #05's
   // filter bar). Viewport query, not container width: it has to agree with the
@@ -380,7 +402,7 @@ export function PropertyInfo(props: Props) {
   useEffect(() => {
     let cancelled = false;
     const bound: BoundPropertyProps = {
-      propertyId, propertyName, propertyAddress, propertyPhones, propertyEmails,
+      propertyId, companyId, propertyName, propertyAddress, propertyPhones, propertyEmails,
       propertyAccessHours, propertySocials, propertyUnitCounts, propertyTimezone,
     };
     setLoading(true);
@@ -392,7 +414,7 @@ export function PropertyInfo(props: Props) {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [
-    propertyId, propertyName, propertyAddress, propertyPhones, propertyEmails,
+    propertyId, companyId, propertyName, propertyAddress, propertyPhones, propertyEmails,
     propertyAccessHours, propertySocials, propertyUnitCounts, propertyTimezone,
   ]);
 
@@ -1269,7 +1291,7 @@ export function PropertyInfo(props: Props) {
         // This widget's creds and bound property; the modal has no idea which
         // company it is filing against and should not.
         submitLead={(input) => createLead(input, {
-          propertyId, propertyName, propertyAddress, propertyPhones, propertyEmails,
+          propertyId, companyId, propertyName, propertyAddress, propertyPhones, propertyEmails,
           propertyAccessHours, propertySocials, propertyUnitCounts, propertyTimezone,
         })}
       />

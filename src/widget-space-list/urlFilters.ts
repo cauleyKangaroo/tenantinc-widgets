@@ -7,7 +7,15 @@ import type { SpaceType, UnitSize } from './types';
 
 const P = 'sl_';
 
-const VALID_TYPES: SpaceType[] = ['storage', 'parking'];
+/*
+ * No fixed list any more — the types are whatever the property's catalogue
+ * holds (see SpaceType), which is per-property and not known here.
+ *
+ * Parsing is therefore permissive and SpaceList prunes anything the loaded
+ * units do not have, once they arrive. That is NOT the same as letting an
+ * unknown token through: `filterUnits` treats a non-empty `types` as an
+ * allow-list, so a typo would match nothing and blank the listing entirely.
+ */
 
 export function readFiltersFromUrl(): FilterState {
   try {
@@ -15,7 +23,8 @@ export function readFiltersFromUrl(): FilterState {
 
     const types = (p.get(`${P}types`) ?? '')
       .split(',')
-      .filter((v): v is SpaceType => VALID_TYPES.includes(v as SpaceType));
+      .map((v) => v.trim().toLowerCase())
+      .filter(Boolean) as SpaceType[];
 
     const sizes = (p.get(`${P}sizes`) ?? '')
       .split(',')

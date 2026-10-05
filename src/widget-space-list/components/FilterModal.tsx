@@ -12,6 +12,8 @@ interface FilterModalProps {
   onClose: () => void;
   onReset: () => void;
   amenityOptions: string[];
+  /** Types present on this property. Omitted → the static storage/parking pair. */
+  typeOptions?: { value: SpaceType; label: string }[];
   featureOptions: string[];
   promotionOptions: string[];
   searchTerm: string;
@@ -41,6 +43,7 @@ export function FilterModal({
   onClose,
   onReset,
   amenityOptions,
+  typeOptions = TYPE_OPTIONS,
   featureOptions,
   promotionOptions,
   searchTerm,
@@ -111,7 +114,7 @@ export function FilterModal({
           <div className="sl-filter-section">
             <div className="sl-filter-label">Type:</div>
             <div className="sl-pills">
-              {TYPE_OPTIONS.map((opt) => {
+              {typeOptions.map((opt) => {
                 const val = opt.value as SpaceType;
                 const active = filters.types.includes(val);
                 return (
