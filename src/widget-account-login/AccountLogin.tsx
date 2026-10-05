@@ -7,7 +7,7 @@ import { skipValidation } from '@shared/devBypass';
 import {
   sendCode as apiSendCode, verifyCode as apiVerifyCode, loginApiReady,
   type LoginApiConfig, type Identifier, type AccountContact,
-} from './api';
+} from '@shared/accountApi';
 import { saveSession, expiresAtFrom } from '@shared/accountSession';
 
 // ===========================================================================
