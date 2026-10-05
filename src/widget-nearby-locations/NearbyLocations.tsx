@@ -733,7 +733,9 @@ export function NearbyLocations({
       .then((id) => { if (!cancelled) setHandoffCompanyId(id); })
       .catch(() => { /* no company hint — the handoff degrades, nothing breaks */ });
     return () => { cancelled = true; };
-  }, [internalCollection]);
+  // companyId included: it feeds configureApi above, so a change means a
+  // different tenant's portfolio and this must resolve again.
+  }, [internalCollection, companyId]);
 
   /**
    * Spaces per property id, for the lifetime of the page.
@@ -746,6 +748,22 @@ export function NearbyLocations({
   const spacesCache = useRef(new Map<string, PropertySpaces>());
   /** Ids with a lookup in flight, so a re-render can't fire a second one. */
   const spacesInFlight = useRef(new Set<string>());
+
+  /*
+   * The company those two caches were filled under.
+   *
+   * They are keyed by PROPERTY ID, which is only unique within a company, and
+   * they live for the page. So when the effective company changes they hold
+   * another tenant's spaces and must be dropped — otherwise the old prices
+   * stay on the cards while uncached lookups use the new company.
+   */
+  const spacesCompany = useRef(companyId);
+  useEffect(() => {
+    if (spacesCompany.current === companyId) return;
+    spacesCompany.current = companyId;
+    spacesCache.current.clear();
+    spacesInFlight.current.clear();
+  }, [companyId]);
 
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
 
@@ -941,7 +959,7 @@ export function NearbyLocations({
     })();
 
     return () => { cancelled = true; clearTimeout(deadline); };
-  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection]);
+  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection, companyId]);
 
   // While loading we render skeleton cards — showing DEMO_PROPERTIES here meant
   // real-looking names/prices flashed up and were then replaced. Demo data is
@@ -1056,7 +1074,13 @@ export function NearbyLocations({
     let cancelled = false;
     missing.forEach((id) => spacesInFlight.current.add(id));
 
+    // Captured, so a result that lands after a company switch can be told
+    // apart from a current one. NOT the same as `cancelled`: that fires on a
+    // re-sort too, where the answer is still valid and worth caching.
+    const forCompany = companyId;
+
     fetchSpacesForProperties(missing, (id, data) => {
+      if (spacesCompany.current !== forCompany) return;
       spacesCache.current.set(id, data);
       spacesInFlight.current.delete(id);
       if (cancelled) return;
@@ -1080,7 +1104,7 @@ export function NearbyLocations({
     });
 
     return () => { cancelled = true; };
-  }, [visibleIds]);
+  }, [visibleIds, companyId]);
 
 
   // Map pins from the live properties (price = cheapest starting rate).
