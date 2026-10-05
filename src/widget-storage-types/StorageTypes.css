@@ -1,3 +1,15 @@
+/* ── Why every `color` carries !important ────────────────────────────────────
+   A Duda site theme styles text from id-scoped element rules (`#dm h1`, `#dm h2`
+   …) which outrank any single class of ours, and some themes set a white
+   heading colour. On a white card or section that renders our headings, links
+   and body copy invisible — it did, on the live storage-type pages.
+
+   ONLY `color` is forced. font-size, font-weight and font-family stay
+   unprotected on purpose, so the site's own typography still reaches these
+   elements; it is the colour alone that cannot be allowed to make the widget
+   unreadable. Do not "clean these up" without checking a themed live page.
+   ──────────────────────────────────────────────────────────────────────────── */
+
 .st {
   --st-text: #101318;
   --st-copy: #000000;
@@ -7,7 +19,7 @@
   max-width: 1330px;
   margin-inline: auto;
   box-sizing: border-box;
-  color: var(--st-text);
+  color: var(--st-text) !important;
 }
 .st *, .st *::before, .st *::after { box-sizing: border-box; }
 .st-heading {
@@ -15,7 +27,7 @@
   font-size: 32px;
   font-weight: 700;
   line-height: 1.2;
-  color: var(--st-copy);
+  color: var(--st-copy) !important;
   text-transform: none;
   letter-spacing: 0;
 }
@@ -45,7 +57,7 @@
   font-size: 80px;
   font-weight: 600;
   line-height: 1.2;
-  color: #101318;
+  color: #101318 !important;
   text-transform: none;
   letter-spacing: 0;
 }
@@ -54,7 +66,7 @@
   font-size: 18px;
   font-weight: 400;
   line-height: 1.5;
-  color: #000000;
+  color: #000000 !important;
   letter-spacing: 0;
 }
 
@@ -73,7 +85,9 @@
   background: #fff;
   overflow: hidden;
   text-decoration: none;
-  color: inherit;
+  /* Same reason as every other colour here — a theme's `#dm a` rule would
+     otherwise beat this class and recolour the whole card. */
+  color: inherit !important;
   box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
   transition: box-shadow 120ms ease-in-out;
 }
@@ -104,8 +118,6 @@
   font-size: 24px;
   font-weight: 700;
   line-height: 1.25;
-  /* Duda's global H3 theme can use an !important white color. Keep the card
-     title on the Figma dark color regardless of that page-level heading rule. */
   color: #101318 !important;
   text-transform: none;
   letter-spacing: 0;
@@ -123,7 +135,7 @@
   font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
-  color: var(--st-copy);
+  color: var(--st-copy) !important;
   letter-spacing: 0;
   /* The abstract is a summary; three lines keeps every card the same height
      whatever the editor typed. */
@@ -137,7 +149,7 @@
   font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
-  color: #101318;
+  color: #101318 !important;
   letter-spacing: 0;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -235,7 +247,7 @@
     flex: 0 0 20px;
     width: 20px;
     height: 20px;
-    color: #111111;
+    color: #111111 !important;
   }
   .st-index-header { margin-bottom: 24px; }
   .st-index-title {
