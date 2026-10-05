@@ -117,8 +117,7 @@ export function SuccessStep({
   /** Presentation policy supplied by trusted property configuration once that
    * source exists. It changes failure copy, never whether IDV is required. */
   remoteOperated?: boolean;
-  /** Phone-shaped: capture runs here, so no hand-off modal and no
-   *  desktop-only "Verify ID Later". */
+  /** Phone-shaped: capture runs here, so no hand-off modal. */
   handheld?: boolean;
 }) {
   const facilityPhoneHref = (() => {
@@ -160,10 +159,10 @@ export function SuccessStep({
      because the two boxes are independent in the frame. */
   const [mailEditing, setMailEditing] = useState(false);
   const [dlEditing, setDlEditing] = useState(false);
-  /* The two detail groups belong to every state that has to collect them:
-     in-store (the counter needs them), complete (the scan supplies them, and
-     they can be overridden) and failed (nothing was captured, so they are typed
-     by hand). Not `choose` or `later` — nothing has been decided yet. */
+  /* The two detail groups belong to every state once a choice is made:
+     complete (the scan supplies them, and they can be overridden), and
+     in-store, later and failed, where nothing was captured so the renter types
+     them. Only `choose` hides them — nothing has been decided yet. */
   // Off, the two groups are simply always on the page — there is no branch
   // left to decide otherwise.
   const remoteKind = idvController?.state.kind;
@@ -387,18 +386,9 @@ export function SuccessStep({
                   ? 'Verification in progress'
                   : 'Verify ID Now'}
               </button>
-              {handheld && idvRequirement !== 'required' && (
+              {idvRequirement === 'optional' && (
                 <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => setLocalIdvChoice('instore')}>
                   Verify In-Store
-                </button>
-              )}
-              {!handheld && (
-                <button
-                  type="button"
-                  className="rf-sx-idv-later"
-                  onClick={() => setLocalIdvChoice('later')}
-                >
-                  Verify ID Later
                 </button>
               )}
             </div>

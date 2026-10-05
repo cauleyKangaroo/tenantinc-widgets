@@ -18,12 +18,12 @@ export function resolveIdvPresentation(
   outcome: IdvPresentationOutcome,
   options: { serviceConnected: boolean; preview: boolean },
 ): IdvPresentationDecision {
-  const enabled = requirement === 'required'
+  const enabled = requirement !== 'disabled'
     && (options.serviceConnected || options.preview);
 
   return {
     enabled,
-    detailsShown: !enabled || outcome === 'instore' || outcome === 'complete' || outcome === 'failed',
+    detailsShown: !enabled || outcome !== 'choose',
     idVerified: !enabled || outcome === 'complete',
   };
 }

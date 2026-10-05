@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { idvReducer, initialIdvState } = require('../.tmp-idv-test/idvState.js');
 const { startIdvPolling } = require('../.tmp-idv-test/idvPolling.js');
 const { resolveIdvPresentation } = require('../.tmp-idv-test/idvPresentation.js');
-const { RENTAL_IDV_REQUIREMENT } = require('../.tmp-idv-test/idvPolicy.js');
+const { RENTAL_IDV_REQUIREMENT, parseIdvRequirement } = require('../.tmp-idv-test/idvPolicy.js');
 const { createIdvApi, captureDevice } = require('../.tmp-idv-test/idvApi.js');
 const {
   allowedVerificationUrl,
@@ -85,7 +85,25 @@ function testReducer() {
 }
 
 function testPresentation() {
-  assert.equal(RENTAL_IDV_REQUIREMENT, 'required', 'every rental requires ID verification');
+  assert.equal(RENTAL_IDV_REQUIREMENT, 'optional', 'a property with no setting is offered verification, not forced');
+
+  // PropertiesInternal.idv_requirements: the Duda dropdown's labels, or rich text.
+  assert.equal(parseIdvRequirement('None'), 'disabled');
+  assert.equal(parseIdvRequirement('Optional'), 'optional');
+  assert.equal(parseIdvRequirement(' REQUIRED '), 'required');
+  assert.equal(parseIdvRequirement('<p class="rteBlock">Optional</p>'), 'optional');
+  for (const raw of [undefined, null, '', 'yes', 'requird', 1, true]) {
+    assert.equal(parseIdvRequirement(raw), undefined, `unrecognised ${JSON.stringify(raw)} falls back`);
+  }
+  assert.deepEqual(
+    resolveIdvPresentation('optional', 'choose', { serviceConnected: true, preview: false }),
+    { enabled: true, detailsShown: false, idVerified: false },
+  );
+  assert.deepEqual(
+    resolveIdvPresentation('disabled', 'choose', { serviceConnected: true, preview: false }),
+    { enabled: false, detailsShown: true, idVerified: true },
+    'a property set to None never shows the section',
+  );
   assert.deepEqual(
     resolveIdvPresentation('disabled', 'choose', { serviceConnected: false, preview: false }),
     { enabled: false, detailsShown: true, idVerified: true },
@@ -103,14 +121,12 @@ function testPresentation() {
     resolveIdvPresentation('required', 'complete', { serviceConnected: true, preview: false }),
     { enabled: true, detailsShown: true, idVerified: true },
   );
-  for (const outcome of ['instore', 'failed']) {
+  // Every choice that captured nothing still collects the details by hand.
+  for (const outcome of ['instore', 'later', 'failed']) {
     const decision = resolveIdvPresentation('required', outcome, { serviceConnected: true, preview: false });
-    assert.equal(decision.detailsShown, true);
-    assert.equal(decision.idVerified, false);
+    assert.equal(decision.detailsShown, true, outcome);
+    assert.equal(decision.idVerified, false, outcome);
   }
-  const later = resolveIdvPresentation('required', 'later', { serviceConnected: true, preview: false });
-  assert.equal(later.detailsShown, false);
-  assert.equal(later.idVerified, false);
 }
 
 function testUrls() {

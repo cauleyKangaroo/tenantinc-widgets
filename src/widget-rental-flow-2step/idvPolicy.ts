@@ -1,12 +1,27 @@
-/** Stable policy consumed by the rental UI and its editor-only preview. */
-export type IdvRequirement = 'disabled' | 'required';
+/** Per-property policy consumed by the rental UI and its editor-only preview. */
+export type IdvRequirement = 'disabled' | 'optional' | 'required';
 
 /**
- * Product rule confirmed by the rental-flow team: every rental requires ID
- * verification. Amenities are user-defined merchandising data and must never
- * enable or disable this workflow.
+ * Applied when a property carries no setting of its own, or it cannot be read.
+ * Lenient by choice: verification is offered, never forced, until an operator
+ * marks the property Required. Amenities are user-defined merchandising data
+ * and never enable or disable this workflow; only the property setting does.
  */
-export const RENTAL_IDV_REQUIREMENT: IdvRequirement = 'required';
+export const RENTAL_IDV_REQUIREMENT: IdvRequirement = 'optional';
+
+/**
+ * The property's own setting, as the API or a collection hands it over.
+ * Anything unrecognised is `undefined`, so a typo falls back to the default
+ * rather than being read as one of the three choices.
+ */
+export function parseIdvRequirement(raw: unknown): IdvRequirement | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const value = raw.replace(/<[^>]*>/g, '').trim().toLowerCase();
+  if (value === 'none' || value === 'disabled' || value === 'off') return 'disabled';
+  if (value === 'optional') return 'optional';
+  if (value === 'required') return 'required';
+  return undefined;
+}
 
 /**
  * Production release brake for the billable/SMS-sending IDV transport.

@@ -15,7 +15,7 @@ import {
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
 } from './api';
-import { IDV_SERVICE_CONNECTED, RENTAL_IDV_REQUIREMENT, type IdvRequirement } from './idvPolicy';
+import { IDV_SERVICE_CONNECTED, RENTAL_IDV_REQUIREMENT, parseIdvRequirement, type IdvRequirement } from './idvPolicy';
 import { createIdvApi, type IdvTransportConfig } from './idvApi';
 import { useIdvController } from './useIdvController';
 import { canRenderLiveIdvHarness } from './LiveIdvHarness';
@@ -40,7 +40,7 @@ import { Shimmer } from '@shared/Shimmer';
 import { FormField, Button, DateModal, AlertIcon, formatPrice, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { fetchSingleStep } from '@shared/internalProperties';
+import { fetchIdvRequirementSetting, fetchSingleStep } from '@shared/internalProperties';
 import { skipValidation } from '@shared/devBypass';
 
 /**
@@ -1223,13 +1223,30 @@ export function RentalFlow2Step({
   }, [propertyInfo, unitTypeId]);
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
-  // Product rule: IDV is required for every rental. The editor-only override
-  // exists solely to review both designed presentation states.
-  const idvRequirement: IdvRequirement = inEditor === true && idvRequirementPreview === 'required'
-    ? 'required'
-    : inEditor === true && idvRequirementPreview === 'disabled'
-      ? 'disabled'
-      : RENTAL_IDV_REQUIREMENT;
+  /*
+   * PropertiesInternal.idv_requirements — None / Optional / Required, chosen per
+   * property like single_step. Unanswered (no dmAPI, no row, blank, or a value
+   * we do not recognise) falls back to RENTAL_IDV_REQUIREMENT. The editor-only
+   * override reviews all three.
+   */
+  const [collectionIdvRequirement, setCollectionIdvRequirement] = useState<IdvRequirement | undefined>(undefined);
+  useEffect(() => {
+    setCollectionIdvRequirement(undefined);
+    if (!effectivePropertyId) return undefined;
+    let cancelled = false;
+    fetchIdvRequirementSetting(effectivePropertyId)
+      .then((raw) => {
+        if (cancelled) return;
+        const parsed = parseIdvRequirement(raw);
+        console.info(`${logTag} idv_requirements(${effectivePropertyId}) =`, raw, '→', parsed ?? `unanswered, using ${RENTAL_IDV_REQUIREMENT}`);
+        setCollectionIdvRequirement(parsed);
+      })
+      .catch((err) => console.warn(`${logTag} idv_requirements lookup failed:`, err));
+    return () => { cancelled = true; };
+  }, [effectivePropertyId, logTag]);
+  const idvRequirement: IdvRequirement = (inEditor === true ? parseIdvRequirement(idvRequirementPreview) : undefined)
+    ?? collectionIdvRequirement
+    ?? RENTAL_IDV_REQUIREMENT;
   const idvApi = React.useMemo(() => {
     // Two independent production brakes: transport configuration alone cannot
     // activate a billable/SMS-sending path. Localhost's explicit harness opt-in
@@ -1340,7 +1357,7 @@ export function RentalFlow2Step({
       && effectiveCompanyId
       && effectivePropertyId
       && idvIdentity
-      && idvRequirement === 'required'
+      && idvRequirement !== 'disabled'
     ),
     api: idvApi,
     scope: idvScope,
