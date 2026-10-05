@@ -17,6 +17,7 @@ import {
 } from './api';
 import { IDV_SERVICE_CONNECTED, RENTAL_IDV_REQUIREMENT, parseIdvRequirement, type IdvRequirement } from './idvPolicy';
 import { createIdvApi } from './idvApi';
+import { resolveIdvPresentation } from './idvPresentation';
 import { useIdvController } from './useIdvController';
 import { canRenderLiveIdvHarness } from './LiveIdvHarness';
 import cfg from './config.json';
@@ -1257,6 +1258,11 @@ export function RentalFlow2Step({
       || idvTransport !== 'direct') return undefined;
     return createIdvApi({ baseUrl: idvBaseUrl, appId: idvAppId, apiKey: idvApiKey });
   }, [idvApiKey, idvAppId, idvBaseUrl, idvTransport, inEditor, liveCheckoutIdvEnabled]);
+  /** One-step skips the paid screen unless there is an ID check to offer. */
+  const oneStepIdv = resolveIdvPresentation(idvRequirement, 'choose', {
+    serviceConnected: Boolean(idvApi),
+    preview: inEditor === true,
+  }).enabled;
   const [selectionStatus, setSelectionStatus] = useState<
     'loading' | 'matched' | 'unit-unavailable' | 'unit-unverified' | 'malformed' | 'network-error' | 'legacy-display'
   >('loading');
@@ -2639,14 +2645,14 @@ export function RentalFlow2Step({
         )}
         {/* One rail for both steps, placed in the desktop grid or the mobile
             sheet. Step 3 was a bare left column with nothing beside it. */}
-        {/* Single step goes straight from payment to the confirmation. The
-            screen in between (Figma 8507-25408) exists to collect the mailing
-            address and licence AFTER the money moves; a single-step property
-            has chosen not to ask for them at all, so there is nothing on it to
-            fill in and it would just be a page between the shopper and their
-            access code. ID verification does not gate this: it is off
-            (IDV_ENABLED), and `idVerified` defaults to true. */}
-        {accessGranted || formMode === '1step' ? (
+        {/* Single step goes straight from payment to the confirmation — unless
+            this property's ID verification is active (Optional or Required).
+            Then it gets the same paid screen as two-step, in oneStep mode: only
+            the ID Verification card (and, for Verify ID Later, the licence and
+            mailing form), because Additional Information was already answered
+            on the checkout page. With verification off, `idVerified` stays
+            true and nothing is withheld. */}
+        {accessGranted || (formMode === '1step' && !oneStepIdv) ? (
           <div className="rfc-layout">
             <Confirmation
               kind="rental"
@@ -2677,6 +2683,7 @@ export function RentalFlow2Step({
         ) : (
           <div className="rfc-layout">
             <SuccessStep
+              oneStep={formMode === '1step'}
               chosen={chosenSections}
               verificationPhone={rentedContact?.phone}
               idvRequirement={idvRequirement}

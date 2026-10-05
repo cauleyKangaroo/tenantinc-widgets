@@ -97,6 +97,7 @@ export function SuccessStep({
   idvController,
   facility,
   remoteOperated = false,
+  oneStep = false,
   handheld = false,
 }: {
   /** Fires with everything the contact update can file. The parent decides
@@ -117,6 +118,9 @@ export function SuccessStep({
   /** Presentation policy supplied by trusted property configuration once that
    * source exists. It changes failure copy, never whether IDV is required. */
   remoteOperated?: boolean;
+  /** One-step checkout: Additional Information was answered before payment,
+   *  so this screen asks only for ID verification and its details. */
+  oneStep?: boolean;
   /** Phone-shaped: capture runs here, so no hand-off modal. */
   handheld?: boolean;
 }) {
@@ -130,10 +134,11 @@ export function SuccessStep({
     return `tel:${raw.startsWith('+') ? '+' : ''}${digits}`;
   })();
   // Initialisers, not synced props: the boxes stay the shopper's to change here.
-  const [business, setBusiness] = useState(chosen?.business ?? false);
-  const [military, setMilitary] = useState(chosen?.military ?? false);
-  const [altContact, setAltContact] = useState(chosen?.altContact ?? false);
-  const [vehicle, setVehicle] = useState(chosen?.vehicle ?? false);
+  // Off on one-step so the hidden sections' required fields cannot block Get Access.
+  const [business, setBusiness] = useState(!oneStep && (chosen?.business ?? false));
+  const [military, setMilitary] = useState(!oneStep && (chosen?.military ?? false));
+  const [altContact, setAltContact] = useState(!oneStep && (chosen?.altContact ?? false));
+  const [vehicle, setVehicle] = useState(!oneStep && (chosen?.vehicle ?? false));
 
   // Mailing address — where notices go when it is not the space's address.
   // Filed on the contact as an Addresses entry of type "mailing" (verified
@@ -182,6 +187,14 @@ export function SuccessStep({
   const detailsShown = idvDecision.detailsShown;
   const mailReadOnly = displayedIdv === 'complete' && !mailEditing;
   const dlReadOnly = displayedIdv === 'complete' && !dlEditing;
+
+  /* Pending: a session already exists, so reopen it rather than start a new
+     one (no second text). The desktop modal carries the QR and Resend Text; a
+     phone goes back to the same capture page. */
+  const continueVerification = () => {
+    if (handheld) { idvController?.continueInThisTab(); return; }
+    setIdvModal(true);
+  };
 
   const beginVerification = () => {
     if (!handheld) setIdvModal(true);
@@ -379,16 +392,18 @@ export function SuccessStep({
               <button
                 type="button"
                 className="rf-sx-btn rf-sx-btn--solid"
-                onClick={beginVerification}
-                disabled={idvServiceConnected && remoteKind !== 'ready'}
+                onClick={idvServiceConnected && remoteKind === 'pending' ? continueVerification : beginVerification}
+                disabled={idvServiceConnected && remoteKind !== 'ready' && remoteKind !== 'pending'}
               >
-                {idvServiceConnected && (remoteKind === 'checking' || remoteKind === 'starting' || remoteKind === 'pending')
-                  ? 'Verification in progress'
-                  : 'Verify ID Now'}
+                {idvServiceConnected && remoteKind === 'pending'
+                  ? 'Continue Verification'
+                  : idvServiceConnected && (remoteKind === 'checking' || remoteKind === 'starting')
+                    ? 'Verification in progress'
+                    : 'Verify ID Now'}
               </button>
               {idvRequirement === 'optional' && (
-                <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => setLocalIdvChoice('instore')}>
-                  Verify In-Store
+                <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => setLocalIdvChoice('later')}>
+                  Verify ID Later
                 </button>
               )}
             </div>
@@ -443,7 +458,7 @@ export function SuccessStep({
             <button
               type="button"
               className="rf-sx-btn rf-sx-btn--solid rf-sx-btn--stack"
-              onClick={() => { setLocalIdvChoice(undefined); setIdv('choose'); setIdvModal(true); }}
+              onClick={() => { setLocalIdvChoice(undefined); setIdv('choose'); beginVerification(); }}
             >
               <span className="rf-sx-btn-lede">Save time and skip the office!</span>
               <span className="rf-sx-btn-main">Verify ID Now</span>
@@ -502,7 +517,7 @@ export function SuccessStep({
             <button
               type="button"
               className="rf-sx-idv-inline"
-              onClick={() => { setLocalIdvChoice(undefined); setIdv('choose'); setIdvModal(true); }}
+              onClick={() => { setLocalIdvChoice(undefined); setIdv('choose'); beginVerification(); }}
             >
               Verify ID Now
             </button>
@@ -648,6 +663,7 @@ export function SuccessStep({
         </>
       )}
 
+      {!oneStep && (
       <section className="rf-sx-extra">
         <h3 className="rf-sx-extra-title">Additional Information</h3>
 
@@ -693,6 +709,7 @@ export function SuccessStep({
         </div>
         </div>
       </section>
+      )}
 
       <button type="button" className="rf-sx-access" onClick={submit}>Get Access</button>
 
@@ -706,8 +723,7 @@ export function SuccessStep({
         lifecycle={remoteKind}
         notificationStatus={idvController?.state.kind === 'pending' ? idvController.state.notificationStatus : undefined}
         onResend={idvController?.resend}
-        onReturnToDevice={idvController?.returnToThisDevice}
-        canReturnToDevice={idvController?.canReturnToThisDevice ?? false}
+        verificationUrl={idvController?.verificationUrl}
       />
       )}
     </div>

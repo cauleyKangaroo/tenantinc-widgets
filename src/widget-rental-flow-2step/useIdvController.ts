@@ -2,12 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { captureDevice, type IdvApi, type IdvIdentity, type IdvScope } from './idvApi';
 import { startIdvPolling } from './idvPolling';
 import { idvReducer, initialIdvState, type SafeIdvResult } from './idvState';
-import {
-  allowedVerificationUrl,
-  closeVerificationPlaceholder,
-  navigateVerificationWindow,
-  openVerificationPlaceholder,
-} from './openVerification';
+import { allowedVerificationUrl } from './openVerification';
 
 interface StoredIdvSession {
   idvId: string;
@@ -211,22 +206,22 @@ export function useIdvController(options: IdvControllerOptions) {
     return started.notificationStatus;
   }, [allowedHosts, companyId, device, key, options.api, options.identity, propertyId, state]);
 
-  /** The design's escape hatch: capture here instead of on the phone. Opened
-   *  inside the click gesture, which is why the URL is resolved beforehand. */
-  const returnToThisDevice = useCallback((): boolean => {
-    if (!verificationUrl) return false;
-    const target = openVerificationPlaceholder();
-    if (navigateVerificationWindow(target, verificationUrl, allowedHosts)) return true;
-    closeVerificationPlaceholder(target);
-    return false;
-  }, [allowedHosts, verificationUrl]);
+  /** Phone, verification still pending: go back to the same session in this
+   *  tab — no new start, no new text. False when there is nothing to resume. */
+  const continueInThisTab = useCallback((): boolean => {
+    if (state.kind !== 'pending' || !verificationUrl) return false;
+    beforeSameTabNavigation?.({ idvId: state.idvId, expiresAt: state.expiresAt });
+    window.location.assign(verificationUrl);
+    return true;
+  }, [beforeSameTabNavigation, state, verificationUrl]);
 
   return {
     state,
+    continueInThisTab,
     start,
     resend,
-    returnToThisDevice,
-    canReturnToThisDevice: Boolean(verificationUrl),
+    /** Validated hosted-capture URL, for the desktop modal's QR code. */
+    verificationUrl,
     /** True when start() will leave this tab rather than open a popup. The
      *  success screen reads it so it does not raise a QR modal over a
      *  navigation that is already under way. */

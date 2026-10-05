@@ -352,6 +352,18 @@
    controls Josh named — "Verify ID Now", "Save time and skip the office!"
    (same class, plus --stack) and the ID modal's Resend, which reuses it. */
 .rf-sx-btn--solid { border: 0; background: var(--color_2, #509e2f); color: var(--color_3, #fff); }
+/* Disabled keeps its own colours. The hover/active rules above are
+   :not(:disabled), so without this a disabled button fell through to the page's
+   generic button:hover (a pale grey in the harness, whatever a Duda theme says
+   on a site) under white text. !important for the same theme-bleed reason as
+   the text colours. */
+.rf-sx-btn--solid:disabled,
+.rf-sx-btn--solid:disabled:hover {
+  background: var(--color_2, #509e2f) !important;
+  color: var(--color_3, #fff) !important;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* Stacked label (Figma 11940-47764). .rf-sx-btn is a 16px/700 flex ROW, so the
    two lines need their own direction and their own sizes — 12px each, the lede
@@ -560,6 +572,10 @@
 .rf-idm-resend-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .rf-idm-note { margin: -8px 0 0; color: var(--hb-grayscale-medium, #637381); font-size: 12px; }
 
+.rf-idm-qr { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+/* White frame = the scanner's quiet zone; the SVG draws none of its own. */
+.rf-idm-qr-code { padding: 12px; background: #fff; border: 1px solid #e3e8ef; border-radius: 8px; line-height: 0; }
+.rf-idm-qr-note { margin: 0; text-align: center; }
 .rf-idm-or { display: flex; gap: 12px; align-items: center; }
 .rf-idm-or::before,
 .rf-idm-or::after {

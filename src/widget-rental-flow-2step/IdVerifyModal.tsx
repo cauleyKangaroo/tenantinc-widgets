@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import QRCode from 'react-qr-code';
 import { CloseCircleIcon, FormField, isPossiblePhone } from '@shared/ui';
 import { IdCardIcon } from './planIcons';
 import { IdIllustration } from './IdIllustration';
@@ -26,8 +27,7 @@ export function IdVerifyModal({
   lifecycle,
   notificationStatus,
   onResend,
-  onReturnToDevice,
-  canReturnToDevice = false,
+  verificationUrl,
 }: {
   open: boolean;
   onClose: () => void;
@@ -39,15 +39,14 @@ export function IdVerifyModal({
   lifecycle?: string;
   notificationStatus?: 'sent' | 'failed' | 'skipped';
   onResend?: () => Promise<'sent' | 'failed' | 'skipped' | undefined>;
-  /** Opens the hosted capture here. Returns false when the browser blocked it. */
-  onReturnToDevice?: () => boolean;
-  canReturnToDevice?: boolean;
+  /** The hosted capture page — the same link the text carries — as a QR for
+   *  the renter's phone camera. Absent until the start call has returned. */
+  verificationUrl?: string;
 }) {
   const [num, setNum] = useState(phone);
   const [sent, setSent] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
-  const [returnBlocked, setReturnBlocked] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -63,7 +62,7 @@ export function IdVerifyModal({
 
   // Re-open should start clean, and pick up a number that arrived after mount.
   useEffect(() => {
-    if (open) { setNum(phone); setSent(false); setResendMessage(''); setReturnBlocked(false); }
+    if (open) { setNum(phone); setSent(false); setResendMessage(''); }
   }, [open, phone]);
 
   if (!open) return null;
@@ -154,22 +153,33 @@ export function IdVerifyModal({
               : 'Starting verification…'}
           </p>}
 
+          {/* The legacy flow's QR, between Resend Text and Return to this
+              Device: scanning it opens the same page the text links to. The
+              preview has no session, so it shows a placeholder that scans to
+              nothing actionable. */}
+          {(verificationUrl || !connected) && (
+            <div className="rf-idm-qr">
+              <div className="rf-idm-qr-code">
+                <QRCode
+                  value={verificationUrl ?? 'ID verification preview'}
+                  size={148}
+                  level="M"
+                  fgColor="#101318"
+                  bgColor="#ffffff"
+                  title="QR code for the ID verification page"
+                />
+              </div>
+              <p className="rf-idm-para rf-idm-qr-note">Or scan this code with your phone&rsquo;s camera.</p>
+            </div>
+          )}
+
           <div className="rf-idm-or"><span>or</span></div>
 
-          <button
-            type="button"
-            className="rf-sx-btn rf-sx-btn--outline rf-idm-return"
-            onClick={() => {
-              if (!onReturnToDevice) { onClose(); return; }
-              setReturnBlocked(!onReturnToDevice());
-            }}
-            disabled={Boolean(onReturnToDevice) && !canReturnToDevice}
-          >
+          {/* Back to the page. Verification carries on — the screen keeps
+              polling and updates when the phone finishes. */}
+          <button type="button" className="rf-sx-btn rf-sx-btn--outline rf-idm-return" onClick={onClose}>
             Return to this Device
           </button>
-          {returnBlocked && <p className="rf-idm-note">
-            The verification window was blocked. Enable pop-ups and try again.
-          </p>}
 
           <p className="rf-idm-para rf-idm-foot">
             If the text link you received did not redirect you to our identity verification tool, then
