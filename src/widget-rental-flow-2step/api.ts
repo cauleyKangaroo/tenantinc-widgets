@@ -1,5 +1,5 @@
 import cfg from './config.json';
-import { createApiCredsStore, type ApiCredProps } from '@shared/apiConfig';
+import { createApiCredsStore, type ApiCredProps, type ApiCreds } from '@shared/apiConfig';
 import { memoGet, memoInvalidate, MEMO_TTL } from '@shared/requestMemo';
 import { normalizePhone } from '@shared/ui/phone';
 import { cardBrand } from './gpTokenize';
@@ -1208,15 +1208,40 @@ export interface UnitHold {
   holdToken: string;
   /** ms epoch when the hold was acquired (client clock). */
   heldAt: number;
+  /*
+   * The credentials that ACQUIRED this hold.
+   *
+   * A hold token is only meaningful to the application that issued it. If the
+   * site texts change on a retained widget root, the store moves but the live
+   * hold does not — releasing it against the new application silently fails
+   * and the unit stays held until the server expires it. Releases therefore
+   * use this snapshot, not whatever is current.
+   *
+   * Optional so a hold restored from older state still releases, on current
+   * creds, exactly as before.
+   */
+  creds?: ApiCreds;
 }
 
 interface InnerResult { status?: number; data?: Record<string, unknown>; msg?: string }
 
-async function sendV1(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<InnerResult> {
-  const { baseUrl, appId } = creds();
+async function sendV1(
+  method: 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  body?: unknown,
+  /** Pin to a specific set — used to release a hold on the creds that took it. */
+  pinned?: ApiCreds,
+): Promise<InnerResult> {
+  const { baseUrl, appId, apiKey } = pinned ?? creds();
   const res = await fetch(`${baseUrl}/applications/${appId}/v1/${path}`, {
     method,
-    headers: { ...headers(), 'Content-Type': 'application/json' },
+    // The pinned KEY too, not just the host — headers() reads the current
+    // store, which would defeat the whole point when releasing a hold.
+    headers: {
+      'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
+      'x-storageapi-key': apiKey,
+      'Content-Type': 'application/json',
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   // Read the envelope EVEN ON A NON-2XX. A validation failure comes back as a
@@ -1252,7 +1277,16 @@ export async function holdUnit(ctx: RentalCtx, unit: { id: string; number?: stri
     if (inner.status !== 200 || !token) {
       return { ok: false, reason: 'error', detail: inner.msg ?? `status ${inner.status}` };
     }
-    return { ok: true, hold: { unitId: unit.id, unitNumber: unit.number, holdToken: token, heldAt: Date.now() } };
+    return {
+      ok: true,
+      hold: {
+        unitId: unit.id,
+        unitNumber: unit.number,
+        holdToken: token,
+        heldAt: Date.now(),
+        creds: creds(),
+      },
+    };
   } catch (err) {
     return { ok: false, reason: 'error', detail: err instanceof Error ? err.message : String(err) };
   }
@@ -1282,9 +1316,17 @@ export function releaseHoldOnUnload(ctx: RentalCtx, hold: UnitHold): void {
       return;
     }
     if (!writesEnabled(ctx) || !ctx.companyId) return;
-    const { baseUrl, appId } = creds();
-    const url = `${baseUrl}/applications/${appId}/v1/companies/${ctx.companyId}/units/${hold.unitId}/hold/${encodeURIComponent(hold.holdToken)}`;
-    void fetch(url, { method: 'DELETE', headers: headers(), keepalive: true });
+    // The creds that took the hold, for the reason on UnitHold.creds.
+    const held = hold.creds ?? creds();
+    const url = `${held.baseUrl}/applications/${held.appId}/v1/companies/${ctx.companyId}/units/${hold.unitId}/hold/${encodeURIComponent(hold.holdToken)}`;
+    void fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
+        'x-storageapi-key': held.apiKey,
+      },
+      keepalive: true,
+    });
   } catch { /* unloading — there is nowhere to report this */ }
 }
 
@@ -1293,7 +1335,12 @@ export async function releaseHold(ctx: RentalCtx, hold: UnitHold): Promise<void>
   if (shouldUseProxyWrites(ctx)) { await releaseHoldViaProxy(ctx, hold); return; }
   if (!writesEnabled(ctx)) return;
   try {
-    await sendV1('DELETE', `companies/${ctx.companyId}/units/${hold.unitId}/hold/${hold.holdToken}`);
+    await sendV1(
+      'DELETE',
+      `companies/${ctx.companyId}/units/${hold.unitId}/hold/${hold.holdToken}`,
+      undefined,
+      hold.creds,
+    );
     memoInvalidate('units/available');
     memoInvalidate('/space-groups/');
   } catch (err) {
