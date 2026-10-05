@@ -5,9 +5,10 @@ import { hasCollectionsApi, logSource, str } from '@shared/dudaCollections';
 import { readPropertiesFromCollection, PROPERTIES_COLLECTION } from '@shared/propertiesSource';
 import { skipValidation } from '@shared/devBypass';
 import {
-  sendCode as apiSendCode, verifyCode as apiVerifyCode, loginApiReady,
+  sendCode as apiSendCode, verifyCode as apiVerifyCode, selectContact as apiSelectContact,
+  loginApiReady,
   type LoginApiConfig, type Identifier, type AccountContact,
-} from './api';
+} from '@shared/accountApi';
 import { saveSession, expiresAtFrom } from '@shared/accountSession';
 
 // ===========================================================================
@@ -393,7 +394,11 @@ export function AccountLogin({
    * contact-selection endpoint is documented. Nothing renders it yet.
    */
   const [pendingContacts, setPendingContacts] = useState<AccountContact[]>([]);
-  /** Shown on the picker when a choice cannot be completed (see `pickAccount`). */
+  /** The verify call's SELECTION token — spent by `pickAccount`, never stored. */
+  const [selectionToken, setSelectionToken] = useState('');
+  /** A pick is in flight — every row is disabled until it settles. */
+  const [picking, setPicking] = useState(false);
+  /** Shown on the picker when a choice could not be completed. */
   const [pickError, setPickError] = useState('');
   const [resent, setResent] = useState(false);
 
@@ -597,6 +602,7 @@ export function AccountLogin({
        */
       if (r.status === 'select_contact') {
         setPendingContacts(r.contacts);
+        setSelectionToken(r.token);
         setPickError('');
         setStep('choose');
         return;
@@ -626,21 +632,51 @@ export function AccountLogin({
   }, [checking, bypassCode, successUrl, live, api, identifierPayload, finish, demoAccountCount]);
 
   /*
-   * A row of the picker was chosen.
+   * A row of the picker was chosen (step 1c).
    *
-   * LIVE: the endpoint that spends the selection token is not documented yet,
-   * so a choice cannot open an account — it says so rather than storing the
-   * selection token as if it were a session (see the select_contact branch
-   * above). This is the one place to wire that call when it exists.
+   * LIVE: spends the selection token on POST /contacts/select, which answers
+   * with the same `authenticated` shape as a single-account verify — so the
+   * session is stored exactly as that path stores it, before the redirect.
    * OFFLINE: the demo completes, so the flow can be walked end to end.
    */
-  const pickAccount = (account: PickerAccount) => {
+  const pickAccount = async (account: PickerAccount) => {
     if (!live) {
       finish();
       return;
     }
-    setPickError('Signing in to one of several accounts is not available yet. Please contact the facility to sign in.');
-    console.warn('[#17 login] contact chosen:', account.id, '— the contact-selection endpoint is not wired yet.');
+    if (picking) return;
+    setPicking(true);
+    setPickError('');
+    try {
+      const r = await apiSelectContact(api, selectionToken, account.id);
+      if (!r.ok) {
+        setPickError(r.message);
+        if (r.detail) console.warn('[#17 login] select failed:', r.detail);
+        return;
+      }
+      if (r.status !== 'authenticated') {
+        // A second selection would be a loop; treat it as the failure it is.
+        setPickError('We could not open that account. Please try again.');
+        console.warn('[#17 login] select returned', r.status, 'instead of a session');
+        return;
+      }
+      const stored = saveSession({
+        token: r.token,
+        expiresAt: expiresAtFrom(r.expiresIn),
+        contactId: r.contact.id || account.id,
+        name: r.contact.name ?? account.name,
+      });
+      if (!stored) {
+        setPickError(
+          'Your browser is blocking site storage, so we cannot keep you signed in. '
+          + 'Enable it for this site and try again.',
+        );
+        return;
+      }
+      finish();
+    } finally {
+      setPicking(false);
+    }
   };
 
   const resend = () => {
@@ -722,7 +758,7 @@ export function AccountLogin({
           <ul className="al-accounts">
             {accounts.map((a) => (
               <li key={a.id}>
-                <button type="button" className="al-account" onClick={() => pickAccount(a)}>
+                <button type="button" className="al-account" onClick={() => { void pickAccount(a); }} disabled={picking}>
                   <UserCircle className="al-account-avatar" />
                   <span className="al-account-text">
                     <span className="al-account-line">

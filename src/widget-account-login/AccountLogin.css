@@ -433,6 +433,8 @@
 }
 
 .al-account:hover { border-color: #a5b4bf; }
+/* While a choice is being exchanged for a session (contacts/select). */
+.al-account:disabled { cursor: progress; opacity: 0.6; }
 .al-account:focus-visible { outline: none; border-color: #101318; }
 /* Pinned in every state: host sheets (Duda themes, the dev harness) style bare
    `button:hover` with a fill, which turned the row grey. */
