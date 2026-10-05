@@ -733,7 +733,9 @@ export function NearbyLocations({
       .then((id) => { if (!cancelled) setHandoffCompanyId(id); })
       .catch(() => { /* no company hint — the handoff degrades, nothing breaks */ });
     return () => { cancelled = true; };
-  }, [internalCollection]);
+  // companyId included: it feeds configureApi above, so a change means a
+  // different tenant's portfolio and this must resolve again.
+  }, [internalCollection, companyId]);
 
   /**
    * Spaces per property id, for the lifetime of the page.
@@ -941,7 +943,7 @@ export function NearbyLocations({
     })();
 
     return () => { cancelled = true; clearTimeout(deadline); };
-  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection]);
+  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection, companyId]);
 
   // While loading we render skeleton cards — showing DEMO_PROPERTIES here meant
   // real-looking names/prices flashed up and were then replaced. Demo data is

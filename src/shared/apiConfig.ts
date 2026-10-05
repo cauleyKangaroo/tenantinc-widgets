@@ -89,7 +89,24 @@ export function normalizeApiBase(raw: unknown, fallback: string): string {
   const text = boundText(raw);
   if (!text) return fallback;
 
-  const withScheme = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+  /*
+   * Prepending `https://` is only safe for something that is NOT already
+   * carrying a scheme. A malformed or unsupported one would otherwise become
+   * a DIFFERENT HOST that still parses, so every keyed request would quietly
+   * go somewhere else:
+   *
+   *   'https:/edge.tenant.dev/api/v3'  ->  https://https/edge.tenant.dev/...
+   *   'ftp://edge.tenant.dev/api/v3'   ->  https://ftp//edge.tenant.dev/...
+   *
+   * A bare host with a port must still work, though, and `edge.tenant.dev:8080`
+   * looks scheme-like to a naive test — hence the numeric check.
+   */
+  const isHttpUrl = /^https?:\/\//i.test(text);
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(text);
+  const isHostWithPort = /^[^/?#:]+:\d+(?:[/?#]|$)/.test(text);
+  if (!isHttpUrl && hasScheme && !isHostWithPort) return fallback;
+
+  const withScheme = isHttpUrl ? text : `https://${text}`;
 
   let url: URL;
   try {

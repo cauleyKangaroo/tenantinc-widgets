@@ -192,6 +192,15 @@ export type PropertySpaces = PropertySpaceData;
  * pairing them with a different id would ask the API for groups it does not own.
  */
 let portfolioPromise: Promise<Map<string, PropertySpaces> | null> | null = null;
+/*
+ * What that cached portfolio was loaded FOR.
+ *
+ * The promise is page-lifetime, so if the credentials or company change the
+ * cached spaces belong to a different tenant and must not be served. Keyed
+ * rather than simply cleared, so the common case (nothing changed) still
+ * costs one request for the whole page.
+ */
+let portfolioKey = '';
 
 async function loadPortfolioSpaces(): Promise<Map<string, PropertySpaces> | null> {
   const { companyId, groupByProperty } = await fetchSpaceGroupBinding();
@@ -222,7 +231,13 @@ async function loadPortfolioSpaces(): Promise<Map<string, PropertySpaces> | null
   return byProperty;
 }
 
-function portfolioSpaces(): Promise<Map<string, PropertySpaces> | null> {
+async function portfolioSpaces(): Promise<Map<string, PropertySpaces> | null> {
+  const c = await creds();
+  const key = `${c.baseUrl}|${c.appId}|${c.companyId}`;
+  if (key !== portfolioKey) {
+    portfolioKey = key;
+    portfolioPromise = null;
+  }
   portfolioPromise ??= loadPortfolioSpaces().catch(() => null);
   return portfolioPromise;
 }
