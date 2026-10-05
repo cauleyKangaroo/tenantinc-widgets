@@ -599,6 +599,25 @@ export function SpaceList({
     />
   );
 
+  // The same panel, mobile variant — see SectionAccordion's `mobile` prop.
+  const mobileSectionPanel = (
+    <SectionAccordion
+      mobile
+      config={accordionConfig}
+      inEditor={inEditor}
+      showSizeGuideVideos={showSizeGuideVideos}
+      propertyExtras={propertyExtras}
+      aboutTitle={aboutTitle}
+      aboutContent={aboutContent}
+      notesContent={notesContent}
+      blogCollection={blogCollection}
+      blogBasePath={blogBasePath}
+      featureHighlights={featureHighlights}
+      activeFeatureSlug={activeFeature?.slug ?? null}
+      onSelectFeature={selectFeature}
+    />
+  );
+
   const filterBar = (
     <TopFilterBar
       filters={filters}
@@ -755,6 +774,9 @@ export function SpaceList({
         </main>
         {showSideAccordions && apLocation === 'right' && sectionPanel}
       </div>
+      {/* Mobile only (CSS): the sidebar is hidden there, so the sections with no
+          widget of their own follow the listing instead. */}
+      {showSideAccordions && mobileSectionPanel}
       {reorderOpen && (
         <ReorderModal
           sections={ACCORDION_SECTIONS}

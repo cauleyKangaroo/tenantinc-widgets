@@ -2555,13 +2555,20 @@
   border-radius: 0;
 }
 
+/* The below-the-listing copy (SectionAccordion `mobile`) is mobile-only.
+   (0,3,0), and before the media block, so the show rule inside it wins there. */
+.sl-wrapper .sl-sa-panel.sl-sa-panel--mobile { display: none; }
+
 /* Mobile: the "side" accordions become full-width bottom accordions. These
    overrides must live AFTER the base .sl-sa-* rules above — @container/@media
    add no specificity, so an earlier override would lose the source-order tie
    (which is why the width:422px base was still winning). */
 @media (max-width: 767px) {
-  /* Side accordion sidebar is desktop/tablet only — hidden on mobile. */
+  /* Side accordion sidebar is desktop/tablet only — hidden on mobile. Its
+     sections without a widget of their own reappear below the listing, in the
+     mobile copy shown here instead (MOBILE_SECTION_KEYS). */
   .sl-wrapper .sl-sa-panel { display: none; }
+  .sl-wrapper .sl-sa-panel.sl-sa-panel--mobile { display: flex; flex: 0 0 auto; width: 100%; }
   .sl-wrapper .sl-sa-item { max-width: 100%; }
   .sl-wrapper .sl-sa-header { padding: 0 16px; min-height: 64px; gap: 8px; }
   .sl-wrapper .sl-sa-header-left { gap: 12px; }

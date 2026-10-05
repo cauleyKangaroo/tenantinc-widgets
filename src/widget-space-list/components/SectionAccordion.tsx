@@ -19,6 +19,7 @@ import { CHEVRON_PATH } from './chevron';
 import {
   ACCORDION_SECTIONS,
   resolveVisibleOrder,
+  MOBILE_SECTION_KEYS,
   type AccordionConfig,
   type AccordionKey,
 } from '../accordionSections';
@@ -180,6 +181,13 @@ export interface SectionAccordionProps {
   activeFeatureSlug?: string | null;
   /** Select (or, with null, clear) the feature the page is locked to. */
   onSelectFeature?: (slug: string | null) => void;
+  /**
+   * The copy shown BELOW the listing on mobile, where the sidebar is hidden.
+   * Only sections with no dedicated widget (MOBILE_SECTION_KEYS); same saved
+   * order and hidden list; no "Manage accordions" button — the sidebar copy
+   * carries it. CSS shows exactly one of the two at any width.
+   */
+  mobile?: boolean;
 }
 
 // ── Single accordion row ──────────────────────────────────────────────────────
@@ -226,6 +234,7 @@ export function SectionAccordion({
   featureHighlights = [],
   activeFeatureSlug = null,
   onSelectFeature,
+  mobile = false,
 }: SectionAccordionProps) {
   // Only one section open at a time — opening one closes the currently-open one.
   const [openKey, setOpenKey] = useState<AccordionKey | null>(null);
@@ -255,6 +264,9 @@ export function SectionAccordion({
   const boundCompanyId = useCompanyId();
   const [nearbyCount, setNearbyCount] = useState<number | null>(null);
   useEffect(() => {
+    // The mobile copy never lists Nearby (it has its own widget), so it must
+    // not repeat the sidebar's properties read just to count a hidden badge.
+    if (mobile) return undefined;
     let cancelled = false;
     void (async () => {
       try {
@@ -274,10 +286,11 @@ export function SectionAccordion({
     return () => { cancelled = true; };
     // Re-count when the company lands — the provider starts '' and resolves a
     // tick later, so the first pass would otherwise fix the wrong tenant's count.
-  }, [currentPropertyId, boundCompanyId]);
+  }, [currentPropertyId, boundCompanyId, mobile]);
 
   const allKeys = ACCORDION_SECTIONS.map((s) => s.key).filter(
-    (k) => k !== 'highlights' || featureHighlights.length > 0,
+    (k) => (k !== 'highlights' || featureHighlights.length > 0)
+      && (!mobile || MOBILE_SECTION_KEYS.has(k)),
   );
 
   const items: AccordionItemDef[] = resolveVisibleOrder(allKeys, config).map((key) => ({
@@ -304,10 +317,10 @@ export function SectionAccordion({
   // Nothing visible and not in the editor → render nothing. In the editor we
   // still render the panel (even if every section is hidden) so the Manage
   // button stays reachable to un-hide sections.
-  if (items.length === 0 && !inEditor) return null;
+  if (items.length === 0 && (!inEditor || mobile)) return null;
 
   return (
-    <aside className="sl-sa-panel">
+    <aside className={`sl-sa-panel${mobile ? ' sl-sa-panel--mobile' : ''}`}>
       {items.map((item) => (
         <AccordionRow
           key={item.key}
@@ -316,7 +329,7 @@ export function SectionAccordion({
           onToggle={() => setOpenKey((prev) => (prev === item.key ? null : item.key))}
         />
       ))}
-      {inEditor && (
+      {inEditor && !mobile && (
         <button className="sl-sa-reorder-btn" onClick={onReorderClick} type="button">
           <IconReorder />
           <span>Manage accordions</span>
