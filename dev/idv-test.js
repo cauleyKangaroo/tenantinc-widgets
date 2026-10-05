@@ -255,7 +255,7 @@ async function testApiTransports() {
     };
   };
   const direct = createIdvApi({
-    mode: 'direct', baseUrl: 'https://edge.example/api/v3', appId: 'app_shared', apiKey: 'shared-key',
+    baseUrl: 'https://edge.example/api/v3', appId: 'app_shared', apiKey: 'shared-key',
   }, directFetch);
   const started = await direct.start({ companyId: 'company_one', propertyId: 'property_two' }, {
     first: 'Ada', last: 'Lovelace', email: 'ada@example.com', phone: '2125551234',
@@ -273,21 +273,8 @@ async function testApiTransports() {
   }, 'mobile');
   assert.equal(JSON.parse(requests[1].init.body).device, 'mobile');
 
-  let proxyRequest;
-  const proxy = createIdvApi({
-    mode: 'proxy', baseUrl: 'https://proxy.example', capability: 'signed-capability', siteId: 'site-one',
-  }, async (url, init) => {
-    proxyRequest = { url, init };
-    return { ok: true, json: async () => ({ data: { status: 'pending' } }) };
-  });
-  const pending = await proxy.poll(
-    { companyId: 'company_one', propertyId: 'property_two' },
-    'idv094ad9c17e774f76b39fa5968fbd7435',
-  );
-  assert.equal(pending.status, 'pending');
-  assert.equal(proxyRequest.init.headers.Authorization, 'Bearer signed-capability');
-  assert.equal(proxyRequest.init.headers['X-Duda-Site-Id'], 'site-one');
-  assert.equal(proxyRequest.init.headers['x-storageapi-key'], undefined);
+  assert.equal(requests[0].init.headers.Authorization, undefined, 'no proxy bearer token');
+  assert.equal(requests[0].init.headers['X-Duda-Site-Id'], undefined);
 }
 
 function testCaptureDevice() {

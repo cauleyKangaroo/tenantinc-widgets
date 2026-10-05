@@ -66,6 +66,9 @@ export type { ApiCredProps };
 
 /** The credentials to use right now. */
 const creds = store.creds;
+/** The same credentials, for the ID-verification client — one source, so the
+ *  two can never point at different hosts or tenants. */
+export const currentApiCreds = store.creds;
 
 export interface RentalCtx {
   companyId: string;

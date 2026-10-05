@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { createIdvApi } from './idvApi';
+import { currentApiCreds } from './api';
 import { useIdvController } from './useIdvController';
-import cfg from './config.json';
 
 const DEV_COMPANY_ID = 'kQoBXA8vpn';
 const DEV_PROPERTY_ID = 'MjR57iZ82O';
@@ -25,12 +25,7 @@ export function LiveIdvHarness() {
   const [contactId, setContactId] = useState('');
   const [attempt, setAttempt] = useState(1);
 
-  const api = useMemo(() => createIdvApi({
-    mode: 'direct',
-    baseUrl: cfg.baseUrl,
-    appId: cfg.appId,
-    apiKey: cfg.apiKey,
-  }), []);
+  const api = useMemo(() => createIdvApi(currentApiCreds()), []);
   const scope = useMemo(() => ({ companyId: DEV_COMPANY_ID, propertyId: DEV_PROPERTY_ID }), []);
   const identity = useMemo(() => ({
     first: first.trim(),

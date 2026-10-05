@@ -1,18 +1,15 @@
 import type { SafeIdvResult } from './idvState';
 
-export type IdvTransportConfig =
-  | {
-      mode: 'direct';
-      baseUrl: string;
-      appId: string;
-      apiKey: string;
-    }
-  | {
-      mode: 'proxy';
-      baseUrl: string;
-      capability: string;
-      siteId?: string;
-    };
+/**
+ * Direct to the Tenant API with the site's credentials — the only transport.
+ * There is no proxy: the start call's abuse protection (binding a start to a
+ * real rental, rate limits) has to live in the backend.
+ */
+export interface IdvCredentials {
+  baseUrl: string;
+  appId: string;
+  apiKey: string;
+}
 
 export interface IdvScope {
   companyId: string;
@@ -69,7 +66,8 @@ function operation(raw: unknown): { status: number; data: JsonRecord; msg?: stri
   const outer = record(raw, 'response');
   const apps = outer.applicationData;
   if (!apps || typeof apps !== 'object' || Array.isArray(apps)) {
-    // Future proxy routes return the safe payload without the gateway wrapper.
+    // Not in the gateway envelope (e.g. a gateway-level error): read it as the
+    // bare payload so its status and message still surface.
     const status = typeof outer.status === 'number' ? outer.status : 200;
     const data = outer.data && typeof outer.data === 'object' && !Array.isArray(outer.data)
       ? outer.data as JsonRecord
@@ -109,7 +107,7 @@ export function captureDevice(): 'mobile' | 'desktop' {
   return narrow && coarse ? 'mobile' : 'desktop';
 }
 
-export function createIdvApi(config: IdvTransportConfig, fetcher: FetchLike = fetch) {
+export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch) {
   const base = config.baseUrl.replace(/\/$/, '');
 
   async function call(
@@ -121,17 +119,12 @@ export function createIdvApi(config: IdvTransportConfig, fetcher: FetchLike = fe
     const path = companyOnly
       ? `/companies/${safeId(scope.companyId)}/${suffix}`
       : `/companies/${safeId(scope.companyId)}/properties/${safeId(scope.propertyId)}/${suffix}`;
-    const url = config.mode === 'direct'
-      ? `${base}/applications/${safeId(config.appId)}/v2${path}`
-      : `${base}/api/idv${path}`;
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    if (config.mode === 'direct') {
-      headers['x-storageapi-key'] = config.apiKey;
-      headers['x-storageapi-date'] = String(Math.floor(Date.now() / 1000));
-    } else {
-      headers.Authorization = `Bearer ${config.capability}`;
-      if (config.siteId) headers['X-Duda-Site-Id'] = config.siteId;
-    }
+    const url = `${base}/applications/${safeId(config.appId)}/v2${path}`;
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'x-storageapi-key': config.apiKey,
+      'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
+    };
     if (init.body) headers['Content-Type'] = 'application/json';
 
     const response = await fetcher(url, { ...init, headers: { ...headers, ...init.headers } });
@@ -216,7 +209,7 @@ export function createIdvApi(config: IdvTransportConfig, fetcher: FetchLike = fe
 
     async emit(scope: IdvScope, idvId: string, type: string): Promise<void> {
       await call(scope, 'identity-verification/emit', {
-        method: config.mode === 'direct' ? 'PUT' : 'POST',
+        method: 'PUT',
         body: JSON.stringify({ idvId, type }),
       });
     },

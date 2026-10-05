@@ -10,13 +10,13 @@ import {
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
-  fetchPaymentGateway, TENANT_PAYMENTS, configureApi,
+  fetchPaymentGateway, TENANT_PAYMENTS, configureApi, currentApiCreds,
   type RentResult, type ApiCredProps,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
 } from './api';
 import { IDV_SERVICE_CONNECTED, RENTAL_IDV_REQUIREMENT, parseIdvRequirement, type IdvRequirement } from './idvPolicy';
-import { createIdvApi, type IdvTransportConfig } from './idvApi';
+import { createIdvApi } from './idvApi';
 import { useIdvController } from './useIdvController';
 import { canRenderLiveIdvHarness } from './LiveIdvHarness';
 import cfg from './config.json';
@@ -215,10 +215,9 @@ export interface RentalFlow2StepProps extends ApiCredProps {
   /** Proxy base URL for the Reserve write (e.g. https://proxy.host). Empty →
    *  reserve is unavailable (writes never hit the direct edge key). */
   proxyBaseUrl?: string;
-  /** Current lower environments use direct; proxy is the future drop-in. */
-  idvTransport?: 'disabled' | 'direct' | 'proxy';
-  /** Required only by proxy mode; issued by trusted checkout in the final design. */
-  idvCapability?: string;
+  /** 'direct' calls the Tenant API with the site's credentials; anything else
+   *  (including a missing value) leaves ID verification off. */
+  idvTransport?: 'disabled' | 'direct';
   /** Comma-separated hosts allowed for the hosted capture URL. */
   idvVerificationHosts?: string;
   /** LOCAL DEV HARNESS ONLY. Also requires a localhost hostname. */
@@ -890,8 +889,7 @@ export function RentalFlow2Step({
   companyId: companyIdArg,
   unitGroupId: unitGroupIdArg,
   proxyBaseUrl = cfg.proxyBaseUrl ?? '',
-  idvTransport = (cfg.idvTransport as 'disabled' | 'direct' | 'proxy') ?? 'disabled',
-  idvCapability,
+  idvTransport = (cfg.idvTransport as 'disabled' | 'direct') ?? 'disabled',
   idvVerificationHosts = cfg.idvVerificationHosts,
   liveCheckoutIdv = false,
   idvRemoteOperated = false,
@@ -1247,19 +1245,18 @@ export function RentalFlow2Step({
   const idvRequirement: IdvRequirement = (inEditor === true ? parseIdvRequirement(idvRequirementPreview) : undefined)
     ?? collectionIdvRequirement
     ?? RENTAL_IDV_REQUIREMENT;
+  const { baseUrl: idvBaseUrl, appId: idvAppId, apiKey: idvApiKey } = currentApiCreds();
   const idvApi = React.useMemo(() => {
     // Two independent production brakes: transport configuration alone cannot
     // activate a billable/SMS-sending path. Localhost's explicit harness opt-in
     // remains available before the release flag is flipped.
     if ((!IDV_SERVICE_CONNECTED && !liveCheckoutIdvEnabled)
       || (inEditor && !liveCheckoutIdvEnabled)
-      || idvTransport === 'disabled') return undefined;
-    const transport: IdvTransportConfig = idvTransport === 'direct'
-      ? { mode: 'direct', baseUrl: cfg.baseUrl, appId: cfg.appId, apiKey: cfg.apiKey }
-      : { mode: 'proxy', baseUrl: proxyBaseUrl, capability: idvCapability ?? '', siteId };
-    if (transport.mode === 'proxy' && (!transport.baseUrl || !transport.capability)) return undefined;
-    return createIdvApi(transport);
-  }, [idvCapability, idvTransport, inEditor, liveCheckoutIdvEnabled, proxyBaseUrl, siteId]);
+      // Only an explicit 'direct' turns the client on; a stale or unknown value
+      // (an old 'proxy' included) means off.
+      || idvTransport !== 'direct') return undefined;
+    return createIdvApi({ baseUrl: idvBaseUrl, appId: idvAppId, apiKey: idvApiKey });
+  }, [idvApiKey, idvAppId, idvBaseUrl, idvTransport, inEditor, liveCheckoutIdvEnabled]);
   const [selectionStatus, setSelectionStatus] = useState<
     'loading' | 'matched' | 'unit-unavailable' | 'unit-unverified' | 'malformed' | 'network-error' | 'legacy-display'
   >('loading');
