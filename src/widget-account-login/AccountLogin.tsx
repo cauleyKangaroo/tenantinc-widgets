@@ -4,6 +4,11 @@ import { CheckTick, CaretDown } from './icons';
 import { hasCollectionsApi, logSource, str } from '@shared/dudaCollections';
 import { readPropertiesFromCollection, PROPERTIES_COLLECTION } from '@shared/propertiesSource';
 import { skipValidation } from '@shared/devBypass';
+import {
+  sendCode as apiSendCode, verifyCode as apiVerifyCode, loginApiReady,
+  type LoginApiConfig, type Identifier, type AccountContact,
+} from './api';
+import { saveSession, expiresAtFrom } from '@shared/accountSession';
 
 // ===========================================================================
 // Widget #17 — Account Login
@@ -130,14 +135,15 @@ function formatDestination(value: string, kind: IdentifierKind): string {
 // The verification seam
 // ---------------------------------------------------------------------------
 
-/**
- * Check a one-time code. THE ONLY PLACE that decides whether a code is good.
+/*
+ * The code check now lives in ./api against the My Account proxy.
  *
- * Stubbed against `bypassCode` until there's an endpoint to call — swap the body
- * for the real request and the rest of the widget is unchanged. Async already,
- * so that swap doesn't change any call site.
+ * `bypassCode` survives as a HARNESS-ONLY fallback, used only when the widget
+ * has not been given a `login_api_base` and site id — i.e. the dev harness and
+ * the Duda editor, where there is nothing to call. On a configured page the
+ * real endpoint is the only thing that can accept a code.
  */
-async function verifyCode(code: string, bypassCode: string): Promise<boolean> {
+async function verifyCodeOffline(code: string, bypassCode: string): Promise<boolean> {
   return code === bypassCode;
 }
 
@@ -266,8 +272,21 @@ export interface AccountLoginProps {
   thirdPartyLoginUrl?: string;
   /** Where a verified reader lands. Blank shows the built-in confirmation. */
   successUrl?: string;
-  /** Code accepted while there's no auth backend. See `verifyCode`. */
+  /**
+   * Code accepted ONLY when the API is not configured (harness, Duda editor).
+   * See `verifyCodeOffline`.
+   */
   bypassCode?: string;
+  /**
+   * My Account proxy base, from the Duda JS tab's `login_api_base` site text.
+   * e.g. https://devus-mariposa-duda-proxy.tenant-platform-dev.com
+   *
+   * Unset, the card stays on the offline bypass rather than firing requests at
+   * nothing — which is what keeps the editor and the harness walkable.
+   */
+  login_api_base?: string;
+  /** Duda's `data.siteId` — the proxy identifies the caller by it. */
+  siteId?: string;
 }
 
 export function AccountLogin({
@@ -278,9 +297,20 @@ export function AccountLogin({
   propertiesCollection = PROPERTIES_COLLECTION,
   propertyLoginUrlField = 'accountPortalUrl',
   thirdPartyLoginUrl = '',
-  successUrl = '',
+  successUrl = '/my-account',
   bypassCode = '000000',
+  login_api_base = '',
+  siteId = '',
 }: AccountLoginProps) {
+  /*
+   * Where the code is checked. Both values come from the page, so this is the
+   * one place that decides live-vs-offline and every branch below reads it.
+   */
+  const api: LoginApiConfig = useMemo(
+    () => ({ baseUrl: login_api_base.trim(), siteId: siteId.trim() }),
+    [login_api_base, siteId],
+  );
+  const live = loginApiReady(api);
   const [step, setStep] = useState<Step>('identify');
 
   // 'phone' mode can be switched to email in-session by the "Login with Email"
@@ -297,6 +327,15 @@ export function AccountLogin({
   const [codeError, setCodeError] = useState('');
   const [checking, setChecking] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  /** A send is in flight — the identify button shows it and cannot re-fire. */
+  const [sending, setSending] = useState(false);
+  /*
+   * Contacts returned by a `select_contact` verify.
+   *
+   * Held rather than discarded so the picker is a small follow-up once the
+   * contact-selection endpoint is documented. Nothing renders it yet.
+   */
+  const [pendingContacts, setPendingContacts] = useState<AccountContact[]>([]);
   const [resent, setResent] = useState(false);
 
   const otpHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -339,9 +378,35 @@ export function AccountLogin({
   }, [fieldMode, identifier]);
 
   const identifierValid = kind === 'email' ? isEmail(identifier) : isPhone(identifier);
+
+  /*
+   * The one-of-email-or-phone body the proxy wants. Sending both, or neither,
+   * is a 400, so the channel is decided once here and reused by send AND
+   * verify — the server pairs them, so a code sent to an email cannot be
+   * verified as a phone.
+   *
+   * Phone digits only: the field carries the display formatting the reader
+   * typed, and '(555) 123-4567' is not what was registered.
+   */
+  const identifierPayload = useCallback((): Identifier => (
+    kind === 'email'
+      ? { email: identifier.trim() }
+      : { phone: identifier.replace(/\D/g, '') }
+  ), [kind, identifier]);
+
+  /** Verified: either hand over to the account page, or show the built-in card. */
+  const finish = useCallback(() => {
+    if (successUrl) {
+      window.location.href = successUrl;
+      return;
+    }
+    setStep('done');
+  }, [successUrl]);
   const selectedProperty = properties.find((p) => p.id === propertyId) ?? null;
   const propertyValid = !showPropertySelect || !!propertyId;
-  const canContinue = identifierValid && propertyValid;
+  // `sending` included: a second click while the first send is in flight would
+  // ask the server for two codes and invalidate the one already on its way.
+  const canContinue = identifierValid && propertyValid && !sending;
 
   const placeholder = fieldMode === 'email'
     ? 'Email'
@@ -392,8 +457,35 @@ export function AccountLogin({
     }
     setCode('');
     setCodeError('');
-    setResendIn(RESEND_COOLDOWN_S);
-    setStep('verify');
+
+    if (!live) {
+      // Nothing to call — harness/editor. Straight to the code step so the
+      // flow stays walkable against `bypassCode`.
+      setResendIn(RESEND_COOLDOWN_S);
+      setStep('verify');
+      return;
+    }
+
+    /*
+     * Advance ONLY once the server says it sent something.
+     *
+     * Moving to the code step first would ask the reader for a code that is
+     * never arriving when the address is unknown or the send failed, and the
+     * only feedback would be a wrong-code error six digits later.
+     */
+    setSending(true);
+    void apiSendCode(api, identifierPayload())
+      .then((r) => {
+        if (!r.ok) {
+          setIdentifyError(r.message);
+          if (r.detail) console.warn('[#17 login] send failed:', r.detail);
+          return;
+        }
+        // The server's own cooldown, not our guess at one.
+        setResendIn(r.resendAfter || RESEND_COOLDOWN_S);
+        setStep('verify');
+      })
+      .finally(() => setSending(false));
   };
 
   const submitCode = useCallback(async (candidate: string) => {
@@ -403,27 +495,100 @@ export function AccountLogin({
     setChecking(true);
     setCodeError('');
     try {
-      const ok = await verifyCode(candidate, bypassCode);
-      if (!ok) {
-        setCodeError('That code is incorrect. Check it and try again.');
+      if (!live) {
+        const ok = await verifyCodeOffline(candidate, bypassCode);
+        if (!ok) {
+          setCodeError('That code is incorrect. Check it and try again.');
+          return;
+        }
+        finish();
         return;
       }
-      if (successUrl) {
-        window.location.href = successUrl;
+
+      const r = await apiVerifyCode(api, identifierPayload(), candidate.replace(/\s/g, ''));
+      if (!r.ok) {
+        setCodeError(r.message);
+        if (r.detail) console.warn('[#17 login] verify failed:', r.detail);
         return;
       }
-      setStep('done');
+
+      /*
+       * Several contacts share this email/phone, so the server cannot know
+       * which account to open and hands back a SELECTION token, not a
+       * session one.
+       *
+       * The endpoint that spends it is not documented here yet, so this
+       * stops and says so rather than storing a selection token as if it
+       * were a session — which would send the reader to an account page
+       * whose every request then fails. The data is kept so the picker is a
+       * small follow-up once that call exists.
+       */
+      if (r.status === 'select_contact') {
+        setPendingContacts(r.contacts);
+        setCodeError(
+          'This email is linked to more than one account. Please contact the facility to sign in.',
+        );
+        console.warn(
+          '[#17 login] select_contact returned with',
+          r.contacts.length,
+          'contacts — the contact-selection endpoint is not wired yet.',
+        );
+        return;
+      }
+
+      // Stored BEFORE the redirect: /my-account is a full page load and
+      // nothing survives it in memory.
+      const stored = saveSession({
+        token: r.token,
+        expiresAt: expiresAtFrom(r.expiresIn),
+        contactId: r.contact.id,
+        name: r.contact.name,
+      });
+      if (!stored) {
+        // Blocked site data. Sending them on would land an account page that
+        // cannot read the session and bounces straight back here.
+        setCodeError(
+          'Your browser is blocking site storage, so we cannot keep you signed in. '
+          + 'Enable it for this site and try again.',
+        );
+        return;
+      }
+      finish();
     } finally {
       setChecking(false);
     }
-  }, [checking, bypassCode, successUrl]);
+  }, [checking, bypassCode, successUrl, live, api, identifierPayload, finish]);
 
   const resend = () => {
-    if (resendIn > 0) return;
+    if (resendIn > 0 || sending) return;
     setCode('');
     setCodeError('');
-    setResent(true);
-    setResendIn(RESEND_COOLDOWN_S);
+
+    if (!live) {
+      setResent(true);
+      setResendIn(RESEND_COOLDOWN_S);
+      return;
+    }
+
+    /*
+     * A real resend, to the SAME channel as the first send.
+     *
+     * The cooldown starts on success, not on click: starting it up front
+     * would lock the button for a minute after a send that failed, leaving
+     * the reader waiting for a code nobody sent.
+     */
+    setSending(true);
+    void apiSendCode(api, identifierPayload())
+      .then((r) => {
+        if (!r.ok) {
+          setCodeError(r.message);
+          if (r.detail) console.warn('[#17 login] resend failed:', r.detail);
+          return;
+        }
+        setResent(true);
+        setResendIn(r.resendAfter || RESEND_COOLDOWN_S);
+      })
+      .finally(() => setSending(false));
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -551,7 +716,7 @@ export function AccountLogin({
             {identifyError && <p className="al-error" role="alert">{identifyError}</p>}
 
             <button type="submit" className="al-cta" disabled={!canContinue}>
-              Continue
+              {sending ? 'Sending…' : 'Continue'}
             </button>
           </div>
 
