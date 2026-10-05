@@ -326,7 +326,16 @@ real property:
 - Unbound, #03 resolves to no property and keeps its DEFAULTS: on a multi-property
   site it cannot know which one to show, and guessing would be worse.
 
-### #02 nav — "Find Storage" is built from the `Properties` collection
+### #02 nav — "Find Storage" is built from the `PropertiesInternal` collection
+
+**Changed 2026-10-01 from `Properties`.** #02 passes `collectionName:
+INTERNAL_PROPERTIES_COLLECTION` to `fetchLocationTree`, which then reads through
+`readInternalProperties()` (normalised) rather than `readCollection()` — the raw
+rows are native and lower-case (`address`, rteBlock-wrapped `slug`/`name`), and
+`str(row.slug)` on them parses to nothing, so every row would be skipped. The
+mega menu's nearby facilities and map cards come off the same rows; its ratings
+still come from `GoogleReviews`. **#04 homepage-search still reads `Properties`**
+(it calls `fetchLocationTree` with the default).
 
 `@shared/propertyNav.ts` groups every property's **`slug`** into the nav's three
 levels. A slug is `state/city/property-name-<id>`, e.g.
