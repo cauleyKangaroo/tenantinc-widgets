@@ -287,6 +287,11 @@ export interface AccountLoginProps {
   login_api_base?: string;
   /** Duda's `data.siteId` — the proxy identifies the caller by it. */
   siteId?: string;
+  /**
+   * Duda's `data.inEditor`. The card is INERT in the editor: no request is
+   * sent and no navigation happens — see `live` and `finish` below.
+   */
+  inEditor?: boolean;
 }
 
 export function AccountLogin({
@@ -301,6 +306,7 @@ export function AccountLogin({
   bypassCode = '000000',
   login_api_base = '',
   siteId = '',
+  inEditor = false,
 }: AccountLoginProps) {
   /*
    * Where the code is checked. Both values come from the page, so this is the
@@ -310,7 +316,16 @@ export function AccountLogin({
     () => ({ baseUrl: login_api_base.trim(), siteId: siteId.trim() }),
     [login_api_base, siteId],
   );
-  const live = loginApiReady(api);
+  /*
+   * Whether this card really signs anyone in.
+   *
+   * NOT in the Duda editor, even with the API configured. Someone laying out
+   * the page would otherwise send real verification emails to whatever they
+   * typed while checking the field — and a redirect would take the editor
+   * off the page they are building. The editor gets the offline bypass and
+   * the built-in confirmation card instead, so every state stays walkable.
+   */
+  const live = loginApiReady(api) && !inEditor;
   const [step, setStep] = useState<Step>('identify');
 
   // 'phone' mode can be switched to email in-session by the "Login with Email"
@@ -394,14 +409,16 @@ export function AccountLogin({
       : { phone: identifier.replace(/\D/g, '') }
   ), [kind, identifier]);
 
-  /** Verified: either hand over to the account page, or show the built-in card. */
+  /** Verified: hand over to the account page, or show the built-in card. */
   const finish = useCallback(() => {
-    if (successUrl) {
-      window.location.href = successUrl;
+    // The editor never navigates. A bare '/my-account' there walks out of
+    // the editor shell and the layout session is gone.
+    if (!successUrl || inEditor) {
+      setStep('done');
       return;
     }
-    setStep('done');
-  }, [successUrl]);
+    window.location.href = successUrl;
+  }, [successUrl, inEditor]);
   const selectedProperty = properties.find((p) => p.id === propertyId) ?? null;
   const propertyValid = !showPropertySelect || !!propertyId;
   // `sending` included: a second click while the first send is in flight would
@@ -452,6 +469,12 @@ export function AccountLogin({
     // 3rd-party flow: the account lives on someone else's portal, so hand off
     // rather than asking for a code we couldn't check.
     if (selectedProperty?.loginUrl) {
+      // Inert in the editor, like every other navigation here.
+      if (inEditor) {
+        setIdentifyError('');
+        setStep('done');
+        return;
+      }
       window.location.href = selectedProperty.loginUrl;
       return;
     }
