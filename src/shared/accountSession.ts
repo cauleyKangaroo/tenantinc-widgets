@@ -29,6 +29,17 @@ export interface AccountSession {
   contactId: string;
   /** For the greeting; absent is fine. */
   name?: string;
+  /*
+   * What the reader signed in WITH — the email or phone they typed.
+   *
+   * Neither /me nor the verify response carries it, and the account page shows
+   * "You're logged in as …". Without this it fell back to the demo constant and
+   * showed a stranger's address to a signed-in reader.
+   *
+   * The identifier, not the account's registered email: it is what they typed
+   * and what the code was sent to, so it is the one that answers "as whom?".
+   */
+  signedInAs?: string;
 }
 
 /** Store the session. Returns false when storage refused it. */
@@ -67,6 +78,7 @@ export function readSession(): AccountSession | null {
       expiresAt: parsed.expiresAt,
       contactId: typeof parsed.contactId === 'string' ? parsed.contactId : '',
       name: typeof parsed.name === 'string' ? parsed.name : undefined,
+      signedInAs: typeof parsed.signedInAs === 'string' ? parsed.signedInAs : undefined,
     };
   } catch {
     // Unreadable or not the JSON we wrote. Treat as signed out rather than

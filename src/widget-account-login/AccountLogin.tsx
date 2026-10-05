@@ -615,6 +615,9 @@ export function AccountLogin({
         expiresAt: expiresAtFrom(r.expiresIn),
         contactId: r.contact.id,
         name: r.contact.name,
+        // What they typed — the account page says "logged in as" and nothing
+        // in the verify response or /me carries it.
+        signedInAs: identifier.trim(),
       });
       if (!stored) {
         // Blocked site data. Sending them on would land an account page that
@@ -665,6 +668,8 @@ export function AccountLogin({
         expiresAt: expiresAtFrom(r.expiresIn),
         contactId: r.contact.id || account.id,
         name: r.contact.name ?? account.name,
+        // Same as the single-account path: what they typed is the "logged in as".
+        signedInAs: identifier.trim(),
       });
       if (!stored) {
         setPickError(

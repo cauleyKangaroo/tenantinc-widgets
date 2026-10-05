@@ -228,7 +228,14 @@ export function MyAccount({
    */
   const sessionFirst = session?.name?.trim().split(/\s+/)[0] ?? '';
   const name = orElse(userName, sessionFirst || USER.firstName);
-  const email = orElse(userEmail, USER.email);
+  /*
+   * Who they are signed in as — the identifier from the session.
+   *
+   * Same precedence as the name: explicit prop -> session -> the frames'
+   * sample. Without the session value this line showed the demo address to a
+   * real signed-in reader.
+   */
+  const email = orElse(userEmail, session?.signedInAs || USER.email);
 
   /* The promo swaps with the view — autopay on the default screen, supplies on
      the payment screen, as the two frames draw them. An editor override wins
