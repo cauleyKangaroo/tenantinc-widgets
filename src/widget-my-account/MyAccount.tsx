@@ -48,14 +48,14 @@ import { PaymentActivity } from './PaymentActivity';
 import { PropertyCard } from './PropertyCard';
 import { readSession, clearSession } from '@shared/accountSession';
 import {
-  fetchMe, fetchContact, updateContact, loginApiReady,
+  fetchMe, fetchContact, updateContact, fetchDocumentFile, saveBlob, loginApiReady,
   type LoginApiConfig, type AccountRecord,
 } from '@shared/accountApi';
 import {
   editFormFrom, updateFromEditForm,
   primaryContactFrom, alternateContactFrom, documentsFrom,
 } from './contactMapping';
-import type { EditForm } from './data';
+import type { AccountDocument, EditForm } from './data';
 import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROMO_SUPPLIES, PROPERTIES, SPACES, USER } from './data';
 
 /** The three panels that share the middle slot. */
@@ -265,6 +265,39 @@ export function MyAccount({
     [record],
   );
 
+  /*
+   * Download a lease document.
+   *
+   * Fetched rather than linked: the endpoint authenticates on a header, which a
+   * browser does not send when following an href. The file comes back as a blob
+   * and is handed to the browser as a save.
+   *
+   * The ids come from the CURRENT record on every click, never cached — a
+   * document's id changes when it is re-signed and re-uploaded (seen live: the
+   * Superlease id changed overnight), so a stale one 404s.
+   */
+  const [busyDocument, setBusyDocument] = useState('');
+
+  const openDocument = async (doc: AccountDocument) => {
+    if (!session || !doc.leaseId || !doc.documentId || busyDocument) return;
+    setBusyDocument(doc.label);
+    try {
+      const r = await fetchDocumentFile(
+        api, session.token, doc.leaseId, doc.documentId, doc.filename || doc.label,
+      );
+      if (r.ok) { saveBlob(r.data); return; }
+      if (r.unauthorized) {
+        clearSession();
+        window.location.href = loginUrl;
+        return;
+      }
+      console.warn('[#19 my-account] document fetch failed:', r.detail ?? r.message);
+      setSaveError(r.message);
+    } finally {
+      setBusyDocument('');
+    }
+  };
+
   const saveContact = async (form: EditForm): Promise<boolean> => {
     if (!session || !record) {
       // Nothing loaded: there are no ids to match on, so a PATCH would ADD
@@ -397,6 +430,8 @@ export function MyAccount({
               contact={realContact}
               alternate={realAlternate}
               documents={realDocuments}
+              onOpenDocument={gated ? openDocument : undefined}
+              busyDocument={busyDocument}
             />
           )}
           {view === 'payment' && (

@@ -75,6 +75,17 @@ export interface AccountDocument {
   label: string;
   /** Pill to the right. Absent → no pill, as on the frame's last two rows. */
   status?: string;
+  /*
+   * What the file endpoint needs. Both absent on the frame's own rows, which is
+   * how a demo document stays inert rather than firing a request for a file
+   * that does not exist.
+   */
+  leaseId?: string;
+  documentId?: string;
+  /** What the saved file should be called. */
+  filename?: string;
+  /** The record's own flag — false means there is nothing to fetch. */
+  available?: boolean;
 }
 
 export interface SpaceProperty {

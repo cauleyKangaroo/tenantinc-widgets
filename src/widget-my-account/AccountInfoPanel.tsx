@@ -47,10 +47,21 @@ function AlternateContact({ contact }: { contact: Contact }) {
   );
 }
 
+/*
+ * A row can only be fetched when the record gave it both ids and did not say
+ * the file is unavailable. The frame's own sample rows have neither id, so they
+ * stay inert rather than firing a request for a file that does not exist.
+ */
+function canOpen(doc: AccountDocument): boolean {
+  return !!(doc.leaseId && doc.documentId && doc.available !== false);
+}
+
 export function AccountInfoPanel({
   space,
   onPayNow,
   onEdit,
+  onOpenDocument,
+  busyDocument,
   contact,
   alternate,
   documents,
@@ -65,6 +76,14 @@ export function AccountInfoPanel({
    * a populated panel with no session.
    */
   contact?: Contact;
+  /**
+   * Fetch and save a document. Omitted → the rows stay inert, which is what
+   * keeps the frame's sample list from firing requests for files that do not
+   * exist.
+   */
+  onOpenDocument?: (doc: AccountDocument) => void;
+  /** The label currently downloading, so its row can say so. */
+  busyDocument?: string;
   /**
    * `null` is meaningful and not the same as omitted: it says the account HAS
    * no alternate contact, so the block is hidden rather than showing the
@@ -108,9 +127,18 @@ export function AccountInfoPanel({
               {docs.map((doc) => (
                 <li className="ma-docs__row" key={doc.label}>
                   <span className="ma-info__icon"><FileTextIcon /></span>
-                  {/* A real link once the documents API is wired; a button today
-                      so it is focusable and announced, without a dead href. */}
-                  <button type="button" className="ma-docs__link">{doc.label}</button>
+                  {/* A BUTTON, not a link, and deliberately so: the file
+                      endpoint authenticates on a header, which a browser never
+                      sends when following an href — so a real link would 401.
+                      The bytes are fetched and handed over as a blob instead. */}
+                  <button
+                    type="button"
+                    className="ma-docs__link"
+                    disabled={!canOpen(doc) || busyDocument === doc.label}
+                    onClick={() => onOpenDocument?.(doc)}
+                  >
+                    {busyDocument === doc.label ? 'Opening…' : doc.label}
+                  </button>
                   {doc.status && <span className="ma-docs__chip">{doc.status}</span>}
                 </li>
               ))}
