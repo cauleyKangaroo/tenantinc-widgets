@@ -47,7 +47,12 @@ import { MakePaymentPanel } from './MakePaymentPanel';
 import { PaymentActivity } from './PaymentActivity';
 import { PropertyCard } from './PropertyCard';
 import { readSession, clearSession } from '@shared/accountSession';
-import { fetchMe, loginApiReady, type LoginApiConfig } from '@shared/accountApi';
+import {
+  fetchMe, fetchContact, updateContact, loginApiReady,
+  type LoginApiConfig, type AccountRecord,
+} from '@shared/accountApi';
+import { editFormFrom, updateFromEditForm } from './contactMapping';
+import type { EditForm } from './data';
 import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROMO_SUPPLIES, PROPERTIES, SPACES, USER } from './data';
 
 /** The three panels that share the middle slot. */
@@ -192,6 +197,76 @@ export function MyAccount({
 
     return () => { cancelled = true; };
   }, [gated, api, loginUrl]);
+
+  /*
+   * The full contact record — what the Edit panel edits.
+   *
+   * Separate from the /me gate on purpose: /me is the cheap token check and
+   * answers from the token alone, while this calls TenantInc. Gating on the
+   * cheap one means a slow upstream delays the form, not the whole page.
+   */
+  const [record, setRecord] = useState<AccountRecord | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  useEffect(() => {
+    if (!gated || authed !== true || !session) return undefined;
+    let cancelled = false;
+    void fetchContact(api, session.token).then((r) => {
+      if (cancelled) return;
+      if (r.ok) { setRecord(r.data); return; }
+      if (r.unauthorized) {
+        clearSession();
+        window.location.href = loginUrl;
+        return;
+      }
+      // The page still works without it — only the Edit panel loses its real
+      // starting values, so this is a warning rather than a failure state.
+      console.warn('[#19 my-account] contact load failed:', r.detail ?? r.message);
+    });
+    return () => { cancelled = true; };
+  }, [gated, authed, session, api, loginUrl]);
+
+  /*
+   * Memoised per record so EditPanel's re-seed effect fires when the record
+   * lands and NOT on every render of this component, which would reset a
+   * half-finished edit under the reader.
+   */
+  const editInitial = useMemo(
+    () => (record ? editFormFrom(record) : undefined),
+    [record],
+  );
+
+  const saveContact = async (form: EditForm): Promise<boolean> => {
+    if (!session || !record) {
+      // Nothing loaded: there are no ids to match on, so a PATCH would ADD
+      // rows rather than edit them. Better to do nothing than to duplicate.
+      setSaveError('Your account is still loading. Please try again in a moment.');
+      return false;
+    }
+    setSaving(true);
+    setSaveError('');
+    try {
+      const r = await updateContact(api, session.token, updateFromEditForm(form, record));
+      if (r.ok) {
+        // Re-read rather than trusting the echo: the server may normalise what
+        // it stored, and the next edit must carry ITS ids, not ours.
+        const fresh = await fetchContact(api, session.token);
+        if (fresh.ok) setRecord(fresh.data);
+        return true;
+      }
+      if (r.unauthorized) {
+        clearSession();
+        window.location.href = loginUrl;
+        return false;
+      }
+      setSaveError(r.message);
+      console.warn('[#19 my-account] contact update failed:', r.detail ?? r.message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
   const [selectedId, setSelectedId] = useState(SPACES[0]?.id);
   const [activityOpen, setActivityOpen] = useState(false);
 
@@ -228,7 +303,14 @@ export function MyAccount({
    */
   const sessionFirst = session?.name?.trim().split(/\s+/)[0] ?? '';
   const name = orElse(userName, sessionFirst || USER.firstName);
-  const email = orElse(userEmail, USER.email);
+  /*
+   * Who they are signed in as — the identifier from the session.
+   *
+   * Same precedence as the name: explicit prop -> session -> the frames'
+   * sample. Without the session value this line showed the demo address to a
+   * real signed-in reader.
+   */
+  const email = orElse(userEmail, session?.signedInAs || USER.email);
 
   /* The promo swaps with the view — autopay on the default screen, supplies on
      the payment screen, as the two frames draw them. An editor override wins
@@ -299,7 +381,19 @@ export function MyAccount({
               onCancel={() => setView('account')}
               // Nothing to persist while the account API is absent — Save
               // returns to the display panel rather than pretending to write.
-              onSave={() => setView('account')}
+              initial={editInitial}
+              saving={saving}
+              saveError={saveError}
+              /* Returns to the display panel only on a SUCCESSFUL save — a
+                 failure keeps the form open with the error and the reader's
+                 edits intact. Unconfigured (harness/editor) there is nothing
+                 to save, so it closes as it always did. */
+              onSave={async (form) => {
+                if (!gated) { setView('account'); return true; }
+                const ok = await saveContact(form);
+                if (ok) setView('account');
+                return ok;
+              }}
             />
           )}
 

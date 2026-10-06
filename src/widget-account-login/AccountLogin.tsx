@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './AccountLogin.css';
-import { CheckTick, CaretDown } from './icons';
+import { CheckTick, CaretDown, UserCircle, InfoSolid } from './icons';
 import { hasCollectionsApi, logSource, str } from '@shared/dudaCollections';
 import { readPropertiesFromCollection, PROPERTIES_COLLECTION } from '@shared/propertiesSource';
 import { skipValidation } from '@shared/devBypass';
 import {
-  sendCode as apiSendCode, verifyCode as apiVerifyCode, loginApiReady,
+  sendCode as apiSendCode, verifyCode as apiVerifyCode, selectContact as apiSelectContact,
+  loginApiReady,
   type LoginApiConfig, type Identifier, type AccountContact,
 } from '@shared/accountApi';
 import { saveSession, expiresAtFrom } from '@shared/accountSession';
@@ -22,7 +23,9 @@ import { saveSession, expiresAtFrom } from '@shared/accountSession';
 //      9451:55590 (empty) · 9503:123086 (valid, green tick) ·
 //      9503:122933 (phone-only, with the extra "Login with Email" button) ·
 //      9503:123533 (code, empty) · 9503:123840 (code, filled) ·
-//      9503:132254 (the email wording of the code step).
+//      9503:132254 (the email wording of the code step) ·
+//      12667:34621 (account picker — when the email/phone is linked to more
+//      than one account; the verify call's `select_contact` answer).
 //   2. "Login With Google" / Apple — 9503:125657. NOT BUILT. The social
 //      sign-in buttons were removed for now; only the email/phone code flow
 //      and the 3rd-party handoff below ship. The Google and Apple marks are
@@ -46,7 +49,7 @@ const OTP_LENGTH = 6;
 /** Seconds before "Resend Code" can be used again. */
 const RESEND_COOLDOWN_S = 30;
 
-type Step = 'identify' | 'verify' | 'done';
+type Step = 'identify' | 'verify' | 'choose' | 'done';
 type IdentifierKind = 'phone' | 'email';
 
 interface PropertyOption {
@@ -145,6 +148,39 @@ function formatDestination(value: string, kind: IdentifierKind): string {
  */
 async function verifyCodeOffline(code: string, bypassCode: string): Promise<boolean> {
   return code === bypassCode;
+}
+
+// ---------------------------------------------------------------------------
+// Account picker (Figma 12667:34621)
+// ---------------------------------------------------------------------------
+
+/** One row of the picker, from either source below. */
+interface PickerAccount {
+  id: string;
+  name: string;
+  /** Rented spaces — "(1 Space)". The API's contact rows do not carry it yet. */
+  spaces?: number;
+  /** The line under the name: "email, (949) 748-9365" — either part may be absent. */
+  email?: string;
+  phone?: string;
+}
+
+/**
+ * HARNESS/EDITOR ONLY — the picker frame's own sample rows, shown after the
+ * offline bypass when `demoAccountCount` > 1 so the screen can be walked
+ * without an API. A live page shows the server's `select_contact` rows.
+ */
+const DEMO_ACCOUNTS = [
+  { id: 'demo-1', name: 'Jane Doe', spaces: 1, phone: '(949) 748-9365' },
+  { id: 'demo-2', name: 'Janey Do', spaces: 2, phone: '(949) 938-7777' },
+];
+
+/** The verify call's contacts → picker rows. `email` is what the reader typed, if anything. */
+function contactsToAccounts(contacts: AccountContact[], email: string): PickerAccount[] {
+  return contacts.map((c, i) => {
+    const name = [c.first, c.last].filter(Boolean).join(' ') || c.name || `Account ${i + 1}`;
+    return { id: c.id || String(i), name, email: email || undefined, phone: c.maskedPhone };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +321,12 @@ export interface AccountLoginProps {
    * nothing — which is what keeps the editor and the harness walkable.
    */
   login_api_base?: string;
+  /**
+   * HARNESS/EDITOR ONLY: accounts the offline bypass pretends the email has.
+   * More than 1 shows the picker after the code step. Ignored on a live page,
+   * where the server decides.
+   */
+  demoAccountCount?: number;
   /** Duda's `data.siteId` — the proxy identifies the caller by it. */
   siteId?: string;
   /**
@@ -307,6 +349,7 @@ export function AccountLogin({
   login_api_base = '',
   siteId = '',
   inEditor = false,
+  demoAccountCount = 1,
 }: AccountLoginProps) {
   /*
    * Where the code is checked. Both values come from the page, so this is the
@@ -351,6 +394,12 @@ export function AccountLogin({
    * contact-selection endpoint is documented. Nothing renders it yet.
    */
   const [pendingContacts, setPendingContacts] = useState<AccountContact[]>([]);
+  /** The verify call's SELECTION token — spent by `pickAccount`, never stored. */
+  const [selectionToken, setSelectionToken] = useState('');
+  /** A pick is in flight — every row is disabled until it settles. */
+  const [picking, setPicking] = useState(false);
+  /** Shown on the picker when a choice could not be completed. */
+  const [pickError, setPickError] = useState('');
   const [resent, setResent] = useState(false);
 
   const otpHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -443,7 +492,7 @@ export function AccountLogin({
   // whole contents, and without this a keyboard or screen-reader user is left
   // on a button that no longer exists.
   useEffect(() => {
-    if (step === 'verify') otpHeadingRef.current?.focus();
+    if (step === 'verify' || step === 'choose') otpHeadingRef.current?.focus();
   }, [step]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -524,6 +573,11 @@ export function AccountLogin({
           setCodeError('That code is incorrect. Check it and try again.');
           return;
         }
+        if (demoAccountCount > 1) {
+          setPickError('');
+          setStep('choose');
+          return;
+        }
         finish();
         return;
       }
@@ -548,14 +602,9 @@ export function AccountLogin({
        */
       if (r.status === 'select_contact') {
         setPendingContacts(r.contacts);
-        setCodeError(
-          'This email is linked to more than one account. Please contact the facility to sign in.',
-        );
-        console.warn(
-          '[#17 login] select_contact returned with',
-          r.contacts.length,
-          'contacts — the contact-selection endpoint is not wired yet.',
-        );
+        setSelectionToken(r.token);
+        setPickError('');
+        setStep('choose');
         return;
       }
 
@@ -566,6 +615,9 @@ export function AccountLogin({
         expiresAt: expiresAtFrom(r.expiresIn),
         contactId: r.contact.id,
         name: r.contact.name,
+        // What they typed — the account page says "logged in as" and nothing
+        // in the verify response or /me carries it.
+        signedInAs: identifier.trim(),
       });
       if (!stored) {
         // Blocked site data. Sending them on would land an account page that
@@ -580,7 +632,57 @@ export function AccountLogin({
     } finally {
       setChecking(false);
     }
-  }, [checking, bypassCode, successUrl, live, api, identifierPayload, finish]);
+  }, [checking, bypassCode, successUrl, live, api, identifierPayload, finish, demoAccountCount]);
+
+  /*
+   * A row of the picker was chosen (step 1c).
+   *
+   * LIVE: spends the selection token on POST /contacts/select, which answers
+   * with the same `authenticated` shape as a single-account verify — so the
+   * session is stored exactly as that path stores it, before the redirect.
+   * OFFLINE: the demo completes, so the flow can be walked end to end.
+   */
+  const pickAccount = async (account: PickerAccount) => {
+    if (!live) {
+      finish();
+      return;
+    }
+    if (picking) return;
+    setPicking(true);
+    setPickError('');
+    try {
+      const r = await apiSelectContact(api, selectionToken, account.id);
+      if (!r.ok) {
+        setPickError(r.message);
+        if (r.detail) console.warn('[#17 login] select failed:', r.detail);
+        return;
+      }
+      if (r.status !== 'authenticated') {
+        // A second selection would be a loop; treat it as the failure it is.
+        setPickError('We could not open that account. Please try again.');
+        console.warn('[#17 login] select returned', r.status, 'instead of a session');
+        return;
+      }
+      const stored = saveSession({
+        token: r.token,
+        expiresAt: expiresAtFrom(r.expiresIn),
+        contactId: r.contact.id || account.id,
+        name: r.contact.name ?? account.name,
+        // Same as the single-account path: what they typed is the "logged in as".
+        signedInAs: identifier.trim(),
+      });
+      if (!stored) {
+        setPickError(
+          'Your browser is blocking site storage, so we cannot keep you signed in. '
+          + 'Enable it for this site and try again.',
+        );
+        return;
+      }
+      finish();
+    } finally {
+      setPicking(false);
+    }
+  };
 
   const resend = () => {
     if (resendIn > 0 || sending) return;
@@ -623,6 +725,73 @@ export function AccountLogin({
           <div className="al-head">
             <h1 className="al-title">You’re signed in</h1>
             <p className="al-sub">Welcome back. Your storage account is ready.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'choose') {
+    const email = kind === 'email' ? identifier.trim() : '';
+    const accounts: PickerAccount[] = live
+      ? contactsToAccounts(pendingContacts, email)
+      : DEMO_ACCOUNTS.slice(0, Math.max(2, demoAccountCount)).map((a) => ({
+        id: a.id,
+        name: a.name,
+        spaces: a.spaces,
+        email: email || 'john.doe@tenantinc.com',
+        phone: a.phone,
+      }));
+    const linkedTo = email || formatDestination(identifier, 'phone');
+
+    return (
+      <div className="al-wrapper">
+        <div className="al-card al-card--choose">
+          <div className="al-head al-head--choose">
+            <h1 className="al-title al-title--choose" tabIndex={-1} ref={otpHeadingRef}>
+              Which account would you like to open?
+            </h1>
+            <p className="al-sub al-sub--choose">
+              More than one rental is linked to{' '}
+              {email
+                ? <a className="al-sub-link" href={`mailto:${email}`}>{email}</a>
+                : linkedTo}
+              . Select an account to get started. You can switch to another one later.
+            </p>
+          </div>
+
+          <ul className="al-accounts">
+            {accounts.map((a) => (
+              <li key={a.id}>
+                <button type="button" className="al-account" onClick={() => { void pickAccount(a); }} disabled={picking}>
+                  <UserCircle className="al-account-avatar" />
+                  <span className="al-account-text">
+                    <span className="al-account-line">
+                      <span className="al-account-name">{a.name}</span>
+                      {a.spaces != null && (
+                        <span className="al-account-spaces">({a.spaces} {a.spaces === 1 ? 'Space' : 'Spaces'})</span>
+                      )}
+                    </span>
+                    {(a.email || a.phone) && (
+                      <span className="al-account-detail">
+                        {a.email}{a.email && a.phone && ', '}
+                        {a.phone && <span className="al-account-phone">{a.phone}</span>}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {pickError && <p className="al-error al-pick-error" role="alert">{pickError}</p>}
+
+          <div className="al-merge">
+            <InfoSolid className="al-merge-icon" />
+            <p className="al-merge-text">
+              Want to see all your rentals in one place? Get in touch with us, and we’ll help merge
+              your accounts.
+            </p>
           </div>
         </div>
       </div>

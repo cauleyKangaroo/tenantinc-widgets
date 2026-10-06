@@ -13,11 +13,14 @@ import {
   fetchPaymentGateway, TENANT_PAYMENTS, configureApi,
   type RentResult, type ApiCredProps,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
-  type UnitHold, type RentalCtx,
+  type UnitHold, type RentalCtx, type PropertyInfo,
 } from './api';
 import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
 import { tokenizeCard } from './gpTokenize';
+import rentalErrorArt from './assets/rental-error.svg';
+import { ContactConfirmationModal, type ConfirmationFacility } from '@shared/components/ContactConfirmation';
+import type { LeadInput } from '@shared/leadsApi';
 import { OrderRail } from './OrderRail';
 import { ChevronSolidIcon } from './icons';
 /* The ASSET ONLY, deliberately — not the #02 component, its config, its props
@@ -253,7 +256,7 @@ const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 // invents figures when the quote pipeline fails would quote real shoppers
 // prices that are not real. Live sites keep the honest empty state.
 // ---------------------------------------------------------------------------
-const PREVIEW_PROPERTY: import('./api').PropertyInfo = {
+export const PREVIEW_PROPERTY: import('./api').PropertyInfo = {
   // Not a real id on purpose: the preview must not resolve a hero photo out of
   // a live collection and pass it off as this invented property's.
   id: '',
@@ -264,7 +267,7 @@ const PREVIEW_PROPERTY: import('./api').PropertyInfo = {
   phone: '8776577465',
 };
 
-const PREVIEW_SELECTION: SelectionContext = {
+export const PREVIEW_SELECTION: SelectionContext = {
   size: '5’ x 7’',
   inStore: 86,
   online: 64,
@@ -273,7 +276,7 @@ const PREVIEW_SELECTION: SelectionContext = {
   features: ['Climate Controlled', '24 Hour Access', 'Drive Up', 'Near Entrances', 'No Late Fees'],
 };
 
-const PREVIEW_QUOTE: MoveInQuote = {
+export const PREVIEW_QUOTE: MoveInQuote = {
   unitId: 'preview',
   // Deliberately no unitNumber: MoneyBreakdown would add a "Unit #111" ROW, and
   // the frame shows the unit in the header line instead.
@@ -696,6 +699,165 @@ function Step1Form({
         </div>
       )}
       {reserveError && <p className="rf-form-error" role="alert">{reserveError}</p>}
+    </div>
+  );
+}
+
+/**
+ * "Oops … This space is no longer available" (Figma 12453-39451).
+ *
+ * The availability check failed AFTER the shopper picked the space — someone
+ * rented it while they were on the previous page. Replaces the left card: a
+ * contact form so staff can find them an alternative, then `similar` (the
+ * caller's alternative spaces) under "Or choose a similar space".
+ *
+ * Contact me files a lead through `submitLead`, then opens the shared
+ * ContactConfirmationModal — the same "Great, We'll contact you soon." card
+ * #05's waitlist ends on — with this property's details.
+ *
+ * NOT WIRED INTO THE FLOW YET — today `transactionState === 'unavailable'`
+ * still shows Step1Form's inline error, and the flow has no lead call of its
+ * own to pass in. Rendered by the harness's Static screens page until then.
+ * Same Field and validation as Step1Form, so the two cards cannot disagree
+ * about a valid email or phone.
+ */
+export function UnavailableStep({ similar, submitLead, property, spaceLabel }: {
+  /** Alternative spaces — rendered under the divider, which hides without them. */
+  similar?: React.ReactNode;
+  /** Files the enquiry; also what the confirmation's "Send us a Message" uses. */
+  submitLead: (input: LeadInput) => Promise<unknown>;
+  /** For the confirmation's name / address / phone / hours. */
+  property?: PropertyInfo;
+  /** The space that was lost, e.g. "5’ x 7’ Climate Controlled", for the lead text. */
+  spaceLabel?: string;
+}) {
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [first, setFirst] = useState('');
+  const [last, setLast] = useState('');
+  const [attempted, setAttempted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+
+  const checks: [string, boolean][] = [
+    ['rf-ua-email', isValidEmail(email)],
+    ['rf-ua-phone', isPossiblePhone(phone, 'US')],
+    ['rf-ua-first', first.trim().length > 0],
+    ['rf-ua-last', last.trim().length > 0],
+  ];
+  const bad = (id: string) => attempted && !(checks.find(([k]) => k === id)?.[1]);
+  const submit = async () => {
+    setAttempted(true);
+    setError('');
+    if (checks.some(([, ok]) => !ok) || busy) return;
+    setBusy(true);
+    try {
+      await submitLead({
+        first: first.trim(), last: last.trim(), email: email.trim(), phone: phone.trim(),
+        subject: 'Website Inquiry - Space No Longer Available',
+        message: `The space they chose${spaceLabel ? ` (${spaceLabel})` : ''} was rented before they could complete. `
+          + 'Please help them find the best available alternative.',
+      });
+      setConfirmed(true);
+    } catch (err) {
+      console.error('[RentalFlow] unavailable-space createLead error:', err);
+      setError('Sorry, we couldn’t send your details. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // PropertyInfo → the shared card's shape. Phone is raw digits there.
+  const officePhone = property?.phone?.replace(/\D/g, '').replace(/^1?(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
+  const facility: ConfirmationFacility = {
+    name: property?.name,
+    address: property?.address,
+    phones: officePhone ? [{ number: officePhone }] : [],
+    hours: [
+      { title: 'Office Hours', lines: property?.officeHours ?? [] },
+      { title: 'Gate Hours', lines: property?.gateHours ?? [] },
+    ],
+  };
+
+  return (
+    <div className="rf-card rf-ua">
+      <div className="rf-title">
+        <p className="rf-eyebrow">Oops ...</p>
+        <h2 className="rf-heading">This space is no longer available</h2>
+      </div>
+      <p className="rf-ua-text">
+        It looks like someone else just rented this space. Share your contact information, and a
+        member of our team will reach out shortly to help you find the best available alternative.
+      </p>
+
+      <div className="rf-form">
+        <div className="rf-row">
+          <Field id="rf-ua-email" label="Email" type="email" value={email}
+            valid={isValidEmail(email)} error={bad('rf-ua-email')} onChange={setEmail} />
+          <Field id="rf-ua-phone" label="Phone" type="tel" value={phone} phoneCountry="US"
+            valid={isPossiblePhone(phone, 'US')} error={bad('rf-ua-phone')} onChange={setPhone} />
+        </div>
+        <div className="rf-row">
+          <Field id="rf-ua-first" label="First Name" value={first}
+            valid={first.trim().length > 0} error={bad('rf-ua-first')} onChange={setFirst} />
+          <Field id="rf-ua-last" label="Last Name" value={last}
+            valid={last.trim().length > 0} error={bad('rf-ua-last')} onChange={setLast} />
+        </div>
+      </div>
+
+      <div className="rf-actions">
+        <Button tone="cta" block busy={busy} onClick={submit}>Contact me</Button>
+      </div>
+      {error && <p className="rf-form-error rf-ua-error" role="alert">{error}</p>}
+
+      {similar && (
+        <>
+          <div className="rf-or rf-ua-or"><span>Or choose a similar space</span></div>
+          <div className="rf-ua-similar">{similar}</div>
+        </>
+      )}
+
+      <ContactConfirmationModal
+        open={confirmed}
+        onClose={() => setConfirmed(false)}
+        phone={phone.trim()}
+        facility={facility}
+        submitMessage={submitLead}
+      />
+    </div>
+  );
+}
+
+/**
+ * "Hmm … This space is playing hard to get" (Figma 12454-41003) — the generic
+ * "something went wrong while completing your rental" card.
+ *
+ * NOT WIRED INTO THE FLOW YET; rendered by the harness's Static screens page.
+ * The phone is the property's own (`PropertyInfo.phone`, raw digits, formatted
+ * here the way OrderRail formats it). With no phone there is nothing to dial,
+ * so the button is left out rather than pointing at a made-up number.
+ */
+export function RentalErrorStep({ phone }: { phone?: string }) {
+  const digits = phone?.replace(/\D/g, '') ?? '';
+  const display = digits.replace(/^1?(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
+  return (
+    <div className="rf-card rf-err">
+      <div className="rf-title">
+        <p className="rf-eyebrow">Hmm ...</p>
+        <h2 className="rf-heading">This space is playing hard to get</h2>
+      </div>
+      <p className="rf-err-text">
+        Something went wrong while completing your rental. Please call the facility, and our team
+        will help you cross the finish line.
+      </p>
+      {digits && (
+        <div className="rf-actions">
+          <Button tone="cta" block href={`tel:${digits}`}>Call {display}</Button>
+        </div>
+      )}
+      {/* Figma 12519-96217, exported verbatim — single-line drawing of an agent at a desk. */}
+      <img className="rf-err-art" src={rentalErrorArt} width={590} height={272} alt="" />
     </div>
   );
 }

@@ -37,7 +37,7 @@
 // one-component change when the panel gets real data.
 // ===========================================================================
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Checkbox, FormField } from '@shared/ui';
 import { ChevronBigRight24Icon } from './icons';
 import { US_STATES, isKnownState, stateCodeFromName, stateNameFromCode } from '@shared/usStates';
@@ -255,13 +255,39 @@ export function EditPanel({
   space,
   onCancel,
   onSave,
+  initial,
+  saving = false,
+  saveError = '',
 }: {
   space: AccountSpace;
   onCancel: () => void;
-  /** Nothing is persisted yet — the parent just returns to the display panel. */
-  onSave: (form: EditForm) => void;
+  /**
+   * Persists. Resolves true when the save went through, so the panel knows
+   * whether to stay open — a failed save must not look like a successful one.
+   */
+  onSave: (form: EditForm) => void | Promise<boolean>;
+  /** The loaded record's values. Omitted → the frame's own sample. */
+  initial?: EditForm;
+  /** A save is in flight: the button says so and cannot fire twice. */
+  saving?: boolean;
+  /** Why the last save failed, if it did. */
+  saveError?: string;
 }) {
-  const [form, setForm] = useState<EditForm>(EDIT_DEFAULTS);
+  const [form, setForm] = useState<EditForm>(initial ?? EDIT_DEFAULTS);
+  /*
+   * Re-seed when the record lands.
+   *
+   * The panel can mount before the fetch resolves, and a plain useState
+   * initialiser only runs once — so without this the form would keep the
+   * sample values and a save would write them over the real record.
+   *
+   * Keyed on `initial` identity: the parent memoises it per record, so this
+   * does not fight a reader who is mid-edit.
+   */
+  useEffect(() => {
+    if (initial) setForm(initial);
+  }, [initial]);
+
   const set = <K extends keyof EditForm>(key: K) => (v: EditForm[K]) =>
     setForm((f) => ({ ...f, [key]: v }));
 
@@ -403,8 +429,18 @@ export function EditPanel({
           Cancel is drawn as plain bold text, not a button box — but it IS a
           button, so it focuses and activates from the keyboard. */}
       <div className="ma-edit__actions">
-        <button type="button" className="ma-edit__cancel" onClick={onCancel}>Cancel</button>
-        <button type="button" className="ma-paynow" onClick={() => onSave(form)}>Save</button>
+        {saveError && <p className="ma-edit__error" role="alert">{saveError}</p>}
+        <button type="button" className="ma-edit__cancel" onClick={onCancel} disabled={saving}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="ma-paynow"
+          onClick={() => onSave(form)}
+          disabled={saving}
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
       </div>
     </section>
   );

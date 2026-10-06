@@ -398,3 +398,132 @@ export async function selectContact(
   }
   return readAuthenticated(json);
 }
+
+// ---------------------------------------------------------------------------
+// Updating the contact
+// ---------------------------------------------------------------------------
+
+/** A phone as the update endpoint wants it. */
+export interface ContactPhoneInput {
+  number: string;
+  type?: string;
+  sms?: boolean;
+}
+
+/** An address as the update endpoint wants it — note `line1`, not `address`. */
+export interface ContactAddressInput {
+  /** Present = update THAT address. Absent = add a new one. */
+  id?: string;
+  type?: string;
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
+  primary?: boolean;
+}
+
+export interface SecondaryContactInput {
+  id?: string;
+  first?: string;
+  last?: string;
+  email?: string;
+  isEmergency?: boolean;
+  leaseId?: string;
+  phone?: ContactPhoneInput;
+  address?: Omit<ContactAddressInput, 'id' | 'primary' | 'type'>;
+}
+
+/**
+ * The PATCH body. Every section is optional and only what is sent is changed —
+ * which is the whole reason this is a PATCH and why the form must not send a
+ * section it does not actually edit.
+ */
+export interface ContactUpdate {
+  details?: {
+    first?: string;
+    middle?: string;
+    last?: string;
+    suffix?: string;
+    dob?: string;
+    driverLicense?: string;
+    driverLicenseState?: string;
+    driverLicenseCountry?: string;
+    driverLicenseCity?: string;
+    driverLicenseExpiration?: string;
+  };
+  addresses?: ContactAddressInput[];
+  secondaryContacts?: SecondaryContactInput[];
+  military?: Record<string, unknown>;
+}
+
+/**
+ * PATCH the contact record.
+ *
+ * The id is NOT sent and cannot be: the proxy takes the contact from the token,
+ * so a session can only ever edit its own record.
+ *
+ * An ADDRESS or SECONDARY CONTACT carrying an `id` updates that row; one
+ * without adds a new row. Re-sending an edited address without its id would
+ * therefore leave the original in place and append a duplicate, so the caller
+ * must carry ids through from the record it loaded.
+ */
+export function updateContact(
+  cfg: LoginApiConfig,
+  token: string,
+  body: ContactUpdate,
+): Promise<AuthedResult<AccountRecord>> {
+  return sendJson(cfg, token, 'PATCH', '/api/account/contact', body);
+}
+
+async function sendJson(
+  cfg: LoginApiConfig,
+  token: string,
+  method: 'PATCH' | 'POST' | 'PUT',
+  path: string,
+  body: unknown,
+): Promise<AuthedResult<AccountRecord>> {
+  let res: Response;
+  let json: unknown;
+  try {
+    res = await fetch(url(cfg, path), {
+      method,
+      headers: { ...headers(cfg), Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    json = await res.json().catch(() => undefined);
+  } catch (err) {
+    return {
+      ok: false,
+      message: 'We could not reach the server. Your changes were not saved.',
+      detail: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  if (res.status === 401) {
+    return {
+      ok: false,
+      unauthorized: true,
+      message: 'Your session has expired. Please sign in again.',
+      detail: failureDetail(json, res),
+    };
+  }
+  if (!res.ok) {
+    return {
+      ok: false,
+      // 400 validation_failed names the offending path in error.details; that
+      // reaches the console, because it is a field path and not reader prose.
+      message: 'We could not save your changes. Check the details and try again.',
+      detail: failureDetail(json, res),
+    };
+  }
+
+  const data = (json as { data?: Record<string, unknown> } | undefined)?.data;
+  /*
+   * A 200 with no recognisable record still SAVED. Reporting failure would make
+   * a reader redo an edit that already went through, so this succeeds with
+   * whatever came back and lets the caller refetch.
+   */
+  return { ok: true, data: (data ?? {}) as AccountRecord };
+}

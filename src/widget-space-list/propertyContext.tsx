@@ -14,6 +14,7 @@
 // ===========================================================================
 
 import React, { createContext, useContext } from 'react';
+import type { PropertyExtras } from './propertyApi';
 
 const PropertyIdContext = createContext<string>('');
 
@@ -26,4 +27,23 @@ export function PropertyIdProvider(
 /** The bound property id, or '' when this instance has none. */
 export function usePropertyId(): string {
   return useContext(PropertyIdContext);
+}
+
+// ---------------------------------------------------------------------------
+// The same property's loaded details (name, address, phones, hours), for UI
+// that lives inside a unit card — the waitlist confirmation — and so has no
+// route to SpaceList's `propertyExtras` state. null until the sidebar's
+// properties call lands, or when it fails; consumers render without it.
+// ---------------------------------------------------------------------------
+
+const PropertyExtrasContext = createContext<PropertyExtras | null>(null);
+
+export function PropertyExtrasProvider(
+  { extras, children }: { extras: PropertyExtras | null; children: React.ReactNode },
+) {
+  return <PropertyExtrasContext.Provider value={extras}>{children}</PropertyExtrasContext.Provider>;
+}
+
+export function usePropertyExtras(): PropertyExtras | null {
+  return useContext(PropertyExtrasContext);
 }

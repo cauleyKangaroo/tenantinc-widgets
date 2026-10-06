@@ -64,12 +64,19 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
 
           <div className="sl-lc-info">
             <div className="sl-lc-size-label">{SIZE_LABEL[size]}</div>
-            {selected.subtype && (
-              <span className="sl-lc-subtype">
-                <CheckIcon /> {selected.subtype}
-              </span>
-            )}
-            <FeatureList features={selected.features} />
+            {/* The subtype chip and the feature ticks, wrapped so the narrow
+                frame can lay them out as ONE two-column grid (7112-56027) with
+                the chip as its first cell. `display: contents` on every other
+                width, so this element does not exist as far as the desktop
+                layout is concerned. */}
+            <div className="sl-lc-amenities">
+              {selected.subtype && (
+                <span className="sl-lc-subtype">
+                  <CheckIcon /> {selected.subtype}
+                </span>
+              )}
+              <FeatureList features={selected.features} />
+            </div>
           </div>
         </div>
 
