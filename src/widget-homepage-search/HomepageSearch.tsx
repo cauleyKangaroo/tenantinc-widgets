@@ -429,6 +429,13 @@ export function HomepageSearch({
     window.location.assign(editorSafeHref(url.pathname + url.search, editorPreview, siteId));
   };
 
+  // Current Location goes to the nearest location the same way a picked
+  // suggestion does. Through a ref so the deferred path below (property list
+  // still loading) always calls the latest version. Typing or picking a
+  // suggestion cancels a pending lookup first, so this never fires late.
+  const navigateRef = useRef(navigateToSuggestion);
+  navigateRef.current = navigateToSuggestion;
+
   const nearestCandidate = (candidates: GeoTarget[], coords: Coordinates) => candidates.reduce((best, candidate) => (
     distanceSquared(coords.latitude, coords.longitude, candidate.lat, candidate.lng)
       < distanceSquared(coords.latitude, coords.longitude, best.lat, best.lng)
@@ -444,10 +451,10 @@ export function HomepageSearch({
       setLocating(false);
       return;
     }
-    chooseCity(nearestCandidate(candidates, pendingCoordinates).target);
+    navigateRef.current(nearestCandidate(candidates, pendingCoordinates).target);
     setPendingCoordinates(undefined);
     setLocating(false);
-  }, [pendingCoordinates, inventoryStatus, geoTargets, type, chooseCity]);
+  }, [pendingCoordinates, inventoryStatus, geoTargets, type]);
 
   const chooseCurrentLocation = () => {
     if (locating) return;
@@ -463,7 +470,7 @@ export function HomepageSearch({
         const current = { latitude: coords.latitude, longitude: coords.longitude };
         const candidates = type ? geoTargets.filter((candidate) => candidate.types.includes(type)) : geoTargets;
         if (candidates.length) {
-          chooseCity(nearestCandidate(candidates, current).target);
+          navigateRef.current(nearestCandidate(candidates, current).target);
           setLocating(false);
           return;
         }
