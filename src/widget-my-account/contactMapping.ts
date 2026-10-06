@@ -383,7 +383,19 @@ export function documentsFrom(record: AccountRecord): AccountDocument[] {
       seen.add(label);
       // signatureStatus is 1 once signed; signedAt carries the stamp.
       const signed = d.signatureStatus === 1 || !!str(d.signedAt);
-      out.push({ label, status: signed ? 'Signed' : undefined });
+      const ext = str(d.extension);
+      out.push({
+        label,
+        status: signed ? 'Signed' : undefined,
+        // Both ids are needed: the file lives under its LEASE, not the contact.
+        leaseId: str(lease.id),
+        documentId: str(d.id),
+        // "Superlease" + "pdf" — the record carries no filename of its own.
+        filename: ext ? `${label}.${ext}` : label,
+        // Absent means unknown rather than unavailable, so only an explicit
+        // false disables the row.
+        available: d.available !== false,
+      });
     }
   }
   return out;

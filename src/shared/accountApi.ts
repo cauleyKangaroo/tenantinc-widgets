@@ -554,3 +554,108 @@ async function sendJson(
    */
   return { ok: true, data: (data ?? {}) as AccountRecord };
 }
+
+// ---------------------------------------------------------------------------
+// Lease documents
+// ---------------------------------------------------------------------------
+
+export interface DocumentFile {
+  blob: Blob;
+  /** Content-Disposition's name when the server sent one, else the caller's. */
+  filename: string;
+}
+
+/**
+ * A lease document's file.
+ *
+ * GET /api/account/leases/{leaseId}/documents/{documentId}/file
+ *
+ * WHY THIS IS A FETCH AND NOT A LINK. The endpoint is authenticated by the
+ * `Authorization` header, and a browser sends no such header when it follows an
+ * <a href> or opens a window — so a link gets 401 every time. The bytes have to
+ * be fetched here and handed to the page as a blob.
+ *
+ * The file lives under its LEASE rather than the contact, so both ids are
+ * required; the contact record carries them on each lease's `documents`.
+ */
+export async function fetchDocumentFile(
+  cfg: LoginApiConfig,
+  token: string,
+  leaseId: string,
+  documentId: string,
+  fallbackName: string,
+): Promise<AuthedResult<DocumentFile>> {
+  const path = `/api/account/leases/${encodeURIComponent(leaseId)}`
+    + `/documents/${encodeURIComponent(documentId)}/file`;
+
+  let res: Response;
+  try {
+    res = await fetch(url(cfg, path), {
+      headers: { 'X-Duda-Site-Id': cfg.siteId, Authorization: `Bearer ${token}` },
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      message: 'We could not reach the server. Please try again.',
+      detail: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  if (!res.ok) {
+    /*
+     * A failure comes back as JSON even though a success is binary, so the body
+     * is only read on the error path — reading it as text on success would pull
+     * a whole PDF into memory as a string.
+     */
+    const json = await res.json().catch(() => undefined);
+    if (res.status === 401) {
+      return {
+        ok: false,
+        unauthorized: true,
+        message: 'Your session has expired. Please sign in again.',
+        detail: failureDetail(json, res),
+      };
+    }
+    return {
+      ok: false,
+      message: 'We could not open that document. Please try again.',
+      detail: failureDetail(json, res),
+    };
+  }
+
+  const blob = await res.blob();
+  return { ok: true, data: { blob, filename: filenameFrom(res) || fallbackName } };
+}
+
+/** The server's own filename, when it offers one. */
+function filenameFrom(res: Response): string {
+  const cd = res.headers.get('content-disposition') ?? '';
+  // RFC 5987 form first — it carries the encoding and wins when both appear.
+  const star = /filename\*=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
+  if (star?.[1]) {
+    try { return decodeURIComponent(star[1]); } catch { return star[1]; }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(cd);
+  return plain?.[1] ?? '';
+}
+
+/**
+ * Hand a fetched file to the browser as a download.
+ *
+ * An object URL rather than a data: one — a lease PDF can be megabytes and a
+ * data: URL would base64 the whole thing into the DOM. Revoked on the next
+ * frame: revoking immediately can cancel the download in some browsers, and
+ * never revoking leaks the blob for the life of the page.
+ */
+export function saveBlob(file: DocumentFile): void {
+  const href = URL.createObjectURL(file.blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = file.filename;
+  // Firefox requires the anchor to be in the document for a programmatic click.
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 0);
+}
