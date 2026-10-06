@@ -97,13 +97,27 @@ const url = (cfg: LoginApiConfig, path: string) =>
  */
 function failureDetail(body: unknown, res: Response): string {
   const b = body as {
-    error?: { code?: unknown; message?: unknown };
+    error?: { code?: unknown; message?: unknown; details?: unknown };
     requestId?: unknown;
   } | null;
+  /*
+   * `error.details` is the useful half of a validation failure: an array of
+   * { path, message } naming the offending FIELD. Without it a 400 reads only
+   * as "Request validation failed.", which says nothing at all — the first
+   * version of this dropped it and cost a debugging round trip.
+   */
+  const details = Array.isArray(b?.error?.details)
+    ? (b.error.details as Array<{ path?: unknown; message?: unknown }>)
+      .map((d) => [d.path, d.message].filter((x) => typeof x === 'string' && x).join(': '))
+      .filter(Boolean)
+      .join('; ')
+    : '';
+
   return [
     `${res.status} ${res.statusText}`,
     typeof b?.error?.code === 'string' ? b.error.code : '',
     typeof b?.error?.message === 'string' ? b.error.message : '',
+    details,
     typeof b?.requestId === 'string' ? `requestId=${b.requestId}` : '',
   ].filter(Boolean).join(' | ');
 }
@@ -429,6 +443,19 @@ export interface SecondaryContactInput {
   first?: string;
   last?: string;
   email?: string;
+  /*
+   * A NEW secondary contact must be one or the other. Omitting both is
+   * rejected outright:
+   *
+   *   400 validation_failed
+   *   secondaryContacts.0.isAlternate — "a new secondary contact must be an
+   *   alternate or an emergency contact"
+   *
+   * The guide's example shows only `isEmergency: true` and never mentions this
+   * one, so sending `isEmergency: false` for an alternate — the obvious
+   * reading — fails every time. Verified live 2026-10-06.
+   */
+  isAlternate?: boolean;
   isEmergency?: boolean;
   leaseId?: string;
   phone?: ContactPhoneInput;

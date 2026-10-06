@@ -51,7 +51,10 @@ import {
   fetchMe, fetchContact, updateContact, loginApiReady,
   type LoginApiConfig, type AccountRecord,
 } from '@shared/accountApi';
-import { editFormFrom, updateFromEditForm } from './contactMapping';
+import {
+  editFormFrom, updateFromEditForm,
+  primaryContactFrom, alternateContactFrom, documentsFrom,
+} from './contactMapping';
 import type { EditForm } from './data';
 import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROMO_SUPPLIES, PROPERTIES, SPACES, USER } from './data';
 
@@ -237,6 +240,31 @@ export function MyAccount({
     [record],
   );
 
+  /*
+   * The display panel's real content. Undefined until the record lands, which
+   * is what keeps the frame's sample on screen in the harness and the editor.
+   *
+   * `alternate` is null — not undefined — when the account has none, so the
+   * panel hides that block instead of falling back to the sample contact.
+   */
+  const realContact = useMemo(
+    () => (record ? primaryContactFrom(record) : undefined),
+    [record],
+  );
+  const realAlternate = useMemo(
+    () => (record ? alternateContactFrom(record) : undefined),
+    [record],
+  );
+  const realDocuments = useMemo(
+    () => {
+      if (!record) return undefined;
+      const docs = documentsFrom(record);
+      // No documents at all → keep the frame's list rather than an empty panel.
+      return docs.length ? docs : undefined;
+    },
+    [record],
+  );
+
   const saveContact = async (form: EditForm): Promise<boolean> => {
     if (!session || !record) {
       // Nothing loaded: there are no ids to match on, so a PATCH would ADD
@@ -366,6 +394,9 @@ export function MyAccount({
               space={space}
               onPayNow={() => setView('payment')}
               onEdit={() => setView('edit')}
+              contact={realContact}
+              alternate={realAlternate}
+              documents={realDocuments}
             />
           )}
           {view === 'payment' && (

@@ -24,7 +24,7 @@ import type {
   AccountRecord, ContactUpdate, ContactAddressInput, SecondaryContactInput,
 } from '@shared/accountApi';
 import { EDIT_DEFAULTS } from './data';
-import type { ContactForm, EditForm } from './data';
+import type { AccountDocument, Contact, ContactForm, EditForm } from './data';
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
@@ -94,15 +94,40 @@ function emptyContact(): ContactForm {
   };
 }
 
+/*
+ * A secondary contact's own fields.
+ *
+ * READ AND WRITE SHAPES DIFFER, which is the trap here. The PATCH takes a flat
+ * contact with a single `phone` and `address`; the GET returns a WRAPPER whose
+ * flags sit at the top and whose person is nested one level down, with phones
+ * and addresses as ARRAYS:
+ *
+ *   { id, isAlternate, isEmergency,
+ *     contact: { first, last, email, phones: [...], addresses: [...] } }
+ *
+ * Reading it as if it were the write shape finds nothing at all — every field
+ * comes back empty and the form looks unsaved. Verified live 2026-10-06.
+ */
 function contactFormFrom(row: Record<string, unknown> | undefined): ContactForm | null {
   if (!row) return null;
-  const addr = addressParts(row.address as Record<string, unknown> | undefined);
-  const phone = (row.phone ?? {}) as Record<string, unknown>;
+  // Nested on the way in; tolerate the flat shape too, so a payload that ever
+  // matches the write shape still reads.
+  const person = (row.contact && typeof row.contact === 'object'
+    ? row.contact
+    : row) as Record<string, unknown>;
+  const addrList = Array.isArray(person.addresses)
+    ? (person.addresses as Record<string, unknown>[])
+    : [];
+  const addr = addressParts(addrList[0] ?? (person.address as Record<string, unknown> | undefined));
+  const phoneList = Array.isArray(person.phones)
+    ? (person.phones as Record<string, unknown>[])
+    : [];
+  const phone = (phoneList[0] ?? person.phone ?? {}) as Record<string, unknown>;
   return {
-    first: str(row.first),
-    last: str(row.last),
-    email: str(row.email),
-    phone: str(phone.number) || str(row.phone),
+    first: str(person.first),
+    last: str(person.last),
+    email: str(person.email),
+    phone: str(phone.phone) || str(phone.number),
     country: countryName(str(addr.country)) || EDIT_DEFAULTS.alternate.country,
     address: str(addr.line1),
     city: str(addr.city),
@@ -165,10 +190,29 @@ function secondaryFrom(
     first: form.first.trim(),
     last: form.last.trim(),
     email: form.email.trim(),
-    isEmergency,
   };
-  // WITHOUT the id this adds a second row instead of editing the one shown.
-  if (existing?.id) out.id = String(existing.id);
+
+  /*
+   * The flag rule INVERTS on whether this row already exists, and both halves
+   * are enforced. Verified live 2026-10-06:
+   *
+   *   new, with neither flag        400  "a new secondary contact must be an
+   *                                       alternate or an emergency contact"
+   *   existing, with a flag         400  "isAlternate: cannot be changed on an
+   *                                       existing secondary contact"
+   *
+   * So a new row MUST carry one and an existing row MUST NOT — which also
+   * means a contact's kind cannot be changed through this endpoint at all.
+   * Neither half is in the guide.
+   */
+  if (existing?.id) {
+    // WITHOUT the id this adds a second row instead of editing the one shown.
+    out.id = String(existing.id);
+  } else if (isEmergency) {
+    out.isEmergency = true;
+  } else {
+    out.isAlternate = true;
+  }
   if (form.phone.trim()) out.phone = { number: form.phone.replace(/[^\d+]/g, '') };
   if (form.address.trim() || form.city.trim() || form.zip.trim()) {
     out.address = {
@@ -234,4 +278,113 @@ export function updateFromEditForm(form: EditForm, record: AccountRecord): Conta
   // carries, and an empty array could read as "remove them all".
   if (secondaryContacts.length) body.secondaryContacts = secondaryContacts;
   return body;
+}
+
+// ---------------------------------------------------------------------------
+// The DISPLAY panel — the same record, read-only
+// ---------------------------------------------------------------------------
+
+/**
+ * "(877) 657-7465" from the digits the API stores ("12352415214").
+ *
+ * Display only. The stored value is never reformatted on the way back, because
+ * what is sent is what the operator's system matches on.
+ */
+function displayPhone(raw: string): string {
+  const d = raw.replace(/\D/g, '');
+  const local = d.length === 11 && d.startsWith('1') ? d.slice(1) : d;
+  if (local.length !== 10) return raw;
+  return `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`;
+}
+
+/** The frame prints an address over two lines: street, then city/state/zip. */
+function addressLines(row: Record<string, unknown> | undefined): string[] | undefined {
+  const a = addressParts(row);
+  const street = str(a.line1);
+  const rest = [str(a.city), [str(a.state), str(a.zip)].filter(Boolean).join(' ')]
+    .filter(Boolean).join(', ');
+  const lines = [street, rest].filter(Boolean);
+  return lines.length ? lines : undefined;
+}
+
+function phoneOf(rows: unknown): string {
+  const list = Array.isArray(rows) ? (rows as Record<string, unknown>[]) : [];
+  // `primary` first — a contact can hold several and the panel shows one.
+  const row = list.find((p) => p.primary) ?? list[0];
+  const raw = str(row?.phone) || str(row?.number);
+  return raw ? displayPhone(raw) : '';
+}
+
+/** The account holder, for the "Primary Contact" block. */
+export function primaryContactFrom(record: AccountRecord): Contact {
+  const name = [str(record.first), str(record.last)].filter(Boolean).join(' ');
+  /*
+   * The licence arrives already masked ("****4567"), which is what this block
+   * wants to show anyway — so it is printed as given rather than re-masked.
+   * Absent entirely when the account has none, instead of an empty label.
+   */
+  const licence = str(record.driverLicense);
+  return {
+    name,
+    email: str(record.email) || undefined,
+    phone: phoneOf(record.phones) || undefined,
+    address: addressLines(primaryAddress(record)),
+    licence: licence ? `Drivers License: ${licence}` : undefined,
+  };
+}
+
+/**
+ * The alternate contact, or null when the account has none.
+ *
+ * Null rather than an empty Contact: the panel can then say so, instead of
+ * drawing a heading over four blank lines.
+ */
+export function alternateContactFrom(record: AccountRecord): Contact | null {
+  const rows = Array.isArray(record.secondaryContacts)
+    ? (record.secondaryContacts as Record<string, unknown>[])
+    : [];
+  const row = rows.find((c) => !c.isEmergency) ?? rows[0];
+  if (!row) return null;
+
+  // Nested, as on the way in — see contactFormFrom.
+  const person = (row.contact && typeof row.contact === 'object'
+    ? row.contact
+    : row) as Record<string, unknown>;
+  const addrList = Array.isArray(person.addresses)
+    ? (person.addresses as Record<string, unknown>[])
+    : [];
+
+  const name = [str(person.first), str(person.last)].filter(Boolean).join(' ');
+  if (!name && !str(person.email)) return null;
+  return {
+    name,
+    email: str(person.email) || undefined,
+    phone: phoneOf(person.phones ?? (person.phone ? [person.phone] : [])) || undefined,
+    address: addressLines(addrList[0] ?? (person.address as Record<string, unknown> | undefined)),
+  };
+}
+
+/**
+ * Every lease document, for the Documents list.
+ *
+ * Flattened across leases: the panel draws one list and a contact with two
+ * units has two sets. De-duped on name, because the same agreement type
+ * appears per lease and the reader does not need it twice.
+ */
+export function documentsFrom(record: AccountRecord): AccountDocument[] {
+  const leases = Array.isArray(record.leases) ? (record.leases as Record<string, unknown>[]) : [];
+  const out: AccountDocument[] = [];
+  const seen = new Set<string>();
+  for (const lease of leases) {
+    const docs = Array.isArray(lease.documents) ? (lease.documents as Record<string, unknown>[]) : [];
+    for (const d of docs) {
+      const label = str(d.name);
+      if (!label || seen.has(label)) continue;
+      seen.add(label);
+      // signatureStatus is 1 once signed; signedAt carries the stamp.
+      const signed = d.signatureStatus === 1 || !!str(d.signedAt);
+      out.push({ label, status: signed ? 'Signed' : undefined });
+    }
+  }
+  return out;
 }

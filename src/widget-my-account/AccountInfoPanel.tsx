@@ -14,7 +14,7 @@ import { Button, MapPinIcon, PhoneIcon } from '@shared/ui';
 import {
   CarFrontIcon, EnvelopeIcon, FileTextIcon, UserArrowRightIcon, UserSettingsIcon,
 } from './icons';
-import type { AccountSpace, Contact } from './data';
+import type { AccountDocument, AccountSpace, Contact } from './data';
 
 /** One icon + text row. The address arrives as several lines and keeps them. */
 function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
@@ -51,14 +51,31 @@ export function AccountInfoPanel({
   space,
   onPayNow,
   onEdit,
+  contact,
+  alternate,
+  documents,
 }: {
   space: AccountSpace;
   onPayNow: () => void;
   /** Opens the Edit panel (8815-115876) in this panel's place. */
   onEdit: () => void;
+  /*
+   * The signed-in account's REAL details, when they have loaded. Each falls
+   * back to the frame's sample so the harness and the Duda editor still render
+   * a populated panel with no session.
+   */
+  contact?: Contact;
+  /**
+   * `null` is meaningful and not the same as omitted: it says the account HAS
+   * no alternate contact, so the block is hidden rather than showing the
+   * sample's Jerry Boo.
+   */
+  alternate?: Contact | null;
+  documents?: AccountDocument[];
 }) {
-  const primary = space.primaryContact;
-  const alt = space.alternateContact;
+  const primary = contact ?? space.primaryContact;
+  const alt = alternate !== undefined ? alternate : space.alternateContact;
+  const docs = documents ?? space.documents;
 
   return (
     <section className="ma-account">
@@ -88,7 +105,7 @@ export function AccountInfoPanel({
           <div className="ma-account__col ma-account__col--docs">
             <h3 className="ma-account__label">Documents</h3>
             <ul className="ma-info__list ma-docs">
-              {space.documents.map((doc) => (
+              {docs.map((doc) => (
                 <li className="ma-docs__row" key={doc.label}>
                   <span className="ma-info__icon"><FileTextIcon /></span>
                   {/* A real link once the documents API is wired; a button today

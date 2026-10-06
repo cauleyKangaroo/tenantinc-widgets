@@ -30,14 +30,19 @@
 // keeps the free-text field rather than being given a list that is missing
 // its own entries.
 //
-// The address fields render as `type="search"`, matching the frame's magnifier.
-// They are NOT wired to @shared/AddressAutocomplete: every figure on this
-// screen is static demo content, and a demo panel should not be firing Places
-// lookups at a live proxy. Wrapping each in <AddressAutocomplete> is the
-// one-component change when the panel gets real data.
+// The address fields render as `type="search"`, matching the frame's magnifier,
+// and each is wrapped in @shared/AddressAutocomplete — the same component and
+// the same proxy the rental flow uses. Picking a suggestion fills city, state
+// and ZIP, so the three fields below cannot disagree with the street line.
+//
+// They were deliberately NOT wired while the panel was static demo content: a
+// demo screen should not fire Places lookups at a live, metered proxy. It has
+// real data now, so they are.
 // ===========================================================================
 
 import { useEffect, useState } from 'react';
+import { AddressAutocomplete } from '@shared/AddressAutocomplete';
+import { CUSTOMER_ADDRESS_COUNTRIES } from '@shared/placesApi';
 import { Checkbox, FormField } from '@shared/ui';
 import { ChevronBigRight24Icon } from './icons';
 import { US_STATES, isKnownState, stateCodeFromName, stateNameFromCode } from '@shared/usStates';
@@ -218,12 +223,26 @@ function ContactFields({
         />
         {/* Search, not success: the magnifier IS this field's icon in the
             frame, and a tick would sit where it already is. */}
-        <FormField
-          label="Address" type="search" required
-          value={contact.address} onChange={set('address')}
-          className={contact.address.trim() ? 'ma-edit__valid' : undefined}
-          autoComplete="street-address"
-        />
+        <AddressAutocomplete
+          country={CUSTOMER_ADDRESS_COUNTRIES}
+          value={contact.address}
+          onChange={set('address')}
+          onPick={(place) => {
+            // The whole point of the lookup: the three fields below are filled
+            // from the SAME place, so they cannot contradict the street line.
+            if (place.address.city) set('city')(place.address.city);
+            // The two-letter code — StateField matches on `code` here.
+            if (place.address.stateCode) set('state')(place.address.stateCode);
+            if (place.address.zip) set('zip')(place.address.zip);
+          }}
+        >
+          <FormField
+            label="Address" type="search" required
+            value={contact.address} onChange={set('address')}
+            className={contact.address.trim() ? 'ma-edit__valid' : undefined}
+            autoComplete="street-address"
+          />
+        </AddressAutocomplete>
       </div>
 
       <div className="ma-edit__row ma-edit__row--thirds">
@@ -313,12 +332,27 @@ export function EditPanel({
               }))}
               valid={Boolean(form.country)}
             />
-            <FormField
-              label="Address" type="search" required
-              value={form.address} onChange={set('address')}
-              className={form.address.trim() ? 'ma-edit__valid' : undefined}
-              autoComplete="street-address"
-            />
+            <AddressAutocomplete
+              country={CUSTOMER_ADDRESS_COUNTRIES}
+              value={form.address}
+              onChange={set('address')}
+              onPick={(place) => setForm((f) => ({
+                ...f,
+                // One setState, not three: separate calls would each rebuild
+                // `form` from the same stale closure and only the last would
+                // survive.
+                city: place.address.city || f.city,
+                state: place.address.stateCode || f.state,
+                zip: place.address.zip || f.zip,
+              }))}
+            >
+              <FormField
+                label="Address" type="search" required
+                value={form.address} onChange={set('address')}
+                className={form.address.trim() ? 'ma-edit__valid' : undefined}
+                autoComplete="street-address"
+              />
+            </AddressAutocomplete>
           </div>
 
           <div className="ma-edit__row ma-edit__row--thirds">
