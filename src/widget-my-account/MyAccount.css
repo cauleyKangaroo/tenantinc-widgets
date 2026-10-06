@@ -1422,6 +1422,18 @@
   background: var(--ma-panel);
 }
 
+/* A failed save sits in the action bar beside the button that failed, so the
+   reader does not have to look elsewhere to find out why nothing happened.
+   `margin-right: auto` pushes it to the left of Cancel/Save rather than
+   stretching the row. */
+.ma-edit__error {
+  margin: 0 auto 0 0;
+  color: var(--hb-ada-red, #C8102E);
+  font-size: 14px;
+  line-height: 1.4;
+  max-width: 48ch;
+}
+
 /* Drawn as plain bold text rather than a button box — but it IS a button, so
    it keeps a hit area, a focus ring and keyboard activation. */
 .ma-edit__cancel {
