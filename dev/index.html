@@ -803,6 +803,18 @@
           </select>
         </label>
       </div>
+      <div class="controls">
+        <!-- Harness-only: the modal (with its close button) normally opens from a
+             unit card's Select on another page. These open it here directly. -->
+        <label>
+          Mode:
+          <select id="ts-mode" onchange="reinitTierSelection()">
+            <option value="inline">Inline</option>
+            <option value="modal">Modal</option>
+          </select>
+        </label>
+        <button type="button" onclick="openTierModal()">Open modal (as Select would)</button>
+      </div>
     </div>
   </div>
 
@@ -1962,7 +1974,25 @@ Special</textarea>
       return {
         variant: document.getElementById('ts-variant').value,
         defaultTier: document.getElementById('ts-default-tier').value || undefined,
+        mode: document.getElementById('ts-mode').value,
       };
+    }
+
+    // The same window event a unit card's Select sends (@shared/tierBus). Switches
+    // to Modal first, since an inline instance does not listen for it.
+    function openTierModal() {
+      var modeEl = document.getElementById('ts-mode');
+      // The modal acknowledges a request it handles (preventDefault), so keep
+      // asking until it does — it only starts listening once it has mounted.
+      var tries = 0;
+      var open = function () {
+        var ev = new CustomEvent('tenantinc:open-value-tiers', { detail: { size: "10' x 10'" }, cancelable: true });
+        var handled = !window.dispatchEvent(ev);
+        if (!handled && ++tries < 40) setTimeout(open, 250);
+        else if (!handled) console.warn('[harness] value-tiers modal never acknowledged the open request');
+      };
+      if (modeEl.value !== 'modal') { modeEl.value = 'modal'; reinitTierSelection(); }
+      open();
     }
 
     function reinitTierSelection() {
@@ -1976,10 +2006,15 @@ Special</textarea>
 
     require(['/dist/widget-tier-selection.js'], function (widget) {
       tierSelectionWidget = widget;
+      // ?tsModal=1 opens the modal (with its close button) on load, the way a
+      // unit card's Select does on a real page.
+      var autoModal = new URLSearchParams(window.location.search).get('tsModal') === '1';
+      if (autoModal) document.getElementById('ts-mode').value = 'modal';
       widget.init({
         container: document.getElementById('tier-selection-container'),
         props: getTierSelectionProps(),
       });
+      if (autoModal) openTierModal();
     });
 
     var rentalFlowWidget = null;
