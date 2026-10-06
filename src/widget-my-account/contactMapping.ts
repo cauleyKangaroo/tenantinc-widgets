@@ -94,15 +94,40 @@ function emptyContact(): ContactForm {
   };
 }
 
+/*
+ * A secondary contact's own fields.
+ *
+ * READ AND WRITE SHAPES DIFFER, which is the trap here. The PATCH takes a flat
+ * contact with a single `phone` and `address`; the GET returns a WRAPPER whose
+ * flags sit at the top and whose person is nested one level down, with phones
+ * and addresses as ARRAYS:
+ *
+ *   { id, isAlternate, isEmergency,
+ *     contact: { first, last, email, phones: [...], addresses: [...] } }
+ *
+ * Reading it as if it were the write shape finds nothing at all — every field
+ * comes back empty and the form looks unsaved. Verified live 2026-10-06.
+ */
 function contactFormFrom(row: Record<string, unknown> | undefined): ContactForm | null {
   if (!row) return null;
-  const addr = addressParts(row.address as Record<string, unknown> | undefined);
-  const phone = (row.phone ?? {}) as Record<string, unknown>;
+  // Nested on the way in; tolerate the flat shape too, so a payload that ever
+  // matches the write shape still reads.
+  const person = (row.contact && typeof row.contact === 'object'
+    ? row.contact
+    : row) as Record<string, unknown>;
+  const addrList = Array.isArray(person.addresses)
+    ? (person.addresses as Record<string, unknown>[])
+    : [];
+  const addr = addressParts(addrList[0] ?? (person.address as Record<string, unknown> | undefined));
+  const phoneList = Array.isArray(person.phones)
+    ? (person.phones as Record<string, unknown>[])
+    : [];
+  const phone = (phoneList[0] ?? person.phone ?? {}) as Record<string, unknown>;
   return {
-    first: str(row.first),
-    last: str(row.last),
-    email: str(row.email),
-    phone: str(phone.number) || str(row.phone),
+    first: str(person.first),
+    last: str(person.last),
+    email: str(person.email),
+    phone: str(phone.phone) || str(phone.number),
     country: countryName(str(addr.country)) || EDIT_DEFAULTS.alternate.country,
     address: str(addr.line1),
     city: str(addr.city),
@@ -165,10 +190,29 @@ function secondaryFrom(
     first: form.first.trim(),
     last: form.last.trim(),
     email: form.email.trim(),
-    isEmergency,
   };
-  // WITHOUT the id this adds a second row instead of editing the one shown.
-  if (existing?.id) out.id = String(existing.id);
+
+  /*
+   * The flag rule INVERTS on whether this row already exists, and both halves
+   * are enforced. Verified live 2026-10-06:
+   *
+   *   new, with neither flag        400  "a new secondary contact must be an
+   *                                       alternate or an emergency contact"
+   *   existing, with a flag         400  "isAlternate: cannot be changed on an
+   *                                       existing secondary contact"
+   *
+   * So a new row MUST carry one and an existing row MUST NOT — which also
+   * means a contact's kind cannot be changed through this endpoint at all.
+   * Neither half is in the guide.
+   */
+  if (existing?.id) {
+    // WITHOUT the id this adds a second row instead of editing the one shown.
+    out.id = String(existing.id);
+  } else if (isEmergency) {
+    out.isEmergency = true;
+  } else {
+    out.isAlternate = true;
+  }
   if (form.phone.trim()) out.phone = { number: form.phone.replace(/[^\d+]/g, '') };
   if (form.address.trim() || form.city.trim() || form.zip.trim()) {
     out.address = {
@@ -302,13 +346,21 @@ export function alternateContactFrom(record: AccountRecord): Contact | null {
   const row = rows.find((c) => !c.isEmergency) ?? rows[0];
   if (!row) return null;
 
-  const name = [str(row.first), str(row.last)].filter(Boolean).join(' ');
-  if (!name && !str(row.email)) return null;
+  // Nested, as on the way in — see contactFormFrom.
+  const person = (row.contact && typeof row.contact === 'object'
+    ? row.contact
+    : row) as Record<string, unknown>;
+  const addrList = Array.isArray(person.addresses)
+    ? (person.addresses as Record<string, unknown>[])
+    : [];
+
+  const name = [str(person.first), str(person.last)].filter(Boolean).join(' ');
+  if (!name && !str(person.email)) return null;
   return {
     name,
-    email: str(row.email) || undefined,
-    phone: phoneOf(row.phone ? [row.phone] : []) || undefined,
-    address: addressLines(row.address as Record<string, unknown> | undefined),
+    email: str(person.email) || undefined,
+    phone: phoneOf(person.phones ?? (person.phone ? [person.phone] : [])) || undefined,
+    address: addressLines(addrList[0] ?? (person.address as Record<string, unknown> | undefined)),
   };
 }
 
