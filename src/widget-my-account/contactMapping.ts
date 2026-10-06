@@ -29,6 +29,20 @@ import type { ContactForm, EditForm } from './data';
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
 /*
+ * The API returns a driver licence MASKED — "****4567" for a stored
+ * "D1234567". Verified live 2026-10-06.
+ *
+ * That makes the field a one-way read, and it is a data-corruption trap: the
+ * form shows the mask, the reader edits their ADDRESS, hits Save, and the mask
+ * goes back as the literal licence number. The real one is then lost, and
+ * nothing on screen says so.
+ *
+ * So a value that still looks masked is never sent. A reader who wants to
+ * change it types a real number, which has no asterisks and saves normally.
+ */
+const isMasked = (v: string): boolean => v.includes('*');
+
+/*
  * The addresses the form edits.
  *
  * `primary` first, else the first row. The record can hold several and the
@@ -204,7 +218,10 @@ export function updateFromEditForm(form: EditForm, record: AccountRecord): Conta
    * lesser harm, and it needs an explicit "remove" from the API to do properly.
    */
   const details: NonNullable<ContactUpdate['details']> = {};
-  if (form.licenceNumber.trim()) details.driverLicense = form.licenceNumber.trim();
+  // Masked = untouched, so leave the stored number alone. See `isMasked`.
+  if (form.licenceNumber.trim() && !isMasked(form.licenceNumber)) {
+    details.driverLicense = form.licenceNumber.trim();
+  }
   if (form.licenceState.trim()) details.driverLicenseState = form.licenceState.trim();
   if (form.licenceExpiry.trim()) details.driverLicenseExpiration = form.licenceExpiry.trim();
 
