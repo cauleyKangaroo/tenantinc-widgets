@@ -61,3 +61,24 @@ export function CaretDown({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+
+/** user/user-circle (Figma 6349:120858) — 44px, traced from the export. */
+export function UserCircle({ size = 44, className }: { size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 44 44" fill="none" aria-hidden="true" focusable="false">
+      <path
+        d="M34.8234 35.1023C34.6371 31.8864 31.8399 29.3333 28.4167 29.3333H15.5833C12.1601 29.3333 9.3629 31.8864 9.17655 35.1023M9.17655 35.1023C12.4826 38.3384 17.0083 40.3333 22 40.3333C26.9917 40.3333 31.5174 38.3384 34.8234 35.1023C38.2234 31.7743 40.3333 27.1335 40.3333 22C40.3333 11.8748 32.1252 3.66667 22 3.66667C11.8748 3.66667 3.66667 11.8748 3.66667 22C3.66667 27.1335 5.77659 31.7743 9.17655 35.1023ZM27.5 18.3333C27.5 21.3709 25.0376 23.8333 22 23.8333C18.9624 23.8333 16.5 21.3709 16.5 18.3333C16.5 15.2958 18.9624 12.8333 22 12.8333C25.0376 12.8333 27.5 15.2958 27.5 18.3333Z"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Info (mdiInformation, Figma 6102:231) — filled, 24px. */
+export function InfoSolid({ size = 24, className }: { size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+      <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM13 17H11V11H13V17ZM13 9H11V7H13V9Z" />
+    </svg>
+  );
+}

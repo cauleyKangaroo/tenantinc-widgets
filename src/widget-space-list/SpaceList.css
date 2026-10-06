@@ -885,6 +885,12 @@
   color: #101318;
   line-height: 1.2;
 }
+/* A GROUPING ONLY, and only at narrow widths. `contents` means the element is
+   not laid out at all here: the chip and the feature ticks stay direct flex
+   children of .sl-lc-info exactly as they were before the wrapper existed, so
+   every width above the narrow frame is untouched. */
+.sl-wrapper .sl-lc-amenities { display: contents; }
+
 .sl-wrapper .sl-lc-subtype {
   align-self: flex-start;
   background: #f4f6f8;
@@ -1114,6 +1120,14 @@
   gap: 16px;
   min-width: 0;
 }
+/* Grouping only, like .sl-lc-amenities. `contents` means the promotion inside
+   stays a direct child of .sl-dv-actions at every width above the narrow frame,
+   so the wrapper costs the existing layout nothing. Its two siblings are
+   narrow-frame restatements and are not rendered at all up here. */
+.sl-wrapper .sl-dv-grey { display: contents; }
+.sl-wrapper .sl-dv-features-line,
+.sl-wrapper .sl-dv-admin { display: none; }
+
 .sl-wrapper .sl-dv-heading { display: flex; flex-direction: column; }
 .sl-wrapper .sl-dv-title {
   font-size: 28px;
@@ -1310,16 +1324,85 @@
 @container (max-width: 480px) {
   /* Genuinely too narrow for side-by-side — re-enable wrapping (the base rule is
      nowrap) so the size grid drops below the info at full width. */
-  .sl-wrapper .sl-lc-display { flex-wrap: wrap; }
-  .sl-wrapper .sl-lc-left { flex-direction: column; gap: 20px; align-items: flex-start; }
-  .sl-wrapper .sl-lc-image-col { width: 100%; align-items: flex-start; }
-  .sl-wrapper .sl-lc-img { max-width: 162px; }
-  .sl-wrapper .sl-lc-sizes { flex: 1 1 100%; max-width: 100%; }
-  .sl-wrapper .sl-lc-price-button { flex-direction: column; align-items: stretch; }
-  .sl-wrapper .sl-lc-price { align-self: flex-start; }
+  /* ── LIST layout, narrow frame (Figma 7112-56027) ──────────────────────
+     The frame re-orders the card rather than merely stacking it: size label and
+     "See what fits" share the top row, the pills run full width in THREE
+     columns beneath them, and the amenities sit below that in two columns. The
+     unit photo is gone entirely.
+
+     That order cuts across the markup's nesting — the label and the link live
+     in different wrappers, and the pills come after both in the DOM but between
+     them on screen. So the three wrappers become `display: contents` and their
+     children are placed on the card's own grid directly. Nothing is reordered
+     in the DOM, so the reading order still matches the visual one. */
+  .sl-wrapper .sl-lc-display {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 16px;
+    padding: 16px;
+  }
+  .sl-wrapper .sl-lc-left,
+  .sl-wrapper .sl-lc-image-col,
+  .sl-wrapper .sl-lc-info { display: contents; }
+
+  /* No unit photo in this frame — the header is the size and the link alone. */
+  .sl-wrapper .sl-lc-img { display: none; }
+
+  .sl-wrapper .sl-lc-size-label { grid-column: 1; grid-row: 1; }
+  .sl-wrapper .sl-lc-see-fits {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: center;
+  }
+
+  /* Three even columns, which is what the frame's 111.67px pills in a 351px
+     card are. A grid rather than the wrapping flex row above, so the last row
+     lines up with the ones before it instead of centring or stretching.
+     min-width:0 overrides the 82px floor the flex version needs. */
+  .sl-wrapper .sl-lc-sizes {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    max-width: none;
+  }
+  .sl-wrapper .sl-lc-size { min-width: 0; width: 100%; }
+
+  /* Two columns, with the subtype chip as the FIRST cell and the ticks flowing
+     after it — the frame puts a feature beside the chip rather than below it.
+     `contents` on the <ul> is what lets its <li> be cells of this grid; the
+     list keeps its semantics because FeatureList carries role="list". */
+  .sl-wrapper .sl-lc-amenities {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 8px 12px;
+  }
+  .sl-wrapper .sl-lc-amenities .sl-features { display: contents; }
+
+  /* Price and Select side by side, as the frame draws them — not the stack this
+     used to be. Both keep a flex-basis and the row may wrap, so a card narrower
+     than the frame (a phone inside a Duda column with its own padding) drops the
+     button beneath the price rather than crushing the figures. */
+  .sl-wrapper .sl-lc-action { padding: 16px; gap: 8px 16px; }
+  .sl-wrapper .sl-lc-price-button {
+    flex: 1 1 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px 16px;
+  }
+  .sl-wrapper .sl-lc-price { flex: 1 1 150px; align-self: flex-start; }
+  .sl-wrapper .sl-lc-btn-col { flex: 0 1 135px; }
+
   .sl-wrapper .sl-main-price { font-size: 20px; }
-  .sl-wrapper .sl-lc-display { padding: 20px; }
-  .sl-wrapper .sl-lc-action { padding: 20px; }
+
   .sl-wrapper .sl-unit-img { width: 100%; max-width: 100%; }
 
   /* Grid unit card → mobile (Figma node 9697-48905): one column; the image sits
@@ -1353,6 +1436,182 @@
   }
   .sl-wrapper .sl-top-bar-pills { order: 1; flex-basis: 100%; }
 }
+
+/* The DEFAULT layout's narrow frame.
+   
+   480, NOT the 640 the old JS fallback used. That number measured .sl-wrapper;
+   this is a @container query against .sl-listing-area, and the two are very
+   different boxes — the accordion panel takes 422px out of the wrapper, so a
+   1200px desktop still only leaves the listing ~610px. At 640 this frame was
+   firing on full-size desktops. The listing column's own flex-basis is 520px,
+   and a phone's is the viewport less ~48px, so 480 sits cleanly between them.
+   AFTER the 480 and 600 blocks so it wins wherever they overlap; their flex
+   rules are inert against the grid below in any case. */
+@container (max-width: 480px) {
+  /* ── DEFAULT layout, narrow frame (Figma 12418-64891) ──────────────────
+     The frame moves content ACROSS the card's two coloured panels: the price
+     and the CTA come UP beside the size, and the amenities drop DOWN into the
+     grey. Two nested boxes cannot do that, so the panels stop being boxes and
+     the card becomes the grid — but only down to .sl-dv-price-button, which
+     STAYS a box.
+
+     That last part matters. Flattened, its three children became separate grid
+     items and the note was pushed onto a row of its own, waiting on a
+     three-line size before it could start — so it floated far below the button
+     it belongs to. Kept whole, its existing flex row IS the frame's
+     arrangement: price, button, then the note on its own line 4px under them.
+
+     Three items, then: the heading, that row, and the grey block. */
+  .sl-wrapper .sl-default-card {
+    display: grid;
+    /* min-content, NOT 0, as the title column's floor. The price block is
+       flex-shrink:0 throughout, so a 0 floor let it take every pixel and
+       "8' x 40'" came out as three stacked lines. */
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    /* The size spans BOTH top rows so the note can sit in the second one,
+       directly under the button it belongs to, instead of waiting for a
+       three-line size to finish and floating below the whole block. */
+    grid-template-areas:
+      "title price cta"
+      "title note  note"
+      "grey  grey  grey";
+    align-items: start;
+    column-gap: 12px;
+    /* No bottom padding: the grey block finishes the card. */
+    padding: 18px 20px 0;
+  }
+  .sl-wrapper .sl-dv-display,
+  .sl-wrapper .sl-dv-image-col,
+  .sl-wrapper .sl-dv-info,
+  .sl-wrapper .sl-dv-action,
+  .sl-wrapper .sl-dv-actions,
+  .sl-wrapper .sl-dv-price-button,
+  .sl-wrapper .sl-dv-price { display: contents; }
+
+  .sl-wrapper .sl-default-card .sl-dv-heading { grid-area: title; min-width: 0; }
+  .sl-wrapper .sl-default-card .sl-prices-row { grid-area: price; }
+  .sl-wrapper .sl-default-card .sl-dv-btn-col { grid-area: cta; }
+  .sl-wrapper .sl-default-card .sl-junk-disclaimer { grid-area: note; }
+  .sl-wrapper .sl-dv-grey { grid-area: grey; }
+
+  /* Neither the photo nor "See what fits" appears in this frame, and the ticked
+     list is replaced by the one-line restatement inside the grey block. */
+  .sl-wrapper .sl-dv-img,
+  .sl-wrapper .sl-dv-see-fits,
+  .sl-wrapper .sl-dv-info > .sl-features { display: none; }
+  /* The fee moves to the foot of the grey block, so the price must not repeat it. */
+  .sl-wrapper .sl-default-card .sl-admin-fee { display: none; }
+
+  /* The dimensions are ONE value and have to read as one line. Left to wrap
+     they broke at the spaces around the x — "8'" / "x" / "40'" — which reads as
+     three separate numbers. The subtype beneath still wraps freely, which is
+     what the frame does with "Climate Controlled". */
+  .sl-wrapper .sl-dv-title { font-size: 20px; white-space: nowrap; }
+  .sl-wrapper .sl-dv-price .sl-main-price { font-size: 20px; }
+
+  /* Trimmed to the frame's proportions. The desktop price block is wider than
+     the frame's, and at this size that width comes straight out of the title
+     column — which is what squeezed the dimensions. */
+  .sl-wrapper .sl-default-card .sl-prices-row { gap: 5px; }
+  .sl-wrapper .sl-default-card .sl-instore-label,
+  .sl-wrapper .sl-default-card .sl-starting-label { font-size: 9px; letter-spacing: 0; }
+  .sl-wrapper .sl-default-card .sl-strike { font-size: 14px; }
+  .sl-wrapper .sl-default-card .sl-price-divider { height: 30px; }
+  /* NOWRAP, and a price block that may shrink.
+  
+     The row wraps by default, and the CTA is the thing that drops — which put
+     the button under the price with the note stranded beneath it, the very
+     thing this frame does not do. The row still WRAPS — that is what puts the
+     note on its own line under the pair — but the price is released from
+     flex-shrink:0 so the shortfall goes into it instead of breaking the line.
+     Its labels wrap to two lines long before the figures are at risk.
+     .sl-prices-row and both its columns are shrink:0 in the base sheet, so each
+     has to be released explicitly. */
+  /* Released from flex-shrink:0 so the price gives up width before anything
+     else does — its labels wrap to two lines long before the figures are at
+     risk. Without this the grid sized the price track to its full max-content
+     and the shortfall came out of the size beside it. */
+  .sl-wrapper .sl-default-card .sl-prices-row,
+  .sl-wrapper .sl-default-card .sl-price-left,
+  .sl-wrapper .sl-default-card .sl-price-main { flex-shrink: 1; min-width: 0; }
+  .sl-wrapper .sl-default-card .sl-dv-btn-col { flex: none; width: 82px; }
+  .sl-wrapper .sl-default-card .sl-select-btn,
+  .sl-wrapper .sl-default-card .sl-call-btn,
+  .sl-wrapper .sl-default-card .sl-waitlist-btn { padding-inline: 10px; }
+  /* Placed by the grid, so the base rule's flex sizing and its -12px lift
+     (which cancels a flex row-gap that does not exist here) both go. */
+  .sl-wrapper .sl-default-card .sl-limited-label {
+    grid-area: note;
+    flex: none;
+    margin-top: 4px;
+    justify-self: end;
+    text-align: right;
+  }
+
+  /* The grey ground. Full-bleed via negative inline margins against the card's
+     20px padding, and the card's own overflow:hidden keeps the corners. */
+  .sl-wrapper .sl-dv-grey {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px -20px 0;
+    padding: 14px 20px 18px;
+    background: #f9fafb;
+  }
+  /* The frame reads amenities, then promotion, then fee. The promotion comes
+     first in the markup because that is where every wider layout needs it, so
+     the amenity line is lifted above it here rather than moved in the DOM. */
+  .sl-wrapper .sl-dv-features-line {
+    order: -1;
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 18px;
+    color: #637381;
+  }
+  .sl-wrapper .sl-dv-admin {
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 16px;
+    color: #101318;
+  }
+}
+
+/* Below the frame's own width there is simply less room than it was drawn for
+   (its card is 383px). Rather than let the CTA drop — the one thing this frame
+   never does — the price gives up a couple of points and the button its
+   padding, which is what keeps all three on the row down to ~360px. */
+@container (max-width: 420px) {
+  .sl-wrapper .sl-default-card { column-gap: 8px; }
+  .sl-wrapper .sl-default-card .sl-dv-price .sl-main-price { font-size: 18px; }
+  .sl-wrapper .sl-default-card .sl-strike { font-size: 13px; }
+  .sl-wrapper .sl-default-card .sl-prices-row { gap: 4px; }
+  .sl-wrapper .sl-default-card .sl-dv-btn-col { width: 68px; }
+  .sl-wrapper .sl-default-card .sl-select-btn,
+  .sl-wrapper .sl-default-card .sl-call-btn,
+  .sl-wrapper .sl-default-card .sl-waitlist-btn { padding-inline: 4px; font-size: 14px; }
+}
+
+/* LAST RESORT, and it has to be genuinely last: the listing container runs
+   roughly 48px narrower than the viewport, so a 380px threshold caught nearly
+   every phone and gave them the stacked CTA instead of the frame. Below ~336
+   the size, both prices and the button cannot share a row at any legible size
+   — the frame was drawn on a 383px card — so the CTA takes its own full-width
+   row and the note follows it. */
+@container (max-width: 336px) {
+  .sl-wrapper .sl-default-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title price"
+      "cta   cta"
+      "note  note"
+      "grey  grey";
+  }
+  .sl-wrapper .sl-default-card .sl-dv-btn-col { width: auto; justify-self: stretch; margin-top: 12px; }
+}
+
+
 
 /* ===========================================================================
    SKELETON LOADER
@@ -2296,13 +2555,20 @@
   border-radius: 0;
 }
 
+/* The below-the-listing copy (SectionAccordion `mobile`) is mobile-only.
+   (0,3,0), and before the media block, so the show rule inside it wins there. */
+.sl-wrapper .sl-sa-panel.sl-sa-panel--mobile { display: none; }
+
 /* Mobile: the "side" accordions become full-width bottom accordions. These
    overrides must live AFTER the base .sl-sa-* rules above — @container/@media
    add no specificity, so an earlier override would lose the source-order tie
    (which is why the width:422px base was still winning). */
 @media (max-width: 767px) {
-  /* Side accordion sidebar is desktop/tablet only — hidden on mobile. */
+  /* Side accordion sidebar is desktop/tablet only — hidden on mobile. Its
+     sections without a widget of their own reappear below the listing, in the
+     mobile copy shown here instead (MOBILE_SECTION_KEYS). */
   .sl-wrapper .sl-sa-panel { display: none; }
+  .sl-wrapper .sl-sa-panel.sl-sa-panel--mobile { display: flex; flex: 0 0 auto; width: 100%; }
   .sl-wrapper .sl-sa-item { max-width: 100%; }
   .sl-wrapper .sl-sa-header { padding: 0 16px; min-height: 64px; gap: 8px; }
   .sl-wrapper .sl-sa-header-left { gap: 12px; }

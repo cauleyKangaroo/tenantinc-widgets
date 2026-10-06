@@ -1,0 +1,149 @@
+/* Viewer chrome only — dev harness, never shipped to a Duda page.
+   Nothing here styles the screens themselves; those own their CSS. */
+
+.ss {
+  font-family: var(--hb-font);
+  color: var(--hb-text-night);
+}
+
+.ss__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.ss__flow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ss__flow select {
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  font-weight: 400;
+}
+
+.ss__steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex: 1;
+}
+
+.ss__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ss__step.is-active {
+  border-color: #f45f30;
+  color: #f45f30;
+}
+
+.ss__step-num {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #eef1f3;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ss__step.is-active .ss__step-num {
+  background: #f45f30;
+  color: #fff;
+}
+
+.ss__nav {
+  display: flex;
+  gap: 6px;
+}
+
+.ss__nav button {
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ss__nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ss__desc {
+  margin: 12px 0 0;
+  max-width: 70ch;
+  color: var(--hb-grayscale-medium);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ss__frame {
+  margin-top: 16px;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  /* clip, NOT hidden: `hidden` makes the frame a scroll container, and every
+     position:sticky inside a screen (the rental flow's order rail) then sticks
+     to the FRAME instead of the window — offset at rest, by an amount that
+     changed with each screen's height. clip rounds the corners without that. */
+  overflow: clip;
+}
+
+.ss__frame-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 8px 16px;
+  border-bottom: 1px dashed #d1d5db;
+  font-size: 13px;
+}
+
+.ss__frame-head span {
+  color: var(--hb-grayscale-medium);
+}
+
+.ss__canvas {
+  padding: 32px 16px;
+  background: #fff;
+}
+
+.ss__empty,
+.ss code {
+  font-size: 14px;
+}
+
+.ss code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #eef1f3;
+  font-size: 13px;
+}
