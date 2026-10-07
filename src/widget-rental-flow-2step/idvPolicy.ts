@@ -2,12 +2,14 @@
 export type IdvRequirement = 'disabled' | 'optional' | 'required';
 
 /**
- * Applied when a property carries no setting of its own, or it cannot be read.
- * Lenient by choice: verification is offered, never forced, until an operator
- * marks the property Required. Amenities are user-defined merchandising data
- * and never enable or disable this workflow; only the property setting does.
+ * Applied when a property carries no usable setting: the idv_requirements
+ * column is missing, the cell is empty, the value is not one of the three, or
+ * the collection cannot be read. OFF — verification (a billed capture and an
+ * SMS) only ever starts where an operator has chosen Optional or Required.
+ * Amenities are user-defined merchandising data and never enable or disable
+ * this workflow; only the property setting does.
  */
-export const RENTAL_IDV_REQUIREMENT: IdvRequirement = 'optional';
+export const RENTAL_IDV_REQUIREMENT: IdvRequirement = 'disabled';
 
 /**
  * The property's own setting, as the API or a collection hands it over.

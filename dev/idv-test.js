@@ -85,7 +85,7 @@ function testReducer() {
 }
 
 function testPresentation() {
-  assert.equal(RENTAL_IDV_REQUIREMENT, 'optional', 'a property with no setting is offered verification, not forced');
+  assert.equal(RENTAL_IDV_REQUIREMENT, 'disabled', 'no setting (or None) never starts a verification');
 
   // PropertiesInternal.idv_requirements: the Duda dropdown's labels, or rich text.
   assert.equal(parseIdvRequirement('None'), 'disabled');
