@@ -198,7 +198,7 @@ const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
+  brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
 }: {
   moveIn: Date;
@@ -257,6 +257,9 @@ export function Step2({
    *  Reported upward because the choice re-prices the move-in quote — it is not
    *  a display-only toggle. */
   onPlanChange?: (insuranceId: string | undefined) => void;
+  /** The chosen billing period, so the parent can re-quote — the engine
+   *  prices it and the total must come back from the server. */
+  onCycleChange?: (cycle: PaymentCycle) => void;
   /** Authoritative move-in total (hold-aware quote) — printed on the pay button. */
   payNowTotal?: number;
   /** Card tokenized — parent takes over (interstitial → confirmation). */
@@ -346,11 +349,12 @@ export function Step2({
    */
   const mode: AutopayMode = autopayMode ?? 'optional';
 
-  /* PAYMENT CYCLE (Figma 12285-189429). Local state: nothing downstream reads
-     it yet — the rental APIs take no billing period — so this is the control
-     and its selection, and the price does NOT move. Wiring it to the quote is
-     the one change when a term-priced endpoint exists; until then a radio that
-     silently rewrote the total would be inventing a discount.
+  /* PAYMENT CYCLE (Figma 12285-189429).
+     The price DOES move now. lease-set-up prices the period as a prepay
+     discount on the rent line (verified live: Quarterly -10%, Annual -20% on a
+     Bellflower unit), so the selection is reported upward and the parent
+     re-quotes. Nothing is computed here — the figure on the button is the
+     server's, which is what the old note was waiting for.
      `useId` because a page can hold two of these and radios group by name. */
   const cycleName = useId();
   const [cycle, setCycle] = useState<PaymentCycle>('monthly');
@@ -364,16 +368,35 @@ export function Step2({
   const cycleWord = cycle === 'quarterly' ? { adj: 'quarterly', noun: 'quarter' }
     : cycle === 'annual' ? { adj: 'annual', noun: 'year' }
       : { adj: 'monthly', noun: 'month' };
-  const cycleOptions = paymentCycles
+  const offered = paymentCycles
     ? PAYMENT_CYCLES.filter((c) => paymentCycles.includes(c.id))
     : [];
+  /*
+   * Nothing to CHOOSE is nothing to show.
+   *
+   * Every property in the live data offers monthly, and most offer only
+   * monthly — so a lone "Monthly" radio was a section, a heading and an info
+   * icon devoted to a decision the shopper does not have. The rail already
+   * says the rent is monthly.
+   *
+   * Hidden rather than disabled: a single checked radio reads as a choice that
+   * has been made for you, which invites a click that does nothing.
+   */
+  const cycleOptions = offered.length > 1 ? offered : [];
   /* Keep the selection on an offered period. Monthly is the default and is
      offered by every property in the live data, but it is configurable, so a
      property that sells quarterly and annual only must not sit on a monthly
      radio that is not on screen. */
+  /* Report upward whenever it settles, including the corrections below — the
+     parent quotes on this, so a cycle it never heard about would be billed at
+     one period and priced at another. */
+  useEffect(() => { onCycleChange?.(cycle); }, [cycle, onCycleChange]);
+
   useEffect(() => {
-    if (!cycleOptions.length) return;
-    if (!cycleOptions.some((c) => c.id === cycle)) setCycle(cycleOptions[0].id);
+    // `offered`, not `cycleOptions`: a property selling one period still has to
+    // settle ON it, even though no radio is drawn for it.
+    if (!offered.length) return;
+    if (!offered.some((c) => c.id === cycle)) setCycle(offered[0].id);
     // cycleOptions is derived from paymentCycles; depending on the array
     // identity would re-run this on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps

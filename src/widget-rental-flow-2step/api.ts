@@ -1078,6 +1078,28 @@ export interface QuoteOptions {
   /** `dossier.token` from the offer — Hummingbird validates the quoted price
    *  against it. Optional per the guide; sent whenever the offer supplied one. */
   offerToken?: string;
+  /*
+   * The billing period the shopper chose.
+   *
+   * THE ENGINE PRICES IT. Undocumented, and the guide only ever names
+   * `payment_cycle` on the lease call — but lease-set-up honours it too, as a
+   * PREPAY DISCOUNT on the rent line. Verified live 2026-10-07 against a
+   * Bellflower unit at $250/mo:
+   *
+   *   (none)     rent 250, no discount   -> balance 312
+   *   Quarterly  rent 250, discount 25   -> balance 287   (10%)
+   *   Annual     rent 250, discount 50   -> balance 262   (20%)
+   *
+   * So the amount comes from the SERVER and is never computed here. The engine
+   * discounts rather than multiplying: the move-in invoice still covers the
+   * first period as drawn, at a reduced rate.
+   *
+   * Also settles the capitalisation question this file carried: "Quarterly" and
+   * "Annual" are accepted verbatim. `paymentCycle` in camelCase is IGNORED —
+   * the same request returns the undiscounted balance — so the snake_case name
+   * is load-bearing.
+   */
+  paymentCycle?: PaymentCycleKey;
 }
 
 /** The documented lease-set-up payload, omitting anything not chosen. */
@@ -1087,7 +1109,18 @@ function leaseSetUpBody(opts: QuoteOptions): Record<string, unknown> {
   if (opts.promotionIds?.length) body.promotions = opts.promotionIds.map((id) => ({ promotion_id: id }));
   if (opts.startDate) body.start_date = opts.startDate;
   if (opts.offerToken) body.token = opts.offerToken;
+  // Monthly is the engine's own default, so it is sent only when the shopper
+  // chose something else — keeping the common request identical to before.
+  if (opts.paymentCycle && opts.paymentCycle !== 'monthly') {
+    body.payment_cycle = PAYMENT_CYCLE_NAMES[opts.paymentCycle];
+  }
   return body;
+}
+
+/** `?payment_cycle=` for the no-hold GET, which cannot carry a body. */
+function cycleQuery(opts: QuoteOptions): string {
+  if (!opts.paymentCycle || opts.paymentCycle === 'monthly') return '';
+  return `?payment_cycle=${encodeURIComponent(PAYMENT_CYCLE_NAMES[opts.paymentCycle])}`;
 }
 
 /**
@@ -1132,7 +1165,9 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
   if (holdToken && writesEnabled(ctx)) {
     data = await postLeaseSetUp(path, opts);
   } else {
-    data = unwrap(await getJsonV1(path));
+    // The GET takes it as a query param — verified live; the POST body form
+    // above is for the held case.
+    data = unwrap(await getJsonV1(path + cycleQuery(opts)));
   }
   const details = data?.details as { Invoices?: ApiQuoteInvoice[]; bill_day?: number; rent?: number } | undefined;
   const inv = (details?.Invoices ?? [])[0];
@@ -2069,13 +2104,14 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
      * else: the lease went up monthly and the terms beneath the card promised
      * monthly recurrence. The selector was a label.
      *
-     * CAPITALISATION IS AN INFERENCE. The rental guide documents this field as
-     * optional with one instruction — "Send default value as Monthly" — and
-     * never names a value for quarterly or annual. `payment_cycles` on
-     * /properties answers in lower case (`monthly`/`quarterly`/`annual`), so
-     * the two vocabularies are already different and this follows the one the
-     * guide shows for THIS field. Worth confirming with TenantInc; if they
-     * reject it, this single map is the place to correct.
+     * CAPITALISATION IS CONFIRMED. It used to be an inference — the guide
+     * documents this field with one instruction ("Send default value as
+     * Monthly") and never names a value for quarterly or annual, while
+     * `payment_cycles` on /properties answers in lower case. Settled live
+     * 2026-10-07: lease-set-up accepts "Quarterly" and "Annual" verbatim and
+     * discounts the rent accordingly, while camelCase `paymentCycle` is
+     * ignored. So the two vocabularies really do differ, and these are the
+     * spellings this field takes.
      */
     payment_cycle: PAYMENT_CYCLE_NAMES[args.paymentCycle ?? 'monthly'],
     web_rate: args.webRate,

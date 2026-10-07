@@ -11,7 +11,7 @@ import {
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
   fetchPaymentGateway, TENANT_PAYMENTS, configureApi,
-  type RentResult, type ApiCredProps,
+  type RentResult, type ApiCredProps, type PaymentCycleKey,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx, type PropertyInfo,
 } from './api';
@@ -1737,6 +1737,15 @@ export function RentalFlow2Step({
    * It is also the ONLY way to price a held unit: the plain GET 409s once
    * anyone holds it — including us.
    */
+  /*
+   * The billing period Step 2 settled on.
+   *
+   * Held here because the QUOTE depends on it: lease-set-up prices the period
+   * as a prepay discount, so the total on the pay button has to be re-fetched
+   * when it changes. Step 2 owns the radio and reports upward.
+   */
+  const [paymentCycle, setPaymentCycle] = useState<PaymentCycleKey>('monthly');
+
   useEffect(() => {
     if (!hold || inEditor) return undefined;
     if (quote && quote.unitId === hold.unitId) return undefined;
@@ -1747,6 +1756,7 @@ export function RentalFlow2Step({
       promotionIds: selection?.promotionIds,
       startDate: ymd(moveIn),
       offerToken: selection?.offerToken,
+      paymentCycle,
     })
       .then((q) => {
         if (cancelled) return;
@@ -1758,7 +1768,7 @@ export function RentalFlow2Step({
         if (!cancelled) { setQuote(undefined); setQuoteFailed(true); }
       });
     return () => { cancelled = true; };
-  }, [hold, quote, ctx, inEditor, insuranceId, selection, moveIn, logTag]);
+  }, [hold, quote, ctx, inEditor, insuranceId, selection, moveIn, paymentCycle, logTag]);
 
   // Re-quote when a choice that changes the money changes — coverage or the
   // move-in date. Only while holding: lease-set-up will not price either of them
@@ -1766,7 +1776,7 @@ export function RentalFlow2Step({
   //
   // The first run is skipped: the hold effect above has just quoted with these
   // exact values, and re-firing would double every request for no new number.
-  const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}`;
+  const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}|${paymentCycle}`;
   const quotedChoice = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!hold || step !== 2) return undefined;
@@ -1782,6 +1792,7 @@ export function RentalFlow2Step({
       promotionIds: selection?.promotionIds,
       startDate: ymd(moveIn),
       offerToken: selection?.offerToken,
+      paymentCycle,
     })
       .then((q) => { if (!cancelled && q) setQuote(q); })
       // Keep the previous quote on failure rather than blanking the rail: the
@@ -1789,7 +1800,7 @@ export function RentalFlow2Step({
       // last figure the API actually stood behind.
       .catch((err) => console.warn(`${logTag} re-quote after a choice change failed — keeping the previous total:`, err));
     return () => { cancelled = true; };
-  }, [hold, step, choiceKey, insuranceId, moveIn, selection, ctx, logTag]);
+  }, [hold, step, choiceKey, insuranceId, moveIn, paymentCycle, selection, ctx, logTag]);
 
   // Countdown driven by the acquisition timestamp, not a decrementing
   // counter — survives re-renders and background-tab throttling.
@@ -2809,6 +2820,7 @@ export function RentalFlow2Step({
             leaseDocName={leaseDoc?.name}
             brochureUrl={brochureUrl}
             onPlanChange={setInsuranceId}
+              onCycleChange={setPaymentCycle}
             onEditDate={() => setDateModalOpen(true)}
             payNowTotal={railQuote?.totalDue}
             paying={paying}
