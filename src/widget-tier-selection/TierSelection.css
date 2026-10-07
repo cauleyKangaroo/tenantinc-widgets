@@ -483,6 +483,7 @@
 }
 .ts-m-headwrap { text-align: center; margin-bottom: 22px; }
 .ts-wrapper .ts-m-title {
+  text-align: left;
   margin: 0;
   font-size: 26px;
   font-weight: 600;
@@ -491,7 +492,7 @@
   text-transform: none;
   letter-spacing: normal;
 }
-.ts-m-urgency { margin: 8px 0 0; font-size: 16px; font-weight: 400; color: #e53935; }
+.ts-wrapper .ts-m-urgency { margin: 8px 0 0; text-align: center; font-size: 16px; font-weight: 400; color: #e53935; }
 
 .ts-m-pills .ts-pills { gap: 16px; }
 .ts-m-pills .ts-pill { padding-top: 10px; }
@@ -1151,8 +1152,8 @@
   .ts-modal-header {
     padding: 24px 20px 12px;
   }
-  .ts-modal-heading { justify-content: center; }
-  .ts-modal-heading-main { text-align: center; width: 100%; padding: 0 44px; }
+  .ts-modal-heading { justify-content: center; padding-right: 0; }
+  .ts-modal-heading-main { text-align: left; width: 100%; padding: 0 44px 0 0; }
   .ts-modal-actions { width: 100%; justify-content: center; }
   /* Keep the close control out of the mobile message row. Previously it sat
      after the centered metadata, which pushed it down and made its position
@@ -1164,6 +1165,7 @@
      clamp to two lines and break unbreakable strings. Ordinary titles are
      unaffected. */
   .ts-modal-title {
+    text-align: left;
     font-size: 24px;
     overflow-wrap: anywhere;
     display: -webkit-box;
@@ -1172,7 +1174,7 @@
     overflow: hidden;
   }
   .ts-modal-subtitle { font-size: 16px; overflow-wrap: anywhere; }
-  .ts-modal-urgency { font-size: 16px; line-height: normal; }
+  .ts-modal-urgency { text-align: center; width: 100%; font-size: 16px; line-height: normal; }
   .ts-modal-admin { justify-content: center; min-height: 0; font-size: 14px; }
 }
 

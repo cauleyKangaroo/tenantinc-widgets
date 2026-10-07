@@ -35,6 +35,11 @@ import type {
   TierKey, Tier, RowType, FeatureRow, O2Tier, O3Tier, O3Row, O3Weight, TierData, TierQuoteState,
 } from './types';
 import { onOpenTiers, isValidTierRequest } from '@shared/tierBus';
+import { HarnessSampleBanner, harnessSampleQuote, harnessSampleTiers } from './harnessDemo';
+
+/** Build-time constant (webpack DefinePlugin): false in production, so every
+ *  `__HB_DEV_HARNESS__ &&` branch below is removed from the shipped bundle. */
+declare const __HB_DEV_HARNESS__: boolean;
 
 // Branded Small/Medium/Large size illustrations served from Cloudinary — the
 // same CDN assets the live Storage Outlet site uses, so they stay out of the JS
@@ -602,6 +607,10 @@ export function TierSelection({
   const [data, setData] = useState<TierData | null>(null);
   const [quotes, setQuotes] = useState<Partial<Record<TierKey, TierQuoteState>>>({});
   const [status, setStatus] = useState<'loading' | 'live' | 'disabled' | 'unavailable' | 'soldout'>('loading');
+  /** Harness only — see ./harnessDemo. True while sample tiers stand in. */
+  const [sample, setSample] = useState(false);
+  const sampleRef = useRef(false);
+  sampleRef.current = sample;
   const [pastDelay, setPastDelay] = useState(false);
 
   const bundlesRef = useRef<import('./api').ValueTierBundle[]>([]);
@@ -613,6 +622,11 @@ export function TierSelection({
     const b = bundlesRef.current.find((x) => x.key === key);
     if (!b) return;
     requested.current.add(key);
+    const sampleQuote = __HB_DEV_HARNESS__ ? harnessSampleQuote(b.unitId, b.price) : undefined;
+    if (sampleQuote) {
+      setQuotes((prev) => ({ ...prev, [key]: { status: 'ok', quote: sampleQuote } }));
+      return;
+    }
     setQuotes((prev) => ({ ...prev, [key]: { status: 'pending' } }));
     // enablePromoLogic is presentation-only, matching Space List. Always send
     // the offer's promotions so the authoritative move-in total remains
@@ -635,6 +649,8 @@ export function TierSelection({
   const onSelectClick = useCallback((key: TierKey) => (e: React.MouseEvent) => {
     // Leave the browser to handle the ways a user asks for a new tab.
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    // Sample units do not exist; handing one to the rental flow would fail there.
+    if (__HB_DEV_HARNESS__ && sampleRef.current) { e.preventDefault(); console.info('[TierSelection] harness sample — Select does not hand off'); return; }
     const href = rentHrefRef.current?.(key);
     if (!href) return;
     e.preventDefault();
@@ -653,6 +669,7 @@ export function TierSelection({
     // Reset for the new context so a previous facility's tiers/quotes can't
     // linger while the new requests run (and can't survive an empty result).
     setStatus('loading');
+    setSample(false);
     setData(null);
     setQuotes({});
     requested.current.clear();
@@ -707,8 +724,19 @@ export function TierSelection({
         return undefined;
       });
       try {
-        const [tiers, property] = await Promise.all([tiersReq, propReq]);
+        const [liveTiers, property] = await Promise.all([tiersReq, propReq]);
         if (cancelled) return;
+        let tiers = liveTiers;
+        // Harness only (compiled out of production): when the live offers carry
+        // no value tiers, show sample tiers so the layouts can be reviewed.
+        if (__HB_DEV_HARNESS__ && (!tiers?.value || tiers.soldOut || !tiers.showTierPricing)) {
+          const sampleValue = harnessSampleTiers(sizeProp);
+          if (sampleValue) {
+            console.info('[TierSelection] harness: live offers have no value tiers — showing sample data');
+            tiers = { showTierPricing: true, soldOut: false, value: sampleValue, unitGroupId: 'harness-sample', vacant: 3 };
+            setSample(true);
+          }
+        }
         if (!tiers) {
           unavailable(sizeProp ? `no offers for requested size ${JSON.stringify(sizeProp)}` : 'no value-tier offers found');
           return;
@@ -898,6 +926,7 @@ export function TierSelection({
       ref={ref}
       style={{ ['--ts-title-color']: titleColor || '#101318' } as React.CSSProperties}
     >
+      {__HB_DEV_HARNESS__ && sample && <HarnessSampleBanner />}
       {live && data.notice && <div className="ts-notice">{data.notice}</div>}
       {body}
     </div>
