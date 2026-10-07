@@ -5,6 +5,7 @@ const { startIdvPolling } = require('../.tmp-idv-test/idvPolling.js');
 const { resolveIdvPresentation } = require('../.tmp-idv-test/idvPresentation.js');
 const { RENTAL_IDV_REQUIREMENT, parseIdvRequirement } = require('../.tmp-idv-test/idvPolicy.js');
 const { createIdvApi, captureDevice } = require('../.tmp-idv-test/idvApi.js');
+const { idvSessionGet, idvSessionSet, idvSessionRemove } = require('../.tmp-idv-test/idvStorage.js');
 const {
   allowedVerificationUrl,
   navigateVerificationWindow,
@@ -119,6 +120,41 @@ function testAuthenticationAndResend() {
   assert.equal(refreshed.idvId, 'idv_b');
   assert.equal(refreshed.generation, resent.generation);
   assert.equal(idvReducer(starting, { type: 'resend', generation: starting.generation }), starting, 'resend only applies to a pending session');
+}
+
+function testStorage() {
+  const withWindow = (win, run) => { globalThis.window = win; try { return run(); } finally { delete globalThis.window; } };
+
+  // No window at all (server render, tests): nothing saved, nothing thrown.
+  assert.equal(idvSessionGet('k'), null);
+  assert.equal(idvSessionSet('k', 'v'), false);
+  idvSessionRemove('k');
+
+  // Blocked storage: some browsers throw merely on touching sessionStorage.
+  const blocked = {};
+  Object.defineProperty(blocked, 'sessionStorage', { get() { throw new Error('SecurityError'); } });
+  withWindow(blocked, () => {
+    assert.equal(idvSessionGet('k'), null);
+    assert.equal(idvSessionSet('k', 'v'), false, 'a blocked write reports failure instead of throwing');
+    idvSessionRemove('k');
+  });
+
+  // Full quota: setItem itself throws.
+  const full = { sessionStorage: { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); }, removeItem: () => { throw new Error('nope'); } } };
+  withWindow(full, () => {
+    assert.equal(idvSessionSet('k', 'v'), false);
+    idvSessionRemove('k');
+  });
+
+  // Working storage round-trips.
+  const map = new Map();
+  const ok = { sessionStorage: { getItem: (k) => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, v), removeItem: (k) => map.delete(k) } };
+  withWindow(ok, () => {
+    assert.equal(idvSessionSet('k', 'v'), true);
+    assert.equal(idvSessionGet('k'), 'v');
+    idvSessionRemove('k');
+    assert.equal(idvSessionGet('k'), null);
+  });
 }
 
 function testPresentation() {
@@ -332,6 +368,7 @@ function testCaptureDevice() {
 (async () => {
   testReducer();
   testAuthenticationAndResend();
+  testStorage();
   testPresentation();
   testUrls();
   await testPolling();

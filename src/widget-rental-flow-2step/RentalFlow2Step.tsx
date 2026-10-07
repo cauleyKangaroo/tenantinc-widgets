@@ -17,6 +17,7 @@ import {
 } from './api';
 import { IDV_SERVICE_CONNECTED, RENTAL_IDV_REQUIREMENT, parseIdvRequirement, type IdvRequirement } from './idvPolicy';
 import { createIdvApi } from './idvApi';
+import { idvSessionGet, idvSessionRemove, idvSessionSet } from './idvStorage';
 import { resolveIdvPresentation } from './idvPresentation';
 import { useIdvController } from './useIdvController';
 import { canRenderLiveIdvHarness } from './LiveIdvHarness';
@@ -771,9 +772,9 @@ function idvReturnKey(propertyId: string): string {
 }
 
 function readIdvReturnSnapshot(propertyId: string): IdvReturnSnapshot | undefined {
-  if (!propertyId || typeof sessionStorage === 'undefined') return undefined;
+  if (!propertyId) return undefined;
   try {
-    const value = JSON.parse(sessionStorage.getItem(idvReturnKey(propertyId)) ?? 'null') as IdvReturnSnapshot | null;
+    const value = JSON.parse(idvSessionGet(idvReturnKey(propertyId)) ?? 'null') as IdvReturnSnapshot | null;
     if (!value?.contact?.first || !value.contact.last || !value.contact.email || !value.contact.phone) return undefined;
     // Restoring on presence alone stranded the shopper: one tap on verify wrote
     // the snapshot, and every later load in that tab re-entered the
@@ -783,24 +784,26 @@ function readIdvReturnSnapshot(propertyId: string): IdvReturnSnapshot | undefine
     // next visit.
     if (typeof value.expiresAt !== 'number' || !Number.isFinite(value.expiresAt)
       || Date.now() >= value.expiresAt * 1_000) {
-      sessionStorage.removeItem(idvReturnKey(propertyId));
+      idvSessionRemove(idvReturnKey(propertyId));
       return undefined;
     }
     return value;
   } catch {
-    sessionStorage.removeItem(idvReturnKey(propertyId));
+    idvSessionRemove(idvReturnKey(propertyId));
     return undefined;
   }
 }
 
 function writeIdvReturnSnapshot(propertyId: string, value: IdvReturnSnapshot): void {
-  if (!propertyId || typeof sessionStorage === 'undefined') return;
-  sessionStorage.setItem(idvReturnKey(propertyId), JSON.stringify(value));
+  if (!propertyId) return;
+  // Best effort: written just before the mobile hand-off to an already-started,
+  // billed session. A storage failure loses reload recovery, never the hand-off.
+  idvSessionSet(idvReturnKey(propertyId), JSON.stringify(value));
 }
 
 function clearIdvReturnSnapshot(propertyId: string): void {
-  if (!propertyId || typeof sessionStorage === 'undefined') return;
-  sessionStorage.removeItem(idvReturnKey(propertyId));
+  if (!propertyId) return;
+  idvSessionRemove(idvReturnKey(propertyId));
 }
 
 /** One-time random id for the confirmation payload handoff. */

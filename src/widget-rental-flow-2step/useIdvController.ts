@@ -3,6 +3,7 @@ import { captureDevice, type IdvApi, type IdvIdentity, type IdvScope } from './i
 import { startIdvPolling } from './idvPolling';
 import { idvReducer, initialIdvState, type SafeIdvResult } from './idvState';
 import { allowedVerificationUrl } from './openVerification';
+import { idvSessionGet, idvSessionRemove, idvSessionSet } from './idvStorage';
 
 interface StoredIdvSession {
   idvId: string;
@@ -18,18 +19,18 @@ function storageKey(scope: IdvScope, identity: IdvIdentity): string | undefined 
 }
 
 function readStored(key: string | undefined): StoredIdvSession | undefined {
-  if (!key || typeof sessionStorage === 'undefined') return undefined;
+  if (!key) return undefined;
   try {
-    const value = JSON.parse(sessionStorage.getItem(key) ?? 'null') as StoredIdvSession | null;
+    const value = JSON.parse(idvSessionGet(key) ?? 'null') as StoredIdvSession | null;
     if (!value || typeof value.idvId !== 'string' || typeof value.expiresAt !== 'number') return undefined;
     if (value.verificationUrl !== undefined && typeof value.verificationUrl !== 'string') return undefined;
     if (Date.now() >= value.expiresAt * 1_000) {
-      sessionStorage.removeItem(key);
+      idvSessionRemove(key);
       return undefined;
     }
     return value;
   } catch {
-    sessionStorage.removeItem(key);
+    idvSessionRemove(key);
     return undefined;
   }
 }
@@ -100,7 +101,9 @@ export function useIdvController(options: IdvControllerOptions) {
     void options.api.lookup({ companyId, propertyId }, options.identity.contactId)
       .then((result) => {
         if (cancelled) return;
-        dispatch(result
+        // Only an authenticated result completes (the reducer enforces it too):
+        // an old, failed verification on the contact leaves the renter to verify now.
+        dispatch(result?.authenticated
           ? { type: 'complete', generation, result }
           : { type: 'not-verified', generation });
       })
@@ -120,19 +123,21 @@ export function useIdvController(options: IdvControllerOptions) {
         const result = await options.api!.poll({ companyId, propertyId }, state.idvId, signal);
         if (result.status === 'pending') return { kind: 'continue' };
         if (result.status === 'failed') return { kind: 'failed', reason: result.reason };
-        const completed = result;
-        return { kind: 'complete', value: completed };
+        // "complete" but not authenticated is a failed verification, never a pass
+        // (the reducer enforces it too) — complete is what reveals the access code.
+        if (!result.authenticated) return { kind: 'failed', reason: 'not-authenticated' };
+        return { kind: 'complete', value: result };
       },
       onComplete(result) {
-        if (key && typeof sessionStorage !== 'undefined') sessionStorage.removeItem(key);
+        if (key) idvSessionRemove(key);
         dispatch({ type: 'complete', generation: state.generation, result });
       },
       onFailed(reason) {
-        if (key && typeof sessionStorage !== 'undefined') sessionStorage.removeItem(key);
+        if (key) idvSessionRemove(key);
         dispatch({ type: 'failed', generation: state.generation, reason });
       },
       onExpired() {
-        if (key && typeof sessionStorage !== 'undefined') sessionStorage.removeItem(key);
+        if (key) idvSessionRemove(key);
         dispatch({ type: 'expired', generation: state.generation });
       },
       onError() {
@@ -156,8 +161,10 @@ export function useIdvController(options: IdvControllerOptions) {
       const safeUrl = allowedVerificationUrl(started.verificationUrl, allowedHosts);
       if (!safeUrl) throw new Error('Invalid ID verification URL.');
       setVerificationUrl(safeUrl.href);
-      if (key && typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem(key, JSON.stringify({
+      // Best effort: a storage failure here must not turn a start that has
+      // already billed and texted into an error.
+      if (key) {
+        idvSessionSet(key, JSON.stringify({
           idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl.href,
         }));
       }
@@ -198,8 +205,8 @@ export function useIdvController(options: IdvControllerOptions) {
     const started = await options.api.start({ companyId, propertyId }, options.identity, device);
     const safeUrl = allowedVerificationUrl(started.verificationUrl, allowedHosts);
     if (safeUrl) setVerificationUrl(safeUrl.href);
-    if (key && typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem(key, JSON.stringify({
+    if (key) {
+      idvSessionSet(key, JSON.stringify({
         idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl?.href,
       }));
     }
