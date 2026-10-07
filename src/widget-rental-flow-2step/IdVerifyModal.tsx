@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import QRCode from 'react-qr-code';
+import { Shimmer } from '@shared/Shimmer';
 import { CloseCircleIcon, FormField, isPossiblePhone } from '@shared/ui';
 import { IdCardIcon } from './planIcons';
 import { IdIllustration } from './IdIllustration';
@@ -160,17 +161,21 @@ export function IdVerifyModal({
               Device: scanning it opens the same page the text links to. The
               preview has no session, so it shows a placeholder that scans to
               nothing actionable. */}
-          {(verificationUrl || !connected) && (
+          {(verificationUrl || !connected || lifecycle === 'ready' || lifecycle === 'starting') && (
             <div className="rf-idm-qr">
               <div className="rf-idm-qr-code">
-                <QRCode
-                  value={verificationUrl ?? 'ID verification preview'}
-                  size={148}
-                  level="M"
-                  fgColor="#101318"
-                  bgColor="#ffffff"
-                  title="QR code for the ID verification page"
-                />
+                {verificationUrl || !connected ? (
+                  <QRCode
+                    value={verificationUrl ?? 'ID verification preview'}
+                    size={148}
+                    level="M"
+                    fgColor="#101318"
+                    bgColor="#ffffff"
+                    title="QR code for the ID verification page"
+                  />
+                ) : (
+                  <div role="status" aria-label="Preparing QR code"><Shimmer w={148} h={148} r={4} /></div>
+                )}
               </div>
               <p className="rf-idm-para rf-idm-qr-note">Or scan this code with your phone&rsquo;s camera.</p>
             </div>
