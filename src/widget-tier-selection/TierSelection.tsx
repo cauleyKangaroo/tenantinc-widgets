@@ -1553,11 +1553,11 @@ function MobileLayout({
           <MobileTotalAmt tierKey={tier.key} />
           <ChevronDown size={24} className={`ts-m-total-chev${open ? ' ts-m-total-chev--open' : ''}`} />
         </button>
-        {open && (
+        <AnimatedMobilePanel open={open}>
           <div className="ts-m-total-detail">
             <BreakdownRows tierKey={tier.key} />
           </div>
-        )}
+        </AnimatedMobilePanel>
       </div>
 
       {/* Compact comparison table */}
@@ -1765,24 +1765,12 @@ function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading
       )}
 
       <div className="ts-o2m-cards">
-        {cards.map((card) =>
-          card.key === expanded ? (
-            <O2MExpanded card={card} key={card.key} />
-          ) : (
-            <button
-              type="button"
-              key={card.key}
-              className="ts-o2m-bar"
-              onClick={() => {
-                setExpanded(card.key);
-                setSelected?.(card.key);
-              }}
-              aria-expanded={false}
-            >
-              <O2MHead card={card} />
-            </button>
-          ),
-        )}
+        {cards.map((card) => (
+          <O2MExpanded card={card} key={card.key} expanded={card.key === expanded} onToggle={() => {
+            setExpanded(card.key === expanded ? undefined : card.key);
+            setSelected?.(card.key);
+          }} />
+        ))}
       </div>
       <MobileAdminFee text={adminFeeText} />
     </div>
@@ -1800,13 +1788,13 @@ function MobileAdminFee({ text }: { text?: string }) {
 }
 
 // Shared header row (name + tagline on the left, price on the right).
-function O2MHead({ card }: { card: O2Tier }) {
+function O2MHead({ card, expanded, onToggle, panelId }: { card: O2Tier; expanded: boolean; onToggle: () => void; panelId: string }) {
   return (
-    <div className="ts-o2m-head">
-      <div className="ts-o2m-head-info">
+    <div className="ts-o2m-head" onClick={(e) => { if (!(e.target as Element).closest('a, button')) onToggle(); }}>
+      <button type="button" className="ts-o2m-head-info ts-o2m-toggle" onClick={onToggle} aria-expanded={expanded} aria-controls={panelId}>
         <span className="ts-o2m-name">{card.name}</span>
         <span className="ts-o2m-tag">{card.tagline}</span>
-      </div>
+      </button>
       <div className="ts-o2m-price-block">
         {card.promoRate != null ? (
           <span className="ts-o2m-price"><span className="ts-o2m-strike">{priceFmt(card.price)}/mo.</span> {priceFmt(card.promoRate)}</span>
@@ -1819,13 +1807,15 @@ function O2MHead({ card }: { card: O2Tier }) {
   );
 }
 
-function O2MExpanded({ card }: { card: O2Tier }) {
+function O2MExpanded({ card, expanded, onToggle }: { card: O2Tier; expanded: boolean; onToggle: () => void }) {
   const { featuredTier } = useTierData();
   const isFeatured = featuredTier === card.key;
+  const panelId = React.useId();
   return (
-    <div className={`ts-o2m-card${isFeatured ? ' ts-o2m-card--popular' : ''}`}>
-      {isFeatured && <span className="ts-o2-badge ts-o2m-badge">Most Popular</span>}
-      <O2MHead card={card} />
+    <div className={`ts-o2m-card ts-o2m-animated-card${expanded ? ' ts-o2m-card--expanded' : ''}${isFeatured && expanded ? ' ts-o2m-card--popular' : ''}`}>
+      {isFeatured && <span className="ts-o2-badge ts-o2m-badge" aria-hidden={!expanded}>Most Popular</span>}
+      <O2MHead card={card} expanded={expanded} onToggle={onToggle} panelId={panelId} />
+      <AnimatedMobilePanel open={expanded} id={panelId}>
       <ul className="ts-o2-features ts-o2m-features">
         {card.features.map((f) => (
           <li className="ts-o2-feat" key={f.label}>
@@ -1845,6 +1835,18 @@ function O2MExpanded({ card }: { card: O2Tier }) {
         </div>
       )}
       <TierSelectCta tierKey={card.key} variant="cards-mobile" />
+      </AnimatedMobilePanel>
+    </div>
+  );
+}
+
+// Preserve the body for natural-height animations in both directions.
+// Inert prevents interaction with collapsed content during the transition.
+function AnimatedMobilePanel({ open, id, children }: { open: boolean; id?: string; children: React.ReactNode }) {
+  return (
+    <div id={id} className={`ts-mobile-panel${open ? ' ts-mobile-panel--open' : ''}`} aria-hidden={!open}
+      ref={(element) => { if (open) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }}>
+      <div className="ts-mobile-panel-clip">{children}</div>
     </div>
   );
 }
