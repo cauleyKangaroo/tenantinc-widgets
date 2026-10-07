@@ -1196,7 +1196,8 @@ span.pi-lb-img {
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: flex-start;
+  /* Centre the trail on the expand icon's vertical midline, not its top edge. */
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }

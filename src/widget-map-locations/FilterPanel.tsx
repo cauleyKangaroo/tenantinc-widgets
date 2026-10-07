@@ -8,7 +8,7 @@
 import { CloseCircleIcon } from '@shared/ui';
 import { FilterIcon, ChevronDownIcon } from './icons';
 import { Checkbox } from '@shared/ui';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   type FilterState, type FilterOptions,
   PRICE_OPTIONS, DISTANCE_OPTIONS, activeFilterCount,
@@ -134,6 +134,8 @@ export function FilterPanel({
   const set = <K extends keyof FilterState>(key: K, value: FilterState[K]) =>
     onChange({ ...filters, [key]: value });
 
+  const searchRef = useRef<HTMLInputElement>(null);
+
   const count = activeFilterCount(filters);
 
   return (
@@ -165,15 +167,28 @@ export function FilterPanel({
         <div className="ml-fp-body">
           {/* A plain search, matching #05's filter modal — the AI sparkle that
               was here belongs to the map header's own search, not to a filter
-              field, and it promised something this box does not do. */}
+              field, and it promised something this box does not do.
+
+              It filters as you type, so the button is decoration rather than
+              the thing that submits: a magnifier that must be PRESSED makes a
+              live-filtering field feel broken until you find it. It still
+              focuses the input, so a reader who does press it is not ignored. */}
           <div className="ml-search ml-search--sm">
             <input
+              ref={searchRef}
               className="ml-search-input"
-              type="text"
+              type="search"
               placeholder="Filter Spaces by... "
               aria-label="Filter spaces by"
+              value={filters.search}
+              onChange={(e) => set('search', e.target.value)}
             />
-            <button type="button" className="ml-search-btn" aria-label="Search">
+            <button
+              type="button"
+              className="ml-search-btn"
+              aria-label="Search"
+              onClick={() => searchRef.current?.focus()}
+            >
               <svg
                 width="24" height="24" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"

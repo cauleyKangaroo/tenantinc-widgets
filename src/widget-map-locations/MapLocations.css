@@ -1288,6 +1288,14 @@
   .ml-fp-overlay { padding: 16px 12px; }
   .ml-fp { max-height: calc(100vh - 32px); }
 
+  /* …except the FULL-SCREEN sheet, which is exactly 100dvh tall. Inside an
+     overlay with 16px of vertical padding that is 32px more than the space it
+     is centred in, and the overlay clips (`overflow: hidden`) — so 16px was
+     cut off the top and another 16px off the bottom, taking the edge of the
+     Apply button with it and leaving no way to scroll to either. A sheet that
+     covers the screen wants no padding around it. */
+  .ml-fp-overlay:has(> .ml-fp--full) { padding: 0; }
+
   .ml-fp-head,
   .ml-fp-body,
   .ml-fp-foot { padding-inline: 16px; }
@@ -1347,9 +1355,16 @@
        COLLAPSED, so the footer sits under the URL bar until you scroll. `dvh`
        tracks the visible area. `vh` first as the fallback for older browsers. */
   height: 100vh;
-  height: 100dvh;
+  /* `min(…, 100%)`, not a bare `100dvh`: the overlay carries 16px of vertical
+     padding on a phone, so a sheet exactly 100dvh tall is 32px bigger than the
+     box it is centred in — and the overlay clips, so 16px vanished off each
+     end and took the edge of the Apply button with it.
+     The `:has` rule below removes that padding where it is supported, making
+     100% and 100dvh the same thing; where it is not, 100% is the padded box and
+     the sheet still fits. Either way nothing is cut off. */
+  height: min(100dvh, 100%);
   max-height: 100vh;
-  max-height: 100dvh;
+  max-height: min(100dvh, 100%);
 }
 
 /* Sort / Distance select, styled as the Form 2.0 box the frame uses. */

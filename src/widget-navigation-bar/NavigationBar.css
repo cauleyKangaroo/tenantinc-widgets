@@ -816,8 +816,10 @@
 }
 
 .nav-mm-account svg {
-  /* Leading title icons removed on mobile per client request. */
-  display: none;
+  /* Leading 24px icon before each title (Figma). flex-shrink: 0 keeps it at
+     full size when a long label ("Find my Reservation") squeezes the row. */
+  display: block;
+  flex-shrink: 0;
 }
 
 .nav-mm-account span {

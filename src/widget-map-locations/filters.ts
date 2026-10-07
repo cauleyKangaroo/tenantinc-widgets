@@ -12,6 +12,15 @@
 import type { CityFacility, CityUnit } from './data';
 
 export interface FilterState {
+  /*
+   * Free text from either search box — the header's ("Enter ZIP, City, State")
+   * and the panel's ("Filter Spaces by…").
+   *
+   * ONE field for both, deliberately. They are two views of the same filter, so
+   * typing in one and opening the other must not show an empty box over a list
+   * that is still narrowed.
+   */
+  search: string;
   types: string[];
   sizes: string[];
   features: string[];
@@ -38,6 +47,7 @@ export const DISTANCE_OPTIONS = ['5 miles', '10 miles', '20 miles', '50 miles'];
  * of the city's properties before the visitor touched anything.
  */
 export const INITIAL_FILTERS: FilterState = {
+  search: '',
   types: [],
   sizes: [],
   features: [],
@@ -52,7 +62,43 @@ export const INITIAL_FILTERS: FilterState = {
 export function activeFilterCount(f: FilterState): number {
   return f.types.length + f.sizes.length + f.features.length
     + f.amenities.length + f.promotions.length
+    + (f.search.trim() ? 1 : 0)
     + (f.minPrice ? 1 : 0) + (f.maxPrice ? 1 : 0) + (f.maxDistance ? 1 : 0);
+}
+
+/**
+ * Does the facility match the typed text?
+ *
+ * Matched against everything a visitor could reasonably be typing: the two
+ * placeholders promise different things — the header says ZIP/City/State, the
+ * panel says "Filter Spaces by…" — and one field serves both, so it searches
+ * the property AND its spaces.
+ *
+ * Every term must match SOMETHING (AND across terms, OR across fields), so
+ * "chino 10x10" narrows rather than widening. Case- and position-insensitive:
+ * a visitor typing part of a street name should find it.
+ */
+export function matchesSearch(fac: CityFacility, term: string): boolean {
+  const q = term.trim().toLowerCase();
+  if (!q) return true;
+
+  const haystack = [
+    fac.name,
+    fac.address,
+    // The slug carries state/city for properties whose address string omits
+    // one — it is the page path, so it is always populated when anything is.
+    fac.slug ?? '',
+    ...fac.units.flatMap((u) => [
+      u.dimensions,
+      u.subtype,
+      u.spaceType ?? '',
+      u.sizeBucket ?? '',
+      ...(u.features ?? []),
+      ...(u.amenities ?? []),
+    ]),
+  ].join(' ').toLowerCase();
+
+  return q.split(/\s+/).filter(Boolean).every((t) => haystack.includes(t));
 }
 
 /** "$1,000" → 1000; "" / unparseable → null (meaning "no bound"). */
@@ -180,6 +226,10 @@ export function filterFacilities(facilities: CityFacility[], f: FilterState): Ci
     || min != null || max != null;
 
   return facilities.filter((fac) => {
+    // Cheapest meaningful rejection first, and it is facility-level like
+    // distance — the typed text can match the property itself, so it is not
+    // folded into the per-unit test below.
+    if (!matchesSearch(fac, f.search)) return false;
     if (maxMiles != null && Number.isFinite(fac.distanceMiles) && fac.distanceMiles > maxMiles) {
       return false;
     }

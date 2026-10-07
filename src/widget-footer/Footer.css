@@ -418,10 +418,52 @@
     column-count: 1;
   }
 
+  /* Mobile drops the rule above the Follow row (the one under "powered by"'s
+     row replaces it). Only the line goes — the element stays, so its
+     margin-top still spaces the Follow row off the content above. */
+  .ft-divider {
+    background: transparent;
+  }
+
+  /* Mobile: centred label over a larger icon row, then a full-width rule and a
+     centred "powered by". The row drops its side padding so the rule can run
+     edge to edge; the children carry the gutter instead. */
   .ft-follow {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+  }
+
+  .ft-follow-left {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 24px 28px;
+    text-align: center;
+  }
+
+  .ft-socials {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  .ft-social {
+    width: 32px;
+    height: 32px;
+  }
+
+  .ft-social svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .ft-powered {
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   .ft-bottom-row {
