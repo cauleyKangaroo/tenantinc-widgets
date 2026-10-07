@@ -9,19 +9,6 @@
 }
 .hs *, .hs *::before, .hs *::after { box-sizing: border-box; }
 .hs-search-layout { position: relative; }
-.hs-location-debug {
-  margin: 16px 0;
-  padding: 12px;
-  border: 2px solid #101318;
-  border-radius: 8px;
-  background: #fff;
-  color: #101318;
-  font: 12px/1.5 monospace;
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-.hs-location-debug p { margin: 8px 0; }
-.hs-location-debug ol { margin: 0; padding-left: 24px; }
 
 /* ── The search pill (desktop: one horizontal bar) ───────────────────────── */
 .hs-bar {
