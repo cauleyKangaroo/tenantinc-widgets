@@ -1787,6 +1787,7 @@ export function RentalFlow2Step({
    * whenever the inputs change.
    */
   const [leasePreviewUrl, setLeasePreviewUrl] = useState('');
+  const [leasePreviewHtml, setLeasePreviewHtml] = useState('');
 
   const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}|${paymentCycle}`;
   const quotedChoice = useRef<string | undefined>(undefined);
@@ -1856,12 +1857,20 @@ export function RentalFlow2Step({
       platform: 'website',
     }).then((docs) => {
       if (cancelled) return;
-      // The LEASE specifically — the call also returns the insurance-denial and
-      // ACH forms, which are not what this panel is showing.
-      const lease = docs.find((d) => d.documentType === 'lease')
-        ?? docs.find((d) => /lease/i.test(d.name))
-        ?? docs[0];
+      /*
+       * The LEASE specifically — the call also returns the insurance-denial and
+       * ACH forms, which are not what this panel is showing.
+       *
+       * `super-lease` is matched explicitly: a ClickWrap company returns
+       * `superlease: true` with document_type "super-lease" and the name
+       * "Superlease", so an equality test on 'lease' alone misses it and the
+       * panel would frame whichever form happened to come back first.
+       */
+      const isLease = (t: string, nm: string) =>
+        t === 'lease' || t === 'super-lease' || /lease/i.test(nm);
+      const lease = docs.find((d) => isLease(d.documentType, d.name)) ?? docs[0];
       setLeasePreviewUrl(lease?.previewUrl ?? '');
+      setLeasePreviewHtml(lease?.html ?? '');
     });
     return () => { cancelled = true; };
     // `previewKey` already folds in every value read here.
@@ -2880,6 +2889,7 @@ export function RentalFlow2Step({
             // Everything step 1 already asked for, so step 2 opens filled in.
             contact={contact}
             leasePreviewUrl={leasePreviewUrl}
+            leasePreviewHtml={leasePreviewHtml}
             // The whole list, not plans[0]: the card is a dropdown now, so it
             // needs every option. Live plans win; the sample only fills an empty
             // list, and only in the harness.

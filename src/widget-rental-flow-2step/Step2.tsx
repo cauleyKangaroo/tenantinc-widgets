@@ -38,18 +38,29 @@ const FORM_SKELETON_MS = 700;
  * document URL exists this becomes an <iframe>/<embed> and both surfaces get it
  * at once.
  */
-function LeaseDocBody({ title, previewUrl }: { title?: string; previewUrl?: string }) {
+function LeaseDocBody(
+  { title, previewUrl, previewHtml }:
+  { title?: string; previewUrl?: string; previewHtml?: string },
+) {
   /*
-   * The REAL document when we have one.
+   * THE HOSTED PREVIEW, FRAMED — and it must be allowed to run scripts.
    *
-   * An iframe rather than the inline `template` the API also returns: that
-   * markup carries its own styling, and injected into this page it inherits
-   * the widget's CSS and fights it. The frame keeps the operator's document
-   * looking like their document.
+   * `preview_url` serves a 1.7KB JavaScript SHELL that renders the document
+   * client-side; it carries none of the text itself. Framed with a strict
+   * `sandbox=""` it showed NOTHING, which is exactly what it did at first.
    *
-   * `sandbox` without allow-scripts: this is a document to read, and the
-   * preview host has no reason to run code inside our page. `allow-same-origin`
-   * is omitted too, so the frame cannot reach back into the parent.
+   * `allow-scripts allow-same-origin` is normally the pair to avoid, because
+   * together they let a frame out of its sandbox. Not here: this document is
+   * CROSS-ORIGIN, so `allow-same-origin` only restores ITS own origin and the
+   * ordinary same-origin policy still keeps it away from this page.
+   *
+   * WHY NOT the `template` markup the same response carries, which would need
+   * no scripts at all: for this company it arrives with NO <style> block —
+   * header, body and footer all — while using classes like `table-border` and
+   * `common-font` that the preview app supplies. Rendered on its own it is an
+   * unstyled stack of tables. Some templates do embed their own styling (a
+   * ClickWrap Superlease does), so it stays as the fallback below, but the
+   * hosted page is what the shopper signs and is the faithful thing to show.
    */
   if (previewUrl) {
     return (
@@ -59,6 +70,27 @@ function LeaseDocBody({ title, previewUrl }: { title?: string; previewUrl?: stri
           src={previewUrl}
           title={title ?? 'Rental Agreement'}
           loading="lazy"
+          sandbox="allow-scripts allow-same-origin"
+        />
+      </div>
+    );
+  }
+
+  /*
+   * Fallback: the document's own markup, in a frame of its own.
+   *
+   * Used when there is no hosted URL. `sandbox=""` is safe because this markup
+   * carries no scripts — it still loads its images and fonts and can do nothing
+   * else — and the frame keeps whatever styling the template does embed from
+   * inheriting, or fighting, this widget's CSS.
+   */
+  if (previewHtml) {
+    return (
+      <div className="rf2-doc-page rf2-doc-page--frame">
+        <iframe
+          className="rf2-doc-frame"
+          srcDoc={previewHtml}
+          title={title ?? 'Rental Agreement'}
           sandbox=""
         />
       </div>
@@ -224,7 +256,7 @@ const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, leasePreviewUrl, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
+  brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, leasePreviewUrl, leasePreviewHtml, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
 }: {
   moveIn: Date;
@@ -281,6 +313,8 @@ export function Step2({
   /** Frameable URL for the REAL lease, from documents/preview. Absent →
    *  the written summary below stands. */
   leasePreviewUrl?: string;
+  /** The document's own self-contained markup — preferred over the URL. */
+  leasePreviewHtml?: string;
   onEditDate: () => void;
   /** The chosen coverage id, or undefined for "I have my own insurance".
    *  Reported upward because the choice re-prices the move-in quote — it is not
@@ -984,7 +1018,7 @@ export function Step2({
             </button>
           </div>
           <div className="rf2-agree-doc">
-            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} />
+            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} />
           </div>
           <RfCheckbox
             checked={agree}
@@ -1213,7 +1247,7 @@ export function Step2({
         agree={agree}
         onAgreeChange={setAgree}
       >
-        <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} />
+        <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} />
       </LeaseModal>
     </div>
   );
