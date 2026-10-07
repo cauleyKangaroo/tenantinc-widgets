@@ -3,7 +3,7 @@
 /* ── Root (full-width dark band) ────────────────────────────────────────── */
 
 .ft-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   background: #101318;
@@ -76,6 +76,22 @@
   letter-spacing: -0.31px;
   color: #fff;
   text-decoration: none;
+}
+
+/* ── Placeholder column (page tree still loading) ───────────────────────────
+   A translucent bar on the dark band — the shared light-grey Shimmer would glare
+   here. Inline-block inside the real heading/link line boxes, so its height is
+   theirs; the width is the only thing it chooses. */
+.ft-col--placeholder {
+  min-width: 200px;
+}
+
+.ft-skel {
+  display: inline-block;
+  max-width: 100%;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  color: transparent;
 }
 
 .ft-link:hover {
@@ -155,7 +171,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 18px;
   font-weight: 400;
   letter-spacing: -0.44px;

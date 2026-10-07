@@ -1451,6 +1451,30 @@
 .ma-edit__cancel:hover { text-decoration: underline; }
 .ma-edit__cancel:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); }
 
+/* ── Busy: the session check is in flight ────────────────────────────────
+   The real tree is rendered (see MyAccount.tsx) so the page already has its
+   loaded height, but nothing of it may be seen: every element is hidden, and
+   only the layout's top-level blocks — greeting, the logged-in line's text and
+   button, each panel in the main column, each sidebar card — come back as flat
+   grey boxes. `visibility` (not `display`) so every box keeps its size, and
+   color: transparent for text sitting directly in a block. */
+.ma-wrapper--busy .ma-grid * { visibility: hidden; }
+
+.ma-wrapper--busy .ma-greeting,
+.ma-wrapper--busy .ma-logged-in > *,
+.ma-wrapper--busy .ma-main > *,
+.ma-wrapper--busy .ma-side > * {
+  visibility: visible;
+  color: transparent !important;
+  background: #e9edf1 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 12px;
+}
+
+/* A grey bar the width of the greeting, not of the whole column. */
+.ma-wrapper--busy .ma-greeting { justify-self: start; border-radius: 6px; }
+
 /* ── Narrow widths ─────────────────────────────────────────────────────────
    The frame is desktop-only (1920) — there is no mobile artboard for this
    screen. Rather than invent one, the grid collapses to a single column so

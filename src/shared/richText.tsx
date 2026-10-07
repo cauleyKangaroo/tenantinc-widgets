@@ -51,6 +51,18 @@ export function sanitizeHtml(html: string): string {
     }
   });
 
+  // Body images: defer and decode off the main thread. Any width/height the CMS
+  // authored is kept as-is (the loop above only drops handlers and script URLs),
+  // which is what lets the browser reserve the image's box before it arrives —
+  // paired with `height: auto` in the widget's CSS it becomes an aspect ratio.
+  // Nothing is forced when they are absent: a guessed ratio would crop or
+  // distort an authored image, which is worse than the shift. An author-set
+  // `loading` (e.g. eager on a lead image) wins.
+  doc.body.querySelectorAll('img').forEach((img) => {
+    if (!img.hasAttribute('loading')) img.setAttribute('loading', 'lazy');
+    if (!img.hasAttribute('decoding')) img.setAttribute('decoding', 'async');
+  });
+
   return doc.body.innerHTML;
 }
 

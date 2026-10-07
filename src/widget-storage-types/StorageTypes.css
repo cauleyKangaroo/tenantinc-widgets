@@ -2,7 +2,7 @@
   --st-text: #101318;
   --st-copy: #000000;
   --st-rule: #a5b4bf;
-  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   width: 100%;
   max-width: 1330px;
   margin-inline: auto;
@@ -161,6 +161,32 @@
 }
 .st--index .st-card-abstract {
   -webkit-line-clamp: 5;
+  /* Deliberately NOT reserved (min-height: 7.5em was tried). The card's own
+     500px min-height already holds a one- or two-line title plus three or
+     four abstract lines, so the copy arriving after the grace period moves
+     nothing in the usual case; holding all five open made every row ~36px
+     taller than the design for abstracts that are two or three lines. */
+}
+
+/* ── Loading placeholders ─────────────────────────────────────────────────── */
+.st-skel {
+  display: block;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #eef1f4 25%, #e3e8ec 37%, #eef1f4 63%);
+  background-size: 400% 100%;
+  animation: st-shimmer 1.4s ease infinite;
+}
+.st-card--skel { pointer-events: none; }
+.st-card--skel .st-card-media { background: #e9edf1; }
+/* One title line: 24px/1.25 on the related card, 32px/1.2 on the index. */
+.st-skel--title { height: 30px; width: 70%; }
+.st--index .st-skel--title { height: 38.4px; }
+.st-skel--text { height: 16px; margin-top: 4px; }
+/* The loaded carousel's dots row (16px dots under a 24px margin). */
+.st-dots--skel { height: 16px; }
+@keyframes st-shimmer {
+  from { background-position: 100% 50%; }
+  to   { background-position: 0 50%; }
 }
 
 /* ── related: static row on desktop, carousel below 768px ─────────────────── */
@@ -268,4 +294,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .st-card { transition: none; }
+  .st-skel { animation: none; }
 }

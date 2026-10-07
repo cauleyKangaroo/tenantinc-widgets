@@ -10,7 +10,7 @@
    --------------------------------------------------------------------------- */
 
 .lb-banner {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   box-sizing: border-box;
   width: 100%;
 

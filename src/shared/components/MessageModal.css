@@ -27,7 +27,7 @@
   border: 1px solid #f4f6f8;
   border-radius: 20px;
   box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   animation: pi-hours-pop 0.15s ease-out;
 }
 .pi-msg-head {
@@ -64,7 +64,7 @@
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; height: 56px; padding: 0 16px;
   background: #fff; border: 1px solid #a5b4bf; border-radius: 8px;
-  color: #637381; font: 400 16px 'Montserrat', sans-serif; cursor: pointer;
+  color: #637381; font: 400 16px 'Montserrat', 'Montserrat Fallback', sans-serif; cursor: pointer;
 }
 .pi-msg-dd-btn svg { flex: 0 0 auto; color: #101318; }
 /* Name and address left, Clear right (Figma 10295-76697). A plain div — no
@@ -117,7 +117,7 @@
 .pi-msg-dd-list li button {
   display: block; width: 100%; text-align: left; padding: 10px 12px;
   border: none; background: none; border-radius: 6px;
-  font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer;
+  font: 400 16px 'Montserrat', 'Montserrat Fallback', sans-serif; color: #101318; cursor: pointer;
 }
 .pi-msg-dd-list li button:hover { background: #f4f6f8; }
 
@@ -245,13 +245,13 @@
 .pi-msg-captcha-label { flex: 0 1 auto; font-size: 14px; color: #3c4043; white-space: nowrap; }
 .pi-msg-captcha-brand { font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; color: #9aa0a6; }
 .pi-msg-buttons { display: flex; align-items: center; gap: 16px; }
-.pi-msg-cancel { border: none; background: none; font: 400 16px 'Montserrat', sans-serif; color: #101318; cursor: pointer; }
+.pi-msg-cancel { border: none; background: none; font: 400 16px 'Montserrat', 'Montserrat Fallback', sans-serif; color: #101318; cursor: pointer; }
 .pi-msg-submit {
   width: 127px; height: 40px;
   display: flex; align-items: center; justify-content: center;
   border: none; border-radius: 8px;
   background: var(--color_1, #f45f30); color: var(--color_3, #fff);
-  font: 700 16px 'Montserrat', sans-serif; cursor: pointer;
+  font: 700 16px 'Montserrat', 'Montserrat Fallback', sans-serif; cursor: pointer;
 }
 .pi-msg-submit:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black); }
 .pi-msg-submit:disabled, .pi-msg-cancel:disabled { opacity: 0.6; cursor: default; }
@@ -259,7 +259,7 @@
 .pi-msg-error {
   margin: 0 32px;
   color: #e53935;
-  font: 500 15px 'Montserrat', sans-serif;
+  font: 500 15px 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 .pi-msg-success {
@@ -276,8 +276,8 @@
   border-radius: 50%;
   background: #e7f5e8;
 }
-.pi-msg-success-title { margin: 4px 0 0; font: 700 22px 'Montserrat', sans-serif; color: #101318; }
-.pi-msg-success-text { margin: 0 0 12px; max-width: 420px; font: 400 16px 'Montserrat', sans-serif; line-height: 1.5; color: #55606b; }
+.pi-msg-success-title { margin: 4px 0 0; font: 700 22px 'Montserrat', 'Montserrat Fallback', sans-serif; color: #101318; }
+.pi-msg-success-text { margin: 0 0 12px; max-width: 420px; font: 400 16px 'Montserrat', 'Montserrat Fallback', sans-serif; line-height: 1.5; color: #55606b; }
 .pi-msg-success .pi-msg-submit { width: auto; padding: 0 28px; }
 
 @media (max-width: 640px) {

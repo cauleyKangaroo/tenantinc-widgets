@@ -7,7 +7,7 @@
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 .ts-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   color: #101318;
@@ -19,16 +19,25 @@
 
 /* Reserve the loaded layout height while loading so the page doesn't collapse
    (footer under the header) and then expand when data lands. Breakpoint matches
-   the widget's own mobile switch (MOBILE_BP = 640). Desktop measured: option1
-   select+table+card ~1012px, option2/3 cards ~736px. Mobile (stacked) reserves
-   a floor sized to the mobile skeleton. */
+   the widget's own mobile switch (MOBILE_BP = 640). Measured on the loaded
+   layouts (2026-10-05, 3 tiers with 2/4/6 amenities): option1 914px desktop /
+   884px mobile, option2 595px desktop (3-up; ~1565px stacked at <=900px) /
+   762px mobile, option3 ~736px desktop / ~900px mobile.
+   Option 1 and 2 skeletons mirror their layouts (see TierSkeleton), so these
+   are only floors for them; option 2's desktop floor is OFF because its
+   skeleton grid stacks at <=900px exactly like the cards do, and any single
+   floor would be wrong on one side of that breakpoint. Option 3's skeleton is
+   generic, so its floor is what actually reserves the space. */
 @media (min-width: 640px) {
   .ts-wrapper--loading { min-height: 736px; }
-  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 1012px; }
+  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 914px; }
+  .ts-wrapper--loading.ts-wrapper--option2 { min-height: 0; }
 }
 @media (max-width: 639px) {
   .ts-wrapper--loading { min-height: 640px; }
-  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 700px; }
+  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 884px; }
+  .ts-wrapper--loading.ts-wrapper--option2 { min-height: 762px; }
+  .ts-wrapper--loading.ts-wrapper--option3 { min-height: 900px; }
 }
 
 .ts-grid {
@@ -176,6 +185,11 @@
   border-radius: 8px;
 }
 .ts-promo-icon { color: var(--color_1, #f45f30); flex: 0 0 auto; }
+/* Option 1's promo reservation (see the TSX): the banner's 26px margin + 44px
+   box. flow-root so that margin stays INSIDE the slot rather than collapsing
+   through it — otherwise a filled slot would be 26px taller than an empty one,
+   the very jump it exists to stop. */
+.ts-promo-slot { display: flow-root; min-height: 70px; }
 .ts-promo-text {
   font-size: 14px;
   font-weight: 700;
@@ -497,6 +511,7 @@
 .ts-m-pills .ts-pill { padding-top: 10px; }
 
 .ts-m-promo { margin-top: 22px; }
+.ts-m-promo-slot { min-height: 66px; }
 .ts-m-features { margin-top: 20px; padding-left: 0; gap: 24px; }
 
 .ts-tier-cta--option1-mobile {
@@ -927,7 +942,7 @@
   border-radius: 12px;
   box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
   color: #fff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-align: left;
 }
 .ts-pd-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -1016,7 +1031,7 @@
    stay put while the cards/table scroll. */
 .ts-modal {
   position: relative;
-  font-family: 'Montserrat', sans-serif; /* portaled outside .ts-wrapper — pin the font */
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif; /* portaled outside .ts-wrapper — pin the font */
   background: #f4f6f8;
   border-radius: 20px;
   width: 100%;
@@ -1104,7 +1119,7 @@
 .ts-modal-editor-hint {
   border: 2px dashed #c4cdd5; border-radius: 8px; padding: 16px 20px;
   background: #f9fafb; color: #637381; font-size: 14px; line-height: 1.5;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 .ts-modal-editor-hint b { color: #101318; }
 @media (max-width: 640px) {

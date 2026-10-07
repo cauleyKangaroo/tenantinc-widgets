@@ -319,14 +319,63 @@ const MOBILE_BP = 640;
 // reserved wrapper min-height below) so the page never collapses then expands.
 const SKELETON_DELAY_MS = 0;
 
-// Placeholders reuse the real layout containers (.ts-grid / .ts-o2 geometry)
-// so the skeleton occupies exactly the footprint the content replaces.
+// Placeholders reuse the real layout containers (.ts-o2-headrow, .ts-grid,
+// .ts-o2-cards, .ts-m …) so the skeleton inherits their gaps, margins and
+// breakpoints and occupies the footprint the content replaces; only the leaf
+// blocks carry a height. Those heights were measured on the loaded layouts with
+// a 3-tier offer set (2/4/6 amenities, a promotion on each) on 2026-10-05 —
+// the comparison tables grow 48px (desktop) / 38px (mobile) per extra amenity
+// row, so a facility with fewer amenities still comes in somewhat shorter.
 // Shimmer itself is inline-styled by design (shared across bundles, no shared CSS).
 function TierSkeleton({ variant, isMobile, chromeless }: { variant: 'option1' | 'option2' | 'option3'; isMobile?: boolean; chromeless?: boolean }) {
+  // Heading + subheading bars inside the REAL title classes, so the 40px -> 30px
+  // title step at <=900px (and the 10px title margin) applies to the bars too.
+  const headrow = !chromeless && (
+    <div className="ts-o2-headrow">
+      <div className="ts-o2-header">
+        <div className="ts-title ts-o2-title"><Shimmer w={480} h="1.15em" style={{ maxWidth: '100%' }} /></div>
+        <div className="ts-subtitle ts-o2-subtitle"><Shimmer w={340} h={28} style={{ maxWidth: '100%' }} /></div>
+      </div>
+      <div className="ts-o2-topright"><Shimmer w={380} h={24} style={{ maxWidth: '100%' }} /></div>
+    </div>
+  );
+
+  if (isMobile && variant === 'option1') {
+    // Mirrors MobileLayout inside its own grey .ts-m panel: title, pills, promo
+    // slot, amenities, Select, "Total Cost to Move-In" row, comparison table,
+    // admin-fee line.
+    return (
+      <div className="ts-m" aria-hidden="true">
+        {!chromeless && <div className="ts-m-headwrap"><Shimmer w={260} h={32} style={{ margin: '0 auto', maxWidth: '80%' }} /></div>}
+        <Shimmer h={118} r={16} />
+        <Shimmer h={44} r={8} style={{ marginTop: 22 }} />
+        <Shimmer h={66} style={{ marginTop: 20 }} />
+        <Shimmer h={52} r={8} style={{ marginTop: 16 }} />
+        <Shimmer h={24} style={{ marginTop: 20 }} />
+        <Shimmer h={308} r={12} style={{ marginTop: 24 }} />
+        <Shimmer w={280} h={20} style={{ margin: '24px auto 0', maxWidth: '90%' }} />
+      </div>
+    );
+  }
+  if (isMobile && variant === 'option2') {
+    // Mirrors Option2Mobile: collapsed bar, the expanded (popular) card, a
+    // collapsed bar, then the admin-fee line — in the same .ts-o2m-cards stack.
+    return (
+      <div className="ts-m ts-o2m" aria-hidden="true">
+        {!chromeless && <div className="ts-m-headwrap"><Shimmer w={260} h={32} style={{ margin: '0 auto', maxWidth: '80%' }} /></div>}
+        <div className="ts-o2m-cards">
+          <Shimmer h={81} r={16} />
+          <Shimmer h={343} r={16} />
+          <Shimmer h={81} r={16} />
+        </div>
+        <Shimmer w={280} h={20} style={{ margin: '24px auto 0', maxWidth: '90%' }} />
+      </div>
+    );
+  }
   if (isMobile) {
-    // Stacked mobile placeholder — reserves the mobile layout's footprint (both
-    // good/better/best and select+table+card collapse to a single column) so the
-    // footer doesn't jump when data lands.
+    // Option 3 has no dedicated mobile frame (it scrolls sideways), so this is a
+    // generic stacked placeholder; the wrapper's min-height (TierSelection.css)
+    // reserves the measured height.
     return (
       <div aria-hidden="true" style={{ maxWidth: 640, margin: '0 auto' }}>
         {!chromeless && (
@@ -343,32 +392,46 @@ function TierSkeleton({ variant, isMobile, chromeless }: { variant: 'option1' | 
     );
   }
   if (variant === 'option1') {
-    // Mirrors DesktopLayout: left = header + picker row + comparison table,
-    // right = the 422px order-summary card.
+    // Mirrors DesktopLayout: header row + rule, then .ts-grid — left = unit
+    // illustration beside the picker (pills, promo slot, amenities, Select)
+    // above the comparison table; right = the 422px order-summary card.
     return (
-      <div className="ts-grid" aria-hidden="true">
-        <div>
-          {!chromeless && (
-            <>
-              <Shimmer w={480} h={40} mb={14} style={{ maxWidth: '80%' }} />
-              <Shimmer w={340} h={18} mb={28} style={{ maxWidth: '60%' }} />
-            </>
-          )}
-          <div style={{ display: 'flex', gap: 32, marginBottom: 32 }}>
-            <Shimmer w={220} h={220} r={12} style={{ flex: '0 0 auto' }} />
-            <div style={{ flex: 1 }}>
-              <Shimmer h={64} r={12} mb={16} />
-              <Shimmer h={40} r={8} mb={16} style={{ maxWidth: '70%' }} />
-              <Shimmer h={80} r={8} />
+      <div aria-hidden="true">
+        {headrow}
+        {!chromeless && <hr className="ts-rule" />}
+        <div className="ts-grid">
+          <div className="ts-left">
+            <div className="ts-picker-row">
+              <Shimmer w={154} h={244} r={16} style={{ flex: '0 0 auto' }} />
+              <div className="ts-picker">
+                <Shimmer h={118} r={16} />
+                <Shimmer h={44} r={8} style={{ marginTop: 26 }} />
+                <Shimmer h={42} style={{ marginTop: 19, maxWidth: '70%' }} />
+                <Shimmer h={50} r={8} style={{ marginTop: 20 }} />
+              </div>
             </div>
+            <Shimmer h={388} r={12} style={{ marginTop: 44 }} />
           </div>
-          <Shimmer h={320} r={12} />
+          <Shimmer h={559} r={16} />
         </div>
-        <Shimmer h={560} r={12} />
       </div>
     );
   }
-  // option2 / option3: three tier cards, same caps as .ts-o2-cards.
+  if (variant === 'option2') {
+    // Mirrors Option2Layout: the real .ts-o2-cards grid (16px badge room on top,
+    // start-aligned, one column at <=900px) holding three blocks the size of a
+    // .ts-o2-card — 440px is that card's min-height.
+    return (
+      <div className="ts-o2" aria-hidden="true">
+        {headrow}
+        <div className="ts-o2-cards" style={{ ['--ts-cols']: 3 } as React.CSSProperties}>
+          {[0, 1, 2].map((i) => <Shimmer key={i} h={440} r={16} />)}
+        </div>
+      </div>
+    );
+  }
+  // option3: three tier cards; the wrapper's min-height reserves the fused
+  // card + table height (TierSelection.css).
   return (
     <div aria-hidden="true" style={{ maxWidth: 1320, margin: '0 auto' }}>
       {!chromeless && (
@@ -785,7 +848,12 @@ export function TierSelection({
     // In the Duda editor (no handoff params) keep a visible skeleton so the
     // widget doesn't collapse to zero height and "vanish" — otherwise it can't
     // be seen or placed on the page.
-    body = (pastDelay || mode === 'modal' || inEditor) ? <TierSkeleton variant={variant} isMobile={isMobile} chromeless={chromeless} /> : null;
+    //
+    // With SKELETON_DELAY_MS at 0 the skeleton also covers the company-id read
+    // that runs BEFORE the data effect (and so before it can set pastDelay):
+    // that window used to paint an empty, min-height-only box, so the
+    // skeleton's own geometry was never what held the space.
+    body = (SKELETON_DELAY_MS === 0 || pastDelay || mode === 'modal' || inEditor) ? <TierSkeleton variant={variant} isMobile={isMobile} chromeless={chromeless} /> : null;
   } else if (status === 'disabled') {
     // Business rule §1: Use Value Pricing = No → render nothing (operator
     // places the standard unit-selection widget instead).
@@ -1324,10 +1392,18 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgen
           <div className="ts-picker">
             <Pills selected={selected} setSelected={setSelected} />
 
-            {promo && (
-              <div className="ts-promo">
-                <TagIcon size={16} className="ts-promo-icon" />
-                <span className="ts-promo-text">{promo}</span>
+            {/* Slot, like .ts-o2-promo-slot: the banner is the SELECTED tier's
+                promotion, so when only some tiers carry one, picking a pill
+                used to add or remove 70px and jump the features and table
+                below. Kept whenever any tier has a promotion; empty otherwise. */}
+            {(promo || tiers.some((t) => t.promo)) && (
+              <div className="ts-promo-slot">
+                {promo && (
+                  <div className="ts-promo">
+                    <TagIcon size={16} className="ts-promo-icon" />
+                    <span className="ts-promo-text">{promo}</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1450,10 +1526,15 @@ function MobileLayout({
         <Pills selected={selected} setSelected={setSelected} tiers={visibleTiers} />
       </div>
 
-      {promo && (
-        <div className="ts-promo ts-m-promo">
-          <TagIcon size={16} className="ts-promo-icon" />
-          <span className="ts-promo-text">{promo}</span>
+      {/* Same slot as the desktop picker's — see there. */}
+      {(promo || visibleTiers.some((t) => t.promo)) && (
+        <div className="ts-promo-slot ts-m-promo-slot">
+          {promo && (
+            <div className="ts-promo ts-m-promo">
+              <TagIcon size={16} className="ts-promo-icon" />
+              <span className="ts-promo-text">{promo}</span>
+            </div>
+          )}
         </div>
       )}
 

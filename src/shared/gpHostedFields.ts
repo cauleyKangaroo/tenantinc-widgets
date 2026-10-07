@@ -186,7 +186,7 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
     // the stack after it is the kit's own, so an environment that somehow
     // cannot use the inlined face degrades the same way the rest of the flow
     // does rather than to GP's default.
-    'font-family': "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    'font-family': "'Montserrat', 'Montserrat Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
     /*
      * Pinned, and the browser told to leave it alone.
      *

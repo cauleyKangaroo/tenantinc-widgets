@@ -753,7 +753,7 @@ export function SpaceList({
             </div>
           )}
           {loading ? (
-            <SkeletonLoader />
+            <SkeletonLoader layoutMode={layoutMode} />
           ) : layoutMode === 'list' ? (
             <ListView units={visibleUnits} config={config} />
           ) : layoutMode === 'default' ? (

@@ -384,7 +384,45 @@ export function StorageTypeLocations({
     return () => { cancelled = true; };
   }, [resolvedSlug, amenityName, propertyIds, resolvedBasePath, resolvedCollection, resolvedFeatureCollection, inEditor]);
 
-  if (result.status === 'loading') return null;
+  const explicitHeading = plainText(heading).trim();
+  const storageTypeTitle = titleFromSlug(resolvedSlug) || 'Storage';
+  const title = explicitHeading || `Find ${storageTypeTitle} Near You`;
+
+  // Built from props alone, so it is shown while the rows load as well.
+  const header = (
+    <>
+      <h2 className="stl-heading">{title}</h2>
+      <p className="stl-sub">
+        {emphasizedCopy ? <strong className="stl-sub-emphasis">{emphasizedCopy}</strong> : null}
+        {emphasizedCopy && regularCopy ? ' ' : null}
+        {regularCopy}
+      </p>
+    </>
+  );
+
+  /* Reading the collections: the real heading plus one placeholder state
+     group (a state bar and three rows, each the height of a real row). This
+     used to render nothing, so the section arrived a few hundred pixels tall
+     out of a 0px box and pushed the page down. A storage type no facility
+     offers still collapses afterwards — but the common case no longer moves. */
+  if (result.status === 'loading') {
+    return (
+      <section className="stl" aria-busy="true">
+        {header}
+        <div className="stl-group" aria-hidden="true">
+          <span className="stl-skel stl-skel--state" />
+          <ul className="stl-list">
+            {[72, 60, 66].map((w) => (
+              <li className="stl-item" key={w}>
+                <span className="stl-skel stl-skel--pin" />
+                <span className="stl-skel stl-skel--row" style={{ width: `${w}%` }} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    );
+  }
 
   if (result.status === 'error') {
     if (!result.showDiagnostic) return null;
@@ -400,18 +438,9 @@ export function StorageTypeLocations({
   // an empty list is what the legacy site does, and it reads as broken.
   if (!result.facilities.length) return null;
 
-  const explicitHeading = plainText(heading).trim();
-  const storageTypeTitle = titleFromSlug(resolvedSlug) || 'Storage';
-  const title = explicitHeading || `Find ${storageTypeTitle} Near You`;
-
   return (
     <section className="stl">
-      <h2 className="stl-heading">{title}</h2>
-      <p className="stl-sub">
-        {emphasizedCopy ? <strong className="stl-sub-emphasis">{emphasizedCopy}</strong> : null}
-        {emphasizedCopy && regularCopy ? ' ' : null}
-        {regularCopy}
-      </p>
+      {header}
       {groupByState(result.facilities).map(([state, list]) => (
         <div className="stl-group" key={state}>
           <h3 className="stl-state">{state}</h3>

@@ -124,6 +124,23 @@ function Card({ type }: { type: StorageType }) {
   );
 }
 
+/**
+ * Stand-in card while the page tree and enrichment are read. The real .st-card
+ * box (its 500px min-height and the 234px media block do the sizing), with
+ * grey bars where the copy goes.
+ */
+function SkeletonCard() {
+  return (
+    <div className="st-card st-card--skel" aria-hidden="true">
+      <div className="st-card-media" />
+      <div className="st-card-body">
+        <span className="st-skel st-skel--title" />
+        {[100, 94, 70].map((w) => <span className="st-skel st-skel--text" key={w} style={{ width: `${w}%` }} />)}
+      </div>
+    </div>
+  );
+}
+
 /** Mobile-only section mark drawn beside the related-section heading. */
 function StorageTypesMark() {
   return (
@@ -238,7 +255,49 @@ export function StorageTypes({
     [heading, isRelated],
   );
 
-  if (types === null) return null;
+  const indexHeader = (
+    <header className="st-index-header">
+      <h1 className="st-index-title">{title}</h1>
+      <p className="st-index-subheading">{resolvedIndexSubheading}</p>
+    </header>
+  );
+  const relatedHeading = <h2 className="st-heading"><StorageTypesMark /><span>{title}</span></h2>;
+
+  /* Still reading the page tree / enrichment: the heading (props only) and
+     placeholder cards in the loaded containers. This used to render nothing,
+     so the whole section — 500px cards and an 80px title on the index —
+     arrived out of a 0px box. Three cards: the index's first row at desktop
+     widths, and the related row's default `limit`. An empty result still
+     collapses afterwards, as before. */
+  if (types === null) {
+    if (!isRelated) {
+      return (
+        <section className="st st--index" aria-busy="true">
+          {indexHeader}
+          <div className="st-grid">
+            {[0, 1, 2].map((i) => <SkeletonCard key={i} />)}
+          </div>
+        </section>
+      );
+    }
+    // One slide per view on a phone (the rest clipped, as the carousel's
+    // are) plus the dots row the loaded carousel draws whenever it has more
+    // than one card.
+    const slides = Math.max(perView, 1);
+    return (
+      <section className="st st--related" aria-busy="true">
+        {relatedHeading}
+        <div className="st-track">
+          <div className="st-rail">
+            {Array.from({ length: slides }, (_, i) => (
+              <div className="st-slide" key={i}><SkeletonCard /></div>
+            ))}
+          </div>
+        </div>
+        {isNarrow && slides > 1 ? <div className="st-dots st-dots--skel" aria-hidden="true" /> : null}
+      </section>
+    );
+  }
   // No pages under the route is the honest "this site has no storage types",
   // and a heading over an empty grid reads as broken.
   if (!list.length) return null;
@@ -246,10 +305,7 @@ export function StorageTypes({
   if (!isRelated) {
     return (
       <section className="st st--index">
-        <header className="st-index-header">
-          <h1 className="st-index-title">{title}</h1>
-          <p className="st-index-subheading">{resolvedIndexSubheading}</p>
-        </header>
+        {indexHeader}
         <div className="st-grid">
           {list.map((t) => (
             <Card type={t} key={t.slug} />
@@ -266,7 +322,7 @@ export function StorageTypes({
 
   return (
     <section className="st st--related">
-      <h2 className="st-heading"><StorageTypesMark /><span>{title}</span></h2>
+      {relatedHeading}
       <div className="st-track">
         <div
           className="st-rail"
