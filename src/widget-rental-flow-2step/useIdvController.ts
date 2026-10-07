@@ -91,6 +91,7 @@ export function useIdvController(options: IdvControllerOptions) {
 
   useEffect(() => {
     if (!options.enabled || !options.api || !options.identity) {
+      setVerificationUrl(undefined);
       if (state.kind !== 'idle') dispatch({ type: 'reset' });
       return undefined;
     }
