@@ -190,7 +190,11 @@ export function useIdvController(options: IdvControllerOptions) {
 
   const resend = useCallback(async () => {
     if (state.kind !== 'pending' || !options.api || !options.identity) return undefined;
-    const generation = state.generation;
+    // Move to a new generation BEFORE the replacement starts: the old session
+    // is still being polled, and a late failed/expired from it must not end the
+    // flow under the session that was just texted.
+    const generation = state.generation + 1;
+    dispatch({ type: 'resend', generation: state.generation });
     const started = await options.api.start({ companyId, propertyId }, options.identity, device);
     const safeUrl = allowedVerificationUrl(started.verificationUrl, allowedHosts);
     if (safeUrl) setVerificationUrl(safeUrl.href);

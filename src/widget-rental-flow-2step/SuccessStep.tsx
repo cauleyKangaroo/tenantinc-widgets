@@ -163,6 +163,7 @@ export function SuccessStep({
      how the tenant overrides what the scan read off the card. One flag each,
      because the two boxes are independent in the frame. */
   const [mailEditing, setMailEditing] = useState(false);
+  const [mailFromScan, setMailFromScan] = useState(false);
   const [dlEditing, setDlEditing] = useState(false);
   /* The two detail groups belong to every state once a choice is made:
      complete (the scan supplies them, and they can be overridden), and
@@ -185,7 +186,10 @@ export function SuccessStep({
   });
   const idvEnabled = idvDecision.enabled;
   const detailsShown = idvDecision.detailsShown;
-  const mailReadOnly = displayedIdv === 'complete' && !mailEditing;
+  // Read-only only when the scan SUPPLIED the address. A connected scan returns
+  // licence details but no address; locking an empty field would leave Get
+  // Access failing its required-address check with nothing to fill in.
+  const mailReadOnly = displayedIdv === 'complete' && mailFromScan && !mailEditing;
   const dlReadOnly = displayedIdv === 'complete' && !dlEditing;
 
   /* Pending: a session already exists, so reopen it rather than start a new
@@ -309,12 +313,14 @@ export function SuccessStep({
       setDlNumber(licence?.number ?? '');
       setDlState(licence?.state ?? '');
       setDlExp(licence?.expiration ?? '');
+      setMailFromScan(false);
     } else {
       setMailAddress(IDV_SOURCE.mailing.address);
       setMailCity(IDV_SOURCE.mailing.city);
       setMailState(IDV_SOURCE.mailing.state);
       setMailZip(IDV_SOURCE.mailing.zip);
       setMailPicked(true);
+      setMailFromScan(true);
       setDlNumber(IDV_SOURCE.licence.number);
       setDlState(IDV_SOURCE.licence.state);
       setDlExp(IDV_SOURCE.licence.exp);

@@ -84,6 +84,43 @@ function testReducer() {
   assert.equal(latePriorAttempt, checkingAgain);
 }
 
+function testAuthenticationAndResend() {
+  const unauth = { idvId: 'idv_old', authenticated: false };
+  const auth = { idvId: 'idv_ok', authenticated: true };
+
+  // An unauthenticated result never completes — complete is what reveals the access code.
+  const checking = idvReducer(initialIdvState, { type: 'check' });
+  assert.deepEqual(
+    idvReducer(checking, { type: 'complete', generation: checking.generation, result: unauth }),
+    { kind: 'ready', generation: checking.generation },
+    'an old failed verification found by lookup leaves the renter able to verify now',
+  );
+  const ready = idvReducer(checking, { type: 'not-verified', generation: checking.generation });
+  const starting = idvReducer(ready, { type: 'start', generation: ready.generation });
+  const pending = idvReducer(starting, { type: 'pending', generation: starting.generation, idvId: 'idv_a', expiresAt: 1_900_000_000 });
+  assert.deepEqual(
+    idvReducer(pending, { type: 'complete', generation: pending.generation, result: unauth }),
+    { kind: 'failed', generation: pending.generation, reason: 'not-authenticated' },
+    'a live session that comes back unauthenticated is a failure',
+  );
+  assert.equal(idvReducer(pending, { type: 'complete', generation: pending.generation, result: auth }).kind, 'complete');
+
+  // Resend moves to a new generation before the replacement starts, so the old
+  // session's late failure is ignored and the new session's details are kept.
+  const resent = idvReducer(pending, { type: 'resend', generation: pending.generation });
+  assert.equal(resent.kind, 'pending');
+  assert.equal(resent.generation, pending.generation + 1);
+  assert.equal(resent.idvId, 'idv_a');
+  assert.equal(idvReducer(resent, { type: 'failed', generation: pending.generation }), resent, 'old session failure ignored');
+  assert.equal(idvReducer(resent, { type: 'expired', generation: pending.generation }), resent, 'old session expiry ignored');
+  const refreshed = idvReducer(resent, {
+    type: 'refresh-pending', generation: resent.generation, idvId: 'idv_b', expiresAt: 1_900_000_100, notificationStatus: 'sent',
+  });
+  assert.equal(refreshed.idvId, 'idv_b');
+  assert.equal(refreshed.generation, resent.generation);
+  assert.equal(idvReducer(starting, { type: 'resend', generation: starting.generation }), starting, 'resend only applies to a pending session');
+}
+
 function testPresentation() {
   assert.equal(RENTAL_IDV_REQUIREMENT, 'disabled', 'no setting (or None) never starts a verification');
 
@@ -294,6 +331,7 @@ function testCaptureDevice() {
 
 (async () => {
   testReducer();
+  testAuthenticationAndResend();
   testPresentation();
   testUrls();
   await testPolling();

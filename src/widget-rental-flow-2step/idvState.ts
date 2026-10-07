@@ -32,6 +32,8 @@ export type IdvAction =
   | { type: 'expired'; generation: number }
   | { type: 'error'; generation: number; retryable: boolean }
   | { type: 'retry'; generation: number }
+  /** Starts a replacement session: a new generation, so the old one's late results are ignored. */
+  | { type: 'resend'; generation: number }
   | { type: 'reset' };
 
 export const initialIdvState: IdvState = { kind: 'idle', generation: 0 };
@@ -70,6 +72,15 @@ export function idvReducer(state: IdvState, action: IdvAction): IdvState {
         ? { ...state, idvId: action.idvId, expiresAt: action.expiresAt, notificationStatus: action.notificationStatus }
         : state;
     case 'complete':
+      // Only an AUTHENTICATED result completes. Complete is what reveals the
+      // access code, so an unauthenticated one must never reach it: from a
+      // lookup (an old, failed verification on the contact) the renter can
+      // simply verify now; from a live session it is a failure.
+      if (!action.result.authenticated) {
+        if (state.kind === 'checking') return { kind: 'ready', generation: state.generation };
+        if (state.kind === 'pending') return { kind: 'failed', generation: state.generation, reason: 'not-authenticated' };
+        return state;
+      }
       return state.kind === 'checking' || state.kind === 'pending'
         ? { kind: 'complete', generation: state.generation, result: action.result }
         : state;
@@ -83,6 +94,8 @@ export function idvReducer(state: IdvState, action: IdvAction): IdvState {
       return state.kind === 'checking' || state.kind === 'starting' || state.kind === 'pending'
         ? { kind: 'error', generation: state.generation, retryable: action.retryable }
         : state;
+    case 'resend':
+      return state.kind === 'pending' ? { ...state, generation: state.generation + 1 } : state;
     case 'retry':
       return state.kind === 'failed' || state.kind === 'expired' || state.kind === 'error'
         ? { kind: 'ready', generation: state.generation }
