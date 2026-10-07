@@ -203,6 +203,7 @@ export function SuccessStep({
   };
 
   const beginVerification = () => {
+    if (idvServiceConnected && remoteKind !== 'ready') return;
     if (!handheld) setIdvModal(true);
     if (idvServiceConnected) void idvController?.start();
   };

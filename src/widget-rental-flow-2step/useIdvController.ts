@@ -43,7 +43,7 @@ export interface IdvControllerOptions {
   allowedVerificationHosts: readonly string[];
   /** Persist the completed checkout before a same-tab navigation leaves it.
    *  Receives the pending verification so the snapshot can expire with it. */
-  beforeSameTabNavigation?: (pending: { idvId: string; expiresAt: number }) => void;
+  beforeSameTabNavigation?: (pending: { idvId: string; expiresAt: number }) => boolean;
 }
 
 const CAPTURE_QUERIES = ['(max-width: 768px)', '(pointer: coarse)'] as const;
@@ -152,11 +152,15 @@ export function useIdvController(options: IdvControllerOptions) {
       },
       onFailed(reason) {
         if (key) idvSessionRemove(key);
-        dispatch({ type: 'failed', generation: state.generation, reason });
+        dispatch(state.resendUncertain
+          ? { type: 'error', generation: state.generation, retryable: false }
+          : { type: 'failed', generation: state.generation, reason });
       },
       onExpired() {
         if (key) idvSessionRemove(key);
-        dispatch({ type: 'expired', generation: state.generation });
+        dispatch(state.resendUncertain
+          ? { type: 'error', generation: state.generation, retryable: false }
+          : { type: 'expired', generation: state.generation });
       },
       onError() {
         // Scheduler owns retry/backoff. State remains pending and observable.
@@ -209,8 +213,9 @@ export function useIdvController(options: IdvControllerOptions) {
       // the renter on the modal. Opening the hosted page as well put Incode's
       // own QR screen in front of them, which the design never asks for.
       if (sameTab) {
-        beforeSameTabNavigation?.({ idvId: started.idvId, expiresAt: started.expiresAt });
-        window.location.assign(safeUrl.href);
+        if (beforeSameTabNavigation?.({ idvId: started.idvId, expiresAt: started.expiresAt }) !== false) {
+          window.location.assign(safeUrl.href);
+        }
       }
     } catch (error) {
       // A failed POST may already have sent a text or created a billable
@@ -283,7 +288,10 @@ export function useIdvController(options: IdvControllerOptions) {
   const continueInThisTab = useCallback((): boolean => {
     if (!latestOptions.current.enabled || state.kind !== 'pending' || !verificationUrl
       || Date.now() >= state.expiresAt * 1_000) return false;
-    beforeSameTabNavigation?.({ idvId: state.idvId, expiresAt: state.expiresAt });
+    if (beforeSameTabNavigation?.({ idvId: state.idvId, expiresAt: state.expiresAt }) === false) {
+      window.open(verificationUrl, '_blank', 'noopener');
+      return true;
+    }
     window.location.assign(verificationUrl);
     return true;
   }, [beforeSameTabNavigation, state, verificationUrl]);

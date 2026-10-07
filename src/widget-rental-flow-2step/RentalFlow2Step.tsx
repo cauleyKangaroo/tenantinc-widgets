@@ -778,14 +778,11 @@ function readIdvReturnSnapshot(propertyId: string): IdvReturnSnapshot | undefine
   try {
     const value = JSON.parse(idvSessionGet(idvReturnKey(propertyId)) ?? 'null') as IdvReturnSnapshot | null;
     if (!value?.contact?.first || !value.contact.last || !value.contact.email || !value.contact.phone) return undefined;
-    // Verification expiry does not undo a completed payment/lease. Keep its
-    // recovery snapshot; the controller separately expires the IDV session.
-    if (typeof value.expiresAt !== 'number' || !Number.isFinite(value.expiresAt)) {
-      idvSessionRemove(idvReturnKey(propertyId));
-      return undefined;
-    }
-    // An expired demo snapshot has no completed rental to recover.
-    if (!value.rental?.ok && Date.now() >= value.expiresAt * 1_000) {
+    // The snapshot holds renter details and the access code, so it lives no
+    // longer than the verification it was written for; the lease itself is
+    // already on the backend.
+    if (typeof value.expiresAt !== 'number' || !Number.isFinite(value.expiresAt)
+      || Date.now() >= value.expiresAt * 1_000) {
       idvSessionRemove(idvReturnKey(propertyId));
       return undefined;
     }
@@ -796,11 +793,11 @@ function readIdvReturnSnapshot(propertyId: string): IdvReturnSnapshot | undefine
   }
 }
 
-function writeIdvReturnSnapshot(propertyId: string, value: IdvReturnSnapshot): void {
-  if (!propertyId) return;
-  // Best effort: written just before the mobile hand-off to an already-started,
-  // billed session. A storage failure loses reload recovery, never the hand-off.
-  idvSessionSet(idvReturnKey(propertyId), JSON.stringify(value));
+/** False when the snapshot could not be saved: the caller must not leave the
+ *  page in the same tab, or the renter returns to a fresh checkout. */
+function writeIdvReturnSnapshot(propertyId: string, value: IdvReturnSnapshot): boolean {
+  if (!propertyId) return false;
+  return idvSessionSet(idvReturnKey(propertyId), JSON.stringify(value));
 }
 
 function clearIdvReturnSnapshot(propertyId: string): void {
@@ -1382,9 +1379,9 @@ export function RentalFlow2Step({
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
-  const persistMobileIdvReturn = useCallback((pending: { expiresAt: number }) => {
-    if (!rentedContact) return;
-    writeIdvReturnSnapshot(effectivePropertyId, {
+  const persistMobileIdvReturn = useCallback((pending: { expiresAt: number }): boolean => {
+    if (!rentedContact) return false;
+    return writeIdvReturnSnapshot(effectivePropertyId, {
       rental,
       contact: rentedContact,
       chosen: chosenSections,

@@ -9,9 +9,9 @@ export interface IdvPresentationDecision {
 }
 
 /**
- * Pure presentation policy. Production always supplies the universal required
- * rule; keeping the value explicit lets the editor exercise the disabled
- * presentation without changing the screen's state rules.
+ * Pure presentation policy. The requirement is the property's own setting
+ * (disabled / optional / required); the editor preview can override it to
+ * exercise each presentation without changing the screen's state rules.
  */
 export function resolveIdvPresentation(
   requirement: IdvRequirement,
