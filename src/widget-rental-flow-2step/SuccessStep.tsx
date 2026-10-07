@@ -205,6 +205,11 @@ export function SuccessStep({
     if (idvServiceConnected) void idvController?.start();
   };
 
+  const verifyNow = () => {
+    if (idvServiceConnected && remoteKind === 'pending') continueVerification();
+    else beginVerification();
+  };
+
   useEffect(() => {
     if (!idvServiceConnected) return;
     if (remoteKind === 'complete' || remoteKind === 'failed' || remoteKind === 'expired' || remoteKind === 'error') {
@@ -398,7 +403,7 @@ export function SuccessStep({
               <button
                 type="button"
                 className="rf-sx-btn rf-sx-btn--solid"
-                onClick={idvServiceConnected && remoteKind === 'pending' ? continueVerification : beginVerification}
+                onClick={verifyNow}
                 disabled={idvServiceConnected && remoteKind !== 'ready' && remoteKind !== 'pending'}
               >
                 {idvServiceConnected && remoteKind === 'pending'
@@ -464,7 +469,7 @@ export function SuccessStep({
             <button
               type="button"
               className="rf-sx-btn rf-sx-btn--solid rf-sx-btn--stack"
-              onClick={() => { setLocalIdvChoice(undefined); setIdv('choose'); beginVerification(); }}
+              onClick={() => { setLocalIdvChoice(undefined); setIdv('choose'); verifyNow(); }}
             >
               <span className="rf-sx-btn-lede">Save time and skip the office!</span>
               <span className="rf-sx-btn-main">Verify ID Now</span>
@@ -523,7 +528,7 @@ export function SuccessStep({
             <button
               type="button"
               className="rf-sx-idv-inline"
-              onClick={() => { setLocalIdvChoice(undefined); setIdv('choose'); beginVerification(); }}
+              onClick={() => { setLocalIdvChoice(undefined); setIdv('choose'); verifyNow(); }}
             >
               Verify ID Now
             </button>

@@ -157,6 +157,7 @@ export function useIdvController(options: IdvControllerOptions) {
   const start = useCallback(async () => {
     if (state.kind !== 'ready' || !startApi || !startIdentity) return;
     const generation = state.generation;
+    setVerificationUrl(undefined);
     dispatch({ type: 'start', generation });
     try {
       const started = await startApi.start({ companyId, propertyId }, startIdentity, device);
@@ -206,7 +207,7 @@ export function useIdvController(options: IdvControllerOptions) {
     dispatch({ type: 'resend', generation: state.generation });
     const started = await options.api.start({ companyId, propertyId }, options.identity, device);
     const safeUrl = allowedVerificationUrl(started.verificationUrl, allowedHosts);
-    if (safeUrl) setVerificationUrl(safeUrl.href);
+    setVerificationUrl(safeUrl?.href);
     if (key) {
       idvSessionSet(key, JSON.stringify({
         idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl?.href,
