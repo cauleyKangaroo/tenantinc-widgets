@@ -184,6 +184,14 @@ export function HomepageSearch({
   siteId,
 }: HomepageSearchProps) {
   const editorPreview = boolProp(inEditor);
+  const [locationDebug] = useState(() => new URLSearchParams(window.location.search).get('debugLocation') === '1');
+  const [locationEvents, setLocationEvents] = useState<string[]>([]);
+  const debugLocation = useCallback((message: string) => {
+    if (!locationDebug) return;
+    const entry = `${new Date().toLocaleTimeString()} ${message}`;
+    setLocationEvents((events) => [...events.slice(-19), entry]);
+    console.info('[HomepageSearch location debug]', message);
+  }, [locationDebug]);
   const [q, setQ] = useState('');
   const [type, setType] = useState<NavUnitType | ''>('');
   const [selectedTarget, setSelectedTarget] = useState<SearchTarget>();
@@ -224,6 +232,7 @@ export function HomepageSearch({
 
   useEffect(() => {
     let cancelled = false;
+    debugLocation(`Loading collection ${propertiesCollection}; secure=${window.isSecureContext}; geolocation=${Boolean(navigator.geolocation)}; embedded=${window.self !== window.top}`);
     setInventoryStatus('loading');
     void fetchLocationTree('#04 homepage-search', {
       collectionName: propertiesCollection,
@@ -232,6 +241,7 @@ export function HomepageSearch({
     }).then((tree) => {
       if (cancelled) return;
       if (!tree.length) {
+        debugLocation('Collection returned no usable location tree');
         setInventoryStatus('unavailable');
         return;
       }
@@ -273,14 +283,16 @@ export function HomepageSearch({
       }
       setTargets(mapped);
       setGeoTargets(mappedGeo);
+      debugLocation(`Collection loaded: ${mapped.filter((target) => target.kind === 'property').length} facilities, ${mappedGeo.length} with usable numeric coordinates`);
       setInventoryStatus('loaded');
     }).catch((error) => {
       if (cancelled) return;
       console.warn('[HomepageSearch] Locations could not be loaded', error);
+      debugLocation(`Collection failed: ${error instanceof Error ? error.message : 'unknown error'}`);
       setInventoryStatus('unavailable');
     });
     return () => { cancelled = true; };
-  }, [propertiesCollection, searchUrl, locationsUrl]);
+  }, [propertiesCollection, searchUrl, locationsUrl, debugLocation]);
 
   const parts = storageTypes.split(',').map((s) => s.trim()).filter(Boolean);
   const typePlaceholder = parts[0] ?? 'Storage Type';
@@ -411,6 +423,7 @@ export function HomepageSearch({
   }, []);
 
   const cancelCurrentLocation = () => {
+    debugLocation('Location request invalidated by typing, selection, or navigation');
     locationRequest.current += 1;
     setPendingCoordinates(undefined);
     setLocating(false);
@@ -422,11 +435,13 @@ export function HomepageSearch({
     cancelCurrentLocation();
     chooseCity(target);
     let url: URL;
-    try { url = new URL(target.href, window.location.origin); } catch { return; }
-    if (url.origin !== window.location.origin) return;
+    try { url = new URL(target.href, window.location.origin); } catch { debugLocation('Navigation stopped: invalid destination URL'); return; }
+    if (url.origin !== window.location.origin) { debugLocation('Navigation stopped: destination is cross-origin'); return; }
     if (type) url.searchParams.set('sl_types', type);
     remember(target);
-    window.location.assign(editorSafeHref(url.pathname + url.search, editorPreview, siteId));
+    const destination = editorSafeHref(url.pathname + url.search, editorPreview, siteId);
+    debugLocation(`Navigating to ${destination}`);
+    window.location.assign(destination);
   };
 
   // Current Location goes to the nearest location the same way a picked
@@ -444,6 +459,7 @@ export function HomepageSearch({
 
   useEffect(() => {
     if (!pendingCoordinates || inventoryStatus === 'loading') return;
+    debugLocation(`Deferred location lookup: inventory=${inventoryStatus}, coordinate targets=${geoTargets.length}`);
     const candidates = type ? geoTargets.filter((candidate) => candidate.types.includes(type)) : geoTargets;
     if (!candidates.length) {
       console.warn('[HomepageSearch] Current Location: no properties with usable coordinates');
@@ -454,35 +470,48 @@ export function HomepageSearch({
     navigateRef.current(nearestCandidate(candidates, pendingCoordinates).target);
     setPendingCoordinates(undefined);
     setLocating(false);
-  }, [pendingCoordinates, inventoryStatus, geoTargets, type]);
+  }, [pendingCoordinates, inventoryStatus, geoTargets, type, debugLocation]);
+
+  useEffect(() => {
+    if (!locationDebug || !locating) return undefined;
+    const timer = window.setTimeout(() => debugLocation('Still waiting after 12 seconds: geolocation callback or collection has not completed'), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [locationDebug, locating, debugLocation]);
 
   const chooseCurrentLocation = () => {
+    debugLocation(`Current Location click: busy=${locating}, inventory=${inventoryStatus}, coordinate targets=${geoTargets.length}, filter=${type || 'all'}`);
     if (locating) return;
     if (!navigator.geolocation) {
+      debugLocation('Stopped: geolocation API unavailable');
       console.warn('[HomepageSearch] Current Location: browser geolocation is unavailable');
       return;
     }
     setLocating(true);
     const request = ++locationRequest.current;
+    debugLocation(`Request ${request}: asking browser for position (10-second timeout)`);
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        if (request !== locationRequest.current) return;
+        if (request !== locationRequest.current) { debugLocation(`Request ${request}: position ignored because request was cancelled`); return; }
         const current = { latitude: coords.latitude, longitude: coords.longitude };
         const candidates = type ? geoTargets.filter((candidate) => candidate.types.includes(type)) : geoTargets;
+        debugLocation(`Request ${request}: position received (accuracy ${Math.round(coords.accuracy)}m); matching facilities=${candidates.length}; captured inventory=${inventoryStatus}`);
         if (candidates.length) {
           navigateRef.current(nearestCandidate(candidates, current).target);
           setLocating(false);
           return;
         }
         if (inventoryStatus === 'loading') {
+          debugLocation('Position saved; waiting for collection');
           setPendingCoordinates(current);
           return;
         }
         console.warn('[HomepageSearch] Current Location: no properties with usable coordinates');
+        debugLocation('Stopped: no facilities with usable coordinates for selected filter');
         setLocating(false);
       },
       (error) => {
-        if (request !== locationRequest.current) return;
+        if (request !== locationRequest.current) { debugLocation(`Request ${request}: error ignored because request was cancelled`); return; }
+        debugLocation(`Request ${request}: geolocation error ${error.code} (${error.code === 1 ? 'permission/policy denied' : error.code === 2 ? 'position unavailable' : 'timeout'}): ${error.message}`);
         console.warn(
           `[HomepageSearch] Current Location: geolocation failed (code ${error.code}: ${error.message || 'no browser message'})`,
         );
@@ -575,6 +604,7 @@ export function HomepageSearch({
       style={style}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          debugLocation(`Search lost focus; closing dropdown (next focus=${e.relatedTarget ? 'outside widget' : 'not reported by browser'})`);
           setSuggestionsOpen(false);
           setTypeOpen(false);
         }
@@ -701,7 +731,20 @@ export function HomepageSearch({
           {!q.trim() && (
             <>
               <li role="presentation">
-                <button className="hs-current-location" type="button" disabled={locating} onClick={chooseCurrentLocation}>
+                <button
+                  className="hs-current-location"
+                  type="button"
+                  disabled={locating}
+                  onPointerDown={(e) => {
+                    // Safari can report null relatedTarget when tapping this
+                    // button. Keep input focus so blur cannot remove the menu
+                    // before the subsequent click requests geolocation.
+                    e.preventDefault();
+                    debugLocation('Current Location pointer-down received; preserving input focus');
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={chooseCurrentLocation}
+                >
                   <MapPinSolidIcon size={24} />
                   <span>Current Location</span>
                 </button>
@@ -748,6 +791,15 @@ export function HomepageSearch({
         )}
       </div>
 
+      {locationDebug && (
+        <aside className="hs-location-debug" aria-label="Temporary Current Location diagnostics">
+          <strong>Current Location debug</strong>
+          <p>Inventory: {inventoryStatus} · Facilities with coordinates: {geoTargets.length} · Matching filter: {type ? geoTargets.filter((target) => target.types.includes(type)).length : geoTargets.length} · Busy: {locating ? 'yes' : 'no'}</p>
+          <ol aria-live="polite" aria-relevant="additions">
+            {locationEvents.map((event, index) => <li key={`${index}-${event}`}>{event}</li>)}
+          </ol>
+        </aside>
+      )}
     </div>
   );
 }
