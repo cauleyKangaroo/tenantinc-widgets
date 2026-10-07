@@ -190,9 +190,7 @@ export function IdVerifyModal({
           </button>
 
           <p className="rf-idm-para rf-idm-foot">
-            If the text link you received did not redirect you to our identity verification tool, then
-            enable pop-ups in your browser settings and try again.{' '}
-            <a href="#pop-ups" onClick={(e) => e.preventDefault()}>Click here to see how to enable pop-ups.</a>
+            Didn&rsquo;t get the text? Tap Resend Text, or scan the code above with your phone&rsquo;s camera.
           </p>
 
           {/* ── SCAFFOLD ──────────────────────────────────────────────────

@@ -767,6 +767,26 @@ interface IdvReturnSnapshot {
   /** The pending verification this hand-off belongs to. Epoch SECONDS, the
    *  unit the API and the poller already use. */
   expiresAt: number;
+  /** One-time token also placed on the page URL just before the hand-off. */
+  token?: string;
+}
+
+const IDV_RETURN_PARAM = 'idv_return';
+
+function urlReturnToken(): string | null {
+  try { return new URLSearchParams(window.location.search).get(IDV_RETURN_PARAM); } catch { return null; }
+}
+
+function setUrlReturnToken(token: string | undefined): boolean {
+  try {
+    const url = new URL(window.location.href);
+    if (token) url.searchParams.set(IDV_RETURN_PARAM, token);
+    else url.searchParams.delete(IDV_RETURN_PARAM);
+    window.history.replaceState(window.history.state, '', url.toString());
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function idvReturnKey(propertyId: string): string {
@@ -778,6 +798,12 @@ function readIdvReturnSnapshot(propertyId: string): IdvReturnSnapshot | undefine
   try {
     const value = JSON.parse(idvSessionGet(idvReturnKey(propertyId)) ?? 'null') as IdvReturnSnapshot | null;
     if (!value?.contact?.first || !value.contact.last || !value.contact.email || !value.contact.phone) return undefined;
+    // Only the load that comes back from this tab's own hand-off restores it;
+    // any other visit to the property's checkout starts fresh.
+    if (!value.token || urlReturnToken() !== value.token) {
+      idvSessionRemove(idvReturnKey(propertyId));
+      return undefined;
+    }
     // The snapshot holds renter details and the access code, so it lives no
     // longer than the verification it was written for; the lease itself is
     // already on the backend.
@@ -797,12 +823,17 @@ function readIdvReturnSnapshot(propertyId: string): IdvReturnSnapshot | undefine
  *  page in the same tab, or the renter returns to a fresh checkout. */
 function writeIdvReturnSnapshot(propertyId: string, value: IdvReturnSnapshot): boolean {
   if (!propertyId) return false;
-  return idvSessionSet(idvReturnKey(propertyId), JSON.stringify(value));
+  const token = makeConfirmationNonce();
+  if (!idvSessionSet(idvReturnKey(propertyId), JSON.stringify({ ...value, token }))) return false;
+  if (setUrlReturnToken(token)) return true;
+  idvSessionRemove(idvReturnKey(propertyId));
+  return false;
 }
 
 function clearIdvReturnSnapshot(propertyId: string): void {
   if (!propertyId) return;
   idvSessionRemove(idvReturnKey(propertyId));
+  if (urlReturnToken()) setUrlReturnToken(undefined);
 }
 
 /** One-time random id for the confirmation payload handoff. */
@@ -1413,6 +1444,9 @@ export function RentalFlow2Step({
      is granted. Starts true so nothing changes for a flow that never renders
      that step. */
   const [idVerified, setIdVerified] = useState(true);
+  useEffect(() => {
+    if (idvController.state.kind === 'complete') setIdVerified(true);
+  }, [idvController.state.kind]);
   // Office/Gate hours fallback for the confirmation page: the immutable success
   // snapshot occasionally predates propertyInfo loading, so it can lack hours.
   // Hours are read-only + non-sensitive (unlike the money block), so it's safe
