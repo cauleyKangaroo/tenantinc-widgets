@@ -55,6 +55,7 @@ import {
   editFormFrom, updateFromEditForm,
   primaryContactFrom, alternateContactFrom, documentsFrom,
 } from './contactMapping';
+import { spacesFrom, propertiesFrom } from './leaseMapping';
 import type { AccountDocument, EditForm } from './data';
 import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROMO_SUPPLIES, PROPERTIES, SPACES, USER } from './data';
 
@@ -255,6 +256,42 @@ export function MyAccount({
     () => (record ? alternateContactFrom(record) : undefined),
     [record],
   );
+  /*
+   * THE SIGNED-IN CONTACT'S OWN UNITS.
+   *
+   * This page rendered `SPACES` from data.ts whatever account was open, so the
+   * login picker changed who the page said you were and not a single unit,
+   * balance or rent. Verified live: the three contacts behind one email hold 1,
+   * 3 and 1 leases, and all three showed the same two invented units.
+   *
+   * The sample survives only where there is no record — the harness and the
+   * Duda editor — so the layout can still be worked on without a session.
+   */
+  const spaces = useMemo(() => {
+    if (!record) return SPACES;
+    // SPACES[0] carries the frame's own contact; reuse it rather than export a
+    // second copy of the same sample from data.ts.
+    const fallback = SPACES[0]?.primaryContact ?? { name: '' };
+    const mapped = spacesFrom(record, realContact ?? fallback, realAlternate ?? null);
+    /*
+     * A contact with no leases gets an EMPTY list, not the sample. Someone who
+     * has closed their last unit must not be shown a stranger's storage.
+     */
+    return mapped;
+  }, [record, realContact, realAlternate]);
+
+  const properties = useMemo(
+    () => (record ? propertiesFrom(record) : PROPERTIES),
+    [record],
+  );
+
+  /*
+   * Keep the selection on a unit that exists. It starts undefined and settles
+   * on the first real one; switching account replaces the whole list, and a
+   * stale id would leave the panel on a unit the new contact does not rent.
+   */
+  const space = spaces.find((s) => s.id === selectedId) ?? spaces[0];
+
   const realDocuments = useMemo(
     () => {
       if (!record) return undefined;
@@ -328,14 +365,12 @@ export function MyAccount({
       setSaving(false);
     }
   };
-  const [selectedId, setSelectedId] = useState(SPACES[0]?.id);
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [activityOpen, setActivityOpen] = useState(false);
-
-  const space = SPACES.find((s) => s.id === selectedId) ?? SPACES[0];
   /* Make a Payment lists EVERY space with something outstanding, not just the
      one whose Pay Now was clicked — see the panel's header note. A space with a
      zero balance has nothing to pay and would only be an unticked distraction. */
-  const outstanding = SPACES.filter((s) => s.balance.amount.replace(/[^0-9.]/g, '') !== ''
+  const outstanding = spaces.filter((s) => s.balance.amount.replace(/[^0-9.]/g, '') !== ''
     && Number(s.balance.amount.replace(/[^0-9.-]/g, '')) > 0);
 
   /* The ONE selection action, shared by a unit block and its "Account Info"
@@ -353,7 +388,7 @@ export function MyAccount({
      is how you switch between them; on a lone unit it appears only on the
      payment screen, as the way back. That is exactly what the three frames
      draw — 8815-117093 has two buttons, 8815-115354 none, 9030-31458 one. */
-  const showAccountInfo = SPACES.length > 1 || view !== 'account';
+  const showAccountInfo = spaces.length > 1 || view !== 'account';
 
   /*
    * The signed-in contact's own first name, when there is a session.
@@ -478,15 +513,15 @@ export function MyAccount({
         <aside className="ma-side">
           {/* One card per property, holding every unit rented there. Properties
               with no units are skipped rather than drawn empty. */}
-          {PROPERTIES.map((property) => {
-            const units = SPACES.filter((s) => s.propertyId === property.id);
+          {properties.map((property) => {
+            const units = spaces.filter((s) => s.propertyId === property.id);
             if (units.length === 0) return null;
             return (
               <PropertyCard
                 key={property.id}
                 property={property}
                 units={units}
-                selectedId={selectedId}
+                selectedId={space?.id ?? ''}
                 onSelect={selectUnit}
                 showAccountInfo={showAccountInfo}
               />
