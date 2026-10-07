@@ -154,7 +154,11 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
           const raw = await response.json() as unknown;
           const parsed = operation(raw);
           if (!response.ok || parsed.status >= 400) {
-            throw new IdvRequestError(parsed.msg || `ID verification request failed (${parsed.status}).`, false);
+            const status = response.ok ? parsed.status : response.status ?? parsed.status;
+            // A gateway or upstream 5xx can occur after capture/SMS succeeds.
+            // Only a 4xx rejection, with no conflicting upstream 5xx, is definite.
+            const outcomeUnknown = status < 400 || status >= 500 || parsed.status >= 500;
+            throw new IdvRequestError(parsed.msg || `ID verification request failed (${status}).`, outcomeUnknown);
           }
           return parsed.data;
         })(),

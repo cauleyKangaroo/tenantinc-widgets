@@ -12,6 +12,7 @@ async function main() {
   global.document = dom.window.document;
   global.IS_REACT_ACT_ENVIRONMENT = true;
   const saved = new Map();
+  let rejectSessionWrites = false;
   const navigations = [];
   const context = {
     exports: {},
@@ -26,7 +27,10 @@ async function main() {
       if (name === './idvPolling') return { startIdvPolling: () => () => {} };
       if (name === './idvStorage') return {
         idvSessionGet: (key) => saved.get(key) ?? null,
-        idvSessionSet: (key, value) => { saved.set(key, value); return true; },
+        idvSessionSet: (key, value) => {
+          if (rejectSessionWrites && !key.endsWith(':start-uncertain')) return false;
+          saved.set(key, value); return true;
+        },
         idvSessionRemove: (key) => saved.delete(key),
       };
       return require(`../.tmp-idv-test/${name.slice(2)}.js`);
@@ -98,6 +102,31 @@ async function main() {
     await render(resending);
     assert.equal(controller.state.kind, 'pending', 'reload recovery retains the old session');
     assert.equal(controller.state.resendUncertain, unknown);
+  }
+  for (const resend of [false, true]) {
+    const leaseId = `quota-${resend}`;
+    let attempts = 0;
+    const quota = { ...options, identity: { ...identity, leaseId }, api: { start: async () => ({ ...response, idvId: `quota-session-${++attempts}` }) } };
+    await render(quota);
+    rejectSessionWrites = !resend;
+    await React.act(async () => controller.start());
+    if (resend) {
+      rejectSessionWrites = true;
+      await React.act(async () => controller.resend());
+    }
+    const key = `mariposa:idv:v1:co:prop:${leaseId}`;
+    assert.equal(controller.state.kind, 'pending', 'storage failure does not abort the active session');
+    assert.equal(saved.get(`${key}:start-uncertain`), '1', 'small marker survives failed large session write');
+    await render({ ...quota, enabled: false });
+    await render(quota);
+    if (resend) {
+      assert.equal(controller.state.kind, 'pending');
+      assert.equal(controller.state.resendUncertain, true);
+    } else {
+      assert.equal(controller.state.kind, 'error');
+      assert.equal(controller.state.retryable, false);
+    }
+    rejectSessionWrites = false;
   }
   const failed = { ...options, identity: { ...identity, leaseId: 'lease3' }, api: { start: async () => { throw new Error('lost response'); } } };
   await render(failed);

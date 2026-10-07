@@ -200,10 +200,10 @@ export function useIdvController(options: IdvControllerOptions) {
       // Best effort: a storage failure here must not turn a start that has
       // already billed and texted into an error.
       if (key) {
-        idvSessionSet(key, JSON.stringify({
+        const saved = idvSessionSet(key, JSON.stringify({
           idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl.href,
         }));
-        idvSessionRemove(`${key}:start-uncertain`);
+        if (saved) idvSessionRemove(`${key}:start-uncertain`);
       }
       dispatch({
         type: 'pending', generation, idvId: started.idvId,
@@ -261,10 +261,10 @@ export function useIdvController(options: IdvControllerOptions) {
       if (!safeUrl) throw new Error('Invalid ID verification URL.');
       setVerificationUrl(safeUrl.href);
       if (key) {
-        idvSessionSet(key, JSON.stringify({
+        const saved = idvSessionSet(key, JSON.stringify({
           idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl.href,
         }));
-        idvSessionRemove(`${key}:start-uncertain`);
+        if (saved) idvSessionRemove(`${key}:start-uncertain`);
       }
       dispatch({
         type: 'refresh-pending', generation, idvId: started.idvId,

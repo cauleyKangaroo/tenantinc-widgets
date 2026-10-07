@@ -361,12 +361,12 @@ async function testPolling() {
 }
 
 async function testApiTransports() {
-  for (const status of [400, 401, 500]) {
+  for (const [httpStatus, status] of [[400, 400], [401, 401], [500, 500], [502, 400], [504, 504], [200, 502], [200, 400]]) {
     const rejected = createIdvApi({ baseUrl: 'https://api.example.com', appId: 'app', apiKey: 'test' },
-      async () => ({ ok: false, json: async () => ({ status, data: {}, msg: 'rejected' }) }));
+      async () => ({ ok: httpStatus === 200, status: httpStatus, json: async () => ({ status, data: {}, msg: 'rejected' }) }));
     await assert.rejects(rejected.start({ companyId: 'co', propertyId: 'prop' }, {
       first: 'Test', last: 'Renter', email: 'test@example.com', phone: '5555555555',
-    }), (error) => error instanceof IdvRequestError && error.outcomeUnknown === false);
+    }), (error) => error instanceof IdvRequestError && error.outcomeUnknown === (httpStatus >= 500 || status >= 500));
   }
   const hung = createIdvApi({ baseUrl: 'https://api.example.com', appId: 'app', apiKey: 'test', requestTimeoutMs: 5 },
     () => new Promise(() => {}));
