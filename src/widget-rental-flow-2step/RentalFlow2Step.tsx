@@ -1249,6 +1249,7 @@ export function RentalFlow2Step({
     const settle = (value: IdvRequirement | undefined) => {
       if (cancelled || done) return;
       done = true;
+      window.clearTimeout(timer);
       setCollectionIdvRequirement(value);
       setIdvRequirementSettled(true);
     };

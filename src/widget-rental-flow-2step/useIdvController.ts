@@ -89,7 +89,9 @@ export function useIdvController(options: IdvControllerOptions) {
     dispatch({ type: 'check' });
     const stored = readStored(key);
     if (stored) {
-      setVerificationUrl(stored.verificationUrl);
+      setVerificationUrl(stored.verificationUrl
+        ? allowedVerificationUrl(stored.verificationUrl, options.allowedVerificationHosts)?.href
+        : undefined);
       dispatch({ type: 'resume', generation, idvId: stored.idvId, expiresAt: stored.expiresAt });
       return undefined;
     }
@@ -113,7 +115,7 @@ export function useIdvController(options: IdvControllerOptions) {
     return () => { cancelled = true; };
     // Re-resolve only when the renter/rental scope changes, not on each state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, key, options.api, options.enabled, options.identity, propertyId]);
+  }, [companyId, key, options.allowedVerificationHosts, options.api, options.enabled, options.identity, propertyId]);
 
   useEffect(() => {
     if (state.kind !== 'pending' || !options.api) return undefined;
