@@ -813,6 +813,8 @@ export function MapLocations({
   // Filter panel (Figma 10557:146492) — a centred lightbox, like #05's.
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
+  /** The mobile header's search box, so its magnifier can focus it. */
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const loading = liveFacilities === null;
   // Nothing stands in before the first response — the column renders skeletons
@@ -1120,14 +1122,25 @@ export function MapLocations({
            then the count. Figma 10609:72429 / 10609:72649. */
         <>
           <div className="ml-mcontrols">
+            {/* Writes to the SAME `filters.search` the panel's box uses, so
+                the two can never disagree — and filters as you type, so the
+                magnifier focuses rather than submits. */}
             <div className="ml-search">
               <input
+                ref={searchRef}
                 className="ml-search-input"
-                type="text"
+                type="search"
                 placeholder="Enter ZIP, City, State"
                 aria-label="Search by ZIP, city or state"
+                value={filters.search}
+                onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
               />
-              <button type="button" className="ml-search-btn" aria-label="Search">
+              <button
+                type="button"
+                className="ml-search-btn"
+                aria-label="Search"
+                onClick={() => searchRef.current?.focus()}
+              >
                 {Icon.search}
               </button>
             </div>
