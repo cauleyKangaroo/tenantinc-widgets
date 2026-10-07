@@ -2088,10 +2088,23 @@ interface FinalizeData { documents?: unknown[]; signed?: boolean }
  * widget cannot do. That case fails with a message naming the situation rather
  * than posting a lease that would be rejected for unsigned documents.
  */
-async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseDocumentRef[]> {
+/*
+ * Everything documents/preview and documents/finalize have in common — which
+ * is the whole payload bar one field.
+ *
+ * SHARED ON PURPOSE. The preview's job is to show the shopper the document they
+ * are about to sign, so it has to be generated from the same numbers, dates and
+ * contact the lease will carry. Two builders would drift and the preview would
+ * quietly stop matching what gets signed, which is worse than having no
+ * preview at all.
+ *
+ * `payment_method` is the exception and is added by finalize alone: the preview
+ * runs BEFORE any card or bank detail exists, and TenantInc's own sample omits
+ * it.
+ */
+function documentsBody(args: DocumentPreviewArgs): Record<string, unknown> {
   const body: Record<string, unknown> = {
     contacts: rentContacts(args.contact, args.extras),
-    payment_method: paymentMethodFor(args),
     start_date: args.startDate,
     space_mix_id: args.spaceMixId,
     total_payment_amount: args.totalPaymentAmount,
@@ -2124,6 +2137,12 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
   const vehicle = vehicleInfo(args.extras);
   if (vehicle) body.vehicle_info = vehicle;
   if (args.promotionIds?.length) body.discount_id = args.promotionIds[0];
+  return body;
+}
+
+async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseDocumentRef[]> {
+  const body = documentsBody(args);
+  body.payment_method = paymentMethodFor(args);
 
   const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/documents/finalize`, body);
   if (inner.status !== 200 || !inner.data) {
@@ -2652,5 +2671,89 @@ export async function fetchPaymentGateway(ctx: RentalCtx): Promise<PaymentGatewa
   } catch (err) {
     console.warn('[rental] gateway lookup threw:', err);
     return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// API — document PREVIEW
+// ---------------------------------------------------------------------------
+
+/*
+ * What the preview needs: the lease payload minus the payment method.
+ *
+ * Picked from RentArgs rather than restated, so a field added to one is a type
+ * error in the other instead of a preview that silently stops matching the
+ * document being signed.
+ */
+export type DocumentPreviewArgs = Pick<RentArgs,
+  'unit' | 'contact' | 'extras' | 'startDate' | 'spaceMixId' | 'billDay' | 'webRate'
+  | 'totalPaymentAmount' | 'costs' | 'promotionIds' | 'paymentCycle'
+  | 'platform' | 'source' | 'noticeDelivery'>;
+
+export interface DocumentPreview {
+  documentId: string;
+  /** 'lease', etc. */
+  documentType: string;
+  /** "Lease Agreement", "Deny Insurance/Protection Form", "Lead ACH". */
+  name: string;
+  /** Frameable URL, forced to https — see `httpsUrl`. */
+  previewUrl: string;
+  /** The document's own markup, when the caller would rather inject it. */
+  html?: string;
+}
+
+/*
+ * The preview host answers on BOTH schemes, but the API hands back `http://`
+ * — and an http iframe inside an https page is mixed content, which the
+ * browser blocks outright rather than following the 301 to https. So the
+ * scheme is upgraded here, once, where it cannot be forgotten.
+ *
+ * Verified live 2026-10-07: http -> 301, https -> 200 text/html, and the host
+ * sends no X-Frame-Options or frame-ancestors, so framing is allowed.
+ */
+function httpsUrl(url: string): string {
+  return url.replace(/^http:\/\//i, 'https://');
+}
+
+/**
+ * API — the documents the shopper is about to sign, for display only.
+ *
+ * Same payload as documents/finalize (see `documentsBody`) so the preview is
+ * generated from the same numbers the lease will carry. It creates nothing and
+ * signs nothing.
+ *
+ * Returns an empty array rather than throwing: a preview that cannot be built
+ * must not stop a rental. The caller shows the document name without a preview.
+ */
+export async function previewDocuments(
+  ctx: RentalCtx,
+  args: DocumentPreviewArgs,
+): Promise<DocumentPreview[]> {
+  try {
+    const inner = await sendV1(
+      'POST',
+      `companies/${ctx.companyId}/units/${args.unit.id}/documents/preview`,
+      documentsBody(args),
+    );
+    if (inner.status !== 200 || !inner.data) {
+      // Validation text names the field, which is what makes this debuggable —
+      // console only; nothing here is shopper-facing.
+      console.warn('[rental] documents/preview rejected:', inner.status, inner.msg ?? '');
+      return [];
+    }
+    const rows = ((inner.data as { documents?: unknown[] }).documents ?? []) as Array<Record<string, unknown>>;
+    return rows
+      .map((d) => ({
+        documentId: String(d.document_id ?? ''),
+        documentType: String(d.document_type ?? ''),
+        name: String(d.name ?? ''),
+        previewUrl: typeof d.preview_url === 'string' ? httpsUrl(d.preview_url) : '',
+        html: typeof d.template === 'string' ? d.template : undefined,
+      }))
+      // A row with neither a URL nor markup has nothing to show.
+      .filter((d) => d.previewUrl || d.html);
+  } catch (err) {
+    console.warn('[rental] documents/preview failed:', err);
+    return [];
   }
 }

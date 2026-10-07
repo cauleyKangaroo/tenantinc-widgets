@@ -10,7 +10,7 @@ import {
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
-  fetchPaymentGateway, TENANT_PAYMENTS, configureApi,
+  fetchPaymentGateway, TENANT_PAYMENTS, configureApi, previewDocuments,
   type RentResult, type ApiCredProps, type PaymentCycleKey,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx, type PropertyInfo,
@@ -1776,6 +1776,18 @@ export function RentalFlow2Step({
   //
   // The first run is skipped: the hold effect above has just quoted with these
   // exact values, and re-firing would double every request for no new number.
+  /*
+   * The real lease document, for the agreement panel.
+   *
+   * documents/preview takes the SAME payload as documents/finalize, so this can
+   * only be fetched once the numbers exist — a hold, a quote and the contact
+   * from Step 1. Before that the panel keeps its written summary.
+   *
+   * Display only: it creates nothing and signs nothing, so it is safe to call
+   * whenever the inputs change.
+   */
+  const [leasePreviewUrl, setLeasePreviewUrl] = useState('');
+
   const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}|${paymentCycle}`;
   const quotedChoice = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -1801,6 +1813,60 @@ export function RentalFlow2Step({
       .catch((err) => console.warn(`${logTag} re-quote after a choice change failed — keeping the previous total:`, err));
     return () => { cancelled = true; };
   }, [hold, step, choiceKey, insuranceId, moveIn, paymentCycle, selection, ctx, logTag]);
+
+  /*
+   * Fetch the lease preview once the payload exists, and again when any figure
+   * in it moves — the document quotes the money, so a preview built before the
+   * shopper changed coverage, the date or the billing period would show numbers
+   * they are not agreeing to.
+   *
+   * Keyed on the same `choiceKey` the re-quote uses, plus the total, so it
+   * follows the quote rather than racing it.
+   */
+  const previewKey = hold && quote && contact
+    ? `${hold.unitId}|${choiceKey}|${quote.totalDue}`
+    : '';
+  useEffect(() => {
+    if (!previewKey || !hold || !quote || !contact || inEditor) return undefined;
+    let cancelled = false;
+    void previewDocuments(ctx, {
+      unit: { id: hold.unitId, number: hold.unitNumber },
+      contact: {
+        first: contact.first ?? '',
+        last: contact.last ?? '',
+        email: contact.email ?? '',
+        phone: contact.phone ?? '',
+        businessName: contact.businessName,
+        /*
+         * Empty, and deliberately so. The billing address is not collected
+         * until the payment form further down the same step, and the preview
+         * is shown ABOVE it — TenantInc's own sample sends blank address
+         * fields with only a zip, so the document renders without them.
+         */
+        address: '', city: '', state: '', zip: '',
+      },
+      startDate: ymd(moveIn),
+      spaceMixId: selection?.spaceMixId ?? resolvedSpaceMixRef.current,
+      billDay: quote.billDay,
+      webRate: quote.rent ?? selection?.price,
+      totalPaymentAmount: quote.totalDue,
+      costs: quoteToCosts(quote, ymd(moveIn)),
+      promotionIds: selection?.promotionIds,
+      paymentCycle,
+      platform: 'website',
+    }).then((docs) => {
+      if (cancelled) return;
+      // The LEASE specifically — the call also returns the insurance-denial and
+      // ACH forms, which are not what this panel is showing.
+      const lease = docs.find((d) => d.documentType === 'lease')
+        ?? docs.find((d) => /lease/i.test(d.name))
+        ?? docs[0];
+      setLeasePreviewUrl(lease?.previewUrl ?? '');
+    });
+    return () => { cancelled = true; };
+    // `previewKey` already folds in every value read here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewKey, inEditor]);
 
   // Countdown driven by the acquisition timestamp, not a decrementing
   // counter — survives re-renders and background-tab throttling.
@@ -2813,6 +2879,7 @@ export function RentalFlow2Step({
             moveIn={moveIn}
             // Everything step 1 already asked for, so step 2 opens filled in.
             contact={contact}
+            leasePreviewUrl={leasePreviewUrl}
             // The whole list, not plans[0]: the card is a dropdown now, so it
             // needs every option. Live plans win; the sample only fills an empty
             // list, and only in the harness.

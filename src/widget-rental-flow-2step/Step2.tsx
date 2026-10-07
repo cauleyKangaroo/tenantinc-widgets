@@ -38,7 +38,33 @@ const FORM_SKELETON_MS = 700;
  * document URL exists this becomes an <iframe>/<embed> and both surfaces get it
  * at once.
  */
-function LeaseDocBody({ title }: { title?: string }) {
+function LeaseDocBody({ title, previewUrl }: { title?: string; previewUrl?: string }) {
+  /*
+   * The REAL document when we have one.
+   *
+   * An iframe rather than the inline `template` the API also returns: that
+   * markup carries its own styling, and injected into this page it inherits
+   * the widget's CSS and fights it. The frame keeps the operator's document
+   * looking like their document.
+   *
+   * `sandbox` without allow-scripts: this is a document to read, and the
+   * preview host has no reason to run code inside our page. `allow-same-origin`
+   * is omitted too, so the frame cannot reach back into the parent.
+   */
+  if (previewUrl) {
+    return (
+      <div className="rf2-doc-page rf2-doc-page--frame">
+        <iframe
+          className="rf2-doc-frame"
+          src={previewUrl}
+          title={title ?? 'Rental Agreement'}
+          loading="lazy"
+          sandbox=""
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="rf2-doc-page">
       <p className="rf2-doc-title">{title ?? 'Self Storage Rental Agreement'}</p>
@@ -198,7 +224,7 @@ const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
+  brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, leasePreviewUrl, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
 }: {
   moveIn: Date;
@@ -252,6 +278,9 @@ export function Step2({
   brochureUrl?: string;
   /** Lease template name from the documents API. */
   leaseDocName?: string;
+  /** Frameable URL for the REAL lease, from documents/preview. Absent →
+   *  the written summary below stands. */
+  leasePreviewUrl?: string;
   onEditDate: () => void;
   /** The chosen coverage id, or undefined for "I have my own insurance".
    *  Reported upward because the choice re-prices the move-in quote — it is not
@@ -955,7 +984,7 @@ export function Step2({
             </button>
           </div>
           <div className="rf2-agree-doc">
-            <LeaseDocBody title={leaseDocName} />
+            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} />
           </div>
           <RfCheckbox
             checked={agree}
@@ -1184,7 +1213,7 @@ export function Step2({
         agree={agree}
         onAgreeChange={setAgree}
       >
-        <LeaseDocBody title={leaseDocName} />
+        <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} />
       </LeaseModal>
     </div>
   );
