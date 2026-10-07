@@ -10,7 +10,7 @@
    .rf-overlay in #99's screens.css. */
 .hb-datemodal-overlay {
   position: fixed;
-  font-family: var(--hb-font, 'Montserrat', sans-serif);
+  font-family: var(--hb-font, 'Montserrat', 'Montserrat Fallback', sans-serif);
   inset: 0;
   z-index: 9999;
   display: flex;

@@ -15,8 +15,8 @@
      this element entirely.
      Declaring it here settles that the same way the design does: one font, and
      --hb-font carries it into every @shared/ui component inside the flow. */
-  font-family: 'Montserrat', sans-serif;
-  --hb-font: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  --hb-font: 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #101318;
 }
 
@@ -39,7 +39,7 @@
   box-sizing: border-box;
   background: #fff;
   box-shadow: 0 2px 4px 2px rgba(71, 84, 116, 0.1);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   /* The Header instance is 140px tall against a 100px white strip (page frame
      8507-23172, where the card and rail both start at y=140). That remaining
      40px is the band the content sits below — and the overhanging logo drops
@@ -180,7 +180,7 @@
    not size or weight, and it is what keeps the two lines close together. */
 .rf-wrapper .rf-eyebrow {
   margin: 0;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 36px !important;
   font-weight: 700 !important;
   line-height: 20px !important;
@@ -191,7 +191,7 @@
 /* Hardcoded #101318, per the frame — this line never follows the site theme. */
 .rf-wrapper .rf-heading {
   margin: 0;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 36px !important;
   font-weight: 700 !important;
   line-height: 38px !important;
@@ -228,14 +228,14 @@
   border: none;
   background: transparent;
   outline: none;
-  font: 400 16px/20px 'Montserrat', sans-serif;
+  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #101318;
 }
 .rf-field-label {
   position: absolute;
   left: 16px; top: 50%;
   transform: translateY(-50%);
-  font: 400 16px/20px 'Montserrat', sans-serif;
+  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #637381;
   pointer-events: none;
   transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
@@ -260,7 +260,7 @@
   height: 50px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 8px;
-  font: 16px 'Montserrat', sans-serif;
+  font: 16px 'Montserrat', 'Montserrat Fallback', sans-serif;
   cursor: pointer;
 }
 .rf-btn--rent { border: none; background: var(--color_2, #509e2f); color: var(--color_3, #fff); font-weight: 700; }
@@ -556,7 +556,7 @@
   display: flex; align-items: center; justify-content: center;
   padding: 0;
   border: none; background: none; border-radius: 50%;
-  font: 500 15px 'Montserrat', sans-serif;
+  font: 500 15px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #101318;
   cursor: pointer;
 }
@@ -605,7 +605,7 @@
   border-radius: 8px;
   background: #fff;
   outline: none;
-  font: 400 16px 'Montserrat', sans-serif;
+  font: 400 16px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #101318;
 }
 .rf2-field-input:focus { border-color: #101318; }
@@ -1338,7 +1338,7 @@
   height: 64px;
   display: flex; align-items: center; justify-content: center; gap: 10px;
   border-radius: 12px;
-  font: 500 20px 'Montserrat', sans-serif;
+  font: 500 20px 'Montserrat', 'Montserrat Fallback', sans-serif;
   letter-spacing: 0.2px;
   cursor: pointer;
 }
@@ -1728,7 +1728,7 @@
   justify-content: space-between;
   gap: 12px;
 }
-.rfc-resend { flex: 0 0 auto; padding: 0; border: none; background: none; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
+.rfc-resend { flex: 0 0 auto; padding: 0; border: none; background: none; font-family: 'Montserrat', 'Montserrat Fallback', sans-serif; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
 /* Figma 8507-24357: #F4F6F8, radius 12, 35px all round. */
 .rfc-panel { background: #f4f6f8; border-radius: 12px; padding: 30px; margin-bottom: 20px; }
 /* Figma 8507-24357: 28px/600 sitting 39px above the code card, INSIDE the left
@@ -1739,7 +1739,7 @@
    the title being crowded against it. Tracked in the container query below,
    which is where that padding changes. */
 .rfc-space-head {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 28px;
   font-weight: 600;
   line-height: 28px;
@@ -1878,7 +1878,7 @@
    said. Same for the link beside it. */
 .rfc-details .rfc-info-strong {
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 600;
   line-height: 24px;
@@ -1888,7 +1888,7 @@
    body around them, inheriting the text colour rather than a link blue. */
 .rfc-details .rfc-info-link,
 .rfc-info-link {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 24px;
@@ -2117,7 +2117,7 @@
    that would fight a longer translation. */
 .rfc-review-q {
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 24px;
   font-weight: 600;
   line-height: 30px;
@@ -2147,7 +2147,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 1.2;
@@ -2172,7 +2172,7 @@
 /* Its own title rule now. It was borrowing step 2's .rf2-h, which is 20px/700
    there and had to be overridden here — two rules describing one heading. */
 .rfc-next-title {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 22px;
   font-weight: 600;
   line-height: 24px;
@@ -2194,7 +2194,7 @@
   border-radius: 10px;
   padding: 20px;
   box-shadow: 0 2px 2px rgba(71, 84, 116, 0.1);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 18px;
@@ -2519,7 +2519,7 @@
   background: #f9fafb;
   text-align: left;
   /* Montserrat throughout, per the frame — not the inherited theme font. */
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   cursor: pointer;
   /* Elevation plus the frame's hairline above and below. */
   box-shadow:

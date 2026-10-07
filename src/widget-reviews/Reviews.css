@@ -3,7 +3,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .rw-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   /* Fluid side gutter: keeps the column comfortably contained on small-desktop
@@ -351,7 +351,7 @@
   font-size: 14px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }

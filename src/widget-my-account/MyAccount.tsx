@@ -420,18 +420,27 @@ export function MyAccount({
   const promoLabel = orElse(promoCta, promo.cta);
 
   /*
-   * Nothing renders while the token is being checked.
+   * Nothing of the account is SHOWN while the token is being checked.
+   *
+   * But the layout IS rendered: the same tree, with `ma-wrapper--busy` turning
+   * every block into a plain grey box and hiding everything inside it (see the
+   * CSS). This used to be an empty wrapper, ~96px, that grew by a thousand-odd
+   * pixels when the check answered — the whole page under it jumping. Drawing
+   * the boxes from the real markup, rather than a hand-sized skeleton, keeps
+   * them exactly the loaded size at every width, and the tree is not remounted
+   * when the check passes, only uncovered. `inert` keeps the hidden controls
+   * out of the tab order and the accessibility tree.
    *
    * Painting the account first would flash the sample content — someone else's
    * name and balances — at a visitor who is about to be redirected to /login.
    */
-  if (authed === null) {
-    return <div className="ma-wrapper" aria-busy="true" />;
-  }
+  const busy = authed === null;
 
   return (
-    <div className="ma-wrapper">
-      <div className="ma-grid">
+    <div className={`ma-wrapper${busy ? ' ma-wrapper--busy' : ''}`} aria-busy={busy || undefined}>
+      {busy && <span className="ma-sr-only" role="status">Loading your account…</span>}
+      {/* React 18 has no boolean `inert`; an empty string is the attribute. */}
+      <div className="ma-grid" {...(busy ? { inert: '' } : {})}>
         <h1 className="ma-greeting">Hi {name},</h1>
         {/* The line and its Log out control are one flex row, so the button
             sits with the sentence it belongs to and wraps under it rather than

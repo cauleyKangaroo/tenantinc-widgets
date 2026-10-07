@@ -823,10 +823,15 @@ export function AccountLogin({
             onComplete={submitCode}
           />
 
-          {codeError && <p className="al-error" role="alert">{codeError}</p>}
-          {resent && !codeError && (
-            <p className="al-note" role="status">A new code is on its way.</p>
-          )}
+          {/* A permanent one-line slot: both messages land after a round trip
+              (well past the click), so inserting them pushed Continue and
+              Resend down — a layout shift. A longer message still grows it. */}
+          <div className="al-msg-slot">
+            {codeError && <p className="al-error" role="alert">{codeError}</p>}
+            {resent && !codeError && (
+              <p className="al-note" role="status">A new code is on its way.</p>
+            )}
+          </div>
 
           <button
             type="button"
@@ -905,7 +910,11 @@ export function AccountLogin({
               {identifierValid && <CheckTick size={24} className="al-field-check" />}
             </div>
 
-            {identifyError && <p className="al-error" role="alert">{identifyError}</p>}
+            {/* Reserved for the same reason as the code step's: a failed send
+                is reported after the round trip, not on the click. */}
+            <div className="al-msg-slot">
+              {identifyError && <p className="al-error" role="alert">{identifyError}</p>}
+            </div>
 
             <button type="submit" className="al-cta" disabled={!canContinue}>
               {sending ? 'Sending…' : 'Continue'}

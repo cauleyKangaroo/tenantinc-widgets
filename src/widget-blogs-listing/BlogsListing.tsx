@@ -31,9 +31,6 @@ const DEMO_POSTS: BlogPostData[] = [
 
 const CARDS_PER_PAGE = 3;
 
-/** Hold the skeleton back this long so a fast collection read doesn't flash it. */
-const SKELETON_DELAY_MS = 200;
-
 /** Stand-in when a row has no thumbnail/mainImage. */
 const NO_IMAGE = 'linear-gradient(135deg, #dfe3e8 0%, #c4cdd5 100%)';
 
@@ -165,11 +162,22 @@ function SkeletonCard() {
  */
 function DesktopSkeleton() {
   return (
-    <div className="blog-grid" aria-hidden="true">
-      {Array.from({ length: CARDS_PER_PAGE }).map((_, i) => (
-        <SkeletonCard key={i} />
-      ))}
-    </div>
+    <>
+      <div className="blog-grid" aria-hidden="true">
+        {Array.from({ length: CARDS_PER_PAGE }).map((_, i) => (
+          <SkeletonCard key={i} />
+        ))}
+      </div>
+      {/* The arrows-and-dots row the loaded frame shows whenever there are more
+          posts than one row holds — the normal case for a blog. 40px is the
+          arrow buttons' box; without it the row (plus .blog-desktop's 50px gap)
+          appeared from nothing under the cards. */}
+      <div className="blog-pagination" style={{ height: 40 }} aria-hidden="true">
+        {[0, 1, 2].map((i) => (
+          <span className="blog-skel blog-skel--dot" key={i} />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -316,7 +324,6 @@ export function BlogsListing({
 }: BlogsListingProps) {
   const [posts, setPosts] = useState<BlogPostData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pastDelay, setPastDelay] = useState(false);
   // Two independent carousels — the frames are mutually exclusive in CSS
   // (.blog-desktop is display:none below 900px), so their positions never need
   // to agree and keeping them apart avoids a resize jumping the reader.
@@ -337,14 +344,13 @@ export function BlogsListing({
     }
 
     let cancelled = false;
-    const timer = setTimeout(() => { if (!cancelled) setPastDelay(true); }, SKELETON_DELAY_MS);
 
     fetchBlogPosts(collection, blogBasePath)
       .then((live) => { if (!cancelled) setPosts(live); })
       .catch((err) => console.error('[BlogsListing] fetchBlogPosts error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
 
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => { cancelled = true; };
   }, [collection, blogBasePath]);
 
   // Positions, not pages: the arrows step one card, so a 9-post collection has
@@ -379,11 +385,13 @@ export function BlogsListing({
     </h2>
   );
 
-  // Still reading: skeleton once past the delay, nothing before it. Both frames
-  // render and CSS picks one, exactly as in the loaded branch — the desktop grid
-  // is `display: none` below 900px, so a mobile reader needs its own placeholder.
+  // Still reading: skeleton from the first paint. It used to be held back 200ms
+  // so a fast read wouldn't flash it, but that painted NOTHING first — a 0px
+  // widget that then grew to full height, which is a bigger shift than any
+  // flash. Both frames render and CSS picks one, exactly as in the loaded branch
+  // — the desktop grid is `display: none` below 900px, so a mobile reader needs
+  // its own placeholder.
   if (loading) {
-    if (!pastDelay) return null;
     return (
       <div className="blog-wrapper">
         <div className="blog-desktop">

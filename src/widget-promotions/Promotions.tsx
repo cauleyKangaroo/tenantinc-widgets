@@ -39,28 +39,78 @@ interface BarItem { id: string; title: string; info?: string; url: string; ctaLa
 const PAGE_SIZE = 4;
 
 /**
- * Hold off on the skeleton for this long. A fast API response then renders the
- * real bars directly, instead of flashing a placeholder for 80ms.
+ * How many promotions this property had last time, per browser. The live count
+ * is unknown until the fetch lands, and the layouts differ a lot by count — one
+ * is a 171px full-bleed band on desktop, two to four a ~140px row, five or more
+ * add a pager row — so a placeholder of the wrong count shifts the page when
+ * the bars arrive. Remembering it makes a repeat visit exact.
+ * Default 1: the shape the live data has today. Storage can throw (private
+ * mode, blocked site data); the default then simply applies.
  */
-const SKELETON_DELAY_MS = 200;
+const COUNT_KEY = 'hb-promo-count:';
+function readPromoCount(propertyId: string): number {
+  try {
+    const n = parseInt(window.localStorage.getItem(COUNT_KEY + propertyId) || '', 10);
+    return n > 0 ? n : 1;
+  } catch { return 1; }
+}
+function writePromoCount(propertyId: string, n: number) {
+  try { window.localStorage.setItem(COUNT_KEY + propertyId, String(n)); } catch { /* storage blocked */ }
+}
 
-/** Placeholder count — the live promo count is unknown until the fetch lands. */
-const SKELETON_BARS = 2;
+/**
+ * Shown while the promotions fetch is in flight — from the very first render,
+ * not after a delay: a null phase is a 0px widget that then grows, which is the
+ * shift the skeleton exists to prevent.
+ *
+ * Built from the REAL bar markup (title row, tag/info icon boxes, CTA line) with
+ * the content hidden, so every per-count and per-breakpoint size rule in the CSS
+ * sizes the placeholder exactly as it will size the bars. Same count logic as
+ * PromoBars: the visible window, plus a reserved pager row when it would page.
+ */
+function PromoBarsSkeleton({ count }: { count: number }) {
+  const isMobile = useMediaQuery('(max-width: 560px)');
+  const isTablet = useMediaQuery('(max-width: 900px)');
+  const visibleCount = isMobile ? 1 : isTablet ? 2 : PAGE_SIZE;
+  const cols = Math.min(count, visibleCount);
+  const paged = count > visibleCount;
 
-/** Shown while the promotions fetch is still in flight (past the delay above). */
-function PromoBarsSkeleton() {
+  const bars = (
+    <div className="promo-bars promo-bars--skeleton" data-cols={String(cols)} aria-hidden="true">
+      {Array.from({ length: cols }, (_, i) => (
+        <div className="promo-bar promo-bar--skeleton" key={i}>
+          <div className="promo-bar-inner">
+            <div className="promo-bar-titlerow">
+              <div className="promo-bar-titlewrap">
+                <TagIcon size={36} />
+                <span className="promo-bar-title promo-skel promo-skel--title">{' '}</span>
+              </div>
+              <span className="promo-bar-info"><InfoIcon size={36} /></span>
+            </div>
+            <span className="promo-bar-cta">
+              <ChevronRight size={24} />
+              <span className="promo-skel promo-skel--cta">{' '}</span>
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <>
-      <div className="promo-bars promo-bars--skeleton" data-cols={String(SKELETON_BARS)} aria-hidden="true">
-        {Array.from({ length: SKELETON_BARS }, (_, i) => (
-          <div className="promo-bar promo-bar--skeleton" key={i}>
-            <div className="promo-bar-inner">
-              <span className="promo-skel promo-skel--title" />
-              <span className="promo-skel promo-skel--cta" />
-            </div>
+      {paged ? (
+        <div className="promo-bars-carousel">
+          {bars}
+          {/* Holds the pager row's height (40px arrows, or the 20px dot row on a
+              phone where the arrows are display:none) without drawing it. */}
+          <div className="promo-pager promo-pager--skeleton" aria-hidden="true">
+            <span className="promo-pager-arrow" />
+            <div className="promo-dots"><span className="promo-dot" /></div>
+            <span className="promo-pager-arrow" />
           </div>
-        ))}
-      </div>
+        </div>
+      ) : bars}
       <span className="promo-sr-only" role="status">Loading promotions…</span>
     </>
   );
@@ -361,14 +411,12 @@ export function Promotions({
   // resolves we show a skeleton, and if it returns nothing we render nothing.
   const [apiPromos, setApiPromos] = useState<ApiPromo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pastDelay, setPastDelay] = useState(false);
 
   useEffect(() => {
     // Banner mode never reads the API, so don't call it.
     if (view === 'banner') { setLoading(false); return; }
 
     let cancelled = false;
-    const timer = setTimeout(() => { if (!cancelled) setPastDelay(true); }, SKELETON_DELAY_MS);
 
     (async () => {
       // The `Company` collection is the source of truth; cfg.companyId is only the
@@ -396,12 +444,18 @@ export function Promotions({
       if (!sg) { setApiPromos([]); return; }
 
       const raw = await fetchSpaceGroups(effectivePropertyId, sg, company);
-      if (!cancelled) setApiPromos(extractPromos(raw));
+      if (cancelled) return;
+      const promos = extractPromos(raw);
+      setApiPromos(promos);
+      // Only a real answer is remembered — a failed fetch says nothing about
+      // how many promotions there are. Zero isn't stored either: the widget
+      // renders nothing then, and a 0 would make the next skeleton empty too.
+      if (promos.length) writePromoCount(effectivePropertyId, promos.length);
     })()
       .catch((err) => console.error('[Promotions] fetchSpaceGroups error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
 
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => { cancelled = true; };
   }, [view, effectivePropertyId, companyId, spaceGroupId]);
 
   // ── Mode 1: banner ────────────────────────────────────────────────────
@@ -416,13 +470,18 @@ export function Promotions({
 
     return (
       <div className="promo-wrapper">
-        <a className="promo-banner" href={bannerUrl}>
+        <a className={mobileSrc ? 'promo-banner promo-banner--has-mobile' : 'promo-banner'} href={bannerUrl}>
           {/* Always a <picture>: <source> is what lets the browser pick before
               it fetches, so the wrong-size image is never downloaded. With no
               mobile art there is simply no <source> and the <img> stands alone. */}
+          {/* width/height are the bundled art's own pixels (1200x184 desktop,
+              560x216 mobile). With CSS height:auto they only supply an aspect
+              ratio, so the slot is reserved before the image decodes instead of
+              starting at 0px. An uploaded image with a different shape takes its
+              own ratio the moment it loads — the CSS uses `aspect-ratio: auto`. */}
           <picture>
-            {mobileSrc && <source media="(max-width: 640px)" srcSet={mobileSrc} />}
-            <img className="promo-banner-img" src={desktopSrc} alt={bannerAlt || 'Current promotion'} />
+            {mobileSrc && <source media="(max-width: 640px)" srcSet={mobileSrc} width={560} height={216} />}
+            <img className="promo-banner-img" src={desktopSrc} alt={bannerAlt || 'Current promotion'} width={1200} height={184} />
           </picture>
         </a>
       </div>
@@ -435,11 +494,11 @@ export function Promotions({
   // where the icon alignment and the centring actually get tested.
   const demoCount = Math.max(0, Math.min(Math.floor(demoBars ?? 0), 12));
 
-  // Still fetching: show the skeleton once we're past the delay, nothing before
-  // (a sub-200ms response shouldn't flash a placeholder). Placeholders do not
-  // wait on a request they are standing in for.
+  // Still fetching: the skeleton, immediately (see PromoBarsSkeleton for why
+  // there is no delay). Placeholders do not wait on a request they are
+  // standing in for.
   if (loading && !demoCount) {
-    return pastDelay ? <div className="promo-wrapper"><PromoBarsSkeleton /></div> : null;
+    return <div className="promo-wrapper"><PromoBarsSkeleton count={readPromoCount(effectivePropertyId)} /></div>;
   }
 
   // One bar per live promo. `barText` remains an explicit editor override for

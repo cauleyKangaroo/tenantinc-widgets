@@ -48,9 +48,11 @@ export function unitImageSrc(unit: ImageUnit): string | undefined {
  * so the handler stays pure and a re-render cannot rewind it — state here
  * would let the chain oscillate between the same two candidates forever.
  *
- * Hiding is inline `display:none` rather than the `hidden` attribute, because
- * the card stylesheets set `display` on these images and a stylesheet rule
- * beats the attribute.
+ * Hiding is inline `visibility:hidden`, which keeps the image's box. The card
+ * stylesheets give every unit image a fixed aspect-ratio box so the card is its
+ * final height before the file arrives; `display:none` here collapsed that box
+ * on the last failure and the card shrank under the reader. An empty slot of the
+ * right size is the honest answer, and it is the one that doesn't move.
  */
 export function unitImageOnError(
   unit: ImageUnit,
@@ -65,6 +67,6 @@ export function unitImageOnError(
       return;
     }
     // Out of candidates: nothing here is a picture of this space.
-    el.style.display = 'none';
+    el.style.visibility = 'hidden';
   };
 }

@@ -43,9 +43,6 @@ import { DEMO_POSTS } from './demoPosts';
 //        single-column cards, 20px card padding).
 // ===========================================================================
 
-/** Hold the skeleton back this long so a fast collection read doesn't flash it. */
-const SKELETON_DELAY_MS = 200;
-
 /** Stand-in when a row has no thumbnail/mainImage. */
 const NO_IMAGE = 'linear-gradient(135deg, #dfe3e8 0%, #c4cdd5 100%)';
 
@@ -152,16 +149,55 @@ function FeaturedCard({ post, profiles, shareOpen, onToggleShare }: FeaturedCard
   );
 }
 
-/** Placeholder shown while the collection read is in flight. */
-function PostSkeleton() {
+/**
+ * Placeholder shown while the collection read is in flight.
+ *
+ * Built from the loaded page's own classes, block for block, so it occupies the
+ * same box: the crumb row (which the CSS hides under 900px, as it does the real
+ * one), a title block a line-height tall per line, the hero, and the share row
+ * with the real label and 32px icon slots — so it wraps exactly where the
+ * loaded row does on a phone. Without the crumbs and share row (and with a
+ * short title) the article landed ~260px lower than its skeleton on desktop.
+ */
+function PostSkeleton({ showBreadcrumb, homeLabel, listingLabel }: {
+  showBreadcrumb: boolean;
+  homeLabel: string;
+  listingLabel: string;
+}) {
   return (
     <div className="bpp-wrapper" aria-hidden="true">
+      {/* The two leading crumbs are props, so they're shown for real; only the
+          trailing one (the post title) waits on the row. Plain text, not links:
+          the whole skeleton is aria-hidden and shouldn't take focus. */}
+      {showBreadcrumb && (
+        <div className="bpp-crumbs">
+          <span className="bpp-crumb-link">{homeLabel}</span>
+          <ChevronRight size={24} />
+          <span className="bpp-crumb-link">{listingLabel}</span>
+          <ChevronRight size={24} />
+          <span className="bpp-skel bpp-skel--crumb" />
+        </div>
+      )}
       <div className="bpp-head">
-        <span className="bpp-skel bpp-skel--title" />
-        <span className="bpp-skel bpp-skel--title short" />
+        <div className="bpp-skel-title">
+          <span className="bpp-skel bpp-skel--title" />
+          <span className="bpp-skel bpp-skel--title" />
+          {/* Phones only (see CSS): at 32px a typical title runs three or
+              four lines in a phone column, two on desktop. */}
+          <span className="bpp-skel bpp-skel--title short bpp-skel--narrow-only" />
+        </div>
         <span className="bpp-skel bpp-skel--byline" />
       </div>
       <span className="bpp-skel bpp-skel--hero" />
+      <div className="bpp-share-row">
+        <span className="bpp-share-label">
+          <ShareIcon size={32} />
+          Share
+        </span>
+        <div className="bpp-share-links">
+          {SOCIAL_ICONS.map((s) => <span className="bpp-skel bpp-skel--social" key={s.key} />)}
+        </div>
+      </div>
       <div className="bpp-body">
         {[100, 96, 98, 60].map((w, i) => (
           <span className="bpp-skel bpp-skel--text" key={i} style={{ width: `${w}%` }} />
@@ -228,7 +264,6 @@ export function BlogPost({
 
   const [posts, setPosts] = useState<BlogPostData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pastDelay, setPastDelay] = useState(false);
   const [openShareId, setOpenShareId] = useState<string | null>(null);
 
   const profiles = useSocialProfiles('#16', {
@@ -250,7 +285,6 @@ export function BlogPost({
     }
 
     let cancelled = false;
-    const timer = setTimeout(() => { if (!cancelled) setPastDelay(true); }, SKELETON_DELAY_MS);
 
     // One read serves both the article and the Featured Articles row.
     fetchBlogPosts(collection, blogBasePath, { withContent: true })
@@ -262,7 +296,7 @@ export function BlogPost({
       .catch((err) => console.error('[BlogPost] fetchBlogPosts error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
 
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => { cancelled = true; };
   }, [collection, blogBasePath]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -301,8 +335,13 @@ export function BlogPost({
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  // Still reading: skeleton once past the delay, nothing before it.
-  if (loading) return pastDelay ? <PostSkeleton /> : null;
+  // Still reading: skeleton from the first paint. It used to hold back 200ms
+  // rendering nothing, so the page started as a 0px box and grew by the whole
+  // article — a layout shift on every load. The skeleton already fills the
+  // loaded layout, so a fast read just swaps grey for content in place.
+  if (loading) {
+    return <PostSkeleton showBreadcrumb={showBreadcrumb} homeLabel={homeLabel} listingLabel={listingLabel} />;
+  }
 
   // The slug matched nothing. This is a real state on a live site (an unpublished
   // post, a stale link, a typo), so say so and offer the way back rather than

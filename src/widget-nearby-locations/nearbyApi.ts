@@ -4,6 +4,7 @@ import {
   extractNearbyProperties,
   fetchPropertySpaces as sharedFetchPropertySpaces,
   fetchSpaceGroupSpaces,
+  fetchTierSubtypes,
   getUserLocation,
   haversineMiles,
   formatDistance,
@@ -270,6 +271,33 @@ async function portfolioSpaces(): Promise<Map<string, PropertySpaces> | null> {
  * Fails soft PER ID: a property whose lookup throws reports empty spaces, so one
  * bad property can never reject the batch and blank the rest of the page.
  */
+/**
+ * Subtitles (main amenity per tier id) for the given properties — the line the
+ * batched prices cannot carry. Only properties whose space group the
+ * collection names are looked up; the rest got their spaces from the
+ * per-property chain, which already includes amenities.
+ *
+ * One request per property, in parallel. `onResult` fires per property with
+ * whatever came back (possibly an empty map); never throws.
+ */
+export async function fetchSubtypesForProperties(
+  propertyIds: string[],
+  onResult: (propertyId: string, subtypes: Map<string, string>) => void,
+): Promise<void> {
+  if (!propertyIds.length) return;
+  try {
+    const { companyId, groupByProperty } = await fetchSpaceGroupBinding();
+    const base = await creds();
+    const api = { ...base, companyId: companyId || base.companyId };
+    await Promise.all(propertyIds.map(async (id) => {
+      const group = groupByProperty.get(id);
+      onResult(id, group ? await fetchTierSubtypes(api, id, group) : new Map());
+    }));
+  } catch {
+    for (const id of propertyIds) onResult(id, new Map());
+  }
+}
+
 export async function fetchSpacesForProperties(
   propertyIds: string[],
   onResult: (propertyId: string, data: PropertySpaces) => void,

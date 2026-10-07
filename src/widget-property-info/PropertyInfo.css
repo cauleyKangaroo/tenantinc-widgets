@@ -3,7 +3,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .pi-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   /* max-width bumped by 2×max-gutter so the large-screen content stays ~1330px */
   max-width: 1458px;
@@ -323,35 +323,11 @@
 
 /* ── Loading skeleton ──────────────────────────────────────────────────────
    Shown until the property fetch settles, so the placeholder name/address/
-   phones are never painted and then swapped. Mirrors .pi-row's shape (info
-   column beside the 317px media cards) to keep the swap from shifting layout. */
-
-.pi-skel {
-  display: flex;
-  align-items: flex-start;
-  gap: 24px;
-}
-
-.pi-skel-info {
-  flex: 1 1 0;
-  min-width: 280px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.pi-skel-media {
-  flex: 2 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.pi-skel-cards {
-  display: flex;
-  gap: 24px;
-}
+   phones are never painted and then swapped. The full-mode placeholder sits in
+   the REAL .pi-row / .pi-info / .pi-media / .pi-cards / .pi-card-col boxes (see
+   PropertySkeleton), so its widths and the stacking at 1180px are the
+   content's own. What follows only sizes the bars inside them — each one the
+   height of the real line it stands in for, so the column heights match. */
 
 .pi-skel-bar,
 .pi-skel-block {
@@ -362,23 +338,45 @@
   animation: pi-skel-shimmer 1.4s ease-in-out infinite;
 }
 
-.pi-skel-name { height: 40px; width: 72%; }
-.pi-skel-rating { height: 28px; width: 46%; margin-bottom: 4px; }
-.pi-skel-line { height: 20px; width: 88%; }
+/* .pi-name is 30px x 1.2 with a 4px bottom margin; .pi-rating's score is the
+   same line. */
+.pi-skel-name { height: 36px; width: 72%; margin-bottom: 4px; }
+.pi-skel-rating { height: 36px; width: 46%; }
+/* .pi-contact: 12px between blocks and a 4px top margin. Contact rows are
+   16px x 1.5 = 24px; the hours group is .pi-hours' tighter 2px stack. */
+.pi-skel-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+.pi-skel-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pi-skel-line { height: 24px; width: 88%; }
 .pi-skel-line.short { width: 62%; }
-.pi-skel-crumb { height: 18px; width: 60%; }
+.pi-skel-line.shorter { width: 34%; }
+/* Breadcrumb line height. Right-aligned like the real crumb above 1180px. */
+.pi-skel-crumb { height: 24px; width: 60%; }
+.pi-media > .pi-skel-crumb { align-self: flex-end; }
 
-/* Matches .pi-gallery's height so the real cards drop straight in — and it is
-   317px at EVERY width, because .pi-gallery has no responsive height. */
+/* Matches .pi-gallery / .pi-map (both 317px at every width). */
 .pi-skel-block {
   flex: 1 1 0;
   min-width: 0;
   height: 317px;
   border-radius: 16px;
 }
-/* Both cards in .pi-cards are 317px: .pi-gallery and .pi-map carry the same
-   height. The 302px this used to set belongs to .pi-hero-card, which is the
-   HERO display mode — a different layout that .pi-cards is not part of. */
+/* In a .pi-card-col — a COLUMN — a zero basis governs height and would
+   collapse the block (the hero card's trap, below). Auto hands 317px back. */
+.pi-card-col > .pi-skel-block { flex: 0 0 auto; }
+/* The row under each card: "Find my Reservation" (24px) and the socials
+   (29px icons). The columns stretch to the taller, so 29px. */
+.pi-skel-cardrow { height: 29px; width: 55%; }
+/* The socials sit hard right under the map. */
+.pi-card-col:last-child > .pi-skel-cardrow { align-self: flex-end; width: 40%; }
 
 @keyframes pi-skel-shimmer {
   from { background-position: 100% 50%; }
@@ -390,31 +388,9 @@
   .pi-skel-block { animation: none; }
 }
 
-/* Single column, matching the real layout — which stacks at 1180px, NOT 900.
-   .pi-row, .pi-cards and .pi-card-col all change at 1180, so a skeleton that
-   waited until 900 stayed two-up across a 280px band where the real content is
-   already one column, and the page re-flowed when the fetch landed.
-
-   The rules mirror those three exactly rather than approximating them: wrap
-   like .pi-cards and take .pi-card-col's `1 1 360px`, instead of forcing a
-   column — same result on a phone, but correct in the band between.
-
-   No height override. The old 220px was the other half of the jump: neither
-   real card shrinks on mobile, so the placeholder was ~100px short of each. */
+/* Stacked, the real crumb goes back to the left; so does its stand-in. */
 @media (max-width: 1180px) {
-  /* `align-items: stretch` is the load-bearing half of this rule, not tidying.
-     .pi-skel is align-items: flex-start for the side-by-side layout, and once
-     the direction turns to column that starts sizing both children
-     SHRINK-TO-FIT on the cross axis. The real .pi-row survives that because
-     its columns are full of text and cards with natural widths; the skeleton
-     is percentage-width bars (72%, 88%) and empty blocks, which have no
-     natural width at all — so they collapsed to slivers a few pixels wide.
-     Stretch gives each column the full row, and the percentages resolve
-     against something real again. */
-  .pi-skel { flex-direction: column; align-items: stretch; }
-  /* Half each, exactly as .pi-cards and .pi-card-col above. */
-  .pi-skel-cards { flex-wrap: nowrap; }
-  .pi-skel-cards > .pi-skel-block { flex: 1 1 0; min-width: 0; }
+  .pi-media > .pi-skel-crumb { align-self: flex-start; }
 }
 
 /* ── Hero-mode skeleton ───────────────────────────────────────────────────
@@ -483,11 +459,13 @@
   gap: 4px;
   padding: 0 16px 24px;
 }
-/* Three status lines of uneven length, then the underlined link below them. */
-.pi-skel-m-hour { height: 20px; width: 72%; }
+/* Gate and office (plus the call centre when it shows — the same flag as the
+   real block), then the underlined link below them. 19.5px is 16px Montserrat
+   at its normal line height, which is what the real <p>s get. */
+.pi-skel-m-hour { height: 19.5px; width: 72%; }
 .pi-skel-m-hour:nth-of-type(2) { width: 64%; }
 .pi-skel-m-hour:nth-of-type(3) { width: 78%; }
-.pi-skel-m-seehours { height: 20px; width: 40%; margin-top: 8px; }
+.pi-skel-m-seehours { height: 19.5px; width: 40%; margin-top: 8px; }
 
 /* Visually hidden, still announced. */
 .pi-sr-only {
@@ -521,7 +499,7 @@
   border: 1px solid #a5b4bf;
   border-radius: 8px;
   background: #ffffff;
-  font: 400 16px/20px 'Montserrat', sans-serif;
+  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #101318;
   outline: none;
 }
@@ -547,7 +525,7 @@
   border-radius: 8px;
   background: #000000;
   color: #ffffff;
-  font: 600 16px/16px 'Montserrat', sans-serif;
+  font: 600 16px/16px 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-align: center;
   cursor: pointer;
 }
@@ -882,7 +860,7 @@ span.pi-lb-img {
   border: 1px solid #f4f6f8;
   border-radius: 20px;
   box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   animation: pi-hours-pop 0.15s ease-out;
 }
 @keyframes pi-hours-fade { from { opacity: 0; } to { opacity: 1; } }

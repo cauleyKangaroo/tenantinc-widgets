@@ -14,7 +14,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────────── */
 
 .bpp-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   max-width: 1330px;
   margin: 0 auto;
@@ -172,7 +172,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   color: #101318;
@@ -478,9 +478,31 @@
   animation: bpp-skel-shimmer 1.4s ease-in-out infinite;
 }
 
-.bpp-skel--title { height: 56px; width: 80%; }
-.bpp-skel--title.short { width: 55%; }
-.bpp-skel--byline { height: 18px; width: 260px; }
+.bpp-skel-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+/* One bar per title line, each exactly the h1's line box: the same clamp as
+   .bpp-title times its 1.25 line-height. The bar is the line minus a 12px
+   inset (6px margin each side), so the bars stack as real lines would —
+   fixed 56px bars with a 20px gap between them came up ~24px short of a
+   two-line title at 1440. */
+.bpp-skel--title {
+  height: calc(clamp(32px, 4.2vw, 80px) * 1.25 - 12px);
+  margin: 6px 0;
+  width: 80%;
+}
+.bpp-skel--title + .bpp-skel--title { width: 55%; }
+.bpp-skel--title.short { width: 40%; }
+.bpp-skel--narrow-only { display: none; }
+/* Matches .bpp-byline's 22.5px line (20px under 900px, below). */
+.bpp-skel--byline { height: 22.5px; width: 260px; max-width: 100%; }
+/* The trailing crumb's 20px line inside the 24px-tall row. */
+.bpp-skel--crumb { height: 20px; width: 320px; max-width: 40%; }
+.bpp-skel--social { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; }
 .bpp-skel--hero { width: 100%; aspect-ratio: 1347 / 743; border-radius: 16px; }
 .bpp-skel--text { height: 16px; margin-bottom: 12px; }
 
@@ -540,6 +562,14 @@
   .bpp-byline {
     font-size: 16px;
     line-height: 20px;
+  }
+
+  .bpp-skel--byline {
+    height: 20px;
+  }
+
+  .bpp-skel--narrow-only {
+    display: block;
   }
 
   .bpp-share-row {

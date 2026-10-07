@@ -6,7 +6,7 @@
    overrides without resorting to !important. */
 
 .sl-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -180,7 +180,7 @@
   height: 31px;
   cursor: pointer;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-weight: 700;
   line-height: 1;
   transition: background 0.15s;
@@ -219,7 +219,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
   line-height: 1;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-weight: 400;
   display: flex;
   align-items: center;
@@ -291,13 +291,13 @@
 }
 .sl-wrapper .sl-promo-banner-tag svg { color: var(--color_1, #f45f30); flex: 0 0 auto; }
 .sl-wrapper .sl-promo-banner-text {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 500;
 }
 .sl-wrapper .sl-promo-banner-text strong { font-weight: 700; }
 .sl-wrapper .sl-promo-banner-clear {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #101318;
@@ -321,7 +321,7 @@
    matches #03's .pi-name — 30px / 22px, 700 — so the two widgets' titles are
    one size on a page that shows both. */
 .sl-wrapper .sl-page-title {
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 30px !important;
   font-weight: 700 !important;
   /* Unitless on purpose: a long feature-page heading wraps to two lines, and a
@@ -391,7 +391,7 @@
    hidden, so it is a control rather than decoration. */
 .sl-wrapper .sl-feature-intro-clear {
   flex: 0 0 auto;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #101318;
@@ -410,7 +410,7 @@
 }
 .sl-wrapper .sl-feature-details-title {
   margin: 0 0 12px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 24px;
   font-weight: 700;
   line-height: 30px;
@@ -579,10 +579,18 @@
   align-items: center;
   gap: 16px;
 }
+/* The box is fixed by aspect-ratio, not by the image: 380:300 is the unit
+   artwork's own shape, so a loaded image fills it exactly as it did with
+   height:auto — but the box exists before the file arrives (an <img> with
+   height:auto is 0px until then, and the card grew under the reader), while
+   unitImage.ts steps through its fallbacks, and after the last one fails.
+   Artwork of another shape is letterboxed by object-fit rather than resizing
+   the card. */
 .sl-wrapper .sl-unit-img {
   width: 100%;
   max-width: 162px;
   height: auto;
+  aspect-ratio: 380 / 300;
   object-fit: contain;
   display: block;
 }
@@ -724,7 +732,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -751,7 +759,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -855,10 +863,12 @@
   align-items: center;
   gap: 16px;
 }
+/* Fixed box, as .sl-unit-img above. */
 .sl-wrapper .sl-lc-img {
   width: 100%;
   max-width: 162px;
   height: auto;
+  aspect-ratio: 380 / 300;
   object-fit: contain;
   display: block;
 }
@@ -932,7 +942,7 @@
   border-radius: 4px;
   background: #ffffff;
   border: 2px solid #a5b4bf;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 500;
   color: #242627;
@@ -1095,11 +1105,17 @@
    caps here carry the same visual weight on far less width. Capping the HEIGHT is
    what keeps the card slim: the demo photos vary in aspect, and a width-only cap
    let tall ones drive the whole row's height. */
+/* A fixed box, as .sl-unit-img: 136px wide at the artwork's 380:300 (107px
+   tall, inside the 119px cap) is exactly what the loaded image measured with
+   width:auto. Explicit rather than auto because an image that has not loaded
+   has no width to be auto FROM — it was 0px, and the column grew on load.
+   The max-width steps below still apply to it. */
 .sl-wrapper .sl-dv-img {
-  width: auto;
+  width: 136px;
   max-width: 136px;
   height: auto;
   max-height: 119px;
+  aspect-ratio: 380 / 300;
   object-fit: contain;
   display: block;
 }
@@ -1621,31 +1637,49 @@
   100% { background-position:  600px 0; }
 }
 
-.sl-wrapper .sl-skeleton-card .sl-card-display-panel,
-.sl-wrapper .sl-skeleton-card .sl-card-action-panel {
+/* Every layout's placeholder, not just the grid card's panels: the list card's
+   pills keep their hover styles otherwise. */
+.sl-wrapper .sl-skeleton {
   pointer-events: none;
 }
 
 .sl-wrapper .sl-skeleton-line,
 .sl-wrapper .sl-skeleton-image,
-.sl-wrapper .sl-skeleton-btn {
+.sl-wrapper .sl-skeleton-btn,
+.sl-wrapper .sl-skel-text,
+.sl-wrapper .sl-skel-pill {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 600px 100%;
   animation: sl-shimmer 1.4s infinite linear;
   border-radius: 6px;
 }
 
-.sl-wrapper .sl-skeleton-title        { height: 28px; width: 90px; margin-bottom: 8px; }
-.sl-wrapper .sl-skeleton-subtitle     { height: 18px; width: 120px; margin-bottom: 12px; }
-.sl-wrapper .sl-skeleton-feature      { height: 14px; width: 100%; margin-bottom: 6px; }
-.sl-wrapper .sl-skeleton-feature--short { width: 70%; }
-.sl-wrapper .sl-skeleton-image        { width: 100%; height: 120px; border-radius: 8px; }
-.sl-wrapper .sl-skeleton-price        { height: 40px; width: 120px; }
-.sl-wrapper .sl-skeleton-btn          { height: 50px; flex: 1; border-radius: 8px; }
-.sl-wrapper .sl-skeleton-accordion-title { height: 26px; width: 140px; }
+/* The skeleton cards wear the real card classes (see SkeletonLoader.tsx), so
+   only the stand-ins are sized here — and the image is not even that: it
+   carries the real image class, whose aspect-ratio box is the photo's. */
+.sl-wrapper .sl-skeleton-image        { border-radius: 8px; }
+/* 45px: the price row's tallest column (IN-STORE label + strike price). */
+.sl-wrapper .sl-skeleton-price        { height: 45px; width: 150px; max-width: 100%; }
+/* flex: none — the CTA columns are column flexboxes in the list and default
+   cards, where a flex: 1 (zero basis) button collapsed to 0px tall. */
+.sl-wrapper .sl-skeleton-btn          { height: 50px; flex: none; border-radius: 8px; }
+/* Ghost text: the run is transparent, so the line box is the real element's
+   and only the shimmer shows. clone repaints the rounded ends on each line of
+   a run that wraps. */
+.sl-wrapper .sl-skel-text {
+  color: transparent;
+  border-radius: 4px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  user-select: none;
+}
+/* An empty size pill: the real .sl-lc-size box, without its border. */
+.sl-wrapper .sl-skel-pill { border-color: transparent; }
 
 .sl-wrapper .sl-skeleton .sl-accordion-header { cursor: default; }
-.sl-wrapper .sl-skeleton .sl-accordion-body   { padding-top: 24px; display: block; }
+/* The title is a pill that turns black on hover; nothing to hover here. */
+.sl-wrapper .sl-skeleton .sl-accordion-header .sl-accordion-title { background: none; }
+.sl-wrapper .sl-skeleton .sl-accordion-body   { display: block; }
 
 /* ===========================================================================
    AP SECTIONS — below-content area
@@ -1961,7 +1995,7 @@
   padding: 8px 14px;
   cursor: pointer;
   white-space: nowrap;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 .sl-wrapper .sl-nb-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
 
@@ -2032,7 +2066,7 @@
   border-radius: 100px;
   border: 1px solid #d1d5db;
   background: #ffffff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #101318;
@@ -2223,7 +2257,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: #101318;
@@ -2256,7 +2290,7 @@
   border: none;
   outline: none;
   padding: 12px 20px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   color: #101318;
   background: transparent;
@@ -2297,7 +2331,7 @@
   border: none;
   cursor: pointer;
   text-align: left;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 15px;
   font-weight: 500;
   color: #101318;
@@ -2444,7 +2478,7 @@
 }
 
 .sl-wrapper .sl-sa-title {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 20px;
   font-weight: 700;
   color: #101318;
@@ -2463,7 +2497,7 @@
   color: #ffffff;
   font-size: 13px;
   font-weight: 600;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   flex-shrink: 0;
 }
 
@@ -2524,7 +2558,7 @@
 .sl-wrapper .sl-fh-label {
   flex: 1 1 auto;
   min-width: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 600;
   line-height: normal;
@@ -2663,7 +2697,7 @@
   border-radius: 100px;
   padding: 11px 17px;
   font-size: 14px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-weight: 600;
   cursor: pointer;
   background: #ffffff;
@@ -2707,14 +2741,14 @@
   font-weight: 700;
   color: #101318;
   line-height: 1;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-rv2-out-of {
   font-size: 17px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 /* flex-start so the stars and "N ratings" share a left edge. They were flex-end,
@@ -2741,7 +2775,7 @@
   font-size: 12px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 /* Review card */
@@ -2812,7 +2846,7 @@
   font-weight: 600;
   color: #101318;
   line-height: 20px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   margin: 0;
 }
 
@@ -2821,7 +2855,7 @@
   font-weight: 400;
   color: #637381;
   line-height: 20px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   margin: 0;
 }
 
@@ -2830,7 +2864,7 @@
   font-weight: 400;
   color: #101318;
   line-height: 20px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   margin: 0;
 }
 
@@ -2907,7 +2941,7 @@
   border-radius: 70px;
   padding: 11px 17px;
   font-size: 14px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-weight: 600;
   cursor: pointer;
   background: #ffffff;
@@ -2988,7 +3022,7 @@
   justify-content: center;
   font-size: 14px;
   color: #637381;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 /* Property card */
@@ -3040,7 +3074,7 @@
   color: #ffffff;
   font-size: 24px;
   font-weight: 700;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.1;
 }
 
@@ -3064,7 +3098,7 @@
   font-size: 18px;
   font-weight: 700;
   color: #ffffff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   margin: 0;
   line-height: 1.1;
   white-space: nowrap;
@@ -3082,7 +3116,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #ffffff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-nb2-stars {
@@ -3094,7 +3128,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #ffffff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-decoration: underline;
 }
 
@@ -3115,7 +3149,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #ffffff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-decoration: underline;
   white-space: nowrap;
   overflow: hidden;
@@ -3150,7 +3184,7 @@
   font-size: 14px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 /* Unit rows */
@@ -3183,7 +3217,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   white-space: nowrap;
 }
 
@@ -3191,7 +3225,7 @@
   font-size: 12px;
   font-weight: 400;
   color: #637381;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3225,7 +3259,7 @@
   font-size: 8px;
   font-weight: 500;
   color: #637381;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.5;
 }
 
@@ -3233,7 +3267,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #637381;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-decoration: line-through;
   line-height: 1.5;
 }
@@ -3258,7 +3292,7 @@
   font-size: 8px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.4;
 }
 
@@ -3266,7 +3300,7 @@
   font-size: 20px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.2;
 }
 
@@ -3276,7 +3310,7 @@
   color: var(--color_3, #fff);
   font-size: 14px;
   font-weight: 700;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   border: none;
   border-radius: 4px;
   height: 33px;
@@ -3304,7 +3338,7 @@
   font-size: 12px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-nb2-see-all {
@@ -3313,7 +3347,7 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--color_2, #509e2f);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-decoration: underline;
   gap: 2px;
 }
@@ -3425,7 +3459,7 @@
   font-size: 20px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -3454,7 +3488,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.5;
   margin: 0;
 }
@@ -3479,7 +3513,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.5;
   margin: 0;
 }
@@ -3508,7 +3542,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 24px;
   margin: 0;
 }
@@ -3517,7 +3551,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 24px;
   margin: 0;
 }
@@ -3532,7 +3566,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-decoration: underline;
   padding: 4px 0 0;
 }
@@ -3562,7 +3596,7 @@
   background: #fff;
   border-radius: 20px;
   box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   animation: sl-hours-pop 0.15s ease-out;
 }
 @keyframes sl-hours-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -3625,7 +3659,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #637381;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   background: #ffffff;
   min-width: 0;
 }
@@ -3641,7 +3675,7 @@
   color: #ffffff;
   font-size: 16px;
   font-weight: 600;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -3726,7 +3760,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.4;
 }
 
@@ -3893,7 +3927,7 @@
   border-radius: 8px;
   background: var(--color_1, #f45f30);
   color: var(--color_3, #fff);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   text-decoration: none;
@@ -3970,7 +4004,7 @@
   color: #101318;
   line-height: 30px;
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-blog2-byline {
@@ -4106,7 +4140,7 @@
   font-size: 14px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s;
@@ -4184,7 +4218,7 @@
   color: #101318;
   line-height: 1.2;
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 /* CTA link */
@@ -4321,7 +4355,7 @@
   font-size: 14px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
@@ -4364,7 +4398,7 @@
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 18px;
   text-align: center;
   box-sizing: border-box;
@@ -4388,7 +4422,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   background: #ffffff;
   box-sizing: border-box;
   outline: none;
@@ -4529,7 +4563,7 @@
   background: none;
   border: none;
   padding: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 18px;
   font-weight: 500;
   color: #101318;
@@ -4577,7 +4611,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   background: #ffffff;
   outline: none;
   box-sizing: border-box;
@@ -4666,7 +4700,7 @@
      flat #f26500, which would ignore the site's theme. */
   background: var(--color_1, #f45f30);
   color: var(--color_3, #fff);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 700;
   line-height: 16px;
@@ -4703,7 +4737,7 @@
   gap: 8px;
   width: 100%;
   padding: 12px 16px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   color: #f45f30;
@@ -4735,13 +4769,13 @@
   gap: 2px;
 }
 .sl-wrapper .sl-reorder-title {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 18px;
   font-weight: 700;
   color: #101318;
 }
 .sl-wrapper .sl-reorder-subtitle {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 12px;
   font-weight: 500;
   color: #8a9099;
@@ -4806,14 +4840,14 @@
   border-radius: 7px;
   background: #f1f3f5;
   color: #6b7280;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 13px;
   font-weight: 700;
 }
 .sl-wrapper .sl-reorder-label {
   flex: 1;
   min-width: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   color: #101318;
@@ -4854,7 +4888,7 @@
   border: 1px solid #fca5a5;
   border-radius: 10px;
   color: #b91c1c;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 13px;
 }
 
@@ -4868,14 +4902,14 @@
   flex-shrink: 0;
 }
 .sl-wrapper .sl-reorder-count {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 13px;
   color: #8a9099;
 }
 .sl-wrapper .sl-reorder-actions { display: flex; gap: 10px; }
 .sl-wrapper .sl-reorder-cancel,
 .sl-wrapper .sl-reorder-save {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   padding: 10px 22px;

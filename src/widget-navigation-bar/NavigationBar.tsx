@@ -28,7 +28,7 @@ import {
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID } from '@shared/propertyContact';
 import { fetchLocationTree, DEFAULT_CITY_BASE_PATH, type NavState } from '@shared/propertyNav';
 import { imageUrl } from '@shared/dudaCollections';
-import { fetchDudaNavigation, type DudaNavItem } from '@shared/dudaNav';
+import { fetchDudaNavigation, hasNavApi, type DudaNavItem } from '@shared/dudaNav';
 import { navTreeToLinks } from './navigationMapper';
 import { FindStorageMegaMenu, demoLocationTree, type DemoPortfolio } from './FindStorageMegaMenu';
 
@@ -244,6 +244,26 @@ function buildDefaultLinks(): NavLink[] {
   ];
 }
 
+/**
+ * The last page tree this browser saw, so a repeat visit paints the full menu
+ * on the first frame. Without it the bar renders Find Storage alone until
+ * getNavItemsAsync answers, then every other link arrives at once and — the row
+ * being right-aligned — slides Find Storage across the bar. localStorage is
+ * per-origin, i.e. per site. The live read still runs and replaces this, so a
+ * stale copy lasts one round trip. Storage can throw (private mode, blocked
+ * site data): that is simply a first visit.
+ */
+const NAV_CACHE_KEY = 'hb-nav-tree';
+function readCachedNav(): DudaNavItem[] {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(NAV_CACHE_KEY) || 'null');
+    return Array.isArray(v) ? (v as DudaNavItem[]) : [];
+  } catch { return []; }
+}
+function writeCachedNav(tree: DudaNavItem[]) {
+  try { window.localStorage.setItem(NAV_CACHE_KEY, JSON.stringify(tree)); } catch { /* storage blocked */ }
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -447,14 +467,29 @@ export function NavigationBar({
   // "show in navigation", in Duda's order, with visible sub-pages nested. Empty
   // in the Duda editor and the harness (no dmAPI) — the hardcoded defaults cover
   // those, same as the location tree above.
-  const [navTree, setNavTree] = useState<DudaNavItem[]>([]);
+  //
+  // Seeded from the cached copy, but only where there IS a page tree to read
+  // (published site). The editor and the harness never get one, and a copy left
+  // over from a published visit must not show there as if it were live.
+  const [navTree, setNavTree] = useState<DudaNavItem[]>(() => (hasNavApi() ? readCachedNav() : []));
+  const [navPending, setNavPending] = useState(true);
   useEffect(() => {
     let cancelled = false;
     fetchDudaNavigation()
-      .then((tree) => { if (!cancelled) setNavTree(tree); })
-      .catch((err) => console.error('[NavigationBar] nav tree error:', err));
+      .then((tree) => {
+        if (cancelled) return;
+        // An empty answer is a failed read (dudaNav returns [] for every error),
+        // not an empty site — keep what we have rather than blanking the menu.
+        if (tree.length) { setNavTree(tree); writeCachedNav(tree); }
+      })
+      .catch((err) => console.error('[NavigationBar] nav tree error:', err))
+      .finally(() => { if (!cancelled) setNavPending(false); });
     return () => { cancelled = true; };
   }, []);
+  // First visit on a published site: the tree is coming but nothing is cached.
+  // .nav-links--pending holds the row at a typical loaded width meanwhile, so
+  // Find Storage starts roughly where it will end up instead of hard right.
+  const reserveNavRow = !links && navPending && !navTree.length && hasNavApi();
 
   // What the mega menu renders. The Duda EDITOR and the dev harness have no
   // dmAPI, so the tree above stays empty there — the demo tree keeps the panel
@@ -586,7 +621,7 @@ export function NavigationBar({
   // markup at the bottom, and Find Storage falls straight back into the same
   // state › city › facility cascade it used before.
   const navLinks = (
-    <ul className="nav-links">
+    <ul className={`nav-links${reserveNavRow ? ' nav-links--pending' : ''}`}>
       {linkList.map((link) => {
         // Only claim Find Storage for the mega popup when the editor has actually
         // opted into it — otherwise Find Storage falls into the same hover cascade
@@ -787,7 +822,7 @@ export function NavigationBar({
         <div className="nav-inner">
           {logoMode === 'inline' && (
             <a className="nav-logo-inline" href={homeLink} aria-label="Home">
-              <img className="nav-logo-img" src={logoSrc} alt="storelocal storage" />
+              <img className="nav-logo-img" src={logoSrc} alt="storelocal storage" width={295} height={131} />
             </a>
           )}
           <div className="nav-right">
@@ -821,7 +856,7 @@ export function NavigationBar({
           so it never overlaps the nav content. Only in 'banner' mode. */}
       {logoMode === 'banner' && (
         <a className="nav-logo" href={homeLink} style={{ background: logoBg }} aria-label="Home">
-          <img className="nav-logo-img" src={logoSrc} alt="storelocal storage" />
+          <img className="nav-logo-img" src={logoSrc} alt="storelocal storage" width={295} height={131} />
         </a>
       )}
 
@@ -832,7 +867,7 @@ export function NavigationBar({
         <div className="nav-mm-panel">
           <div className="nav-mm-header">
             <a className="nav-mm-logo" href={homeLink} aria-label="Home">
-              <img className="nav-mm-logo-img" src={logoSrc} alt="storelocal storage" />
+              <img className="nav-mm-logo-img" src={logoSrc} alt="storelocal storage" width={295} height={131} />
             </a>
             <button className="nav-mm-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
               {/* Filled disc: .nav-mm-panel is #fff. 32 fills the button box,
