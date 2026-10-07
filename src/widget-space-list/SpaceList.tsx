@@ -17,6 +17,7 @@ import {
   activeFilterCount,
   isUnavailable,
   typeOptionsFrom,
+  unitPromotions,
 } from './filters';
 import { readFiltersFromUrl, writeFiltersToUrl } from './urlFilters';
 import {
@@ -32,7 +33,6 @@ import {
 } from './featureHighlights';
 import { FEATURE_PAGE_COLLECTION, fetchFeaturePageCopy } from './featurePageSource';
 import { hasCollectionsApi } from '@shared/dudaCollections';
-import { PROMOTION_OPTIONS } from './data';
 import { FilterModal } from './components/FilterModal';
 import { TopFilterBar } from './components/TopFilterBar';
 import { GridView } from './components/GridView';
@@ -546,6 +546,17 @@ export function SpaceList({
     [units, config.categoryOrdering],
   );
 
+  // The promotions the units on the page actually have — none ⇒ the modal
+  // leaves the section out. Same type scoping as the amenity/feature options.
+  const promotionOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const u of units) {
+      if (filters.types.length > 0 && !filters.types.includes(u.type)) continue;
+      for (const p of unitPromotions(u)) seen.add(p);
+    }
+    return Array.from(seen).sort();
+  }, [units, filters.types]);
+
   const featureOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
@@ -659,9 +670,7 @@ export function SpaceList({
           amenityOptions={amenityOptions}
           typeOptions={typeOptions}
           featureOptions={featureOptions}
-          promotionOptions={PROMOTION_OPTIONS}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          promotionOptions={promotionOptions}
         />
       )}
     </>
