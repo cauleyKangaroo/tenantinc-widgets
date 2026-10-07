@@ -412,10 +412,37 @@
 @media (max-width: 560px) {
   .ft-links {
     flex-direction: column;
+    gap: 24px;
   }
 
   .ft-locations-grid {
     column-count: 1;
+  }
+
+  /* Mobile puts the "Need Help?" box ABOVE Company Information, while the
+     description stays last (just above "Follow"). The two share .ft-aside, so
+     the aside's box is dissolved and its children ordered straight into
+     .ft-top's column — CSS only, the markup and desktop order are untouched. */
+  .ft-aside {
+    display: contents;
+  }
+
+  /* Spacing moves from the column gap onto the items, because the two gaps
+     can differ per item: 24px under the help box and above the description. */
+  .ft-top {
+    gap: 0;
+    padding-top: 24px;
+  }
+
+  .ft-help {
+    order: -1;
+    width: 100%;
+    margin-bottom: 24px;
+  }
+
+  .ft-desc {
+    order: 1;
+    margin-top: 24px;
   }
 
   /* Mobile drops the rule above the Follow row (the one under "powered by"'s
