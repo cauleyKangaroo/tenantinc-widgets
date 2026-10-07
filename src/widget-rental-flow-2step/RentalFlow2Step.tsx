@@ -10,11 +10,17 @@ import {
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
-  fetchPaymentGateway, TENANT_PAYMENTS, configureApi,
+  fetchPaymentGateway, TENANT_PAYMENTS, configureApi, currentApiCreds,
   type RentResult, type ApiCredProps,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx,
 } from './api';
+import { IDV_SERVICE_CONNECTED, RENTAL_IDV_REQUIREMENT, parseIdvRequirement, type IdvRequirement } from './idvPolicy';
+import { createIdvApi } from './idvApi';
+import { idvSessionGet, idvSessionRemove, idvSessionSet } from './idvStorage';
+import { resolveIdvPresentation } from './idvPresentation';
+import { useIdvController } from './useIdvController';
+import { canRenderLiveIdvHarness } from './LiveIdvHarness';
 import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
 import { tokenizeCard } from './gpTokenize';
@@ -36,7 +42,7 @@ import { Shimmer } from '@shared/Shimmer';
 import { FormField, Button, DateModal, AlertIcon, formatPrice, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { fetchSingleStep } from '@shared/internalProperties';
+import { fetchIdvRequirementSetting, fetchSingleStep } from '@shared/internalProperties';
 import { skipValidation } from '@shared/devBypass';
 
 /**
@@ -211,6 +217,18 @@ export interface RentalFlow2StepProps extends ApiCredProps {
   /** Proxy base URL for the Reserve write (e.g. https://proxy.host). Empty →
    *  reserve is unavailable (writes never hit the direct edge key). */
   proxyBaseUrl?: string;
+  /** 'direct' calls the Tenant API with the site's credentials; anything else
+   *  (including a missing value) leaves ID verification off. */
+  idvTransport?: 'disabled' | 'direct';
+  /** Comma-separated hosts allowed for the hosted capture URL. */
+  idvVerificationHosts?: string;
+  /** LOCAL DEV HARNESS ONLY. Also requires a localhost hostname. */
+  liveIdvHarness?: boolean;
+  /** LOCAL DEV HARNESS ONLY: connect IDV inside the preview checkout. */
+  liveCheckoutIdv?: boolean;
+  /** Presentation variant for a remotely operated property. This never
+   * enables/disables IDV; every rental still requires verification. */
+  idvRemoteOperated?: boolean;
   /** "Change Space" link target on the order rail (the value-tiers page). */
   changeSpaceUrl?: string;
   /** Protection-plan brochure PDF, opened from step 2's "Learn More" lightbox. */
@@ -233,6 +251,9 @@ export interface RentalFlow2StepProps extends ApiCredProps {
    *  fiddles with the page); siteId/elementId identify this placement for
    *  observability and future per-site config lookups. */
   inEditor?: boolean;
+  /** Harness/editor only: exercise required/disabled presentation without a
+   * paid capture. Ignored on published pages. */
+  idvRequirementPreview?: IdvRequirement;
   siteId?: string;
   elementId?: string;
 }
@@ -433,6 +454,8 @@ function RailSkeleton({ sheet = false }: { sheet?: boolean }) {
 // Container-width breakpoint: below this the rail becomes the sticky
 // top bar (mobile export m01–m05 / spec-05). Same value as #14.
 const MOBILE_BP = 640;
+/** How long the paid screen waits for idv_requirements before treating it as unanswered. */
+const IDV_POLICY_TIMEOUT_MS = 8000;
 
 const fmtBarCountdown = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
@@ -736,6 +759,83 @@ export interface ConfirmationData {
   };
 }
 
+interface IdvReturnSnapshot {
+  rental?: Extract<RentResult, { ok: true }>;
+  contact: { first: string; last: string; email: string; phone: string };
+  chosen?: { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean };
+  moveIn: string;
+  /** The pending verification this hand-off belongs to. Epoch SECONDS, the
+   *  unit the API and the poller already use. */
+  expiresAt: number;
+  /** One-time token also placed on the page URL just before the hand-off. */
+  token?: string;
+}
+
+const IDV_RETURN_PARAM = 'idv_return';
+
+function urlReturnToken(): string | null {
+  try { return new URLSearchParams(window.location.search).get(IDV_RETURN_PARAM); } catch { return null; }
+}
+
+function setUrlReturnToken(token: string | undefined): boolean {
+  try {
+    const url = new URL(window.location.href);
+    if (token) url.searchParams.set(IDV_RETURN_PARAM, token);
+    else url.searchParams.delete(IDV_RETURN_PARAM);
+    window.history.replaceState(window.history.state, '', url.toString());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function idvReturnKey(propertyId: string): string {
+  return `mariposa:idv:return:v1:${propertyId}`;
+}
+
+function readIdvReturnSnapshot(propertyId: string): IdvReturnSnapshot | undefined {
+  if (!propertyId) return undefined;
+  try {
+    const value = JSON.parse(idvSessionGet(idvReturnKey(propertyId)) ?? 'null') as IdvReturnSnapshot | null;
+    if (!value?.contact?.first || !value.contact.last || !value.contact.email || !value.contact.phone) return undefined;
+    // Only the load that comes back from this tab's own hand-off restores it;
+    // any other visit to the property's checkout starts fresh.
+    if (!value.token || urlReturnToken() !== value.token) {
+      idvSessionRemove(idvReturnKey(propertyId));
+      return undefined;
+    }
+    // The snapshot holds renter details and the access code, so it lives no
+    // longer than the verification it was written for; the lease itself is
+    // already on the backend.
+    if (typeof value.expiresAt !== 'number' || !Number.isFinite(value.expiresAt)
+      || Date.now() >= value.expiresAt * 1_000) {
+      idvSessionRemove(idvReturnKey(propertyId));
+      return undefined;
+    }
+    return value;
+  } catch {
+    idvSessionRemove(idvReturnKey(propertyId));
+    return undefined;
+  }
+}
+
+/** False when the snapshot could not be saved: the caller must not leave the
+ *  page in the same tab, or the renter returns to a fresh checkout. */
+function writeIdvReturnSnapshot(propertyId: string, value: IdvReturnSnapshot): boolean {
+  if (!propertyId) return false;
+  const token = makeConfirmationNonce();
+  if (!idvSessionSet(idvReturnKey(propertyId), JSON.stringify({ ...value, token }))) return false;
+  if (setUrlReturnToken(token)) return true;
+  idvSessionRemove(idvReturnKey(propertyId));
+  return false;
+}
+
+function clearIdvReturnSnapshot(propertyId: string): void {
+  if (!propertyId) return;
+  idvSessionRemove(idvReturnKey(propertyId));
+  if (urlReturnToken()) setUrlReturnToken(undefined);
+}
+
 /** One-time random id for the confirmation payload handoff. */
 function makeConfirmationNonce(): string {
   try { return crypto.randomUUID().replace(/-/g, ''); } catch { /* older browser */ }
@@ -823,9 +923,14 @@ export function RentalFlow2Step({
   companyId: companyIdArg,
   unitGroupId: unitGroupIdArg,
   proxyBaseUrl = cfg.proxyBaseUrl ?? '',
+  idvTransport = (cfg.idvTransport as 'disabled' | 'direct') ?? 'disabled',
+  idvVerificationHosts = cfg.idvVerificationHosts,
+  liveCheckoutIdv = false,
+  idvRemoteOperated = false,
   changeSpaceUrl,
   previewContent = false,
   inEditor = false,
+  idvRequirementPreview,
   siteId,
   elementId,
   // Site-level REST credentials from the Content Library's custom site texts.
@@ -846,6 +951,7 @@ export function RentalFlow2Step({
     () => configureApi({ api_domain, app_id, api_key }),
     [api_domain, app_id, api_key],
   );
+  const liveCheckoutIdvEnabled = inEditor === true && canRenderLiveIdvHarness(liveCheckoutIdv);
   // The value-tiers Select hands off via the URL (?size/tier/propertyId/
   // companyId/unitGroupId). Read those first, falling back to props (Duda
   // content fields) — mirrors #14. Without this, companyId is undefined and the
@@ -1149,6 +1255,85 @@ export function RentalFlow2Step({
   }, [propertyInfo, unitTypeId]);
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
+  /*
+   * PropertiesInternal.idv_requirements — None / Optional / Required, chosen per
+   * property like single_step. Unanswered (no dmAPI, no row, blank, or a value
+   * we do not recognise) falls back to RENTAL_IDV_REQUIREMENT. The editor-only
+   * override reviews all three.
+   */
+  const [collectionIdvRequirement, setCollectionIdvRequirement] = useState<IdvRequirement | undefined>(undefined);
+  // Unanswered is NOT the same as off: until the lookup settles, the default
+  // must not be applied, or a Required property would briefly read as off and
+  // show its access code (see idvPolicyPending). Settled = answered, failed,
+  // no property to ask about, or timed out — a hung read must never strand the
+  // renter on the paid screen.
+  const [idvRequirementSettled, setIdvRequirementSettled] = useState(false);
+  useEffect(() => {
+    setCollectionIdvRequirement(undefined);
+    setIdvRequirementSettled(false);
+    if (!effectivePropertyId) { setIdvRequirementSettled(true); return undefined; }
+    let cancelled = false;
+    let done = false;
+    const settle = (value: IdvRequirement | undefined) => {
+      if (cancelled || done) return;
+      done = true;
+      window.clearTimeout(timer);
+      setCollectionIdvRequirement(value);
+      setIdvRequirementSettled(true);
+    };
+    const timer = window.setTimeout(() => {
+      console.warn(`${logTag} idv_requirements lookup timed out — treating as unanswered (${RENTAL_IDV_REQUIREMENT})`);
+      settle(undefined);
+    }, IDV_POLICY_TIMEOUT_MS);
+    fetchIdvRequirementSetting(effectivePropertyId)
+      .then((raw) => {
+        const parsed = parseIdvRequirement(raw);
+        console.info(`${logTag} idv_requirements(${effectivePropertyId}) =`, raw, '→', parsed ?? `unanswered, using ${RENTAL_IDV_REQUIREMENT}`);
+        settle(parsed);
+      })
+      .catch((err) => {
+        console.warn(`${logTag} idv_requirements lookup failed:`, err);
+        settle(undefined);
+      });
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [effectivePropertyId, logTag]);
+  const idvRequirement: IdvRequirement = (inEditor === true ? parseIdvRequirement(idvRequirementPreview) : undefined)
+    ?? collectionIdvRequirement
+    ?? RENTAL_IDV_REQUIREMENT;
+  // Hosts the hosted capture page may live on. The prop is optional (an older
+  // config.json, or a site that never set it), so a missing value is an empty
+  // list rather than a crash.
+  const allowedIdvHosts = React.useMemo(
+    () => (idvVerificationHosts ?? '').split(',').map((host) => host.trim()).filter(Boolean),
+    [idvVerificationHosts],
+  );
+  const { baseUrl: idvBaseUrl, appId: idvAppId, apiKey: idvApiKey } = currentApiCreds();
+  const idvApi = React.useMemo(() => {
+    // Two independent production brakes: transport configuration alone cannot
+    // activate a billable/SMS-sending path. Localhost's explicit harness opt-in
+    // remains available before the release flag is flipped.
+    if ((!IDV_SERVICE_CONNECTED && !liveCheckoutIdvEnabled)
+      || (inEditor && !liveCheckoutIdvEnabled)
+      // Only an explicit 'direct' turns the client on; a stale or unknown value
+      // (an old 'proxy' included) means off.
+      || idvTransport !== 'direct'
+      // No allowed host means every returned link would be refused — but only
+      // AFTER the start call had billed a capture and sent the text. No client.
+      || allowedIdvHosts.length === 0) return undefined;
+    return createIdvApi({ baseUrl: idvBaseUrl, appId: idvAppId, apiKey: idvApiKey });
+  }, [allowedIdvHosts, idvApiKey, idvAppId, idvBaseUrl, idvTransport, inEditor, liveCheckoutIdvEnabled]);
+  /** The live client exists but this property's policy is not known yet. The
+   *  paid screen waits — no confirmation, no Get Access — rather than act on a
+   *  default that might be wrong. Without a client nothing can run, so nothing
+   *  waits; an editor/harness preview answers immediately. */
+  const idvPolicyPending = Boolean(idvApi)
+    && !idvRequirementSettled
+    && !(inEditor === true && parseIdvRequirement(idvRequirementPreview) !== undefined);
+  /** One-step skips the paid screen unless there is an ID check to offer. */
+  const oneStepIdv = resolveIdvPresentation(idvRequirement, 'choose', {
+    serviceConnected: Boolean(idvApi),
+    preview: inEditor === true,
+  }).enabled;
   const [selectionStatus, setSelectionStatus] = useState<
     'loading' | 'matched' | 'unit-unavailable' | 'unit-unverified' | 'malformed' | 'network-error' | 'legacy-display'
   >('loading');
@@ -1192,17 +1377,64 @@ export function RentalFlow2Step({
   // show what was actually filed, not what was typed a screen earlier.
   // Which optional sections the shopper ticked in step 2, carried to the
   // post-purchase screen so it opens them already ticked.
+  const idvReturn = useRef(readIdvReturnSnapshot(effectivePropertyId)).current;
   const [chosenSections, setChosenSections] = useState<
     { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean } | undefined
-  >(undefined);
+  >(idvReturn?.chosen);
   const [rentedContact, setRentedContact] = useState<
     { first: string; last: string; email: string; phone: string } | undefined
-  >(undefined);
+  >(idvReturn?.contact);
   /** Static payment path (no GP key): the lightbox has finished, show the
    *  post-purchase form rather than navigating to the confirmation page. */
-  const [staticPaid, setStaticPaid] = useState(false);
+  const [staticPaid, setStaticPaid] = useState(Boolean(idvReturn));
   // The real rental (documents → lease → autopay). Present ⇒ money moved.
-  const [rental, setRental] = useState<Extract<RentResult, { ok: true }> | undefined>(undefined);
+  const [rental, setRental] = useState<Extract<RentResult, { ok: true }> | undefined>(idvReturn?.rental);
+  useEffect(() => {
+    if (!idvReturn?.moveIn) return;
+    const restored = new Date(idvReturn.moveIn);
+    if (!Number.isNaN(restored.getTime())) setMoveIn(restored);
+  }, [idvReturn]);
+  const idvIdentity = React.useMemo(() => rentedContact && (rental || liveCheckoutIdvEnabled) ? {
+    first: rentedContact.first,
+    last: rentedContact.last,
+    email: rentedContact.email,
+    phone: rentedContact.phone,
+    contactId: rental?.contactId,
+    leaseId: rental?.leaseId ?? 'local-checkout-harness',
+  } : undefined, [liveCheckoutIdvEnabled, rental, rentedContact]);
+  const idvScope = React.useMemo(() => ({
+    companyId: effectiveCompanyId ?? '',
+    propertyId: effectivePropertyId,
+  }), [effectiveCompanyId, effectivePropertyId]);
+  // Mobile mode is CONTAINER-width based (widgets embed at any width).
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [railOpen, setRailOpen] = useState(false);
+  const persistMobileIdvReturn = useCallback((pending: { expiresAt: number }): boolean => {
+    if (!rentedContact) return false;
+    return writeIdvReturnSnapshot(effectivePropertyId, {
+      rental,
+      contact: rentedContact,
+      chosen: chosenSections,
+      moveIn: moveIn.toISOString(),
+      expiresAt: pending.expiresAt,
+    });
+  }, [chosenSections, effectivePropertyId, moveIn, rental, rentedContact]);
+  const idvController = useIdvController({
+    enabled: Boolean(
+      idvApi
+      && (rental || liveCheckoutIdvEnabled)
+      && effectiveCompanyId
+      && effectivePropertyId
+      && idvIdentity
+      && idvRequirement !== 'disabled'
+    ),
+    api: idvApi,
+    scope: idvScope,
+    identity: idvIdentity,
+    allowedVerificationHosts: allowedIdvHosts,
+    beforeSameTabNavigation: persistMobileIdvReturn,
+  });
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | undefined>(undefined);
   /** "Get Access" pressed on the static post-purchase form. */
@@ -1212,19 +1444,17 @@ export function RentalFlow2Step({
      is granted. Starts true so nothing changes for a flow that never renders
      that step. */
   const [idVerified, setIdVerified] = useState(true);
+  useEffect(() => {
+    if (idvController.state.kind === 'complete') setIdVerified(true);
+  }, [idvController.state.kind]);
   // Office/Gate hours fallback for the confirmation page: the immutable success
   // snapshot occasionally predates propertyInfo loading, so it can lack hours.
   // Hours are read-only + non-sensitive (unlike the money block), so it's safe
   // to refetch them here when the snapshot is missing them. Fail-soft.
   const [confHours, setConfHours] = useState<{ officeHours?: string[]; gateHours?: string[] } | undefined>(undefined);
 
-  // Mobile mode is CONTAINER-width based (widgets embed at any width).
   // Observer attaches to the persistent wrapper — both the skeleton and
-  // the live tree share the same root div, so it survives the swap
-  // (lesson learned the hard way on #14).
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
-  const [railOpen, setRailOpen] = useState(false);
+  // the live tree share the same root div, so it survives the swap.
 
   /**
    * Tapping the cost bar opens or closes the sheet. Nothing else — it used to
@@ -2485,18 +2715,27 @@ export function RentalFlow2Step({
         )}
         {/* One rail for both steps, placed in the desktop grid or the mobile
             sheet. Step 3 was a bare left column with nothing beside it. */}
-        {/* Single step goes straight from payment to the confirmation. The
-            screen in between (Figma 8507-25408) exists to collect the mailing
-            address and licence AFTER the money moves; a single-step property
-            has chosen not to ask for them at all, so there is nothing on it to
-            fill in and it would just be a page between the shopper and their
-            access code. ID verification does not gate this: it is off
-            (IDV_ENABLED), and `idVerified` defaults to true. */}
-        {accessGranted || formMode === '1step' ? (
+        {/* Single step goes straight from payment to the confirmation — unless
+            this property's ID verification is active (Optional or Required).
+            Then it gets the same paid screen as two-step, in oneStep mode: only
+            the ID Verification card (and, for Verify ID Later, the licence and
+            mailing form), because Additional Information was already answered
+            on the checkout page. With verification off, `idVerified` stays
+            true and nothing is withheld. */}
+        {!accessGranted && idvPolicyPending ? (
+          <div className="rfc-layout">
+            <div className="rf-sx" role="status" aria-live="polite" aria-label="Finishing up your rental">
+              <Shimmer w="60%" h={30} r={4} />
+              <Shimmer w="100%" h={150} r={12} />
+              <Shimmer w="40%" h={48} r={8} />
+            </div>
+            {!isMobile && railFor(true)}
+          </div>
+        ) : accessGranted || (formMode === '1step' && !oneStepIdv) ? (
           <div className="rfc-layout">
             <Confirmation
               kind="rental"
-              name={finalizing?.firstName}
+              name={finalizing?.firstName ?? rentedContact?.first}
               phone={rentedContact?.phone ?? contact?.phone}
               // Only after a real lease: there is nothing to reference otherwise.
               reference={rental?.leaseId}
@@ -2523,7 +2762,20 @@ export function RentalFlow2Step({
         ) : (
           <div className="rfc-layout">
             <SuccessStep
+              oneStep={formMode === '1step'}
               chosen={chosenSections}
+              verificationPhone={rentedContact?.phone}
+              idvRequirement={idvRequirement}
+              idvPreview={inEditor === true}
+              idvServiceConnected={Boolean(idvApi)}
+              idvController={idvController}
+              facility={{
+                address: propertyInfo?.address,
+                phone: formatUsPhone(propertyInfo?.phone),
+                officeHours: propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours,
+              }}
+              remoteOperated={idvRemoteOperated === true}
+              handheld={idvController.sameTab}
               onGetAccess={(details) => {
                 // File what this screen collects against the tenant's contact.
                 // Deliberately NOT awaited: the rental is already complete, the
@@ -2550,6 +2802,7 @@ export function RentalFlow2Step({
                   });
                 }
                 setIdVerified(details?.idVerified ?? true);
+                clearIdvReturnSnapshot(effectivePropertyId);
                 setAccessGranted(true);
               }}
             />
@@ -2808,6 +3061,7 @@ export function RentalFlow2Step({
               // charge, so this is the harness/preview path: show the
               // finalizing beat and hand to the post-purchase screen.
               setFinalizing(info);
+              if (liveCheckoutIdvEnabled && info.contact) setRentedContact(info.contact);
               if (info.extras) setChosenSections(info.extras);
               // The pick has been acted on — drop it so returning to /rental
               // later starts clean instead of silently re-selecting it.

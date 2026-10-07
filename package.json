@@ -9,6 +9,7 @@
     "lint": "eslint src --ext .ts,.tsx",
     "smoke": "npm run build && node dev/smoke-test.js",
     "test:phone": "tsc src/shared/ui/phone.ts --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck --outDir .tmp-test && node dev/phone-test.js",
+    "test:idv": "tsc src/widget-rental-flow-2step/idvState.ts src/widget-rental-flow-2step/idvPolling.ts src/widget-rental-flow-2step/openVerification.ts src/widget-rental-flow-2step/idvPresentation.ts src/widget-rental-flow-2step/idvPolicy.ts src/widget-rental-flow-2step/idvApi.ts src/widget-rental-flow-2step/idvStorage.ts --module commonjs --target ES2022 --moduleResolution node --esModuleInterop --skipLibCheck --lib ES2022,DOM --outDir .tmp-idv-test && node dev/idv-test.js && node dev/idv-controller-test.js",
     "deploy": "gulp upload:dry && npm run build && gulp upload",
     "deploy:dev": "cross-env DEPLOY_TARGET=dev npm run deploy",
     "deploy:demo": "cross-env DEPLOY_TARGET=demo npm run deploy",

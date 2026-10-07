@@ -32,6 +32,8 @@
     .widget-section > h2 { font-size: 13px; font-weight: 600; text-transform: uppercase;
       letter-spacing: .05em; color: #6b7280; margin: 0 0 8px; }
     .widget-container { min-height: 60px; }
+    .rf-idv-sent { margin: 8px 0; padding: 8px 12px; border-radius: 6px; background: #101318;
+      color: #7CFFB2; font: 600 13px/1.4 ui-monospace, Menlo, monospace; }
     /* Harness-only explanatory text under a section heading. */
     .section-note { font-size: 12px; line-height: 1.5; color: #6b7280; margin: 0 0 12px; max-width: 78ch; }
     .section-note code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 11px; }
@@ -803,6 +805,18 @@
           </select>
         </label>
       </div>
+      <div class="controls">
+        <!-- Harness-only: the modal (with its close button) normally opens from a
+             unit card's Select on another page. These open it here directly. -->
+        <label>
+          Mode:
+          <select id="ts-mode" onchange="reinitTierSelection()">
+            <option value="inline">Inline</option>
+            <option value="modal">Modal</option>
+          </select>
+        </label>
+        <button type="button" onclick="openTierModal()">Open modal (as Select would)</button>
+      </div>
     </div>
   </div>
 
@@ -845,8 +859,27 @@
               <option value="smartentrysystem">Smart Entry System</option>
             </select>
           </label>
+          <label>
+            ID Verification:
+            <select id="rf-idv-requirement"
+              style="width:150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+              onchange="reinitRentalFlow()">
+              <option value="required">Required</option>
+              <option value="optional">Optional</option>
+              <option value="disabled">None</option>
+            </select>
+          </label>
+          <label class="checkbox" title="Real gateway calls to Incode's demo environment. Starting a verification can send an SMS.">
+            <input type="checkbox" id="rf-live-checkout-idv" onchange="setRentalFlowFlag('liveCheckoutIdv', this.checked)">
+            Live IDV (real calls, may text)
+          </label>
+          <label class="checkbox" title="Replaces the flow with the standalone live IDV test panel.">
+            <input type="checkbox" id="rf-live-idv-panel" onchange="setRentalFlowFlag('liveIdv', this.checked)">
+            Live IDV test panel
+          </label>
         </div>
       </div>
+      <div id="rf-idv-sent" class="rf-idv-sent" hidden></div>
       <div id="rental-flow-2step-container" class="widget-container"></div>
     </div>
 
@@ -1506,8 +1539,13 @@ Special</textarea>
     }
 
     function loadMobileFrame() {
-      document.getElementById('mobile-frame').src =
-        location.pathname + '?frame=1&page=' + encodeURIComponent(currentPage());
+      // Preserve opt-in integration flags (notably liveCheckoutIdv). Rebuilding
+      // the query from only frame/page silently changed the rental flow back to
+      // its disconnected preview inside the phone frame.
+      var params = new URLSearchParams(location.search);
+      params.set('frame', '1');
+      params.set('page', currentPage());
+      document.getElementById('mobile-frame').src = location.pathname + '?' + params.toString();
     }
 
     function setMobileWidth(px) {
@@ -1962,7 +2000,25 @@ Special</textarea>
       return {
         variant: document.getElementById('ts-variant').value,
         defaultTier: document.getElementById('ts-default-tier').value || undefined,
+        mode: document.getElementById('ts-mode').value,
       };
+    }
+
+    // The same window event a unit card's Select sends (@shared/tierBus). Switches
+    // to Modal first, since an inline instance does not listen for it.
+    function openTierModal() {
+      var modeEl = document.getElementById('ts-mode');
+      // The modal acknowledges a request it handles (preventDefault), so keep
+      // asking until it does — it only starts listening once it has mounted.
+      var tries = 0;
+      var open = function () {
+        var ev = new CustomEvent('tenantinc:open-value-tiers', { detail: { size: "10' x 10'" }, cancelable: true });
+        var handled = !window.dispatchEvent(ev);
+        if (!handled && ++tries < 40) setTimeout(open, 250);
+        else if (!handled) console.warn('[harness] value-tiers modal never acknowledged the open request');
+      };
+      if (modeEl.value !== 'modal') { modeEl.value = 'modal'; reinitTierSelection(); }
+      open();
     }
 
     function reinitTierSelection() {
@@ -1976,10 +2032,15 @@ Special</textarea>
 
     require(['/dist/widget-tier-selection.js'], function (widget) {
       tierSelectionWidget = widget;
+      // ?tsModal=1 opens the modal (with its close button) on load, the way a
+      // unit card's Select does on a real page.
+      var autoModal = new URLSearchParams(window.location.search).get('tsModal') === '1';
+      if (autoModal) document.getElementById('ts-mode').value = 'modal';
       widget.init({
         container: document.getElementById('tier-selection-container'),
         props: getTierSelectionProps(),
       });
+      if (autoModal) openTierModal();
     });
 
     var rentalFlowWidget = null;
@@ -1987,6 +2048,7 @@ Special</textarea>
     function initRentalFlow() {
       if (!rentalFlowWidget) return;
       rentalFlowWidget.init({
+
         container: document.getElementById('rental-flow-2step-container'),
         // previewContent fills the order rail with the Figma 8507-23233 sample when
         // no value-tiers handoff has resolved a selection/quote. HARNESS ONLY —
@@ -2004,9 +2066,38 @@ Special</textarea>
           // this as data.config.gateCodeType. Reach the confirmation by
           // completing the flow, or with ?step=confirm.
           gateCodeType: document.getElementById('rf-gate-code-type').value,
+          // IDV: presentation preview only. Live transport is opt-in per URL and
+          // never from a published build — see idvTransport in config.json.
+          idvRequirementPreview: document.getElementById('rf-idv-requirement').value,
+          liveIdvHarness: new URLSearchParams(window.location.search).get('liveIdv') === '1',
+          liveCheckoutIdv: new URLSearchParams(window.location.search).get('liveCheckoutIdv') === '1',
+          idvRemoteOperated: new URLSearchParams(window.location.search).get('idvRemote') === '1',
+          idvTransport: new URLSearchParams(window.location.search).get('liveCheckoutIdv') === '1'
+            ? 'direct' : undefined,
         },
       });
     }
+
+    // Harness only: report what the widget actually sends to the IDV start
+    // call, so the device flag can be read without opening DevTools.
+    (function () {
+      var orig = window.fetch;
+      window.fetch = function (input, init) {
+        try {
+          var url = typeof input === 'string' ? input : (input && input.url) || '';
+          if (/identity-verification(\?|$)/.test(url) && init && init.body) {
+            var body = JSON.parse(init.body);
+            var line = 'IDV start \u2192 device: ' + body.device
+              + '   (viewport ' + window.innerWidth + 'px, pointer '
+              + (window.matchMedia('(pointer: coarse)').matches ? 'coarse' : 'fine') + ')';
+            console.log('[idv]', line, body);
+            var el = document.getElementById('rf-idv-sent');
+            if (el) { el.textContent = line; el.hidden = false; }
+          }
+        } catch (e) { /* never block the call */ }
+        return orig.apply(this, arguments);
+      };
+    })();
 
     // A full teardown + re-init, because the Billing Country default is SEEDED
     // into the form's state on mount — it is the shopper's field from then on,
@@ -2016,6 +2107,20 @@ Special</textarea>
       rentalFlowWidget.clean();
       initRentalFlow();
     }
+
+    function setRentalFlowFlag(name, on) {
+      var params = new URLSearchParams(location.search);
+      if (on) params.set(name, '1'); else params.delete(name);
+      var qs = params.toString();
+      history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+      if (mobileOn) loadMobileFrame(); else reinitRentalFlow();
+    }
+
+    (function () {
+      var params = new URLSearchParams(location.search);
+      document.getElementById('rf-live-checkout-idv').checked = params.get('liveCheckoutIdv') === '1';
+      document.getElementById('rf-live-idv-panel').checked = params.get('liveIdv') === '1';
+    })();
 
     require(['/dist/widget-rental-flow-2step.js'], function (widget) {
       // processingMs kept short in the harness so the loading lightbox and the
