@@ -7,7 +7,7 @@ import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { instoreFrom, type InstoreMode } from '@shared/instorePrice';
 import cfg from '../config.json';
 import { createLead } from '../propertyApi';
-import { fetchHasValueTiers } from '../api';
+import { probeTierOffers, type TierProbe } from '../api';
 import { WaitlistModal } from './WaitlistModal';
 
 // Prices round DOWN to whole dollars: 145.20 → $145.00, 147.99 → $147.00. The
@@ -324,17 +324,62 @@ export function CtaButton({ unit, config, full, colClass }: {
     instoreLabel: instore?.label,
   });
 
-  /** Straight to the rental page, carrying the unit. */
-  function goToRental() {
+  /*
+   * Straight to the rental page, carrying the unit BOTH ways.
+   *
+   * localStorage (saveForRental) carries the price, which the rental flow
+   * matches a real unit on. The URL carries the same params #14 hands over when
+   * a tier IS picked, so the destination behaves identically whether or not the
+   * popup appeared:
+   *
+   *   size · unitGroupId · propertyId · companyId · the in-store rule
+   *
+   * `unitId` and `tier` are the two #14 adds that cannot exist here — they come
+   * from the chosen OFFER, and this path runs precisely because there are no
+   * offers with a tier. The rental flow resolves the unit from unitGroupId +
+   * size + price instead, which is the route it already uses for a Select with
+   * value tiers switched off.
+   */
+  function goToRental(probe?: TierProbe) {
     saveForRental();
-    const href = rentalHref(config.rentalPageUrl);
+    const base = rentalHref(config.rentalPageUrl);
+    let url: URL;
+    try {
+      url = new URL(base, window.location.origin);
+    } catch {
+      window.location.href = base;
+      return;
+    }
+    // Same-origin only: the rent page lives on this site. A cross-origin value
+    // is a misconfiguration — go anyway, but unadorned, rather than leaking the
+    // shopper's property and company to another host.
+    if (url.origin !== window.location.origin) {
+      console.error('[SpaceList] rentalPageUrl is cross-origin; params not attached:', base);
+      window.location.href = base;
+      return;
+    }
+
+    url.searchParams.set('size', unit.dimensions);
+    if (unit.unitGroupId) url.searchParams.set('unitGroupId', unit.unitGroupId);
+    /*
+     * The same `unitId` the popup's own Select hands over, taken from the offer
+     * the probe already fetched — the rental flow treats a handed-off unit as
+     * authoritative, so without it the two routes arrive differently and the
+     * flow has to re-pick a unit by size and price instead.
+     *
+     * `tier` is the one param that is deliberately absent: there is no
+     * Good/Better/Best here, and inventing one would mislabel the rail.
+     */
+    if (probe?.unitId) url.searchParams.set('unitId', probe.unitId);
+    const propertyId = config.propertyId || cfg.propertyId || '';
+    if (propertyId) url.searchParams.set('propertyId', propertyId);
+    if (config.companyId) url.searchParams.set('companyId', config.companyId);
+    setInstoreParams(url.searchParams, instore);
+
     const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
     const isLive = typeof dm !== 'undefined' && dm?.getCurrentEnvironment?.() === 'live';
-    // Same origin rule the value-tiers page nav uses: absolute when published,
-    // relative in the editor so Duda's preview routing handles it.
-    window.location.href = isLive && href.startsWith('/')
-      ? window.location.origin + href
-      : href;
+    const path = url.pathname + url.search;
+    window.location.href = isLive ? window.location.origin + path : path;
   }
 
   /*
@@ -356,12 +401,12 @@ export function CtaButton({ unit, config, full, colClass }: {
     if (checkingTiers) return;
     setCheckingTiers(true);
     try {
-      const has = await fetchHasValueTiers(
+      const probe = await probeTierOffers(
         config.propertyId || cfg.propertyId || '',
         unit.unitGroupId ?? '',
         config.companyId || undefined,
       );
-      if (has === false) { goToRental(); return; }
+      if (probe.tiers === false) { goToRental(probe); return; }
       openValueTiers();
     } finally {
       setCheckingTiers(false);

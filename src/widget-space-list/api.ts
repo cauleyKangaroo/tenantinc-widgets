@@ -443,8 +443,26 @@ export async function fetchWebsiteSpaceGroupId(
  */
 const VALUE_TIER_TYPES = new Set(['good', 'better', 'best']);
 
+/** What one offers probe tells us about a unit group. */
+export interface TierProbe {
+  /*
+   * Does #14 have Good/Better/Best to draw?
+   * NULL = could not tell; the caller must not read that as "no".
+   */
+  tiers: boolean | null;
+  /*
+   * The unit the engine would quote, when it named one.
+   *
+   * Carried so a Select that SKIPS the popup can hand over the same `unitId`
+   * the popup's own Select does — the rental flow treats a handed-off unit as
+   * authoritative, so without it the two routes arrive differently.
+   */
+  unitId?: string;
+  price?: number;
+}
+
 /**
- * True when this unit group would give #14 something to show.
+ * Ask the offers endpoint what this unit group offers.
  *
  * WHY #05 HAS TO ASK. `value_tier` is on the OFFERS response only — it is
  * absent from space-groups, which is all this widget loads (verified live
@@ -460,16 +478,16 @@ const VALUE_TIER_TYPES = new Set(['good', 'better', 'best']);
  * be read as "there are no tiers", or a transient error would silently reroute
  * a shopper past a popup that does exist.
  */
-export async function fetchHasValueTiers(
+export async function probeTierOffers(
   propertyId: string,
   unitGroupId: string,
   companyId?: string,
-): Promise<boolean | null> {
-  if (!propertyId || !unitGroupId) return null;
+): Promise<TierProbe> {
+  if (!propertyId || !unitGroupId) return { tiers: null };
   try {
     const company = companyId
       || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
-    if (!company) return null;
+    if (!company) return { tiers: null };
 
     const { baseUrl, appId, apiKey } = creds();
     const url = `${baseUrl}/applications/${appId}/v2/companies/${company}`
@@ -490,7 +508,11 @@ export async function fetchHasValueTiers(
         status?: number;
         msg?: string;
         actual_cause?: string;
-        data?: { offers?: Array<{ value_tier?: { type?: string | null } }> };
+        data?: { offers?: Array<{
+          value_tier?: { type?: string | null };
+          unit_id?: string | null;
+          price?: number | null;
+        }> };
       }>>;
     } | undefined;
     const inner = json?.applicationData?.[appId]?.[0];
@@ -508,18 +530,41 @@ export async function fetchHasValueTiers(
      */
     if (inner?.status === 400) {
       const msg = String(inner.msg ?? inner.actual_cause ?? '');
-      if (/no available units/i.test(msg)) return false;
+      // No unit to quote either, so no unitId to hand over.
+      if (/no available units/i.test(msg)) return { tiers: false };
     }
 
     // The envelope's inner status is the real one — a 200 can carry a failure.
-    if (!res.ok || inner?.status !== 200) return null;
+    if (!res.ok || inner?.status !== 200) return { tiers: null };
 
     const offers = inner.data?.offers ?? [];
-    return offers.some((o) => {
+    const tiers = offers.some((o) => {
       const t = o.value_tier?.type;
       return !!t && VALUE_TIER_TYPES.has(t);
     });
+
+    /*
+     * The quotable offer, if the engine named one.
+     *
+     * A sold-out offer carries neither unit_id nor price, so both are required
+     * before it is worth handing over — a unitId with no price would send the
+     * rental flow after a unit it cannot quote.
+     *
+     * Verified live 2026-10-07: Bellflower's offers carry a real unit_id and
+     * price even though every `value_tier.type` is null, which is why skipping
+     * the popup can still complete a rental.
+     */
+    const quotable = offers.find((o) => (
+      typeof o.unit_id === 'string' && o.unit_id.length > 0
+      && typeof o.price === 'number' && Number.isFinite(o.price) && o.price >= 0
+    ));
+
+    return {
+      tiers,
+      unitId: quotable?.unit_id ?? undefined,
+      price: typeof quotable?.price === 'number' ? quotable.price : undefined,
+    };
   } catch {
-    return null;
+    return { tiers: null };
   }
 }
