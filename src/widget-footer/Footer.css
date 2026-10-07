@@ -21,8 +21,8 @@
   width: 100%;
   max-width: 1330px;
   margin: 0 auto;
-  padding-left: 24px;
-  padding-right: 24px;
+  padding-left: 48px;
+  padding-right: 48px;
 }
 
 /* ── Top section ────────────────────────────────────────────────────────── */
@@ -419,10 +419,11 @@
   }
 
   /* Mobile drops the rule above the Follow row (the one under "powered by"'s
-     row replaces it). Only the line goes — the element stays, so its
-     margin-top still spaces the Follow row off the content above. */
+     row replaces it), and its 40px margin with it: the gap above "Follow" is
+     just .ft-follow-left's 22px padding-top. */
   .ft-divider {
     background: transparent;
+    margin-top: 0;
   }
 
   /* Mobile: centred label over a larger icon row, then a full-width rule and a
@@ -439,8 +440,10 @@
     flex-direction: column;
     align-items: center;
     gap: 20px;
-    padding: 24px 24px 28px;
-    text-align: center;
+    /* 22px top = the whole gap from the description paragraph above. */
+    margin: 0px 48px 0px;
+    padding: 22px 0px 24px;
+    /* text-align: center; */
   }
 
   .ft-socials {
