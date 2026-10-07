@@ -285,13 +285,6 @@ export function MyAccount({
     [record],
   );
 
-  /*
-   * Keep the selection on a unit that exists. It starts undefined and settles
-   * on the first real one; switching account replaces the whole list, and a
-   * stale id would leave the panel on a unit the new contact does not rent.
-   */
-  const space = spaces.find((s) => s.id === selectedId) ?? spaces[0];
-
   const realDocuments = useMemo(
     () => {
       if (!record) return undefined;
@@ -365,7 +358,19 @@ export function MyAccount({
       setSaving(false);
     }
   };
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+
+  /*
+   * Keep the selection on a unit that exists. It starts undefined and settles
+   * on the first real one; switching account replaces the whole list, and a
+   * stale id would leave the panel on a unit the new contact does not rent.
+   *
+   * DECLARED AFTER `selectedId`, which it reads. It sat above it at first and
+   * threw "Cannot access 'selectedId' before initialization" from inside the
+   * find callback — a temporal dead zone, on every render, so the widget never
+   * mounted at all.
+   */
+  const space = spaces.find((s) => s.id === selectedId) ?? spaces[0];
   const [activityOpen, setActivityOpen] = useState(false);
   /* Make a Payment lists EVERY space with something outstanding, not just the
      one whose Pay Now was clicked — see the panel's header note. A space with a
