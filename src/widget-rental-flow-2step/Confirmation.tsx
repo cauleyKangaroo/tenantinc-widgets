@@ -248,7 +248,7 @@ export function Confirmation({
           can confirm an SMS. NOTE: with smsSent false this states something that
           did not happen — fine for review, wrong on a live page. Gate it back on
           `smsSent` before this ships, or make the copy conditional. */}
-      <div className="rfc-sent">
+      {!idUnverified && <div className="rfc-sent">
         <span className="rfc-sent-icon"><MessageIcon size={24} /></span>
         {/* Text and Resend share a wrapper so the two can go from a row (Resend
             pushed to the far right) to a column (Resend under the copy) without
@@ -259,7 +259,7 @@ export function Confirmation({
           </span>
           <button type="button" className="rfc-resend" onClick={onResend}>Resend</button>
         </span>
-      </div>
+      </div>}
 
       <section className="rfc-panel">
         {/* Code card on the left, details (dates/hours + rent nudge) beside it

@@ -34,6 +34,12 @@ import { RENTAL_IDV_REQUIREMENT, type IdvRequirement } from './idvPolicy';
 import { resolveIdvPresentation, type IdvPresentationOutcome } from './idvPresentation';
 import type { useIdvController } from './useIdvController';
 
+/** API dates are YYYY-MM-DD; the form's masked field is MM/DD/YYYY. */
+function isoToMasked(value: string | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? '');
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : value ?? '';
+}
+
 /** What this screen can actually file against the contact after the lease. */
 /**
  * DUMMY — what the ID verification app hands back once a scan succeeds. Values
@@ -110,7 +116,7 @@ export function SuccessStep({
   /** The only renter identity field this presentational view needs. */
   verificationPhone?: string;
   idvRequirement?: IdvRequirement;
-  /** Strictly editor/harness-only until the real proxy service is connected. */
+  /** Editor/harness-only presentation preview; never set on a live page. */
   idvPreview?: boolean;
   idvServiceConnected?: boolean;
   idvController?: ReturnType<typeof useIdvController>;
@@ -323,7 +329,7 @@ export function SuccessStep({
         : undefined;
       setDlNumber(licence?.number ?? '');
       setDlState(licence?.state ?? '');
-      setDlExp(licence?.expiration ?? '');
+      setDlExp(isoToMasked(licence?.expiration));
       setMailFromScan(false);
     } else {
       setMailAddress(IDV_SOURCE.mailing.address);

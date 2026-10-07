@@ -151,13 +151,19 @@ export function useIdvController(options: IdvControllerOptions) {
         dispatch({ type: 'complete', generation: state.generation, result });
       },
       onFailed(reason) {
-        if (key) idvSessionRemove(key);
+        if (key) {
+          idvSessionRemove(key);
+          if (!state.resendUncertain) idvSessionRemove(`${key}:start-uncertain`);
+        }
         dispatch(state.resendUncertain
           ? { type: 'error', generation: state.generation, retryable: false }
           : { type: 'failed', generation: state.generation, reason });
       },
       onExpired() {
-        if (key) idvSessionRemove(key);
+        if (key) {
+          idvSessionRemove(key);
+          if (!state.resendUncertain) idvSessionRemove(`${key}:start-uncertain`);
+        }
         dispatch(state.resendUncertain
           ? { type: 'error', generation: state.generation, retryable: false }
           : { type: 'expired', generation: state.generation });

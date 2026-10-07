@@ -5,6 +5,7 @@ import { useIdvController } from './useIdvController';
 
 const DEV_COMPANY_ID = 'kQoBXA8vpn';
 const DEV_PROPERTY_ID = 'MjR57iZ82O';
+const DEV_VERIFICATION_HOSTS = ['demo-onboarding.incodesmile.com'];
 declare const __HB_DEV_HARNESS__: boolean;
 
 function localHostname(): boolean {
@@ -44,7 +45,7 @@ export function LiveIdvHarness() {
     api,
     scope,
     identity,
-    allowedVerificationHosts: ['demo-onboarding.incodesmile.com'],
+    allowedVerificationHosts: DEV_VERIFICATION_HOSTS,
   });
 
   const start = () => {
