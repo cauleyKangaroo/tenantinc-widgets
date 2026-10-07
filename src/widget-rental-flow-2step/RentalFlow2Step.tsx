@@ -454,6 +454,8 @@ function RailSkeleton({ sheet = false }: { sheet?: boolean }) {
 // Container-width breakpoint: below this the rail becomes the sticky
 // top bar (mobile export m01–m05 / spec-05). Same value as #14.
 const MOBILE_BP = 640;
+/** How long the paid screen waits for idv_requirements before treating it as unanswered. */
+const IDV_POLICY_TIMEOUT_MS = 8000;
 
 const fmtBarCountdown = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
@@ -1232,19 +1234,39 @@ export function RentalFlow2Step({
    * override reviews all three.
    */
   const [collectionIdvRequirement, setCollectionIdvRequirement] = useState<IdvRequirement | undefined>(undefined);
+  // Unanswered is NOT the same as off: until the lookup settles, the default
+  // must not be applied, or a Required property would briefly read as off and
+  // show its access code (see idvPolicyPending). Settled = answered, failed,
+  // no property to ask about, or timed out — a hung read must never strand the
+  // renter on the paid screen.
+  const [idvRequirementSettled, setIdvRequirementSettled] = useState(false);
   useEffect(() => {
     setCollectionIdvRequirement(undefined);
-    if (!effectivePropertyId) return undefined;
+    setIdvRequirementSettled(false);
+    if (!effectivePropertyId) { setIdvRequirementSettled(true); return undefined; }
     let cancelled = false;
+    let done = false;
+    const settle = (value: IdvRequirement | undefined) => {
+      if (cancelled || done) return;
+      done = true;
+      setCollectionIdvRequirement(value);
+      setIdvRequirementSettled(true);
+    };
+    const timer = window.setTimeout(() => {
+      console.warn(`${logTag} idv_requirements lookup timed out — treating as unanswered (${RENTAL_IDV_REQUIREMENT})`);
+      settle(undefined);
+    }, IDV_POLICY_TIMEOUT_MS);
     fetchIdvRequirementSetting(effectivePropertyId)
       .then((raw) => {
-        if (cancelled) return;
         const parsed = parseIdvRequirement(raw);
         console.info(`${logTag} idv_requirements(${effectivePropertyId}) =`, raw, '→', parsed ?? `unanswered, using ${RENTAL_IDV_REQUIREMENT}`);
-        setCollectionIdvRequirement(parsed);
+        settle(parsed);
       })
-      .catch((err) => console.warn(`${logTag} idv_requirements lookup failed:`, err));
-    return () => { cancelled = true; };
+      .catch((err) => {
+        console.warn(`${logTag} idv_requirements lookup failed:`, err);
+        settle(undefined);
+      });
+    return () => { cancelled = true; window.clearTimeout(timer); };
   }, [effectivePropertyId, logTag]);
   const idvRequirement: IdvRequirement = (inEditor === true ? parseIdvRequirement(idvRequirementPreview) : undefined)
     ?? collectionIdvRequirement
@@ -1271,6 +1293,13 @@ export function RentalFlow2Step({
       || allowedIdvHosts.length === 0) return undefined;
     return createIdvApi({ baseUrl: idvBaseUrl, appId: idvAppId, apiKey: idvApiKey });
   }, [allowedIdvHosts, idvApiKey, idvAppId, idvBaseUrl, idvTransport, inEditor, liveCheckoutIdvEnabled]);
+  /** The live client exists but this property's policy is not known yet. The
+   *  paid screen waits — no confirmation, no Get Access — rather than act on a
+   *  default that might be wrong. Without a client nothing can run, so nothing
+   *  waits; an editor/harness preview answers immediately. */
+  const idvPolicyPending = Boolean(idvApi)
+    && !idvRequirementSettled
+    && !(inEditor === true && parseIdvRequirement(idvRequirementPreview) !== undefined);
   /** One-step skips the paid screen unless there is an ID check to offer. */
   const oneStepIdv = resolveIdvPresentation(idvRequirement, 'choose', {
     serviceConnected: Boolean(idvApi),
@@ -2661,7 +2690,16 @@ export function RentalFlow2Step({
             mailing form), because Additional Information was already answered
             on the checkout page. With verification off, `idVerified` stays
             true and nothing is withheld. */}
-        {accessGranted || (formMode === '1step' && !oneStepIdv) ? (
+        {!accessGranted && idvPolicyPending ? (
+          <div className="rfc-layout">
+            <div className="rf-sx" role="status" aria-live="polite" aria-label="Finishing up your rental">
+              <Shimmer w="60%" h={30} r={4} />
+              <Shimmer w="100%" h={150} r={12} />
+              <Shimmer w="40%" h={48} r={8} />
+            </div>
+            {!isMobile && railFor(true)}
+          </div>
+        ) : accessGranted || (formMode === '1step' && !oneStepIdv) ? (
           <div className="rfc-layout">
             <Confirmation
               kind="rental"
