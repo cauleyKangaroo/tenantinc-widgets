@@ -254,6 +254,28 @@ export function ratingForProperty(
   return ratings.overall;
 }
 
+/**
+ * The rating for one property ONLY when a place in the collection is that
+ * property — `ratingForProperty` without the site-wide fallback.
+ *
+ * For lists of OTHER facilities (#07's cards). There, the fallback would put
+ * one business's score and review count on every facility that Google names
+ * differently — a stranger's stars on the card. No match ⇒ null ⇒ no row.
+ */
+export function matchedRatingForProperty(
+  propertyName: string,
+  ratings: { byPlace: Map<string, RatingSummary> },
+): RatingSummary | null {
+  const key = nameKey(propertyName);
+  if (!key) return null;
+  const exact = ratings.byPlace.get(key);
+  if (exact) return exact;
+  for (const [k, v] of ratings.byPlace) {
+    if (k.includes(key) || key.includes(k)) return v;
+  }
+  return null;
+}
+
 /** Both platforms at once; each is independent, so one failing doesn't hide the other. */
 export async function fetchAllReviewSources(widgetTag: string): Promise<{
   google: ReviewSourceData | null;

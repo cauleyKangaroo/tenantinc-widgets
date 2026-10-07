@@ -1216,6 +1216,29 @@ Special</textarea>
               return { name: n, image: 'https://d1y377jq6m92v5.cloudfront.net/website/amenities/' + n + '.jpg' };
             }))
           } };
+        }),
+        // GoogleReviews — INVENTED scores, one review row per place, so the
+        // per-property ratings (#07 cards, #08 cards, #03) have something to
+        // match locally. placeName is each mock property's own name, which is
+        // how ratingForProperty() joins them on a live site. The last two
+        // properties get NO row on purpose, to show a card without a rating.
+        // Numbers are PLAIN strings ("4.8", "518"), as the reader's field notes
+        // record the live collection returning them — `num()` does not strip
+        // rteBlock markup, so wrapped scores read as 0. Text fields keep the
+        // wrapper; the reader runs those through plainText().
+        GoogleReviews: P.slice(0, 5).map(function (r, i) {
+          var score = ['4.8', '4.5', '4.6', '4.2', '4.9'][i];
+          var total = ['518', '32', '147', '61', '203'][i];
+          return { data: {
+            placeName: rte(r[1]),
+            rating: score,
+            userRatingsTotal: total,
+            reviewRating: '5',
+            authorName: rte('Sample Reviewer'),
+            reviewText: rte('Mock review for the harness — not a real customer.'),
+            relativeTime: rte('2 months ago'),
+            reviewsUrl: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(r[1])
+          } };
         })
       };
 
@@ -1528,8 +1551,13 @@ Special</textarea>
     }
 
     function loadMobileFrame() {
-      document.getElementById('mobile-frame').src =
-        location.pathname + '?frame=1&page=' + encodeURIComponent(currentPage());
+      // Carry the parent's own query over (?mockCollections=1 and the like) —
+      // building the URL from page= alone dropped them, so the phone frame
+      // silently ran a different data path from the page around it.
+      var params = new URLSearchParams(location.search);
+      params.set('frame', '1');
+      params.set('page', currentPage());
+      document.getElementById('mobile-frame').src = location.pathname + '?' + params.toString();
     }
 
     function setMobileWidth(px) {
