@@ -7,6 +7,7 @@ import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { instoreFrom, type InstoreMode } from '@shared/instorePrice';
 import cfg from '../config.json';
 import { createLead } from '../propertyApi';
+import { fetchHasValueTiers } from '../api';
 import { WaitlistModal } from './WaitlistModal';
 
 // Prices round DOWN to whole dollars: 145.20 → $145.00, 147.99 → $147.00. The
@@ -296,7 +297,77 @@ export function CtaButton({ unit, config, full, colClass }: {
 
   const [tiersError, setTiersError] = useState(false);
   const [waitlistOpen, setWaitlistOpen] = useState(false);
+  /** A value-tier probe is in flight, so the button cannot be pressed twice. */
+  const [checkingTiers, setCheckingTiers] = useState(false);
   const instore = instoreHandoff(config, unit);
+
+  /*
+   * The rental handoff — identical to the no-value-tiers anchor below, and
+   * shared with it rather than retyped: the two must put the SAME unit in
+   * localStorage or the rental flow would price a different tier depending on
+   * which route the shopper happened to take.
+   */
+  const saveForRental = () => saveUnitSelection({
+    tierId: unit.id,
+    unitGroupId: unit.unitGroupId,
+    size: unit.dimensions,
+    // The rental flow matches a real unit on size AND price, so the shopper
+    // gets the tier they clicked, not the cheapest of that size.
+    price: unit.startingPrice,
+    propertyId: config.propertyId || cfg.propertyId || undefined,
+    companyId: config.companyId || undefined,
+    // So a Select that skips the tier popup still reaches the rail with the
+    // strike this card is showing.
+    instoreMode: instore?.mode,
+    instoreAmount: instore?.amount,
+    instoreValue: instore?.value,
+    instoreLabel: instore?.label,
+  });
+
+  /** Straight to the rental page, carrying the unit. */
+  function goToRental() {
+    saveForRental();
+    const href = rentalHref(config.rentalPageUrl);
+    const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
+    const isLive = typeof dm !== 'undefined' && dm?.getCurrentEnvironment?.() === 'live';
+    // Same origin rule the value-tiers page nav uses: absolute when published,
+    // relative in the editor so Duda's preview routing handles it.
+    window.location.href = isLive && href.startsWith('/')
+      ? window.location.origin + href
+      : href;
+  }
+
+  /*
+   * Select, when value tiers are switched on.
+   *
+   * ASKS FIRST. A property with revenue management off still returns offers,
+   * but with `value_tier: { type: null }` — so #14 has no Good/Better/Best to
+   * draw and the popup opened empty. The listing cannot know this on its own:
+   * `value_tier` is on the offers response, not on the space-groups payload
+   * this widget loads. So one request on click decides, and a tier with no
+   * pricing skips the popup entirely and goes where it was always going to end
+   * up anyway.
+   *
+   * A NULL answer (request failed, no company, malformed envelope) opens the
+   * popup as before. "We could not tell" must not reroute a shopper past a
+   * popup that does exist.
+   */
+  async function selectTier() {
+    if (checkingTiers) return;
+    setCheckingTiers(true);
+    try {
+      const has = await fetchHasValueTiers(
+        config.propertyId || cfg.propertyId || '',
+        unit.unitGroupId ?? '',
+        config.companyId || undefined,
+      );
+      if (has === false) { goToRental(); return; }
+      openValueTiers();
+    } finally {
+      setCheckingTiers(false);
+    }
+  }
+
   function openValueTiers() {
     const handled = emitOpenTiers({
       size: unit.dimensions,
@@ -378,8 +449,9 @@ export function CtaButton({ unit, config, full, colClass }: {
       ) : config.enableValueTiers ? (
         <button
           className={`sl-select-btn${fullClass}`}
-          onClick={openValueTiers}
-          disabled={tiersError}
+          onClick={selectTier}
+          disabled={tiersError || checkingTiers}
+          aria-busy={checkingTiers}
         >
           {config.ctaButtonCopy}
         </button>
@@ -392,22 +464,7 @@ export function CtaButton({ unit, config, full, colClass }: {
         <a
           className={`sl-select-btn${fullClass}`}
           href={rentalHref(config.rentalPageUrl)}
-          onClick={() => saveUnitSelection({
-            tierId: unit.id,
-            unitGroupId: unit.unitGroupId,
-            size: unit.dimensions,
-            // The rental flow matches a real unit on size AND price, so the
-            // shopper gets the tier they clicked, not the cheapest of that size.
-            price: unit.startingPrice,
-            propertyId: config.propertyId || cfg.propertyId || undefined,
-            companyId: config.companyId || undefined,
-            // So a Select that skips the tier popup still reaches the rail with
-            // the strike this card is showing.
-            instoreMode: instore?.mode,
-            instoreAmount: instore?.amount,
-            instoreValue: instore?.value,
-            instoreLabel: instore?.label,
-          })}
+          onClick={saveForRental}
         >
           {config.ctaButtonCopy}
         </a>

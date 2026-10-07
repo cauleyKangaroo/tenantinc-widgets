@@ -431,3 +431,95 @@ export async function fetchWebsiteSpaceGroupId(
     propertyId,
   );
 }
+
+// ---------------------------------------------------------------------------
+// Does a tier actually HAVE value-tier pricing?
+// ---------------------------------------------------------------------------
+
+/*
+ * The valid tier types, matching #14. A property with revenue management off
+ * returns offers whose `value_tier` is `{ type: null, label: null }` — the
+ * offer exists, it simply is not a Good/Better/Best.
+ */
+const VALUE_TIER_TYPES = new Set(['good', 'better', 'best']);
+
+/**
+ * True when this unit group would give #14 something to show.
+ *
+ * WHY #05 HAS TO ASK. `value_tier` is on the OFFERS response only — it is
+ * absent from space-groups, which is all this widget loads (verified live
+ * 2026-10-07: 40 Bellflower tiers and 49 COFFEE tiers, field not present on
+ * any). So the listing genuinely cannot know, and asking for every tier up
+ * front would be 40+ requests per page load.
+ *
+ * Hence one request on CLICK. The same rule #14 applies internally
+ * (`showTierPricing: offers.length >= 1` after discarding typeless offers), so
+ * the two cannot disagree about whether a popup has content.
+ *
+ * Returns NULL on any failure rather than false: "we could not tell" must not
+ * be read as "there are no tiers", or a transient error would silently reroute
+ * a shopper past a popup that does exist.
+ */
+export async function fetchHasValueTiers(
+  propertyId: string,
+  unitGroupId: string,
+  companyId?: string,
+): Promise<boolean | null> {
+  if (!propertyId || !unitGroupId) return null;
+  try {
+    const company = companyId
+      || await resolveCompanyIdFromSources('#05 space-list', {}, COMPANY_ID);
+    if (!company) return null;
+
+    const { baseUrl, appId, apiKey } = creds();
+    const url = `${baseUrl}/applications/${appId}/v2/companies/${company}`
+      + `/properties/${encodeURIComponent(propertyId)}`
+      + `/offers?amenities=[]&promotions=[]&unitGroupId=${encodeURIComponent(unitGroupId)}`;
+
+    const res = await fetch(url, {
+      headers: {
+        'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
+        'x-storageapi-key': apiKey,
+      },
+    });
+
+    // Read the envelope EVEN ON A NON-2XX: the no-vacancy answer below arrives
+    // as a 400 and is a real answer, not a failure.
+    const json = await res.json().catch(() => undefined) as {
+      applicationData?: Record<string, Array<{
+        status?: number;
+        msg?: string;
+        actual_cause?: string;
+        data?: { offers?: Array<{ value_tier?: { type?: string | null } }> };
+      }>>;
+    } | undefined;
+    const inner = json?.applicationData?.[appId]?.[0];
+
+    /*
+     * "No available units found for the given group" — a 400, and NOT an
+     * error. It means the group has nothing to quote right now (every unit
+     * taken, or the only one is on someone else's hold), so there is no tier
+     * pricing to show. #14 reaches the same conclusion from the same message
+     * (`isNoVacancyOffers` → showTierPricing: false), and the two must agree or
+     * the popup opens empty on exactly the tiers it cannot fill.
+     *
+     * Verified live 2026-10-07: 1 of 3 Bellflower groups and 2 of 3 COFFEE
+     * groups answer this way, so it is the common case, not an edge one.
+     */
+    if (inner?.status === 400) {
+      const msg = String(inner.msg ?? inner.actual_cause ?? '');
+      if (/no available units/i.test(msg)) return false;
+    }
+
+    // The envelope's inner status is the real one — a 200 can carry a failure.
+    if (!res.ok || inner?.status !== 200) return null;
+
+    const offers = inner.data?.offers ?? [];
+    return offers.some((o) => {
+      const t = o.value_tier?.type;
+      return !!t && VALUE_TIER_TYPES.has(t);
+    });
+  } catch {
+    return null;
+  }
+}
