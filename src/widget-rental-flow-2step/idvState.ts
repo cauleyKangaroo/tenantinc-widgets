@@ -13,7 +13,7 @@ export type IdvState =
   | ({ kind: 'checking' } & Generation)
   | ({ kind: 'ready' } & Generation)
   | ({ kind: 'starting' } & Generation)
-  | ({ kind: 'pending'; idvId: string; expiresAt: number; notificationStatus?: 'sent' | 'failed' | 'skipped' } & Generation)
+  | ({ kind: 'pending' | 'resending'; idvId: string; expiresAt: number; notificationStatus?: 'sent' | 'failed' | 'skipped'; resendUncertain?: boolean } & Generation)
   | ({ kind: 'complete'; result: SafeIdvResult } & Generation)
   | ({ kind: 'failed'; reason?: string } & Generation)
   | ({ kind: 'expired' } & Generation)
@@ -24,7 +24,8 @@ export type IdvAction =
   | { type: 'check' }
   | { type: 'not-verified'; generation: number }
   | { type: 'start'; generation: number }
-  | { type: 'resume'; generation: number; idvId: string; expiresAt: number }
+  | { type: 'resume'; generation: number; idvId: string; expiresAt: number; resendUncertain?: boolean }
+  | { type: 'resend-failed'; generation: number; outcomeUnknown: boolean }
   | { type: 'pending'; generation: number; idvId: string; expiresAt: number; notificationStatus?: 'sent' | 'failed' | 'skipped' }
   | { type: 'refresh-pending'; generation: number; idvId: string; expiresAt: number; notificationStatus?: 'sent' | 'failed' | 'skipped' }
   | { type: 'complete'; generation: number; result: SafeIdvResult }
@@ -61,15 +62,19 @@ export function idvReducer(state: IdvState, action: IdvAction): IdvState {
       return state.kind === 'ready' ? { kind: 'starting', generation: state.generation } : state;
     case 'resume':
       return state.kind === 'checking'
-        ? { kind: 'pending', generation: state.generation, idvId: action.idvId, expiresAt: action.expiresAt }
+        ? { kind: 'pending', generation: state.generation, idvId: action.idvId, expiresAt: action.expiresAt, resendUncertain: action.resendUncertain }
         : state;
     case 'pending':
       return state.kind === 'starting'
         ? { kind: 'pending', generation: state.generation, idvId: action.idvId, expiresAt: action.expiresAt, notificationStatus: action.notificationStatus }
         : state;
     case 'refresh-pending':
-      return state.kind === 'pending'
-        ? { ...state, idvId: action.idvId, expiresAt: action.expiresAt, notificationStatus: action.notificationStatus }
+      return state.kind === 'resending'
+        ? { ...state, kind: 'pending', idvId: action.idvId, expiresAt: action.expiresAt, notificationStatus: action.notificationStatus }
+        : state;
+    case 'resend-failed':
+      return state.kind === 'resending'
+        ? { ...state, kind: 'pending', resendUncertain: action.outcomeUnknown }
         : state;
     case 'complete':
       // Only an AUTHENTICATED result completes. Complete is what reveals the
@@ -91,12 +96,13 @@ export function idvReducer(state: IdvState, action: IdvAction): IdvState {
     case 'expired':
       return state.kind === 'pending' ? { kind: 'expired', generation: state.generation } : state;
     case 'error':
-      return state.kind === 'checking' || state.kind === 'starting' || state.kind === 'pending'
+      return state.kind === 'checking' || state.kind === 'starting' || state.kind === 'pending' || state.kind === 'resending'
         ? { kind: 'error', generation: state.generation, retryable: action.retryable }
         : state;
     case 'resend':
-      return state.kind === 'pending' ? { ...state, generation: state.generation + 1 } : state;
+      return state.kind === 'pending' ? { ...state, kind: 'resending', generation: state.generation + 1 } : state;
     case 'retry':
+      if (state.kind === 'error' && !state.retryable) return state;
       return state.kind === 'failed' || state.kind === 'expired' || state.kind === 'error'
         ? { kind: 'ready', generation: state.generation }
         : state;

@@ -1,10 +1,31 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('typescript');
+
+function testHarnessGate() {
+  const source = fs.readFileSync(require.resolve('../src/widget-rental-flow-2step/LiveIdvHarness.tsx'), 'utf8');
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  for (const development of [false, true]) {
+    for (const hostname of ['localhost', 'example.com']) {
+      const context = {
+        exports: {}, require: () => ({}),
+        __HB_DEV_HARNESS__: development, window: { location: { hostname } },
+      };
+      vm.runInNewContext(compiled, context);
+      assert.equal(context.exports.canRenderLiveIdvHarness(true), development && hostname === 'localhost');
+      assert.equal(context.exports.canRenderLiveIdvHarness(false), false);
+    }
+  }
+}
 
 const { idvReducer, initialIdvState } = require('../.tmp-idv-test/idvState.js');
 const { startIdvPolling } = require('../.tmp-idv-test/idvPolling.js');
 const { resolveIdvPresentation } = require('../.tmp-idv-test/idvPresentation.js');
 const { RENTAL_IDV_REQUIREMENT, parseIdvRequirement } = require('../.tmp-idv-test/idvPolicy.js');
-const { createIdvApi, captureDevice } = require('../.tmp-idv-test/idvApi.js');
+const { createIdvApi, captureDevice, IdvRequestError } = require('../.tmp-idv-test/idvApi.js');
 const { idvSessionGet, idvSessionSet, idvSessionRemove } = require('../.tmp-idv-test/idvStorage.js');
 const {
   allowedVerificationUrl,
@@ -37,7 +58,7 @@ function fakeClock() {
     size() { return tasks.size; },
     delays() { return [...tasks.values()].map((task) => task.delay); },
     async runNext() {
-      const entry = tasks.entries().next().value;
+      const entry = [...tasks.entries()].sort((a, b) => a[1].delay - b[1].delay)[0];
       assert.ok(entry, 'expected a scheduled timer');
       const [id, task] = entry;
       tasks.delete(id);
@@ -62,8 +83,9 @@ function testReducer() {
     type: 'pending', generation: 1, idvId: 'idv_one', expiresAt: 123,
   });
   assert.equal(pending.kind, 'pending');
-  const refreshed = idvReducer(pending, {
-    type: 'refresh-pending', generation: 1, idvId: 'idv_two', expiresAt: 456,
+  const resending = idvReducer(pending, { type: 'resend', generation: 1 });
+  const refreshed = idvReducer(resending, {
+    type: 'refresh-pending', generation: resending.generation, idvId: 'idv_two', expiresAt: 456,
     notificationStatus: 'sent',
   });
   assert.equal(refreshed.kind, 'pending');
@@ -109,7 +131,7 @@ function testAuthenticationAndResend() {
   // Resend moves to a new generation before the replacement starts, so the old
   // session's late failure is ignored and the new session's details are kept.
   const resent = idvReducer(pending, { type: 'resend', generation: pending.generation });
-  assert.equal(resent.kind, 'pending');
+  assert.equal(resent.kind, 'resending');
   assert.equal(resent.generation, pending.generation + 1);
   assert.equal(resent.idvId, 'idv_a');
   assert.equal(idvReducer(resent, { type: 'failed', generation: pending.generation }), resent, 'old session failure ignored');
@@ -219,6 +241,35 @@ function testUrls() {
 }
 
 async function testPolling() {
+  testHarnessGate();
+  for (const timerFiresFirst of [true, false]) {
+    const clock = fakeClock();
+    const response = deferred();
+    let now = 0;
+    let signal;
+    let expired = 0;
+    let completed = 0;
+    let unsubscribed = 0;
+    const stop = startIdvPolling({
+      expiresAt: 10, now: () => now,
+      poll: (value) => { signal = value; return response.promise; },
+      onComplete() { completed += 1; }, onFailed() {}, onError() {},
+      onExpired() { expired += 1; },
+      setTimer: clock.setTimer, clearTimer: clock.clearTimer,
+      onVisibilityChange() { return () => { unsubscribed += 1; }; },
+    });
+    now = 10_000;
+    if (timerFiresFirst) await clock.runNext();
+    response.resolve({ kind: 'complete', value: 'expired' });
+    await flush();
+    assert.equal(expired, 1, 'expiry wins over a hung or late-completing request');
+    assert.equal(completed, 0);
+    assert.equal(signal.aborted, true);
+    assert.equal(clock.size(), 0);
+    assert.equal(unsubscribed, 1);
+    stop();
+  }
+
   {
     const clock = fakeClock();
     const first = deferred();
@@ -241,11 +292,11 @@ async function testPolling() {
     });
     visibilityHandler();
     visibilityHandler();
-    assert.equal(clock.size(), 0, 'visibility changes cannot overlap an in-flight request');
+    assert.equal(clock.size(), 1, 'only the expiry timer runs during an in-flight request');
     first.resolve({ kind: 'continue' });
     await flush();
     assert.equal(maxActive, 1);
-    assert.equal(clock.size(), 1);
+    assert.equal(clock.size(), 2);
     stop();
   }
 
@@ -262,13 +313,13 @@ async function testPolling() {
       isVisible: () => true,
     });
     await flush();
-    assert.equal(clock.size(), 1);
+    assert.equal(clock.size(), 2);
     visibilityHandler();
     visibilityHandler();
-    assert.equal(clock.size(), 1, 'repeated visibility events collapse to one immediate poll');
+    assert.equal(clock.size(), 2, 'repeated visibility events retain one poll and one expiry timer');
     await clock.runNext();
     assert.equal(polls, 2);
-    assert.equal(clock.size(), 1, 'the completed poll schedules exactly one successor');
+    assert.equal(clock.size(), 2, 'the completed poll schedules one successor alongside expiry');
     stop();
   }
 
@@ -300,7 +351,7 @@ async function testPolling() {
       setTimer: clock.setTimer, clearTimer: clock.clearTimer,
     });
     await flush();
-    assert.deepEqual(clock.delays(), [3000]);
+    assert.deepEqual(clock.delays().sort((a, b) => a - b), [3000, 10000]);
     now = 11_000;
     await clock.runNext();
     assert.equal(expired, 1, 'expiration is checked before retrying after backoff');
@@ -310,6 +361,22 @@ async function testPolling() {
 }
 
 async function testApiTransports() {
+  for (const status of [400, 401, 500]) {
+    const rejected = createIdvApi({ baseUrl: 'https://api.example.com', appId: 'app', apiKey: 'test' },
+      async () => ({ ok: false, json: async () => ({ status, data: {}, msg: 'rejected' }) }));
+    await assert.rejects(rejected.start({ companyId: 'co', propertyId: 'prop' }, {
+      first: 'Test', last: 'Renter', email: 'test@example.com', phone: '5555555555',
+    }), (error) => error instanceof IdvRequestError && error.outcomeUnknown === false);
+  }
+  const hung = createIdvApi({ baseUrl: 'https://api.example.com', appId: 'app', apiKey: 'test', requestTimeoutMs: 5 },
+    () => new Promise(() => {}));
+  await assert.rejects(hung.lookup({ companyId: 'co', propertyId: 'prop' }, 'contact'), /outcome may be unknown/);
+  await assert.rejects(hung.start({ companyId: 'co', propertyId: 'prop' }, {
+    first: 'Test', last: 'Renter', email: 'test@example.com', phone: '5555555555',
+  }), /outcome may be unknown/);
+  const uncertain = { kind: 'error', retryable: false, generation: 3 };
+  assert.equal(idvReducer(uncertain, { type: 'retry', generation: 3 }), uncertain,
+    'uncertain starts cannot be blindly retried');
   const requests = [];
   const directFetch = async (url, init) => {
     requests.push({ url, init });

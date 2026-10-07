@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
-import { captureDevice, type IdvApi, type IdvIdentity, type IdvScope } from './idvApi';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { captureDevice, IdvRequestError, type IdvApi, type IdvIdentity, type IdvScope } from './idvApi';
 import { startIdvPolling } from './idvPolling';
 import { idvReducer, initialIdvState, type SafeIdvResult } from './idvState';
 import { allowedVerificationUrl } from './openVerification';
@@ -71,6 +71,15 @@ export function useCaptureDevice(): 'mobile' | 'desktop' {
 
 export function useIdvController(options: IdvControllerOptions) {
   const [state, dispatch] = useReducer(idvReducer, initialIdvState);
+  const activeRequest = useRef<AbortController>();
+  const latestOptions = useRef(options);
+  latestOptions.current = options;
+  const cancelRequest = useCallback(() => {
+    activeRequest.current?.abort();
+    activeRequest.current = undefined;
+  }, []);
+  useEffect(() => cancelRequest, [cancelRequest, options.enabled, options.api, options.identity,
+    options.scope.companyId, options.scope.propertyId, options.allowedVerificationHosts]);
   // Validated once, when it arrives. Both the same-tab hand-off and the
   // modal's "Return to this Device" navigate to it later.
   const [verificationUrl, setVerificationUrl] = useState<string | undefined>(undefined);
@@ -88,11 +97,17 @@ export function useIdvController(options: IdvControllerOptions) {
     const generation = state.generation + 1;
     dispatch({ type: 'check' });
     const stored = readStored(key);
+    const uncertain = Boolean(key && idvSessionGet(`${key}:start-uncertain`));
+    if (uncertain && !stored) {
+      setVerificationUrl(undefined);
+      dispatch({ type: 'error', generation, retryable: false });
+      return undefined;
+    }
     if (stored) {
       setVerificationUrl(stored.verificationUrl
         ? allowedVerificationUrl(stored.verificationUrl, options.allowedVerificationHosts)?.href
         : undefined);
-      dispatch({ type: 'resume', generation, idvId: stored.idvId, expiresAt: stored.expiresAt });
+      dispatch({ type: 'resume', generation, idvId: stored.idvId, expiresAt: stored.expiresAt, resendUncertain: uncertain });
       return undefined;
     }
     if (!options.identity.contactId) {
@@ -100,7 +115,8 @@ export function useIdvController(options: IdvControllerOptions) {
       return undefined;
     }
     let cancelled = false;
-    void options.api.lookup({ companyId, propertyId }, options.identity.contactId)
+    const lookupController = new AbortController();
+    void options.api.lookup({ companyId, propertyId }, options.identity.contactId, lookupController.signal)
       .then((result) => {
         if (cancelled) return;
         // Only an authenticated result completes (the reducer enforces it too):
@@ -112,7 +128,7 @@ export function useIdvController(options: IdvControllerOptions) {
       .catch(() => {
         if (!cancelled) dispatch({ type: 'error', generation, retryable: true });
       });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; lookupController.abort(); };
     // Re-resolve only when the renter/rental scope changes, not on each state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, key, options.allowedVerificationHosts, options.api, options.enabled, options.identity, propertyId]);
@@ -131,7 +147,7 @@ export function useIdvController(options: IdvControllerOptions) {
         return { kind: 'complete', value: result };
       },
       onComplete(result) {
-        if (key) idvSessionRemove(key);
+        if (key) { idvSessionRemove(key); idvSessionRemove(`${key}:start-uncertain`); }
         dispatch({ type: 'complete', generation: state.generation, result });
       },
       onFailed(reason) {
@@ -154,13 +170,26 @@ export function useIdvController(options: IdvControllerOptions) {
   const startIdentity = options.identity;
   const allowedHosts = options.allowedVerificationHosts;
   const beforeSameTabNavigation = options.beforeSameTabNavigation;
+  const requestIsCurrent = useCallback((request: AbortController, captured: IdvControllerOptions) => {
+    const latest = latestOptions.current;
+    return activeRequest.current === request && !request.signal.aborted && latest.enabled
+      && latest.api === captured.api && latest.identity === captured.identity
+      && latest.scope.companyId === captured.scope.companyId
+      && latest.scope.propertyId === captured.scope.propertyId
+      && latest.allowedVerificationHosts === captured.allowedVerificationHosts;
+  }, []);
   const start = useCallback(async () => {
-    if (state.kind !== 'ready' || !startApi || !startIdentity) return;
+    if (!options.enabled || activeRequest.current || state.kind !== 'ready' || !startApi || !startIdentity) return;
+    const request = new AbortController();
+    const captured = options;
+    activeRequest.current = request;
     const generation = state.generation;
     setVerificationUrl(undefined);
     dispatch({ type: 'start', generation });
+    if (key) idvSessionSet(`${key}:start-uncertain`, '1');
     try {
-      const started = await startApi.start({ companyId, propertyId }, startIdentity, device);
+      const started = await startApi.start({ companyId, propertyId }, startIdentity, device, request.signal);
+      if (!requestIsCurrent(request, captured)) return;
       const safeUrl = allowedVerificationUrl(started.verificationUrl, allowedHosts);
       if (!safeUrl) throw new Error('Invalid ID verification URL.');
       setVerificationUrl(safeUrl.href);
@@ -170,6 +199,7 @@ export function useIdvController(options: IdvControllerOptions) {
         idvSessionSet(key, JSON.stringify({
           idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl.href,
         }));
+        idvSessionRemove(`${key}:start-uncertain`);
       }
       dispatch({
         type: 'pending', generation, idvId: started.idvId,
@@ -182,8 +212,16 @@ export function useIdvController(options: IdvControllerOptions) {
         beforeSameTabNavigation?.({ idvId: started.idvId, expiresAt: started.expiresAt });
         window.location.assign(safeUrl.href);
       }
-    } catch {
-      dispatch({ type: 'error', generation, retryable: true });
+    } catch (error) {
+      // A failed POST may already have sent a text or created a billable
+      // attempt. Do not offer another start without backend reconciliation.
+      if (requestIsCurrent(request, captured)) {
+        const retryable = error instanceof IdvRequestError && !error.outcomeUnknown;
+        if (retryable && key) idvSessionRemove(`${key}:start-uncertain`);
+        dispatch({ type: 'error', generation, retryable });
+      }
+    } finally {
+      if (activeRequest.current === request) activeRequest.current = undefined;
     }
   }, [
     key,
@@ -196,34 +234,55 @@ export function useIdvController(options: IdvControllerOptions) {
     startApi,
     startIdentity,
     state,
+    options,
+    requestIsCurrent,
   ]);
 
   const resend = useCallback(async () => {
-    if (state.kind !== 'pending' || !options.api || !options.identity) return undefined;
+    if (!options.enabled || activeRequest.current || state.kind !== 'pending' || state.resendUncertain || !options.api || !options.identity) return undefined;
+    const request = new AbortController();
+    const captured = options;
+    activeRequest.current = request;
     // Move to a new generation BEFORE the replacement starts: the old session
     // is still being polled, and a late failed/expired from it must not end the
     // flow under the session that was just texted.
     const generation = state.generation + 1;
     dispatch({ type: 'resend', generation: state.generation });
-    const started = await options.api.start({ companyId, propertyId }, options.identity, device);
-    const safeUrl = allowedVerificationUrl(started.verificationUrl, allowedHosts);
-    setVerificationUrl(safeUrl?.href);
-    if (key) {
-      idvSessionSet(key, JSON.stringify({
-        idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl?.href,
-      }));
+    if (key) idvSessionSet(`${key}:start-uncertain`, '1');
+    try {
+      const started = await options.api.start({ companyId, propertyId }, options.identity, device, request.signal);
+      if (!requestIsCurrent(request, captured)) return undefined;
+      const safeUrl = allowedVerificationUrl(started.verificationUrl, allowedHosts);
+      if (!safeUrl) throw new Error('Invalid ID verification URL.');
+      setVerificationUrl(safeUrl.href);
+      if (key) {
+        idvSessionSet(key, JSON.stringify({
+          idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl.href,
+        }));
+        idvSessionRemove(`${key}:start-uncertain`);
+      }
+      dispatch({
+        type: 'refresh-pending', generation, idvId: started.idvId,
+        expiresAt: started.expiresAt, notificationStatus: started.notificationStatus,
+      });
+      return started.notificationStatus;
+    } catch (error) {
+      if (requestIsCurrent(request, captured)) {
+        const outcomeUnknown = !(error instanceof IdvRequestError) || error.outcomeUnknown;
+        if (!outcomeUnknown && key) idvSessionRemove(`${key}:start-uncertain`);
+        dispatch({ type: 'resend-failed', generation, outcomeUnknown });
+      }
+      throw error;
+    } finally {
+      if (activeRequest.current === request) activeRequest.current = undefined;
     }
-    dispatch({
-      type: 'refresh-pending', generation, idvId: started.idvId,
-      expiresAt: started.expiresAt, notificationStatus: started.notificationStatus,
-    });
-    return started.notificationStatus;
-  }, [allowedHosts, companyId, device, key, options.api, options.identity, propertyId, state]);
+  }, [allowedHosts, companyId, device, key, options, propertyId, requestIsCurrent, state]);
 
   /** Phone, verification still pending: go back to the same session in this
    *  tab — no new start, no new text. False when there is nothing to resume. */
   const continueInThisTab = useCallback((): boolean => {
-    if (state.kind !== 'pending' || !verificationUrl) return false;
+    if (!latestOptions.current.enabled || state.kind !== 'pending' || !verificationUrl
+      || Date.now() >= state.expiresAt * 1_000) return false;
     beforeSameTabNavigation?.({ idvId: state.idvId, expiresAt: state.expiresAt });
     window.location.assign(verificationUrl);
     return true;
@@ -240,7 +299,7 @@ export function useIdvController(options: IdvControllerOptions) {
      *  success screen reads it so it does not raise a QR modal over a
      *  navigation that is already under way. */
     sameTab,
-    retry: () => dispatch({ type: 'retry', generation: state.generation }),
-    reset: () => dispatch({ type: 'reset' }),
+    retry: () => { cancelRequest(); dispatch({ type: 'retry', generation: state.generation }); },
+    reset: () => { cancelRequest(); setVerificationUrl(undefined); dispatch({ type: 'reset' }); },
   };
 }

@@ -172,6 +172,8 @@ export function SuccessStep({
   // Off, the two groups are simply always on the page — there is no branch
   // left to decide otherwise.
   const remoteKind = idvController?.state.kind;
+  const startUncertain = idvServiceConnected && idvController?.state.kind === 'error'
+    && !idvController.state.retryable;
   const serviceIdv: IdvPresentationOutcome = idvServiceConnected
     ? remoteKind === 'complete'
       ? 'complete'
@@ -232,6 +234,9 @@ export function SuccessStep({
   const [dlExp, setDlExp] = useState('');
   const [dlState, setDlState] = useState('');
   const [usePassport, setUsePassport] = useState(false);
+  const passportAvailable = idvEnabled && idvServiceConnected
+    && remoteKind === 'complete' && displayedIdv === 'complete';
+  const passportSelected = passportAvailable && usePassport;
 
   /** A picked or typed mailing address — the city/state/ZIP follow it. */
   const [mailPicked, setMailPicked] = useState(false);
@@ -345,9 +350,9 @@ export function SuccessStep({
       // Off, nothing is being verified, so nothing may be withheld for it —
       // the confirmation page must not claim verification is required.
       idVerified: idvDecision.idVerified,
-      driverLicense: dlNumber.trim() || undefined,
-      driverLicenseExp: dlExp.trim() || undefined,
-      driverLicenseState: dlState.trim() || undefined,
+      driverLicense: passportSelected ? undefined : dlNumber.trim() || undefined,
+      driverLicenseExp: passportSelected ? undefined : dlExp.trim() || undefined,
+      driverLicenseState: passportSelected ? undefined : dlState.trim() || undefined,
       mailingAddress: mailAddress.trim()
         ? {
           address: mailAddress.trim(),
@@ -494,10 +499,10 @@ export function SuccessStep({
         <section className="rf-sx-idv rf-sx-idv--alert">
           <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
             <AlertTriangleIcon size={24} className="rf-sx-idv-alert" />
-            ID Verification Failed
+            {startUncertain ? 'Verification Needs Assistance' : 'ID Verification Failed'}
           </h3>
           <p className="rf-sx-idv-lede">
-            Your ID must be verified before getting access.{remoteOperated
+            {startUncertain ? 'We could not confirm the verification request. It may already have started. Please contact the store before trying again.' : <>Your ID must be verified before getting access.{remoteOperated
               ? ' This remotely operated property cannot verify your ID in store.'
               : ` Please reverify your ID or contact the store${facilityPhoneHref && facility?.phone ? ` at ${facility.phone}` : ''} to get access.`}{' '}
             <button
@@ -511,6 +516,7 @@ export function SuccessStep({
             >
               Reverify ID
             </button>
+            </>}
           </p>
         </section>
       )}
@@ -604,8 +610,8 @@ export function SuccessStep({
         {/* Figma 10078-25737 — three equal columns, all three required. */}
         <section className="rf-sx-extra">
           <div className="rf-sx-extra-head">
-            <h3 className="rf-sx-extra-title">{usePassport ? 'Passport' : 'Driver\u2019s Licence'}</h3>
-            {!dlReadOnly && (
+            <h3 className="rf-sx-extra-title">{passportSelected ? 'Passport' : 'Driver\u2019s Licence'}</h3>
+            {passportAvailable && !dlReadOnly && (
               <Checkbox checked={usePassport} onChange={setUsePassport}>Use passport for ID</Checkbox>
             )}
           </div>
@@ -631,9 +637,9 @@ export function SuccessStep({
               </p>
               <button type="button" className="rf-sx-edit" onClick={() => setDlEditing(true)}>Edit</button>
             </div>
-          ) : usePassport ? (
+          ) : passportSelected ? (
             <p className="rf-sx-idv-lede rf-sx-passport-note">
-              Your passport is captured securely in the hosted ID verification tool. No passport details are entered or stored on this page.
+              Passport capture is handled by the hosted ID verification tool. This page does not confirm which document was used and does not collect passport details.
             </p>
           ) : (
           <div className="rf-sx-fields">
@@ -734,6 +740,7 @@ export function SuccessStep({
         lifecycle={remoteKind}
         notificationStatus={idvController?.state.kind === 'pending' ? idvController.state.notificationStatus : undefined}
         onResend={idvController?.resend}
+        resendUncertain={idvController?.state.kind === 'pending' && idvController.state.resendUncertain === true}
         verificationUrl={idvController?.verificationUrl}
       />
       )}

@@ -778,14 +778,14 @@ function readIdvReturnSnapshot(propertyId: string): IdvReturnSnapshot | undefine
   try {
     const value = JSON.parse(idvSessionGet(idvReturnKey(propertyId)) ?? 'null') as IdvReturnSnapshot | null;
     if (!value?.contact?.first || !value.contact.last || !value.contact.email || !value.contact.phone) return undefined;
-    // Restoring on presence alone stranded the shopper: one tap on verify wrote
-    // the snapshot, and every later load in that tab re-entered the
-    // post-purchase screen, so the rental steps (and the move-in date) never
-    // rendered again. The snapshot is only valid while the verification it was
-    // written for is, and a dead one is cleared rather than left to strand the
-    // next visit.
-    if (typeof value.expiresAt !== 'number' || !Number.isFinite(value.expiresAt)
-      || Date.now() >= value.expiresAt * 1_000) {
+    // Verification expiry does not undo a completed payment/lease. Keep its
+    // recovery snapshot; the controller separately expires the IDV session.
+    if (typeof value.expiresAt !== 'number' || !Number.isFinite(value.expiresAt)) {
+      idvSessionRemove(idvReturnKey(propertyId));
+      return undefined;
+    }
+    // An expired demo snapshot has no completed rental to recover.
+    if (!value.rental?.ok && Date.now() >= value.expiresAt * 1_000) {
       idvSessionRemove(idvReturnKey(propertyId));
       return undefined;
     }

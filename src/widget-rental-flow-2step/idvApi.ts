@@ -9,6 +9,7 @@ export interface IdvCredentials {
   baseUrl: string;
   appId: string;
   apiKey: string;
+  requestTimeoutMs?: number;
 }
 
 export interface IdvScope {
@@ -39,6 +40,14 @@ export type IdvPollResult =
 
 type JsonRecord = Record<string, unknown>;
 type FetchLike = typeof fetch;
+
+/** An explicit API rejection is retryable; missing/unusable responses are not. */
+export class IdvRequestError extends Error {
+  constructor(message: string, public readonly outcomeUnknown: boolean) {
+    super(message);
+    this.name = 'IdvRequestError';
+  }
+}
 
 function record(value: unknown, label: string): JsonRecord {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -127,21 +136,41 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
     };
     if (init.body) headers['Content-Type'] = 'application/json';
 
-    const response = await fetcher(url, { ...init, headers: { ...headers, ...init.headers } });
-    const raw = await response.json() as unknown;
-    const parsed = operation(raw);
-    if (!response.ok || parsed.status >= 400) {
-      throw new Error(parsed.msg || `ID verification request failed (${parsed.status}).`);
+    const controller = new AbortController();
+    let rejectAbort: (reason: Error) => void = () => {};
+    const cancelled = new Promise<never>((_, reject) => { rejectAbort = reject; });
+    const abort = () => {
+      controller.abort();
+      rejectAbort(new IdvRequestError('ID verification request interrupted; its outcome may be unknown.', true));
+    };
+    const timer = setTimeout(abort, config.requestTimeoutMs ?? 20_000);
+    init.signal?.addEventListener('abort', abort, { once: true });
+    try {
+      if (init.signal?.aborted) abort();
+      return await Promise.race([
+        cancelled,
+        (async () => {
+          const response = await fetcher(url, { ...init, signal: controller.signal, headers: { ...headers, ...init.headers } });
+          const raw = await response.json() as unknown;
+          const parsed = operation(raw);
+          if (!response.ok || parsed.status >= 400) {
+            throw new IdvRequestError(parsed.msg || `ID verification request failed (${parsed.status}).`, false);
+          }
+          return parsed.data;
+        })(),
+      ]);
+    } finally {
+      clearTimeout(timer);
+      init.signal?.removeEventListener('abort', abort);
     }
-    return parsed.data;
   }
 
   return {
-    async lookup(scope: IdvScope, contactId: string): Promise<SafeIdvResult | undefined> {
+    async lookup(scope: IdvScope, contactId: string, signal?: AbortSignal): Promise<SafeIdvResult | undefined> {
       const data = await call(
         scope,
         `identity-verifications?contact_id=${safeId(contactId)}`,
-        {},
+        { signal },
         true,
       );
       if (!data.idv_id) return undefined;
@@ -160,9 +189,11 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
       scope: IdvScope,
       identity: IdvIdentity,
       device: 'mobile' | 'desktop' = captureDevice(),
+      signal?: AbortSignal,
     ): Promise<IdvStartResult> {
       const data = await call(scope, 'identity-verification', {
         method: 'POST',
+        signal,
         body: JSON.stringify({
           first: identity.first,
           last: identity.last,

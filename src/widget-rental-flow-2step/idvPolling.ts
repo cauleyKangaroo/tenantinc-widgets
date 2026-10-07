@@ -35,8 +35,28 @@ export function startIdvPolling<T>(options: PollSchedulerOptions<T>): () => void
   const setTimer = options.setTimer ?? setTimeout;
   const clearTimer = options.clearTimer ?? clearTimeout;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+  let unsubscribeVisibility = () => {};
   let consecutiveErrors = 0;
   let inFlight = false;
+
+  const stop = () => {
+    if (controller.signal.aborted) return;
+    controller.abort();
+    unsubscribeVisibility();
+    if (timer !== undefined) clearTimer(timer);
+    if (expiryTimer !== undefined) clearTimer(expiryTimer);
+  };
+  const expire = () => {
+    if (controller.signal.aborted) return;
+    stop();
+    options.onExpired();
+  };
+  const armExpiry = () => {
+    const remaining = options.expiresAt * 1_000 - now();
+    if (remaining <= 0) { expire(); return; }
+    expiryTimer = setTimer(armExpiry, Math.min(remaining, 2_147_483_647));
+  };
 
   const schedule = (delay: number) => {
     if (!controller.signal.aborted) timer = setTimer(run, delay);
@@ -45,19 +65,21 @@ export function startIdvPolling<T>(options: PollSchedulerOptions<T>): () => void
   const run = async () => {
     if (controller.signal.aborted) return;
     if (now() >= options.expiresAt * 1_000) {
-      options.onExpired();
+      expire();
       return;
     }
     inFlight = true;
     try {
       const result = await options.poll(controller.signal);
       if (controller.signal.aborted) return;
+      if (now() >= options.expiresAt * 1_000) { expire(); return; }
       consecutiveErrors = 0;
-      if (result.kind === 'complete') return options.onComplete(result.value);
-      if (result.kind === 'failed') return options.onFailed(result.reason);
+      if (result.kind === 'complete') { stop(); return options.onComplete(result.value); }
+      if (result.kind === 'failed') { stop(); return options.onFailed(result.reason); }
       schedule(isVisible() ? visibleDelay() : hiddenDelay);
     } catch (error) {
       if (controller.signal.aborted) return;
+      if (now() >= options.expiresAt * 1_000) { expire(); return; }
       options.onError(error);
       consecutiveErrors += 1;
       schedule(Math.min(maxErrorDelay, 3_000 * (2 ** (consecutiveErrors - 1))));
@@ -71,7 +93,7 @@ export function startIdvPolling<T>(options: PollSchedulerOptions<T>): () => void
     document.addEventListener('visibilitychange', handler);
     return () => document.removeEventListener('visibilitychange', handler);
   };
-  const unsubscribeVisibility = (options.onVisibilityChange ?? defaultVisibilitySubscription)(() => {
+  unsubscribeVisibility = (options.onVisibilityChange ?? defaultVisibilitySubscription)(() => {
     if (controller.signal.aborted || !isVisible() || inFlight) return;
     if (timer) clearTimer(timer);
     // Returning from a hidden tab should not wait out the hidden 15-second
@@ -79,10 +101,7 @@ export function startIdvPolling<T>(options: PollSchedulerOptions<T>): () => void
     schedule(0);
   });
 
+  armExpiry();
   void run();
-  return () => {
-    controller.abort();
-    unsubscribeVisibility();
-    if (timer) clearTimer(timer);
-  };
+  return stop;
 }

@@ -5,6 +5,7 @@ import { useIdvController } from './useIdvController';
 
 const DEV_COMPANY_ID = 'kQoBXA8vpn';
 const DEV_PROPERTY_ID = 'MjR57iZ82O';
+declare const __HB_DEV_HARNESS__: boolean;
 
 function localHostname(): boolean {
   if (typeof window === 'undefined') return false;
@@ -14,6 +15,7 @@ function localHostname(): boolean {
 }
 
 export function canRenderLiveIdvHarness(enabled: boolean | undefined): boolean {
+  if (typeof __HB_DEV_HARNESS__ === 'undefined' || !__HB_DEV_HARNESS__) return false;
   return enabled === true && localHostname();
 }
 

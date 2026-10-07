@@ -27,6 +27,7 @@ export function IdVerifyModal({
   lifecycle,
   notificationStatus,
   onResend,
+  resendUncertain = false,
   verificationUrl,
 }: {
   open: boolean;
@@ -39,6 +40,7 @@ export function IdVerifyModal({
   lifecycle?: string;
   notificationStatus?: 'sent' | 'failed' | 'skipped';
   onResend?: () => Promise<'sent' | 'failed' | 'skipped' | undefined>;
+  resendUncertain?: boolean;
   /** The hosted capture page — the same link the text carries — as a QR for
    *  the renter's phone camera. Absent until the start call has returned. */
   verificationUrl?: string;
@@ -136,7 +138,7 @@ export function IdVerifyModal({
                   .catch(() => setResendMessage('We could not request another text. Try again, or continue on this device.'))
                   .finally(() => setResending(false));
               }}
-              disabled={!valid || resending || (connected && lifecycle !== 'pending')}
+              disabled={!valid || resending || resendUncertain || (connected && lifecycle !== 'pending')}
             >
               {resending ? 'Resending…' : 'Resend Text'}
             </button>
@@ -145,6 +147,7 @@ export function IdVerifyModal({
               would be a claim the widget cannot make. */}
           {sent && !connected && <p className="rf-idm-note">No text is sent yet — verification is not connected.</p>}
           {connected && resendMessage && <p className="rf-idm-note">{resendMessage}</p>}
+          {connected && resendUncertain && <p className="rf-idm-note">We could not confirm the resend. Your existing verification is still available below. Contact the store before requesting another text.</p>}
           {connected && <p className="rf-idm-note">
             {lifecycle === 'pending'
               ? notificationStatus === 'failed'
