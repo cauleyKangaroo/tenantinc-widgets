@@ -1246,6 +1246,13 @@ export function RentalFlow2Step({
   const idvRequirement: IdvRequirement = (inEditor === true ? parseIdvRequirement(idvRequirementPreview) : undefined)
     ?? collectionIdvRequirement
     ?? RENTAL_IDV_REQUIREMENT;
+  // Hosts the hosted capture page may live on. The prop is optional (an older
+  // config.json, or a site that never set it), so a missing value is an empty
+  // list rather than a crash.
+  const allowedIdvHosts = React.useMemo(
+    () => (idvVerificationHosts ?? '').split(',').map((host) => host.trim()).filter(Boolean),
+    [idvVerificationHosts],
+  );
   const { baseUrl: idvBaseUrl, appId: idvAppId, apiKey: idvApiKey } = currentApiCreds();
   const idvApi = React.useMemo(() => {
     // Two independent production brakes: transport configuration alone cannot
@@ -1255,9 +1262,12 @@ export function RentalFlow2Step({
       || (inEditor && !liveCheckoutIdvEnabled)
       // Only an explicit 'direct' turns the client on; a stale or unknown value
       // (an old 'proxy' included) means off.
-      || idvTransport !== 'direct') return undefined;
+      || idvTransport !== 'direct'
+      // No allowed host means every returned link would be refused — but only
+      // AFTER the start call had billed a capture and sent the text. No client.
+      || allowedIdvHosts.length === 0) return undefined;
     return createIdvApi({ baseUrl: idvBaseUrl, appId: idvAppId, apiKey: idvApiKey });
-  }, [idvApiKey, idvAppId, idvBaseUrl, idvTransport, inEditor, liveCheckoutIdvEnabled]);
+  }, [allowedIdvHosts, idvApiKey, idvAppId, idvBaseUrl, idvTransport, inEditor, liveCheckoutIdvEnabled]);
   /** One-step skips the paid screen unless there is an ID check to offer. */
   const oneStepIdv = resolveIdvPresentation(idvRequirement, 'choose', {
     serviceConnected: Boolean(idvApi),
@@ -1331,10 +1341,6 @@ export function RentalFlow2Step({
     contactId: rental?.contactId,
     leaseId: rental?.leaseId ?? 'local-checkout-harness',
   } : undefined, [liveCheckoutIdvEnabled, rental, rentedContact]);
-  const allowedIdvHosts = React.useMemo(
-    () => idvVerificationHosts.split(',').map((host) => host.trim()).filter(Boolean),
-    [idvVerificationHosts],
-  );
   const idvScope = React.useMemo(() => ({
     companyId: effectiveCompanyId ?? '',
     propertyId: effectivePropertyId,

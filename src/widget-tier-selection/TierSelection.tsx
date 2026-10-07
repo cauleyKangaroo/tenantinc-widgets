@@ -648,9 +648,10 @@ export function TierSelection({
    * strict correlation check correctly refused but mislabeled unavailable. */
   const onSelectClick = useCallback((key: TierKey) => (e: React.MouseEvent) => {
     // Leave the browser to handle the ways a user asks for a new tab.
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     // Sample units do not exist; handing one to the rental flow would fail there.
+    // Checked first, so a Ctrl/Cmd/Shift or middle click cannot open one either.
     if (__HB_DEV_HARNESS__ && sampleRef.current) { e.preventDefault(); console.info('[TierSelection] harness sample — Select does not hand off'); return; }
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     const href = rentHrefRef.current?.(key);
     if (!href) return;
     e.preventDefault();
@@ -881,6 +882,9 @@ export function TierSelection({
   // my.duda.co (same reason the Space List navigates via anchors). undefined ⇒
   // not navigable (no rentUrl / cross-origin) ⇒ the CTA renders disabled.
   const rentHref = (key: TierKey): string | undefined => {
+    // Harness sample units do not exist: no link at all, so no kind of click
+    // (Ctrl/Cmd/Shift, middle, "open in new tab") can hand one to the rental flow.
+    if (__HB_DEV_HARNESS__ && sample) return undefined;
     if (!rentUrl || !data) return undefined;
     const t = data.tiers.find((x) => x.key === key);
     let url: URL;
