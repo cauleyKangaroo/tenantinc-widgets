@@ -2,7 +2,7 @@
   /* Search-button accent. Operator can pass accentColor; else the
      Duda theme's --color_2; else the default brand red. */
   --hs-accent: var(--color_2, #e4002b);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   position: relative;

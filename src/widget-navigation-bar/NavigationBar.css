@@ -6,7 +6,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .nav-bar {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   background: #fff;
@@ -60,7 +60,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
@@ -118,7 +118,7 @@
   gap: 9px;
   padding: 8px 10px;
   border-radius: 6px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
@@ -254,6 +254,16 @@
   padding: 0;
 }
 
+/* Page tree still loading on a first visit (see reserveNavRow): hold the row at
+   the width of a typical six-page menu (Home, Find Storage, Storage Types,
+   Resources, Size Guide, Blog — measured at each of the gap/size steps below),
+   so the links fill space that is already taken instead of pushing Find
+   Storage left. A different menu still differs, by far less than the whole
+   row. Repeat visits render the cached tree and never need this. */
+.nav-links--pending { min-width: 610px; }
+@media (max-width: 1300px) { .nav-links--pending { min-width: 590px; } }
+@media (max-width: 1120px) { .nav-links--pending { min-width: 540px; } }
+
 /* Each top-level link is a full-height hover target so its dropdown can anchor
    to the bottom edge of the bar. */
 .nav-item {
@@ -358,7 +368,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
@@ -399,7 +409,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 400;
   line-height: 1.5;
@@ -534,7 +544,7 @@
   position: fixed;
   inset: 0;
   z-index: 2147483647;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   /* Hidden until open. Delay the visibility flip on close so the panel can
      finish sliding out before the layer leaves the hit/a11y tree. */
   visibility: hidden;
@@ -727,7 +737,7 @@
   border: none;
   outline: none;
   background: none;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   color: #101318;
   cursor: pointer;
@@ -752,7 +762,7 @@
   border: none;
   padding: 0 2px;
   cursor: pointer;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   color: #637381;
   white-space: nowrap;
@@ -853,7 +863,7 @@
   cursor: pointer;
   text-align: left;
   text-decoration: none;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 600;
   line-height: 1.5;
@@ -908,7 +918,7 @@
   border: none;
   cursor: pointer;
   text-align: left;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 .nav-mm-sub-toggle.is-open {

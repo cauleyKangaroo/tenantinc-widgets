@@ -3,7 +3,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .ub-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
 }

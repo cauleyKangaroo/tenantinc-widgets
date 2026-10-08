@@ -26,7 +26,7 @@
   border: 1px solid var(--hb-cloud-light, #f4f6f8);
   border-radius: 20px;
   box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
-  font-family: var(--hb-font, 'Montserrat', sans-serif);
+  font-family: var(--hb-font, 'Montserrat', 'Montserrat Fallback', sans-serif);
   color: var(--hb-text-night, #101318);
   animation: sl-wl-pop 0.15s ease-out;
 }

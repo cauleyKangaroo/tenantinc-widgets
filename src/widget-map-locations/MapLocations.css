@@ -22,7 +22,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .ml-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   max-width: 1330px;
   margin: 0 auto;
@@ -666,6 +666,21 @@
   overflow: hidden;
 }
 
+/* Loaded, but nothing in the list has coordinates. Fills the same box the map
+   would, so the row keeps its width and height — see the note in the TSX. */
+.ml-map-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f4f6f8;
+  color: #637381;
+  font-size: 16px;
+  font-weight: 500;
+}
+
 /* ── Property card ─────────────────────────────────────────────────────── */
 
 .ml-card {
@@ -852,7 +867,12 @@
   color: #101318;
 }
 
-.ml-units { display: flex; flex-direction: column; width: 100%; }
+/* Always three rows tall (3 x 57px — see the height table at CardSkeleton).
+   A card lists up to three spaces and the placeholder reserves three, so a
+   facility with only one or two used to come in 57px a row shorter and pull
+   every card below it up. The rows still sit at the top; the foot below just
+   keeps its place. Only the wide card has rows — the compact one is a CTA. */
+.ml-units { display: flex; flex-direction: column; width: 100%; min-height: 171px; }
 
 /* Divider between rows, per the Figma's Line 25 — a border beats an <img>. */
 .ml-unit {
@@ -998,7 +1018,7 @@
   border-radius: 100px;
   background: #fff;
   color: #000;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 20px;
   font-weight: 600;
   line-height: 36px;

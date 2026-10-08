@@ -46,6 +46,17 @@ const FAQS: Faq[] = [
   { id: 'f20', question: 'Do holidays affect gate access hours?', answer: 'Gate access generally follows the normal schedule on holidays, though office hours may be reduced. Check your location’s page for any holiday-specific changes.' },
 ];
 
+/**
+ * Placeholder rows while the property's FAQs load. Five because that is what a
+ * property actually returns: the API's FAQ set is templated per property ("What
+ * size storage units are available in <city>?" …) and came back five rows long
+ * on the harness property (2026-10-05). The 20-row demo set is only the empty-
+ * result fallback, so sizing for it would reserve ~1100px a real page then gives
+ * back. Over- and under-reserving both shift the content below; matching the
+ * common case is the least of either.
+ */
+const SKELETON_ROWS = 5;
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -173,9 +184,19 @@ export function FAQs({
 
       <div className="faq-list">
         {loading ? (
-          // One bar per collapsed row, so the swap to real questions barely shifts.
-          Array.from({ length: 6 }, (_, i) => (
-            <Shimmer key={i} h={64} r={8} mb={12} />
+          // One collapsed row per placeholder, built from the real .faq-item/.faq-q
+          // so it inherits their padding, border and the ≤640px size change. The
+          // bar's height is --faq-skel-h (FAQs.css): one question line on
+          // desktop, two on a phone, where the real questions wrap.
+          Array.from({ length: SKELETON_ROWS }, (_, i) => (
+            <div className="faq-item" key={i} aria-hidden="true">
+              <div className="faq-q">
+                <span className="faq-q-text">
+                  <Shimmer w={`${55 + ((i * 17) % 30)}%`} h="var(--faq-skel-h)" />
+                </span>
+                <Shimmer w={24} h={24} r="50%" />
+              </div>
+            </div>
           ))
         ) : filtered.length === 0 ? (
           <p className="faq-empty">No questions match “{query}”.</p>

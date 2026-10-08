@@ -26,6 +26,10 @@ function readParam(name: string): string | null {
 function writeParams(flow: string, screen: string) {
   try {
     const url = new URL(window.location.href);
+    // The harness mounts every page's widgets at once, so this runs on the
+    // Property tab too — where it used to stamp ?flow=&screen= onto a URL that
+    // has nothing to do with it (and the Mobile frame then copied them).
+    if (url.searchParams.get('page') !== 'static-screens') return;
     url.searchParams.set('flow', flow);
     url.searchParams.set('screen', screen);
     window.history.replaceState(null, '', url);

@@ -445,6 +445,62 @@ function groupsUnder(node: unknown): ApiGroup[] {
  * dropping it with a full tier would make the banner flicker in and out as
  * occupancy changes.
  */
+/**
+ * The line under a space's size: its main amenity ('' when it has none).
+ *
+ * Same rule as #05's card subtitle (widget-space-list/api.ts): the curated
+ * show_in_website amenity first, else the operator's own sort_order. This
+ * tenant sets show_in_website=0 on every amenity (verified live 2026-08-27),
+ * so a curated-only rule left the line blank on every nearby card.
+ */
+function mainAmenity(t: ApiTier): string {
+  const ordered = [...(t.amenities ?? [])]
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const main = ordered.find((a) => a.show_in_website === 1) ?? ordered[0];
+  return main ? amenityLabel(main) : '';
+}
+
+/**
+ * Main amenity per tier id, for ONE property's space group — the subtitles the
+ * batched call cannot supply.
+ *
+ * `fetchSpaceGroupSpaces` (the batched `/space-groups?space_group_id=…`) returns
+ * every tier with an EMPTY `amenities` array — verified 2026-10-07 on 149 tiers,
+ * and no query flag adds them — while this per-property route carries them. So
+ * the batch prices the cards and this fills in the line under each size, for
+ * the cards on screen only. One request: the group id is already known from
+ * PropertiesInternal, so the space-groups list call is skipped.
+ *
+ * Keyed by tier `id`, which is what `NearbySpace.tierId` carries. Fails soft to
+ * an empty map: a card without subtitles is the state it was already in.
+ */
+export async function fetchTierSubtypes(
+  cfg: NearbyApiConfig,
+  propertyId: string,
+  spaceGroupId: string,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  try {
+    const res = await fetch(
+      `${companyBase(cfg)}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`,
+      { headers: headers(cfg), signal: timeoutSignal(TIMEOUTS.request) },
+    );
+    if (!res.ok) return out;
+    const json = (await res.json()) as GroupsResponse;
+    const profile = json?.applicationData?.[cfg.appId]?.[0]?.data?.spaceGroupProfile;
+    if (!profile) return out;
+    for (const prof of Object.values(profile)) {
+      for (const g of prof.groups ?? []) {
+        for (const t of g.tiers ?? []) {
+          const label = mainAmenity(t);
+          if (t.id && label) out.set(t.id, label);
+        }
+      }
+    }
+  } catch { /* fail soft — see above */ }
+  return out;
+}
+
 function spacesFromGroups(groups: ApiGroup[]): PropertySpaceData {
   const tiers: ApiTier[] = [];
   for (const g of groups) tiers.push(...(g.tiers ?? []));
@@ -459,12 +515,9 @@ function spacesFromGroups(groups: ApiGroup[]): PropertySpaceData {
     if ((t.vacant?.count ?? 0) <= 0) continue;
     const startingPrice = t.sell_rate ?? t.units?.min_price ?? 0;
     if (startingPrice <= 0) continue;
-    const website = [...(t.amenities ?? [])]
-      .filter((a) => a.show_in_website === 1)
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     spaces.push({
       size: t.description,
-      subtype: website[0] ? amenityLabel(website[0]) : '',
+      subtype: mainAmenity(t),
       inStorePrice: t.set_rate ?? t.units?.max_price ?? 0,
       startingPrice,
       tierId: t.id,

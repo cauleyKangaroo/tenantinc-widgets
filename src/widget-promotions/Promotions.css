@@ -3,7 +3,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .promo-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   /* Matches .sl-wrapper in #05 exactly. That one is fluid — 20px on a phone,
@@ -45,6 +45,15 @@ img.promo-banner-img {
   display: block;
   width: 100% !important;
   height: auto !important;
+  /* Reserves the slot before the image decodes (the bundled art's ratio, same
+     as the width/height attributes). `auto` hands over to the image's own
+     ratio once it loads, so uploaded art of any shape still shows in full. */
+  aspect-ratio: auto 1200 / 184;
+}
+/* The mobile art is a different shape. Only when a mobile <source> exists —
+   without one the desktop image is shown here too, at its own ratio. */
+@media (max-width: 640px) {
+  .promo-banner--has-mobile img.promo-banner-img { aspect-ratio: auto 560 / 216; }
 }
 
 /* Fallback shown until an image is uploaded — keeps a fixed banner-shaped slot
@@ -350,18 +359,17 @@ img.promo-banner-img {
 /* ── Skeleton (shown while the promotions fetch is in flight) ───────────── */
 
 /* Neutral grey stand-in rather than the live green, so it reads as a placeholder
-   and not as a promo that failed to load its text. Reuses .promo-bar's padding
-   (via data-cols) so the swap to real bars barely shifts height. */
+   and not as a promo that failed to load its text. The skeleton is the real bar
+   markup (see PromoBarsSkeleton), so padding, line boxes and icon boxes all come
+   from the same [data-cols] rules as the bars and the swap doesn't shift. */
 .promo-bar--skeleton {
   background: #eceef1;
   box-shadow: none;
   pointer-events: none;
 }
 
-.promo-bars--skeleton .promo-bar-inner {
-  width: 100%;
-  gap: 16px;
-}
+/* The icons only hold their boxes — white on the grey would read as content. */
+.promo-bar--skeleton svg { visibility: hidden; }
 
 .promo-skel {
   display: block;
@@ -371,18 +379,26 @@ img.promo-banner-img {
   animation: promo-skel-shimmer 1.4s ease-in-out infinite;
 }
 
-/* Left-aligned and sized to the real title/CTA rows, so the swap is a quiet one. */
+/* Each block is a line of transparent text (a no-break space), so its height IS
+   the real title / CTA line box at every count and breakpoint. Widths are fixed
+   (and shrinkable) rather than percentages or a flex-basis: in the one-promo
+   band the parents are content-sized, and neither would give them any width. */
 .promo-skel--title {
-  width: 70%;
-  max-width: 320px;
-  height: 38px;
+  width: 320px;
+  max-width: 100%;
+  flex-shrink: 1;
+  min-width: 0;
+  color: transparent;
 }
 
 .promo-skel--cta {
-  width: 45%;
-  max-width: 180px;
-  height: 24px;
+  width: 180px;
+  max-width: 100%;
+  color: transparent;
 }
+
+/* Present only for its height; nothing in it is drawn or focusable. */
+.promo-pager--skeleton { visibility: hidden; }
 
 @keyframes promo-skel-shimmer {
   from { background-position: 100% 50%; }
@@ -516,14 +532,6 @@ img.promo-banner-img {
     padding: 30px;
   }
 
-  /* ONE placeholder here, not the two SKELETON_BARS draws. The rule above
-     gives every bar flex-basis: 100%, which on a phone stacks the pair
-     vertically — but the real carousel shows a single bar per slide at this
-     width, so the second one promises a row that never arrives and the block
-     halves in height the moment the fetch lands. The count stays 2 in the TSX
-     because that is still right above 560px.
-     (0,3,0), so it clears the [data-cols='N'] rules it has to beat. */
-  .promo-bars--skeleton .promo-bar--skeleton:not(:first-child) { display: none; }
   .promo-bars[data-cols='3'] .promo-bar-title,
   .promo-bars[data-cols='4'] .promo-bar-title { font-size: clamp(20px, 5vw, 34px); }
 
@@ -681,7 +689,7 @@ img.promo-banner-img {
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 20px;
   font-weight: 600;
   line-height: 36px;
@@ -731,7 +739,7 @@ img.promo-banner-img {
 
 .promo-modal-text {
   margin: 0 0 24px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 400;
   line-height: 24px;

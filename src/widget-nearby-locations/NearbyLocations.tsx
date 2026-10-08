@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './NearbyLocations.css';
 import { PROPERTY_IMAGES, cover, propertyImage } from '@shared/demoImages';
 import { fetchPropertyHeroImages } from '@shared/propertyImages';
+import { fetchGoogleRatingsByPlace, matchedRatingForProperty } from '@shared/reviewsCollections';
 import {
   StarRating,
   PhoneIcon,
@@ -22,6 +23,7 @@ import {
   getUserLocation,
   haversineMiles,
   fetchSpacesForProperties,
+  fetchSubtypesForProperties,
   formatDistance,
   fetchPriorityOrder,
   sortByPriorityThenName,
@@ -44,9 +46,12 @@ interface Property extends Omit<NearbyProperty, 'spaces'> {
   /** CSS gradient / demo cover — Images aren't in the API yet. */
   image: string;
   adminFee: number;
-  /** Rating/reviews aren't in the properties API; present only on demo data. */
+  /** Not in the properties API — joined by name from the `GoogleReviews`
+   *  collection (as #08 does). Absent ⇒ the card has no rating row. */
   rating?: number;
   reviewCount?: number;
+  /** The place's Google reviews page, when the collection carries one. */
+  reviewsUrl?: string;
   /**
    * **`null` = not looked up yet** — the card renders `SpacesSkeleton` in their
    * place. Only the properties on the visible page are ever looked up (see the
@@ -272,6 +277,15 @@ function SpaceRow({
 const SPACE_SLOTS = 3;
 
 /**
+ * Rows a LOADED card draws: its own spaces, at least one so a facility with
+ * nothing bookable keeps its body. A card still loading keeps SPACE_SLOTS, the
+ * height its skeleton is drawn at.
+ */
+function naturalSlots(p: { spaces: unknown[] | null }): number {
+  return p.spaces === null ? SPACE_SLOTS : Math.min(SPACE_SLOTS, Math.max(1, p.spaces.length));
+}
+
+/**
  * An INVISIBLE copy of a real space row, used to pad a facility that lists
  * fewer than `SPACE_SLOTS` spaces.
  *
@@ -319,8 +333,18 @@ function PropertyCard({
   enableValueTiers,
   valueTiersChannel,
   valueTiersPageUrl,
+  slots = SPACE_SLOTS,
+  reservePromo = true,
 }: {
   property: Property;
+  /**
+   * Space rows the card draws (real first, invisible after) and whether a card
+   * without a promo keeps the promo's height. The widget passes the card's own
+   * count and no promo reserve (see `naturalSlots`); the defaults are the old
+   * worst case, kept for any caller that still wants every card identical.
+   */
+  slots?: number;
+  reservePromo?: boolean;
   /** Where the property pages live, e.g. '/storage-units'. */
   propertyBasePath: string;
   /** Pre-resolved by the widget — `/rent-or-reserve` unless the instance set
@@ -370,11 +394,18 @@ function PropertyCard({
           <span className="nl-card-name">{property.name}</span>
           {property.rating != null && (
             <div className="nl-card-rating">
-              <span className="nl-card-rating-num">{property.rating}</span>
+              {/* One decimal: the collection's average can be 4.6666… */}
+              <span className="nl-card-rating-num">{Number(property.rating.toFixed(1))}</span>
               <StarRating rating={property.rating} size={16} />
-              {/* A span, not an <a href="#">: there is no reviews destination
-                  here, and "#" scrolls the host page to the top when clicked. */}
-              <span className="nl-card-reviews">{property.reviewCount} Reviews</span>
+              {/* A link only when there is somewhere to go — never <a href="#">,
+                  which scrolls the host page to the top. */}
+              {property.reviewsUrl ? (
+                <a className="nl-card-reviews" href={property.reviewsUrl} target="_blank" rel="noreferrer">
+                  {property.reviewCount} Reviews
+                </a>
+              ) : (
+                <span className="nl-card-reviews">{property.reviewCount} Reviews</span>
+              )}
             </div>
           )}
           {property.address && (
@@ -424,7 +455,7 @@ function PropertyCard({
                 height (1px rule + 12px margins) and draws nothing, which is
                 what stops a hairline trailing off under the last real row. */}
             <div className="nl-spaces">
-              {Array.from({ length: SPACE_SLOTS }, (_, i) => property.spaces?.[i]).map((space, i) => (
+              {Array.from({ length: slots }, (_, i) => property.spaces?.[i]).map((space, i) => (
                 <React.Fragment key={i}>
                   {i > 0 && (
                     <span className={`nl-space-divider${space ? '' : ' nl-space-divider--reserved'}`} />
@@ -453,7 +484,7 @@ function PropertyCard({
                 way, so the card's total height is the same as a promo card's.
                 A hidden copy of the real bar rather than a pixel height, for
                 the reason `ReservedSpaceRow` is one. */}
-            {!property.promo && (
+            {!property.promo && reservePromo && (
               <div className="nl-promo nl-promo--reserved" aria-hidden="true">
                 <TagIcon size={16} />
                 <span className="nl-promo-text">Reserved</span>
@@ -909,9 +940,15 @@ export function NearbyLocations({
         // One read for the whole list — the hero photos live in a collection keyed
         // by property id, and asking per card would repeat the same read. Fails
         // soft to an empty map, and each card then keeps its own source.
-        const heroes = await fetchPropertyHeroImages(internalCollection).catch(
-          () => new Map<string, string>(),
-        );
+        //
+        // The Google ratings come in the same await, for the same reason the
+        // photos do: a rating row arriving after the card would push the name
+        // up inside its bottom-pinned block. A collection read, so it costs no
+        // more than the photo read it runs beside. Fails soft to no ratings.
+        const [heroes, ratings] = await Promise.all([
+          fetchPropertyHeroImages(internalCollection).catch(() => new Map<string, string>()),
+          fetchGoogleRatingsByPlace('#07 nearby').catch(() => ({ byPlace: new Map(), overall: null })),
+        ]);
 
         // THE SLUG IS COLLECTION-ONLY. Verified live 2026-08-25: the REST
         // `/properties` response carries no `slug` field on either company, so
@@ -935,8 +972,14 @@ export function NearbyLocations({
 
         const cards: Property[] = top.map((p, i) => {
           const cached = spacesCache.current.get(p.id);
+          // Matched only: these cards are OTHER facilities, so the site-wide
+          // fallback would be another business's score on this one.
+          const rated = matchedRatingForProperty(p.name, ratings);
           return {
             ...p,
+            rating: rated?.score,
+            reviewCount: rated?.count,
+            reviewsUrl: rated?.reviewsUrl || undefined,
             // heroimage wins over the API's own Images field, which is the
             // one the operator actually chose for this property.
             image: propertyImage(heroes.get(p.id) || p.imageUrl, i),
@@ -1061,9 +1104,18 @@ export function NearbyLocations({
    * so a card filling in early moves nothing on the page. That is the whole reason
    * the eager all-or-nothing paint could be dropped.
    *
-   * The cache is written before the cancelled check on purpose — a lookup that
-   * finished after a re-sort is still a valid answer for that property, and
-   * throwing it away would make the next page turn pay for it again.
+   * Every answer reaches its card, whenever it lands. There used to be a
+   * `cancelled` gate here, and it froze cards on their skeleton for good: the
+   * FIRST answer updates `apiProperties`, which rebuilds `visibleIds` (a new
+   * array, same ids), which re-runs this effect — whose cleanup cancelled the
+   * request still in flight. Its later answers were cached but never put on a
+   * card, and the re-run skipped those ids as already in flight. Seen whenever
+   * some cards are priced by the slower per-property calls (the REST path, or
+   * facilities the batch does not cover) while others land first.
+   *
+   * A late answer is safe to apply: the updater matches on id, the company
+   * guard below still drops another tenant's answer, and a state update after
+   * unmount is a no-op.
    */
   useEffect(() => {
     const missing = visibleIds.filter(
@@ -1071,19 +1123,16 @@ export function NearbyLocations({
     );
     if (!missing.length) return;
 
-    let cancelled = false;
     missing.forEach((id) => spacesInFlight.current.add(id));
 
     // Captured, so a result that lands after a company switch can be told
-    // apart from a current one. NOT the same as `cancelled`: that fires on a
-    // re-sort too, where the answer is still valid and worth caching.
+    // apart from a current one — the only answer that must be dropped.
     const forCompany = companyId;
 
     fetchSpacesForProperties(missing, (id, data) => {
       if (spacesCompany.current !== forCompany) return;
       spacesCache.current.set(id, data);
       spacesInFlight.current.delete(id);
-      if (cancelled) return;
       setApiProperties((prev) =>
         prev
           ? prev.map((p) =>
@@ -1102,10 +1151,66 @@ export function NearbyLocations({
       // eslint-disable-next-line no-console
       console.warn('[#07 nearby] space lookup failed for', missing, err);
     });
-
-    return () => { cancelled = true; };
   }, [visibleIds, companyId]);
 
+
+  /*
+   * SUBTITLES for the cards on screen (Figma 9695-69101: "Climate Controlled"
+   * under "5' x 5'").
+   *
+   * The batched prices carry no amenities, so a card priced by the batch has
+   * empty subtitles. This asks the per-property endpoint — which does carry
+   * them — for the VISIBLE cards only, once each, after their spaces land, and
+   * merges each tier's main amenity in by tier id. The subtitle line is
+   * reserved in CSS, so filling it in moves nothing.
+   *
+   * A space that already has a subtitle (the per-property chain priced it) is
+   * left alone, and a property is never asked twice.
+   */
+  const subtypesAsked = useRef(new Set<string>());
+  useEffect(() => {
+    if (!apiProperties) return undefined;
+    const want = apiProperties
+      .filter((p) => visibleIds.includes(p.id) && !subtypesAsked.current.has(p.id))
+      .filter((p) => p.spaces && p.spaces.some((s) => !s.subtype))
+      .map((p) => p.id);
+    if (!want.length) return undefined;
+    want.forEach((id) => subtypesAsked.current.add(id));
+
+    const forCompany = companyId;
+    fetchSubtypesForProperties(want, (id, subtypes) => {
+      if (spacesCompany.current !== forCompany || !subtypes.size) return;
+      const fill = (spaces: NearbySpace[]) => spaces.map((s) => (
+        s.subtype || !s.tierId ? s : { ...s, subtype: subtypes.get(s.tierId) ?? '' }
+      ));
+      const cached = spacesCache.current.get(id);
+      if (cached) spacesCache.current.set(id, { ...cached, spaces: fill(cached.spaces) });
+      setApiProperties((prev) => (prev
+        ? prev.map((p) => (p.id === id && p.spaces ? { ...p, spaces: fill(p.spaces) } : p))
+        : prev));
+    }).catch(() => { /* fails soft: the line stays empty, as before */ });
+    return undefined;
+  }, [apiProperties, visibleIds, companyId]);
+
+  /*
+   * The desktop page's ids — which track columns are ON SCREEN.
+   *
+   * Every card is its natural height (its own rows, its own promo), and the
+   * columns on screen stretch to the tallest of them, so the cards side by side
+   * still match. Columns off screen get `nl-track-col--offstage` and contribute
+   * no height: before, the track stretched every column to the tallest card in
+   * the WHOLE list, and each card also reserved a promo and three rows it might
+   * not have — together a blank band above the footer on most cards.
+   *
+   * Heights now change only on a page turn or swipe — the visitor's own input,
+   * which layout-shift scoring excludes.
+   */
+  const deskPageIds = useMemo(
+    () => (apiProperties ?? [])
+      .slice(safePage * cardsPerPage, safePage * cardsPerPage + cardsPerPage)
+      .map((p) => p.id),
+    [apiProperties, safePage, cardsPerPage],
+  );
 
   // Map pins from the live properties (price = cheapest starting rate).
   // Coordinate-less properties are DROPPED here, not plotted: extraction now keeps
@@ -1190,10 +1295,15 @@ export function NearbyLocations({
                   }}
                 >
                   {columns.map((col, i) => (
-                    <div className="nl-track-col" key={col[0]?.id ?? i}>
+                    <div
+                      className={`nl-track-col${col.some((c) => deskPageIds.includes(c.id)) ? '' : ' nl-track-col--offstage'}`}
+                      key={col[0]?.id ?? i}
+                    >
                       {col.map((property) => (
                         <PropertyCard
                           key={property.id}
+                          slots={naturalSlots(property)}
+                          reservePromo={false}
                           property={property}
                           propertyBasePath={propertyBase}
                           rentalPageUrl={rentalPath}
@@ -1209,8 +1319,13 @@ export function NearbyLocations({
               </div>
             )}
 
-            {!loading && totalPages > 1 && (
-              <div className="nl-pagination">
+            {/* Mounted but hidden while loading, so the row's height is already
+                reserved when the cards land — the same pattern as #05's nearby
+                section. The page count isn't known yet, and with several
+                locations (the usual case) a row that only appeared afterwards
+                pushed everything below it down. */}
+            {(loading || totalPages > 1) && (
+              <div className="nl-pagination" style={loading ? { visibility: 'hidden' } : undefined} aria-hidden={loading || undefined}>
                 <button className="nl-page-btn nl-page-btn-prev" onClick={deskCar.prev} disabled={!deskCar.canPrev} aria-label="Previous">
                   <ChevronRight size={40} />
                 </button>
@@ -1226,8 +1341,13 @@ export function NearbyLocations({
 
       {/* ── Mobile ──────────────────────────────────────────────────────── */}
       <div className="nl-mobile">
+        {/* Figma 9695-68972's 28px title. The frame's building mark beside it is
+            left out on purpose — no icon on this heading at any width. */}
+        {/* The same `heading` as desktop ("Nearby Properties" unless the editor
+            sets one) — it was hardcoded "Nearby Storage" here, so the two frames
+            named the section differently. */}
         <div className="nl-mobile-title">
-          <span>Nearby Storage</span>
+          <span>{heading}</span>
         </div>
 
         <div className="nl-mobile-tabs">
@@ -1241,7 +1361,14 @@ export function NearbyLocations({
           ) : (
             <>
               {loading ? (
-                <SkeletonCard />
+                <>
+                  <SkeletonCard />
+                  {/* The dots row always follows the real card, so reserve it
+                      — invisible — rather than letting it arrive with the data. */}
+                  <div className="nl-pagination nl-pagination-dots" style={{ visibility: 'hidden' }} aria-hidden="true">
+                    <CarouselDots count={1} active={0} onPick={() => {}} dotClass="nl-dot" />
+                  </div>
+                </>
               ) : (
                 <>
                   {/* Dots are the indicator, swiping is the control — this view
@@ -1262,8 +1389,14 @@ export function NearbyLocations({
                       }}
                     >
                       {properties.map((property, i) => (
-                        <div className="nl-track-col" key={property.id} aria-hidden={i === mobileIdx ? undefined : true}>
+                        <div
+                          className={`nl-track-col${i === mobileIdx ? '' : ' nl-track-col--offstage'}`}
+                          key={property.id}
+                          aria-hidden={i === mobileIdx ? undefined : true}
+                        >
                           <PropertyCard
+                            slots={naturalSlots(property)}
+                            reservePromo={false}
                             property={property}
                             propertyBasePath={propertyBase}
                             rentalPageUrl={rentalPath}

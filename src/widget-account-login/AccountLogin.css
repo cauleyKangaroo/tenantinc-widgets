@@ -14,13 +14,22 @@
 /* ── Root ──────────────────────────────────────────────────────────────────── */
 
 .al-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   display: flex;
   justify-content: center;
   width: 100%;
   padding: 24px;
   box-sizing: border-box;
   color: #101318;
+  /* One height for every step. Each step's card is a different height
+     (identify ~377, code ~431, a two-row account picker ~468 here) and the
+     step changes after a round trip, well past the click — so the page under
+     the widget jumped at each one. The WRAPPER reserves the tallest (the
+     picker at its minimum of two rows, plus this padding) and the card stays
+     its own drawn size at the top of it; flex-start stops the row stretching
+     the card to fill. A picker with 3+ accounts still grows. */
+  align-items: flex-start;
+  min-height: 516px;
 }
 
 .al-wrapper *,
@@ -123,7 +132,7 @@
   border: none;
   background: transparent;
   outline: none;
-  font: 400 16px/20px 'Montserrat', sans-serif;
+  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #101318;
   /* Matches the field's own rounding. Invisible while the background is
      transparent, but load-bearing once autofill fills it: the override below
@@ -140,7 +149,7 @@
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  font: 400 16px/20px 'Montserrat', sans-serif;
+  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #637381;
   pointer-events: none;
   transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
@@ -220,7 +229,7 @@
   border-radius: 8px;
   background: var(--color_1, #f26500);
   color: var(--color_3, #fff);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -279,7 +288,7 @@
   border-radius: 8px;
   background: #fff;
   color: #000;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -314,7 +323,7 @@
   background: #fff;
   outline: none;
   text-align: center;
-  font: 400 24px/1 'Montserrat', sans-serif;
+  font: 400 24px/1 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #000;
 }
 
@@ -344,6 +353,18 @@
   text-align: center;
 }
 
+/* The always-present message slot (see the JSX). One 18px line is held open so
+   a message arriving after a round trip fills space rather than making it.
+   Negative margins pull it into the column's existing gap, so the empty slot
+   costs 10px over the old field-to-CTA spacing instead of a full gap + line. */
+.al-msg-slot {
+  width: 100%;
+  min-height: 18px;
+}
+
+.al-fields > .al-msg-slot { margin: -16px 0; }  /* 24px gap → 8px each side */
+.al-card > .al-msg-slot { margin: -20px 0; }    /* 32px gap → 12px each side */
+
 /* ── Resend ────────────────────────────────────────────────────────────────── */
 
 .al-resend {
@@ -351,7 +372,7 @@
   background: none;
   padding: 0;
   cursor: pointer;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #101318;
@@ -426,7 +447,7 @@
   border-radius: 4px;
   background: #fff;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s;
@@ -475,6 +496,8 @@
 @media (max-width: 560px) {
   .al-wrapper {
     padding: 0;
+    /* The two-row picker at this width (no wrapper padding here). */
+    min-height: 491px;
   }
 
   .al-card {
@@ -496,6 +519,9 @@
     gap: 8px;
     padding: 0;
   }
+
+  /* The card's gap is 24px here, so pull in less to keep 8px each side. */
+  .al-card > .al-msg-slot { margin: -16px 0; }
 
   .al-otp-box {
     height: 48px;
