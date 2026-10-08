@@ -2814,7 +2814,14 @@ export function RentalFlow2Step({
           <div className="rfc-layout">
             <SuccessStep
               chosen={chosenSections}
-              /* Collected at step 2 and already on the lease — not asked again. */
+              /* So an alternate contact entered here cannot be the tenant. */
+              primary={{
+                email: rentedContact?.email ?? contact?.email,
+                phone: rentedContact?.phone ?? contact?.phone,
+              }}
+              /* Filled in on the ONE-STEP form and already on the lease — not
+                 asked again. On two-step nothing is filled at step 2, so every
+                 ticked section arrives here to be completed, as before. */
               provided={{
                 military: !!chosenSections?.dateOfBirth,
                 altContact: !!(chosenSections?.altFirst || chosenSections?.altLast),
