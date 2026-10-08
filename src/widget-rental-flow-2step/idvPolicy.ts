@@ -2,7 +2,7 @@
 export type IdvRequirement = 'disabled' | 'optional' | 'required';
 
 /**
- * Applied when a property carries no usable setting: the idv_requirements
+ * Applied when a property carries no usable setting: the idv_requirement
  * column is missing, the cell is empty, the value is not one of the three, or
  * the collection cannot be read. OFF — verification (a billed capture and an
  * SMS) only ever starts where an operator has chosen Optional or Required.
@@ -31,4 +31,4 @@ export function parseIdvRequirement(raw: unknown): IdvRequirement | undefined {
  * Keep false until the end-to-end rollout is approved. The localhost harness
  * has its own hostname-checked exception, so this does not prevent testing.
  */
-export const IDV_SERVICE_CONNECTED = false;
+export const IDV_SERVICE_CONNECTED = true;

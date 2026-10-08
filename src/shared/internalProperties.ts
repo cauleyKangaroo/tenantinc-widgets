@@ -399,7 +399,7 @@ export async function fetchSingleStep(
 }
 
 /** Column behind the rental flow's ID-verification policy — a Duda Dropdown. */
-const IDV_REQUIREMENT_FIELD = 'idv_requirements';
+const IDV_REQUIREMENT_FIELD = 'idv_requirement';
 
 /**
  * This property's ID-verification setting as the operator chose it

@@ -182,7 +182,7 @@ function testStorage() {
 function testPresentation() {
   assert.equal(RENTAL_IDV_REQUIREMENT, 'disabled', 'no setting (or None) never starts a verification');
 
-  // PropertiesInternal.idv_requirements: the Duda dropdown's labels, or rich text.
+  // PropertiesInternal.idv_requirement: the Duda dropdown's labels, or rich text.
   assert.equal(parseIdvRequirement('None'), 'disabled');
   assert.equal(parseIdvRequirement('Optional'), 'optional');
   assert.equal(parseIdvRequirement(' REQUIRED '), 'required');
