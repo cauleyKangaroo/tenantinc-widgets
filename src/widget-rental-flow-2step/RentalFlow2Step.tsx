@@ -1816,28 +1816,60 @@ export function RentalFlow2Step({
   }, [hold, step, choiceKey, insuranceId, moveIn, paymentCycle, selection, ctx, logTag]);
 
   /*
-   * Fetch the lease preview once the payload exists, and again when any figure
-   * in it moves — the document quotes the money, so a preview built before the
-   * shopper changed coverage, the date or the billing period would show numbers
-   * they are not agreeing to.
+   * Fetch the lease preview as soon as the NUMBERS exist — a hold and a quote,
+   * which this page has from the moment it lands — and again when anything in
+   * it moves: the contact, once Step 1 is submitted, and any figure, since the
+   * document quotes the money and a preview built before the shopper changed
+   * coverage, the date or the billing period would show numbers they are not
+   * agreeing to.
    *
-   * Keyed on the same `choiceKey` the re-quote uses, plus the total, so it
-   * follows the quote rather than racing it.
+   * PREFETCHED BEFORE STEP 1 IS FILLED IN, deliberately. The call takes ~4.5s
+   * (measured live 2026-10-08), and it used to wait for the contact, so every
+   * shopper pressed Rent and then looked at an empty agreement panel for that
+   * long. documents/preview accepts a blank contact and returns the same styled
+   * lease with the name left empty — verified live, same date — so the first
+   * fetch goes out with blank fields and the panel has a real document to show
+   * the instant Step 2 opens. The personalised one follows the moment the
+   * contact arrives, and REPLACES it; the shown preview is never cleared in
+   * between, so the shopper sees the lease updating rather than vanishing.
+   * `leasePreviewUpdating` tells the panel to say so while that is in flight.
+   *
+   * KEYED ON WHAT IS SENT, not on what the shopper changed. Keying on
+   * `choiceKey` (which carries the coverage id) fired a second, identical
+   * request the moment Step 2 opened: picking the default plan changed the
+   * key but not one byte of the payload, because coverage reaches the
+   * document only through the quote, and the re-quote had not landed yet.
+   * Driven live 2026-10-08: three requests between Rent and the panel
+   * settling, one of them a byte-for-byte repeat. So the key is the fields
+   * the body is built from — unit, date, cycle, the quote's money, the costs
+   * and the contact — and a change that does not alter the document does not
+   * fetch it again.
    */
-  const previewKey = hold && quote && contact
-    ? `${hold.unitId}|${choiceKey}|${quote.totalDue}`
+  const contactKey = contact
+    ? [contact.first, contact.last, contact.email, contact.phone, contact.businessName].map((v) => v ?? '').join('|')
     : '';
+  const previewKey = hold && quote
+    ? [
+      hold.unitId, ymd(moveIn), paymentCycle, quote.totalDue, quote.rent, quote.billDay,
+      selection?.spaceMixId ?? '', (selection?.promotionIds ?? []).join(','),
+      JSON.stringify(quoteToCosts(quote, ymd(moveIn))), contactKey,
+    ].join('|')
+    : '';
+  // Which payload the preview on screen was built from. Differs from
+  // `previewKey` exactly while a newer one is being fetched.
+  const [leasePreviewShownKey, setLeasePreviewShownKey] = useState('');
+  const leasePreviewUpdating = !!previewKey && leasePreviewShownKey !== previewKey;
   useEffect(() => {
-    if (!previewKey || !hold || !quote || !contact || inEditor) return undefined;
+    if (!previewKey || !hold || !quote || inEditor) return undefined;
     let cancelled = false;
     void previewDocuments(ctx, {
       unit: { id: hold.unitId, number: hold.unitNumber },
       contact: {
-        first: contact.first ?? '',
-        last: contact.last ?? '',
-        email: contact.email ?? '',
-        phone: contact.phone ?? '',
-        businessName: contact.businessName,
+        first: contact?.first ?? '',
+        last: contact?.last ?? '',
+        email: contact?.email ?? '',
+        phone: contact?.phone ?? '',
+        businessName: contact?.businessName,
         /*
          * Empty, and deliberately so. The billing address is not collected
          * until the payment form further down the same step, and the preview
@@ -1869,8 +1901,17 @@ export function RentalFlow2Step({
       const isLease = (t: string, nm: string) =>
         t === 'lease' || t === 'super-lease' || /lease/i.test(nm);
       const lease = docs.find((d) => isLease(d.documentType, d.name)) ?? docs[0];
-      setLeasePreviewUrl(lease?.previewUrl ?? '');
-      setLeasePreviewHtml(lease?.html ?? '');
+      /*
+       * Only REPLACE on success. A failed fetch (empty `docs`) keeps the last
+       * preview on screen rather than blanking the panel; the key is still
+       * recorded so the "updating" badge does not sit there forever over a
+       * document that is not going to change.
+       */
+      if (lease) {
+        setLeasePreviewUrl(lease.previewUrl ?? '');
+        setLeasePreviewHtml(lease.html ?? '');
+      }
+      setLeasePreviewShownKey(previewKey);
     });
     return () => { cancelled = true; };
     // `previewKey` already folds in every value read here.
@@ -2890,6 +2931,7 @@ export function RentalFlow2Step({
             contact={contact}
             leasePreviewUrl={leasePreviewUrl}
             leasePreviewHtml={leasePreviewHtml}
+            leasePreviewUpdating={leasePreviewUpdating}
             // The whole list, not plans[0]: the card is a dropdown now, so it
             // needs every option. Live plans win; the sample only fills an empty
             // list, and only in the harness.
