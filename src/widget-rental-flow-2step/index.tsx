@@ -2,5 +2,12 @@
 import { createWidget } from '@shared/createWidget';
 import { RentalFlow2Step } from './RentalFlow2Step';
 import type { RentalFlow2StepProps } from './RentalFlow2Step';
+import { canRenderLiveIdvHarness, LiveIdvHarness } from './LiveIdvHarness';
 
-export const { init, clean } = createWidget<RentalFlow2StepProps>(RentalFlow2Step);
+function RentalFlowEntry(props: RentalFlow2StepProps) {
+  return canRenderLiveIdvHarness(props.liveIdvHarness)
+    ? <LiveIdvHarness />
+    : <RentalFlow2Step {...props} />;
+}
+
+export const { init, clean } = createWidget<RentalFlow2StepProps>(RentalFlowEntry);

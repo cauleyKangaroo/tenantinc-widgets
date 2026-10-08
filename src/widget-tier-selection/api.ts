@@ -446,9 +446,11 @@ export async function fetchMoveInQuote(ctx: TierContext, unit: QuoteInput): Prom
   const netSum = net.reduce((s, l) => s + l.cost, 0);
 
   let lines: QuoteLine[];
-  if (discount > 0 && cents(grossSum - discount + tax) === cents(balance)) {
+  // configure can return tax-inclusive line totals. Prefer subtotals + invoice
+  // tax, including when there is no discount, so tax is never counted twice.
+  if (cents(grossSum - discount + tax) === cents(balance)) {
     const label = (unit.promotionIds?.length ?? 0) > 1 ? 'Promotions' : (unit.promoName ?? 'Promotion');
-    lines = [...gross, { name: label, cost: -discount }];
+    lines = discount > 0 ? [...gross, { name: label, cost: -discount }] : gross;
   } else if (cents(netSum + tax) === cents(balance)) {
     lines = net;
   } else {

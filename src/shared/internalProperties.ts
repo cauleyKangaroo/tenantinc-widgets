@@ -398,6 +398,32 @@ export async function fetchSingleStep(
   return bool(text);
 }
 
+/** Column behind the rental flow's ID-verification policy — a Duda Dropdown. */
+const IDV_REQUIREMENT_FIELD = 'idv_requirements';
+
+/**
+ * This property's ID-verification setting as the operator chose it
+ * (None / Optional / Required), as plain text. The rental flow interprets it.
+ *
+ * Per property for the same reason as `single_step`: one rental page serves
+ * every property. `undefined` means UNANSWERED — no dmAPI, no row, no column,
+ * or blank — and the caller applies its own default.
+ */
+export async function fetchIdvRequirementSetting(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<string | undefined> {
+  const wanted = propertyId.trim();
+  if (!wanted) return undefined;
+  const row = (await readInternalProperties(collectionName))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return undefined;
+  const raw = row[IDV_REQUIREMENT_FIELD];
+  if (raw === undefined || raw === null) return undefined;
+  const text = plainText(raw).trim();
+  return text || undefined;
+}
+
 /**
  * Sort by curated `nearbyLocationPriorityOrder`, then by name.
  *

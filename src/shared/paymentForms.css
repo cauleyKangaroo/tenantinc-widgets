@@ -417,9 +417,13 @@
   .rf-cardcell--number { flex: 1 1 auto; min-width: 0; }
 
   .rf-cardrow-short { gap: 6px; flex: 0 0 auto; }
+  /* width as well as flex-basis: WebKit sizes the auto-width wrapper above
+     from its children's content, not their basis, and GP's expiry iframe
+     defaults to 300px. Without it the pair measured ~490px and squeezed the
+     card-number frame to zero on iOS Safari. */
   .rf-cardcell--exp,
-  .rf-cardcell--exp-wide { flex: 0 0 76px; }
-  .rf-cardcell--cvv { flex: 0 0 52px; }
+  .rf-cardcell--exp-wide { flex: 0 0 76px; width: 76px; }
+  .rf-cardcell--cvv { flex: 0 0 52px; width: 52px; }
 
   .rf-cardrow-input,
   .rf-cardcell-label { font-size: 14px; }

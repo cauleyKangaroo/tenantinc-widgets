@@ -1,15 +1,9 @@
 // ===========================================================================
 // "Verify ID Now" — Figma node 8509-35693.
 //
-// DUMMY. There is no identity-verification service wired up: nothing here
-// sends a text, and "Resend Text" does not resend one. The modal exists so the
-// flow can be walked end to end, and so whoever connects the real service has
-// the finished screen and the three outcomes to hang it on.
-//
-// `onResult` is the seam. The three buttons at the foot are NOT in the Figma —
-// they are a scaffold, clearly labelled as such on screen, standing in for the
-// callback the verification app will fire. Delete that block, call `onResult`
-// from the real response, and everything else here is final.
+// Connected mode starts/resends a hosted verification and reflects its poll
+// lifecycle. Disconnected editor mode keeps three clearly labelled scaffold
+// buttons so every designed outcome can be reviewed without an API call.
 //
 // Same overlay shell as MoveInDateModal and ProtectionPlanModal: Escape, click
 // outside, scroll lock, portalled to <body>.
@@ -17,6 +11,8 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import QRCode from 'react-qr-code';
+import { Shimmer } from '@shared/Shimmer';
 import { CloseCircleIcon, FormField, isPossiblePhone } from '@shared/ui';
 import { IdCardIcon } from './planIcons';
 import { IdIllustration } from './IdIllustration';
@@ -28,6 +24,12 @@ export function IdVerifyModal({
   onClose,
   onResult,
   phone = '',
+  connected = false,
+  lifecycle,
+  notificationStatus,
+  onResend,
+  resendUncertain = false,
+  verificationUrl,
 }: {
   open: boolean;
   onClose: () => void;
@@ -35,9 +37,19 @@ export function IdVerifyModal({
   onResult: (result: IdVerifyResult) => void;
   /** The number the text went to — the contact's, pre-filled and editable. */
   phone?: string;
+  connected?: boolean;
+  lifecycle?: string;
+  notificationStatus?: 'sent' | 'failed' | 'skipped';
+  onResend?: () => Promise<'sent' | 'failed' | 'skipped' | undefined>;
+  resendUncertain?: boolean;
+  /** The hosted capture page — the same link the text carries — as a QR for
+   *  the renter's phone camera. Absent until the start call has returned. */
+  verificationUrl?: string;
 }) {
   const [num, setNum] = useState(phone);
   const [sent, setSent] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -52,7 +64,9 @@ export function IdVerifyModal({
   }, [open, onClose]);
 
   // Re-open should start clean, and pick up a number that arrived after mount.
-  useEffect(() => { if (open) { setNum(phone); setSent(false); } }, [open, phone]);
+  useEffect(() => {
+    if (open) { setNum(phone); setSent(false); setResendMessage(''); }
+  }, [open, phone]);
 
   if (!open) return null;
 
@@ -105,46 +119,92 @@ export function IdVerifyModal({
               type="tel"
               value={num}
               onChange={(v) => { setNum(v); setSent(false); }}
+              disabled={connected}
               state={valid ? 'success' : 'default'}
               autoComplete="tel"
             />
             <button
               type="button"
               className="rf-sx-btn rf-sx-btn--solid rf-idm-resend-btn"
-              onClick={() => setSent(true)}
-              disabled={!valid}
+              onClick={() => {
+                if (!connected) { setSent(true); return; }
+                setResending(true);
+                setResendMessage('');
+                void onResend?.()
+                  .then((status) => setResendMessage(
+                    status === 'sent'
+                      ? 'A new text message was requested.'
+                      : 'The text could not be delivered. Try again, or continue on this device.',
+                  ))
+                  .catch(() => setResendMessage('We could not request another text. Try again, or continue on this device.'))
+                  .finally(() => setResending(false));
+              }}
+              disabled={!valid || resending || resendUncertain || (connected && lifecycle !== 'pending')}
             >
-              Resend Text
+              {resending ? 'Resending…' : 'Resend Text'}
             </button>
           </div>
           {/* Nothing was sent. Said plainly rather than "Text sent!", which
               would be a claim the widget cannot make. */}
-          {sent && <p className="rf-idm-note">No text is sent yet — verification is not connected.</p>}
+          {sent && !connected && <p className="rf-idm-note">No text is sent yet — verification is not connected.</p>}
+          {connected && resendMessage && <p className="rf-idm-note">{resendMessage}</p>}
+          {connected && resendUncertain && <p className="rf-idm-note">We could not confirm the resend. Your existing verification is still available below. Contact the store before requesting another text.</p>}
+          {connected && <p className="rf-idm-note">
+            {lifecycle === 'pending'
+              ? notificationStatus === 'failed'
+                ? 'The first text was not delivered. Try Resend Text, or continue on this device.'
+                : 'Verification is in progress. Complete it on your phone.'
+              : 'Starting verification…'}
+          </p>}
+
+          {/* The legacy flow's QR, between Resend Text and Return to this
+              Device: scanning it opens the same page the text links to. The
+              preview has no session, so it shows a placeholder that scans to
+              nothing actionable. */}
+          {(verificationUrl || !connected || lifecycle === 'ready' || lifecycle === 'starting') && (
+            <div className="rf-idm-qr">
+              <div className="rf-idm-qr-code">
+                {verificationUrl || !connected ? (
+                  <QRCode
+                    value={verificationUrl ?? 'ID verification preview'}
+                    size={148}
+                    level="M"
+                    fgColor="#101318"
+                    bgColor="#ffffff"
+                    title="QR code for the ID verification page"
+                  />
+                ) : (
+                  <div role="status" aria-label="Preparing QR code"><Shimmer w={148} h={148} r={4} /></div>
+                )}
+              </div>
+              <p className="rf-idm-para rf-idm-qr-note">Or scan this code with your phone&rsquo;s camera.</p>
+            </div>
+          )}
 
           <div className="rf-idm-or"><span>or</span></div>
 
+          {/* Back to the page. Verification carries on — the screen keeps
+              polling and updates when the phone finishes. */}
           <button type="button" className="rf-sx-btn rf-sx-btn--outline rf-idm-return" onClick={onClose}>
             Return to this Device
           </button>
 
           <p className="rf-idm-para rf-idm-foot">
-            If the text link you received did not redirect you to our identity verification tool, then
-            enable pop-ups in your browser settings and try again.{' '}
-            <a href="#pop-ups" onClick={(e) => e.preventDefault()}>Click here to see how to enable pop-ups.</a>
+            Didn&rsquo;t get the text? Tap Resend Text, or scan the code above with your phone&rsquo;s camera.
           </p>
 
           {/* ── SCAFFOLD ──────────────────────────────────────────────────
               Not part of the design. Stands in for the verification app's
               response so all three outcomes can be seen and styled. Remove
               this block once the real service calls `onResult`. */}
-          <div className="rf-idm-stub">
+          {!connected && <div className="rf-idm-stub">
             <p className="rf-idm-stub-label">Demo only — pick the result the ID app would return:</p>
             <div className="rf-idm-stub-row">
               <button type="button" onClick={() => { onResult('complete'); onClose(); }}>Complete</button>
               <button type="button" onClick={() => { onResult('failed'); onClose(); }}>Failed</button>
               <button type="button" onClick={() => { onResult('later'); onClose(); }}>Verify later</button>
             </div>
-          </div>
+          </div>}
         </div>
       </div>
     </div>
