@@ -1816,8 +1816,20 @@ export interface RentalExtras {
   altPhone?: string;
   altEmail?: string;
   altAddress?: string;
+  /** From the address picker, when a suggestion was chosen — the lease sample
+   *  files the alternate's address as address/city/state/zip. */
+  altCity?: string;
+  altState?: string;
+  altZip?: string;
   vehicle?: boolean;
   vehicleType?: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleYear?: string;
+  vehicleColour?: string;
+  vehiclePlate?: string;
+  vehicleCountry?: string;
+  vehicleState?: string;
 }
 
 /** How the API spells each billing period — see the note at its use site. */
@@ -1931,9 +1943,14 @@ function rentContacts(c: RentContact, extras?: RentalExtras): unknown[] {
     const altPhone = extras.altPhone ? normalizePhone(extras.altPhone, 'US') : undefined;
     if (altPhone) alt.Phones = [{ phone: altPhone, type: 'cell', sms: true }];
     if (extras.altAddress) {
-      // The form takes one address line; city/state/zip are not asked for, so
-      // they are omitted rather than guessed from it.
-      alt.Addresses = [{ Address: { address: extras.altAddress }, type: 'alternate' }];
+      // The form takes one address line. City/state/zip come from the address
+      // picker when a suggestion was chosen (the lease sample files all four);
+      // a typed-only line is sent on its own rather than guessed apart.
+      const a: Record<string, string> = { address: extras.altAddress };
+      if (extras.altCity) a.city = extras.altCity;
+      if (extras.altState) a.state = extras.altState;
+      if (extras.altZip) a.zip = extras.altZip;
+      alt.Addresses = [{ Address: a, type: 'alternate' }];
     }
     contact.Relationships = [{ Contact: alt, is_alternate: 1, type: 'alternate' }];
   }
@@ -1941,10 +1958,29 @@ function rentContacts(c: RentContact, extras?: RentalExtras): unknown[] {
   return [contact];
 }
 
-/** `vehicle_info`, when the shopper is storing one. Type is all the form asks. */
+/**
+ * `vehicle_info`, when the shopper is storing one.
+ *
+ * Type is the only required field and the only one with a documented place
+ * (`description` + `vehicle.type`, per TenantInc's sample). The guide lists
+ * make, model, year, plate and owner details as part of vehicle_info without
+ * spelling their keys, and TenantInc's instruction for this payload was
+ * "ignore the fields you don't have data for" — so the optional details the
+ * form collects ride inside `vehicle` under the obvious snake_case names,
+ * only when filled, and nothing breaks if a name is not recognised.
+ */
 function vehicleInfo(extras?: RentalExtras): Record<string, unknown> | undefined {
   if (!extras?.vehicle || !extras.vehicleType) return undefined;
-  return { description: extras.vehicleType, vehicle: { type: extras.vehicleType } };
+  const vehicle: Record<string, string> = { type: extras.vehicleType };
+  const opt: Array<[string, string | undefined]> = [
+    ['make', extras.vehicleMake], ['model', extras.vehicleModel], ['year', extras.vehicleYear],
+    ['color', extras.vehicleColour], ['license_plate', extras.vehiclePlate],
+    ['license_state', extras.vehicleState], ['license_country', extras.vehicleCountry],
+  ];
+  for (const [k, v] of opt) if (v && v.trim()) vehicle[k] = v.trim();
+  const description = [extras.vehicleYear, extras.vehicleMake, extras.vehicleModel]
+    .filter((s) => s && s.trim()).join(' ') || extras.vehicleType;
+  return { description, vehicle };
 }
 
 /** The `payment_method` object. Card only — ACH is not wired yet. */

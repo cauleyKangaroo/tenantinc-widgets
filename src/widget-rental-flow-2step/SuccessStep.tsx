@@ -99,7 +99,7 @@ export interface SuccessDetails {
   extras?: ExtraFieldValues;
 }
 
-export function SuccessStep({ onGetAccess, chosen }: {
+export function SuccessStep({ onGetAccess, chosen, provided }: {
   /** Fires with everything the contact update can file. The parent decides
    *  what to do with it; this screen just collects. */
   onGetAccess?: (details?: SuccessDetails) => void;
@@ -107,12 +107,22 @@ export function SuccessStep({ onGetAccess, chosen }: {
    *  this one asks for the details, so it opens the same sections already
    *  ticked rather than making them answer twice. */
   chosen?: { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean };
+  /**
+   * Sections whose fields were FILLED IN at step 2 and have already gone out
+   * on the lease. Those are not shown here at all: the question was answered
+   * and the answer filed, so re-opening it empty would ask the shopper to
+   * type the same thing twice. Step 2 shows the fields under each tick now,
+   * so a ticked section normally arrives here as provided.
+   */
+  provided?: { military?: boolean; altContact?: boolean; vehicle?: boolean };
 }) {
   // Initialisers, not synced props: the boxes stay the shopper's to change here.
+  // A provided section starts OFF, so its required fields cannot block Get
+  // Access from behind a group that is not rendered.
   const [business, setBusiness] = useState(chosen?.business ?? false);
-  const [military, setMilitary] = useState(chosen?.military ?? false);
-  const [altContact, setAltContact] = useState(chosen?.altContact ?? false);
-  const [vehicle, setVehicle] = useState(chosen?.vehicle ?? false);
+  const [military, setMilitary] = useState(!provided?.military && (chosen?.military ?? false));
+  const [altContact, setAltContact] = useState(!provided?.altContact && (chosen?.altContact ?? false));
+  const [vehicle, setVehicle] = useState(!provided?.vehicle && (chosen?.vehicle ?? false));
 
   // Mailing address — where notices go when it is not the space's address.
   // Filed on the contact as an Addresses entry of type "mailing" (verified
@@ -579,20 +589,26 @@ export function SuccessStep({ onGetAccess, chosen }: {
         </div>
         )}
 
+        {!provided?.military && (
         <div className="rf-sx-group">
           <Checkbox checked={military} onChange={setMilitary}>I am active military</Checkbox>
           {military && <MilitaryFields v={extraFields} set={setExtra} bad={bad} />}
         </div>
+        )}
 
+        {!provided?.altContact && (
         <div className="rf-sx-group">
           <Checkbox checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Checkbox>
           {altContact && <AltContactFields v={extraFields} set={setExtra} bad={bad} />}
         </div>
+        )}
 
+        {!provided?.vehicle && (
         <div className="rf-sx-group">
           <Checkbox checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Checkbox>
           {vehicle && <VehicleFields v={extraFields} set={setExtra} bad={bad} />}
         </div>
+        )}
         </div>
       </section>
 
