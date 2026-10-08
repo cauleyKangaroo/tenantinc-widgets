@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './HomepageSearch.css';
+import { useLocationPermission } from './useLocationPermission';
 import { fetchLocationTree, type NavUnitType } from '@shared/propertyNav';
 import { MapPinSolidIcon, SearchIcon } from '@shared/ui/icons';
 import { openFindStorage } from '@shared/findStorageBus';
@@ -200,6 +201,7 @@ export function HomepageSearch({
   const [typeAbove, setTypeAbove] = useState(false);
   const [activeType, setActiveType] = useState(-1);
   const [locating, setLocating] = useState(false);
+  const [locationDenied, setLocationDenied] = useLocationPermission();
   const [pendingCoordinates, setPendingCoordinates] = useState<Coordinates>();
   const locationRequest = useRef(0);
   const [resolvingCity, setResolvingCity] = useState(false);
@@ -333,7 +335,8 @@ export function HomepageSearch({
           ?? geoTargets.find((row) => row.fallbackTarget.href === item.href)?.fallbackTarget;
         return target && (!type || target.types.includes(type)) ? [{ ...target, label: item.label }] : [];
       });
-  const showLocationPanel = suggestionsOpen && (!q.trim() || visibleSuggestions.length > 0);
+  const showCurrentLocation = !locationDenied;
+  const showLocationPanel = suggestionsOpen && ((!q.trim() && showCurrentLocation) || visibleSuggestions.length > 0);
 
   useLayoutEffect(() => {
     if (!showLocationPanel) {
@@ -361,7 +364,7 @@ export function HomepageSearch({
       window.removeEventListener('resize', placePanel);
       window.removeEventListener('scroll', placePanel, true);
     };
-  }, [showLocationPanel, visibleSuggestions.length, q]);
+  }, [showLocationPanel, visibleSuggestions.length, q, showCurrentLocation]);
 
   useLayoutEffect(() => {
     if (!typeOpen) {
@@ -457,7 +460,7 @@ export function HomepageSearch({
   }, [pendingCoordinates, inventoryStatus, geoTargets, type]);
 
   const chooseCurrentLocation = () => {
-    if (locating) return;
+    if (locating || locationDenied) return;
     if (!navigator.geolocation) {
       console.warn('[HomepageSearch] Current Location: browser geolocation is unavailable');
       return;
@@ -483,6 +486,7 @@ export function HomepageSearch({
       },
       (error) => {
         if (request !== locationRequest.current) return;
+        if (error.code === 1) setLocationDenied(true);
         console.warn(
           `[HomepageSearch] Current Location: geolocation failed (code ${error.code}: ${error.message || 'no browser message'})`,
         );
@@ -700,6 +704,7 @@ export function HomepageSearch({
           >
           {!q.trim() && (
             <>
+              {showCurrentLocation && (
               <li role="presentation">
                 <button
                   className="hs-current-location"
@@ -718,6 +723,7 @@ export function HomepageSearch({
                   <span>Current Location</span>
                 </button>
               </li>
+              )}
               {visibleSuggestions.length > 0 && (
                 <li className="hs-history-head" role="presentation">Search History</li>
               )}

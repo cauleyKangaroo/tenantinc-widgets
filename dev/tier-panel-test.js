@@ -47,6 +47,22 @@ async function main() {
   const sixFeatures = { ...input, featureLabels: ['One', 'Two', 'Three', 'Four', 'Five', 'Six'] };
   assert.deepEqual(Array.from(context.buildTierData(sixFeatures, undefined, 2, true, 'Premium Drive-Up').rows, row => row.label), ['Monthly Rent', ...sixFeatures.featureLabels], 'unmatched subtitle does not displace the sixth amenity');
   assert.equal(context.buildTierData(input, undefined, 2, true, '  climate   control ').rows[1].label, 'Climate Control');
+  const variants = {
+    ...input,
+    featureLabels: ['Ground Floor', 'Climate Control', 'climate control', 'Climate  Control'],
+    bundles: [
+      { key: 'good', unitId: 'a', price: 100, features: ['Climate Control'] },
+      { key: 'better', unitId: 'b', price: 120, features: ['climate control'] },
+      { key: 'best', unitId: 'c', price: 140, features: ['Climate  Control'] },
+    ],
+  };
+  const variantRows = context.buildTierData(variants, undefined, 2, true, '  CLIMATE control ').rows;
+  assert.deepEqual(Array.from(variantRows, row => row.label), ['Monthly Rent', 'Climate Control', 'Ground Floor', 'climate control', 'Climate  Control'], 'moving an amenity preserves case and spacing variants');
+  for (const [label, tierKey] of [['Climate Control', 'good'], ['climate control', 'better'], ['Climate  Control', 'best']]) {
+    const row = variantRows.find(row => row.label === label);
+    for (const key of ['good', 'better', 'best']) assert.equal(row[key], key === tierKey, `${label} retains exact API checkmarks`);
+  }
+  assert.equal(variantRows[1].bold, true);
   const root = createRoot(document.getElementById('root'));
   const headerProps = { heading: 'Choose an Option', onClose() {} };
   await React.act(async () => root.render(React.createElement(context.TierModalHeader, headerProps)));

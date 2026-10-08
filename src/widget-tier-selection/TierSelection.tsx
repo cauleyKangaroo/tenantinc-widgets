@@ -200,7 +200,7 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
   const primaryLabel = subtitle?.trim();
   const matchingLabel = primaryLabel && data.featureLabels.find((label) => normalizeLabel(label) === normalizeLabel(primaryLabel));
   const featureLabels = matchingLabel
-    ? [matchingLabel, ...data.featureLabels.filter((label) => normalizeLabel(label) !== normalizeLabel(matchingLabel))]
+    ? [matchingLabel, ...data.featureLabels.filter((label) => label !== matchingLabel)]
     : data.featureLabels;
   const checkRows = featureLabels.slice(0, 6).map((label, ri) => ({
     label,
