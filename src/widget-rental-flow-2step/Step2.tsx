@@ -39,9 +39,19 @@ const FORM_SKELETON_MS = 700;
  * at once.
  */
 function LeaseDocBody(
-  { title, previewUrl, previewHtml }:
-  { title?: string; previewUrl?: string; previewHtml?: string },
+  { title, previewUrl, previewHtml, updating }:
+  { title?: string; previewUrl?: string; previewHtml?: string; updating?: boolean },
 ) {
+  /*
+   * The preview on screen was prefetched before Step 1 was filled in (see the
+   * preview effect in RentalFlow2Step), so when the personalised one is on its
+   * way the shopper is told, over the document, rather than left to wonder why
+   * their name is not on it yet. Only ever over a document — with nothing
+   * shown there is nothing to be updating.
+   */
+  const badge = updating
+    ? <span className="rf2-doc-updating" role="status">Updating your agreement…</span>
+    : null;
   /*
    * THE HOSTED PREVIEW, FRAMED — and it must be allowed to run scripts.
    *
@@ -72,6 +82,7 @@ function LeaseDocBody(
           loading="lazy"
           sandbox="allow-scripts allow-same-origin"
         />
+        {badge}
       </div>
     );
   }
@@ -93,6 +104,7 @@ function LeaseDocBody(
           title={title ?? 'Rental Agreement'}
           sandbox=""
         />
+        {badge}
       </div>
     );
   }
@@ -256,7 +268,7 @@ const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, leasePreviewUrl, leasePreviewHtml, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
+  brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, leasePreviewUrl, leasePreviewHtml, leasePreviewUpdating, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
 }: {
   moveIn: Date;
@@ -315,6 +327,9 @@ export function Step2({
   leasePreviewUrl?: string;
   /** The document's own self-contained markup — preferred over the URL. */
   leasePreviewHtml?: string;
+  /** A newer preview (the shopper's name, a changed figure) is being fetched
+   *  to replace the one shown. The panel says so over the document. */
+  leasePreviewUpdating?: boolean;
   onEditDate: () => void;
   /** The chosen coverage id, or undefined for "I have my own insurance".
    *  Reported upward because the choice re-prices the move-in quote — it is not
@@ -1018,7 +1033,7 @@ export function Step2({
             </button>
           </div>
           <div className="rf2-agree-doc">
-            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} />
+            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} updating={leasePreviewUpdating} />
           </div>
           <RfCheckbox
             checked={agree}
@@ -1247,7 +1262,7 @@ export function Step2({
         agree={agree}
         onAgreeChange={setAgree}
       >
-        <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} />
+        <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} updating={leasePreviewUpdating} />
       </LeaseModal>
     </div>
   );

@@ -1004,8 +1004,8 @@
   background: #fff;
   border-radius: 4px;
 }
-.rf2-doc-page { padding: 24px 28px; }
-
+.rf2-doc-page { padding: 24px 28px; }
+
 /* The real document, framed. No padding of our own: the preview host lays the
    page out itself, and 28px of ours inside a scrolling frame just narrows it.
    A fixed height because an iframe has no intrinsic one — it would collapse to
@@ -1013,6 +1013,41 @@
    for every line, short enough to leave the Agree bar and the pay button on
    screen beneath it. */
 .rf2-doc-page--frame { padding: 0; }
+/* The frame's own stacking context, so the badge below can sit over it. */
+.rf2-doc-page--frame { position: relative; }
+/* "Updating…" over a preview that is being re-fetched — shown only while a
+   document is already on screen and a newer one (the shopper's name, a changed
+   date or total) is on its way. Top-right, clear of the document's heading,
+   and it takes no clicks: the frame beneath stays readable. */
+.rf2-doc-updating {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--hb-text-night, #101318);
+  color: var(--hb-white, #fff);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.rf2-doc-updating::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: rf2-doc-spin .8s linear infinite;
+}
+@keyframes rf2-doc-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .rf2-doc-updating::before { animation: none; }
+}
 
 .rf2-doc-frame {
   display: block;
