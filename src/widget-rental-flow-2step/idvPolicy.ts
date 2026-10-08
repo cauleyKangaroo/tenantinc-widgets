@@ -26,9 +26,9 @@ export function parseIdvRequirement(raw: unknown): IdvRequirement | undefined {
 }
 
 /**
- * Production release brake for the billable/SMS-sending IDV transport.
+ * Production switch for the billable/SMS-sending IDV transport.
  *
- * Keep false until the end-to-end rollout is approved. The localhost harness
- * has its own hostname-checked exception, so this does not prevent testing.
+ * On: each property's PropertiesInternal.idv_requirement decides whether
+ * verification runs (None / blank = off). Set false to stop it everywhere.
  */
 export const IDV_SERVICE_CONNECTED = true;

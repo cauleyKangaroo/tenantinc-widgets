@@ -198,7 +198,10 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
   // Group-name fallbacks/unknown labels must not invent rows or displace features.
   const normalizeLabel = (label: string) => label.trim().replace(/\s+/g, ' ').toLowerCase();
   const primaryLabel = subtitle?.trim();
-  const matchingLabel = primaryLabel && data.featureLabels.find((label) => normalizeLabel(label) === normalizeLabel(primaryLabel));
+  const matchingLabel = primaryLabel && (
+    data.featureLabels.find((label) => label.trim() === primaryLabel)
+    ?? data.featureLabels.find((label) => normalizeLabel(label) === normalizeLabel(primaryLabel))
+  );
   const featureLabels = matchingLabel
     ? [matchingLabel, ...data.featureLabels.filter((label) => label !== matchingLabel)]
     : data.featureLabels;

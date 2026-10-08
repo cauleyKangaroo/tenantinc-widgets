@@ -63,6 +63,7 @@ async function main() {
     for (const key of ['good', 'better', 'best']) assert.equal(row[key], key === tierKey, `${label} retains exact API checkmarks`);
   }
   assert.equal(variantRows[1].bold, true);
+  assert.deepEqual(Array.from(context.buildTierData(variants, undefined, 2, true, 'climate control').rows, row => row.label), ['Monthly Rent', 'climate control', 'Ground Floor', 'Climate Control', 'Climate  Control'], 'an exact label match wins over an earlier normalized variant');
   const root = createRoot(document.getElementById('root'));
   const headerProps = { heading: 'Choose an Option', onClose() {} };
   await React.act(async () => root.render(React.createElement(context.TierModalHeader, headerProps)));
