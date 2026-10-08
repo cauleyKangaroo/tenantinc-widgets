@@ -406,39 +406,88 @@
    keeps its height, so nothing shifts when the fields appear. */
 .rf-cardrow--loading { opacity: 0.55; }
 
-/* ── Card row on a phone: ONE line ────────────────────────────────────────
-   The wrap above is right in step 2's desktop column, where the row can be
-   squeezed to ~60px. On a phone the row has the full screen width and the
-   design keeps Card Number, MM/YY and CVV on a single line — so here the
-   width is reclaimed instead of the pair being dropped:
+/* ── Card row on a phone: TWO boxes ───────────────────────────────────────
+   Desktop keeps the single bordered row. On a phone it becomes two stacked
+   boxes the same height and spacing as the fields around them:
 
-     no leading card icon      +32px  (the field is unmistakably a card field
-                                       already, given its own placeholder)
-     14px text, tighter cells  the pair goes 182px -> 136px
+     [ Card Number                      ✓ ]
+     [ MM / YY            | CVV           ]
 
-   That leaves the number ~150px, enough for 19 formatted characters at 14px.
-   640px matches this stylesheet's other mobile blocks. */
+   The three cells once shared one line here (no icon, 14px text, 76/52px
+   cells) and were cramped; the ask was a field of its own for the number.
+   The markup is untouched — .rf-cardrow stops being the box and becomes an
+   invisible column, and the number cell and the expiry/CVV pair each draw
+   the border instead. Every state the row carried (focus, valid, error,
+   loading) is re-pointed at the two boxes below; focus lights only the box
+   being typed in, which is how the FormFields around it behave.
+
+   16px text, not 14px: there is room now, and iOS zooms the page when a
+   focused input is under 16px — CVV is a plain input, so it was triggering
+   that. 640px matches this stylesheet's other mobile blocks. */
 @media (max-width: 640px) {
   .rf-cardrow {
+    position: relative;
+    flex-direction: column;
     flex-wrap: nowrap;
-    column-gap: 6px;
-    padding: 0 12px;
+    align-items: stretch;
+    gap: 20px;                        /* the form stack's own spacing */
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
   }
+  /* The row no longer has an outline to light up; the boxes do. */
+  .rf-cardrow:focus-within { box-shadow: none; }
 
   .rf-cardrow-ico { display: none; }
 
-  /* No floor any more — it is what makes the row wrap. It still gets every
-     pixel the two fixed cells leave, which is the widest it can be. */
-  .rf-cardcell--number { flex: 1 1 auto; min-width: 0; }
+  /* The two boxes — the row's old geometry, one each. */
+  .rf-cardcell--number,
+  .rf-cardrow-short {
+    box-sizing: border-box;
+    width: 100%;
+    flex: 0 0 auto;
+    min-width: 0;
+    height: var(--hb-field-height, 56px);
+    padding: 0 15px;
+    border: var(--hb-field-border-width, 1px) solid var(--hb-field-border, #a5b4bf);
+    border-radius: var(--hb-field-radius, 8px);
+    background: var(--hb-white, #fff);
+  }
+  .rf-cardcell--number:focus-within,
+  .rf-cardrow-short:focus-within {
+    border-color: var(--hb-field-border-active, #101318);
+    box-shadow: var(--hb-focus-ring);
+  }
+  .rf-cardrow--valid .rf-cardcell--number,
+  .rf-cardrow--valid .rf-cardrow-short { border-color: var(--hb-field-border-success, #028a0c); }
+  .rf-cardrow--error .rf-cardcell--number,
+  .rf-cardrow--error .rf-cardrow-short { border-color: var(--hb-field-border-error, #e53935); }
 
-  .rf-cardrow-short { gap: 6px; flex: 0 0 auto; }
-  /* width alongside the basis, for the reason given on the desktop rules:
-     without it WebKit sizes the pair by its contents and the number cell
-     collapses to 0px. */
+  /* Room for the tick, which now sits inside the number box (below). */
+  .rf-cardcell--number { padding-right: calc(15px + 24px + 8px); }
+
+  /* Expiry and CVV share their box half and half. An explicit zero basis,
+     not the desktop's fixed widths: with the pair now a definite 100% wide,
+     WebKit's content-sizing of the cells (see the desktop rules) no longer
+     reaches the parent, and halves read better than 76px + 52px huddled at
+     the left of a 330px box. */
+  .rf-cardrow-short { display: flex; align-items: center; gap: 15px; }
   .rf-cardcell--exp,
-  .rf-cardcell--exp-wide { flex: 0 0 76px; width: 76px; }
-  .rf-cardcell--cvv { flex: 0 0 52px; width: 52px; }
+  .rf-cardcell--exp-wide,
+  .rf-cardcell--cvv { flex: 1 1 0%; width: auto; min-width: 0; }
+  /* Inside the pair's border, not the row's: 56px cells in a 56px box with a
+     1px border would poke out of it by a pixel each way. */
+  .rf-cardrow-short .rf-cardcell { height: 100%; }
 
-  .rf-cardrow-input,
-  .rf-cardcell-label { font-size: 14px; }
+  /* The tick was the row's last flex item; as a column item it would be a
+     third line. Pinned to the right of the number box instead — centred in
+     the 56px box, inside its 15px padding — so the number's own box is what
+     reads as valid, with the pair's green border confirming it. */
+  .rf-cardrow-tick {
+    position: absolute;
+    top: calc((var(--hb-field-height, 56px) - 24px) / 2);
+    right: 15px;
+  }
 }
