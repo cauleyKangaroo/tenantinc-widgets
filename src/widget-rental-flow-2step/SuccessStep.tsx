@@ -202,9 +202,9 @@ export function SuccessStep({
 
   /* Pending: a session already exists, so reopen it rather than start a new
      one (no second text). The desktop modal carries the QR and Resend Text; a
-     phone goes back to the same capture page. */
+     phone reopens the same capture page in a separate tab. */
   const continueVerification = () => {
-    if (handheld) { idvController?.continueInThisTab(); return; }
+    if (handheld) { idvController?.continueInNewTab(); return; }
     setIdvModal(true);
   };
 
@@ -431,6 +431,17 @@ export function SuccessStep({
               )}
             </div>
           </div>
+          {handheld && remoteKind === 'pending' && idvController?.popupBlocked && (
+            <p className="rf-sx-idv-note" role="status">
+              The verification tab could not be opened.{' '}
+              <a href={idvController.verificationUrl} target="_blank" rel="noopener noreferrer"
+                onClick={(event) => {
+                  if (idvController.state.kind !== 'pending' || Date.now() >= idvController.state.expiresAt * 1_000) event.preventDefault();
+                }}>
+                Open verification in a new tab
+              </a>. This page will stay open.
+            </p>
+          )}
           <p className="rf-sx-idv-note">
             Get ready to take a photo of your ID and a Selfie.{' '}
             <a href="#pop-ups" onClick={(e) => e.preventDefault()}>Click here to see how to enable pop-ups</a>{' '}

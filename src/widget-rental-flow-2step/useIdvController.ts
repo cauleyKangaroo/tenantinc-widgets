@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { captureDevice, IdvRequestError, type IdvApi, type IdvIdentity, type IdvScope } from './idvApi';
 import { startIdvPolling } from './idvPolling';
 import { idvReducer, initialIdvState, type SafeIdvResult } from './idvState';
-import { allowedVerificationUrl } from './openVerification';
+import { allowedVerificationUrl, openVerificationPlaceholder, navigateVerificationWindow, closeVerificationPlaceholder, type VerificationWindow } from './openVerification';
 import { idvSessionGet, idvSessionRemove, idvSessionSet } from './idvStorage';
 
 interface StoredIdvSession {
@@ -41,8 +41,8 @@ export interface IdvControllerOptions {
   scope: IdvScope;
   identity?: IdvIdentity;
   allowedVerificationHosts: readonly string[];
-  /** Persist the completed checkout before a same-tab navigation leaves it.
-   *  Receives the pending verification so the snapshot can expire with it. */
+  /** Legacy name: best-effort checkout snapshot before mobile handoff.
+   *  A save failure no longer prevents opening verification in another tab. */
   beforeSameTabNavigation?: (pending: { idvId: string; expiresAt: number }) => boolean;
 }
 
@@ -72,15 +72,19 @@ export function useCaptureDevice(): 'mobile' | 'desktop' {
 export function useIdvController(options: IdvControllerOptions) {
   const [state, dispatch] = useReducer(idvReducer, initialIdvState);
   const activeRequest = useRef<AbortController>();
+  const placeholder = useRef<VerificationWindow | null>(null);
+  const [popupBlocked, setPopupBlocked] = useState(false);
   const latestOptions = useRef(options);
   latestOptions.current = options;
   const cancelRequest = useCallback(() => {
     activeRequest.current?.abort();
     activeRequest.current = undefined;
+    closeVerificationPlaceholder(placeholder.current);
+    placeholder.current = null;
   }, []);
   useEffect(() => cancelRequest, [cancelRequest, options.enabled, options.api, options.identity,
     options.scope.companyId, options.scope.propertyId, options.allowedVerificationHosts]);
-  // Validated once, when it arrives. Both the same-tab hand-off and the
+  // Validated once, when it arrives. Both the new-tab hand-off and the
   // modal's "Return to this Device" navigate to it later.
   const [verificationUrl, setVerificationUrl] = useState<string | undefined>(undefined);
   const { companyId, propertyId } = options.scope;
@@ -176,7 +180,7 @@ export function useIdvController(options: IdvControllerOptions) {
   }, [companyId, key, options.api, propertyId, state]);
 
   const device = useCaptureDevice();
-  const sameTab = device === 'mobile';
+  const handheld = device === 'mobile';
   const startApi = options.api;
   const startIdentity = options.identity;
   const allowedHosts = options.allowedVerificationHosts;
@@ -194,6 +198,11 @@ export function useIdvController(options: IdvControllerOptions) {
     const request = new AbortController();
     const captured = options;
     activeRequest.current = request;
+    // Must run before the first await, while the tap's user activation exists.
+    const target = handheld ? openVerificationPlaceholder() : null;
+    placeholder.current = target;
+    let navigated = false;
+    setPopupBlocked(false);
     const generation = state.generation;
     setVerificationUrl(undefined);
     dispatch({ type: 'start', generation });
@@ -219,10 +228,10 @@ export function useIdvController(options: IdvControllerOptions) {
       // Desktop opens nothing: the design hands off by text message and keeps
       // the renter on the modal. Opening the hosted page as well put Incode's
       // own QR screen in front of them, which the design never asks for.
-      if (sameTab) {
-        if (beforeSameTabNavigation?.({ idvId: started.idvId, expiresAt: started.expiresAt }) !== false) {
-          window.location.assign(safeUrl.href);
-        }
+      if (handheld) {
+        try { beforeSameTabNavigation?.({ idvId: started.idvId, expiresAt: started.expiresAt }); } catch { /* Best effort only. */ }
+        navigated = navigateVerificationWindow(target, safeUrl.href, allowedHosts);
+        setPopupBlocked(!navigated);
       }
     } catch (error) {
       // A failed POST may already have sent a text or created a billable
@@ -233,6 +242,8 @@ export function useIdvController(options: IdvControllerOptions) {
         dispatch({ type: 'error', generation, retryable });
       }
     } finally {
+      if (!navigated) closeVerificationPlaceholder(target);
+      if (placeholder.current === target) placeholder.current = null;
       if (activeRequest.current === request) activeRequest.current = undefined;
     }
   }, [
@@ -241,7 +252,7 @@ export function useIdvController(options: IdvControllerOptions) {
     allowedHosts,
     beforeSameTabNavigation,
     device,
-    sameTab,
+    handheld,
     propertyId,
     startApi,
     startIdentity,
@@ -290,30 +301,27 @@ export function useIdvController(options: IdvControllerOptions) {
     }
   }, [allowedHosts, companyId, device, key, options, propertyId, requestIsCurrent, state]);
 
-  /** Phone, verification still pending: go back to the same session in this
-   *  tab — no new start, no new text. False when there is nothing to resume. */
-  const continueInThisTab = useCallback((): boolean => {
+  /** Reopen the existing session in a new tab — no new start or text. */
+  const continueInNewTab = useCallback((): boolean => {
     if (!latestOptions.current.enabled || state.kind !== 'pending' || !verificationUrl
       || Date.now() >= state.expiresAt * 1_000) return false;
-    if (beforeSameTabNavigation?.({ idvId: state.idvId, expiresAt: state.expiresAt }) === false) {
-      window.open(verificationUrl, '_blank', 'noopener');
-      return true;
-    }
-    window.location.assign(verificationUrl);
-    return true;
-  }, [beforeSameTabNavigation, state, verificationUrl]);
+    const target = openVerificationPlaceholder();
+    const opened = navigateVerificationWindow(target, verificationUrl, allowedHosts);
+    if (!opened) closeVerificationPlaceholder(target);
+    setPopupBlocked(!opened);
+    return opened;
+  }, [allowedHosts, state, verificationUrl]);
 
   return {
     state,
-    continueInThisTab,
+    continueInNewTab,
+    popupBlocked,
     start,
     resend,
     /** Validated hosted-capture URL, for the desktop modal's QR code. */
     verificationUrl,
-    /** True when start() will leave this tab rather than open a popup. The
-     *  success screen reads it so it does not raise a QR modal over a
-     *  navigation that is already under way. */
-    sameTab,
+    /** Mobile capture uses a new tab; desktop keeps its SMS handoff modal. */
+    handheld,
     retry: () => { cancelRequest(); dispatch({ type: 'retry', generation: state.generation }); },
     reset: () => { cancelRequest(); setVerificationUrl(undefined); dispatch({ type: 'reset' }); },
   };

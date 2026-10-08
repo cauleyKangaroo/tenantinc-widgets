@@ -2775,7 +2775,7 @@ export function RentalFlow2Step({
                 officeHours: propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours,
               }}
               remoteOperated={idvRemoteOperated === true}
-              handheld={idvController.sameTab}
+              handheld={idvController.handheld}
               onGetAccess={(details) => {
                 // File what this screen collects against the tenant's contact.
                 // Deliberately NOT awaited: the rental is already complete, the

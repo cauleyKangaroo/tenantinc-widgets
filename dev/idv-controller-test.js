@@ -14,16 +14,27 @@ async function main() {
   const saved = new Map();
   let rejectSessionWrites = false;
   const navigations = [];
+  const tabs = [];
+  let blockPopups = false;
+  let captureDevice = 'mobile';
+  const openTab = () => {
+    if (blockPopups) return null;
+    const tab = { closed: false, opener: {}, location: { href: '' }, close() { this.closed = true; } };
+    tabs.push(tab);
+    return tab;
+  };
+  global.window.open = openTab;
   const context = {
     exports: {},
     window: {
+      open: openTab,
       location: { assign: (url) => navigations.push(url) },
       matchMedia: () => ({ addEventListener() {}, removeEventListener() {} }),
     },
     AbortController, Date,
     require(name) {
       if (name === 'react') return React;
-      if (name === './idvApi') return { ...require('../.tmp-idv-test/idvApi.js'), captureDevice: () => 'mobile' };
+      if (name === './idvApi') return { ...require('../.tmp-idv-test/idvApi.js'), captureDevice: () => captureDevice };
       if (name === './idvPolling') return { startIdvPolling: () => () => {} };
       if (name === './idvStorage') return {
         idvSessionGet: (key) => saved.get(key) ?? null,
@@ -55,7 +66,7 @@ async function main() {
     } },
   };
   function Probe({ value }) { controller = context.exports.useIdvController(value); return null; }
-  const root = createRoot(document.getElementById('root'));
+  let root = createRoot(document.getElementById('root'));
   const render = async (value) => React.act(async () => root.render(React.createElement(Probe, { value })));
   const response = { idvId: 'session', expiresAt: Date.now() / 1000 + 60, verificationUrl: 'https://verify.example.com/start' };
   await render(options);
@@ -66,7 +77,11 @@ async function main() {
     void controller.start();
   });
   assert.equal(calls, 1, 'overlapping starts are locked synchronously');
+  assert.equal(tabs.length, 1, 'blank tab opens synchronously before start resolves');
+  assert.equal(tabs[0].location.href, '');
+  assert.equal(tabs[0].opener, null, 'new tab cannot control Mariposa');
   await React.act(async () => controller.reset());
+  assert.equal(tabs[0].closed, true, 'reset closes the pending blank tab');
   assert.equal(signal.aborted, true);
   await React.act(async () => { resolveStart(response); await pending; });
   assert.equal(navigations.length, 0, 'reset rejects late navigation');
@@ -76,11 +91,64 @@ async function main() {
   await render({ ...options, enabled: false });
   await React.act(async () => { resolveStart(response); await pending; });
   assert.equal(navigations.length, 0, 'disabled scope rejects late navigation');
+  assert.equal(tabs.at(-1).closed, true, 'disabled scope closes the pending blank tab');
+  const mobile = { ...options, identity: { ...identity, leaseId: 'mobile-tab' }, beforeSameTabNavigation: () => false };
+  await render(mobile);
+  await React.act(async () => { pending = controller.start(); });
+  const mobileTab = tabs.at(-1);
+  await React.act(async () => { resolveStart(response); await pending; });
+  assert.equal(mobileTab.location.href, response.verificationUrl, 'mobile navigates the new tab even if snapshot storage fails');
+  assert.equal(mobileTab.closed, false);
+  assert.equal(controller.state.kind, 'pending');
+  assert.equal(controller.popupBlocked, false);
+  const startsBeforeContinue = calls;
+  await React.act(async () => { assert.equal(controller.continueInNewTab(), true); });
+  assert.equal(tabs.at(-1).location.href, response.verificationUrl);
+  assert.equal(calls, startsBeforeContinue, 'Continue reuses the existing session');
+  assert.equal(navigations.length, 0, 'mobile never replaces Mariposa');
+  blockPopups = true;
+  await render({ ...options, identity: { ...identity, leaseId: 'popup-blocked' } });
+  await React.act(async () => { pending = controller.start(); });
+  await React.act(async () => { resolveStart(response); await pending; });
+  assert.equal(controller.state.kind, 'pending', 'popup blocking does not fail the created session');
+  assert.equal(controller.popupBlocked, true);
+  const blockedStarts = calls;
+  await React.act(async () => { assert.equal(controller.continueInNewTab(), false); });
+  blockPopups = false;
+  await React.act(async () => { assert.equal(controller.continueInNewTab(), true); });
+  assert.equal(controller.popupBlocked, false);
+  assert.equal(calls, blockedStarts, 'blocked popup retry must not create a billable session');
+  await render({ ...options, identity: { ...identity, leaseId: 'closed-tab' } });
+  await React.act(async () => { pending = controller.start(); });
+  const closedTab = tabs.at(-1);
+  closedTab.close();
+  await React.act(async () => { resolveStart(response); await pending; });
+  assert.equal(controller.state.kind, 'pending');
+  assert.equal(controller.popupBlocked, true, 'closed placeholder offers Continue instead of same-tab navigation');
+  await render({ ...options, identity: { ...identity, leaseId: 'invalid-url' }, api: { start: async () => ({ ...response, verificationUrl: 'https://untrusted.example.com/' }) } });
+  await React.act(async () => controller.start());
+  assert.equal(controller.state.kind, 'error', 'invalid hosted URL is rejected');
+  assert.equal(tabs.at(-1).closed, true, 'invalid URL closes the blank tab');
+  assert.equal(navigations.length, 0);
+  captureDevice = 'desktop';
+  await React.act(async () => root.unmount());
+  const desktopRoot = createRoot(document.getElementById('root'));
+  const desktopOptions = { ...options, identity: { ...identity, leaseId: 'desktop' }, api: { start: async () => response } };
+  await React.act(async () => desktopRoot.render(React.createElement(Probe, { value: desktopOptions })));
+  const tabCount = tabs.length;
+  await React.act(async () => controller.start());
+  assert.equal(tabs.length, tabCount, 'desktop retains SMS handoff without opening a tab');
+  assert.equal(controller.handheld, false);
+  await React.act(async () => desktopRoot.unmount());
+  captureDevice = 'mobile';
+  // The remaining race/storage cases run on a fresh root after desktop coverage.
+  root = createRoot(document.getElementById('root'));
   const { IdvRequestError } = require('../.tmp-idv-test/idvApi.js');
   const rejected = { ...options, identity: { ...identity, leaseId: 'rejected' }, api: { start: async () => { throw new IdvRequestError('bad phone', false); } } };
   await render(rejected);
   await React.act(async () => controller.start());
   assert.equal(controller.state.retryable, true, 'explicit rejection permits retry');
+  assert.equal(tabs.at(-1).closed, true, 'failed starts close the blank tab');
   assert.equal(saved.has('mariposa:idv:v1:co:prop:rejected:start-uncertain'), false);
   await React.act(async () => controller.retry());
   assert.equal(controller.state.kind, 'ready');
