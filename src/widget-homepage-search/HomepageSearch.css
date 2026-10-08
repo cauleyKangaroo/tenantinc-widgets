@@ -282,14 +282,16 @@
   .hs-find {
     position: absolute;
     top: 50%;
-    right: 6px;
+    /* (67px bar - 52px button) / 2: match the top/bottom inset. */
+    right: 7.5px;
     width: 52px;
     height: 52px;
     padding: 0;
     border-radius: 50%;
     transform: translateY(-50%);
   }
-  .hs--search-card .hs-find { top: 50%; }
+  /* This variant has a 64px interior inside its 2px border. */
+  .hs--search-card .hs-find { top: 50%; right: 6px; }
   .hs-find-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .hs-find .hs-search-icon { display: block; }
   .hs-suggestions { top: 75px; left: 8px; width: min(360px, calc(100% - 16px)); border-radius: 12px; }
