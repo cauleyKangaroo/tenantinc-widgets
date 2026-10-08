@@ -161,7 +161,7 @@ const TIER_SLOTS: TierKey[] = ['good', 'better', 'best'];
 // Scarcity threshold — matches the Space List's default urgencyThreshold.
 const URGENCY_THRESHOLD = 5;
 
-function buildTierData(data: import('./api').ValueTierData, facilityHours?: string, vacant?: number, enablePromoLogic = true): TierData {
+function buildTierData(data: import('./api').ValueTierData, facilityHours?: string, vacant?: number, enablePromoLogic = true, subtitle?: string): TierData {
   // Assign each offer to its OWN authoritative tier slot — never relocate an
   // offer between keys; the key is its selection + rental-flow handoff identity.
   const bySlot: Partial<Record<TierKey, import('./api').ValueTierBundle>> = {};
@@ -194,7 +194,15 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
     };
   });
   const hasKey = (k: TierKey, label: string) => !!bySlot[k]?.features.includes(label);
-  const checkRows = data.featureLabels.slice(0, 6).map((label, ri) => ({
+  // Promote the originating descriptor only if it matches an API amenity.
+  // Group-name fallbacks/unknown labels must not invent rows or displace features.
+  const normalizeLabel = (label: string) => label.trim().replace(/\s+/g, ' ').toLowerCase();
+  const primaryLabel = subtitle?.trim();
+  const matchingLabel = primaryLabel && data.featureLabels.find((label) => normalizeLabel(label) === normalizeLabel(primaryLabel));
+  const featureLabels = matchingLabel
+    ? [matchingLabel, ...data.featureLabels.filter((label) => normalizeLabel(label) !== normalizeLabel(matchingLabel))]
+    : data.featureLabels;
+  const checkRows = featureLabels.slice(0, 6).map((label, ri) => ({
     label,
     good: hasKey('good', label),
     better: hasKey('better', label),
@@ -460,6 +468,7 @@ export function TierSelection({
   // this and uses the `size` prop.
   const [modalOpen, setModalOpen] = useState(false);
   const [modalSize, setModalSize] = useState<string | undefined>(undefined);
+  const [modalSubtitle, setModalSubtitle] = useState<string | undefined>(undefined);
   const [modalUnitGroupId, setModalUnitGroupId] = useState<string | undefined>(undefined);
   // The property the Space List emitted for the clicked product (dynamic pages).
   const [modalPropertyId, setModalPropertyId] = useState<string | undefined>(undefined);
@@ -585,6 +594,7 @@ export function TierSelection({
         if (!channel || req.channel !== channel) return false;
       }
       setModalSize(req.size);
+      setModalSubtitle(typeof req.subtitle === 'string' ? req.subtitle : undefined);
       setModalUnitGroupId(req.unitGroupId);
       setModalPropertyId(req.propertyId);
       setModalCtaLabel(req.ctaLabel);
@@ -751,7 +761,7 @@ export function TierSelection({
         // available bundle — defensive; treated as sold out.
         if (!tiers.value) { console.info('[TierSelection] all configured tiers sold out'); setStatus('soldout'); return; }
         const value = tiers.value;
-        setData({ ...buildTierData(value, property?.gateHours, tiers.vacant, effectivePromoLogic), property });
+        setData({ ...buildTierData(value, property?.gateHours, tiers.vacant, effectivePromoLogic, mode === 'modal' ? modalSubtitle : undefined), property });
         setStatus('live');
         bundlesRef.current = value.bundles;
         tzRef.current = property?.timezone;
@@ -778,7 +788,7 @@ export function TierSelection({
     // changes when a different card is clicked. The proxy's own ~15s offers
     // cache may still serve a very recent response — the uncached move-in quote
     // is the authoritative money figure.
-  }, [mode, inEditor, siteId, elementId, sizeProp, authoritativeGroupId, openGen, ctx, tierProp, defaultTier, effectiveCompanyId, effectivePromoLogic]);
+  }, [mode, inEditor, siteId, elementId, sizeProp, authoritativeGroupId, openGen, ctx, tierProp, defaultTier, effectiveCompanyId, effectivePromoLogic, modalSubtitle]);
 
   useEffect(() => {
     if (status === 'live' && variant === 'option1') ensureQuote(selected);
@@ -1017,9 +1027,10 @@ function TierModalHeader({ heading, subheading, urgency, adminFeeText, onClose }
         {subheading && <p className="ts-modal-subtitle">{subheading}</p>}
       </div>
       <div className="ts-modal-actions">
-        {(urgency || adminFeeText) && (
           <div className="ts-modal-meta">
-            {urgency && <p className="ts-modal-urgency">{urgency}</p>}
+            <p className={`ts-modal-urgency${urgency ? '' : ' ts-modal-urgency--empty'}`} aria-hidden={!urgency}>
+              {urgency || '\u00a0'}
+            </p>
             {adminFeeText && (
               <p className="ts-modal-admin">
                 {adminFeeText}
@@ -1027,7 +1038,6 @@ function TierModalHeader({ heading, subheading, urgency, adminFeeText, onClose }
               </p>
             )}
           </div>
-        )}
         {/* Filled disc: the CSS used to draw this by hand (a #101318 ::before
             behind a white &times;); the icon is the same mark and that pseudo is
             gone. 52 desktop / 32 mobile, but the SIZE LIVES IN CSS — see
@@ -1122,7 +1132,7 @@ function Pills({ selected, setSelected, tiers: tiersProp }: { selected: TierKey;
           aria-disabled={t.soldOut || undefined}
         >
           <span className="ts-pill-name">{t.name}</span>
-          <span className="ts-pill-tag">{t.soldOut ? 'Sold Out' : t.tagline}</span>
+          <span className="ts-pill-tag">{t.soldOut ? 'Sold Out' : t.tagline.replace(/\s+/, '\n')}</span>
           <span className="ts-pill-divider" />
           {t.soldOut ? (
             <span className="ts-pill-price">—</span>

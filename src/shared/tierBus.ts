@@ -9,6 +9,8 @@ export const TIER_OPEN_EVENT = 'tenantinc:open-value-tiers';
 export interface TierOpenRequest {
   /** Unit size to price, e.g. "10' x 25'" (display + fallback resolution). */
   size: string;
+  /** The descriptive amenity shown beneath the size on the originating card. */
+  subtitle?: string;
   /** AUTHORITATIVE product id — the group's tier_id. When present, #14 quotes
    *  exactly this group (no ambiguous re-resolution by display size). */
   unitGroupId?: string;
