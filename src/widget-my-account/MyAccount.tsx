@@ -38,7 +38,7 @@
 // a prefix.
 // ===========================================================================
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './MyAccount.css';
 import { Button } from '@shared/ui';
 import { AccountInfoPanel } from './AccountInfoPanel';
@@ -358,8 +358,8 @@ export function MyAccount({
       setSaving(false);
     }
   };
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
-
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+
   /*
    * Keep the selection on a unit that exists. It starts undefined and settles
    * on the first real one; switching account replaces the whole list, and a
@@ -372,22 +372,73 @@ export function MyAccount({
    */
   const space = spaces.find((s) => s.id === selectedId) ?? spaces[0];
   const [activityOpen, setActivityOpen] = useState(false);
-  /* Make a Payment lists EVERY space with something outstanding, not just the
-     one whose Pay Now was clicked — see the panel's header note. A space with a
-     zero balance has nothing to pay and would only be an unticked distraction. */
-  const outstanding = spaces.filter((s) => s.balance.amount.replace(/[^0-9.]/g, '') !== ''
-    && Number(s.balance.amount.replace(/[^0-9.-]/g, '')) > 0);
+  /* Make a Payment lists every space AT THE SAME PROPERTY as the unit whose
+     Pay Now was clicked — all of them, each with its own tick, so the tenant
+     can pay the lot at once or just one. It used to list only spaces with an
+     outstanding balance across every property, which on a paid-up account
+     (every live lease is paid through month-end) collapsed to the one unit
+     clicked and left no way to pick the others. The panel pre-ticks the
+     clicked unit and any neighbour that owes something. */
+  const atProperty = space
+    ? spaces.filter((s) => s.propertyId === space.propertyId)
+    : [];
 
   /* The ONE selection action, shared by a unit block and its "Account Info"
      button — which is what links them. Picking a unit always shows ITS account
      info, never the payment screen of whichever unit happened to be open, so
      from the payment screen this doubles as the way back. */
+  /*
+   * Scroll the account panel into view when the pick moves to ANOTHER
+   * PROPERTY. The sidebar cards stack below the panel on a phone and beside
+   * it on desktop, so a tenant who taps a unit under the second property is
+   * looking at the bottom of the page while the contacts it just switched to
+   * sit at the top. A counter rather than a boolean, so two moves in a row
+   * both scroll; it is consumed by the effect below, after the account panel
+   * has rendered for the new unit — scrolling from the click itself would
+   * target the panel of the previous view.
+   */
+  const [scrollRequest, setScrollRequest] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
   const selectUnit = (id: string) => {
+    const next = spaces.find((s) => s.id === id);
+    const movedProperty = !!next && !!space && next.propertyId !== space.propertyId;
     setSelectedId(id);
     // Never lands on the payment or edit screen of whichever unit happened to
     // be open, so from either of those this doubles as the way back.
     setView('account');
+    if (movedProperty) setScrollRequest((n) => n + 1);
   };
+  useEffect(() => {
+    if (!scrollRequest) return;
+    const el = rootRef.current?.querySelector('.ma-account');
+    if (!el) return;
+    /*
+     * window.scrollTo, not scrollIntoView. The two should be the same, but in
+     * a phone viewport scrollIntoView({behavior:'smooth'}) was observed doing
+     * nothing at all (Chromium, iPhone 14 profile) while scrollTo moved —
+     * and the page scrolled fine on desktop either way, so the difference
+     * would only ever have shown up on the device.
+     *
+     * The site's nav bar is position: fixed, so landing the panel flush with
+     * the top would put its heading under the nav. Whatever fixed or sticky
+     * element sits at the top of the viewport is measured and the panel is
+     * placed just beneath it; a page with none gets a 16px breath.
+     */
+    const cover = (() => {
+      let p: Element | null = document.elementFromPoint(window.innerWidth / 2, 2);
+      while (p && p !== document.body) {
+        const pos = getComputedStyle(p).position;
+        if (pos === 'fixed' || pos === 'sticky') return p.getBoundingClientRect().bottom;
+        p = p.parentElement;
+      }
+      return 0;
+    })();
+    const top = el.getBoundingClientRect().top + window.scrollY - cover - 16;
+    // Slowly, as asked — unless the reader has turned animation off, in which
+    // case the jump is what they asked for.
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: Math.max(0, top), behavior: reduced ? 'auto' : 'smooth' });
+  }, [scrollRequest]);
 
   /* The button is on every block when there is more than one unit, because it
      is how you switch between them; on a lone unit it appears only on the
@@ -437,7 +488,7 @@ export function MyAccount({
   const busy = authed === null;
 
   return (
-    <div className={`ma-wrapper${busy ? ' ma-wrapper--busy' : ''}`} aria-busy={busy || undefined}>
+    <div ref={rootRef} className={`ma-wrapper${busy ? ' ma-wrapper--busy' : ''}`} aria-busy={busy || undefined}>
       {busy && <span className="ma-sr-only" role="status">Loading your account…</span>}
       {/* React 18 has no boolean `inert`; an empty string is the attribute. */}
       <div className="ma-grid" {...(busy ? { inert: '' } : {})}>
@@ -485,7 +536,7 @@ export function MyAccount({
           )}
           {view === 'payment' && (
             <MakePaymentPanel
-              spaces={outstanding.length ? outstanding : [space]}
+              spaces={atProperty.length ? atProperty : space ? [space] : []}
               space={space}
               onBack={() => setView('account')}
             />
