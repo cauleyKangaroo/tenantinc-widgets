@@ -99,7 +99,7 @@ export interface SuccessDetails {
   extras?: ExtraFieldValues;
 }
 
-export function SuccessStep({ onGetAccess, chosen, provided }: {
+export function SuccessStep({ onGetAccess, chosen, provided, primary }: {
   /** Fires with everything the contact update can file. The parent decides
    *  what to do with it; this screen just collects. */
   onGetAccess?: (details?: SuccessDetails) => void;
@@ -115,6 +115,9 @@ export function SuccessStep({ onGetAccess, chosen, provided }: {
    * so a ticked section normally arrives here as provided.
    */
   provided?: { military?: boolean; altContact?: boolean; vehicle?: boolean };
+  /** The tenant's own email and phone, so the alternate contact entered here
+   *  cannot be the tenant — the same rule the one-step form applies. */
+  primary?: { email?: string; phone?: string };
 }) {
   // Initialisers, not synced props: the boxes stay the shopper's to change here.
   // A provided section starts OFF, so its required fields cannot block Get
@@ -226,7 +229,7 @@ export function SuccessStep({ onGetAccess, chosen, provided }: {
     /* The three optional groups' rules, from the same module that renders
        them — so a field this screen marks required cannot disagree with the
        rental form's copy of the same field. */
-    ...extraFieldProblems({ military, altContact, vehicle }, extraFields),
+    ...extraFieldProblems({ military, altContact, vehicle }, extraFields, primary),
   };
   /* Harness bypass — compiled out of production builds, see @shared/devBypass. */
   const skip = skipValidation();

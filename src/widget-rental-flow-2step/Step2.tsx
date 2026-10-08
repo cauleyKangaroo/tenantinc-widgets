@@ -644,11 +644,15 @@ export function Step2({
   // fields inside are not).
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const phoneOk = isPossiblePhone(phone, 'US');
-  /* The fields are on THIS screen in both layouts now (each tick opens its
-     group beneath it), so their rules apply in both — and only for sections
-     switched on, so nothing hidden can block Pay Now. The primary contact's
-     email and phone go in so the alternate contact cannot be the tenant. */
-  const extraProblems = extraFieldProblems({ military, altContact, vehicle }, extraFields, { email, phone });
+  /* Only when the fields are actually on this screen — the ONE-STEP layout,
+     where each tick opens its group beneath it. On two-step the ticks are
+     ticks: the fields are asked for on the post-purchase screen, and a rule
+     for an input nobody can see here would disable Pay Now with no way to
+     find out why. The primary contact's email and phone go in so the
+     alternate contact cannot be the tenant. */
+  const extraProblems = oneStep
+    ? extraFieldProblems({ military, altContact, vehicle }, extraFields, { email, phone })
+    : {};
   const required: Array<[key: string, ok: boolean]> = [
     ['email', emailOk],
     ['phone', phoneOk],
@@ -737,9 +741,9 @@ export function Step2({
       military,
       altContact,
       vehicle,
-      ...(military && extraFields.dob
+      ...(oneStep && military && extraFields.dob
         ? { dateOfBirth: dobToIso(extraFields.dob) } : {}),
-      ...(altContact ? {
+      ...(oneStep && altContact ? {
         altFirst: extraFields.altFirst.trim() || undefined,
         altLast: extraFields.altLast.trim() || undefined,
         altPhone: extraFields.altPhone.trim() || undefined,
@@ -749,7 +753,7 @@ export function Step2({
         altState: extraFields.altState.trim() || undefined,
         altZip: extraFields.altZip.trim() || undefined,
       } : {}),
-      ...(vehicle && extraFields.vType.trim() ? {
+      ...(oneStep && vehicle && extraFields.vType.trim() ? {
         vehicleType: extraFields.vType.trim(),
         vehicleMake: extraFields.make.trim() || undefined,
         vehicleModel: extraFields.model.trim() || undefined,
@@ -1025,15 +1029,15 @@ export function Step2({
                 and must not drift from this. */}
             <div className="rf-sx-group">
               <Check checked={military} onChange={setMilitary}>I am active military</Check>
-              {military && <MilitaryFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+              {oneStep && military && <MilitaryFields v={extraFields} set={setExtra} bad={extraBad} validated />}
             </div>
             <div className="rf-sx-group">
               <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
-              {altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+              {oneStep && altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated />}
             </div>
             <div className="rf-sx-group">
               <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
-              {vehicle && <VehicleFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+              {oneStep && vehicle && <VehicleFields v={extraFields} set={setExtra} bad={extraBad} validated />}
             </div>
           </div>
         </section>
