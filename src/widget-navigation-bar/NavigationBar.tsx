@@ -26,6 +26,9 @@ import {
   SearchIcon,
 } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID } from '@shared/propertyContact';
+import { MessageModal } from '@shared/components/MessageModal';
+// Same contact-modal plumbing as #03's Email circle — its creds + lead call.
+import { createLead, fetchFacilityOptions, configureApi, type FacilityOption, type ApiCredProps } from '../widget-property-info/api';
 import { fetchLocationTree, DEFAULT_CITY_BASE_PATH, type NavState } from '@shared/propertyNav';
 import { imageUrl } from '@shared/dudaCollections';
 import { fetchDudaNavigation, hasNavApi, type DudaNavItem } from '@shared/dudaNav';
@@ -65,7 +68,12 @@ interface NavLink {
 
 /** Structural shape shared by every level of the mobile accordion tree
  *  (NavMenuItem and NavSubItem both satisfy it). */
-type MobileMenuNode = { label: string; href: string; icon?: React.ReactNode; children?: MobileMenuNode[] };
+type MobileMenuNode = {
+  label: string;
+  href: string;
+  icon?: React.ReactNode;
+  children?: MobileMenuNode[];
+};
 
 // Hardcoded for now — the real data will come from a collection / props later.
 const FIND_STORAGE_MENU: NavMenuItem[] = [
@@ -166,11 +174,15 @@ const FACILITY_LABEL = '5281 California';
  * Applied to the final link list so it also covers a full `links` override
  * coming from the Duda JS tab.
  */
-function forceHardcodedLinks<T extends { label: string; href?: string; children?: T[]; menu?: T[] }>(items: T[]): T[] {
+function forceHardcodedLinks<
+  T extends { label: string; href?: string; children?: T[]; menu?: T[] },
+>(items: T[]): T[] {
   return items.map((item) => {
     const href =
-      item.label === FACILITY_LABEL ? FACILITY_URL
-        : item.label === IRVINE_LABEL ? IRVINE_URL
+      item.label === FACILITY_LABEL
+        ? FACILITY_URL
+        : item.label === IRVINE_LABEL
+          ? IRVINE_URL
           : item.href;
     return {
       ...item,
@@ -228,10 +240,7 @@ function buildDefaultLinks(): NavLink[] {
     state.label === 'California'
       ? {
           ...state,
-          children: [
-            ...(state.children ?? []),
-            { label: IRVINE_LABEL, href: IRVINE_URL },
-          ],
+          children: [...(state.children ?? []), { label: IRVINE_LABEL, href: IRVINE_URL }],
         }
       : state,
   );
@@ -239,9 +248,7 @@ function buildDefaultLinks(): NavLink[] {
   // item comes from Duda's page tree at runtime. So while the tree is loading OR
   // if the read fails, the bar shows just Find Storage — no page-driven links and
   // no '#' placeholders (fail closed), rather than stale hardcoded sections.
-  return [
-    { label: 'Find Storage', href: '#', hasDropdown: true, menu: findStorageMenu },
-  ];
+  return [{ label: 'Find Storage', href: '#', hasDropdown: true, menu: findStorageMenu }];
 }
 
 /**
@@ -258,17 +265,23 @@ function readCachedNav(): DudaNavItem[] {
   try {
     const v = JSON.parse(window.localStorage.getItem(NAV_CACHE_KEY) || 'null');
     return Array.isArray(v) ? (v as DudaNavItem[]) : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 function writeCachedNav(tree: DudaNavItem[]) {
-  try { window.localStorage.setItem(NAV_CACHE_KEY, JSON.stringify(tree)); } catch { /* storage blocked */ }
+  try {
+    window.localStorage.setItem(NAV_CACHE_KEY, JSON.stringify(tree));
+  } catch {
+    /* storage blocked */
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export interface NavigationBarProps {
+export interface NavigationBarProps extends ApiCredProps {
   /**
    * Content-menu IMAGE input (`logoImage`) — the way an editor sets the logo.
    * Typed `unknown` because Duda doesn't hand images over in one shape: it may be
@@ -390,10 +403,35 @@ export function NavigationBar({
   findStorageAlias = 'storage-units',
   findStoragePath = '/storage-units',
   demoPortfolio = 'full',
+  api_domain,
+  app_id,
+  api_key,
 }: NavigationBarProps) {
+  // REST creds for the Email circle's "Send us a Message" modal, as #03 does.
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
+
+  // Email circle → the shared "Send us a Message" modal, same as #03's.
+  const [messageOpen, setMessageOpen] = useState(false);
+  // The portfolio for the modal's dropdown, fetched only once it is first opened.
+  const [facilityOptions, setFacilityOptions] = useState<FacilityOption[]>([]);
+  useEffect(() => {
+    if (!messageOpen || facilityOptions.length) return;
+    let cancelled = false;
+    void fetchFacilityOptions().then((list) => {
+      if (!cancelled) setFacilityOptions(list);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messageOpen]);
+
   // Recognise the Find Storage page across renames: alias → path → title.
   const isFindStorageLink = (l: NavLink): boolean =>
-    (!!l.alias && l.alias === findStorageAlias) || l.href === findStoragePath || l.label === FIND_STORAGE_LABEL;
+    (!!l.alias && l.alias === findStorageAlias) ||
+    l.href === findStoragePath ||
+    l.label === FIND_STORAGE_LABEL;
   // Normalise so an unknown value from Duda falls back to the popup rather than
   // a link that does nothing.
   const useMega = findStorageStyle !== 'dropdown';
@@ -434,20 +472,26 @@ export function NavigationBar({
   // Mobile menu: which accordion rows are open, keyed by full path so nested
   // (state › city › facility) accordions each open independently.
   const [mobileOpen, setMobileOpen] = useState<Record<string, boolean>>({});
-  const toggleMobile = (key: string) =>
-    setMobileOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleMobile = (key: string) => setMobileOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   // Phone from the Duda `Properties` collection when available; the prop/default
   // stays as the fallback (this bundle holds no API key — collection only).
   const [livePhone, setLivePhone] = useState<{ phone: string; digits: string } | null>(null);
+  // Map circle → Google Maps at the property's coordinates, as #03's Map does.
+  const [mapsHref, setMapsHref] = useState('#');
 
   useEffect(() => {
     let cancelled = false;
     fetchPropertyContact('#02 nav', propertyId)
       .then((c) => {
         if (!cancelled && c?.phone) setLivePhone({ phone: c.phone, digits: c.phoneDigits });
+        if (!cancelled && c && c.lat != null && c.lng != null) {
+          setMapsHref(`https://www.google.com/maps?q=${c.lat},${c.lng}`);
+        }
       })
       .catch((err) => console.error('[NavigationBar] property contact error:', err));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [propertyId]);
 
   // Find Storage, built from the `Properties` collection: state › city › facility,
@@ -458,9 +502,13 @@ export function NavigationBar({
   useEffect(() => {
     let cancelled = false;
     fetchLocationTree('#02 nav', { basePath: locationBasePath, cityBasePath })
-      .then((tree) => { if (!cancelled) setLocationTree(tree); })
+      .then((tree) => {
+        if (!cancelled) setLocationTree(tree);
+      })
       .catch((err) => console.error('[NavigationBar] location tree error:', err));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [locationBasePath, cityBasePath]);
 
   // The whole menu, read from the site's page tree via dmAPI: every page marked
@@ -480,11 +528,18 @@ export function NavigationBar({
         if (cancelled) return;
         // An empty answer is a failed read (dudaNav returns [] for every error),
         // not an empty site — keep what we have rather than blanking the menu.
-        if (tree.length) { setNavTree(tree); writeCachedNav(tree); }
+        if (tree.length) {
+          setNavTree(tree);
+          writeCachedNav(tree);
+        }
       })
       .catch((err) => console.error('[NavigationBar] nav tree error:', err))
-      .finally(() => { if (!cancelled) setNavPending(false); });
-    return () => { cancelled = true; };
+      .finally(() => {
+        if (!cancelled) setNavPending(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
   // First visit on a published site: the tree is coming but nothing is cached.
   // .nav-links--pending holds the row at a typical loaded width meanwhile, so
@@ -496,9 +551,10 @@ export function NavigationBar({
   // populated while someone is working on the page instead of showing an editor
   // three empty columns.
   const megaTree = useMemo(
-    () => (locationTree.length
-      ? locationTree
-      : demoLocationTree(locationBasePath, cityBasePath, demoPortfolio)),
+    () =>
+      locationTree.length
+        ? locationTree
+        : demoLocationTree(locationBasePath, cityBasePath, demoPortfolio),
     [locationTree, locationBasePath, cityBasePath, demoPortfolio],
   );
 
@@ -527,9 +583,20 @@ export function NavigationBar({
   // preventDefault on a NON-cancelable event is a no-op, so the plain
   // `new Event(...)` one-liner above keeps working exactly as documented.
   useEffect(() => {
-    const open = (e: Event) => { setMenuOpen(false); setMegaOpen(true); e.preventDefault(); };
-    const close = (e: Event) => { setMegaOpen(false); e.preventDefault(); };
-    const toggle = (e: Event) => { setMenuOpen(false); setMegaOpen((o) => !o); e.preventDefault(); };
+    const open = (e: Event) => {
+      setMenuOpen(false);
+      setMegaOpen(true);
+      e.preventDefault();
+    };
+    const close = (e: Event) => {
+      setMegaOpen(false);
+      e.preventDefault();
+    };
+    const toggle = (e: Event) => {
+      setMenuOpen(false);
+      setMegaOpen((o) => !o);
+      e.preventDefault();
+    };
     window.addEventListener('tenantinc:find-storage:open', open);
     window.addEventListener('tenantinc:find-storage:close', close);
     window.addEventListener('tenantinc:find-storage:toggle', toggle);
@@ -575,7 +642,11 @@ export function NavigationBar({
 
   // Recursively render mobile sub-levels: a leaf is a link; a node with children
   // becomes a nested accordion toggle. Each deeper level indents 16px.
-  const renderMobileChildren = (nodes: MobileMenuNode[], parentKey: string, depth: number): React.ReactNode =>
+  const renderMobileChildren = (
+    nodes: MobileMenuNode[],
+    parentKey: string,
+    depth: number,
+  ): React.ReactNode =>
     nodes.map((node) => {
       const key = `${parentKey}/${node.label}`;
       const kids = node.children;
@@ -661,7 +732,10 @@ export function NavigationBar({
               >
                 <span>{link.label}</span>
                 {link.hasDropdown && (
-                  <ChevronDown size={20} className={`nav-link-chevron${megaOpen ? ' is-open' : ''}`} />
+                  <ChevronDown
+                    size={20}
+                    className={`nav-link-chevron${megaOpen ? ' is-open' : ''}`}
+                  />
                 )}
               </button>
             ) : isFolderToggle ? (
@@ -676,7 +750,10 @@ export function NavigationBar({
               >
                 <span>{link.label}</span>
                 {link.hasDropdown && (
-                  <ChevronDown size={20} className={`nav-link-chevron${isOpen ? ' is-open' : ''}`} />
+                  <ChevronDown
+                    size={20}
+                    className={`nav-link-chevron${isOpen ? ' is-open' : ''}`}
+                  />
                 )}
               </button>
             ) : (
@@ -720,7 +797,9 @@ export function NavigationBar({
                   <ul className="nav-subpanel" style={{ top: subTop }}>
                     {activeItem.children.map((sub) => (
                       <li key={sub.label} className="nav-sub-item">
-                        <a href={sub.href}><span>{sub.label}</span></a>
+                        <a href={sub.href}>
+                          <span>{sub.label}</span>
+                        </a>
                       </li>
                     ))}
                   </ul>
@@ -750,14 +829,14 @@ export function NavigationBar({
         </a>
       )}
       {showPayBill && (
-        <a className="nav-top-item" href={payBillUrl}>
+        <a className="nav-top-item" href="/login">
           <CreditCardIcon size={24} />
           <span>{payBillLabel}</span>
         </a>
       )}
       {showLanguage && <LanguageMenu enLabel={language} />}
       {showAccount && (
-        <a className="nav-top-item" href={accountUrl}>
+        <a className="nav-top-item" href="/login">
           <UserCircleIcon size={24} />
           <span>{accountLabel}</span>
         </a>
@@ -774,7 +853,11 @@ export function NavigationBar({
           <span>{displayPhone}</span>
         </a>
       )}
-      {showPayBill && <a className="nav-paybill" href={payBillUrl}>{payBillLabel}</a>}
+      {showPayBill && (
+        <a className="nav-paybill" href={payBillUrl}>
+          {payBillLabel}
+        </a>
+      )}
       {/* Language first, then chat, then account. */}
       {showLanguage && <LanguageMenu compact enLabel={language} />}
       {/* The glyph IS the control (6380-125980 draws these at the size of their
@@ -822,7 +905,13 @@ export function NavigationBar({
         <div className="nav-inner">
           {logoMode === 'inline' && (
             <a className="nav-logo-inline" href={homeLink} aria-label="Home">
-              <img className="nav-logo-img" src={logoSrc} alt="storelocal storage" width={295} height={131} />
+              <img
+                className="nav-logo-img"
+                src={logoSrc}
+                alt="storelocal storage"
+                width={295}
+                height={131}
+              />
             </a>
           )}
           <div className="nav-right">
@@ -856,20 +945,41 @@ export function NavigationBar({
           so it never overlaps the nav content. Only in 'banner' mode. */}
       {logoMode === 'banner' && (
         <a className="nav-logo" href={homeLink} style={{ background: logoBg }} aria-label="Home">
-          <img className="nav-logo-img" src={logoSrc} alt="storelocal storage" width={295} height={131} />
+          <img
+            className="nav-logo-img"
+            src={logoSrc}
+            alt="storelocal storage"
+            width={295}
+            height={131}
+          />
         </a>
       )}
 
       {/* Mobile slide-out menu (hamburger). Always mounted so it animates both
           in and out; `is-open` drives the slide + overlay fade. */}
-      <div className={`nav-mobile-menu${menuOpen ? ' is-open' : ''}`} role="dialog" aria-modal="true" aria-hidden={!menuOpen}>
+      <div
+        className={`nav-mobile-menu${menuOpen ? ' is-open' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-hidden={!menuOpen}
+      >
         <div className="nav-mm-overlay" ref={mmOverlayRef} onClick={() => setMenuOpen(false)} />
         <div className="nav-mm-panel">
           <div className="nav-mm-header">
             <a className="nav-mm-logo" href={homeLink} aria-label="Home">
-              <img className="nav-mm-logo-img" src={logoSrc} alt="storelocal storage" width={295} height={131} />
+              <img
+                className="nav-mm-logo-img"
+                src={logoSrc}
+                alt="storelocal storage"
+                width={295}
+                height={131}
+              />
             </a>
-            <button className="nav-mm-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
+            <button
+              className="nav-mm-close"
+              onClick={() => setMenuOpen(false)}
+              aria-label="Close menu"
+            >
               {/* Filled disc: .nav-mm-panel is #fff. 32 fills the button box,
                   which lost its 4px padding so the mark is a true 32. */}
               <CloseCircleIcon size={32} />
@@ -882,63 +992,112 @@ export function NavigationBar({
                 is why it read as a separate strip rather than part of the
                 header. */}
             <div className="nav-mm-top">
-            {/* Quick actions */}
-            <div className="nav-mm-quick">
-              <a className="nav-mm-quick-item" href="#">
-                <span className="nav-mm-circle"><EnvelopeIcon size={22} /></span>
-                <span className="nav-mm-quick-label">Email</span>
-              </a>
-              <a className="nav-mm-quick-item" href={telHref}>
-                <span className="nav-mm-circle"><PhoneIcon size={22} /></span>
-                <span className="nav-mm-quick-label">Phone</span>
-              </a>
-              <a className="nav-mm-quick-item" href="#">
-                <span className="nav-mm-circle"><MapPinIcon size={22} /></span>
-                <span className="nav-mm-quick-label">Map</span>
-              </a>
-              <a className="nav-mm-quick-item" href={payBillUrl}>
-                <span className="nav-mm-circle"><CreditCardIcon size={22} /></span>
-                <span className="nav-mm-quick-label">Billpay</span>
-              </a>
-            </div>
+              {/* Quick actions */}
+              <div className="nav-mm-quick">
+                <a className="nav-mm-quick-item" href="#"
+                  onClick={(e) => { e.preventDefault(); setMessageOpen(true); }}>
+                  <span className="nav-mm-circle">
+                    <EnvelopeIcon size={22} />
+                  </span>
+                  <span className="nav-mm-quick-label">Email</span>
+                </a>
+                <a className="nav-mm-quick-item" href={telHref}>
+                  <span className="nav-mm-circle">
+                    <PhoneIcon size={22} />
+                  </span>
+                  <span className="nav-mm-quick-label">Phone</span>
+                </a>
+                <a className="nav-mm-quick-item" href={mapsHref}>
+                  <span className="nav-mm-circle">
+                    <MapPinIcon size={22} />
+                  </span>
+                  <span className="nav-mm-quick-label">Map</span>
+                </a>
+                <a className="nav-mm-quick-item" href="/login">
+                  <span className="nav-mm-circle">
+                    <CreditCardIcon size={22} />
+                  </span>
+                  <span className="nav-mm-quick-label">Billpay</span>
+                </a>
+              </div>
 
-            {/* Location search — the whole bar is the way into the full-screen
+              {/* Location search — the whole bar is the way into the full-screen
                 Find Storage panel, which is where the real search field, the
                 state list and the city list live. Tapping ANY part of it (field,
                 type, magnifier) swaps the drawer for that panel; nothing is typed
                 here, hence `readOnly` — a keyboard would slide up over a field
                 that is about to be replaced. */}
-            <form
-              className="nav-mm-search"
-              onSubmit={(e) => e.preventDefault()}
-              onClick={() => { setMenuOpen(false); setMegaOpen(true); }}
-            >
-              <input
-                className="nav-mm-search-input"
-                type="text"
-                placeholder="City, ZIP or Address"
-                aria-label="Search location"
-                readOnly
-              />
-              <span className="nav-mm-search-divider" />
-              <button className="nav-mm-search-type" type="button">
-                <span>Storage</span>
-                <ChevronDown size={16} />
-              </button>
-              <button className="nav-mm-search-btn" type="submit" aria-label="Search">
-                <SearchIcon size={20} />
-              </button>
-            </form>
+              <form
+                className="nav-mm-search"
+                onSubmit={(e) => e.preventDefault()}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setMegaOpen(true);
+                }}
+              >
+                <input
+                  className="nav-mm-search-input"
+                  type="text"
+                  placeholder="City, ZIP or Address"
+                  aria-label="Search location"
+                  readOnly
+                />
+                <span className="nav-mm-search-divider" />
+                <button className="nav-mm-search-type" type="button">
+                  <span>Storage</span>
+                  <ChevronDown size={16} />
+                </button>
+                <button className="nav-mm-search-btn" type="submit" aria-label="Search">
+                  <SearchIcon size={20} />
+                </button>
+              </form>
             </div>
 
             {/* Account / utility links — inset on the wrapping div, see below */}
             <div className="nav-mm-account-inset">
               <ul className="nav-mm-account">
-                <li><a href="#"><LoginIcon size={24} /><span>Login</span></a></li>
-                <li><a href={accountUrl}><UserCircleIcon size={24} /><span>{accountLabel}</span></a></li>
-                <li><a href={liveChatUrl}><MessageAiIcon size={24} /><span>{liveChatLabel}</span></a></li>
-                <li><a href="#"><KeyIcon size={24} /><span>Get Gatecode</span></a></li>
-                <li><a href="#"><CreditCardIcon size={24} /><span>Find my Reservation</span></a></li>
+                <li>
+                  <a href="/login">
+                    <LoginIcon size={24} />
+                    <span>Login</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/login">
+                    <UserCircleIcon size={24} />
+                    <span>{accountLabel}</span>
+                  </a>
+                </li>
+                <li>
+                  <a href={liveChatUrl}>
+                    <MessageAiIcon size={24} />
+                    <span>{liveChatLabel}</span>
+                  </a>
+                </li>
+                {/* <li>
+                  <a href="#">
+                    <KeyIcon size={24} />
+                    <span>Get Gatecode</span>
+                  </a>
+                </li> */}
+                <li>
+                  <a href="#">
+                    <CreditCardIcon size={24} />
+                    <span>Find my Reservation</span>
+                  </a>
+                </li>
+                <li>
+                  {/* Reservation-code lookup, same field + Go as #03's (Figma 9697-22507). */}
+                  <form className="nav-mm-res-form" onSubmit={(e) => e.preventDefault()}>
+                    <input
+                      className="nav-mm-res-input"
+                      type="text"
+                      placeholder="Reservation Code"
+                      aria-label="Reservation Code"
+                    />
+                    <button type="submit" className="nav-mm-res-go">Go</button>
+                  </form>
+                </li>
               </ul>
             </div>
 
@@ -950,41 +1109,51 @@ export function NavigationBar({
                 outranks any single class of ours, so a padded <ul> collapsed flush
                 to the drawer's left edge on a live site. */}
             <div className="nav-mm-nav-inset">
-            <ul className="nav-mm-nav">
-              {linkList.map((link) => {
-                const expandable = !!link.menu?.length;
-                const open = !!mobileOpen[link.label];
-                return (
-                  <li key={link.label} className="nav-mm-nav-item">
-                    {expandable ? (
-                      <button
-                        type="button"
-                        className={`nav-mm-nav-row${open ? ' is-open' : ''}`}
-                        aria-expanded={open}
-                        onClick={() => toggleMobile(link.label)}
-                      >
-                        <span>{link.label}</span>
-                        <ChevronDown size={16} className={`nav-mm-chevron${open ? ' is-open' : ''}`} />
-                      </button>
-                    ) : (
-                      <a className="nav-mm-nav-row" href={link.href}>
-                        <span>{link.label}</span>
-                      </a>
-                    )}
+              <ul className="nav-mm-nav">
+                {linkList.map((link) => {
+                  const expandable = !!link.menu?.length;
+                  const open = !!mobileOpen[link.label];
+                  return (
+                    <li key={link.label} className="nav-mm-nav-item">
+                      {expandable ? (
+                        <button
+                          type="button"
+                          className={`nav-mm-nav-row${open ? ' is-open' : ''}`}
+                          aria-expanded={open}
+                          onClick={() => toggleMobile(link.label)}
+                        >
+                          <span>{link.label}</span>
+                          <ChevronDown
+                            size={16}
+                            className={`nav-mm-chevron${open ? ' is-open' : ''}`}
+                          />
+                        </button>
+                      ) : (
+                        <a className="nav-mm-nav-row" href={link.href}>
+                          <span>{link.label}</span>
+                        </a>
+                      )}
 
-                    {expandable && open && (
-                      <div className="nav-mm-sub">
-                        {renderMobileChildren(link.menu!, link.label, 0)}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+                      {expandable && open && (
+                        <div className="nav-mm-sub">
+                          {renderMobileChildren(link.menu!, link.label, 0)}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </div>
         </div>
       </div>
+      <MessageModal
+        open={messageOpen}
+        onClose={() => setMessageOpen(false)}
+        facilities={facilityOptions}
+        defaultFacility={facilityOptions.find((f) => f.id === propertyId) ?? null}
+        submitLead={(input) => createLead(input, { propertyId })}
+      />
     </nav>
   );
 }

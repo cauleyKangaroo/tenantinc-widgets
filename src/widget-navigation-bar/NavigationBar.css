@@ -828,6 +828,56 @@
   line-height: 1.5;
 }
 
+/* Reservation lookup under "Find my Reservation" — values match #03's
+   .pi-res-form (56px field, 12px gap, 8px radius). */
+.nav-mm-res-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+
+.nav-mm-res-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 17.59px 19.44px;
+  border: 1px solid #a5b4bf;
+  border-radius: 8px;
+  background: #ffffff;
+  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  color: #101318;
+  outline: none;
+}
+
+.nav-mm-res-input::placeholder {
+  color: #637381;
+}
+
+.nav-mm-res-input:focus {
+  border-color: #101318;
+}
+
+.nav-mm-res-go {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #000000;
+  color: #ffffff;
+  font: 600 16px/16px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  text-align: center;
+  cursor: pointer;
+}
+
+.nav-mm-res-go:hover {
+  background: #101318;
+}
+
 .nav-mm-divider {
   height: 1px;
   background: #c4cdd5;
