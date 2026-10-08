@@ -163,22 +163,12 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
   },
 
   '#secure-payment-field': {
-    /*
-     * FULL CELL HEIGHT, not the 20px the digits occupy.
-     *
-     * This input is the only thing a tap can land on that opens a keyboard: it
-     * lives in a cross-origin frame, so the parent cannot focus it from a tap
-     * of its own — `setFocus` is a postMessage, and by the time the frame acts
-     * on it the user gesture is gone, which on iOS means no keyboard at all.
-     * At 20px inside a 56px cell that left 36px of the card field doing
-     * nothing when touched, and reported as the field not working on mobile.
-     *
-     * The digits do not move: an input centres its single line in its box, and
-     * .rf-gpfield was already centred in the cell, so this only grows the live
-     * area out to the border the user is aiming at.
-     */
+    // The frame is exactly the box the value occupies, and .rf-gpfield has
+    // already pushed that box down to clear the floated label. Repeating the
+    // offset in here shifted the digits a second time and pushed them out of
+    // the frame — which is what the first cut of this looked like.
     width: '100%',
-    height: '100%',
+    height: '20px',
     margin: '0',
     padding: '0',
     border: '0',
