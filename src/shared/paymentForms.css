@@ -235,14 +235,29 @@
   flex: 0 1 auto;
   min-width: 0;
 }
-.rf-cardcell--exp { flex: 0 0 88px; }
+/* `width` AS WELL AS `flex-basis`, on every fixed cell — this is what makes
+   the row exist on an iPhone.
+
+   .rf-cardrow-short is flex: 0 0 auto, so its own size is its content's. Chrome
+   takes each cell's contribution to that from its flex-basis (76 + 6 + 52 on a
+   phone). WebKit takes it from the cell's CONTENTS, and ignores the basis: GP's
+   iframe is a replaced element with the default 300px intrinsic width, and a
+   bare <input> is ~166px, so Safari sized this group at 472px — wider than the
+   whole row. flex-shrink 0 means it never gives that back, and the card number
+   cell beside it, the only thing allowed to shrink, went to 0px. That is the
+   "no card number field on mobile" report: Card Number was there, 0px wide.
+
+   A specified width is honoured by both engines when they size the parent, so
+   the group measures the same everywhere. Measured in WebKit (Playwright, iPhone
+   14): group 472px -> 134px, number cell 0px -> 162px. */
+.rf-cardcell--exp { flex: 0 0 88px; width: 88px; }
 /* Both cells are labelled MM / YY now — GP's frame said MM / YYYY until the
    placeholder was shortened, and at its resting 16px that ran out of the 88px
    cell and under CVV. The extra width is KEPT rather than reverted with the
    label: the frame renders its own placeholder and the original failure was it
    overflowing, so shrinking this back wants a look at a live frame first. */
-.rf-cardcell--exp-wide { flex: 0 0 116px; }
-.rf-cardcell--cvv { flex: 0 0 58px; }
+.rf-cardcell--exp-wide { flex: 0 0 116px; width: 116px; }
+.rf-cardcell--cvv { flex: 0 0 58px; width: 58px; }
 
 .rf-cardrow-input {
   width: 100%;
@@ -417,9 +432,12 @@
   .rf-cardcell--number { flex: 1 1 auto; min-width: 0; }
 
   .rf-cardrow-short { gap: 6px; flex: 0 0 auto; }
+  /* width alongside the basis, for the reason given on the desktop rules:
+     without it WebKit sizes the pair by its contents and the number cell
+     collapses to 0px. */
   .rf-cardcell--exp,
-  .rf-cardcell--exp-wide { flex: 0 0 76px; }
-  .rf-cardcell--cvv { flex: 0 0 52px; }
+  .rf-cardcell--exp-wide { flex: 0 0 76px; width: 76px; }
+  .rf-cardcell--cvv { flex: 0 0 52px; width: 52px; }
 
   .rf-cardrow-input,
   .rf-cardcell-label { font-size: 14px; }
