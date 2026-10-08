@@ -352,15 +352,11 @@
   display: block;
   width: 100%;
   min-width: 0;
-  /* The whole cell, not the 20px line the digits sit on. The iframe is the
-     only surface whose tap can open a keyboard — focusing it from out here is
-     a postMessage, and a focus that arrives after the gesture has ended opens
-     nothing on iOS. So every pixel between the cell's edges has to be frame or
-     that part of the field is dead to touch. See #secure-payment-field in
-     gpHostedFields.ts, which fills this box in turn.
-     The digits stay put: .rf-cardcell centres this box, and the input centres
-     its line inside it. */
-  height: 100%;
+  /* Centred with .rf-cardrow-input, and for the same reason — the label is
+     hidden rather than floated, so the frame's own placeholder has to land on
+     the line its digits will take. The frame IS this box; the offset must not
+     be repeated on the input inside it either. */
+  height: 20px;
   /* GP sizes its own iframe; clip rather than let a tall one push the row. */
   overflow: hidden;
 }
@@ -425,13 +421,6 @@
   .rf-cardcell--exp-wide { flex: 0 0 76px; }
   .rf-cardcell--cvv { flex: 0 0 52px; }
 
-  /* 16px, NOT the 14px this block used to buy width with. iOS zooms the whole
-     page in when a focused input is under 16px, and a zoomed Duda page does not
-     reflow — the row slides out of view the instant it is touched, which is
-     indistinguishable from the field being broken. The hosted frames are pinned
-     at 16px already (FIELD_STYLES), so 14px here also meant CVV rendered a size
-     smaller than the two cells beside it. The number cell is flex:1 1 auto and
-     simply scrolls its value if 16px digits outrun it. */
   .rf-cardrow-input,
-  .rf-cardcell-label { font-size: 16px; }
+  .rf-cardcell-label { font-size: 14px; }
 }
