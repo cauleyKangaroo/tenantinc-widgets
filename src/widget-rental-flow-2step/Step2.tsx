@@ -644,12 +644,11 @@ export function Step2({
   // fields inside are not).
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const phoneOk = isPossiblePhone(phone, 'US');
-  /* Only when the fields are actually on this screen. On 2step they are not,
-     and a rule for an input nobody can see would disable Pay Now with no way
-     to find out why — the exact thing the old comment below warned about. */
-  const extraProblems = oneStep
-    ? extraFieldProblems({ military, altContact, vehicle }, extraFields)
-    : {};
+  /* The fields are on THIS screen in both layouts now (each tick opens its
+     group beneath it), so their rules apply in both — and only for sections
+     switched on, so nothing hidden can block Pay Now. The primary contact's
+     email and phone go in so the alternate contact cannot be the tenant. */
+  const extraProblems = extraFieldProblems({ military, altContact, vehicle }, extraFields, { email, phone });
   const required: Array<[key: string, ok: boolean]> = [
     ['email', emailOk],
     ['phone', phoneOk],
@@ -660,11 +659,9 @@ export function Step2({
       : [['first', first.trim().length > 0],
         ['last', last.trim().length > 0]] as Array<[string, boolean]>),
     ['agree', agree],
-    /* On 2step the optional sections are TICKS — their fields live on the
-       post-purchase screen, so there is nothing here to validate. On 1step
-       they are on screen, so the ones that are open and incomplete do gate
-       payment; `extraProblems` is empty in the other case, so this line adds
-       nothing to the two-step form. */
+    /* The optional sections' fields are on screen in both layouts, so the
+       ones that are open and incomplete — or name the tenant as their own
+       alternate contact — gate payment. Closed sections contribute nothing. */
     ...Object.entries(extraProblems).map(([k, msg]) => [k, !msg] as [string, boolean]),
   ];
   /* Harness bypass — compiled out of production builds, see @shared/devBypass.
@@ -696,7 +693,21 @@ export function Step2({
   };
 
   /** "Pay Now" — hands the parent everything the rental APIs need. */
-  const payStatically = (card?: CardFormValue, bank?: BankFormValue) => onPaymentComplete?.({
+  /*
+   * Checked HERE as well as when the panel opens. The panel gate runs once,
+   * when a method is picked; anything the shopper changes after that — ticking
+   * "alternate contact" and typing their own email into it, say — was never
+   * looked at again, and the lease went out with it. Verified by driving the
+   * form 2026-10-08: panel open first, duplicate alternate second, pay went
+   * straight through. In hosted-card mode the token has already been minted
+   * by the time this runs; that costs nothing (single-use, expires) and is
+   * better than filing a bad contact.
+   */
+  const payStatically = (card?: CardFormValue, bank?: BankFormValue) => {
+    if (!formComplete) { setPayAttempted(true); return; }
+    payNow(card, bank);
+  };
+  const payNow = (card?: CardFormValue, bank?: BankFormValue) => onPaymentComplete?.({
     firstName: first.trim() || 'there',
     card,
     bank,
@@ -726,17 +737,28 @@ export function Step2({
       military,
       altContact,
       vehicle,
-      ...(oneStep && military && extraFields.dob
+      ...(military && extraFields.dob
         ? { dateOfBirth: dobToIso(extraFields.dob) } : {}),
-      ...(oneStep && altContact ? {
+      ...(altContact ? {
         altFirst: extraFields.altFirst.trim() || undefined,
         altLast: extraFields.altLast.trim() || undefined,
         altPhone: extraFields.altPhone.trim() || undefined,
         altEmail: extraFields.altEmail.trim() || undefined,
         altAddress: extraFields.altAddress.trim() || undefined,
+        altCity: extraFields.altCity.trim() || undefined,
+        altState: extraFields.altState.trim() || undefined,
+        altZip: extraFields.altZip.trim() || undefined,
       } : {}),
-      ...(oneStep && vehicle && extraFields.vType.trim()
-        ? { vehicleType: extraFields.vType.trim() } : {}),
+      ...(vehicle && extraFields.vType.trim() ? {
+        vehicleType: extraFields.vType.trim(),
+        vehicleMake: extraFields.make.trim() || undefined,
+        vehicleModel: extraFields.model.trim() || undefined,
+        vehicleYear: extraFields.year.trim() || undefined,
+        vehicleColour: extraFields.colour.trim() || undefined,
+        vehiclePlate: extraFields.plate.trim() || undefined,
+        vehicleCountry: extraFields.country.trim() || undefined,
+        vehicleState: extraFields.stateVal.trim() || undefined,
+      } : {}),
     },
   });
 
@@ -1003,15 +1025,15 @@ export function Step2({
                 and must not drift from this. */}
             <div className="rf-sx-group">
               <Check checked={military} onChange={setMilitary}>I am active military</Check>
-              {oneStep && military && <MilitaryFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+              {military && <MilitaryFields v={extraFields} set={setExtra} bad={extraBad} validated />}
             </div>
             <div className="rf-sx-group">
               <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
-              {oneStep && altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+              {altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated />}
             </div>
             <div className="rf-sx-group">
               <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
-              {oneStep && vehicle && <VehicleFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+              {vehicle && <VehicleFields v={extraFields} set={setExtra} bad={extraBad} validated />}
             </div>
           </div>
         </section>

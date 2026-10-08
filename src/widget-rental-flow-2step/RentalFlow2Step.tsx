@@ -11,7 +11,7 @@ import {
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
   fetchPaymentGateway, TENANT_PAYMENTS, configureApi, previewDocuments,
-  type RentResult, type ApiCredProps, type PaymentCycleKey,
+  type RentResult, type ApiCredProps, type PaymentCycleKey, type RentalExtras,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx, type PropertyInfo,
 } from './api';
@@ -1354,9 +1354,10 @@ export function RentalFlow2Step({
   // show what was actually filed, not what was typed a screen earlier.
   // Which optional sections the shopper ticked in step 2, carried to the
   // post-purchase screen so it opens them already ticked.
-  const [chosenSections, setChosenSections] = useState<
-    { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean } | undefined
-  >(undefined);
+  // The whole RentalExtras, not just its booleans: the post-purchase screen
+  // needs to know which sections were FILLED IN at step 2 (and went out with
+  // the lease), so it does not ask for them a second time.
+  const [chosenSections, setChosenSections] = useState<RentalExtras | undefined>(undefined);
   const [rentedContact, setRentedContact] = useState<
     { first: string; last: string; email: string; phone: string } | undefined
   >(undefined);
@@ -2813,6 +2814,12 @@ export function RentalFlow2Step({
           <div className="rfc-layout">
             <SuccessStep
               chosen={chosenSections}
+              /* Collected at step 2 and already on the lease — not asked again. */
+              provided={{
+                military: !!chosenSections?.dateOfBirth,
+                altContact: !!(chosenSections?.altFirst || chosenSections?.altLast),
+                vehicle: !!chosenSections?.vehicleType,
+              }}
               onGetAccess={(details) => {
                 // File what this screen collects against the tenant's contact.
                 // Deliberately NOT awaited: the rental is already complete, the

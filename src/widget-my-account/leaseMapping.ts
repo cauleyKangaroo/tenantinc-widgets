@@ -136,11 +136,21 @@ export function spacesFrom(
       number: number ? `#${number}` : '',
       title: number ? `Space #${number}` : 'Your space',
       unit: {
-        // The frames print "5' x 7' I Climate Controlled". The lease carries a
-        // type but no dimensions, so only what exists is shown — a lone "I"
-        // separator with nothing after it reads as a typo.
-        size: [str(u.type)].filter(Boolean).join(' I '),
-        features: [],
+        // The frames print "5' x 7' I Climate Controlled". The unit now
+        // carries its dimensions as `label` ("5' x 5'") beside `type`, so
+        // the line is label + type — "5' x 5' I Storage" — and only what
+        // exists is shown: a lone "I" with nothing after it reads as a typo.
+        size: [str(u.label), titleCase(str(u.type))].filter(Boolean).join(' I '),
+        /*
+         * The first FOUR of the unit's amenities, as the card's check-marked
+         * list (the frame draws four). `unit.amenities` is a plain string
+         * array on /api/account/contact (verified 2026-10-08 — a Chino unit
+         * lists 23, an Apex one 3), so there is nothing to unwrap; anything
+         * that is not a non-empty string is dropped rather than printed.
+         */
+        features: (Array.isArray(u.amenities) ? u.amenities : [])
+          .filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
+          .slice(0, 4),
         balanceAmount: money(balance),
         balanceDate: paidThrough,
       },
@@ -174,6 +184,11 @@ export function spacesFrom(
       },
     };
   });
+}
+
+/** "storage" → "Storage", for the size line. The API spells the type in lower case. */
+function titleCase(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 }
 
 /** 1 → "1st". For the autopay sentence. */
