@@ -1188,7 +1188,7 @@
     padding: 16px 28px calc(32px + env(safe-area-inset-bottom));
   }
   .ts-modal-header {
-    padding: 24px 20px 12px;
+    padding: 24px 28px 12px;
   }
   .ts-modal-heading { justify-content: center; padding-right: 0; }
   .ts-modal-heading-main { text-align: left; width: 100%; padding: 0 44px 0 0; }
