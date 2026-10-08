@@ -701,7 +701,19 @@ export function HomepageSearch({
           {!q.trim() && (
             <>
               <li role="presentation">
-                <button className="hs-current-location" type="button" disabled={locating} onClick={chooseCurrentLocation}>
+                <button
+                  className="hs-current-location"
+                  type="button"
+                  disabled={locating}
+                  onPointerDown={(e) => {
+                    // Safari can report null relatedTarget when tapping this
+                    // button. Keep input focus so blur cannot remove the menu
+                    // before the subsequent click requests geolocation.
+                    e.preventDefault();
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={chooseCurrentLocation}
+                >
                   <MapPinSolidIcon size={24} />
                   <span>Current Location</span>
                 </button>
