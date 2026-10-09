@@ -1,3 +1,5 @@
+import { mediaManagerImagesFor } from '@shared/unitArtwork';
+
 // ===========================================================================
 // Static demo content for #19, lifted from four Figma frames:
 //   • 8815-115354  "Account Info - Display"        → the DEFAULT left panel
@@ -100,6 +102,9 @@ export interface SpaceUnit {
   /** "5’ x 7’ I Climate Controlled" — the pipe is the designer's separator. */
   size: string;
   features: string[];
+  /** Picture candidates, most specific first — the same Media Manager chain
+   *  the space cards walk (see @shared/unitArtwork). Empty ⇒ no picture. */
+  images: string[];
   balanceAmount: string;
   balanceDate: string;
 }
@@ -201,6 +206,7 @@ export const SPACES: AccountSpace[] = [
     unit: {
       size: '5’ x 7’ I Climate Controlled',
       features: ['24 Hour Access', 'Drive Up', 'Near Entrances', 'No Late Fees'],
+      images: mediaManagerImagesFor('small', { amenity: 'Climate Controlled' }),
       balanceAmount: '$123.00',
       balanceDate: 'Apr 20, 2026',
     },
@@ -252,6 +258,7 @@ export const SPACES: AccountSpace[] = [
     unit: {
       size: '10’ x 10’ I Drive Up Access',
       features: ['24 Hour Access', 'Ground Floor', 'Vehicle Parking', 'Wide Aisle'],
+      images: mediaManagerImagesFor('medium', { amenity: 'Drive-Up Access' }),
       balanceAmount: '$248.00',
       balanceDate: 'May 03, 2026',
     },

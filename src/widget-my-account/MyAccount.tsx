@@ -47,6 +47,7 @@ import { MakePaymentPanel } from './MakePaymentPanel';
 import { PaymentActivity } from './PaymentActivity';
 import { PropertyCard } from './PropertyCard';
 import { readSession, clearSession } from '@shared/accountSession';
+import { fetchPropertyContact, type PropertyContact } from '@shared/propertyContact';
 import {
   fetchMe, fetchContact, updateContact, fetchDocumentFile, saveBlob, loginApiReady,
   type LoginApiConfig, type AccountRecord,
@@ -272,17 +273,47 @@ export function MyAccount({
     // SPACES[0] carries the frame's own contact; reuse it rather than export a
     // second copy of the same sample from data.ts.
     const fallback = SPACES[0]?.primaryContact ?? { name: '' };
-    const mapped = spacesFrom(record, realContact ?? fallback, realAlternate ?? null);
+    // siteId is Duda's own (data.siteId) and is what builds the site's
+    // Media Manager artwork URLs for each unit — the same as the space cards.
+    const mapped = spacesFrom(record, realContact ?? fallback, realAlternate ?? null, { siteId });
     /*
      * A contact with no leases gets an EMPTY list, not the sample. Someone who
      * has closed their last unit must not be shown a stranger's storage.
      */
     return mapped;
-  }, [record, realContact, realAlternate]);
+  }, [record, realContact, realAlternate, siteId]);
+
+  /*
+   * The property's name, address and phone for each sidebar card, from the
+   * site's `Properties` collection. A lease carries only its unit's street
+   * address — no property name, no phone — so the card read "333 Central Ave"
+   * as its title and drew a phone icon beside nothing. One read per distinct
+   * property, keyed by the unit's propertyId; fails soft to the lease's own
+   * address where there is no dmAPI (editor, harness) or no matching row.
+   */
+  const [propertyContacts, setPropertyContacts] = useState<Record<string, PropertyContact>>({});
+  useEffect(() => {
+    if (!record) return undefined;
+    const ids = Array.from(new Set(
+      (Array.isArray(record.leases) ? (record.leases as Array<{ unit?: { propertyId?: unknown } }>) : [])
+        .map((l) => String(l.unit?.propertyId ?? ''))
+        .filter(Boolean),
+    ));
+    if (!ids.length) return undefined;
+    let cancelled = false;
+    void Promise.all(ids.map((id) => fetchPropertyContact('#19 my-account', id).catch(() => null)))
+      .then((found) => {
+        if (cancelled) return;
+        const next: Record<string, PropertyContact> = {};
+        found.forEach((c, i) => { if (c) next[ids[i]] = c; });
+        setPropertyContacts(next);
+      });
+    return () => { cancelled = true; };
+  }, [record]);
 
   const properties = useMemo(
-    () => (record ? propertiesFrom(record) : PROPERTIES),
-    [record],
+    () => (record ? propertiesFrom(record, propertyContacts) : PROPERTIES),
+    [record, propertyContacts],
   );
 
   const realDocuments = useMemo(
@@ -400,13 +431,15 @@ export function MyAccount({
   const [scrollRequest, setScrollRequest] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const selectUnit = (id: string) => {
-    const next = spaces.find((s) => s.id === id);
-    const movedProperty = !!next && !!space && next.propertyId !== space.propertyId;
     setSelectedId(id);
     // Never lands on the payment or edit screen of whichever unit happened to
     // be open, so from either of those this doubles as the way back.
     setView('account');
-    if (movedProperty) setScrollRequest((n) => n + 1);
+    // EVERY pick scrolls, not only a change of property: "Account Info" on a
+    // unit lower down the sidebar is a request to see that unit's account
+    // info, and on a phone — or on desktop with a long card stack — that
+    // panel is above the fold the tap was made from.
+    setScrollRequest((n) => n + 1);
   };
   useEffect(() => {
     if (!scrollRequest) return;
