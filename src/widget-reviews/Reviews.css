@@ -232,17 +232,57 @@
   text-overflow: ellipsis;
 }
 
+/* Text + its "See more" / "Read more on Yelp" link. Sized to content, not
+   flex: 1 — a stretched clamp box let the card's height, not the clamp, decide
+   where the text stopped, which cut the last line through the middle on
+   mobile. The time keeps to the bottom with its own margin-top: auto. */
+.rw-card-text-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
 .rw-card-text {
   font-size: 16px;
   font-weight: 400;
   color: #637381;
   line-height: 20px;
   margin: 0;
-  flex: 1;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 9;
   -webkit-box-orient: vertical;
+  /* Whole lines only, even where line-clamp is flaky (iOS in a flex parent). */
+  max-height: calc(20px * 9);
+  overflow-wrap: anywhere;
+}
+
+.rw-card-text--open {
+  display: block;
+  -webkit-line-clamp: unset;
+  max-height: none;
+}
+
+.rw-card-more {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.rw-card-more:focus-visible {
+  outline: 2px solid #101318;
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .rw-card-time {
