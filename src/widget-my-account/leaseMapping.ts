@@ -19,6 +19,8 @@
 // ===========================================================================
 
 import type { AccountRecord } from '@shared/accountApi';
+import type { PropertyContact } from '@shared/propertyContact';
+import { classifySize, mediaManagerImagesFor } from '@shared/unitArtwork';
 import type {
   AccountDocument, AccountSpace, Contact, SpaceProperty,
 } from './data';
@@ -45,9 +47,17 @@ function longDate(v: unknown): string {
  * The properties the contact actually rents at, for the sidebar cards.
  *
  * Built from the leases' own `unit` rows — the account API has no property
- * list of its own, and the unit carries the address the card prints.
+ * list of its own, and the unit carries the address the card prints. The
+ * property's NAME and PHONE are not on a lease at all; they come from the
+ * site's `Properties` collection, looked up by the unit's propertyId and
+ * handed in as `contacts`. Without a match (Duda editor, harness, a property
+ * the collection does not list) the card falls back to the unit's own street
+ * line and address, as it always did.
  */
-export function propertiesFrom(record: AccountRecord): SpaceProperty[] {
+export function propertiesFrom(
+  record: AccountRecord,
+  contacts: Record<string, PropertyContact> = {},
+): SpaceProperty[] {
   const leases = Array.isArray(record.leases) ? (record.leases as Record<string, unknown>[]) : [];
   const out: SpaceProperty[] = [];
   const seen = new Set<string>();
@@ -61,17 +71,38 @@ export function propertiesFrom(record: AccountRecord): SpaceProperty[] {
       [str(u.city), str(u.state)].filter(Boolean).join(', '),
       str(u.zip),
     ].filter(Boolean).join(', ');
+    const c = contacts[id];
     out.push({
       id,
-      // The API gives no property NAME on a lease — only its address. Using the
-      // street line beats inventing a brand, and it is what the card's heading
-      // is for.
-      name: str(u.line1) || 'Your storage',
-      address,
-      phone: '',
+      name: c?.name || str(u.line1) || 'Your storage',
+      address: c?.address || address,
+      phone: c?.phone || '',
     });
   }
   return out;
+}
+
+/**
+ * The unit's picture candidates — the same chain the space cards walk, so a
+ * tenant sees their unit drawn the way it was sold: the site's own upload for
+ * the band and amenity, then the band alone, then the shared set.
+ *
+ * Band from width × length (the record carries `size.width/length` as
+ * strings, plus `sqft`); amenity from the unit's first listed amenity, which
+ * is also the first one the card prints, so picture and caption agree.
+ */
+function unitImages(u: Record<string, unknown>, siteId?: string): string[] {
+  const size = (u.size ?? {}) as Record<string, unknown>;
+  const w = Number(size.width), l = Number(size.length), sq = Number(size.sqft);
+  const area = Number.isFinite(w) && Number.isFinite(l) && w > 0 && l > 0 ? w * l
+    : Number.isFinite(sq) && sq > 0 ? sq : 0;
+  const amenities = Array.isArray(u.amenities) ? (u.amenities as unknown[]) : [];
+  const first = amenities.find((a) => typeof a === 'string' && a.trim()) as string | undefined;
+  return mediaManagerImagesFor(classifySize(area), {
+    type: str(u.type) || 'storage',
+    siteId,
+    amenity: first,
+  });
 }
 
 /** The documents on one lease, for that space's panel. */
@@ -105,6 +136,8 @@ export function spacesFrom(
   record: AccountRecord,
   primary: Contact,
   alternate: Contact | null,
+  /** Duda's data.siteId — what builds the site's own artwork URLs. */
+  media: { siteId?: string } = {},
 ): AccountSpace[] {
   const leases = Array.isArray(record.leases) ? (record.leases as Record<string, unknown>[]) : [];
   const card = (Array.isArray(record.paymentMethods)
@@ -151,6 +184,7 @@ export function spacesFrom(
         features: (Array.isArray(u.amenities) ? u.amenities : [])
           .filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
           .slice(0, 4),
+        images: unitImages(u, media.siteId),
         balanceAmount: money(balance),
         balanceDate: paidThrough,
       },

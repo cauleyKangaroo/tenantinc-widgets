@@ -1,6 +1,7 @@
 import type { Unit, UnitSize } from './types';
 import cfg from './config.json';
 import { spaceImageFor, mediaManagerImagesFor } from './spaceImages';
+import { classifySize } from '@shared/unitArtwork';
 import { fetchWebsiteSpaceGroupId as findWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { creds } from './apiCreds';
@@ -92,29 +93,9 @@ interface ApiResponse {
 // ---------------------------------------------------------------------------
 // Size classification — width × length area (sq ft) → UnitSize
 // ---------------------------------------------------------------------------
-
-/**
- * Area (sq ft) → size bucket, per the client's guide (2026-07-30):
- *
- *   Small        ≤ 50    5×5, 5×10
- *   Medium    51–150     8×10, 8×12, 10×10, 10×15
- *   Large    151–300     10×20, 10×22, 10×25, 10×30, 15×20 (and 20×15, also 300)
- *   Extra Large  > 300   15×30, 20×30
- *
- * The previous thresholds (24 / 76 / 151) put every live tier but the two largest
- * in the wrong bucket — 5×10 read as Medium, 10×10 as Large, 10×20 as Extra Large.
- *
- * `other` is kept for a tier whose width/length don't parse (area 0), so it can't
- * silently land in Small. `extra_small` is no longer produced — it stays in the
- * UnitSize union because the label/open-state maps are keyed on the full union.
- */
-export function classifySize(area: number): UnitSize {
-  if (area <= 0) return 'other';
-  if (area <= 50) return 'small';
-  if (area <= 150) return 'medium';
-  if (area <= 300) return 'large';
-  return 'extra_large';
-}
+// Lives in @shared/unitArtwork (with the thresholds and their history), so
+// #19 My Account files a tenant's unit in the same band this list does.
+export { classifySize };
 
 // boolean amenities → the name IS the label (e.g. "Climate Controlled", not "Yes")
 // string/text/null amenities → the value IS the label (e.g. "Drive-Up Access", not "Access")
