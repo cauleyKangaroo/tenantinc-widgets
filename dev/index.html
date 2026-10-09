@@ -1268,9 +1268,32 @@ Special</textarea>
             userRatingsTotal: total,
             reviewRating: '5',
             authorName: rte('Sample Reviewer'),
-            reviewText: rte('Mock review for the harness — not a real customer.'),
+            // The first is LONG on purpose, to exercise #09's "See more".
+            reviewText: rte(i === 0
+              ? 'Mock review for the harness — not a real customer. First of all, it has been years since I had to rent a unit and the experience was not all that great. But here the manager made me feel welcomed. I came in hoping to see a unit and she showed me one on the size I was looking for even though she was helping out another customer at the same time. The facility is clean, the gate code worked first time, and moving in took under an hour. I would happily recommend it to anyone who needs storage nearby.'
+              : 'Mock review for the harness — not a real customer.'),
             relativeTime: rte('2 months ago'),
             reviewsUrl: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(r[1])
+          } };
+        }),
+        // YelpReviews — INVENTED. Yelp's API only returns a ~160-character
+        // EXCERPT ending "...", so the text here is cut the same way; #09 links
+        // it to the review on Yelp rather than pretending there is more to show.
+        YelpReviews: [
+          ['Mock Reviewer A', '1', 'Mock review for the harness. Have rented a unit here for two years. The rent has gone up and the only thing that is constant there is that you will...'],
+          ['Mock Reviewer B', '5', 'Mock review for the harness. Friendly staff and a clean facility.'],
+          ['Mock Reviewer C', '4', 'Mock review for the harness. Easy access and fair pricing, would rent again.']
+        ].map(function (r, i) {
+          return { data: {
+            businessName: rte('Mock Storage'),
+            businessRating: '3.7',
+            ratedReviews: '3',
+            reviewRating: r[1],
+            userName: rte(r[0]),
+            reviewText: rte(r[2]),
+            reviewDate: new Date(Date.now() - (i + 1) * 30 * 86400000).toISOString(),
+            reviewUrl: 'https://www.yelp.com/biz/mock-storage?hrid=mock-' + i,
+            reviewsUrl: 'https://www.yelp.com/biz/mock-storage'
           } };
         })
       };
