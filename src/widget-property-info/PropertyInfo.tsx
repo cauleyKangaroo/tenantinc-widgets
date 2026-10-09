@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
-import { scrollToSpaceList } from '@shared/promoBus';
 import { createLead, fetchPropertyDetails, fetchFacilityOptions, propertyBreadcrumb, stateName, configureApi, type PropertyDetails, type BoundPropertyProps, type FacilityOption, type ApiCredProps } from './api';
 import {
   Breadcrumb, collapseMiddle, locationCrumbHead, normaliseBase, placeSlug,
@@ -1259,7 +1258,7 @@ export function PropertyInfo(props: Props) {
                 <span className="pi-m-circle"><EnvelopeIcon size={24} /></span>
                 <span className="pi-m-circle-label">Email</span>
               </a>
-              <a className="pi-m-circle-item" href="#">
+              <a className="pi-m-circle-item" href="/login">
                 <span className="pi-m-circle"><CreditCardIcon size={24} /></span>
                 <span className="pi-m-circle-label">Billpay</span>
               </a>
@@ -1267,12 +1266,15 @@ export function PropertyInfo(props: Props) {
                 <span className="pi-m-circle"><MapPinIcon size={24} /></span>
                 <span className="pi-m-circle-label">Map</span>
               </a>
-              {/* Scrolls to the space list rather than navigating — same helper
-                  the Promotions widget uses for "See Qualifying Units". */}
+              {/* Scrolls to the Nearby Locations widget (#07) rather than
+                  navigating — same smooth scroll as scrollToSpaceList. */}
               <a
                 className="pi-m-circle-item"
                 href="#"
-                onClick={(e) => { e.preventDefault(); scrollToSpaceList(); }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.querySelector('.nl-wrapper')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
               >
                 <span className="pi-m-circle"><LocationsIcon size={24} /></span>
                 <span className="pi-m-circle-label">Locations</span>

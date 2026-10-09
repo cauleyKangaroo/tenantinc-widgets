@@ -1087,7 +1087,7 @@
      so they don't eat a 360px phone alive. */
   .nav-mega-inner {
     max-width: none;
-    padding: 32px clamp(20px, 6vw, 36px) 24px;
+    padding: 40px clamp(20px, 6vw, 36px) 24px;
   }
 
   /* The ✕ moves INTO the header row on mobile (both frames); the desktop one is
