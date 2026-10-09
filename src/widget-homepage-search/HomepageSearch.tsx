@@ -1,5 +1,6 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './HomepageSearch.css';
+import { useLocationPermission } from './useLocationPermission';
 import { fetchLocationTree, type NavUnitType } from '@shared/propertyNav';
 import { MapPinSolidIcon, SearchIcon } from '@shared/ui/icons';
 import { openFindStorage } from '@shared/findStorageBus';
@@ -200,7 +201,9 @@ export function HomepageSearch({
   const [typeAbove, setTypeAbove] = useState(false);
   const [activeType, setActiveType] = useState(-1);
   const [locating, setLocating] = useState(false);
+  const [locationDenied, setLocationDenied] = useLocationPermission();
   const [pendingCoordinates, setPendingCoordinates] = useState<Coordinates>();
+  const locationRequest = useRef(0);
   const [resolvingCity, setResolvingCity] = useState(false);
   const safeHistoryLimit = Math.max(0, Math.min(5, Math.floor(historyLimit)));
   const [recent, setRecent] = useState<RecentSearch[]>(() => {
@@ -332,7 +335,8 @@ export function HomepageSearch({
           ?? geoTargets.find((row) => row.fallbackTarget.href === item.href)?.fallbackTarget;
         return target && (!type || target.types.includes(type)) ? [{ ...target, label: item.label }] : [];
       });
-  const showLocationPanel = suggestionsOpen && (!q.trim() || visibleSuggestions.length > 0);
+  const showCurrentLocation = !locationDenied;
+  const showLocationPanel = suggestionsOpen && ((!q.trim() && showCurrentLocation) || visibleSuggestions.length > 0);
 
   useLayoutEffect(() => {
     if (!showLocationPanel) {
@@ -360,7 +364,7 @@ export function HomepageSearch({
       window.removeEventListener('resize', placePanel);
       window.removeEventListener('scroll', placePanel, true);
     };
-  }, [showLocationPanel, visibleSuggestions.length, q]);
+  }, [showLocationPanel, visibleSuggestions.length, q, showCurrentLocation]);
 
   useLayoutEffect(() => {
     if (!typeOpen) {
@@ -402,12 +406,38 @@ export function HomepageSearch({
     try { window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
   };
 
-  const chooseCity = (target: SearchTarget) => {
+  const chooseCity = useCallback((target: SearchTarget) => {
     setQ(target.label);
     setSelectedTarget(target);
     setSuggestionsOpen(false);
     setActiveSuggestion(-1);
+  }, []);
+
+  const cancelCurrentLocation = () => {
+    locationRequest.current += 1;
+    setPendingCoordinates(undefined);
+    setLocating(false);
   };
+
+  // Only explicit suggestion selection navigates. Invalid destinations still
+  // populate the input so Find can use its nearby-city fallback.
+  const navigateToSuggestion = (target: SearchTarget) => {
+    cancelCurrentLocation();
+    chooseCity(target);
+    let url: URL;
+    try { url = new URL(target.href, window.location.origin); } catch { return; }
+    if (url.origin !== window.location.origin) return;
+    if (type) url.searchParams.set('sl_types', type);
+    remember(target);
+    window.location.assign(editorSafeHref(url.pathname + url.search, editorPreview, siteId));
+  };
+
+  // Current Location goes to the nearest location the same way a picked
+  // suggestion does. Through a ref so the deferred path below (property list
+  // still loading) always calls the latest version. Typing or picking a
+  // suggestion cancels a pending lookup first, so this never fires late.
+  const navigateRef = useRef(navigateToSuggestion);
+  navigateRef.current = navigateToSuggestion;
 
   const nearestCandidate = (candidates: GeoTarget[], coords: Coordinates) => candidates.reduce((best, candidate) => (
     distanceSquared(coords.latitude, coords.longitude, candidate.lat, candidate.lng)
@@ -424,24 +454,26 @@ export function HomepageSearch({
       setLocating(false);
       return;
     }
-    chooseCity(nearestCandidate(candidates, pendingCoordinates).target);
+    navigateRef.current(nearestCandidate(candidates, pendingCoordinates).target);
     setPendingCoordinates(undefined);
     setLocating(false);
   }, [pendingCoordinates, inventoryStatus, geoTargets, type]);
 
   const chooseCurrentLocation = () => {
-    if (locating) return;
+    if (locating || locationDenied) return;
     if (!navigator.geolocation) {
       console.warn('[HomepageSearch] Current Location: browser geolocation is unavailable');
       return;
     }
     setLocating(true);
+    const request = ++locationRequest.current;
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
+        if (request !== locationRequest.current) return;
         const current = { latitude: coords.latitude, longitude: coords.longitude };
         const candidates = type ? geoTargets.filter((candidate) => candidate.types.includes(type)) : geoTargets;
         if (candidates.length) {
-          chooseCity(nearestCandidate(candidates, current).target);
+          navigateRef.current(nearestCandidate(candidates, current).target);
           setLocating(false);
           return;
         }
@@ -453,6 +485,8 @@ export function HomepageSearch({
         setLocating(false);
       },
       (error) => {
+        if (request !== locationRequest.current) return;
+        if (error.code === 1) setLocationDenied(true);
         console.warn(
           `[HomepageSearch] Current Location: geolocation failed (code ${error.code}: ${error.message || 'no browser message'})`,
         );
@@ -566,14 +600,14 @@ export function HomepageSearch({
             aria-controls={suggestionsId}
             aria-activedescendant={activeSuggestion >= 0 ? `hs-city-option-${activeSuggestion}` : undefined}
             onFocus={() => { setTypeOpen(false); setSuggestionsOpen(true); }}
-            onChange={(e) => { const v = e.target.value; setQ(v.charAt(0).toUpperCase() + v.slice(1)); setSelectedTarget(undefined); setSuggestionsOpen(true); setActiveSuggestion(-1); }}
+            onChange={(e) => { cancelCurrentLocation(); const v = e.target.value; setQ(v.charAt(0).toUpperCase() + v.slice(1)); setSelectedTarget(undefined); setSuggestionsOpen(true); setActiveSuggestion(-1); }}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown' && visibleSuggestions.length) {
                 e.preventDefault(); setSuggestionsOpen(true); setActiveSuggestion((i) => (i + 1) % visibleSuggestions.length);
               } else if (e.key === 'ArrowUp' && visibleSuggestions.length) {
                 e.preventDefault(); setSuggestionsOpen(true); setActiveSuggestion((i) => (i <= 0 ? visibleSuggestions.length - 1 : i - 1));
               } else if (e.key === 'Enter' && suggestionsOpen && activeSuggestion >= 0) {
-                e.preventDefault(); chooseCity(visibleSuggestions[activeSuggestion]);
+                e.preventDefault(); navigateToSuggestion(visibleSuggestions[activeSuggestion]);
               } else if (e.key === 'Escape') {
                 e.preventDefault(); setSuggestionsOpen(false); setActiveSuggestion(-1);
               }
@@ -670,12 +704,26 @@ export function HomepageSearch({
           >
           {!q.trim() && (
             <>
+              {showCurrentLocation && (
               <li role="presentation">
-                <button className="hs-current-location" type="button" disabled={locating} onClick={chooseCurrentLocation}>
+                <button
+                  className="hs-current-location"
+                  type="button"
+                  disabled={locating}
+                  onPointerDown={(e) => {
+                    // Safari can report null relatedTarget when tapping this
+                    // button. Keep input focus so blur cannot remove the menu
+                    // before the subsequent click requests geolocation.
+                    e.preventDefault();
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={chooseCurrentLocation}
+                >
                   <MapPinSolidIcon size={24} />
                   <span>Current Location</span>
                 </button>
               </li>
+              )}
               {visibleSuggestions.length > 0 && (
                 <li className="hs-history-head" role="presentation">Search History</li>
               )}
@@ -690,7 +738,7 @@ export function HomepageSearch({
                 aria-selected={index === activeSuggestion}
                 className={`hs-suggestion${index === activeSuggestion ? ' hs-suggestion--active' : ''}`}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => chooseCity(city)}
+                onClick={() => navigateToSuggestion(city)}
               >
                 <span>{city.label}</span>
               </button>

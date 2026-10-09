@@ -25,6 +25,7 @@
 
 import { readCollection, str, plainText, logSource, hasCollectionsApi } from './dudaCollections';
 import { PROPERTIES_COLLECTION } from './propertiesSource';
+import { INTERNAL_PROPERTIES_COLLECTION, readInternalProperties } from './internalProperties';
 import { formatPhone } from './propertyContact';
 
 export type NavUnitType = 'storage' | 'parking';
@@ -342,7 +343,16 @@ export function buildLocationTree(
 }
 
 /**
- * The location tree straight from the `Properties` collection.
+ * The location tree straight from a property collection — `Properties` by
+ * default; #02 passes `PropertiesInternal`.
+ *
+ * `PropertiesInternal` is read through `readInternalProperties`, NOT
+ * `readCollection`, and that is load-bearing: it is a NATIVE collection with
+ * lower-case columns, so raw rows carry `address` rather than `Address` and a
+ * `slug`/`name` wrapped in `<p class="rteBlock">`. `str(row.slug)` keeps that
+ * wrapper, `parseSlug` then finds no state/city/property and every row is
+ * skipped. The internal reader normalises all of it (and shares #07/#13's
+ * cached read of the same collection).
  *
  * Fails soft to [] — no dmAPI (Duda editor / dev harness), collection missing, or
  * no row carrying a usable slug — so the caller keeps its own fallback menu.
@@ -358,7 +368,9 @@ export async function fetchLocationTree(
     return [];
   }
 
-  const rows = await readCollection(collectionName);
+  const rows = collectionName === INTERNAL_PROPERTIES_COLLECTION
+    ? await readInternalProperties(collectionName)
+    : await readCollection(collectionName);
   const tree = buildLocationTree(rows as PropertyRowLike[], treeOpts);
 
   if (!tree.length) {

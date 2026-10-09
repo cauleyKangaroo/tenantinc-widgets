@@ -35,6 +35,11 @@ import type {
   TierKey, Tier, RowType, FeatureRow, O2Tier, O3Tier, O3Row, O3Weight, TierData, TierQuoteState,
 } from './types';
 import { onOpenTiers, isValidTierRequest } from '@shared/tierBus';
+import { HarnessSampleBanner, harnessSampleQuote, harnessSampleTiers } from './harnessDemo';
+
+/** Build-time constant (webpack DefinePlugin): false in production, so every
+ *  `__HB_DEV_HARNESS__ &&` branch below is removed from the shipped bundle. */
+declare const __HB_DEV_HARNESS__: boolean;
 
 // Branded Small/Medium/Large size illustrations served from Cloudinary — the
 // same CDN assets the live Storage Outlet site uses, so they stay out of the JS
@@ -156,7 +161,7 @@ const TIER_SLOTS: TierKey[] = ['good', 'better', 'best'];
 // Scarcity threshold — matches the Space List's default urgencyThreshold.
 const URGENCY_THRESHOLD = 5;
 
-function buildTierData(data: import('./api').ValueTierData, facilityHours?: string, vacant?: number, enablePromoLogic = true): TierData {
+function buildTierData(data: import('./api').ValueTierData, facilityHours?: string, vacant?: number, enablePromoLogic = true, subtitle?: string): TierData {
   // Assign each offer to its OWN authoritative tier slot — never relocate an
   // offer between keys; the key is its selection + rental-flow handoff identity.
   const bySlot: Partial<Record<TierKey, import('./api').ValueTierBundle>> = {};
@@ -189,7 +194,18 @@ function buildTierData(data: import('./api').ValueTierData, facilityHours?: stri
     };
   });
   const hasKey = (k: TierKey, label: string) => !!bySlot[k]?.features.includes(label);
-  const checkRows = data.featureLabels.slice(0, 6).map((label, ri) => ({
+  // Promote the originating descriptor only if it matches an API amenity.
+  // Group-name fallbacks/unknown labels must not invent rows or displace features.
+  const normalizeLabel = (label: string) => label.trim().replace(/\s+/g, ' ').toLowerCase();
+  const primaryLabel = subtitle?.trim();
+  const matchingLabel = primaryLabel && (
+    data.featureLabels.find((label) => label.trim() === primaryLabel)
+    ?? data.featureLabels.find((label) => normalizeLabel(label) === normalizeLabel(primaryLabel))
+  );
+  const featureLabels = matchingLabel
+    ? [matchingLabel, ...data.featureLabels.filter((label) => label !== matchingLabel)]
+    : data.featureLabels;
+  const checkRows = featureLabels.slice(0, 6).map((label, ri) => ({
     label,
     good: hasKey('good', label),
     better: hasKey('better', label),
@@ -518,6 +534,7 @@ export function TierSelection({
   // this and uses the `size` prop.
   const [modalOpen, setModalOpen] = useState(false);
   const [modalSize, setModalSize] = useState<string | undefined>(undefined);
+  const [modalSubtitle, setModalSubtitle] = useState<string | undefined>(undefined);
   const [modalUnitGroupId, setModalUnitGroupId] = useState<string | undefined>(undefined);
   // The property the Space List emitted for the clicked product (dynamic pages).
   const [modalPropertyId, setModalPropertyId] = useState<string | undefined>(undefined);
@@ -643,6 +660,7 @@ export function TierSelection({
         if (!channel || req.channel !== channel) return false;
       }
       setModalSize(req.size);
+      setModalSubtitle(typeof req.subtitle === 'string' ? req.subtitle : undefined);
       setModalUnitGroupId(req.unitGroupId);
       setModalPropertyId(req.propertyId);
       setModalCtaLabel(req.ctaLabel);
@@ -665,6 +683,10 @@ export function TierSelection({
   const [data, setData] = useState<TierData | null>(null);
   const [quotes, setQuotes] = useState<Partial<Record<TierKey, TierQuoteState>>>({});
   const [status, setStatus] = useState<'loading' | 'live' | 'disabled' | 'unavailable' | 'soldout'>('loading');
+  /** Harness only — see ./harnessDemo. True while sample tiers stand in. */
+  const [sample, setSample] = useState(false);
+  const sampleRef = useRef(false);
+  sampleRef.current = sample;
   const [pastDelay, setPastDelay] = useState(false);
 
   const bundlesRef = useRef<import('./api').ValueTierBundle[]>([]);
@@ -676,6 +698,11 @@ export function TierSelection({
     const b = bundlesRef.current.find((x) => x.key === key);
     if (!b) return;
     requested.current.add(key);
+    const sampleQuote = __HB_DEV_HARNESS__ ? harnessSampleQuote(b.unitId, b.price) : undefined;
+    if (sampleQuote) {
+      setQuotes((prev) => ({ ...prev, [key]: { status: 'ok', quote: sampleQuote } }));
+      return;
+    }
     setQuotes((prev) => ({ ...prev, [key]: { status: 'pending' } }));
     // enablePromoLogic is presentation-only, matching Space List. Always send
     // the offer's promotions so the authoritative move-in total remains
@@ -697,6 +724,9 @@ export function TierSelection({
    * strict correlation check correctly refused but mislabeled unavailable. */
   const onSelectClick = useCallback((key: TierKey) => (e: React.MouseEvent) => {
     // Leave the browser to handle the ways a user asks for a new tab.
+    // Sample units do not exist; handing one to the rental flow would fail there.
+    // Checked first, so a Ctrl/Cmd/Shift or middle click cannot open one either.
+    if (__HB_DEV_HARNESS__ && sampleRef.current) { e.preventDefault(); console.info('[TierSelection] harness sample — Select does not hand off'); return; }
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     const href = rentHrefRef.current?.(key);
     if (!href) return;
@@ -716,6 +746,7 @@ export function TierSelection({
     // Reset for the new context so a previous facility's tiers/quotes can't
     // linger while the new requests run (and can't survive an empty result).
     setStatus('loading');
+    setSample(false);
     setData(null);
     setQuotes({});
     requested.current.clear();
@@ -770,8 +801,19 @@ export function TierSelection({
         return undefined;
       });
       try {
-        const [tiers, property] = await Promise.all([tiersReq, propReq]);
+        const [liveTiers, property] = await Promise.all([tiersReq, propReq]);
         if (cancelled) return;
+        let tiers = liveTiers;
+        // Harness only (compiled out of production): when the live offers carry
+        // no value tiers, show sample tiers so the layouts can be reviewed.
+        if (__HB_DEV_HARNESS__ && (!tiers?.value || tiers.soldOut || !tiers.showTierPricing)) {
+          const sampleValue = harnessSampleTiers(sizeProp);
+          if (sampleValue) {
+            console.info('[TierSelection] harness: live offers have no value tiers — showing sample data');
+            tiers = { showTierPricing: true, soldOut: false, value: sampleValue, unitGroupId: 'harness-sample', vacant: 3 };
+            setSample(true);
+          }
+        }
         if (!tiers) {
           unavailable(sizeProp ? `no offers for requested size ${JSON.stringify(sizeProp)}` : 'no value-tier offers found');
           return;
@@ -785,7 +827,7 @@ export function TierSelection({
         // available bundle — defensive; treated as sold out.
         if (!tiers.value) { console.info('[TierSelection] all configured tiers sold out'); setStatus('soldout'); return; }
         const value = tiers.value;
-        setData({ ...buildTierData(value, property?.gateHours, tiers.vacant, effectivePromoLogic), property });
+        setData({ ...buildTierData(value, property?.gateHours, tiers.vacant, effectivePromoLogic, mode === 'modal' ? modalSubtitle : undefined), property });
         setStatus('live');
         bundlesRef.current = value.bundles;
         tzRef.current = property?.timezone;
@@ -812,7 +854,7 @@ export function TierSelection({
     // changes when a different card is clicked. The proxy's own ~15s offers
     // cache may still serve a very recent response — the uncached move-in quote
     // is the authoritative money figure.
-  }, [mode, inEditor, siteId, elementId, sizeProp, authoritativeGroupId, openGen, ctx, tierProp, defaultTier, effectiveCompanyId, effectivePromoLogic]);
+  }, [mode, inEditor, siteId, elementId, sizeProp, authoritativeGroupId, openGen, ctx, tierProp, defaultTier, effectiveCompanyId, effectivePromoLogic, modalSubtitle]);
 
   useEffect(() => {
     if (status === 'live' && variant === 'option1') ensureQuote(selected);
@@ -921,6 +963,9 @@ export function TierSelection({
   // my.duda.co (same reason the Space List navigates via anchors). undefined ⇒
   // not navigable (no rentUrl / cross-origin) ⇒ the CTA renders disabled.
   const rentHref = (key: TierKey): string | undefined => {
+    // Harness sample units do not exist: no link at all, so no kind of click
+    // (Ctrl/Cmd/Shift, middle, "open in new tab") can hand one to the rental flow.
+    if (__HB_DEV_HARNESS__ && sample) return undefined;
     if (!rentUrl || !data) return undefined;
     const t = data.tiers.find((x) => x.key === key);
     let url: URL;
@@ -966,6 +1011,7 @@ export function TierSelection({
       ref={ref}
       style={{ ['--ts-title-color']: titleColor || '#101318' } as React.CSSProperties}
     >
+      {__HB_DEV_HARNESS__ && sample && <HarnessSampleBanner />}
       {live && data.notice && <div className="ts-notice">{data.notice}</div>}
       {body}
     </div>
@@ -1052,9 +1098,10 @@ function TierModalHeader({ heading, subheading, urgency, adminFeeText, onClose }
         {subheading && <p className="ts-modal-subtitle">{subheading}</p>}
       </div>
       <div className="ts-modal-actions">
-        {(urgency || adminFeeText) && (
           <div className="ts-modal-meta">
-            {urgency && <p className="ts-modal-urgency">{urgency}</p>}
+            <p className={`ts-modal-urgency${urgency ? '' : ' ts-modal-urgency--empty'}`} aria-hidden={!urgency}>
+              {urgency || '\u00a0'}
+            </p>
             {adminFeeText && (
               <p className="ts-modal-admin">
                 {adminFeeText}
@@ -1062,7 +1109,6 @@ function TierModalHeader({ heading, subheading, urgency, adminFeeText, onClose }
               </p>
             )}
           </div>
-        )}
         {/* Filled disc: the CSS used to draw this by hand (a #101318 ::before
             behind a white &times;); the icon is the same mark and that pseudo is
             gone. 52 desktop / 32 mobile, but the SIZE LIVES IN CSS — see
@@ -1157,7 +1203,7 @@ function Pills({ selected, setSelected, tiers: tiersProp }: { selected: TierKey;
           aria-disabled={t.soldOut || undefined}
         >
           <span className="ts-pill-name">{t.name}</span>
-          <span className="ts-pill-tag">{t.soldOut ? 'Sold Out' : t.tagline}</span>
+          <span className="ts-pill-tag">{t.soldOut ? 'Sold Out' : t.tagline.replace(/\s+/, '\n')}</span>
           <span className="ts-pill-divider" />
           {t.soldOut ? (
             <span className="ts-pill-price">—</span>
@@ -1601,11 +1647,11 @@ function MobileLayout({
           <MobileTotalAmt tierKey={tier.key} />
           <ChevronDown size={24} className={`ts-m-total-chev${open ? ' ts-m-total-chev--open' : ''}`} />
         </button>
-        {open && (
+        <AnimatedMobilePanel open={open}>
           <div className="ts-m-total-detail">
             <BreakdownRows tierKey={tier.key} />
           </div>
-        )}
+        </AnimatedMobilePanel>
       </div>
 
       {/* Compact comparison table */}
@@ -1813,24 +1859,12 @@ function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading
       )}
 
       <div className="ts-o2m-cards">
-        {cards.map((card) =>
-          card.key === expanded ? (
-            <O2MExpanded card={card} key={card.key} />
-          ) : (
-            <button
-              type="button"
-              key={card.key}
-              className="ts-o2m-bar"
-              onClick={() => {
-                setExpanded(card.key);
-                setSelected?.(card.key);
-              }}
-              aria-expanded={false}
-            >
-              <O2MHead card={card} />
-            </button>
-          ),
-        )}
+        {cards.map((card) => (
+          <O2MExpanded card={card} key={card.key} expanded={card.key === expanded} onToggle={() => {
+            setExpanded(card.key === expanded ? undefined : card.key);
+            setSelected?.(card.key);
+          }} />
+        ))}
       </div>
       <MobileAdminFee text={adminFeeText} />
     </div>
@@ -1848,13 +1882,13 @@ function MobileAdminFee({ text }: { text?: string }) {
 }
 
 // Shared header row (name + tagline on the left, price on the right).
-function O2MHead({ card }: { card: O2Tier }) {
+function O2MHead({ card, expanded, onToggle, panelId }: { card: O2Tier; expanded: boolean; onToggle: () => void; panelId: string }) {
   return (
-    <div className="ts-o2m-head">
-      <div className="ts-o2m-head-info">
+    <div className="ts-o2m-head" onClick={(e) => { if (!(e.target as Element).closest('a, button')) onToggle(); }}>
+      <button type="button" className="ts-o2m-head-info ts-o2m-toggle" onClick={onToggle} aria-expanded={expanded} aria-controls={panelId}>
         <span className="ts-o2m-name">{card.name}</span>
         <span className="ts-o2m-tag">{card.tagline}</span>
-      </div>
+      </button>
       <div className="ts-o2m-price-block">
         {card.promoRate != null ? (
           <span className="ts-o2m-price"><span className="ts-o2m-strike">{priceFmt(card.price)}/mo.</span> {priceFmt(card.promoRate)}</span>
@@ -1867,13 +1901,15 @@ function O2MHead({ card }: { card: O2Tier }) {
   );
 }
 
-function O2MExpanded({ card }: { card: O2Tier }) {
+function O2MExpanded({ card, expanded, onToggle }: { card: O2Tier; expanded: boolean; onToggle: () => void }) {
   const { featuredTier } = useTierData();
   const isFeatured = featuredTier === card.key;
+  const panelId = React.useId();
   return (
-    <div className={`ts-o2m-card${isFeatured ? ' ts-o2m-card--popular' : ''}`}>
-      {isFeatured && <span className="ts-o2-badge ts-o2m-badge">Most Popular</span>}
-      <O2MHead card={card} />
+    <div className={`ts-o2m-card ts-o2m-animated-card${expanded ? ' ts-o2m-card--expanded' : ''}${isFeatured && expanded ? ' ts-o2m-card--popular' : ''}`}>
+      {isFeatured && <span className="ts-o2-badge ts-o2m-badge" aria-hidden={!expanded}>Most Popular</span>}
+      <O2MHead card={card} expanded={expanded} onToggle={onToggle} panelId={panelId} />
+      <AnimatedMobilePanel open={expanded} id={panelId}>
       <ul className="ts-o2-features ts-o2m-features">
         {card.features.map((f) => (
           <li className="ts-o2-feat" key={f.label}>
@@ -1893,6 +1929,18 @@ function O2MExpanded({ card }: { card: O2Tier }) {
         </div>
       )}
       <TierSelectCta tierKey={card.key} variant="cards-mobile" />
+      </AnimatedMobilePanel>
+    </div>
+  );
+}
+
+// Preserve the body for natural-height animations in both directions.
+// Inert prevents interaction with collapsed content during the transition.
+function AnimatedMobilePanel({ open, id, children }: { open: boolean; id?: string; children: React.ReactNode }) {
+  return (
+    <div id={id} className={`ts-mobile-panel${open ? ' ts-mobile-panel--open' : ''}`} aria-hidden={!open}
+      ref={(element) => { if (open) element?.removeAttribute('inert'); else element?.setAttribute('inert', ''); }}>
+      <div className="ts-mobile-panel-clip">{children}</div>
     </div>
   );
 }

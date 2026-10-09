@@ -30,6 +30,7 @@ import { MessageModal } from '@shared/components/MessageModal';
 // Same contact-modal plumbing as #03's Email circle — its creds + lead call.
 import { createLead, fetchFacilityOptions, configureApi, type FacilityOption, type ApiCredProps } from '../widget-property-info/api';
 import { fetchLocationTree, DEFAULT_CITY_BASE_PATH, type NavState } from '@shared/propertyNav';
+import { INTERNAL_PROPERTIES_COLLECTION } from '@shared/internalProperties';
 import { imageUrl } from '@shared/dudaCollections';
 import { fetchDudaNavigation, hasNavApi, type DudaNavItem } from '@shared/dudaNav';
 import { navTreeToLinks } from './navigationMapper';
@@ -494,17 +495,21 @@ export function NavigationBar({
     };
   }, [propertyId]);
 
-  // Find Storage, built from the `Properties` collection: state › city › facility,
-  // grouped off each property's `slug`. Empty until it loads, and empty for good in
-  // the Duda editor and the dev harness (no dmAPI) — both keep the hardcoded menu.
+  // Find Storage, built from the `PropertiesInternal` collection (the site's own,
+  // operator-curated one — the dynamic property pages' collection): state › city ›
+  // facility, grouped off each property's `slug`. Empty until it loads, and empty
+  // for good in the Duda editor and the dev harness (no dmAPI) — both keep the
+  // hardcoded menu.
   const [locationTree, setLocationTree] = useState<NavState[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    fetchLocationTree('#02 nav', { basePath: locationBasePath, cityBasePath })
-      .then((tree) => {
-        if (!cancelled) setLocationTree(tree);
-      })
+    fetchLocationTree('#02 nav', {
+      basePath: locationBasePath,
+      cityBasePath,
+      collectionName: INTERNAL_PROPERTIES_COLLECTION,
+    })
+      .then((tree) => { if (!cancelled) setLocationTree(tree); })
       .catch((err) => console.error('[NavigationBar] location tree error:', err));
     return () => {
       cancelled = true;

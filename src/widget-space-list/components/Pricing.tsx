@@ -416,6 +416,7 @@ export function CtaButton({ unit, config, full, colClass }: {
   function openValueTiers() {
     const handled = emitOpenTiers({
       size: unit.dimensions,
+      subtitle: unit.subtype,
       unitGroupId: unit.unitGroupId,
       unitId: unit.id,
       propertyId: config.propertyId || cfg.propertyId || undefined,
