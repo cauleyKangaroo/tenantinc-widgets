@@ -168,6 +168,7 @@ export function FAQs({
         <p className="faq-subtitle">{subheading}</p>
       </div>
 
+      {/* Search hidden for now — re-enable by removing this comment wrapper.
       <div className="faq-search">
         <input
           className="faq-search-input"
@@ -181,6 +182,7 @@ export function FAQs({
           <SearchIcon size={24} />
         </span>
       </div>
+      */}
 
       <div className="faq-list">
         {loading ? (
