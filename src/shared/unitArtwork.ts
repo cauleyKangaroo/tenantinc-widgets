@@ -136,6 +136,26 @@ export function amenityFileToken(label?: string): string | undefined {
 const PARKING_DEFAULT_STEM = 'Car_RV_Boat';
 
 /**
+ * Types that are NOT filed by size band, and the file the operator names
+ * them by. Parking is the vehicle picture (see above). Wine is one file,
+ * `Wine_Storage.png` — a wine locker is sold as what it is, not by its square
+ * footage, and the operator uploaded exactly that name (Media Manager,
+ * 2026-10-09). Storage, and any type not listed, keeps the band stems.
+ */
+const TYPE_STEM: Record<string, string> = {
+  parking: PARKING_DEFAULT_STEM,
+  wine: 'Wine_Storage',
+};
+
+/**
+ * The only stems the shared S3 set carries (probed 2026-09-09: the five bands
+ * and Car_RV_Boat return 200; everything else 403). A type-named file such as
+ * Wine_Storage lives in the site's own Media Manager alone, so asking S3 for
+ * it would be one guaranteed-failed request per wine card.
+ */
+const S3_STEMS = new Set(['XSmall', 'Small', 'Medium', 'Large', 'XLarge', PARKING_DEFAULT_STEM]);
+
+/**
  * The shared S3/CloudFront set, used when the site's own Media Manager has
  * nothing for a band.
  *
@@ -185,9 +205,10 @@ export function mediaManagerImagesFor(
   } = {},
 ): string[] {
   const parking = opts.type === 'parking';
-  // Storage is filed by band; parking has no band of its own and falls back to
-  // the broadest vehicle picture instead.
-  const stem = parking ? PARKING_DEFAULT_STEM : MEDIA_FILE_STEM[size];
+  const typeStem = opts.type ? TYPE_STEM[opts.type.toLowerCase()] : undefined;
+  // Storage is filed by band; parking and wine are filed by TYPE and fall
+  // back to their one named picture instead (see TYPE_STEM).
+  const stem = typeStem ?? MEDIA_FILE_STEM[size];
   // No stem means no picture to ask ANY host for — `other`, the bucket for a
   // tier whose dimensions did not parse.
   if (!stem) return [];
@@ -210,9 +231,15 @@ export function mediaManagerImagesFor(
      * so prefixing the default would describe it twice and match nothing that
      * has been uploaded.
      */
-    const names = token
-      ? [parking ? token : `${stem}_${token}`, stem]
-      : [stem];
+    /*
+     * Wine has ONE file, by type: no amenity variant is tried, because none
+     * was uploaded and the first candidate is also the first request.
+     */
+    const names = typeStem && !parking
+      ? [stem]
+      : token
+        ? [parking ? token : `${stem}_${token}`, stem]
+        : [stem];
     out.push(...names.map((n) => `${root}/${n}.png`));
   }
 
@@ -227,7 +254,7 @@ export function mediaManagerImagesFor(
    * Base stem only, because that is all that exists there (see the constant).
    */
   const s3 = (opts.s3BaseUrl ?? S3_FALLBACK_BASE).trim().replace(/\/+$/, '');
-  if (s3) out.push(`${s3}/${stem}.png`);
+  if (s3 && S3_STEMS.has(stem)) out.push(`${s3}/${stem}.png`);
 
   return out;
 }
