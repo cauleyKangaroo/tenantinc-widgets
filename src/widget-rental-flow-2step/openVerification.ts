@@ -41,11 +41,12 @@ export function allowedVerificationUrl(
 export function openVerificationPlaceholder(
   openWindow: () => VerificationWindow | null = () => window.open('', '_blank') as VerificationWindow | null,
 ): VerificationWindow | null {
-  const target = openWindow();
+  let target: VerificationWindow | null;
+  try { target = openWindow(); } catch { return null; }
   // `noopener` in window.open's feature string can make browsers return null,
   // which leaves no handle to navigate after the awaited start call. Sever the
   // opener explicitly while retaining the handle instead.
-  if (target) target.opener = null;
+  try { if (target) target.opener = null; } catch { closeVerificationPlaceholder(target); return null; }
   return target;
 }
 
@@ -54,13 +55,16 @@ export function navigateVerificationWindow(
   verificationUrl: string,
   allowedHosts: readonly string[],
 ): boolean {
-  if (!target || target.closed) return false;
+  if (!target) return false;
   const safeUrl = allowedVerificationUrl(verificationUrl, allowedHosts);
   if (!safeUrl) return false;
-  target.location.href = safeUrl.href;
-  return true;
+  try {
+    if (target.closed) return false;
+    target.location.href = safeUrl.href;
+    return true;
+  } catch { return false; }
 }
 
 export function closeVerificationPlaceholder(target: VerificationWindow | null): void {
-  if (target && !target.closed) target.close();
+  try { if (target && !target.closed) target.close(); } catch { /* Browser may revoke the handle. */ }
 }

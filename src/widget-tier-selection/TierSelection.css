@@ -148,7 +148,7 @@
   color: var(--color_1, #509E2F);
   text-transform: uppercase;
   text-align: center;
-  white-space: nowrap;
+  white-space: pre-line;
 }
 .ts-pill-divider {
   width: 77px;
@@ -1089,9 +1089,10 @@
 .ts-modal-title { font-size: 36px; font-weight: 700; line-height: 1; margin: 0 0 4px; color: var(--ts-title-color, #101318); text-transform: none; letter-spacing: normal; }
 .ts-modal-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
 .ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #e53935; }
+.ts-modal-urgency--empty { display: none; }
 .ts-modal-admin { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 40px; margin: 0; font-size: 20px; font-weight: 400; color: #101318; }
 .ts-modal-admin-info { color: #101318; flex: 0 0 auto; }
-.ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 16px 32px 32px; background: #f4f6f8; }
+.ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 32px 32px; background: #f4f6f8; }
 /*
  * PINNED to the header's top-right corner, not laid out in it.
  *
@@ -1185,10 +1186,11 @@
   .ts-modal-body .ts-m {
     min-height: 100%;
     border-radius: 0;
-    padding: 16px 28px calc(32px + env(safe-area-inset-bottom));
+    padding: 12px 28px calc(32px + env(safe-area-inset-bottom));
   }
   .ts-modal-header {
-    padding: 24px 28px 12px;
+    /* Tighten the gap without constraining the optional urgency/meta row. */
+    padding: 24px 28px 8px;
   }
   .ts-modal-heading { justify-content: center; padding-right: 0; }
   .ts-modal-heading-main { text-align: left; width: 100%; padding: 0 44px 0 0; }
@@ -1212,7 +1214,9 @@
     overflow: hidden;
   }
   .ts-modal-subtitle { font-size: 16px; overflow-wrap: anywhere; }
-  .ts-modal-urgency { text-align: center; width: 100%; font-size: 16px; line-height: normal; }
+  .ts-modal-urgency { text-align: center; width: 100%; min-height: 1.25em; font-size: 16px; line-height: 1.25; }
+  /* Keep one compact line reserved; no announcement or visible placeholder. */
+  .ts-modal-urgency--empty { display: block; visibility: hidden; }
   .ts-modal-admin { justify-content: center; min-height: 0; font-size: 14px; }
 }
 

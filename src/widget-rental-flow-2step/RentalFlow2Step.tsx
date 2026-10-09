@@ -454,7 +454,7 @@ function RailSkeleton({ sheet = false }: { sheet?: boolean }) {
 // Container-width breakpoint: below this the rail becomes the sticky
 // top bar (mobile export m01–m05 / spec-05). Same value as #14.
 const MOBILE_BP = 640;
-/** How long the paid screen waits for idv_requirements before treating it as unanswered. */
+/** How long the paid screen waits for idv_requirement before treating it as unanswered. */
 const IDV_POLICY_TIMEOUT_MS = 8000;
 
 const fmtBarCountdown = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -1256,7 +1256,7 @@ export function RentalFlow2Step({
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
   /*
-   * PropertiesInternal.idv_requirements — None / Optional / Required, chosen per
+   * PropertiesInternal.idv_requirement — None / Optional / Required, chosen per
    * property like single_step. Unanswered (no dmAPI, no row, blank, or a value
    * we do not recognise) falls back to RENTAL_IDV_REQUIREMENT. The editor-only
    * override reviews all three.
@@ -1282,17 +1282,17 @@ export function RentalFlow2Step({
       setIdvRequirementSettled(true);
     };
     const timer = window.setTimeout(() => {
-      console.warn(`${logTag} idv_requirements lookup timed out — treating as unanswered (${RENTAL_IDV_REQUIREMENT})`);
+      console.warn(`${logTag} idv_requirement lookup timed out — treating as unanswered (${RENTAL_IDV_REQUIREMENT})`);
       settle(undefined);
     }, IDV_POLICY_TIMEOUT_MS);
     fetchIdvRequirementSetting(effectivePropertyId)
       .then((raw) => {
         const parsed = parseIdvRequirement(raw);
-        console.info(`${logTag} idv_requirements(${effectivePropertyId}) =`, raw, '→', parsed ?? `unanswered, using ${RENTAL_IDV_REQUIREMENT}`);
+        console.info(`${logTag} idv_requirement(${effectivePropertyId}) =`, raw, '→', parsed ?? `unanswered, using ${RENTAL_IDV_REQUIREMENT}`);
         settle(parsed);
       })
       .catch((err) => {
-        console.warn(`${logTag} idv_requirements lookup failed:`, err);
+        console.warn(`${logTag} idv_requirement lookup failed:`, err);
         settle(undefined);
       });
     return () => { cancelled = true; window.clearTimeout(timer); };
@@ -2775,7 +2775,7 @@ export function RentalFlow2Step({
                 officeHours: propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours,
               }}
               remoteOperated={idvRemoteOperated === true}
-              handheld={idvController.sameTab}
+              handheld={idvController.handheld}
               onGetAccess={(details) => {
                 // File what this screen collects against the tenant's contact.
                 // Deliberately NOT awaited: the rental is already complete, the

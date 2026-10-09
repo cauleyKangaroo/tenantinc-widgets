@@ -13,21 +13,68 @@ async function main() {
   global.IS_REACT_ACT_ENVIRONMENT = true;
   const source = fs.readFileSync(require.resolve('../src/widget-tier-selection/TierSelection.tsx'), 'utf8');
   const parsed = ts.createSourceFile('TierSelection.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const names = ['Option2Mobile', 'MobileAdminFee', 'O2MHead', 'O2MExpanded', 'AnimatedMobilePanel'];
+  const names = ['Option2Mobile', 'MobileAdminFee', 'O2MHead', 'O2MExpanded', 'AnimatedMobilePanel', 'buildTierData', 'TierModalHeader'];
   const functions = parsed.statements.filter(node => ts.isFunctionDeclaration(node) && names.includes(node.name?.text)).map(node => node.getText(parsed)).join('\n');
   assert.equal(parsed.statements.filter(node => ts.isFunctionDeclaration(node) && names.includes(node.name?.text)).length, names.length);
   let selected = 'better';
   const cards = ['good', 'better', 'best'].map(key => ({ key, name: key, tagline: 'Storage', price: 235, features: [{ label: 'Ground floor' }] }));
   const Icon = () => null;
   const context = {
+    TIER_SLOTS: ['good', 'better', 'best'], TAGLINES: { good: 'Lowest Rate', better: 'Best Value', best: 'Most Features' },
+    HOURS_24_RE: /24.*hour/i, URGENCY_THRESHOLD: 5, sizeCategoryImage: () => '',
     React, useState: React.useState, useEffect: React.useEffect,
     useTierData: () => ({ o2: cards, selected, setSelected: key => { selected = key; }, featuredTier: 'better' }),
-    priceFmt: value => `$${value}`, InfoCircle: Icon, PromoStar: Icon, CheckCircle: Icon, TagIcon: Icon,
+    priceFmt: value => `$${value}`, InfoCircle: Icon, PromoStar: Icon, CheckCircle: Icon, TagIcon: Icon, CloseCircleIcon: Icon,
     PricingDetails: () => React.createElement('button', { className: 'details' }, 'Pricing Details'),
     TierSelectCta: () => React.createElement('button', null, 'Select'),
   };
   vm.runInNewContext(ts.transpileModule(functions, { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText, context);
+  const input = { size: "5' x 5'", soldOutTiers: [], featureLabels: ['Ground Floor', 'Climate Control'], bundles: [
+    { key: 'good', unitId: 'a', price: 100, features: ['Ground Floor', 'Climate Control'] },
+    { key: 'better', unitId: 'b', price: 120, features: ['Ground Floor'] },
+  ] };
+  const reordered = context.buildTierData(input, undefined, 2, true, 'Climate Control');
+  assert.equal(reordered.rows[1].label, 'Climate Control', 'originating subtitle is the first amenity');
+  assert.equal(reordered.rows[1].bold, true);
+  assert.equal(reordered.rows[1].good, true);
+  assert.equal(reordered.rows[1].better, false, 'subtitle does not fabricate tier amenities');
+  assert.equal(reordered.rows.filter(row => row.label === 'Climate Control').length, 1);
+  assert.equal(context.buildTierData(input).rows[1].label, 'Ground Floor', 'without handoff, preserve API ordering');
+  for (const subtitle of ['Interior Access', 'Premium Drive-Up', 'Climate Controlled']) {
+    const result = context.buildTierData(input, undefined, 2, true, subtitle);
+    assert.deepEqual(Array.from(result.rows, row => row.label), ['Monthly Rent', ...input.featureLabels], 'unmatched subtitle preserves API order and adds no empty row');
+  }
+  const sixFeatures = { ...input, featureLabels: ['One', 'Two', 'Three', 'Four', 'Five', 'Six'] };
+  assert.deepEqual(Array.from(context.buildTierData(sixFeatures, undefined, 2, true, 'Premium Drive-Up').rows, row => row.label), ['Monthly Rent', ...sixFeatures.featureLabels], 'unmatched subtitle does not displace the sixth amenity');
+  assert.equal(context.buildTierData(input, undefined, 2, true, '  climate   control ').rows[1].label, 'Climate Control');
+  const variants = {
+    ...input,
+    featureLabels: ['Ground Floor', 'Climate Control', 'climate control', 'Climate  Control'],
+    bundles: [
+      { key: 'good', unitId: 'a', price: 100, features: ['Climate Control'] },
+      { key: 'better', unitId: 'b', price: 120, features: ['climate control'] },
+      { key: 'best', unitId: 'c', price: 140, features: ['Climate  Control'] },
+    ],
+  };
+  const variantRows = context.buildTierData(variants, undefined, 2, true, '  CLIMATE control ').rows;
+  assert.deepEqual(Array.from(variantRows, row => row.label), ['Monthly Rent', 'Climate Control', 'Ground Floor', 'climate control', 'Climate  Control'], 'moving an amenity preserves case and spacing variants');
+  for (const [label, tierKey] of [['Climate Control', 'good'], ['climate control', 'better'], ['Climate  Control', 'best']]) {
+    const row = variantRows.find(row => row.label === label);
+    for (const key of ['good', 'better', 'best']) assert.equal(row[key], key === tierKey, `${label} retains exact API checkmarks`);
+  }
+  assert.equal(variantRows[1].bold, true);
+  assert.deepEqual(Array.from(context.buildTierData(variants, undefined, 2, true, 'climate control').rows, row => row.label), ['Monthly Rent', 'climate control', 'Ground Floor', 'Climate Control', 'Climate  Control'], 'an exact label match wins over an earlier normalized variant');
   const root = createRoot(document.getElementById('root'));
+  const headerProps = { heading: 'Choose an Option', onClose() {} };
+  await React.act(async () => root.render(React.createElement(context.TierModalHeader, headerProps)));
+  const urgencySlot = document.querySelector('.ts-modal-urgency');
+  assert.equal(urgencySlot.classList.contains('ts-modal-urgency--empty'), true);
+  assert.equal(urgencySlot.getAttribute('aria-hidden'), 'true');
+  await React.act(async () => root.render(React.createElement(context.TierModalHeader, { ...headerProps, urgency: 'Only 3 left - Rent soon!' })));
+  assert.equal(document.querySelector('.ts-modal-urgency'), urgencySlot, 'urgency uses a persistent reserved slot');
+  assert.equal(urgencySlot.classList.contains('ts-modal-urgency--empty'), false);
+  assert.equal(urgencySlot.getAttribute('aria-hidden'), 'false');
+  assert.equal(urgencySlot.textContent.trim(), 'Only 3 left - Rent soon!');
   await React.act(async () => root.render(React.createElement(context.Option2Mobile, { heading: 'Choose', urgency: '' })));
   const buttons = () => [...document.querySelectorAll('.ts-o2m-toggle')];
   const panels = () => [...document.querySelectorAll('.ts-mobile-panel')];
