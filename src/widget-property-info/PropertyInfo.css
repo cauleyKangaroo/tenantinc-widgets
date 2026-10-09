@@ -1190,7 +1190,16 @@ span.pi-lb-img {
   position: absolute;
   inset: 0;
   z-index: 0;
+  /* Tint only. When the hero is the property's video, the play button (or
+     the player) sits beneath this; the tap has to reach it. The text above
+     keeps its own z-index: 1 and still takes its own taps. */
+  pointer-events: none;
 }
+/* The hero as a VIDEO: same box as the photo (inset: 0 from .pi-m-hero-img),
+   whether it is the poster button waiting for a tap or the player itself.
+   `object-fit` from the photo rule is harmless on either. */
+iframe.pi-m-hero-img { border: 0; z-index: 0; }
+.pi-video-poster.pi-m-hero-img { z-index: 0; }
 
 .pi-m-hero-top {
   position: relative;

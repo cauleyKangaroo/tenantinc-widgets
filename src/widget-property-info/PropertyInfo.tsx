@@ -1115,7 +1115,11 @@ export function PropertyInfo(props: Props) {
                       /* Muted autoplay HERE only. The lightbox keeps its
                          poster: a full-screen video starting on its own is
                          jarring, and nobody opens it by accident. */
-                      ? <VideoSlide className="pi-gallery-img" src={src} active={i === index} title={displayName} autoPlay />
+                      ? <VideoSlide className="pi-gallery-img" src={src} active={i === index} title={displayName}
+                          /* Not on a phone: this gallery is display:none there and
+                             the mobile hero plays the video instead. Autoplaying
+                             here too would mount a second, invisible player. */
+                          autoPlay={!isMobileViewport} />
                       : <ImageFill className="pi-gallery-img" src={src} />}
                   </span>
                 ))}
@@ -1189,7 +1193,26 @@ export function PropertyInfo(props: Props) {
   const mobile = (
     <div className="pi-mobile">
       <div className="pi-m-hero">
-        <ImageFill className="pi-m-hero-img" src={heroSlide} />
+        {/* THE VIDEO LEADS HERE TOO. Desktop's gallery autoplays the property's
+            video as its first slide; the phone has no gallery, only this hero,
+            so the video was never seen on a phone except by opening the
+            lightbox. With one in the collection it takes the hero's place —
+            muted autoplay inline, exactly as the desktop slide — behind the
+            same overlay and text. `interactive`, because unlike the gallery
+            slide this is not inside another button: where autoplay is refused
+            (iOS Low Power Mode) the poster is a real play button and a tap
+            starts it with sound. The overlay lets pointer events through for
+            that; see .pi-m-hero-overlay. No video ⇒ the first photo, as before.
+
+            ONLY WHILE THIS LAYOUT IS THE ONE SHOWING. Both layouts are in the
+            DOM and the stylesheet hides one, so without the viewport test a
+            desktop visitor would load a second, invisible player under the
+            hidden mobile hero. The desktop gallery makes the same promise in
+            the other direction (its slide autoplays only off a phone). Same
+            query as the CSS switch, so the two cannot disagree. */}
+        {isMobileViewport && collectionVideos[0]
+          ? <VideoSlide className="pi-m-hero-img" src={collectionVideos[0]} active autoPlay interactive title={displayName} />
+          : <ImageFill className="pi-m-hero-img" src={heroSlide} />}
         <span className="pi-m-hero-overlay" style={{ background: `rgba(16, 19, 24, ${overlay})` }} />
         <div className="pi-m-hero-top">
           {/* Figma 9693:40309 — inside the hero, so white on the image: a home
