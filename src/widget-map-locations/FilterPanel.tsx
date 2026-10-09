@@ -5,10 +5,9 @@
 // scroll locked while open. Selections are real local state so the panel
 // demonstrates properly, but nothing is filtered yet: #08 is still static.
 
-import { CloseCircleIcon } from '@shared/ui';
-import { FilterIcon, ChevronDownIcon } from './icons';
-import { Checkbox } from '@shared/ui';
-import React, { useEffect, useRef } from 'react';
+import { CloseCircleIcon, Checkbox, SelectField } from '@shared/ui';
+import { FilterIcon } from './icons';
+import React, { useEffect } from 'react';
 import {
   type FilterState, type FilterOptions,
   PRICE_OPTIONS, DISTANCE_OPTIONS, activeFilterCount,
@@ -77,21 +76,6 @@ function CheckList({
   );
 }
 
-/** Label-over-value select, the frame's ".Form 2.0" control. */
-function FieldSelect({
-  label, value, options, onChange,
-}: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
-  return (
-    <label className="ml-fp-field">
-      <span className="ml-fp-field-label">{label}</span>
-      <select className="ml-fp-field-select" value={value} onChange={(e) => onChange(e.target.value)}>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-      <ChevronDownIcon size={24} className="ml-fp-field-chevron" />
-    </label>
-  );
-}
-
 export function FilterPanel({
   filters, options, onChange, onClose, onReset, onApply, resultCount,
   sortOptions, sortBy, onSortChange, fullScreen = false,
@@ -134,7 +118,6 @@ export function FilterPanel({
   const set = <K extends keyof FilterState>(key: K, value: FilterState[K]) =>
     onChange({ ...filters, [key]: value });
 
-  const searchRef = useRef<HTMLInputElement>(null);
 
   const count = activeFilterCount(filters);
 
@@ -165,52 +148,23 @@ export function FilterPanel({
 
         {/* Body */}
         <div className="ml-fp-body">
-          {/* A plain search, matching #05's filter modal — the AI sparkle that
-              was here belongs to the map header's own search, not to a filter
-              field, and it promised something this box does not do.
-
-              It filters as you type, so the button is decoration rather than
-              the thing that submits: a magnifier that must be PRESSED makes a
-              live-filtering field feel broken until you find it. It still
-              focuses the input, so a reader who does press it is not ignored. */}
-          <div className="ml-search ml-search--sm">
-            <input
-              ref={searchRef}
-              className="ml-search-input"
-              type="search"
-              placeholder="Filter Spaces by... "
-              aria-label="Filter spaces by"
-              value={filters.search}
-              onChange={(e) => set('search', e.target.value)}
-            />
-            <button
-              type="button"
-              className="ml-search-btn"
-              aria-label="Search"
-              onClick={() => searchRef.current?.focus()}
-            >
-              <svg
-                width="24" height="24" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </button>
-          </div>
+          {/* No search box: the audit asked for it to go (it was meant to be
+              an AI filter, which does not exist). `filters.search` stays in
+              the state at '' so the filtering code needs no special case. */}
 
           {/* Mobile only — the button that opens this says "Filter & Sort". */}
           {sortOptions && onSortChange && (
             <section className="ml-fp-section">
               <p className="ml-fp-section-title">Sort by:</p>
-              <label className="ml-fp-select">
-                <span className="ml-sr-only">Sort by</span>
-                <select value={sortBy} onChange={(e) => onSortChange(e.target.value)}>
-                  {sortOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                </select>
-                <ChevronDownIcon size={24} className="ml-fp-select-chev" />
-              </label>
+              {/* @shared/ui's SelectField — the rental flow's dropdown, so
+                  every dropdown on the site is the same control. */}
+              <SelectField
+                label="Order"
+                value={sortBy ?? ''}
+                options={sortOptions.map((o) => ({ value: o.id, label: o.label }))}
+                onChange={onSortChange}
+                placeholder={false}
+              />
             </section>
           )}
 
@@ -234,15 +188,15 @@ export function FilterPanel({
           <section className="ml-fp-section">
             <p className="ml-fp-section-title">Price:</p>
             <div className="ml-fp-fields">
-              <FieldSelect label="Min Price" value={filters.minPrice} options={PRICE_OPTIONS} onChange={(v) => set('minPrice', v)} />
-              <FieldSelect label="Max Price" value={filters.maxPrice} options={PRICE_OPTIONS} onChange={(v) => set('maxPrice', v)} />
+              <SelectField label="Min Price" value={filters.minPrice} options={PRICE_OPTIONS} onChange={(v) => set('minPrice', v)} placeholder={false} />
+              <SelectField label="Max Price" value={filters.maxPrice} options={PRICE_OPTIONS} onChange={(v) => set('maxPrice', v)} placeholder={false} />
             </div>
           </section>
 
           <section className="ml-fp-section">
             <p className="ml-fp-section-title">Distance:</p>
             <div className="ml-fp-fields">
-              <FieldSelect label="Max Distance" value={filters.maxDistance} options={DISTANCE_OPTIONS} onChange={(v) => set('maxDistance', v)} />
+              <SelectField label="Max Distance" value={filters.maxDistance} options={DISTANCE_OPTIONS} onChange={(v) => set('maxDistance', v)} placeholder={false} />
             </div>
           </section>
 
