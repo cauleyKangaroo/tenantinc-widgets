@@ -26,6 +26,7 @@
 
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { FormField, CheckIcon, AlertIcon } from '@shared/ui';
+import { SelectField } from '@shared/ui/SelectField';
 import { Shimmer } from '@shared/Shimmer';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { CUSTOMER_ADDRESS_COUNTRIES } from '@shared/placesApi';
@@ -49,25 +50,6 @@ function CreditCardIcon({ size = 24, className }: { size?: number; className?: s
   );
 }
 
-/** chevron-big — rotated 90° by CSS for the select affordance. */
-function ChevronBig({ size = 24, className }: { size?: number; className?: string }) {
-  return (
-    <svg
-      className={className}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <g transform="translate(8 5)">
-        <path d="M1.58599 0.189675C1.26945 -0.0392302 0.84859 -0.0628562 0.508414 0.129182C0.168238 0.321219 -0.0289727 0.693759 0.00346815 1.08305C0.331619 5.02086 0.331619 8.97915 0.00346815 12.917C-0.0289726 13.3062 0.168238 13.6788 0.508414 13.8708C0.84859 14.0629 1.26945 14.0392 1.58599 13.8103C3.837 12.1825 5.8566 10.2764 7.59304 8.14103C8.13567 7.47372 8.13567 6.52629 7.59304 5.85898C5.8566 3.72356 3.837 1.81746 1.58599 0.189675Z" />
-      </g>
-    </svg>
-  );
-}
 
 /** Money as the design writes it: "Pay Now $120.00". */
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -188,46 +170,6 @@ function expiryError(v: string): string | undefined {
 }
 const validExpiry = (v: string) => digits(v).length === EXPIRY_DIGITS && !expiryError(v);
 
-function SelectField({
-  label, value, onChange, options, required, state,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-  required?: boolean;
-  state?: 'default' | 'success';
-}) {
-  return (
-    <div className="rf-select">
-      <label className="rf-select-native">
-        <span className="rf-sr-only">{label}</span>
-        <select value={value} onChange={(e) => onChange(e.target.value)} required={required}>
-          <option value="">{`Select ${label}`}</option>
-          {options.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
-      </label>
-      {/* Presentational twin: shows the floating label + value in the exact form
-          styling, while the real <select> above sits transparently over it so the
-          native picker (and mobile wheel) still does the work. */}
-      <div className="rf-select-face" aria-hidden="true">
-        {/* state is NOT forwarded: the kit draws a check tick for 'success',
-            which would land on top of the chevron below — that pair is what
-            read as "two chevrons" on Billing Country. The valid look here is
-            the green border alone, exactly as the frame has it (its Icons slot
-            is empty). */}
-        <FormField
-          label={label}
-          required={required}
-          value={value}
-          onChange={() => {}}
-          className={state === 'success' ? 'rf-valid' : undefined}
-        />
-        <ChevronBig size={24} className="rf-select-chev" />
-      </div>
-    </div>
-  );
-}
 
 /**
  * Skeleton stood in for a payment form while it "loads" — Figma 8507-24610.

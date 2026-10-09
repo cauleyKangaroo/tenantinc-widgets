@@ -24,6 +24,9 @@ export type { ButtonProps, ButtonTone, ButtonFill, ButtonShape } from './Button'
 export { Checkbox } from './Checkbox';
 export type { CheckboxProps } from './Checkbox';
 
+export { SelectField } from './SelectField';
+export type { SelectFieldProps, SelectOption } from './SelectField';
+
 export { DateModal } from './DateModal';
 export type { DateModalProps } from './DateModal';
 

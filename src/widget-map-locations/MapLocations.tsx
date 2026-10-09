@@ -34,7 +34,7 @@ import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { stateNameFromCode, stateCodeFromName } from '@shared/usStates';
 import { slugLabel } from '@shared/propertyNav';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
-import { fetchGoogleRatingsByPlace, ratingForProperty, type RatingSummary } from '@shared/reviewsCollections';
+import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { Shimmer } from '@shared/Shimmer';
 import cfg from './config.json';
@@ -203,6 +203,17 @@ function PropertyCard({
        re-orders on sort, and threading refs back up for that is more moving
        parts than one lookup. */
     <article className={cls} data-facility-id={facility.id} onMouseEnter={onActivate} onClick={onSelect}>
+      {/* THE WHOLE CARD goes to the facility's page. A real link stretched
+          under the content, not a click handler: Duda's router handles an <a>
+          in preview and published alike, and middle-click / open-in-new-tab
+          keep working. The content above it lets clicks through to it
+          (pointer-events: none) except its own links and buttons — address,
+          phone, reviews, Select, See All Spaces — which still do their own
+          thing. See .ml-card-link in MapLocations.css. Absent with no slug,
+          when there is no page to go to. */}
+      {propertyHref && (
+        <a className="ml-card-link" href={propertyHref} aria-label={`View ${facility.name}`} tabIndex={-1} />
+      )}
       {/* Photo header — image, dark scrim, distance, and the property details */}
       <div className="ml-card-head">
         <img className="ml-card-photo" src={PROPERTY_IMAGES[index % PROPERTY_IMAGES.length]} alt="" />
@@ -238,15 +249,19 @@ function PropertyCard({
             <div className="ml-rating">
               <span className="ml-rating-score">{facility.rating}</span>
               <Stars rating={facility.rating} />
-              {rating?.reviewsUrl ? (
-                <a className="ml-reviews" href={rating.reviewsUrl} target="_blank" rel="noreferrer">
-                  {facility.reviewCount} Reviews
-                </a>
-              ) : (
-                // No destination in the collection — a bare <a href="#"> would
-                // scroll the host page to the top when clicked.
-                <span className="ml-reviews">{facility.reviewCount} Reviews</span>
-              )}
+              {/* Always a link to THIS facility's Google reviews: the
+                  collection row's own URL when it carries one, else a Maps
+                  search for the facility by name and address, which opens its
+                  listing (reviews included). It used to be a dead span whenever
+                  the row had no URL — "Reviews does not work" in the audit. */}
+              <a
+                className="ml-reviews"
+                href={rating?.reviewsUrl || googleListingHref(facility)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {facility.reviewCount} Reviews
+              </a>
             </div>
           )}
 
@@ -322,6 +337,11 @@ function PropertyCard({
       </div>
     </article>
   );
+}
+
+/** A facility's own Google Maps listing — where its reviews are — by name and address. */
+function googleListingHref(f: { name: string; address: string }): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([f.name, f.address].filter(Boolean).join(', '))}`;
 }
 
 // ── Loading placeholders ────────────────────────────────────────────────────
@@ -865,7 +885,10 @@ export function MapLocations({
   // facility nobody has reviewed would mislead a customer.
   const isPreview = !hasCollectionsApi();
   const rated = useMemo(() => filtered.map((f, i) => {
-    const r = ratingForProperty(f.name, ratings);
+    // Matched per facility only. The site-wide fallback put ONE business's
+    // score and review count on every card it could not match by name — the
+    // audit found two facilities both reading "4.8 · 519 Reviews".
+    const r = matchedRatingForProperty(f.name, ratings);
     if (r) return { ...f, rating: r.score, reviewCount: r.count };
     if (isPreview && !(f.rating > 0)) {
       const demo = CITY_FACILITIES[i % CITY_FACILITIES.length];
@@ -1276,7 +1299,7 @@ export function MapLocations({
                 active={f.id === activeId}
                 compact={isMobile}
                 filters={filters}
-                rating={ratingForProperty(f.name, ratings)}
+                rating={matchedRatingForProperty(f.name, ratings)}
                 rentalPageUrl={rentalPageUrl}
                 companyId={resolvedCompanyId ?? undefined}
                 propertyBasePath={normalisedPropertyBase}
