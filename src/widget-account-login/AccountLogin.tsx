@@ -403,6 +403,7 @@ export function AccountLogin({
   const [resent, setResent] = useState(false);
 
   const otpHeadingRef = useRef<HTMLHeadingElement>(null);
+  const chooseHeadingRef = useRef<HTMLParagraphElement>(null);
 
   // ── Property list (3rd-party flow) ────────────────────────────────────────
 
@@ -492,7 +493,8 @@ export function AccountLogin({
   // whole contents, and without this a keyboard or screen-reader user is left
   // on a button that no longer exists.
   useEffect(() => {
-    if (step === 'verify' || step === 'choose') otpHeadingRef.current?.focus();
+    if (step === 'verify') otpHeadingRef.current?.focus();
+    if (step === 'choose') chooseHeadingRef.current?.focus();
   }, [step]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -748,9 +750,11 @@ export function AccountLogin({
       <div className="al-wrapper">
         <div className="al-card al-card--choose">
           <div className="al-head al-head--choose">
-            <h1 className="al-title al-title--choose" tabIndex={-1} ref={otpHeadingRef}>
+            {/* A <p>, not an <h1>: the Duda site's own h1 styles beat .al-title
+                here. role/aria-level keep it the page heading for screen readers. */}
+            <p className="al-title al-title--choose" role="heading" aria-level={1} tabIndex={-1} ref={chooseHeadingRef}>
               Which account would you like to open?
-            </h1>
+            </p>
             <p className="al-sub al-sub--choose">
               More than one rental is linked to{' '}
               {email
