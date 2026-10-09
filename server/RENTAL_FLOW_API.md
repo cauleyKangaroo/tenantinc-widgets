@@ -271,7 +271,8 @@ the originating application, `"Mariposa Website Application"` per their sample.
 | `Business` | their payload shows `"Business": {}` — an empty object with no documented fields, so the business name and address the form collects have nowhere to go |
 | `driver_license`, `_exp`, `_state`, `ssn` | the form does not ask for them yet — this is the ID-verification data, see below |
 | `Relationships` `authorized` / `lien_holder` | the form offers one alternate contact only |
-| `vehicle_info` details | we capture the type; make, model, year, VIN, plate, insurance and registered owner are not asked for |
+| `vehicle_info` details | the type is required and sent as `description` + `vehicle.type` (TenantInc's sample). Make, model, year, colour, plate and plate state/country are optional on the form and, when filled, ride inside `vehicle` under snake_case keys (`make`, `model`, `year`, `color`, `license_plate`, `license_state`, `license_country`) — the guide names these details without spelling their keys, so those names are ours. VIN, insurance and registered owner are not asked for |
+| alternate contact's address | `address` from the typed line; `city`/`state`/`zip` only when a suggestion was picked from the address lookup (the lease sample files all four). The alternate must not be the tenant: the form rejects an alternate whose email or phone matches the primary contact's |
 | `Military` detail | branch, rank, unit, service dates, commanding officer are not asked for |
 | ACH `payment_method` | the bank form is not wired to the API |
 

@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import type { SpaceType, UnitSize } from '../types';
 import type { FilterState } from '../filters';
 import { TYPE_OPTIONS, SIZE_OPTIONS } from '../data';
-import { SearchIcon } from './TopFilterBar';
 import { Checkbox, CloseCircleIcon } from '@shared/ui';
 
 interface FilterModalProps {
@@ -16,8 +15,6 @@ interface FilterModalProps {
   typeOptions?: { value: SpaceType; label: string }[];
   featureOptions: string[];
   promotionOptions: string[];
-  searchTerm: string;
-  onSearchChange: (term: string) => void;
 }
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -46,8 +43,6 @@ export function FilterModal({
   typeOptions = TYPE_OPTIONS,
   featureOptions,
   promotionOptions,
-  searchTerm,
-  onSearchChange,
 }: FilterModalProps) {
   // Close on Escape; lock host-page scroll while the lightbox is open.
   useEffect(() => {
@@ -96,21 +91,16 @@ export function FilterModal({
 
         {/* Body */}
         <div className="sl-modal-body">
-          {/* Search */}
-          <div className="sl-modal-search">
-            <input
-              className="sl-modal-search-input"
-              type="text"
-              placeholder="Search Spaces"
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
-            <button className="sl-modal-search-btn" aria-label="Search">
-              <SearchIcon />
-            </button>
-          </div>
+          {/* No search box: it was meant to become an AI filter, which does
+              not exist yet, so it is out until it does. The top bar keeps its
+              own search.
+
+              Every section below renders only when it has something to pick —
+              a heading over an empty box read as broken. Size is a fixed list,
+              so it is the one that never comes up empty. */}
 
           {/* Type — multi select; empty = all types shown */}
+          {typeOptions.length > 0 && (
           <div className="sl-filter-section">
             <div className="sl-filter-label">Type:</div>
             <div className="sl-pills">
@@ -139,6 +129,7 @@ export function FilterModal({
               })}
             </div>
           </div>
+          )}
 
           {/* Size — only relevant when storage could be showing */}
           {showSize && (
@@ -165,6 +156,7 @@ export function FilterModal({
           )}
 
           {/* Space Features — multi select */}
+          {featureOptions.length > 0 && (
           <div className="sl-filter-section">
             <div className="sl-filter-label">Space Features:</div>
             <div className="sl-pills sl-pills-wrap">
@@ -183,8 +175,10 @@ export function FilterModal({
               })}
             </div>
           </div>
+          )}
 
           {/* Amenities — multi select, AND */}
+          {amenityOptions.length > 0 && (
           <div className="sl-filter-section">
             <div className="sl-filter-label">Amenities</div>
             {/* @shared/ui's Checkbox — the kit control, as #08's filter panel
@@ -207,8 +201,10 @@ export function FilterModal({
               ))}
             </div>
           </div>
+          )}
 
           {/* Promotions — multi select, OR */}
+          {promotionOptions.length > 0 && (
           <div className="sl-filter-section">
             <div className="sl-filter-label">Promotions</div>
             <div className="sl-checkboxes">
@@ -226,6 +222,7 @@ export function FilterModal({
               ))}
             </div>
           </div>
+          )}
         </div>
 
         {/* Sticky footer (Figma 10557-146399). A flex sibling of the body, which

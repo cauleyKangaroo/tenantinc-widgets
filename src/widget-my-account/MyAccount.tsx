@@ -38,7 +38,7 @@
 // a prefix.
 // ===========================================================================
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './MyAccount.css';
 import { Button } from '@shared/ui';
 import { AccountInfoPanel } from './AccountInfoPanel';
@@ -46,6 +46,17 @@ import { EditPanel } from './EditPanel';
 import { MakePaymentPanel } from './MakePaymentPanel';
 import { PaymentActivity } from './PaymentActivity';
 import { PropertyCard } from './PropertyCard';
+import { readSession, clearSession } from '@shared/accountSession';
+import {
+  fetchMe, fetchContact, updateContact, fetchDocumentFile, saveBlob, loginApiReady,
+  type LoginApiConfig, type AccountRecord,
+} from '@shared/accountApi';
+import {
+  editFormFrom, updateFromEditForm,
+  primaryContactFrom, alternateContactFrom, documentsFrom,
+} from './contactMapping';
+import { spacesFrom, propertiesFrom } from './leaseMapping';
+import type { AccountDocument, EditForm } from './data';
 import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROMO_SUPPLIES, PROPERTIES, SPACES, USER } from './data';
 
 /** The three panels that share the middle slot. */
@@ -60,15 +71,10 @@ export interface MyAccountProps {
   /** Shown opposite the greeting: "You're logged in as {email}". */
   userEmail?: string;
   /**
-   * Where "Log out" goes — the site's sign-out or login page, as a
-   * content-panel URL.
+   * Where "Log out" goes. Defaults to the login page.
    *
-   * There is no session to end here: this widget is entirely static and has no
-   * account API (see data.ts), so logging out can only mean "send them
-   * somewhere that does". Unset, the button still renders but does nothing,
-   * which is the same shape as the promo card's CTA above it — the frame draws
-   * a control, so a control is drawn, and it becomes live the moment an editor
-   * supplies the URL.
+   * There IS a session to end now: the button clears it before navigating, so
+   * the next visit cannot walk back in on a token still sitting in storage.
    */
   logOutUrl?: string;
   /** Content-panel overrides for the promo card. Blank falls back. */
@@ -83,6 +89,21 @@ export interface MyAccountProps {
    * account view. 'edit' is reachable from the panel, not normally a landing.
    */
   initialView?: View;
+  /**
+   * My Account proxy base, from the Duda JS tab's `login_api_base` site text —
+   * the SAME value #17 is given.
+   */
+  login_api_base?: string;
+  /** Duda's `data.siteId` — the proxy identifies the caller by it. */
+  siteId?: string;
+  /**
+   * Duda's `data.inEditor`. The page is INERT in the editor: no request, no
+   * redirect, and the sample content renders so the layout can be worked on
+   * without a session.
+   */
+  inEditor?: boolean;
+  /** Where a signed-out visitor is sent. */
+  loginUrl?: string;
 }
 
 /** A Duda text field arrives as '' until the editor types, which a default
@@ -99,37 +120,349 @@ export function MyAccount({
   promoCta,
   promoUrl,
   initialView = 'account',
+  login_api_base = '',
+  siteId = '',
+  inEditor = false,
+  loginUrl = '/login',
 }: MyAccountProps) {
   const [view, setView] = useState<View>(initialView);
-  const [selectedId, setSelectedId] = useState(SPACES[0]?.id);
-  const [activityOpen, setActivityOpen] = useState(false);
 
-  const space = SPACES.find((s) => s.id === selectedId) ?? SPACES[0];
-  /* Make a Payment lists EVERY space with something outstanding, not just the
-     one whose Pay Now was clicked — see the panel's header note. A space with a
-     zero balance has nothing to pay and would only be an unticked distraction. */
-  const outstanding = SPACES.filter((s) => s.balance.amount.replace(/[^0-9.]/g, '') !== ''
-    && Number(s.balance.amount.replace(/[^0-9.-]/g, '')) > 0);
+  const api: LoginApiConfig = useMemo(
+    () => ({ baseUrl: login_api_base.trim(), siteId: siteId.trim() }),
+    [login_api_base, siteId],
+  );
+  /*
+   * Whether this page is really gated.
+   *
+   * Not in the Duda editor: there is no session there, so gating would bounce
+   * an editor to /login the moment they opened the page they are building.
+   * Unconfigured is the same — the harness and any site without the site text
+   * keep rendering the sample content, exactly as before.
+   */
+  const gated = loginApiReady(api) && !inEditor;
+
+  const [session, setSession] = useState(() => (gated ? readSession() : null));
+  /*
+   * null = still deciding. Nothing of the account renders until the token has
+   * been checked, so a signed-out visitor never sees a flash of someone's
+   * account before the redirect.
+   */
+  const [authed, setAuthed] = useState<boolean | null>(gated ? null : true);
+
+  const signOut = () => {
+    clearSession();
+    // The editor never navigates — same rule as #17.
+    if (inEditor) return;
+    // `logOutUrl` is the existing content field and still wins; `loginUrl` is
+    // where a signed-out visitor goes by default, so they agree unless an
+    // editor deliberately points logout somewhere else.
+    window.location.href = (logOutUrl || '').trim() || loginUrl;
+  };
+
+  useEffect(() => {
+    if (!gated) return undefined;
+
+    // No token at all — nothing to check, and nothing to show.
+    const live = readSession();
+    if (!live) {
+      window.location.href = loginUrl;
+      return undefined;
+    }
+
+    let cancelled = false;
+    /*
+     * `me` is the cheap check — the proxy answers from the token itself with no
+     * call upstream. Worth doing even though readSession() already rejected an
+     * expired stamp: the SERVER is the authority. A token can be revoked, or
+     * the clock can be wrong, and the local expiry would happily pass both.
+     */
+    void fetchMe(api, live.token).then((r) => {
+      if (cancelled) return;
+      if (r.ok) {
+        setSession(live);
+        setAuthed(true);
+        return;
+      }
+      if (r.unauthorized) {
+        // Dead token. Clear it, or the next visit retries the same bad one.
+        clearSession();
+        window.location.href = loginUrl;
+        return;
+      }
+      /*
+       * A network failure is NOT a sign-out. Bouncing to /login here would
+       * throw away a perfectly good session because the wifi blinked, and the
+       * reader would sign in again for no reason.
+       */
+      console.warn('[#19 my-account] token check failed:', r.detail ?? r.message);
+      setSession(live);
+      setAuthed(true);
+    });
+
+    return () => { cancelled = true; };
+  }, [gated, api, loginUrl]);
+
+  /*
+   * The full contact record — what the Edit panel edits.
+   *
+   * Separate from the /me gate on purpose: /me is the cheap token check and
+   * answers from the token alone, while this calls TenantInc. Gating on the
+   * cheap one means a slow upstream delays the form, not the whole page.
+   */
+  const [record, setRecord] = useState<AccountRecord | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  useEffect(() => {
+    if (!gated || authed !== true || !session) return undefined;
+    let cancelled = false;
+    void fetchContact(api, session.token).then((r) => {
+      if (cancelled) return;
+      if (r.ok) { setRecord(r.data); return; }
+      if (r.unauthorized) {
+        clearSession();
+        window.location.href = loginUrl;
+        return;
+      }
+      // The page still works without it — only the Edit panel loses its real
+      // starting values, so this is a warning rather than a failure state.
+      console.warn('[#19 my-account] contact load failed:', r.detail ?? r.message);
+    });
+    return () => { cancelled = true; };
+  }, [gated, authed, session, api, loginUrl]);
+
+  /*
+   * Memoised per record so EditPanel's re-seed effect fires when the record
+   * lands and NOT on every render of this component, which would reset a
+   * half-finished edit under the reader.
+   */
+  const editInitial = useMemo(
+    () => (record ? editFormFrom(record) : undefined),
+    [record],
+  );
+
+  /*
+   * The display panel's real content. Undefined until the record lands, which
+   * is what keeps the frame's sample on screen in the harness and the editor.
+   *
+   * `alternate` is null — not undefined — when the account has none, so the
+   * panel hides that block instead of falling back to the sample contact.
+   */
+  const realContact = useMemo(
+    () => (record ? primaryContactFrom(record) : undefined),
+    [record],
+  );
+  const realAlternate = useMemo(
+    () => (record ? alternateContactFrom(record) : undefined),
+    [record],
+  );
+  /*
+   * THE SIGNED-IN CONTACT'S OWN UNITS.
+   *
+   * This page rendered `SPACES` from data.ts whatever account was open, so the
+   * login picker changed who the page said you were and not a single unit,
+   * balance or rent. Verified live: the three contacts behind one email hold 1,
+   * 3 and 1 leases, and all three showed the same two invented units.
+   *
+   * The sample survives only where there is no record — the harness and the
+   * Duda editor — so the layout can still be worked on without a session.
+   */
+  const spaces = useMemo(() => {
+    if (!record) return SPACES;
+    // SPACES[0] carries the frame's own contact; reuse it rather than export a
+    // second copy of the same sample from data.ts.
+    const fallback = SPACES[0]?.primaryContact ?? { name: '' };
+    const mapped = spacesFrom(record, realContact ?? fallback, realAlternate ?? null);
+    /*
+     * A contact with no leases gets an EMPTY list, not the sample. Someone who
+     * has closed their last unit must not be shown a stranger's storage.
+     */
+    return mapped;
+  }, [record, realContact, realAlternate]);
+
+  const properties = useMemo(
+    () => (record ? propertiesFrom(record) : PROPERTIES),
+    [record],
+  );
+
+  const realDocuments = useMemo(
+    () => {
+      if (!record) return undefined;
+      const docs = documentsFrom(record);
+      // No documents at all → keep the frame's list rather than an empty panel.
+      return docs.length ? docs : undefined;
+    },
+    [record],
+  );
+
+  /*
+   * Download a lease document.
+   *
+   * Fetched rather than linked: the endpoint authenticates on a header, which a
+   * browser does not send when following an href. The file comes back as a blob
+   * and is handed to the browser as a save.
+   *
+   * The ids come from the CURRENT record on every click, never cached — a
+   * document's id changes when it is re-signed and re-uploaded (seen live: the
+   * Superlease id changed overnight), so a stale one 404s.
+   */
+  const [busyDocument, setBusyDocument] = useState('');
+
+  const openDocument = async (doc: AccountDocument) => {
+    if (!session || !doc.leaseId || !doc.documentId || busyDocument) return;
+    setBusyDocument(doc.label);
+    try {
+      const r = await fetchDocumentFile(
+        api, session.token, doc.leaseId, doc.documentId, doc.filename || doc.label,
+      );
+      if (r.ok) { saveBlob(r.data); return; }
+      if (r.unauthorized) {
+        clearSession();
+        window.location.href = loginUrl;
+        return;
+      }
+      console.warn('[#19 my-account] document fetch failed:', r.detail ?? r.message);
+      setSaveError(r.message);
+    } finally {
+      setBusyDocument('');
+    }
+  };
+
+  const saveContact = async (form: EditForm): Promise<boolean> => {
+    if (!session || !record) {
+      // Nothing loaded: there are no ids to match on, so a PATCH would ADD
+      // rows rather than edit them. Better to do nothing than to duplicate.
+      setSaveError('Your account is still loading. Please try again in a moment.');
+      return false;
+    }
+    setSaving(true);
+    setSaveError('');
+    try {
+      const r = await updateContact(api, session.token, updateFromEditForm(form, record));
+      if (r.ok) {
+        // Re-read rather than trusting the echo: the server may normalise what
+        // it stored, and the next edit must carry ITS ids, not ours.
+        const fresh = await fetchContact(api, session.token);
+        if (fresh.ok) setRecord(fresh.data);
+        return true;
+      }
+      if (r.unauthorized) {
+        clearSession();
+        window.location.href = loginUrl;
+        return false;
+      }
+      setSaveError(r.message);
+      console.warn('[#19 my-account] contact update failed:', r.detail ?? r.message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+
+  /*
+   * Keep the selection on a unit that exists. It starts undefined and settles
+   * on the first real one; switching account replaces the whole list, and a
+   * stale id would leave the panel on a unit the new contact does not rent.
+   *
+   * DECLARED AFTER `selectedId`, which it reads. It sat above it at first and
+   * threw "Cannot access 'selectedId' before initialization" from inside the
+   * find callback — a temporal dead zone, on every render, so the widget never
+   * mounted at all.
+   */
+  const space = spaces.find((s) => s.id === selectedId) ?? spaces[0];
+  const [activityOpen, setActivityOpen] = useState(false);
+  /* Make a Payment lists every space AT THE SAME PROPERTY as the unit whose
+     Pay Now was clicked — all of them, each with its own tick, so the tenant
+     can pay the lot at once or just one. It used to list only spaces with an
+     outstanding balance across every property, which on a paid-up account
+     (every live lease is paid through month-end) collapsed to the one unit
+     clicked and left no way to pick the others. The panel pre-ticks the
+     clicked unit and any neighbour that owes something. */
+  const atProperty = space
+    ? spaces.filter((s) => s.propertyId === space.propertyId)
+    : [];
 
   /* The ONE selection action, shared by a unit block and its "Account Info"
      button — which is what links them. Picking a unit always shows ITS account
      info, never the payment screen of whichever unit happened to be open, so
      from the payment screen this doubles as the way back. */
+  /*
+   * Scroll the account panel into view when the pick moves to ANOTHER
+   * PROPERTY. The sidebar cards stack below the panel on a phone and beside
+   * it on desktop, so a tenant who taps a unit under the second property is
+   * looking at the bottom of the page while the contacts it just switched to
+   * sit at the top. A counter rather than a boolean, so two moves in a row
+   * both scroll; it is consumed by the effect below, after the account panel
+   * has rendered for the new unit — scrolling from the click itself would
+   * target the panel of the previous view.
+   */
+  const [scrollRequest, setScrollRequest] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
   const selectUnit = (id: string) => {
+    const next = spaces.find((s) => s.id === id);
+    const movedProperty = !!next && !!space && next.propertyId !== space.propertyId;
     setSelectedId(id);
     // Never lands on the payment or edit screen of whichever unit happened to
     // be open, so from either of those this doubles as the way back.
     setView('account');
+    if (movedProperty) setScrollRequest((n) => n + 1);
   };
+  useEffect(() => {
+    if (!scrollRequest) return;
+    const el = rootRef.current?.querySelector('.ma-account');
+    if (!el) return;
+    /*
+     * window.scrollTo, not scrollIntoView. The two should be the same, but in
+     * a phone viewport scrollIntoView({behavior:'smooth'}) was observed doing
+     * nothing at all (Chromium, iPhone 14 profile) while scrollTo moved —
+     * and the page scrolled fine on desktop either way, so the difference
+     * would only ever have shown up on the device.
+     *
+     * The site's nav bar is position: fixed, so landing the panel flush with
+     * the top would put its heading under the nav. Whatever fixed or sticky
+     * element sits at the top of the viewport is measured and the panel is
+     * placed just beneath it; a page with none gets a 16px breath.
+     */
+    const cover = (() => {
+      let p: Element | null = document.elementFromPoint(window.innerWidth / 2, 2);
+      while (p && p !== document.body) {
+        const pos = getComputedStyle(p).position;
+        if (pos === 'fixed' || pos === 'sticky') return p.getBoundingClientRect().bottom;
+        p = p.parentElement;
+      }
+      return 0;
+    })();
+    const top = el.getBoundingClientRect().top + window.scrollY - cover - 16;
+    // Slowly, as asked — unless the reader has turned animation off, in which
+    // case the jump is what they asked for.
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: Math.max(0, top), behavior: reduced ? 'auto' : 'smooth' });
+  }, [scrollRequest]);
 
   /* The button is on every block when there is more than one unit, because it
      is how you switch between them; on a lone unit it appears only on the
      payment screen, as the way back. That is exactly what the three frames
      draw — 8815-117093 has two buttons, 8815-115354 none, 9030-31458 one. */
-  const showAccountInfo = SPACES.length > 1 || view !== 'account';
+  const showAccountInfo = spaces.length > 1 || view !== 'account';
 
-  const name = orElse(userName, USER.firstName);
-  const email = orElse(userEmail, USER.email);
+  /*
+   * The signed-in contact's own first name, when there is a session.
+   *
+   * Precedence: an explicit prop (an editor overriding it) → the session →
+   * the frames' sample. The session carries one `name` ("Jaweed Khan"), and the
+   * greeting is "Hi {first},", so only the first word is taken.
+   */
+  const sessionFirst = session?.name?.trim().split(/\s+/)[0] ?? '';
+  const name = orElse(userName, sessionFirst || USER.firstName);
+  /*
+   * Who they are signed in as — the identifier from the session.
+   *
+   * Same precedence as the name: explicit prop -> session -> the frames'
+   * sample. Without the session value this line showed the demo address to a
+   * real signed-in reader.
+   */
+  const email = orElse(userEmail, session?.signedInAs || USER.email);
 
   /* The promo swaps with the view — autopay on the default screen, supplies on
      the payment screen, as the two frames draw them. An editor override wins
@@ -137,18 +470,45 @@ export function MyAccount({
   const promo = view === 'payment' ? PROMO_SUPPLIES : PROMO_AUTOPAY;
   const promoLabel = orElse(promoCta, promo.cta);
 
+  /*
+   * Nothing of the account is SHOWN while the token is being checked.
+   *
+   * But the layout IS rendered: the same tree, with `ma-wrapper--busy` turning
+   * every block into a plain grey box and hiding everything inside it (see the
+   * CSS). This used to be an empty wrapper, ~96px, that grew by a thousand-odd
+   * pixels when the check answered — the whole page under it jumping. Drawing
+   * the boxes from the real markup, rather than a hand-sized skeleton, keeps
+   * them exactly the loaded size at every width, and the tree is not remounted
+   * when the check passes, only uncovered. `inert` keeps the hidden controls
+   * out of the tab order and the accessibility tree.
+   *
+   * Painting the account first would flash the sample content — someone else's
+   * name and balances — at a visitor who is about to be redirected to /login.
+   */
+  const busy = authed === null;
+
   return (
-    <div className="ma-wrapper">
-      <div className="ma-grid">
+    <div ref={rootRef} className={`ma-wrapper${busy ? ' ma-wrapper--busy' : ''}`} aria-busy={busy || undefined}>
+      {busy && <span className="ma-sr-only" role="status">Loading your account…</span>}
+      {/* React 18 has no boolean `inert`; an empty string is the attribute. */}
+      <div className="ma-grid" {...(busy ? { inert: '' } : {})}>
         <h1 className="ma-greeting">Hi {name},</h1>
         {/* The line and its Log out control are one flex row, so the button
             sits with the sentence it belongs to and wraps under it rather than
             being squeezed when the email is long. */}
         <div className="ma-logged-in">
           <span className="ma-logged-in__text">You’re logged in as {email}</span>
-          {logOutUrl
-            ? <Button tone="dark" fill="outline" href={logOutUrl} className="ma-btn-40">Log out</Button>
-            : <Button tone="dark" fill="outline" className="ma-btn-40">Log out</Button>}
+          {/* Clears the stored session BEFORE navigating. An href alone would
+              leave the token in storage and the next visit would walk straight
+              back in. */}
+          <Button
+            tone="dark"
+            fill="outline"
+            className="ma-btn-40"
+            onClick={signOut}
+          >
+            Log out
+          </Button>
         </div>
 
         <div className="ma-main">
@@ -167,11 +527,16 @@ export function MyAccount({
               space={space}
               onPayNow={() => setView('payment')}
               onEdit={() => setView('edit')}
+              contact={realContact}
+              alternate={realAlternate}
+              documents={realDocuments}
+              onOpenDocument={gated ? openDocument : undefined}
+              busyDocument={busyDocument}
             />
           )}
           {view === 'payment' && (
             <MakePaymentPanel
-              spaces={outstanding.length ? outstanding : [space]}
+              spaces={atProperty.length ? atProperty : space ? [space] : []}
               space={space}
               onBack={() => setView('account')}
             />
@@ -182,7 +547,19 @@ export function MyAccount({
               onCancel={() => setView('account')}
               // Nothing to persist while the account API is absent — Save
               // returns to the display panel rather than pretending to write.
-              onSave={() => setView('account')}
+              initial={editInitial}
+              saving={saving}
+              saveError={saveError}
+              /* Returns to the display panel only on a SUCCESSFUL save — a
+                 failure keeps the form open with the error and the reader's
+                 edits intact. Unconfigured (harness/editor) there is nothing
+                 to save, so it closes as it always did. */
+              onSave={async (form) => {
+                if (!gated) { setView('account'); return true; }
+                const ok = await saveContact(form);
+                if (ok) setView('account');
+                return ok;
+              }}
             />
           )}
 
@@ -201,15 +578,15 @@ export function MyAccount({
         <aside className="ma-side">
           {/* One card per property, holding every unit rented there. Properties
               with no units are skipped rather than drawn empty. */}
-          {PROPERTIES.map((property) => {
-            const units = SPACES.filter((s) => s.propertyId === property.id);
+          {properties.map((property) => {
+            const units = spaces.filter((s) => s.propertyId === property.id);
             if (units.length === 0) return null;
             return (
               <PropertyCard
                 key={property.id}
                 property={property}
                 units={units}
-                selectedId={selectedId}
+                selectedId={space?.id ?? ''}
                 onSelect={selectUnit}
                 showAccountInfo={showAccountInfo}
               />

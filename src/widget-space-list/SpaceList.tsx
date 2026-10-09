@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
@@ -7,7 +7,7 @@ import cfg from './config.json';
 import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
 import { boundText, resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { PropertyIdProvider } from './propertyContext';
+import { PropertyIdProvider, PropertyExtrasProvider } from './propertyContext';
 import { CompanyIdProvider } from './companyContext';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
@@ -17,6 +17,7 @@ import {
   activeFilterCount,
   isUnavailable,
   typeOptionsFrom,
+  unitPromotions,
 } from './filters';
 import { readFiltersFromUrl, writeFiltersToUrl } from './urlFilters';
 import {
@@ -32,7 +33,6 @@ import {
 } from './featureHighlights';
 import { FEATURE_PAGE_COLLECTION, fetchFeaturePageCopy } from './featurePageSource';
 import { hasCollectionsApi } from '@shared/dudaCollections';
-import { PROMOTION_OPTIONS } from './data';
 import { FilterModal } from './components/FilterModal';
 import { TopFilterBar } from './components/TopFilterBar';
 import { GridView } from './components/GridView';
@@ -47,28 +47,6 @@ import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, type PromoSelection } f
 import { RichText } from '@shared/richText';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { PromoTagIcon } from './components/Pricing';
-
-// Wrapper-width breakpoint below which we count as mobile. Keyed off the widget's
-// own width, not the viewport, for the same reason as the CSS container queries:
-// in Duda the widget often sits in a narrow column inside a wide window.
-const MOBILE_BP = 640;
-
-function useIsMobile(breakpoint: number) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth < breakpoint : false,
-  );
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver((entries) => {
-      setIsMobile(entries[0].contentRect.width < breakpoint);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [breakpoint]);
-  return { ref, isMobile };
-}
 
 export function SpaceList({
   layoutMode = 'grid',
@@ -137,9 +115,12 @@ export function SpaceList({
   const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // The default layout has no mobile frame of its own — below MOBILE_BP it falls
-  // back to the grid layout, which does.
-  const { ref: wrapperRef, isMobile } = useIsMobile(MOBILE_BP);
+  /* The default layout renders at EVERY width now. It used to fall back to the
+     grid layout below MOBILE_BP because it had no narrow frame of its own;
+     Figma 12418-64891 is that frame, so the fallback — and the width
+     measurement that drove it — are gone. Picking "default" and being given the
+     grid was the bug. */
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Mobile: pin the filter bar to the shared stack, BELOW #03's contact row
   // (order 20 vs 10). Viewport query rather than the container width above,
@@ -565,6 +546,17 @@ export function SpaceList({
     [units, config.categoryOrdering],
   );
 
+  // The promotions the units on the page actually have — none ⇒ the modal
+  // leaves the section out. Same type scoping as the amenity/feature options.
+  const promotionOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const u of units) {
+      if (filters.types.length > 0 && !filters.types.includes(u.type)) continue;
+      for (const p of unitPromotions(u)) seen.add(p);
+    }
+    return Array.from(seen).sort();
+  }, [units, filters.types]);
+
   const featureOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
@@ -605,6 +597,25 @@ export function SpaceList({
       config={accordionConfig}
       inEditor={inEditor}
       onReorderClick={() => { setSaveError(null); setReorderOpen(true); }}
+      showSizeGuideVideos={showSizeGuideVideos}
+      propertyExtras={propertyExtras}
+      aboutTitle={aboutTitle}
+      aboutContent={aboutContent}
+      notesContent={notesContent}
+      blogCollection={blogCollection}
+      blogBasePath={blogBasePath}
+      featureHighlights={featureHighlights}
+      activeFeatureSlug={activeFeature?.slug ?? null}
+      onSelectFeature={selectFeature}
+    />
+  );
+
+  // The same panel, mobile variant — see SectionAccordion's `mobile` prop.
+  const mobileSectionPanel = (
+    <SectionAccordion
+      mobile
+      config={accordionConfig}
+      inEditor={inEditor}
       showSizeGuideVideos={showSizeGuideVideos}
       propertyExtras={propertyExtras}
       aboutTitle={aboutTitle}
@@ -659,9 +670,7 @@ export function SpaceList({
           amenityOptions={amenityOptions}
           typeOptions={typeOptions}
           featureOptions={featureOptions}
-          promotionOptions={PROMOTION_OPTIONS}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          promotionOptions={promotionOptions}
         />
       )}
     </>
@@ -680,6 +689,7 @@ export function SpaceList({
   // sits on whichever side apLocation specifies.
   return (
     <PropertyIdProvider propertyId={effectivePropertyId}>
+    <PropertyExtrasProvider extras={propertyExtras}>
      <CompanyIdProvider companyId={effectiveCompanyId ?? ''}>
     <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
       {/* Off when #18 draws the heading instead — see showHeading. */}
@@ -752,10 +762,10 @@ export function SpaceList({
             </div>
           )}
           {loading ? (
-            <SkeletonLoader />
+            <SkeletonLoader layoutMode={layoutMode} />
           ) : layoutMode === 'list' ? (
             <ListView units={visibleUnits} config={config} />
-          ) : layoutMode === 'default' && !isMobile ? (
+          ) : layoutMode === 'default' ? (
             <DefaultView units={visibleUnits} config={config} />
           ) : (
             <GridView units={visibleUnits} config={config} />
@@ -773,6 +783,9 @@ export function SpaceList({
         </main>
         {showSideAccordions && apLocation === 'right' && sectionPanel}
       </div>
+      {/* Mobile only (CSS): the sidebar is hidden there, so the sections with no
+          widget of their own follow the listing instead. */}
+      {showSideAccordions && mobileSectionPanel}
       {reorderOpen && (
         <ReorderModal
           sections={ACCORDION_SECTIONS}
@@ -785,6 +798,7 @@ export function SpaceList({
       )}
     </div>
      </CompanyIdProvider>
+    </PropertyExtrasProvider>
     </PropertyIdProvider>
   );
 }

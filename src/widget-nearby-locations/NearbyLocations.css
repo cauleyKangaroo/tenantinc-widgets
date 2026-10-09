@@ -3,7 +3,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .nl-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   color: #101318;
@@ -120,6 +120,9 @@
 
 .nl-track {
   display: flex;
+  /* Stretch, so the cards on screen match the tallest of them. It used to
+     match the tallest card in the WHOLE list; off-screen columns are height 0
+     now (.nl-track-col--offstage), and an explicit height is not stretched. */
   align-items: stretch;
   /* No `gap`: a gap is not part of the step the transform moves by, so it would
      desync the slide from the card pitch a little further with every step. The
@@ -130,6 +133,16 @@
 
 /* A column, not a card — with `rows: 2` it holds two stacked, which is what
    keeps that layout while still stepping one column at a time. */
+/* The card fills its column, so the cards on screen are as tall as the tallest
+   of them and their footers (margin-top: auto) line up across the row. */
+.nl-track-col > .nl-card { flex: 1 1 auto; }
+
+/* A column off screen contributes NO height, so a fuller card elsewhere in the
+   list cannot hold the row open under the visible ones. Its card still paints
+   (overflow is visible) — needed while it slides in or out — and the window's
+   horizontal clip already keeps it out of view at rest. */
+.nl-track-col--offstage { height: 0; }
+
 .nl-track-col {
   flex: 0 0 var(--nl-item);
   min-width: 0;
@@ -379,6 +392,10 @@
 .nl-space-info {
   display: flex;
   flex-direction: column;
+  /* Takes what the price block leaves, and may shrink below its text — the
+     subtitle then ellipsises rather than wrapping (see .nl-space-subtype). */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .nl-space-size {
@@ -393,12 +410,24 @@
   font-weight: 400;
   color: #637381;
   line-height: 16px;
+  /* Reserved even while empty: on published pages the subtitle arrives after
+     the prices (see the subtitles effect), and must not move the row. */
+  min-height: 16px;
+  /* ONE line, always. At phone width the row's text column is ~110px, and a
+     label like "Moving Supplies Available" wrapped to three lines, growing the
+     row — and, since it lands after the prices, shifting the card. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nl-space-prices {
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Never squeezed: the subtitle beside it is the part that gives way. Shrunk,
+     this broke "IN-STORE" across two lines on phones. */
+  flex: 0 0 auto;
 }
 
 .nl-price-strike {
@@ -412,6 +441,7 @@
   font-size: 8px;
   font-weight: 500;
   line-height: 1.5;
+  white-space: nowrap;
 }
 
 .nl-price-strike-value {
@@ -459,7 +489,7 @@
   background: var(--color_2, #509e2f);
   color: var(--color_3, #fff);
   text-decoration: none;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 700;
   line-height: 16px;
@@ -595,15 +625,17 @@ a.nl-card-footer {
 
 /* Standard widget mobile title: 36px / 1.2 / 700, centred, no icon — matches
    .faq-title in #10, which is the reference all widget titles follow. */
+/* Figma 9695-68972: 28px/36px bold title (its building mark is not used). */
 .nl-mobile-title {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 700;
-  color: #101318;
-  line-height: 1.2;
+  color: #000;
+  line-height: 36px;
 }
+
 
 .nl-mobile-tabs {
   display: flex;
@@ -617,7 +649,7 @@ a.nl-card-footer {
   border: 1px solid #101318;
   background: #fff;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 400;
   cursor: pointer;
@@ -681,12 +713,10 @@ a.nl-card-footer {
 
 /* ── Breakpoint ─────────────────────────────────────────────────────────── */
 
-@media (max-width: 1100px) and (min-width: 769px) {
-  .nl-grid {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 880px;
-  }
-}
+/* No tablet step for .nl-grid. It is only the loading skeleton now, and the
+   track it stands in for is 3-up at every width above the mobile frame — the
+   2-up rule that used to sit here wrapped the third placeholder onto a second
+   row between 769 and 1100px, a skeleton ~560px taller than the cards. */
 
 @media (max-width: 768px) {
   /* DUDA'S OWN WRAPPER, not ours — `#widget_srf` is the element Duda renders the
@@ -714,8 +744,10 @@ a.nl-card-footer {
     flex-direction: column;
     gap: 24px;
     align-items: stretch;
-    background: #f9fafb;
-    border-radius: 16px;
+    /* Transparent, not the frame's #f9fafb: the widget sits on the page's own
+       background, and a grey panel read as a box around it. The 24px inset
+       stays — it is where the frame puts the card. */
+    background: transparent;
     padding: 24px;
   }
 }

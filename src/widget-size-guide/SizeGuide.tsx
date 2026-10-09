@@ -175,7 +175,20 @@ export function SizeGuide({
 
   // The band names come from the collection too, so the tabs are skeletons as
   // well — otherwise the demo tab labels would flash before the real ones.
+  // The body sits in the same .sg-desktop / .sg-mobile pair as the real one, so
+  // the breakpoint picks the matching skeleton: a phone gets one full-width card
+  // plus dots, not the 3-up grid squeezed to a third of the height.
   if (loading) {
+    const skeletonCard = (key: number) => (
+      <div className="sg-card" key={key}>
+        <Shimmer h={0} style={{ aspectRatio: '283 / 184', height: 'auto' }} r={16} />
+        <div className="sg-card-body">
+          {/* Line boxes of .sg-card-title (28px × 1.2) and .sg-see-all. */}
+          <Shimmer w="60%" h={34} />
+          <Shimmer w={180} h={19} />
+        </div>
+      </div>
+    );
     return (
       <div className="sg-wrapper">
         <div className="sg-header">
@@ -187,14 +200,22 @@ export function SizeGuide({
             {[92, 108, 84, 100].map((w, i) => <Shimmer key={i} w={w} h={44} r={100} />)}
           </div>
         </div>
-        <div className="sg-grid">
-          {[0, 1, 2].map((i) => (
-            <div className="sg-card" key={i}>
-              <Shimmer h={0} style={{ aspectRatio: '283 / 184', height: 'auto' }} r={16} />
-              <Shimmer w="60%" h={28} style={{ margin: '0 auto' }} />
-              <Shimmer w={120} h={18} style={{ margin: '0 auto' }} />
-            </div>
-          ))}
+        <div className="sg-desktop">
+          <div className="sg-grid">
+            {[0, 1, 2].map(skeletonCard)}
+          </div>
+          {/* The 40px pager a band with more than three sizes shows. Reserved
+              because live bands are routinely longer than a page; a 3-size band
+              gives this back below the cards, which is the cheaper miss. */}
+          <div className="sg-pagination" style={{ height: 40 }} aria-hidden="true">
+            <Shimmer w={96} h={16} r={8} />
+          </div>
+        </div>
+        <div className="sg-mobile">
+          {skeletonCard(0)}
+          <div className="sg-pagination sg-pagination-dots" style={{ height: 16 }} aria-hidden="true">
+            <Shimmer w={96} h={16} r={8} />
+          </div>
         </div>
       </div>
     );

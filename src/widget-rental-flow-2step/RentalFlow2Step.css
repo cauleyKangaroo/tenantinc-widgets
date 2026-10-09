@@ -15,8 +15,8 @@
      this element entirely.
      Declaring it here settles that the same way the design does: one font, and
      --hb-font carries it into every @shared/ui component inside the flow. */
-  font-family: 'Montserrat', sans-serif;
-  --hb-font: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  --hb-font: 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #101318;
 }
 
@@ -75,7 +75,7 @@
   box-sizing: border-box;
   background: #fff;
   box-shadow: 0 2px 4px 2px rgba(71, 84, 116, 0.1);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   /* The Header instance is 140px tall against a 100px white strip (page frame
      8507-23172, where the card and rail both start at y=140). That remaining
      40px is the band the content sits below — and the overhanging logo drops
@@ -216,7 +216,7 @@
    not size or weight, and it is what keeps the two lines close together. */
 .rf-wrapper .rf-eyebrow {
   margin: 0;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 36px !important;
   font-weight: 700 !important;
   line-height: 20px !important;
@@ -227,7 +227,7 @@
 /* Hardcoded #101318, per the frame — this line never follows the site theme. */
 .rf-wrapper .rf-heading {
   margin: 0;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 36px !important;
   font-weight: 700 !important;
   line-height: 38px !important;
@@ -264,14 +264,14 @@
   border: none;
   background: transparent;
   outline: none;
-  font: 400 16px/20px 'Montserrat', sans-serif;
+  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #101318;
 }
 .rf-field-label {
   position: absolute;
   left: 16px; top: 50%;
   transform: translateY(-50%);
-  font: 400 16px/20px 'Montserrat', sans-serif;
+  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #637381;
   pointer-events: none;
   transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
@@ -296,7 +296,7 @@
   height: 50px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 8px;
-  font: 16px 'Montserrat', sans-serif;
+  font: 16px 'Montserrat', 'Montserrat Fallback', sans-serif;
   cursor: pointer;
 }
 .rf-btn--rent { border: none; background: var(--color_2, #509e2f); color: var(--color_3, #fff); font-weight: 700; }
@@ -312,6 +312,144 @@
 .rf-hold-expired .hb-btn { width: auto; flex: 0 0 auto; }
 .rf-or { display: flex; align-items: center; gap: 24px; width: 100%; margin: 11px 0; color: #637381; font-size: 16px; }
 .rf-or::before, .rf-or::after { content: ''; flex: 1 1 0; height: 1px; background: #c4cdd5; }
+
+/* ── Space no longer available — Figma 12453-39451 (UnavailableStep) ───── */
+.rf-ua .rf-title { margin-bottom: 20px; }
+.rf-wrapper .rf-ua-text { margin: 0 0 28px; font-size: 16px; line-height: 24px; color: #000; }
+.rf-ua .rf-actions { margin-top: 36px; }
+.rf-ua-error { text-align: center; }
+/* The frame's rules are a fixed 135px either side, not stretched to the card. */
+.rf-ua-or { justify-content: center; margin: 26px 0 0; }
+.rf-ua-or::before, .rf-ua-or::after { flex: 0 1 135px; }
+/* ── Something went wrong — Figma 12454-41003 (RentalErrorStep) ────────── */
+/* Frame: text ends at 207, button at 242 (35 below), art at 341 (49 below the
+   button's 292) and the card ends 80 under the art's 613. */
+.rf-err { padding-bottom: 80px; }
+.rf-err .rf-title { margin-bottom: 20px; }
+.rf-wrapper .rf-err-text { margin: 0; font-size: 16px; line-height: 24px; color: #000; }
+.rf-err .rf-actions { margin-top: 35px; }
+/* Width-led so it scales down inside a narrow card; the intrinsic 590 x 272
+   keeps the ratio. */
+.rf-wrapper .rf-err-art {
+  display: block;
+  width: 100%;
+  max-width: 590px;
+  height: auto;
+  margin: 49px auto 0;
+}
+@media (max-width: 640px) {
+  .rf-err { padding-bottom: 40px; }
+  .rf-wrapper .rf-err-art { margin-top: 32px; }
+}
+
+/* Its own container, so #05's card queries (unnamed @container) measure THIS
+   list rather than .rf-main. */
+.rf-ua-similar { margin-top: 28px; container: rfsimilar / inline-size; }
+/* The frame's cards are 785 wide in an 866 card — wider than the form, ~40px
+   from the card edge. 24px here is what lands them at 785 on .rf-card's 72px. */
+@container rfmain (min-width: 701px) {
+  .rf-ua-similar { margin-inline: -48px; }
+}
+
+/* ── The similar-space card — Figma 12453-39524 ("Retail New Layout") ────
+   NOT #05's default card spec (9417-86254), which is a 55/45 split with 30px
+   insets: this frame has a FIXED 391px display panel (20/30/30/30, 16px gaps)
+   and the actions column bottom-right at 323px. Scoped here so #05's own card
+   is untouched.
+
+   The two rows the frame lines up — Select level with the prices, the admin
+   fee level with "Only 1 left" — are both 50px + 4px + 16px columns. #05's
+   markup nests the fee inside the right-hand price column and makes the note a
+   sibling of the button's column, so a grid places them instead; no markup
+   changes. (0,3,0) selectors, to beat #05's own container steps (0,2,0). */
+@container rfsimilar (min-width: 760px) {
+  .rf-ua-similar .sl-wrapper .sl-default-card { align-items: stretch; border-radius: 16px; }
+
+  .rf-ua-similar .sl-wrapper .sl-dv-display {
+    flex: 0 0 391px;
+    gap: 16px;
+    padding: 30px 30px 30px 20px;
+  }
+  .rf-ua-similar .sl-wrapper .sl-dv-image-col { flex: 0 0 161.8px; width: 161.8px; gap: 16px; }
+  .rf-ua-similar .sl-wrapper .sl-dv-img {
+    width: 96.63px;
+    max-width: none;
+    height: 119px;
+    max-height: none;
+    object-fit: cover;
+  }
+  .rf-ua-similar .sl-wrapper .sl-dv-see-fits { font-size: 15px; line-height: 16px; gap: 8px; }
+  .rf-ua-similar .sl-wrapper .sl-dv-see-fits svg { width: 16px; height: 16px; }
+  .rf-ua-similar .sl-wrapper .sl-dv-info { gap: 16px; }
+
+  .rf-ua-similar .sl-wrapper .sl-dv-action {
+    flex: 1 1 0;
+    padding: 30px;
+    align-items: flex-end;
+    justify-content: flex-end;
+  }
+  /* 323 is the frame's, but its own row is ~4px wider than that and the live
+     font renders the prices ~7px wider again. Growing LEFTWARDS to fit keeps
+     every alignment the frame draws — promo, prices and fee share a left edge,
+     promo and Select a right one, 16px between price and button — rather than
+     crushing that gap or pushing Select past the panel's 30px inset. */
+  .rf-ua-similar .sl-wrapper .sl-dv-actions { width: max-content; min-width: 323px; max-width: none; gap: 12px; }
+  /* Figma strokes INSIDE the box; CSS borders add to it. 10 + 2 = the frame's
+     12px inset, and 10 + 18 + 10 + 4 = its 42px height. */
+  .rf-ua-similar .sl-wrapper .sl-dv-actions .sl-promo-badge { padding: 10px; min-height: 42px; }
+
+  /* Price | Select on one row; fee and note on the next, 4px under each. */
+  .rf-ua-similar .sl-wrapper .sl-dv-price-button {
+    display: grid;
+    grid-template-columns: max-content 146px;
+    grid-template-rows: 50px 16px;
+    grid-template-areas: "price cta" "price note";
+    column-gap: 16px;
+    row-gap: 4px;
+    justify-content: space-between;
+  }
+  .rf-ua-similar .sl-wrapper .sl-dv-price { grid-area: price; }
+  .rf-ua-similar .sl-wrapper .sl-dv-btn-col { grid-area: cta; width: 146px; }
+  .rf-ua-similar .sl-wrapper .sl-dv-price-button > .sl-limited-label {
+    grid-area: note;
+    margin: 0;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* The 50px "Prices" frame: in-store | divider | starting-at, centred on one
+     row, with the fee lifted out of the right column onto the line beneath.
+     The right column is 16 + 28.8 = 44.8 tall, so 2.6px above and below it
+     centres it in the 50 exactly as the frame does. */
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-prices-row {
+    display: grid;
+    grid-template-columns: max-content 1px max-content;
+    grid-template-rows: 16px 28.8px 22.6px;
+    grid-template-areas: "left div label" "left div price" "fee fee fee";
+    column-gap: 8px;
+    row-gap: 0;
+    height: auto;
+    padding-top: 2.6px;
+  }
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-price-left { grid-area: left; align-self: center; }
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-price-divider { grid-area: div; align-self: center; }
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-price-main { display: contents; }
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-starting-label { grid-area: label; justify-self: end; }
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-main-price {
+    grid-area: price;
+    justify-self: end;
+    font-size: 24px;
+    line-height: 1.2;
+  }
+  /* Its row is 2.6 (the centring's lower half) + 4 (the frame's gap under
+     the 50) + 16; the fee sits at the bottom of it, level with the note. */
+  .rf-ua-similar .sl-wrapper .sl-dv-price .sl-admin-fee {
+    grid-area: fee;
+    align-self: end;
+    margin: 0;
+    white-space: nowrap;
+  }
+}
 
 /* ── Narrow container (mobile / small widget widths) ───────────────────── */
 @container (max-width: 640px) {
@@ -454,7 +592,7 @@
   display: flex; align-items: center; justify-content: center;
   padding: 0;
   border: none; background: none; border-radius: 50%;
-  font: 500 15px 'Montserrat', sans-serif;
+  font: 500 15px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #101318;
   cursor: pointer;
 }
@@ -503,7 +641,7 @@
   border-radius: 8px;
   background: #fff;
   outline: none;
-  font: 400 16px 'Montserrat', sans-serif;
+  font: 400 16px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: #101318;
 }
 .rf2-field-input:focus { border-color: #101318; }
@@ -903,6 +1041,66 @@
   border-radius: 4px;
 }
 .rf2-doc-page { padding: 24px 28px; }
+
+/* The real document, framed. No padding of our own: the preview host lays the
+   page out itself, and 28px of ours inside a scrolling frame just narrows it.
+   A fixed height because an iframe has no intrinsic one — it would collapse to
+   0 and show nothing. Tall enough to read a clause without scrolling the frame
+   for every line, short enough to leave the Agree bar and the pay button on
+   screen beneath it. */
+.rf2-doc-page--frame { padding: 0; }
+/* The frame's own stacking context, so the badge below can sit over it. */
+.rf2-doc-page--frame { position: relative; }
+/* "Updating…" over a preview that is being re-fetched — shown only while a
+   document is already on screen and a newer one (the shopper's name, a changed
+   date or total) is on its way. Top-right, clear of the document's heading,
+   and it takes no clicks: the frame beneath stays readable. */
+.rf2-doc-updating {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--hb-text-night, #101318);
+  color: var(--hb-white, #fff);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.rf2-doc-updating::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: rf2-doc-spin .8s linear infinite;
+}
+@keyframes rf2-doc-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .rf2-doc-updating::before { animation: none; }
+}
+
+.rf2-doc-frame {
+  display: block;
+  width: 100%;
+  height: 420px;
+  border: 0;
+  /* The frame is the panel's own content, so it takes the panel's rounding at
+     the top where the two meet. */
+  border-radius: 8px 8px 0 0;
+  background: #fff;
+}
+
+@media (max-width: 768px) {
+  /* Shorter on a phone, where 420px would be most of the viewport and push
+     everything that follows out of reach. */
+  .rf2-doc-frame { height: 300px; }
+}
 .rf2-doc-title { margin: 0 0 14px; font-size: 16px; font-weight: 700; color: #101318; }
 .rf2-doc-h { margin: 0 0 6px; font-size: 12px; font-weight: 700; font-style: italic; color: #101318; }
 .rf2-doc-p { margin: 0 0 10px; font-size: 11px; line-height: 1.5; color: #45505c; }
@@ -1211,7 +1409,7 @@
   height: 64px;
   display: flex; align-items: center; justify-content: center; gap: 10px;
   border-radius: 12px;
-  font: 500 20px 'Montserrat', sans-serif;
+  font: 500 20px 'Montserrat', 'Montserrat Fallback', sans-serif;
   letter-spacing: 0.2px;
   cursor: pointer;
 }
@@ -1601,7 +1799,7 @@
   justify-content: space-between;
   gap: 12px;
 }
-.rfc-resend { flex: 0 0 auto; padding: 0; border: none; background: none; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
+.rfc-resend { flex: 0 0 auto; padding: 0; border: none; background: none; font-family: 'Montserrat', 'Montserrat Fallback', sans-serif; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
 /* Figma 8507-24357: #F4F6F8, radius 12, 35px all round. */
 .rfc-panel { background: #f4f6f8; border-radius: 12px; padding: 30px; margin-bottom: 20px; }
 /* Figma 8507-24357: 28px/600 sitting 39px above the code card, INSIDE the left
@@ -1612,7 +1810,7 @@
    the title being crowded against it. Tracked in the container query below,
    which is where that padding changes. */
 .rfc-space-head {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 28px;
   font-weight: 600;
   line-height: 28px;
@@ -1751,7 +1949,7 @@
    said. Same for the link beside it. */
 .rfc-details .rfc-info-strong {
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 600;
   line-height: 24px;
@@ -1761,7 +1959,7 @@
    body around them, inheriting the text colour rather than a link blue. */
 .rfc-details .rfc-info-link,
 .rfc-info-link {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 24px;
@@ -1990,7 +2188,7 @@
    that would fight a longer translation. */
 .rfc-review-q {
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 24px;
   font-weight: 600;
   line-height: 30px;
@@ -2020,7 +2218,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 1.2;
@@ -2045,7 +2243,7 @@
 /* Its own title rule now. It was borrowing step 2's .rf2-h, which is 20px/700
    there and had to be overridden here — two rules describing one heading. */
 .rfc-next-title {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 22px;
   font-weight: 600;
   line-height: 24px;
@@ -2067,7 +2265,7 @@
   border-radius: 10px;
   padding: 20px;
   box-shadow: 0 2px 2px rgba(71, 84, 116, 0.1);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 18px;
@@ -2392,7 +2590,7 @@
   background: #f9fafb;
   text-align: left;
   /* Montserrat throughout, per the frame — not the inherited theme font. */
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   cursor: pointer;
   /* Elevation plus the frame's hairline above and below. */
   box-shadow:

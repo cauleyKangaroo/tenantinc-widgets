@@ -362,14 +362,14 @@
 }
 
 .nav-mega-locmap-city {
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 18px !important;
   font-weight: 700 !important;
   line-height: 1.3 !important;
 }
 
 .nav-mega-locmap-street {
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 13px !important;
   font-weight: 600 !important;
   line-height: 1.3 !important;
@@ -415,7 +415,7 @@
   align-items: center;
   gap: 8px;
   margin: 0 !important;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 16px !important;
   font-weight: 700 !important;
   line-height: normal !important;
@@ -535,7 +535,7 @@
   width: 100%;
   padding-right: 24px;
   overflow: hidden;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 16px !important;
   line-height: 20px !important;
   color: #101318;
@@ -579,7 +579,7 @@
   min-height: 42px;
   padding: 10px 15px;
   box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 14px !important;
   font-weight: 400 !important;
   line-height: 1.5 !important;
@@ -609,7 +609,7 @@
 .nav-mega-select-label {
   display: block;
   width: 100%;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 12px !important;
   line-height: 15px !important;
   color: #637381;
@@ -698,7 +698,7 @@
 
 /* Figma: Montserrat Regular 18 / 1.1 — the facility name and its distance. */
 .nav-mega-loc-name {
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 16px !important;
   font-weight: 400 !important;
   line-height: 1.1 !important;
@@ -725,7 +725,7 @@
 }
 
 .nav-mega-loc-score {
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 16px !important;
   font-weight: 600 !important;
   line-height: 1.5 !important;
@@ -741,7 +741,7 @@
 }
 
 .nav-mega-loc-reviews {
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   line-height: 1.5 !important;
@@ -755,7 +755,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   line-height: 1.5 !important;
@@ -769,7 +769,7 @@
 
 .nav-mega-empty {
   margin: 0;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 14px !important;
   color: rgba(255, 255, 255, 0.7);
 }
@@ -819,7 +819,7 @@
   border: 1px solid transparent;
   border-radius: 100px;
   background: none;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 18px !important;
   font-weight: 400 !important;
   line-height: normal !important;
@@ -863,7 +863,7 @@
   padding: 0 6px;
   border-radius: 10px;
   background: var(--nav-mega-accent);
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 16px !important;
   font-weight: 700 !important;
   line-height: 20px !important;
@@ -919,7 +919,7 @@
   gap: 8px;
   min-height: 34px;
   padding: 6px 12px 6px 0;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 18px !important;
   font-weight: 400 !important;
   line-height: normal !important;
@@ -947,7 +947,7 @@
   padding: 0;
   border: none;
   background: none;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 16px !important;
   line-height: normal !important;
   color: #fff;
@@ -982,7 +982,7 @@
   padding: 0;
   border: none;
   background: none;
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 16px !important;
   line-height: normal !important;
   color: #fff;

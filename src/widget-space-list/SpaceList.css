@@ -6,7 +6,7 @@
    overrides without resorting to !important. */
 
 .sl-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -180,7 +180,7 @@
   height: 31px;
   cursor: pointer;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-weight: 700;
   line-height: 1;
   transition: background 0.15s;
@@ -219,7 +219,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
   line-height: 1;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-weight: 400;
   display: flex;
   align-items: center;
@@ -291,13 +291,13 @@
 }
 .sl-wrapper .sl-promo-banner-tag svg { color: var(--color_1, #f45f30); flex: 0 0 auto; }
 .sl-wrapper .sl-promo-banner-text {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 500;
 }
 .sl-wrapper .sl-promo-banner-text strong { font-weight: 700; }
 .sl-wrapper .sl-promo-banner-clear {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #101318;
@@ -321,7 +321,7 @@
    matches #03's .pi-name — 30px / 22px, 700 — so the two widgets' titles are
    one size on a page that shows both. */
 .sl-wrapper .sl-page-title {
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 30px !important;
   font-weight: 700 !important;
   /* Unitless on purpose: a long feature-page heading wraps to two lines, and a
@@ -391,7 +391,7 @@
    hidden, so it is a control rather than decoration. */
 .sl-wrapper .sl-feature-intro-clear {
   flex: 0 0 auto;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #101318;
@@ -410,7 +410,7 @@
 }
 .sl-wrapper .sl-feature-details-title {
   margin: 0 0 12px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 24px;
   font-weight: 700;
   line-height: 30px;
@@ -579,10 +579,18 @@
   align-items: center;
   gap: 16px;
 }
+/* The box is fixed by aspect-ratio, not by the image: 380:300 is the unit
+   artwork's own shape, so a loaded image fills it exactly as it did with
+   height:auto — but the box exists before the file arrives (an <img> with
+   height:auto is 0px until then, and the card grew under the reader), while
+   unitImage.ts steps through its fallbacks, and after the last one fails.
+   Artwork of another shape is letterboxed by object-fit rather than resizing
+   the card. */
 .sl-wrapper .sl-unit-img {
   width: 100%;
   max-width: 162px;
   height: auto;
+  aspect-ratio: 380 / 300;
   object-fit: contain;
   display: block;
 }
@@ -724,7 +732,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -751,7 +759,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -855,10 +863,12 @@
   align-items: center;
   gap: 16px;
 }
+/* Fixed box, as .sl-unit-img above. */
 .sl-wrapper .sl-lc-img {
   width: 100%;
   max-width: 162px;
   height: auto;
+  aspect-ratio: 380 / 300;
   object-fit: contain;
   display: block;
 }
@@ -885,6 +895,12 @@
   color: #101318;
   line-height: 1.2;
 }
+/* A GROUPING ONLY, and only at narrow widths. `contents` means the element is
+   not laid out at all here: the chip and the feature ticks stay direct flex
+   children of .sl-lc-info exactly as they were before the wrapper existed, so
+   every width above the narrow frame is untouched. */
+.sl-wrapper .sl-lc-amenities { display: contents; }
+
 .sl-wrapper .sl-lc-subtype {
   align-self: flex-start;
   background: #f4f6f8;
@@ -926,7 +942,7 @@
   border-radius: 4px;
   background: #ffffff;
   border: 2px solid #a5b4bf;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 500;
   color: #242627;
@@ -1089,11 +1105,17 @@
    caps here carry the same visual weight on far less width. Capping the HEIGHT is
    what keeps the card slim: the demo photos vary in aspect, and a width-only cap
    let tall ones drive the whole row's height. */
+/* A fixed box, as .sl-unit-img: 136px wide at the artwork's 380:300 (107px
+   tall, inside the 119px cap) is exactly what the loaded image measured with
+   width:auto. Explicit rather than auto because an image that has not loaded
+   has no width to be auto FROM — it was 0px, and the column grew on load.
+   The max-width steps below still apply to it. */
 .sl-wrapper .sl-dv-img {
-  width: auto;
+  width: 136px;
   max-width: 136px;
   height: auto;
   max-height: 119px;
+  aspect-ratio: 380 / 300;
   object-fit: contain;
   display: block;
 }
@@ -1114,6 +1136,14 @@
   gap: 16px;
   min-width: 0;
 }
+/* Grouping only, like .sl-lc-amenities. `contents` means the promotion inside
+   stays a direct child of .sl-dv-actions at every width above the narrow frame,
+   so the wrapper costs the existing layout nothing. Its two siblings are
+   narrow-frame restatements and are not rendered at all up here. */
+.sl-wrapper .sl-dv-grey { display: contents; }
+.sl-wrapper .sl-dv-features-line,
+.sl-wrapper .sl-dv-admin { display: none; }
+
 .sl-wrapper .sl-dv-heading { display: flex; flex-direction: column; }
 .sl-wrapper .sl-dv-title {
   font-size: 28px;
@@ -1310,16 +1340,85 @@
 @container (max-width: 480px) {
   /* Genuinely too narrow for side-by-side — re-enable wrapping (the base rule is
      nowrap) so the size grid drops below the info at full width. */
-  .sl-wrapper .sl-lc-display { flex-wrap: wrap; }
-  .sl-wrapper .sl-lc-left { flex-direction: column; gap: 20px; align-items: flex-start; }
-  .sl-wrapper .sl-lc-image-col { width: 100%; align-items: flex-start; }
-  .sl-wrapper .sl-lc-img { max-width: 162px; }
-  .sl-wrapper .sl-lc-sizes { flex: 1 1 100%; max-width: 100%; }
-  .sl-wrapper .sl-lc-price-button { flex-direction: column; align-items: stretch; }
-  .sl-wrapper .sl-lc-price { align-self: flex-start; }
+  /* ── LIST layout, narrow frame (Figma 7112-56027) ──────────────────────
+     The frame re-orders the card rather than merely stacking it: size label and
+     "See what fits" share the top row, the pills run full width in THREE
+     columns beneath them, and the amenities sit below that in two columns. The
+     unit photo is gone entirely.
+
+     That order cuts across the markup's nesting — the label and the link live
+     in different wrappers, and the pills come after both in the DOM but between
+     them on screen. So the three wrappers become `display: contents` and their
+     children are placed on the card's own grid directly. Nothing is reordered
+     in the DOM, so the reading order still matches the visual one. */
+  .sl-wrapper .sl-lc-display {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 16px;
+    padding: 16px;
+  }
+  .sl-wrapper .sl-lc-left,
+  .sl-wrapper .sl-lc-image-col,
+  .sl-wrapper .sl-lc-info { display: contents; }
+
+  /* No unit photo in this frame — the header is the size and the link alone. */
+  .sl-wrapper .sl-lc-img { display: none; }
+
+  .sl-wrapper .sl-lc-size-label { grid-column: 1; grid-row: 1; }
+  .sl-wrapper .sl-lc-see-fits {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: center;
+  }
+
+  /* Three even columns, which is what the frame's 111.67px pills in a 351px
+     card are. A grid rather than the wrapping flex row above, so the last row
+     lines up with the ones before it instead of centring or stretching.
+     min-width:0 overrides the 82px floor the flex version needs. */
+  .sl-wrapper .sl-lc-sizes {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    max-width: none;
+  }
+  .sl-wrapper .sl-lc-size { min-width: 0; width: 100%; }
+
+  /* Two columns, with the subtype chip as the FIRST cell and the ticks flowing
+     after it — the frame puts a feature beside the chip rather than below it.
+     `contents` on the <ul> is what lets its <li> be cells of this grid; the
+     list keeps its semantics because FeatureList carries role="list". */
+  .sl-wrapper .sl-lc-amenities {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 8px 12px;
+  }
+  .sl-wrapper .sl-lc-amenities .sl-features { display: contents; }
+
+  /* Price and Select side by side, as the frame draws them — not the stack this
+     used to be. Both keep a flex-basis and the row may wrap, so a card narrower
+     than the frame (a phone inside a Duda column with its own padding) drops the
+     button beneath the price rather than crushing the figures. */
+  .sl-wrapper .sl-lc-action { padding: 16px; gap: 8px 16px; }
+  .sl-wrapper .sl-lc-price-button {
+    flex: 1 1 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px 16px;
+  }
+  .sl-wrapper .sl-lc-price { flex: 1 1 150px; align-self: flex-start; }
+  .sl-wrapper .sl-lc-btn-col { flex: 0 1 135px; }
+
   .sl-wrapper .sl-main-price { font-size: 20px; }
-  .sl-wrapper .sl-lc-display { padding: 20px; }
-  .sl-wrapper .sl-lc-action { padding: 20px; }
+
   .sl-wrapper .sl-unit-img { width: 100%; max-width: 100%; }
 
   /* Grid unit card → mobile (Figma node 9697-48905): one column; the image sits
@@ -1354,6 +1453,182 @@
   .sl-wrapper .sl-top-bar-pills { order: 1; flex-basis: 100%; }
 }
 
+/* The DEFAULT layout's narrow frame.
+   
+   480, NOT the 640 the old JS fallback used. That number measured .sl-wrapper;
+   this is a @container query against .sl-listing-area, and the two are very
+   different boxes — the accordion panel takes 422px out of the wrapper, so a
+   1200px desktop still only leaves the listing ~610px. At 640 this frame was
+   firing on full-size desktops. The listing column's own flex-basis is 520px,
+   and a phone's is the viewport less ~48px, so 480 sits cleanly between them.
+   AFTER the 480 and 600 blocks so it wins wherever they overlap; their flex
+   rules are inert against the grid below in any case. */
+@container (max-width: 480px) {
+  /* ── DEFAULT layout, narrow frame (Figma 12418-64891) ──────────────────
+     The frame moves content ACROSS the card's two coloured panels: the price
+     and the CTA come UP beside the size, and the amenities drop DOWN into the
+     grey. Two nested boxes cannot do that, so the panels stop being boxes and
+     the card becomes the grid — but only down to .sl-dv-price-button, which
+     STAYS a box.
+
+     That last part matters. Flattened, its three children became separate grid
+     items and the note was pushed onto a row of its own, waiting on a
+     three-line size before it could start — so it floated far below the button
+     it belongs to. Kept whole, its existing flex row IS the frame's
+     arrangement: price, button, then the note on its own line 4px under them.
+
+     Three items, then: the heading, that row, and the grey block. */
+  .sl-wrapper .sl-default-card {
+    display: grid;
+    /* min-content, NOT 0, as the title column's floor. The price block is
+       flex-shrink:0 throughout, so a 0 floor let it take every pixel and
+       "8' x 40'" came out as three stacked lines. */
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    /* The size spans BOTH top rows so the note can sit in the second one,
+       directly under the button it belongs to, instead of waiting for a
+       three-line size to finish and floating below the whole block. */
+    grid-template-areas:
+      "title price cta"
+      "title note  note"
+      "grey  grey  grey";
+    align-items: start;
+    column-gap: 12px;
+    /* No bottom padding: the grey block finishes the card. */
+    padding: 18px 20px 0;
+  }
+  .sl-wrapper .sl-dv-display,
+  .sl-wrapper .sl-dv-image-col,
+  .sl-wrapper .sl-dv-info,
+  .sl-wrapper .sl-dv-action,
+  .sl-wrapper .sl-dv-actions,
+  .sl-wrapper .sl-dv-price-button,
+  .sl-wrapper .sl-dv-price { display: contents; }
+
+  .sl-wrapper .sl-default-card .sl-dv-heading { grid-area: title; min-width: 0; }
+  .sl-wrapper .sl-default-card .sl-prices-row { grid-area: price; }
+  .sl-wrapper .sl-default-card .sl-dv-btn-col { grid-area: cta; }
+  .sl-wrapper .sl-default-card .sl-junk-disclaimer { grid-area: note; }
+  .sl-wrapper .sl-dv-grey { grid-area: grey; }
+
+  /* Neither the photo nor "See what fits" appears in this frame, and the ticked
+     list is replaced by the one-line restatement inside the grey block. */
+  .sl-wrapper .sl-dv-img,
+  .sl-wrapper .sl-dv-see-fits,
+  .sl-wrapper .sl-dv-info > .sl-features { display: none; }
+  /* The fee moves to the foot of the grey block, so the price must not repeat it. */
+  .sl-wrapper .sl-default-card .sl-admin-fee { display: none; }
+
+  /* The dimensions are ONE value and have to read as one line. Left to wrap
+     they broke at the spaces around the x — "8'" / "x" / "40'" — which reads as
+     three separate numbers. The subtype beneath still wraps freely, which is
+     what the frame does with "Climate Controlled". */
+  .sl-wrapper .sl-dv-title { font-size: 20px; white-space: nowrap; }
+  .sl-wrapper .sl-dv-price .sl-main-price { font-size: 20px; }
+
+  /* Trimmed to the frame's proportions. The desktop price block is wider than
+     the frame's, and at this size that width comes straight out of the title
+     column — which is what squeezed the dimensions. */
+  .sl-wrapper .sl-default-card .sl-prices-row { gap: 5px; }
+  .sl-wrapper .sl-default-card .sl-instore-label,
+  .sl-wrapper .sl-default-card .sl-starting-label { font-size: 9px; letter-spacing: 0; }
+  .sl-wrapper .sl-default-card .sl-strike { font-size: 14px; }
+  .sl-wrapper .sl-default-card .sl-price-divider { height: 30px; }
+  /* NOWRAP, and a price block that may shrink.
+  
+     The row wraps by default, and the CTA is the thing that drops — which put
+     the button under the price with the note stranded beneath it, the very
+     thing this frame does not do. The row still WRAPS — that is what puts the
+     note on its own line under the pair — but the price is released from
+     flex-shrink:0 so the shortfall goes into it instead of breaking the line.
+     Its labels wrap to two lines long before the figures are at risk.
+     .sl-prices-row and both its columns are shrink:0 in the base sheet, so each
+     has to be released explicitly. */
+  /* Released from flex-shrink:0 so the price gives up width before anything
+     else does — its labels wrap to two lines long before the figures are at
+     risk. Without this the grid sized the price track to its full max-content
+     and the shortfall came out of the size beside it. */
+  .sl-wrapper .sl-default-card .sl-prices-row,
+  .sl-wrapper .sl-default-card .sl-price-left,
+  .sl-wrapper .sl-default-card .sl-price-main { flex-shrink: 1; min-width: 0; }
+  .sl-wrapper .sl-default-card .sl-dv-btn-col { flex: none; width: 82px; }
+  .sl-wrapper .sl-default-card .sl-select-btn,
+  .sl-wrapper .sl-default-card .sl-call-btn,
+  .sl-wrapper .sl-default-card .sl-waitlist-btn { padding-inline: 10px; }
+  /* Placed by the grid, so the base rule's flex sizing and its -12px lift
+     (which cancels a flex row-gap that does not exist here) both go. */
+  .sl-wrapper .sl-default-card .sl-limited-label {
+    grid-area: note;
+    flex: none;
+    margin-top: 4px;
+    justify-self: end;
+    text-align: right;
+  }
+
+  /* The grey ground. Full-bleed via negative inline margins against the card's
+     20px padding, and the card's own overflow:hidden keeps the corners. */
+  .sl-wrapper .sl-dv-grey {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px -20px 0;
+    padding: 14px 20px 18px;
+    background: #f9fafb;
+  }
+  /* The frame reads amenities, then promotion, then fee. The promotion comes
+     first in the markup because that is where every wider layout needs it, so
+     the amenity line is lifted above it here rather than moved in the DOM. */
+  .sl-wrapper .sl-dv-features-line {
+    order: -1;
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 18px;
+    color: #637381;
+  }
+  .sl-wrapper .sl-dv-admin {
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 16px;
+    color: #101318;
+  }
+}
+
+/* Below the frame's own width there is simply less room than it was drawn for
+   (its card is 383px). Rather than let the CTA drop — the one thing this frame
+   never does — the price gives up a couple of points and the button its
+   padding, which is what keeps all three on the row down to ~360px. */
+@container (max-width: 420px) {
+  .sl-wrapper .sl-default-card { column-gap: 8px; }
+  .sl-wrapper .sl-default-card .sl-dv-price .sl-main-price { font-size: 18px; }
+  .sl-wrapper .sl-default-card .sl-strike { font-size: 13px; }
+  .sl-wrapper .sl-default-card .sl-prices-row { gap: 4px; }
+  .sl-wrapper .sl-default-card .sl-dv-btn-col { width: 68px; }
+  .sl-wrapper .sl-default-card .sl-select-btn,
+  .sl-wrapper .sl-default-card .sl-call-btn,
+  .sl-wrapper .sl-default-card .sl-waitlist-btn { padding-inline: 4px; font-size: 14px; }
+}
+
+/* LAST RESORT, and it has to be genuinely last: the listing container runs
+   roughly 48px narrower than the viewport, so a 380px threshold caught nearly
+   every phone and gave them the stacked CTA instead of the frame. Below ~336
+   the size, both prices and the button cannot share a row at any legible size
+   — the frame was drawn on a 383px card — so the CTA takes its own full-width
+   row and the note follows it. */
+@container (max-width: 336px) {
+  .sl-wrapper .sl-default-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title price"
+      "cta   cta"
+      "note  note"
+      "grey  grey";
+  }
+  .sl-wrapper .sl-default-card .sl-dv-btn-col { width: auto; justify-self: stretch; margin-top: 12px; }
+}
+
+
+
 /* ===========================================================================
    SKELETON LOADER
    =========================================================================== */
@@ -1362,31 +1637,49 @@
   100% { background-position:  600px 0; }
 }
 
-.sl-wrapper .sl-skeleton-card .sl-card-display-panel,
-.sl-wrapper .sl-skeleton-card .sl-card-action-panel {
+/* Every layout's placeholder, not just the grid card's panels: the list card's
+   pills keep their hover styles otherwise. */
+.sl-wrapper .sl-skeleton {
   pointer-events: none;
 }
 
 .sl-wrapper .sl-skeleton-line,
 .sl-wrapper .sl-skeleton-image,
-.sl-wrapper .sl-skeleton-btn {
+.sl-wrapper .sl-skeleton-btn,
+.sl-wrapper .sl-skel-text,
+.sl-wrapper .sl-skel-pill {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 600px 100%;
   animation: sl-shimmer 1.4s infinite linear;
   border-radius: 6px;
 }
 
-.sl-wrapper .sl-skeleton-title        { height: 28px; width: 90px; margin-bottom: 8px; }
-.sl-wrapper .sl-skeleton-subtitle     { height: 18px; width: 120px; margin-bottom: 12px; }
-.sl-wrapper .sl-skeleton-feature      { height: 14px; width: 100%; margin-bottom: 6px; }
-.sl-wrapper .sl-skeleton-feature--short { width: 70%; }
-.sl-wrapper .sl-skeleton-image        { width: 100%; height: 120px; border-radius: 8px; }
-.sl-wrapper .sl-skeleton-price        { height: 40px; width: 120px; }
-.sl-wrapper .sl-skeleton-btn          { height: 50px; flex: 1; border-radius: 8px; }
-.sl-wrapper .sl-skeleton-accordion-title { height: 26px; width: 140px; }
+/* The skeleton cards wear the real card classes (see SkeletonLoader.tsx), so
+   only the stand-ins are sized here — and the image is not even that: it
+   carries the real image class, whose aspect-ratio box is the photo's. */
+.sl-wrapper .sl-skeleton-image        { border-radius: 8px; }
+/* 45px: the price row's tallest column (IN-STORE label + strike price). */
+.sl-wrapper .sl-skeleton-price        { height: 45px; width: 150px; max-width: 100%; }
+/* flex: none — the CTA columns are column flexboxes in the list and default
+   cards, where a flex: 1 (zero basis) button collapsed to 0px tall. */
+.sl-wrapper .sl-skeleton-btn          { height: 50px; flex: none; border-radius: 8px; }
+/* Ghost text: the run is transparent, so the line box is the real element's
+   and only the shimmer shows. clone repaints the rounded ends on each line of
+   a run that wraps. */
+.sl-wrapper .sl-skel-text {
+  color: transparent;
+  border-radius: 4px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  user-select: none;
+}
+/* An empty size pill: the real .sl-lc-size box, without its border. */
+.sl-wrapper .sl-skel-pill { border-color: transparent; }
 
 .sl-wrapper .sl-skeleton .sl-accordion-header { cursor: default; }
-.sl-wrapper .sl-skeleton .sl-accordion-body   { padding-top: 24px; display: block; }
+/* The title is a pill that turns black on hover; nothing to hover here. */
+.sl-wrapper .sl-skeleton .sl-accordion-header .sl-accordion-title { background: none; }
+.sl-wrapper .sl-skeleton .sl-accordion-body   { display: block; }
 
 /* ===========================================================================
    AP SECTIONS — below-content area
@@ -1702,7 +1995,7 @@
   padding: 8px 14px;
   cursor: pointer;
   white-space: nowrap;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 .sl-wrapper .sl-nb-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
 
@@ -1773,7 +2066,7 @@
   border-radius: 100px;
   border: 1px solid #d1d5db;
   background: #ffffff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #101318;
@@ -1964,7 +2257,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: #101318;
@@ -1997,7 +2290,7 @@
   border: none;
   outline: none;
   padding: 12px 20px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 14px;
   color: #101318;
   background: transparent;
@@ -2038,7 +2331,7 @@
   border: none;
   cursor: pointer;
   text-align: left;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 15px;
   font-weight: 500;
   color: #101318;
@@ -2185,7 +2478,7 @@
 }
 
 .sl-wrapper .sl-sa-title {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 20px;
   font-weight: 700;
   color: #101318;
@@ -2204,7 +2497,7 @@
   color: #ffffff;
   font-size: 13px;
   font-weight: 600;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   flex-shrink: 0;
 }
 
@@ -2265,7 +2558,7 @@
 .sl-wrapper .sl-fh-label {
   flex: 1 1 auto;
   min-width: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 600;
   line-height: normal;
@@ -2296,13 +2589,20 @@
   border-radius: 0;
 }
 
+/* The below-the-listing copy (SectionAccordion `mobile`) is mobile-only.
+   (0,3,0), and before the media block, so the show rule inside it wins there. */
+.sl-wrapper .sl-sa-panel.sl-sa-panel--mobile { display: none; }
+
 /* Mobile: the "side" accordions become full-width bottom accordions. These
    overrides must live AFTER the base .sl-sa-* rules above — @container/@media
    add no specificity, so an earlier override would lose the source-order tie
    (which is why the width:422px base was still winning). */
 @media (max-width: 767px) {
-  /* Side accordion sidebar is desktop/tablet only — hidden on mobile. */
+  /* Side accordion sidebar is desktop/tablet only — hidden on mobile. Its
+     sections without a widget of their own reappear below the listing, in the
+     mobile copy shown here instead (MOBILE_SECTION_KEYS). */
   .sl-wrapper .sl-sa-panel { display: none; }
+  .sl-wrapper .sl-sa-panel.sl-sa-panel--mobile { display: flex; flex: 0 0 auto; width: 100%; }
   .sl-wrapper .sl-sa-item { max-width: 100%; }
   .sl-wrapper .sl-sa-header { padding: 0 16px; min-height: 64px; gap: 8px; }
   .sl-wrapper .sl-sa-header-left { gap: 12px; }
@@ -2397,7 +2697,7 @@
   border-radius: 100px;
   padding: 11px 17px;
   font-size: 14px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-weight: 600;
   cursor: pointer;
   background: #ffffff;
@@ -2441,14 +2741,14 @@
   font-weight: 700;
   color: #101318;
   line-height: 1;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-rv2-out-of {
   font-size: 17px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 /* flex-start so the stars and "N ratings" share a left edge. They were flex-end,
@@ -2475,7 +2775,7 @@
   font-size: 12px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 /* Review card */
@@ -2546,7 +2846,7 @@
   font-weight: 600;
   color: #101318;
   line-height: 20px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   margin: 0;
 }
 
@@ -2555,7 +2855,7 @@
   font-weight: 400;
   color: #637381;
   line-height: 20px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   margin: 0;
 }
 
@@ -2564,7 +2864,7 @@
   font-weight: 400;
   color: #101318;
   line-height: 20px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   margin: 0;
 }
 
@@ -2641,7 +2941,7 @@
   border-radius: 70px;
   padding: 11px 17px;
   font-size: 14px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-weight: 600;
   cursor: pointer;
   background: #ffffff;
@@ -2722,7 +3022,7 @@
   justify-content: center;
   font-size: 14px;
   color: #637381;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 /* Property card */
@@ -2774,7 +3074,7 @@
   color: #ffffff;
   font-size: 24px;
   font-weight: 700;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.1;
 }
 
@@ -2798,7 +3098,7 @@
   font-size: 18px;
   font-weight: 700;
   color: #ffffff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   margin: 0;
   line-height: 1.1;
   white-space: nowrap;
@@ -2816,7 +3116,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #ffffff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-nb2-stars {
@@ -2828,7 +3128,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #ffffff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-decoration: underline;
 }
 
@@ -2849,7 +3149,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #ffffff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-decoration: underline;
   white-space: nowrap;
   overflow: hidden;
@@ -2884,7 +3184,7 @@
   font-size: 14px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 /* Unit rows */
@@ -2917,7 +3217,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   white-space: nowrap;
 }
 
@@ -2925,7 +3225,7 @@
   font-size: 12px;
   font-weight: 400;
   color: #637381;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2959,7 +3259,7 @@
   font-size: 8px;
   font-weight: 500;
   color: #637381;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.5;
 }
 
@@ -2967,7 +3267,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #637381;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-decoration: line-through;
   line-height: 1.5;
 }
@@ -2992,7 +3292,7 @@
   font-size: 8px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.4;
 }
 
@@ -3000,7 +3300,7 @@
   font-size: 20px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.2;
 }
 
@@ -3010,7 +3310,7 @@
   color: var(--color_3, #fff);
   font-size: 14px;
   font-weight: 700;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   border: none;
   border-radius: 4px;
   height: 33px;
@@ -3038,7 +3338,7 @@
   font-size: 12px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-nb2-see-all {
@@ -3047,7 +3347,7 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--color_2, #509e2f);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-decoration: underline;
   gap: 2px;
 }
@@ -3159,7 +3459,7 @@
   font-size: 20px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -3188,7 +3488,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.5;
   margin: 0;
 }
@@ -3213,7 +3513,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.5;
   margin: 0;
 }
@@ -3242,7 +3542,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 24px;
   margin: 0;
 }
@@ -3251,7 +3551,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 24px;
   margin: 0;
 }
@@ -3266,7 +3566,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-decoration: underline;
   padding: 4px 0 0;
 }
@@ -3296,7 +3596,7 @@
   background: #fff;
   border-radius: 20px;
   box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   animation: sl-hours-pop 0.15s ease-out;
 }
 @keyframes sl-hours-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -3359,7 +3659,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #637381;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   background: #ffffff;
   min-width: 0;
 }
@@ -3375,7 +3675,7 @@
   color: #ffffff;
   font-size: 16px;
   font-weight: 600;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -3460,7 +3760,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 1.4;
 }
 
@@ -3627,7 +3927,7 @@
   border-radius: 8px;
   background: var(--color_1, #f45f30);
   color: var(--color_3, #fff);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   text-decoration: none;
@@ -3704,7 +4004,7 @@
   color: #101318;
   line-height: 30px;
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-blog2-byline {
@@ -3840,7 +4140,7 @@
   font-size: 14px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s;
@@ -3918,7 +4218,7 @@
   color: #101318;
   line-height: 1.2;
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 
 /* CTA link */
@@ -4055,7 +4355,7 @@
   font-size: 14px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
@@ -4098,7 +4398,7 @@
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   line-height: 18px;
   text-align: center;
   box-sizing: border-box;
@@ -4122,7 +4422,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   background: #ffffff;
   box-sizing: border-box;
   outline: none;
@@ -4263,7 +4563,7 @@
   background: none;
   border: none;
   padding: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 18px;
   font-weight: 500;
   color: #101318;
@@ -4311,7 +4611,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   background: #ffffff;
   outline: none;
   box-sizing: border-box;
@@ -4400,7 +4700,7 @@
      flat #f26500, which would ignore the site's theme. */
   background: var(--color_1, #f45f30);
   color: var(--color_3, #fff);
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 700;
   line-height: 16px;
@@ -4437,7 +4737,7 @@
   gap: 8px;
   width: 100%;
   padding: 12px 16px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   color: #f45f30;
@@ -4469,13 +4769,13 @@
   gap: 2px;
 }
 .sl-wrapper .sl-reorder-title {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 18px;
   font-weight: 700;
   color: #101318;
 }
 .sl-wrapper .sl-reorder-subtitle {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 12px;
   font-weight: 500;
   color: #8a9099;
@@ -4540,14 +4840,14 @@
   border-radius: 7px;
   background: #f1f3f5;
   color: #6b7280;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 13px;
   font-weight: 700;
 }
 .sl-wrapper .sl-reorder-label {
   flex: 1;
   min-width: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   color: #101318;
@@ -4588,7 +4888,7 @@
   border: 1px solid #fca5a5;
   border-radius: 10px;
   color: #b91c1c;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 13px;
 }
 
@@ -4602,14 +4902,14 @@
   flex-shrink: 0;
 }
 .sl-wrapper .sl-reorder-count {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 13px;
   color: #8a9099;
 }
 .sl-wrapper .sl-reorder-actions { display: flex; gap: 10px; }
 .sl-wrapper .sl-reorder-cancel,
 .sl-wrapper .sl-reorder-save {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   padding: 10px 22px;

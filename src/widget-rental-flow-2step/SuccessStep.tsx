@@ -96,6 +96,8 @@ export interface SuccessDetails {
 export function SuccessStep({
   onGetAccess,
   chosen,
+  provided,
+  primary,
   verificationPhone,
   idvRequirement = RENTAL_IDV_REQUIREMENT,
   idvPreview = false,
@@ -113,6 +115,16 @@ export function SuccessStep({
    *  this one asks for the details, so it opens the same sections already
    *  ticked rather than making them answer twice. */
   chosen?: { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean };
+  /**
+   * Sections whose fields were FILLED IN on the one-step form and have
+   * already gone out on the lease. Those are not shown here at all: the
+   * question was answered and the answer filed, so re-opening it empty would
+   * ask the shopper to type the same thing twice.
+   */
+  provided?: { military?: boolean; altContact?: boolean; vehicle?: boolean };
+  /** The tenant's own email and phone, so the alternate contact entered here
+   *  cannot be the tenant — the same rule the one-step form applies. */
+  primary?: { email?: string; phone?: string };
   /** The only renter identity field this presentational view needs. */
   verificationPhone?: string;
   idvRequirement?: IdvRequirement;
@@ -140,11 +152,12 @@ export function SuccessStep({
     return `tel:${raw.startsWith('+') ? '+' : ''}${digits}`;
   })();
   // Initialisers, not synced props: the boxes stay the shopper's to change here.
-  // Off on one-step so the hidden sections' required fields cannot block Get Access.
+  // Off on one-step, and off for any section already provided, so a hidden
+  // section's required fields cannot block Get Access.
   const [business, setBusiness] = useState(!oneStep && (chosen?.business ?? false));
-  const [military, setMilitary] = useState(!oneStep && (chosen?.military ?? false));
-  const [altContact, setAltContact] = useState(!oneStep && (chosen?.altContact ?? false));
-  const [vehicle, setVehicle] = useState(!oneStep && (chosen?.vehicle ?? false));
+  const [military, setMilitary] = useState(!oneStep && !provided?.military && (chosen?.military ?? false));
+  const [altContact, setAltContact] = useState(!oneStep && !provided?.altContact && (chosen?.altContact ?? false));
+  const [vehicle, setVehicle] = useState(!oneStep && !provided?.vehicle && (chosen?.vehicle ?? false));
 
   // Mailing address — where notices go when it is not the space's address.
   // Filed on the contact as an Addresses entry of type "mailing" (verified
@@ -302,7 +315,7 @@ export function SuccessStep({
     /* The three optional groups' rules, from the same module that renders
        them — so a field this screen marks required cannot disagree with the
        rental form's copy of the same field. */
-    ...extraFieldProblems({ military, altContact, vehicle }, extraFields),
+    ...extraFieldProblems({ military, altContact, vehicle }, extraFields, primary),
   };
   /* Harness bypass — compiled out of production builds, see @shared/devBypass. */
   const skip = skipValidation();
@@ -728,20 +741,26 @@ export function SuccessStep({
         </div>
         )}
 
+        {!provided?.military && (
         <div className="rf-sx-group">
           <Checkbox checked={military} onChange={setMilitary}>I am active military</Checkbox>
           {military && <MilitaryFields v={extraFields} set={setExtra} bad={bad} />}
         </div>
+        )}
 
+        {!provided?.altContact && (
         <div className="rf-sx-group">
           <Checkbox checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Checkbox>
           {altContact && <AltContactFields v={extraFields} set={setExtra} bad={bad} />}
         </div>
+        )}
 
+        {!provided?.vehicle && (
         <div className="rf-sx-group">
           <Checkbox checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Checkbox>
           {vehicle && <VehicleFields v={extraFields} set={setExtra} bad={bad} />}
         </div>
+        )}
         </div>
       </section>
       )}

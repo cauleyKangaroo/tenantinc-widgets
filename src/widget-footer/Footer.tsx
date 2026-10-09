@@ -220,12 +220,17 @@ export function Footer({
   // Phone + social links from the Duda `Properties` collection; the static values
   // above remain the fallback (this bundle holds no API key of its own).
   const [contact, setContact] = useState<PropertyContact | null>(null);
+  // Whether that read has answered (with a row or without). Until it has, the
+  // socials row is laid out but invisible — see where it renders.
+  const [contactSettled, setContactSettled] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setContactSettled(false);
     fetchPropertyContact('#13 footer', propertyId)
       .then((c) => { if (!cancelled) setContact(c); })
-      .catch((err) => console.error('[Footer] property contact error:', err));
+      .catch((err) => console.error('[Footer] property contact error:', err))
+      .finally(() => { if (!cancelled) setContactSettled(true); });
     return () => { cancelled = true; };
   }, [propertyId]);
 
@@ -256,9 +261,11 @@ export function Footer({
    * rendering of that is no column — a list of invented labels pointing at
    * `<route>/<label>` looks exactly like a working column while every row 404s.
    *
-   * There is deliberately no skeleton for the read: the footer is at the bottom
-   * of the page, and a column appearing once the tree resolves is better than a
-   * shimmer nobody scrolls to.
+   * While the tree is still being read (`pages === null`) the columns render as
+   * placeholders instead — see `PlaceholderColumn`. A column appearing from
+   * nothing pushed every column after it sideways and, stacked on a phone,
+   * pushed the whole footer down; the footer is often in view on short pages,
+   * where that shift is scored.
    */
   const column = (
     route: string,
@@ -428,9 +435,23 @@ export function Footer({
     <div className="ft-wrapper">
       <div className="ft-inner ft-top">
         <div className="ft-links">
-          {/* Route-driven, so either column can be absent — see `column()`. */}
-          {companyColumn && <LinkColumnView column={companyColumn} />}
-          {storageTypesColumn && <LinkColumnView column={storageTypesColumn} />}
+          {/* Route-driven, so either column can be absent — see `column()`.
+              Until the tree answers, each holds a same-shaped placeholder so the
+              columns after it don't jump when it lands. In the editor and the
+              harness (no tree) that lasts the ~5s sitePages waits for dmAPI and
+              then gives way to the honest absent/Sitemap-only state; a published
+              page answers well inside that. */}
+          {pages === null ? (
+            <>
+              {(companyRoute || boolProp(showSitemapLink)) && <PlaceholderColumn rows={COMPANY_PLACEHOLDER_ROWS} />}
+              {storageTypesRoute && <PlaceholderColumn rows={STORAGE_TYPES_PLACEHOLDER_ROWS} />}
+            </>
+          ) : (
+            <>
+              {companyColumn && <LinkColumnView column={companyColumn} />}
+              {storageTypesColumn && <LinkColumnView column={storageTypesColumn} />}
+            </>
+          )}
 
           {/* Locations — the one column whose rows are controls, not pages. */}
           <nav className="ft-col" aria-label="Locations">
@@ -441,8 +462,14 @@ export function Footer({
                   Find Storage
                 </button>
               </li>
-              {hasLocations && (
-                <li>
+              {/* Laid out but invisible while the locations are still being read,
+                  so the row is already there when it turns out to be wanted;
+                  only a read that comes back EMPTY removes it. */}
+              {(hasLocations || locations === null) && (
+                <li
+                  style={hasLocations ? undefined : { visibility: 'hidden' }}
+                  aria-hidden={hasLocations ? undefined : true}
+                >
                   <button
                     className="ft-link ft-link-btn ft-link-toggle"
                     type="button"
@@ -499,7 +526,15 @@ export function Footer({
       <div className="ft-inner ft-follow">
         <div className="ft-follow-left">
           <span className="ft-follow-label">Follow {displayFollowName}</span>
-          <div className="ft-socials">
+          {/* Hidden, not absent, until the contact read settles: the unlinked
+              static row would otherwise paint and then lose the platforms this
+              property doesn't have. visibility keeps the row's box, so nothing
+              moves when it appears. */}
+          <div
+            className="ft-socials"
+            style={contactSettled ? undefined : { visibility: 'hidden' }}
+            aria-hidden={contactSettled ? undefined : true}
+          >
             {socialLinks.map(({ key, label, Icon, href }) => (
               <a key={key} className="ft-social" href={href} aria-label={label} title={label}>
                 <Icon />
@@ -548,6 +583,38 @@ function LinkColumnView({ column }: { column: LinkColumn }): React.ReactElement 
         ))}
       </ul>
     </nav>
+  );
+}
+
+/**
+ * Rows per placeholder column — the template site's own page tree (the copy in
+ * the harness's ?mockCollections=1 mock): Company Information + Legal Pages +
+ * Sitemap is 13 links, Storage Types 6. Stacked on a phone every row counts, so
+ * a generic "four rows" left ~300px to arrive with the tree.
+ */
+const COMPANY_PLACEHOLDER_ROWS = 13;
+const STORAGE_TYPES_PLACEHOLDER_ROWS = 6;
+
+/** Widths for the placeholder rows, so they read as links rather than a block. */
+const PLACEHOLDER_WIDTHS = ['62%', '84%', '70%', '78%', '66%'];
+const NBSP = String.fromCharCode(160); // non-breaking space: gives an empty line box its text height
+
+/**
+ * A link column's stand-in while the page tree is read: a heading and `rows` rows.
+ * The bars sit inside the real .ft-col-heading / .ft-link line boxes (a
+ * non-breaking space gives each its text height), so a placeholder row is
+ * exactly a link row tall whatever font the site loads.
+ */
+function PlaceholderColumn({ rows }: { rows: number }): React.ReactElement {
+  return (
+    <div className="ft-col ft-col--placeholder" aria-hidden="true">
+      <p className="ft-col-heading"><span className="ft-skel" style={{ width: 150 }}>{NBSP}</span></p>
+      <ul className="ft-list">
+        {Array.from({ length: rows }, (_, i) => (
+          <li key={i}><span className="ft-link ft-skel" style={{ width: PLACEHOLDER_WIDTHS[i % PLACEHOLDER_WIDTHS.length] }}>{NBSP}</span></li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

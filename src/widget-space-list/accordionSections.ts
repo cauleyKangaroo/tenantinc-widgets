@@ -16,31 +16,48 @@ export interface AccordionSectionMeta {
   label: string;
   /** Which SpaceListProps `isX` flag makes this section a candidate at all. */
   enabledBy: keyof SpaceListProps;
+  /**
+   * The dedicated Duda widget that already shows this content on a page, if
+   * there is one. Such sections are SIDEBAR-ONLY: on mobile the sidebar is
+   * hidden and only the sections with no widget of their own are repeated
+   * below the listing (see MOBILE_SECTION_KEYS) — the rest would duplicate a
+   * widget the page already carries.
+   */
+  ownWidget?: string;
 }
 
 /** Canonical default order + labels for the sidebar accordion sections. */
 export const ACCORDION_SECTIONS: AccordionSectionMeta[] = [
-  { key: 'store',     label: 'Property Information',   enabledBy: 'isStore' },
+  { key: 'store',     label: 'Property Information',   enabledBy: 'isStore', ownWidget: '#03 widget-property-info' },
   { key: 'features',  label: 'Features & Amenities',   enabledBy: 'isFeatures' },
-  { key: 'nearby',    label: 'Nearby Storage',         enabledBy: 'isNearby' },
-  { key: 'reviews',   label: 'Reviews',                enabledBy: 'isReviews' },
+  { key: 'nearby',    label: 'Nearby Storage',         enabledBy: 'isNearby', ownWidget: '#07 widget-nearby-locations' },
+  { key: 'reviews',   label: 'Reviews',                enabledBy: 'isReviews', ownWidget: '#09 widget-reviews' },
   // Sits after Reviews to match the Figma sidebar (10550-32752). Distinct from
   // 'features' above: that one is the amenity photo grid, this one is the list of
   // feature links that turn the page into a single-feature landing page.
   { key: 'highlights', label: 'Feature Highlights',    enabledBy: 'isFeatureHighlights' },
-  { key: 'faq',       label: 'FAQ',                    enabledBy: 'isFAQ' },
+  { key: 'faq',       label: 'FAQ',                    enabledBy: 'isFAQ', ownWidget: '#10 widget-faqs' },
   /* 'Storage Blogs' used to sit here — the whole BlogPosts collection, beside
      the same collection filtered to this property. Two blog sections in one
      sidebar was one too many, so only the local one remains. A saved config
      still naming 'blog' is harmless: resolveVisibleOrder keeps only keys that
      are enabled, and there is no longer a section to enable. */
-  { key: 'localblog', label: 'Local Blogs',            enabledBy: 'isLocalBlog' },
-  { key: 'sizeguide', label: 'Size Guide',             enabledBy: 'isSizeGuide' },
+  { key: 'localblog', label: 'Local Blogs',            enabledBy: 'isLocalBlog', ownWidget: '#12 widget-blogs-listing' },
+  { key: 'sizeguide', label: 'Size Guide',             enabledBy: 'isSizeGuide', ownWidget: '#11 widget-size-guide' },
   { key: 'notes',     label: 'Notes',                  enabledBy: 'isNotes' },
   // Label is overridable per instance via the `aboutTitle` prop; this is the
   // fallback and what the reorder modal lists it under.
   { key: 'about',     label: 'About Storage Units in Irvine', enabledBy: 'isAbout' },
 ];
+
+/**
+ * Sections repeated below the listing on mobile: the ones no dedicated widget
+ * covers (Features & Amenities, Feature Highlights, Notes, About). Derived, so
+ * giving a section a widget of its own is one `ownWidget` above.
+ */
+export const MOBILE_SECTION_KEYS: ReadonlySet<AccordionKey> = new Set(
+  ACCORDION_SECTIONS.filter((s) => !s.ownWidget).map((s) => s.key),
+);
 
 /**
  * Per-instance accordion arrangement. Persisted (as JSON-in-text columns) in the

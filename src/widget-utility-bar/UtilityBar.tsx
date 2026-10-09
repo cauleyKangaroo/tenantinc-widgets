@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './UtilityBar.css';
 import { CloseCircleIcon } from '@shared/ui/icons';
 import { bool } from '@shared/dudaCollections';
@@ -258,9 +258,13 @@ export function UtilityBar({
    * that content with it, so the walk stops there. Zero height is the test
    * because zero height is zero painted area — that is exactly the definition
    * of leaving no trace.
+   *
+   * A LAYOUT effect, so the walk happens before the browser paints. As a plain
+   * effect it ran after the first frame: a dismissed visitor saw the host row's
+   * padding and min-height for that frame, then everything below jumped up.
    */
   const rootRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = rootRef.current;
     if (!el || !empty) return undefined;
 

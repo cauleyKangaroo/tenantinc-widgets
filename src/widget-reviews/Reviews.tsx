@@ -305,10 +305,28 @@ export function Reviews({
     mobileCarousel.goTo(0);
   }
 
-  // Skeleton until the collections answer: two source columns of cards, matching
-  // the real geometry so the swap barely shifts. The heading is static copy, so it
-  // paints straight away.
+  // Skeleton until the collections answer. It is built from the REAL containers
+  // (.rw-column, .rw-card, .rw-mobile-body …) rather than free-floating bars, so it
+  // inherits their gaps and min-heights and the swap doesn't shift the page: a
+  // column is header + REVIEWS_PER_PAGE cards + pager, the phone view is tabs +
+  // header + one card + dots. The heading is static copy, so it paints straight away.
   if (loading) {
+    const cardBars = (
+      <div className="rw-card">
+        <div className="rw-card-author">
+          <Shimmer w={42} h={42} r="50%" />
+          <div className="rw-card-author-info" style={{ flex: 1 }}>
+            <Shimmer w="45%" h={20} />
+            <Shimmer w={85} h={14} />
+          </div>
+        </div>
+        <Shimmer h={14} />
+        <Shimmer w="80%" h={14} />
+      </div>
+    );
+    // The score block is 52px logo / 48px-at-1.2 score; matching its line box
+    // keeps the cards below it where the real ones land.
+    const headerBar = <Shimmer w={240} h={58} r={8} />;
     return (
       <div className="rw-wrapper">
         <div className="rw-desktop">
@@ -319,16 +337,13 @@ export function Reviews({
           <div className="rw-columns">
             {[0, 1].map((col) => (
               <div className="rw-column" key={col}>
-                <Shimmer h={64} r={8} mb={16} />
+                {headerBar}
                 <div className="rw-column-cards">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                      <Shimmer w="45%" h={18} />
-                      <Shimmer w={96} h={14} />
-                      <Shimmer h={14} />
-                      <Shimmer w="80%" h={14} />
-                    </div>
-                  ))}
+                  {Array.from({ length: REVIEWS_PER_PAGE }, (_, i) => <React.Fragment key={i}>{cardBars}</React.Fragment>)}
+                </div>
+                {/* Stands in for the 40px pager every column with >1 page shows. */}
+                <div className="rw-pagination" style={{ height: 40 }} aria-hidden="true">
+                  <Shimmer w={96} h={16} r={8} />
                 </div>
               </div>
             ))}
@@ -338,11 +353,17 @@ export function Reviews({
           <div className="rw-mobile-titlebar">
             <span className="rw-mobile-heading">Reviews</span>
           </div>
-          <div style={{ padding: '0 31px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Shimmer w="45%" h={18} />
-            <Shimmer w={96} h={14} />
-            <Shimmer h={14} />
-            <Shimmer w="80%" h={14} />
+          {/* Same padding as the pills; 35px is one .rw-mobile-tab's box. */}
+          <div className="rw-mobile-tabs" aria-hidden="true">
+            <Shimmer w={84} h={35} r={70} />
+            <Shimmer w={68} h={35} r={70} />
+          </div>
+          <div className="rw-mobile-body">
+            {headerBar}
+            {cardBars}
+          </div>
+          <div className="rw-pagination" style={{ height: 16 }} aria-hidden="true">
+            <Shimmer w={96} h={16} r={8} />
           </div>
         </div>
       </div>

@@ -107,6 +107,11 @@ export function SpaceListHeading({
   }, [companyId]);
 
   const [propertyName, setPropertyName] = useState<string | null>(null);
+  /* True once the lookup has answered — with a name, with no matching row, or
+     with an error. The skeleton keys off this rather than off `propertyName`,
+     which stays null on a miss or a failure and used to leave the skeleton up
+     for the life of the page. */
+  const [settled, setSettled] = useState(false);
   useEffect(() => {
     if (!resolvedCompanyId) return undefined;
     let cancelled = false;
@@ -115,8 +120,12 @@ export function SpaceListHeading({
       .then((raw) => {
         if (cancelled) return;
         setPropertyName(extractPropertyExtras(raw, effectivePropertyId)?.name ?? null);
+        setSettled(true);
       })
-      .catch((err) => console.error('[SpaceListHeading] fetchProperties error:', err));
+      .catch((err) => {
+        console.error('[SpaceListHeading] fetchProperties error:', err);
+        if (!cancelled) setSettled(true);
+      });
     return () => { cancelled = true; };
   }, [effectivePropertyId, resolvedCompanyId, propertyId, domId]);
 
@@ -132,12 +141,15 @@ export function SpaceListHeading({
   const title = boundText(propertyHeader)
     || `Storage Units in ${propertyName || cfg.propertyName}`;
 
-  /* Nothing until the name is known.
+  /* Nothing until the lookup answers.
      The fallback below it is config.json's, which on this site names a
      property of the OLD company — so rendering early flashed a heading for the
-     wrong facility and then swapped it. A skeleton reserves the same line
-     instead, and Duda measures a box that is already the right height. */
-  if (propertyName === null && !boundText(propertyHeader)) {
+     wrong facility and then swapped it. A skeleton reserves the same lines
+     instead, and Duda measures a box that is already the right height.
+     Once the lookup HAS answered without a name (no row, or the request
+     failed) the configured name is the best there is: a heading beats a grey
+     bar that never resolves. */
+  if (!settled && !boundText(propertyHeader)) {
     return (
       <div className="slh-wrapper" ref={rootRef}>
         <div className="slh-skeleton" aria-hidden="true" />

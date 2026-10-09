@@ -3,15 +3,11 @@
 // single-space sibling 9030-31458.
 //
 // Reached from ANY unit's "Pay Now"; the sidebar card's "Account Info" button
-// goes back. Every space with something outstanding is listed and SELECTED, so
-// the default action pays the account off in full — which is what the balance
-// bar then totals. Unticking a space drops it from that total.
-//
-// WHY EVERYTHING IS SELECTED even though only one unit's button was clicked:
-// the frame draws it that way, and it is the kinder default — a tenant with
-// three units who pays one and leaves two in arrears has not solved their
-// problem. The per-space checkbox is there for the case where they genuinely
-// mean to pay only some.
+// goes back. Every space at that unit's PROPERTY is listed, each with a tick,
+// so the tenant can pay several at once or just one; the balance bar totals
+// what is ticked. The unit clicked and any space that owes something start
+// ticked — a tenant with three units who pays one and leaves two in arrears
+// has not solved their problem — and a paid-up neighbour starts unticked.
 //
 // Each space block is: checkbox + "#310 | address", the autopay strip, then
 // its charges and total.
@@ -130,11 +126,16 @@ export function MakePaymentPanel({
 }) {
   const list = spaces.length ? spaces : space ? [space] : [];
 
-  /* Everything selected on arrival — see the header note. A Set of ids rather
-     than a flag per space, so the state does not have to be rebuilt when the
-     list changes. */
+  /* Ticked on arrival: the unit whose Pay Now was pressed, plus any listed
+     space that owes something — paying one and leaving a neighbour in arrears
+     solves nothing, which is why those start ticked. A paid-up neighbour
+     starts unticked: it is listed so it CAN be paid (prepaid) alongside, not
+     because the tenant asked to. A Set of ids rather than a flag per space, so
+     the state does not have to be rebuilt when the list changes. */
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(list.map((s) => s.id)),
+    () => new Set(list
+      .filter((s) => s.id === space?.id || money(s.balance.amount) > 0)
+      .map((s) => s.id)),
   );
   const [prepay, setPrepay] = useState(false);
   /* The three autopay sets — see the header note on why each is per space and

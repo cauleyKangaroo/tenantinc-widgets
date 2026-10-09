@@ -27,6 +27,11 @@ export interface ExtraFieldValues {
   altPhone: string;
   altEmail: string;
   altAddress: string;
+  /** Filled by the address picker when a suggestion is chosen; empty for a
+   *  typed-only line. The lease files the alternate's address as four parts. */
+  altCity: string;
+  altState: string;
+  altZip: string;
   vType: string;
   make: string;
   model: string;
@@ -40,6 +45,7 @@ export interface ExtraFieldValues {
 export const EMPTY_EXTRA_FIELDS: ExtraFieldValues = {
   dob: '',
   altFirst: '', altLast: '', altPhone: '', altEmail: '', altAddress: '',
+  altCity: '', altState: '', altZip: '',
   vType: '', make: '', model: '', year: '', colour: '', plate: '', country: '', stateVal: '',
 };
 
@@ -60,7 +66,23 @@ const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
  * not on screen produces a message nobody can act on — it would simply disable
  * the button with no way to find out why.
  */
-export function extraFieldProblems(on: ExtraSectionsOn, v: ExtraFieldValues): Record<string, string> {
+export function extraFieldProblems(
+  on: ExtraSectionsOn,
+  v: ExtraFieldValues,
+  /**
+   * The PRIMARY contact's own email and phone. An alternate contact is the
+   * person to reach when the tenant cannot be, so it cannot be the tenant:
+   * the same email or the same number is rejected on the field that repeats
+   * it. Compared on what identifies a person, not on the name — two people
+   * can share a name, but not an inbox or a phone.
+   */
+  primary?: { email?: string; phone?: string },
+): Record<string, string> {
+  const sameEmail = !!primary?.email && isEmail(v.altEmail)
+    && v.altEmail.trim().toLowerCase() === primary.email.trim().toLowerCase();
+  const digits = (s: string) => s.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+  const samePhone = !!primary?.phone && isPossiblePhone(v.altPhone, 'US')
+    && digits(v.altPhone).length > 0 && digits(v.altPhone) === digits(primary.phone);
   return {
     // The mask is MM/DD/YYYY, so a complete date is exactly ten characters —
     // "12/25/" is filled but not a date.
@@ -68,8 +90,10 @@ export function extraFieldProblems(on: ExtraSectionsOn, v: ExtraFieldValues): Re
     ...(on.altContact ? {
       altFirst: filled(v.altFirst) ? '' : 'Enter the alternate contact’s first name',
       altLast: filled(v.altLast) ? '' : 'Enter the alternate contact’s last name',
-      altPhone: isPossiblePhone(v.altPhone, 'US') ? '' : 'Enter a valid phone number',
-      altEmail: isEmail(v.altEmail) ? '' : 'Enter a valid email address',
+      altPhone: !isPossiblePhone(v.altPhone, 'US') ? 'Enter a valid phone number'
+        : samePhone ? 'The alternate contact must be a different person — this is your own number' : '',
+      altEmail: !isEmail(v.altEmail) ? 'Enter a valid email address'
+        : sameEmail ? 'The alternate contact must be a different person — this is your own email' : '',
       altAddress: filled(v.altAddress) ? '' : 'Enter the alternate contact’s address',
     } : {}),
     // Vehicle Type alone carries the asterisk in the frame; make, model, year,
@@ -165,8 +189,20 @@ export function AltContactFields({ v, set, bad, validated }: GroupProps) {
       </div>
       {/* The same lookup the mailing address uses — a typed address that never
           resolves is the commonest way this section arrives unusable. */}
-      <AddressAutocomplete country={CUSTOMER_ADDRESS_COUNTRIES} value={v.altAddress} onChange={(altAddress) => set({ altAddress })}>
-        <FormField label="Address" required type="search" value={v.altAddress} onChange={(altAddress) => set({ altAddress })}
+      <AddressAutocomplete
+        country={CUSTOMER_ADDRESS_COUNTRIES}
+        value={v.altAddress}
+        /* Typing clears the picked parts: they described the address that was
+           chosen, not whatever is being typed over it. */
+        onChange={(altAddress) => set({ altAddress, altCity: '', altState: '', altZip: '' })}
+        onPick={(place) => set({
+          altAddress: place.address.street || place.formattedAddress,
+          altCity: place.address.city ?? '',
+          altState: place.address.stateCode || place.address.state || '',
+          altZip: place.address.zip ?? '',
+        })}
+      >
+        <FormField label="Address" required type="search" value={v.altAddress} onChange={(altAddress) => set({ altAddress, altCity: '', altState: '', altZip: '' })}
           error={e.address} state={okState(validated, e.address, filled(v.altAddress))} />
       </AddressAutocomplete>
     </div>
