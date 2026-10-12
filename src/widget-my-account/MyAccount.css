@@ -1401,6 +1401,101 @@
 }
 .ma-act__invoice + .ma-act__invoice { margin-top: 5px; }
 
+/* ── Payment Activity, mobile list (Figma, phone frame) ───────────────────
+   ≤720px only — the table above is the desktop/tablet layout and is hidden
+   there; this list is hidden everywhere else. Header 42px tall, full width;
+   each payment is Date / Amount / Balance over a grey details strip padded
+   16px left, 12px right. Header and rows share one grid so the columns line
+   up whatever the amounts are. */
+.ma-actm { display: none; }
+.ma-activity__tri { display: none; }
+
+@media (max-width: 720px) {
+  .ma-act__scroll { display: none; }
+  .ma-actm { display: block; }
+
+  /* The phone frame draws Payment Activity flat on the page: no card fill,
+     no shadow. */
+  .ma-activity { background: none; box-shadow: none; }
+
+  /* Bar: the frame's filled ▼ in place of the outline chevron — down closed,
+     up open. (Its 19/23 padding is in the main ≤720px block below.) */
+  .ma-activity__chev { display: none; }
+  /* The glyph is 8 x 14 (drawn pointing right), centred in the frame's 24px
+     box — 5px / 8px insets once it is turned to point down. */
+  .ma-activity__tri {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--hb-text-night);
+    transform: rotate(90deg);
+    transition: transform var(--hb-transition);
+  }
+  .ma-activity__tri--open { transform: rotate(-90deg); }
+
+  .ma-actm__head,
+  .ma-actm__main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 72px;
+    column-gap: 12px;
+    align-items: center;
+    padding: 0 12px 0 16px;
+  }
+  .ma-actm__head > span:not(:first-child),
+  .ma-actm__main > span:not(:first-child) { text-align: right; }
+
+  .ma-actm__head {
+    height: 42px;
+    background: var(--ma-panel);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--hb-grayscale-medium);
+    white-space: nowrap;
+  }
+
+  .ma-actm__list { margin: 0; padding: 0; list-style: none; }
+  .ma-actm__item {
+    min-height: 88px;
+    border-bottom: 1px solid rgba(16, 19, 24, 0.10);
+  }
+
+  .ma-actm__main {
+    min-height: 40px;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--hb-text-night);
+  }
+  .ma-actm__amount { font-weight: 700; white-space: nowrap; }
+  .ma-actm__balance { color: var(--hb-grayscale-medium); white-space: nowrap; }
+
+  .ma-actm__details {
+    display: flex;
+    flex-direction: column;
+    padding: 9px 12px 9px 16px;
+    background: var(--ma-panel);
+    font-size: 14px;
+    line-height: 16.8px;
+    color: var(--hb-grayscale-medium);
+  }
+
+  .ma-actm__invoice {
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-position: from-font;
+  }
+  .ma-actm__invoice:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); border-radius: 4px; }
+}
+
 /* ── The card / bank forms ─────────────────────────────────────────────────
    The forms themselves are #99's, styled by its own .rf- stylesheet. Only the
    two things this panel owns are set here: which tile is open, and the gap
@@ -1760,7 +1855,7 @@
 
   .ma-methods { grid-template-columns: 1fr; }
 
-  .ma-activity__bar { padding: 20px 24px; }
+  .ma-activity__bar { padding: 19px 23px; }
   .ma-activity__body { padding: 0 24px 20px; }
 
   .ma-unit__panel { gap: 8px; }
