@@ -53,9 +53,9 @@
 // ===========================================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CoveragePlan, LeaseCoverage } from '@shared/accountApi';
+import type { CoveragePlan, LeaseCoverage, LeasePaymentMethod, LeasePaymentReceipt, LeasePaymentRequest } from '@shared/accountApi';
 import { Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
-import { BankForm, CardForm, PaymentFormSkeleton } from '@shared/paymentForms';
+import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from '@shared/paymentForms';
 import {
   BankIcon, ChevronBigLeft24Icon, ChevronBigRight24Icon, CreditCardIcon, CreditCardRemoveIcon,
   CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
@@ -64,7 +64,7 @@ import {
 import { AUTOPAY_CANCELLED_NOTE, AUTOPAY_UPDATE_NOTE, COVERAGE_OPTIONS, PAYMENT_RECEIPT_DEMO } from './data';
 import { PaymentResult, type PaymentOutcome } from './PaymentResult';
 import { CoverageMenu } from './CoverageMenu';
-import type { AccountSpace } from './data';
+import type { AccountSpace, PaymentReceipt, SavedCard } from './data';
 
 /** Skeleton beat before a payment form appears (Figma 8507-24610). Same 700ms
  *  as #99's step 2, so the two screens feel like one product. */
@@ -74,6 +74,25 @@ const FORM_SKELETON_MS = 700;
  * "$123.00", "$ 1,234.50" → 123 / 1234.5. Returns 0 for anything unparseable
  * rather than NaN, which would poison the whole sum into "$NaN".
  */
+/**
+ * What MyAccount gives the panel to take a real payment.
+ *
+ * `gpPublicKey` is the Global Payments public key for the listed spaces'
+ * PROPERTY (every space on the panel is at one property): a string mounts
+ * the hosted card fields, '' means the facility takes no card online and the
+ * card option is replaced by a notice, undefined means the lookup is still
+ * out. The account payments API takes a hosted-field TOKEN or a saved method
+ * — never card digits — so there is no plain-input fallback here on purpose.
+ */
+export interface PaymentHandlers {
+  gpPublicKey: string | undefined;
+  gatewayPending: boolean;
+  /** Cards on file at this property, for one-tap "saved" payments. */
+  savedCards: SavedCard[];
+  pay: (leaseId: string, body: LeasePaymentRequest, idempotencyKey: string) =>
+    Promise<{ ok: true; receipt: LeasePaymentReceipt } | { ok: false; message: string }>;
+}
+
 /** What MyAccount gives the panel to talk to the coverage endpoints. */
 export interface CoverageHandlers {
   load: (leaseId: string) => Promise<LeaseCoverage | null>;
@@ -128,7 +147,7 @@ function flip(prev: Set<string>, id: string): Set<string> {
 }
 
 export function MakePaymentPanel({
-  spaces, space, onBack, initialResult = null, coverage,
+  spaces, space, onBack, initialResult = null, coverage, payment,
 }: {
   /**
    * Open on a payment result rather than the bare form — the harness uses it
@@ -142,6 +161,12 @@ export function MakePaymentPanel({
    * preview → the priced plan the tenant confirms; apply → the change.
    */
   coverage?: CoverageHandlers;
+  /**
+   * The REAL payment path, when there is a session (MyAccount supplies it).
+   * Without it every "Pay Now" is the static demo: the result banner shows the
+   * sample receipt and nothing is charged.
+   */
+  payment?: PaymentHandlers;
   /** Every space with something outstanding — all listed, all selected. */
   spaces: AccountSpace[];
   /** The unit whose "Pay Now" was clicked. Only used as a fallback when no
@@ -357,13 +382,91 @@ export function MakePaymentPanel({
     // The banner is at the top, the button that was pressed at the bottom.
     panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  /* ── LIVE payment ────────────────────────────────────────────────────────
+     ONE CALL PER TICKED SPACE: the API posts a payment against a lease and
+     that lease's invoices, so the panel's total is split back into the
+     per-lease sums it was built from. A new card is a single-use token: it
+     pays the first space with `saveToAccount` when more follow, and the rest
+     are paid as that saved method — if the reply does not name one, the run
+     stops there and says exactly which spaces are still unpaid, rather than
+     sending the same token twice to be refused. The idempotency key is made
+     once per lease per attempt and kept until that lease is paid, so a retry
+     after a dropped connection cannot charge it twice. */
+  const [paying, setPaying] = useState(false);
+  const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
+  const [payMessage, setPayMessage] = useState<string>('');
+  const idemKeys = useRef<Map<string, string>>(new Map());
+  const idemKeyFor = (leaseId: string) => {
+    let k = idemKeys.current.get(leaseId);
+    if (!k) { k = `pay-${leaseId}-${Date.now().toString(36)}`; idemKeys.current.set(leaseId, k); }
+    return k;
+  };
+  const autopayFor = (sp: AccountSpace) =>
+    !cancelled.has(sp.id) && (enrolledNow.has(sp.id) || updateMethod.has(sp.id));
+  const finishPayment = (outcome: PaymentOutcome, r: PaymentReceipt | null, message: string) => {
+    setReceipt(r);
+    setPayMessage(message);
+    setPayMethod(null);
+    setResult(outcome);
+    panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const payLive = async (card?: CardFormValue, saved?: SavedCard) => {
+    if (!payment || paying) return;
+    const targets = list.filter((s) => selected.has(s.id) && s.openInvoices.length > 0);
+    if (targets.length === 0) {
+      finishPayment('failed', null, 'There is nothing outstanding on the selected space(s) to pay.');
+      return;
+    }
+    if (!saved && !card?.token) {
+      // Plain inputs would mean a card number in this bundle, which the API
+      // does not take and this page must never hold.
+      finishPayment('failed', null, 'Card payments need the secure card fields, which did not load. Please refresh and try again.');
+      return;
+    }
+    setPaying(true);
+    let savedId = saved?.id ?? '';
+    let paidTotal = 0;
+    let last: LeasePaymentReceipt | undefined;
+    const paid: AccountSpace[] = [];
+    let failure = '';
+    for (const sp of targets) {
+      const invoices = sp.openInvoices.map((i) => ({ id: i.id, amount: i.amount }));
+      const amount = Math.round(invoices.reduce((n, i) => n + i.amount, 0) * 100) / 100;
+      const method: LeasePaymentMethod = savedId
+        ? { type: 'saved', id: savedId }
+        : { type: 'hosted-card', token: card!.token!, zip: card!.zip, saveToAccount: targets.length > 1, autopay: autopayFor(sp) };
+      const r = await payment.pay(sp.id, { amount, invoices, paymentMethod: method }, idemKeyFor(sp.id));
+      if (!r.ok) { failure = r.message; break; }
+      idemKeys.current.delete(sp.id);
+      paidTotal += amount; last = r.receipt; paid.push(sp);
+      if (!savedId && paid.length < targets.length) {
+        if (r.receipt.savedPaymentMethodId) savedId = r.receipt.savedPaymentMethodId;
+        else { failure = 'The card could only be charged once in this session. Please pay the remaining space(s) separately.'; break; }
+      }
+    }
+    setPaying(false);
+    const last4 = saved?.last4 || (card?.maskedCardNumber ?? '').replace(/\D/g, '').slice(-4);
+    const summary: PaymentReceipt = {
+      number: last?.number || '—',
+      amount: formatMoney(paidTotal),
+      method: last?.method || (last4 ? `xxxx ${last4}` : '—'),
+    };
+    if (!failure) { finishPayment('success', summary, ''); return; }
+    if (paid.length) {
+      const unpaid = targets.filter((s) => !paid.includes(s)).map((s) => s.paymentNumber).join(', ');
+      finishPayment('failed', summary, `${paid.map((s) => s.paymentNumber).join(', ')} paid (${summary.amount}). Not paid: ${unpaid}. ${failure}`);
+    } else finishPayment('failed', null, failure);
+  };
+  const liveCardKey = payment?.gpPublicKey;
+  const cardUnavailable = !!payment && !payment.gatewayPending && !liveCardKey;
   /* "Pay through" is per space; with several selected they can disagree, so the
      bar shows the FURTHEST date — that is what paying this total covers. */
   const payThrough = list.find((s) => selected.has(s.id))?.balance.payThrough ?? '';
 
   return (
-    <section className={`ma-pay${result ? ' ma-pay--result' : ''}`} ref={panelRef}>
-      {result && <PaymentResult outcome={result} receipt={PAYMENT_RECEIPT_DEMO} />}
+    <section className={`ma-pay${result === 'success' ? ' ma-pay--result' : ''}`} ref={panelRef}>
+      {result && <PaymentResult outcome={result} receipt={receipt ?? PAYMENT_RECEIPT_DEMO} message={payMessage || undefined} />}
 
       {/* Back arrow, then the title to its right. The heading keeps its own
           element and styling; only the row around it is new, so the title reads
@@ -371,12 +474,14 @@ export function MakePaymentPanel({
       <header className="ma-pay__head">
         {/* No back arrow on the result frames: the payment is done, and the
             sidebar's Account Info is still there. */}
-        {onBack && !result && (
+        {onBack && result !== 'success' && (
           <button type="button" className="ma-pay__back" onClick={onBack} aria-label="Back to account info">
             <ChevronBigLeft24Icon />
           </button>
         )}
-        <h2 className="ma-pay__title">{result ? 'Upcoming Payment' : 'Make a Payment'}</h2>
+        {/* "Upcoming" only once something WAS paid: after a refusal the form
+            below is still the payment to make, with the banner saying why. */}
+        <h2 className="ma-pay__title">{result === 'success' ? 'Upcoming Payment' : 'Make a Payment'}</h2>
       </header>
 
       {list.map((sp) => {
@@ -533,67 +638,74 @@ export function MakePaymentPanel({
                 </div>
               ))}
 
-              <div className="ma-line">
-                <p className="ma-line__label ma-line__label--plain">{sp.coverage.label}</p>
-                <div className="ma-line__right">
-                  {(() => {
-                    const cov = liveFor(sp);
-                    return (
-                      <CoverageMenu
-                        value={cov ? liveValue(cov) : currentCoverage(sp)}
-                        options={cov ? liveOptions(cov) : undefined}
-                        onChange={(o) => (cov
-                          ? void pickPlan(sp, o.id)
-                          : setCoverageChoice((prev) => ({ ...prev, [sp.id]: o.id })))}
-                      >
-                        <ShieldSettingsIcon />
-                        <span className="ma-link">
-                          <span className="ma-only-desktop">{coverageBusy[sp.id] === 'preview' ? 'Pricing…' : 'Change Coverage'}</span>
-                          <span className="ma-only-mobile">{coverageBusy[sp.id] === 'preview' ? '…' : 'Change'}</span>
-                        </span>
-                      </CoverageMenu>
-                    );
-                  })()}
-                  {/* The live plan's premium when it is known: the account record
-                      carries no coverage charge of its own, so the mapped line
-                      is $0.00 until the coverage read answers. */}
-                  <p className="ma-line__amount">
-                    {liveFor(sp)?.current
-                      ? scaleMoney(formatMoney(liveFor(sp)!.current!.monthlyPremium), monthsFactor)
-                      : scaleMoney(sp.coverage.amount, monthsFactor)}
-                  </p>
-                </div>
-              </div>
-              {/* A change already on the books — from the record. Right after a
-                  confirm the "Done —" note below says the same thing, so only
-                  one of the two is shown. */}
-              {liveFor(sp)?.scheduled && !pendingPlan[sp.id] && coverageNote[sp.id]?.kind !== 'ok' && (
-                <p className="ma-coverage-note">
-                  Changes to {liveFor(sp)!.scheduled!.name} (${liveFor(sp)!.scheduled!.monthlyPremium}/mo) from {longDate(liveFor(sp)!.scheduled!.startDate)}.
-                </p>
-              )}
-              {/* The preview, waiting for a decision. Nothing has been sent. */}
-              {pendingPlan[sp.id] && (
-                <div className="ma-coverage-confirm" role="group" aria-label="Confirm coverage change">
-                  <p className="ma-coverage-confirm__text">
-                    <strong>{pendingPlan[sp.id]!.name}</strong> — ${pendingPlan[sp.id]!.monthlyPremium}/mo, starting {longDate(pendingPlan[sp.id]!.startDate)}. Your current plan runs until then.
-                  </p>
-                  <div className="ma-coverage-confirm__actions">
-                    <Button tone="dark" className="ma-btn-40" busy={coverageBusy[sp.id] === 'apply'} onClick={() => void confirmPlan(sp)}>
-                      Confirm change
-                    </Button>
-                    <Button tone="dark" fill="outline" className="ma-btn-40" disabled={coverageBusy[sp.id] === 'apply'}
-                      onClick={() => { setPendingPlan((prev) => ({ ...prev, [sp.id]: undefined })); setNote(sp.id, undefined); }}>
-                      Cancel
-                    </Button>
+              {/* COVERAGE, only when there is some. Live, that is the lease's
+                  current plan from the coverage read — while it is out, or when a
+                  lease simply has no plan, no line is drawn: the account record
+                  carries no coverage charge, so the mapped $0.00 was never a real
+                  figure to print. The sample (no handlers) keeps its line. */}
+              {(!coverage || !!liveFor(sp)?.current) && (<>
+                <div className="ma-line">
+                  <p className="ma-line__label ma-line__label--plain">{sp.coverage.label}</p>
+                  <div className="ma-line__right">
+                    {(() => {
+                      const cov = liveFor(sp);
+                      return (
+                        <CoverageMenu
+                          value={cov ? liveValue(cov) : currentCoverage(sp)}
+                          options={cov ? liveOptions(cov) : undefined}
+                          onChange={(o) => (cov
+                            ? void pickPlan(sp, o.id)
+                            : setCoverageChoice((prev) => ({ ...prev, [sp.id]: o.id })))}
+                        >
+                          <ShieldSettingsIcon />
+                          <span className="ma-link">
+                            <span className="ma-only-desktop">{coverageBusy[sp.id] === 'preview' ? 'Pricing…' : 'Change Coverage'}</span>
+                            <span className="ma-only-mobile">{coverageBusy[sp.id] === 'preview' ? '…' : 'Change'}</span>
+                          </span>
+                        </CoverageMenu>
+                      );
+                    })()}
+                    {/* The live plan's premium when it is known: the account record
+                        carries no coverage charge of its own, so the mapped line
+                        is $0.00 until the coverage read answers. */}
+                    <p className="ma-line__amount">
+                      {liveFor(sp)?.current
+                        ? scaleMoney(formatMoney(liveFor(sp)!.current!.monthlyPremium), monthsFactor)
+                        : scaleMoney(sp.coverage.amount, monthsFactor)}
+                    </p>
                   </div>
                 </div>
-              )}
-              {coverageNote[sp.id] && (
-                <p className={`ma-coverage-note${coverageNote[sp.id]!.kind === 'error' ? ' ma-coverage-note--error' : ''}`} role={coverageNote[sp.id]!.kind === 'error' ? 'alert' : 'status'}>
-                  {coverageNote[sp.id]!.text}
-                </p>
-              )}
+                {/* A change already on the books — from the record. Right after a
+                    confirm the "Done —" note below says the same thing, so only
+                    one of the two is shown. */}
+                {liveFor(sp)?.scheduled && !pendingPlan[sp.id] && coverageNote[sp.id]?.kind !== 'ok' && (
+                  <p className="ma-coverage-note">
+                    Changes to {liveFor(sp)!.scheduled!.name} (${liveFor(sp)!.scheduled!.monthlyPremium}/mo) from {longDate(liveFor(sp)!.scheduled!.startDate)}.
+                  </p>
+                )}
+                {/* The preview, waiting for a decision. Nothing has been sent. */}
+                {pendingPlan[sp.id] && (
+                  <div className="ma-coverage-confirm" role="group" aria-label="Confirm coverage change">
+                    <p className="ma-coverage-confirm__text">
+                      <strong>{pendingPlan[sp.id]!.name}</strong> — ${pendingPlan[sp.id]!.monthlyPremium}/mo, starting {longDate(pendingPlan[sp.id]!.startDate)}. Your current plan runs until then.
+                    </p>
+                    <div className="ma-coverage-confirm__actions">
+                      <Button tone="dark" className="ma-btn-40" busy={coverageBusy[sp.id] === 'apply'} onClick={() => void confirmPlan(sp)}>
+                        Confirm change
+                      </Button>
+                      <Button tone="dark" fill="outline" className="ma-btn-40" disabled={coverageBusy[sp.id] === 'apply'}
+                        onClick={() => { setPendingPlan((prev) => ({ ...prev, [sp.id]: undefined })); setNote(sp.id, undefined); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {coverageNote[sp.id] && (
+                  <p className={`ma-coverage-note${coverageNote[sp.id]!.kind === 'error' ? ' ma-coverage-note--error' : ''}`} role={coverageNote[sp.id]!.kind === 'error' ? 'alert' : 'status'}>
+                    {coverageNote[sp.id]!.text}
+                  </p>
+                )}
+              </>)}
 
               <div className="ma-line">
                 <p className="ma-line__label ma-line__label--plain">{sp.taxes.label}</p>
@@ -634,36 +746,40 @@ export function MakePaymentPanel({
           <p className="ma-balance__through">{payThrough}</p>
         </div>
 
-        <div className="ma-balance__prepay">
-          <Checkbox checked={prepay} onChange={setPrepay} className="ma-balance__check">
-            Prepay Additional Month(s)
-          </Checkbox>
-
-          {/* Only once prepay is on: a stepper for something you have not opted
-              into is a control with nothing to control. */}
-          {prepay && (
-            <div className="ma-stepper">
-              <button
-                type="button"
-                className="ma-stepper__btn"
-                aria-label="One month fewer"
-                onClick={() => setPrepayMonths((n) => Math.max(1, n - 1))}
-              >
-                <MinusIcon />
-              </button>
-              <button
-                type="button"
-                className="ma-stepper__btn"
-                aria-label="One month more"
-                onClick={() => setPrepayMonths((n) => n + 1)}
-              >
-                <PlusIcon />
-              </button>
-              <output className="ma-stepper__value">{prepayMonths}</output>
-              <span className="ma-stepper__unit">Month(s)</span>
-            </div>
-          )}
-        </div>
+        {/* Live: the API posts against invoices and a month not yet billed has
+            none, so prepaying is not something it can take. Static only. */}
+        {!payment && (
+                  <div className="ma-balance__prepay">
+            <Checkbox checked={prepay} onChange={setPrepay} className="ma-balance__check">
+              Prepay Additional Month(s)
+            </Checkbox>
+  
+            {/* Only once prepay is on: a stepper for something you have not opted
+                into is a control with nothing to control. */}
+            {prepay && (
+              <div className="ma-stepper">
+                <button
+                  type="button"
+                  className="ma-stepper__btn"
+                  aria-label="One month fewer"
+                  onClick={() => setPrepayMonths((n) => Math.max(1, n - 1))}
+                >
+                  <MinusIcon />
+                </button>
+                <button
+                  type="button"
+                  className="ma-stepper__btn"
+                  aria-label="One month more"
+                  onClick={() => setPrepayMonths((n) => n + 1)}
+                >
+                  <PlusIcon />
+                </button>
+                <output className="ma-stepper__value">{prepayMonths}</output>
+                <span className="ma-stepper__unit">Month(s)</span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="ma-balance__right">
           <p className="ma-balance__amount">{formatMoney(balanceTotal)}</p>
@@ -678,6 +794,24 @@ export function MakePaymentPanel({
           grid while NEITHER is open — once one is, the open panel takes their
           place and the other method moves below it, exactly as #99's step 2
           does with the same forms. */}
+      {/* Cards on file at this property — one tap, no form. Only live: the
+          sample has none, and the frame's tiles below stay as they are. */}
+      {payment && payment.savedCards.length > 0 && !methodOpen && (
+        <div className="ma-saved">
+          {payment.savedCards.map((c) => (
+            <button
+              type="button"
+              key={c.id}
+              className="ma-method ma-method--outline ma-saved__card"
+              disabled={paying}
+              onClick={() => void payLive(undefined, c)}
+            >
+              <CreditCardIcon />
+              <span>{paying ? 'Paying…' : `Pay with ${c.cardType ? c.cardType.toUpperCase() : 'card'} xxxx ${c.last4}`}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="ma-methods">
         <button type="button" className="ma-method ma-method--dark">
           <GooglePayLockup />
@@ -697,14 +831,16 @@ export function MakePaymentPanel({
               <CreditCardIcon />
               <span>Credit / Debit</span>
             </button>
-            <button
-              type="button"
-              className="ma-method ma-method--outline"
-              onClick={() => selectMethod('bank')}
-            >
-              <BankIcon />
-              <span>Pay by Bank</span>
-            </button>
+            {!payment && (
+              <button
+                type="button"
+                className="ma-method ma-method--outline"
+                onClick={() => selectMethod('bank')}
+              >
+                <BankIcon />
+                <span>Pay by Bank</span>
+              </button>
+            )}
           </>
         )}
       </div>
@@ -726,16 +862,33 @@ export function MakePaymentPanel({
           {formLoading ? (
             <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
           ) : payMethod === 'card' ? (
-            <CardForm total={balanceTotal} onPay={pay} />
+            cardUnavailable ? (
+              /* No key ⇒ no hosted fields ⇒ no honest way to take a card. */
+              <p className="ma-pay__notice" role="status">
+                Card payments are not available online for this facility. Please contact the office to pay.
+              </p>
+            ) : (
+              <CardForm
+                total={balanceTotal}
+                onPay={(v) => (payment ? void payLive(v) : pay())}
+                busy={paying}
+                gpPublicKey={liveCardKey}
+                gatewayPending={payment?.gatewayPending}
+                zipOnlyBilling={!!payment}
+                /* The form will not submit without a billing country; the
+                   account is a US tenant's. */
+                defaultCountry="United States"
+              />
+            )
           ) : (
-            <BankForm total={balanceTotal} onPay={pay} />
+            <BankForm total={balanceTotal} onPay={pay} defaultCountry="United States" />
           )}
         </section>
       )}
 
       {/* The method NOT open, relocated below the panel — full width, since it
           no longer shares a row. */}
-      {methodOpen && (
+      {methodOpen && !payment && (
         <button
           type="button"
           className="ma-method ma-method--outline ma-method--alt"

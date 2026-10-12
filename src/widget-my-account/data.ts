@@ -94,6 +94,16 @@ export interface AccountDocument {
   date?: string;
 }
 
+/** A card on file, from the account record's paymentMethods — per property. */
+export interface SavedCard {
+  id: string;
+  propertyId: string;
+  last4: string;
+  cardType: string;
+  nameOnCard: string;
+  autopay: boolean;
+}
+
 export interface SpaceProperty {
   id: string;
   name: string;
@@ -117,6 +127,9 @@ export interface AccountSpace {
   id: string;
   /** Which property's card this unit stacks into. */
   propertyId: string;
+  /** The lease's unpaid invoices — what a payment is posted against. Empty
+   *  on the sample rows (there is nothing real to pay) and on a paid-up lease. */
+  openInvoices: Array<{ id: string; number: string; amount: number }>;
   /** "#41" — as printed, hash included. Heads the unit block. */
   number: string;
   /** "Space #41" — the Account Info panel's heading. */
@@ -204,6 +217,7 @@ export const SPACES: AccountSpace[] = [
   {
     id: 'space-41',
     propertyId: 'prop-3rd-street',
+    openInvoices: [],
     number: '#41',
     title: 'Space #41',
 
@@ -256,6 +270,7 @@ export const SPACES: AccountSpace[] = [
   {
     id: 'space-42',
     propertyId: 'prop-3rd-street',
+    openInvoices: [],
     number: '#42',
     title: 'Space #42',
 

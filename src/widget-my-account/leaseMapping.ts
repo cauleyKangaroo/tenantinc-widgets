@@ -22,7 +22,7 @@ import type { AccountRecord } from '@shared/accountApi';
 import type { PropertyContact } from '@shared/propertyContact';
 import { classifySize, mediaManagerImagesFor } from '@shared/unitArtwork';
 import type {
-  AccountDocument, AccountSpace, ActivityRow, Contact, SpaceProperty,
+  AccountDocument, AccountSpace, ActivityRow, Contact, SavedCard, SpaceProperty,
 } from './data';
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
@@ -185,6 +185,9 @@ export function spacesFrom(
     return {
       id: str(l.id) || number,
       propertyId: str(u.propertyId),
+      openInvoices: (Array.isArray(l.invoices) ? (l.invoices as Record<string, unknown>[]) : [])
+        .filter((i) => num(i.balance) > 0 && str(i.id))
+        .map((i) => ({ id: str(i.id), number: str(i.number), amount: num(i.balance) })),
       number: number ? `#${number}` : '',
       title: number ? `Space #${number}` : 'Your space',
       unit: {
@@ -304,4 +307,23 @@ function ordinal(n: number): string {
     case 3: return `${n}rd`;
     default: return `${n}th`;
   }
+}
+
+/**
+ * The cards on file, each tied to the property it was saved at — the
+ * payments API takes a saved method by id, and the record lists several per
+ * property (verified: six on one account, all last4 1111, two properties).
+ */
+export function savedCardsFrom(record: AccountRecord): SavedCard[] {
+  const rows = Array.isArray(record.paymentMethods) ? (record.paymentMethods as Record<string, unknown>[]) : [];
+  return rows
+    .filter((m) => str(m.id) && str(m.type) === 'card')
+    .map((m) => ({
+      id: str(m.id),
+      propertyId: str(m.propertyId),
+      last4: str(m.last4),
+      cardType: str(m.cardType),
+      nameOnCard: str(m.nameOnCard),
+      autopay: num(m.autopay) === 1,
+    }));
 }
