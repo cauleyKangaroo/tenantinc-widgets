@@ -13,7 +13,7 @@
 // sized from the frame's row positions — which are the authoritative ones.
 // ===========================================================================
 
-import { ChevronBigRightIcon } from './icons';
+import { ChevronBigRightIcon, ChevronSolidIcon } from './icons';
 import type { ActivityRow } from './data';
 
 export function PaymentActivity({
@@ -36,6 +36,10 @@ export function PaymentActivity({
         <span className="ma-activity__title">Payment Activity</span>
         <span className={`ma-activity__chev${open ? ' ma-activity__chev--open' : ''}`}>
           <ChevronBigRightIcon />
+        </span>
+        {/* Mobile's filled ▼ (CSS shows this OR the chevron above). */}
+        <span className={`ma-activity__tri${open ? ' ma-activity__tri--open' : ''}`}>
+          <ChevronSolidIcon size={14} />
         </span>
       </button>
 
@@ -86,6 +90,43 @@ export function PaymentActivity({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Mobile (≤720px) — Figma "Payment Activity" phone frame. The six
+              columns don't fit a phone, so each payment becomes a row of
+              Date / Amount / Balance over a grey details strip (spaces,
+              invoices, method). CSS shows this OR the table above, never both. */}
+          {rows.length > 0 && (
+            <div className="ma-actm">
+              <div className="ma-actm__head" aria-hidden="true">
+                <span>Date/Details</span>
+                <span>Amount</span>
+                <span>Balance</span>
+              </div>
+              <ul className="ma-actm__list">
+                {rows.map((r, i) => (
+                  <li key={`${r.date}-${r.method}-${r.amount}-${i}`} className="ma-actm__item">
+                    <div className="ma-actm__main">
+                      <span className="ma-actm__date">{r.date}</span>
+                      <span className="ma-actm__amount">{r.amount}</span>
+                      <span className="ma-actm__balance">{r.balance}</span>
+                    </div>
+                    <div className="ma-actm__details">
+                      <span>
+                        Space {r.spaces.join(', ')}, Inv{' '}
+                        {r.invoices.map((inv, j) => (
+                          <span key={inv}>
+                            {j > 0 && ', '}
+                            <button type="button" className="ma-actm__invoice">{inv}</button>
+                          </span>
+                        ))}
+                      </span>
+                      <span className="ma-actm__method">{r.method}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>
