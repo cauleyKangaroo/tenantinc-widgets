@@ -1032,6 +1032,7 @@ export function NavigationBar({
                 type, magnifier) swaps the drawer for that panel; nothing is typed
                 here, hence `readOnly` — a keyboard would slide up over a field
                 that is about to be replaced. */}
+              {/* Hidden for now — re-enable by removing this comment wrapper.
               <form
                 className="nav-mm-search"
                 onSubmit={(e) => e.preventDefault()}
@@ -1056,6 +1057,7 @@ export function NavigationBar({
                   <SearchIcon size={20} />
                 </button>
               </form>
+              */}
             </div>
 
             {/* Account / utility links — inset on the wrapping div, see below */}
@@ -1116,11 +1118,25 @@ export function NavigationBar({
             <div className="nav-mm-nav-inset">
               <ul className="nav-mm-nav">
                 {linkList.map((link) => {
-                  const expandable = !!link.menu?.length;
+                  // Find Storage opens the mega menu here too (same rule as the
+                  // desktop bar), instead of expanding a state › city dropdown.
+                  const isFindStorage = useMega && isFindStorageLink(link);
+                  const expandable = !!link.menu?.length && !isFindStorage;
                   const open = !!mobileOpen[link.label];
                   return (
                     <li key={link.label} className="nav-mm-nav-item">
-                      {expandable ? (
+                      {isFindStorage ? (
+                        <button
+                          type="button"
+                          className="nav-mm-nav-row"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            setMegaOpen(true);
+                          }}
+                        >
+                          <span>{link.label}</span>
+                        </button>
+                      ) : expandable ? (
                         <button
                           type="button"
                           className={`nav-mm-nav-row${open ? ' is-open' : ''}`}

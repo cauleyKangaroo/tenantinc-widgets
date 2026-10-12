@@ -34,6 +34,8 @@ export interface ReviewItem {
   timeAgo: string;
   /** Reviewer avatar URL, '' when absent. */
   avatar: string;
+  /** This review on the platform itself, '' when the row carries none. */
+  url: string;
   /** Sort key: ms since epoch, 0 when the row has no usable date. */
   timestamp: number;
 }
@@ -105,7 +107,7 @@ export async function fetchReviewSource(
   const reviews: ReviewItem[] = rows
     .map((r, i) => {
       const when = toDate(r.reviewDate) ?? toDate(r.timeCreated);
-      const given = str(r.relativeTime); // Google only
+      const given = plainText(r.relativeTime); // Google only — native, so may be rte-wrapped
       return {
         id: str(r.reviewKey) || str(r.reviewId) || `${platform}-${i}`,
         author: plainText(platform === 'google' ? r.authorName : r.userName),
@@ -113,6 +115,7 @@ export async function fetchReviewSource(
         text: plainText(r.reviewText),
         timeAgo: given || relativeFrom(when),
         avatar: str(platform === 'google' ? r.profilePhotoUrl : r.userImageUrl),
+        url: str(r.reviewUrl) || str(r.url),
         timestamp: when ? when.getTime() : 0,
       };
     })

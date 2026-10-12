@@ -73,10 +73,11 @@ export function PaymentActivity({
                       </td>
                       <td>
                         {r.invoices.map((inv) => (
-                          // A real <a> once the invoice endpoint exists; a
-                          // button today, so it focuses and announces properly
-                          // without a dead href.
-                          <button type="button" key={inv} className="ma-act__invoice">{inv}</button>
+                          // Text, not a control. There is no invoice document
+                          // to open — the proxy exposes none (probed 2026-10-12:
+                          // no /invoices route) — and a button that does nothing
+                          // promises one. Becomes an <a> the day a PDF exists.
+                          <span key={inv} className="ma-act__invoice">{inv}</span>
                         ))}
                       </td>
                       <td className="ma-act__amount">{r.amount}</td>

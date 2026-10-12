@@ -485,7 +485,8 @@
   transition: transform 0.2s;
   transform: rotate(-90deg);
 }
-.sl-wrapper .sl-accordion.expanded .sl-chevron { transform: rotate(0deg); }
+/* Open: the down glyph flipped to point up. */
+.sl-wrapper .sl-accordion.expanded .sl-chevron { transform: rotate(180deg); }
 .sl-wrapper .sl-accordion-body { padding: 8px 0 32px; }
 
 .sl-wrapper .sl-cards-grid {
@@ -525,6 +526,12 @@
   flex-direction: column;
   /* Separates the promo badge from the price + CTA row below it. */
   gap: 16px;
+}
+/* Fee small print: tighter above (24px → 12px, incl. the panel's 16px gap) and
+   below (the panel's 30px → 18px). */
+.sl-wrapper .sl-card-action-panel .sl-junk-disclaimer {
+  margin-top: -4px;
+  margin-bottom: -12px;
 }
 .sl-wrapper .sl-card-top {
   display: flex;
@@ -1427,6 +1434,8 @@
   .sl-wrapper .sl-cards-grid { grid-template-columns: 1fr; gap: 16px; }
   .sl-wrapper .sl-card-display-panel { padding: 16px; }
   .sl-wrapper .sl-card-action-panel { padding: 16px; }
+  /* Panel is already 16px here — keep the full bottom padding under the note. */
+  .sl-wrapper .sl-card-action-panel .sl-junk-disclaimer { margin-bottom: 0; }
   .sl-wrapper .sl-card-top { gap: 16px; align-items: flex-start; }
   .sl-wrapper .sl-card-info { width: auto; flex: 1 1 auto; min-width: 0; }
   .sl-wrapper .sl-card-image-col { flex: 0 0 auto; width: 132px; }

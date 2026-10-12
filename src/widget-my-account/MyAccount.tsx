@@ -54,9 +54,9 @@ import {
 } from '@shared/accountApi';
 import {
   editFormFrom, updateFromEditForm,
-  primaryContactFrom, alternateContactFrom, documentsFrom,
+  primaryContactFrom, alternateContactFrom,
 } from './contactMapping';
-import { spacesFrom, propertiesFrom } from './leaseMapping';
+import { spacesFrom, propertiesFrom, activityFrom } from './leaseMapping';
 import type { AccountDocument, EditForm } from './data';
 import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROMO_SUPPLIES, PROPERTIES, SPACES, USER } from './data';
 
@@ -311,20 +311,21 @@ export function MyAccount({
     return () => { cancelled = true; };
   }, [record]);
 
+  const activityRows = useMemo(() => (record ? activityFrom(record) : []), [record]);
+
   const properties = useMemo(
     () => (record ? propertiesFrom(record, propertyContacts) : PROPERTIES),
     [record, propertyContacts],
   );
 
-  const realDocuments = useMemo(
-    () => {
-      if (!record) return undefined;
-      const docs = documentsFrom(record);
-      // No documents at all → keep the frame's list rather than an empty panel.
-      return docs.length ? docs : undefined;
-    },
-    [record],
-  );
+  /*
+   * Documents are the SELECTED SPACE's own (AccountSpace.documents, one list per
+   * lease from leaseMapping). There used to be one account-wide list here,
+   * flattened across every lease and de-duplicated BY NAME — so with six
+   * leases each carrying a "Superlease", only the first lease's survived and
+   * that same file was shown, and downloaded, for every space picked. The
+   * panel reads space.documents when no list is passed.
+   */
 
   /*
    * Download a lease document.
@@ -562,7 +563,6 @@ export function MyAccount({
               onEdit={() => setView('edit')}
               contact={realContact}
               alternate={realAlternate}
-              documents={realDocuments}
               onOpenDocument={gated ? openDocument : undefined}
               busyDocument={busyDocument}
             />
@@ -601,7 +601,11 @@ export function MyAccount({
               a second thing competing with the panel's own purpose. */}
           {view === 'payment' && (
             <PaymentActivity
-              rows={PAYMENT_ACTIVITY}
+              /* The account's own invoices, newest first — or nothing. The
+                 sample rows stay for the harness and the editor only; a
+                 signed-in customer must never see payments that were not
+                 theirs. */
+              rows={record ? activityRows : PAYMENT_ACTIVITY}
               open={activityOpen}
               onToggle={() => setActivityOpen((v) => !v)}
             />
