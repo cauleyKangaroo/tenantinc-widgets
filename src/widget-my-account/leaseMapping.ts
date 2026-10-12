@@ -106,23 +106,42 @@ function unitImages(u: Record<string, unknown>, siteId?: string): string[] {
 }
 
 /** The documents on one lease, for that space's panel. */
+/**
+ * The documents on one lease, for that space's panel.
+ *
+ * EVERY document, each with its date, NEWEST FIRST, the signed lease pinned to
+ * the top. Not de-duplicated by name: a delinquent lease carries "Past Due
+ * Notice", "Pre-Lien Notice" and "Lien Notice" once per month it went unpaid
+ * (verified live 2026-10-12: 25 documents on one lease, 25 distinct ids, the
+ * same five names over and over), and collapsing them would hide real
+ * letters. The date is what tells them apart, so it is drawn beside the name.
+ */
 function documentsOf(lease: Record<string, unknown>): AccountDocument[] {
   const docs = Array.isArray(lease.documents) ? (lease.documents as Record<string, unknown>[]) : [];
+  const stamp = (d: Record<string, unknown>) => str(d.signedAt) || str(d.uploadedAt);
   return docs
     .map((d) => {
       const label = str(d.name);
       if (!label) return null;
       const ext = str(d.extension);
+      const signed = d.signatureStatus === 1 || !!str(d.signedAt);
       return {
-        label,
-        status: d.signatureStatus === 1 || str(d.signedAt) ? 'Signed' : undefined,
-        leaseId: str(lease.id),
-        documentId: str(d.id),
-        filename: ext ? `${label}.${ext}` : label,
-        available: d.available !== false,
-      } as AccountDocument;
+        doc: {
+          label,
+          status: signed ? 'Signed' : undefined,
+          leaseId: str(lease.id),
+          documentId: str(d.id),
+          filename: ext ? `${label}.${ext}` : label,
+          available: d.available !== false,
+          date: longDate(stamp(d)) || undefined,
+        } as AccountDocument,
+        signed,
+        when: stamp(d).slice(0, 19),
+      };
     })
-    .filter(Boolean) as AccountDocument[];
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => (Number(b.signed) - Number(a.signed)) || (a.when < b.when ? 1 : a.when > b.when ? -1 : 0))
+    .map((x) => x.doc);
 }
 
 /**

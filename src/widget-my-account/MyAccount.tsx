@@ -440,7 +440,9 @@ export function MyAccount({
 
   const openDocument = async (doc: AccountDocument) => {
     if (!session || !doc.leaseId || !doc.documentId || busyDocument) return;
-    setBusyDocument(doc.label);
+    // By id, not name: a lease files the same notice many times over, and a
+    // name would mark every one of them as opening.
+    setBusyDocument(doc.documentId || doc.label);
     try {
       const r = await fetchDocumentFile(
         api, session.token, doc.leaseId, doc.documentId, doc.filename || doc.label,
