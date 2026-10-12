@@ -48,6 +48,9 @@ import type { PaymentOutcome } from './PaymentResult';
 import { PaymentActivity } from './PaymentActivity';
 import { PropertyCard } from './PropertyCard';
 import { readSession, clearSession } from '@shared/accountSession';
+import { readInternalProperties } from '@shared/internalProperties';
+import { normaliseBasePath, parseSlug } from '@shared/propertyNav';
+import { str } from '@shared/dudaCollections';
 import { fetchPropertyContact, type PropertyContact } from '@shared/propertyContact';
 import {
   fetchMe, fetchContact, updateContact, fetchDocumentFile, saveBlob, loginApiReady,
@@ -104,6 +107,12 @@ export interface MyAccountProps {
   /** Duda's `data.siteId` — the proxy identifies the caller by it. */
   siteId?: string;
   /**
+   * Where the Duda dynamic property pages live — the same `locationBasePath`
+   * the navigation bar (#02) prefixes its "Find Storage" links with, so "+ Add
+   * a Space" lands on the same page the nav would. Default matches #02.
+   */
+  locationBasePath?: string;
+  /**
    * Duda's `data.inEditor`. The page is INERT in the editor: no request, no
    * redirect, and the sample content renders so the layout can be worked on
    * without a session.
@@ -130,6 +139,7 @@ export function MyAccount({
   initialPaymentResult,
   login_api_base = '',
   siteId = '',
+  locationBasePath = '/storage-units',
   inEditor = false,
   loginUrl = '/login',
 }: MyAccountProps) {
@@ -318,12 +328,40 @@ export function MyAccount({
     return () => { cancelled = true; };
   }, [record]);
 
+
   const activityRows = useMemo(() => (record ? activityFrom(record) : []), [record]);
 
   const properties = useMemo(
     () => (record ? propertiesFrom(record, propertyContacts) : PROPERTIES),
     [record, propertyContacts],
   );
+
+  /*
+   * "+ Add a Space" goes to a PROPERTY LANDING PAGE — the first property in
+   * the sidebar, i.e. the one the tenant already rents at — built exactly as
+   * the navigation bar builds its "Find Storage" links: the property's `slug`
+   * from PropertiesInternal under `locationBasePath` (/storage-units/
+   * california/bellflower/storage-outlet-bellflower-340079517). A tenant with
+   * no match (no dmAPI in the editor or harness, a property the collection
+   * does not list, a slug that does not parse) gets the first property the
+   * collection lists instead, and failing that the base path itself — never a
+   * dead button.
+   */
+  const [addSpaceHref, setAddSpaceHref] = useState<string>(() => normaliseBasePath(locationBasePath) || '/');
+  useEffect(() => {
+    let cancelled = false;
+    const base = normaliseBasePath(locationBasePath);
+    const firstId = properties[0]?.id ?? '';
+    void readInternalProperties()
+      .then((rows) => {
+        if (cancelled) return;
+        const withSlug = rows.filter((r) => parseSlug(str(r.slug)));
+        const row = withSlug.find((r) => str(r.id).trim() === firstId) ?? withSlug[0];
+        setAddSpaceHref(row ? `${base}/${str(row.slug).trim()}` : (base || '/'));
+      })
+      .catch(() => { if (!cancelled) setAddSpaceHref(base || '/'); });
+    return () => { cancelled = true; };
+  }, [properties, locationBasePath]);
 
   /*
    * Documents are the SELECTED SPACE's own (AccountSpace.documents, one list per
@@ -637,7 +675,7 @@ export function MyAccount({
               />
             );
           })}
-          <Button tone="cta" block className="ma-btn-40 ma-add">+ Add a Space</Button>
+          <Button tone="cta" block className="ma-btn-40 ma-add" href={addSpaceHref}>+ Add a Space</Button>
         </aside>
       </div>
     </div>
