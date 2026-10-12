@@ -44,6 +44,7 @@ import { Button } from '@shared/ui';
 import { AccountInfoPanel } from './AccountInfoPanel';
 import { EditPanel } from './EditPanel';
 import { MakePaymentPanel } from './MakePaymentPanel';
+import type { PaymentOutcome } from './PaymentResult';
 import { PaymentActivity } from './PaymentActivity';
 import { PropertyCard } from './PropertyCard';
 import { readSession, clearSession } from '@shared/accountSession';
@@ -91,6 +92,11 @@ export interface MyAccountProps {
    */
   initialView?: View;
   /**
+   * With initialView 'payment': open on a payment result banner instead of
+   * the bare form. Harness only — on a site the result comes from paying.
+   */
+  initialPaymentResult?: PaymentOutcome;
+  /**
    * My Account proxy base, from the Duda JS tab's `login_api_base` site text —
    * the SAME value #17 is given.
    */
@@ -121,6 +127,7 @@ export function MyAccount({
   promoCta,
   promoUrl,
   initialView = 'account',
+  initialPaymentResult,
   login_api_base = '',
   siteId = '',
   inEditor = false,
@@ -572,6 +579,7 @@ export function MyAccount({
               spaces={atProperty.length ? atProperty : space ? [space] : []}
               space={space}
               onBack={() => setView('account')}
+              initialResult={initialPaymentResult ?? null}
             />
           )}
           {view === 'edit' && (

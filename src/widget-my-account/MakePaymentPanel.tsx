@@ -52,7 +52,7 @@
 // case added for this panel.
 // ===========================================================================
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
 import { BankForm, CardForm, PaymentFormSkeleton } from '@shared/paymentForms';
 import {
@@ -60,7 +60,9 @@ import {
   CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
   MinusIcon, PlusIcon, ShieldSettingsIcon,
 } from './icons';
-import { AUTOPAY_CANCELLED_NOTE, AUTOPAY_UPDATE_NOTE } from './data';
+import { AUTOPAY_CANCELLED_NOTE, AUTOPAY_UPDATE_NOTE, COVERAGE_OPTIONS, PAYMENT_RECEIPT_DEMO } from './data';
+import { PaymentResult, type PaymentOutcome } from './PaymentResult';
+import { CoverageMenu } from './CoverageMenu';
 import type { AccountSpace } from './data';
 
 /** Skeleton beat before a payment form appears (Figma 8507-24610). Same 700ms
@@ -109,8 +111,13 @@ function flip(prev: Set<string>, id: string): Set<string> {
 }
 
 export function MakePaymentPanel({
-  spaces, space, onBack,
+  spaces, space, onBack, initialResult = null,
 }: {
+  /**
+   * Open on a payment result rather than the bare form — the harness uses it
+   * to show both banners. Otherwise the result comes from paying.
+   */
+  initialResult?: PaymentOutcome | null;
   /** Every space with something outstanding — all listed, all selected. */
   spaces: AccountSpace[];
   /** The unit whose "Pay Now" was clicked. Only used as a fallback when no
@@ -166,6 +173,14 @@ export function MakePaymentPanel({
      whether to tick a space. Desktop ignores this entirely — the stylesheet
      only honours it under 720px, where the frame has the control. */
   const [billingOpen, setBillingOpen] = useState(false);
+  // Chosen coverage plan per space (static — see CoverageMenu.tsx). Unset
+  // means "the current plan", found by matching the coverage line's monthly
+  // amount to an option's price.
+  const [coverageChoice, setCoverageChoice] = useState<Record<string, string>>({});
+  const currentCoverage = (sp: AccountSpace): string | null =>
+    coverageChoice[sp.id]
+    ?? COVERAGE_OPTIONS.find((o) => o.price && money(o.price) === money(sp.coverage.amount))?.id
+    ?? null;
   /* The mobile balance box prepays by MONTHS, not just a yes/no. 1 is the
      minimum the stepper can reach: "prepay 0 months" is just not prepaying,
      which the checkbox already says. */
@@ -213,23 +228,39 @@ export function MakePaymentPanel({
      (see data.ts), so "Pay Now" collapses the form rather than pretending to
      charge anything. The forms hand back a fully validated CardFormValue, so
      the only thing missing here is the call. */
-  const pay = () => setPayMethod(null);
+  /* AFTER A PAYMENT (12949-90476 / 12950-91405) the panel stays where it is:
+     a result banner goes on top, the heading becomes "Upcoming Payment", and
+     the spaces and methods below are what is due NEXT. STATIC — every payment
+     "succeeds" with PAYMENT_RECEIPT_DEMO; the real call decides between
+     'success' and 'failed', and the receipt comes from its response. */
+  const [result, setResult] = useState<PaymentOutcome | null>(initialResult);
+  const panelRef = useRef<HTMLElement>(null);
+  const pay = () => {
+    setPayMethod(null);
+    setResult('success');
+    // The banner is at the top, the button that was pressed at the bottom.
+    panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   /* "Pay through" is per space; with several selected they can disagree, so the
      bar shows the FURTHEST date — that is what paying this total covers. */
   const payThrough = list.find((s) => selected.has(s.id))?.balance.payThrough ?? '';
 
   return (
-    <section className="ma-pay">
+    <section className={`ma-pay${result ? ' ma-pay--result' : ''}`} ref={panelRef}>
+      {result && <PaymentResult outcome={result} receipt={PAYMENT_RECEIPT_DEMO} />}
+
       {/* Back arrow, then the title to its right. The heading keeps its own
           element and styling; only the row around it is new, so the title reads
           the same to a screen reader and in the document outline. */}
       <header className="ma-pay__head">
-        {onBack && (
+        {/* No back arrow on the result frames: the payment is done, and the
+            sidebar's Account Info is still there. */}
+        {onBack && !result && (
           <button type="button" className="ma-pay__back" onClick={onBack} aria-label="Back to account info">
             <ChevronBigLeft24Icon />
           </button>
         )}
-        <h2 className="ma-pay__title">Make a Payment</h2>
+        <h2 className="ma-pay__title">{result ? 'Upcoming Payment' : 'Make a Payment'}</h2>
       </header>
 
       {list.map((sp) => {
@@ -389,13 +420,16 @@ export function MakePaymentPanel({
               <div className="ma-line">
                 <p className="ma-line__label ma-line__label--plain">{sp.coverage.label}</p>
                 <div className="ma-line__right">
-                  <button type="button" className="ma-link-row ma-link-row--tight">
+                  <CoverageMenu
+                    value={currentCoverage(sp)}
+                    onChange={(o) => setCoverageChoice((prev) => ({ ...prev, [sp.id]: o.id }))}
+                  >
                     <ShieldSettingsIcon />
                     <span className="ma-link">
                       <span className="ma-only-desktop">Change Coverage</span>
                       <span className="ma-only-mobile">Change</span>
                     </span>
-                  </button>
+                  </CoverageMenu>
                   <p className="ma-line__amount">{scaleMoney(sp.coverage.amount, monthsFactor)}</p>
                 </div>
               </div>
