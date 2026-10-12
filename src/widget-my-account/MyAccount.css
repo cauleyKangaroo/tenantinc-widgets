@@ -523,6 +523,37 @@
 .ma-coverage__opt:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--hb-text-night, #101318); }
 
 .ma-coverage__label { flex: 0 0 160px; }
+
+/* A plan the API will not move to — listed so the tenant can see what exists,
+   muted so it does not read as a choice. */
+.ma-coverage__opt--off { color: var(--hb-grayscale-medium, #637381); cursor: not-allowed; }
+.ma-coverage__opt--off:hover { background: #fff; }
+
+/* The pending change: the priced plan from the preview call and the two
+   buttons that decide it. Sits under the coverage line, full width, so it
+   cannot be mistaken for another charge row. */
+.ma-coverage-confirm {
+  margin: 8px 0 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--hb-cloud-darker, #a5b4bf);
+  border-radius: 8px;
+  background: #F9FAFB;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.ma-coverage-confirm__text { flex: 1 1 240px; }
+.ma-coverage-confirm__text strong { font-weight: 700; }
+.ma-coverage-confirm__actions { display: flex; gap: 8px; }
+
+/* Outcome of a coverage call: what is now scheduled, or why it was refused.
+   The error colour is the kit's, so it reads like every other refusal. */
+.ma-coverage-note { margin: 6px 0 2px; font-size: 14px; line-height: 20px; color: var(--hb-grayscale-medium, #637381); }
+.ma-coverage-note--error { color: var(--hb-ada-red, #d73632); }
+
 .ma-coverage__price { flex: 0 0 63px; }
 
 /* ── Money lines ───────────────────────────────────────────────────────── */

@@ -43,7 +43,7 @@ import './MyAccount.css';
 import { Button } from '@shared/ui';
 import { AccountInfoPanel } from './AccountInfoPanel';
 import { EditPanel } from './EditPanel';
-import { MakePaymentPanel } from './MakePaymentPanel';
+import { MakePaymentPanel, type CoverageHandlers } from './MakePaymentPanel';
 import type { PaymentOutcome } from './PaymentResult';
 import { PaymentActivity } from './PaymentActivity';
 import { PropertyCard } from './PropertyCard';
@@ -55,6 +55,7 @@ import { fetchPropertyContact, type PropertyContact } from '@shared/propertyCont
 import {
   fetchMe, fetchContact, updateContact, fetchDocumentFile, saveBlob, loginApiReady,
   type LoginApiConfig, type AccountRecord,
+  fetchLeaseCoverage, previewCoverage, applyCoverage,
 } from '@shared/accountApi';
 import {
   editFormFrom, updateFromEditForm,
@@ -330,6 +331,42 @@ export function MyAccount({
 
 
   const activityRows = useMemo(() => (record ? activityFrom(record) : []), [record]);
+
+  /*
+   * Coverage handlers for Make a Payment — only with a real session. Each
+   * one carries the session token and treats a 401 the way every other read
+   * here does: sign out, so a dead token never leaves the panel stuck.
+   * Without a session (harness, editor) the panel keeps its static plans.
+   */
+  const coverageHandlers = useMemo<CoverageHandlers | undefined>(() => {
+    // Not before the record: until it lands the panel is drawing the SAMPLE
+    // spaces, and reading coverage for 'space-41' is two 404s on every visit.
+    if (!gated || !session || !record) return undefined;
+    const token = session.token;
+    return {
+      load: async (leaseId) => {
+        const r = await fetchLeaseCoverage(api, token, leaseId);
+        if (r.ok) return r.data;
+        if (r.unauthorized) signOut();
+        else console.warn('[MyAccount] coverage unavailable for lease', leaseId, r.detail ?? r.message);
+        return null;
+      },
+      preview: async (leaseId, insuranceId) => {
+        const r = await previewCoverage(api, token, leaseId, insuranceId);
+        if (r.ok) return { ok: true, plan: r.data };
+        if (r.unauthorized) signOut();
+        return { ok: false, message: r.message };
+      },
+      apply: async (leaseId, insuranceId) => {
+        const r = await applyCoverage(api, token, leaseId, insuranceId);
+        if (r.ok) return { ok: true, coverage: r.data };
+        if (r.unauthorized) signOut();
+        return { ok: false, message: r.message };
+      },
+    };
+    // signOut is stable for the life of the session; the token is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gated, session?.token, api, record]);
 
   const properties = useMemo(
     () => (record ? propertiesFrom(record, propertyContacts) : PROPERTIES),
@@ -618,6 +655,7 @@ export function MyAccount({
               space={space}
               onBack={() => setView('account')}
               initialResult={initialPaymentResult ?? null}
+              coverage={coverageHandlers}
             />
           )}
           {view === 'edit' && (

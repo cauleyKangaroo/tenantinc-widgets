@@ -63,8 +63,10 @@ export function CoverageMenu({ children, value, onChange, options = COVERAGE_OPT
                 type="button"
                 role="option"
                 aria-selected={o.id === value}
-                className={`ma-coverage__opt${o.id === value ? ' ma-coverage__opt--on' : ''}`}
-                onClick={() => { onChange(o); setOpen(false); }}
+                aria-disabled={o.disabled || undefined}
+                disabled={o.disabled}
+                className={`ma-coverage__opt${o.id === value ? ' ma-coverage__opt--on' : ''}${o.disabled ? ' ma-coverage__opt--off' : ''}`}
+                onClick={() => { if (o.disabled) return; onChange(o); setOpen(false); }}
               >
                 <span className="ma-coverage__label">{o.label}</span>
                 {o.price && <span className="ma-coverage__price">{o.price}</span>}

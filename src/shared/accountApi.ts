@@ -659,3 +659,181 @@ export function saveBlob(file: DocumentFile): void {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(href), 0);
 }
+
+// ---------------------------------------------------------------------------
+// Protection-plan coverage on a lease — list, preview, apply.
+//
+// Three calls under /api/account/leases/{lease}/coverage, verified live
+// 2026-10-12 against the Oladipo test account:
+//
+//   GET  …/coverage           { current, scheduled, options[] }
+//   POST …/coverage/preview   { insuranceId } → the plan, premium and the
+//                              date it would start (a dry run; saves nothing)
+//   POST …/coverage           { insuranceId } → the GET shape with the new
+//                              plan under `scheduled` (starts next billing cycle)
+//
+// The body takes ONLY insuranceId — any other key is a 400. The proxy's own
+// refusals are customer-ready and specific, so they are surfaced verbatim:
+//   409 coverage_downgrade_not_allowed  "Your protection plan can only be
+//       upgraded online. Please contact the facility to choose a lower plan."
+//   409 coverage_already_scheduled      "That protection plan already starts
+//       with your next billing cycle."
+//   400 coverage_option_invalid         "That protection plan is not offered
+//       for this space."
+//
+// Two things about the data worth knowing before drawing it: `upgradable` is
+// decided by PREMIUM, not by the coverage amount (a $3000-at-$12 tenant is
+// offered "$2000 at $20" as an upgrade), and the current plan is NOT in
+// `options[]` and nothing there is `isCurrent` — "your plan" comes only from
+// `current`. Both are the API's call; the widget draws what it is given.
+// ---------------------------------------------------------------------------
+
+export interface CoveragePlan {
+  insuranceId: string;
+  name: string;
+  monthlyPremium: number;
+  /** "3000" — the API spells the amount as a string. */
+  coverage: string;
+  deductible: number | null;
+  /** When it starts (preview / scheduled) or started (current). */
+  startDate?: string;
+  billedThrough?: string;
+}
+
+export interface CoverageOption {
+  id: string;
+  name: string;
+  description: string;
+  coverage: string;
+  deductible: number | null;
+  monthlyPremium: number;
+  isCurrent: boolean;
+  upgradable: boolean;
+}
+
+export interface LeaseCoverage {
+  current: CoveragePlan | null;
+  scheduled: CoveragePlan | null;
+  options: CoverageOption[];
+}
+
+const numOr = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+const strOr = (v: unknown): string => (typeof v === 'string' ? v : '');
+
+function readPlan(v: unknown): CoveragePlan | null {
+  if (!v || typeof v !== 'object') return null;
+  const p = v as Record<string, unknown>;
+  const insuranceId = strOr(p.insuranceId);
+  if (!insuranceId) return null;
+  return {
+    insuranceId,
+    name: strOr(p.name),
+    monthlyPremium: numOr(p.monthlyPremium, 0),
+    coverage: strOr(p.coverage) || String(p.coverage ?? ''),
+    deductible: typeof p.deductible === 'number' ? p.deductible : null,
+    startDate: strOr(p.startDate) || undefined,
+    billedThrough: strOr(p.billedThrough) || undefined,
+  };
+}
+
+function readCoverage(data: Record<string, unknown>): LeaseCoverage | null {
+  const rows = Array.isArray(data.options) ? (data.options as Record<string, unknown>[]) : null;
+  if (!rows) return null;
+  return {
+    current: readPlan(data.current),
+    scheduled: readPlan(data.scheduled),
+    options: rows
+      .map((o) => ({
+        id: strOr(o.id),
+        name: strOr(o.name),
+        description: strOr(o.description),
+        coverage: strOr(o.coverage) || String(o.coverage ?? ''),
+        deductible: typeof o.deductible === 'number' ? o.deductible : null,
+        monthlyPremium: numOr(o.monthlyPremium, 0),
+        isCurrent: o.isCurrent === true,
+        upgradable: o.upgradable === true,
+      }))
+      .filter((o) => o.id),
+  };
+}
+
+/** The lease's current plan, any scheduled change, and the plans on offer. */
+export async function fetchLeaseCoverage(
+  cfg: LoginApiConfig,
+  token: string,
+  leaseId: string,
+): Promise<AuthedResult<LeaseCoverage>> {
+  return getJson(cfg, token, `/api/account/leases/${encodeURIComponent(leaseId)}/coverage`, readCoverage);
+}
+
+/**
+ * Authenticated POST. Like getJson, but the proxy's refusal MESSAGE is kept
+ * when it has one: for these endpoints it is written for the customer and
+ * names the actual reason (a downgrade, a plan not offered), which a generic
+ * sentence would hide.
+ */
+async function postAuthed<T>(
+  cfg: LoginApiConfig,
+  token: string,
+  path: string,
+  body: unknown,
+  pick: (data: Record<string, unknown>) => T | null,
+  fallback: string,
+): Promise<AuthedResult<T>> {
+  let res: Response;
+  let json: unknown;
+  try {
+    res = await fetch(url(cfg, path), {
+      method: 'POST',
+      headers: { ...headers(cfg), Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    json = await res.json().catch(() => undefined);
+  } catch (err) {
+    return {
+      ok: false,
+      message: 'We could not reach the server. Check your connection and try again.',
+      detail: err instanceof Error ? err.message : String(err),
+    };
+  }
+  if (res.status === 401) {
+    return { ok: false, unauthorized: true, message: 'Your session has expired. Please sign in again.', detail: failureDetail(json, res) };
+  }
+  if (!res.ok) {
+    const err = (json as { error?: { message?: unknown } } | undefined)?.error;
+    const said = typeof err?.message === 'string' ? err.message.trim() : '';
+    return { ok: false, message: said || fallback, detail: failureDetail(json, res) };
+  }
+  const data = (json as { data?: Record<string, unknown> } | undefined)?.data;
+  const picked = data ? pick(data) : null;
+  if (!picked) {
+    return { ok: false, message: fallback, detail: `unexpected ${path} payload: ${JSON.stringify(data ?? json).slice(0, 200)}` };
+  }
+  return { ok: true, data: picked };
+}
+
+/** Dry run: what the plan would cost and when it would start. Saves nothing. */
+export async function previewCoverage(
+  cfg: LoginApiConfig,
+  token: string,
+  leaseId: string,
+  insuranceId: string,
+): Promise<AuthedResult<CoveragePlan>> {
+  return postAuthed(
+    cfg, token, `/api/account/leases/${encodeURIComponent(leaseId)}/coverage/preview`, { insuranceId },
+    (d) => readPlan(d), 'We could not price that plan right now. Please try again.',
+  );
+}
+
+/** Schedule the plan from the next billing cycle. Answers with the GET shape. */
+export async function applyCoverage(
+  cfg: LoginApiConfig,
+  token: string,
+  leaseId: string,
+  insuranceId: string,
+): Promise<AuthedResult<LeaseCoverage>> {
+  return postAuthed(
+    cfg, token, `/api/account/leases/${encodeURIComponent(leaseId)}/coverage`, { insuranceId },
+    readCoverage, 'We could not change your coverage right now. Please try again.',
+  );
+}

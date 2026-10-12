@@ -400,6 +400,10 @@ export interface CoverageOption {
   label: string;
   /** "$13/mo"; '' for "I have my own Insurance", which has no price column. */
   price: string;
+  /** Listed but not pickable — a plan the API will not move to (a lower one,
+   *  which can only be chosen at the facility). Drawn muted, announced as
+   *  disabled, and `onChange` never fires for it. */
+  disabled?: boolean;
 }
 
 /**
