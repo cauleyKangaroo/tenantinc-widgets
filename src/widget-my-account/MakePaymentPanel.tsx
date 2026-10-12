@@ -163,11 +163,32 @@ export function MakePaymentPanel({
      starts unticked: it is listed so it CAN be paid (prepaid) alongside, not
      because the tenant asked to. A Set of ids rather than a flag per space, so
      the state does not have to be rebuilt when the list changes. */
+  const shouldStartTicked = (s: AccountSpace) => s.id === space?.id || money(s.balance.amount) > 0;
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(list
-      .filter((s) => s.id === space?.id || money(s.balance.amount) > 0)
-      .map((s) => s.id)),
+    () => new Set(list.filter(shouldStartTicked).map((s) => s.id)),
   );
+  /*
+   * The list can CHANGE under the panel: it is the landing view for a signed-in
+   * customer now, so it mounts on the sample spaces and the real ones arrive
+   * a moment later — and a tick seeded once, from the first list, left every
+   * real space unticked. Spaces seen for the first time get the opening rule;
+   * spaces the tenant has already decided about keep their decision; spaces
+   * that have gone are dropped. `seen` is what tells a new arrival from a
+   * deliberate untick.
+   */
+  const seen = useRef<Set<string>>(new Set(list.map((s) => s.id)));
+  useEffect(() => {
+    setSelected((prev) => {
+      const next = new Set<string>();
+      for (const s of list) {
+        if (seen.current.has(s.id) ? prev.has(s.id) : shouldStartTicked(s)) next.add(s.id);
+      }
+      seen.current = new Set(list.map((s) => s.id));
+      return next;
+    });
+    // listKey (below) stands in for `list`; shouldStartTicked reads live props.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list.map((s) => s.id).join('|'), space?.id]);
   const [prepay, setPrepay] = useState(false);
   /* The three autopay sets — see the header note on why each is per space and
      not a flag. All start empty: the strip's opening state comes from the
