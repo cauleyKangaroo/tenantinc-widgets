@@ -33,9 +33,21 @@ import userArrowRightAsset from './assets/user-arrow-right.svg';
 import userSettingsAsset from './assets/user-settings.svg';
 import infoFilledAsset from './assets/info-filled.svg';
 import infoNoticeAsset from './assets/info-notice.svg';
+import checkTickCircleAsset from './assets/check-tick-circle.svg';
+import messageAsset from './assets/message.svg';
 
 interface AssetIconProps {
   className?: string;
+}
+
+/** 62px green tick-in-circle — the payment-success banner (12949-90476). */
+export function CheckTickCircleIcon({ className }: AssetIconProps) {
+  return <img src={checkTickCircleAsset} alt="" width={62} height={62} className={className} aria-hidden="true" />;
+}
+
+/** 24px speech bubble — "receipt has been sent" (12949-90476). */
+export function MessageIcon({ className }: AssetIconProps) {
+  return <img src={messageAsset} alt="" width={24} height={24} className={className} aria-hidden="true" />;
 }
 
 /** 24×24 stroke glyphs — the sizes Figma exported them at. */

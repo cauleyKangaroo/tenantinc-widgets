@@ -394,6 +394,44 @@ export const EDIT_DEFAULTS: EditForm = {
   emergency: { ...CONTACT_DEFAULT },
 };
 
+/** One row of the "Change Coverage" drop-down (Figma 12272-165228). */
+export interface CoverageOption {
+  id: string;
+  label: string;
+  /** "$13/mo"; '' for "I have my own Insurance", which has no price column. */
+  price: string;
+  /** Listed but not pickable — a plan the API will not move to (a lower one,
+   *  which can only be chosen at the facility). Drawn muted, announced as
+   *  disabled, and `onChange` never fires for it. */
+  disabled?: boolean;
+}
+
+/**
+ * STATIC placeholder plans, verbatim from the frame. To be replaced by the
+ * space's real protection plans — see CoverageMenu.tsx.
+ */
+export const COVERAGE_OPTIONS: CoverageOption[] = [
+  { id: 'cov-1000', label: '$1,000 Coverage', price: '$5/mo' },
+  { id: 'cov-5000', label: '$5,000 Coverage', price: '$13/mo' },
+  { id: 'cov-10000', label: '$10,000 Coverage', price: '$20/mo' },
+  { id: 'own', label: 'I have my own Insurance', price: '' },
+];
+
+/** What the payment-success banner reports (Figma 12949-90476). */
+export interface PaymentReceipt {
+  number: string;
+  amount: string;
+  /** "xxx 6578" — masked, as the frame writes it. */
+  method: string;
+}
+
+/** STATIC — verbatim from the frame, until the payment API returns a real one. */
+export const PAYMENT_RECEIPT_DEMO: PaymentReceipt = {
+  number: 'HW-93873',
+  amount: '$246.00',
+  method: 'xxx 6578',
+};
+
 export const AUTOPAY_UPDATE_NOTE =
   'Autopay will be updated to the payment method used in this transaction.';
 export const AUTOPAY_CANCELLED_NOTE =

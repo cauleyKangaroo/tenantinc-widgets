@@ -52,15 +52,18 @@
 // case added for this panel.
 // ===========================================================================
 
-import { useMemo, useState } from 'react';
-import { Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { CoveragePlan, LeaseCoverage } from '@shared/accountApi';
+import { Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
 import { BankForm, CardForm, PaymentFormSkeleton } from '@shared/paymentForms';
 import {
   BankIcon, ChevronBigLeft24Icon, ChevronBigRight24Icon, CreditCardIcon, CreditCardRemoveIcon,
   CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
   MinusIcon, PlusIcon, ShieldSettingsIcon,
 } from './icons';
-import { AUTOPAY_CANCELLED_NOTE, AUTOPAY_UPDATE_NOTE } from './data';
+import { AUTOPAY_CANCELLED_NOTE, AUTOPAY_UPDATE_NOTE, COVERAGE_OPTIONS, PAYMENT_RECEIPT_DEMO } from './data';
+import { PaymentResult, type PaymentOutcome } from './PaymentResult';
+import { CoverageMenu } from './CoverageMenu';
 import type { AccountSpace } from './data';
 
 /** Skeleton beat before a payment form appears (Figma 8507-24610). Same 700ms
@@ -71,6 +74,22 @@ const FORM_SKELETON_MS = 700;
  * "$123.00", "$ 1,234.50" → 123 / 1234.5. Returns 0 for anything unparseable
  * rather than NaN, which would poison the whole sum into "$NaN".
  */
+/** What MyAccount gives the panel to talk to the coverage endpoints. */
+export interface CoverageHandlers {
+  load: (leaseId: string) => Promise<LeaseCoverage | null>;
+  preview: (leaseId: string, insuranceId: string) => Promise<{ ok: true; plan: CoveragePlan } | { ok: false; message: string }>;
+  apply: (leaseId: string, insuranceId: string) => Promise<{ ok: true; coverage: LeaseCoverage } | { ok: false; message: string }>;
+}
+
+/** "Nov 1, 2026" from the API's "2026-11-01"; the raw value if it is not one. */
+function longDate(v: string | undefined): string {
+  const s = (v ?? '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return v ?? '';
+  const [y, m, d] = s.split('-').map(Number);
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${MONTHS[m - 1]} ${d}, ${y}`;
+}
+
 function money(v: string): number {
   const n = Number(String(v).replace(/[^0-9.-]/g, ''));
   return Number.isFinite(n) ? n : 0;
@@ -109,8 +128,20 @@ function flip(prev: Set<string>, id: string): Set<string> {
 }
 
 export function MakePaymentPanel({
-  spaces, space, onBack,
+  spaces, space, onBack, initialResult = null, coverage,
 }: {
+  /**
+   * Open on a payment result rather than the bare form — the harness uses it
+   * to show both banners. Otherwise the result comes from paying.
+   */
+  initialResult?: PaymentOutcome | null;
+  /**
+   * The lease's REAL protection plans, when there is a session to read them
+   * with (MyAccount supplies these; the harness and the editor do not, and
+   * the static COVERAGE_OPTIONS stand in). load → the drop-down's rows;
+   * preview → the priced plan the tenant confirms; apply → the change.
+   */
+  coverage?: CoverageHandlers;
   /** Every space with something outstanding — all listed, all selected. */
   spaces: AccountSpace[];
   /** The unit whose "Pay Now" was clicked. Only used as a fallback when no
@@ -166,6 +197,85 @@ export function MakePaymentPanel({
      whether to tick a space. Desktop ignores this entirely — the stylesheet
      only honours it under 720px, where the frame has the control. */
   const [billingOpen, setBillingOpen] = useState(false);
+  // Chosen coverage plan per space (static — see CoverageMenu.tsx). Unset
+  // means "the current plan", found by matching the coverage line's monthly
+  // amount to an option's price.
+  const [coverageChoice, setCoverageChoice] = useState<Record<string, string>>({});
+  const currentCoverage = (sp: AccountSpace): string | null =>
+    coverageChoice[sp.id]
+    ?? COVERAGE_OPTIONS.find((o) => o.price && money(o.price) === money(sp.coverage.amount))?.id
+    ?? null;
+
+  /* ── LIVE coverage, when `coverage` handlers are supplied ────────────────
+     One read per listed space on arrival (the lease id IS the space id), so
+     the drop-down opens on the real plans rather than fetching on click. A
+     pick is a PREVIEW first — the API prices it and says when it would start
+     — and nothing changes until the tenant confirms; then apply, and the
+     reply (the GET shape, with the plan under `scheduled`) replaces what was
+     read. A refusal shows the proxy's own sentence under the line: it names
+     the reason (a lower plan, a plan not offered) better than we could. */
+  const [liveCoverage, setLiveCoverage] = useState<Record<string, LeaseCoverage | 'loading' | 'failed'>>({});
+  const [pendingPlan, setPendingPlan] = useState<Record<string, CoveragePlan | undefined>>({});
+  const [coverageBusy, setCoverageBusy] = useState<Record<string, 'preview' | 'apply' | undefined>>({});
+  const [coverageNote, setCoverageNote] = useState<Record<string, { kind: 'ok' | 'error'; text: string } | undefined>>({});
+  const listKey = list.map((s) => s.id).join('|');
+  useEffect(() => {
+    if (!coverage) return undefined;
+    let cancelled = false;
+    for (const sp of list) {
+      setLiveCoverage((prev) => (prev[sp.id] ? prev : { ...prev, [sp.id]: 'loading' }));
+      void coverage.load(sp.id).then((cov) => {
+        if (cancelled) return;
+        setLiveCoverage((prev) => ({ ...prev, [sp.id]: cov ?? 'failed' }));
+      });
+    }
+    return () => { cancelled = true; };
+    // listKey stands in for `list`, whose identity changes every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coverage, listKey]);
+
+  const liveFor = (sp: AccountSpace): LeaseCoverage | null => {
+    const v = liveCoverage[sp.id];
+    return v && v !== 'loading' && v !== 'failed' ? v : null;
+  };
+  /* The drop-down's rows from the API: a plan the API will not move to is
+     listed but disabled — the tenant can see what exists and why the row is
+     grey — and the row already scheduled is the highlighted one. */
+  const liveOptions = (cov: LeaseCoverage) => cov.options.map((o) => ({
+    id: o.id,
+    label: o.name,
+    price: `$${o.monthlyPremium}/mo`,
+    disabled: !o.upgradable && o.id !== cov.scheduled?.insuranceId,
+  }));
+  const liveValue = (cov: LeaseCoverage): string | null =>
+    cov.scheduled?.insuranceId ?? cov.current?.insuranceId ?? null;
+  const setNote = (id: string, note: { kind: 'ok' | 'error'; text: string } | undefined) =>
+    setCoverageNote((prev) => ({ ...prev, [id]: note }));
+  const pickPlan = async (sp: AccountSpace, insuranceId: string) => {
+    if (!coverage) return;
+    setNote(sp.id, undefined);
+    setPendingPlan((prev) => ({ ...prev, [sp.id]: undefined }));
+    setCoverageBusy((prev) => ({ ...prev, [sp.id]: 'preview' }));
+    const r = await coverage.preview(sp.id, insuranceId);
+    setCoverageBusy((prev) => ({ ...prev, [sp.id]: undefined }));
+    if (r.ok) setPendingPlan((prev) => ({ ...prev, [sp.id]: r.plan }));
+    else setNote(sp.id, { kind: 'error', text: r.message });
+  };
+  const confirmPlan = async (sp: AccountSpace) => {
+    const plan = pendingPlan[sp.id];
+    if (!coverage || !plan) return;
+    setCoverageBusy((prev) => ({ ...prev, [sp.id]: 'apply' }));
+    const r = await coverage.apply(sp.id, plan.insuranceId);
+    setCoverageBusy((prev) => ({ ...prev, [sp.id]: undefined }));
+    setPendingPlan((prev) => ({ ...prev, [sp.id]: undefined }));
+    if (r.ok) {
+      setLiveCoverage((prev) => ({ ...prev, [sp.id]: r.coverage }));
+      const sch = r.coverage.scheduled;
+      setNote(sp.id, { kind: 'ok', text: sch
+        ? `Done — ${sch.name} ($${sch.monthlyPremium}/mo) starts ${longDate(sch.startDate)}.`
+        : 'Done — your coverage has been updated.' });
+    } else setNote(sp.id, { kind: 'error', text: r.message });
+  };
   /* The mobile balance box prepays by MONTHS, not just a yes/no. 1 is the
      minimum the stepper can reach: "prepay 0 months" is just not prepaying,
      which the checkbox already says. */
@@ -213,23 +323,39 @@ export function MakePaymentPanel({
      (see data.ts), so "Pay Now" collapses the form rather than pretending to
      charge anything. The forms hand back a fully validated CardFormValue, so
      the only thing missing here is the call. */
-  const pay = () => setPayMethod(null);
+  /* AFTER A PAYMENT (12949-90476 / 12950-91405) the panel stays where it is:
+     a result banner goes on top, the heading becomes "Upcoming Payment", and
+     the spaces and methods below are what is due NEXT. STATIC — every payment
+     "succeeds" with PAYMENT_RECEIPT_DEMO; the real call decides between
+     'success' and 'failed', and the receipt comes from its response. */
+  const [result, setResult] = useState<PaymentOutcome | null>(initialResult);
+  const panelRef = useRef<HTMLElement>(null);
+  const pay = () => {
+    setPayMethod(null);
+    setResult('success');
+    // The banner is at the top, the button that was pressed at the bottom.
+    panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   /* "Pay through" is per space; with several selected they can disagree, so the
      bar shows the FURTHEST date — that is what paying this total covers. */
   const payThrough = list.find((s) => selected.has(s.id))?.balance.payThrough ?? '';
 
   return (
-    <section className="ma-pay">
+    <section className={`ma-pay${result ? ' ma-pay--result' : ''}`} ref={panelRef}>
+      {result && <PaymentResult outcome={result} receipt={PAYMENT_RECEIPT_DEMO} />}
+
       {/* Back arrow, then the title to its right. The heading keeps its own
           element and styling; only the row around it is new, so the title reads
           the same to a screen reader and in the document outline. */}
       <header className="ma-pay__head">
-        {onBack && (
+        {/* No back arrow on the result frames: the payment is done, and the
+            sidebar's Account Info is still there. */}
+        {onBack && !result && (
           <button type="button" className="ma-pay__back" onClick={onBack} aria-label="Back to account info">
             <ChevronBigLeft24Icon />
           </button>
         )}
-        <h2 className="ma-pay__title">Make a Payment</h2>
+        <h2 className="ma-pay__title">{result ? 'Upcoming Payment' : 'Make a Payment'}</h2>
       </header>
 
       {list.map((sp) => {
@@ -389,16 +515,64 @@ export function MakePaymentPanel({
               <div className="ma-line">
                 <p className="ma-line__label ma-line__label--plain">{sp.coverage.label}</p>
                 <div className="ma-line__right">
-                  <button type="button" className="ma-link-row ma-link-row--tight">
-                    <ShieldSettingsIcon />
-                    <span className="ma-link">
-                      <span className="ma-only-desktop">Change Coverage</span>
-                      <span className="ma-only-mobile">Change</span>
-                    </span>
-                  </button>
-                  <p className="ma-line__amount">{scaleMoney(sp.coverage.amount, monthsFactor)}</p>
+                  {(() => {
+                    const cov = liveFor(sp);
+                    return (
+                      <CoverageMenu
+                        value={cov ? liveValue(cov) : currentCoverage(sp)}
+                        options={cov ? liveOptions(cov) : undefined}
+                        onChange={(o) => (cov
+                          ? void pickPlan(sp, o.id)
+                          : setCoverageChoice((prev) => ({ ...prev, [sp.id]: o.id })))}
+                      >
+                        <ShieldSettingsIcon />
+                        <span className="ma-link">
+                          <span className="ma-only-desktop">{coverageBusy[sp.id] === 'preview' ? 'Pricing…' : 'Change Coverage'}</span>
+                          <span className="ma-only-mobile">{coverageBusy[sp.id] === 'preview' ? '…' : 'Change'}</span>
+                        </span>
+                      </CoverageMenu>
+                    );
+                  })()}
+                  {/* The live plan's premium when it is known: the account record
+                      carries no coverage charge of its own, so the mapped line
+                      is $0.00 until the coverage read answers. */}
+                  <p className="ma-line__amount">
+                    {liveFor(sp)?.current
+                      ? scaleMoney(formatMoney(liveFor(sp)!.current!.monthlyPremium), monthsFactor)
+                      : scaleMoney(sp.coverage.amount, monthsFactor)}
+                  </p>
                 </div>
               </div>
+              {/* A change already on the books — from the record. Right after a
+                  confirm the "Done —" note below says the same thing, so only
+                  one of the two is shown. */}
+              {liveFor(sp)?.scheduled && !pendingPlan[sp.id] && coverageNote[sp.id]?.kind !== 'ok' && (
+                <p className="ma-coverage-note">
+                  Changes to {liveFor(sp)!.scheduled!.name} (${liveFor(sp)!.scheduled!.monthlyPremium}/mo) from {longDate(liveFor(sp)!.scheduled!.startDate)}.
+                </p>
+              )}
+              {/* The preview, waiting for a decision. Nothing has been sent. */}
+              {pendingPlan[sp.id] && (
+                <div className="ma-coverage-confirm" role="group" aria-label="Confirm coverage change">
+                  <p className="ma-coverage-confirm__text">
+                    <strong>{pendingPlan[sp.id]!.name}</strong> — ${pendingPlan[sp.id]!.monthlyPremium}/mo, starting {longDate(pendingPlan[sp.id]!.startDate)}. Your current plan runs until then.
+                  </p>
+                  <div className="ma-coverage-confirm__actions">
+                    <Button tone="dark" className="ma-btn-40" busy={coverageBusy[sp.id] === 'apply'} onClick={() => void confirmPlan(sp)}>
+                      Confirm change
+                    </Button>
+                    <Button tone="dark" fill="outline" className="ma-btn-40" disabled={coverageBusy[sp.id] === 'apply'}
+                      onClick={() => { setPendingPlan((prev) => ({ ...prev, [sp.id]: undefined })); setNote(sp.id, undefined); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {coverageNote[sp.id] && (
+                <p className={`ma-coverage-note${coverageNote[sp.id]!.kind === 'error' ? ' ma-coverage-note--error' : ''}`} role={coverageNote[sp.id]!.kind === 'error' ? 'alert' : 'status'}>
+                  {coverageNote[sp.id]!.text}
+                </p>
+              )}
 
               <div className="ma-line">
                 <p className="ma-line__label ma-line__label--plain">{sp.taxes.label}</p>
