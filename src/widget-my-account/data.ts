@@ -88,6 +88,10 @@ export interface AccountDocument {
   filename?: string;
   /** The record's own flag — false means there is nothing to fetch. */
   available?: boolean;
+  /** "Jun 1, 2025" — when it was filed. Shown beside the name, because a
+   *  delinquent lease carries the SAME notice many times over (one per month)
+   *  and without the date they read as duplicates. Absent on the sample rows. */
+  date?: string;
 }
 
 export interface SpaceProperty {

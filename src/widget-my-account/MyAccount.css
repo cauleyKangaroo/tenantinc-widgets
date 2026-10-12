@@ -1224,6 +1224,10 @@
 .ma-docs__link:hover { text-decoration-thickness: 2px; }
 .ma-docs__link:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); border-radius: 4px; }
 
+/* Filing date, muted, after the name. Never wraps or shrinks: with twenty
+   same-named notices the date is the only thing that tells rows apart. */
+.ma-docs__date { flex: none; font-size: 13px; line-height: 16px; color: var(--hb-grayscale-medium, #637381); white-space: nowrap; }
+
 .ma-docs__chip {
   flex: none;
   display: inline-flex;

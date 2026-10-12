@@ -141,11 +141,14 @@ export function AccountInfoPanel({
                   <button
                     type="button"
                     className="ma-docs__link"
-                    disabled={!canOpen(doc) || busyDocument === doc.label}
+                    disabled={!canOpen(doc) || busyDocument === (doc.documentId || doc.label)}
                     onClick={() => onOpenDocument?.(doc)}
                   >
-                    {busyDocument === doc.label ? 'Opening…' : doc.label}
+                    {busyDocument === (doc.documentId || doc.label) ? 'Opening…' : doc.label}
                   </button>
+                  {/* The date is what separates this month's notice from last
+                      month's — see documentsOf in leaseMapping. */}
+                  {doc.date && <span className="ma-docs__date">{doc.date}</span>}
                   {doc.status && <span className="ma-docs__chip">{doc.status}</span>}
                 </li>
               ))}
