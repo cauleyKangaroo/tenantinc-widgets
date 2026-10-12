@@ -90,9 +90,9 @@ export interface MyAccountProps {
   /** Where the promo's button goes. Omitted → a button that does nothing yet. */
   promoUrl?: string;
   /**
-   * Opens on the payment screen instead of Account Info. For the harness and
-   * for a "Pay Bill" link that should land straight on it; the DEFAULT is the
-   * account view. 'edit' is reachable from the panel, not normally a landing.
+   * Where the harness and the Duda editor open; the DEFAULT is the account
+   * view. A signed-in customer always lands on Make a Payment (see the view
+   * state), and `?view=` on the URL overrides both.
    */
   initialView?: View;
   /**
@@ -144,7 +144,6 @@ export function MyAccount({
   inEditor = false,
   loginUrl = '/login',
 }: MyAccountProps) {
-  const [view, setView] = useState<View>(initialView);
 
   const api: LoginApiConfig = useMemo(
     () => ({ baseUrl: login_api_base.trim(), siteId: siteId.trim() }),
@@ -159,6 +158,23 @@ export function MyAccount({
    * keep rendering the sample content, exactly as before.
    */
   const gated = loginApiReady(api) && !inEditor;
+  // Declared AFTER `gated`, which its initialiser reads — the same temporal
+  // dead zone that once stopped this widget mounting (see `space` below).
+  /*
+   * A SIGNED-IN customer lands on Make a Payment, with the first property's
+   * first space selected and ticked — paying is what the page is for, and
+   * Account Info is one click away on every unit card. The content-menu
+   * `initialView` still decides where the harness and the Duda editor open,
+   * since there is no session there to pay from. `?view=account|payment|edit`
+   * on the URL overrides either, so a link can open a particular screen.
+   */
+  const [view, setView] = useState<View>(() => {
+    const fromUrl = (() => {
+      try { return new URLSearchParams(window.location.search).get('view'); } catch { return null; }
+    })();
+    if (fromUrl === 'account' || fromUrl === 'payment' || fromUrl === 'edit') return fromUrl;
+    return gated ? 'payment' : initialView;
+  });
 
   const [session, setSession] = useState(() => (gated ? readSession() : null));
   /*
