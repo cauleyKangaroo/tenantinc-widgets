@@ -124,8 +124,15 @@ export function AccountInfoPanel({
           <div className="ma-account__col ma-account__col--docs">
             <h3 className="ma-account__label">Documents</h3>
             <ul className="ma-info__list ma-docs">
+              {/* A lease with nothing filed says so, rather than leaving a
+                  heading over an empty list that reads as still loading. */}
+              {docs.length === 0 && (
+                <li className="ma-docs__row ma-docs__row--empty">No documents for this space yet.</li>
+              )}
               {docs.map((doc) => (
-                <li className="ma-docs__row" key={doc.label}>
+                /* The document id, where there is one: two leases can file the
+                   same document name, and the sample data has none. */
+                <li className="ma-docs__row" key={doc.documentId || doc.label}>
                   <span className="ma-info__icon"><FileTextIcon /></span>
                   {/* A BUTTON, not a link, and deliberately so: the file
                       endpoint authenticates on a header, which a browser never

@@ -54,7 +54,7 @@ import {
 } from '@shared/accountApi';
 import {
   editFormFrom, updateFromEditForm,
-  primaryContactFrom, alternateContactFrom, documentsFrom,
+  primaryContactFrom, alternateContactFrom,
 } from './contactMapping';
 import { spacesFrom, propertiesFrom } from './leaseMapping';
 import type { AccountDocument, EditForm } from './data';
@@ -316,15 +316,14 @@ export function MyAccount({
     [record, propertyContacts],
   );
 
-  const realDocuments = useMemo(
-    () => {
-      if (!record) return undefined;
-      const docs = documentsFrom(record);
-      // No documents at all → keep the frame's list rather than an empty panel.
-      return docs.length ? docs : undefined;
-    },
-    [record],
-  );
+  /*
+   * Documents are the SELECTED SPACE's own (AccountSpace.documents, one list per
+   * lease from leaseMapping). There used to be one account-wide list here,
+   * flattened across every lease and de-duplicated BY NAME — so with six
+   * leases each carrying a "Superlease", only the first lease's survived and
+   * that same file was shown, and downloaded, for every space picked. The
+   * panel reads space.documents when no list is passed.
+   */
 
   /*
    * Download a lease document.
@@ -562,7 +561,6 @@ export function MyAccount({
               onEdit={() => setView('edit')}
               contact={realContact}
               alternate={realAlternate}
-              documents={realDocuments}
               onOpenDocument={gated ? openDocument : undefined}
               busyDocument={busyDocument}
             />

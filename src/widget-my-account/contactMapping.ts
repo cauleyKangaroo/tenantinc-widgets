@@ -24,7 +24,7 @@ import type {
   AccountRecord, ContactUpdate, ContactAddressInput, SecondaryContactInput,
 } from '@shared/accountApi';
 import { EDIT_DEFAULTS } from './data';
-import type { AccountDocument, Contact, ContactForm, EditForm } from './data';
+import type { Contact, ContactForm, EditForm } from './data';
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
@@ -362,41 +362,4 @@ export function alternateContactFrom(record: AccountRecord): Contact | null {
     phone: phoneOf(person.phones ?? (person.phone ? [person.phone] : [])) || undefined,
     address: addressLines(addrList[0] ?? (person.address as Record<string, unknown> | undefined)),
   };
-}
-
-/**
- * Every lease document, for the Documents list.
- *
- * Flattened across leases: the panel draws one list and a contact with two
- * units has two sets. De-duped on name, because the same agreement type
- * appears per lease and the reader does not need it twice.
- */
-export function documentsFrom(record: AccountRecord): AccountDocument[] {
-  const leases = Array.isArray(record.leases) ? (record.leases as Record<string, unknown>[]) : [];
-  const out: AccountDocument[] = [];
-  const seen = new Set<string>();
-  for (const lease of leases) {
-    const docs = Array.isArray(lease.documents) ? (lease.documents as Record<string, unknown>[]) : [];
-    for (const d of docs) {
-      const label = str(d.name);
-      if (!label || seen.has(label)) continue;
-      seen.add(label);
-      // signatureStatus is 1 once signed; signedAt carries the stamp.
-      const signed = d.signatureStatus === 1 || !!str(d.signedAt);
-      const ext = str(d.extension);
-      out.push({
-        label,
-        status: signed ? 'Signed' : undefined,
-        // Both ids are needed: the file lives under its LEASE, not the contact.
-        leaseId: str(lease.id),
-        documentId: str(d.id),
-        // "Superlease" + "pdf" — the record carries no filename of its own.
-        filename: ext ? `${label}.${ext}` : label,
-        // Absent means unknown rather than unavailable, so only an explicit
-        // false disables the row.
-        available: d.available !== false,
-      });
-    }
-  }
-  return out;
 }
