@@ -43,7 +43,7 @@ import './MyAccount.css';
 import { Button } from '@shared/ui';
 import { AccountInfoPanel } from './AccountInfoPanel';
 import { EditPanel } from './EditPanel';
-import { MakePaymentPanel, type CoverageHandlers } from './MakePaymentPanel';
+import { MakePaymentPanel, type CoverageHandlers, type PaymentHandlers } from './MakePaymentPanel';
 import type { PaymentOutcome } from './PaymentResult';
 import { PaymentActivity } from './PaymentActivity';
 import { PropertyCard } from './PropertyCard';
@@ -56,12 +56,16 @@ import {
   fetchMe, fetchContact, updateContact, fetchDocumentFile, saveBlob, loginApiReady,
   type LoginApiConfig, type AccountRecord,
   fetchLeaseCoverage, previewCoverage, applyCoverage,
+  payLease,
 } from '@shared/accountApi';
 import {
   editFormFrom, updateFromEditForm,
   primaryContactFrom, alternateContactFrom,
 } from './contactMapping';
-import { spacesFrom, propertiesFrom, activityFrom } from './leaseMapping';
+import { spacesFrom, propertiesFrom, activityFrom, savedCardsFrom } from './leaseMapping';
+import { mergeApiCreds, type ApiCredProps } from '@shared/apiConfig';
+import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { fetchGatewayInfo } from '@shared/paymentGateway';
 import type { AccountDocument, EditForm } from './data';
 import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROMO_SUPPLIES, PROPERTIES, SPACES, USER } from './data';
 
@@ -114,6 +118,19 @@ export interface MyAccountProps {
    */
   locationBasePath?: string;
   /**
+   * Hummingbird credentials from the site texts (api_domain / app_id /
+   * api_key) and the company id — the SAME values the rental flow's JS tab
+   * passes. Needed for one thing here: asking which card gateway a property
+   * uses and its Global Payments public key, so Make a Payment can mount the
+   * hosted card fields. Without them there is no card option online.
+   */
+  api_domain?: unknown;
+  app_id?: unknown;
+  api_key?: unknown;
+  companyId?: string;
+  /** The GP public key directly, overriding the gateway lookup. */
+  gpPublicKey?: string;
+  /**
    * Duda's `data.inEditor`. The page is INERT in the editor: no request, no
    * redirect, and the sample content renders so the layout can be worked on
    * without a session.
@@ -141,6 +158,7 @@ export function MyAccount({
   login_api_base = '',
   siteId = '',
   locationBasePath = '/storage-units',
+  api_domain, app_id, api_key, companyId: companyIdProp, gpPublicKey: gpPublicKeyProp,
   inEditor = false,
   loginUrl = '/login',
 }: MyAccountProps) {
@@ -384,6 +402,40 @@ export function MyAccount({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gated, session?.token, api, record]);
 
+  /*
+   * Which card gateway each of the record's properties uses, and its GP
+   * public key. One lookup per distinct property, once the record is in.
+   * '' means "answered, no key" (the facility takes no card online);
+   * missing means not answered yet.
+   */
+  const creds = useMemo(() => mergeApiCreds({ api_domain, app_id, api_key }, { baseUrl: '', appId: '', apiKey: '' }), [api_domain, app_id, api_key]);
+  const [resolvedCompanyId, setResolvedCompanyId] = useState<string>('');
+  useEffect(() => {
+    let cancelled = false;
+    resolveCompanyIdFromSources('#19 my-account', { companyId: companyIdProp }, '')
+      .then((id) => { if (!cancelled) setResolvedCompanyId(id); })
+      .catch(() => { if (!cancelled) setResolvedCompanyId(''); });
+    return () => { cancelled = true; };
+  }, [companyIdProp]);
+  const [gatewayKeys, setGatewayKeys] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!record || gpPublicKeyProp) return undefined;
+    if (!creds.baseUrl || !creds.appId || !creds.apiKey || !resolvedCompanyId) return undefined;
+    const ids = Array.from(new Set(
+      (Array.isArray(record.leases) ? (record.leases as Array<{ unit?: { propertyId?: unknown } }>) : [])
+        .map((l) => String(l.unit?.propertyId ?? '')).filter(Boolean),
+    ));
+    let cancelled = false;
+    for (const pid of ids) {
+      void fetchGatewayInfo(creds, resolvedCompanyId, pid, '[MyAccount]').then((g) => {
+        if (cancelled) return;
+        setGatewayKeys((prev) => ({ ...prev, [pid]: g?.publicKey ?? '' }));
+      });
+    }
+    return () => { cancelled = true; };
+  }, [record, creds, resolvedCompanyId, gpPublicKeyProp]);
+
+
   const properties = useMemo(
     () => (record ? propertiesFrom(record, propertyContacts) : PROPERTIES),
     [record, propertyContacts],
@@ -503,6 +555,37 @@ export function MyAccount({
    * mounted at all.
    */
   const space = spaces.find((s) => s.id === selectedId) ?? spaces[0];
+
+  // Declared after `space` — see the note above `space` on the dead zone.
+  /*
+   * The real payment path for Make a Payment — only with a session and a
+   * record. Posts one payment per lease (the panel splits them), and after a
+   * success re-reads the account so balances, invoices and cards on file are
+   * what the server now says.
+   */
+  const paymentHandlers = useMemo<PaymentHandlers | undefined>(() => {
+    if (!gated || !session || !record || !space) return undefined;
+    const token = session.token;
+    const explicit = (gpPublicKeyProp ?? '').trim();
+    const looked = gatewayKeys[space.propertyId];
+    const canLookUp = !!(creds.baseUrl && creds.appId && creds.apiKey && resolvedCompanyId);
+    return {
+      gpPublicKey: explicit || (looked !== undefined ? looked : (canLookUp ? undefined : '')),
+      gatewayPending: !explicit && looked === undefined && canLookUp,
+      savedCards: savedCardsFrom(record).filter((c) => c.propertyId === space.propertyId),
+      pay: async (leaseId, body, idempotencyKey) => {
+        const r = await payLease(api, token, leaseId, body, idempotencyKey);
+        if (r.ok) {
+          void fetchContact(api, token).then((fresh) => { if (fresh.ok) setRecord(fresh.data); });
+          return { ok: true, receipt: r.data };
+        }
+        if (r.unauthorized) signOut();
+        return { ok: false, message: r.message };
+      },
+    };
+    // signOut is stable for the life of the session; the token is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gated, session?.token, api, record, space, gatewayKeys, creds, resolvedCompanyId, gpPublicKeyProp]);
   const [activityOpen, setActivityOpen] = useState(false);
   /* Make a Payment lists every space AT THE SAME PROPERTY as the unit whose
      Pay Now was clicked — all of them, each with its own tick, so the tenant
@@ -674,6 +757,7 @@ export function MyAccount({
               onBack={() => setView('account')}
               initialResult={initialPaymentResult ?? null}
               coverage={coverageHandlers}
+              payment={paymentHandlers}
             />
           )}
           {view === 'edit' && (

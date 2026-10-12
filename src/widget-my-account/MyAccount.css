@@ -1415,6 +1415,14 @@
 }
 
 .ma-payform { margin-top: 20px; }
+/* No gateway key for this facility: the card panel says so instead of
+   drawing a form that could not be submitted. */
+.ma-pay__notice { margin: 0; padding: 16px 0 4px; font-size: 14px; line-height: 20px; color: var(--hb-grayscale-medium, #637381); }
+
+/* Cards on file: full-width tiles above the 2×2 method grid, one per card. */
+.ma-saved { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+.ma-saved__card { width: 100%; }
+.ma-saved + .ma-methods { margin-top: 12px; }
 
 /* THE CARD ROW, SIZED BY THIS PANEL RATHER THAN THE WINDOW.
    #99 decides this row's shape from VIEWPORT media queries written for step
