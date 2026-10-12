@@ -837,3 +837,89 @@ export async function applyCoverage(
     readCoverage, 'We could not change your coverage right now. Please try again.',
   );
 }
+
+// ---------------------------------------------------------------------------
+// Paying a lease.
+//
+//   POST /api/account/leases/{lease}/payments      header Idempotency-Key
+//   { amount, invoices: [{ id, amount }], paymentMethod }
+//     paymentMethod: { type: "saved", id }                       a card on file
+//                    { type: "hosted-card", token, zip,
+//                      saveToAccount, autopay }                  a GP token
+//
+// PER LEASE — one call per space. The endpoint is under the lease, and the
+// invoices are that lease's; several spaces mean several calls, each with
+// its own Idempotency-Key. A hosted-field token is single-use, so a new card
+// paying several spaces saves itself on the first call and pays the rest
+// as a saved method — see MakePaymentPanel.
+//
+// The success shape has NOT been seen: every live attempt on 2026-10-12 was
+// refused before validation with 409 payments_not_accepted ("This lease is
+// not accepting online payments. Please contact the facility.") — the test
+// leases were 529 days late. So the receipt is read defensively, field by
+// field, and whatever the proxy says on a refusal is surfaced as it is.
+// ---------------------------------------------------------------------------
+
+export type LeasePaymentMethod =
+  | { type: 'saved'; id: string }
+  | { type: 'hosted-card'; token: string; zip: string; saveToAccount: boolean; autopay: boolean };
+
+export interface LeasePaymentRequest {
+  amount: number;
+  invoices: Array<{ id: string; amount: number }>;
+  paymentMethod: LeasePaymentMethod;
+}
+
+export interface LeasePaymentReceipt {
+  /** The payment's number / id, whichever the proxy calls it. */
+  number: string;
+  amount: number | null;
+  /** "xxxx 1111" when the reply says which card; '' otherwise. */
+  method: string;
+  /** A payment method saved by this payment, if the reply names one. */
+  savedPaymentMethodId: string;
+  raw: Record<string, unknown>;
+}
+
+function readReceipt(d: Record<string, unknown>): LeasePaymentReceipt {
+  const pm = (d.paymentMethod && typeof d.paymentMethod === 'object' ? d.paymentMethod : {}) as Record<string, unknown>;
+  const last4 = strOr(d.last4) || strOr(pm.last4) || strOr(d.cardLast4);
+  return {
+    number: strOr(d.number) || strOr(d.paymentNumber) || strOr(d.confirmationNumber) || strOr(d.paymentId) || strOr(d.id),
+    amount: typeof d.amount === 'number' ? d.amount : typeof d.total === 'number' ? d.total : null,
+    method: last4 ? `xxxx ${last4}` : '',
+    savedPaymentMethodId: strOr(d.paymentMethodId) || strOr(d.savedPaymentMethodId) || strOr(pm.id),
+    raw: d,
+  };
+}
+
+export async function payLease(
+  cfg: LoginApiConfig,
+  token: string,
+  leaseId: string,
+  body: LeasePaymentRequest,
+  idempotencyKey: string,
+): Promise<AuthedResult<LeasePaymentReceipt>> {
+  let res: Response;
+  let json: unknown;
+  try {
+    res = await fetch(url(cfg, `/api/account/leases/${encodeURIComponent(leaseId)}/payments`), {
+      method: 'POST',
+      headers: { ...headers(cfg), Authorization: `Bearer ${token}`, 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(body),
+    });
+    json = await res.json().catch(() => undefined);
+  } catch (err) {
+    return { ok: false, message: 'We could not reach the server. Check your connection and try again.', detail: err instanceof Error ? err.message : String(err) };
+  }
+  if (res.status === 401) {
+    return { ok: false, unauthorized: true, message: 'Your session has expired. Please sign in again.', detail: failureDetail(json, res) };
+  }
+  if (!res.ok) {
+    const err = (json as { error?: { message?: unknown } } | undefined)?.error;
+    const said = typeof err?.message === 'string' ? err.message.trim() : '';
+    return { ok: false, message: said || 'Your payment could not be processed. Please try a different payment method or contact your bank for assistance.', detail: failureDetail(json, res) };
+  }
+  const data = (json as { data?: Record<string, unknown> } | undefined)?.data;
+  return { ok: true, data: readReceipt(data ?? {}) };
+}

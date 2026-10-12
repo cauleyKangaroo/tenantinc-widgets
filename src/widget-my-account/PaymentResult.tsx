@@ -18,19 +18,21 @@ import type { PaymentReceipt } from './data';
 export type PaymentOutcome = 'success' | 'failed';
 
 export function PaymentResult({
-  outcome, receipt, onResend,
+  outcome, receipt, onResend, message,
 }: {
   outcome: PaymentOutcome;
   receipt: PaymentReceipt;
   onResend?: () => void;
+  /** Why it failed, in the proxy's own words when it gave any — replaces the
+   *  frame's generic sentence, which is kept for a failure with no reason. */
+  message?: string;
 }) {
   if (outcome === 'failed') {
     return (
       <div className="ma-result ma-result--failed" role="alert">
         <p className="ma-result__title">Payment Failed</p>
         <p className="ma-result__sub ma-result__sub--failed">
-          Your payment could not be processed. Please try a different payment method or contact your bank for
-          assistance.
+          {message || 'Your payment could not be processed. Please try a different payment method or contact your bank for assistance.'}
         </p>
       </div>
     );
