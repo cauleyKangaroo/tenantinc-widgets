@@ -55,10 +55,14 @@ export interface SelectFieldProps {
    */
   placeholder?: string | false;
   className?: string;
+  /** Validation message, drawn by the face exactly as a FormField draws its
+   *  own — so a required select can say so where every other field does. */
+  error?: string;
+  disabled?: boolean;
 }
 
 export function SelectField({
-  label, value, onChange, options, required, state, placeholder, className,
+  label, value, onChange, options, required, state, placeholder, className, error, disabled,
 }: SelectFieldProps) {
   const empty = placeholder === false ? null : (placeholder ?? `Select ${label}`);
   // The face shows the option's LABEL; the select itself works in values.
@@ -67,7 +71,7 @@ export function SelectField({
     <div className={`rf-select${className ? ` ${className}` : ''}`}>
       <label className="rf-select-native">
         <span className="rf-sr-only">{label}</span>
-        <select value={value} onChange={(e) => onChange(e.target.value)} required={required}>
+        <select value={value} onChange={(e) => onChange(e.target.value)} required={required} disabled={disabled}>
           {empty !== null && <option value="">{empty}</option>}
           {options.map((o) => <option key={optValue(o)} value={optValue(o)}>{optLabel(o)}</option>)}
         </select>
@@ -87,6 +91,8 @@ export function SelectField({
           value={shown ? optLabel(shown) : ''}
           onChange={() => {}}
           className={state === 'success' ? 'rf-valid' : undefined}
+          error={error}
+          disabled={disabled}
         />
         <ChevronBig size={24} className="rf-select-chev" />
       </div>
