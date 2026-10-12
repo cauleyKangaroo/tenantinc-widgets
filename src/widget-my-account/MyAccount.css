@@ -1180,24 +1180,21 @@
 .ma-act__line { display: block; }
 .ma-act__line + .ma-act__line { margin-top: 5px; }
 
+/* Plain text while there is no invoice document to open (the proxy has no
+   /invoices route — probed 2026-10-12). The frame draws these as links; the
+   underline and the pointer come back the day there is something behind
+   them, together with the <a>. Keeps the frame's weight and spacing. */
 .ma-act__invoice {
   display: block;
   padding: 0;
-  background: none;
-  border: 0;
-  cursor: pointer;
   text-align: left;
   font-family: inherit;
   font-size: 16px;
   font-weight: 400;
   line-height: 1.2;
   color: var(--hb-text-night);
-  text-decoration: underline;
-  text-underline-position: from-font;
 }
 .ma-act__invoice + .ma-act__invoice { margin-top: 5px; }
-.ma-act__invoice:hover { text-decoration-thickness: 2px; }
-.ma-act__invoice:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); border-radius: 4px; }
 
 /* ── The card / bank forms ─────────────────────────────────────────────────
    The forms themselves are #99's, styled by its own .rf- stylesheet. Only the

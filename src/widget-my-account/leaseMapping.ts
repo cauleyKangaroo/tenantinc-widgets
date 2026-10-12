@@ -22,7 +22,7 @@ import type { AccountRecord } from '@shared/accountApi';
 import type { PropertyContact } from '@shared/propertyContact';
 import { classifySize, mediaManagerImagesFor } from '@shared/unitArtwork';
 import type {
-  AccountDocument, AccountSpace, Contact, SpaceProperty,
+  AccountDocument, AccountSpace, ActivityRow, Contact, SpaceProperty,
 } from './data';
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
@@ -223,6 +223,56 @@ export function spacesFrom(
 /** "storage" → "Storage", for the size line. The API spells the type in lower case. */
 function titleCase(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+}
+
+/** "06/15/2026" from the API's "2026-06-15" — the frame's own date format. */
+function shortDate(v: unknown): string {
+  const s = str(v).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
+  const [y, m, d] = s.split('-');
+  return `${m}/${d}/${y}`;
+}
+
+/**
+ * Payment Activity: one row per INVOICE, across every lease, newest first.
+ *
+ * The frame's table is per payment ("Payment Date", "Payment Method"), but
+ * the account record carries invoices and no payment records at all —
+ * verified live 2026-10-12: a contact with two leases and fourteen invoices,
+ * every one with `totalPayments: 0` and no `payments` array anywhere. So the
+ * rows are the invoices: the invoice date, its number, the space it bills,
+ * what it asked for (`totalDue`) and what is still owed (`balance`). The
+ * method column is "—" rather than a guess; nothing in the record says how
+ * an invoice was settled, and inventing "xxxxx 7468" would be a lie in a
+ * statement.
+ *
+ * Newest first, because the question a tenant brings to this table is "what
+ * was I charged lately" — and ties (several invoices on one date, as the
+ * admin-fee and lien-notice ones are) fall back to the invoice number.
+ */
+export function activityFrom(record: AccountRecord): ActivityRow[] {
+  const leases = Array.isArray(record.leases) ? (record.leases as Record<string, unknown>[]) : [];
+  const rows: Array<ActivityRow & { _sort: string }> = [];
+  for (const l of leases) {
+    const u = (l.unit ?? {}) as Record<string, unknown>;
+    const unitNo = str(u.number);
+    const invoices = Array.isArray(l.invoices) ? (l.invoices as Record<string, unknown>[]) : [];
+    for (const inv of invoices) {
+      const number = str(inv.number) || str(inv.id);
+      if (!number) continue;
+      rows.push({
+        date: shortDate(inv.date) || shortDate(inv.due),
+        method: '—',
+        spaces: unitNo ? [`#${unitNo}`] : [],
+        invoices: [`#${number}`],
+        amount: money(inv.totalDue),
+        balance: money(inv.balance),
+        _sort: `${str(inv.date).slice(0, 10)}|${number.padStart(12, '0')}`,
+      });
+    }
+  }
+  rows.sort((a, b) => (a._sort < b._sort ? 1 : a._sort > b._sort ? -1 : 0));
+  return rows.map(({ _sort, ...row }) => row);
 }
 
 /** 1 → "1st". For the autopay sentence. */
