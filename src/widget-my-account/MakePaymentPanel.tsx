@@ -458,6 +458,8 @@ export function MakePaymentPanel({
       finishPayment('failed', summary, `${paid.map((s) => s.paymentNumber).join(', ')} paid (${summary.amount}). Not paid: ${unpaid}. ${failure}`);
     } else finishPayment('failed', null, failure);
   };
+  const bankNotLive = () =>
+    finishPayment('failed', null, 'Bank payments are not available online yet. Please pay by card, or contact the office.');
   const liveCardKey = payment?.gpPublicKey;
   const cardUnavailable = !!payment && !payment.gatewayPending && !liveCardKey;
   /* "Pay through" is per space; with several selected they can disagree, so the
@@ -831,16 +833,14 @@ export function MakePaymentPanel({
               <CreditCardIcon />
               <span>Credit / Debit</span>
             </button>
-            {!payment && (
-              <button
-                type="button"
-                className="ma-method ma-method--outline"
-                onClick={() => selectMethod('bank')}
-              >
-                <BankIcon />
-                <span>Pay by Bank</span>
-              </button>
-            )}
+            <button
+              type="button"
+              className="ma-method ma-method--outline"
+              onClick={() => selectMethod('bank')}
+            >
+              <BankIcon />
+              <span>Pay by Bank</span>
+            </button>
           </>
         )}
       </div>
@@ -881,14 +881,29 @@ export function MakePaymentPanel({
               />
             )
           ) : (
-            <BankForm total={balanceTotal} onPay={pay} defaultCountry="United States" />
+            <>
+              {/* The account payments API takes a card token or a saved method
+                  and nothing else yet. The tile stays — bank is on the way —
+                  but on a live account it must say so before the details are
+                  typed, and a "Pay Now" here cannot pretend to have paid. */}
+              {payment && (
+                <p className="ma-pay__notice" role="status">
+                  Bank payments are coming soon and are not available online yet. Please pay by card for now.
+                </p>
+              )}
+              <BankForm
+                total={balanceTotal}
+                onPay={() => (payment ? bankNotLive() : pay())}
+                defaultCountry="United States"
+              />
+            </>
           )}
         </section>
       )}
 
       {/* The method NOT open, relocated below the panel — full width, since it
           no longer shares a row. */}
-      {methodOpen && !payment && (
+      {methodOpen && (
         <button
           type="button"
           className="ma-method ma-method--outline ma-method--alt"
