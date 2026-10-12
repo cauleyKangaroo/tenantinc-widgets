@@ -638,67 +638,74 @@ export function MakePaymentPanel({
                 </div>
               ))}
 
-              <div className="ma-line">
-                <p className="ma-line__label ma-line__label--plain">{sp.coverage.label}</p>
-                <div className="ma-line__right">
-                  {(() => {
-                    const cov = liveFor(sp);
-                    return (
-                      <CoverageMenu
-                        value={cov ? liveValue(cov) : currentCoverage(sp)}
-                        options={cov ? liveOptions(cov) : undefined}
-                        onChange={(o) => (cov
-                          ? void pickPlan(sp, o.id)
-                          : setCoverageChoice((prev) => ({ ...prev, [sp.id]: o.id })))}
-                      >
-                        <ShieldSettingsIcon />
-                        <span className="ma-link">
-                          <span className="ma-only-desktop">{coverageBusy[sp.id] === 'preview' ? 'Pricing…' : 'Change Coverage'}</span>
-                          <span className="ma-only-mobile">{coverageBusy[sp.id] === 'preview' ? '…' : 'Change'}</span>
-                        </span>
-                      </CoverageMenu>
-                    );
-                  })()}
-                  {/* The live plan's premium when it is known: the account record
-                      carries no coverage charge of its own, so the mapped line
-                      is $0.00 until the coverage read answers. */}
-                  <p className="ma-line__amount">
-                    {liveFor(sp)?.current
-                      ? scaleMoney(formatMoney(liveFor(sp)!.current!.monthlyPremium), monthsFactor)
-                      : scaleMoney(sp.coverage.amount, monthsFactor)}
-                  </p>
-                </div>
-              </div>
-              {/* A change already on the books — from the record. Right after a
-                  confirm the "Done —" note below says the same thing, so only
-                  one of the two is shown. */}
-              {liveFor(sp)?.scheduled && !pendingPlan[sp.id] && coverageNote[sp.id]?.kind !== 'ok' && (
-                <p className="ma-coverage-note">
-                  Changes to {liveFor(sp)!.scheduled!.name} (${liveFor(sp)!.scheduled!.monthlyPremium}/mo) from {longDate(liveFor(sp)!.scheduled!.startDate)}.
-                </p>
-              )}
-              {/* The preview, waiting for a decision. Nothing has been sent. */}
-              {pendingPlan[sp.id] && (
-                <div className="ma-coverage-confirm" role="group" aria-label="Confirm coverage change">
-                  <p className="ma-coverage-confirm__text">
-                    <strong>{pendingPlan[sp.id]!.name}</strong> — ${pendingPlan[sp.id]!.monthlyPremium}/mo, starting {longDate(pendingPlan[sp.id]!.startDate)}. Your current plan runs until then.
-                  </p>
-                  <div className="ma-coverage-confirm__actions">
-                    <Button tone="dark" className="ma-btn-40" busy={coverageBusy[sp.id] === 'apply'} onClick={() => void confirmPlan(sp)}>
-                      Confirm change
-                    </Button>
-                    <Button tone="dark" fill="outline" className="ma-btn-40" disabled={coverageBusy[sp.id] === 'apply'}
-                      onClick={() => { setPendingPlan((prev) => ({ ...prev, [sp.id]: undefined })); setNote(sp.id, undefined); }}>
-                      Cancel
-                    </Button>
+              {/* COVERAGE, only when there is some. Live, that is the lease's
+                  current plan from the coverage read — while it is out, or when a
+                  lease simply has no plan, no line is drawn: the account record
+                  carries no coverage charge, so the mapped $0.00 was never a real
+                  figure to print. The sample (no handlers) keeps its line. */}
+              {(!coverage || !!liveFor(sp)?.current) && (<>
+                <div className="ma-line">
+                  <p className="ma-line__label ma-line__label--plain">{sp.coverage.label}</p>
+                  <div className="ma-line__right">
+                    {(() => {
+                      const cov = liveFor(sp);
+                      return (
+                        <CoverageMenu
+                          value={cov ? liveValue(cov) : currentCoverage(sp)}
+                          options={cov ? liveOptions(cov) : undefined}
+                          onChange={(o) => (cov
+                            ? void pickPlan(sp, o.id)
+                            : setCoverageChoice((prev) => ({ ...prev, [sp.id]: o.id })))}
+                        >
+                          <ShieldSettingsIcon />
+                          <span className="ma-link">
+                            <span className="ma-only-desktop">{coverageBusy[sp.id] === 'preview' ? 'Pricing…' : 'Change Coverage'}</span>
+                            <span className="ma-only-mobile">{coverageBusy[sp.id] === 'preview' ? '…' : 'Change'}</span>
+                          </span>
+                        </CoverageMenu>
+                      );
+                    })()}
+                    {/* The live plan's premium when it is known: the account record
+                        carries no coverage charge of its own, so the mapped line
+                        is $0.00 until the coverage read answers. */}
+                    <p className="ma-line__amount">
+                      {liveFor(sp)?.current
+                        ? scaleMoney(formatMoney(liveFor(sp)!.current!.monthlyPremium), monthsFactor)
+                        : scaleMoney(sp.coverage.amount, monthsFactor)}
+                    </p>
                   </div>
                 </div>
-              )}
-              {coverageNote[sp.id] && (
-                <p className={`ma-coverage-note${coverageNote[sp.id]!.kind === 'error' ? ' ma-coverage-note--error' : ''}`} role={coverageNote[sp.id]!.kind === 'error' ? 'alert' : 'status'}>
-                  {coverageNote[sp.id]!.text}
-                </p>
-              )}
+                {/* A change already on the books — from the record. Right after a
+                    confirm the "Done —" note below says the same thing, so only
+                    one of the two is shown. */}
+                {liveFor(sp)?.scheduled && !pendingPlan[sp.id] && coverageNote[sp.id]?.kind !== 'ok' && (
+                  <p className="ma-coverage-note">
+                    Changes to {liveFor(sp)!.scheduled!.name} (${liveFor(sp)!.scheduled!.monthlyPremium}/mo) from {longDate(liveFor(sp)!.scheduled!.startDate)}.
+                  </p>
+                )}
+                {/* The preview, waiting for a decision. Nothing has been sent. */}
+                {pendingPlan[sp.id] && (
+                  <div className="ma-coverage-confirm" role="group" aria-label="Confirm coverage change">
+                    <p className="ma-coverage-confirm__text">
+                      <strong>{pendingPlan[sp.id]!.name}</strong> — ${pendingPlan[sp.id]!.monthlyPremium}/mo, starting {longDate(pendingPlan[sp.id]!.startDate)}. Your current plan runs until then.
+                    </p>
+                    <div className="ma-coverage-confirm__actions">
+                      <Button tone="dark" className="ma-btn-40" busy={coverageBusy[sp.id] === 'apply'} onClick={() => void confirmPlan(sp)}>
+                        Confirm change
+                      </Button>
+                      <Button tone="dark" fill="outline" className="ma-btn-40" disabled={coverageBusy[sp.id] === 'apply'}
+                        onClick={() => { setPendingPlan((prev) => ({ ...prev, [sp.id]: undefined })); setNote(sp.id, undefined); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {coverageNote[sp.id] && (
+                  <p className={`ma-coverage-note${coverageNote[sp.id]!.kind === 'error' ? ' ma-coverage-note--error' : ''}`} role={coverageNote[sp.id]!.kind === 'error' ? 'alert' : 'status'}>
+                    {coverageNote[sp.id]!.text}
+                  </p>
+                )}
+              </>)}
 
               <div className="ma-line">
                 <p className="ma-line__label ma-line__label--plain">{sp.taxes.label}</p>
