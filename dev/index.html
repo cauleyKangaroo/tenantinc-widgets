@@ -764,6 +764,8 @@
             <select id="ma-view" onchange="reinitMyAccount()">
               <option value="account">Account Info (default) — 8815-115354</option>
               <option value="payment">Make a Payment — 9030-31458</option>
+              <option value="payment:success">Payment success — 12949-90476</option>
+              <option value="payment:failed">Payment failed — 12950-91405</option>
               <option value="edit">Edit — 8815-115876</option>
             </select>
           </label>
@@ -2048,12 +2050,18 @@ Special</textarea>
         promoTitle:  document.getElementById('ma-promo-title').value || undefined,
         promoCta:    document.getElementById('ma-promo-cta').value || undefined,
         // Only the STARTING view — Pay Now and Account Info switch it in place.
-        initialView: document.getElementById('ma-view').value,
+        // "payment:success" / "payment:failed" open the payment view on that
+        // result banner.
+        initialView: document.getElementById('ma-view').value.split(':')[0],
+        initialPaymentResult: document.getElementById('ma-view').value.split(':')[1] || undefined,
       };
     }
 
     function reinitMyAccount() {
       if (myAccountWidget) {
+        // Unmount first: a plain re-init re-renders with the old state, so
+        // "Starting view" never took effect after the first load.
+        myAccountWidget.clean();
         myAccountWidget.init({
           container: document.getElementById('my-account-container'),
           props: getMyAccountProps(),

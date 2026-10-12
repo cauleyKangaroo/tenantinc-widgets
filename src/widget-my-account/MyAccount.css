@@ -355,6 +355,176 @@
 }
 .ma-link-row:hover .ma-link { text-decoration-thickness: 2px; }
 
+/* ── Payment result banner (Figma 12949-90476 success, 12950-91405 failed) ─
+   Offsets are the frame's, measured from the banner's corner: tick at 37/31,
+   text column at 110 (10 lower than the tick), the sub-line and the details
+   nudged 3px and 6px further in as drawn, the receipt row at 179 with its
+   icon at 51. The failed card has no icon; its text starts at 107. */
+.ma-pay--result { padding-top: 38px; }
+/* Title 43px under the banner, spaces 31px under the title — the result
+   frame's spacing, tighter than the bare form's 42. */
+.ma-pay--result .ma-pay__head { margin-bottom: 31px; }
+
+.ma-result {
+  margin-bottom: 43px;
+  border-radius: 8px;
+  color: #000;
+}
+
+.ma-result--success {
+  padding: 31px 43px 46px 37px;
+  background: rgba(80, 158, 47, 0.11);
+}
+
+.ma-result--failed {
+  padding: 41px 43px 42px 107px;
+  background: rgba(229, 57, 53, 0.1);
+}
+
+.ma-result__top {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  column-gap: 11px;
+  align-items: start;
+}
+
+.ma-result__tick { display: block; }
+
+.ma-result__text { padding-top: 10px; min-width: 0; }
+
+.ma-wrapper .ma-result__title {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #101318;
+}
+
+.ma-wrapper .ma-result__sub {
+  margin-top: 8px;
+  margin-left: 3px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.ma-wrapper .ma-result__sub--failed { margin: 10px 0 0; max-width: 621px; }
+
+.ma-wrapper .ma-result__details {
+  margin-top: 13px;
+  margin-left: 6px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.ma-result__receipt {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 21px;
+  padding-left: 14px;
+}
+
+.ma-result__msgIcon { flex: none; display: block; }
+
+.ma-wrapper .ma-result__sent {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: normal;
+}
+
+.ma-result__resend {
+  flex: none;
+  width: 70px;
+  height: 29px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: #101318;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.ma-result__resend:hover { background: #2a2f36; }
+.ma-result__resend:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); }
+
+/* No phone frame for these yet: same content, padding and tick scaled down,
+   the frame's 3/6px nudges dropped, and the Resend row free to wrap. */
+@media (max-width: 720px) {
+  .ma-pay--result { padding-top: 25px; }
+  .ma-result { margin-bottom: 28px; }
+  .ma-result--success { padding: 20px 16px; }
+  .ma-result--failed { padding: 20px 16px; }
+  .ma-result__top { grid-template-columns: 40px 1fr; column-gap: 10px; }
+  .ma-result__tick { width: 40px; height: 40px; }
+  .ma-result__text { padding-top: 4px; }
+  .ma-wrapper .ma-result__title { font-size: 20px; line-height: 24px; }
+  .ma-wrapper .ma-result__sub,
+  .ma-wrapper .ma-result__details { margin-left: 0; font-size: 14px; }
+  .ma-result__receipt { flex-wrap: wrap; padding-left: 0; margin-top: 16px; }
+  .ma-wrapper .ma-result__sent { flex-basis: calc(100% - 35px); font-size: 14px; }
+  .ma-result__resend { margin-left: 35px; }
+}
+
+/* ── Change Coverage drop-down (Figma 12272-165228) ──────────────────────
+   Anchored under its link, right-aligned so it can't run off the card's right
+   edge (the link sits at the end of the row). Rows are 15/10 padding, 16px
+   Montserrat at 1.5, a 1px inner divider; 4px white caps top and bottom.
+   The grey row is the CURRENT plan, and the hover. */
+.ma-coverage { position: relative; display: inline-flex; }
+
+.ma-coverage__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  min-width: 263px;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px 3px var(--hb-elevation-10, rgba(71, 84, 116, 0.1));
+}
+
+.ma-coverage__opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 15px;
+  background: #fff;
+  border: 0;
+  box-shadow: inset 0 -1px 0 rgba(142, 142, 143, 0.15);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #000;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* The last row has no divider in the frame. */
+.ma-coverage__menu li:last-child .ma-coverage__opt { box-shadow: none; }
+
+.ma-coverage__opt:hover,
+.ma-coverage__opt--on { background: #F9FAFB; }
+
+.ma-coverage__opt:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--hb-text-night, #101318); }
+
+.ma-coverage__label { flex: 0 0 160px; }
+.ma-coverage__price { flex: 0 0 63px; }
+
 /* ── Money lines ───────────────────────────────────────────────────────── */
 .ma-lines {
   display: flex;
