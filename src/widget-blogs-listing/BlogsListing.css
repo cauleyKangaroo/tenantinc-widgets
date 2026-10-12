@@ -19,7 +19,7 @@
   --blog-body-gap: 19px;
   --blog-title-h: 60px;   /* 2 x 30px line-height — .blog-card-title's clamp   */
   --blog-byline-h: 24px;  /* 1 line (2 on a narrow phone — see the 480px block) */
-  --blog-excerpt-h: 72px; /* 3 x 24px line-height — .blog-card-excerpt's clamp */
+  --blog-excerpt-h: 96px; /* 4 x 24px line-height — .blog-card-excerpt's clamp */
   --blog-footer-h: 24px;  /* the 24px Share glyph is the tallest thing in it   */
   --blog-dot-size: 16px;  /* pagination dot, and so the mobile dots strip       */
 }
@@ -256,14 +256,14 @@
   color: #101318;
   margin: 0;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   /* Capped, and NO `flex: 1` (it used to grow). Cards are equal height, so a
      flex-grown excerpt gets a box taller than its clamped text — `overflow:
-     hidden` then stops cropping and a fourth line leaks out below the clamp's
+     hidden` then stops cropping and a fifth line leaks out below the clamp's
      own ellipsis. The footer is pinned by its margin-top:auto, so nothing needs
-     to grow; capping at 3 x line-height keeps the crop honest (and enforces it at
+     to grow; capping at 4 x line-height keeps the crop honest (and enforces it at
      all where -webkit-line-clamp isn't supported). */
   max-height: var(--blog-excerpt-h);
 }
