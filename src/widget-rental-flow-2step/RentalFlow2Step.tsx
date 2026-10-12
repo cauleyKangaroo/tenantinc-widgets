@@ -3057,6 +3057,8 @@ export function RentalFlow2Step({
               chosen={chosenSections}
               /* So an alternate contact entered here cannot be the tenant. */
               primary={{
+                first: rentedContact?.first ?? contact?.first,
+                last: rentedContact?.last ?? contact?.last,
                 email: rentedContact?.email ?? contact?.email,
                 phone: rentedContact?.phone ?? contact?.phone,
               }}

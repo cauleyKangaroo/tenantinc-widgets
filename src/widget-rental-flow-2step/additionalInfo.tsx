@@ -1,6 +1,9 @@
-import { FormField, isPossiblePhone } from '@shared/ui';
+import { useState } from 'react';
+import { FormField, SelectField, isPossiblePhone } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
-import { CUSTOMER_ADDRESS_COUNTRIES } from '@shared/placesApi';
+import {
+  COUNTRY_OPTIONS, placesCountryFor, postalCodeOk, postalLabel, regionLabel,
+} from '@shared/addressCountry';
 import { ChevronBig } from './planIcons';
 
 // ===========================================================================
@@ -26,9 +29,11 @@ export interface ExtraFieldValues {
   altLast: string;
   altPhone: string;
   altEmail: string;
+  /** Chosen BEFORE the address: it scopes the search. 'United States' | 'Canada'. */
+  altCountry: string;
   altAddress: string;
-  /** Filled by the address picker when a suggestion is chosen; empty for a
-   *  typed-only line. The lease files the alternate's address as four parts. */
+  /** Filled by the address picker when a suggestion is chosen, and editable
+   *  after. The lease files the alternate's address as four parts. */
   altCity: string;
   altState: string;
   altZip: string;
@@ -44,7 +49,7 @@ export interface ExtraFieldValues {
 
 export const EMPTY_EXTRA_FIELDS: ExtraFieldValues = {
   dob: '',
-  altFirst: '', altLast: '', altPhone: '', altEmail: '', altAddress: '',
+  altFirst: '', altLast: '', altPhone: '', altEmail: '', altCountry: '', altAddress: '',
   altCity: '', altState: '', altZip: '',
   vType: '', make: '', model: '', year: '', colour: '', plate: '', country: '', stateVal: '',
 };
@@ -56,8 +61,72 @@ export interface ExtraSectionsOn {
   vehicle: boolean;
 }
 
+/**
+ * The PRIMARY contact — the tenant — as far as the alternate contact needs to
+ * know them. See `extraFieldProblems` for what is compared.
+ */
+export interface PrimaryContact {
+  first?: string;
+  last?: string;
+  email?: string;
+  phone?: string;
+}
+
 const filled = (v: string) => v.trim().length > 0;
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+const norm = (v: string | undefined) => (v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+const phoneDigits = (s: string) => s.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+
+/** A date of birth may be at most this far back. */
+export const DOB_MAX_YEARS = 120;
+
+/**
+ * Why a typed MM/DD/YYYY is not a date of birth, or '' when it is one.
+ *
+ * The mask only shapes digits into slashes — it accepted "90/03/4523" and the
+ * old rule (ten characters) turned it green. A birth date has to be a real
+ * calendar day (no 30th of February), on or before today, and within the last
+ * 120 years: an active-service member is not 130, and a future date is a
+ * typo. Compared on the calendar day, not the clock, so someone born today
+ * (a typo too, but a well-formed one) is "in the future" only from tomorrow.
+ */
+export function dobProblem(masked: string, today = new Date()): string {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(masked.trim());
+  if (!m) return 'Enter a valid date of birth (MM/DD/YYYY)';
+  const mm = +m[1]; const dd = +m[2]; const yyyy = +m[3];
+  const d = new Date(yyyy, mm - 1, dd);
+  // The Date constructor rolls an impossible day forward (Feb 30 → Mar 2); a
+  // real date reads back as what went in.
+  if (mm < 1 || mm > 12 || dd < 1 || d.getFullYear() !== yyyy || d.getMonth() !== mm - 1 || d.getDate() !== dd) {
+    return 'Enter a valid date of birth (MM/DD/YYYY)';
+  }
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (d.getTime() > t.getTime()) return 'Date of birth cannot be in the future';
+  const oldest = new Date(t.getFullYear() - DOB_MAX_YEARS, t.getMonth(), t.getDate());
+  if (d.getTime() < oldest.getTime()) return `Date of birth must be within the last ${DOB_MAX_YEARS} years`;
+  return '';
+}
+
+/**
+ * The alternate contact must be a different PERSON from the tenant, so the
+ * three things that identify one are each compared: the email, the phone and
+ * the full name. Two people can share a name, but a tenant who types their own
+ * name AND their own number or inbox has named themselves, and the name alone
+ * is rejected too — the usual way this section goes wrong is the tenant
+ * filling it in about themselves, and the name is the first field they reach.
+ * Returned per field so the message lands on the one that repeats.
+ */
+export function alternateDuplicates(v: ExtraFieldValues, primary?: PrimaryContact) {
+  if (!primary) return { name: false, email: false, phone: false };
+  const sameName = !!(primary.first && primary.last) && filled(v.altFirst) && filled(v.altLast)
+    && norm(v.altFirst) === norm(primary.first) && norm(v.altLast) === norm(primary.last);
+  const sameEmail = !!primary.email && isEmail(v.altEmail) && norm(v.altEmail) === norm(primary.email);
+  const samePhone = !!primary.phone && isPossiblePhone(v.altPhone, 'US')
+    && phoneDigits(v.altPhone).length > 0 && phoneDigits(v.altPhone) === phoneDigits(primary.phone);
+  return { name: sameName, email: sameEmail, phone: samePhone };
+}
+
+const DIFFERENT = 'The alternate contact must be a different person —';
 
 /**
  * Required fields, and ONLY for the sections actually switched on.
@@ -70,31 +139,34 @@ export function extraFieldProblems(
   on: ExtraSectionsOn,
   v: ExtraFieldValues,
   /**
-   * The PRIMARY contact's own email and phone. An alternate contact is the
-   * person to reach when the tenant cannot be, so it cannot be the tenant:
-   * the same email or the same number is rejected on the field that repeats
-   * it. Compared on what identifies a person, not on the name — two people
-   * can share a name, but not an inbox or a phone.
+   * The PRIMARY contact's own name, email and phone. An alternate contact is
+   * the person to reach when the tenant cannot be, so it cannot be the tenant:
+   * whichever of those repeats is rejected on the field that repeats it.
    */
-  primary?: { email?: string; phone?: string },
+  primary?: PrimaryContact,
 ): Record<string, string> {
-  const sameEmail = !!primary?.email && isEmail(v.altEmail)
-    && v.altEmail.trim().toLowerCase() === primary.email.trim().toLowerCase();
-  const digits = (s: string) => s.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
-  const samePhone = !!primary?.phone && isPossiblePhone(v.altPhone, 'US')
-    && digits(v.altPhone).length > 0 && digits(v.altPhone) === digits(primary.phone);
+  const dup = alternateDuplicates(v, primary);
   return {
-    // The mask is MM/DD/YYYY, so a complete date is exactly ten characters —
-    // "12/25/" is filled but not a date.
-    ...(on.military ? { dob: v.dob.length === 10 ? '' : 'Enter a valid date of birth' } : {}),
+    ...(on.military ? { dob: dobProblem(v.dob) } : {}),
     ...(on.altContact ? {
-      altFirst: filled(v.altFirst) ? '' : 'Enter the alternate contact’s first name',
-      altLast: filled(v.altLast) ? '' : 'Enter the alternate contact’s last name',
+      altFirst: !filled(v.altFirst) ? 'Enter the alternate contact’s first name'
+        : dup.name ? `${DIFFERENT} this is your own name` : '',
+      altLast: !filled(v.altLast) ? 'Enter the alternate contact’s last name'
+        : dup.name ? `${DIFFERENT} this is your own name` : '',
       altPhone: !isPossiblePhone(v.altPhone, 'US') ? 'Enter a valid phone number'
-        : samePhone ? 'The alternate contact must be a different person — this is your own number' : '',
+        : dup.phone ? `${DIFFERENT} this is your own number` : '',
       altEmail: !isEmail(v.altEmail) ? 'Enter a valid email address'
-        : sameEmail ? 'The alternate contact must be a different person — this is your own email' : '',
+        : dup.email ? `${DIFFERENT} this is your own email` : '',
+      altCountry: filled(v.altCountry) ? '' : 'Select the alternate contact’s country',
       altAddress: filled(v.altAddress) ? '' : 'Enter the alternate contact’s address',
+      // The parts are required as soon as there IS an address — a street on
+      // its own is not somewhere a notice can be posted to. Keyed off the
+      // address, not off whether the three are on screen.
+      ...(filled(v.altAddress) ? {
+        altCity: filled(v.altCity) ? '' : 'Enter the city',
+        altState: v.altState.trim().length === 2 ? '' : `Enter the two-letter ${regionLabel(v.altCountry).toLowerCase()}`,
+        altZip: postalCodeOk(v.altZip, v.altCountry) ? '' : `Enter a valid ${postalLabel(v.altCountry)}`,
+      } : {}),
     } : {}),
     // Vehicle Type alone carries the asterisk in the frame; make, model, year,
     // colour, plate, country and state are all optional.
@@ -149,6 +221,9 @@ interface GroupProps {
    * it and is not part of this change.
    */
   validated?: boolean;
+  /** The tenant, so the alternate contact can be told apart from them AS THEY
+   *  TYPE rather than only when the button is pressed. */
+  primary?: PrimaryContact;
 }
 
 /** `state` for a FormField that should confirm itself once valid. */
@@ -156,7 +231,13 @@ const okState = (validated: boolean | undefined, err: string | undefined, ok: bo
   (validated && !err && ok ? 'success' : 'default') as 'success' | 'default';
 
 export function MilitaryFields({ v, set, bad, validated }: GroupProps) {
-  const err = bad('dob');
+  /* The screen's error (after an attempt) or, once all ten characters are in,
+     the date's own verdict straight away: a field that turned green on
+     "90/03/4523" was the complaint, so a complete-but-impossible date says so
+     the moment it is complete, not at the button. */
+  const complete = v.dob.length === 10;
+  const live = complete ? dobProblem(v.dob) || undefined : undefined;
+  const err = bad('dob') ?? live;
   return (
     <div className="rf-sx-fields">
       {/* Typed mask, not a picker: scrolling a calendar back decades to a
@@ -164,17 +245,33 @@ export function MilitaryFields({ v, set, bad, validated }: GroupProps) {
       <FormField
         label="Date of Birth" required mask="date"
         value={v.dob} onChange={(dob) => set({ dob })} error={err}
-        state={okState(validated, err, v.dob.length === 10)}
+        state={okState(validated, err, complete)}
       />
     </div>
   );
 }
 
-export function AltContactFields({ v, set, bad, validated }: GroupProps) {
+export function AltContactFields({ v, set, bad, validated, primary }: GroupProps) {
+  const dup = alternateDuplicates(v, primary);
+  /* Live, like the date above: a field that repeats the tenant's own detail
+     says so as soon as it does, instead of ticking green until the button. */
   const e = {
-    first: bad('altFirst'), last: bad('altLast'), phone: bad('altPhone'),
-    email: bad('altEmail'), address: bad('altAddress'),
+    first: bad('altFirst') ?? (dup.name ? `${DIFFERENT} this is your own name` : undefined),
+    last: bad('altLast') ?? (dup.name ? `${DIFFERENT} this is your own name` : undefined),
+    phone: bad('altPhone') ?? (dup.phone ? `${DIFFERENT} this is your own number` : undefined),
+    email: bad('altEmail') ?? (dup.email ? `${DIFFERENT} this is your own email` : undefined),
+    country: bad('altCountry'), address: bad('altAddress'),
+    city: bad('altCity'), state: bad('altState'), zip: bad('altZip'),
   };
+  /* The parts appear once the lookup has filled them, once anything is in
+     them, or once a failed attempt asks for them — the same reveal the mailing
+     address uses. Four empty boxes before an address is chosen are four boxes
+     nobody should have to type into. */
+  const [picked, setPicked] = useState(false);
+  const showParts = picked || filled(v.altCity) || filled(v.altState) || filled(v.altZip)
+    || !!(e.city || e.state || e.zip);
+  const countryChosen = filled(v.altCountry);
+  const clearParts = { altCity: '', altState: '', altZip: '' };
   return (
     <div className="rf-sx-fields">
       <div className="rf-pay-grid">
@@ -187,24 +284,58 @@ export function AltContactFields({ v, set, bad, validated }: GroupProps) {
         <FormField label="Email" required type="email" value={v.altEmail} onChange={(altEmail) => set({ altEmail })}
           error={e.email} state={okState(validated, e.email, isEmail(v.altEmail))} />
       </div>
-      {/* The same lookup the mailing address uses — a typed address that never
-          resolves is the commonest way this section arrives unusable. */}
-      <AddressAutocomplete
-        country={CUSTOMER_ADDRESS_COUNTRIES}
-        value={v.altAddress}
-        /* Typing clears the picked parts: they described the address that was
-           chosen, not whatever is being typed over it. */
-        onChange={(altAddress) => set({ altAddress, altCity: '', altState: '', altZip: '' })}
-        onPick={(place) => set({
-          altAddress: place.address.street || place.formattedAddress,
-          altCity: place.address.city ?? '',
-          altState: place.address.stateCode || place.address.state || '',
-          altZip: place.address.zip ?? '',
-        })}
-      >
-        <FormField label="Address" required type="search" value={v.altAddress} onChange={(altAddress) => set({ altAddress, altCity: '', altState: '', altZip: '' })}
-          error={e.address} state={okState(validated, e.address, filled(v.altAddress))} />
-      </AddressAutocomplete>
+      {/* Country FIRST, then the address search scoped to it. Until a country
+          is chosen the search box is closed: a lookup across both countries
+          offers a Toronto street to someone typing a Tucson one. Changing the
+          country afterwards clears the chosen address — it described a place
+          in the other country. */}
+      <div className="rf-pay-grid">
+        <SelectField
+          label="Country" required value={v.altCountry}
+          onChange={(altCountry) => { setPicked(false); set({ altCountry, altAddress: '', ...clearParts }); }}
+          options={[...COUNTRY_OPTIONS]}
+          state={validated && countryChosen ? 'success' : 'default'}
+          error={e.country}
+        />
+        {/* The same lookup the mailing address uses — a typed address that
+            never resolves is the commonest way this section arrives
+            unusable. */}
+        <AddressAutocomplete
+          country={placesCountryFor(v.altCountry)}
+          value={v.altAddress}
+          disabled={!countryChosen}
+          /* Typing clears the picked parts: they described the address that
+             was chosen, not whatever is being typed over it. */
+          onChange={(altAddress) => { setPicked(false); set({ altAddress, ...clearParts }); }}
+          onPick={(place) => {
+            setPicked(true);
+            set({
+              altAddress: place.address.street || place.formattedAddress,
+              altCity: place.address.city ?? '',
+              altState: place.address.stateCode || place.address.state || '',
+              altZip: place.address.zip ?? '',
+            });
+          }}
+        >
+          <FormField label="Address" required type="search" value={v.altAddress}
+            disabled={!countryChosen}
+            onChange={(altAddress) => { setPicked(false); set({ altAddress, ...clearParts }); }}
+            error={e.address} state={okState(validated, e.address, filled(v.altAddress))} />
+        </AddressAutocomplete>
+      </div>
+      {showParts && (
+        <div className="rf-sx-grid3">
+          <FormField label="City" required value={v.altCity} onChange={(altCity) => set({ altCity })}
+            autoComplete="address-level2"
+            error={e.city} state={okState(validated, e.city, filled(v.altCity))} />
+          <FormField label={regionLabel(v.altCountry)} required value={v.altState}
+            onChange={(s) => set({ altState: s.toUpperCase().slice(0, 2) })} autoComplete="address-level1"
+            error={e.state} state={okState(validated, e.state, v.altState.trim().length === 2)} />
+          <FormField label={postalLabel(v.altCountry)} required value={v.altZip} onChange={(altZip) => set({ altZip })}
+            autoComplete="postal-code"
+            error={e.zip} state={okState(validated, e.zip, postalCodeOk(v.altZip, v.altCountry))} />
+        </div>
+      )}
     </div>
   );
 }

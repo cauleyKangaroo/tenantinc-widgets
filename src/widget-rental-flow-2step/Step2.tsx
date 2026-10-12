@@ -651,7 +651,7 @@ export function Step2({
      find out why. The primary contact's email and phone go in so the
      alternate contact cannot be the tenant. */
   const extraProblems = oneStep
-    ? extraFieldProblems({ military, altContact, vehicle }, extraFields, { email, phone })
+    ? extraFieldProblems({ military, altContact, vehicle }, extraFields, { first, last, email, phone })
     : {};
   const required: Array<[key: string, ok: boolean]> = [
     ['email', emailOk],
@@ -1033,7 +1033,7 @@ export function Step2({
             </div>
             <div className="rf-sx-group">
               <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
-              {oneStep && altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+              {oneStep && altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated primary={{ first, last, email, phone }} />}
             </div>
             <div className="rf-sx-group">
               <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
