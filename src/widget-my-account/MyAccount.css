@@ -992,6 +992,9 @@
 .ma-info__line { display: block; }
 
 /* ── Documents ─────────────────────────────────────────────────────────── */
+/* A lease with nothing filed. Muted, and no icon — it is a note, not a row. */
+.ma-docs__row--empty { color: var(--hb-grayscale-medium, #637381); font-size: 14px; }
+
 .ma-docs__row {
   display: flex;
   align-items: center;
