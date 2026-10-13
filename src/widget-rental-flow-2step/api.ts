@@ -1580,16 +1580,23 @@ async function reserveViaEdge(ctx: RentalCtx, args: ReserveArgs): Promise<Reserv
  *
  * Verified live 2026-10-13. Scoped to the site's resolved company id, never
  * the build-time one. Never throws and returns undefined on any failure: a
- * confirmation must not be held up by a lookup that is purely cosmetic.
+ * confirmation must not be held up by a lookup that is purely cosmetic —
+ * which is also why it is ABORTED after `RESERVATION_CODE_TIMEOUT_MS`. The
+ * customer has already reserved; a stalled connection here must fall back to
+ * the id, not keep them waiting on a page that has nothing left to do.
  */
+export const RESERVATION_CODE_TIMEOUT_MS = 5000;
+
 export async function fetchReservationCode(ctx: RentalCtx, reservationId: string): Promise<string | undefined> {
   if (!ctx.companyId || !reservationId) return undefined;
   const { baseUrl, appId } = creds();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RESERVATION_CODE_TIMEOUT_MS);
   try {
     const res = await fetch(
       `${baseUrl}/applications/${appId}/v1/companies/${encodeURIComponent(ctx.companyId)}`
       + `/reservations/${encodeURIComponent(reservationId)}`,
-      { headers: headers() },
+      { headers: headers(), signal: controller.signal },
     );
     const env = await res.json().catch(() => undefined) as
       { applicationData?: Record<string, InnerResult[]> } | undefined;
@@ -1604,6 +1611,8 @@ export async function fetchReservationCode(ctx: RentalCtx, reservationId: string
   } catch (err) {
     console.warn('[rental] reservation lookup failed:', err);
     return undefined;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
