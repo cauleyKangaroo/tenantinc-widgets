@@ -137,7 +137,7 @@
   top: 74px;
   left: max(8px, calc((100% - 834px) / 2));
   width: min(360px, calc(100% - 16px));
-  max-height: 320px;
+  max-height: min(420px, calc(100svh - 120px));
   overflow-y: auto;
   margin: 0;
   padding: 8px;
@@ -151,6 +151,7 @@
   top: auto !important;
   bottom: var(--hs-suggestions-bottom);
 }
+.hs-suggestions--empty { padding: 0; }
 .hs-current-location {
   display: flex;
   align-items: center;
@@ -187,7 +188,15 @@
 }
 .hs-suggestion:hover, .hs-suggestion--active { background: #f1f4f6; }
 .hs-suggestion:focus-visible { outline: 3px solid color-mix(in srgb, var(--hs-accent) 40%, white); }
-.hs-history-head { padding: 6px 12px 8px; background: #f6f7f8; color: #000; font-size: 18px; font-weight: 400; }
+.hs-history-head { padding: 6px 12px 8px; background: #f6f7f8; color: #637381; font-size: 16px; font-weight: 400; }
+.hs-search-status { padding: 32px 16px; text-align: center; color: #637381; background: #f6f7f8; }
+.hs-search-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 116px; font-size: 14px; }
+.hs-map-link { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 12px 16px; background: #fff; color: #101318; font: inherit; font-size: 14px; text-decoration: none; }
+.hs-map-link:hover { background: #f1f4f6; text-decoration: none; }
+.hs-map-link:focus-visible { outline: 3px solid color-mix(in srgb, var(--hs-accent) 40%, white); outline-offset: -3px; }
+.hs-map-link svg, .hs-search-empty svg { flex: 0 0 auto; }
+.hs-distance { flex: 0 0 auto; padding: 3px 7px; border-radius: 999px; background: #101318; color: #fff; font-size: 12px; }
+.hs-results-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ── Layout 2: promotional search card (latest Figma Locations Modal) ───── */
 .hs-card {

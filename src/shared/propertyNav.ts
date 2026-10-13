@@ -23,7 +23,7 @@
 // facility ("Storage Outlet Escondido" for what is actually Gardena).
 // ===========================================================================
 
-import { readCollection, str, plainText, logSource, hasCollectionsApi } from './dudaCollections';
+import { readCollection, readCollectionPaged, str, plainText, logSource, hasCollectionsApi } from './dudaCollections';
 import { PROPERTIES_COLLECTION } from './propertiesSource';
 import { INTERNAL_PROPERTIES_COLLECTION, readInternalProperties } from './internalProperties';
 import { formatPhone } from './propertyContact';
@@ -359,16 +359,18 @@ export function buildLocationTree(
  */
 export async function fetchLocationTree(
   widgetTag: string,
-  opts: BuildTreeOptions & { collectionName?: string } = {},
+  opts: BuildTreeOptions & { collectionName?: string; readAllPages?: boolean } = {},
 ): Promise<NavState[]> {
-  const { collectionName = PROPERTIES_COLLECTION, ...treeOpts } = opts;
+  const { collectionName = PROPERTIES_COLLECTION, readAllPages, ...treeOpts } = opts;
 
-  if (!hasCollectionsApi()) {
+  if (!hasCollectionsApi() && !readAllPages) {
     logSource(widgetTag, 'location tree', false, 'no dmAPI — not on a published Duda page');
     return [];
   }
 
-  const rows = collectionName === INTERNAL_PROPERTIES_COLLECTION
+  const paged = readAllPages ? await readCollectionPaged(collectionName) : undefined;
+  if (paged && (paged.status !== 'ok' || !paged.complete)) throw new Error('Location inventory could not be fully loaded');
+  const rows = paged ? paged.rows : collectionName === INTERNAL_PROPERTIES_COLLECTION
     ? await readInternalProperties(collectionName)
     : await readCollection(collectionName);
   const tree = buildLocationTree(rows as PropertyRowLike[], treeOpts);
