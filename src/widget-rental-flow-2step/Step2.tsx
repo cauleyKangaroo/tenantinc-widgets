@@ -286,7 +286,9 @@ export function Step2({
     extras?: RentalExtras;
     /** The Payment Cycle card's selection. */
     paymentCycle?: PaymentCycle;
-  }) => void;
+    /** Resolves true once the rental exists, false on any failure. Apple Pay
+     *  completes its sheet from this; the card and bank forms ignore it. */
+  }) => void | Promise<boolean>;
   /** What the shopper typed in step 1, used as the starting values here so they
    *  do not retype their own name and email one screen later. */
   contact?: { first: string; last: string; email: string; phone: string; business?: boolean; businessName?: string };
@@ -643,14 +645,18 @@ export function Step2({
    * The sheet came back with a token. Re-checked first, as Nuxt does: the
    * shopper can untick "I agree" while the sheet is open, and the token then
    * goes unused — nothing is charged until the lease call spends it.
+   *
+   * Resolves the RENTAL's outcome, so Apple Pay can complete its sheet with
+   * success or failure from what actually happened.
    */
-  const payWithWallet = (wallet: WalletPayment) => {
+  const payWithWallet = (wallet: WalletPayment): Promise<boolean> => {
     if (!formComplete) {
       setPayAttempted(true);
       setWalletError('You have not been charged. Complete the highlighted fields, then try again.');
-      return;
+      return Promise.resolve(false);
     }
-    payStatically(undefined, undefined, wallet);
+    return Promise.resolve(payStatically(undefined, undefined, wallet))
+      .then((ok) => ok === true, () => false);
   };
   /* NOT gated on payNowTotal: the total blinks out while a plan change
      re-prices, and unmounting here would tear down Google's button and

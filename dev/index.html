@@ -899,7 +899,7 @@
           <label>
             googlePayEnvironment:
             <select id="rf-google-pay-environment" class="rf-wallet-field" onchange="reinitRentalFlow()">
-              <option value="">(blank → TEST)</option>
+              <option value="">(blank → from site environment)</option>
               <option value="TEST">TEST</option>
               <option value="PRODUCTION">PRODUCTION</option>
             </select>
@@ -930,6 +930,9 @@
           </label>
           <label>country_code:
             <input type="text" id="rf-site-country-code" class="rf-wallet-field rf-wallet-field--code" placeholder="US" maxlength="2" onchange="reinitRentalFlow()">
+          </label>
+          <label title="Google Pay's TEST/PRODUCTION default when the googlePayEnvironment dropdown is blank: production → PRODUCTION, anything else → TEST.">environment:
+            <input type="text" id="rf-site-environment" class="rf-wallet-field" placeholder="staging" onchange="reinitRentalFlow()">
           </label>
         </div>
       </div>
@@ -2133,6 +2136,7 @@ Special</textarea>
           // Site texts, forwarded by the JS tab from window.siteObject.
           currency_code: document.getElementById('rf-site-currency-code').value,
           country_code: document.getElementById('rf-site-country-code').value,
+          environment: document.getElementById('rf-site-environment').value,
           // IDV: presentation preview only. Live transport is opt-in per URL and
           // never from a published build — see idvTransport in config.json.
           idvRequirementPreview: document.getElementById('rf-idv-requirement').value,

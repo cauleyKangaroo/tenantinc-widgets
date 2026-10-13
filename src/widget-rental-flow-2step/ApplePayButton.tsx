@@ -14,7 +14,7 @@
 // session API is the same either way, so the flow below does not branch.
 // ===========================================================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ApplePayMark } from './icons';
 import { fetchApplePayMerchantSession, type RentalCtx, type WalletPayment } from './api';
 import { APPLE_PAY_API_VERSION, APPLE_PAY_SDK_URL, type WalletConfig } from './walletConfig';
@@ -43,11 +43,18 @@ interface ApplePaySessionLike {
   completeMerchantValidation(merchantSession: unknown): void;
   completePayment(status: number): void;
 }
+/**
+ * How long the sheet may wait on the rental before it is closed anyway. Apple
+ * cancels a session left uncompleted for 30 seconds; this leaves headroom.
+ */
+const APPLE_COMPLETE_GUARD_MS = 25 * 1000;
+
 interface ApplePaySessionCtor {
   new (version: number, request: Record<string, unknown>): ApplePaySessionLike;
   canMakePayments(): boolean;
   supportsVersion?(version: number): boolean;
   readonly STATUS_SUCCESS: number;
+  readonly STATUS_FAILURE: number;
 }
 
 const applePaySession = (): ApplePaySessionCtor | undefined =>
@@ -141,8 +148,13 @@ export function ApplePayButton({
    * and `begin()` throw InvalidAccessError outside the tap's call stack.
    */
   canOpen: () => boolean;
-  /** The sheet succeeded. The token is single-use — hand it on, do not keep it. */
-  onToken: (wallet: WalletPayment) => void;
+  /**
+   * The shopper authorised the payment. The token is single-use — hand it on,
+   * do not keep it. Resolve TRUE once the rental exists and false if it
+   * failed: the sheet stays open on a spinner until then and completes with
+   * that result.
+   */
+  onToken: (wallet: WalletPayment) => Promise<boolean>;
   /** Something the shopper should see, inline beside the buttons. */
   onError: (message: string) => void;
 }) {
@@ -158,6 +170,12 @@ export function ApplePayButton({
     });
     return () => { cancelled = true; };
   }, [supported]);
+  /* Apple calls onpaymentauthorized / onvalidatemerchant long after the tap,
+     so they read the CURRENT callbacks through this ref, not the ones from the
+     render that was clicked. Otherwise the post-sheet re-check would test the
+     form as it stood at the tap, and miss an "I agree" unticked meanwhile. */
+  const latest = useRef({ onToken, onError });
+  latest.current = { onToken, onError };
   if (!supported) return null;
 
   /* EVERYTHING up to session.begin() is synchronous. The merchant-session
@@ -196,35 +214,72 @@ export function ApplePayButton({
             session.completeMerchantValidation(merchantSession);
           } else {
             session.abort();
-            onError('Apple Pay is not available right now. Please choose another payment method.');
+            latest.current.onError('Apple Pay is not available right now. Please choose another payment method.');
           }
         })
         .catch((err) => {
           console.warn('[rental] Apple Pay merchant validation failed:', err);
           session.abort();
-          onError('Apple Pay is not available right now. Please choose another payment method.');
+          latest.current.onError('Apple Pay is not available right now. Please choose another payment method.');
         });
     };
 
     session.onpaymentauthorized = (event) => {
-      /* Completed at once, as Nuxt does, and the rental is submitted after.
-         Holding the sheet open across documents/finalize + lease would risk
-         Apple's 30-second timeout on this handler. A rental failure is shown
-         inline by the step instead; nothing is charged until the lease call
-         spends the token. */
-      session.completePayment(Session.STATUS_SUCCESS);
+      /* The WHOLE token object, stringified — Hummingbird parses it and reads
+         paymentData. Apple always supplies one here, but JSON.stringify of a
+         missing value is `undefined`, and that must never reach the lease as
+         the token. */
+      const rawToken = event.payment?.token;
+      const token = rawToken == null ? undefined : JSON.stringify(rawToken);
+      if (!token) {
+        console.warn('[rental] Apple Pay authorised without a payment token.');
+        session.completePayment(Session.STATUS_FAILURE);
+        latest.current.onError('Apple Pay did not return a payment. Please try again or choose another payment method.');
+        return;
+      }
+
+      /*
+       * The sheet completes from the RENTAL, not from the authorisation.
+       * Completing at once (as Nuxt does) told the shopper "Done" before
+       * documents/finalize and the lease had even run, so a failed rental
+       * still looked paid. The sheet now spins until onToken settles, then
+       * shows success or failure.
+       *
+       * Apple cancels a session left uncompleted for 30 seconds. If the rental
+       * is still running at APPLE_COMPLETE_GUARD_MS the sheet is closed with
+       * abort() — no status — rather than a failure that may yet turn out to
+       * be a success; the step shows the real outcome inline when it lands.
+       */
+      let settled = false;
+      const finish = (status: number | null) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(guard);
+        try {
+          if (status === null) session.abort();
+          else session.completePayment(status);
+        } catch (err) {
+          // The session may already be gone (Apple's own timeout); the page
+          // still shows the outcome.
+          console.warn('[rental] Apple Pay session could not be completed:', err);
+        }
+      };
+      const guard = window.setTimeout(() => finish(null), APPLE_COMPLETE_GUARD_MS);
+
       const c = event.payment.billingContact;
-      onToken({
+      latest.current.onToken({
         type: 'applepay',
-        // The WHOLE token object — Hummingbird parses it and reads paymentData.
-        token: JSON.stringify(event.payment.token),
+        token,
         first: c?.givenName,
         last: c?.familyName,
         address: c?.addressLines?.filter(Boolean).join(', ') || undefined,
         city: c?.locality,
         state: c?.administrativeArea,
         zip: c?.postalCode,
-      });
+      }).then(
+        (ok) => finish(ok ? Session.STATUS_SUCCESS : Session.STATUS_FAILURE),
+        () => finish(Session.STATUS_FAILURE),
+      );
     };
 
     // Closing the sheet is a choice, not a failure.

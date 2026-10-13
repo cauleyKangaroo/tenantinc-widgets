@@ -954,9 +954,12 @@ export function RentalFlow2Step({
   googlePayMerchantName,
   applePayEnabled,
   applePayMerchantIdentifier,
-  // Site texts (Content Library → custom) — the site-wide currency/country.
+  // Site texts (Content Library → custom) — the site-wide currency/country,
+  // and the site's environment, which picks Google Pay's TEST/PRODUCTION
+  // default.
   currency_code,
   country_code,
+  environment: siteEnvironment,
 }: RentalFlow2StepProps) {
   /*
    * Credentials in place BEFORE anything can fetch — during render, not in an
@@ -1302,11 +1305,11 @@ export function RentalFlow2Step({
   const walletConfig = React.useMemo(() => resolveWalletConfig({
     googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
     googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
-    applePayMerchantIdentifier, currency_code, country_code,
+    applePayMerchantIdentifier, currency_code, country_code, environment: siteEnvironment,
   }), [
     googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
     googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
-    applePayMerchantIdentifier, currency_code, country_code,
+    applePayMerchantIdentifier, currency_code, country_code, siteEnvironment,
   ]);
   const walletsAllowed = gateway === TENANT_PAYMENTS
     && !!leaseDoc && (leaseDoc.type === 'super-lease' || leaseDoc.signed);
@@ -2975,8 +2978,14 @@ export function RentalFlow2Step({
               // cleared or advanced until the lease actually comes back: this
               // charges the card, and a failure has to leave the shopper on the
               // form with their details intact.
+              /*
+               * RETURNS the outcome — true once the lease exists, false on any
+               * failure — so Apple Pay can complete its sheet from the real
+               * result instead of announcing success before the token is spent.
+               * The card and bank forms ignore it.
+               */
               if ((info.card || info.bank || info.wallet) && hold && quote) {
-                if (paying) return; // in flight — never double-charge
+                if (paying) return Promise.resolve(false); // in flight — never double-charge
                 /*
                  * The lightbox opens on the CLICK, not on the response.
                  *
@@ -3032,7 +3041,7 @@ export function RentalFlow2Step({
                       expMonth: card.expMonth,
                       expYear: card.expYear,
                     });
-                void withToken.then((tok) => rentSpace(ctx, {
+                return withToken.then((tok) => rentSpace(ctx, {
                   unit: { id: hold.unitId, number: hold.unitNumber },
                   holdToken: hold.holdToken,
                   contact: {
@@ -3089,7 +3098,7 @@ export function RentalFlow2Step({
                       // that can never finish.
                       setFinalizing(undefined);
                       setPayError(res.error);
-                      return;
+                      return false;
                     }
                     console.log(`${logTag} rental complete — lease ${res.leaseId}`);
                     setRental(res);
@@ -3104,6 +3113,7 @@ export function RentalFlow2Step({
                     applyHold(undefined);
                     clearUnitSelection();
                     setFinalizing(info);
+                    return true;
                   })
                   .catch((err) => {
                     // rentSpace never throws, so reaching here is a bug rather
@@ -3112,14 +3122,14 @@ export function RentalFlow2Step({
                     setFinalizing(undefined);
                     console.error(`${logTag} rental threw unexpectedly:`, err);
                     setPayError('Something went wrong completing your rental. Please try again.');
+                    return false;
                   }));
-                return;
               }
               // Published checkout must never fall through to the harness
               // completion when the authoritative hold failed or is pending.
               if (!previewEnabled) {
                 setPayError('We couldn’t secure this space. Please return and choose another available space.');
-                return;
+                return Promise.resolve(false);
               }
               // No card, or no hold/quote to rent against — nothing to
               // charge, so this is the harness/preview path: show the
@@ -3130,6 +3140,8 @@ export function RentalFlow2Step({
               // The pick has been acted on — drop it so returning to /rental
               // later starts clean instead of silently re-selecting it.
               clearUnitSelection();
+              // Nothing was charged — the preview completed as designed.
+              return Promise.resolve(true);
             }}
           />
         )}

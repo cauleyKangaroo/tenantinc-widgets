@@ -151,6 +151,8 @@ function splitName(name?: string): { first?: string; last?: string } {
  * background on this interval so the one in hand at click time is fresh.
  */
 const JWT_REFRESH_MS = 10 * 60 * 1000;
+/** Retry cadence while NO token is in hand (first mint failed). */
+const JWT_RETRY_MS = 30 * 1000;
 
 export function GooglePayButton({
   config, total, ctx, canOpen, onToken, onError,
@@ -166,8 +168,9 @@ export function GooglePayButton({
    * Returns false (and shows its own errors) when the sheet must not open.
    */
   canOpen: () => boolean;
-  /** The sheet succeeded. The token is single-use — hand it on, do not keep it. */
-  onToken: (wallet: WalletPayment) => void;
+  /** The sheet succeeded. The token is single-use — hand it on, do not keep it.
+   *  Google's sheet has already closed by now, so any result is not awaited. */
+  onToken: (wallet: WalletPayment) => void | Promise<boolean>;
   /** Something the shopper should see, inline beside the buttons. */
   onError: (message: string) => void;
 }) {
@@ -217,18 +220,29 @@ export function GooglePayButton({
     let cancelled = false;
     jwtRef.current = undefined;
     setJwtFailed(false);
+    let timer: number | undefined;
     const mint = () => {
       void fetchGooglePayJwt(ctx).then((jwt) => {
         if (cancelled) return;
-        // A failed REFRESH keeps the token already in hand; only a first
-        // failure, with nothing to fall back on, hides the button.
-        if (jwt) jwtRef.current = jwt;
-        else if (!jwtRef.current) setJwtFailed(true);
+        if (jwt) {
+          jwtRef.current = jwt;
+          // Recovery: a FIRST mint can fail transiently (network, a cold
+          // backend), and without clearing this the button stayed hidden for
+          // the life of the page even once a later mint succeeded.
+          setJwtFailed(false);
+        } else if (!jwtRef.current) {
+          // A failed REFRESH keeps the token already in hand; only a failure
+          // with nothing to fall back on hides the button.
+          setJwtFailed(true);
+        }
+        // Re-mint on the refresh cadence while a token is in hand, and much
+        // sooner while there is none, so a recovered backend shows the button
+        // within seconds rather than ten minutes.
+        timer = window.setTimeout(mint, jwtRef.current ? JWT_REFRESH_MS : JWT_RETRY_MS);
       });
     };
     mint();
-    const timer = window.setInterval(mint, JWT_REFRESH_MS);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    return () => { cancelled = true; window.clearTimeout(timer); };
   }, [ctx]);
 
   // Google's own button, mounted into the host once everything is ready.
@@ -253,7 +267,7 @@ export function GooglePayButton({
         .then((data) => {
           const token = data.paymentMethodData.tokenizationData.token;
           const addr = data.paymentMethodData.info?.billingAddress;
-          latest.current.onToken({
+          void latest.current.onToken({
             type: 'googlepay',
             token,
             ...splitName(addr?.name),
