@@ -1838,11 +1838,15 @@ export interface WalletPayment extends Partial<RentAddress> {
    * parses it and reads `.paymentData` itself (tenant_payments_card.js).
    */
   token: string;
-  /** Name on the wallet's billing contact, when it gave one. */
-  first?: string;
-  last?: string;
-  /** Enrol the wallet's card for recurring rent (drives API 11). */
-  autoCharge?: boolean;
+  /*
+   * Deliberately NO name and NO autopay fields:
+   *   - the name on the payment_method is the FORM's first/last (the tenant),
+   *     not the wallet card's holder — walletPaymentMethod() takes it from
+   *     RentArgs.contact;
+   *   - Apple Pay and Google Pay are one-time payments and never enrol in
+   *     autopay, whatever the property's autopay setting says.
+   * Leaving them off the type means nothing can set them by mistake.
+   */
 }
 
 /** A documented cost line. `costType` is a closed set; dates are YYYY-MM-DD. */
@@ -2151,6 +2155,16 @@ function achPaymentMethod(bank: BankPayment, autoCharge: boolean): Record<string
 /**
  * The `payment_method` object for Apple Pay / Google Pay.
  *
+ * NEVER AUTOPAY, NEVER SAVED: `save_to_account` and `auto_charge` are both sent
+ * as an explicit false, even on a property whose autopay is mandatory. A wallet
+ * token is a one-time payment — it cannot be stored and charged again each
+ * month — so enrolling it would leave the lease on autopay with nothing
+ * chargeable behind it. wantsAutoCharge() returns false for wallets for the
+ * same reason, so API 11 (autopay enrolment) is never called.
+ *
+ * `first`/`last` are the TENANT's, from the form (RentArgs.contact), not the
+ * name on the wallet's card.
+ *
  * Shape read from Hummingbird's own source, not inferred (hummingbird-api-server,
  * 2026-10-13):
  *   - validation/objects/payment_method.js accepts `type` 'google' | 'apple',
@@ -2167,16 +2181,17 @@ function achPaymentMethod(bank: BankPayment, autoCharge: boolean): Record<string
  * Billing fields are omitted when empty, never sent blank: the schema has
  * `address: Joi.string()` (no empty allowed) and `zip` must be all digits.
  */
-function walletPaymentMethod(wallet: WalletPayment, autoCharge: boolean): Record<string, unknown> {
+function walletPaymentMethod(wallet: WalletPayment, contact: RentContact): Record<string, unknown> {
   const body: Record<string, unknown> = {
     type: wallet.type === 'googlepay' ? 'google' : 'apple',
     token: wallet.token,
-    // Same as the card: the lease needs a stored method to enrol in autopay
-    // at API 11.
-    save_to_account: true,
+    save_to_account: false,
+    auto_charge: false,
   };
-  const first = wallet.first?.trim();
-  const last = wallet.last?.trim();
+  // Omitted rather than sent blank — the schema has `first: Joi.string()`,
+  // which rejects an empty string.
+  const first = contact.first?.trim();
+  const last = contact.last?.trim();
   if (first) body.first = first;
   if (last) body.last = last;
   if (wallet.address?.trim()) body.address = wallet.address.trim();
@@ -2185,7 +2200,6 @@ function walletPaymentMethod(wallet: WalletPayment, autoCharge: boolean): Record
   // ZIP+4 ("12345-6789") fails the digits-only pattern, so the base five.
   const zip = (wallet.zip ?? '').replace(/\D/g, '').slice(0, 5);
   if (zip.length === 5) body.zip = zip;
-  if (autoCharge) body.auto_charge = true;
   return body;
 }
 
@@ -2196,7 +2210,7 @@ function walletPaymentMethod(wallet: WalletPayment, autoCharge: boolean): Record
  * and the lease) can never disagree about which the shopper chose.
  */
 function paymentMethodFor(args: RentArgs): Record<string, unknown> {
-  if (args.wallet) return walletPaymentMethod(args.wallet, !!args.wallet.autoCharge);
+  if (args.wallet) return walletPaymentMethod(args.wallet, args.contact);
   if (args.bank) return achPaymentMethod(args.bank, !!args.bank.autoCharge);
   if (args.card) return cardPaymentMethod(args.card, !!args.card.autoCharge);
   /*
@@ -2209,7 +2223,9 @@ function paymentMethodFor(args: RentArgs): Record<string, unknown> {
 
 /** Autopay was asked for, whichever method is paying. */
 function wantsAutoCharge(args: RentArgs): boolean {
-  return !!(args.wallet?.autoCharge ?? args.bank?.autoCharge ?? args.card?.autoCharge);
+  // Wallets never enrol — see walletPaymentMethod().
+  if (args.wallet) return false;
+  return !!(args.bank?.autoCharge ?? args.card?.autoCharge);
 }
 
 /** Browser context the clickwrap signature is stamped with. */
