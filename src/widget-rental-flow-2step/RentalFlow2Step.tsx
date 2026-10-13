@@ -2061,6 +2061,19 @@ export function RentalFlow2Step({
         // Drop any quote that is not the held unit's — the effect below then
         // re-quotes hold-aware. Fail CLOSED: never show another unit's money.
         setQuote((prev) => (prev && prev.unitId === held.unitId ? prev : undefined));
+        /*
+         * THE HELD UNIT IS THE ONE BEING RENTED — the selection follows it.
+         * Offers names its own example unit of the tier; the plain quote
+         * (and so this hold) took the first available one, and when the two
+         * differ the selection stays 'uncorrelated' for good: Rent sits
+         * disabled behind "We couldn't verify this space". Seen live
+         * 2026-10-13 on the value-tiers → rental path, where no unitId is
+         * on the URL. keepHeldIdentity only covers a selection set AFTER the
+         * hold; this covers one set before it.
+         */
+        setSelection((prev) => (prev && prev.unitId !== held.unitId
+          ? { ...prev, unitId: held.unitId, unitNumber: held.unitNumber ?? prev.unitNumber, spaceMixId: resolvedSpaceMixRef.current ?? prev.spaceMixId }
+          : prev));
       } else if (!cancelled) {
         if (result.reason === 'writes-disabled') {
           /*
