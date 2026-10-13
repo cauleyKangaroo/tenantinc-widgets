@@ -75,6 +75,44 @@ function LeaseDocBody(
    * ClickWrap Superlease does), so it stays as the fallback below, but the
    * hosted page is what the shopper signs and is the faithful thing to show.
    */
+  /*
+   * THE MARKUP FIRST. documents/preview returns both a hosted preview URL and
+   * the agreement's own HTML (`template`, ~400 KB with its styles inline).
+   * The URL used to win, and it was the slow half of the wait: after the ~5s
+   * API call the frame then loaded the signing host's shell page and its
+   * twelve scripts and stylesheets before a word appeared, and did it AGAIN
+   * for the personalised copy, going blank in between. Measured live
+   * 2026-10-13. srcDoc renders the same document the instant it arrives,
+   * with no network, and a newer copy replaces it without a blank frame.
+   * ONLY a template that carries its own <style> — a ClickWrap Superlease
+   * does. The others reference classes the signing host supplies
+   * (`table-border`, `common-font`) and render as an unstyled stack of
+   * tables on their own, so those keep the hosted page, with the bare
+   * markup as the last resort below.
+   */
+  const selfStyled = !!previewHtml && /<style[\s>]/i.test(previewHtml);
+  if (previewHtml && selfStyled) {
+    return (
+      <div className="rf2-doc-page rf2-doc-page--frame">
+        <iframe
+          className="rf2-doc-frame"
+          srcDoc={previewHtml}
+          title={title ?? 'Rental Agreement'}
+          sandbox=""
+        />
+        {badge}
+      </div>
+    );
+  }
+
+  /*
+   * Fallback: the document's own markup, in a frame of its own.
+   *
+   * Used when there is no hosted URL. `sandbox=""` is safe because this markup
+   * carries no scripts — it still loads its images and fonts and can do nothing
+   * else — and the frame keeps whatever styling the template does embed from
+   * inheriting, or fighting, this widget's CSS.
+   */
   if (previewUrl) {
     return (
       <div className="rf2-doc-page rf2-doc-page--frame">
@@ -90,14 +128,8 @@ function LeaseDocBody(
     );
   }
 
-  /*
-   * Fallback: the document's own markup, in a frame of its own.
-   *
-   * Used when there is no hosted URL. `sandbox=""` is safe because this markup
-   * carries no scripts — it still loads its images and fonts and can do nothing
-   * else — and the frame keeps whatever styling the template does embed from
-   * inheriting, or fighting, this widget's CSS.
-   */
+  // Markup without its own styles, and no hosted page either: still the
+  // real agreement, just plain. Better than the placeholder text below.
   if (previewHtml) {
     return (
       <div className="rf2-doc-page rf2-doc-page--frame">
