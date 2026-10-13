@@ -869,7 +869,7 @@ export function Step2({
                       <span className="rf2-plan-price"><b>${chosenPlan.premium}</b><span>/mo</span></span>
                     </>
                   ) : (
-                    <span className="rf2-plan-own-sel">I Have My Own Insurance</span>
+                    <span className="rf2-plan-own-sel">I have my own insurance</span>
                   )}
                 </span>
                 <span className="rf2-plan-drop">
@@ -919,7 +919,7 @@ export function Step2({
                     className="rf2-plan-opt rf2-plan-opt--own"
                     onClick={() => choosePlan('own')}
                   >
-                    <span className="rf2-plan-own-t">I Have My Own Insurance</span>
+                    <span className="rf2-plan-own-t">I have my own insurance</span>
                     <span className="rf2-plan-own-d">
                       I’ll provide proof of coverage - I’ll buy the Basic Protection Plan if I
                       don’t provide proof of coverage through my homeowners or renters insurance

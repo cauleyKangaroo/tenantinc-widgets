@@ -405,7 +405,8 @@ export function Confirmation({
         </div>
 
         {/* Full-width row under the code card: prompt on the left, Rent Online
-            Now button spanning the rest of the row on the right. */}
+            Now button spanning the rest of the row on the right. On mobile the
+            button stacks beneath the prompt instead (see .rf-wrapper--mobile). */}
         {isReservation && rentUrl && (
           <div className="rfc-rentnow">
             <span>Want to save time &amp; money<br />on the move-in day?</span>
