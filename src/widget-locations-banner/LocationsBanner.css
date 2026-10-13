@@ -10,6 +10,8 @@
    --------------------------------------------------------------------------- */
 
 .lb-banner {
+  text-decoration: none;
+  cursor: pointer;
   font-family: 'Montserrat', sans-serif;
   box-sizing: border-box;
   width: 100%;
@@ -34,6 +36,9 @@
      site renders exactly as drawn and only a themed one changes. */
   background: var(--color_1, #10666d);
 }
+
+.lb-banner:hover { text-decoration: none; }
+.lb-banner:focus-visible { outline: 3px solid #fff; outline-offset: -6px; }
 
 .lb-text {
   /* Centred on both axes: `text-align` for a wrapped second line, the flex
