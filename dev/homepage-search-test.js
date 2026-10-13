@@ -87,6 +87,7 @@ async function main() {
         queryCalls++;
         if (query === 'Failure') throw new Error('offline');
         if (query === 'Old City') return new Promise(resolve => { resolveOld = resolve; });
+        if (/^Irvine(?:\s|,)/i.test(query)) return [{ placeId: 'Irvine', mainText: 'Irvine', description: 'Irvine, CA, USA' }];
         return [{ placeId: query, mainText: query === 'San' ? 'San Francisco' : query, description: query === 'San' ? 'San Francisco, CA, USA' : query }];
       },
       fetchPlaceDetails: async id => ({ lat: 0, lng: id === 'Far City' ? 180 : 0, address: { city: id } }),
@@ -133,6 +134,12 @@ async function main() {
   assert.equal(rows().length, 160);
   await change('San'); await settle();
   assert.equal(rows().length, 0, 'partial prediction does not resolve to an arbitrary city');
+  for (const query of ['Irvine CA', 'Irvine, CA', 'Irvine   CA', 'Irvine,   CA']) {
+    await change(query); await settle();
+    assert.equal(rows().length, 4, `${query} resolves to nearby cities`);
+  }
+  await change('Irvine C'); await settle();
+  assert.equal(rows().length, 0, 'partial state component is not accepted');
   await change('Nearby City'); await settle();
   assert.equal(rows().length, 4); assert.equal(document.querySelectorAll('.hs-distance').length, 4);
   const distances = [...document.querySelectorAll('.hs-distance')].map(badge => parseInt(badge.textContent, 10));

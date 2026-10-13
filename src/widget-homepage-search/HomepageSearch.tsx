@@ -347,11 +347,15 @@ export function HomepageSearch({
         const sessionToken = newSessionToken();
         const predictions = await fetchPlaceSuggestions(query, { base: placesBase, types: 'geocode', sessionToken, signal: controller.signal, strict: true });
         // A fragment such as "San" must not silently resolve to the first city.
-        const normalizedQuery = query.toLowerCase().replace(/\s*,\s*/g, ',').replace(/\s+/g, ' ');
+        const normalizePlacePart = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ');
+        const normalizedQuery = normalizePlacePart(query.replace(/,/g, ' '));
         const prediction = predictions.find(p => {
-          const description = p.description.trim().toLowerCase().replace(/\s*,\s*/g, ',').replace(/\s+/g, ' ');
-          return description === normalizedQuery || description.startsWith(`${normalizedQuery},`)
-            || (!query.includes(',') && p.mainText.trim().toLowerCase() === normalizedQuery);
+          // Match whole comma-delimited place components, not arbitrary word
+          // prefixes: "Irvine CA" matches "Irvine, CA, USA", but "San"
+          // cannot match the city component "San Francisco".
+          const parts = p.description.split(',').map(normalizePlacePart);
+          return parts.some((_, index) => parts.slice(0, index + 1).join(' ') === normalizedQuery)
+            || (!query.includes(',') && normalizePlacePart(p.mainText) === normalizedQuery);
         });
         if (!prediction) return { rows: [] as SearchTarget[], place: undefined };
         const place = await fetchPlaceDetails(prediction.placeId, { base: placesBase, sessionToken, signal: controller.signal, strict: true });
