@@ -558,7 +558,8 @@
     align-items: stretch;
     gap: 24px;
     background: #f9fafb;
-    border-radius: 16px;
+    /* Square corners. */
+    border-radius: 0;
     padding: 24px;
   }
 
