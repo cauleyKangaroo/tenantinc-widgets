@@ -1567,6 +1567,46 @@ async function reserveViaEdge(ctx: RentalCtx, args: ReserveArgs): Promise<Reserv
   }
 }
 
+/**
+ * The customer-facing reservation CODE — what the office looks a reservation
+ * up by, and what the confirmation page shows.
+ *
+ * The reserve call returns only the reservation ID ("ojDp0WsoKj"), which is a
+ * database key, not something a customer can quote at the counter. The code
+ * ("9W6LZ6") lives on the reservation record:
+ *
+ *   GET v1/companies/{co}/reservations/{reservationId}
+ *     → { reservation: { id, code, lease_id, expires, move_in_date, Lease… } }
+ *
+ * Verified live 2026-10-13. Scoped to the site's resolved company id, never
+ * the build-time one. Never throws and returns undefined on any failure: a
+ * confirmation must not be held up by a lookup that is purely cosmetic.
+ */
+export async function fetchReservationCode(ctx: RentalCtx, reservationId: string): Promise<string | undefined> {
+  if (!ctx.companyId || !reservationId) return undefined;
+  const { baseUrl, appId } = creds();
+  try {
+    const res = await fetch(
+      `${baseUrl}/applications/${appId}/v1/companies/${encodeURIComponent(ctx.companyId)}`
+      + `/reservations/${encodeURIComponent(reservationId)}`,
+      { headers: headers() },
+    );
+    const env = await res.json().catch(() => undefined) as
+      { applicationData?: Record<string, InnerResult[]> } | undefined;
+    const inner = env?.applicationData?.[appId]?.[0];
+    if (!res.ok || inner?.status !== 200 || !inner.data) {
+      console.warn('[rental] reservation lookup rejected:', inner?.status ?? res.status, inner?.msg ?? '');
+      return undefined;
+    }
+    const d = inner.data as Record<string, unknown>;
+    const r = (d.reservation ?? d) as Record<string, unknown>;
+    return typeof r.code === 'string' && r.code.trim() ? r.code.trim() : undefined;
+  } catch (err) {
+    console.warn('[rental] reservation lookup failed:', err);
+    return undefined;
+  }
+}
+
 // --- Rent (Phase 2) — lease → invoice → insurance → hosted payment (proxy) ---
 //
 // All writes/reads for the rent transaction go through the proxy (key stays
