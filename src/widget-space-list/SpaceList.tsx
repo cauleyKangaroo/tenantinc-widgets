@@ -43,7 +43,7 @@ import { ReorderModal } from './components/ReorderModal';
 import { SkeletonLoader } from './components/SkeletonLoader';
 import { ACCORDION_SECTIONS, type AccordionConfig } from './accordionSections';
 import { instanceKey, readAccordionConfig, saveAccordionConfig } from './accordionConfigApi';
-import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, scrollToSpaceList, type PromoSelection } from '@shared/promoBus';
+import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, scrollToSpaceList, wantsSpaceList, type PromoSelection } from '@shared/promoBus';
 import { SIZE_FILTER_EVENT, unitMatchesSize, type SizeFilterSelection } from '@shared/sizeFilterBus';
 import { RichText } from '@shared/richText';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
@@ -334,6 +334,29 @@ export function SpaceList({
   }, [effectivePropertyId, effectiveCompanyId]);
 
   const units = liveUnits;
+
+  /*
+   * Arriving on `…#spaces` — the rental flow's "Change Space" link — lands the
+   * visitor on this listing rather than at the top of the property page.
+   *
+   * Once, and only when the units have settled: the listing's height is the
+   * units', so scrolling while the skeleton is still up would aim at a target
+   * that then moves. Instant rather than smooth, for the same reason — the
+   * widgets above are still filling in, and an animated scroll chases them.
+   * Never in the editor, where it would yank the canvas on every re-init.
+   *
+   * The hash is read ONCE, at mount, not when the units land: other scripts on
+   * the page are free to rewrite the URL in between (the dev harness does, and
+   * this widget's own filter sync calls replaceState), and a hash gone by then
+   * would mean the request was silently dropped.
+   */
+  const spacesRequested = useRef<boolean | null>(null);
+  if (spacesRequested.current === null) spacesRequested.current = wantsSpaceList();
+  useEffect(() => {
+    if (loading || inEditor || !spacesRequested.current) return;
+    spacesRequested.current = false;
+    wrapperRef.current?.scrollIntoView({ block: 'start' });
+  }, [loading, inEditor]);
 
   const [filters, setFilters] = useState<FilterState>(() => readFiltersFromUrl());
 

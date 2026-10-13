@@ -265,6 +265,10 @@ export function MyAccount({
   const [record, setRecord] = useState<AccountRecord | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  /* A document that would not download. Its own state, not `saveError`:
+     that one belongs to the Edit panel, and a failed download surfacing
+     later as a failed save was the confusion. */
+  const [documentError, setDocumentError] = useState('');
 
   useEffect(() => {
     if (!gated || authed !== true || !session) return undefined;
@@ -495,6 +499,7 @@ export function MyAccount({
     // By id, not name: a lease files the same notice many times over, and a
     // name would mark every one of them as opening.
     setBusyDocument(doc.documentId || doc.label);
+    setDocumentError('');
     try {
       const r = await fetchDocumentFile(
         api, session.token, doc.leaseId, doc.documentId, doc.filename || doc.label,
@@ -506,7 +511,7 @@ export function MyAccount({
         return;
       }
       console.warn('[#19 my-account] document fetch failed:', r.detail ?? r.message);
-      setSaveError(r.message);
+      setDocumentError(r.message);
     } finally {
       setBusyDocument('');
     }
@@ -739,7 +744,22 @@ export function MyAccount({
               : <Button tone="cta" className="ma-btn-40">{promoLabel}</Button>}
           </section>
 
-          {view === 'account' && (
+          {/* A signed-in contact with no leases is a real account, not a
+              broken page: every panel below needs a space, so without one
+              they are not mounted and this says why. "+ Add a Space" in the
+              sidebar is the way forward. */}
+          {!space && (
+            <section className="ma-account" role="status">
+              <div className="ma-account__body">
+                <h2 className="ma-account__title">No active rentals</h2>
+                <p className="ma-account__label">There are no spaces on this account yet.</p>
+              </div>
+            </section>
+          )}
+          {space && view === 'account' && documentError && (
+            <p className="ma-pay__notice" role="alert">{documentError}</p>
+          )}
+          {space && view === 'account' && (
             <AccountInfoPanel
               space={space}
               onPayNow={() => setView('payment')}
@@ -750,7 +770,7 @@ export function MyAccount({
               busyDocument={busyDocument}
             />
           )}
-          {view === 'payment' && (
+          {space && view === 'payment' && (
             <MakePaymentPanel
               spaces={atProperty.length ? atProperty : space ? [space] : []}
               space={space}
@@ -760,7 +780,7 @@ export function MyAccount({
               payment={paymentHandlers}
             />
           )}
-          {view === 'edit' && (
+          {space && view === 'edit' && (
             <EditPanel
               space={space}
               onCancel={() => setView('account')}
@@ -785,7 +805,7 @@ export function MyAccount({
           {/* BILL PAY ONLY. It is a record of payments, which belongs beside
               the screen that takes one — on Account Info and Edit it was just
               a second thing competing with the panel's own purpose. */}
-          {view === 'payment' && (
+          {space && view === 'payment' && (
             <PaymentActivity
               /* The account's own invoices, newest first — or nothing. The
                  sample rows stay for the harness and the editor only; a

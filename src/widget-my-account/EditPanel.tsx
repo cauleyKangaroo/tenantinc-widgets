@@ -230,10 +230,14 @@ function ContactFields({
           onPick={(place) => {
             // The whole point of the lookup: the three fields below are filled
             // from the SAME place, so they cannot contradict the street line.
-            if (place.address.city) set('city')(place.address.city);
+            // ONE onChange, not three: each set() rebuilds from the same
+            // `contact` closure, so three in a row kept only the last one.
+            const next = { ...contact };
+            if (place.address.city) next.city = place.address.city;
             // The two-letter code — StateField matches on `code` here.
-            if (place.address.stateCode) set('state')(place.address.stateCode);
-            if (place.address.zip) set('zip')(place.address.zip);
+            if (place.address.stateCode) next.state = place.address.stateCode;
+            if (place.address.zip) next.zip = place.address.zip;
+            onChange(next);
           }}
         >
           <FormField

@@ -1208,7 +1208,10 @@
     padding: 24px 28px 8px;
   }
   .ts-modal-heading { justify-content: center; padding-right: 0; }
-  .ts-modal-heading-main { text-align: left; width: 100%; padding: 0 44px 0 0; }
+  /* 24px, not 44: the close mark is 32px at right:12px and the header pads
+     28px, so 24 still leaves an 8px gap before it — and the 20px handed back is
+     what lets the title below sit on one line at full size. */
+  .ts-modal-heading-main { text-align: left; width: 100%; padding: 0 24px 0 0; }
   .ts-modal-actions { width: 100%; justify-content: center; }
   /* Keep the close control out of the mobile message row. Previously it sat
      after the centered metadata, which pushed it down and made its position
@@ -1216,17 +1219,23 @@
   .ts-modal-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; flex: 0 0 32px; }
   .ts-modal-close svg { width: 32px !important; height: 32px !important; }
   .ts-modal-meta { align-items: center; text-align: center; width: auto; flex: 1 1 auto; min-width: 0; padding-top: 0; }
-  /* Defensive: an operator-set heading can't blow up the fixed header height —
-     clamp to two lines and break unbreakable strings. Ordinary titles are
-     unaffected. */
+  /* ONE line, left-aligned. "Choose a 10’ x 25’ Option" measures 310px at
+     24px/700, i.e. ~12.9px of width per 1px of type, and the line has the
+     viewport less 80px (28 + 28 header padding, 24 for the close mark). So the
+     size follows the viewport — 24px from ~400px up, ~18px on a 320px phone —
+     rather than wrapping. 13.3 rather than 12.9 leaves a few px of slack.
+     An operator-set heading too long for that ends in an ellipsis, so it still
+     cannot blow up the fixed header height.
+     !important because the modal is portaled to <body>, outside .ts-wrapper,
+     where a host theme's own h2 alignment/size would otherwise outrank a
+     single class. */
   .ts-modal-title {
+    display: block !important;
     text-align: left !important;
-    font-size: 24px !important;
-    overflow-wrap: anywhere !important;
-    display: -webkit-box !important;
-    -webkit-line-clamp: 2 !important;
-    -webkit-box-orient: vertical !important;
+    font-size: clamp(16px, calc((100vw - 80px) / 13.3), 24px) !important;
+    white-space: nowrap !important;
     overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
   .ts-modal-subtitle { font-size: 16px; overflow-wrap: anywhere; }
   .ts-modal-urgency { text-align: center; width: 100%; min-height: 1.25em; font-size: 16px; line-height: 1.25; }

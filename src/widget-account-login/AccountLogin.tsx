@@ -91,6 +91,51 @@ const DEMO_PROPERTIES: PropertyOption[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Keep Continue clear of iPhone Safari's floating address bar
+//
+// Focusing the identifier or a code box makes Safari scroll only the FIELD
+// above the keyboard. With the bottom tab bar (the iOS default), the address
+// pill floats over the page just above the keyboard — right where the Continue
+// button under the field lands. So once the keyboard is up, scroll just enough
+// to lift the button clear of it.
+//
+// Measured, not sniffed: it only scrolls when the button really is hidden, so
+// Chrome, Android and desktop (nothing covering it) never move. Safari exposes
+// no size for the pill, hence the fixed gap.
+// ---------------------------------------------------------------------------
+
+/** Room kept clear above the keyboard for Safari's address pill (px). */
+const ADDRESS_BAR_GAP = 70;
+
+/** Nearest ancestor that scrolls, or null when the page itself does. */
+function scrollParentOf(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+  }
+  return null;
+}
+
+function liftCtaAboveAddressBar(field: HTMLElement): void {
+  const vv = window.visualViewport;
+  const cta = field.closest('.al-card')?.querySelector<HTMLElement>('.al-cta');
+  if (!vv || !cta) return;
+  const visibleBottom = vv.offsetTop + vv.height - ADDRESS_BAR_GAP;
+  const overlap = cta.getBoundingClientRect().bottom - visibleBottom;
+  if (overlap <= 0) return;
+  (scrollParentOf(cta) ?? window).scrollBy({ top: overlap, behavior: 'smooth' });
+}
+
+/** Wrapper onFocus: waits for the keyboard (viewport resize, or a timeout fallback) then lifts. */
+function keepCtaVisibleOnFocus(e: React.FocusEvent<HTMLElement>): void {
+  const field = e.target;
+  if (!field.matches('#al-identifier, .al-otp-box')) return;
+  const run = () => liftCtaAboveAddressBar(field);
+  window.visualViewport?.addEventListener('resize', () => setTimeout(run, 50), { once: true });
+  setTimeout(run, 350);
+}
+
+// ---------------------------------------------------------------------------
 // Identifier parsing
 // ---------------------------------------------------------------------------
 
@@ -456,7 +501,10 @@ export function AccountLogin({
   const identifierPayload = useCallback((): Identifier => (
     kind === 'email'
       ? { email: identifier.trim() }
-      : { phone: identifier.replace(/\D/g, '') }
+      // The 10-digit national number — isPhone also accepts "1" + 10, and
+      // that leading country code is dropped here so "+1 (415) …" and
+      // "(415) …" reach the proxy as the same identifier.
+      : { phone: identifier.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '') }
   ), [kind, identifier]);
 
   /** Verified: hand over to the account page, or show the built-in card. */
@@ -807,7 +855,7 @@ export function AccountLogin({
     const complete = code.replace(/\s/g, '').length === OTP_LENGTH;
 
     return (
-      <div className="al-wrapper">
+      <div className="al-wrapper" onFocus={inEditor ? undefined : keepCtaVisibleOnFocus}>
         <div className="al-card">
           <div className="al-head">
             <h1 className="al-title" tabIndex={-1} ref={otpHeadingRef}>
@@ -857,7 +905,7 @@ export function AccountLogin({
   const filled = identifier.trim() !== '';
 
   return (
-    <div className="al-wrapper">
+    <div className="al-wrapper" onFocus={inEditor ? undefined : keepCtaVisibleOnFocus}>
       <div className="al-card">
         <div className="al-head">
           <h1 className="al-title">{heading}</h1>

@@ -1074,6 +1074,10 @@ interface ApiQuoteInvoice { total_due?: number; balance?: number; total_tax?: nu
 export interface QuoteOptions {
   /** Hold token — required for the POST form; without it only the GET works. */
   holdToken?: string;
+  /** Quote a RESERVED unit by its reservation — the one way lease-set-up
+   *  answers for a unit that is reserved (the plain GET and a hold both 409
+   *  "This unit has been reserved"; verified 2026-10-13). */
+  reservationId?: string;
   /** Chosen coverage product (API 6). Adds a "Protection Plan …" line. */
   insuranceId?: string;
   /** Promotions to apply, from the offer. */
@@ -1110,8 +1114,14 @@ export interface QuoteOptions {
 }
 
 /** The documented lease-set-up payload, omitting anything not chosen. */
+/** The one identifier a quote is made with — reservation_id or hold_token,
+ *  never both, the same rule the lease call follows. */
+function quoteIdentity(opts: QuoteOptions): Record<string, unknown> {
+  return opts.reservationId ? { reservation_id: opts.reservationId } : { hold_token: opts.holdToken };
+}
+
 function leaseSetUpBody(opts: QuoteOptions): Record<string, unknown> {
-  const body: Record<string, unknown> = { hold_token: opts.holdToken };
+  const body: Record<string, unknown> = quoteIdentity(opts);
   if (opts.insuranceId) body.insurance_id = opts.insuranceId;
   if (opts.promotionIds?.length) body.promotions = opts.promotionIds.map((id) => ({ promotion_id: id }));
   if (opts.startDate) body.start_date = opts.startDate;
@@ -1148,8 +1158,8 @@ async function postLeaseSetUp(path: string, opts: QuoteOptions): Promise<Record<
     return inner.data;
   } catch (err) {
     if (Object.keys(body).length === 1) throw err; // nothing extra to blame
-    console.warn('[rental] lease-set-up rejected the documented extras — re-quoting with hold_token only. Coverage/promo/date will NOT be priced:', err);
-    const inner = await sendV1('POST', path, { hold_token: opts.holdToken });
+    console.warn('[rental] lease-set-up rejected the documented extras — re-quoting with the identifier only. Coverage/promo/date will NOT be priced:', err);
+    const inner = await sendV1('POST', path, quoteIdentity(opts));
     if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
     return inner.data;
   }
@@ -1169,8 +1179,15 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
   if (holdToken && shouldUseProxyWrites(ctx)) return fetchHeldQuoteViaProxy(ctx, unit, holdToken);
   const path = `companies/${ctx.companyId}/units/${unit.id}/lease-set-up`;
   let data: Record<string, unknown> | undefined;
-  if (holdToken && writesEnabled(ctx)) {
+  if ((holdToken || opts.reservationId) && writesEnabled(ctx)) {
     data = await postLeaseSetUp(path, opts);
+  } else if (opts.reservationId) {
+    // No writes here: the GET takes reservation_id as a query param (verified
+    // live 2026-10-13) and prices the reserved unit, without the extras.
+    const cycle = cycleQuery(opts);
+    data = unwrap(await getJsonV1(
+      `${path}?reservation_id=${encodeURIComponent(opts.reservationId)}${cycle ? `&${cycle.slice(1)}` : ''}`,
+    ));
   } else {
     // The GET takes it as a query param — verified live; the POST body form
     // above is for the held case.
@@ -1567,6 +1584,55 @@ async function reserveViaEdge(ctx: RentalCtx, args: ReserveArgs): Promise<Reserv
   }
 }
 
+/**
+ * The customer-facing reservation CODE — what the office looks a reservation
+ * up by, and what the confirmation page shows.
+ *
+ * The reserve call returns only the reservation ID ("ojDp0WsoKj"), which is a
+ * database key, not something a customer can quote at the counter. The code
+ * ("9W6LZ6") lives on the reservation record:
+ *
+ *   GET v1/companies/{co}/reservations/{reservationId}
+ *     → { reservation: { id, code, lease_id, expires, move_in_date, Lease… } }
+ *
+ * Verified live 2026-10-13. Scoped to the site's resolved company id, never
+ * the build-time one. Never throws and returns undefined on any failure: a
+ * confirmation must not be held up by a lookup that is purely cosmetic —
+ * which is also why it is ABORTED after `RESERVATION_CODE_TIMEOUT_MS`. The
+ * customer has already reserved; a stalled connection here must fall back to
+ * the id, not keep them waiting on a page that has nothing left to do.
+ */
+export const RESERVATION_CODE_TIMEOUT_MS = 5000;
+
+export async function fetchReservationCode(ctx: RentalCtx, reservationId: string): Promise<string | undefined> {
+  if (!ctx.companyId || !reservationId) return undefined;
+  const { baseUrl, appId } = creds();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RESERVATION_CODE_TIMEOUT_MS);
+  try {
+    const res = await fetch(
+      `${baseUrl}/applications/${appId}/v1/companies/${encodeURIComponent(ctx.companyId)}`
+      + `/reservations/${encodeURIComponent(reservationId)}`,
+      { headers: headers(), signal: controller.signal },
+    );
+    const env = await res.json().catch(() => undefined) as
+      { applicationData?: Record<string, InnerResult[]> } | undefined;
+    const inner = env?.applicationData?.[appId]?.[0];
+    if (!res.ok || inner?.status !== 200 || !inner.data) {
+      console.warn('[rental] reservation lookup rejected:', inner?.status ?? res.status, inner?.msg ?? '');
+      return undefined;
+    }
+    const d = inner.data as Record<string, unknown>;
+    const r = (d.reservation ?? d) as Record<string, unknown>;
+    return typeof r.code === 'string' && r.code.trim() ? r.code.trim() : undefined;
+  } catch (err) {
+    console.warn('[rental] reservation lookup failed:', err);
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // --- Rent (Phase 2) — lease → invoice → insurance → hosted payment (proxy) ---
 //
 // All writes/reads for the rent transaction go through the proxy (key stays
@@ -1782,6 +1848,33 @@ export interface BankPayment extends RentAddress {
   autoCharge?: boolean;
 }
 
+/**
+ * An Apple Pay / Google Pay payment, for the wallet buttons.
+ *
+ * The address fields are OPTIONAL, unlike the other two methods: they are
+ * whatever billing address the wallet sheet returned, and a wallet may return
+ * less than a full one. Every one of them is omitted from the payload when
+ * empty rather than sent blank — see walletPaymentMethod().
+ */
+export interface WalletPayment extends Partial<RentAddress> {
+  type: 'googlepay' | 'applepay';
+  /**
+   * SINGLE-USE. Google: `tokenizationData.token`, already a string. Apple:
+   * `JSON.stringify(payment.token)` — the WHOLE token object; Hummingbird
+   * parses it and reads `.paymentData` itself (tenant_payments_card.js).
+   */
+  token: string;
+  /*
+   * Deliberately NO name and NO autopay fields:
+   *   - the name on the payment_method is the FORM's first/last (the tenant),
+   *     not the wallet card's holder — walletPaymentMethod() takes it from
+   *     RentArgs.contact;
+   *   - Apple Pay and Google Pay are one-time payments and never enrol in
+   *     autopay, whatever the property's autopay setting says.
+   * Leaving them off the type means nothing can set them by mistake.
+   */
+}
+
 /** A documented cost line. `costType` is a closed set; dates are YYYY-MM-DD. */
 export interface RentCostLine {
   amount: number;
@@ -1850,21 +1943,24 @@ export type PaymentCycleKey = keyof typeof PAYMENT_CYCLE_NAMES;
 
 export interface RentArgs {
   unit: { id: string; number?: string };
-  holdToken: string;
+  /** The hold the unit is rented from — or absent when `reservationId` is set,
+   *  because a reserved unit is leased by reservation_id and is never held. */
+  holdToken?: string;
   contact: RentContact;
   /** The billing period chosen on the Payment Cycle card. Absent ⇒ monthly,
    *  which is both the default and the only value the guide names. */
   paymentCycle?: PaymentCycleKey;
   /**
-   * Exactly ONE of `card` / `bank` — whichever the shopper chose.
+   * Exactly ONE of `card` / `bank` / `wallet` — whichever the shopper chose.
    *
-   * Both optional rather than `card` required with a dummy alongside it: a
+   * All optional rather than `card` required with a dummy alongside it: a
    * zeroed CardPayment on the bank path would be a real object full of empty
    * strings that nothing reads, and the first person to read it by mistake
-   * would post an empty card. paymentMethodFor throws if neither is present.
+   * would post an empty card. paymentMethodFor throws if none is present.
    */
   card?: CardPayment;
   bank?: BankPayment;
+  wallet?: WalletPayment;
   /** YYYY-MM-DD. */
   startDate: string;
   /** From the offer — documents/finalize rejects the call without it. */
@@ -2085,24 +2181,78 @@ function achPaymentMethod(bank: BankPayment, autoCharge: boolean): Record<string
 }
 
 /**
+ * The `payment_method` object for Apple Pay / Google Pay.
+ *
+ * NEVER AUTOPAY, NEVER SAVED: `save_to_account` and `auto_charge` are both sent
+ * as an explicit false, even on a property whose autopay is mandatory. A wallet
+ * token is a one-time payment — it cannot be stored and charged again each
+ * month — so enrolling it would leave the lease on autopay with nothing
+ * chargeable behind it. wantsAutoCharge() returns false for wallets for the
+ * same reason, so API 11 (autopay enrolment) is never called.
+ *
+ * `first`/`last` are the TENANT's, from the form (RentArgs.contact), not the
+ * name on the wallet's card.
+ *
+ * Shape read from Hummingbird's own source, not inferred (hummingbird-api-server,
+ * 2026-10-13):
+ *   - validation/objects/payment_method.js accepts `type` 'google' | 'apple',
+ *     and `token` as a plain string. The schema rejects unknown keys, so the
+ *     token must travel as `token`, not `paymentToken`.
+ *   - routes/units/index.js (POST …/lease) copies `payment_method.token` onto
+ *     `paymentToken`, which is what the charge reads.
+ *   - tenant_payments_card.js chargeAppleOrGoogleToken() sends a Google token
+ *     as-is and JSON.parses an Apple one for `.paymentData` — hence the whole
+ *     Apple token object, stringified.
+ * The type names are Hummingbird's ('google'/'apple'), not the GDS
+ * paymentInstrument names Nuxt uses ('googlepay'/'applepay').
+ *
+ * Billing fields are omitted when empty, never sent blank: the schema has
+ * `address: Joi.string()` (no empty allowed) and `zip` must be all digits.
+ */
+function walletPaymentMethod(wallet: WalletPayment, contact: RentContact): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    type: wallet.type === 'googlepay' ? 'google' : 'apple',
+    token: wallet.token,
+    save_to_account: false,
+    auto_charge: false,
+  };
+  // Omitted rather than sent blank — the schema has `first: Joi.string()`,
+  // which rejects an empty string.
+  const first = contact.first?.trim();
+  const last = contact.last?.trim();
+  if (first) body.first = first;
+  if (last) body.last = last;
+  if (wallet.address?.trim()) body.address = wallet.address.trim();
+  if (wallet.city?.trim()) body.city = wallet.city.trim();
+  if (wallet.state?.trim()) body.state = wallet.state.trim();
+  // ZIP+4 ("12345-6789") fails the digits-only pattern, so the base five.
+  const zip = (wallet.zip ?? '').replace(/\D/g, '').slice(0, 5);
+  if (zip.length === 5) body.zip = zip;
+  return body;
+}
+
+/**
  * Which payment_method this rental sends.
  *
  * One place, so the two calls that post a payment method (documents/finalize
  * and the lease) can never disagree about which the shopper chose.
  */
 function paymentMethodFor(args: RentArgs): Record<string, unknown> {
+  if (args.wallet) return walletPaymentMethod(args.wallet, args.contact);
   if (args.bank) return achPaymentMethod(args.bank, !!args.bank.autoCharge);
   if (args.card) return cardPaymentMethod(args.card, !!args.card.autoCharge);
   /*
-   * Neither is a programming error, not a shopper one — the panel cannot be
+   * None is a programming error, not a shopper one — the panel cannot be
    * submitted without a method. Throwing beats posting a payload with no
    * payment_method and reading the API's generic rejection back.
    */
-  throw new Error('rentSpace: neither a card nor a bank account was supplied');
+  throw new Error('rentSpace: no card, bank account or wallet was supplied');
 }
 
 /** Autopay was asked for, whichever method is paying. */
 function wantsAutoCharge(args: RentArgs): boolean {
+  // Wallets never enrol — see walletPaymentMethod().
+  if (args.wallet) return false;
   return !!(args.bank?.autoCharge ?? args.card?.autoCharge);
 }
 
@@ -2799,4 +2949,70 @@ export async function previewDocuments(
     console.warn('[rental] documents/preview failed:', err);
     return [];
   }
+}
+
+// --- Apple Pay / Google Pay --------------------------------------------------
+//
+// The same two Hummingbird endpoints the Nuxt site calls (utils/gds.js), built
+// the Duda way: creds() for host/app/key, headers() for auth, straight from the
+// browser. `companyId` is already Hummingbird's, so Nuxt's GDS facility lookup
+// has no equivalent here.
+//
+// NOT memoGet/getJson: a merchant session is single-use and expires in ~5
+// minutes, and the Google JWT is minted per request. A cached copy of either is
+// a broken one.
+
+/** One wallet GET → the envelope's inner result, or undefined on any failure.
+ *  The inner status is the real one — HTTP 200 carries failures. */
+async function getWalletEndpoint(label: string, url: string): Promise<InnerResult | undefined> {
+  const { appId } = creds();
+  const res = await fetch(url, { headers: headers() });
+  const env = await res.json().catch(() => undefined) as
+    { applicationData?: Record<string, InnerResult[]> } | undefined;
+  const inner = env?.applicationData?.[appId]?.[0];
+  if (inner?.status !== 200) {
+    console.warn(`[rental] ${label} rejected:`, inner?.status ?? res.status, inner?.msg ?? '');
+    return undefined;
+  }
+  return inner;
+}
+
+/**
+ * Google Pay `merchantInfo.authJwt` for this hostname.
+ *
+ * Note v2 (Apple's is v1). Hummingbird signs `{merchantId, merchantOrigin}`
+ * with `merchantOrigin = domain_name`, so the hostname here must be the same
+ * one the request later names as `merchantOrigin`. Never throws.
+ */
+export async function fetchGooglePayJwt(ctx: RentalCtx): Promise<string | undefined> {
+  if (!ctx.companyId) return undefined;
+  const { baseUrl, appId } = creds();
+  const url = `${baseUrl}/applications/${appId}/v2/companies/${encodeURIComponent(ctx.companyId)}`
+    + `/payments/google-pay-token?domain_name=${encodeURIComponent(window.location.hostname)}`;
+  try {
+    const inner = await getWalletEndpoint('google-pay-token', url);
+    const token = (inner?.data as { token?: unknown } | undefined)?.token;
+    return typeof token === 'string' && token ? token : undefined;
+  } catch (err) {
+    console.warn('[rental] google-pay-token threw:', err);
+    return undefined;
+  }
+}
+
+/**
+ * Apple Pay merchant session — the opaque object `completeMerchantValidation`
+ * takes, passed through untouched. Note v1 (Google's is v2).
+ *
+ * `website_id` is sent EMPTY: Duda has no GDS website record, Nuxt falls back
+ * to '' when its own lookup fails, and Hummingbird only reads the parameter
+ * when it is truthy (routes/payments.js). Throws on a network failure so the
+ * caller can abort the sheet; resolves undefined when the API refuses.
+ */
+export async function fetchApplePayMerchantSession(ctx: RentalCtx): Promise<unknown | undefined> {
+  const { baseUrl, appId } = creds();
+  const q = new URLSearchParams({ domain_name: window.location.hostname, display_name: 'HB', website_id: '' });
+  const url = `${baseUrl}/applications/${appId}/v1/companies/${encodeURIComponent(ctx.companyId)}`
+    + `/payments/apple-pay/merchant-session?${q}`;
+  const inner = await getWalletEndpoint('apple-pay merchant-session', url);
+  return inner?.data;
 }

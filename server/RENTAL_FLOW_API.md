@@ -421,3 +421,38 @@ Inputs and where each comes from:
 are Kangaroo proxy endpoints with no counterpart here. The documented rent path
 is lease-set-up → finalize → lease. Confirm whether the proxy wraps these or
 should be retired.
+
+## Reservation code (confirmation page)
+
+The reserve call returns only `reservation.reservation_id` (a database key such as
+`ojDp0WsoKj`). The code the office knows the reservation by lives on the record:
+
+```
+GET {api}/applications/{app}/v1/companies/{companyId}/reservations/{reservationId}
+→ { reservation: { id, code, lease_id, expires, move_in_date, Lease: {...} } }
+```
+
+`companyId` is the site's resolved company (the `Company` collection), never the
+build-time one. The widget reads `reservation.code` (`9W6LZ6`) and shows it as the
+Reservation Code; if the lookup fails it falls back to showing the id, as before.
+Verified live 2026-10-13. See `fetchReservationCode` in `api.ts`.
+
+## Find my Reservation (#03) → complete it in the rental flow
+
+`GET v1/companies/{companyId}/reservations?property_id={propertyId}&code={CODE}` →
+`{ reservations: [ { id, code, lease_id, Lease: { unit_id, Unit: { number, property_id },
+Tenants: [ { Contact } ] } } ] }`. An unknown code is a 200 with an empty list.
+Same credentials and company resolution as every other #03 read; the property is the
+page's own. See `findReservation` in `widget-property-info/api.ts`.
+
+A found reservation is handed to the rental page (`rentalPageUrl`, default `/rental`)
+with `?reservationId=&unitId=&propertyId=&companyId=`; the contact rides in
+localStorage (`@shared/unitHandoff`, `ti.reservation`). In the flow this is
+**reservation mode**: a reserved unit cannot be held or quoted the plain way (both 409
+"This unit has been reserved"), so
+
+- no hold is taken and the unit is never re-picked;
+- the quote is `lease-set-up` with `reservation_id` (POST body, or `?reservation_id=`
+  on the GET) — verified live 2026-10-13;
+- the lease is `POST units/{u}/lease` with **`reservation_id`** and no `hold_token`;
+- step 1 is prefilled from the reservation's contact and offers Rent only.

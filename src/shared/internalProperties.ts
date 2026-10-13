@@ -399,6 +399,42 @@ export async function fetchSingleStep(
 }
 
 /** Column behind the rental flow's ID-verification policy — a Duda Dropdown. */
+/**
+ * `featured` — the operator's toggle on PropertiesInternal. A featured property
+ * is pinned to the top of the state/city listing (#08) and wears the
+ * "Featured Property" badge.
+ *
+ * A toggle column arrives as a real BOOLEAN (verified live 2026-10-13:
+ * `featured: true` on COFFEE, `false` elsewhere) — unlike the Rich Text
+ * columns, nothing to strip. `bool()` still accepts "true"/"1"/"yes" in case a
+ * site made it a text column instead. Fails soft to an empty set: no dmAPI
+ * (editor, harness), no column, or a failed read means nothing is featured,
+ * never an error on the page.
+ */
+const FEATURED_FIELD = 'featured';
+
+export function rowFeatured(row: CollectionRow): boolean {
+  const raw = row[FEATURED_FIELD];
+  if (typeof raw === 'boolean') return raw;
+  if (raw === undefined || raw === null) return false;
+  return bool(plainText(raw).trim(), false);
+}
+
+export async function fetchFeaturedIds(
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  try {
+    for (const row of await readInternalProperties(collectionName)) {
+      const id = str(row.id).trim();
+      if (id && rowFeatured(row)) out.add(id);
+    }
+  } catch (err) {
+    console.warn('[internalProperties] featured read failed — nothing featured:', err);
+  }
+  return out;
+}
+
 const IDV_REQUIREMENT_FIELD = 'idv_requirement';
 
 /**
@@ -422,6 +458,27 @@ export async function fetchIdvRequirementSetting(
   if (raw === undefined || raw === null) return undefined;
   const text = plainText(raw).trim();
   return text || undefined;
+}
+
+/**
+ * This property's `slug` — `state/city/property-name-<id>`, its page path under
+ * the site's property base (see @shared/propertyNav).
+ *
+ * `undefined` means UNANSWERED — no dmAPI, no row, or a blank cell — and the
+ * caller keeps whatever it would have linked to without it. plainText first:
+ * this is a native collection, so the cell can arrive rteBlock-wrapped.
+ */
+export async function fetchPropertySlug(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<string | undefined> {
+  const wanted = propertyId.trim();
+  if (!wanted) return undefined;
+  const row = (await readInternalProperties(collectionName))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return undefined;
+  const slug = plainText(row.slug).trim().replace(/^\/+|\/+$/g, '');
+  return slug || undefined;
 }
 
 /**

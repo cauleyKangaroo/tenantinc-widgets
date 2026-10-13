@@ -471,7 +471,7 @@
   background: #101318;
   color: #ffffff;
 }
-/* Chevron: points right when collapsed, rotates down when the section opens.
+/* Chevron: points down when collapsed, flips up when the section opens.
    margin-right insets it 26px from the right edge. On the chevron rather than as
    padding on the header, so the divider lines above and below stay full width —
    padding there would pull the header's contents in but leave the borders, which
@@ -483,7 +483,7 @@
   flex-shrink: 0;
   margin-right: 26px;
   transition: transform 0.2s;
-  transform: rotate(-90deg);
+  transform: rotate(0deg);
 }
 /* Open: the down glyph flipped to point up. */
 .sl-wrapper .sl-accordion.expanded .sl-chevron { transform: rotate(180deg); }
@@ -1344,8 +1344,13 @@
    panel and wrap drops the CTA below the price — the safety valve doing its job,
    at widths only a squeezed Duda column reaches. */
 @container (max-width: 907px) {
-  .sl-wrapper .sl-dv-img { max-width: 100px; }
-  /* 13px keeps the link narrower than the 100px image, so the column stays put */
+  /* 130px — the LIST card's image at this width (.sl-lc-img in the 900px step
+     above), so the two layouts show the same photo size on a tablet. It was
+     100px, on the theory that trimming it bought the price row room; it cannot,
+     because the image sits in the white 55% panel and the price row in the grey
+     45% one, which the hard split keeps apart. */
+  .sl-wrapper .sl-dv-img { width: 130px; max-width: 130px; }
+  /* 13px keeps the link narrower than the image, so the column stays put */
   .sl-wrapper .sl-dv-see-fits { font-size: 13px; gap: 4px; }
   .sl-wrapper .sl-dv-actions { max-width: 312px; }
   .sl-wrapper .sl-dv-price-button { gap: 12px; }

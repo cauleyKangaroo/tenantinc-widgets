@@ -9,9 +9,9 @@ import {
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection,
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
-  updateContactDetails, dobToIso,
+  updateContactDetails, dobToIso, fetchReservationCode,
   fetchPaymentGateway, TENANT_PAYMENTS, configureApi, currentApiCreds, previewDocuments,
-  type RentResult, type ApiCredProps, type PaymentCycleKey, type RentalExtras,
+  type RentResult, type ApiCredProps, type PaymentCycleKey, type RentalExtras, type QuoteOptions,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx, type PropertyInfo,
 } from './api';
@@ -27,6 +27,7 @@ import { tokenizeCard } from './gpTokenize';
 import rentalErrorArt from './assets/rental-error.svg';
 import { ContactConfirmationModal, type ConfirmationFacility } from '@shared/components/ContactConfirmation';
 import type { LeadInput } from '@shared/leadsApi';
+import { resolveWalletConfig, type WalletConfigProps } from './walletConfig';
 import { OrderRail } from './OrderRail';
 import { ChevronSolidIcon } from './icons';
 /* The ASSET ONLY, deliberately — not the #02 component, its config, its props
@@ -38,14 +39,18 @@ import storelocalLogo from '../widget-navigation-bar/Storelocal_logo.png';
 import { imageUrl } from '@shared/dudaCollections';
 import { RfCheckbox } from './RfCheckbox';
 import { splitBusinessName } from './businessName';
-import { readUnitSelection, clearUnitSelection } from '@shared/unitHandoff';
+import {
+  readUnitSelection, clearUnitSelection, readReservationHandoff, clearReservationHandoff,
+} from '@shared/unitHandoff';
 import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
 import { FormField, Button, DateModal, AlertIcon, formatPrice, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { fetchIdvRequirementSetting, fetchSingleStep } from '@shared/internalProperties';
+import { fetchIdvRequirementSetting, fetchPropertySlug, fetchSingleStep } from '@shared/internalProperties';
+import { normaliseBasePath } from '@shared/propertyNav';
+import { withSpacesHash } from '@shared/promoBus';
 import { skipValidation } from '@shared/devBypass';
 
 /**
@@ -86,7 +91,14 @@ const ymd = (d: Date): string => {
 // Step 2 ("Secure your space now", 8507-23329): full checkout form.
 // ---------------------------------------------------------------------------
 
-export interface RentalFlow2StepProps extends ApiCredProps {
+/*
+ * WalletConfigProps: the Apple Pay / Google Pay content-panel fields
+ * (googlePayEnabled, googlePayEnvironment, …, applePayMerchantIdentifier) and
+ * the currency_code / country_code site texts. Every one is
+ * optional and falls back to walletConfig's WALLET_DEFAULTS — see
+ * resolveWalletConfig for how each is read.
+ */
+export interface RentalFlow2StepProps extends ApiCredProps, WalletConfigProps {
   /**
    * Content-menu IMAGE input (`logoImage`) — the checkout header's logo, so a
    * site that sets its own in #02 can set the same one here.
@@ -232,8 +244,17 @@ export interface RentalFlow2StepProps extends ApiCredProps {
   /** Presentation variant for a remotely operated property. This never
    * enables/disables IDV; every rental still requires verification. */
   idvRemoteOperated?: boolean;
-  /** "Change Space" link target on the order rail (the value-tiers page). */
+  /**
+   * "Change Space" link target on the order rail. Normally UNSET: the link then
+   * goes to this property's own landing page, scrolled to its Space List (see
+   * `spacesUrl`). Set it only to send shoppers somewhere else.
+   */
   changeSpaceUrl?: string;
+  /**
+   * Where the Duda dynamic property pages live — the same `locationBasePath`
+   * #02 prefixes its "Find Storage" links with. Default matches #02.
+   */
+  locationBasePath?: string;
   /** Protection-plan brochure PDF, opened from step 2's "Learn More" lightbox. */
   brochureUrl?: string;
   /**
@@ -478,17 +499,22 @@ const fmtBarCountdown = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).p
 // band, same rows, same sheet — only the copy differs, because by this point
 // there is no hold left to count down and nothing left to pay: it reports what
 // WAS paid and offers the lease summary.
+//
+// A RESERVATION is the exception: it confirms without taking any money, so
+// "paid" would be untrue. The figure there is still what moving in will cost.
 function MobileLeaseBar({
-  total, expanded, onToggle,
+  total, expanded, onToggle, reservation = false,
 }: {
   total?: number;
   expanded: boolean;
   onToggle: () => void;
+  /** Reservation confirmation — nothing has been charged. */
+  reservation?: boolean;
 }) {
   return (
     <button type="button" className="rfm-bar" onClick={onToggle} aria-expanded={expanded}>
       <span className="rfm-bar-row">
-        <span className="rfm-bar-title">Total Paid:</span>
+        <span className="rfm-bar-title">{reservation ? 'Total Cost to Move-In:' : 'Total Paid:'}</span>
         <span className="rfm-bar-total">{total != null ? `$${total.toFixed(2)}` : '\u2014'}</span>
       </span>
       <span className="rfm-bar-row">
@@ -597,7 +623,7 @@ export interface Contact {
 
 function Step1Form({
   eyebrow, heading, termsHref, brandName, transactionState, onRetry, changeSpaceUrl,
-  onRent, onReserve, reserveError,
+  onRent, onReserve, reserveError, initial, reservationMode = false, onDraft,
 }: {
   eyebrow: string;
   heading: string;
@@ -609,12 +635,24 @@ function Step1Form({
   onRent: (c: Contact) => void;
   onReserve: (c: Contact) => void;
   reserveError?: string;
+  /** Opening values — the reserving contact when a reservation is being
+   *  completed. Seeded once; the fields are the shopper's after that. */
+  initial?: Contact;
+  /** Completing a reservation: the space is already reserved, so there is
+   *  nothing to Reserve — only Rent. */
+  reservationMode?: boolean;
+  /**
+   * The contact AS IT IS TYPED — undefined until every field the lease needs
+   * is valid. The parent uses it to personalise the agreement preview before
+   * Rent is pressed; see `draftContact` there.
+   */
+  onDraft?: (c: Contact | undefined) => void;
 }) {
-  const [business, setBusiness] = useState(false);
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [first, setFirst] = useState('');
-  const [last, setLast] = useState('');
+  const [business, setBusiness] = useState(initial?.business ?? false);
+  const [email, setEmail] = useState(initial?.email ?? '');
+  const [phone, setPhone] = useState(initial?.phone ?? '');
+  const [first, setFirst] = useState(initial?.first ?? '');
+  const [last, setLast] = useState(initial?.last ?? '');
   // Renting as a business replaces First + Last with a single trading name.
   const [bizName, setBizName] = useState('');
   const [attempted, setAttempted] = useState(false);
@@ -637,6 +675,20 @@ function Step1Form({
       : [['rf-first', skip || first.trim().length > 0],
         ['rf-last', skip || last.trim().length > 0]] as Array<[string, boolean]>),
   ];
+  /* ONE builder for what leaves this form: the buttons and the draft below
+     both use it, so the draft the preview was personalised for is exactly
+     what Rent then submits — same trim, same business split — and the key
+     the parent compares does not change at the click. */
+  const buildContact = (): Contact => {
+    const name = business ? splitBusinessName(bizName) : { first: first.trim(), last: last.trim() };
+    return {
+      ...name,
+      email: email.trim(),
+      phone: phone.trim(),
+      business,
+      businessName: business ? bizName.trim() : undefined,
+    };
+  };
   const gate = (proceed: (c: Contact) => void) => () => {
     if (!transactionReady) return;
     const firstInvalid = checks.find(([, ok]) => !ok);
@@ -645,15 +697,23 @@ function Step1Form({
       document.getElementById(firstInvalid[0])?.focus();
       return;
     }
-    const name = business ? splitBusinessName(bizName) : { first: first.trim(), last: last.trim() };
-    proceed({
-      ...name,
-      email: email.trim(),
-      phone: phone.trim(),
-      business,
-      businessName: business ? bizName.trim() : undefined,
-    });
+    proceed(buildContact());
   };
+  /*
+   * The draft, half a second after the last keystroke, and only once every
+   * check passes: a half-typed email would generate an agreement for nobody,
+   * and one per keystroke would be dozens of 4-second requests. Undefined
+   * while incomplete, so the parent falls back to the blank prefetch rather
+   * than a stale name.
+   */
+  const draftReady = checks.every(([, ok]) => ok);
+  useEffect(() => {
+    if (!onDraft) return undefined;
+    const t = window.setTimeout(() => onDraft(draftReady ? buildContact() : undefined), 500);
+    return () => window.clearTimeout(t);
+    // `onDraft` is a setState and stable; the values below are what buildContact reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email, phone, first, last, bizName, business, draftReady]);
   const bad = (id: string) => attempted && !(checks.find(([k]) => k === id)?.[1]);
 
   return (
@@ -704,8 +764,12 @@ function Step1Form({
 
       <div className="rf-actions">
         <Button tone="cta" block disabled={!transactionReady} onClick={gate(onRent)}>Rent</Button>
-        <div className="rf-or"><span>or</span></div>
-        <Button tone="cta" fill="outline" block disabled={!transactionReady} onClick={gate(onReserve)}>Reserve</Button>
+        {!reservationMode && (
+          <>
+            <div className="rf-or"><span>or</span></div>
+            <Button tone="cta" fill="outline" block disabled={!transactionReady} onClick={gate(onReserve)}>Reserve</Button>
+          </>
+        )}
       </div>
       {transactionState === 'loading' && (
         <p className="rf-availability" role="status">Checking current availability and move-in pricing…</p>
@@ -1102,6 +1166,7 @@ export function RentalFlow2Step({
   liveCheckoutIdv = false,
   idvRemoteOperated = false,
   changeSpaceUrl,
+  locationBasePath = '/storage-units',
   previewContent = false,
   inEditor = false,
   idvRequirementPreview,
@@ -1111,6 +1176,21 @@ export function RentalFlow2Step({
   api_domain,
   app_id,
   api_key,
+  // Apple Pay / Google Pay content-panel fields — see walletConfig.
+  googlePayEnabled,
+  googlePayEnvironment,
+  googlePayMerchantId,
+  googlePayGateway,
+  googlePayGatewayMerchantId,
+  googlePayMerchantName,
+  applePayEnabled,
+  applePayMerchantIdentifier,
+  // Site texts (Content Library → custom) — the site-wide currency/country,
+  // and the site's environment, which picks Google Pay's TEST/PRODUCTION
+  // default.
+  currency_code,
+  country_code,
+  environment: siteEnvironment,
 }: RentalFlow2StepProps) {
   /*
    * Credentials in place BEFORE anything can fetch — during render, not in an
@@ -1140,20 +1220,37 @@ export function RentalFlow2Step({
   const storedRef = useRef<ReturnType<typeof readUnitSelection> | undefined>(undefined);
   if (storedRef.current === undefined) storedRef.current = readUnitSelection();
   const stored = storedRef.current;
+  /*
+   * RESERVATION MODE. "Find my Reservation" on #03 lands here with the
+   * reservation id on the URL and the rest (unit, contact) in storage. A
+   * reserved unit cannot be held or quoted the ordinary way — both answer
+   * 409 "This unit has been reserved" — so everything below that normally
+   * runs off a hold runs off `reservationIdProp` instead: the quote and the
+   * lease are made with reservation_id, no hold is taken, and the unit is
+   * never re-picked. Read once, like the unit pick.
+   */
+  const reservationStoredRef = useRef<ReturnType<typeof readReservationHandoff> | undefined>(undefined);
+  if (reservationStoredRef.current === undefined) reservationStoredRef.current = readReservationHandoff();
+  const reservationStored = reservationStoredRef.current;
+  const reservationIdProp = urlParam('reservationId') ?? reservationStored?.reservationId;
+  // The stored reservation only speaks for the reservation on the URL: a stale
+  // one from an earlier visit must not attach itself to a different id.
+  const reservation = reservationIdProp && reservationStored?.reservationId === reservationIdProp ? reservationStored : null;
 
   // The URL still wins everywhere — existing links and the value-tiers handoff
   // behave exactly as before; the stored pick only fills what the URL omits.
-  const sizeProp = sizeArg ?? urlParam('size') ?? stored?.size;
+  const sizeProp = sizeArg ?? urlParam('size') ?? stored?.size ?? reservation?.size;
   const tierProp = tierArg ?? urlParam('tier');
-  const propertyIdProp = propertyIdArg ?? urlParam('propertyId') ?? stored?.propertyId;
-  const companyIdProp = companyIdArg ?? urlParam('companyId') ?? stored?.companyId;
+  const propertyIdProp = propertyIdArg ?? urlParam('propertyId') ?? stored?.propertyId ?? reservation?.propertyId;
+  const companyIdProp = companyIdArg ?? urlParam('companyId') ?? stored?.companyId ?? reservation?.companyId;
   const unitGroupIdProp = unitGroupIdArg ?? urlParam('unitGroupId') ?? stored?.unitGroupId;
   // NOT filled from the stored pick: what the space lists hand over is a
   // pricing TIER id, and this slot means a rentable unit id. Passing a tier
   // here sends GET /units/{id}/lease-set-up an id it cannot resolve, so the
   // rail loses its money breakdown. The tier resolves to a real unit through
   // size + price below, the same route the value-tiers handoff takes.
-  const unitIdProp = urlParam('unitId');
+  // …except for a reservation, which names the exact reserved unit.
+  const unitIdProp = urlParam('unitId') ?? (reservationIdProp ? reservation?.unitId : undefined);
   /*
    * The struck-through IN-STORE rate the listing card showed.
    *
@@ -1177,11 +1274,12 @@ export function RentalFlow2Step({
     const n = Number(urlParam('instoreValue') ?? stored?.instoreValue);
     return Number.isFinite(n) && n > 0 ? n : undefined;
   })();
-  // "Change Space" returns to the value-tiers page the shopper came from.
+  // "Change Space" FALLBACK: the page the shopper came from, at its Space List.
+  // Only when the property's own page cannot be built — see spacesUrl below.
   const backToSpacesUrl = (() => {
     try {
       const ref = document.referrer;
-      if (ref && new URL(ref).origin === window.location.origin) return ref;
+      if (ref && new URL(ref).origin === window.location.origin) return withSpacesHash(ref);
     } catch { /* referrer unavailable */ }
     return undefined;
   })();
@@ -1301,6 +1399,34 @@ export function RentalFlow2Step({
       .catch((err) => console.warn(`${logTag} single_step lookup failed:`, err));
     return () => { cancelled = true; };
   }, [effectivePropertyId, logTag]);
+  /*
+   * WHERE "Change Space" GOES: this property's landing page, at its Space List.
+   *
+   * Built the way #02's nav and #19's "+ Add a Space" build theirs — the
+   * property's `slug` from PropertiesInternal under `locationBasePath` — with
+   * the hash #05 scrolls itself into view for (@shared/promoBus).
+   *
+   * It used to be the referrer alone, which is only the property page when the
+   * shopper happened to arrive from it: a Select on a city page or on another
+   * facility's nearby card sent "Change Space" back THERE, and a direct visit
+   * had no link at all. The referrer stays as the fallback where the collection
+   * cannot answer (no dmAPI in the editor or the harness, no row, no slug).
+   */
+  const [propertyPageUrl, setPropertyPageUrl] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    setPropertyPageUrl(undefined);
+    if (!effectivePropertyId) return undefined;
+    let cancelled = false;
+    fetchPropertySlug(effectivePropertyId)
+      .then((slug) => {
+        if (cancelled || !slug) return;
+        setPropertyPageUrl(withSpacesHash(`${normaliseBasePath(locationBasePath)}/${slug}`));
+      })
+      .catch((err) => console.warn(`${logTag} property slug lookup failed:`, err));
+    return () => { cancelled = true; };
+  }, [effectivePropertyId, locationBasePath, logTag]);
+  /** An operator-set `changeSpaceUrl` still wins, exactly as written. */
+  const spacesUrl = boundText(changeSpaceUrl) || propertyPageUrl || backToSpacesUrl;
   const formMode: FormMode = collectionSingleStep === undefined
     ? configuredFormMode
     : (collectionSingleStep ? '1step' : '2step');
@@ -1362,7 +1488,10 @@ export function RentalFlow2Step({
   const [phase, setPhase] = useState<'in' | 'out'>('in');
   const [dateModalOpen, setDateModalOpen] = useState(false);
   const [intent, setIntent] = useState<'rent' | 'reserve'>('rent');
-  const [contact, setContact] = useState<Contact | undefined>(undefined);
+  const [contact, setContact] = useState<Contact | undefined>(
+    // The person who reserved, so step 1 opens filled in for them.
+    () => (reservation?.contact ? { ...reservation.contact, business: false } : undefined),
+  );
   const [reserving, setReserving] = useState(false);
   const [reserveError, setReserveError] = useState<string | undefined>(undefined);
   const [moveIn, setMoveIn] = useState<Date>(startOfToday);
@@ -1428,6 +1557,42 @@ export function RentalFlow2Step({
     return out;
   }, [propertyInfo, unitTypeId]);
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
+  /*
+   * WHETHER APPLE PAY / GOOGLE PAY MAY BE OFFERED AT ALL — Nuxt's
+   * HBPaymentSectionRadio conditions, mapped onto what Duda knows:
+   *
+   *   - tenant_payments only. Nuxt adds wallets to the method list only for
+   *     that gateway. While the gateway is still loading (`undefined`) they
+   *     stay hidden — Nuxt adds them only after its lookup finishes.
+   *   - clickwrap / superlease only. Duda has no clickWrapEnabled /
+   *     superlease.is_enabled flags, but it supports nothing else anyway:
+   *     finalizeDocuments() refuses traditional signing. A resolved lease
+   *     document (super-lease, or one marked signed) is that condition; no
+   *     document, no wallets.
+   *
+   * DELIBERATELY SHOWN IN THE DUDA EDITOR (and the harness, which runs as one):
+   * editors should see the payment section as designed. It is safe — the
+   * editor takes no hold, so a wallet token there can only reach the preview
+   * completion, never rentSpace. Apple's merchant validation will refuse a
+   * non-published hostname; that shows inline as "not available right now".
+   *
+   * The per-wallet content-panel toggles (googlePayEnabled / applePayEnabled)
+   * are applied at the Step2 call site; Apple Pay's browser checks live in ApplePayButton.
+   */
+  /* The content panel's values over the defaults. Memoised on the raw values
+     so the wallets do not see a new object (and Google's button rebuild) on
+     every render. */
+  const walletConfig = React.useMemo(() => resolveWalletConfig({
+    googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
+    googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
+    applePayMerchantIdentifier, currency_code, country_code, environment: siteEnvironment,
+  }), [
+    googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
+    googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
+    applePayMerchantIdentifier, currency_code, country_code, siteEnvironment,
+  ]);
+  const walletsAllowed = gateway === TENANT_PAYMENTS
+    && !!leaseDoc && (leaseDoc.type === 'super-lease' || leaseDoc.signed);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
   /*
    * PropertiesInternal.idv_requirement — None / Optional / Required, chosen per
@@ -1831,6 +1996,9 @@ export function RentalFlow2Step({
      */
     const targetUnitId = quote?.unitId ?? unitIdProp;
     if (!targetUnitId || hold || holdExpired || rental) return;
+    // A reserved unit is already the customer's: it cannot be held (409) and
+    // must never be re-picked. The reservation id does the hold's job.
+    if (reservationIdProp) return;
     /*
      * Never hold against a half-resolved context. The company id arrives from
      * the Company collection a beat after mount, and holding before it lands
@@ -1934,6 +2102,19 @@ export function RentalFlow2Step({
         // Drop any quote that is not the held unit's — the effect below then
         // re-quotes hold-aware. Fail CLOSED: never show another unit's money.
         setQuote((prev) => (prev && prev.unitId === held.unitId ? prev : undefined));
+        /*
+         * THE HELD UNIT IS THE ONE BEING RENTED — the selection follows it.
+         * Offers names its own example unit of the tier; the plain quote
+         * (and so this hold) took the first available one, and when the two
+         * differ the selection stays 'uncorrelated' for good: Rent sits
+         * disabled behind "We couldn't verify this space". Seen live
+         * 2026-10-13 on the value-tiers → rental path, where no unitId is
+         * on the URL. keepHeldIdentity only covers a selection set AFTER the
+         * hold; this covers one set before it.
+         */
+        setSelection((prev) => (prev && prev.unitId !== held.unitId
+          ? { ...prev, unitId: held.unitId, unitNumber: held.unitNumber ?? prev.unitNumber, spaceMixId: resolvedSpaceMixRef.current ?? prev.spaceMixId }
+          : prev));
       } else if (!cancelled) {
         if (result.reason === 'writes-disabled') {
           /*
@@ -1990,12 +2171,26 @@ export function RentalFlow2Step({
    */
   const [paymentCycle, setPaymentCycle] = useState<PaymentCycleKey>('monthly');
 
+  /*
+   * What the two re-quotes below are made against: the held unit with its
+   * hold token, or — in reservation mode, where nothing is ever held — the
+   * reserved unit with its reservation id. Same shape, so the effects do not
+   * need to know which.
+   */
+  const quoteAnchor = React.useMemo(() => (hold
+    ? { unitId: hold.unitId, unitNumber: hold.unitNumber, idOpts: { holdToken: hold.holdToken } as QuoteOptions }
+    : reservationIdProp && unitIdProp
+      ? { unitId: unitIdProp, unitNumber: resolvedUnitNumber, idOpts: { reservationId: reservationIdProp } as QuoteOptions }
+      : undefined), [hold, reservationIdProp, unitIdProp, resolvedUnitNumber]);
+
   useEffect(() => {
-    if (!hold || inEditor) return undefined;
-    if (quote && quote.unitId === hold.unitId) return undefined;
+    // Not before the company id has resolved: a hold cannot exist before it,
+    // but a reservation anchor can — and quoted companies//units/… once.
+    if (!quoteAnchor || inEditor || !ctx.companyId) return undefined;
+    if (quote && quote.unitId === quoteAnchor.unitId) return undefined;
     let cancelled = false;
-    fetchMoveInQuote(ctx, { id: hold.unitId, number: hold.unitNumber }, {
-      holdToken: hold.holdToken,
+    fetchMoveInQuote(ctx, { id: quoteAnchor.unitId, number: quoteAnchor.unitNumber }, {
+      ...quoteAnchor.idOpts,
       insuranceId,
       promotionIds: selection?.promotionIds,
       startDate: ymd(moveIn),
@@ -2012,7 +2207,7 @@ export function RentalFlow2Step({
         if (!cancelled) { setQuote(undefined); setQuoteFailed(true); }
       });
     return () => { cancelled = true; };
-  }, [hold, quote, ctx, inEditor, insuranceId, selection, moveIn, paymentCycle, logTag]);
+  }, [quoteAnchor, quote, ctx, inEditor, insuranceId, selection, moveIn, paymentCycle, logTag]);
 
   // Re-quote when a choice that changes the money changes — coverage or the
   // move-in date. Only while holding: lease-set-up will not price either of them
@@ -2036,15 +2231,15 @@ export function RentalFlow2Step({
   const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}|${paymentCycle}`;
   const quotedChoice = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (!hold || step !== 2) return undefined;
+    if (!quoteAnchor || step !== 2 || !ctx.companyId) return undefined;
     if (quotedChoice.current === undefined || quotedChoice.current === choiceKey) {
       quotedChoice.current = choiceKey;
       return undefined;
     }
     quotedChoice.current = choiceKey;
     let cancelled = false;
-    fetchMoveInQuote(ctx, { id: hold.unitId, number: hold.unitNumber }, {
-      holdToken: hold.holdToken,
+    fetchMoveInQuote(ctx, { id: quoteAnchor.unitId, number: quoteAnchor.unitNumber }, {
+      ...quoteAnchor.idOpts,
       insuranceId,
       promotionIds: selection?.promotionIds,
       startDate: ymd(moveIn),
@@ -2057,7 +2252,7 @@ export function RentalFlow2Step({
       // last figure the API actually stood behind.
       .catch((err) => console.warn(`${logTag} re-quote after a choice change failed — keeping the previous total:`, err));
     return () => { cancelled = true; };
-  }, [hold, step, choiceKey, insuranceId, moveIn, paymentCycle, selection, ctx, logTag]);
+  }, [quoteAnchor, step, choiceKey, insuranceId, moveIn, paymentCycle, selection, ctx, logTag]);
 
   /*
    * Fetch the lease preview as soon as the NUMBERS exist — a hold and a quote,
@@ -2089,12 +2284,29 @@ export function RentalFlow2Step({
    * and the contact — and a change that does not alter the document does not
    * fetch it again.
    */
-  const contactKey = contact
-    ? [contact.first, contact.last, contact.email, contact.phone, contact.businessName].map((v) => v ?? '').join('|')
+  /*
+   * PERSONALISED WHILE STEP 1 IS BEING TYPED. `contact` only exists once Rent
+   * is pressed, and the personalised preview took ~4.5s from that press —
+   * the blank prefetch covered the panel, but the shopper still watched
+   * "Updating your agreement…" for that long. Step 1 now reports the contact
+   * as it is completed (`onDraft`, debounced, valid fields only), so the
+   * personalised document is usually already there when Rent is pressed:
+   * the draft and the submitted contact are built by the same function, so
+   * the key does not change at the click and nothing is fetched again.
+   */
+  const [draftContact, setDraftContact] = useState<Contact | undefined>(undefined);
+  const previewContact = contact ?? draftContact;
+  const contactKey = previewContact
+    ? [previewContact.first, previewContact.last, previewContact.email, previewContact.phone, previewContact.businessName].map((v) => v ?? '').join('|')
     : '';
-  const previewKey = hold && quote
+  /* The unit the document is for: the held one, or — in reservation mode,
+     where nothing is held — the reserved one (see quoteAnchor). */
+  const previewUnit = hold
+    ? { id: hold.unitId, number: hold.unitNumber }
+    : quoteAnchor ? { id: quoteAnchor.unitId, number: quoteAnchor.unitNumber } : undefined;
+  const previewKey = previewUnit && quote
     ? [
-      hold.unitId, ymd(moveIn), paymentCycle, quote.totalDue, quote.rent, quote.billDay,
+      previewUnit.id, ymd(moveIn), paymentCycle, quote.totalDue, quote.rent, quote.billDay,
       selection?.spaceMixId ?? '', (selection?.promotionIds ?? []).join(','),
       JSON.stringify(quoteToCosts(quote, ymd(moveIn))), contactKey,
     ].join('|')
@@ -2103,17 +2315,29 @@ export function RentalFlow2Step({
   // `previewKey` exactly while a newer one is being fetched.
   const [leasePreviewShownKey, setLeasePreviewShownKey] = useState('');
   const leasePreviewUpdating = !!previewKey && leasePreviewShownKey !== previewKey;
+  /*
+   * NEVER CANCELLED, only superseded. A reply is shown if it is newer than
+   * what is on screen, even when a newer request is already out: cancelling
+   * the blank prefetch the moment the name was typed threw its reply away
+   * (seen live 2026-10-13: blank sent +13.3s, name sent +14.0s, blank reply
+   * +19.5s DROPPED, so Rent at +19.8s met the placeholder until the name's
+   * reply landed). The "updating" badge still says a newer one is coming,
+   * because the shown key only catches up when the newest reply lands.
+   */
+  const previewSeqRef = useRef(0);
+  const previewShownSeqRef = useRef(0);
   useEffect(() => {
-    if (!previewKey || !hold || !quote || inEditor) return undefined;
-    let cancelled = false;
+    if (!previewKey || !previewUnit || !quote || inEditor) return undefined;
+    const seq = ++previewSeqRef.current;
+    const keyForThis = previewKey;
     void previewDocuments(ctx, {
-      unit: { id: hold.unitId, number: hold.unitNumber },
+      unit: previewUnit,
       contact: {
-        first: contact?.first ?? '',
-        last: contact?.last ?? '',
-        email: contact?.email ?? '',
-        phone: contact?.phone ?? '',
-        businessName: contact?.businessName,
+        first: previewContact?.first ?? '',
+        last: previewContact?.last ?? '',
+        email: previewContact?.email ?? '',
+        phone: previewContact?.phone ?? '',
+        businessName: previewContact?.businessName,
         /*
          * Empty, and deliberately so. The billing address is not collected
          * until the payment form further down the same step, and the preview
@@ -2132,7 +2356,8 @@ export function RentalFlow2Step({
       paymentCycle,
       platform: 'website',
     }).then((docs) => {
-      if (cancelled) return;
+      // Older than what is already on screen: nothing to add.
+      if (seq < previewShownSeqRef.current) return;
       /*
        * The LEASE specifically — the call also returns the insurance-denial and
        * ACH forms, which are not what this panel is showing.
@@ -2152,12 +2377,17 @@ export function RentalFlow2Step({
        * document that is not going to change.
        */
       if (lease) {
+        previewShownSeqRef.current = seq;
         setLeasePreviewUrl(lease.previewUrl ?? '');
         setLeasePreviewHtml(lease.html ?? '');
+        setLeasePreviewShownKey(keyForThis);
+      } else if (seq === previewSeqRef.current) {
+        // The NEWEST request failed: stop the badge rather than leave it
+        // over a document that is not going to change.
+        setLeasePreviewShownKey(keyForThis);
       }
-      setLeasePreviewShownKey(previewKey);
     });
-    return () => { cancelled = true; };
+    return undefined;
     // `previewKey` already folds in every value read here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewKey, inEditor]);
@@ -2292,7 +2522,7 @@ export function RentalFlow2Step({
      * why the arrival hold produced a 409 on every load the last time it was
      * tried.
      */
-    const willHoldOnArrival = !inEditor && !!unitIdProp;
+    const willHoldOnArrival = !inEditor && !!unitIdProp && !reservationIdProp;
     const skipPlainQuote = adoptedHold || willHoldOnArrival;
 
     /**
@@ -2426,7 +2656,43 @@ export function RentalFlow2Step({
         setSelectionStatus('network-error');
       });
 
-    if (authoritative) {
+    if (reservationIdProp && unitIdProp) {
+      /*
+       * RESERVATION — the unit is known and already the customer's, so there
+       * is no offer to match and no hold to take: read the unit's row for its
+       * number / space_mix_id / type, quote it BY RESERVATION, and build the
+       * selection from that. units/available would not list it (reserved),
+       * and the offers path would re-pick, which is exactly what must not
+       * happen to a reserved space.
+       */
+      const resolveUnit = fetchUnitInfo(ctx, unitIdProp).then((info) => ({ id: unitIdProp, ...info }));
+      resolveUnit
+        .then((unit) => {
+          if (cancelled) return undefined;
+          if (unit.unitTypeId) setUnitTypeId(unit.unitTypeId);
+          if (unit.spaceMixId) resolvedSpaceMixRef.current = unit.spaceMixId;
+          if (unit.number) { resolvedUnitNumberRef.current = unit.number; setResolvedUnitNumber(unit.number); }
+          return fetchMoveInQuote(ctx, unit, { reservationId: reservationIdProp, paymentCycle })
+            .then((q) => ({ unit, q }));
+        })
+        .then((r) => {
+          if (cancelled || !r) return;
+          setSelection({
+            unitId: unitIdProp,
+            unitNumber: r.unit.number,
+            size: sizeProp ?? '',
+            price: r.q?.rent,
+            spaceMixId: r.unit.spaceMixId,
+          });
+          setSelectionStatus('matched');
+          if (r.q) setQuote(r.q); else setQuoteFailed(true);
+        })
+        .catch((err) => {
+          console.warn(`${logTag} reservation quote failed:`, err);
+          if (!cancelled) { setSelectionStatus('network-error'); setQuoteFailed(true); }
+        })
+        .finally(settle);
+    } else if (authoritative) {
       // FAST PATH — offers + unit-info + quote start immediately; no space-groups
       // round-trip in front of the price. If offer enrichment fails, the rail
       // falls back to the handed-off unit/size while the exact-unit quote and
@@ -2478,7 +2744,7 @@ export function RentalFlow2Step({
     // widget — Duda does not toggle a page between editor and published — so
     // adding it would only risk re-running this whole load for no change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sizeProp, tierProp, unitIdProp, unitGroupIdProp, logTag, ctx, effectiveCompanyId, effectivePropertyId, loadAttempt, stored?.size, stored?.price]);
+  }, [sizeProp, tierProp, unitIdProp, unitGroupIdProp, reservationIdProp, logTag, ctx, effectiveCompanyId, effectivePropertyId, loadAttempt, stored?.size, stored?.price]);
 
   const goToStep = useCallback((next: 1 | 2) => {
     setPhase('out');
@@ -2757,6 +3023,7 @@ export function RentalFlow2Step({
                 total={snap?.quote?.totalDue}
                 expanded={railOpen}
                 onToggle={onRailToggle}
+                reservation={confirmation.kind === 'reservation'}
               />
             </div>
           </div>
@@ -2897,7 +3164,8 @@ export function RentalFlow2Step({
     && propertyInfo
     && effectiveCompanyId
     && effectivePropertyId
-    && unitGroupIdProp
+    // The group scopes offers and proxy writes; a reservation needs neither.
+    && (unitGroupIdProp || reservationIdProp)
     && !quoteFailed
     && !holdFailed
     && !holdExpired
@@ -2944,7 +3212,7 @@ export function RentalFlow2Step({
       // "#111" placeholder is the harness only, and only until a selection
       // loads, so a live page never shows a made-up unit.
       unitLabel={unitNumberLabel ?? (previewContent && !selection ? '#111' : undefined)}
-      changeSpaceUrl={rented ? undefined : (changeSpaceUrl ?? backToSpacesUrl)}
+      changeSpaceUrl={rented ? undefined : spacesUrl}
       /* `rented` IS "the money has been taken" — it is only ever true on the
          success screens, and the rail's total there is what was paid, not what
          is still owed. It had been driving nothing but changeSpaceUrl, so the
@@ -3188,13 +3456,16 @@ export function RentalFlow2Step({
           <div className={`rf-step rf-step--${phase}`}>
         {step === 1 ? (
           <Step1Form
+            initial={contact}
+            reservationMode={!!reservationIdProp}
+            onDraft={setDraftContact}
             eyebrow={eyebrow}
             heading={heading}
             termsHref={termsHref}
             brandName={brandName || undefined}
             transactionState={transactionState}
             onRetry={() => setLoadAttempt((n) => n + 1)}
-            changeSpaceUrl={changeSpaceUrl ?? backToSpacesUrl}
+            changeSpaceUrl={spacesUrl}
             reserveError={reserveError}
             onRent={(c) => { setContact(c); setIntent('rent'); setDateModalOpen(true); }}
             onReserve={(c) => { setContact(c); setIntent('reserve'); setReserveError(undefined); setDateModalOpen(true); }}
@@ -3230,6 +3501,10 @@ export function RentalFlow2Step({
             gatewayPending={gatewayPending}
             zipOnlyBilling={gateway === TENANT_PAYMENTS}
             defaultCountry={defaultBillingCountry}
+            showApplePay={walletsAllowed && walletConfig.applePayEnabled}
+            showGooglePay={walletsAllowed && walletConfig.googlePayEnabled}
+            walletConfig={walletConfig}
+            walletCtx={ctx}
             onPaymentComplete={(info) => {
               // REAL RENTAL. A card plus a live hold and quote means we have
               // everything the documented flow needs (guide APIs 9→10→11), so
@@ -3237,8 +3512,14 @@ export function RentalFlow2Step({
               // cleared or advanced until the lease actually comes back: this
               // charges the card, and a failure has to leave the shopper on the
               // form with their details intact.
-              if ((info.card || info.bank) && hold && quote) {
-                if (paying) return; // in flight — never double-charge
+              /*
+               * RETURNS the outcome — true once the lease exists, false on any
+               * failure — so Apple Pay can complete its sheet from the real
+               * result instead of announcing success before the token is spent.
+               * The card and bank forms ignore it.
+               */
+              if ((info.card || info.bank || info.wallet) && (hold || reservationIdProp) && quote) {
+                if (paying) return Promise.resolve(false); // in flight — never double-charge
                 /*
                  * The lightbox opens on the CLICK, not on the response.
                  *
@@ -3268,12 +3549,14 @@ export function RentalFlow2Step({
                 // TypeScript can no longer see that info.card is defined.
                 const card = info.card;
                 const bank = info.bank;
+                const wallet = info.wallet;
                 /*
                  * The billing address, from whichever panel was filled in. Both
                  * forms ask for the same one, and the tenant contact needs an
-                 * address regardless of how they are paying.
+                 * address regardless of how they are paying. A wallet's is
+                 * whatever its sheet returned, and may be partial.
                  */
-                const billing = card ?? bank!;
+                const billing: Partial<import('./api').RentAddress> = card ?? bank ?? wallet ?? {};
                 // Hosted fields already minted a real token inside GP's iframe,
                 // and there is no PAN on this side to tokenize a second time.
                 // Only the plain-input fallback has to ask for one — and that
@@ -3292,9 +3575,15 @@ export function RentalFlow2Step({
                       expMonth: card.expMonth,
                       expYear: card.expYear,
                     });
-                void withToken.then((tok) => rentSpace(ctx, {
-                  unit: { id: hold.unitId, number: hold.unitNumber },
-                  holdToken: hold.holdToken,
+                return withToken.then((tok) => rentSpace(ctx, {
+                  unit: hold
+                    ? { id: hold.unitId, number: hold.unitNumber }
+                    : { id: unitIdProp as string, number: resolvedUnitNumberRef.current },
+                  /* One or the other — the lease is made with reservation_id
+                     when a reservation is being completed, and with the hold
+                     token otherwise (finalizeLease sends whichever is set). */
+                  holdToken: hold?.holdToken,
+                  reservationId: reservationIdProp,
                   contact: {
                     first: c?.first ?? '',
                     last: c?.last ?? '',
@@ -3303,10 +3592,10 @@ export function RentalFlow2Step({
                     businessName: c?.businessName,
                     // The tenant's address is the billing address they just
                     // typed — the form asks for one address, not two.
-                    address: billing.address,
-                    city: billing.city,
-                    state: billing.state,
-                    zip: billing.zip,
+                    address: billing.address ?? '',
+                    city: billing.city ?? '',
+                    state: billing.state ?? '',
+                    zip: billing.zip ?? '',
                   },
                   // Exactly one of these is set — see RentArgs.
                   card: card && {
@@ -3321,6 +3610,10 @@ export function RentalFlow2Step({
                     // PAN here to read a brand from.
                   },
                   bank: bank && { ...bank, autoCharge: info.autopay },
+                  // Single-use: it travels in this call and nowhere else. No
+                  // autopay, whatever info.autopay says — a wallet token is a
+                  // one-time payment (see walletPaymentMethod in api.ts).
+                  wallet,
                   startDate: start,
                   // Falls back to the unit row captured before the hold —
                   // API 9 REQUIRES this, and /offers cannot always supply it.
@@ -3347,12 +3640,14 @@ export function RentalFlow2Step({
                       // that can never finish.
                       setFinalizing(undefined);
                       setPayError(res.error);
-                      return;
+                      return false;
                     }
                     console.log(`${logTag} rental complete — lease ${res.leaseId}`);
                     setRental(res);
                     if (info.contact) setRentedContact(info.contact);
                     if (info.extras) setChosenSections(info.extras);
+                    // Completed: the stored reservation has done its job.
+                    if (reservationIdProp) clearReservationHandoff();
                     // The unit is LEASED now, so the hold is spent: forget it so
                     // the countdown stops and unmount does not try to release a
                     // hold that no longer exists. Ref cleared by hand too —
@@ -3362,6 +3657,7 @@ export function RentalFlow2Step({
                     applyHold(undefined);
                     clearUnitSelection();
                     setFinalizing(info);
+                    return true;
                   })
                   .catch((err) => {
                     // rentSpace never throws, so reaching here is a bug rather
@@ -3370,14 +3666,14 @@ export function RentalFlow2Step({
                     setFinalizing(undefined);
                     console.error(`${logTag} rental threw unexpectedly:`, err);
                     setPayError('Something went wrong completing your rental. Please try again.');
+                    return false;
                   }));
-                return;
               }
               // Published checkout must never fall through to the harness
               // completion when the authoritative hold failed or is pending.
               if (!previewEnabled) {
                 setPayError('We couldn’t secure this space. Please return and choose another available space.');
-                return;
+                return Promise.resolve(false);
               }
               // No card, or no hold/quote to rent against — nothing to
               // charge, so this is the harness/preview path: show the
@@ -3388,6 +3684,8 @@ export function RentalFlow2Step({
               // The pick has been acted on — drop it so returning to /rental
               // later starts clean instead of silently re-selecting it.
               clearUnitSelection();
+              // Nothing was charged — the preview completed as designed.
+              return Promise.resolve(true);
             }}
           />
         )}
@@ -3492,6 +3790,16 @@ export function RentalFlow2Step({
                 // in this same tick.
                 holdRef.current = undefined;
                 applyHold(undefined);
+                /* The CODE the office knows the reservation by, read back from
+                   the reservation record — the reserve reply only carries the
+                   id. The id stays as the fallback so a failed lookup degrades
+                   to what this page showed before, never to an empty card. */
+                const reservationCode = result.reservationId
+                  ? await fetchReservationCode(ctx, result.reservationId)
+                  : undefined;
+                if (result.reservationId && !reservationCode) {
+                  console.warn(`${logTag} no reservation code returned for ${result.reservationId}; showing the id`);
+                }
                 // Bind the confirmation to a one-time nonce: the payload (incl.
                 // PII + code) lives in sessionStorage; only the nonce is in the URL.
                 const nonce = stashConfirmation({
@@ -3499,7 +3807,7 @@ export function RentalFlow2Step({
                   name: contact.first,
                   phone: contact.phone,
                   unitNumber: result.unitNumber ? `#${result.unitNumber}` : undefined,
-                  code: result.reservationId,
+                  code: reservationCode ?? result.reservationId,
                   moveInDate: fmtDisplayDate(moveIn),
                   reservationDate: fmtDisplayDate(new Date()),
                   // Travels WITH the payload: the confirmation is a separate
