@@ -48,7 +48,9 @@ import { Shimmer } from '@shared/Shimmer';
 import { FormField, Button, DateModal, AlertIcon, formatPrice, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { fetchIdvRequirementSetting, fetchSingleStep } from '@shared/internalProperties';
+import { fetchIdvRequirementSetting, fetchPropertySlug, fetchSingleStep } from '@shared/internalProperties';
+import { normaliseBasePath } from '@shared/propertyNav';
+import { withSpacesHash } from '@shared/promoBus';
 import { skipValidation } from '@shared/devBypass';
 
 /**
@@ -242,8 +244,17 @@ export interface RentalFlow2StepProps extends ApiCredProps, WalletConfigProps {
   /** Presentation variant for a remotely operated property. This never
    * enables/disables IDV; every rental still requires verification. */
   idvRemoteOperated?: boolean;
-  /** "Change Space" link target on the order rail (the value-tiers page). */
+  /**
+   * "Change Space" link target on the order rail. Normally UNSET: the link then
+   * goes to this property's own landing page, scrolled to its Space List (see
+   * `spacesUrl`). Set it only to send shoppers somewhere else.
+   */
   changeSpaceUrl?: string;
+  /**
+   * Where the Duda dynamic property pages live — the same `locationBasePath`
+   * #02 prefixes its "Find Storage" links with. Default matches #02.
+   */
+  locationBasePath?: string;
   /** Protection-plan brochure PDF, opened from step 2's "Learn More" lightbox. */
   brochureUrl?: string;
   /**
@@ -1155,6 +1166,7 @@ export function RentalFlow2Step({
   liveCheckoutIdv = false,
   idvRemoteOperated = false,
   changeSpaceUrl,
+  locationBasePath = '/storage-units',
   previewContent = false,
   inEditor = false,
   idvRequirementPreview,
@@ -1262,11 +1274,12 @@ export function RentalFlow2Step({
     const n = Number(urlParam('instoreValue') ?? stored?.instoreValue);
     return Number.isFinite(n) && n > 0 ? n : undefined;
   })();
-  // "Change Space" returns to the value-tiers page the shopper came from.
+  // "Change Space" FALLBACK: the page the shopper came from, at its Space List.
+  // Only when the property's own page cannot be built — see spacesUrl below.
   const backToSpacesUrl = (() => {
     try {
       const ref = document.referrer;
-      if (ref && new URL(ref).origin === window.location.origin) return ref;
+      if (ref && new URL(ref).origin === window.location.origin) return withSpacesHash(ref);
     } catch { /* referrer unavailable */ }
     return undefined;
   })();
@@ -1386,6 +1399,34 @@ export function RentalFlow2Step({
       .catch((err) => console.warn(`${logTag} single_step lookup failed:`, err));
     return () => { cancelled = true; };
   }, [effectivePropertyId, logTag]);
+  /*
+   * WHERE "Change Space" GOES: this property's landing page, at its Space List.
+   *
+   * Built the way #02's nav and #19's "+ Add a Space" build theirs — the
+   * property's `slug` from PropertiesInternal under `locationBasePath` — with
+   * the hash #05 scrolls itself into view for (@shared/promoBus).
+   *
+   * It used to be the referrer alone, which is only the property page when the
+   * shopper happened to arrive from it: a Select on a city page or on another
+   * facility's nearby card sent "Change Space" back THERE, and a direct visit
+   * had no link at all. The referrer stays as the fallback where the collection
+   * cannot answer (no dmAPI in the editor or the harness, no row, no slug).
+   */
+  const [propertyPageUrl, setPropertyPageUrl] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    setPropertyPageUrl(undefined);
+    if (!effectivePropertyId) return undefined;
+    let cancelled = false;
+    fetchPropertySlug(effectivePropertyId)
+      .then((slug) => {
+        if (cancelled || !slug) return;
+        setPropertyPageUrl(withSpacesHash(`${normaliseBasePath(locationBasePath)}/${slug}`));
+      })
+      .catch((err) => console.warn(`${logTag} property slug lookup failed:`, err));
+    return () => { cancelled = true; };
+  }, [effectivePropertyId, locationBasePath, logTag]);
+  /** An operator-set `changeSpaceUrl` still wins, exactly as written. */
+  const spacesUrl = boundText(changeSpaceUrl) || propertyPageUrl || backToSpacesUrl;
   const formMode: FormMode = collectionSingleStep === undefined
     ? configuredFormMode
     : (collectionSingleStep ? '1step' : '2step');
@@ -3171,7 +3212,7 @@ export function RentalFlow2Step({
       // "#111" placeholder is the harness only, and only until a selection
       // loads, so a live page never shows a made-up unit.
       unitLabel={unitNumberLabel ?? (previewContent && !selection ? '#111' : undefined)}
-      changeSpaceUrl={rented ? undefined : (changeSpaceUrl ?? backToSpacesUrl)}
+      changeSpaceUrl={rented ? undefined : spacesUrl}
       /* `rented` IS "the money has been taken" — it is only ever true on the
          success screens, and the rail's total there is what was paid, not what
          is still owed. It had been driving nothing but changeSpaceUrl, so the
@@ -3424,7 +3465,7 @@ export function RentalFlow2Step({
             brandName={brandName || undefined}
             transactionState={transactionState}
             onRetry={() => setLoadAttempt((n) => n + 1)}
-            changeSpaceUrl={changeSpaceUrl ?? backToSpacesUrl}
+            changeSpaceUrl={spacesUrl}
             reserveError={reserveError}
             onRent={(c) => { setContact(c); setIntent('rent'); setDateModalOpen(true); }}
             onReserve={(c) => { setContact(c); setIntent('reserve'); setReserveError(undefined); setDateModalOpen(true); }}
