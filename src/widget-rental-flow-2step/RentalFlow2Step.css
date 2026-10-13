@@ -2619,6 +2619,20 @@
 }
 .rf-wrapper .rf-sheethead-phone svg { flex: 0 0 auto; }
 
+/* GREY HEADER OVER A WHITE SUMMARY in the mobile dropdown.
+   With the sheet open this row is the top of the screen, and white against
+   iPhone Safari's own light toolbar it read as part of the browser. #f4f6f8 is
+   the grey every section panel on these pages sits on (.rf2-panel), so the
+   header reads as page rather than chrome — and the summary beneath it goes
+   white, so the grey marks the header off from it. Originally these were the
+   other way round: white header, #f4f6f8 summary (the .rfm-sheet rule further
+   down, which the extra .rf-wrapper here outranks).
+   Text stays dark, and a logo drawn for a light ground still works on it. */
+.rf-wrapper .rf-sheethead { background: #f4f6f8; }
+.rf-wrapper .rfm-sheet,
+.rf-wrapper .rfm-sheet .ts-card,
+.rf-wrapper .rfm-sheet .rfr-card { background: #fff; }
+
 /* --- Mobile: sticky top cost bar + drop-down rail sheet ------------------ */
 /* The bar's slot in the flow. Everything visible sits in .rfm-panel, which is
    absolute, so opening the sheet cannot move the page behind it — this element
