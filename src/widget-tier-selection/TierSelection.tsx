@@ -161,6 +161,29 @@ const TIER_SLOTS: TierKey[] = ['good', 'better', 'best'];
 // Scarcity threshold — matches the Space List's default urgencyThreshold.
 const URGENCY_THRESHOLD = 5;
 
+/**
+ * Hand off to the rental flow. Duda's editor/preview router does not resolve a
+ * root-relative path, so on the published site it is made absolute; elsewhere
+ * it is left relative. Shared by the Select button and the single-tier skip, so
+ * both arrive at the rental flow the same way.
+ */
+function navigateToRental(target: string) {
+  const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
+  const isLive = typeof dm !== 'undefined' && dm?.getCurrentEnvironment?.() === 'live';
+  window.location.href = isLive ? window.location.origin + target : target;
+}
+
+/**
+ * The one tier a shopper could actually pick, or undefined when there is a real
+ * choice to make (or nothing to pick at all). buildTierData also emits sold-out
+ * slots: they render as cards but cannot be chosen, so a single live offer
+ * beside them is still not a choice.
+ */
+function soleSelectableTier(tiers: Tier[]): Tier | undefined {
+  const selectable = tiers.filter((t) => !t.soldOut);
+  return selectable.length === 1 ? selectable[0] : undefined;
+}
+
 function buildTierData(data: import('./api').ValueTierData, facilityHours?: string, vacant?: number, enablePromoLogic = true, subtitle?: string): TierData {
   // Assign each offer to its OWN authoritative tier slot — never relocate an
   // offer between keys; the key is its selection + rental-flow handoff identity.
@@ -731,12 +754,7 @@ export function TierSelection({
     const href = rentHrefRef.current?.(key);
     if (!href) return;
     e.preventDefault();
-    const go = (target: string) => {
-      const dm = (window as unknown as { dmAPI?: { getCurrentEnvironment?: () => string } }).dmAPI;
-      const isLive = typeof dm !== 'undefined' && dm?.getCurrentEnvironment?.() === 'live';
-      window.location.href = isLive ? window.location.origin + target : target;
-    };
-    go(href);
+    navigateToRental(href);
   }, []);
 
 
@@ -804,6 +822,7 @@ export function TierSelection({
         const [liveTiers, property] = await Promise.all([tiersReq, propReq]);
         if (cancelled) return;
         let tiers = liveTiers;
+        let usedSample = false;
         // Harness only (compiled out of production): when the live offers carry
         // no value tiers, show sample tiers so the layouts can be reviewed.
         if (__HB_DEV_HARNESS__ && (!tiers?.value || tiers.soldOut || !tiers.showTierPricing)) {
@@ -811,6 +830,7 @@ export function TierSelection({
           if (sampleValue) {
             console.info('[TierSelection] harness: live offers have no value tiers — showing sample data');
             tiers = { showTierPricing: true, soldOut: false, value: sampleValue, unitGroupId: 'harness-sample', vacant: 3 };
+            usedSample = true;
             setSample(true);
           }
         }
@@ -827,7 +847,36 @@ export function TierSelection({
         // available bundle — defensive; treated as sold out.
         if (!tiers.value) { console.info('[TierSelection] all configured tiers sold out'); setStatus('soldout'); return; }
         const value = tiers.value;
-        setData({ ...buildTierData(value, property?.gateHours, tiers.vacant, effectivePromoLogic, mode === 'modal' ? modalSubtitle : undefined), property });
+        const tierData = buildTierData(value, property?.gateHours, tiers.vacant, effectivePromoLogic, mode === 'modal' ? modalSubtitle : undefined);
+
+        // ONE option is no choice: hand straight to the rental flow rather than
+        // asking the shopper to "choose" from a single card. Done HERE, before
+        // the data reaches state, so the chooser never paints — the shopper
+        // goes skeleton → rental flow, with no one-card screen in between.
+        //
+        // Modal only. The Value Tiers PAGE is a destination someone navigated
+        // to deliberately; redirecting it out from under them is a different
+        // (and much ruder) behaviour than skipping a modal on the way past.
+        //
+        // Counted on SELECTABLE tiers: buildTierData also emits sold-out slots,
+        // which are cards you cannot pick, so they do not make it a choice.
+        if (mode === 'modal' && !usedSample) {
+          const only = soleSelectableTier(tierData.tiers);
+          if (only) {
+            // No href ⇒ not navigable (no/cross-origin rentUrl). Fall through
+            // and show the single card rather than trapping the shopper in a
+            // modal whose only button goes nowhere.
+            const href = hrefForRef.current?.(tierData.size, only.unitId, only.key, tiers.unitGroupId);
+            if (href) {
+              console.info('[TierSelection] single tier — skipping the chooser, handing off to the rental flow');
+              navigateToRental(href);
+              return;
+            }
+            console.warn('[TierSelection] single tier but no rentUrl handoff — showing the chooser');
+          }
+        }
+
+        setData({ ...tierData, property });
         setStatus('live');
         bundlesRef.current = value.bundles;
         tzRef.current = property?.timezone;
@@ -962,12 +1011,11 @@ export function TierSelection({
   // A programmatic window.location bypasses Duda's preview routing and 404s on
   // my.duda.co (same reason the Space List navigates via anchors). undefined ⇒
   // not navigable (no rentUrl / cross-origin) ⇒ the CTA renders disabled.
-  const rentHref = (key: TierKey): string | undefined => {
-    // Harness sample units do not exist: no link at all, so no kind of click
-    // (Ctrl/Cmd/Shift, middle, "open in new tab") can hand one to the rental flow.
-    if (__HB_DEV_HARNESS__ && sample) return undefined;
-    if (!rentUrl || !data) return undefined;
-    const t = data.tiers.find((x) => x.key === key);
+  // Built from its PARTS rather than from `data`, because the single-tier skip
+  // needs the href before the tier data has been committed to state — skipping
+  // after a render would flash the one-card chooser it exists to avoid.
+  const hrefFor = (size: string | undefined, unitId: string | undefined, key: TierKey, groupId?: string): string | undefined => {
+    if (!rentUrl) return undefined;
     let url: URL;
     try { url = new URL(rentUrl, window.location.origin); } catch { return undefined; }
     // Same-origin only: the rent page lives on this site. A cross-origin rentUrl
@@ -976,8 +1024,8 @@ export function TierSelection({
       console.error('[TierSelection] rentUrl blocked — cross-origin refused:', rentUrl);
       return undefined;
     }
-    if (data.size) url.searchParams.set('size', data.size);
-    if (t?.unitId) url.searchParams.set('unitId', t.unitId);
+    if (size) url.searchParams.set('size', size);
+    if (unitId) url.searchParams.set('unitId', unitId);
     url.searchParams.set('tier', key);
     // Carry the facility + group so the rental page queries the right property
     // (not its config default) and the reserve write passes the ownership check.
@@ -991,7 +1039,9 @@ export function TierSelection({
       if (instoreRule.value) url.searchParams.set('instoreValue', String(instoreRule.value));
       if (instoreRule.label) url.searchParams.set('instoreLabel', instoreRule.label);
     }
-    const gid = authoritativeGroupId ?? groupIdRef.current;
+    // groupId is passed explicitly by the skip, which runs before groupIdRef
+    // has been filled in for this open.
+    const gid = groupId ?? authoritativeGroupId ?? groupIdRef.current;
     if (gid) url.searchParams.set('unitGroupId', gid);
     // Root-relative handoff, same as Space List. Note: like Space List, this only
     // resolves on the PUBLISHED site — in the Duda editor/preview it 404s on
@@ -1000,10 +1050,21 @@ export function TierSelection({
     return url.pathname + url.search;
   };
 
+  const rentHref = (key: TierKey): string | undefined => {
+    // Harness sample units do not exist: no link at all, so no kind of click
+    // (Ctrl/Cmd/Shift, middle, "open in new tab") can hand one to the rental flow.
+    if (__HB_DEV_HARNESS__ && sample) return undefined;
+    if (!data) return undefined;
+    return hrefFor(data.size, data.tiers.find((x) => x.key === key)?.unitId, key);
+  };
+
   // rentHref is declared after onSelectClick, so the callback reads it through
   // a ref rather than pulling the whole render into its dependency list.
   const rentHrefRef = useRef<((key: TierKey) => string | undefined) | undefined>(undefined);
   rentHrefRef.current = rentHref;
+  // Same reason: the data effect reads the builder as it was at the last render.
+  const hrefForRef = useRef<typeof hrefFor | undefined>(undefined);
+  hrefForRef.current = hrefFor;
 
   const inner = (
     <div
