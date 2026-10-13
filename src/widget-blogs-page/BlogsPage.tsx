@@ -70,9 +70,6 @@ const DEMO_POSTS: BlogPostData[] = [
   { id: 'b9', title: 'A Landlord’s Guide to Turnover Storage', author: 'Storage Outlet', date: 'Jan 12, 2026 @ 9:30am', timestamp: 1, excerpt: 'Appliances, spare fixtures, and tenant leave-behinds add up fast. Keeping them off-site keeps units rentable.', image: BLOG_IMAGES[2], href: '/blogs/landlords-guide-to-turnover-storage', slug: 'landlords-guide-to-turnover-storage', tags: ['Business', 'Moving'] },
 ];
 
-/** Hold the skeleton back this long so a fast collection read doesn't flash it. */
-const SKELETON_DELAY_MS = 200;
-
 /** Start the next batch before the reader hits the bottom. */
 const PREFETCH_MARGIN = '400px';
 
@@ -491,7 +488,6 @@ export function BlogsPage({
 
   const [posts, setPosts] = useState<BlogPostData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pastDelay, setPastDelay] = useState(false);
 
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [query, setQuery] = useState('');
@@ -549,7 +545,6 @@ export function BlogsPage({
     }
 
     let cancelled = false;
-    const timer = setTimeout(() => { if (!cancelled) setPastDelay(true); }, SKELETON_DELAY_MS);
 
     fetchBlogPosts(collection, blogBasePath)
       .then((live) => {
@@ -560,7 +555,7 @@ export function BlogsPage({
       .catch((err) => console.error('[BlogsPage] fetchBlogPosts error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
 
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => { cancelled = true; };
   }, [collection, blogBasePath, urlCategory]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -698,10 +693,12 @@ export function BlogsPage({
     ? <Breadcrumb className="bpg-crumbs" items={[{ label: homeLabel, href: homeHref }, { label: listingLabel }]} />
     : null;
 
-  // Still reading: skeleton once past the delay, nothing before it — never paint
-  // the demo constants first.
+  // Still reading: skeleton from the very first paint — never the demo
+  // constants. It used to hold back 200ms rendering nothing, which made the
+  // page a 0px box that then grew by the whole grid: a layout shift on every
+  // load. The skeleton occupies the loaded layout, so a fast read just swaps
+  // grey for content in place.
   if (loading) {
-    if (!pastDelay) return null;
     return (
       <div className="bpg-wrapper">
         {crumbs}

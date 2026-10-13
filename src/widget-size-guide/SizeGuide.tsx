@@ -7,6 +7,7 @@ import { Shimmer } from '@shared/Shimmer';
 import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
 import storageLocker from './assets/storage-locker.png';
+import { emitShowSize } from '@shared/sizeFilterBus';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -15,6 +16,8 @@ import storageLocker from './assets/storage-locker.png';
 interface SizeUnit {
   id: string;
   title: string;
+  /** Raw dimensions ("5 x 10") — what "See Available Spaces" filters #05 to. */
+  dims?: string;
   /** CSS gradient placeholder until live video thumbnails are wired in. */
   image: string;
 }
@@ -73,7 +76,7 @@ const CARDS_PER_PAGE = 3;
 // ---------------------------------------------------------------------------
 
 /** Video thumbnail, then just the title and the CTA — both centred beneath it. */
-function SizeCard({ unit }: { unit: SizeUnit }) {
+function SizeCard({ unit, band, parking = false }: { unit: SizeUnit; band: string; parking?: boolean }) {
   return (
     <div className="sg-card">
       <div className="sg-card-image" style={{ background: unit.image }}>
@@ -81,7 +84,19 @@ function SizeCard({ unit }: { unit: SizeUnit }) {
       </div>
       <div className="sg-card-body">
         <p className="sg-card-title">{unit.title}</p>
-        <a className="sg-see-all" href="#">See Available Spaces</a>
+        {/* Filters the Space List on this page to this size IN THIS TAB and
+            scrolls up to it (@shared/sizeFilterBus). No such space, or no Space
+            List on the page → no-op. */}
+        <a
+          className="sg-see-all"
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            emitShowSize({ dimensions: unit.dims || unit.title, label: unit.title, band, parking });
+          }}
+        >
+          See Available Spaces
+        </a>
       </div>
     </div>
   );
@@ -122,6 +137,7 @@ export function SizeGuide({
           units: b.items.map((s, i) => ({
             id: s.id,
             title: s.name || s.dimensionsLabel,
+            dims: s.dimensions,
             // thumbnailImage is empty on every row so far, so fall back to the
             // bundled demo art rather than rendering an empty tile.
             image: s.thumbnail ? cover(s.thumbnail) : (CATEGORIES[0].units[i % CATEGORIES[0].units.length]?.image ?? ''),
@@ -138,6 +154,8 @@ export function SizeGuide({
   const cats = live ?? CATEGORIES;
 
   const category = cats[Math.min(catIdx, cats.length - 1)] ?? cats[0];
+  // The Parking tab's sizes filter #05 to parking spaces only.
+  const isParkingTab = /^parking$/i.test(category.key) || /^parking$/i.test(category.label.trim());
 
   const reduceMotion = usePrefersReducedMotion();
 
@@ -175,7 +193,20 @@ export function SizeGuide({
 
   // The band names come from the collection too, so the tabs are skeletons as
   // well — otherwise the demo tab labels would flash before the real ones.
+  // The body sits in the same .sg-desktop / .sg-mobile pair as the real one, so
+  // the breakpoint picks the matching skeleton: a phone gets one full-width card
+  // plus dots, not the 3-up grid squeezed to a third of the height.
   if (loading) {
+    const skeletonCard = (key: number) => (
+      <div className="sg-card" key={key}>
+        <Shimmer h={0} style={{ aspectRatio: '283 / 184', height: 'auto' }} r={16} />
+        <div className="sg-card-body">
+          {/* Line boxes of .sg-card-title (28px × 1.2) and .sg-see-all. */}
+          <Shimmer w="60%" h={34} />
+          <Shimmer w={180} h={19} />
+        </div>
+      </div>
+    );
     return (
       <div className="sg-wrapper">
         <div className="sg-header">
@@ -187,14 +218,22 @@ export function SizeGuide({
             {[92, 108, 84, 100].map((w, i) => <Shimmer key={i} w={w} h={44} r={100} />)}
           </div>
         </div>
-        <div className="sg-grid">
-          {[0, 1, 2].map((i) => (
-            <div className="sg-card" key={i}>
-              <Shimmer h={0} style={{ aspectRatio: '283 / 184', height: 'auto' }} r={16} />
-              <Shimmer w="60%" h={28} style={{ margin: '0 auto' }} />
-              <Shimmer w={120} h={18} style={{ margin: '0 auto' }} />
-            </div>
-          ))}
+        <div className="sg-desktop">
+          <div className="sg-grid">
+            {[0, 1, 2].map(skeletonCard)}
+          </div>
+          {/* The 40px pager a band with more than three sizes shows. Reserved
+              because live bands are routinely longer than a page; a 3-size band
+              gives this back below the cards, which is the cheaper miss. */}
+          <div className="sg-pagination" style={{ height: 40 }} aria-hidden="true">
+            <Shimmer w={96} h={16} r={8} />
+          </div>
+        </div>
+        <div className="sg-mobile">
+          {skeletonCard(0)}
+          <div className="sg-pagination sg-pagination-dots" style={{ height: 16 }} aria-hidden="true">
+            <Shimmer w={96} h={16} r={8} />
+          </div>
         </div>
       </div>
     );
@@ -225,7 +264,7 @@ export function SizeGuide({
           >
             {category.units.map((unit) => (
               <div className="sg-track-item sg-track-item--desk" key={unit.id}>
-                <SizeCard unit={unit} />
+                <SizeCard unit={unit} band={category.key} parking={isParkingTab} />
               </div>
             ))}
           </div>
@@ -268,7 +307,7 @@ export function SizeGuide({
                 key={`${category.key}-${unit.id}`}
                 aria-hidden={i === mobileIdx ? undefined : true}
               >
-                <SizeCard unit={unit} />
+                <SizeCard unit={unit} band={category.key} parking={isParkingTab} />
               </div>
             ))}
           </div>

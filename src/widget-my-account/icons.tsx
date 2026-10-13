@@ -33,9 +33,21 @@ import userArrowRightAsset from './assets/user-arrow-right.svg';
 import userSettingsAsset from './assets/user-settings.svg';
 import infoFilledAsset from './assets/info-filled.svg';
 import infoNoticeAsset from './assets/info-notice.svg';
+import checkTickCircleAsset from './assets/check-tick-circle.svg';
+import messageAsset from './assets/message.svg';
 
 interface AssetIconProps {
   className?: string;
+}
+
+/** 62px green tick-in-circle — the payment-success banner (12949-90476). */
+export function CheckTickCircleIcon({ className }: AssetIconProps) {
+  return <img src={checkTickCircleAsset} alt="" width={62} height={62} className={className} aria-hidden="true" />;
+}
+
+/** 24px speech bubble — "receipt has been sent" (12949-90476). */
+export function MessageIcon({ className }: AssetIconProps) {
+  return <img src={messageAsset} alt="" width={24} height={24} className={className} aria-hidden="true" />;
 }
 
 /** 24×24 stroke glyphs — the sizes Figma exported them at. */
@@ -76,6 +88,22 @@ export function InfoFilledIcon({ className }: AssetIconProps) {
 /** The same mark at the notice banner's own size and Guidance blue. 24×24. */
 export function InfoNoticeIcon({ className }: AssetIconProps) {
   return <img src={infoNoticeAsset} alt="" width={24} height={24} className={className} aria-hidden="true" />;
+}
+
+/**
+ * Solid rounded triangle — the Payment Activity disclosure on MOBILE (the
+ * phone frame draws a filled ▼, not the desktop's outline chevron). Same
+ * glyph as #99's ChevronSolidIcon; points right, rotated in CSS.
+ */
+export function ChevronSolidIcon({ size = 24, className }: { size?: number; className?: string }) {
+  return (
+    <svg className={className} width={(size * 8) / 14} height={size} viewBox="0 0 8 14" fill="none" aria-hidden="true">
+      <path
+        d="M1.58599 0.189675C1.26945 -0.0392302 0.84859 -0.0628562 0.508414 0.129182C0.168238 0.321219 -0.0289727 0.693759 0.00346815 1.08305C0.331619 5.02086 0.331619 8.97915 0.00346815 12.917C-0.0289726 13.3062 0.168238 13.6788 0.508414 13.8708C0.84859 14.0629 1.26945 14.0392 1.58599 13.8103C3.837 12.1825 5.8566 10.2764 7.59304 8.14103C8.13567 7.47372 8.13567 6.52629 7.59304 5.85898C5.8566 3.72356 3.837 1.81746 1.58599 0.189675Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
 }
 
 /** 32×32 — the Payment Activity disclosure, rotated to point down in CSS. */

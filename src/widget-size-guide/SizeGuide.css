@@ -3,7 +3,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .sg-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   max-width: 1330px;
   margin: 0 auto;
@@ -70,7 +70,7 @@
   border: 1px solid #101318;
   background: #fff;
   color: #101318;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 1;

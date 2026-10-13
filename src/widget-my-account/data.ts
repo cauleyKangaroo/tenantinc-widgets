@@ -1,3 +1,5 @@
+import { mediaManagerImagesFor } from '@shared/unitArtwork';
+
 // ===========================================================================
 // Static demo content for #19, lifted from four Figma frames:
 //   • 8815-115354  "Account Info - Display"        → the DEFAULT left panel
@@ -75,6 +77,31 @@ export interface AccountDocument {
   label: string;
   /** Pill to the right. Absent → no pill, as on the frame's last two rows. */
   status?: string;
+  /*
+   * What the file endpoint needs. Both absent on the frame's own rows, which is
+   * how a demo document stays inert rather than firing a request for a file
+   * that does not exist.
+   */
+  leaseId?: string;
+  documentId?: string;
+  /** What the saved file should be called. */
+  filename?: string;
+  /** The record's own flag — false means there is nothing to fetch. */
+  available?: boolean;
+  /** "Jun 1, 2025" — when it was filed. Shown beside the name, because a
+   *  delinquent lease carries the SAME notice many times over (one per month)
+   *  and without the date they read as duplicates. Absent on the sample rows. */
+  date?: string;
+}
+
+/** A card on file, from the account record's paymentMethods — per property. */
+export interface SavedCard {
+  id: string;
+  propertyId: string;
+  last4: string;
+  cardType: string;
+  nameOnCard: string;
+  autopay: boolean;
 }
 
 export interface SpaceProperty {
@@ -89,6 +116,9 @@ export interface SpaceUnit {
   /** "5’ x 7’ I Climate Controlled" — the pipe is the designer's separator. */
   size: string;
   features: string[];
+  /** Picture candidates, most specific first — the same Media Manager chain
+   *  the space cards walk (see @shared/unitArtwork). Empty ⇒ no picture. */
+  images: string[];
   balanceAmount: string;
   balanceDate: string;
 }
@@ -97,6 +127,9 @@ export interface AccountSpace {
   id: string;
   /** Which property's card this unit stacks into. */
   propertyId: string;
+  /** The lease's unpaid invoices — what a payment is posted against. Empty
+   *  on the sample rows (there is nothing real to pay) and on a paid-up lease. */
+  openInvoices: Array<{ id: string; number: string; amount: number }>;
   /** "#41" — as printed, hash included. Heads the unit block. */
   number: string;
   /** "Space #41" — the Account Info panel's heading. */
@@ -184,12 +217,14 @@ export const SPACES: AccountSpace[] = [
   {
     id: 'space-41',
     propertyId: 'prop-3rd-street',
+    openInvoices: [],
     number: '#41',
     title: 'Space #41',
 
     unit: {
       size: '5’ x 7’ I Climate Controlled',
       features: ['24 Hour Access', 'Drive Up', 'Near Entrances', 'No Late Fees'],
+      images: mediaManagerImagesFor('small', { amenity: 'Climate Controlled' }),
       balanceAmount: '$123.00',
       balanceDate: 'Apr 20, 2026',
     },
@@ -235,12 +270,14 @@ export const SPACES: AccountSpace[] = [
   {
     id: 'space-42',
     propertyId: 'prop-3rd-street',
+    openInvoices: [],
     number: '#42',
     title: 'Space #42',
 
     unit: {
       size: '10’ x 10’ I Drive Up Access',
       features: ['24 Hour Access', 'Ground Floor', 'Vehicle Parking', 'Wide Aisle'],
+      images: mediaManagerImagesFor('medium', { amenity: 'Drive-Up Access' }),
       balanceAmount: '$248.00',
       balanceDate: 'May 03, 2026',
     },
@@ -374,6 +411,44 @@ export const EDIT_DEFAULTS: EditForm = {
 
   alternate: { ...CONTACT_DEFAULT },
   emergency: { ...CONTACT_DEFAULT },
+};
+
+/** One row of the "Change Coverage" drop-down (Figma 12272-165228). */
+export interface CoverageOption {
+  id: string;
+  label: string;
+  /** "$13/mo"; '' for "I have my own Insurance", which has no price column. */
+  price: string;
+  /** Listed but not pickable — a plan the API will not move to (a lower one,
+   *  which can only be chosen at the facility). Drawn muted, announced as
+   *  disabled, and `onChange` never fires for it. */
+  disabled?: boolean;
+}
+
+/**
+ * STATIC placeholder plans, verbatim from the frame. To be replaced by the
+ * space's real protection plans — see CoverageMenu.tsx.
+ */
+export const COVERAGE_OPTIONS: CoverageOption[] = [
+  { id: 'cov-1000', label: '$1,000 Coverage', price: '$5/mo' },
+  { id: 'cov-5000', label: '$5,000 Coverage', price: '$13/mo' },
+  { id: 'cov-10000', label: '$10,000 Coverage', price: '$20/mo' },
+  { id: 'own', label: 'I have my own Insurance', price: '' },
+];
+
+/** What the payment-success banner reports (Figma 12949-90476). */
+export interface PaymentReceipt {
+  number: string;
+  amount: string;
+  /** "xxx 6578" — masked, as the frame writes it. */
+  method: string;
+}
+
+/** STATIC — verbatim from the frame, until the payment API returns a real one. */
+export const PAYMENT_RECEIPT_DEMO: PaymentReceipt = {
+  number: 'HW-93873',
+  amount: '$246.00',
+  method: 'xxx 6578',
 };
 
 export const AUTOPAY_UPDATE_NOTE =

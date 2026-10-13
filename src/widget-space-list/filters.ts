@@ -48,7 +48,7 @@ export function filterUnits(units: Unit[], f: FilterState, searchTerm = ''): Uni
     if (!f.amenities.every((a) => unit.amenities.includes(a))) return false;
     if (
       f.promotions.length > 0 &&
-      !f.promotions.some((p) => (unit.promotions ?? []).includes(p))
+      !f.promotions.some((p) => unitPromotions(unit).includes(p))
     ) {
       return false;
     }
@@ -179,4 +179,18 @@ export function activeFilterCount(f: FilterState): number {
     f.amenities.length +
     f.promotions.length
   );
+}
+
+/**
+ * The promotions a unit counts as having, for the Promotions filter.
+ *
+ * Its explicit `promotions` categories when it has them, else its own promo
+ * title. The live mapper never sets `promotions`, so filtering on it alone
+ * matched nothing — and the options it was filtered against were a hardcoded
+ * demo list ("Get a free Bunny Rabbit"). Options and matching both come from
+ * here now, so every option offered is one a unit on the page actually has.
+ */
+export function unitPromotions(unit: Unit): string[] {
+  if (unit.promotions?.length) return unit.promotions;
+  return unit.promo ? [unit.promo] : [];
 }

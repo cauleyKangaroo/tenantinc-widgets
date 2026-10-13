@@ -34,6 +34,8 @@ export interface ReviewItem {
   timeAgo: string;
   /** Reviewer avatar URL, '' when absent. */
   avatar: string;
+  /** This review on the platform itself, '' when the row carries none. */
+  url: string;
   /** Sort key: ms since epoch, 0 when the row has no usable date. */
   timestamp: number;
 }
@@ -105,7 +107,7 @@ export async function fetchReviewSource(
   const reviews: ReviewItem[] = rows
     .map((r, i) => {
       const when = toDate(r.reviewDate) ?? toDate(r.timeCreated);
-      const given = str(r.relativeTime); // Google only
+      const given = plainText(r.relativeTime); // Google only — native, so may be rte-wrapped
       return {
         id: str(r.reviewKey) || str(r.reviewId) || `${platform}-${i}`,
         author: plainText(platform === 'google' ? r.authorName : r.userName),
@@ -113,6 +115,7 @@ export async function fetchReviewSource(
         text: plainText(r.reviewText),
         timeAgo: given || relativeFrom(when),
         avatar: str(platform === 'google' ? r.profilePhotoUrl : r.userImageUrl),
+        url: str(r.reviewUrl) || str(r.url),
         timestamp: when ? when.getTime() : 0,
       };
     })
@@ -252,6 +255,28 @@ export function ratingForProperty(
     }
   }
   return ratings.overall;
+}
+
+/**
+ * The rating for one property ONLY when a place in the collection is that
+ * property — `ratingForProperty` without the site-wide fallback.
+ *
+ * For lists of OTHER facilities (#07's cards). There, the fallback would put
+ * one business's score and review count on every facility that Google names
+ * differently — a stranger's stars on the card. No match ⇒ null ⇒ no row.
+ */
+export function matchedRatingForProperty(
+  propertyName: string,
+  ratings: { byPlace: Map<string, RatingSummary> },
+): RatingSummary | null {
+  const key = nameKey(propertyName);
+  if (!key) return null;
+  const exact = ratings.byPlace.get(key);
+  if (exact) return exact;
+  for (const [k, v] of ratings.byPlace) {
+    if (k.includes(key) || key.includes(k)) return v;
+  }
+  return null;
 }
 
 /** Both platforms at once; each is independent, so one failing doesn't hide the other. */

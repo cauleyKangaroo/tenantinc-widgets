@@ -7,7 +7,7 @@
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 .ts-wrapper {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   color: #101318;
@@ -19,16 +19,25 @@
 
 /* Reserve the loaded layout height while loading so the page doesn't collapse
    (footer under the header) and then expand when data lands. Breakpoint matches
-   the widget's own mobile switch (MOBILE_BP = 640). Desktop measured: option1
-   select+table+card ~1012px, option2/3 cards ~736px. Mobile (stacked) reserves
-   a floor sized to the mobile skeleton. */
+   the widget's own mobile switch (MOBILE_BP = 640). Measured on the loaded
+   layouts (2026-10-05, 3 tiers with 2/4/6 amenities): option1 914px desktop /
+   884px mobile, option2 595px desktop (3-up; ~1565px stacked at <=900px) /
+   762px mobile, option3 ~736px desktop / ~900px mobile.
+   Option 1 and 2 skeletons mirror their layouts (see TierSkeleton), so these
+   are only floors for them; option 2's desktop floor is OFF because its
+   skeleton grid stacks at <=900px exactly like the cards do, and any single
+   floor would be wrong on one side of that breakpoint. Option 3's skeleton is
+   generic, so its floor is what actually reserves the space. */
 @media (min-width: 640px) {
   .ts-wrapper--loading { min-height: 736px; }
-  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 1012px; }
+  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 914px; }
+  .ts-wrapper--loading.ts-wrapper--option2 { min-height: 0; }
 }
 @media (max-width: 639px) {
   .ts-wrapper--loading { min-height: 640px; }
-  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 700px; }
+  .ts-wrapper--loading.ts-wrapper--option1 { min-height: 884px; }
+  .ts-wrapper--loading.ts-wrapper--option2 { min-height: 762px; }
+  .ts-wrapper--loading.ts-wrapper--option3 { min-height: 900px; }
 }
 
 .ts-grid {
@@ -176,6 +185,11 @@
   border-radius: 8px;
 }
 .ts-promo-icon { color: var(--color_1, #f45f30); flex: 0 0 auto; }
+/* Option 1's promo reservation (see the TSX): the banner's 26px margin + 44px
+   box. flow-root so that margin stays INSIDE the slot rather than collapsing
+   through it — otherwise a filled slot would be 26px taller than an empty one,
+   the very jump it exists to stop. */
+.ts-promo-slot { display: flow-root; min-height: 70px; }
 .ts-promo-text {
   font-size: 14px;
   font-weight: 700;
@@ -498,6 +512,7 @@
 .ts-m-pills .ts-pill { padding-top: 10px; }
 
 .ts-m-promo { margin-top: 22px; }
+.ts-m-promo-slot { min-height: 66px; }
 .ts-m-features { margin-top: 20px; padding-left: 0; gap: 24px; }
 
 .ts-tier-cta--option1-mobile {
@@ -966,7 +981,7 @@
   border-radius: 12px;
   box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
   color: #fff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
   text-align: left;
 }
 .ts-pd-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -1055,7 +1070,7 @@
    stay put while the cards/table scroll. */
 .ts-modal {
   position: relative;
-  font-family: 'Montserrat', sans-serif; /* portaled outside .ts-wrapper — pin the font */
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif; /* portaled outside .ts-wrapper — pin the font */
   background: #f4f6f8;
   border-radius: 20px;
   width: 100%;
@@ -1144,7 +1159,7 @@
 .ts-modal-editor-hint {
   border: 2px dashed #c4cdd5; border-radius: 8px; padding: 16px 20px;
   background: #f9fafb; color: #637381; font-size: 14px; line-height: 1.5;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 .ts-modal-editor-hint b { color: #101318; }
 @media (max-width: 640px) {
@@ -1193,7 +1208,10 @@
     padding: 24px 28px 8px;
   }
   .ts-modal-heading { justify-content: center; padding-right: 0; }
-  .ts-modal-heading-main { text-align: left; width: 100%; padding: 0 44px 0 0; }
+  /* 24px, not 44: the close mark is 32px at right:12px and the header pads
+     28px, so 24 still leaves an 8px gap before it — and the 20px handed back is
+     what lets the title below sit on one line at full size. */
+  .ts-modal-heading-main { text-align: left; width: 100%; padding: 0 24px 0 0; }
   .ts-modal-actions { width: 100%; justify-content: center; }
   /* Keep the close control out of the mobile message row. Previously it sat
      after the centered metadata, which pushed it down and made its position
@@ -1201,17 +1219,23 @@
   .ts-modal-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; flex: 0 0 32px; }
   .ts-modal-close svg { width: 32px !important; height: 32px !important; }
   .ts-modal-meta { align-items: center; text-align: center; width: auto; flex: 1 1 auto; min-width: 0; padding-top: 0; }
-  /* Defensive: an operator-set heading can't blow up the fixed header height —
-     clamp to two lines and break unbreakable strings. Ordinary titles are
-     unaffected. */
+  /* ONE line, left-aligned. "Choose a 10’ x 25’ Option" measures 310px at
+     24px/700, i.e. ~12.9px of width per 1px of type, and the line has the
+     viewport less 80px (28 + 28 header padding, 24 for the close mark). So the
+     size follows the viewport — 24px from ~400px up, ~18px on a 320px phone —
+     rather than wrapping. 13.3 rather than 12.9 leaves a few px of slack.
+     An operator-set heading too long for that ends in an ellipsis, so it still
+     cannot blow up the fixed header height.
+     !important because the modal is portaled to <body>, outside .ts-wrapper,
+     where a host theme's own h2 alignment/size would otherwise outrank a
+     single class. */
   .ts-modal-title {
-    text-align: left;
-    font-size: 24px;
-    overflow-wrap: anywhere;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    display: block;
+    text-align: left !important;
+    font-size: clamp(16px, calc((100vw - 80px) / 13.3), 24px) !important;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
   }
   .ts-modal-subtitle { font-size: 16px; overflow-wrap: anywhere; }
   .ts-modal-urgency { text-align: center; width: 100%; min-height: 1.25em; font-size: 16px; line-height: 1.25; }

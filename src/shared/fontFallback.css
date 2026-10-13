@@ -1,0 +1,49 @@
+/* ===========================================================================
+   'Montserrat Fallback' — a metric-matched stand-in for Montserrat (CLS).
+
+   Every widget's stylesheet is injected by its own bundle, so the Montserrat
+   request only starts once that bundle runs and the swap lands AFTER the first
+   paint. A plain `sans-serif` fallback is ~2-5% narrower than Montserrat, so
+   every text block re-wrapped when the real face arrived — a layout shift on
+   every widget, on every first visit.
+
+   This face is local Arial rescaled to Montserrat's advance widths and line
+   box, so text occupies the same space before and after the swap. Every
+   font stack is `'Montserrat', 'Montserrat Fallback', sans-serif`.
+
+   Tuned by MEASUREMENT against the live Google Montserrat in Edge (widget copy
+   at 14/16/24/36px): widths within 0.1% and identical `line-height: normal`
+   boxes at 400, 600 and 700. Per-weight size-adjust, because Montserrat's
+   weights widen at a different rate from Arial's; ascent/descent are scaled
+   with it (85.79% / 22.25% at size-adjust 112.83%) so the line box holds.
+   =========================================================================== */
+
+@font-face {
+  font-family: 'Montserrat Fallback';
+  src: local('Arial'), local('ArialMT');
+  font-weight: 100 500;
+  size-adjust: 110.84%;
+  ascent-override: 87.33%;
+  descent-override: 22.65%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Montserrat Fallback';
+  src: local('Arial Bold'), local('Arial-BoldMT');
+  font-weight: 600;
+  size-adjust: 107.05%;
+  ascent-override: 90.42%;
+  descent-override: 23.45%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Montserrat Fallback';
+  src: local('Arial Bold'), local('Arial-BoldMT');
+  font-weight: 700 900;
+  size-adjust: 109.01%;
+  ascent-override: 88.80%;
+  descent-override: 23.03%;
+  line-gap-override: 0%;
+}

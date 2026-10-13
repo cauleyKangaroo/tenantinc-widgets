@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './RentalFlow2Step.css';
-import { Step2, type AutopayMode, type PaymentCycle } from './Step2';
+import { Step2, type AutopayMode, type PaymentCycle, type KeyShareOption } from './Step2';
 import type { BillingCountry } from '@shared/paymentForms';
 import { instoreFrom, asInstoreMode, asInstoreAmount } from '@shared/instorePrice';
 import {
@@ -10,10 +10,10 @@ import {
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso,
-  fetchPaymentGateway, TENANT_PAYMENTS, configureApi, currentApiCreds,
-  type RentResult, type ApiCredProps,
+  fetchPaymentGateway, TENANT_PAYMENTS, configureApi, currentApiCreds, previewDocuments,
+  type RentResult, type ApiCredProps, type PaymentCycleKey, type RentalExtras,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
-  type UnitHold, type RentalCtx,
+  type UnitHold, type RentalCtx, type PropertyInfo,
 } from './api';
 import { IDV_SERVICE_CONNECTED, RENTAL_IDV_REQUIREMENT, parseIdvRequirement, type IdvRequirement } from './idvPolicy';
 import { createIdvApi } from './idvApi';
@@ -24,6 +24,9 @@ import { canRenderLiveIdvHarness } from './LiveIdvHarness';
 import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
 import { tokenizeCard } from './gpTokenize';
+import rentalErrorArt from './assets/rental-error.svg';
+import { ContactConfirmationModal, type ConfirmationFacility } from '@shared/components/ContactConfirmation';
+import type { LeadInput } from '@shared/leadsApi';
 import { resolveWalletConfig, type WalletConfigProps } from './walletConfig';
 import { OrderRail } from './OrderRail';
 import { ChevronSolidIcon } from './icons';
@@ -282,7 +285,7 @@ const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 // invents figures when the quote pipeline fails would quote real shoppers
 // prices that are not real. Live sites keep the honest empty state.
 // ---------------------------------------------------------------------------
-const PREVIEW_PROPERTY: import('./api').PropertyInfo = {
+export const PREVIEW_PROPERTY: import('./api').PropertyInfo = {
   // Not a real id on purpose: the preview must not resolve a hero photo out of
   // a live collection and pass it off as this invented property's.
   id: '',
@@ -293,7 +296,7 @@ const PREVIEW_PROPERTY: import('./api').PropertyInfo = {
   phone: '8776577465',
 };
 
-const PREVIEW_SELECTION: SelectionContext = {
+export const PREVIEW_SELECTION: SelectionContext = {
   size: '5’ x 7’',
   inStore: 86,
   online: 64,
@@ -302,7 +305,7 @@ const PREVIEW_SELECTION: SelectionContext = {
   features: ['Climate Controlled', '24 Hour Access', 'Drive Up', 'Near Entrances', 'No Late Fees'],
 };
 
-const PREVIEW_QUOTE: MoveInQuote = {
+export const PREVIEW_QUOTE: MoveInQuote = {
   unitId: 'preview',
   // Deliberately no unitNumber: MoneyBreakdown would add a "Unit #111" ROW, and
   // the frame shows the unit in the header line instead.
@@ -329,6 +332,18 @@ const PREVIEW_PLANS: ProtectionPlan[] = [
   { id: 'preview-1000', coverage: 1000, premium: 11 },
   { id: 'preview-2000', coverage: 2000, premium: 12, name: 'Best Value' },
   { id: 'preview-3000', coverage: 3000, premium: 13 },
+];
+
+/**
+ * Sample Nokē key-share tiers (Figma 12285-189422), harness/editor preview only.
+ * Same rule as PREVIEW_PLANS: real tiers from the property always win, and these
+ * fill in only when there are none AND previewContent is on — so the section can
+ * be reviewed in the harness, while a live property without Nokē still hides it.
+ */
+const PREVIEW_KEY_SHARES: KeyShareOption[] = [
+  { id: 'preview-ks-2', label: '2 Key-Shares', price: 'Included' },
+  { id: 'preview-ks-5', label: '5 Key-Shares', price: '$10' },
+  { id: 'preview-ks-99', label: '99 Key-Shares', price: '$100' },
 ];
 
 // A single labelled field — now the shared @shared/ui <FormField>. `valid`
@@ -471,17 +486,22 @@ const fmtBarCountdown = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).p
 // band, same rows, same sheet — only the copy differs, because by this point
 // there is no hold left to count down and nothing left to pay: it reports what
 // WAS paid and offers the lease summary.
+//
+// A RESERVATION is the exception: it confirms without taking any money, so
+// "paid" would be untrue. The figure there is still what moving in will cost.
 function MobileLeaseBar({
-  total, expanded, onToggle,
+  total, expanded, onToggle, reservation = false,
 }: {
   total?: number;
   expanded: boolean;
   onToggle: () => void;
+  /** Reservation confirmation — nothing has been charged. */
+  reservation?: boolean;
 }) {
   return (
     <button type="button" className="rfm-bar" onClick={onToggle} aria-expanded={expanded}>
       <span className="rfm-bar-row">
-        <span className="rfm-bar-title">Total Paid:</span>
+        <span className="rfm-bar-title">{reservation ? 'Total Cost to Move-In:' : 'Total Paid:'}</span>
         <span className="rfm-bar-total">{total != null ? `$${total.toFixed(2)}` : '\u2014'}</span>
       </span>
       <span className="rfm-bar-row">
@@ -727,6 +747,165 @@ function Step1Form({
         </div>
       )}
       {reserveError && <p className="rf-form-error" role="alert">{reserveError}</p>}
+    </div>
+  );
+}
+
+/**
+ * "Oops … This space is no longer available" (Figma 12453-39451).
+ *
+ * The availability check failed AFTER the shopper picked the space — someone
+ * rented it while they were on the previous page. Replaces the left card: a
+ * contact form so staff can find them an alternative, then `similar` (the
+ * caller's alternative spaces) under "Or choose a similar space".
+ *
+ * Contact me files a lead through `submitLead`, then opens the shared
+ * ContactConfirmationModal — the same "Great, We'll contact you soon." card
+ * #05's waitlist ends on — with this property's details.
+ *
+ * NOT WIRED INTO THE FLOW YET — today `transactionState === 'unavailable'`
+ * still shows Step1Form's inline error, and the flow has no lead call of its
+ * own to pass in. Rendered by the harness's Static screens page until then.
+ * Same Field and validation as Step1Form, so the two cards cannot disagree
+ * about a valid email or phone.
+ */
+export function UnavailableStep({ similar, submitLead, property, spaceLabel }: {
+  /** Alternative spaces — rendered under the divider, which hides without them. */
+  similar?: React.ReactNode;
+  /** Files the enquiry; also what the confirmation's "Send us a Message" uses. */
+  submitLead: (input: LeadInput) => Promise<unknown>;
+  /** For the confirmation's name / address / phone / hours. */
+  property?: PropertyInfo;
+  /** The space that was lost, e.g. "5’ x 7’ Climate Controlled", for the lead text. */
+  spaceLabel?: string;
+}) {
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [first, setFirst] = useState('');
+  const [last, setLast] = useState('');
+  const [attempted, setAttempted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+
+  const checks: [string, boolean][] = [
+    ['rf-ua-email', isValidEmail(email)],
+    ['rf-ua-phone', isPossiblePhone(phone, 'US')],
+    ['rf-ua-first', first.trim().length > 0],
+    ['rf-ua-last', last.trim().length > 0],
+  ];
+  const bad = (id: string) => attempted && !(checks.find(([k]) => k === id)?.[1]);
+  const submit = async () => {
+    setAttempted(true);
+    setError('');
+    if (checks.some(([, ok]) => !ok) || busy) return;
+    setBusy(true);
+    try {
+      await submitLead({
+        first: first.trim(), last: last.trim(), email: email.trim(), phone: phone.trim(),
+        subject: 'Website Inquiry - Space No Longer Available',
+        message: `The space they chose${spaceLabel ? ` (${spaceLabel})` : ''} was rented before they could complete. `
+          + 'Please help them find the best available alternative.',
+      });
+      setConfirmed(true);
+    } catch (err) {
+      console.error('[RentalFlow] unavailable-space createLead error:', err);
+      setError('Sorry, we couldn’t send your details. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // PropertyInfo → the shared card's shape. Phone is raw digits there.
+  const officePhone = property?.phone?.replace(/\D/g, '').replace(/^1?(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
+  const facility: ConfirmationFacility = {
+    name: property?.name,
+    address: property?.address,
+    phones: officePhone ? [{ number: officePhone }] : [],
+    hours: [
+      { title: 'Office Hours', lines: property?.officeHours ?? [] },
+      { title: 'Gate Hours', lines: property?.gateHours ?? [] },
+    ],
+  };
+
+  return (
+    <div className="rf-card rf-ua">
+      <div className="rf-title">
+        <p className="rf-eyebrow">Oops ...</p>
+        <h2 className="rf-heading">This space is no longer available</h2>
+      </div>
+      <p className="rf-ua-text">
+        It looks like someone else just rented this space. Share your contact information, and a
+        member of our team will reach out shortly to help you find the best available alternative.
+      </p>
+
+      <div className="rf-form">
+        <div className="rf-row">
+          <Field id="rf-ua-email" label="Email" type="email" value={email}
+            valid={isValidEmail(email)} error={bad('rf-ua-email')} onChange={setEmail} />
+          <Field id="rf-ua-phone" label="Phone" type="tel" value={phone} phoneCountry="US"
+            valid={isPossiblePhone(phone, 'US')} error={bad('rf-ua-phone')} onChange={setPhone} />
+        </div>
+        <div className="rf-row">
+          <Field id="rf-ua-first" label="First Name" value={first}
+            valid={first.trim().length > 0} error={bad('rf-ua-first')} onChange={setFirst} />
+          <Field id="rf-ua-last" label="Last Name" value={last}
+            valid={last.trim().length > 0} error={bad('rf-ua-last')} onChange={setLast} />
+        </div>
+      </div>
+
+      <div className="rf-actions">
+        <Button tone="cta" block busy={busy} onClick={submit}>Contact me</Button>
+      </div>
+      {error && <p className="rf-form-error rf-ua-error" role="alert">{error}</p>}
+
+      {similar && (
+        <>
+          <div className="rf-or rf-ua-or"><span>Or choose a similar space</span></div>
+          <div className="rf-ua-similar">{similar}</div>
+        </>
+      )}
+
+      <ContactConfirmationModal
+        open={confirmed}
+        onClose={() => setConfirmed(false)}
+        phone={phone.trim()}
+        facility={facility}
+        submitMessage={submitLead}
+      />
+    </div>
+  );
+}
+
+/**
+ * "Hmm … This space is playing hard to get" (Figma 12454-41003) — the generic
+ * "something went wrong while completing your rental" card.
+ *
+ * NOT WIRED INTO THE FLOW YET; rendered by the harness's Static screens page.
+ * The phone is the property's own (`PropertyInfo.phone`, raw digits, formatted
+ * here the way OrderRail formats it). With no phone there is nothing to dial,
+ * so the button is left out rather than pointing at a made-up number.
+ */
+export function RentalErrorStep({ phone }: { phone?: string }) {
+  const digits = phone?.replace(/\D/g, '') ?? '';
+  const display = digits.replace(/^1?(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
+  return (
+    <div className="rf-card rf-err">
+      <div className="rf-title">
+        <p className="rf-eyebrow">Hmm ...</p>
+        <h2 className="rf-heading">This space is playing hard to get</h2>
+      </div>
+      <p className="rf-err-text">
+        Something went wrong while completing your rental. Please call the facility, and our team
+        will help you cross the finish line.
+      </p>
+      {digits && (
+        <div className="rf-actions">
+          <Button tone="cta" block href={`tel:${digits}`}>Call {display}</Button>
+        </div>
+      )}
+      {/* Figma 12519-96217, exported verbatim — single-line drawing of an agent at a desk. */}
+      <img className="rf-err-art" src={rentalErrorArt} width={590} height={272} alt="" />
     </div>
   );
 }
@@ -1263,7 +1442,7 @@ export function RentalFlow2Step({
     () => propertyInfo?.keyShares?.map((k) => ({
       id: k.id,
       label: k.unlimited ? 'Unlimited Key-Shares' : `${k.keyLimit} Key-Shares`,
-      price: k.price > 0 ? formatPrice(k.price) : 'Price Included',
+      price: k.price > 0 ? formatPrice(k.price) : 'Included',
     })),
     [propertyInfo],
   );
@@ -1437,9 +1616,11 @@ export function RentalFlow2Step({
   // Which optional sections the shopper ticked in step 2, carried to the
   // post-purchase screen so it opens them already ticked.
   const idvReturn = useRef(readIdvReturnSnapshot(effectivePropertyId)).current;
-  const [chosenSections, setChosenSections] = useState<
-    { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean } | undefined
-  >(idvReturn?.chosen);
+  // The whole RentalExtras, not just its booleans: the post-purchase screen
+  // needs to know which sections were FILLED IN on the one-step form (and
+  // went out with the lease), so it does not ask for them a second time.
+  // Seeded from the ID-verification return snapshot, which carries the ticks.
+  const [chosenSections, setChosenSections] = useState<RentalExtras | undefined>(idvReturn?.chosen);
   const [rentedContact, setRentedContact] = useState<
     { first: string; last: string; email: string; phone: string } | undefined
   >(idvReturn?.contact);
@@ -1864,6 +2045,15 @@ export function RentalFlow2Step({
    * It is also the ONLY way to price a held unit: the plain GET 409s once
    * anyone holds it — including us.
    */
+  /*
+   * The billing period Step 2 settled on.
+   *
+   * Held here because the QUOTE depends on it: lease-set-up prices the period
+   * as a prepay discount, so the total on the pay button has to be re-fetched
+   * when it changes. Step 2 owns the radio and reports upward.
+   */
+  const [paymentCycle, setPaymentCycle] = useState<PaymentCycleKey>('monthly');
+
   useEffect(() => {
     if (!hold || inEditor) return undefined;
     if (quote && quote.unitId === hold.unitId) return undefined;
@@ -1874,6 +2064,7 @@ export function RentalFlow2Step({
       promotionIds: selection?.promotionIds,
       startDate: ymd(moveIn),
       offerToken: selection?.offerToken,
+      paymentCycle,
     })
       .then((q) => {
         if (cancelled) return;
@@ -1885,7 +2076,7 @@ export function RentalFlow2Step({
         if (!cancelled) { setQuote(undefined); setQuoteFailed(true); }
       });
     return () => { cancelled = true; };
-  }, [hold, quote, ctx, inEditor, insuranceId, selection, moveIn, logTag]);
+  }, [hold, quote, ctx, inEditor, insuranceId, selection, moveIn, paymentCycle, logTag]);
 
   // Re-quote when a choice that changes the money changes — coverage or the
   // move-in date. Only while holding: lease-set-up will not price either of them
@@ -1893,7 +2084,20 @@ export function RentalFlow2Step({
   //
   // The first run is skipped: the hold effect above has just quoted with these
   // exact values, and re-firing would double every request for no new number.
-  const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}`;
+  /*
+   * The real lease document, for the agreement panel.
+   *
+   * documents/preview takes the SAME payload as documents/finalize, so this can
+   * only be fetched once the numbers exist — a hold, a quote and the contact
+   * from Step 1. Before that the panel keeps its written summary.
+   *
+   * Display only: it creates nothing and signs nothing, so it is safe to call
+   * whenever the inputs change.
+   */
+  const [leasePreviewUrl, setLeasePreviewUrl] = useState('');
+  const [leasePreviewHtml, setLeasePreviewHtml] = useState('');
+
+  const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}|${paymentCycle}`;
   const quotedChoice = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!hold || step !== 2) return undefined;
@@ -1909,6 +2113,7 @@ export function RentalFlow2Step({
       promotionIds: selection?.promotionIds,
       startDate: ymd(moveIn),
       offerToken: selection?.offerToken,
+      paymentCycle,
     })
       .then((q) => { if (!cancelled && q) setQuote(q); })
       // Keep the previous quote on failure rather than blanking the rail: the
@@ -1916,7 +2121,110 @@ export function RentalFlow2Step({
       // last figure the API actually stood behind.
       .catch((err) => console.warn(`${logTag} re-quote after a choice change failed — keeping the previous total:`, err));
     return () => { cancelled = true; };
-  }, [hold, step, choiceKey, insuranceId, moveIn, selection, ctx, logTag]);
+  }, [hold, step, choiceKey, insuranceId, moveIn, paymentCycle, selection, ctx, logTag]);
+
+  /*
+   * Fetch the lease preview as soon as the NUMBERS exist — a hold and a quote,
+   * which this page has from the moment it lands — and again when anything in
+   * it moves: the contact, once Step 1 is submitted, and any figure, since the
+   * document quotes the money and a preview built before the shopper changed
+   * coverage, the date or the billing period would show numbers they are not
+   * agreeing to.
+   *
+   * PREFETCHED BEFORE STEP 1 IS FILLED IN, deliberately. The call takes ~4.5s
+   * (measured live 2026-10-08), and it used to wait for the contact, so every
+   * shopper pressed Rent and then looked at an empty agreement panel for that
+   * long. documents/preview accepts a blank contact and returns the same styled
+   * lease with the name left empty — verified live, same date — so the first
+   * fetch goes out with blank fields and the panel has a real document to show
+   * the instant Step 2 opens. The personalised one follows the moment the
+   * contact arrives, and REPLACES it; the shown preview is never cleared in
+   * between, so the shopper sees the lease updating rather than vanishing.
+   * `leasePreviewUpdating` tells the panel to say so while that is in flight.
+   *
+   * KEYED ON WHAT IS SENT, not on what the shopper changed. Keying on
+   * `choiceKey` (which carries the coverage id) fired a second, identical
+   * request the moment Step 2 opened: picking the default plan changed the
+   * key but not one byte of the payload, because coverage reaches the
+   * document only through the quote, and the re-quote had not landed yet.
+   * Driven live 2026-10-08: three requests between Rent and the panel
+   * settling, one of them a byte-for-byte repeat. So the key is the fields
+   * the body is built from — unit, date, cycle, the quote's money, the costs
+   * and the contact — and a change that does not alter the document does not
+   * fetch it again.
+   */
+  const contactKey = contact
+    ? [contact.first, contact.last, contact.email, contact.phone, contact.businessName].map((v) => v ?? '').join('|')
+    : '';
+  const previewKey = hold && quote
+    ? [
+      hold.unitId, ymd(moveIn), paymentCycle, quote.totalDue, quote.rent, quote.billDay,
+      selection?.spaceMixId ?? '', (selection?.promotionIds ?? []).join(','),
+      JSON.stringify(quoteToCosts(quote, ymd(moveIn))), contactKey,
+    ].join('|')
+    : '';
+  // Which payload the preview on screen was built from. Differs from
+  // `previewKey` exactly while a newer one is being fetched.
+  const [leasePreviewShownKey, setLeasePreviewShownKey] = useState('');
+  const leasePreviewUpdating = !!previewKey && leasePreviewShownKey !== previewKey;
+  useEffect(() => {
+    if (!previewKey || !hold || !quote || inEditor) return undefined;
+    let cancelled = false;
+    void previewDocuments(ctx, {
+      unit: { id: hold.unitId, number: hold.unitNumber },
+      contact: {
+        first: contact?.first ?? '',
+        last: contact?.last ?? '',
+        email: contact?.email ?? '',
+        phone: contact?.phone ?? '',
+        businessName: contact?.businessName,
+        /*
+         * Empty, and deliberately so. The billing address is not collected
+         * until the payment form further down the same step, and the preview
+         * is shown ABOVE it — TenantInc's own sample sends blank address
+         * fields with only a zip, so the document renders without them.
+         */
+        address: '', city: '', state: '', zip: '',
+      },
+      startDate: ymd(moveIn),
+      spaceMixId: selection?.spaceMixId ?? resolvedSpaceMixRef.current,
+      billDay: quote.billDay,
+      webRate: quote.rent ?? selection?.price,
+      totalPaymentAmount: quote.totalDue,
+      costs: quoteToCosts(quote, ymd(moveIn)),
+      promotionIds: selection?.promotionIds,
+      paymentCycle,
+      platform: 'website',
+    }).then((docs) => {
+      if (cancelled) return;
+      /*
+       * The LEASE specifically — the call also returns the insurance-denial and
+       * ACH forms, which are not what this panel is showing.
+       *
+       * `super-lease` is matched explicitly: a ClickWrap company returns
+       * `superlease: true` with document_type "super-lease" and the name
+       * "Superlease", so an equality test on 'lease' alone misses it and the
+       * panel would frame whichever form happened to come back first.
+       */
+      const isLease = (t: string, nm: string) =>
+        t === 'lease' || t === 'super-lease' || /lease/i.test(nm);
+      const lease = docs.find((d) => isLease(d.documentType, d.name)) ?? docs[0];
+      /*
+       * Only REPLACE on success. A failed fetch (empty `docs`) keeps the last
+       * preview on screen rather than blanking the panel; the key is still
+       * recorded so the "updating" badge does not sit there forever over a
+       * document that is not going to change.
+       */
+      if (lease) {
+        setLeasePreviewUrl(lease.previewUrl ?? '');
+        setLeasePreviewHtml(lease.html ?? '');
+      }
+      setLeasePreviewShownKey(previewKey);
+    });
+    return () => { cancelled = true; };
+    // `previewKey` already folds in every value read here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewKey, inEditor]);
 
   // Countdown driven by the acquisition timestamp, not a decrementing
   // counter — survives re-renders and background-tab throttling.
@@ -2513,6 +2821,7 @@ export function RentalFlow2Step({
                 total={snap?.quote?.totalDue}
                 expanded={railOpen}
                 onToggle={onRailToggle}
+                reservation={confirmation.kind === 'reservation'}
               />
             </div>
           </div>
@@ -2823,6 +3132,21 @@ export function RentalFlow2Step({
             <SuccessStep
               oneStep={formMode === '1step'}
               chosen={chosenSections}
+              /* So an alternate contact entered here cannot be the tenant. */
+              primary={{
+                first: rentedContact?.first ?? contact?.first,
+                last: rentedContact?.last ?? contact?.last,
+                email: rentedContact?.email ?? contact?.email,
+                phone: rentedContact?.phone ?? contact?.phone,
+              }}
+              /* Filled in on the ONE-STEP form and already on the lease — not
+                 asked again. On two-step nothing is filled at step 2, so every
+                 ticked section arrives here to be completed, as before. */
+              provided={{
+                military: !!chosenSections?.dateOfBirth,
+                altContact: !!(chosenSections?.altFirst || chosenSections?.altLast),
+                vehicle: !!chosenSections?.vehicleType,
+              }}
               verificationPhone={rentedContact?.phone}
               idvRequirement={idvRequirement}
               idvPreview={inEditor === true}
@@ -2948,10 +3272,13 @@ export function RentalFlow2Step({
             oneStep={formMode === '1step'}
             autopayMode={autopayMode}
             paymentCycles={offeredCycles}
-            keyShareOptions={keyShareOptions}
+            keyShareOptions={keyShareOptions?.length ? keyShareOptions : (previewContent ? PREVIEW_KEY_SHARES : keyShareOptions)}
             moveIn={moveIn}
             // Everything step 1 already asked for, so step 2 opens filled in.
             contact={contact}
+            leasePreviewUrl={leasePreviewUrl}
+            leasePreviewHtml={leasePreviewHtml}
+            leasePreviewUpdating={leasePreviewUpdating}
             // The whole list, not plans[0]: the card is a dropdown now, so it
             // needs every option. Live plans win; the sample only fills an empty
             // list, and only in the harness.
@@ -2959,6 +3286,7 @@ export function RentalFlow2Step({
             leaseDocName={leaseDoc?.name}
             brochureUrl={brochureUrl}
             onPlanChange={setInsuranceId}
+              onCycleChange={setPaymentCycle}
             onEditDate={() => setDateModalOpen(true)}
             payNowTotal={railQuote?.totalDue}
             paying={paying}
