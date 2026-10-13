@@ -421,3 +421,18 @@ Inputs and where each comes from:
 are Kangaroo proxy endpoints with no counterpart here. The documented rent path
 is lease-set-up → finalize → lease. Confirm whether the proxy wraps these or
 should be retired.
+
+## Reservation code (confirmation page)
+
+The reserve call returns only `reservation.reservation_id` (a database key such as
+`ojDp0WsoKj`). The code the office knows the reservation by lives on the record:
+
+```
+GET {api}/applications/{app}/v1/companies/{companyId}/reservations/{reservationId}
+→ { reservation: { id, code, lease_id, expires, move_in_date, Lease: {...} } }
+```
+
+`companyId` is the site's resolved company (the `Company` collection), never the
+build-time one. The widget reads `reservation.code` (`9W6LZ6`) and shows it as the
+Reservation Code; if the lookup fails it falls back to showing the id, as before.
+Verified live 2026-10-13. See `fetchReservationCode` in `api.ts`.

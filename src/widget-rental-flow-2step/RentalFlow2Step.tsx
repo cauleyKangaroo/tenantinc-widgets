@@ -9,7 +9,7 @@ import {
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection,
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
-  updateContactDetails, dobToIso,
+  updateContactDetails, dobToIso, fetchReservationCode,
   fetchPaymentGateway, TENANT_PAYMENTS, configureApi, currentApiCreds, previewDocuments,
   type RentResult, type ApiCredProps, type PaymentCycleKey, type RentalExtras,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
@@ -3576,6 +3576,16 @@ export function RentalFlow2Step({
                 // in this same tick.
                 holdRef.current = undefined;
                 applyHold(undefined);
+                /* The CODE the office knows the reservation by, read back from
+                   the reservation record — the reserve reply only carries the
+                   id. The id stays as the fallback so a failed lookup degrades
+                   to what this page showed before, never to an empty card. */
+                const reservationCode = result.reservationId
+                  ? await fetchReservationCode(ctx, result.reservationId)
+                  : undefined;
+                if (result.reservationId && !reservationCode) {
+                  console.warn(`${logTag} no reservation code returned for ${result.reservationId}; showing the id`);
+                }
                 // Bind the confirmation to a one-time nonce: the payload (incl.
                 // PII + code) lives in sessionStorage; only the nonce is in the URL.
                 const nonce = stashConfirmation({
@@ -3583,7 +3593,7 @@ export function RentalFlow2Step({
                   name: contact.first,
                   phone: contact.phone,
                   unitNumber: result.unitNumber ? `#${result.unitNumber}` : undefined,
-                  code: result.reservationId,
+                  code: reservationCode ?? result.reservationId,
                   moveInDate: fmtDisplayDate(moveIn),
                   reservationDate: fmtDisplayDate(new Date()),
                   // Travels WITH the payload: the confirmation is a separate
