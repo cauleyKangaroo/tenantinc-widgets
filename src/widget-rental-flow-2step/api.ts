@@ -1747,6 +1747,29 @@ export interface BankPayment extends RentAddress {
   autoCharge?: boolean;
 }
 
+/**
+ * An Apple Pay / Google Pay payment, for the wallet buttons.
+ *
+ * The address fields are OPTIONAL, unlike the other two methods: they are
+ * whatever billing address the wallet sheet returned, and a wallet may return
+ * less than a full one. Every one of them is omitted from the payload when
+ * empty rather than sent blank — see walletPaymentMethod().
+ */
+export interface WalletPayment extends Partial<RentAddress> {
+  type: 'googlepay' | 'applepay';
+  /**
+   * SINGLE-USE. Google: `tokenizationData.token`, already a string. Apple:
+   * `JSON.stringify(payment.token)` — the WHOLE token object; Hummingbird
+   * parses it and reads `.paymentData` itself (tenant_payments_card.js).
+   */
+  token: string;
+  /** Name on the wallet's billing contact, when it gave one. */
+  first?: string;
+  last?: string;
+  /** Enrol the wallet's card for recurring rent (drives API 11). */
+  autoCharge?: boolean;
+}
+
 /** A documented cost line. `costType` is a closed set; dates are YYYY-MM-DD. */
 export interface RentCostLine {
   amount: number;
@@ -1809,15 +1832,16 @@ export interface RentArgs {
    *  which is both the default and the only value the guide names. */
   paymentCycle?: PaymentCycleKey;
   /**
-   * Exactly ONE of `card` / `bank` — whichever the shopper chose.
+   * Exactly ONE of `card` / `bank` / `wallet` — whichever the shopper chose.
    *
-   * Both optional rather than `card` required with a dummy alongside it: a
+   * All optional rather than `card` required with a dummy alongside it: a
    * zeroed CardPayment on the bank path would be a real object full of empty
    * strings that nothing reads, and the first person to read it by mistake
-   * would post an empty card. paymentMethodFor throws if neither is present.
+   * would post an empty card. paymentMethodFor throws if none is present.
    */
   card?: CardPayment;
   bank?: BankPayment;
+  wallet?: WalletPayment;
   /** YYYY-MM-DD. */
   startDate: string;
   /** From the offer — documents/finalize rejects the call without it. */
@@ -2014,25 +2038,67 @@ function achPaymentMethod(bank: BankPayment, autoCharge: boolean): Record<string
 }
 
 /**
+ * The `payment_method` object for Apple Pay / Google Pay.
+ *
+ * Shape read from Hummingbird's own source, not inferred (hummingbird-api-server,
+ * 2026-10-13):
+ *   - validation/objects/payment_method.js accepts `type` 'google' | 'apple',
+ *     and `token` as a plain string. The schema rejects unknown keys, so the
+ *     token must travel as `token`, not `paymentToken`.
+ *   - routes/units/index.js (POST …/lease) copies `payment_method.token` onto
+ *     `paymentToken`, which is what the charge reads.
+ *   - tenant_payments_card.js chargeAppleOrGoogleToken() sends a Google token
+ *     as-is and JSON.parses an Apple one for `.paymentData` — hence the whole
+ *     Apple token object, stringified.
+ * The type names are Hummingbird's ('google'/'apple'), not the GDS
+ * paymentInstrument names Nuxt uses ('googlepay'/'applepay').
+ *
+ * Billing fields are omitted when empty, never sent blank: the schema has
+ * `address: Joi.string()` (no empty allowed) and `zip` must be all digits.
+ */
+function walletPaymentMethod(wallet: WalletPayment, autoCharge: boolean): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    type: wallet.type === 'googlepay' ? 'google' : 'apple',
+    token: wallet.token,
+    // Same as the card: the lease needs a stored method to enrol in autopay
+    // at API 11.
+    save_to_account: true,
+  };
+  const first = wallet.first?.trim();
+  const last = wallet.last?.trim();
+  if (first) body.first = first;
+  if (last) body.last = last;
+  if (wallet.address?.trim()) body.address = wallet.address.trim();
+  if (wallet.city?.trim()) body.city = wallet.city.trim();
+  if (wallet.state?.trim()) body.state = wallet.state.trim();
+  // ZIP+4 ("12345-6789") fails the digits-only pattern, so the base five.
+  const zip = (wallet.zip ?? '').replace(/\D/g, '').slice(0, 5);
+  if (zip.length === 5) body.zip = zip;
+  if (autoCharge) body.auto_charge = true;
+  return body;
+}
+
+/**
  * Which payment_method this rental sends.
  *
  * One place, so the two calls that post a payment method (documents/finalize
  * and the lease) can never disagree about which the shopper chose.
  */
 function paymentMethodFor(args: RentArgs): Record<string, unknown> {
+  if (args.wallet) return walletPaymentMethod(args.wallet, !!args.wallet.autoCharge);
   if (args.bank) return achPaymentMethod(args.bank, !!args.bank.autoCharge);
   if (args.card) return cardPaymentMethod(args.card, !!args.card.autoCharge);
   /*
-   * Neither is a programming error, not a shopper one — the panel cannot be
+   * None is a programming error, not a shopper one — the panel cannot be
    * submitted without a method. Throwing beats posting a payload with no
    * payment_method and reading the API's generic rejection back.
    */
-  throw new Error('rentSpace: neither a card nor a bank account was supplied');
+  throw new Error('rentSpace: no card, bank account or wallet was supplied');
 }
 
 /** Autopay was asked for, whichever method is paying. */
 function wantsAutoCharge(args: RentArgs): boolean {
-  return !!(args.bank?.autoCharge ?? args.card?.autoCharge);
+  return !!(args.wallet?.autoCharge ?? args.bank?.autoCharge ?? args.card?.autoCharge);
 }
 
 /** Browser context the clickwrap signature is stamped with. */
@@ -2624,4 +2690,70 @@ export async function fetchPaymentGateway(ctx: RentalCtx): Promise<PaymentGatewa
     console.warn('[rental] gateway lookup threw:', err);
     return null;
   }
+}
+
+// --- Apple Pay / Google Pay --------------------------------------------------
+//
+// The same two Hummingbird endpoints the Nuxt site calls (utils/gds.js), built
+// the Duda way: creds() for host/app/key, headers() for auth, straight from the
+// browser. `companyId` is already Hummingbird's, so Nuxt's GDS facility lookup
+// has no equivalent here.
+//
+// NOT memoGet/getJson: a merchant session is single-use and expires in ~5
+// minutes, and the Google JWT is minted per request. A cached copy of either is
+// a broken one.
+
+/** One wallet GET → the envelope's inner result, or undefined on any failure.
+ *  The inner status is the real one — HTTP 200 carries failures. */
+async function getWalletEndpoint(label: string, url: string): Promise<InnerResult | undefined> {
+  const { appId } = creds();
+  const res = await fetch(url, { headers: headers() });
+  const env = await res.json().catch(() => undefined) as
+    { applicationData?: Record<string, InnerResult[]> } | undefined;
+  const inner = env?.applicationData?.[appId]?.[0];
+  if (inner?.status !== 200) {
+    console.warn(`[rental] ${label} rejected:`, inner?.status ?? res.status, inner?.msg ?? '');
+    return undefined;
+  }
+  return inner;
+}
+
+/**
+ * Google Pay `merchantInfo.authJwt` for this hostname.
+ *
+ * Note v2 (Apple's is v1). Hummingbird signs `{merchantId, merchantOrigin}`
+ * with `merchantOrigin = domain_name`, so the hostname here must be the same
+ * one the request later names as `merchantOrigin`. Never throws.
+ */
+export async function fetchGooglePayJwt(ctx: RentalCtx): Promise<string | undefined> {
+  if (!ctx.companyId) return undefined;
+  const { baseUrl, appId } = creds();
+  const url = `${baseUrl}/applications/${appId}/v2/companies/${encodeURIComponent(ctx.companyId)}`
+    + `/payments/google-pay-token?domain_name=${encodeURIComponent(window.location.hostname)}`;
+  try {
+    const inner = await getWalletEndpoint('google-pay-token', url);
+    const token = (inner?.data as { token?: unknown } | undefined)?.token;
+    return typeof token === 'string' && token ? token : undefined;
+  } catch (err) {
+    console.warn('[rental] google-pay-token threw:', err);
+    return undefined;
+  }
+}
+
+/**
+ * Apple Pay merchant session — the opaque object `completeMerchantValidation`
+ * takes, passed through untouched. Note v1 (Google's is v2).
+ *
+ * `website_id` is sent EMPTY: Duda has no GDS website record, Nuxt falls back
+ * to '' when its own lookup fails, and Hummingbird only reads the parameter
+ * when it is truthy (routes/payments.js). Throws on a network failure so the
+ * caller can abort the sheet; resolves undefined when the API refuses.
+ */
+export async function fetchApplePayMerchantSession(ctx: RentalCtx): Promise<unknown | undefined> {
+  const { baseUrl, appId } = creds();
+  const q = new URLSearchParams({ domain_name: window.location.hostname, display_name: 'HB', website_id: '' });
+  const url = `${baseUrl}/applications/${appId}/v1/companies/${encodeURIComponent(ctx.companyId)}`
+    + `/payments/apple-pay/merchant-session?${q}`;
+  const inner = await getWalletEndpoint('apple-pay merchant-session', url);
+  return inner?.data;
 }

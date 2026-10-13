@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo , useId} from 'react';
-import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
+import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon } from './icons';
+import { GooglePayButton } from './GooglePayButton';
+import { ApplePayButton } from './ApplePayButton';
+import { WALLET_DEFAULTS, type WalletConfig } from './walletConfig';
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
@@ -9,7 +12,7 @@ import {
 } from './additionalInfo';
 // The mask writes MM/DD/YYYY; the lease payload wants YYYY-MM-DD. Same
 // converter the post-purchase screen uses, so the two cannot drift.
-import { dobToIso } from './api';
+import { dobToIso, type RentalCtx, type WalletPayment } from './api';
 import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankFormValue, type BillingCountry } from '@shared/paymentForms';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
@@ -200,6 +203,7 @@ export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
   brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
+  showApplePay = false, showGooglePay = false, walletCtx, walletConfig = WALLET_DEFAULTS,
 }: {
   moveIn: Date;
   /**
@@ -268,6 +272,9 @@ export function Step2({
     /** Entered bank account + billing details, on the Pay by Bank path.
      *  Mutually exclusive with `card`. */
     bank?: BankFormValue;
+    /** Apple Pay / Google Pay token + the sheet's billing address. Mutually
+     *  exclusive with `card` and `bank`. Single-use — never stored. */
+    wallet?: WalletPayment;
     /** Step 2's own contact fields, which the shopper may have edited after
      *  step 1, so these win over the ones captured there. */
     contact?: { first: string; last: string; email: string; phone: string; businessName?: string };
@@ -279,7 +286,9 @@ export function Step2({
     extras?: RentalExtras;
     /** The Payment Cycle card's selection. */
     paymentCycle?: PaymentCycle;
-  }) => void;
+    /** Resolves true once the rental exists, false on any failure. Apple Pay
+     *  completes its sheet from this; the card and bank forms ignore it. */
+  }) => void | Promise<boolean>;
   /** What the shopper typed in step 1, used as the starting values here so they
    *  do not retype their own name and email one screen later. */
   contact?: { first: string; last: string; email: string; phone: string; business?: boolean; businessName?: string };
@@ -300,6 +309,19 @@ export function Step2({
   /** Country both payment forms open their Billing Country select on, from the
    *  content menu's Country Default. Unset → no preselection. */
   defaultCountry?: BillingCountry;
+  /**
+   * Whether each wallet may be offered at all — the parent's gateway, lease
+   * and capability checks (see `walletsAllowed` in RentalFlow2Step). False
+   * renders NO button, not a disabled one. Apple Pay additionally hides itself
+   * on browsers that cannot pay with it.
+   */
+  showApplePay?: boolean;
+  showGooglePay?: boolean;
+  /** Company/property scope for the wallets' merchant-session and JWT calls.
+   *  Required for either wallet to render. */
+  walletCtx?: RentalCtx;
+  /** The content panel's wallet settings, resolved over WALLET_DEFAULTS. */
+  walletConfig?: WalletConfig;
 }) {
   // Ticked when step 1 said this is a business rental, so the shopper does not
   // answer the same question twice and its fields open ready to fill.
@@ -533,7 +555,7 @@ export function Step2({
   // token is single-use with a 30-minute expiry — comfortably inside the
   // 15-minute unit hold. It is what the (future) server-side move-in
   // charge consumes; no card data exists widget-side.
-  const [payMethod, setPayMethod] = useState<'gpay' | 'apple' | 'card' | 'bank' | null>(null);
+  const [payMethod, setPayMethod] = useState<'card' | 'bank' | null>(null);
   const [payAttempted, setPayAttempted] = useState(false);
   /** Skeleton beat before a static payment form appears (Figma 8507-24610). */
   const [formLoading, setFormLoading] = useState(false);
@@ -582,7 +604,7 @@ export function Step2({
    *  other method relocates beneath it. Wallets are one-tap and never expand. */
   const methodOpen = payMethod === 'card' || payMethod === 'bank';
 
-  const selectPayMethod = (m: 'gpay' | 'apple' | 'card' | 'bank') => {
+  const selectPayMethod = (m: 'card' | 'bank') => {
     if (!formComplete) { setPayAttempted(true); return; }
     const next = payMethod === m ? null : m;
     setPayMethod(next);
@@ -594,11 +616,60 @@ export function Step2({
     }
   };
 
+  /* WALLETS (Apple Pay / Google Pay). One-tap: they never open a panel, so
+     they do NOT go through selectPayMethod — the sheet has to open inside the
+     tap's own call stack, and a state change followed by an effect would be
+     outside it. */
+  /** What a wallet needs the shopper to see: a cancel is silent, everything
+   *  else lands here, beside the buttons. */
+  const [walletError, setWalletError] = useState<string | undefined>(undefined);
+  /**
+   * The gate a wallet runs between the tap and opening its sheet — the same
+   * `required` list that gates the card and bank panels, so "I agree" and
+   * every highlighted field apply equally.
+   *
+   * SYNCHRONOUS, and must stay so: Apple Pay throws and Chrome blocks Google's
+   * popup if anything is awaited before the sheet opens.
+   */
+  const canOpenWallet = (): boolean => {
+    setWalletError(undefined);
+    if (paying) return false;
+    if (!formComplete) { setPayAttempted(true); return false; }
+    if (!(payNowTotal != null && payNowTotal > 0)) {
+      setWalletError('Your total is still being calculated. Please try again in a moment.');
+      return false;
+    }
+    return true;
+  };
+  /**
+   * The sheet came back with a token. Re-checked first, as Nuxt does: the
+   * shopper can untick "I agree" while the sheet is open, and the token then
+   * goes unused — nothing is charged until the lease call spends it.
+   *
+   * Resolves the RENTAL's outcome, so Apple Pay can complete its sheet with
+   * success or failure from what actually happened.
+   */
+  const payWithWallet = (wallet: WalletPayment): Promise<boolean> => {
+    if (!formComplete) {
+      setPayAttempted(true);
+      setWalletError('You have not been charged. Complete the highlighted fields, then try again.');
+      return Promise.resolve(false);
+    }
+    return Promise.resolve(payStatically(undefined, undefined, wallet))
+      .then((ok) => ok === true, () => false);
+  };
+  /* NOT gated on payNowTotal: the total blinks out while a plan change
+     re-prices, and unmounting here would tear down Google's button and
+     re-mint its JWT each time. canOpenWallet refuses a missing total instead. */
+  const showApple = showApplePay && !!walletCtx;
+  const showGoogle = showGooglePay && !!walletCtx;
+
   /** "Pay Now" — hands the parent everything the rental APIs need. */
-  const payStatically = (card?: CardFormValue, bank?: BankFormValue) => onPaymentComplete?.({
+  const payStatically = (card?: CardFormValue, bank?: BankFormValue, wallet?: WalletPayment) => onPaymentComplete?.({
     firstName: first.trim() || 'there',
     card,
     bank,
+    wallet,
     contact: business
       ? { ...splitBusinessName(bizName), email: email.trim(), phone, businessName: bizName.trim() }
       : { first: first.trim(), last: last.trim(), email: email.trim(), phone },
@@ -1055,9 +1126,34 @@ export function Step2({
               that grid while NEITHER is open — once one is, the open panel
               takes their place and the other method moves below it
               (Figma 10080-28749). */}
+          {/* Each wallet renders only where it can actually be used — see
+              showApplePay / showGooglePay — and each can still decline at
+              runtime (Apple on Android or when its SDK is blocked, Google when not
+              ready to pay), so
+              a lone wallet's full-width span is decided in CSS from what
+              actually rendered, not guessed here. */}
+          {(!methodOpen || showApple || showGoogle) && (
           <div className={`rf2-paygrid${methodOpen ? ' rf2-paygrid--wallets' : ''}`}>
-            <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('gpay')}><GooglePayMark /></button>
-            <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('apple')}><ApplePayMark /></button>
+            {showGoogle && walletCtx && (
+              <GooglePayButton
+                config={walletConfig}
+                total={payNowTotal ?? 0}
+                ctx={walletCtx}
+                canOpen={canOpenWallet}
+                onToken={payWithWallet}
+                onError={setWalletError}
+              />
+            )}
+            {showApple && walletCtx && (
+              <ApplePayButton
+                config={walletConfig}
+                total={payNowTotal ?? 0}
+                ctx={walletCtx}
+                canOpen={canOpenWallet}
+                onToken={payWithWallet}
+                onError={setWalletError}
+              />
+            )}
             {!methodOpen && (
               <>
                 <Button
@@ -1083,10 +1179,14 @@ export function Step2({
               </>
             )}
           </div>
+          )}
           {payAttempted && !formComplete && (
             <p className="rf2-gp-note rf2-gp-note--error">
               Complete the highlighted fields (and accept the rental agreement) to continue to payment.
             </p>
+          )}
+          {walletError && (
+            <p className="rf2-gp-note rf2-gp-note--error" role="alert">{walletError}</p>
           )}
           {payError && (
             <p className="rf2-gp-note rf2-gp-note--error" role="alert">{payError}</p>
