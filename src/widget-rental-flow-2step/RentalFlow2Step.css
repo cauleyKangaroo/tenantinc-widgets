@@ -773,6 +773,22 @@
 .rf2-plan:focus,
 .rf2-plan:active { background: #fff !important; }
 .rf2-plan:focus-visible { outline: 2px solid var(--color_2, #509e2f); outline-offset: 2px; }
+/* TEXT COLOUR, stated outright. Both the control and its menu rows are
+   <button>s, and neither set a colour — so anything inside that did not name
+   its own took the button's. On iPhone Safari a button's default text colour
+   is the system blue, which is how the price ("$10/mo") came out blue beside a
+   black "Coverage": .rf2-plan-cov names #101318, .rf2-plan-price never did.
+   On the buttons AND the price, and !important, so neither the browser's
+   default nor a host theme's `button { color }` can bring it back. The chevron
+   draws in currentColor, so this is what keeps it dark as well. */
+.rf2-plan,
+.rf2-plan-opt,
+.rf2-plan-price,
+.rf2-plan-price b,
+.rf2-plan-price span {
+  color: var(--hb-text-night, #101318) !important;
+  -webkit-text-fill-color: currentColor;
+}
 /* One height whatever is selected. Without a floor the control followed its
    contents — ~51px with the Best Value badge, ~38px without — so it jumped as
    the selection changed. 51px is the badge case (35px badge + 8px padding
@@ -1487,6 +1503,32 @@
   color: #fff;
 }
 .rf2-pay svg { flex: 0 0 auto; }
+
+/* Apple Pay / Google Pay. Each may decline to render (unsupported browser, not
+   ready to pay), so a wallet left on its own takes the whole row rather than
+   pairing with Credit / Debit and pushing Pay by Bank onto a row by itself.
+   :has() — where unsupported the wallet simply keeps its one column. */
+.rf2-paygrid > .rf2-wallet:first-child:not(:has(+ .rf2-wallet)) { grid-column: 1 / -1; }
+/* Both wallets declined with a panel open: no empty grid adding a gap. */
+.rf2-paygrid:empty { display: none; }
+/* Google's own button (createButton, buttonSizeMode 'fill') sizes to this
+   host, so the host carries the 64px the Apple button gets from .rf2-pay. */
+.rf2-wallet--google { height: 64px; min-width: 0; }
+.rf2-wallet--google > * { width: 100%; height: 100%; }
+.rf2-wallet-with { font: 500 20px 'Montserrat', sans-serif; color: #fff; }
+/* Apple Pay matches the Google Pay button beside it, state for state — the
+   values are Google's own black-button styles from pay.js: #000 at rest,
+   #3c4043 hovered, #5f6368 pressed. Without this the Apple button inherited
+   .rf2-pay--dark's PINNED look (no hover by design, for the old placeholder
+   wallets) and sat inert next to a Google button that responds, reading as
+   disabled. (0,3,0) + !important to beat that pinned (0,2,0) !important rule
+   and a host `button:hover`. */
+.rf2-pay.rf2-wallet--apple { cursor: pointer !important; transition: background-color .15s ease; }
+.rf2-pay.rf2-wallet--apple,
+.rf2-pay.rf2-wallet--apple:focus { background: #000 !important; }
+.rf2-pay.rf2-wallet--apple:hover { background: #3c4043 !important; }
+.rf2-pay.rf2-wallet--apple:active { background: #5f6368 !important; }
+.rf2-pay.rf2-wallet--apple:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
 .rf2-paylogo { display: inline-flex; align-items: center; gap: 6px; }
 .rf2-paylogo svg { display: block; }
 .rf2-paylogo span { color: #fff; font-weight: 500; font-size: 20px; }
@@ -2189,7 +2231,13 @@
   margin-top: 20px; font-weight: 600; font-size: 18px; color: #101318;
 }
 .rfc-rentnow > span { flex: 0 0 auto; }
-.rfc-rentnow .hb-btn { flex: 1 1 auto; width: auto; }
+/* 280px against the right edge, not the whole of the remaining row — it was
+   filling ~400px, which made it the heaviest thing on the card. */
+.rfc-rentnow .hb-btn { flex: 0 1 280px; width: auto; margin-left: auto; }
+/* Mobile: the prompt, then the button full width beneath it — beside the
+   two-line prompt there is too little row left for the button. */
+.rf-wrapper--mobile .rfc-rentnow { flex-direction: column; align-items: stretch; }
+.rf-wrapper--mobile .rfc-rentnow .hb-btn { flex: 0 0 auto; width: 100%; margin-left: 0; }
 /* Review card */
 /* Figma 8507-24413: WHITE with Elevation M, not the grey panel it was — it is a
    card sitting on the page, not another section of it. 30px/38px insets. */

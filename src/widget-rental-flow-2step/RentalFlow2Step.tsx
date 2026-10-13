@@ -9,7 +9,7 @@ import {
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection,
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
-  updateContactDetails, dobToIso,
+  updateContactDetails, dobToIso, fetchReservationCode,
   fetchPaymentGateway, TENANT_PAYMENTS, configureApi, currentApiCreds, previewDocuments,
   type RentResult, type ApiCredProps, type PaymentCycleKey, type RentalExtras,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
@@ -27,6 +27,7 @@ import { tokenizeCard } from './gpTokenize';
 import rentalErrorArt from './assets/rental-error.svg';
 import { ContactConfirmationModal, type ConfirmationFacility } from '@shared/components/ContactConfirmation';
 import type { LeadInput } from '@shared/leadsApi';
+import { resolveWalletConfig, type WalletConfigProps } from './walletConfig';
 import { OrderRail } from './OrderRail';
 import { ChevronSolidIcon } from './icons';
 /* The ASSET ONLY, deliberately — not the #02 component, its config, its props
@@ -86,7 +87,14 @@ const ymd = (d: Date): string => {
 // Step 2 ("Secure your space now", 8507-23329): full checkout form.
 // ---------------------------------------------------------------------------
 
-export interface RentalFlow2StepProps extends ApiCredProps {
+/*
+ * WalletConfigProps: the Apple Pay / Google Pay content-panel fields
+ * (googlePayEnabled, googlePayEnvironment, …, applePayMerchantIdentifier) and
+ * the currency_code / country_code site texts. Every one is
+ * optional and falls back to walletConfig's WALLET_DEFAULTS — see
+ * resolveWalletConfig for how each is read.
+ */
+export interface RentalFlow2StepProps extends ApiCredProps, WalletConfigProps {
   /**
    * Content-menu IMAGE input (`logoImage`) — the checkout header's logo, so a
    * site that sets its own in #02 can set the same one here.
@@ -478,17 +486,22 @@ const fmtBarCountdown = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).p
 // band, same rows, same sheet — only the copy differs, because by this point
 // there is no hold left to count down and nothing left to pay: it reports what
 // WAS paid and offers the lease summary.
+//
+// A RESERVATION is the exception: it confirms without taking any money, so
+// "paid" would be untrue. The figure there is still what moving in will cost.
 function MobileLeaseBar({
-  total, expanded, onToggle,
+  total, expanded, onToggle, reservation = false,
 }: {
   total?: number;
   expanded: boolean;
   onToggle: () => void;
+  /** Reservation confirmation — nothing has been charged. */
+  reservation?: boolean;
 }) {
   return (
     <button type="button" className="rfm-bar" onClick={onToggle} aria-expanded={expanded}>
       <span className="rfm-bar-row">
-        <span className="rfm-bar-title">Total Paid:</span>
+        <span className="rfm-bar-title">{reservation ? 'Total Cost to Move-In:' : 'Total Paid:'}</span>
         <span className="rfm-bar-total">{total != null ? `$${total.toFixed(2)}` : '\u2014'}</span>
       </span>
       <span className="rfm-bar-row">
@@ -1111,6 +1124,21 @@ export function RentalFlow2Step({
   api_domain,
   app_id,
   api_key,
+  // Apple Pay / Google Pay content-panel fields — see walletConfig.
+  googlePayEnabled,
+  googlePayEnvironment,
+  googlePayMerchantId,
+  googlePayGateway,
+  googlePayGatewayMerchantId,
+  googlePayMerchantName,
+  applePayEnabled,
+  applePayMerchantIdentifier,
+  // Site texts (Content Library → custom) — the site-wide currency/country,
+  // and the site's environment, which picks Google Pay's TEST/PRODUCTION
+  // default.
+  currency_code,
+  country_code,
+  environment: siteEnvironment,
 }: RentalFlow2StepProps) {
   /*
    * Credentials in place BEFORE anything can fetch — during render, not in an
@@ -1428,6 +1456,42 @@ export function RentalFlow2Step({
     return out;
   }, [propertyInfo, unitTypeId]);
   const [leaseDoc, setLeaseDoc] = useState<LeaseDocument | undefined>(undefined);
+  /*
+   * WHETHER APPLE PAY / GOOGLE PAY MAY BE OFFERED AT ALL — Nuxt's
+   * HBPaymentSectionRadio conditions, mapped onto what Duda knows:
+   *
+   *   - tenant_payments only. Nuxt adds wallets to the method list only for
+   *     that gateway. While the gateway is still loading (`undefined`) they
+   *     stay hidden — Nuxt adds them only after its lookup finishes.
+   *   - clickwrap / superlease only. Duda has no clickWrapEnabled /
+   *     superlease.is_enabled flags, but it supports nothing else anyway:
+   *     finalizeDocuments() refuses traditional signing. A resolved lease
+   *     document (super-lease, or one marked signed) is that condition; no
+   *     document, no wallets.
+   *
+   * DELIBERATELY SHOWN IN THE DUDA EDITOR (and the harness, which runs as one):
+   * editors should see the payment section as designed. It is safe — the
+   * editor takes no hold, so a wallet token there can only reach the preview
+   * completion, never rentSpace. Apple's merchant validation will refuse a
+   * non-published hostname; that shows inline as "not available right now".
+   *
+   * The per-wallet content-panel toggles (googlePayEnabled / applePayEnabled)
+   * are applied at the Step2 call site; Apple Pay's browser checks live in ApplePayButton.
+   */
+  /* The content panel's values over the defaults. Memoised on the raw values
+     so the wallets do not see a new object (and Google's button rebuild) on
+     every render. */
+  const walletConfig = React.useMemo(() => resolveWalletConfig({
+    googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
+    googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
+    applePayMerchantIdentifier, currency_code, country_code, environment: siteEnvironment,
+  }), [
+    googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
+    googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
+    applePayMerchantIdentifier, currency_code, country_code, siteEnvironment,
+  ]);
+  const walletsAllowed = gateway === TENANT_PAYMENTS
+    && !!leaseDoc && (leaseDoc.type === 'super-lease' || leaseDoc.signed);
   const [selection, setSelection] = useState<SelectionContext | undefined>(undefined);
   /*
    * PropertiesInternal.idv_requirement — None / Optional / Required, chosen per
@@ -2757,6 +2821,7 @@ export function RentalFlow2Step({
                 total={snap?.quote?.totalDue}
                 expanded={railOpen}
                 onToggle={onRailToggle}
+                reservation={confirmation.kind === 'reservation'}
               />
             </div>
           </div>
@@ -3230,6 +3295,10 @@ export function RentalFlow2Step({
             gatewayPending={gatewayPending}
             zipOnlyBilling={gateway === TENANT_PAYMENTS}
             defaultCountry={defaultBillingCountry}
+            showApplePay={walletsAllowed && walletConfig.applePayEnabled}
+            showGooglePay={walletsAllowed && walletConfig.googlePayEnabled}
+            walletConfig={walletConfig}
+            walletCtx={ctx}
             onPaymentComplete={(info) => {
               // REAL RENTAL. A card plus a live hold and quote means we have
               // everything the documented flow needs (guide APIs 9→10→11), so
@@ -3237,8 +3306,14 @@ export function RentalFlow2Step({
               // cleared or advanced until the lease actually comes back: this
               // charges the card, and a failure has to leave the shopper on the
               // form with their details intact.
-              if ((info.card || info.bank) && hold && quote) {
-                if (paying) return; // in flight — never double-charge
+              /*
+               * RETURNS the outcome — true once the lease exists, false on any
+               * failure — so Apple Pay can complete its sheet from the real
+               * result instead of announcing success before the token is spent.
+               * The card and bank forms ignore it.
+               */
+              if ((info.card || info.bank || info.wallet) && hold && quote) {
+                if (paying) return Promise.resolve(false); // in flight — never double-charge
                 /*
                  * The lightbox opens on the CLICK, not on the response.
                  *
@@ -3268,12 +3343,14 @@ export function RentalFlow2Step({
                 // TypeScript can no longer see that info.card is defined.
                 const card = info.card;
                 const bank = info.bank;
+                const wallet = info.wallet;
                 /*
                  * The billing address, from whichever panel was filled in. Both
                  * forms ask for the same one, and the tenant contact needs an
-                 * address regardless of how they are paying.
+                 * address regardless of how they are paying. A wallet's is
+                 * whatever its sheet returned, and may be partial.
                  */
-                const billing = card ?? bank!;
+                const billing: Partial<import('./api').RentAddress> = card ?? bank ?? wallet ?? {};
                 // Hosted fields already minted a real token inside GP's iframe,
                 // and there is no PAN on this side to tokenize a second time.
                 // Only the plain-input fallback has to ask for one — and that
@@ -3292,7 +3369,7 @@ export function RentalFlow2Step({
                       expMonth: card.expMonth,
                       expYear: card.expYear,
                     });
-                void withToken.then((tok) => rentSpace(ctx, {
+                return withToken.then((tok) => rentSpace(ctx, {
                   unit: { id: hold.unitId, number: hold.unitNumber },
                   holdToken: hold.holdToken,
                   contact: {
@@ -3303,10 +3380,10 @@ export function RentalFlow2Step({
                     businessName: c?.businessName,
                     // The tenant's address is the billing address they just
                     // typed — the form asks for one address, not two.
-                    address: billing.address,
-                    city: billing.city,
-                    state: billing.state,
-                    zip: billing.zip,
+                    address: billing.address ?? '',
+                    city: billing.city ?? '',
+                    state: billing.state ?? '',
+                    zip: billing.zip ?? '',
                   },
                   // Exactly one of these is set — see RentArgs.
                   card: card && {
@@ -3321,6 +3398,8 @@ export function RentalFlow2Step({
                     // PAN here to read a brand from.
                   },
                   bank: bank && { ...bank, autoCharge: info.autopay },
+                  // Single-use: it travels in this call and nowhere else.
+                  wallet: wallet && { ...wallet, autoCharge: info.autopay },
                   startDate: start,
                   // Falls back to the unit row captured before the hold —
                   // API 9 REQUIRES this, and /offers cannot always supply it.
@@ -3347,7 +3426,7 @@ export function RentalFlow2Step({
                       // that can never finish.
                       setFinalizing(undefined);
                       setPayError(res.error);
-                      return;
+                      return false;
                     }
                     console.log(`${logTag} rental complete — lease ${res.leaseId}`);
                     setRental(res);
@@ -3362,6 +3441,7 @@ export function RentalFlow2Step({
                     applyHold(undefined);
                     clearUnitSelection();
                     setFinalizing(info);
+                    return true;
                   })
                   .catch((err) => {
                     // rentSpace never throws, so reaching here is a bug rather
@@ -3370,14 +3450,14 @@ export function RentalFlow2Step({
                     setFinalizing(undefined);
                     console.error(`${logTag} rental threw unexpectedly:`, err);
                     setPayError('Something went wrong completing your rental. Please try again.');
+                    return false;
                   }));
-                return;
               }
               // Published checkout must never fall through to the harness
               // completion when the authoritative hold failed or is pending.
               if (!previewEnabled) {
                 setPayError('We couldn’t secure this space. Please return and choose another available space.');
-                return;
+                return Promise.resolve(false);
               }
               // No card, or no hold/quote to rent against — nothing to
               // charge, so this is the harness/preview path: show the
@@ -3388,6 +3468,8 @@ export function RentalFlow2Step({
               // The pick has been acted on — drop it so returning to /rental
               // later starts clean instead of silently re-selecting it.
               clearUnitSelection();
+              // Nothing was charged — the preview completed as designed.
+              return Promise.resolve(true);
             }}
           />
         )}
@@ -3492,6 +3574,16 @@ export function RentalFlow2Step({
                 // in this same tick.
                 holdRef.current = undefined;
                 applyHold(undefined);
+                /* The CODE the office knows the reservation by, read back from
+                   the reservation record — the reserve reply only carries the
+                   id. The id stays as the fallback so a failed lookup degrades
+                   to what this page showed before, never to an empty card. */
+                const reservationCode = result.reservationId
+                  ? await fetchReservationCode(ctx, result.reservationId)
+                  : undefined;
+                if (result.reservationId && !reservationCode) {
+                  console.warn(`${logTag} no reservation code returned for ${result.reservationId}; showing the id`);
+                }
                 // Bind the confirmation to a one-time nonce: the payload (incl.
                 // PII + code) lives in sessionStorage; only the nonce is in the URL.
                 const nonce = stashConfirmation({
@@ -3499,7 +3591,7 @@ export function RentalFlow2Step({
                   name: contact.first,
                   phone: contact.phone,
                   unitNumber: result.unitNumber ? `#${result.unitNumber}` : undefined,
-                  code: result.reservationId,
+                  code: reservationCode ?? result.reservationId,
                   moveInDate: fmtDisplayDate(moveIn),
                   reservationDate: fmtDisplayDate(new Date()),
                   // Travels WITH the payload: the confirmation is a separate

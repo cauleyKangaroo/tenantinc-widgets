@@ -39,6 +39,9 @@
     .section-note code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 11px; }
     .controls { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .controls-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; }
+    .rf-wallet-field { width: 170px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+    .rf-wallet-field--wide { width: 260px; }
+    .rf-wallet-field--code { width: 60px; text-transform: uppercase; }
     .controls-group-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; width: 100%; margin-bottom: 2px; }
     button { padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 6px;
       background: #fff; font-size: 13px; cursor: pointer; }
@@ -888,6 +891,60 @@
           <label class="checkbox" title="Replaces the flow with the standalone live IDV test panel.">
             <input type="checkbox" id="rf-live-idv-panel" onchange="setRentalFlowFlag('liveIdv', this.checked)">
             Live IDV test panel
+          </label>
+        </div>
+        <!-- Apple Pay / Google Pay content fields — the same variable names the
+             Duda JS tab forwards as data.config.<name>. Text fields start BLANK
+             on purpose: blank is what Duda sends for an untouched field, and
+             the widget then uses the default shown as the placeholder (see
+             resolveWalletConfig in walletConfig.ts). -->
+        <div class="controls-group">
+          <span class="controls-group-label">Content menu — Apple Pay / Google Pay</span>
+          <label class="checkbox">
+            <input type="checkbox" id="rf-google-pay-enabled" checked onchange="reinitRentalFlow()">
+            googlePayEnabled
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="rf-apple-pay-enabled" checked onchange="reinitRentalFlow()">
+            applePayEnabled
+          </label>
+          <label>
+            googlePayEnvironment:
+            <select id="rf-google-pay-environment" class="rf-wallet-field" onchange="reinitRentalFlow()">
+              <option value="">(blank → from site environment)</option>
+              <option value="TEST">TEST</option>
+              <option value="PRODUCTION">PRODUCTION</option>
+            </select>
+          </label>
+          <label>googlePayMerchantId:
+            <input type="text" id="rf-google-pay-merchant-id" class="rf-wallet-field" placeholder="BCR2DN4TZL4LJIY4" onchange="reinitRentalFlow()">
+          </label>
+          <label>googlePayGateway:
+            <input type="text" id="rf-google-pay-gateway" class="rf-wallet-field" placeholder="globalpayments" onchange="reinitRentalFlow()">
+          </label>
+          <label>googlePayGatewayMerchantId:
+            <input type="text" id="rf-google-pay-gateway-merchant-id" class="rf-wallet-field" placeholder="777703693370" onchange="reinitRentalFlow()">
+          </label>
+          <label>googlePayMerchantName:
+            <input type="text" id="rf-google-pay-merchant-name" class="rf-wallet-field" placeholder="Tenant Inc" onchange="reinitRentalFlow()">
+          </label>
+          <label>applePayMerchantIdentifier:
+            <input type="text" id="rf-apple-pay-merchant-identifier" class="rf-wallet-field rf-wallet-field--wide" placeholder="merchant.com.tenantinc.hummingbird" onchange="reinitRentalFlow()">
+          </label>
+        </div>
+        <!-- Site texts — Content Library → custom, which the JS tab forwards from
+             window.siteObject under the same label. The ONLY source for the
+             wallets' currency and country; blank → USD / US. -->
+        <div class="controls-group">
+          <span class="controls-group-label">Site texts (custom)</span>
+          <label>currency_code:
+            <input type="text" id="rf-site-currency-code" class="rf-wallet-field rf-wallet-field--code" placeholder="USD" maxlength="3" onchange="reinitRentalFlow()">
+          </label>
+          <label>country_code:
+            <input type="text" id="rf-site-country-code" class="rf-wallet-field rf-wallet-field--code" placeholder="US" maxlength="2" onchange="reinitRentalFlow()">
+          </label>
+          <label title="Google Pay's TEST/PRODUCTION default when the googlePayEnvironment dropdown is blank: production → PRODUCTION, anything else → TEST.">environment:
+            <input type="text" id="rf-site-environment" class="rf-wallet-field" placeholder="staging" onchange="reinitRentalFlow()">
           </label>
         </div>
       </div>
@@ -2146,6 +2203,20 @@ Special</textarea>
           // this as data.config.gateCodeType. Reach the confirmation by
           // completing the flow, or with ?step=confirm.
           gateCodeType: document.getElementById('rf-gate-code-type').value,
+          // Apple Pay / Google Pay content fields (data.config.<same name>).
+          // Toggles go over as booleans and text as strings, as Duda sends them.
+          googlePayEnabled: document.getElementById('rf-google-pay-enabled').checked,
+          applePayEnabled: document.getElementById('rf-apple-pay-enabled').checked,
+          googlePayEnvironment: document.getElementById('rf-google-pay-environment').value,
+          googlePayMerchantId: document.getElementById('rf-google-pay-merchant-id').value,
+          googlePayGateway: document.getElementById('rf-google-pay-gateway').value,
+          googlePayGatewayMerchantId: document.getElementById('rf-google-pay-gateway-merchant-id').value,
+          googlePayMerchantName: document.getElementById('rf-google-pay-merchant-name').value,
+          applePayMerchantIdentifier: document.getElementById('rf-apple-pay-merchant-identifier').value,
+          // Site texts, forwarded by the JS tab from window.siteObject.
+          currency_code: document.getElementById('rf-site-currency-code').value,
+          country_code: document.getElementById('rf-site-country-code').value,
+          environment: document.getElementById('rf-site-environment').value,
           // IDV: presentation preview only. Live transport is opt-in per URL and
           // never from a published build — see idvTransport in config.json.
           idvRequirementPreview: document.getElementById('rf-idv-requirement').value,
