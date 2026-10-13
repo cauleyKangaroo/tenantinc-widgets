@@ -461,6 +461,27 @@ export async function fetchIdvRequirementSetting(
 }
 
 /**
+ * This property's `slug` — `state/city/property-name-<id>`, its page path under
+ * the site's property base (see @shared/propertyNav).
+ *
+ * `undefined` means UNANSWERED — no dmAPI, no row, or a blank cell — and the
+ * caller keeps whatever it would have linked to without it. plainText first:
+ * this is a native collection, so the cell can arrive rteBlock-wrapped.
+ */
+export async function fetchPropertySlug(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<string | undefined> {
+  const wanted = propertyId.trim();
+  if (!wanted) return undefined;
+  const row = (await readInternalProperties(collectionName))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return undefined;
+  const slug = plainText(row.slug).trim().replace(/^\/+|\/+$/g, '');
+  return slug || undefined;
+}
+
+/**
  * Sort by curated `nearbyLocationPriorityOrder`, then by name.
  *
  * Name is the tie-break the spec asks for: two properties sharing a
