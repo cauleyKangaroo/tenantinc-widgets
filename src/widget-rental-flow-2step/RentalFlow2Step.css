@@ -2038,6 +2038,12 @@
 .rfc-details b { font-weight: 600; }
 .rfc-info-dates p { white-space: nowrap; }
 .rfc-info-dates p:last-child { margin-bottom: 0; }
+/* The calendar belongs to the BLOCK, so it sits on the first line of it
+   (Reservation Date) rather than floating in the gap between the two dates,
+   where it reads as labelling neither. Matches .rfc-info-hours, which is
+   already flex-start above its Office/Gate stack.
+   Mobile only, as asked — the desktop rail still centres it. */
+.rf-wrapper--mobile .rfc-info-dates { align-items: flex-start; }
 /* Hours: clock icon + Office/Gate blocks, with clear spacing before Gate. */
 .rfc-info-hours { display: flex; align-items: flex-start; gap: 10px; margin-top: 0; }
 .rfc-hours { color: #000 !important; line-height: 24px !important; margin: 0 !important; }
@@ -2071,6 +2077,81 @@
 }
 .rfc-code-label { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; color: #101318; }
 .rfc-code { font-size: 30px; font-weight: 600; color: #101318; word-break: break-word; line-height: 1.1; }
+
+/* ── Copy the code ──────────────────────────────────────────────────────── */
+/* position: relative so the "Copied" badge can hang above the code rather than
+   taking part in the layout — it must not nudge the card as it appears. */
+.rfc-code-wrap { position: relative; display: inline-flex; align-items: center; gap: 10px; }
+.rfc-code-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  /* 40px hit target around a 24px glyph — the icon alone is under the 44px
+     touch minimum, and this is the one control on the card. */
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: #101318;
+  cursor: pointer;
+}
+.rfc-code-copy:hover { background: rgba(16, 19, 24, 0.06); }
+.rfc-code-copy:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); }
+
+.rfc-copied {
+  position: absolute;
+  left: 50%;
+  /* BELOW the code, not above it: the "Reservation Code" label sits directly
+     above, so a badge there lands squarely on top of the words it is
+     confirming. The card keeps clear space under the code. */
+  top: calc(100% + 8px);
+  /* The X half is the centring, the Y half is the rise — both live in the one
+     transform, so the keyframes have to restate the centring on every stop. */
+  transform: translateX(-50%) translateY(6px);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #101318;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+/* Up and in (200ms), hold (1s), out (250ms) = COPIED_MS in Confirmation.tsx,
+   which is when the class comes off. `forwards` holds the last frame so it
+   cannot flash back to full opacity in between. */
+.rfc-copied--on { animation: rfc-copied 1.45s ease forwards; }
+@keyframes rfc-copied {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  14%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  83%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(0); }
+}
+/* Still confirm the copy, just without the travel. */
+@media (prefers-reduced-motion: reduce) {
+  .rfc-copied--on { animation: rfc-copied-fade 1.45s ease forwards; }
+  @keyframes rfc-copied-fade {
+    0%, 100% { opacity: 0; transform: translateX(-50%); }
+    14%, 83% { opacity: 1; transform: translateX(-50%); }
+  }
+}
+
+.rfc-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .rfc-code-note { font-size: 13px; color: #637381; }
 /* ── Smart Entry card (Figma 8507-24845) ──────────────────────────────────
    The dashed card's upper half when gateCodeType is smartentrysystem: the two
@@ -2839,6 +2920,17 @@
 .rfm-sheet .ts-feat { font-size: 12px; }
 .rfm-sheet .ts-card-top { flex-wrap: wrap; gap: 12px; }
 .rfm-sheet .ts-card-prices { height: auto; }
+/* Prices drop to sit on the last amenity tick rather than hanging near the top
+   with dead space beneath them. The right column already stretches to the
+   row's height (the left column, ending in the ticks, is the taller of the
+   two), so the prices only need pushing to its floor.
+   margin-top:auto, NOT justify-content:space-between — "Change Space" is only
+   drawn when the shopper arrived from the value-tiers page, and with it absent
+   space-between has a single child to distribute and leaves it at the TOP,
+   which is the bug this is fixing. An auto margin pins the prices down whether
+   the link is there or not. Sheet only: the desktop rail is wider and reads
+   better with the two together at the top. */
+.rfm-sheet .ts-card-prices { margin-top: auto; }
 .rfm-sheet .ts-card-line span,
 .rfm-sheet .ts-bd-row span { min-width: 0; overflow-wrap: anywhere; }
 .rfm-sheet .ts-card-storename { overflow-wrap: anywhere; }
