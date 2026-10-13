@@ -138,13 +138,6 @@ function paymentRequest(config: WalletConfig, total: number, merchantName: strin
   };
 }
 
-/** "Jane Q Smith" → first "Jane", last "Q Smith". */
-function splitName(name?: string): { first?: string; last?: string } {
-  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return {};
-  return { first: parts[0], last: parts.slice(1).join(' ') || undefined };
-}
-
 /**
  * Hummingbird does not stamp an expiry on the JWT, but Google rejects a stale
  * `iat`, and a shopper can sit on this step for a while. Re-minted in the
@@ -155,7 +148,7 @@ const JWT_REFRESH_MS = 10 * 60 * 1000;
 const JWT_RETRY_MS = 30 * 1000;
 
 export function GooglePayButton({
-  config, total, ctx, canOpen, onToken, onError,
+  config, total, ctx, canOpen, onToken, onError, onAvailabilityChange,
 }: {
   /** The content panel's wallet settings, already validated. */
   config: WalletConfig;
@@ -173,6 +166,13 @@ export function GooglePayButton({
   onToken: (wallet: WalletPayment) => void | Promise<boolean>;
   /** Something the shopper should see, inline beside the buttons. */
   onError: (message: string) => void;
+  /**
+   * Whether the button is actually ON SCREEN — reported on every change, and
+   * false on unmount. The parent cannot know this: the button can still
+   * decline after the parent allowed it (an unsupported browser, a failed
+   * check), and copy about wallets must not appear when none is offered.
+   */
+  onAvailabilityChange?: (available: boolean) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   /* State, not a ref: the client is bound to the environment, so changing
@@ -270,7 +270,8 @@ export function GooglePayButton({
           void latest.current.onToken({
             type: 'googlepay',
             token,
-            ...splitName(addr?.name),
+            // No name: the payment_method carries the FORM's first/last, not
+            // the card holder's (see walletPaymentMethod in api.ts).
             address: [addr?.address1, addr?.address2, addr?.address3].filter(Boolean).join(', ') || undefined,
             city: addr?.locality,
             state: addr?.administrativeArea,
@@ -302,6 +303,14 @@ export function GooglePayButton({
 
   // Unsupported here (no SDK, not ready to pay, or no JWT for this host):
   // nothing at all, rather than a button that can only fail.
+  // On screen once the SDK is ready to pay and a JWT has not definitively
+  // failed — the same two conditions the button itself is created under.
+  const available = sdk === 'ready' && !jwtFailed;
+  useEffect(() => {
+    onAvailabilityChange?.(available);
+  }, [available, onAvailabilityChange]);
+  useEffect(() => () => onAvailabilityChange?.(false), [onAvailabilityChange]);
+
   if (sdk === 'off' || jwtFailed) return null;
   // The host holds the button's 64px while the SDK loads, so the grid does not
   // jump when it arrives.
