@@ -2274,9 +2274,21 @@ export function RentalFlow2Step({
   // `previewKey` exactly while a newer one is being fetched.
   const [leasePreviewShownKey, setLeasePreviewShownKey] = useState('');
   const leasePreviewUpdating = !!previewKey && leasePreviewShownKey !== previewKey;
+  /*
+   * NEVER CANCELLED, only superseded. A reply is shown if it is newer than
+   * what is on screen, even when a newer request is already out: cancelling
+   * the blank prefetch the moment the name was typed threw its reply away
+   * (seen live 2026-10-13: blank sent +13.3s, name sent +14.0s, blank reply
+   * +19.5s DROPPED, so Rent at +19.8s met the placeholder until the name's
+   * reply landed). The "updating" badge still says a newer one is coming,
+   * because the shown key only catches up when the newest reply lands.
+   */
+  const previewSeqRef = useRef(0);
+  const previewShownSeqRef = useRef(0);
   useEffect(() => {
     if (!previewKey || !previewUnit || !quote || inEditor) return undefined;
-    let cancelled = false;
+    const seq = ++previewSeqRef.current;
+    const keyForThis = previewKey;
     void previewDocuments(ctx, {
       unit: previewUnit,
       contact: {
@@ -2303,7 +2315,8 @@ export function RentalFlow2Step({
       paymentCycle,
       platform: 'website',
     }).then((docs) => {
-      if (cancelled) return;
+      // Older than what is already on screen: nothing to add.
+      if (seq < previewShownSeqRef.current) return;
       /*
        * The LEASE specifically — the call also returns the insurance-denial and
        * ACH forms, which are not what this panel is showing.
@@ -2323,12 +2336,17 @@ export function RentalFlow2Step({
        * document that is not going to change.
        */
       if (lease) {
+        previewShownSeqRef.current = seq;
         setLeasePreviewUrl(lease.previewUrl ?? '');
         setLeasePreviewHtml(lease.html ?? '');
+        setLeasePreviewShownKey(keyForThis);
+      } else if (seq === previewSeqRef.current) {
+        // The NEWEST request failed: stop the badge rather than leave it
+        // over a document that is not going to change.
+        setLeasePreviewShownKey(keyForThis);
       }
-      setLeasePreviewShownKey(previewKey);
     });
-    return () => { cancelled = true; };
+    return undefined;
     // `previewKey` already folds in every value read here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewKey, inEditor]);
