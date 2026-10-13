@@ -24,8 +24,6 @@ import { APPLE_PAY_API_VERSION, APPLE_PAY_SDK_URL, type WalletConfig } from './w
 // Pay JS, and the project has no @types package for it.
 
 interface ApplePayContact {
-  givenName?: string;
-  familyName?: string;
   addressLines?: string[];
   locality?: string;
   administrativeArea?: string;
@@ -270,8 +268,8 @@ export function ApplePayButton({
       latest.current.onToken({
         type: 'applepay',
         token,
-        first: c?.givenName,
-        last: c?.familyName,
+        // No name: the payment_method carries the FORM's first/last, not
+        // the card holder's (see walletPaymentMethod in api.ts).
         address: c?.addressLines?.filter(Boolean).join(', ') || undefined,
         city: c?.locality,
         state: c?.administrativeArea,

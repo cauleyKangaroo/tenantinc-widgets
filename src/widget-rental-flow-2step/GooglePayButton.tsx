@@ -138,13 +138,6 @@ function paymentRequest(config: WalletConfig, total: number, merchantName: strin
   };
 }
 
-/** "Jane Q Smith" → first "Jane", last "Q Smith". */
-function splitName(name?: string): { first?: string; last?: string } {
-  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return {};
-  return { first: parts[0], last: parts.slice(1).join(' ') || undefined };
-}
-
 /**
  * Hummingbird does not stamp an expiry on the JWT, but Google rejects a stale
  * `iat`, and a shopper can sit on this step for a while. Re-minted in the
@@ -270,7 +263,8 @@ export function GooglePayButton({
           void latest.current.onToken({
             type: 'googlepay',
             token,
-            ...splitName(addr?.name),
+            // No name: the payment_method carries the FORM's first/last, not
+            // the card holder's (see walletPaymentMethod in api.ts).
             address: [addr?.address1, addr?.address2, addr?.address3].filter(Boolean).join(', ') || undefined,
             city: addr?.locality,
             state: addr?.administrativeArea,

@@ -3070,8 +3070,10 @@ export function RentalFlow2Step({
                     // PAN here to read a brand from.
                   },
                   bank: bank && { ...bank, autoCharge: info.autopay },
-                  // Single-use: it travels in this call and nowhere else.
-                  wallet: wallet && { ...wallet, autoCharge: info.autopay },
+                  // Single-use: it travels in this call and nowhere else. No
+                  // autopay, whatever info.autopay says — a wallet token is a
+                  // one-time payment (see walletPaymentMethod in api.ts).
+                  wallet,
                   startDate: start,
                   // Falls back to the unit row captured before the hold —
                   // API 9 REQUIRES this, and /offers cannot always supply it.
