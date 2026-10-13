@@ -486,17 +486,22 @@ const fmtBarCountdown = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).p
 // band, same rows, same sheet — only the copy differs, because by this point
 // there is no hold left to count down and nothing left to pay: it reports what
 // WAS paid and offers the lease summary.
+//
+// A RESERVATION is the exception: it confirms without taking any money, so
+// "paid" would be untrue. The figure there is still what moving in will cost.
 function MobileLeaseBar({
-  total, expanded, onToggle,
+  total, expanded, onToggle, reservation = false,
 }: {
   total?: number;
   expanded: boolean;
   onToggle: () => void;
+  /** Reservation confirmation — nothing has been charged. */
+  reservation?: boolean;
 }) {
   return (
     <button type="button" className="rfm-bar" onClick={onToggle} aria-expanded={expanded}>
       <span className="rfm-bar-row">
-        <span className="rfm-bar-title">Total Paid:</span>
+        <span className="rfm-bar-title">{reservation ? 'Total Cost to Move-In:' : 'Total Paid:'}</span>
         <span className="rfm-bar-total">{total != null ? `$${total.toFixed(2)}` : '\u2014'}</span>
       </span>
       <span className="rfm-bar-row">
@@ -2816,6 +2821,7 @@ export function RentalFlow2Step({
                 total={snap?.quote?.totalDue}
                 expanded={railOpen}
                 onToggle={onRailToggle}
+                reservation={confirmation.kind === 'reservation'}
               />
             </div>
           </div>
