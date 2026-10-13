@@ -43,7 +43,8 @@ import { ReorderModal } from './components/ReorderModal';
 import { SkeletonLoader } from './components/SkeletonLoader';
 import { ACCORDION_SECTIONS, type AccordionConfig } from './accordionSections';
 import { instanceKey, readAccordionConfig, saveAccordionConfig } from './accordionConfigApi';
-import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, type PromoSelection } from '@shared/promoBus';
+import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, scrollToSpaceList, type PromoSelection } from '@shared/promoBus';
+import { SIZE_FILTER_EVENT, unitMatchesSize, type SizeFilterSelection } from '@shared/sizeFilterBus';
 import { RichText } from '@shared/richText';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { PromoTagIcon } from './components/Pricing';
@@ -385,6 +386,30 @@ export function SpaceList({
     clearPromoInUrl();
   }
 
+  // Cross-widget size filter: the Size Guide's "See Available Spaces" narrows the
+  // list to one size (see @shared/sizeFilterBus).
+  const [sizeFilter, setSizeFilter] = useState<SizeFilterSelection | null>(null);
+  // The listener is registered once, so it reads the CURRENT units/visibility
+  // through a ref rather than the values captured on first render.
+  const sizeMatchRef = useRef({ units: [] as Unit[], showUnavailable: false });
+  sizeMatchRef.current = { units, showUnavailable: showUnavailableUnits };
+
+  useEffect(() => {
+    const onShowSize = (e: Event) => {
+      const sel = (e as CustomEvent<SizeFilterSelection>).detail;
+      if (!sel) return;
+      // Tab-specific, and only when this listing actually has such a space.
+      // No match → still take the visitor to the list, but apply nothing.
+      const { units: current, showUnavailable } = sizeMatchRef.current;
+      const hit = current.some((u) =>
+        unitMatchesSize(u, sel) && (showUnavailable || !isUnavailable(u)));
+      if (hit) setSizeFilter(sel);
+      scrollToSpaceList();
+    };
+    window.addEventListener(SIZE_FILTER_EVENT, onShowSize);
+    return () => window.removeEventListener(SIZE_FILTER_EVENT, onShowSize);
+  }, []);
+
   // Feature-page mode: `?feature=<slug>` (set by the Feature Highlights
   // accordion) turns this listing into that one feature's landing page — see
   // featureHighlights.ts.
@@ -577,12 +602,15 @@ export function SpaceList({
       : filterUnits(units, filters, searchTerm);
     // Cross-widget promo filter: only units allocated to the selected promotion.
     if (promoId) filtered = filtered.filter((u) => u.promoId === promoId);
+    // Cross-widget size filter: that exact size in the guide card's own tab
+    // (see unitMatchesSize).
+    if (sizeFilter) filtered = filtered.filter((u) => unitMatchesSize(u, sizeFilter));
     // Sold-out units are hidden unless showUnavailableUnits is on. Visibility is
     // this toggle's job ALONE — enableWaitlist no longer hides anything, it only
     // picks the CTA ("Join waitlist" vs "Call") for whatever is shown. So
     // showUnavailableUnits off + waitlist on still shows nothing sold out.
     return showUnavailableUnits ? filtered : filtered.filter((u) => !isUnavailable(u));
-  }, [units, filters, searchTerm, showUnavailableUnits, promoId, activeFeature]);
+  }, [units, filters, searchTerm, showUnavailableUnits, promoId, sizeFilter, activeFeature]);
   const badge = activeFilterCount(filters);
   const totalVacant = units.reduce((sum, u) => sum + (u.vacantCount ?? 0), 0);
 

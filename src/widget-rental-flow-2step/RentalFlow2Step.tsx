@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './RentalFlow2Step.css';
-import { Step2, type AutopayMode, type PaymentCycle } from './Step2';
+import { Step2, type AutopayMode, type PaymentCycle, type KeyShareOption } from './Step2';
 import type { BillingCountry } from '@shared/paymentForms';
 import { instoreFrom, asInstoreMode, asInstoreAmount } from '@shared/instorePrice';
 import {
@@ -324,6 +324,18 @@ const PREVIEW_PLANS: ProtectionPlan[] = [
   { id: 'preview-1000', coverage: 1000, premium: 11 },
   { id: 'preview-2000', coverage: 2000, premium: 12, name: 'Best Value' },
   { id: 'preview-3000', coverage: 3000, premium: 13 },
+];
+
+/**
+ * Sample Nokē key-share tiers (Figma 12285-189422), harness/editor preview only.
+ * Same rule as PREVIEW_PLANS: real tiers from the property always win, and these
+ * fill in only when there are none AND previewContent is on — so the section can
+ * be reviewed in the harness, while a live property without Nokē still hides it.
+ */
+const PREVIEW_KEY_SHARES: KeyShareOption[] = [
+  { id: 'preview-ks-2', label: '2 Key-Shares', price: 'Included' },
+  { id: 'preview-ks-5', label: '5 Key-Shares', price: '$10' },
+  { id: 'preview-ks-99', label: '99 Key-Shares', price: '$100' },
 ];
 
 // A single labelled field — now the shared @shared/ui <FormField>. `valid`
@@ -1402,7 +1414,7 @@ export function RentalFlow2Step({
     () => propertyInfo?.keyShares?.map((k) => ({
       id: k.id,
       label: k.unlimited ? 'Unlimited Key-Shares' : `${k.keyLimit} Key-Shares`,
-      price: k.price > 0 ? formatPrice(k.price) : 'Price Included',
+      price: k.price > 0 ? formatPrice(k.price) : 'Included',
     })),
     [propertyInfo],
   );
@@ -3195,7 +3207,7 @@ export function RentalFlow2Step({
             oneStep={formMode === '1step'}
             autopayMode={autopayMode}
             paymentCycles={offeredCycles}
-            keyShareOptions={keyShareOptions}
+            keyShareOptions={keyShareOptions?.length ? keyShareOptions : (previewContent ? PREVIEW_KEY_SHARES : keyShareOptions)}
             moveIn={moveIn}
             // Everything step 1 already asked for, so step 2 opens filled in.
             contact={contact}

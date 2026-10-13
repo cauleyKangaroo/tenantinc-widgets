@@ -1331,6 +1331,29 @@
   line-height: normal;
   white-space: nowrap;
 }
+/* "/mo" after a dollar price — the protection plan's suffix size. "Included"
+   carries none: it is not a monthly charge. */
+.rf2-ks-price span { margin-left: 2px; font-size: clamp(12px, 3.2cqi, 14px); font-weight: 600; }
+
+/* Mobile: the key-share control is ONE line — "2 Key-Shares Plan  Included".
+   The shared .rf2-plan-body wraps (the protection plan needs that), which
+   dropped the price under the label, and the label's own white-space:normal
+   then broke "Plan" onto a second line. Scoped to the key-share row via --ks,
+   so the protection plan's control is untouched. A tier name too long for the
+   row ("Unlimited Key-Shares") ends in an ellipsis rather than wrapping or
+   pushing "Included" off the control. */
+@media (max-width: 640px) {
+  .rf2-plan-body--ks { flex-wrap: nowrap; gap: 8px; }
+  .rf2-plan-body--ks .rf2-plan-left { flex: 1 1 auto; min-width: 0; }
+  .rf2-plan-body--ks .rf2-plan-cov {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .rf2-plan-body--ks .rf2-ks-price { font-size: 13px; }
+  .rf2-plan-body--ks .rf2-ks-price span { font-size: 11px; }
+}
 
 /* The key-share card carries a paragraph where the autopay tip carries one
    line, so it gets the frame's wider column (244px of text inside 23px
@@ -2741,6 +2764,11 @@
    than overflowing the frame. */
 .rfm-sheet .ts-card,
 .rfm-sheet .rfr-card { width: 100%; max-width: none; border-radius: 0; box-shadow: none; }
+/* Grey ground in the mobile sheet — the step-2 panels' #f4f6f8. Scoped to
+   .rfm-sheet: the desktop rail and #14 share .ts-card and stay white. */
+.rfm-sheet,
+.rfm-sheet .ts-card,
+.rfm-sheet .rfr-card { background: #f4f6f8; }
 .rfm-sheet .ts-card-body { padding: 20px; }
 /* Amenities 14px -> 12px in the dropdown. Scoped to .rfm-sheet rather than
    .rf-wrapper: .ts-feat is SummaryRail's and #14 uses it too, and the desktop

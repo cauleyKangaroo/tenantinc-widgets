@@ -904,7 +904,7 @@ export function Step2({
                             </span>
                             {best && <span className="rf2-plan-best rf2-plan-best--sm">Best Value</span>}
                           </span>
-                          <span className="rf2-plan-price"><b>${p.premium}</b><span>/month</span></span>
+                          <span className="rf2-plan-price"><b>${p.premium}</b><span>/mo</span></span>
                         </button>
                       </React.Fragment>
                     );
@@ -975,13 +975,13 @@ export function Step2({
               aria-expanded={ksOpen}
               onClick={() => setKsOpen((o) => !o)}
             >
-              <span className="rf2-plan-body">
+              <span className="rf2-plan-body rf2-plan-body--ks">
                 <span className="rf2-plan-left">
                   <span className="rf2-plan-cov">
                     <b>{chosenKeyShare.label}</b> Plan
                   </span>
                 </span>
-                <span className="rf2-ks-price">{chosenKeyShare.price}</span>
+                <span className="rf2-ks-price">{chosenKeyShare.price}{/^\$/.test(chosenKeyShare.price) && <span>/mo</span>}</span>
               </span>
               <span className="rf2-plan-drop">
                 <ChevronSolidIcon size={14} className={`rf2-chev-down${ksOpen ? ' rf2-chev-up' : ''}`} />
@@ -1003,7 +1003,7 @@ export function Step2({
                       <span className="rf2-plan-opt-left">
                         <span className="rf2-plan-opt-cov"><b>{k.label}</b> Plan</span>
                       </span>
-                      <span className="rf2-ks-price">{k.price}</span>
+                      <span className="rf2-ks-price">{k.price}{/^\$/.test(k.price) && <span>/mo</span>}</span>
                     </button>
                   </React.Fragment>
                 ))}
