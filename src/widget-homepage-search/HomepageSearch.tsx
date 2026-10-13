@@ -397,7 +397,7 @@ export function HomepageSearch({
       window.removeEventListener('resize', placePanel);
       window.removeEventListener('scroll', placePanel, true);
     };
-  }, [showLocationPanel, visibleSuggestions.length, q, showCurrentLocation, searching, lookupError]);
+  }, [showLocationPanel, visibleSuggestions.length, q, showCurrentLocation, searching, lookupError, locationNotice]);
 
   useLayoutEffect(() => {
     if (!typeOpen) {
@@ -469,6 +469,13 @@ export function HomepageSearch({
 
   useEffect(() => {
     if (!pendingCoordinates || inventoryStatus === 'loading') return;
+    if (inventoryStatus === 'unavailable') {
+      // The panel already shows the unavailable message; an empty inventory is not "nothing nearby".
+      console.warn('[HomepageSearch] Current Location: locations could not be loaded');
+      setPendingCoordinates(undefined);
+      setLocating(false);
+      return;
+    }
     const candidates = geoTargets.filter(candidate => (!type || candidate.types.includes(type))
       && milesBetween(pendingCoordinates.latitude, pendingCoordinates.longitude, candidate.lat, candidate.lng) <= 200);
     if (!candidates.length) {
@@ -506,6 +513,11 @@ export function HomepageSearch({
         }
         if (inventoryStatus === 'loading') {
           setPendingCoordinates(current);
+          return;
+        }
+        if (inventoryStatus === 'unavailable') {
+          console.warn('[HomepageSearch] Current Location: locations could not be loaded');
+          setLocating(false);
           return;
         }
         console.warn('[HomepageSearch] Current Location: no properties with usable coordinates');

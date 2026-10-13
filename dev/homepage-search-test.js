@@ -62,6 +62,7 @@ async function main() {
 
   let denied = false;
   let resolveInventory;
+  let rejectInventory;
   let queryCalls = 0;
   let resolveOld;
   let browseCalls = 0;
@@ -78,7 +79,7 @@ async function main() {
   const component = load('../src/widget-homepage-search/HomepageSearch.tsx', { ...context, window: widgetWindow, navigator: widgetNavigator, __HB_DEV_HARNESS__: false }, {
     react: React, './HomepageSearch.css': {}, './searchResults': helpers,
     './useLocationPermission': { useLocationPermission: () => [denied, value => { denied = value; }] },
-    '@shared/propertyNav': { fetchLocationTree: (_, opts) => { assert.equal(opts.readAllPages, true); return new Promise(resolve => { resolveInventory = resolve; }); } },
+    '@shared/propertyNav': { fetchLocationTree: (_, opts) => { assert.equal(opts.readAllPages, true); return new Promise((resolve, reject) => { resolveInventory = resolve; rejectInventory = reject; }); } },
     '@shared/ui/icons': { MapPinSolidIcon: Icon, MapPinIcon: Icon, SearchIcon: Icon },
     '@shared/findStorageBus': { openFindStorage: () => { browseCalls++; return true; } },
     '@shared/placesApi': {
@@ -193,7 +194,22 @@ async function main() {
   await React.act(async () => Simulate.focus(input()));
   await React.act(async () => Simulate.click(document.querySelector('.hs-current-location')));
   assert.match(document.body.textContent, /Your location could not be found/, 'missing geolocation explains why Current Location did nothing');
-  await React.act(async () => root.unmount()); dom.window.close();
-  console.log('Homepage search tests passed: pagination, alphabetical city matches, nearest-first nearby results, empty-search fallback, keyboard selection, link/click agreement, missing geolocation, denial, stale responses, failure states.');
+  await React.act(async () => root.unmount());
+  widgetNavigator.geolocation = { getCurrentPosition: success => { locationSuccess = success; } };
+  const outageRoot = createRoot(document.getElementById('root'));
+  await React.act(async () => outageRoot.render(React.createElement(component, {})));
+  await React.act(async () => Simulate.focus(input()));
+  await React.act(async () => Simulate.click(document.querySelector('.hs-current-location')));
+  await React.act(async () => locationSuccess({ coords: { latitude: 0, longitude: 0 } }));
+  await React.act(async () => { rejectInventory(new Error('collections down')); });
+  assert.match(document.body.textContent, /temporarily unavailable/);
+  assert.doesNotMatch(document.body.textContent, /No locations within 200 miles/, 'a pending location during an inventory outage is not reported as nothing nearby');
+  assert.equal(document.querySelector('.hs-current-location').disabled, false, 'Current Location is usable again after the outage');
+  await React.act(async () => Simulate.click(document.querySelector('.hs-current-location')));
+  await React.act(async () => locationSuccess({ coords: { latitude: 0, longitude: 0 } }));
+  assert.doesNotMatch(document.body.textContent, /No locations within 200 miles/, 'an inventory outage is not reported as nothing nearby');
+  assert.equal(document.querySelector('.hs-current-location').disabled, false);
+  await React.act(async () => outageRoot.unmount()); dom.window.close();
+  console.log('Homepage search tests passed: pagination, alphabetical city matches, nearest-first nearby results, empty-search fallback, keyboard selection, link/click agreement, missing geolocation, inventory outage, denial, stale responses, failure states.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
