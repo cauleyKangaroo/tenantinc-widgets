@@ -32,6 +32,9 @@ export interface MapPoint {
   label?: string;
   /** Property name, shown in the click popup. */
   name?: string;
+  /** The property's page. Set → the popup's name is an underlined link to it;
+   *  omitted → plain text, as before. */
+  href?: string;
   /** Extra popup details. */
   address?: string;
   distance?: string;
@@ -493,7 +496,11 @@ export function NearbyMap({
           }}
         >
           {open.name && (
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#101318' }}>{open.name}</p>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#101318' }}>
+              {open.href ? (
+                <a href={open.href} style={{ color: 'inherit', textDecoration: 'underline' }}>{open.name}</a>
+              ) : open.name}
+            </p>
           )}
           {open.distance && (
             <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: 'var(--color_1, #f45f30)' }}>{open.distance}</p>
