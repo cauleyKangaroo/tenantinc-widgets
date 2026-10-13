@@ -539,10 +539,16 @@ export function HomepageSearch({
   })();
 
   const submitSearch = () => {
-    if (match && href) {
+    const locationsPath = locationsUrl.trim().replace(/\/+$/, '') || '/locations';
+    const locationsHref = editorSafeHref(`/${locationsPath.replace(/^\/+/, '')}`, editorPreview, siteId);
+    if (activeSuggestion >= 0 && match && href) {
+      navigateToSuggestion(match);
+    } else if (!q.trim()) {
+      window.location.assign(locationsHref);
+    } else if (match && href) {
       navigateToSuggestion(match);
     } else if (q.trim() && !searching && !lookupError && inventoryStatus === 'loaded') {
-      window.location.assign(editorSafeHref('/locations', editorPreview, siteId));
+      window.location.assign(locationsHref);
     } else {
       // Loading and service failures are not confirmed empty results.
       setSuggestionsOpen(true);

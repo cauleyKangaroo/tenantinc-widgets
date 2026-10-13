@@ -31,7 +31,7 @@ async function main() {
     { target: city('Bravo'), lat: 0, lng: 1.5 }, { target: city('Charlie'), lat: 0, lng: 2 },
     { target: city('Delta'), lat: 0, lng: 2.5 },
   ], 0, 0);
-  assert.deepEqual(Array.from(near, row => row.label), ['Alpha', 'Bravo', 'Charlie', 'Zulu'], 'closest four unique cities displayed alphabetically');
+  assert.deepEqual(Array.from(near, row => row.label), ['Zulu', 'Alpha', 'Bravo', 'Charlie'], 'closest four unique cities displayed nearest-first');
   assert.ok(near.every(row => row.distanceMiles <= 200));
   assert.ok(Math.abs(helpers.milesBetween(0, 0, 0, 1) - 69.09) < 0.1);
   let pages = [];
@@ -78,7 +78,7 @@ async function main() {
     },
   }).HomepageSearch;
   const root = createRoot(document.getElementById('root'));
-  const render = () => React.act(async () => root.render(React.createElement(component)));
+  const render = (props = {}) => React.act(async () => root.render(React.createElement(component, props)));
   await render();
   const input = () => document.querySelector('.hs-input');
   const rows = () => [...document.querySelectorAll('.hs-suggestion[role="option"]')];
@@ -96,7 +96,15 @@ async function main() {
   assert.equal(navigations.length, 0, 'Current Location does not send someone beyond 200 miles');
   assert.match(document.body.textContent, /No locations within 200 miles/);
   await React.act(async () => Simulate.click(document.querySelector('.hs-find')));
-  assert.equal(navigations.at(-1), '/storage-units/state/city-0/facility', 'empty Search selects the first city');
+  assert.equal(navigations.at(-1), '/locations', 'empty Search opens all locations, not the first city');
+  await change('   ');
+  await React.act(async () => Simulate.keyDown(input(), { key: 'Enter' }));
+  assert.equal(navigations.at(-1), '/locations', 'whitespace-only Enter opens all locations');
+  await change('');
+  await React.act(async () => Simulate.keyDown(input(), { key: 'ArrowDown' }));
+  await React.act(async () => Simulate.keyDown(input(), { key: 'ArrowDown' }));
+  await React.act(async () => Simulate.keyDown(input(), { key: 'Enter' }));
+  assert.equal(navigations.at(-1), '/storage-units/state/city-1/facility', 'empty-box Enter respects an explicitly highlighted city');
   await change('City');
   await React.act(async () => Simulate.keyDown(input(), { key: 'ArrowDown' }));
   await React.act(async () => Simulate.keyDown(input(), { key: 'ArrowDown' }));
@@ -109,6 +117,10 @@ async function main() {
   assert.equal(rows().length, 0, 'partial prediction does not resolve to an arbitrary city');
   await change('Nearby City'); await settle();
   assert.equal(rows().length, 4); assert.equal(document.querySelectorAll('.hs-distance').length, 4);
+  const distances = [...document.querySelectorAll('.hs-distance')].map(badge => parseInt(badge.textContent, 10));
+  assert.deepEqual(distances, [...distances].sort((a, b) => a - b), 'nearby rows display nearest-first');
+  await React.act(async () => Simulate.click(document.querySelector('.hs-find')));
+  assert.equal(navigations.at(-1), '/storage-units/state/city-0/facility', 'nearby Search chooses the nearest city');
   const before = navigations.length;
   await change('Far City'); await settle();
   assert.match(document.body.textContent, /No Facilities Found/);
@@ -138,10 +150,15 @@ async function main() {
   await React.act(async () => Simulate.focus(input()));
   assert.equal(rows().length, 1);
   assert.match(document.body.textContent, /Our Locations \(1\)/, 'count follows Storage Type filter');
+  await change('City 000');
   await React.act(async () => Simulate.click(document.querySelector('.hs-find')));
   assert.equal(navigations.at(-1), '/storage-units/state/city-0/facility?sl_types=parking');
   assert.ok(queryCalls >= 4);
+  await change('');
+  await render({ locationsUrl: '/all-locations/' });
+  await React.act(async () => Simulate.keyDown(input(), { key: 'Enter' }));
+  assert.equal(navigations.at(-1), '/all-locations', 'empty fallback respects the configured locations path');
   await React.act(async () => root.unmount()); dom.window.close();
-  console.log('Homepage search tests passed: pagination, alphabetical navigation, 200-mile nearby results, denial, stale responses, failure states.');
+  console.log('Homepage search tests passed: pagination, alphabetical city matches, nearest-first nearby results, empty-search fallback, keyboard selection, denial, stale responses, failure states.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

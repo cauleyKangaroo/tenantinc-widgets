@@ -20,6 +20,6 @@ export function nearbyCities<T extends CityResult>(properties: Array<{ lat: numb
     const old = cities.get(property.target.href);
     if (!old || distanceMiles < old.distanceMiles) cities.set(property.target.href, { ...property.target, distanceMiles });
   }
-  // Select the closest four distinct cities, then display/navigation order A–Z.
-  return alphabetically([...cities.values()].sort((a, b) => a.distanceMiles - b.distanceMiles || a.label.localeCompare(b.label)).slice(0, 4));
+  // Proximity results stay nearest-first for both display and default navigation.
+  return [...cities.values()].sort((a, b) => a.distanceMiles - b.distanceMiles || a.label.localeCompare(b.label)).slice(0, 4);
 }
