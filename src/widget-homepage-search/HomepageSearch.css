@@ -140,7 +140,7 @@
   max-height: min(420px, calc(100svh - 120px));
   overflow-y: auto;
   margin: 0;
-  padding: 8px;
+  padding: 0;
   list-style: none;
   border: 1px solid #dfe3e8;
   border-radius: 12px;
@@ -173,8 +173,8 @@
 .hs-suggestion {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  justify-content: flex-start;
+  gap: 8px;
   width: 100%;
   margin-block: 4px;
   padding: 13px 16px;
@@ -189,14 +189,15 @@
 }
 .hs-suggestion:hover, .hs-suggestion--active { background: #f1f4f6; }
 .hs-suggestion:focus-visible { outline: 3px solid color-mix(in srgb, var(--hs-accent) 40%, white); }
-.hs-history-head { padding: 6px 12px 8px; background: #f6f7f8; color: #637381; font-size: 16px; font-weight: 400; }
+.hs-history-head { padding: 6px 16px 8px; background: #f6f7f8; color: #637381; font-size: 16px; font-weight: 400; }
 .hs-search-status { padding: 32px 16px; text-align: center; color: #637381; background: #f6f7f8; }
 .hs-search-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 116px; font-size: 14px; }
 .hs-map-link { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 12px 16px; background: #fff; color: #101318; font: inherit; font-size: 14px; text-decoration: none; }
 .hs-map-link:hover { background: #f1f4f6; text-decoration: none; }
 .hs-map-link:focus-visible { outline: 3px solid color-mix(in srgb, var(--hs-accent) 40%, white); outline-offset: -3px; }
 .hs-map-link svg, .hs-search-empty svg { flex: 0 0 auto; }
-.hs-distance { flex: 0 0 auto; padding: 3px 7px; border-radius: 999px; background: #101318; color: #fff; font-size: 12px; }
+.hs-suggestion > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.hs-distance { flex: 0 0 auto; padding: 3px 7px; border-radius: 999px; background: #101318; color: #fff; font-size: 12px; white-space: nowrap; }
 .hs-results-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ── Layout 2: promotional search card (latest Figma Locations Modal) ───── */
