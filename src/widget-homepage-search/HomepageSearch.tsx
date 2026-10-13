@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './HomepageSearch.css';
 import { useLocationPermission } from './useLocationPermission';
-import { matchingCities, nearbyCities, milesBetween } from './searchResults';
+import { matchingCities, nearbyCities, milesBetween, NEARBY_RADIUS_MILES } from './searchResults';
 import { fetchLocationTree, type NavUnitType } from '@shared/propertyNav';
 import { MapPinSolidIcon, MapPinIcon, SearchIcon } from '@shared/ui/icons';
 import { openFindStorage } from '@shared/findStorageBus';
@@ -60,7 +60,7 @@ export interface HomepageSearchProps {
 const DEFAULT_TYPES = 'Storage Type,Self Storage,Parking';
 declare const __HB_DEV_HARNESS__: boolean;
 
-interface SearchTarget { kind: 'state' | 'city' | 'property'; label: string; haystack: string; href: string; types: NavUnitType[]; distanceMiles?: number; }
+interface SearchTarget { kind: 'state' | 'city' | 'property'; label: string; haystack: string; href: string; types: NavUnitType[]; zipCodes?: string[]; stateNames?: string[]; stateCodes?: string[]; distanceMiles?: number; }
 interface GeoTarget { lat: number; lng: number; target: SearchTarget; fallbackTarget: SearchTarget; types: NavUnitType[]; }
 interface StorageTypeOption { value: NavUnitType; label: string; }
 interface Coordinates { latitude: number; longitude: number; }
@@ -73,6 +73,9 @@ const FALLBACK_BAKERSFIELD: SearchTarget = {
   kind: 'city',
   label: 'Bakersfield',
   haystack: 'bakersfield california 93307 101 mt vernon',
+  zipCodes: ['93307'],
+  stateNames: ['California'],
+  stateCodes: ['CA'],
   href: '/locations/california/bakersfield',
   types: ['storage', 'parking'],
 };
@@ -80,6 +83,9 @@ const FALLBACK_FULLERTON: SearchTarget = {
   kind: 'city',
   label: 'Fullerton',
   haystack: 'fullerton california 92831 999 s raymond storage outlet fullerton',
+  zipCodes: ['92831'],
+  stateNames: ['California'],
+  stateCodes: ['CA'],
   href: '/property-landing-page--value-tiers-test/california/fullerton/storage-outlet-fullerton-340079520',
   types: ['storage', 'parking'],
 };
@@ -249,9 +255,10 @@ export function HomepageSearch({
         mapped.push({ kind: 'state', label: state.label, haystack: `${state.label} ${state.key}`.toLowerCase(), href: state.href, types: stateTypes });
         for (const city of state.cities) {
           const cityHref = city.properties.length === 1 ? city.properties[0].href : city.href;
-          const facilityTerms = city.properties.flatMap((property) => [property.label, property.address, property.street, property.zip]).join(' ');
+          const zipCodes = [...new Set(city.properties.map(property => property.zip.trim()).filter(Boolean))];
           const cityTypes = [...new Set(city.properties.flatMap((property) => property.vacantUnitTypes))];
-          const cityTarget: SearchTarget = { kind: 'city', label: city.label, haystack: `${city.label} ${state.label} ${city.key} ${facilityTerms}`.toLowerCase(), href: cityHref, types: cityTypes };
+          const stateCodes = [...new Set(city.properties.map(property => property.state.trim()).filter(Boolean))];
+          const cityTarget: SearchTarget = { kind: 'city', label: city.label, haystack: city.label.toLowerCase(), zipCodes, stateNames: [state.label], stateCodes, href: cityHref, types: cityTypes };
           const cityPageTarget: SearchTarget = { ...cityTarget, href: `${cityBase}/${state.key}/${city.key}` };
           mapped.push(cityTarget);
           for (const property of city.properties) {
@@ -311,8 +318,8 @@ export function HomepageSearch({
   }, [inventoryStatus, selectedTypeAvailable]);
 
   // Suggestions are CITY-ONLY and therefore can never advertise a market the
-  // Properties collection does not actually serve. Address/ZIP terms still find
-  // the owning city because each city's haystack includes its facilities.
+  // Properties collection does not actually serve. Match the city name, its
+  // state's name or code, or a facility ZIP, never a facility name or street address.
   const citySuggestions = useMemo(() => {
     return matchingCities(filteredTargets.filter(row => row.kind === 'city'), q);
   }, [filteredTargets, q]);
@@ -477,12 +484,12 @@ export function HomepageSearch({
       return;
     }
     const candidates = geoTargets.filter(candidate => (!type || candidate.types.includes(type))
-      && milesBetween(pendingCoordinates.latitude, pendingCoordinates.longitude, candidate.lat, candidate.lng) <= 200);
+      && milesBetween(pendingCoordinates.latitude, pendingCoordinates.longitude, candidate.lat, candidate.lng) <= NEARBY_RADIUS_MILES);
     if (!candidates.length) {
       console.warn('[HomepageSearch] Current Location: no properties with usable coordinates');
       setPendingCoordinates(undefined);
       setLocating(false);
-      setLocationNotice('No locations within 200 miles of your current location.');
+      setLocationNotice(`No locations within ${NEARBY_RADIUS_MILES} miles of your current location.`);
       return;
     }
     navigateRef.current(nearestCandidate(candidates, pendingCoordinates).target);
@@ -505,7 +512,7 @@ export function HomepageSearch({
         if (request !== locationRequest.current) return;
         const current = { latitude: coords.latitude, longitude: coords.longitude };
         const candidates = geoTargets.filter(candidate => (!type || candidate.types.includes(type))
-          && milesBetween(current.latitude, current.longitude, candidate.lat, candidate.lng) <= 200);
+          && milesBetween(current.latitude, current.longitude, candidate.lat, candidate.lng) <= NEARBY_RADIUS_MILES);
         if (candidates.length) {
           navigateRef.current(nearestCandidate(candidates, current).target);
           setLocating(false);
@@ -522,7 +529,7 @@ export function HomepageSearch({
         }
         console.warn('[HomepageSearch] Current Location: no properties with usable coordinates');
         setLocating(false);
-        setLocationNotice('No locations within 200 miles of your current location.');
+        setLocationNotice(`No locations within ${NEARBY_RADIUS_MILES} miles of your current location.`);
       },
       (error) => {
         if (request !== locationRequest.current) return;

@@ -22,17 +22,35 @@ async function main() {
   global.window = dom.window; global.document = dom.window.document; global.IS_REACT_ACT_ENVIRONMENT = true;
   const context = { window: dom.window, document: dom.window.document, console, Date, URL, URLSearchParams, AbortController, setTimeout, clearTimeout };
   const helpers = load('../src/widget-homepage-search/searchResults.ts', context);
-  const city = (label, href = `/${label}`) => ({ label, href, haystack: `${label} 12345 main street`.toLowerCase() });
-  assert.deepEqual(Array.from(helpers.matchingCities([city('Zulu'), city('Alpha')], '12345'), row => row.label), ['Alpha', 'Zulu']);
+  const city = (label, href = `/${label}`) => ({ label, href, zipCodes: ['12345'], haystack: `${label} 12345 main street`.toLowerCase() });
+  assert.deepEqual(Array.from(helpers.matchingCities([city('Zulu'), city('Alpha')], '12345'), row => row.label), ['Alpha', 'Zulu'], 'ZIP matches owning cities alphabetically');
+  assert.equal(helpers.matchingCities([city('Zulu'), city('Alpha')], 'main street').length, 0, 'address does not match a city');
+  assert.deepEqual(Array.from(helpers.matchingCities([
+    { ...city('Bakersfield'), haystack: 'bakersfield california storage outlet chino' },
+    city('Chula Vista'),
+  ], 'Ch'), row => row.label), ['Chula Vista'], 'facility names do not introduce unrelated cities');
+  assert.deepEqual(Array.from(helpers.matchingCities([city('Zulu'), city('Alpha')], 'a'), row => row.label), ['Alpha'], 'city-name matching remains case-insensitive');
+  const stateCities = [
+    { ...city('Irvine'), stateNames: ['California'], stateCodes: ['CA'] },
+    { ...city('Fullerton'), stateNames: ['California'], stateCodes: ['CA'] },
+    { ...city('Albany'), stateNames: ['New York'], stateCodes: ['NY'] },
+  ];
+  assert.deepEqual(Array.from(helpers.matchingCities(stateCities, 'California'), row => row.label), ['Fullerton', 'Irvine'], 'state name lists its cities');
+  assert.deepEqual(Array.from(helpers.matchingCities(stateCities, 'cal'), row => row.label), ['Fullerton', 'Irvine'], 'partial state name lists its cities');
+  assert.deepEqual(Array.from(helpers.matchingCities(stateCities, 'ny'), row => row.label), ['Albany'], 'state code lists its cities');
+  assert.deepEqual(Array.from(helpers.matchingCities(stateCities, 'york'), row => row.label), ['Albany'], 'later word of a state name matches');
+  assert.equal(helpers.matchingCities(stateCities, 'ornia').length, 0, 'state names match from the start of a word');
   assert.equal(helpers.matchingCities(Array.from({ length: 160 }, (_, i) => city(`City ${i}`)), '').length, 160);
   const near = helpers.nearbyCities([
-    { target: city('Zulu'), lat: 0, lng: 0.1 }, { target: city('Alpha'), lat: 0, lng: 1 },
-    { target: city('Zulu'), lat: 0, lng: 0.2 }, { target: city('Far'), lat: 0, lng: 4 },
-    { target: city('Bravo'), lat: 0, lng: 1.5 }, { target: city('Charlie'), lat: 0, lng: 2 },
-    { target: city('Delta'), lat: 0, lng: 2.5 },
+    { target: city('Zulu'), lat: 0, lng: 0.1 }, { target: city('Alpha'), lat: 0, lng: 0.2 },
+    { target: city('Zulu'), lat: 0, lng: 0.3 }, { target: city('Far'), lat: 0, lng: 1 },
+    { target: city('Bravo'), lat: 0, lng: 0.3 }, { target: city('Charlie'), lat: 0, lng: 0.4 },
+    { target: city('Delta'), lat: 0, lng: 0.42 },
   ], 0, 0);
   assert.deepEqual(Array.from(near, row => row.label), ['Zulu', 'Alpha', 'Bravo', 'Charlie'], 'closest four unique cities displayed nearest-first');
-  assert.ok(near.every(row => row.distanceMiles <= 200));
+  assert.equal(helpers.NEARBY_RADIUS_MILES, 30);
+  assert.ok(near.every(row => row.distanceMiles <= 30));
+  assert.equal(helpers.nearbyCities([{ target: city('Outside'), lat: 0, lng: 0.5 }], 0, 0).length, 0, 'a city about 35 miles away is excluded');
   assert.ok(Math.abs(helpers.milesBetween(0, 0, 0, 1) - 69.09) < 0.1);
   let pages = [];
   dom.window.dmAPI = { loadCollectionsAPI: async () => ({ data: (_, opts) => ({ get: async () => {
@@ -104,17 +122,18 @@ async function main() {
   const settle = () => React.act(async () => { await new Promise(resolve => setTimeout(resolve, 440)); });
   await React.act(async () => Simulate.focus(input()));
   assert.match(document.body.textContent, /Searching/);
-  const cities = Array.from({ length: 160 }, (_, i) => ({ label: `City ${String(i).padStart(3, '0')}`, key: `city-${i}`, href: `/locations/state/city-${i}`, properties: [{ label: `Facility ${i}`, href: `/storage-units/state/city-${i}/facility`, vacantUnitTypes: i === 0 ? ['parking'] : ['storage'], lat: 0, lng: i < 4 ? (i + 1) / 10 : 100, zip: '12345', address: '', street: '' }] }));
+  const cities = Array.from({ length: 160 }, (_, i) => ({ label: `City ${String(i).padStart(3, '0')}`, key: `city-${i}`, href: `/locations/state/city-${i}`, properties: [{ label: `Facility ${i}`, href: `/storage-units/state/city-${i}/facility`, vacantUnitTypes: i === 0 ? ['parking'] : ['storage'], lat: 0, lng: i < 4 ? (i + 1) / 10 : 100, zip: '12345', state: 'ST', address: '', street: '' }] }));
   await React.act(async () => resolveInventory([{ label: 'State', key: 'state', href: '/locations/state', cities: cities.reverse() }]));
   assert.equal(rows().length, 160); assert.match(document.body.textContent, /Our Locations \(160\)/);
+  await change('st'); assert.equal(rows().length, 160, 'state code lists every city in the state'); await change('');
   assert.equal(document.querySelector('.hs-current-location').closest('[role="listbox"]'), null, 'Current Location is outside the city listbox');
   assert.match(rows()[0].textContent, /City 000/);
   assert.doesNotMatch(document.body.textContent, /Search History/);
   await React.act(async () => Simulate.click(document.querySelector('.hs-current-location')));
   await React.act(async () => locationSuccess({ coords: { latitude: 0, longitude: 180 } }));
-  assert.equal(navigations.length, 0, 'Current Location does not send someone beyond 200 miles');
-  assert.match(document.body.textContent, /No locations within 200 miles/);
-  assert.match(document.querySelector('.hs-suggestions [role="status"]').textContent, /No locations within 200 miles/, 'location feedback is announced');
+  assert.equal(navigations.length, 0, 'Current Location does not send someone beyond 30 miles');
+  assert.match(document.body.textContent, /No locations within 30 miles/);
+  assert.match(document.querySelector('.hs-suggestions [role="status"]').textContent, /No locations within 30 miles/, 'location feedback is announced');
   assert.equal(findHref(), '/locations', 'empty Search link matches its click destination');
   await React.act(async () => Simulate.click(document.querySelector('.hs-find')));
   assert.equal(navigations.at(-1), '/locations', 'empty Search opens all locations, not the first city');
@@ -205,13 +224,13 @@ async function main() {
   await React.act(async () => locationSuccess({ coords: { latitude: 0, longitude: 0 } }));
   await React.act(async () => { rejectInventory(new Error('collections down')); });
   assert.match(document.body.textContent, /temporarily unavailable/);
-  assert.doesNotMatch(document.body.textContent, /No locations within 200 miles/, 'a pending location during an inventory outage is not reported as nothing nearby');
+  assert.doesNotMatch(document.body.textContent, /No locations within 30 miles/, 'a pending location during an inventory outage is not reported as nothing nearby');
   assert.equal(document.querySelector('.hs-current-location').disabled, false, 'Current Location is usable again after the outage');
   await React.act(async () => Simulate.click(document.querySelector('.hs-current-location')));
   await React.act(async () => locationSuccess({ coords: { latitude: 0, longitude: 0 } }));
-  assert.doesNotMatch(document.body.textContent, /No locations within 200 miles/, 'an inventory outage is not reported as nothing nearby');
+  assert.doesNotMatch(document.body.textContent, /No locations within 30 miles/, 'an inventory outage is not reported as nothing nearby');
   assert.equal(document.querySelector('.hs-current-location').disabled, false);
   await React.act(async () => outageRoot.unmount()); dom.window.close();
-  console.log('Homepage search tests passed: pagination, alphabetical city matches, nearest-first nearby results, empty-search fallback, keyboard selection, link/click agreement, missing geolocation, inventory outage, denial, stale responses, failure states.');
+  console.log('Homepage search tests passed: pagination, alphabetical city matches, state matching, nearest-first nearby results, empty-search fallback, keyboard selection, link/click agreement, missing geolocation, inventory outage, denial, stale responses, failure states.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
