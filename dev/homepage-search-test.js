@@ -114,6 +114,7 @@ async function main() {
   await React.act(async () => locationSuccess({ coords: { latitude: 0, longitude: 180 } }));
   assert.equal(navigations.length, 0, 'Current Location does not send someone beyond 200 miles');
   assert.match(document.body.textContent, /No locations within 200 miles/);
+  assert.match(document.querySelector('.hs-suggestions [role="status"]').textContent, /No locations within 200 miles/, 'location feedback is announced');
   assert.equal(findHref(), '/locations', 'empty Search link matches its click destination');
   await React.act(async () => Simulate.click(document.querySelector('.hs-find')));
   assert.equal(navigations.at(-1), '/locations', 'empty Search opens all locations, not the first city');
@@ -181,6 +182,7 @@ async function main() {
   await React.act(async () => Simulate.focus(input()));
   assert.equal(rows().length, 1);
   assert.match(document.body.textContent, /Our Locations \(1\)/, 'count follows Storage Type filter');
+  assert.equal(document.querySelector('.hs-results-announcement').textContent.trim(), '1 city found');
   await change('City 000');
   await React.act(async () => Simulate.click(document.querySelector('.hs-find')));
   assert.equal(navigations.at(-1), '/storage-units/state/city-0/facility?sl_types=parking');

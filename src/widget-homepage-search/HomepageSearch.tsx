@@ -715,7 +715,7 @@ export function HomepageSearch({
             className={`hs-suggestions${suggestionsAbove ? ' hs-suggestions--above' : ''}${!searching && visibleSuggestions.length === 0 ? ' hs-suggestions--empty' : ''}`}
             style={suggestionsAbove ? ({ '--hs-suggestions-bottom': `${suggestionsBottom}px` } as React.CSSProperties) : undefined}
           >
-          {locationNotice && <div className="hs-search-status">{locationNotice}</div>}
+          <div role="status">{locationNotice && <div className="hs-search-status">{locationNotice}</div>}</div>
           {!q.trim() && (
             <>
               {showCurrentLocation && (
@@ -744,7 +744,7 @@ export function HomepageSearch({
             <div className="hs-history-head">Our Locations ({citySuggestions.length})</div>
           )}
           {!!q.trim() && !citySuggestions.length && nearbyCurrent?.status === 'ready' && visibleSuggestions.length > 0 && (
-            <div className="hs-history-head">{visibleSuggestions.length} cities near {nearbyCurrent.place}</div>
+            <div className="hs-history-head">{visibleSuggestions.length} {visibleSuggestions.length === 1 ? 'city' : 'cities'} near {nearbyCurrent.place}</div>
           )}
           {searching ? <div className="hs-search-status">Searching…</div>
             : lookupError ? <div className="hs-search-status">Search is temporarily unavailable. Please try again.</div>
@@ -789,7 +789,7 @@ export function HomepageSearch({
           </div>
         )}
         <span className="hs-results-announcement" role="status" aria-live="polite" aria-atomic="true">
-          {showLocationPanel ? searching ? 'Searching locations' : lookupError ? 'Search temporarily unavailable' : `${visibleSuggestions.length} cities found` : ''}
+          {showLocationPanel ? searching ? 'Searching locations' : lookupError ? 'Search temporarily unavailable' : `${visibleSuggestions.length} ${visibleSuggestions.length === 1 ? 'city' : 'cities'} found` : ''}
         </span>
 
         {searchCard && (
