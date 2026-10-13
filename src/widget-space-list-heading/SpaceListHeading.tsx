@@ -115,6 +115,11 @@ export function SpaceListHeading({
   useEffect(() => {
     if (!resolvedCompanyId) return undefined;
     let cancelled = false;
+    // A new property starts unsettled and unnamed: otherwise the previous
+    // facility's name stays on screen while this one loads, and for good if
+    // the read fails.
+    setPropertyName(null);
+    setSettled(false);
     // Trust-check only against a Duda-bound id; see resolveRequireId.
     fetchProperties(resolveRequireId({ propertyId: propertyId || domId }, cfg.propertyId), resolvedCompanyId)
       .then((raw) => {

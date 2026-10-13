@@ -456,7 +456,10 @@ export function AccountLogin({
   const identifierPayload = useCallback((): Identifier => (
     kind === 'email'
       ? { email: identifier.trim() }
-      : { phone: identifier.replace(/\D/g, '') }
+      // The 10-digit national number — isPhone also accepts "1" + 10, and
+      // that leading country code is dropped here so "+1 (415) …" and
+      // "(415) …" reach the proxy as the same identifier.
+      : { phone: identifier.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '') }
   ), [kind, identifier]);
 
   /** Verified: hand over to the account page, or show the built-in card. */
