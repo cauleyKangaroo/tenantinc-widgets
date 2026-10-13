@@ -773,6 +773,22 @@
 .rf2-plan:focus,
 .rf2-plan:active { background: #fff !important; }
 .rf2-plan:focus-visible { outline: 2px solid var(--color_2, #509e2f); outline-offset: 2px; }
+/* TEXT COLOUR, stated outright. Both the control and its menu rows are
+   <button>s, and neither set a colour — so anything inside that did not name
+   its own took the button's. On iPhone Safari a button's default text colour
+   is the system blue, which is how the price ("$10/mo") came out blue beside a
+   black "Coverage": .rf2-plan-cov names #101318, .rf2-plan-price never did.
+   On the buttons AND the price, and !important, so neither the browser's
+   default nor a host theme's `button { color }` can bring it back. The chevron
+   draws in currentColor, so this is what keeps it dark as well. */
+.rf2-plan,
+.rf2-plan-opt,
+.rf2-plan-price,
+.rf2-plan-price b,
+.rf2-plan-price span {
+  color: var(--hb-text-night, #101318) !important;
+  -webkit-text-fill-color: currentColor;
+}
 /* One height whatever is selected. Without a floor the control followed its
    contents — ~51px with the Best Value badge, ~38px without — so it jumped as
    the selection changed. 51px is the badge case (35px badge + 8px padding
@@ -2215,7 +2231,13 @@
   margin-top: 20px; font-weight: 600; font-size: 18px; color: #101318;
 }
 .rfc-rentnow > span { flex: 0 0 auto; }
-.rfc-rentnow .hb-btn { flex: 1 1 auto; width: auto; }
+/* 280px against the right edge, not the whole of the remaining row — it was
+   filling ~400px, which made it the heaviest thing on the card. */
+.rfc-rentnow .hb-btn { flex: 0 1 280px; width: auto; margin-left: auto; }
+/* Mobile: the prompt, then the button full width beneath it — beside the
+   two-line prompt there is too little row left for the button. */
+.rf-wrapper--mobile .rfc-rentnow { flex-direction: column; align-items: stretch; }
+.rf-wrapper--mobile .rfc-rentnow .hb-btn { flex: 0 0 auto; width: 100%; margin-left: 0; }
 /* Review card */
 /* Figma 8507-24413: WHITE with Elevation M, not the grey panel it was — it is a
    card sitting on the page, not another section of it. 30px/38px insets. */
