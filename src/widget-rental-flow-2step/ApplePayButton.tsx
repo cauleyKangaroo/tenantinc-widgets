@@ -134,7 +134,7 @@ function applePaySupported(Session: ApplePaySessionCtor | null): boolean {
 }
 
 export function ApplePayButton({
-  config, total, ctx, canOpen, onToken, onError,
+  config, total, ctx, canOpen, onToken, onError, onAvailabilityChange,
 }: {
   /** The content panel's wallet settings, already validated. */
   config: WalletConfig;
@@ -155,6 +155,13 @@ export function ApplePayButton({
   onToken: (wallet: WalletPayment) => Promise<boolean>;
   /** Something the shopper should see, inline beside the buttons. */
   onError: (message: string) => void;
+  /**
+   * Whether the button is actually ON SCREEN — reported on every change, and
+   * false on unmount. The parent cannot know this: the button can still
+   * decline after the parent allowed it (an unsupported browser, a failed
+   * check), and copy about wallets must not appear when none is offered.
+   */
+  onAvailabilityChange?: (available: boolean) => void;
 }) {
   /* Safari answers synchronously; elsewhere the SDK has to arrive first, so
      the button appears a beat later rather than being drawn and withdrawn. */
@@ -174,6 +181,10 @@ export function ApplePayButton({
      form as it stood at the tap, and miss an "I agree" unticked meanwhile. */
   const latest = useRef({ onToken, onError });
   latest.current = { onToken, onError };
+  useEffect(() => {
+    onAvailabilityChange?.(supported);
+  }, [supported, onAvailabilityChange]);
+  useEffect(() => () => onAvailabilityChange?.(false), [onAvailabilityChange]);
   if (!supported) return null;
 
   /* EVERYTHING up to session.begin() is synchronous. The merchant-session

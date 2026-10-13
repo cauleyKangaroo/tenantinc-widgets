@@ -623,6 +623,10 @@ export function Step2({
   /** What a wallet needs the shopper to see: a cancel is silent, everything
    *  else lands here, beside the buttons. */
   const [walletError, setWalletError] = useState<string | undefined>(undefined);
+  /** Which wallet buttons ACTUALLY rendered, as each reports it — allowed by
+   *  the parent is not the same as on screen (see onAvailabilityChange). */
+  const [appleOnScreen, setAppleOnScreen] = useState(false);
+  const [googleOnScreen, setGoogleOnScreen] = useState(false);
   /**
    * The gate a wallet runs between the tap and opening its sheet — the same
    * `required` list that gates the card and bank panels, so "I agree" and
@@ -1145,6 +1149,7 @@ export function Step2({
                 canOpen={canOpenWallet}
                 onToken={payWithWallet}
                 onError={setWalletError}
+                onAvailabilityChange={setGoogleOnScreen}
               />
             )}
             {showApple && walletCtx && (
@@ -1155,6 +1160,7 @@ export function Step2({
                 canOpen={canOpenWallet}
                 onToken={payWithWallet}
                 onError={setWalletError}
+                onAvailabilityChange={setAppleOnScreen}
               />
             )}
             {!methodOpen && (
@@ -1185,8 +1191,11 @@ export function Step2({
           )}
           {/* Wallets are one-tap, so there is no moment to visibly untick the
               autopay box before paying — this says it instead, wherever
-              autopay would otherwise apply (mandatory, or ticked). */}
-          {(showApple || showGoogle) && (mode === 'default' || autopay) && (
+              autopay would otherwise apply (mandatory, or ticked).
+              Gated on what each button REPORTS as on screen, not on what the
+              parent allowed: either can still decline at runtime, and a note
+              about wallets nobody can see would only confuse. */}
+          {((showApple && appleOnScreen) || (showGoogle && googleOnScreen)) && (mode === 'default' || autopay) && (
             <p className="rf2-gp-note">
               Apple Pay and Google Pay are one-time payments and won&rsquo;t enroll in autopay.
               To pay automatically each {cycleWord.noun}, use Credit / Debit or Pay by Bank.
