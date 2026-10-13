@@ -481,12 +481,13 @@ export function HomepageSearch({
 
   const chooseCurrentLocation = () => {
     if (locating || locationDenied) return;
+    setLocationNotice('');
     if (!navigator.geolocation) {
       console.warn('[HomepageSearch] Current Location: browser geolocation is unavailable');
+      setLocationNotice('Your location could not be found. Please try again or enter a city.');
       return;
     }
     setLocating(true);
-    setLocationNotice('');
     const request = ++locationRequest.current;
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
@@ -538,21 +539,21 @@ export function HomepageSearch({
     } catch { return undefined; }
   })();
 
-  const submitSearch = () => {
+  const locationsHref = (() => {
     const locationsPath = locationsUrl.trim().replace(/\/+$/, '') || '/locations';
-    const locationsHref = editorSafeHref(`/${locationsPath.replace(/^\/+/, '')}`, editorPreview, siteId);
-    if (activeSuggestion >= 0 && match && href) {
-      navigateToSuggestion(match);
-    } else if (!q.trim()) {
-      window.location.assign(locationsHref);
-    } else if (match && href) {
-      navigateToSuggestion(match);
-    } else if (q.trim() && !searching && !lookupError && inventoryStatus === 'loaded') {
-      window.location.assign(locationsHref);
-    } else {
-      // Loading and service failures are not confirmed empty results.
-      setSuggestionsOpen(true);
-    }
+    return editorSafeHref(`/${locationsPath.replace(/^\/+/, '')}`, editorPreview, siteId);
+  })();
+  // One destination for both a click and the link's own href (modifier-click, new tab).
+  const findTarget = href && (activeSuggestion >= 0 || q.trim()) ? match : undefined;
+  const findHref = findTarget ? href
+    // Loading and service failures are not confirmed empty results.
+    : !q.trim() || (!searching && !lookupError && inventoryStatus === 'loaded') ? locationsHref
+      : undefined;
+
+  const submitSearch = () => {
+    if (findTarget) navigateToSuggestion(findTarget);
+    else if (findHref) window.location.assign(findHref);
+    else setSuggestionsOpen(true);
   };
 
   const style = {
@@ -680,7 +681,7 @@ export function HomepageSearch({
         <a
           ref={findRef}
           className="hs-find"
-          href={href ?? undefined}
+          href={findHref}
           onClick={(e) => {
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
             e.preventDefault();

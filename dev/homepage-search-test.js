@@ -74,7 +74,8 @@ async function main() {
     addEventListener: dom.window.addEventListener.bind(dom.window), removeEventListener: dom.window.removeEventListener.bind(dom.window),
   };
   const Icon = () => null;
-  const component = load('../src/widget-homepage-search/HomepageSearch.tsx', { ...context, window: widgetWindow, navigator: { geolocation: { getCurrentPosition: success => { locationSuccess = success; } } }, __HB_DEV_HARNESS__: false }, {
+  const widgetNavigator = { geolocation: { getCurrentPosition: success => { locationSuccess = success; } } };
+  const component = load('../src/widget-homepage-search/HomepageSearch.tsx', { ...context, window: widgetWindow, navigator: widgetNavigator, __HB_DEV_HARNESS__: false }, {
     react: React, './HomepageSearch.css': {}, './searchResults': helpers,
     './useLocationPermission': { useLocationPermission: () => [denied, value => { denied = value; }] },
     '@shared/propertyNav': { fetchLocationTree: (_, opts) => { assert.equal(opts.readAllPages, true); return new Promise(resolve => { resolveInventory = resolve; }); } },
@@ -97,6 +98,7 @@ async function main() {
   const input = () => document.querySelector('.hs-input');
   const rows = () => [...document.querySelectorAll('.hs-suggestion[role="option"]')];
   const change = value => React.act(async () => Simulate.change(input(), { target: { value } }));
+  const findHref = () => document.querySelector('.hs-find').getAttribute('href');
   const settle = () => React.act(async () => { await new Promise(resolve => setTimeout(resolve, 440)); });
   await React.act(async () => Simulate.focus(input()));
   assert.match(document.body.textContent, /Searching/);
@@ -110,6 +112,7 @@ async function main() {
   await React.act(async () => locationSuccess({ coords: { latitude: 0, longitude: 180 } }));
   assert.equal(navigations.length, 0, 'Current Location does not send someone beyond 200 miles');
   assert.match(document.body.textContent, /No locations within 200 miles/);
+  assert.equal(findHref(), '/locations', 'empty Search link matches its click destination');
   await React.act(async () => Simulate.click(document.querySelector('.hs-find')));
   assert.equal(navigations.at(-1), '/locations', 'empty Search opens all locations, not the first city');
   await change('   ');
@@ -134,11 +137,13 @@ async function main() {
   assert.equal(rows().length, 4); assert.equal(document.querySelectorAll('.hs-distance').length, 4);
   const distances = [...document.querySelectorAll('.hs-distance')].map(badge => parseInt(badge.textContent, 10));
   assert.deepEqual(distances, [...distances].sort((a, b) => a - b), 'nearby rows display nearest-first');
+  assert.equal(findHref(), '/storage-units/state/city-0/facility', 'nearby Search link matches its click destination');
   await React.act(async () => Simulate.click(document.querySelector('.hs-find')));
   assert.equal(navigations.at(-1), '/storage-units/state/city-0/facility', 'nearby Search chooses the nearest city');
   const before = navigations.length;
   await change('Far City'); await settle();
   assert.match(document.body.textContent, /No Facilities Found/);
+  assert.equal(findHref(), '/locations', 'no-results Search link matches its click destination');
   await React.act(async () => Simulate.click(document.querySelector('.hs-find')));
   assert.equal(navigations.length, before + 1, 'no-results search button navigates');
   assert.equal(navigations.at(-1), '/locations');
@@ -158,6 +163,7 @@ async function main() {
   assert.equal(rows().length, 1); assert.match(rows()[0].textContent, /City 003/, 'late lookup cannot replace current results');
   await change('Failure'); await settle();
   assert.match(document.body.textContent, /temporarily unavailable/);
+  assert.equal(findHref(), null, 'service errors leave the Search link without a destination');
   const beforeFailureSubmit = navigations.length;
   await React.act(async () => Simulate.click(document.querySelector('.hs-find')));
   assert.equal(navigations.length, beforeFailureSubmit, 'service errors are not treated as empty results');
@@ -175,7 +181,12 @@ async function main() {
   await render({ locationsUrl: '/all-locations/' });
   await React.act(async () => Simulate.keyDown(input(), { key: 'Enter' }));
   assert.equal(navigations.at(-1), '/all-locations', 'empty fallback respects the configured locations path');
+  delete widgetNavigator.geolocation;
+  denied = false; await render({ locationsUrl: '/all-locations' });
+  await React.act(async () => Simulate.focus(input()));
+  await React.act(async () => Simulate.click(document.querySelector('.hs-current-location')));
+  assert.match(document.body.textContent, /Your location could not be found/, 'missing geolocation explains why Current Location did nothing');
   await React.act(async () => root.unmount()); dom.window.close();
-  console.log('Homepage search tests passed: pagination, alphabetical city matches, nearest-first nearby results, empty-search fallback, keyboard selection, denial, stale responses, failure states.');
+  console.log('Homepage search tests passed: pagination, alphabetical city matches, nearest-first nearby results, empty-search fallback, keyboard selection, link/click agreement, missing geolocation, denial, stale responses, failure states.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
