@@ -35,10 +35,12 @@ export interface WalletConfig {
    * with 'PRODUCTION' and then paid with the env value. A TEST client returns
    * dummy tokens a real gateway cannot charge.
    *
-   * The content-panel dropdown when set; otherwise FOLLOWS THE SITE — the
-   * `environment` site text: production → PRODUCTION, anything else → TEST.
-   * A fixed TEST default would have shipped every live site that never set
-   * the dropdown a Google Pay button whose tokens fail at the lease charge.
+   * The content-panel dropdown — Test or Production, nothing else, so on an
+   * instance that has the field it always decides. Only where the field is
+   * MISSING (an instance saved before it existed, or a JS tab not forwarding
+   * it) does this FOLLOW THE SITE — the `environment` site text: production →
+   * PRODUCTION, anything else → TEST — so such a live site does not get a
+   * Google Pay button whose TEST tokens fail at the lease charge.
    */
   googlePayEnvironment: GooglePayEnvironment;
   googlePayMerchantId: string;
