@@ -1487,6 +1487,32 @@
   color: #fff;
 }
 .rf2-pay svg { flex: 0 0 auto; }
+
+/* Apple Pay / Google Pay. Each may decline to render (unsupported browser, not
+   ready to pay), so a wallet left on its own takes the whole row rather than
+   pairing with Credit / Debit and pushing Pay by Bank onto a row by itself.
+   :has() — where unsupported the wallet simply keeps its one column. */
+.rf2-paygrid > .rf2-wallet:first-child:not(:has(+ .rf2-wallet)) { grid-column: 1 / -1; }
+/* Both wallets declined with a panel open: no empty grid adding a gap. */
+.rf2-paygrid:empty { display: none; }
+/* Google's own button (createButton, buttonSizeMode 'fill') sizes to this
+   host, so the host carries the 64px the Apple button gets from .rf2-pay. */
+.rf2-wallet--google { height: 64px; min-width: 0; }
+.rf2-wallet--google > * { width: 100%; height: 100%; }
+.rf2-wallet-with { font: 500 20px 'Montserrat', sans-serif; color: #fff; }
+/* Apple Pay matches the Google Pay button beside it, state for state — the
+   values are Google's own black-button styles from pay.js: #000 at rest,
+   #3c4043 hovered, #5f6368 pressed. Without this the Apple button inherited
+   .rf2-pay--dark's PINNED look (no hover by design, for the old placeholder
+   wallets) and sat inert next to a Google button that responds, reading as
+   disabled. (0,3,0) + !important to beat that pinned (0,2,0) !important rule
+   and a host `button:hover`. */
+.rf2-pay.rf2-wallet--apple { cursor: pointer !important; transition: background-color .15s ease; }
+.rf2-pay.rf2-wallet--apple,
+.rf2-pay.rf2-wallet--apple:focus { background: #000 !important; }
+.rf2-pay.rf2-wallet--apple:hover { background: #3c4043 !important; }
+.rf2-pay.rf2-wallet--apple:active { background: #5f6368 !important; }
+.rf2-pay.rf2-wallet--apple:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
 .rf2-paylogo { display: inline-flex; align-items: center; gap: 6px; }
 .rf2-paylogo svg { display: block; }
 .rf2-paylogo span { color: #fff; font-weight: 500; font-size: 20px; }
