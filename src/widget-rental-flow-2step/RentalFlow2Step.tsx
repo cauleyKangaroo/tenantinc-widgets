@@ -612,7 +612,7 @@ export interface Contact {
 
 function Step1Form({
   eyebrow, heading, termsHref, brandName, transactionState, onRetry, changeSpaceUrl,
-  onRent, onReserve, reserveError, initial, reservationMode = false,
+  onRent, onReserve, reserveError, initial, reservationMode = false, onDraft,
 }: {
   eyebrow: string;
   heading: string;
@@ -630,6 +630,12 @@ function Step1Form({
   /** Completing a reservation: the space is already reserved, so there is
    *  nothing to Reserve — only Rent. */
   reservationMode?: boolean;
+  /**
+   * The contact AS IT IS TYPED — undefined until every field the lease needs
+   * is valid. The parent uses it to personalise the agreement preview before
+   * Rent is pressed; see `draftContact` there.
+   */
+  onDraft?: (c: Contact | undefined) => void;
 }) {
   const [business, setBusiness] = useState(initial?.business ?? false);
   const [email, setEmail] = useState(initial?.email ?? '');
@@ -658,6 +664,20 @@ function Step1Form({
       : [['rf-first', skip || first.trim().length > 0],
         ['rf-last', skip || last.trim().length > 0]] as Array<[string, boolean]>),
   ];
+  /* ONE builder for what leaves this form: the buttons and the draft below
+     both use it, so the draft the preview was personalised for is exactly
+     what Rent then submits — same trim, same business split — and the key
+     the parent compares does not change at the click. */
+  const buildContact = (): Contact => {
+    const name = business ? splitBusinessName(bizName) : { first: first.trim(), last: last.trim() };
+    return {
+      ...name,
+      email: email.trim(),
+      phone: phone.trim(),
+      business,
+      businessName: business ? bizName.trim() : undefined,
+    };
+  };
   const gate = (proceed: (c: Contact) => void) => () => {
     if (!transactionReady) return;
     const firstInvalid = checks.find(([, ok]) => !ok);
@@ -666,15 +686,23 @@ function Step1Form({
       document.getElementById(firstInvalid[0])?.focus();
       return;
     }
-    const name = business ? splitBusinessName(bizName) : { first: first.trim(), last: last.trim() };
-    proceed({
-      ...name,
-      email: email.trim(),
-      phone: phone.trim(),
-      business,
-      businessName: business ? bizName.trim() : undefined,
-    });
+    proceed(buildContact());
   };
+  /*
+   * The draft, half a second after the last keystroke, and only once every
+   * check passes: a half-typed email would generate an agreement for nobody,
+   * and one per keystroke would be dozens of 4-second requests. Undefined
+   * while incomplete, so the parent falls back to the blank prefetch rather
+   * than a stale name.
+   */
+  const draftReady = checks.every(([, ok]) => ok);
+  useEffect(() => {
+    if (!onDraft) return undefined;
+    const t = window.setTimeout(() => onDraft(draftReady ? buildContact() : undefined), 500);
+    return () => window.clearTimeout(t);
+    // `onDraft` is a setState and stable; the values below are what buildContact reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email, phone, first, last, bizName, business, draftReady]);
   const bad = (id: string) => attempted && !(checks.find(([k]) => k === id)?.[1]);
 
   return (
@@ -2202,12 +2230,29 @@ export function RentalFlow2Step({
    * and the contact — and a change that does not alter the document does not
    * fetch it again.
    */
-  const contactKey = contact
-    ? [contact.first, contact.last, contact.email, contact.phone, contact.businessName].map((v) => v ?? '').join('|')
+  /*
+   * PERSONALISED WHILE STEP 1 IS BEING TYPED. `contact` only exists once Rent
+   * is pressed, and the personalised preview took ~4.5s from that press —
+   * the blank prefetch covered the panel, but the shopper still watched
+   * "Updating your agreement…" for that long. Step 1 now reports the contact
+   * as it is completed (`onDraft`, debounced, valid fields only), so the
+   * personalised document is usually already there when Rent is pressed:
+   * the draft and the submitted contact are built by the same function, so
+   * the key does not change at the click and nothing is fetched again.
+   */
+  const [draftContact, setDraftContact] = useState<Contact | undefined>(undefined);
+  const previewContact = contact ?? draftContact;
+  const contactKey = previewContact
+    ? [previewContact.first, previewContact.last, previewContact.email, previewContact.phone, previewContact.businessName].map((v) => v ?? '').join('|')
     : '';
-  const previewKey = hold && quote
+  /* The unit the document is for: the held one, or — in reservation mode,
+     where nothing is held — the reserved one (see quoteAnchor). */
+  const previewUnit = hold
+    ? { id: hold.unitId, number: hold.unitNumber }
+    : quoteAnchor ? { id: quoteAnchor.unitId, number: quoteAnchor.unitNumber } : undefined;
+  const previewKey = previewUnit && quote
     ? [
-      hold.unitId, ymd(moveIn), paymentCycle, quote.totalDue, quote.rent, quote.billDay,
+      previewUnit.id, ymd(moveIn), paymentCycle, quote.totalDue, quote.rent, quote.billDay,
       selection?.spaceMixId ?? '', (selection?.promotionIds ?? []).join(','),
       JSON.stringify(quoteToCosts(quote, ymd(moveIn))), contactKey,
     ].join('|')
@@ -2217,16 +2262,16 @@ export function RentalFlow2Step({
   const [leasePreviewShownKey, setLeasePreviewShownKey] = useState('');
   const leasePreviewUpdating = !!previewKey && leasePreviewShownKey !== previewKey;
   useEffect(() => {
-    if (!previewKey || !hold || !quote || inEditor) return undefined;
+    if (!previewKey || !previewUnit || !quote || inEditor) return undefined;
     let cancelled = false;
     void previewDocuments(ctx, {
-      unit: { id: hold.unitId, number: hold.unitNumber },
+      unit: previewUnit,
       contact: {
-        first: contact?.first ?? '',
-        last: contact?.last ?? '',
-        email: contact?.email ?? '',
-        phone: contact?.phone ?? '',
-        businessName: contact?.businessName,
+        first: previewContact?.first ?? '',
+        last: previewContact?.last ?? '',
+        email: previewContact?.email ?? '',
+        phone: previewContact?.phone ?? '',
+        businessName: previewContact?.businessName,
         /*
          * Empty, and deliberately so. The billing address is not collected
          * until the payment form further down the same step, and the preview
@@ -3341,6 +3386,7 @@ export function RentalFlow2Step({
           <Step1Form
             initial={contact}
             reservationMode={!!reservationIdProp}
+            onDraft={setDraftContact}
             eyebrow={eyebrow}
             heading={heading}
             termsHref={termsHref}
