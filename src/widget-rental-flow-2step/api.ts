@@ -1074,6 +1074,10 @@ interface ApiQuoteInvoice { total_due?: number; balance?: number; total_tax?: nu
 export interface QuoteOptions {
   /** Hold token — required for the POST form; without it only the GET works. */
   holdToken?: string;
+  /** Quote a RESERVED unit by its reservation — the one way lease-set-up
+   *  answers for a unit that is reserved (the plain GET and a hold both 409
+   *  "This unit has been reserved"; verified 2026-10-13). */
+  reservationId?: string;
   /** Chosen coverage product (API 6). Adds a "Protection Plan …" line. */
   insuranceId?: string;
   /** Promotions to apply, from the offer. */
@@ -1110,8 +1114,14 @@ export interface QuoteOptions {
 }
 
 /** The documented lease-set-up payload, omitting anything not chosen. */
+/** The one identifier a quote is made with — reservation_id or hold_token,
+ *  never both, the same rule the lease call follows. */
+function quoteIdentity(opts: QuoteOptions): Record<string, unknown> {
+  return opts.reservationId ? { reservation_id: opts.reservationId } : { hold_token: opts.holdToken };
+}
+
 function leaseSetUpBody(opts: QuoteOptions): Record<string, unknown> {
-  const body: Record<string, unknown> = { hold_token: opts.holdToken };
+  const body: Record<string, unknown> = quoteIdentity(opts);
   if (opts.insuranceId) body.insurance_id = opts.insuranceId;
   if (opts.promotionIds?.length) body.promotions = opts.promotionIds.map((id) => ({ promotion_id: id }));
   if (opts.startDate) body.start_date = opts.startDate;
@@ -1148,8 +1158,8 @@ async function postLeaseSetUp(path: string, opts: QuoteOptions): Promise<Record<
     return inner.data;
   } catch (err) {
     if (Object.keys(body).length === 1) throw err; // nothing extra to blame
-    console.warn('[rental] lease-set-up rejected the documented extras — re-quoting with hold_token only. Coverage/promo/date will NOT be priced:', err);
-    const inner = await sendV1('POST', path, { hold_token: opts.holdToken });
+    console.warn('[rental] lease-set-up rejected the documented extras — re-quoting with the identifier only. Coverage/promo/date will NOT be priced:', err);
+    const inner = await sendV1('POST', path, quoteIdentity(opts));
     if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
     return inner.data;
   }
@@ -1169,8 +1179,15 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
   if (holdToken && shouldUseProxyWrites(ctx)) return fetchHeldQuoteViaProxy(ctx, unit, holdToken);
   const path = `companies/${ctx.companyId}/units/${unit.id}/lease-set-up`;
   let data: Record<string, unknown> | undefined;
-  if (holdToken && writesEnabled(ctx)) {
+  if ((holdToken || opts.reservationId) && writesEnabled(ctx)) {
     data = await postLeaseSetUp(path, opts);
+  } else if (opts.reservationId) {
+    // No writes here: the GET takes reservation_id as a query param (verified
+    // live 2026-10-13) and prices the reserved unit, without the extras.
+    const cycle = cycleQuery(opts);
+    data = unwrap(await getJsonV1(
+      `${path}?reservation_id=${encodeURIComponent(opts.reservationId)}${cycle ? `&${cycle.slice(1)}` : ''}`,
+    ));
   } else {
     // The GET takes it as a query param — verified live; the POST body form
     // above is for the held case.
@@ -1926,7 +1943,9 @@ export type PaymentCycleKey = keyof typeof PAYMENT_CYCLE_NAMES;
 
 export interface RentArgs {
   unit: { id: string; number?: string };
-  holdToken: string;
+  /** The hold the unit is rented from — or absent when `reservationId` is set,
+   *  because a reserved unit is leased by reservation_id and is never held. */
+  holdToken?: string;
   contact: RentContact;
   /** The billing period chosen on the Payment Cycle card. Absent ⇒ monthly,
    *  which is both the default and the only value the guide names. */
