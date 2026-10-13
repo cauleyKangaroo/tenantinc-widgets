@@ -80,16 +80,16 @@
 }
 
 .bpp-title {
-  margin: 0;
+  margin: 0 !important;
   /* Figma is 80px/100px on a 1347px canvas. The widget can sit in a much
      narrower column, and 80px there is unreadable — clamp scales it down
      without needing a breakpoint per size. */
-  font-size: clamp(32px, 4.2vw, 80px);
-  font-weight: 600;
-  line-height: 1.25;
-  color: #101318;
+  font-size: clamp(32px, 4.2vw, 80px) !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  color: #101318 !important;
   /* Long unbroken words in a headline this large would otherwise overflow. */
-  overflow-wrap: break-word;
+  overflow-wrap: break-word !important;
 }
 
 .bpp-byline {
@@ -231,22 +231,22 @@
 
 .bpp-body h1,
 .bpp-body h2 {
-  margin: 40px 0 20px;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 40px;
-  color: #101318;
+  margin: 40px 0 20px !important;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  line-height: 40px !important;
+  color: #101318 !important;
 }
 
 .bpp-body h3,
 .bpp-body h4,
 .bpp-body h5,
 .bpp-body h6 {
-  margin: 20px 0 0;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 24px;
-  color: #101318;
+  margin: 20px 0 0 !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 24px !important;
+  color: #101318 !important;
 }
 
 .bpp-body ul,
@@ -306,11 +306,11 @@
 }
 
 .bpp-featured-title {
-  margin: 0 0 40px;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 40px;
-  color: #101318;
+  margin: 0 0 40px !important;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  line-height: 40px !important;
+  color: #101318 !important;
 }
 
 .bpp-featured-grid {
@@ -583,15 +583,15 @@
 
   .bpp-body h1,
   .bpp-body h2 {
-    margin: 28px 0 16px;
-    font-size: 24px;
-    line-height: 32px;
+    margin: 28px 0 16px !important;
+    font-size: 24px !important;
+    line-height: 32px !important;
   }
 
   .bpp-featured-title {
-    margin-bottom: 24px;
-    font-size: 24px;
-    line-height: 32px;
+    margin-bottom: 24px !important;
+    font-size: 24px !important;
+    line-height: 32px !important;
   }
 
   .bpp-featured-grid {

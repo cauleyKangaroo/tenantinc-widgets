@@ -51,11 +51,11 @@
 }
 
 .blog-title {
-  font-size: 48px;
-  font-weight: 700;
-  line-height: 1.1;
-  margin: 0 0 13px;
-  text-wrap: balance;
+  font-size: 48px !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  margin: 0 0 13px !important;
+  text-wrap: balance !important;
 }
 
 .blog-subtitle {
@@ -566,16 +566,16 @@
   /* Standard widget mobile title: 36px / 1.2 / 700, centred, no icon — matches
      .faq-title in #10, the reference all widget titles follow. */
   .blog-mobile-title {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     /* An h2 now, so the browser's own heading margin has to go — a div had
        none. Everything below it is a fallback the site's theme overrides. */
-    margin: 0;
-    font-size: 36px;
-    font-weight: 700;
-    line-height: 1.2;
-    color: #101318;
+    margin: 0 !important;
+    font-size: 36px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    color: #101318 !important;
   }
 
   .blog-mobile .blog-pagination {

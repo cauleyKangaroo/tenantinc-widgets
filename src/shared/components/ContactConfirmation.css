@@ -57,16 +57,16 @@
 .hb-cc-close svg { width: 18px !important; height: 18px !important; }
 
 .hb-cc-heading {
-  display: flex;
-  flex-direction: column;
-  margin: 0 0 34px 24px;
-  font-family: inherit;
-  font-size: 36px;
-  font-weight: 700;
-  line-height: 42px;
-  letter-spacing: 0;
-  color: var(--hb-text-night, #101318);
-  text-transform: none;
+  display: flex !important;
+  flex-direction: column !important;
+  margin: 0 0 34px 24px !important;
+  font-family: inherit !important;
+  font-size: 36px !important;
+  font-weight: 700 !important;
+  line-height: 42px !important;
+  letter-spacing: 0 !important;
+  color: var(--hb-text-night, #101318) !important;
+  text-transform: none !important;
 }
 
 .hb-cc-kicker { color: var(--hb-secondary, #509e2f); }
@@ -152,7 +152,7 @@
   .hb-cc-overlay { padding: 12px; }
   .hb-cc-card { max-height: calc(100vh - 24px); padding: 52px 16px 24px; }
   .hb-cc-close { top: 12px; right: 12px; }
-  .hb-cc-heading { margin: 0 0 20px 4px; font-size: 28px; line-height: 34px; }
+  .hb-cc-heading { margin: 0 0 20px 4px !important; font-size: 28px !important; line-height: 34px !important; }
   .hb-cc-sent { align-items: flex-start; padding: 12px 16px; gap: 10px; }
   .hb-cc-sent-text { font-size: 16px; }
   .hb-cc-info { padding: 24px 20px 28px; }
