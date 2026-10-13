@@ -36,6 +36,7 @@ import { slugLabel } from '@shared/propertyNav';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
+import { fetchFeaturedIds } from '@shared/internalProperties';
 import { Shimmer } from '@shared/Shimmer';
 import cfg from './config.json';
 import { useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
@@ -897,17 +898,30 @@ export function MapLocations({
     return f;
   }), [filtered, ratings, isPreview]);
 
-  // Featuring is an operator choice, and nothing in the properties API carries
-  // it — so it comes from a prop naming the property (its id or its slug). The
-  // demo rows keep their own `featured` flag for the editor and the harness.
+  /*
+   * Featuring is an operator choice, and nothing in the properties API carries
+   * it. It comes from the `featured` toggle on the PropertiesInternal
+   * collection — any number of properties, read once per page — and, for
+   * sites still on it, the older prop naming ONE property (its id or slug).
+   * Either marks the card; both pin it to the top (see sortFacilities). The
+   * demo rows keep their own `featured` flag for the editor and the harness,
+   * where there is no collection to read.
+   */
+  const [featuredIds, setFeaturedIds] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    let cancelled = false;
+    void fetchFeaturedIds().then((ids) => { if (!cancelled) setFeaturedIds(ids); });
+    return () => { cancelled = true; };
+  }, []);
   const flagged = useMemo(() => {
     const want = (featuredPropertyId ?? '').trim().toLowerCase();
-    if (!want) return rated;
+    if (!want && featuredIds.size === 0) return rated;
     return rated.map((f) => ({
       ...f,
-      featured: f.id.toLowerCase() === want || (f.slug ?? '').toLowerCase() === want,
+      featured: featuredIds.has(f.id)
+        || (!!want && (f.id.toLowerCase() === want || (f.slug ?? '').toLowerCase() === want)),
     }));
-  }, [rated, featuredPropertyId]);
+  }, [rated, featuredPropertyId, featuredIds]);
 
   const facilities = useMemo(() => sortFacilities(flagged, sortBy), [flagged, sortBy]);
   const sortLabelText =
