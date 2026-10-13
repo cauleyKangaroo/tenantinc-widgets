@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
-import { createLead, fetchPropertyDetails, fetchFacilityOptions, propertyBreadcrumb, stateName, configureApi, type PropertyDetails, type BoundPropertyProps, type FacilityOption, type ApiCredProps } from './api';
+import { createLead, fetchPropertyDetails, fetchFacilityOptions, findReservation, propertyBreadcrumb, stateName, configureApi, type PropertyDetails, type BoundPropertyProps, type FacilityOption, type ApiCredProps } from './api';
+import { rentalHref, saveReservationHandoff } from '@shared/unitHandoff';
 import {
   Breadcrumb, collapseMiddle, locationCrumbHead, normaliseBase, placeSlug,
   LOCATION_BASE_PATH, type Crumb,
@@ -68,6 +69,9 @@ export interface PropertyInfoProps {
   callCenterStatus?: string;
   callCenterNote?: string;
   reservationUrl?: string;
+  /** The rental page a FOUND reservation is completed on. Same field #05 has
+   *  (`rentalPageUrl`); default `/rental`. */
+  rentalPageUrl?: string;
   breadcrumb?: string[];
   /**
    * Mobile: pin the contact row (Phone/Email/Billpay/Map/Locations) to the top of
@@ -296,6 +300,7 @@ export function PropertyInfo(props: Props) {
     callCenterStatus = 'Call Center Open',
     callCenterNote = 'Closes 8:30pm',
     reservationUrl = '#',
+    rentalPageUrl,
     breadcrumb = DEFAULTS.breadcrumb,
     stickyContactRow = true,
     stickyOffsetTop = 0,
@@ -359,6 +364,8 @@ export function PropertyInfo(props: Props) {
   const [hoursOpen, setHoursOpen] = useState(false);
   const [reservationOpen, setReservationOpen] = useState(false);
   const [reservationCode, setReservationCode] = useState('');
+  const [reservationBusy, setReservationBusy] = useState(false);
+  const [reservationError, setReservationError] = useState('');
   const [messageOpen, setMessageOpen] = useState(false);
   /* The whole portfolio, for the contact modal's dropdown. Fetched only once
      the modal is first opened: a shopper who never contacts anyone should not
@@ -794,12 +801,48 @@ export function PropertyInfo(props: Props) {
     else if (d.dx >= threshold && index > 0) setIndex(index - 1);
   };
 
-  // There's no reservation-lookup endpoint yet, so "Go" just follows the
-  // configured reservationUrl (what the old link did). Once a lookup exists,
-  // reservationCode is what it needs.
-  const submitReservation = (e: React.FormEvent) => {
+  /*
+   * "Go": look the code up AT THIS PROPERTY, then send the customer to the
+   * rental page to complete it — the same hand-off a space-list "Select"
+   * makes, except the flow is told the reservation id and the exact unit
+   * (see @shared/unitHandoff and the rental flow's reservation mode).
+   *
+   * An empty box is refused in words rather than sent: the lookup would
+   * answer "no reservation" for a blank code and that is the wrong message.
+   * `reservationUrl` is no longer followed — it predates the lookup — except
+   * as the destination when no rental page is configured and it is a real URL.
+   */
+  const submitReservation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (reservationUrl && reservationUrl !== '#') window.location.href = reservationUrl;
+    if (reservationBusy) return;
+    const code = reservationCode.trim().toUpperCase();
+    if (!code) { setReservationError('Enter your reservation code.'); return; }
+    const propertyIdForLookup = property?.id ?? (typeof propertyId === 'string' ? propertyId : '');
+    if (!propertyIdForLookup) { setReservationError('This page is not linked to a facility yet. Please try again shortly.'); return; }
+    setReservationError('');
+    setReservationBusy(true);
+    try {
+      const r = await findReservation({ propertyId, companyId }, propertyIdForLookup, code);
+      if (!r.ok) { setReservationError('We could not look up your reservation right now. Please try again.'); return; }
+      if (!r.reservation) { setReservationError('We couldn’t find a reservation with that code at this facility.'); return; }
+      const res = r.reservation;
+      saveReservationHandoff({
+        reservationId: res.id, code: res.code, unitId: res.unitId, unitNumber: res.unitNumber,
+        propertyId: res.propertyId ?? propertyIdForLookup, companyId: r.companyId, contact: res.contact,
+      });
+      const base = rentalPageUrl?.trim()
+        || (reservationUrl && reservationUrl !== '#' ? reservationUrl : '')
+        || rentalHref();
+      const url = new URL(rentalHref(base), window.location.origin);
+      // Ids only — the contact rides in storage. The flow reads these first.
+      url.searchParams.set('reservationId', res.id);
+      url.searchParams.set('unitId', res.unitId);
+      url.searchParams.set('propertyId', res.propertyId ?? propertyIdForLookup);
+      url.searchParams.set('companyId', r.companyId);
+      window.location.assign(url.toString());
+    } finally {
+      setReservationBusy(false);
+    }
   };
 
   /* Two effects, not one. The key listener has to see the CURRENT steppers, so
@@ -1143,18 +1186,27 @@ export function PropertyInfo(props: Props) {
             {/* Clicking the link swaps it for the reservation-code lookup
                 (Figma 9697-22507); Escape puts the link back. */}
             {reservationOpen ? (
-              <form className="pi-res-form" onSubmit={submitReservation}>
+              <form className="pi-res-form" onSubmit={(e) => void submitReservation(e)} noValidate>
                 <input
-                  className="pi-res-input"
+                  className={`pi-res-input${reservationError ? ' pi-res-input--error' : ''}`}
                   type="text"
                   placeholder="Reservation Code"
                   aria-label="Reservation Code"
+                  aria-invalid={reservationError ? true : undefined}
+                  aria-describedby={reservationError ? 'pi-res-error' : undefined}
                   value={reservationCode}
                   autoFocus
-                  onChange={(e) => setReservationCode(e.target.value)}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  onChange={(e) => { setReservationCode(e.target.value); if (reservationError) setReservationError(''); }}
                   onKeyDown={(e) => { if (e.key === 'Escape') setReservationOpen(false); }}
                 />
-                <button type="submit" className="pi-res-go">Go</button>
+                <button type="submit" className="pi-res-go" disabled={reservationBusy} aria-busy={reservationBusy}>
+                  {reservationBusy ? 'Finding…' : 'Go'}
+                </button>
+                {reservationError && (
+                  <p id="pi-res-error" className="pi-res-error" role="alert">{reservationError}</p>
+                )}
               </form>
             ) : (
               <button
