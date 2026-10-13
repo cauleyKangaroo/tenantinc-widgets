@@ -79,17 +79,17 @@
 }
 
 .bpg-title {
-  margin: 0;
+  margin: 0 !important;
   /* The frame is 80px on a 1347px canvas, and this widget can sit in a much
      narrower Duda column where 80px is unreadable. Same clamp as #16's
      .bpp-title, which came from the same 80px origin — one scale across both
      blog pages, and no breakpoint per size. */
-  font-size: clamp(32px, 4.2vw, 80px);
-  font-weight: 600;
-  line-height: 1.25;
-  color: #101318;
+  font-size: clamp(32px, 4.2vw, 80px) !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  color: #101318 !important;
   /* Keeps a two-line heading from breaking one word onto the second line. */
-  text-wrap: balance;
+  text-wrap: balance !important;
 }
 
 .bpg-intro {

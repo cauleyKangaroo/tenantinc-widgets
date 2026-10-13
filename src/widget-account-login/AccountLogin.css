@@ -63,17 +63,17 @@
 }
 
 .al-title {
-  margin: 0;
-  font-size: 36px;
-  font-weight: 600;
-  line-height: 38px;
-  color: #000;
+  margin: 0 !important;
+  font-size: 36px !important;
+  font-weight: 600 !important;
+  line-height: 38px !important;
+  color: #000 !important;
 }
 
 /* The code step moves focus here on entry; that must not draw a focus ring on
    what is visually just a heading. */
 .al-title:focus {
-  outline: none;
+  outline: none !important;
 }
 
 .al-sub {
@@ -511,8 +511,8 @@
   }
 
   .al-title {
-    font-size: 28px;
-    line-height: 32px;
+    font-size: 28px !important;
+    line-height: 32px !important;
   }
 
   .al-otp {

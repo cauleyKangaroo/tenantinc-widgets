@@ -140,12 +140,12 @@
 }
 
 .rf-proc-title {
-  margin: 0;
-  max-width: 463px;
-  color: var(--hb-text-night, #101318);
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.2;
+  margin: 0 !important;
+  max-width: 463px !important;
+  color: var(--hb-text-night, #101318) !important;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
 }
 /* --color_1, Duda's PRIMARY — this screen follows the brand colour, not the
    CTA. It was --hb-secondary, which LOOKS like a themed value but is not:
@@ -209,7 +209,7 @@
     margin: 0 auto;
   }
   /* The frame's rhythm below the banner: 71px, then 60px, then 44px. */
-  .rf-proc-title { font-size: 32px; max-width: 292px; margin-top: 71px; }
+  .rf-proc-title { font-size: 32px !important; max-width: 292px !important; margin-top: 71px !important; }
   .rf-proc-bar { margin-top: 60px; }
   .rf-proc-copy { margin-top: 44px; max-width: 240px; line-height: 20px; }
 }
@@ -229,7 +229,7 @@
 /* The third <h3> — same exposure as the step-3 pair; see the note on
    .rf-sx-idv-title. Not reported yet only because step 2 was not the screenshot. */
 .rf-payment-title {
-  margin: 0;
+  margin: 0 !important;
   font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 20px !important;
   font-weight: 700 !important;
@@ -311,7 +311,7 @@
    armour against an attacker that is not there. */
 
 .rf-sx-idv-title {
-  margin: 0 0 16px;
+  margin: 0 0 16px !important;
   font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 20px !important;
   font-weight: 600 !important;
@@ -449,9 +449,9 @@
    means adding `display: flex`, which the theme does not touch, so the two
    modifiers below only add layout. */
 .rf-sx-idv-title--tick {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
 }
 .rf-sx-idv-tick { flex: 0 0 auto; color: var(--hb-secondary, #509e2f); }
 .rf-sx-idv-alert { flex: 0 0 auto; color: var(--hb-ada-red, #e53935); }
@@ -490,7 +490,7 @@
 
 /* Result: complete. The card's own ground — nothing to warn about. */
 .rf-sx-idv--done { padding: 30px 28px; }
-.rf-sx-idv--done .rf-sx-idv-title { margin: 0; }
+.rf-sx-idv--done .rf-sx-idv-title { margin: 0 !important; }
 
 /* Results: failed / later. */
 .rf-sx-idv--alert {
@@ -518,7 +518,7 @@
    Qualified with .rf-modal so it beats that rule's max-width whichever of the
    two stylesheets the bundler emits first. */
 .rf-modal.rf-idm { max-width: 700px; }
-.rf-idm .rf-modal-title { font-size: 20px; line-height: 36px; }
+.rf-idm .rf-modal-title { font-size: 20px !important; line-height: 36px !important; }
 
 /* ── Why these are !important ────────────────────────────────────────────
    #03's "Send us a Message" modal renders INSIDE the widget, so inside Duda's
@@ -686,7 +686,7 @@
 }
 /* See the note on .rf-sx-idv-title. */
 .rf-sx-extra-title {
-  margin: 0;
+  margin: 0 !important;
   font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 20px !important;
   font-weight: 700 !important;

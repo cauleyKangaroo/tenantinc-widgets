@@ -226,7 +226,7 @@
 }
 /* Hardcoded #101318, per the frame — this line never follows the site theme. */
 .rf-wrapper .rf-heading {
-  margin: 0;
+  margin: 0 !important;
   font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 36px !important;
   font-weight: 700 !important;
@@ -561,15 +561,15 @@
    off the text's centre line. Every other modal title in the flow resets it;
    this rule predates its only current caller and never had to. */
 .rf-modal-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #101318;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  color: #101318 !important;
 }
-.rf-modal-title svg { flex: 0 0 auto; }
+.rf-modal-title svg { flex: 0 0 auto !important; }
 .rf-modal-close {
   flex: 0 0 auto;
   width: 32px; height: 32px;
@@ -603,7 +603,7 @@
 
 @media (max-width: 640px) {
   .rf-modal-head { padding: 18px 20px; }
-  .rf-modal-title { font-size: 20px; }
+  .rf-modal-title { font-size: 20px !important; }
   .rf-modal-body { padding: 24px 16px; }
   .rf-cals { gap: 16px; }
 }

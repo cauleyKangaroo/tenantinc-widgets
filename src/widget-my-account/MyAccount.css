@@ -57,10 +57,8 @@
 .ma-wrapper *::before,
 .ma-wrapper *::after { box-sizing: border-box; }
 
-.ma-wrapper p,
-.ma-wrapper h1,
-.ma-wrapper h2,
-.ma-wrapper ul { margin: 0; }
+.ma-wrapper p, .ma-wrapper ul { margin: 0; }
+.ma-wrapper h1, .ma-wrapper h2 { margin: 0 !important; }
 .ma-wrapper ul { padding: 0; list-style: none; }
 
 .ma-sr-only {
@@ -86,12 +84,12 @@
 }
 
 .ma-greeting {
-  grid-column: 1;
-  font-size: 36px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  color: var(--hb-text-night);
+  grid-column: 1 !important;
+  font-size: 36px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--hb-text-night) !important;
 }
 
 .ma-logged-in {
@@ -165,10 +163,10 @@
 }
 
 .ma-promo__title {
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--hb-text-night);
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  color: var(--hb-text-night) !important;
 }
 
 .ma-promo__body {
@@ -200,12 +198,12 @@
 }
 
 .ma-wrapper .ma-pay__title {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: #000;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  color: #000 !important;
   /* Was 42px here; it belongs to .ma-pay__head now. */
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 /* A 40px hit target around a 24px glyph — the icon alone is under the 44px
@@ -1097,10 +1095,10 @@
 }
 
 .ma-account__title {
-  font-size: 36px;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--hb-text-night);
+  font-size: 36px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  color: var(--hb-text-night) !important;
 }
 
 .ma-account__rule {
@@ -1148,11 +1146,11 @@
 }
 
 .ma-account__label {
-  margin: 0 0 16px;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 16px;
-  color: var(--hb-text-night);
+  margin: 0 0 16px !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 16px !important;
+  color: var(--hb-text-night) !important;
 }
 
 /* ── Icon + text rows, shared by both contact blocks and the action links ── */
@@ -1560,20 +1558,20 @@
 }
 
 .ma-edit__title {
-  font-size: 36px;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--hb-text-night);
+  font-size: 36px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  color: var(--hb-text-night) !important;
 }
 
 /* Section headings — "Account Settings", "Mailing Address", "Additional
    Information". 20px bold in all three. */
 .ma-edit__label {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--hb-text-night);
+  margin: 0 !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: var(--hb-text-night) !important;
 }
 
 .ma-edit__section {
@@ -1642,11 +1640,11 @@
 /* "Alternate Contact" / "Emergency Contact" — a rank below the 20px section
    headings, and the frame sets them SemiBold rather than Bold. */
 .ma-edit__sub {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 18px;
-  color: var(--hb-text-night);
+  margin: 0 !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  line-height: 18px !important;
+  color: var(--hb-text-night) !important;
 }
 
 .ma-edit__contact {
@@ -1657,7 +1655,7 @@
 
 /* The sub-heading sits closer to its first row than the rows do to each
    other — it belongs to them rather than separating them. */
-.ma-edit__contact .ma-edit__sub { margin-bottom: -12px; }
+.ma-edit__contact .ma-edit__sub { margin-bottom: -12px !important; }
 
 /* The two opt-ins are one group, tighter than the 16px section rhythm. */
 .ma-edit__prefs {
@@ -1768,10 +1766,7 @@
    color: transparent for text sitting directly in a block. */
 .ma-wrapper--busy .ma-grid * { visibility: hidden; }
 
-.ma-wrapper--busy .ma-greeting,
-.ma-wrapper--busy .ma-logged-in > *,
-.ma-wrapper--busy .ma-main > *,
-.ma-wrapper--busy .ma-side > * {
+.ma-wrapper--busy .ma-logged-in > *, .ma-wrapper--busy .ma-main > *, .ma-wrapper--busy .ma-side > * {
   visibility: visible;
   color: transparent !important;
   background: #e9edf1 !important;
@@ -1779,9 +1774,17 @@
   box-shadow: none !important;
   border-radius: 12px;
 }
+.ma-wrapper--busy .ma-greeting {
+  visibility: visible !important;
+  color: transparent !important;
+  background: #e9edf1 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 12px !important;
+}
 
 /* A grey bar the width of the greeting, not of the whole column. */
-.ma-wrapper--busy .ma-greeting { justify-self: start; border-radius: 6px; }
+.ma-wrapper--busy .ma-greeting { justify-self: start !important; border-radius: 6px !important; }
 
 /* ── Narrow widths ─────────────────────────────────────────────────────────
    The frame is desktop-only (1920) — there is no mobile artboard for this
@@ -1793,10 +1796,8 @@
     grid-template-columns: minmax(0, 1fr);
     row-gap: 20px;
   }
-  .ma-greeting,
-  .ma-logged-in,
-  .ma-main,
-  .ma-side { grid-column: 1; }
+  .ma-logged-in, .ma-main, .ma-side { grid-column: 1; }
+  .ma-greeting { grid-column: 1 !important; }
 
   /* Left-aligned once it is stacked under the greeting rather than opposite
      it — the flex row needs telling as well as the text. */
@@ -1806,7 +1807,7 @@
 
 @media (max-width: 720px) {
   .ma-wrapper { padding: 24px 16px 48px; }
-  .ma-greeting { font-size: 28px; }
+  .ma-greeting { font-size: 28px !important; }
 
   .ma-promo {
     flex-direction: column;
@@ -1818,7 +1819,7 @@
   .ma-pay__head { margin-bottom: 24px; }
 
   .ma-account__body { padding: 24px 20px; }
-  .ma-account__title { font-size: 28px; }
+  .ma-account__title { font-size: 28px !important; }
   /* NOT flex-direction: column any more. The columns wrap on their own now (see
      .ma-account__cols), and in a column-direction container a flex-basis is a
      HEIGHT — the 367px basis would have become a 367px-tall contact block.
@@ -1827,7 +1828,7 @@
   .ma-account__alt { width: 100%; }
 
   .ma-edit__body { padding: 24px 20px; }
-  .ma-edit__title { font-size: 28px; }
+  .ma-edit__title { font-size: 28px !important; }
   /* Two 56px fields will not sit side by side on a phone, and three certainly
      will not. Every row shape collapses to one column. */
   .ma-edit__row,
