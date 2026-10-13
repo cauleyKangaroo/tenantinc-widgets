@@ -25,6 +25,8 @@ const banner = exportsObject.LocationsBanner({ locationCount: 7 });
 assert.equal(banner.type, 'a');
 assert.equal(banner.props.href, '/locations');
 assert.equal(banner.props.children.props.children, 'See Our 7 Locations');
+assert.equal(banner.props['aria-label'], undefined, 'visible text names the loaded banner');
+assert.equal(exportsObject.LocationsBanner({}).props['aria-label'], 'See Our Locations', 'loading banner keeps an accessible name');
 function click(overrides = {}) {
   let prevented = false;
   banner.props.onClick({ button: 0, preventDefault: () => { prevented = true; }, ...overrides });
@@ -40,4 +42,4 @@ for (const modifier of ['metaKey', 'ctrlKey', 'shiftKey', 'altKey']) {
 }
 assert.equal(click({ button: 1 }), false, 'middle-click preserves native navigation');
 assert.equal(menuCalls, beforeModifiers);
-console.log('Locations banner tests passed: whole-banner link, menu opening, fallback, and modifier clicks.');
+console.log('Locations banner tests passed: whole-banner link, menu opening, fallback, and modifier clicks, loading label.');

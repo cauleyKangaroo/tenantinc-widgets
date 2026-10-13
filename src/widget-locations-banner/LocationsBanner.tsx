@@ -183,6 +183,7 @@ export function LocationsBanner({
     <a
       className="lb-banner"
       href="/locations"
+      aria-label={count === undefined ? text : undefined}
       onClick={(event) => {
         // Preserve native new-tab/window behavior and the no-nav fallback.
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
