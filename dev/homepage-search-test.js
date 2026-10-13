@@ -230,7 +230,14 @@ async function main() {
   await React.act(async () => locationSuccess({ coords: { latitude: 0, longitude: 0 } }));
   assert.doesNotMatch(document.body.textContent, /No locations within 30 miles/, 'an inventory outage is not reported as nothing nearby');
   assert.equal(document.querySelector('.hs-current-location').disabled, false);
-  await React.act(async () => outageRoot.unmount()); dom.window.close();
-  console.log('Homepage search tests passed: pagination, alphabetical city matches, state matching, nearest-first nearby results, empty-search fallback, keyboard selection, link/click agreement, missing geolocation, inventory outage, denial, stale responses, failure states.');
+  await React.act(async () => outageRoot.unmount());
+  const editorRoot = createRoot(document.getElementById('root'));
+  await React.act(async () => editorRoot.render(React.createElement(component, { inEditor: true })));
+  await React.act(async () => { rejectInventory(new Error('no dmAPI in the editor')); });
+  await React.act(async () => Simulate.focus(input()));
+  assert.doesNotMatch(document.body.textContent, /temporarily unavailable/, 'the editor previews placeholder cities instead of an outage');
+  assert.deepEqual(rows().map(row => row.textContent.trim()), ['Bakersfield', 'Fullerton']);
+  await React.act(async () => editorRoot.unmount()); dom.window.close();
+  console.log('Homepage search tests passed: pagination, alphabetical city matches, state matching, nearest-first nearby results, empty-search fallback, keyboard selection, link/click agreement, missing geolocation, inventory outage, editor preview, denial, stale responses, failure states.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

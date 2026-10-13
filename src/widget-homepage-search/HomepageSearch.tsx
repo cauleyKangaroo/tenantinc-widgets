@@ -236,7 +236,7 @@ export function HomepageSearch({
     }).then((tree) => {
       if (cancelled) return;
       if (!tree.length) {
-        if (__HB_DEV_HARNESS__ && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) {
+        if (editorPreview || (__HB_DEV_HARNESS__ && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname))) {
           setTargets(FALLBACK_TARGETS);
           setGeoTargets(EDITOR_GEO_TARGETS);
           setInventoryStatus('loaded');
@@ -289,7 +289,7 @@ export function HomepageSearch({
       setInventoryStatus('loaded');
     }).catch((error) => {
       if (cancelled) return;
-      if (__HB_DEV_HARNESS__ && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) {
+      if (editorPreview || (__HB_DEV_HARNESS__ && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname))) {
         setTargets(FALLBACK_TARGETS);
         setGeoTargets(EDITOR_GEO_TARGETS);
         setInventoryStatus('loaded');
@@ -299,7 +299,7 @@ export function HomepageSearch({
       setInventoryStatus('unavailable');
     });
     return () => { cancelled = true; };
-  }, [propertiesCollection, searchUrl, locationsUrl]);
+  }, [propertiesCollection, searchUrl, locationsUrl, editorPreview]);
 
   const parts = storageTypes.split(',').map((s) => s.trim()).filter(Boolean);
   const typePlaceholder = parts[0] ?? 'Storage Type';
