@@ -25,7 +25,7 @@
 
 import { readCollection, readCollectionPaged, str, plainText, logSource, hasCollectionsApi } from './dudaCollections';
 import { PROPERTIES_COLLECTION } from './propertiesSource';
-import { INTERNAL_PROPERTIES_COLLECTION, readInternalProperties } from './internalProperties';
+import { INTERNAL_PROPERTIES_COLLECTION, readInternalProperties, readInternalPropertiesResult } from './internalProperties';
 import { formatPhone } from './propertyContact';
 
 export type NavUnitType = 'storage' | 'parking';
@@ -368,7 +368,11 @@ export async function fetchLocationTree(
     return [];
   }
 
-  const paged = readAllPages ? await readCollectionPaged(collectionName) : undefined;
+  const paged = readAllPages
+    ? await (collectionName === INTERNAL_PROPERTIES_COLLECTION
+      ? readInternalPropertiesResult(collectionName)
+      : readCollectionPaged(collectionName))
+    : undefined;
   if (paged && (paged.status !== 'ok' || !paged.complete)) throw new Error('Location inventory could not be fully loaded');
   const rows = paged ? paged.rows : collectionName === INTERNAL_PROPERTIES_COLLECTION
     ? await readInternalProperties(collectionName)

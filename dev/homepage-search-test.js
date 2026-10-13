@@ -46,6 +46,20 @@ async function main() {
   dom.window.dmAPI.loadCollectionsAPI = async () => ({ data: () => ({ get: async () => ({ values: [{ id: 'same' }], page: { pageSize: 100, totalPages: 2 } }) }) });
   assert.equal((await collections.readCollectionPaged('Properties')).complete, false);
 
+  let internalResult = { status: 'ok', complete: true, rows: [{ id: '1', name: 'Facility', slug: 'california/irvine/facility-1', Address: { city: 'Irvine' } }] };
+  let internalReads = 0;
+  const nav = load('../src/shared/propertyNav.ts', context, {
+    './dudaCollections': { ...collections, hasCollectionsApi: () => true, logSource: () => {}, readCollectionPaged: () => { throw new Error('Internal collection must use its normalized reader'); } },
+    './propertiesSource': { PROPERTIES_COLLECTION: 'Properties' },
+    './internalProperties': { INTERNAL_PROPERTIES_COLLECTION: 'PropertiesInternal', readInternalPropertiesResult: async () => { internalReads++; return internalResult; } },
+    './propertyContact': { formatPhone: value => value },
+  });
+  const internalTree = await nav.fetchLocationTree('test', { collectionName: 'PropertiesInternal', readAllPages: true });
+  assert.equal(internalReads, 1, 'paged internal inventory uses the normalized reader');
+  assert.equal(internalTree[0].cities[0].properties[0].label, 'Facility');
+  internalResult = { ...internalResult, complete: false };
+  await assert.rejects(nav.fetchLocationTree('test', { collectionName: 'PropertiesInternal', readAllPages: true }), /fully loaded/, 'incomplete internal inventory is rejected');
+
   let denied = false;
   let resolveInventory;
   let queryCalls = 0;
@@ -89,6 +103,7 @@ async function main() {
   const cities = Array.from({ length: 160 }, (_, i) => ({ label: `City ${String(i).padStart(3, '0')}`, key: `city-${i}`, href: `/locations/state/city-${i}`, properties: [{ label: `Facility ${i}`, href: `/storage-units/state/city-${i}/facility`, vacantUnitTypes: i === 0 ? ['parking'] : ['storage'], lat: 0, lng: i < 4 ? (i + 1) / 10 : 100, zip: '12345', address: '', street: '' }] }));
   await React.act(async () => resolveInventory([{ label: 'State', key: 'state', href: '/locations/state', cities: cities.reverse() }]));
   assert.equal(rows().length, 160); assert.match(document.body.textContent, /Our Locations \(160\)/);
+  assert.equal(document.querySelector('.hs-current-location').closest('[role="listbox"]'), null, 'Current Location is outside the city listbox');
   assert.match(rows()[0].textContent, /City 000/);
   assert.doesNotMatch(document.body.textContent, /Search History/);
   await React.act(async () => Simulate.click(document.querySelector('.hs-current-location')));
@@ -135,6 +150,8 @@ async function main() {
   assert.equal(viewMap.getAttribute('href'), '/locations');
   assert.ok(viewMap.classList.contains('hs-map-link'), 'map footer has dedicated centered styling');
   assert.ok(viewMap.querySelector('svg[aria-hidden="true"]'), 'map footer includes a decorative map icon');
+  assert.equal(viewMap.closest('[role="listbox"]'), null, 'View Map is outside the city listbox');
+  assert.equal(document.querySelector('.hs-search-empty').closest('[role="listbox"]'), null, 'empty status is outside the city listbox');
   assert.equal(browseCalls, 0);
   await change('Old City'); await settle(); await change('City 003');
   await React.act(async () => { resolveOld([{ placeId: 'Old City', mainText: 'Old City', description: 'Old City' }]); });

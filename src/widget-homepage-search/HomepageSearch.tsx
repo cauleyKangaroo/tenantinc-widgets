@@ -212,7 +212,7 @@ export function HomepageSearch({
   const findRef = useRef<HTMLAnchorElement>(null);
   const panelContainerRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLFormElement>(null);
-  const suggestionsRef = useRef<HTMLUListElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
   const typeMenuRef = useRef<HTMLUListElement>(null);
   const typeOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const instanceId = React.useId();
@@ -693,19 +693,16 @@ export function HomepageSearch({
         </form>
 
         {showLocationPanel && (
-          <ul
+          <div
             ref={suggestionsRef}
             className={`hs-suggestions${suggestionsAbove ? ' hs-suggestions--above' : ''}${!searching && visibleSuggestions.length === 0 ? ' hs-suggestions--empty' : ''}`}
-            id={suggestionsId}
-            role="listbox"
-            aria-label="Storage locations"
             style={suggestionsAbove ? ({ '--hs-suggestions-bottom': `${suggestionsBottom}px` } as React.CSSProperties) : undefined}
           >
-          {locationNotice && <li className="hs-search-status" role="presentation">{locationNotice}</li>}
+          {locationNotice && <div className="hs-search-status">{locationNotice}</div>}
           {!q.trim() && (
             <>
               {showCurrentLocation && (
-              <li role="presentation">
+              <div>
                 <button
                   className="hs-current-location"
                   type="button"
@@ -722,24 +719,24 @@ export function HomepageSearch({
                   <MapPinSolidIcon size={24} />
                   <span>Current Location</span>
                 </button>
-              </li>
+              </div>
               )}
             </>
           )}
           {inventoryStatus === 'loaded' && !q.trim() && (
-            <li className="hs-history-head" role="presentation">Our Locations ({citySuggestions.length})</li>
+            <div className="hs-history-head">Our Locations ({citySuggestions.length})</div>
           )}
           {!!q.trim() && !citySuggestions.length && nearbyCurrent?.status === 'ready' && visibleSuggestions.length > 0 && (
-            <li className="hs-history-head" role="presentation">{visibleSuggestions.length} cities near {nearbyCurrent.place}</li>
+            <div className="hs-history-head">{visibleSuggestions.length} cities near {nearbyCurrent.place}</div>
           )}
-          {searching ? <li className="hs-search-status" role="presentation">Searching…</li>
-            : lookupError ? <li className="hs-search-status" role="presentation">Search is temporarily unavailable. Please try again.</li>
-              : visibleSuggestions.length === 0 && <li className="hs-search-status hs-search-empty" role="presentation">
+          {searching ? <div className="hs-search-status">Searching…</div>
+            : lookupError ? <div className="hs-search-status">Search is temporarily unavailable. Please try again.</div>
+              : visibleSuggestions.length === 0 && <div className="hs-search-status hs-search-empty">
                 <MapPinIcon size={18} />
                 <span>No Facilities Found</span>
-              </li>}
+              </div>}
           {!searching && visibleSuggestions.length === 0 && (
-            <li role="presentation">
+            <div>
               {mapHref ? <a className="hs-map-link" href={mapHref}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="m8 8-5 2v11l5-2 8 2 5-2V8l-3 1M8 14v5m8-5v7" />
@@ -752,8 +749,9 @@ export function HomepageSearch({
                   if (openFindStorage()) setSuggestionsOpen(false);
                   else setQ('');
                 }}>Browse Locations</button>}
-            </li>
+            </div>
           )}
+          <ul className="hs-city-options" id={suggestionsId} role="listbox" aria-label="Storage locations">
           {visibleSuggestions.map((city, index) => (
             <li key={`${city.label}-${city.href}`} role="presentation">
               <button
@@ -771,6 +769,7 @@ export function HomepageSearch({
             </li>
           ))}
           </ul>
+          </div>
         )}
         <span className="hs-results-announcement" role="status" aria-live="polite" aria-atomic="true">
           {showLocationPanel ? searching ? 'Searching locations' : lookupError ? 'Search temporarily unavailable' : `${visibleSuggestions.length} cities found` : ''}

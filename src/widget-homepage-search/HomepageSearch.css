@@ -152,6 +152,7 @@
   bottom: var(--hs-suggestions-bottom);
 }
 .hs-suggestions--empty { padding: 0; }
+.hs-city-options { margin: 0; padding: 0; list-style: none; }
 .hs-current-location {
   display: flex;
   align-items: center;
