@@ -226,6 +226,9 @@ export function Footer({
 
   useEffect(() => {
     let cancelled = false;
+    // Start clean: if this property's read fails, the previous property's
+    // socials must not survive into this page once `settled` flips.
+    setContact(null);
     setContactSettled(false);
     fetchPropertyContact('#13 footer', propertyId)
       .then((c) => { if (!cancelled) setContact(c); })
