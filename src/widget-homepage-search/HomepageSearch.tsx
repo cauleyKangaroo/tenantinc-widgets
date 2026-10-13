@@ -719,7 +719,7 @@ export function HomepageSearch({
         {showLocationPanel && (
           <div
             ref={suggestionsRef}
-            className={`hs-suggestions${suggestionsAbove ? ' hs-suggestions--above' : ''}${!searching && visibleSuggestions.length === 0 ? ' hs-suggestions--empty' : ''}`}
+            className={`hs-suggestions${suggestionsAbove ? ' hs-suggestions--above' : ''}${!searching && visibleSuggestions.length === 0 ? ' hs-suggestions--empty' : ''}${!q.trim() && citySuggestions.length > 0 ? ' hs-suggestions--browse' : ''}`}
             style={suggestionsAbove ? ({ '--hs-suggestions-bottom': `${suggestionsBottom}px` } as React.CSSProperties) : undefined}
           >
           <div role="status">{locationNotice && <div className="hs-search-status">{locationNotice}</div>}</div>
@@ -748,7 +748,7 @@ export function HomepageSearch({
             </>
           )}
           {inventoryStatus === 'loaded' && !q.trim() && (
-            <div className="hs-history-head">Our Locations ({citySuggestions.length})</div>
+            <div className="hs-history-head hs-our-locations">Our Locations ({citySuggestions.length})</div>
           )}
           {!!q.trim() && !citySuggestions.length && nearbyCurrent?.status === 'ready' && visibleSuggestions.length > 0 && (
             <div className="hs-history-head">{visibleSuggestions.length} {visibleSuggestions.length === 1 ? 'city' : 'cities'} near {nearbyCurrent.place}</div>
@@ -756,7 +756,7 @@ export function HomepageSearch({
           {searching ? <div className="hs-search-status">Searching…</div>
             : lookupError ? <div className="hs-search-status">Search is temporarily unavailable. Please try again.</div>
               : visibleSuggestions.length === 0 && <div className="hs-search-status hs-search-empty">
-                <MapPinIcon size={18} />
+                <MapPinIcon size={24} />
                 <span>No Facilities Found</span>
               </div>}
           {!searching && visibleSuggestions.length === 0 && (
