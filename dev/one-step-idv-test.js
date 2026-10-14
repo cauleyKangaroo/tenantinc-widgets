@@ -85,7 +85,7 @@ async function main() {
     '@shared/ui': { isPossiblePhone: phone => phone.replace(/\D/g, '').length === 10 },
     './useIdvController': { useIdvController: options => {
       controllerOptions = options;
-      return { state: { kind: options.enabled ? phase : 'idle', result: { authenticated: true, idvId: 'idv05d17e25979d41b1be17aaac798d58de' }, notificationStatus: 'sent', resendUncertain }, handheld, start, resend,
+      return { state: { kind: options.enabled ? phase : 'idle', result: { authenticated: true, idvId: 'idv05d17e25979d41b1be17aaac798d58de', driversLicense: { number: 'D1234567', state: 'CA', expiration: '2030-01-15' }, address: { street: '1 Main St', city: 'Irvine', state: 'CA', zip: '92618' } }, notificationStatus: 'sent', resendUncertain }, handheld, start, resend,
         continueInNewTab() {}, retry() {}, verificationUrl: 'https://verify.example.com', popupBlocked: false };
     } },
     './IdIllustration': { IdIllustration: () => null },
@@ -123,6 +123,10 @@ async function main() {
   assert.equal(readyContact, undefined, 'pending verification cannot allow payment');
   phase = 'complete'; await render();
   assert.equal(readyContact.contact.email, contact.email);
+  const summary = document.querySelector('.rf2-pre-idv-details').textContent;
+  assert.match(summary, /1 Main St, Irvine, CA, 92618/, 'one-step shows the scanned mailing address');
+  assert.match(summary, /D1234567/, 'one-step shows the scanned licence number');
+  assert.match(summary, /EXP 01\/15\/2030/, 'licence expiry uses the two-step format');
   assert.equal(helpers.allowsOneStepPayment(required, readyContact, contact), true);
   await render({ ...contact, email: 'changed@example.com' });
   assert.equal(controllerOptions.enabled, false, 'a different identity cannot use the previous verification');

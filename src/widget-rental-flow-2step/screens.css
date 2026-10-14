@@ -722,6 +722,9 @@
   font-size: 16px;
   line-height: 24px;
 }
+/* One-step: what the scan read off the ID, under the verified state. */
+.rf2-pre-idv-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 20px; }
+.rf2-pre-idv-details .rf-sx-extra { gap: 8px; }
 /* A <button>: it changes what is on the page and goes nowhere, so a link would
    misreport it to a screen reader and to a middle click. */
 .rf-sx-edit {

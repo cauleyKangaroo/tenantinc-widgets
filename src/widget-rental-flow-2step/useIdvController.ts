@@ -134,14 +134,27 @@ export function useIdvController(options: IdvControllerOptions) {
     }
     let cancelled = false;
     const lookupController = new AbortController();
+    const api = options.api;
+    const identity = options.identity;
+    const recordLookup = () => (options.lookupByEmail
+      ? api.lookupByEmail({ companyId, propertyId }, identity.email, lookupController.signal)
+      : identity.contactId
+        ? api.lookup({ companyId, propertyId }, identity.contactId, lookupController.signal)
+        : Promise.resolve(undefined));
     const lookup = stored?.completed
-      ? options.api.poll({ companyId, propertyId }, stored.idvId, lookupController.signal).then(result => {
+      ? api.poll({ companyId, propertyId }, stored.idvId, lookupController.signal).then(result => {
         if (result.status === 'pending') throw new Error('Previously completed verification is still pending.');
         return result.status === 'complete' ? result : undefined;
+      }, (error: unknown) => {
+        // The status endpoint answers 404 once the capture session has expired,
+        // even for a completed verification; the lookup still has the record.
+        if (error instanceof IdvRequestError && !error.outcomeUnknown) {
+          if (key) idvSessionRemove(key);
+          return recordLookup();
+        }
+        throw error;
       })
-      : options.lookupByEmail
-        ? options.api.lookupByEmail({ companyId, propertyId }, options.identity.email, lookupController.signal)
-        : options.api.lookup({ companyId, propertyId }, options.identity.contactId!, lookupController.signal);
+      : recordLookup();
     void lookup
       .then((result) => {
         if (cancelled) return;

@@ -371,13 +371,25 @@ export function SuccessStep({
     if (displayedIdv !== 'complete') return;
     setUsePassport(false);
     if (idvServiceConnected) {
-      const licence = idvController?.state.kind === 'complete'
-        ? idvController.state.result.driversLicense
-        : undefined;
+      const result = idvController?.state.kind === 'complete' ? idvController.state.result : undefined;
+      const licence = result?.driversLicense;
       setDlNumber(licence?.number ?? '');
       setDlState(licence?.state ?? '');
       setDlExp(isoToMasked(licence?.expiration));
-      setMailFromScan(false);
+      // The completion poll carries the address read off the ID; a recovered
+      // record (lookup after a reload) does not, so the renter types it.
+      const scanned = result?.address;
+      if (scanned?.street) {
+        setMailAddress(scanned.street);
+        setMailCity(scanned.city ?? '');
+        setMailState((scanned.state ?? '').toUpperCase().slice(0, 2));
+        setMailZip(scanned.zip ?? '');
+        setMailCountry('United States');
+        setMailPicked(true);
+      }
+      // Collapse to the read-only summary only when the scan gave a complete
+      // address; a partial one stays editable so the required parts can be filled.
+      setMailFromScan(Boolean(scanned?.street && scanned.city && scanned.state?.trim().length === 2 && scanned.zip));
     } else {
       setMailAddress(IDV_SOURCE.mailing.address);
       setMailCity(IDV_SOURCE.mailing.city);

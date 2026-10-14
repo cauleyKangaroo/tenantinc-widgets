@@ -4,6 +4,8 @@ export type SafeIdvResult = {
   idvId: string;
   authenticated: boolean;
   driversLicense?: { number?: string; state?: string; expiration?: string };
+  /** Read off the ID at capture. Only the completion poll returns it, not the lookups. */
+  address?: { street?: string; city?: string; state?: string; zip?: string };
 };
 
 type Generation = { generation: number };

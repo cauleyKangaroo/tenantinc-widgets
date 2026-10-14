@@ -212,7 +212,15 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
       completed.sort((a, b) => timestamp(b) - timestamp(a));
       const latest = completed[0];
       if (!latest.idv_id || (latest.authenticated !== true && latest.verified !== true)) throw new Error('Completed verification could not be confirmed.');
-      return { idvId: text(latest.idv_id, 'lookup id'), authenticated: true };
+      return {
+        idvId: text(latest.idv_id, 'lookup id'),
+        authenticated: true,
+        driversLicense: latest.dl_number || latest.dl_state || latest.dl_expiration ? {
+          number: optionalText(latest.dl_number),
+          state: optionalText(latest.dl_state),
+          expiration: optionalText(latest.dl_expiration),
+        } : undefined,
+      };
     },
 
     async start(
@@ -257,10 +265,20 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
       const license = data.driversLicense && typeof data.driversLicense === 'object'
         ? data.driversLicense as JsonRecord
         : undefined;
+      const address = data.address && typeof data.address === 'object'
+        ? data.address as JsonRecord
+        : undefined;
+      const scanned = address ? {
+        street: optionalText(address.address1) ?? optionalText(address.address),
+        city: optionalText(address.city),
+        state: optionalText(address.stateCode) ?? optionalText(address.state),
+        zip: optionalText(address.postalCode) ?? optionalText(address.zip),
+      } : undefined;
       return {
         status,
         idvId: returnedId,
         authenticated: data.authenticated === true,
+        address: scanned?.street ? scanned : undefined,
         driversLicense: license ? {
           number: optionalText(license.number),
           state: optionalText(license.state),

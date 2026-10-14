@@ -230,11 +230,17 @@ async function main() {
   let recoveryPolls = 0;
   let recoveryStarts = 0;
   let recoveryFails = false;
+  let sessionExpired = false;
+  const { IdvRequestError: ExpiredError } = require('../.tmp-idv-test/idvApi.js');
   const recovery = { ...options, lookupByEmail: true,
     identity: { ...identity, contactId: 'recover-contact', leaseId: undefined },
     api: {
       lookupByEmail: async () => { recoveryCalls++; if (recoveryFails) throw new Error('unavailable'); return { idvId: rawId, authenticated: true }; },
-      poll: async () => { recoveryPolls++; return { status: 'complete', idvId: rawId, authenticated: true }; },
+      poll: async () => {
+        recoveryPolls++;
+        if (sessionExpired) throw new ExpiredError('This verification session has expired. Please start again.', false);
+        return { status: 'complete', idvId: rawId, authenticated: true };
+      },
       start: async () => { recoveryStarts++; return response; },
     },
   };
@@ -250,6 +256,14 @@ async function main() {
   assert.equal(recoveryPolls, 1, 'cached completion is checked with the backend, never trusted locally');
   assert.equal(recoveryCalls, 1);
   await React.act(async () => root.unmount());
+  sessionExpired = true;
+  root = createRoot(document.getElementById('root'));
+  await render(recovery);
+  assert.equal(controller.state.kind, 'complete', 'an expired capture session falls back to the record lookup');
+  assert.equal(recoveryCalls, 2);
+  assert.equal(recoveryStarts, 0, 'an expired session never becomes another billable start');
+  sessionExpired = false;
+  await React.act(async () => root.unmount());
   saved.delete(recoveryKey);
   recoveryFails = true;
   root = createRoot(document.getElementById('root'));
@@ -257,7 +271,7 @@ async function main() {
   assert.equal(controller.state.kind, 'error');
   await React.act(async () => controller.retry());
   assert.equal(controller.state.kind, 'error', 'lookup retry still fails safely');
-  assert.equal(recoveryCalls, 3, 'retry repeats the GET');
+  assert.equal(recoveryCalls, 4, 'retry repeats the GET');
   assert.equal(recoveryStarts, 0, 'recovery failures never turn into billable starts');
   await React.act(async () => root.unmount());
   const liveCompletion = { ...recovery, identity: { ...identity, contactId: 'live-completion', leaseId: undefined },

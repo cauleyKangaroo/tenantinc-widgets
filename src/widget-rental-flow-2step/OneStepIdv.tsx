@@ -175,6 +175,34 @@ export function OneStepIdv({ config, contact, onReady }: {
       {kind === 'pending' && controller.popupBlocked && <p className="rf-sx-idv-note" role="status">The verification tab was blocked. Select Continue Verification to try opening it again.</p>}
       {later && <p className="rf-sx-idv-note" role="status">You can complete verification after payment.</p>}
       {prepareError && <p className="rf-sx-idv-note" role="alert">{prepareError}</p>}
+      {validCompletion && controller.state.kind === 'complete' && (() => {
+        const { driversLicense: licence, address } = controller.state.result;
+        const exp = /^(\d{4})-(\d{2})-(\d{2})/.exec(licence?.expiration ?? '');
+        return (
+          <div className="rf2-pre-idv-details">
+            <section className="rf-sx-extra">
+              <h4 className="rf-sx-extra-title">Mailing Address</h4>
+              <div className="rf-sx-readout">
+                <p className="rf-sx-readout-val">
+                  {address?.street
+                    ? [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ')
+                    : 'Not returned by the ID scan'}
+                </p>
+              </div>
+            </section>
+            <section className="rf-sx-extra">
+              <h4 className="rf-sx-extra-title">Driver{'\u2019'}s Licence</h4>
+              <div className="rf-sx-readout">
+                <p className="rf-sx-readout-val">
+                  {licence?.number || 'Not returned'}<br />
+                  {licence?.state || 'State not returned'}<br />
+                  {licence?.expiration ? `EXP ${exp ? `${exp[2]}/${exp[3]}/${exp[1]}` : licence.expiration}` : 'Expiration not returned'}
+                </p>
+              </div>
+            </section>
+          </div>
+        );
+      })()}
       {kind === 'complete' && !validCompletion && <p className="rf-sx-idv-note" role="alert">Verification completed, but its linking ID could not be confirmed. Please contact the facility before paying.</p>}
       {!handheld && (
         <IdVerifyModal

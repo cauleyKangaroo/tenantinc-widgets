@@ -460,6 +460,14 @@ async function testEmailRecovery() {
     { status: 'complete', idv_id: 'idv22222222222222222222222222222222', authenticated: true, verified: true, contact_id: null, matched_on: 'email', verified_at: '2026-10-13 09:05:00' },
   ];
   assert.equal((await api.lookupByEmail(scope, 'test@example.com')).idvId, rawId, 'staging verified_at orders repeat verifications');
+  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, verified: true, dl_number: 'D1234567', dl_state: 'CA', dl_expiration: '2030-01-15', verified_at: '2026-10-14 17:23:51' }];
+  assert.deepEqual({ ...(await api.lookupByEmail(scope, 'test@example.com')).driversLicense }, { number: 'D1234567', state: 'CA', expiration: '2030-01-15' }, 'email recovery keeps the licence for display');
+  payload = { status: 'complete', idvId: rawId, authenticated: true,
+    driversLicense: { number: 'D1234567', state: 'CA', expiration: '2030-01-15' },
+    address: { address1: '1 Main St', city: 'Irvine', stateCode: 'CA', postalCode: '92618' } };
+  assert.deepEqual({ ...(await api.poll(scope, rawId)).address }, { street: '1 Main St', city: 'Irvine', state: 'CA', zip: '92618' }, 'completion carries the scanned address');
+  payload = { status: 'complete', idvId: rawId, authenticated: true };
+  assert.equal((await api.poll(scope, rawId)).address, undefined, 'no address when the scan returns none');
   payload = [{ status: 'pending', idv_id: rawId, authenticated: true }];
   await assert.rejects(api.lookupByEmail(scope, 'test@example.com'), /pending/, 'pending recovery never permits another start');
   payload = [{ status: 'complete', idv_id: rawId, authenticated: false }];
