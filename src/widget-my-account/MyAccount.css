@@ -1140,11 +1140,25 @@
    is better off on its own row, which is exactly what this basis triggers. */
 .ma-account__col--docs { flex: 1 1 272px; min-width: 0; }
 
-.ma-account__alt {
-  width: 367px;
-  max-width: 100%;
+/* Alternate | Emergency — the same wrap-not-breakpoint arrangement as the
+   columns above, so on a narrow panel the emergency block drops under the
+   alternate instead of squeezing beside it. */
+.ma-account__secondaries {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 28px 61px;
   margin-top: 29px;
 }
+
+.ma-account__alt {
+  flex: 0 1 367px;
+  min-width: 0;
+  max-width: 100%;
+}
+/* The emergency block takes the Documents column's basis, so it sits beside
+   the alternate exactly where Documents sits beside Primary Contact. */
+.ma-account__alt--emergency { flex: 1 1 272px; }
 
 .ma-account__label {
   margin: 0 0 16px !important;
@@ -1826,7 +1840,8 @@
      HEIGHT — the 367px basis would have become a 367px-tall contact block.
      Full width is asked for as a basis for the same reason. */
   .ma-account__col--contact { flex: 1 1 100%; }
-  .ma-account__alt { width: 100%; }
+  .ma-account__alt,
+  .ma-account__alt--emergency { flex: 1 1 100%; }
 
   .ma-edit__body { padding: 24px 20px; }
   .ma-edit__title { font-size: 28px !important; }

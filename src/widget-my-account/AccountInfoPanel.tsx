@@ -2,8 +2,10 @@
 // The DEFAULT left-hand panel — Figma 8815-115354 ("Account Info - Display").
 //
 // Heading + Edit, then two columns (Primary Contact | Documents), then
-// Alternate Contact beneath the first column, then a tinted action panel with
-// the balance, "Pay Now" and two more links.
+// Alternate Contact beneath the first column — and beside it the Emergency
+// Contact, which the frame does not draw but the Edit frame (8815-115876)
+// saves, so a saved one has to show somewhere — then a tinted action panel
+// with the balance, "Pay Now" and two more links.
 //
 // "Pay Now" is the only route to the Make a Payment screen, so it takes the
 // notification orange (Primary/Notifications) rather than the CTA green — one
@@ -27,12 +29,12 @@ function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.Re
 }
 
 /**
- * The ALTERNATE contact's row order — name, address, email, phone. The primary
+ * A SECONDARY contact's row order — name, address, email, phone. The primary
  * contact runs name, email, phone, address, licence instead, so it is spelled
  * out at its own call site rather than both sharing one order and one of them
- * coming out wrong.
+ * coming out wrong. The alternate and the emergency contact share this one.
  */
-function AlternateContact({ contact }: { contact: Contact }) {
+function SecondaryContact({ contact }: { contact: Contact }) {
   return (
     <ul className="ma-info__list">
       <InfoRow icon={<UserSettingsIcon />}>{contact.name}</InfoRow>
@@ -64,6 +66,7 @@ export function AccountInfoPanel({
   busyDocument,
   contact,
   alternate,
+  emergency,
   documents,
 }: {
   space: AccountSpace;
@@ -90,10 +93,13 @@ export function AccountInfoPanel({
    * sample's Jerry Boo.
    */
   alternate?: Contact | null;
+  /** Same contract as `alternate`. */
+  emergency?: Contact | null;
   documents?: AccountDocument[];
 }) {
   const primary = contact ?? space.primaryContact;
   const alt = alternate !== undefined ? alternate : space.alternateContact;
+  const emerg = emergency !== undefined ? emergency : space.emergencyContact;
   const docs = documents ?? space.documents;
 
   return (
@@ -160,10 +166,20 @@ export function AccountInfoPanel({
           </div>
         </div>
 
-        {alt && (
-          <div className="ma-account__alt">
-            <p role="heading" aria-level={3} className="ma-account__label">Alternate Contact</p>
-            <AlternateContact contact={alt} />
+        {(alt || emerg) && (
+          <div className="ma-account__secondaries">
+            {alt && (
+              <div className="ma-account__alt">
+                <p role="heading" aria-level={3} className="ma-account__label">Alternate Contact</p>
+                <SecondaryContact contact={alt} />
+              </div>
+            )}
+            {emerg && (
+              <div className="ma-account__alt ma-account__alt--emergency">
+                <p role="heading" aria-level={3} className="ma-account__label">Emergency Contact</p>
+                <SecondaryContact contact={emerg} />
+              </div>
+            )}
           </div>
         )}
       </div>

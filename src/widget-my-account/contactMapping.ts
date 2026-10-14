@@ -362,16 +362,29 @@ export function primaryContactFrom(record: AccountRecord): Contact {
 }
 
 /**
- * The alternate contact, or null when the account has none.
+ * One secondary contact for the display panel — the alternate or the
+ * emergency one — or null when the account has none of that kind.
  *
- * Null rather than an empty Contact: the panel can then say so, instead of
- * drawing a heading over four blank lines.
+ * Null rather than an empty Contact: the panel can then hide the block,
+ * instead of drawing a heading over four blank lines.
+ *
+ * Secondary contacts are PER LEASE (each row carries a leaseId — see
+ * editFormFrom), so the selected space's own row comes first and any lease's
+ * is the fallback. The old reader took the first non-emergency row whatever
+ * the lease, and never read the emergency rows at all — which is why the
+ * display showed an Alternate Contact but no Emergency Contact even though
+ * the Edit form could save one.
  */
-export function alternateContactFrom(record: AccountRecord): Contact | null {
+export function secondaryContactFrom(
+  record: AccountRecord,
+  isEmergency: boolean,
+  leaseId?: string,
+): Contact | null {
   const rows = Array.isArray(record.secondaryContacts)
     ? (record.secondaryContacts as Record<string, unknown>[])
     : [];
-  const row = rows.find((c) => !c.isEmergency) ?? rows[0];
+  const ofKind = rows.filter((c) => Boolean(c.isEmergency) === isEmergency);
+  const row = (leaseId ? ofKind.find((c) => str(c.leaseId) === leaseId) : undefined) ?? ofKind[0];
   if (!row) return null;
 
   // Nested, as on the way in — see contactFormFrom.
@@ -391,3 +404,8 @@ export function alternateContactFrom(record: AccountRecord): Contact | null {
     address: addressLines(addrList[0] ?? (person.address as Record<string, unknown> | undefined)),
   };
 }
+
+export const alternateContactFrom = (record: AccountRecord, leaseId?: string): Contact | null =>
+  secondaryContactFrom(record, false, leaseId);
+export const emergencyContactFrom = (record: AccountRecord, leaseId?: string): Contact | null =>
+  secondaryContactFrom(record, true, leaseId);
