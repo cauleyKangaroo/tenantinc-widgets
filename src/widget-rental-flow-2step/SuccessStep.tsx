@@ -20,13 +20,18 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Checkbox, FormField, SelectField } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import {
+  MailingAddressReadout, MailingAddressFields, LicenceReadout, LicenceFields, isMaskedLicence, mailingStreet,
+  type MailingValue, type LicenceValue,
+} from './IdvDetails';
+import {
   COUNTRY_OPTIONS, placesCountryFor, postalCodeOk, postalLabel, regionLabel,
 } from '@shared/addressCountry';
 import {
-  TickSingleIcon, AlertTriangleIcon, ClockGlyph, PhoneGlyph,
+  TickSingleIcon, ClockGlyph, PhoneGlyph,
 } from './planIcons';
 import { IdIllustration } from './IdIllustration';
 import { IdVerifyModal } from './IdVerifyModal';
+import { IdvCardTitle, IdvPopupNote, IdvCompleteTitle, IdvAddressNotice, IdvFailedContent, IdvLaterContent } from './IdvStatus';
 import {
   MilitaryFields, AltContactFields, VehicleFields,
   extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues, type PrimaryContact,
@@ -213,6 +218,8 @@ export function SuccessStep({
   // licence details but no address; locking an empty field would leave Get
   // Access failing its required-address check with nothing to fill in.
   const mailReadOnly = displayedIdv === 'complete' && mailFromScan && !mailEditing;
+  // The licence is required exactly when ID verification is (and none was scanned).
+  const licenceRequired = idvEnabled && idvRequirement === 'required' && displayedIdv !== 'complete';
   const dlReadOnly = displayedIdv === 'complete' && !dlEditing;
 
   /* Pending: a session already exists, so reopen it rather than start a new
@@ -251,7 +258,9 @@ export function SuccessStep({
   /* Chosen BEFORE the address — it scopes the search and labels the parts.
      A scanned licence seeds it as US: that is the only country the service
      reads cards from. */
-  const [mailCountry, setMailCountry] = useState('');
+  const [mailCountry, setMailCountry] = useState('United States');
+  const [mailAddress2, setMailAddress2] = useState('');
+  const [mailQuery, setMailQuery] = useState('');
 
   // Driver's licence. THESE are what "ID verification" means to this API —
   // there is no verification service, only these three fields on the contact,
@@ -259,6 +268,7 @@ export function SuccessStep({
   const [dlNumber, setDlNumber] = useState('');
   const [dlExp, setDlExp] = useState('');
   const [dlState, setDlState] = useState('');
+  const [dlCountry, setDlCountry] = useState('United States');
   const [usePassport, setUsePassport] = useState(false);
   const passportAvailable = idvEnabled && idvServiceConnected
     && remoteKind === 'complete' && displayedIdv === 'complete';
@@ -270,7 +280,25 @@ export function SuccessStep({
      described a place in the other country. */
   const changeMailCountry = (c: string) => {
     setMailCountry(c);
-    if (c !== mailCountry) { setMailAddress(''); setMailCity(''); setMailState(''); setMailZip(''); setMailPicked(false); }
+    if (c !== mailCountry) { setMailAddress(''); setMailAddress2(''); setMailQuery(''); setMailCity(''); setMailState(''); setMailZip(''); setMailPicked(false); }
+  };
+  const mailing: MailingValue = { query: mailQuery, address1: mailAddress, address2: mailAddress2, city: mailCity, state: mailState, zip: mailZip, country: mailCountry };
+  const patchMailing = (patch: Partial<MailingValue>) => {
+    if (patch.query !== undefined) setMailQuery(patch.query);
+    if (patch.address1 !== undefined) setMailAddress(patch.address1);
+    if (patch.address2 !== undefined) setMailAddress2(patch.address2);
+    if (patch.city !== undefined) setMailCity(patch.city);
+    if (patch.state !== undefined) setMailState(patch.state);
+    if (patch.zip !== undefined) setMailZip(patch.zip);
+    if (patch.country !== undefined) setMailCountry(patch.country);
+    if (patch.address1 !== undefined || patch.city !== undefined) setMailPicked(true);
+  };
+  const licence: LicenceValue = { number: dlNumber, exp: dlExp, country: dlCountry, state: dlState };
+  const patchLicence = (patch: Partial<LicenceValue>) => {
+    if (patch.number !== undefined) setDlNumber(patch.number);
+    if (patch.exp !== undefined) setDlExp(patch.exp);
+    if (patch.country !== undefined) setDlCountry(patch.country);
+    if (patch.state !== undefined) setDlState(patch.state);
   };
   const [attemptedReveal, setAttemptedReveal] = useState(false);
   /* Revealed by the lookup, by content already in them, or by a failed submit.
@@ -319,7 +347,7 @@ export function SuccessStep({
       // A scanned address arrives without the shopper choosing a country, and
       // the select is not on screen while it is read-only — so only an address
       // being typed needs one.
-      mailCountry: mailReadOnly || filled(mailCountry) ? '' : 'Select a country',
+
       mailAddress: filled(mailAddress) ? '' : 'Enter your mailing address',
       // Keyed off the ADDRESS, not off whether the three are on screen. Keying
       // it off visibility would read the pre-click render, where the reveal has
@@ -328,6 +356,11 @@ export function SuccessStep({
         mailCity: filled(mailCity) ? '' : 'Enter the city',
         mailState: mailState.trim().length === 2 ? '' : `Enter the two-letter ${regionLabel(mailCountry).toLowerCase()}`,
         mailZip: postalCodeOk(mailZip, mailCountry) ? '' : `Enter a valid ${postalLabel(mailCountry)}`,
+      } : {}),
+      ...(licenceRequired && !passportSelected ? {
+        dlNumber: dlNumber.trim() && !isMaskedLicence(dlNumber) ? '' : 'Enter the license number',
+        dlExp: dlExp.length === 10 ? '' : 'Enter the expiration date',
+        dlState: dlState.trim().length === 2 ? '' : 'Select the state',
       } : {}),
       /* The three Driver's Licence fields are OPTIONAL and deliberately absent
          from this map. Dropping their asterisks without dropping these would
@@ -379,7 +412,10 @@ export function SuccessStep({
       // The completion poll carries the address read off the ID; a recovered
       // record (lookup after a reload) does not, so the renter types it.
       const scanned = result?.address;
+      setMailAddress2('');
+      if (!mailCountry) setMailCountry('United States');
       if (scanned?.street) {
+        setMailQuery(scanned.street);
         setMailAddress(scanned.street);
         setMailCity(scanned.city ?? '');
         setMailState((scanned.state ?? '').toUpperCase().slice(0, 2));
@@ -417,12 +453,13 @@ export function SuccessStep({
       // Off, nothing is being verified, so nothing may be withheld for it —
       // the confirmation page must not claim verification is required.
       idVerified: idvDecision.idVerified,
-      driverLicense: passportSelected ? undefined : dlNumber.trim() || undefined,
+      // The scan returns the number masked (****1847); never file that as the licence.
+      driverLicense: passportSelected || isMaskedLicence(dlNumber) ? undefined : dlNumber.trim() || undefined,
       driverLicenseExp: passportSelected ? undefined : dlExp.trim() || undefined,
       driverLicenseState: passportSelected ? undefined : dlState.trim() || undefined,
       mailingAddress: mailAddress.trim()
         ? {
-          address: mailAddress.trim(),
+          address: mailingStreet(mailing),
           city: mailCity.trim() || undefined,
           state: mailState.trim() || undefined,
           zip: mailZip.trim() || undefined,
@@ -468,7 +505,7 @@ export function SuccessStep({
           local state owns the designed in-store/later alternatives. */}
       {idvEnabled && displayedIdv === 'choose' && (
         <section className="rf-sx-idv">
-          <h3 className="rf-sx-idv-title">ID Verification</h3>
+          <IdvCardTitle required={idvRequirement === 'required'} />
           <div className="rf-sx-idv-body">
             <IdIllustration />
             <div className="rf-sx-idv-actions">
@@ -502,11 +539,7 @@ export function SuccessStep({
               </a>. This page will stay open.
             </p>
           )}
-          <p className="rf-sx-idv-note">
-            Get ready to take a photo of your ID and a Selfie.{' '}
-            <a href="#pop-ups" onClick={(e) => e.preventDefault()}>Click here to see how to enable pop-ups</a>{' '}
-            if the link you received did not open the the ID Verification tool.
-          </p>
+          <IdvPopupNote />
         </section>
       )}
 
@@ -566,57 +599,31 @@ export function SuccessStep({
           can be walked through; the real service sets `idv` instead. */}
       {idvEnabled && displayedIdv === 'complete' && (
         <section className="rf-sx-idv rf-sx-idv--done">
-          <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
-            <TickSingleIcon size={24} className="rf-sx-idv-tick" />
-            ID Verification Complete
-          </h3>
+          <IdvCompleteTitle />
         </section>
       )}
 
       {idvEnabled && displayedIdv === 'failed' && (
         <section className="rf-sx-idv rf-sx-idv--alert">
-          <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
-            <AlertTriangleIcon size={24} className="rf-sx-idv-alert" />
-            {startUncertain ? 'Verification Needs Assistance' : 'ID Verification Failed'}
-          </h3>
-          <p className="rf-sx-idv-lede">
-            {startUncertain ? 'We could not confirm the verification request. It may already have started. Please contact the store before trying again.' : <>Your ID must be verified before getting access.{remoteOperated
-              ? ' This remotely operated property cannot verify your ID in store.'
-              : ` Please reverify your ID or contact the store${facilityPhoneHref && facility?.phone ? ` at ${facility.phone}` : ''} to get access.`}{' '}
-            <button
-              type="button"
-              className="rf-sx-idv-inline"
-              onClick={() => {
-                setLocalIdvChoice(undefined);
-                if (idvServiceConnected) idvController?.retry();
-                else { setIdv('choose'); setIdvModal(true); }
-              }}
-            >
-              Reverify ID
-            </button>
-            </>}
-          </p>
+          <IdvFailedContent
+            needsAssistance={startUncertain}
+            remoteOperated={remoteOperated}
+            phone={facility?.phone}
+            onReverify={() => {
+              setLocalIdvChoice(undefined);
+              if (idvServiceConnected) idvController?.retry();
+              else { setIdv('choose'); setIdvModal(true); }
+            }}
+          />
         </section>
       )}
 
       {idvEnabled && displayedIdv === 'later' && (
-        <section className="rf-sx-idv rf-sx-idv--alert">
-          <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
-            <AlertTriangleIcon size={24} className="rf-sx-idv-alert" />
-            Verify ID Later
-          </h3>
-          <p className="rf-sx-idv-lede">
-            <b className="rf-sx-idv-danger">ID Verification is required to get access to your space.</b>{' '}
-            Please contact us to complete the verification.<br />
-            Changed your mind?{' '}
-            <button
-              type="button"
-              className="rf-sx-idv-inline"
-              onClick={() => { setLocalIdvChoice(undefined); setIdv('choose'); verifyNow(); }}
-            >
-              Verify ID Now
-            </button>
-          </p>
+        <section className={`rf-sx-idv${idvRequirement === 'optional' ? '' : ' rf-sx-idv--alert'}`}>
+          <IdvLaterContent
+            required={idvRequirement !== 'optional'}
+            onVerifyNow={() => { setLocalIdvChoice(undefined); setIdv('choose'); verifyNow(); }}
+          />
         </section>
       )}
 
@@ -630,144 +637,43 @@ export function SuccessStep({
       {detailsShown && (
         <>
         {idvEnabled && displayedIdv === 'complete' && (
-          <p className="rf-sx-idv-current">
-            For the purpose of important notifications, please make sure the address captured from
-            your license is current.
-          </p>
+          <IdvAddressNotice />
         )}
 
-        {/* Mailing address first: it is the one most tenants will fill, and the
-            licence group reads as a follow-up rather than a gate. */}
-        <section className="rf-sx-extra">
-          <h3 className="rf-sx-extra-title">Mailing Address</h3>
-          {mailReadOnly ? (
-            <div className="rf-sx-readout">
-              <p className="rf-sx-readout-val">
-                {idvServiceConnected
-                  ? [mailAddress, mailCity, mailState, mailZip].filter(Boolean).join(', ')
-                  : IDV_SOURCE.mailing.line}
-              </p>
-              <button type="button" className="rf-sx-edit" onClick={() => setMailEditing(true)}>Edit</button>
-            </div>
-          ) : (
-          <div className="rf-sx-fields">
-            {/* Country FIRST, then the search scoped to it. The box stays
-                closed until a country is chosen — a lookup across both
-                countries offers a Toronto street to someone typing a Tucson
-                one. */}
-            <div className="rf-pay-grid">
-              <SelectField
-                label="Country" required value={mailCountry} onChange={changeMailCountry}
-                options={[...COUNTRY_OPTIONS]}
-                state={mailCountry ? 'success' : 'default'}
-                error={bad('mailCountry')}
-              />
-              <AddressAutocomplete
-                country={placesCountryFor(mailCountry)}
-                value={mailAddress}
-                disabled={!mailCountry}
-                onChange={setMailAddress}
-                onPick={(place) => {
-                  if (place.address.city) setMailCity(place.address.city);
-                  if (place.address.stateCode) setMailState(place.address.stateCode);
-                  if (place.address.zip) setMailZip(place.address.zip);
-                  setMailPicked(true);
-                }}
-              >
-                <FormField label="Mailing Address" required type="search" value={mailAddress} onChange={setMailAddress} disabled={!mailCountry} autoComplete="street-address" state={mailAddress.trim() ? 'success' : 'default'} error={bad('mailAddress')} />
-              </AddressAutocomplete>
-            </div>
-            {/* City, state and ZIP appear once the lookup has filled them, if
-                anything is already in them, or on a failed submit. They are
-                required as soon as there IS an address — a street on its own is
-                not one the counter can post to. */}
-            {showMailParts && (
-              <>
-                {/* One row of three, sharing .rf-sx-grid3 with the licence
-                    row above — ZIP used to sit on a line of its own under a
-                    50/50 City/State pair. Collapses to one column at the same
-                    widths that row does. */}
-                <div className="rf-sx-grid3">
-                  <FormField label="City" required value={mailCity} onChange={setMailCity} autoComplete="address-level2" state={mailCity.trim() ? 'success' : 'default'} error={bad('mailCity')} />
-                  <FormField label={regionLabel(mailCountry)} required value={mailState} onChange={(v) => setMailState(v.toUpperCase().slice(0, 2))} autoComplete="address-level1" state={mailState.trim().length === 2 ? 'success' : 'default'} error={bad('mailState')} />
-                  <FormField label={postalLabel(mailCountry)} required value={mailZip} onChange={setMailZip} autoComplete="postal-code" state={postalCodeOk(mailZip, mailCountry) ? 'success' : 'default'} error={bad('mailZip')} />
-                </div>
-              </>
-            )}
-          </div>
-          )}
-        </section>
+        {/* Mailing address first, then the licence (Figma "Renter ID Verify"
+            Complete / Complete-Edit) — the same component the one-step form uses. */}
+        {mailReadOnly ? (
+          <MailingAddressReadout value={mailing} onEdit={() => setMailEditing(true)} />
+        ) : (
+          <MailingAddressFields
+            value={mailing}
+            compact={displayedIdv !== 'complete'}
+            onChange={patchMailing}
+            errors={{ address1: bad('mailAddress'), city: bad('mailCity'), state: bad('mailState'), zip: bad('mailZip') }}
+          />
+        )}
 
-        {/* Figma 10078-25737 — three equal columns, all three required. */}
-        <section className="rf-sx-extra">
-          <div className="rf-sx-extra-head">
-            <h3 className="rf-sx-extra-title">{passportSelected ? 'Passport' : 'Driver\u2019s Licence'}</h3>
-            {passportAvailable && !dlReadOnly && (
-              <Checkbox checked={usePassport} onChange={setUsePassport}>Use passport for ID</Checkbox>
-            )}
-          </div>
-          {dlReadOnly ? (
-            <div className="rf-sx-readout">
-              {/* Three lines, as the frame has them — and the app's own wording:
-                  the full state name and a written-out date, neither of which the
-                  two inputs behind this hold. */}
-              <p className="rf-sx-readout-val">
-                {idvServiceConnected ? (
-                  <>
-                    {dlNumber || 'Not returned'}<br />
-                    {dlState || 'State not returned'}<br />
-                    {dlExp ? `EXP ${dlExp}` : 'Expiration not returned'}
-                  </>
-                ) : (
-                  <>
-                    {IDV_SOURCE.licence.number}<br />
-                    {IDV_SOURCE.licence.stateLabel}<br />
-                    {IDV_SOURCE.licence.expLabel}
-                  </>
-                )}
-              </p>
-              <button type="button" className="rf-sx-edit" onClick={() => setDlEditing(true)}>Edit</button>
+        {dlReadOnly ? (
+          <LicenceReadout value={licence} onEdit={() => setDlEditing(true)} title={passportSelected ? 'Passport' : undefined} />
+        ) : passportSelected ? (
+          <section className="rf-sx-extra rf-idd">
+            <div className="rf-sx-extra-head">
+              <h3 className="rf-sx-extra-title">Passport</h3>
+              {passportAvailable && <Checkbox checked={usePassport} onChange={setUsePassport}>Use passport for ID</Checkbox>}
             </div>
-          ) : passportSelected ? (
             <p className="rf-sx-idv-lede rf-sx-passport-note">
               Passport capture is handled by the hosted ID verification tool. This page does not confirm which document was used and does not collect passport details.
             </p>
-          ) : (
-          <div className="rf-sx-fields">
-            <div className="rf-sx-grid3">
-              <FormField
-                label="License Number"
-                value={dlNumber}
-                onChange={setDlNumber}
-                autoComplete="off"
-                state={dlNumber.trim() ? 'success' : 'default'}
-              />
-              {/* A text box, not the frame's dropdown: the record stores a
-                  two-letter code, and no canonical state+province list exists
-                  in the widget to populate a <Select> with. */}
-              <FormField
-                label="State/Province"
-                value={dlState}
-                onChange={(v) => setDlState(v.toUpperCase().slice(0, 2))}
-                state={dlState.trim().length === 2 ? 'success' : 'default'}
-              />
-              {/* Typed, not a picker. An expiry is read straight off the card in
-                  the shopper's hand — eight digits is quicker than browsing to a
-                  date they can already see, and it is the same control the Date
-                  of Birth field above uses. The kit's mask rests as the label
-                  and reveals MM/DD/YYYY on focus. */}
-              <FormField
-                label="Expiration Date"
-                mask="date"
-                value={dlExp}
-                onChange={setDlExp}
-                autoComplete="off"
-                state={dlExp.length === 10 ? 'success' : 'default'}
-              />
-            </div>
-          </div>
-          )}
-        </section>
+          </section>
+        ) : (
+          <LicenceFields
+            value={licence}
+            onChange={patchLicence}
+            required={licenceRequired}
+            errors={{ number: bad('dlNumber'), exp: bad('dlExp'), state: bad('dlState') }}
+            header={passportAvailable ? <Checkbox checked={usePassport} onChange={setUsePassport}>Use passport for ID</Checkbox> : undefined}
+          />
+        )}
         </>
       )}
 

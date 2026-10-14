@@ -1,12 +1,16 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createLead, type LeadApiConfig } from '@shared/leadsApi';
-import { isPossiblePhone } from '@shared/ui';
+import { Button, isPossiblePhone } from '@shared/ui';
 import type { IdvApi, IdvScope } from './idvApi';
 import type { IdvRequirement } from './idvPolicy';
 import { useIdvController } from './useIdvController';
-import { IdIllustration } from './IdIllustration';
+import { IdvCardTitle, IdvPopupNote, IdvCompleteTitle, IdvAddressNotice, IdvFailedContent, IdvLaterContent } from './IdvStatus';
 import { IdVerifyModal } from './IdVerifyModal';
 import { isRawIdvId } from './idvLinking';
+import {
+  MailingAddressReadout, MailingAddressFields, LicenceReadout, LicenceFields, EMPTY_MAILING, EMPTY_LICENCE,
+  contactDetailsFrom, isoToMasked, mailingProblems, licenceProblems, type MailingValue, type LicenceValue,
+} from './IdvDetails';
 import { parseCreatedIdvLead, readPreparedIdvLead, sameLeadContact, savePreparedIdvLead, type LeadContact, type IdvCheckoutReadiness } from './idvLead';
 import { openVerificationPlaceholder, closeVerificationPlaceholder, navigateVerificationWindow, type VerificationWindow } from './openVerification';
 
@@ -17,12 +21,25 @@ export interface OneStepIdvConfig {
   allowedVerificationHosts: readonly string[];
   requirement: IdvRequirement;
   policyPending: boolean;
+  /** No staff on site: a failed check points to the phone, not the counter. */
+  remoteOperated?: boolean;
+  facilityPhone?: string;
 }
 
-export function OneStepIdv({ config, contact, onReady }: {
+/** The address and licence after verification, for the tenant's contact. */
+export interface OneStepIdvDetails {
+  /** False while a required part of the mailing address is missing. */
+  complete: boolean;
+  contact: ReturnType<typeof contactDetailsFrom>;
+}
+
+export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = false }: {
   config: OneStepIdvConfig;
   contact: LeadContact;
   onReady: (readiness: IdvCheckoutReadiness | undefined) => void;
+  onDetails?: (details: OneStepIdvDetails | undefined) => void;
+  /** After a pay attempt: mark the missing address fields. */
+  showErrors?: boolean;
 }) {
   const [lead, setLead] = useState(() => readPreparedIdvLead(config.scope));
   const [preparing, setPreparing] = useState(false);
@@ -53,6 +70,42 @@ export function OneStepIdv({ config, contact, onReady }: {
   const completedIdvId = controller.state.kind === 'complete' ? controller.state.result.idvId : undefined;
   const validCompletion = matches && kind === 'complete' && isRawIdvId(completedIdvId);
   const canDefer = !preparing && ['idle', 'ready', 'failed', 'expired'].includes(kind);
+  const scanResult = controller.state.kind === 'complete' ? controller.state.result : undefined;
+  const [mailing, setMailing] = useState<MailingValue>(EMPTY_MAILING);
+  const [licence, setLicence] = useState<LicenceValue>(EMPTY_LICENCE);
+  const [editMail, setEditMail] = useState(false);
+  const [editDl, setEditDl] = useState(false);
+  // Seed from the scan each time a verification completes. The ID is the
+  // source; Edit is how the renter corrects it.
+  useEffect(() => {
+    if (!validCompletion || !scanResult) return;
+    const a = scanResult.address;
+    const seeded: MailingValue = {
+      ...EMPTY_MAILING,
+      query: a?.street ?? '', address1: a?.street ?? '', city: a?.city ?? '',
+      state: (a?.state ?? '').toUpperCase().slice(0, 2), zip: a?.zip ?? '',
+    };
+    setMailing(seeded);
+    setEditMail(Object.keys(mailingProblems(seeded)).length > 0);
+    const l = scanResult.driversLicense;
+    setLicence({ ...EMPTY_LICENCE, number: l?.number ?? '', exp: isoToMasked(l?.expiration), state: (l?.state ?? '').toUpperCase().slice(0, 2) });
+    setEditDl(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [validCompletion, completedIdvId]);
+  const failedCheck = kind === 'failed' || kind === 'expired' || (kind === 'error' && controller.state.retryable);
+  const needsAssistance = kind === 'error' && !controller.state.retryable;
+  const deferred = later && config.requirement === 'optional';
+  // Typed in when there is no scan: after a failed check or a deferral.
+  const typedDetails = !validCompletion && (failedCheck || deferred);
+  // The licence is required exactly when ID verification is.
+  const licenceRequired = typedDetails && config.requirement === 'required';
+  const mailErrors = mailingProblems(mailing);
+  const dlErrors = licenceRequired ? licenceProblems(licence) : {};
+  const detailsComplete = Object.keys(mailErrors).length === 0 && Object.keys(dlErrors).length === 0;
+  const detailsShown = validCompletion || typedDetails;
+  useEffect(() => {
+    onDetails?.(detailsShown ? { complete: detailsComplete, contact: contactDetailsFrom(mailing, licence) } : undefined);
+  }, [detailsShown, detailsComplete, mailing, licence, onDetails]);
   const { start, handheld, verificationUrl } = controller;
   const first = contact.first.trim();
   const last = contact.last.trim();
@@ -69,7 +122,8 @@ export function OneStepIdv({ config, contact, onReady }: {
   }, [handheld, later, prepareError, identity, preparing, kind]);
   useEffect(() => {
     onReady(!config.policyPending && (config.requirement === 'disabled'
-      || validCompletion || (config.requirement === 'optional' && later && canDefer))
+      // Optional: deferring, or a failed check (verified at move-in instead), still lets the renter pay.
+      || validCompletion || (config.requirement === 'optional' && ((later && canDefer) || failedCheck)))
       ? { contact: { first, last, email, phone }, scope: { companyId: config.scope.companyId, propertyId: config.scope.propertyId }, verified: validCompletion, idvId: validCompletion ? completedIdvId : undefined } : undefined);
   }, [config.policyPending, config.requirement, config.scope.companyId, config.scope.propertyId, validCompletion, later, canDefer, first, last, email, phone, completedIdvId, onReady]);
 
@@ -134,75 +188,54 @@ export function OneStepIdv({ config, contact, onReady }: {
   };
 
   return (
-    <section className="rf-sx-idv rf2-pre-idv" aria-labelledby={titleId}>
-      <h3 id={titleId} className="rf-sx-idv-title">ID Verification</h3>
+    <>
+    <section className={`rf-sx-idv rf2-pre-idv${validCompletion ? ' rf-sx-idv--done' : failedCheck || needsAssistance ? ' rf-sx-idv--alert' : ''}`} aria-labelledby={titleId}>
+      {validCompletion ? (
+        <IdvCompleteTitle id={titleId} />
+      ) : failedCheck || needsAssistance ? (
+        <IdvFailedContent id={titleId} needsAssistance={needsAssistance} remoteOperated={config.remoteOperated} phone={config.facilityPhone} onReverify={controller.retry} />
+      ) : deferred ? (
+        <IdvLaterContent id={titleId} onVerifyNow={() => setLater(false)} />
+      ) : (
+        <IdvCardTitle id={titleId} required={config.requirement === 'required'} />
+      )}
+      {!validCompletion && !failedCheck && !needsAssistance && !deferred && (
       <div className="rf-sx-idv-body">
-        <IdIllustration />
         <div className="rf-sx-idv-actions">
           {!identity ? (
-            <button type="button" className="rf-sx-btn rf-sx-btn--solid" disabled={!valid || preparing || config.policyPending || config.requirement === 'disabled' || !config.scope.companyId || !config.scope.propertyId} onClick={() => void prepare()}>
+            <Button tone="secondary" className="rf-sx-btn" disabled={!valid || preparing || config.policyPending || config.requirement === 'disabled' || !config.scope.companyId || !config.scope.propertyId} onClick={() => void prepare()}>
               {preparing ? 'Preparing Verification…' : 'Verify ID Now'}
-            </button>
-          ) : kind === 'complete' ? <p role="status">ID Verification Complete</p>
-            : kind === 'ready' ? <button type="button" className="rf-sx-btn rf-sx-btn--solid" onClick={() => {
+            </Button>
+          ) : kind === 'complete' ? null
+            : kind === 'ready' ? <Button tone="secondary" className="rf-sx-btn" onClick={() => {
               if (!handheld) setHandoffOpen(true);
               void controller.start();
-            }}>Verify ID Now</button>
+            }}>Verify ID Now</Button>
               : kind === 'pending' ? <>
                 <p role="status">Verification in progress. Complete the steps on your phone, then return here.</p>
-                <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => {
+                <Button tone="dark" fill="outline" className="rf-sx-btn" onClick={() => {
                   if (handheld) controller.continueInNewTab();
                   else setHandoffOpen(true);
-                }}>Continue Verification</button>
-              </> : kind === 'failed' || kind === 'expired' || kind === 'error' ? <>
-                <p role="status">{kind === 'error' && !controller.state.retryable ? 'Verification Needs Assistance. Please contact the facility.' : 'Verification could not be completed. Please try again.'}</p>
-                {!(kind === 'error' && !controller.state.retryable) && <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={controller.retry}>Reverify</button>}
+                }}>Continue Verification</Button>
               </> : <p role="status">{kind === 'starting' ? 'Starting Verification…' : 'Checking Verification…'}</p>}
           {config.requirement === 'optional' && kind !== 'complete' && !config.policyPending && (
-            <button type="button" className="rf-sx-btn rf-sx-btn--outline" disabled={!canDefer} onClick={() => {
+            <Button tone="dark" fill="outline" className="rf-sx-btn" disabled={!canDefer} onClick={() => {
               autoStart.current = false;
               leadRequest.current?.abort();
               closeVerificationPlaceholder(preparedWindow.current);
               preparedWindow.current = null;
               setLater(true);
-            }}>Verify ID Later</button>
+            }}>Verify ID Later</Button>
           )}
         </div>
       </div>
+      )}
+      {!validCompletion && !failedCheck && !needsAssistance && !deferred && <IdvPopupNote />}
       {!valid && <p className="rf-sx-idv-note">Enter your name, email, and phone above to prepare verification.</p>}
       {identity && kind === 'ready' && <p className="rf-sx-idv-note">Your contact is ready. Select Verify ID Now to begin. Mobile verification opens in a new tab.</p>}
       {kind === 'pending' && controller.state.notificationStatus === 'failed' && <p className="rf-sx-idv-note">The text message could not be sent. Select Continue Verification to use the existing session.</p>}
       {kind === 'pending' && controller.popupBlocked && <p className="rf-sx-idv-note" role="status">The verification tab was blocked. Select Continue Verification to try opening it again.</p>}
-      {later && <p className="rf-sx-idv-note" role="status">You can complete verification after payment.</p>}
       {prepareError && <p className="rf-sx-idv-note" role="alert">{prepareError}</p>}
-      {validCompletion && controller.state.kind === 'complete' && (() => {
-        const { driversLicense: licence, address } = controller.state.result;
-        const exp = /^(\d{4})-(\d{2})-(\d{2})/.exec(licence?.expiration ?? '');
-        return (
-          <div className="rf2-pre-idv-details">
-            <section className="rf-sx-extra">
-              <h4 className="rf-sx-extra-title">Mailing Address</h4>
-              <div className="rf-sx-readout">
-                <p className="rf-sx-readout-val">
-                  {address?.street
-                    ? [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ')
-                    : 'Not returned by the ID scan'}
-                </p>
-              </div>
-            </section>
-            <section className="rf-sx-extra">
-              <h4 className="rf-sx-extra-title">Driver{'\u2019'}s Licence</h4>
-              <div className="rf-sx-readout">
-                <p className="rf-sx-readout-val">
-                  {licence?.number || 'Not returned'}<br />
-                  {licence?.state || 'State not returned'}<br />
-                  {licence?.expiration ? `EXP ${exp ? `${exp[2]}/${exp[3]}/${exp[1]}` : licence.expiration}` : 'Expiration not returned'}
-                </p>
-              </div>
-            </section>
-          </div>
-        );
-      })()}
       {kind === 'complete' && !validCompletion && <p className="rf-sx-idv-note" role="alert">Verification completed, but its linking ID could not be confirmed. Please contact the facility before paying.</p>}
       {!handheld && (
         <IdVerifyModal
@@ -221,5 +254,41 @@ export function OneStepIdv({ config, contact, onReady }: {
         />
       )}
     </section>
+    {typedDetails && (
+      <div className="rf2-pre-idv-after">
+        <MailingAddressFields
+          value={mailing}
+          compact
+          onChange={(patch) => setMailing((m) => ({ ...m, ...patch }))}
+          errors={showErrors ? mailErrors : {}}
+        />
+        <LicenceFields
+          value={licence}
+          required={licenceRequired}
+          errors={showErrors ? dlErrors : {}}
+          onChange={(patch) => setLicence((l) => ({ ...l, ...patch }))}
+        />
+      </div>
+    )}
+    {validCompletion && (
+      <div className="rf2-pre-idv-after">
+        <IdvAddressNotice />
+        {editMail ? (
+          <MailingAddressFields
+            value={mailing}
+            onChange={(patch) => setMailing((m) => ({ ...m, ...patch }))}
+            errors={showErrors ? mailErrors : {}}
+          />
+        ) : (
+          <MailingAddressReadout value={mailing} onEdit={() => setEditMail(true)} />
+        )}
+        {editDl ? (
+          <LicenceFields value={licence} onChange={(patch) => setLicence((l) => ({ ...l, ...patch }))} />
+        ) : (
+          <LicenceReadout value={licence} onEdit={() => setEditDl(true)} />
+        )}
+      </div>
+    )}
+    </>
   );
 }

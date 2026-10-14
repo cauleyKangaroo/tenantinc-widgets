@@ -75,6 +75,26 @@ async function main() {
   const resend = async () => { resendCalls++; return 'sent'; };
   const tab = { location: { href: '' }, close: () => { closed++; } };
   const start = async target => { starts++; handedOff = target; };
+  // The shared kit's controls, as plain elements, so the real IdvDetails renders.
+  const ui = {
+    isPossiblePhone: phone => phone.replace(/\D/g, '').length === 10,
+    Button: ({ children, tone, fill, block, busy, icon, shape, darkText, ...props }) => React.createElement('button', { type: 'button', ...props }, children),
+    FormField: ({ label, value, onChange, disabled }) => React.createElement('input', { 'aria-label': label, value, disabled, onChange: e => onChange(e.target.value) }),
+    SelectField: ({ label, value, onChange, options = [] }) => React.createElement('select', { 'aria-label': label, value, onChange: e => onChange(e.target.value) },
+      options.map(o => React.createElement('option', { key: typeof o === 'string' ? o : o.value, value: typeof o === 'string' ? o : o.value }, typeof o === 'string' ? o : o.label))),
+  };
+  const addressCountry = load('../src/shared/addressCountry.ts', { './placesApi': { CUSTOMER_ADDRESS_COUNTRIES: 'us,ca' } });
+  const usStates = load('../src/shared/usStates.ts', {});
+  const idvDetails = load('../src/widget-rental-flow-2step/IdvDetails.tsx', {
+    'react/jsx-runtime': require('react/jsx-runtime'), '@shared/ui': ui,
+    '@shared/AddressAutocomplete': { AddressAutocomplete: ({ children }) => children },
+    '@shared/addressCountry': addressCountry, '@shared/usStates': usStates,
+    '@shared/placesApi': { CUSTOMER_ADDRESS_COUNTRIES: 'us,ca' },
+  });
+  const idvStatus = load('../src/widget-rental-flow-2step/IdvStatus.tsx', {
+    'react/jsx-runtime': require('react/jsx-runtime'), './planIcons': { TickSingleIcon: () => null, AlertTriangleIcon: () => null },
+  });
+  let detailsReport;
   const Component = load('../src/widget-rental-flow-2step/OneStepIdv.tsx', {
     react: React, 'react/jsx-runtime': require('react/jsx-runtime'),
     '@shared/leadsApi': { createLead: (cfg, input, options) => {
@@ -82,7 +102,9 @@ async function main() {
       assert.ok(options.signal);
       return new Promise(resolve => { resolveLead = resolve; });
     } },
-    '@shared/ui': { isPossiblePhone: phone => phone.replace(/\D/g, '').length === 10 },
+    '@shared/ui': ui,
+    './IdvStatus': idvStatus,
+    './IdvDetails': idvDetails,
     './useIdvController': { useIdvController: options => {
       controllerOptions = options;
       return { state: { kind: options.enabled ? phase : 'idle', result: { authenticated: true, idvId: 'idv05d17e25979d41b1be17aaac798d58de', driversLicense: { number: 'D1234567', state: 'CA', expiration: '2030-01-15' }, address: { street: '1 Main St', city: 'Irvine', state: 'CA', zip: '92618' } }, notificationStatus: 'sent', resendUncertain }, handheld, start, resend,
@@ -104,7 +126,7 @@ async function main() {
   const config = { ...required, api: {}, scope, leadConfig: { ...scope, appId: 'app' }, allowedVerificationHosts: ['verify.example.com'] };
   const onReady = value => { readyContact = value; };
   const root = createRoot(document.getElementById('root'));
-  const render = (c = contact) => React.act(async () => root.render(React.createElement(Component, { config, contact: c, onReady })));
+  const render = (c = contact) => React.act(async () => root.render(React.createElement(Component, { config, contact: c, onReady, onDetails: d => { detailsReport = d; } })));
   await render();
   assert.equal(readyContact, undefined);
   await React.act(async () => {
@@ -123,16 +145,32 @@ async function main() {
   assert.equal(readyContact, undefined, 'pending verification cannot allow payment');
   phase = 'complete'; await render();
   assert.equal(readyContact.contact.email, contact.email);
-  const summary = document.querySelector('.rf2-pre-idv-details').textContent;
-  assert.match(summary, /1 Main St, Irvine, CA, 92618/, 'one-step shows the scanned mailing address');
-  assert.match(summary, /D1234567/, 'one-step shows the scanned licence number');
-  assert.match(summary, /EXP 01\/15\/2030/, 'licence expiry uses the two-step format');
+  const after = () => document.querySelector('.rf2-pre-idv-after');
+  assert.match(document.body.textContent, /ID Verification Complete/);
+  assert.match(after().textContent, /Please make sure the address captured from your license is your mailing address\./);
+  assert.match(after().textContent, /1 Main St,\s*Irvine, CA 92618/, 'one-step shows the scanned mailing address');
+  assert.match(after().textContent, /D1234567/, 'one-step shows the scanned licence number');
+  assert.match(after().textContent, /Jan 15, 2030, CA, United States/, 'licence line matches the design');
+  assert.equal(detailsReport.complete, true, 'a complete scanned address satisfies the details');
+  assert.equal(detailsReport.contact.mailingAddress.address, '1 Main St');
+  assert.equal(detailsReport.contact.driverLicense, 'D1234567');
+  const edits = () => [...after().querySelectorAll('button')].filter(b => b.textContent === 'Edit');
+  await React.act(async () => Simulate.click(edits()[0]));
+  const city = after().querySelector('input[aria-label="City"]');
+  assert.equal(city.value, 'Irvine', 'Edit opens the address fields with the scanned values');
+  await React.act(async () => Simulate.change(city, { target: { value: '' } }));
+  assert.equal(detailsReport.complete, false, 'a missing required part blocks the details');
+  await React.act(async () => Simulate.change(after().querySelector('input[aria-label="City"]'), { target: { value: 'Tustin' } }));
+  assert.equal(detailsReport.contact.mailingAddress.city, 'Tustin', 'edits reach the contact details');
+  await React.act(async () => Simulate.click(edits()[0]));
+  await React.act(async () => Simulate.change(after().querySelector('input[aria-label="License Number"]'), { target: { value: '****4567' } }));
+  assert.equal(detailsReport.contact.driverLicense, undefined, 'a masked number is never filed as the licence');
   assert.equal(helpers.allowsOneStepPayment(required, readyContact, contact), true);
   await render({ ...contact, email: 'changed@example.com' });
   assert.equal(controllerOptions.enabled, false, 'a different identity cannot use the previous verification');
   assert.equal(readyContact, undefined);
   await React.act(async () => root.unmount());
-  const restoredRoot = createRoot(document.getElementById('root'));
+  let restoredRoot = createRoot(document.getElementById('root'));
   await React.act(async () => restoredRoot.render(React.createElement(Component, { config, contact, onReady })));
   assert.equal(controllerOptions.identity.contactId, 'contact', 'remount reuses the contact ID for backend lookup');
   assert.equal(leadCalls, 1, 'remount does not create another lead');
@@ -141,6 +179,39 @@ async function main() {
   await React.act(async () => restoredRoot.render(React.createElement(Component, { config: optionalConfig, contact, onReady })));
   await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Verify ID Later')));
   assert.equal(readyContact.contact.email, contact.email, 'optional verification can be deferred');
+  assert.match(document.body.textContent, /Verify ID Later/);
+  assert.match(document.body.textContent, /Your ID will be verified in store\./, 'optional deferral uses the in-store card');
+  assert.ok(document.querySelector('input[aria-label="Search address"]'), 'deferral asks for the mailing address');
+  assert.ok(document.querySelector('input[aria-label="License Number"]'));
+  {
+    // A fresh mount: nothing typed or scanned yet.
+    await React.act(async () => restoredRoot.unmount());
+    const freshRoot = createRoot(document.getElementById('root'));
+    await React.act(async () => freshRoot.render(React.createElement(Component, { config: optionalConfig, contact, onReady, onDetails: d => { detailsReport = d; } })));
+    await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Verify ID Later')));
+    assert.ok(document.querySelector('input[aria-label="Address 1"]') === null, 'only the search box until an address is picked');
+    assert.equal(detailsReport.complete, false, 'the mailing address is required before paying');
+    assert.equal(document.querySelector('input[aria-label="License Number"]').closest('section').textContent.includes('*'), false, 'optional: the licence is not required');
+    await React.act(async () => freshRoot.unmount());
+  }
+  restoredRoot = createRoot(document.getElementById('root'));
+  await React.act(async () => restoredRoot.render(React.createElement(Component, { config: optionalConfig, contact, onReady })));
+  await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Verify ID Later')));
+  await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Verify ID Now')));
+  assert.equal(document.querySelector('input[aria-label="Search address"]'), null, 'Changed your mind returns to the verify card');
+  phase = 'failed';
+  const requiredRender = extra => React.act(async () => restoredRoot.render(React.createElement(Component, { config: { ...config, ...extra }, contact, onReady, onDetails: d => { detailsReport = d; } })));
+  await requiredRender({});
+  assert.match(document.body.textContent, /ID Verification Failed/);
+  assert.match(document.body.textContent, /present your government issued ID to the manager at the time of moving-in/, 'on-site failure points to the counter');
+  assert.ok([...document.querySelectorAll('button')].some(b => b.textContent === 'Reverify ID'));
+  assert.ok(document.querySelector('input[aria-label="License Number"]').closest('section').textContent.includes('*'), 'required: the licence is required');
+  assert.equal(readyContact, undefined, 'a failed required check cannot pay');
+  await requiredRender({ remoteOperated: true, facilityPhone: '(949) 546-7465' });
+  assert.match(document.body.textContent, /Please reverify your ID or contact us to get access \(949\) 546-7465\./, 'remote failure points to the phone');
+  await React.act(async () => restoredRoot.render(React.createElement(Component, { config: optionalConfig, contact, onReady, onDetails: d => { detailsReport = d; } })));
+  assert.ok(readyContact, 'an optional renter whose check failed can still pay and verify at move-in');
+  phase = 'ready';
   await React.act(async () => restoredRoot.render(React.createElement(Component, { config: { ...config, policyPending: true }, contact, onReady })));
   assert.equal(readyContact, undefined, 'pending property policy cannot allow payment');
   await React.act(async () => restoredRoot.unmount());

@@ -21,7 +21,7 @@ import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry }
 import { splitBusinessName } from './businessName';
 import { skipValidation } from '@shared/devBypass';
 import creditCardRepeat from './assets/credit-card-repeat.svg';
-import { OneStepIdv, type OneStepIdvConfig } from './OneStepIdv';
+import { OneStepIdv, type OneStepIdvConfig, type OneStepIdvDetails } from './OneStepIdv';
 import { allowsOneStepPayment, checkoutIdvId, type IdvCheckoutReadiness } from './idvLead';
 
 // ---------------------------------------------------------------------------
@@ -374,6 +374,8 @@ export function Step2({
     paymentCycle?: PaymentCycle;
     /** One-step: the verification completed for this exact contact, sent on the lease. */
     idvId?: string;
+    /** One-step: the scanned (or corrected) address and licence, filed on the tenant after the lease. */
+    idvDetails?: OneStepIdvDetails['contact'];
     /** Resolves true once the rental exists, false on any failure. Apple Pay
      *  completes its sheet from this; the card and bank forms ignore it. */
   }) => void | Promise<boolean>;
@@ -412,6 +414,7 @@ export function Step2({
   walletConfig?: WalletConfig;
 }) {
   const [idvReadyContact, setIdvReadyContact] = useState<IdvCheckoutReadiness>();
+  const [idvDetails, setIdvDetails] = useState<OneStepIdvDetails>();
   // Ticked when step 1 said this is a business rental, so the shopper does not
   // answer the same question twice and its fields open ready to fill.
   const [business, setBusiness] = useState(contact?.business ?? false);
@@ -707,8 +710,10 @@ export function Step2({
     : { first: first.trim(), last: last.trim(), email: email.trim(), phone };
   const verificationAllowsPayment = !oneStep || allowsOneStepPayment(oneStepIdv, idvReadyContact, idvContact);
   const verifiedIdvId = oneStep ? checkoutIdvId(oneStepIdv, idvReadyContact, idvContact) : undefined;
+  // Whenever the ID block shows the address/licence, its required parts must be filled.
+  const idvDetailsOk = !oneStep || !idvDetails || idvDetails.complete;
   // The dev validation bypass must never bypass a live ID-verification gate.
-  const formComplete = verificationAllowsPayment && (skip || required.every(([, ok]) => ok));
+  const formComplete = verificationAllowsPayment && idvDetailsOk && (skip || required.every(([, ok]) => ok));
   const bad = (key: string) => !skip && payAttempted
     && !(required.find(([k]) => k === key)?.[1] ?? true);
   /* The shared groups render FormField's own message, so they need the text
@@ -815,6 +820,7 @@ export function Step2({
        property offers more and the shopper picked one. */
     paymentCycle: cycle,
     idvId: verifiedIdvId,
+    idvDetails: oneStep ? idvDetails?.contact : undefined,
     /*
      * Which sections the shopper opted into — and on ONE-STEP, the values too.
      *
@@ -1107,7 +1113,7 @@ export function Step2({
         )}
 
         {oneStep && oneStepIdv && (oneStepIdv.policyPending || oneStepIdv.requirement !== 'disabled') && (
-          <OneStepIdv key={`${oneStepIdv.scope.companyId}:${oneStepIdv.scope.propertyId}`} config={oneStepIdv} contact={idvContact} onReady={setIdvReadyContact} />
+          <OneStepIdv key={`${oneStepIdv.scope.companyId}:${oneStepIdv.scope.propertyId}`} config={oneStepIdv} contact={idvContact} onReady={setIdvReadyContact} onDetails={setIdvDetails} showErrors={payAttempted} />
         )}
 
         {/* Additional Information */}
@@ -1351,6 +1357,8 @@ export function Step2({
             <p className="rf2-gp-note rf2-gp-note--error">
               {!verificationAllowsPayment
                 ? 'Complete ID verification above before continuing to payment.'
+                : !idvDetailsOk
+                  ? 'Complete your mailing address and driver\u2019s license above before continuing to payment.'
                 : 'Complete the highlighted fields (and accept the rental agreement) to continue to payment.'}
             </p>
           )}

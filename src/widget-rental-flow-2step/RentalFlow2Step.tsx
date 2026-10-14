@@ -3279,6 +3279,8 @@ export function RentalFlow2Step({
               allowedVerificationHosts: allowedIdvHosts,
               requirement: idvRequirement,
               policyPending: idvPolicyPending,
+              remoteOperated: idvRemoteOperated === true,
+              facilityPhone: formatUsPhone(propertyInfo?.phone),
             } : undefined}
             paymentCycles={offeredCycles}
             keyShareOptions={keyShareOptions?.length ? keyShareOptions : (previewContent ? PREVIEW_KEY_SHARES : keyShareOptions)}
@@ -3442,6 +3444,18 @@ export function RentalFlow2Step({
                       return false;
                     }
                     console.log(`${logTag} rental complete — lease ${res.leaseId}`);
+                    // One-step has no post-rental screen: file the verified
+                    // address and licence on the tenant now, like Get Access does.
+                    // Not awaited — a failure is logged and cannot undo the lease.
+                    if (res.contactId && info.idvDetails) {
+                      const d = info.idvDetails;
+                      void updateContactDetails(ctx, res.contactId, {
+                        driverLicense: d.driverLicense,
+                        driverLicenseExp: d.driverLicenseExp ? dobToIso(d.driverLicenseExp) : undefined,
+                        driverLicenseState: d.driverLicenseState,
+                        mailingAddress: d.mailingAddress,
+                      });
+                    }
                     setRental(res);
                     if (info.contact) setRentedContact(info.contact);
                     if (info.extras) setChosenSections(info.extras);
