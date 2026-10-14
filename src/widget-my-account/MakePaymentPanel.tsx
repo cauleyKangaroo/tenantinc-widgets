@@ -581,7 +581,13 @@ export function MakePaymentPanel({
            both starting positions, so Cancel Autopay and the enrolment tick
            behave the same on every space. */
         const justCancelled = cancelled.has(sp.id);
-        const enrolled = !justCancelled && (sp.autopay.enrolled || enrolledNow.has(sp.id));
+        /* "Enrolled in Autopay" is what the ACCOUNT says — a card at this
+           property with autopay on — never the tick alone. Ticking the box
+           only ticks it: the enrolment goes out with the payment (`autopay`
+           on the payment method), and the enrolled detail appears when the
+           record comes back saying so. Changed 2026-10-14; it used to swap to
+           the enrolled card the moment the box was ticked. */
+        const enrolled = !justCancelled && sp.autopay.enrolled;
         /* The tick ALONE decides which copy shows, on every space. It used to
            also be forced on for a space with no card on file, which meant one
            space could read "will be updated" with no tick beside it while its
@@ -675,7 +681,7 @@ export function MakePaymentPanel({
                       this shape stops being rendered. Cancel Autopay is the
                       way back, on every space. */}
                   <Checkbox
-                    checked={false}
+                    checked={enrolledNow.has(sp.id)}
                     onChange={() => {
                       if (justCancelled) {
                         /* Re-enrol — the notice recommends staying enrolled, so
@@ -690,14 +696,9 @@ export function MakePaymentPanel({
                            so the tick starts ON — the frame's "Update Autopay"
                            state exactly. It can still be turned off, and then
                            the space just shows its schedule. */
+                        // Just the tick. This payment's method becomes the
+                        // autopay card (autopayFor); nothing else changes here.
                         setEnrolledNow((prev) => flip(prev, sp.id));
-                        if (!sp.autopay.cardLast4) {
-                          setUpdateMethod((prev) => {
-                            const next = new Set(prev);
-                            next.add(sp.id);
-                            return next;
-                          });
-                        }
                       }
                     }}
                     className="ma-autopay__check"
@@ -719,7 +720,7 @@ export function MakePaymentPanel({
 
             <div className="ma-lines">
               {sp.lines.map((line) => (
-                <div className="ma-line" key={line.label}>
+                <div className="ma-line" key={`${line.label}|${line.note ?? ''}`}>
                   <p className="ma-line__label">
                     <span className="ma-line__strong">{line.label} </span>
                     {line.note && <span className="ma-line__note">{line.note}</span>}
