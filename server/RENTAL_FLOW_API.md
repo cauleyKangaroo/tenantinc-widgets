@@ -469,7 +469,9 @@ localStorage (`@shared/unitHandoff`, `ti.reservation`). In the flow this is
 
 `document_id` is the property's document of type `super-lease` from
 `GET v2/companies/{co}/properties/{p}/documents` (`fetchLeaseDocument`). A property
-without one (Bellflower) falls back to its `lease`-type document, and `type` follows
-whatever was picked. The generate call never fails the rental: the lease exists and is
+**without one cannot be rented online**: before the lease is made (and the card charged)
+the widget refuses with "This facility requires the lease to be signed in person.
+Please contact the office to finish your rental." — the same refusal `documents/finalize`
+used to give for Traditional signing. Bellflower is such a property today. The generate call never fails the rental: the lease exists and is
 paid by then, so a failure is logged and reported as `documentGenerated: false`.
 `documents/preview` (the step-2 agreement panel) is unchanged.
