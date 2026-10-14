@@ -442,9 +442,11 @@ export function EditPanel({
             <p role="heading" aria-level={3} className="ma-edit__label">
               {form.usePassport ? 'Passport' : 'Drivers Licence'}
             </p>
-            {/* No ID flow behind this yet, so it is a button that goes nowhere
-                rather than a link to a page that does not exist. */}
+            {/* Verify ID — switched off (2026-10-14): there is no ID flow
+                behind it yet, and a button that goes nowhere is worse than
+                none. Restore by uncommenting.
             <button type="button" className="ma-edit__verify">Verify ID</button>
+            */}
             <Checkbox
               checked={form.usePassport}
               onChange={set('usePassport')}
