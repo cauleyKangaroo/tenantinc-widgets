@@ -355,6 +355,207 @@
 }
 .ma-link-row:hover .ma-link { text-decoration-thickness: 2px; }
 
+/* ── Payment result banner (Figma 12949-90476 success, 12950-91405 failed) ─
+   Offsets are the frame's, measured from the banner's corner: tick at 37/31,
+   text column at 110 (10 lower than the tick), the sub-line and the details
+   nudged 3px and 6px further in as drawn, the receipt row at 179 with its
+   icon at 51. The failed card has no icon; its text starts at 107. */
+.ma-pay--result { padding-top: 38px; }
+/* Title 43px under the banner, spaces 31px under the title — the result
+   frame's spacing, tighter than the bare form's 42. */
+.ma-pay--result .ma-pay__head { margin-bottom: 31px; }
+
+.ma-result {
+  margin-bottom: 43px;
+  border-radius: 8px;
+  color: #000;
+}
+
+.ma-result--success {
+  padding: 31px 43px 46px 37px;
+  background: rgba(80, 158, 47, 0.11);
+}
+
+.ma-result--failed {
+  padding: 41px 43px 42px 107px;
+  background: rgba(229, 57, 53, 0.1);
+}
+
+.ma-result__top {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  column-gap: 11px;
+  align-items: start;
+}
+
+.ma-result__tick { display: block; }
+
+.ma-result__text { padding-top: 10px; min-width: 0; }
+
+.ma-wrapper .ma-result__title {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #101318;
+}
+
+.ma-wrapper .ma-result__sub {
+  margin-top: 8px;
+  margin-left: 3px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.ma-wrapper .ma-result__sub--failed { margin: 10px 0 0; max-width: 621px; }
+
+.ma-wrapper .ma-result__details {
+  margin-top: 13px;
+  margin-left: 6px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.ma-result__receipt {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 21px;
+  padding-left: 14px;
+}
+
+.ma-result__msgIcon { flex: none; display: block; }
+
+.ma-wrapper .ma-result__sent {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: normal;
+}
+
+.ma-result__resend {
+  flex: none;
+  width: 70px;
+  height: 29px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: #101318;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.ma-result__resend:hover { background: #2a2f36; }
+.ma-result__resend:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); }
+
+/* No phone frame for these yet: same content, padding and tick scaled down,
+   the frame's 3/6px nudges dropped, and the Resend row free to wrap. */
+@media (max-width: 720px) {
+  .ma-pay--result { padding-top: 25px; }
+  .ma-result { margin-bottom: 28px; }
+  .ma-result--success { padding: 20px 16px; }
+  .ma-result--failed { padding: 20px 16px; }
+  .ma-result__top { grid-template-columns: 40px 1fr; column-gap: 10px; }
+  .ma-result__tick { width: 40px; height: 40px; }
+  .ma-result__text { padding-top: 4px; }
+  .ma-wrapper .ma-result__title { font-size: 20px; line-height: 24px; }
+  .ma-wrapper .ma-result__sub,
+  .ma-wrapper .ma-result__details { margin-left: 0; font-size: 14px; }
+  .ma-result__receipt { flex-wrap: wrap; padding-left: 0; margin-top: 16px; }
+  .ma-wrapper .ma-result__sent { flex-basis: calc(100% - 35px); font-size: 14px; }
+  .ma-result__resend { margin-left: 35px; }
+}
+
+/* ── Change Coverage drop-down (Figma 12272-165228) ──────────────────────
+   Anchored under its link, right-aligned so it can't run off the card's right
+   edge (the link sits at the end of the row). Rows are 15/10 padding, 16px
+   Montserrat at 1.5, a 1px inner divider; 4px white caps top and bottom.
+   The grey row is the CURRENT plan, and the hover. */
+.ma-coverage { position: relative; display: inline-flex; }
+
+.ma-coverage__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  min-width: 263px;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px 3px var(--hb-elevation-10, rgba(71, 84, 116, 0.1));
+}
+
+.ma-coverage__opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 15px;
+  background: #fff;
+  border: 0;
+  box-shadow: inset 0 -1px 0 rgba(142, 142, 143, 0.15);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #000;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* The last row has no divider in the frame. */
+.ma-coverage__menu li:last-child .ma-coverage__opt { box-shadow: none; }
+
+.ma-coverage__opt:hover,
+.ma-coverage__opt--on { background: #F9FAFB; }
+
+.ma-coverage__opt:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--hb-text-night, #101318); }
+
+.ma-coverage__label { flex: 0 0 160px; }
+
+/* A plan the API will not move to — listed so the tenant can see what exists,
+   muted so it does not read as a choice. */
+.ma-coverage__opt--off { color: var(--hb-grayscale-medium, #637381); cursor: not-allowed; }
+.ma-coverage__opt--off:hover { background: #fff; }
+
+/* The pending change: the priced plan from the preview call and the two
+   buttons that decide it. Sits under the coverage line, full width, so it
+   cannot be mistaken for another charge row. */
+.ma-coverage-confirm {
+  margin: 8px 0 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--hb-cloud-darker, #a5b4bf);
+  border-radius: 8px;
+  background: #F9FAFB;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.ma-coverage-confirm__text { flex: 1 1 240px; }
+.ma-coverage-confirm__text strong { font-weight: 700; }
+.ma-coverage-confirm__actions { display: flex; gap: 8px; }
+
+/* Outcome of a coverage call: what is now scheduled, or why it was refused.
+   The error colour is the kit's, so it reads like every other refusal. */
+.ma-coverage-note { margin: 6px 0 2px; font-size: 14px; line-height: 20px; color: var(--hb-grayscale-medium, #637381); }
+.ma-coverage-note--error { color: var(--hb-ada-red, #d73632); }
+
+.ma-coverage__price { flex: 0 0 63px; }
+
 /* ── Money lines ───────────────────────────────────────────────────────── */
 .ma-lines {
   display: flex;
@@ -992,6 +1193,9 @@
 .ma-info__line { display: block; }
 
 /* ── Documents ─────────────────────────────────────────────────────────── */
+/* A lease with nothing filed. Muted, and no icon — it is a note, not a row. */
+.ma-docs__row--empty { color: var(--hb-grayscale-medium, #637381); font-size: 14px; }
+
 .ma-docs__row {
   display: flex;
   align-items: center;
@@ -1019,6 +1223,10 @@
 }
 .ma-docs__link:hover { text-decoration-thickness: 2px; }
 .ma-docs__link:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); border-radius: 4px; }
+
+/* Filing date, muted, after the name. Never wraps or shrinks: with twenty
+   same-named notices the date is the only thing that tells rows apart. */
+.ma-docs__date { flex: none; font-size: 13px; line-height: 16px; color: var(--hb-grayscale-medium, #637381); white-space: nowrap; }
 
 .ma-docs__chip {
   flex: none;
@@ -1177,24 +1385,116 @@
 .ma-act__line { display: block; }
 .ma-act__line + .ma-act__line { margin-top: 5px; }
 
+/* Plain text while there is no invoice document to open (the proxy has no
+   /invoices route — probed 2026-10-12). The frame draws these as links; the
+   underline and the pointer come back the day there is something behind
+   them, together with the <a>. Keeps the frame's weight and spacing. */
 .ma-act__invoice {
   display: block;
   padding: 0;
-  background: none;
-  border: 0;
-  cursor: pointer;
   text-align: left;
   font-family: inherit;
   font-size: 16px;
   font-weight: 400;
   line-height: 1.2;
   color: var(--hb-text-night);
-  text-decoration: underline;
-  text-underline-position: from-font;
 }
 .ma-act__invoice + .ma-act__invoice { margin-top: 5px; }
-.ma-act__invoice:hover { text-decoration-thickness: 2px; }
-.ma-act__invoice:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); border-radius: 4px; }
+
+/* ── Payment Activity, mobile list (Figma, phone frame) ───────────────────
+   ≤720px only — the table above is the desktop/tablet layout and is hidden
+   there; this list is hidden everywhere else. Header 42px tall, full width;
+   each payment is Date / Amount / Balance over a grey details strip padded
+   16px left, 12px right. Header and rows share one grid so the columns line
+   up whatever the amounts are. */
+.ma-actm { display: none; }
+.ma-activity__tri { display: none; }
+
+@media (max-width: 720px) {
+  .ma-act__scroll { display: none; }
+  .ma-actm { display: block; }
+
+  /* The phone frame draws Payment Activity flat on the page: no card fill,
+     no shadow. */
+  .ma-activity { background: none; box-shadow: none; }
+
+  /* Bar: the frame's filled ▼ in place of the outline chevron — down closed,
+     up open. (Its 19/23 padding is in the main ≤720px block below.) */
+  .ma-activity__chev { display: none; }
+  /* The glyph is 8 x 14 (drawn pointing right), centred in the frame's 24px
+     box — 5px / 8px insets once it is turned to point down. */
+  .ma-activity__tri {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--hb-text-night);
+    transform: rotate(90deg);
+    transition: transform var(--hb-transition);
+  }
+  .ma-activity__tri--open { transform: rotate(-90deg); }
+
+  .ma-actm__head,
+  .ma-actm__main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 72px;
+    column-gap: 12px;
+    align-items: center;
+    padding: 0 12px 0 16px;
+  }
+  .ma-actm__head > span:not(:first-child),
+  .ma-actm__main > span:not(:first-child) { text-align: right; }
+
+  .ma-actm__head {
+    height: 42px;
+    background: var(--ma-panel);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--hb-grayscale-medium);
+    white-space: nowrap;
+  }
+
+  .ma-actm__list { margin: 0; padding: 0; list-style: none; }
+  .ma-actm__item {
+    min-height: 88px;
+    border-bottom: 1px solid rgba(16, 19, 24, 0.10);
+  }
+
+  .ma-actm__main {
+    min-height: 40px;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--hb-text-night);
+  }
+  .ma-actm__amount { font-weight: 700; white-space: nowrap; }
+  .ma-actm__balance { color: var(--hb-grayscale-medium); white-space: nowrap; }
+
+  .ma-actm__details {
+    display: flex;
+    flex-direction: column;
+    padding: 9px 12px 9px 16px;
+    background: var(--ma-panel);
+    font-size: 14px;
+    line-height: 16.8px;
+    color: var(--hb-grayscale-medium);
+  }
+
+  .ma-actm__invoice {
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-position: from-font;
+  }
+  .ma-actm__invoice:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); border-radius: 4px; }
+}
 
 /* ── The card / bank forms ─────────────────────────────────────────────────
    The forms themselves are #99's, styled by its own .rf- stylesheet. Only the
@@ -1210,6 +1510,14 @@
 }
 
 .ma-payform { margin-top: 20px; }
+/* No gateway key for this facility: the card panel says so instead of
+   drawing a form that could not be submitted. */
+.ma-pay__notice { margin: 0; padding: 16px 0 4px; font-size: 14px; line-height: 20px; color: var(--hb-grayscale-medium, #637381); }
+
+/* Cards on file: full-width tiles above the 2×2 method grid, one per card. */
+.ma-saved { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+.ma-saved__card { width: 100%; }
+.ma-saved + .ma-methods { margin-top: 12px; }
 
 /* THE CARD ROW, SIZED BY THIS PANEL RATHER THAN THE WINDOW.
    #99 decides this row's shape from VIEWPORT media queries written for step
@@ -1422,6 +1730,18 @@
   background: var(--ma-panel);
 }
 
+/* A failed save sits in the action bar beside the button that failed, so the
+   reader does not have to look elsewhere to find out why nothing happened.
+   `margin-right: auto` pushes it to the left of Cancel/Save rather than
+   stretching the row. */
+.ma-edit__error {
+  margin: 0 auto 0 0;
+  color: var(--hb-ada-red, #C8102E);
+  font-size: 14px;
+  line-height: 1.4;
+  max-width: 48ch;
+}
+
 /* Drawn as plain bold text rather than a button box — but it IS a button, so
    it keeps a hit area, a focus ring and keyboard activation. */
 .ma-edit__cancel {
@@ -1438,6 +1758,30 @@
 }
 .ma-edit__cancel:hover { text-decoration: underline; }
 .ma-edit__cancel:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); }
+
+/* ── Busy: the session check is in flight ────────────────────────────────
+   The real tree is rendered (see MyAccount.tsx) so the page already has its
+   loaded height, but nothing of it may be seen: every element is hidden, and
+   only the layout's top-level blocks — greeting, the logged-in line's text and
+   button, each panel in the main column, each sidebar card — come back as flat
+   grey boxes. `visibility` (not `display`) so every box keeps its size, and
+   color: transparent for text sitting directly in a block. */
+.ma-wrapper--busy .ma-grid * { visibility: hidden; }
+
+.ma-wrapper--busy .ma-greeting,
+.ma-wrapper--busy .ma-logged-in > *,
+.ma-wrapper--busy .ma-main > *,
+.ma-wrapper--busy .ma-side > * {
+  visibility: visible;
+  color: transparent !important;
+  background: #e9edf1 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 12px;
+}
+
+/* A grey bar the width of the greeting, not of the whole column. */
+.ma-wrapper--busy .ma-greeting { justify-self: start; border-radius: 6px; }
 
 /* ── Narrow widths ─────────────────────────────────────────────────────────
    The frame is desktop-only (1920) — there is no mobile artboard for this
@@ -1511,7 +1855,7 @@
 
   .ma-methods { grid-template-columns: 1fr; }
 
-  .ma-activity__bar { padding: 20px 24px; }
+  .ma-activity__bar { padding: 19px 23px; }
   .ma-activity__body { padding: 0 24px 20px; }
 
   .ma-unit__panel { gap: 8px; }

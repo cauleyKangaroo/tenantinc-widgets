@@ -26,9 +26,12 @@
 
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { FormField, CheckIcon, AlertIcon } from '@shared/ui';
+import { SelectField } from '@shared/ui/SelectField';
 import { Shimmer } from '@shared/Shimmer';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
-import { CUSTOMER_ADDRESS_COUNTRIES } from '@shared/placesApi';
+import {
+  COUNTRY_OPTIONS, placesCountryFor, postalCodeOk, postalLabel, regionLabel,
+} from '@shared/addressCountry';
 import { mountHostedCard, type HostedCardHandle } from '@shared/gpHostedFields';
 import './paymentForms.css';
 import { skipValidation } from '@shared/devBypass';
@@ -49,25 +52,6 @@ function CreditCardIcon({ size = 24, className }: { size?: number; className?: s
   );
 }
 
-/** chevron-big — rotated 90° by CSS for the select affordance. */
-function ChevronBig({ size = 24, className }: { size?: number; className?: string }) {
-  return (
-    <svg
-      className={className}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <g transform="translate(8 5)">
-        <path d="M1.58599 0.189675C1.26945 -0.0392302 0.84859 -0.0628562 0.508414 0.129182C0.168238 0.321219 -0.0289727 0.693759 0.00346815 1.08305C0.331619 5.02086 0.331619 8.97915 0.00346815 12.917C-0.0289726 13.3062 0.168238 13.6788 0.508414 13.8708C0.84859 14.0629 1.26945 14.0392 1.58599 13.8103C3.837 12.1825 5.8566 10.2764 7.59304 8.14103C8.13567 7.47372 8.13567 6.52629 7.59304 5.85898C5.8566 3.72356 3.837 1.81746 1.58599 0.189675Z" />
-      </g>
-    </svg>
-  );
-}
 
 /** Money as the design writes it: "Pay Now $120.00". */
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -188,46 +172,6 @@ function expiryError(v: string): string | undefined {
 }
 const validExpiry = (v: string) => digits(v).length === EXPIRY_DIGITS && !expiryError(v);
 
-function SelectField({
-  label, value, onChange, options, required, state,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-  required?: boolean;
-  state?: 'default' | 'success';
-}) {
-  return (
-    <div className="rf-select">
-      <label className="rf-select-native">
-        <span className="rf-sr-only">{label}</span>
-        <select value={value} onChange={(e) => onChange(e.target.value)} required={required}>
-          <option value="">{`Select ${label}`}</option>
-          {options.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
-      </label>
-      {/* Presentational twin: shows the floating label + value in the exact form
-          styling, while the real <select> above sits transparently over it so the
-          native picker (and mobile wheel) still does the work. */}
-      <div className="rf-select-face" aria-hidden="true">
-        {/* state is NOT forwarded: the kit draws a check tick for 'success',
-            which would land on top of the chevron below — that pair is what
-            read as "two chevrons" on Billing Country. The valid look here is
-            the green border alone, exactly as the frame has it (its Icons slot
-            is empty). */}
-        <FormField
-          label={label}
-          required={required}
-          value={value}
-          onChange={() => {}}
-          className={state === 'success' ? 'rf-valid' : undefined}
-        />
-        <ChevronBig size={24} className="rf-select-chev" />
-      </div>
-    </div>
-  );
-}
 
 /**
  * Skeleton stood in for a payment form while it "loads" — Figma 8507-24610.
@@ -331,6 +275,13 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
     if (defaultCountry) setCountry((cur) => cur || defaultCountry);
   }, [defaultCountry]);
   const [address, setAddress] = useState('');
+  /* The country governs the address search beneath it, so changing it empties
+     what that search found: a street chosen in the other country is not this
+     billing address. */
+  const changeCountry = (c: string) => {
+    setCountry(c);
+    if (c !== country) { setAddress(''); setCity(''); setStateCode(''); setZip(''); setAddressPicked(false); }
+  };
 
   /* ── Account number / confirm ────────────────────────────────────────────
      The PAIR validates, never either field alone. The left one used to turn
@@ -346,9 +297,14 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
   /* A mismatch is only worth saying once the confirm field has caught up in
      length. Shorter than the original it is simply unfinished, not wrong, and
      "do not match" under a field mid-typing is noise that clears itself. */
-  const confirmMismatch = filled(account)
-    && confirm.length >= account.length
-    && confirm !== account;
+  /* A mismatch shows the moment the confirm copy stops being the START of the
+     account number — the first wrong digit, not the last — and, once the
+     field has been left, when it is simply shorter. "Unfinished" is only a
+     fair reading while the cursor is still in it. */
+  const [confirmLeft, setConfirmLeft] = useState(false);
+  const confirmMismatch = filled(account) && filled(confirm)
+    && (confirm.length >= account.length ? confirm !== account
+      : !account.startsWith(confirm) || confirmLeft);
 
   /* Same rule as the card panel: the address parts stay hidden until the
      lookup fills them, then appear once populated — or on a pay attempt, so a
@@ -366,7 +322,7 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
   const complete = skipValidation() || (filled(first) && filled(last) && filled(accountType)
     && validRouting(routing) && accountsMatch
     && filled(country) && filled(address) && filled(city)
-    && stateCode.trim().length === 2 && zip.trim().length >= 3);
+    && stateCode.trim().length === 2 && postalCodeOk(zip, country));
 
   /* The same banner the card panel has. Without it the button LOOKED DEAD:
      an incomplete form only set payAttempted, which revealed City/State/ZIP
@@ -445,6 +401,8 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
         <FormField
           label="Confirm Account Number" required type="password"
           value={confirm} onChange={(v) => setConfirm(digits(v))}
+          onBlur={() => setConfirmLeft(true)}
+          onFocus={() => setConfirmLeft(false)}
           error={confirmMismatch
             ? 'Account numbers do not match'
             : (payAttempted && !accountsMatch ? 'Re-enter your account number to confirm' : undefined)}
@@ -458,14 +416,17 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
         />
 
         <SelectField
-          label="Billing Country" required value={country} onChange={setCountry}
-          options={['United States', 'Canada']}
+          label="Billing Country" required value={country} onChange={changeCountry}
+          options={[...COUNTRY_OPTIONS]}
           state={country ? 'success' : 'default'}
+          error={payAttempted && !filled(country) ? 'Select your billing country' : undefined}
         />
-        {/* Search affordance owns the icon slot — border only. */}
+        {/* Search affordance owns the icon slot — border only. Closed until a
+            country is chosen: the search is scoped to that country alone. */}
         <AddressAutocomplete
-          country={CUSTOMER_ADDRESS_COUNTRIES}
+          country={placesCountryFor(country)}
           value={address}
+          disabled={!filled(country)}
           onChange={setAddress}
           onPick={(place) => {
             if (place.address.city) setCity(place.address.city);
@@ -478,6 +439,7 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
         >
           <FormField
             label="Billing Address" required type="search" value={address} onChange={setAddress}
+            disabled={!filled(country)}
             autoComplete="street-address" className={okQuiet(filled(address))}
             error={payAttempted && !filled(address) ? 'Enter your billing address' : undefined}
           />
@@ -496,17 +458,17 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
               error={payAttempted && !filled(city) ? 'Enter your billing city' : undefined}
             />
             <FormField
-              label="Billing State" required value={stateCode} onChange={(v) => setStateCode(v.toUpperCase().slice(0, 2))}
+              label={regionLabel(country, 'Billing')} required value={stateCode} onChange={(v) => setStateCode(v.toUpperCase().slice(0, 2))}
               autoComplete="address-level1" state={ok(stateCode.trim().length === 2)}
-              error={payAttempted && stateCode.trim().length !== 2 ? 'Two-letter state code' : undefined}
+              error={payAttempted && stateCode.trim().length !== 2 ? `Two-letter ${regionLabel(country).toLowerCase()} code` : undefined}
             />
           </div>
 
           <div className="rf-pay-grid">
             <FormField
-              label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code"
-              state={ok(zip.trim().length >= 3)}
-              error={payAttempted && zip.trim().length < 3 ? 'Enter your billing ZIP code' : undefined}
+              label={postalLabel(country, 'Billing')} required value={zip} onChange={setZip} autoComplete="postal-code"
+              state={ok(postalCodeOk(zip, country))}
+              error={payAttempted && !postalCodeOk(zip, country) ? `Enter your billing ${postalLabel(country)}` : undefined}
             />
             {/* Optional, and the only field here the payload treats as such —
                 omitted from payment_method entirely when left empty. */}
@@ -779,6 +741,13 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
      unfold all four, which answers a question nobody asked: the address has
      not been started, so there is nothing to complete. The search box carries
      the error on its own instead. */
+  /* As the bank panel: the country governs the search, so changing it empties
+     what that search found. In zip-only mode the ZIP is all there is to
+     clear. */
+  const changeCountry = (c: string) => {
+    setCountry(c);
+    if (c !== country) { setAddress(''); setCity(''); setStateCode(''); setZip(''); setAddressPicked(false); }
+  };
   const showBillingParts = addressPicked || filled(address)
     || filled(city) || filled(stateCode) || filled(zip);
   /* `country` is in here now that it starts empty. It has always been marked
@@ -789,7 +758,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
      which is where the select now sits. */
   /* Same harness bypass as the bank form, and gone from production the same
      way — see @shared/devBypass. */
-  const complete = skipValidation() || (cardRowValid && filled(name) && zip.trim().length >= 3 && filled(country)
+  const complete = skipValidation() || (cardRowValid && filled(name) && postalCodeOk(zip, country) && filled(country)
     // Only demanded where they are asked for. Requiring a street the panel
     // never rendered would be a dead button with nothing to fix.
     && (zipOnlyBilling || (filled(address) && filled(city) && stateCode.trim().length === 2)));
@@ -1152,23 +1121,25 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
           been used. It leads now. */}
       <div className="rf-pay-grid">
         <SelectField
-          label="Billing Country" required value={country} onChange={setCountry}
-          options={['United States', 'Canada']}
+          label="Billing Country" required value={country} onChange={changeCountry}
+          options={[...COUNTRY_OPTIONS]}
           state={country ? 'success' : 'default'}
+          error={payAttempted && !filled(country) ? 'Select your billing country' : undefined}
         />
         {/* tenant_payments verifies on the postcode alone, so ZIP takes the
             column the address search would have had and the street, city and
             state below are not rendered at all. */}
         {zipOnlyBilling ? (
           <FormField
-            label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code"
-            state={ok(zip.trim().length >= 3)}
-            error={payAttempted && zip.trim().length < 3 ? 'Enter your billing ZIP code' : undefined}
+            label={postalLabel(country, 'Billing')} required value={zip} onChange={setZip} autoComplete="postal-code"
+            state={ok(postalCodeOk(zip, country))}
+            error={payAttempted && !postalCodeOk(zip, country) ? `Enter your billing ${postalLabel(country)}` : undefined}
           />
         ) : (
         <AddressAutocomplete
-        country={CUSTOMER_ADDRESS_COUNTRIES}
+        country={placesCountryFor(country)}
         value={address}
+        disabled={!filled(country)}
         onChange={setAddress}
         onPick={(place) => {
           if (place.address.city) setCity(place.address.city);
@@ -1181,6 +1152,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
       >
         <FormField
           label="Billing Address" required type="search" value={address} onChange={setAddress}
+          disabled={!filled(country)}
           autoComplete="billing street-address" state={ok(filled(address))}
           error={payAttempted && !filled(address) ? 'Enter your billing address' : undefined}
         />
@@ -1205,9 +1177,9 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
               error={payAttempted && !filled(city) ? 'Enter your billing city' : undefined}
             />
             <FormField
-              label="Billing State" required value={stateCode} onChange={(v) => setStateCode(v.toUpperCase().slice(0, 2))}
+              label={regionLabel(country, 'Billing')} required value={stateCode} onChange={(v) => setStateCode(v.toUpperCase().slice(0, 2))}
               autoComplete="billing address-level1" state={ok(stateCode.trim().length === 2)}
-              error={payAttempted && stateCode.trim().length !== 2 ? 'Two-letter state code' : undefined}
+              error={payAttempted && stateCode.trim().length !== 2 ? `Two-letter ${regionLabel(country).toLowerCase()} code` : undefined}
             />
           </div>
 
@@ -1216,9 +1188,9 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
               characters, and a full-bleed box for it reads as a mistake. */}
           <div className="rf-pay-grid">
             <FormField
-              label="Billing ZIP Code" required value={zip} onChange={setZip} autoComplete="postal-code"
-              state={ok(zip.trim().length >= 3)}
-              error={payAttempted && zip.trim().length < 3 ? 'Enter your billing ZIP code' : undefined}
+              label={postalLabel(country, 'Billing')} required value={zip} onChange={setZip} autoComplete="postal-code"
+              state={ok(postalCodeOk(zip, country))}
+              error={payAttempted && !postalCodeOk(zip, country) ? `Enter your billing ${postalLabel(country)}` : undefined}
             />
           </div>
         </>

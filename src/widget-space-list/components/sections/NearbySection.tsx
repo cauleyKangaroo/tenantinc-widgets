@@ -32,6 +32,9 @@ interface NearbyUnit {
 interface NearbyProperty {
   id: string;
   name: string;
+  /** `state/city/property-name-<id>` — the property's page path. On the Duda
+   *  collections only; the keyed REST response carries none. */
+  slug?: string;
   lat: number;
   lng: number;
   /** First facility photo URL from the API, if any (else placeholder). */
@@ -58,6 +61,8 @@ interface NearbyProperty {
 
 const MAX_NEARBY = 6;
 const DEFAULT_ADMIN_FEE = 20;
+/** Where the property pages live. Matches #02's `locationBasePath` and #07's. */
+const PROPERTY_BASE_PATH = '/storage-units';
 
 const DEMO_PROPERTIES: NearbyProperty[] = [
   { id: '1', name: '3rd Street Storage',  lat: 0, lng: 0, distanceMiles: 1.7, rating: 4.5, reviewCount: 32, address: '8478 3rd Street, Fullerton, CA 02027',   phone: '(555) 555-5555', promotion: 'Short Promotion Title', adminFee: 20, units: [{ dimensions: "5' x 5'", subtype: 'Climate Controlled', inStore: 55,  startingAt: 25  }, { dimensions: "10' x 10'", subtype: 'Drive Up', inStore: 174, startingAt: 140 }, { dimensions: "10' x 12'", subtype: 'Drive Up', inStore: 580, startingAt: 450 }] },
@@ -351,6 +356,7 @@ export function NearbySection() {
         const base: NearbyProperty[] = ranked.map(({ p, distanceMiles }) => ({
           id: p.id,
           name: p.name,
+          slug: p.slug,
           lat: p.lat,
           lng: p.lng,
           // The operator's chosen hero beats the API's Images field.
@@ -454,6 +460,8 @@ export function NearbySection() {
     // in flight renders without one rather than throwing.
     label: p.units?.[0] ? `$${p.units[0].startingAt}` : undefined,
     name: p.name,
+    // No slug ⇒ nowhere to point, and the popup's name stays plain text.
+    href: p.slug ? `${PROPERTY_BASE_PATH}/${p.slug.replace(/^\/+/, '')}` : undefined,
     address: p.address,
     distance: p.distanceMiles != null ? formatDistance(p.distanceMiles) : undefined,
     active: i === safePage,

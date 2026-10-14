@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo , useId} from 'react';
-import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon, GooglePayMark, ApplePayMark } from './icons';
+import { CalendarIcon, FileArrowIcon, ChevronSolidIcon, InfoIcon, CreditCardIcon, BankIcon } from './icons';
+import { GooglePayButton } from './GooglePayButton';
+import { ApplePayButton } from './ApplePayButton';
+import { WALLET_DEFAULTS, type WalletConfig } from './walletConfig';
 import { PlanCoverageBody, ProtectionPlanModal } from './ProtectionPlanModal';
 import { LeaseModal } from './LeaseModal';
 import { RfCheckbox } from './RfCheckbox';
@@ -9,7 +12,7 @@ import {
 } from './additionalInfo';
 // The mask writes MM/DD/YYYY; the lease payload wants YYYY-MM-DD. Same
 // converter the post-purchase screen uses, so the two cannot drift.
-import { dobToIso } from './api';
+import { dobToIso, type RentalCtx, type WalletPayment } from './api';
 import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankFormValue, type BillingCountry } from '@shared/paymentForms';
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
@@ -38,7 +41,77 @@ const FORM_SKELETON_MS = 700;
  * document URL exists this becomes an <iframe>/<embed> and both surfaces get it
  * at once.
  */
-function LeaseDocBody({ title }: { title?: string }) {
+function LeaseDocBody(
+  { title, previewUrl, previewHtml, updating }:
+  { title?: string; previewUrl?: string; previewHtml?: string; updating?: boolean },
+) {
+  /*
+   * The preview on screen was prefetched before Step 1 was filled in (see the
+   * preview effect in RentalFlow2Step), so when the personalised one is on its
+   * way the shopper is told, over the document, rather than left to wonder why
+   * their name is not on it yet. Only ever over a document — with nothing
+   * shown there is nothing to be updating.
+   */
+  const badge = updating
+    ? <span className="rf2-doc-updating" role="status">Updating your agreement…</span>
+    : null;
+  /*
+   * THE HOSTED PREVIEW, FRAMED — and it must be allowed to run scripts.
+   *
+   * `preview_url` serves a 1.7KB JavaScript SHELL that renders the document
+   * client-side; it carries none of the text itself. Framed with a strict
+   * `sandbox=""` it showed NOTHING, which is exactly what it did at first.
+   *
+   * `allow-scripts allow-same-origin` is normally the pair to avoid, because
+   * together they let a frame out of its sandbox. Not here: this document is
+   * CROSS-ORIGIN, so `allow-same-origin` only restores ITS own origin and the
+   * ordinary same-origin policy still keeps it away from this page.
+   *
+   * WHY NOT the `template` markup the same response carries, which would need
+   * no scripts at all: for this company it arrives with NO <style> block —
+   * header, body and footer all — while using classes like `table-border` and
+   * `common-font` that the preview app supplies. Rendered on its own it is an
+   * unstyled stack of tables. Some templates do embed their own styling (a
+   * ClickWrap Superlease does), so it stays as the fallback below, but the
+   * hosted page is what the shopper signs and is the faithful thing to show.
+   */
+  if (previewUrl) {
+    return (
+      <div className="rf2-doc-page rf2-doc-page--frame">
+        <iframe
+          className="rf2-doc-frame"
+          src={previewUrl}
+          title={title ?? 'Rental Agreement'}
+          loading="lazy"
+          sandbox="allow-scripts allow-same-origin"
+        />
+        {badge}
+      </div>
+    );
+  }
+
+  /*
+   * Fallback: the document's own markup, in a frame of its own.
+   *
+   * Used when there is no hosted URL. `sandbox=""` is safe because this markup
+   * carries no scripts — it still loads its images and fonts and can do nothing
+   * else — and the frame keeps whatever styling the template does embed from
+   * inheriting, or fighting, this widget's CSS.
+   */
+  if (previewHtml) {
+    return (
+      <div className="rf2-doc-page rf2-doc-page--frame">
+        <iframe
+          className="rf2-doc-frame"
+          srcDoc={previewHtml}
+          title={title ?? 'Rental Agreement'}
+          sandbox=""
+        />
+        {badge}
+      </div>
+    );
+  }
+
   return (
     <div className="rf2-doc-page">
       <p className="rf2-doc-title">{title ?? 'Self Storage Rental Agreement'}</p>
@@ -198,8 +271,9 @@ const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
-  brochureUrl, onPlanChange, paying, payError, contact, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
+  brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, leasePreviewUrl, leasePreviewHtml, leasePreviewUpdating, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
+  showApplePay = false, showGooglePay = false, walletCtx, walletConfig = WALLET_DEFAULTS,
 }: {
   moveIn: Date;
   /**
@@ -252,11 +326,22 @@ export function Step2({
   brochureUrl?: string;
   /** Lease template name from the documents API. */
   leaseDocName?: string;
+  /** Frameable URL for the REAL lease, from documents/preview. Absent →
+   *  the written summary below stands. */
+  leasePreviewUrl?: string;
+  /** The document's own self-contained markup — preferred over the URL. */
+  leasePreviewHtml?: string;
+  /** A newer preview (the shopper's name, a changed figure) is being fetched
+   *  to replace the one shown. The panel says so over the document. */
+  leasePreviewUpdating?: boolean;
   onEditDate: () => void;
   /** The chosen coverage id, or undefined for "I have my own insurance".
    *  Reported upward because the choice re-prices the move-in quote — it is not
    *  a display-only toggle. */
   onPlanChange?: (insuranceId: string | undefined) => void;
+  /** The chosen billing period, so the parent can re-quote — the engine
+   *  prices it and the total must come back from the server. */
+  onCycleChange?: (cycle: PaymentCycle) => void;
   /** Authoritative move-in total (hold-aware quote) — printed on the pay button. */
   payNowTotal?: number;
   /** Card tokenized — parent takes over (interstitial → confirmation). */
@@ -268,6 +353,9 @@ export function Step2({
     /** Entered bank account + billing details, on the Pay by Bank path.
      *  Mutually exclusive with `card`. */
     bank?: BankFormValue;
+    /** Apple Pay / Google Pay token + the sheet's billing address. Mutually
+     *  exclusive with `card` and `bank`. Single-use — never stored. */
+    wallet?: WalletPayment;
     /** Step 2's own contact fields, which the shopper may have edited after
      *  step 1, so these win over the ones captured there. */
     contact?: { first: string; last: string; email: string; phone: string; businessName?: string };
@@ -279,7 +367,9 @@ export function Step2({
     extras?: RentalExtras;
     /** The Payment Cycle card's selection. */
     paymentCycle?: PaymentCycle;
-  }) => void;
+    /** Resolves true once the rental exists, false on any failure. Apple Pay
+     *  completes its sheet from this; the card and bank forms ignore it. */
+  }) => void | Promise<boolean>;
   /** What the shopper typed in step 1, used as the starting values here so they
    *  do not retype their own name and email one screen later. */
   contact?: { first: string; last: string; email: string; phone: string; business?: boolean; businessName?: string };
@@ -300,6 +390,19 @@ export function Step2({
   /** Country both payment forms open their Billing Country select on, from the
    *  content menu's Country Default. Unset → no preselection. */
   defaultCountry?: BillingCountry;
+  /**
+   * Whether each wallet may be offered at all — the parent's gateway, lease
+   * and capability checks (see `walletsAllowed` in RentalFlow2Step). False
+   * renders NO button, not a disabled one. Apple Pay additionally hides itself
+   * on browsers that cannot pay with it.
+   */
+  showApplePay?: boolean;
+  showGooglePay?: boolean;
+  /** Company/property scope for the wallets' merchant-session and JWT calls.
+   *  Required for either wallet to render. */
+  walletCtx?: RentalCtx;
+  /** The content panel's wallet settings, resolved over WALLET_DEFAULTS. */
+  walletConfig?: WalletConfig;
 }) {
   // Ticked when step 1 said this is a business rental, so the shopper does not
   // answer the same question twice and its fields open ready to fill.
@@ -346,11 +449,12 @@ export function Step2({
    */
   const mode: AutopayMode = autopayMode ?? 'optional';
 
-  /* PAYMENT CYCLE (Figma 12285-189429). Local state: nothing downstream reads
-     it yet — the rental APIs take no billing period — so this is the control
-     and its selection, and the price does NOT move. Wiring it to the quote is
-     the one change when a term-priced endpoint exists; until then a radio that
-     silently rewrote the total would be inventing a discount.
+  /* PAYMENT CYCLE (Figma 12285-189429).
+     The price DOES move now. lease-set-up prices the period as a prepay
+     discount on the rent line (verified live: Quarterly -10%, Annual -20% on a
+     Bellflower unit), so the selection is reported upward and the parent
+     re-quotes. Nothing is computed here — the figure on the button is the
+     server's, which is what the old note was waiting for.
      `useId` because a page can hold two of these and radios group by name. */
   const cycleName = useId();
   const [cycle, setCycle] = useState<PaymentCycle>('monthly');
@@ -364,16 +468,35 @@ export function Step2({
   const cycleWord = cycle === 'quarterly' ? { adj: 'quarterly', noun: 'quarter' }
     : cycle === 'annual' ? { adj: 'annual', noun: 'year' }
       : { adj: 'monthly', noun: 'month' };
-  const cycleOptions = paymentCycles
+  const offered = paymentCycles
     ? PAYMENT_CYCLES.filter((c) => paymentCycles.includes(c.id))
     : [];
+  /*
+   * Nothing to CHOOSE is nothing to show.
+   *
+   * Every property in the live data offers monthly, and most offer only
+   * monthly — so a lone "Monthly" radio was a section, a heading and an info
+   * icon devoted to a decision the shopper does not have. The rail already
+   * says the rent is monthly.
+   *
+   * Hidden rather than disabled: a single checked radio reads as a choice that
+   * has been made for you, which invites a click that does nothing.
+   */
+  const cycleOptions = offered.length > 1 ? offered : [];
   /* Keep the selection on an offered period. Monthly is the default and is
      offered by every property in the live data, but it is configurable, so a
      property that sells quarterly and annual only must not sit on a monthly
      radio that is not on screen. */
+  /* Report upward whenever it settles, including the corrections below — the
+     parent quotes on this, so a cycle it never heard about would be billed at
+     one period and priced at another. */
+  useEffect(() => { onCycleChange?.(cycle); }, [cycle, onCycleChange]);
+
   useEffect(() => {
-    if (!cycleOptions.length) return;
-    if (!cycleOptions.some((c) => c.id === cycle)) setCycle(cycleOptions[0].id);
+    // `offered`, not `cycleOptions`: a property selling one period still has to
+    // settle ON it, even though no radio is drawn for it.
+    if (!offered.length) return;
+    if (!offered.some((c) => c.id === cycle)) setCycle(offered[0].id);
     // cycleOptions is derived from paymentCycles; depending on the array
     // identity would re-run this on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -533,7 +656,7 @@ export function Step2({
   // token is single-use with a 30-minute expiry — comfortably inside the
   // 15-minute unit hold. It is what the (future) server-side move-in
   // charge consumes; no card data exists widget-side.
-  const [payMethod, setPayMethod] = useState<'gpay' | 'apple' | 'card' | 'bank' | null>(null);
+  const [payMethod, setPayMethod] = useState<'card' | 'bank' | null>(null);
   const [payAttempted, setPayAttempted] = useState(false);
   /** Skeleton beat before a static payment form appears (Figma 8507-24610). */
   const [formLoading, setFormLoading] = useState(false);
@@ -543,11 +666,14 @@ export function Step2({
   // fields inside are not).
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const phoneOk = isPossiblePhone(phone, 'US');
-  /* Only when the fields are actually on this screen. On 2step they are not,
-     and a rule for an input nobody can see would disable Pay Now with no way
-     to find out why — the exact thing the old comment below warned about. */
+  /* Only when the fields are actually on this screen — the ONE-STEP layout,
+     where each tick opens its group beneath it. On two-step the ticks are
+     ticks: the fields are asked for on the post-purchase screen, and a rule
+     for an input nobody can see here would disable Pay Now with no way to
+     find out why. The primary contact's email and phone go in so the
+     alternate contact cannot be the tenant. */
   const extraProblems = oneStep
-    ? extraFieldProblems({ military, altContact, vehicle }, extraFields)
+    ? extraFieldProblems({ military, altContact, vehicle }, extraFields, { first, last, email, phone })
     : {};
   const required: Array<[key: string, ok: boolean]> = [
     ['email', emailOk],
@@ -559,11 +685,9 @@ export function Step2({
       : [['first', first.trim().length > 0],
         ['last', last.trim().length > 0]] as Array<[string, boolean]>),
     ['agree', agree],
-    /* On 2step the optional sections are TICKS — their fields live on the
-       post-purchase screen, so there is nothing here to validate. On 1step
-       they are on screen, so the ones that are open and incomplete do gate
-       payment; `extraProblems` is empty in the other case, so this line adds
-       nothing to the two-step form. */
+    /* The optional sections' fields are on screen in both layouts, so the
+       ones that are open and incomplete — or name the tenant as their own
+       alternate contact — gate payment. Closed sections contribute nothing. */
     ...Object.entries(extraProblems).map(([k, msg]) => [k, !msg] as [string, boolean]),
   ];
   /* Harness bypass — compiled out of production builds, see @shared/devBypass.
@@ -582,7 +706,7 @@ export function Step2({
    *  other method relocates beneath it. Wallets are one-tap and never expand. */
   const methodOpen = payMethod === 'card' || payMethod === 'bank';
 
-  const selectPayMethod = (m: 'gpay' | 'apple' | 'card' | 'bank') => {
+  const selectPayMethod = (m: 'card' | 'bank') => {
     if (!formComplete) { setPayAttempted(true); return; }
     const next = payMethod === m ? null : m;
     setPayMethod(next);
@@ -594,15 +718,85 @@ export function Step2({
     }
   };
 
+  /* WALLETS (Apple Pay / Google Pay). One-tap: they never open a panel, so
+     they do NOT go through selectPayMethod — the sheet has to open inside the
+     tap's own call stack, and a state change followed by an effect would be
+     outside it. */
+  /** What a wallet needs the shopper to see: a cancel is silent, everything
+   *  else lands here, beside the buttons. */
+  const [walletError, setWalletError] = useState<string | undefined>(undefined);
+  /** Which wallet buttons ACTUALLY rendered, as each reports it — allowed by
+   *  the parent is not the same as on screen (see onAvailabilityChange). */
+  const [appleOnScreen, setAppleOnScreen] = useState(false);
+  const [googleOnScreen, setGoogleOnScreen] = useState(false);
+  /**
+   * The gate a wallet runs between the tap and opening its sheet — the same
+   * `required` list that gates the card and bank panels, so "I agree" and
+   * every highlighted field apply equally.
+   *
+   * SYNCHRONOUS, and must stay so: Apple Pay throws and Chrome blocks Google's
+   * popup if anything is awaited before the sheet opens.
+   */
+  const canOpenWallet = (): boolean => {
+    setWalletError(undefined);
+    if (paying) return false;
+    if (!formComplete) { setPayAttempted(true); return false; }
+    if (!(payNowTotal != null && payNowTotal > 0)) {
+      setWalletError('Your total is still being calculated. Please try again in a moment.');
+      return false;
+    }
+    return true;
+  };
+  /**
+   * The sheet came back with a token. Re-checked first, as Nuxt does: the
+   * shopper can untick "I agree" while the sheet is open, and the token then
+   * goes unused — nothing is charged until the lease call spends it.
+   *
+   * Resolves the RENTAL's outcome, so Apple Pay can complete its sheet with
+   * success or failure from what actually happened.
+   */
+  const payWithWallet = (wallet: WalletPayment): Promise<boolean> => {
+    if (!formComplete) {
+      setPayAttempted(true);
+      setWalletError('You have not been charged. Complete the highlighted fields, then try again.');
+      return Promise.resolve(false);
+    }
+    return Promise.resolve(payStatically(undefined, undefined, wallet))
+      .then((ok) => ok === true, () => false);
+  };
+  /* NOT gated on payNowTotal: the total blinks out while a plan change
+     re-prices, and unmounting here would tear down Google's button and
+     re-mint its JWT each time. canOpenWallet refuses a missing total instead. */
+  const showApple = showApplePay && !!walletCtx;
+  const showGoogle = showGooglePay && !!walletCtx;
+
   /** "Pay Now" — hands the parent everything the rental APIs need. */
-  const payStatically = (card?: CardFormValue, bank?: BankFormValue) => onPaymentComplete?.({
+  /*
+   * Checked HERE as well as when the panel opens. The panel gate runs once,
+   * when a method is picked; anything the shopper changes after that — ticking
+   * "alternate contact" and typing their own email into it, say — was never
+   * looked at again, and the lease went out with it. Verified by driving the
+   * form 2026-10-08: panel open first, duplicate alternate second, pay went
+   * straight through. In hosted-card mode the token has already been minted
+   * by the time this runs; that costs nothing (single-use, expires) and is
+   * better than filing a bad contact.
+   */
+  const payStatically = (card?: CardFormValue, bank?: BankFormValue, wallet?: WalletPayment) => {
+    if (!formComplete) { setPayAttempted(true); return false; }
+    return payNow(card, bank, wallet);
+  };
+  const payNow = (card?: CardFormValue, bank?: BankFormValue, wallet?: WalletPayment) => onPaymentComplete?.({
     firstName: first.trim() || 'there',
     card,
     bank,
+    wallet,
     contact: business
       ? { ...splitBusinessName(bizName), email: email.trim(), phone, businessName: bizName.trim() }
       : { first: first.trim(), last: last.trim(), email: email.trim(), phone },
-    autopay,
+    /* Apple Pay / Google Pay never enrol in autopay — not even where the
+       property makes it mandatory (`default`) or preselects it. A wallet
+       token is a one-time payment and cannot be charged again next month. */
+    autopay: wallet ? false : autopay,
     /* The billing period chosen on the Payment Cycle card. Monthly unless the
        property offers more and the shopper picked one. */
     paymentCycle: cycle,
@@ -633,9 +827,20 @@ export function Step2({
         altPhone: extraFields.altPhone.trim() || undefined,
         altEmail: extraFields.altEmail.trim() || undefined,
         altAddress: extraFields.altAddress.trim() || undefined,
+        altCity: extraFields.altCity.trim() || undefined,
+        altState: extraFields.altState.trim() || undefined,
+        altZip: extraFields.altZip.trim() || undefined,
       } : {}),
-      ...(oneStep && vehicle && extraFields.vType.trim()
-        ? { vehicleType: extraFields.vType.trim() } : {}),
+      ...(oneStep && vehicle && extraFields.vType.trim() ? {
+        vehicleType: extraFields.vType.trim(),
+        vehicleMake: extraFields.make.trim() || undefined,
+        vehicleModel: extraFields.model.trim() || undefined,
+        vehicleYear: extraFields.year.trim() || undefined,
+        vehicleColour: extraFields.colour.trim() || undefined,
+        vehiclePlate: extraFields.plate.trim() || undefined,
+        vehicleCountry: extraFields.country.trim() || undefined,
+        vehicleState: extraFields.stateVal.trim() || undefined,
+      } : {}),
     },
   });
 
@@ -742,7 +947,7 @@ export function Step2({
                       <span className="rf2-plan-price"><b>${chosenPlan.premium}</b><span>/mo</span></span>
                     </>
                   ) : (
-                    <span className="rf2-plan-own-sel">I Have My Own Insurance</span>
+                    <span className="rf2-plan-own-sel">I have my own insurance</span>
                   )}
                 </span>
                 <span className="rf2-plan-drop">
@@ -777,7 +982,7 @@ export function Step2({
                             </span>
                             {best && <span className="rf2-plan-best rf2-plan-best--sm">Best Value</span>}
                           </span>
-                          <span className="rf2-plan-price"><b>${p.premium}</b><span>/month</span></span>
+                          <span className="rf2-plan-price"><b>${p.premium}</b><span>/mo</span></span>
                         </button>
                       </React.Fragment>
                     );
@@ -792,7 +997,7 @@ export function Step2({
                     className="rf2-plan-opt rf2-plan-opt--own"
                     onClick={() => choosePlan('own')}
                   >
-                    <span className="rf2-plan-own-t">I Have My Own Insurance</span>
+                    <span className="rf2-plan-own-t">I have my own insurance</span>
                     <span className="rf2-plan-own-d">
                       I’ll provide proof of coverage - I’ll buy the Basic Protection Plan if I
                       don’t provide proof of coverage through my homeowners or renters insurance
@@ -848,13 +1053,13 @@ export function Step2({
               aria-expanded={ksOpen}
               onClick={() => setKsOpen((o) => !o)}
             >
-              <span className="rf2-plan-body">
+              <span className="rf2-plan-body rf2-plan-body--ks">
                 <span className="rf2-plan-left">
                   <span className="rf2-plan-cov">
                     <b>{chosenKeyShare.label}</b> Plan
                   </span>
                 </span>
-                <span className="rf2-ks-price">{chosenKeyShare.price}</span>
+                <span className="rf2-ks-price">{chosenKeyShare.price}{/^\$/.test(chosenKeyShare.price) && <span>/mo</span>}</span>
               </span>
               <span className="rf2-plan-drop">
                 <ChevronSolidIcon size={14} className={`rf2-chev-down${ksOpen ? ' rf2-chev-up' : ''}`} />
@@ -876,7 +1081,7 @@ export function Step2({
                       <span className="rf2-plan-opt-left">
                         <span className="rf2-plan-opt-cov"><b>{k.label}</b> Plan</span>
                       </span>
-                      <span className="rf2-ks-price">{k.price}</span>
+                      <span className="rf2-ks-price">{k.price}{/^\$/.test(k.price) && <span>/mo</span>}</span>
                     </button>
                   </React.Fragment>
                 ))}
@@ -906,7 +1111,7 @@ export function Step2({
             </div>
             <div className="rf-sx-group">
               <Check checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Check>
-              {oneStep && altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated />}
+              {oneStep && altContact && <AltContactFields v={extraFields} set={setExtra} bad={extraBad} validated primary={{ first, last, email, phone }} />}
             </div>
             <div className="rf-sx-group">
               <Check checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Check>
@@ -932,7 +1137,7 @@ export function Step2({
             </button>
           </div>
           <div className="rf2-agree-doc">
-            <LeaseDocBody title={leaseDocName} />
+            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} updating={leasePreviewUpdating} />
           </div>
           <RfCheckbox
             checked={agree}
@@ -1055,9 +1260,36 @@ export function Step2({
               that grid while NEITHER is open — once one is, the open panel
               takes their place and the other method moves below it
               (Figma 10080-28749). */}
+          {/* Each wallet renders only where it can actually be used — see
+              showApplePay / showGooglePay — and each can still decline at
+              runtime (Apple on Android or when its SDK is blocked, Google when not
+              ready to pay), so
+              a lone wallet's full-width span is decided in CSS from what
+              actually rendered, not guessed here. */}
+          {(!methodOpen || showApple || showGoogle) && (
           <div className={`rf2-paygrid${methodOpen ? ' rf2-paygrid--wallets' : ''}`}>
-            <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('gpay')}><GooglePayMark /></button>
-            <button type="button" className="rf2-pay rf2-pay--dark" onClick={() => selectPayMethod('apple')}><ApplePayMark /></button>
+            {showGoogle && walletCtx && (
+              <GooglePayButton
+                config={walletConfig}
+                total={payNowTotal ?? 0}
+                ctx={walletCtx}
+                canOpen={canOpenWallet}
+                onToken={payWithWallet}
+                onError={setWalletError}
+                onAvailabilityChange={setGoogleOnScreen}
+              />
+            )}
+            {showApple && walletCtx && (
+              <ApplePayButton
+                config={walletConfig}
+                total={payNowTotal ?? 0}
+                ctx={walletCtx}
+                canOpen={canOpenWallet}
+                onToken={payWithWallet}
+                onError={setWalletError}
+                onAvailabilityChange={setAppleOnScreen}
+              />
+            )}
             {!methodOpen && (
               <>
                 <Button
@@ -1083,10 +1315,26 @@ export function Step2({
               </>
             )}
           </div>
+          )}
+          {/* Wallets are one-tap, so there is no moment to visibly untick the
+              autopay box before paying — this says it instead, wherever
+              autopay would otherwise apply (mandatory, or ticked).
+              Gated on what each button REPORTS as on screen, not on what the
+              parent allowed: either can still decline at runtime, and a note
+              about wallets nobody can see would only confuse. */}
+          {((showApple && appleOnScreen) || (showGoogle && googleOnScreen)) && (mode === 'default' || autopay) && (
+            <p className="rf2-gp-note">
+              Apple Pay and Google Pay are one-time payments and won&rsquo;t enroll in autopay.
+              To pay automatically each {cycleWord.noun}, use Credit / Debit or Pay by Bank.
+            </p>
+          )}
           {payAttempted && !formComplete && (
             <p className="rf2-gp-note rf2-gp-note--error">
               Complete the highlighted fields (and accept the rental agreement) to continue to payment.
             </p>
+          )}
+          {walletError && (
+            <p className="rf2-gp-note rf2-gp-note--error" role="alert">{walletError}</p>
           )}
           {payError && (
             <p className="rf2-gp-note rf2-gp-note--error" role="alert">{payError}</p>
@@ -1161,7 +1409,7 @@ export function Step2({
         agree={agree}
         onAgreeChange={setAgree}
       >
-        <LeaseDocBody title={leaseDocName} />
+        <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} updating={leasePreviewUpdating} />
       </LeaseModal>
     </div>
   );

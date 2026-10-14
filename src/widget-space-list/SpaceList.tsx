@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
@@ -7,7 +7,7 @@ import cfg from './config.json';
 import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
 import { boundText, resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { PropertyIdProvider } from './propertyContext';
+import { PropertyIdProvider, PropertyExtrasProvider } from './propertyContext';
 import { CompanyIdProvider } from './companyContext';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
@@ -17,6 +17,7 @@ import {
   activeFilterCount,
   isUnavailable,
   typeOptionsFrom,
+  unitPromotions,
 } from './filters';
 import { readFiltersFromUrl, writeFiltersToUrl } from './urlFilters';
 import {
@@ -32,7 +33,6 @@ import {
 } from './featureHighlights';
 import { FEATURE_PAGE_COLLECTION, fetchFeaturePageCopy } from './featurePageSource';
 import { hasCollectionsApi } from '@shared/dudaCollections';
-import { PROMOTION_OPTIONS } from './data';
 import { FilterModal } from './components/FilterModal';
 import { TopFilterBar } from './components/TopFilterBar';
 import { GridView } from './components/GridView';
@@ -43,32 +43,11 @@ import { ReorderModal } from './components/ReorderModal';
 import { SkeletonLoader } from './components/SkeletonLoader';
 import { ACCORDION_SECTIONS, type AccordionConfig } from './accordionSections';
 import { instanceKey, readAccordionConfig, saveAccordionConfig } from './accordionConfigApi';
-import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, type PromoSelection } from '@shared/promoBus';
+import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, scrollToSpaceList, type PromoSelection } from '@shared/promoBus';
+import { SIZE_FILTER_EVENT, unitMatchesSize, type SizeFilterSelection } from '@shared/sizeFilterBus';
 import { RichText } from '@shared/richText';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { PromoTagIcon } from './components/Pricing';
-
-// Wrapper-width breakpoint below which we count as mobile. Keyed off the widget's
-// own width, not the viewport, for the same reason as the CSS container queries:
-// in Duda the widget often sits in a narrow column inside a wide window.
-const MOBILE_BP = 640;
-
-function useIsMobile(breakpoint: number) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth < breakpoint : false,
-  );
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver((entries) => {
-      setIsMobile(entries[0].contentRect.width < breakpoint);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [breakpoint]);
-  return { ref, isMobile };
-}
 
 export function SpaceList({
   layoutMode = 'grid',
@@ -137,9 +116,12 @@ export function SpaceList({
   const [liveUnits, setLiveUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // The default layout has no mobile frame of its own — below MOBILE_BP it falls
-  // back to the grid layout, which does.
-  const { ref: wrapperRef, isMobile } = useIsMobile(MOBILE_BP);
+  /* The default layout renders at EVERY width now. It used to fall back to the
+     grid layout below MOBILE_BP because it had no narrow frame of its own;
+     Figma 12418-64891 is that frame, so the fallback — and the width
+     measurement that drove it — are gone. Picking "default" and being given the
+     grid was the bug. */
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Mobile: pin the filter bar to the shared stack, BELOW #03's contact row
   // (order 20 vs 10). Viewport query rather than the container width above,
@@ -404,6 +386,30 @@ export function SpaceList({
     clearPromoInUrl();
   }
 
+  // Cross-widget size filter: the Size Guide's "See Available Spaces" narrows the
+  // list to one size (see @shared/sizeFilterBus).
+  const [sizeFilter, setSizeFilter] = useState<SizeFilterSelection | null>(null);
+  // The listener is registered once, so it reads the CURRENT units/visibility
+  // through a ref rather than the values captured on first render.
+  const sizeMatchRef = useRef({ units: [] as Unit[], showUnavailable: false });
+  sizeMatchRef.current = { units, showUnavailable: showUnavailableUnits };
+
+  useEffect(() => {
+    const onShowSize = (e: Event) => {
+      const sel = (e as CustomEvent<SizeFilterSelection>).detail;
+      if (!sel) return;
+      // Tab-specific, and only when this listing actually has such a space.
+      // No match → still take the visitor to the list, but apply nothing.
+      const { units: current, showUnavailable } = sizeMatchRef.current;
+      const hit = current.some((u) =>
+        unitMatchesSize(u, sel) && (showUnavailable || !isUnavailable(u)));
+      if (hit) setSizeFilter(sel);
+      scrollToSpaceList();
+    };
+    window.addEventListener(SIZE_FILTER_EVENT, onShowSize);
+    return () => window.removeEventListener(SIZE_FILTER_EVENT, onShowSize);
+  }, []);
+
   // Feature-page mode: `?feature=<slug>` (set by the Feature Highlights
   // accordion) turns this listing into that one feature's landing page — see
   // featureHighlights.ts.
@@ -565,6 +571,17 @@ export function SpaceList({
     [units, config.categoryOrdering],
   );
 
+  // The promotions the units on the page actually have — none ⇒ the modal
+  // leaves the section out. Same type scoping as the amenity/feature options.
+  const promotionOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const u of units) {
+      if (filters.types.length > 0 && !filters.types.includes(u.type)) continue;
+      for (const p of unitPromotions(u)) seen.add(p);
+    }
+    return Array.from(seen).sort();
+  }, [units, filters.types]);
+
   const featureOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const u of units) {
@@ -585,12 +602,15 @@ export function SpaceList({
       : filterUnits(units, filters, searchTerm);
     // Cross-widget promo filter: only units allocated to the selected promotion.
     if (promoId) filtered = filtered.filter((u) => u.promoId === promoId);
+    // Cross-widget size filter: that exact size in the guide card's own tab
+    // (see unitMatchesSize).
+    if (sizeFilter) filtered = filtered.filter((u) => unitMatchesSize(u, sizeFilter));
     // Sold-out units are hidden unless showUnavailableUnits is on. Visibility is
     // this toggle's job ALONE — enableWaitlist no longer hides anything, it only
     // picks the CTA ("Join waitlist" vs "Call") for whatever is shown. So
     // showUnavailableUnits off + waitlist on still shows nothing sold out.
     return showUnavailableUnits ? filtered : filtered.filter((u) => !isUnavailable(u));
-  }, [units, filters, searchTerm, showUnavailableUnits, promoId, activeFeature]);
+  }, [units, filters, searchTerm, showUnavailableUnits, promoId, sizeFilter, activeFeature]);
   const badge = activeFilterCount(filters);
   const totalVacant = units.reduce((sum, u) => sum + (u.vacantCount ?? 0), 0);
 
@@ -605,6 +625,25 @@ export function SpaceList({
       config={accordionConfig}
       inEditor={inEditor}
       onReorderClick={() => { setSaveError(null); setReorderOpen(true); }}
+      showSizeGuideVideos={showSizeGuideVideos}
+      propertyExtras={propertyExtras}
+      aboutTitle={aboutTitle}
+      aboutContent={aboutContent}
+      notesContent={notesContent}
+      blogCollection={blogCollection}
+      blogBasePath={blogBasePath}
+      featureHighlights={featureHighlights}
+      activeFeatureSlug={activeFeature?.slug ?? null}
+      onSelectFeature={selectFeature}
+    />
+  );
+
+  // The same panel, mobile variant — see SectionAccordion's `mobile` prop.
+  const mobileSectionPanel = (
+    <SectionAccordion
+      mobile
+      config={accordionConfig}
+      inEditor={inEditor}
       showSizeGuideVideos={showSizeGuideVideos}
       propertyExtras={propertyExtras}
       aboutTitle={aboutTitle}
@@ -659,9 +698,7 @@ export function SpaceList({
           amenityOptions={amenityOptions}
           typeOptions={typeOptions}
           featureOptions={featureOptions}
-          promotionOptions={PROMOTION_OPTIONS}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          promotionOptions={promotionOptions}
         />
       )}
     </>
@@ -680,6 +717,7 @@ export function SpaceList({
   // sits on whichever side apLocation specifies.
   return (
     <PropertyIdProvider propertyId={effectivePropertyId}>
+    <PropertyExtrasProvider extras={propertyExtras}>
      <CompanyIdProvider companyId={effectiveCompanyId ?? ''}>
     <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
       {/* Off when #18 draws the heading instead — see showHeading. */}
@@ -752,10 +790,10 @@ export function SpaceList({
             </div>
           )}
           {loading ? (
-            <SkeletonLoader />
+            <SkeletonLoader layoutMode={layoutMode} />
           ) : layoutMode === 'list' ? (
             <ListView units={visibleUnits} config={config} />
-          ) : layoutMode === 'default' && !isMobile ? (
+          ) : layoutMode === 'default' ? (
             <DefaultView units={visibleUnits} config={config} />
           ) : (
             <GridView units={visibleUnits} config={config} />
@@ -773,6 +811,9 @@ export function SpaceList({
         </main>
         {showSideAccordions && apLocation === 'right' && sectionPanel}
       </div>
+      {/* Mobile only (CSS): the sidebar is hidden there, so the sections with no
+          widget of their own follow the listing instead. */}
+      {showSideAccordions && mobileSectionPanel}
       {reorderOpen && (
         <ReorderModal
           sections={ACCORDION_SECTIONS}
@@ -785,6 +826,7 @@ export function SpaceList({
       )}
     </div>
      </CompanyIdProvider>
+    </PropertyExtrasProvider>
     </PropertyIdProvider>
   );
 }

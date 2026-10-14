@@ -16,10 +16,10 @@
 // ===========================================================================
 
 import { Button, MapPinIcon, PhoneIcon } from '@shared/ui';
+import { walkImagesOnError } from '@shared/unitArtwork';
 import { AmenityCheckIcon } from './icons';
 import type { AccountSpace, SpaceProperty } from './data';
 import propertyHero from './assets/property-hero.jpg';
-import unitDimetric from './assets/unit-dimetric.png';
 
 export function PropertyCard({
   property,
@@ -55,10 +55,14 @@ export function PropertyCard({
             <MapPinIcon size={24} className="ma-prop__icon" />
             <span>{property.address}</span>
           </a>
-          <a className="ma-prop__row" href={`tel:${property.phone.replace(/[^\d+]/g, '')}`}>
-            <PhoneIcon size={24} className="ma-prop__icon" />
-            <span>{property.phone}</span>
-          </a>
+          {/* Only with a number: an icon beside nothing, linking to tel:, is
+              what the card showed while the phone had no source. */}
+          {property.phone && (
+            <a className="ma-prop__row" href={`tel:${property.phone.replace(/[^\d+]/g, '')}`}>
+              <PhoneIcon size={24} className="ma-prop__icon" />
+              <span>{property.phone}</span>
+            </a>
+          )}
         </div>
       </div>
 
@@ -101,7 +105,25 @@ export function PropertyCard({
                   ))}
                 </ul>
               </div>
-              <img src={unitDimetric} alt="" className="ma-unit__image" aria-hidden="true" />
+              {/* THE SPACE CARDS' OWN ARTWORK, not a bundled render: the site's
+                  upload for the unit's band and amenity, then the band, then
+                  the shared set — walked on error exactly as #05 does it, and
+                  hidden (box kept) once the list is exhausted. The bundled
+                  dimetric placeholder this replaced was a generic picture on
+                  a card about a specific unit, and it rendered broken on the
+                  live site besides. No candidates ⇒ an empty slot of the same
+                  size, so the text column does not shift. */}
+              {space.unit.images.length ? (
+                <img
+                  src={space.unit.images[0]}
+                  onError={walkImagesOnError(space.unit.images)}
+                  alt=""
+                  className="ma-unit__image"
+                  aria-hidden="true"
+                />
+              ) : (
+                <span className="ma-unit__image" aria-hidden="true" />
+              )}
             </div>
 
             <div className="ma-unit__footer">

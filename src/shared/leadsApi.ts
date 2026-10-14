@@ -19,6 +19,9 @@ export interface LeadInput {
   message: string;
   /** Facility to attach the lead to; defaults to the config property. */
   propertyId?: string;
+  /** Lead subject; defaults to "Website Inquiry". The waitlist sends its own so
+      staff can tell the two apart. */
+  subject?: string;
 }
 
 /**
@@ -35,7 +38,7 @@ export async function createLead(cfg: LeadApiConfig, input: LeadInput): Promise<
     source: 'website',
     property_id: input.propertyId || cfg.propertyId,
     lead_type: 'inquiry',
-    subject: 'Website Inquiry',
+    subject: input.subject || 'Website Inquiry',
     content: input.message,
     Contact: {
       first: input.first,

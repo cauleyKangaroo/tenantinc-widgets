@@ -1,0 +1,18 @@
+# Binary assets: never normalise line endings, never diff as text.
+#
+# Every image here is base64-inlined into the bundles, so a single flipped
+# byte becomes a broken picture on the live site. A merge on 2026-10-09
+# did exactly that to 49 files (0D 0A inside PNG/JPEG data rewritten as 0A)
+# and the repo had nothing telling Git — or a careless script — that these
+# are not text. Now it does.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.pdf   binary
+*.zip   binary

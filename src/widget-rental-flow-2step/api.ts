@@ -1085,6 +1085,28 @@ export interface QuoteOptions {
   /** `dossier.token` from the offer — Hummingbird validates the quoted price
    *  against it. Optional per the guide; sent whenever the offer supplied one. */
   offerToken?: string;
+  /*
+   * The billing period the shopper chose.
+   *
+   * THE ENGINE PRICES IT. Undocumented, and the guide only ever names
+   * `payment_cycle` on the lease call — but lease-set-up honours it too, as a
+   * PREPAY DISCOUNT on the rent line. Verified live 2026-10-07 against a
+   * Bellflower unit at $250/mo:
+   *
+   *   (none)     rent 250, no discount   -> balance 312
+   *   Quarterly  rent 250, discount 25   -> balance 287   (10%)
+   *   Annual     rent 250, discount 50   -> balance 262   (20%)
+   *
+   * So the amount comes from the SERVER and is never computed here. The engine
+   * discounts rather than multiplying: the move-in invoice still covers the
+   * first period as drawn, at a reduced rate.
+   *
+   * Also settles the capitalisation question this file carried: "Quarterly" and
+   * "Annual" are accepted verbatim. `paymentCycle` in camelCase is IGNORED —
+   * the same request returns the undiscounted balance — so the snake_case name
+   * is load-bearing.
+   */
+  paymentCycle?: PaymentCycleKey;
 }
 
 /** The documented lease-set-up payload, omitting anything not chosen. */
@@ -1094,7 +1116,18 @@ function leaseSetUpBody(opts: QuoteOptions): Record<string, unknown> {
   if (opts.promotionIds?.length) body.promotions = opts.promotionIds.map((id) => ({ promotion_id: id }));
   if (opts.startDate) body.start_date = opts.startDate;
   if (opts.offerToken) body.token = opts.offerToken;
+  // Monthly is the engine's own default, so it is sent only when the shopper
+  // chose something else — keeping the common request identical to before.
+  if (opts.paymentCycle && opts.paymentCycle !== 'monthly') {
+    body.payment_cycle = PAYMENT_CYCLE_NAMES[opts.paymentCycle];
+  }
   return body;
+}
+
+/** `?payment_cycle=` for the no-hold GET, which cannot carry a body. */
+function cycleQuery(opts: QuoteOptions): string {
+  if (!opts.paymentCycle || opts.paymentCycle === 'monthly') return '';
+  return `?payment_cycle=${encodeURIComponent(PAYMENT_CYCLE_NAMES[opts.paymentCycle])}`;
 }
 
 /**
@@ -1139,7 +1172,9 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
   if (holdToken && writesEnabled(ctx)) {
     data = await postLeaseSetUp(path, opts);
   } else {
-    data = unwrap(await getJsonV1(path));
+    // The GET takes it as a query param — verified live; the POST body form
+    // above is for the held case.
+    data = unwrap(await getJsonV1(path + cycleQuery(opts)));
   }
   const details = data?.details as { Invoices?: ApiQuoteInvoice[]; bill_day?: number; rent?: number } | undefined;
   const inv = (details?.Invoices ?? [])[0];
@@ -1747,6 +1782,33 @@ export interface BankPayment extends RentAddress {
   autoCharge?: boolean;
 }
 
+/**
+ * An Apple Pay / Google Pay payment, for the wallet buttons.
+ *
+ * The address fields are OPTIONAL, unlike the other two methods: they are
+ * whatever billing address the wallet sheet returned, and a wallet may return
+ * less than a full one. Every one of them is omitted from the payload when
+ * empty rather than sent blank — see walletPaymentMethod().
+ */
+export interface WalletPayment extends Partial<RentAddress> {
+  type: 'googlepay' | 'applepay';
+  /**
+   * SINGLE-USE. Google: `tokenizationData.token`, already a string. Apple:
+   * `JSON.stringify(payment.token)` — the WHOLE token object; Hummingbird
+   * parses it and reads `.paymentData` itself (tenant_payments_card.js).
+   */
+  token: string;
+  /*
+   * Deliberately NO name and NO autopay fields:
+   *   - the name on the payment_method is the FORM's first/last (the tenant),
+   *     not the wallet card's holder — walletPaymentMethod() takes it from
+   *     RentArgs.contact;
+   *   - Apple Pay and Google Pay are one-time payments and never enrol in
+   *     autopay, whatever the property's autopay setting says.
+   * Leaving them off the type means nothing can set them by mistake.
+   */
+}
+
 /** A documented cost line. `costType` is a closed set; dates are YYYY-MM-DD. */
 export interface RentCostLine {
   amount: number;
@@ -1788,8 +1850,20 @@ export interface RentalExtras {
   altPhone?: string;
   altEmail?: string;
   altAddress?: string;
+  /** From the address picker, when a suggestion was chosen — the lease sample
+   *  files the alternate's address as address/city/state/zip. */
+  altCity?: string;
+  altState?: string;
+  altZip?: string;
   vehicle?: boolean;
   vehicleType?: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleYear?: string;
+  vehicleColour?: string;
+  vehiclePlate?: string;
+  vehicleCountry?: string;
+  vehicleState?: string;
 }
 
 /** How the API spells each billing period — see the note at its use site. */
@@ -1809,15 +1883,16 @@ export interface RentArgs {
    *  which is both the default and the only value the guide names. */
   paymentCycle?: PaymentCycleKey;
   /**
-   * Exactly ONE of `card` / `bank` — whichever the shopper chose.
+   * Exactly ONE of `card` / `bank` / `wallet` — whichever the shopper chose.
    *
-   * Both optional rather than `card` required with a dummy alongside it: a
+   * All optional rather than `card` required with a dummy alongside it: a
    * zeroed CardPayment on the bank path would be a real object full of empty
    * strings that nothing reads, and the first person to read it by mistake
-   * would post an empty card. paymentMethodFor throws if neither is present.
+   * would post an empty card. paymentMethodFor throws if none is present.
    */
   card?: CardPayment;
   bank?: BankPayment;
+  wallet?: WalletPayment;
   /** YYYY-MM-DD. */
   startDate: string;
   /** From the offer — documents/finalize rejects the call without it. */
@@ -1903,9 +1978,14 @@ function rentContacts(c: RentContact, extras?: RentalExtras): unknown[] {
     const altPhone = extras.altPhone ? normalizePhone(extras.altPhone, 'US') : undefined;
     if (altPhone) alt.Phones = [{ phone: altPhone, type: 'cell', sms: true }];
     if (extras.altAddress) {
-      // The form takes one address line; city/state/zip are not asked for, so
-      // they are omitted rather than guessed from it.
-      alt.Addresses = [{ Address: { address: extras.altAddress }, type: 'alternate' }];
+      // The form takes one address line. City/state/zip come from the address
+      // picker when a suggestion was chosen (the lease sample files all four);
+      // a typed-only line is sent on its own rather than guessed apart.
+      const a: Record<string, string> = { address: extras.altAddress };
+      if (extras.altCity) a.city = extras.altCity;
+      if (extras.altState) a.state = extras.altState;
+      if (extras.altZip) a.zip = extras.altZip;
+      alt.Addresses = [{ Address: a, type: 'alternate' }];
     }
     contact.Relationships = [{ Contact: alt, is_alternate: 1, type: 'alternate' }];
   }
@@ -1913,10 +1993,29 @@ function rentContacts(c: RentContact, extras?: RentalExtras): unknown[] {
   return [contact];
 }
 
-/** `vehicle_info`, when the shopper is storing one. Type is all the form asks. */
+/**
+ * `vehicle_info`, when the shopper is storing one.
+ *
+ * Type is the only required field and the only one with a documented place
+ * (`description` + `vehicle.type`, per TenantInc's sample). The guide lists
+ * make, model, year, plate and owner details as part of vehicle_info without
+ * spelling their keys, and TenantInc's instruction for this payload was
+ * "ignore the fields you don't have data for" — so the optional details the
+ * form collects ride inside `vehicle` under the obvious snake_case names,
+ * only when filled, and nothing breaks if a name is not recognised.
+ */
 function vehicleInfo(extras?: RentalExtras): Record<string, unknown> | undefined {
   if (!extras?.vehicle || !extras.vehicleType) return undefined;
-  return { description: extras.vehicleType, vehicle: { type: extras.vehicleType } };
+  const vehicle: Record<string, string> = { type: extras.vehicleType };
+  const opt: Array<[string, string | undefined]> = [
+    ['make', extras.vehicleMake], ['model', extras.vehicleModel], ['year', extras.vehicleYear],
+    ['color', extras.vehicleColour], ['license_plate', extras.vehiclePlate],
+    ['license_state', extras.vehicleState], ['license_country', extras.vehicleCountry],
+  ];
+  for (const [k, v] of opt) if (v && v.trim()) vehicle[k] = v.trim();
+  const description = [extras.vehicleYear, extras.vehicleMake, extras.vehicleModel]
+    .filter((s) => s && s.trim()).join(' ') || extras.vehicleType;
+  return { description, vehicle };
 }
 
 /** The `payment_method` object. Card only — ACH is not wired yet. */
@@ -2014,24 +2113,78 @@ function achPaymentMethod(bank: BankPayment, autoCharge: boolean): Record<string
 }
 
 /**
+ * The `payment_method` object for Apple Pay / Google Pay.
+ *
+ * NEVER AUTOPAY, NEVER SAVED: `save_to_account` and `auto_charge` are both sent
+ * as an explicit false, even on a property whose autopay is mandatory. A wallet
+ * token is a one-time payment — it cannot be stored and charged again each
+ * month — so enrolling it would leave the lease on autopay with nothing
+ * chargeable behind it. wantsAutoCharge() returns false for wallets for the
+ * same reason, so API 11 (autopay enrolment) is never called.
+ *
+ * `first`/`last` are the TENANT's, from the form (RentArgs.contact), not the
+ * name on the wallet's card.
+ *
+ * Shape read from Hummingbird's own source, not inferred (hummingbird-api-server,
+ * 2026-10-13):
+ *   - validation/objects/payment_method.js accepts `type` 'google' | 'apple',
+ *     and `token` as a plain string. The schema rejects unknown keys, so the
+ *     token must travel as `token`, not `paymentToken`.
+ *   - routes/units/index.js (POST …/lease) copies `payment_method.token` onto
+ *     `paymentToken`, which is what the charge reads.
+ *   - tenant_payments_card.js chargeAppleOrGoogleToken() sends a Google token
+ *     as-is and JSON.parses an Apple one for `.paymentData` — hence the whole
+ *     Apple token object, stringified.
+ * The type names are Hummingbird's ('google'/'apple'), not the GDS
+ * paymentInstrument names Nuxt uses ('googlepay'/'applepay').
+ *
+ * Billing fields are omitted when empty, never sent blank: the schema has
+ * `address: Joi.string()` (no empty allowed) and `zip` must be all digits.
+ */
+function walletPaymentMethod(wallet: WalletPayment, contact: RentContact): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    type: wallet.type === 'googlepay' ? 'google' : 'apple',
+    token: wallet.token,
+    save_to_account: false,
+    auto_charge: false,
+  };
+  // Omitted rather than sent blank — the schema has `first: Joi.string()`,
+  // which rejects an empty string.
+  const first = contact.first?.trim();
+  const last = contact.last?.trim();
+  if (first) body.first = first;
+  if (last) body.last = last;
+  if (wallet.address?.trim()) body.address = wallet.address.trim();
+  if (wallet.city?.trim()) body.city = wallet.city.trim();
+  if (wallet.state?.trim()) body.state = wallet.state.trim();
+  // ZIP+4 ("12345-6789") fails the digits-only pattern, so the base five.
+  const zip = (wallet.zip ?? '').replace(/\D/g, '').slice(0, 5);
+  if (zip.length === 5) body.zip = zip;
+  return body;
+}
+
+/**
  * Which payment_method this rental sends.
  *
  * One place, so the two calls that post a payment method (documents/finalize
  * and the lease) can never disagree about which the shopper chose.
  */
 function paymentMethodFor(args: RentArgs): Record<string, unknown> {
+  if (args.wallet) return walletPaymentMethod(args.wallet, args.contact);
   if (args.bank) return achPaymentMethod(args.bank, !!args.bank.autoCharge);
   if (args.card) return cardPaymentMethod(args.card, !!args.card.autoCharge);
   /*
-   * Neither is a programming error, not a shopper one — the panel cannot be
+   * None is a programming error, not a shopper one — the panel cannot be
    * submitted without a method. Throwing beats posting a payload with no
    * payment_method and reading the API's generic rejection back.
    */
-  throw new Error('rentSpace: neither a card nor a bank account was supplied');
+  throw new Error('rentSpace: no card, bank account or wallet was supplied');
 }
 
 /** Autopay was asked for, whichever method is paying. */
 function wantsAutoCharge(args: RentArgs): boolean {
+  // Wallets never enrol — see walletPaymentMethod().
+  if (args.wallet) return false;
   return !!(args.bank?.autoCharge ?? args.card?.autoCharge);
 }
 
@@ -2060,10 +2213,23 @@ interface FinalizeData { documents?: unknown[]; signed?: boolean }
  * widget cannot do. That case fails with a message naming the situation rather
  * than posting a lease that would be rejected for unsigned documents.
  */
-async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseDocumentRef[]> {
+/*
+ * Everything documents/preview and documents/finalize have in common — which
+ * is the whole payload bar one field.
+ *
+ * SHARED ON PURPOSE. The preview's job is to show the shopper the document they
+ * are about to sign, so it has to be generated from the same numbers, dates and
+ * contact the lease will carry. Two builders would drift and the preview would
+ * quietly stop matching what gets signed, which is worse than having no
+ * preview at all.
+ *
+ * `payment_method` is the exception and is added by finalize alone: the preview
+ * runs BEFORE any card or bank detail exists, and TenantInc's own sample omits
+ * it.
+ */
+function documentsBody(args: DocumentPreviewArgs): Record<string, unknown> {
   const body: Record<string, unknown> = {
     contacts: rentContacts(args.contact, args.extras),
-    payment_method: paymentMethodFor(args),
     start_date: args.startDate,
     space_mix_id: args.spaceMixId,
     total_payment_amount: args.totalPaymentAmount,
@@ -2076,13 +2242,14 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
      * else: the lease went up monthly and the terms beneath the card promised
      * monthly recurrence. The selector was a label.
      *
-     * CAPITALISATION IS AN INFERENCE. The rental guide documents this field as
-     * optional with one instruction — "Send default value as Monthly" — and
-     * never names a value for quarterly or annual. `payment_cycles` on
-     * /properties answers in lower case (`monthly`/`quarterly`/`annual`), so
-     * the two vocabularies are already different and this follows the one the
-     * guide shows for THIS field. Worth confirming with TenantInc; if they
-     * reject it, this single map is the place to correct.
+     * CAPITALISATION IS CONFIRMED. It used to be an inference — the guide
+     * documents this field with one instruction ("Send default value as
+     * Monthly") and never names a value for quarterly or annual, while
+     * `payment_cycles` on /properties answers in lower case. Settled live
+     * 2026-10-07: lease-set-up accepts "Quarterly" and "Annual" verbatim and
+     * discounts the rent accordingly, while camelCase `paymentCycle` is
+     * ignored. So the two vocabularies really do differ, and these are the
+     * spellings this field takes.
      */
     payment_cycle: PAYMENT_CYCLE_NAMES[args.paymentCycle ?? 'monthly'],
     web_rate: args.webRate,
@@ -2095,6 +2262,12 @@ async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseD
   const vehicle = vehicleInfo(args.extras);
   if (vehicle) body.vehicle_info = vehicle;
   if (args.promotionIds?.length) body.discount_id = args.promotionIds[0];
+  return body;
+}
+
+async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseDocumentRef[]> {
+  const body = documentsBody(args);
+  body.payment_method = paymentMethodFor(args);
 
   const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/documents/finalize`, body);
   if (inner.status !== 200 || !inner.data) {
@@ -2624,4 +2797,154 @@ export async function fetchPaymentGateway(ctx: RentalCtx): Promise<PaymentGatewa
     console.warn('[rental] gateway lookup threw:', err);
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// API — document PREVIEW
+// ---------------------------------------------------------------------------
+
+/*
+ * What the preview needs: the lease payload minus the payment method.
+ *
+ * Picked from RentArgs rather than restated, so a field added to one is a type
+ * error in the other instead of a preview that silently stops matching the
+ * document being signed.
+ */
+export type DocumentPreviewArgs = Pick<RentArgs,
+  'unit' | 'contact' | 'extras' | 'startDate' | 'spaceMixId' | 'billDay' | 'webRate'
+  | 'totalPaymentAmount' | 'costs' | 'promotionIds' | 'paymentCycle'
+  | 'platform' | 'source' | 'noticeDelivery'>;
+
+export interface DocumentPreview {
+  documentId: string;
+  /** 'lease', etc. */
+  documentType: string;
+  /** "Lease Agreement", "Deny Insurance/Protection Form", "Lead ACH". */
+  name: string;
+  /** Frameable URL, forced to https — see `httpsUrl`. */
+  previewUrl: string;
+  /** The document's own markup, when the caller would rather inject it. */
+  html?: string;
+}
+
+/*
+ * The preview host answers on BOTH schemes, but the API hands back `http://`
+ * — and an http iframe inside an https page is mixed content, which the
+ * browser blocks outright rather than following the 301 to https. So the
+ * scheme is upgraded here, once, where it cannot be forgotten.
+ *
+ * Verified live 2026-10-07: http -> 301, https -> 200 text/html, and the host
+ * sends no X-Frame-Options or frame-ancestors, so framing is allowed.
+ */
+function httpsUrl(url: string): string {
+  return url.replace(/^http:\/\//i, 'https://');
+}
+
+/**
+ * API — the documents the shopper is about to sign, for display only.
+ *
+ * Same payload as documents/finalize (see `documentsBody`) so the preview is
+ * generated from the same numbers the lease will carry. It creates nothing and
+ * signs nothing.
+ *
+ * Returns an empty array rather than throwing: a preview that cannot be built
+ * must not stop a rental. The caller shows the document name without a preview.
+ */
+export async function previewDocuments(
+  ctx: RentalCtx,
+  args: DocumentPreviewArgs,
+): Promise<DocumentPreview[]> {
+  try {
+    const inner = await sendV1(
+      'POST',
+      `companies/${ctx.companyId}/units/${args.unit.id}/documents/preview`,
+      documentsBody(args),
+    );
+    if (inner.status !== 200 || !inner.data) {
+      // Validation text names the field, which is what makes this debuggable —
+      // console only; nothing here is shopper-facing.
+      console.warn('[rental] documents/preview rejected:', inner.status, inner.msg ?? '');
+      return [];
+    }
+    const rows = ((inner.data as { documents?: unknown[] }).documents ?? []) as Array<Record<string, unknown>>;
+    return rows
+      .map((d) => ({
+        documentId: String(d.document_id ?? ''),
+        documentType: String(d.document_type ?? ''),
+        name: String(d.name ?? ''),
+        previewUrl: typeof d.preview_url === 'string' ? httpsUrl(d.preview_url) : '',
+        html: typeof d.template === 'string' ? d.template : undefined,
+      }))
+      // A row with neither a URL nor markup has nothing to show.
+      .filter((d) => d.previewUrl || d.html);
+  } catch (err) {
+    console.warn('[rental] documents/preview failed:', err);
+    return [];
+  }
+}
+
+// --- Apple Pay / Google Pay --------------------------------------------------
+//
+// The same two Hummingbird endpoints the Nuxt site calls (utils/gds.js), built
+// the Duda way: creds() for host/app/key, headers() for auth, straight from the
+// browser. `companyId` is already Hummingbird's, so Nuxt's GDS facility lookup
+// has no equivalent here.
+//
+// NOT memoGet/getJson: a merchant session is single-use and expires in ~5
+// minutes, and the Google JWT is minted per request. A cached copy of either is
+// a broken one.
+
+/** One wallet GET → the envelope's inner result, or undefined on any failure.
+ *  The inner status is the real one — HTTP 200 carries failures. */
+async function getWalletEndpoint(label: string, url: string): Promise<InnerResult | undefined> {
+  const { appId } = creds();
+  const res = await fetch(url, { headers: headers() });
+  const env = await res.json().catch(() => undefined) as
+    { applicationData?: Record<string, InnerResult[]> } | undefined;
+  const inner = env?.applicationData?.[appId]?.[0];
+  if (inner?.status !== 200) {
+    console.warn(`[rental] ${label} rejected:`, inner?.status ?? res.status, inner?.msg ?? '');
+    return undefined;
+  }
+  return inner;
+}
+
+/**
+ * Google Pay `merchantInfo.authJwt` for this hostname.
+ *
+ * Note v2 (Apple's is v1). Hummingbird signs `{merchantId, merchantOrigin}`
+ * with `merchantOrigin = domain_name`, so the hostname here must be the same
+ * one the request later names as `merchantOrigin`. Never throws.
+ */
+export async function fetchGooglePayJwt(ctx: RentalCtx): Promise<string | undefined> {
+  if (!ctx.companyId) return undefined;
+  const { baseUrl, appId } = creds();
+  const url = `${baseUrl}/applications/${appId}/v2/companies/${encodeURIComponent(ctx.companyId)}`
+    + `/payments/google-pay-token?domain_name=${encodeURIComponent(window.location.hostname)}`;
+  try {
+    const inner = await getWalletEndpoint('google-pay-token', url);
+    const token = (inner?.data as { token?: unknown } | undefined)?.token;
+    return typeof token === 'string' && token ? token : undefined;
+  } catch (err) {
+    console.warn('[rental] google-pay-token threw:', err);
+    return undefined;
+  }
+}
+
+/**
+ * Apple Pay merchant session — the opaque object `completeMerchantValidation`
+ * takes, passed through untouched. Note v1 (Google's is v2).
+ *
+ * `website_id` is sent EMPTY: Duda has no GDS website record, Nuxt falls back
+ * to '' when its own lookup fails, and Hummingbird only reads the parameter
+ * when it is truthy (routes/payments.js). Throws on a network failure so the
+ * caller can abort the sheet; resolves undefined when the API refuses.
+ */
+export async function fetchApplePayMerchantSession(ctx: RentalCtx): Promise<unknown | undefined> {
+  const { baseUrl, appId } = creds();
+  const q = new URLSearchParams({ domain_name: window.location.hostname, display_name: 'HB', website_id: '' });
+  const url = `${baseUrl}/applications/${appId}/v1/companies/${encodeURIComponent(ctx.companyId)}`
+    + `/payments/apple-pay/merchant-session?${q}`;
+  const inner = await getWalletEndpoint('apple-pay merchant-session', url);
+  return inner?.data;
 }

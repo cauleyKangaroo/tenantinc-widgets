@@ -17,9 +17,11 @@
 // ===========================================================================
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Checkbox, FormField } from '@shared/ui';
+import { Checkbox, FormField, SelectField } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
-import { CUSTOMER_ADDRESS_COUNTRIES } from '@shared/placesApi';
+import {
+  COUNTRY_OPTIONS, placesCountryFor, postalCodeOk, postalLabel, regionLabel,
+} from '@shared/addressCountry';
 import {
   TickSingleIcon, AlertTriangleIcon, ClockGlyph, PhoneGlyph,
 } from './planIcons';
@@ -27,7 +29,7 @@ import { IdIllustration } from './IdIllustration';
 import { IdVerifyModal } from './IdVerifyModal';
 import {
   MilitaryFields, AltContactFields, VehicleFields,
-  extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues,
+  extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues, type PrimaryContact,
 } from './additionalInfo';
 import { skipValidation } from '@shared/devBypass';
 import { RENTAL_IDV_REQUIREMENT, type IdvRequirement } from './idvPolicy';
@@ -96,6 +98,8 @@ export interface SuccessDetails {
 export function SuccessStep({
   onGetAccess,
   chosen,
+  provided,
+  primary,
   verificationPhone,
   idvRequirement = RENTAL_IDV_REQUIREMENT,
   idvPreview = false,
@@ -113,6 +117,16 @@ export function SuccessStep({
    *  this one asks for the details, so it opens the same sections already
    *  ticked rather than making them answer twice. */
   chosen?: { business?: boolean; military?: boolean; altContact?: boolean; vehicle?: boolean };
+  /**
+   * Sections whose fields were FILLED IN on the one-step form and have
+   * already gone out on the lease. Those are not shown here at all: the
+   * question was answered and the answer filed, so re-opening it empty would
+   * ask the shopper to type the same thing twice.
+   */
+  provided?: { military?: boolean; altContact?: boolean; vehicle?: boolean };
+  /** The tenant's own name, email and phone, so the alternate contact entered
+   *  here cannot be the tenant — the same rule the one-step form applies. */
+  primary?: PrimaryContact;
   /** The only renter identity field this presentational view needs. */
   verificationPhone?: string;
   idvRequirement?: IdvRequirement;
@@ -140,11 +154,12 @@ export function SuccessStep({
     return `tel:${raw.startsWith('+') ? '+' : ''}${digits}`;
   })();
   // Initialisers, not synced props: the boxes stay the shopper's to change here.
-  // Off on one-step so the hidden sections' required fields cannot block Get Access.
+  // Off on one-step, and off for any section already provided, so a hidden
+  // section's required fields cannot block Get Access.
   const [business, setBusiness] = useState(!oneStep && (chosen?.business ?? false));
-  const [military, setMilitary] = useState(!oneStep && (chosen?.military ?? false));
-  const [altContact, setAltContact] = useState(!oneStep && (chosen?.altContact ?? false));
-  const [vehicle, setVehicle] = useState(!oneStep && (chosen?.vehicle ?? false));
+  const [military, setMilitary] = useState(!oneStep && !provided?.military && (chosen?.military ?? false));
+  const [altContact, setAltContact] = useState(!oneStep && !provided?.altContact && (chosen?.altContact ?? false));
+  const [vehicle, setVehicle] = useState(!oneStep && !provided?.vehicle && (chosen?.vehicle ?? false));
 
   // Mailing address — where notices go when it is not the space's address.
   // Filed on the contact as an Addresses entry of type "mailing" (verified
@@ -233,6 +248,10 @@ export function SuccessStep({
   const [mailCity, setMailCity] = useState('');
   const [mailState, setMailState] = useState('');
   const [mailZip, setMailZip] = useState('');
+  /* Chosen BEFORE the address — it scopes the search and labels the parts.
+     A scanned licence seeds it as US: that is the only country the service
+     reads cards from. */
+  const [mailCountry, setMailCountry] = useState('');
 
   // Driver's licence. THESE are what "ID verification" means to this API —
   // there is no verification service, only these three fields on the contact,
@@ -247,6 +266,12 @@ export function SuccessStep({
 
   /** A picked or typed mailing address — the city/state/ZIP follow it. */
   const [mailPicked, setMailPicked] = useState(false);
+  /* Changing the country empties the address beneath it: what was chosen
+     described a place in the other country. */
+  const changeMailCountry = (c: string) => {
+    setMailCountry(c);
+    if (c !== mailCountry) { setMailAddress(''); setMailCity(''); setMailState(''); setMailZip(''); setMailPicked(false); }
+  };
   const [attemptedReveal, setAttemptedReveal] = useState(false);
   /* Revealed by the lookup, by content already in them, or by a failed submit.
      That last one matters now they are REQUIRED: an address typed straight into
@@ -256,8 +281,20 @@ export function SuccessStep({
     || !!(mailCity.trim() || mailState.trim() || mailZip.trim())
     || (attemptedReveal && !!mailAddress.trim());
 
-  // Business
+  // Business — the same country-first address as the mailing one above.
+  const [bizCountry, setBizCountry] = useState('');
   const [bizAddress, setBizAddress] = useState('');
+  const [bizCity, setBizCity] = useState('');
+  const [bizState, setBizState] = useState('');
+  const [bizZip, setBizZip] = useState('');
+  const [bizPicked, setBizPicked] = useState(false);
+  const showBizParts = bizPicked || !!(bizCity.trim() || bizState.trim() || bizZip.trim())
+    || (attemptedReveal && !!bizAddress.trim());
+  const changeBizCountry = (c: string) => {
+    setBizCountry(c);
+    if (c !== bizCountry) { setBizAddress(''); setBizCity(''); setBizState(''); setBizZip(''); setBizPicked(false); }
+  };
+  const typeBizAddress = (v: string) => { setBizAddress(v); setBizPicked(false); };
   const [repFirst, setRepFirst] = useState('');
   const [repLast, setRepLast] = useState('');
   /* Military, alternate contact and vehicle — one object in the shared shape.
@@ -279,14 +316,18 @@ export function SuccessStep({
     // Only while the detail groups are mounted — a required field that is not
     // on screen produces a message nobody can act on.
     ...(detailsShown ? {
+      // A scanned address arrives without the shopper choosing a country, and
+      // the select is not on screen while it is read-only — so only an address
+      // being typed needs one.
+      mailCountry: mailReadOnly || filled(mailCountry) ? '' : 'Select a country',
       mailAddress: filled(mailAddress) ? '' : 'Enter your mailing address',
       // Keyed off the ADDRESS, not off whether the three are on screen. Keying
       // it off visibility would read the pre-click render, where the reveal has
       // not happened yet, and let the first submit through.
       ...(filled(mailAddress) ? {
         mailCity: filled(mailCity) ? '' : 'Enter the city',
-        mailState: mailState.trim().length === 2 ? '' : 'Enter the two-letter state',
-        mailZip: mailZip.trim().length >= 5 ? '' : 'Enter a valid ZIP code',
+        mailState: mailState.trim().length === 2 ? '' : `Enter the two-letter ${regionLabel(mailCountry).toLowerCase()}`,
+        mailZip: postalCodeOk(mailZip, mailCountry) ? '' : `Enter a valid ${postalLabel(mailCountry)}`,
       } : {}),
       /* The three Driver's Licence fields are OPTIONAL and deliberately absent
          from this map. Dropping their asterisks without dropping these would
@@ -295,14 +336,20 @@ export function SuccessStep({
          sent when filled; see the payload below. */
     } : {}),
     ...(business ? {
+      bizCountry: filled(bizCountry) ? '' : 'Select the business’s country',
       bizAddress: filled(bizAddress) ? '' : 'Enter the business address',
+      ...(filled(bizAddress) ? {
+        bizCity: filled(bizCity) ? '' : 'Enter the city',
+        bizState: bizState.trim().length === 2 ? '' : `Enter the two-letter ${regionLabel(bizCountry).toLowerCase()}`,
+        bizZip: postalCodeOk(bizZip, bizCountry) ? '' : `Enter a valid ${postalLabel(bizCountry)}`,
+      } : {}),
       repFirst: filled(repFirst) ? '' : 'Enter the business rep’s first name',
       repLast: filled(repLast) ? '' : 'Enter the business rep’s last name',
     } : {}),
     /* The three optional groups' rules, from the same module that renders
        them — so a field this screen marks required cannot disagree with the
        rental form's copy of the same field. */
-    ...extraFieldProblems({ military, altContact, vehicle }, extraFields),
+    ...extraFieldProblems({ military, altContact, vehicle }, extraFields, primary),
   };
   /* Harness bypass — compiled out of production builds, see @shared/devBypass. */
   const skip = skipValidation();
@@ -336,6 +383,7 @@ export function SuccessStep({
       setMailCity(IDV_SOURCE.mailing.city);
       setMailState(IDV_SOURCE.mailing.state);
       setMailZip(IDV_SOURCE.mailing.zip);
+      setMailCountry('United States');
       setMailPicked(true);
       setMailFromScan(true);
       setDlNumber(IDV_SOURCE.licence.number);
@@ -591,19 +639,32 @@ export function SuccessStep({
             </div>
           ) : (
           <div className="rf-sx-fields">
-            <AddressAutocomplete
-              country={CUSTOMER_ADDRESS_COUNTRIES}
-              value={mailAddress}
-              onChange={setMailAddress}
-              onPick={(place) => {
-                if (place.address.city) setMailCity(place.address.city);
-                if (place.address.stateCode) setMailState(place.address.stateCode);
-                if (place.address.zip) setMailZip(place.address.zip);
-                setMailPicked(true);
-              }}
-            >
-              <FormField label="Mailing Address" required type="search" value={mailAddress} onChange={setMailAddress} autoComplete="street-address" state={mailAddress.trim() ? 'success' : 'default'} error={bad('mailAddress')} />
-            </AddressAutocomplete>
+            {/* Country FIRST, then the search scoped to it. The box stays
+                closed until a country is chosen — a lookup across both
+                countries offers a Toronto street to someone typing a Tucson
+                one. */}
+            <div className="rf-pay-grid">
+              <SelectField
+                label="Country" required value={mailCountry} onChange={changeMailCountry}
+                options={[...COUNTRY_OPTIONS]}
+                state={mailCountry ? 'success' : 'default'}
+                error={bad('mailCountry')}
+              />
+              <AddressAutocomplete
+                country={placesCountryFor(mailCountry)}
+                value={mailAddress}
+                disabled={!mailCountry}
+                onChange={setMailAddress}
+                onPick={(place) => {
+                  if (place.address.city) setMailCity(place.address.city);
+                  if (place.address.stateCode) setMailState(place.address.stateCode);
+                  if (place.address.zip) setMailZip(place.address.zip);
+                  setMailPicked(true);
+                }}
+              >
+                <FormField label="Mailing Address" required type="search" value={mailAddress} onChange={setMailAddress} disabled={!mailCountry} autoComplete="street-address" state={mailAddress.trim() ? 'success' : 'default'} error={bad('mailAddress')} />
+              </AddressAutocomplete>
+            </div>
             {/* City, state and ZIP appear once the lookup has filled them, if
                 anything is already in them, or on a failed submit. They are
                 required as soon as there IS an address — a street on its own is
@@ -616,8 +677,8 @@ export function SuccessStep({
                     widths that row does. */}
                 <div className="rf-sx-grid3">
                   <FormField label="City" required value={mailCity} onChange={setMailCity} autoComplete="address-level2" state={mailCity.trim() ? 'success' : 'default'} error={bad('mailCity')} />
-                  <FormField label="State" required value={mailState} onChange={(v) => setMailState(v.toUpperCase().slice(0, 2))} autoComplete="address-level1" state={mailState.trim().length === 2 ? 'success' : 'default'} error={bad('mailState')} />
-                  <FormField label="ZIP Code" required value={mailZip} onChange={setMailZip} autoComplete="postal-code" state={mailZip.trim().length >= 5 ? 'success' : 'default'} error={bad('mailZip')} />
+                  <FormField label={regionLabel(mailCountry)} required value={mailState} onChange={(v) => setMailState(v.toUpperCase().slice(0, 2))} autoComplete="address-level1" state={mailState.trim().length === 2 ? 'success' : 'default'} error={bad('mailState')} />
+                  <FormField label={postalLabel(mailCountry)} required value={mailZip} onChange={setMailZip} autoComplete="postal-code" state={postalCodeOk(mailZip, mailCountry) ? 'success' : 'default'} error={bad('mailZip')} />
                 </div>
               </>
             )}
@@ -716,9 +777,35 @@ export function SuccessStep({
           <Checkbox checked={business} onChange={setBusiness}>I am renting as a business</Checkbox>
           {business && (
             <div className="rf-sx-fields">
-              <AddressAutocomplete country={CUSTOMER_ADDRESS_COUNTRIES} value={bizAddress} onChange={setBizAddress}>
-                <FormField label="Business Address" required type="search" value={bizAddress} onChange={setBizAddress} error={bad('bizAddress')} />
-              </AddressAutocomplete>
+              <div className="rf-pay-grid">
+                <SelectField
+                  label="Country" required value={bizCountry} onChange={changeBizCountry}
+                  options={[...COUNTRY_OPTIONS]}
+                  state={bizCountry ? 'success' : 'default'}
+                  error={bad('bizCountry')}
+                />
+                <AddressAutocomplete
+                  country={placesCountryFor(bizCountry)}
+                  value={bizAddress}
+                  disabled={!bizCountry}
+                  onChange={typeBizAddress}
+                  onPick={(place) => {
+                    if (place.address.city) setBizCity(place.address.city);
+                    if (place.address.stateCode) setBizState(place.address.stateCode);
+                    if (place.address.zip) setBizZip(place.address.zip);
+                    setBizPicked(true);
+                  }}
+                >
+                  <FormField label="Business Address" required type="search" value={bizAddress} onChange={typeBizAddress} disabled={!bizCountry} error={bad('bizAddress')} />
+                </AddressAutocomplete>
+              </div>
+              {showBizParts && (
+                <div className="rf-sx-grid3">
+                  <FormField label="City" required value={bizCity} onChange={setBizCity} autoComplete="address-level2" error={bad('bizCity')} />
+                  <FormField label={regionLabel(bizCountry)} required value={bizState} onChange={(v) => setBizState(v.toUpperCase().slice(0, 2))} autoComplete="address-level1" error={bad('bizState')} />
+                  <FormField label={postalLabel(bizCountry)} required value={bizZip} onChange={setBizZip} autoComplete="postal-code" error={bad('bizZip')} />
+                </div>
+              )}
               <div className="rf-pay-grid">
                 <FormField label="Business Rep First Name" required value={repFirst} onChange={setRepFirst} error={bad('repFirst')} />
                 <FormField label="Business Rep Last Name" required value={repLast} onChange={setRepLast} error={bad('repLast')} />
@@ -728,20 +815,26 @@ export function SuccessStep({
         </div>
         )}
 
+        {!provided?.military && (
         <div className="rf-sx-group">
           <Checkbox checked={military} onChange={setMilitary}>I am active military</Checkbox>
           {military && <MilitaryFields v={extraFields} set={setExtra} bad={bad} />}
         </div>
+        )}
 
+        {!provided?.altContact && (
         <div className="rf-sx-group">
           <Checkbox checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Checkbox>
-          {altContact && <AltContactFields v={extraFields} set={setExtra} bad={bad} />}
+          {altContact && <AltContactFields v={extraFields} set={setExtra} bad={bad} primary={primary} />}
         </div>
+        )}
 
+        {!provided?.vehicle && (
         <div className="rf-sx-group">
           <Checkbox checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Checkbox>
           {vehicle && <VehicleFields v={extraFields} set={setExtra} bad={bad} />}
         </div>
+        )}
         </div>
       </section>
       )}

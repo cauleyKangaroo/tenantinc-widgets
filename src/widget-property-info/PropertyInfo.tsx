@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
-import { scrollToSpaceList } from '@shared/promoBus';
 import { createLead, fetchPropertyDetails, fetchFacilityOptions, propertyBreadcrumb, stateName, configureApi, type PropertyDetails, type BoundPropertyProps, type FacilityOption, type ApiCredProps } from './api';
 import {
   Breadcrumb, collapseMiddle, locationCrumbHead, normaliseBase, placeSlug,
@@ -99,8 +98,12 @@ type Props = PropertyInfoProps & BoundPropertyProps & ApiCredProps;
  * Loading state for the whole widget. Mirrors the full-desktop shape (info
  * column beside the gallery + map) so the swap to real content barely shifts
  * layout; collapses to a single column on mobile via the CSS.
+ *
+ * `showCallCenter` is the same flag the real hours block uses — before the
+ * property loads it is the prop's answer, which is all the real layout knows
+ * then too — so both draw the same number of hours lines.
  */
-function PropertySkeleton({ displayMode }: { displayMode: 'full' | 'hero' }) {
+function PropertySkeleton({ displayMode, showCallCenter }: { displayMode: 'full' | 'hero'; showCallCenter: boolean }) {
   return (
     <>
       {/* Wrapped in the SAME .pi-desktop / .pi-mobile switch the real layouts
@@ -122,21 +125,41 @@ function PropertySkeleton({ displayMode }: { displayMode: 'full' | 'hero' }) {
           </div>
         </div>
       ) : (
-      <div className="pi-skel" aria-hidden="true">
-        <div className="pi-skel-info">
+      /* The REAL .pi-row / .pi-info / .pi-media / .pi-cards / .pi-card-col
+         boxes, as the hero placeholder above does. Their widths are what made
+         the old copy drift — two fixed 422px columns above 1180px, halves
+         below — and borrowing them means the stacking and sizing come from the
+         rules the content obeys rather than an approximation of them. Only the
+         contents are stood in for, one bar per real line. */
+      <div className="pi-row" aria-hidden="true">
+        <div className="pi-info">
           <span className="pi-skel-bar pi-skel-name" />
           <span className="pi-skel-bar pi-skel-rating" />
-          <span className="pi-skel-bar pi-skel-line" />
-          <span className="pi-skel-bar pi-skel-line short" />
-          <span className="pi-skel-bar pi-skel-line" />
-          <span className="pi-skel-bar pi-skel-line short" />
-          <span className="pi-skel-bar pi-skel-line" />
+          <div className="pi-skel-contact">
+            {/* Address, phone, email — then the hours group, which is tighter. */}
+            <span className="pi-skel-bar pi-skel-line" />
+            <span className="pi-skel-bar pi-skel-line short" />
+            <span className="pi-skel-bar pi-skel-line" />
+            <div className="pi-skel-hours">
+              <span className="pi-skel-bar pi-skel-line short" />
+              <span className="pi-skel-bar pi-skel-line short" />
+              {showCallCenter && <span className="pi-skel-bar pi-skel-line short" />}
+              <span className="pi-skel-bar pi-skel-line shorter" />
+            </div>
+          </div>
         </div>
-        <div className="pi-skel-media">
+        <div className="pi-media">
           <span className="pi-skel-bar pi-skel-crumb" />
-          <div className="pi-skel-cards">
-            <span className="pi-skel-block" />
-            <span className="pi-skel-block" />
+          <div className="pi-cards">
+            {/* Card, then the row beneath it (Find my Reservation / socials). */}
+            <div className="pi-card-col">
+              <span className="pi-skel-block" />
+              <span className="pi-skel-bar pi-skel-cardrow" />
+            </div>
+            <div className="pi-card-col">
+              <span className="pi-skel-block" />
+              <span className="pi-skel-bar pi-skel-cardrow" />
+            </div>
           </div>
         </div>
       </div>
@@ -157,7 +180,7 @@ function PropertySkeleton({ displayMode }: { displayMode: 'full' | 'hero' }) {
           <div className="pi-skel-m-hours">
             <span className="pi-skel-bar pi-skel-m-hour" />
             <span className="pi-skel-bar pi-skel-m-hour" />
-            <span className="pi-skel-bar pi-skel-m-hour" />
+            {showCallCenter && <span className="pi-skel-bar pi-skel-m-hour" />}
             <span className="pi-skel-bar pi-skel-m-seehours" />
           </div>
         </div>
@@ -1091,7 +1114,11 @@ export function PropertyInfo(props: Props) {
                       /* Muted autoplay HERE only. The lightbox keeps its
                          poster: a full-screen video starting on its own is
                          jarring, and nobody opens it by accident. */
-                      ? <VideoSlide className="pi-gallery-img" src={src} active={i === index} title={displayName} autoPlay />
+                      ? <VideoSlide className="pi-gallery-img" src={src} active={i === index} title={displayName}
+                          /* Not on a phone: this gallery is display:none there and
+                             the mobile hero plays the video instead. Autoplaying
+                             here too would mount a second, invisible player. */
+                          autoPlay={!isMobileViewport} />
                       : <ImageFill className="pi-gallery-img" src={src} />}
                   </span>
                 ))}
@@ -1165,7 +1192,26 @@ export function PropertyInfo(props: Props) {
   const mobile = (
     <div className="pi-mobile">
       <div className="pi-m-hero">
-        <ImageFill className="pi-m-hero-img" src={heroSlide} />
+        {/* THE VIDEO LEADS HERE TOO. Desktop's gallery autoplays the property's
+            video as its first slide; the phone has no gallery, only this hero,
+            so the video was never seen on a phone except by opening the
+            lightbox. With one in the collection it takes the hero's place —
+            muted autoplay inline, exactly as the desktop slide — behind the
+            same overlay and text. `interactive`, because unlike the gallery
+            slide this is not inside another button: where autoplay is refused
+            (iOS Low Power Mode) the poster is a real play button and a tap
+            starts it with sound. The overlay lets pointer events through for
+            that; see .pi-m-hero-overlay. No video ⇒ the first photo, as before.
+
+            ONLY WHILE THIS LAYOUT IS THE ONE SHOWING. Both layouts are in the
+            DOM and the stylesheet hides one, so without the viewport test a
+            desktop visitor would load a second, invisible player under the
+            hidden mobile hero. The desktop gallery makes the same promise in
+            the other direction (its slide autoplays only off a phone). Same
+            query as the CSS switch, so the two cannot disagree. */}
+        {isMobileViewport && collectionVideos[0]
+          ? <VideoSlide className="pi-m-hero-img" src={collectionVideos[0]} active autoPlay interactive title={displayName} />
+          : <ImageFill className="pi-m-hero-img" src={heroSlide} />}
         <span className="pi-m-hero-overlay" style={{ background: `rgba(16, 19, 24, ${overlay})` }} />
         <div className="pi-m-hero-top">
           {/* Figma 9693:40309 — inside the hero, so white on the image: a home
@@ -1212,7 +1258,7 @@ export function PropertyInfo(props: Props) {
                 <span className="pi-m-circle"><EnvelopeIcon size={24} /></span>
                 <span className="pi-m-circle-label">Email</span>
               </a>
-              <a className="pi-m-circle-item" href="#">
+              <a className="pi-m-circle-item" href="/login">
                 <span className="pi-m-circle"><CreditCardIcon size={24} /></span>
                 <span className="pi-m-circle-label">Billpay</span>
               </a>
@@ -1220,12 +1266,15 @@ export function PropertyInfo(props: Props) {
                 <span className="pi-m-circle"><MapPinIcon size={24} /></span>
                 <span className="pi-m-circle-label">Map</span>
               </a>
-              {/* Scrolls to the space list rather than navigating — same helper
-                  the Promotions widget uses for "See Qualifying Units". */}
+              {/* Scrolls to the Nearby Locations widget (#07) rather than
+                  navigating — same smooth scroll as scrollToSpaceList. */}
               <a
                 className="pi-m-circle-item"
                 href="#"
-                onClick={(e) => { e.preventDefault(); scrollToSpaceList(); }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.querySelector('.nl-wrapper')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
               >
                 <span className="pi-m-circle"><LocationsIcon size={24} /></span>
                 <span className="pi-m-circle-label">Locations</span>
@@ -1256,7 +1305,7 @@ export function PropertyInfo(props: Props) {
   if (loading || ratingLoading) {
     return (
       <div className="pi-wrapper">
-        <PropertySkeleton displayMode={displayMode} />
+        <PropertySkeleton displayMode={displayMode} showCallCenter={showCallCenter} />
       </div>
     );
   }

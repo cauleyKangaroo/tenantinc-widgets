@@ -34,7 +34,7 @@ import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { stateNameFromCode, stateCodeFromName } from '@shared/usStates';
 import { slugLabel } from '@shared/propertyNav';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
-import { fetchGoogleRatingsByPlace, ratingForProperty, type RatingSummary } from '@shared/reviewsCollections';
+import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { Shimmer } from '@shared/Shimmer';
 import cfg from './config.json';
@@ -60,8 +60,8 @@ const Icon = {
   ),
   /** list/list-default — the "List View" toggle. */
   listView: (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 6h18M3 12h18M3 18h18" />
+    <svg width="20" height="16" viewBox="0 0 20 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M19 2H7M19 8H7M19 14H7M2 3C1.44772 3 1 2.55228 1 2C1 1.44772 1.44772 1 2 1C2.55228 1 3 1.44772 3 2C3 2.55228 2.55228 3 2 3ZM2 9C1.44772 9 1 8.55228 1 8C1 7.44772 1.44772 7 2 7C2.55228 7 3 7.44772 3 8C3 8.55228 2.55228 9 2 9ZM2 15C1.44772 15 1 14.5523 1 14C1 13.4477 1.44772 13 2 13C2.55228 13 3 13.4477 3 14C3 14.5523 2.55228 15 2 15Z" />
     </svg>
   ),
   pin: (
@@ -203,6 +203,17 @@ function PropertyCard({
        re-orders on sort, and threading refs back up for that is more moving
        parts than one lookup. */
     <article className={cls} data-facility-id={facility.id} onMouseEnter={onActivate} onClick={onSelect}>
+      {/* THE WHOLE CARD goes to the facility's page. A real link stretched
+          under the content, not a click handler: Duda's router handles an <a>
+          in preview and published alike, and middle-click / open-in-new-tab
+          keep working. The content above it lets clicks through to it
+          (pointer-events: none) except its own links and buttons — address,
+          phone, reviews, Select, See All Spaces — which still do their own
+          thing. See .ml-card-link in MapLocations.css. Absent with no slug,
+          when there is no page to go to. */}
+      {propertyHref && (
+        <a className="ml-card-link" href={propertyHref} aria-label={`View ${facility.name}`} tabIndex={-1} />
+      )}
       {/* Photo header — image, dark scrim, distance, and the property details */}
       <div className="ml-card-head">
         <img className="ml-card-photo" src={PROPERTY_IMAGES[index % PROPERTY_IMAGES.length]} alt="" />
@@ -238,15 +249,19 @@ function PropertyCard({
             <div className="ml-rating">
               <span className="ml-rating-score">{facility.rating}</span>
               <Stars rating={facility.rating} />
-              {rating?.reviewsUrl ? (
-                <a className="ml-reviews" href={rating.reviewsUrl} target="_blank" rel="noreferrer">
-                  {facility.reviewCount} Reviews
-                </a>
-              ) : (
-                // No destination in the collection — a bare <a href="#"> would
-                // scroll the host page to the top when clicked.
-                <span className="ml-reviews">{facility.reviewCount} Reviews</span>
-              )}
+              {/* Always a link to THIS facility's Google reviews: the
+                  collection row's own URL when it carries one, else a Maps
+                  search for the facility by name and address, which opens its
+                  listing (reviews included). It used to be a dead span whenever
+                  the row had no URL — "Reviews does not work" in the audit. */}
+              <a
+                className="ml-reviews"
+                href={rating?.reviewsUrl || googleListingHref(facility)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {facility.reviewCount} Reviews
+              </a>
             </div>
           )}
 
@@ -324,6 +339,11 @@ function PropertyCard({
   );
 }
 
+/** A facility's own Google Maps listing — where its reviews are — by name and address. */
+function googleListingHref(f: { name: string; address: string }): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([f.name, f.address].filter(Boolean).join(', '))}`;
+}
+
 // ── Loading placeholders ────────────────────────────────────────────────────
 
 /**
@@ -340,7 +360,8 @@ function PropertyCard({
  *   .ml-unit-prices  max(12 + 24 price stack, 33 select)               = 36
  *   .ml-unit         10 + max(35, 36) + 10 + 1px rule                  = 57
  *   .ml-card-foot    19 ("See All Spaces", 16px/normal)                = 19
- *   card             234 + 48 + 16 + 3x57 + 19 + 8px border            = 496
+ *   .ml-promo        12 + 16 + 12 + 2x2 border, + 16 body gap          = 60
+ *   card             234 + 48 + 60 + 16 + 3x57 + 19 + 8px border       = 556
  *
  * An earlier version sized these by eye and ran ~22px tall per card, which is
  * the shift this replaces. If the card's type scale changes, the numbers above
@@ -359,6 +380,11 @@ function CardSkeleton({ compact }: { compact: boolean }) {
         <Shimmer w="100%" h="100%" r={0} />
       </div>
       <div className="ml-card-body">
+        {/* The dashed promotion banner: 12px padding x2 + 16px line + 2px
+            border x2 = 44px, plus the body's 16px gap. Reserved on every
+            placeholder because a promotion is the common case on a live city
+            page, and without it each promoted card grew ~60px on arrival. */}
+        <Shimmer w="100%" h={44} r={8} />
         {compact ? (
           /* The mobile card collapses its rows into one CTA (33px), so the
              placeholder has to as well or the phone layout jumps instead. */
@@ -743,19 +769,28 @@ export function MapLocations({
     return () => { cancelled = true; };
   }, [companyId]);
 
-  // Ratings come from the `GoogleReviews` collection, not the properties API,
-  // so they load independently of everything above and simply appear on the
-  // cards when they arrive. Published-site only (no dmAPI in the editor or the
-  // harness), where it stays empty and the cards show no rating block.
+  // Ratings come from the `GoogleReviews` collection, not the properties API.
+  // Published-site only (no dmAPI in the editor or the harness), where it stays
+  // empty and the cards show no rating block.
+  //
+  // The read runs in parallel with the properties load but GATES the same
+  // skeleton (`ratingsSettled` feeds `loading` below). It used to let the cards
+  // paint first and insert the 24px .ml-rating row when it arrived. That row
+  // sits in .ml-card-data, which is pinned to the BOTTOM of the photo, so the
+  // card kept its height but the name above jumped up by the row on every card
+  // at once. A collection read is far quicker than the space-groups calls that
+  // already gate the paint, so waiting for it costs nothing in practice.
   const [ratings, setRatings] = useState<{
     byPlace: Map<string, RatingSummary>; overall: RatingSummary | null;
   }>({ byPlace: new Map(), overall: null });
+  const [ratingsSettled, setRatingsSettled] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     fetchGoogleRatingsByPlace('#08 map-locations')
       .then((r) => { if (!cancelled) setRatings(r); })
-      .catch((err) => console.error('[MapLocations] ratings error:', err));
+      .catch((err) => console.error('[MapLocations] ratings error:', err))
+      .finally(() => { if (!cancelled) setRatingsSettled(true); });
     return () => { cancelled = true; };
   }, []);
 
@@ -813,8 +848,12 @@ export function MapLocations({
   // Filter panel (Figma 10557:146492) — a centred lightbox, like #05's.
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
+  /** The mobile header's search box, so its magnifier can focus it. */
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const loading = liveFacilities === null;
+  // Both reads, so a card paints with its rating row or without one — never
+  // gains it afterwards (see the ratings effect above).
+  const loading = liveFacilities === null || !ratingsSettled;
   // Nothing stands in before the first response — the column renders skeletons
   // instead (see CitySkeleton). Demo facilities used to fill this gap, but they
   // carry invented names, addresses, prices and coordinates, so the page painted
@@ -846,7 +885,10 @@ export function MapLocations({
   // facility nobody has reviewed would mislead a customer.
   const isPreview = !hasCollectionsApi();
   const rated = useMemo(() => filtered.map((f, i) => {
-    const r = ratingForProperty(f.name, ratings);
+    // Matched per facility only. The site-wide fallback put ONE business's
+    // score and review count on every card it could not match by name — the
+    // audit found two facilities both reading "4.8 · 519 Reviews".
+    const r = matchedRatingForProperty(f.name, ratings);
     if (r) return { ...f, rating: r.score, reviewCount: r.count };
     if (isPreview && !(f.rating > 0)) {
       const demo = CITY_FACILITIES[i % CITY_FACILITIES.length];
@@ -1120,14 +1162,25 @@ export function MapLocations({
            then the count. Figma 10609:72429 / 10609:72649. */
         <>
           <div className="ml-mcontrols">
+            {/* Writes to the SAME `filters.search` the panel's box uses, so
+                the two can never disagree — and filters as you type, so the
+                magnifier focuses rather than submits. */}
             <div className="ml-search">
               <input
+                ref={searchRef}
                 className="ml-search-input"
-                type="text"
+                type="search"
                 placeholder="Enter ZIP, City, State"
                 aria-label="Search by ZIP, city or state"
+                value={filters.search}
+                onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
               />
-              <button type="button" className="ml-search-btn" aria-label="Search">
+              <button
+                type="button"
+                className="ml-search-btn"
+                aria-label="Search"
+                onClick={() => searchRef.current?.focus()}
+              >
                 {Icon.search}
               </button>
             </div>
@@ -1246,7 +1299,7 @@ export function MapLocations({
                 active={f.id === activeId}
                 compact={isMobile}
                 filters={filters}
-                rating={ratingForProperty(f.name, ratings)}
+                rating={matchedRatingForProperty(f.name, ratings)}
                 rentalPageUrl={rentalPageUrl}
                 companyId={resolvedCompanyId ?? undefined}
                 propertyBasePath={normalisedPropertyBase}
@@ -1283,21 +1336,24 @@ export function MapLocations({
         )}
 
         {/* The map needs at least one property with real coordinates. Without
-            any it is omitted entirely rather than rendered blank or centred on
-            null island — the list is still perfectly usable.
+            any it is never rendered blank or centred on null island.
 
-            While loading it holds its place with a placeholder: no facility is
-            plottable yet, so `hasMap` is false and the column would otherwise
-            appear only once the response lands, shifting the whole row. The
-            placeholder fills `.ml-map`, which already owns the height (a min()
-            of `--ml-row-h` and the viewport) and clips to its own 16px radius. */}
-        {showMap && (loading || hasMap) && (
+            The `.ml-map` box itself is ALWAYS rendered, though, and owns the
+            height (a min() of `--ml-row-h` and the viewport, 16px radius): a
+            shimmer while loading, the map once there is something to plot, and
+            a static "Map unavailable" panel when nothing is. The column used to
+            be dropped in that last case, which narrowed the row and shrank it to
+            the cards' height — ~500px gone from under the reader the moment the
+            response landed. */}
+        {showMap && (
           <div className="ml-map">
-            {/* `!center` rather than `loading` alone so the centre is narrowed
-                to non-null for NearbyMap; the outer guard makes the two
-                equivalent, but only this form proves it. */}
-            {loading || !center ? (
+            {loading ? (
               <Shimmer w="100%" h="100%" r={0} />
+            ) : !center ? (
+              <div className="ml-map-empty" role="note">
+                {Icon.pin}
+                <span>Map unavailable for these locations</span>
+              </div>
             ) : (
               <NearbyMap
                 center={center}
