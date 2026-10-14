@@ -1097,15 +1097,24 @@
 /* Room on the right for the close button, which is pinned rather than laid
    out here — see .ts-modal-close. Without it a long heading or admin line
    would run under the mark. */
-.ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; padding-right: 72px; }
+.ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; padding-right: 88px; }
 .ts-modal-heading-main { text-align: left; }
 .ts-modal-actions { display: flex; align-items: flex-start; justify-content: flex-end; gap: 20px; flex: 0 0 auto; }
+/* Keep urgency on the top row, immediately before the pinned close control.
+   Let the title wrap within its own column instead of moving actions below it. */
+@media (min-width: 641px) {
+  .ts-modal-heading { flex-wrap: nowrap; }
+  .ts-modal-heading-main { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .ts-modal-actions { margin-left: auto; max-width: 45%; }
+  .ts-modal-meta { min-width: 0; flex: 1 1 auto; }
+  .ts-modal-urgency { overflow-wrap: anywhere; }
+}
 .ts-modal-meta { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; }
 .ts-modal-title { font-size: 36px; font-weight: 700; line-height: 1; margin: 0 0 4px; color: var(--ts-title-color, #101318); text-transform: none; letter-spacing: normal; }
-.ts-modal-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
+.ts-modal-subtitle { font-size: 18px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
 .ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #e53935; }
 .ts-modal-urgency--empty { display: none; }
-.ts-modal-admin { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 40px; margin: 0; font-size: 20px; font-weight: 400; color: #101318; }
+.ts-modal-admin { box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 20px 0 0; text-align: center; font-size: 18px; line-height: 1.5; font-weight: 400; color: #101318; }
 .ts-modal-admin-info { color: #101318; flex: 0 0 auto; }
 .ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 32px 32px; background: #f4f6f8; }
 /*
@@ -1237,11 +1246,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .ts-modal-subtitle { font-size: 16px; overflow-wrap: anywhere; }
+  .ts-modal-subtitle { font-size: 18px; overflow-wrap: anywhere; }
   .ts-modal-urgency { text-align: center; width: 100%; min-height: 1.25em; font-size: 16px; line-height: 1.25; }
   /* Keep one compact line reserved; no announcement or visible placeholder. */
   .ts-modal-urgency--empty { display: block; visibility: hidden; }
-  .ts-modal-admin { justify-content: center; min-height: 0; font-size: 14px; }
+  .ts-modal-admin { font-size: 18px; padding: 0 20px calc(24px + env(safe-area-inset-bottom)); }
 }
 
 /* Promo two-price (STANDARD struck + PROMO RATE) */
