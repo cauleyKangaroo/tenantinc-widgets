@@ -972,6 +972,49 @@
   .rf2-plan-menu { right: 0; }
 }
 
+/* ── Additional-info dropdowns (Select in additionalInfo.tsx) ─────────────
+   Vehicle Type / Country / State open the plan menu above instead of the
+   native picker. A size container so the menu's cqi type scales against the
+   field, as it does against the plan control. */
+.rf-select--menu { container-type: inline-size; }
+/* Transparent hit area over the FormField face — where the native <select>
+   used to sit. A full button reset: hosts style bare buttons. */
+.rf-select-trigger {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.rf-select-trigger:focus { outline: none; }
+/* It sits ON TOP of the field's text, so it must stay see-through in every
+   state. Hosts style `button:hover` (the harness: #f3f4f6; Duda themes their
+   own), which outranks a single class and painted over the text on hover. */
+.rf-select--menu .rf-select-trigger,
+.rf-select--menu .rf-select-trigger:hover,
+.rf-select--menu .rf-select-trigger:focus,
+.rf-select--menu .rf-select-trigger:active {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+/* No chevron cell here, so the list spans the whole field. */
+.rf-select-menu { right: 0; }
+/* Doubled class: the resting rotate(90deg) is in @shared/ui SelectField.css,
+   so this must not depend on which stylesheet loads last. */
+.rf-select--menu .rf-select-chev { transition: transform 0.15s; }
+.rf-select--menu .rf-select-chev.rf-select-chev--up { transform: rotate(-90deg); }
+/* The current choice, as a native picker marks it. */
+.rf-select-opt--on { background: #f4f6f8; }
+
 /* Additional Information toggles */
 /* 4px is the frame's own gap (8507-23354) and was already correct — the rows
    read tight because of the BOX, not the gap. Figma draws an 18px box inside a
@@ -1369,6 +1412,9 @@
   }
   .rf2-plan-body--ks .rf2-ks-price { font-size: 13px; }
   .rf2-plan-body--ks .rf2-ks-price span { font-size: 11px; }
+  /* The OPEN list's prices ("Included", "$10") at the protection plan list's
+     size — .rf2-plan-price b — rather than the desktop 20px. */
+  .rf2-plan-menu .rf2-ks-price { font-size: clamp(17px, 4.6cqi, 20px); }
 }
 
 /* The key-share card carries a paragraph where the autopay tip carries one

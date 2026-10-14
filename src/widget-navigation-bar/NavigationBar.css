@@ -132,6 +132,41 @@
    "current" and not as a second hover state. */
 .nav-lang-opt--on { font-weight: 700; background: #f9fafb; }
 
+/* ── Account menu (AccountMenu.tsx) ─────────────────────────────────────────
+   White card of full-width rows split by hairlines. Right-anchored: the trigger
+   is the last item in the top bar, so a left-anchored panel would run off the
+   edge. Same z-index as the language menu. */
+.nav-acct-wrap { position: relative; display: inline-flex; }
+
+.nav-acct-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px 3px rgba(71, 84, 116, 0.1);
+  overflow: hidden;
+}
+
+.nav-acct-opt {
+  display: block;
+  padding: 14px 18px;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #101318;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.nav-acct-opt + .nav-acct-opt { border-top: 1px solid #e3e8ef; }
+.nav-acct-opt:hover { background: #f4f6f8; color: var(--color_1, #f45f30); }
+.nav-acct-opt:focus-visible { outline: none; box-shadow: inset 0 0 0 3px rgba(16, 19, 24, 0.18); }
+
 /* ── Primary bar ────────────────────────────────────────────────────────── */
 
 .nav-primary {

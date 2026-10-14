@@ -43,6 +43,7 @@ import './LocationsBanner.css';
 import { countCollectionRows, hasCollectionsApi } from '@shared/dudaCollections';
 import { INTERNAL_PROPERTIES_COLLECTION } from '@shared/internalProperties';
 import { boundText } from '@shared/propertyBinding';
+import { openFindStorage } from '@shared/findStorageBus';
 
 /**
  * Shown when the message is left blank — the same sentence as the content
@@ -179,13 +180,22 @@ export function LocationsBanner({
     : message.replace(NUM_TOKEN, count.toLocaleString('en-US'));
 
   return (
-    <div className="lb-banner">
+    <a
+      className="lb-banner"
+      href="/locations"
+      aria-label={count === undefined ? text : undefined}
+      onClick={(event) => {
+        // Preserve native new-tab/window behavior and the no-nav fallback.
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+        if (openFindStorage()) event.preventDefault();
+      }}
+    >
       {/* The bar is its full height from the first paint, and the text is only
           hidden — not absent — while the count resolves, so Duda measures 85px
           once and nothing moves or rewrites itself when the number lands. */}
       <span className="lb-text" style={count === undefined ? { visibility: 'hidden' } : undefined}>
         {text}
       </span>
-    </div>
+    </a>
   );
 }

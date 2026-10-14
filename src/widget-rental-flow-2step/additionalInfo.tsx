@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { FormField, SelectField, isPossiblePhone } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import {
@@ -190,19 +190,60 @@ export function Select({
    *  same place and style as every other field's. */
   error?: string;
 }) {
+  /* The list is our own menu, the same one the Protection / Key-share plan
+     controls open (.rf2-plan-menu / .rf2-plan-opt), rather than the browser's
+     native picker, which every OS draws differently. The closed field is
+     unchanged: a transparent trigger over the FormField face. Closes on a pick,
+     an outside click or Escape. */
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   return (
-    <div className="rf-select">
-      <label className="rf-select-native">
-        <span className="rf-sr-only">{label}</span>
-        <select value={value} onChange={(e) => onChange(e.target.value)} required={required}>
-          <option value="">{`Select ${label}`}</option>
-          {options.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
-      </label>
+    <div className="rf-select rf-select--menu" ref={wrapRef}>
+      <button
+        type="button"
+        className="rf-select-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={value ? `${label}: ${value}` : `Select ${label}`}
+        aria-required={required || undefined}
+        onClick={() => setOpen((o) => !o)}
+      />
       <div className="rf-select-face" aria-hidden="true">
         <FormField label={label} required={required} value={value} onChange={() => {}} error={error} />
-        <ChevronBig size={24} className="rf-select-chev" />
+        <ChevronBig size={24} className={`rf-select-chev${open ? ' rf-select-chev--up' : ''}`} />
       </div>
+      {open && (
+        <div className="rf2-plan-menu rf-select-menu" role="listbox" aria-label={label}>
+          {options.map((o, i) => (
+            <Fragment key={o}>
+              {i > 0 && <span className="rf2-plan-sep" aria-hidden="true" />}
+              <button
+                type="button"
+                role="option"
+                aria-selected={value === o}
+                className={`rf2-plan-opt${value === o ? ' rf-select-opt--on' : ''}`}
+                onClick={() => { onChange(o); setOpen(false); }}
+              >
+                <span className="rf2-plan-opt-cov"><b>{o}</b></span>
+              </button>
+            </Fragment>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

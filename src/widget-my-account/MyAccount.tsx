@@ -38,7 +38,7 @@
 // a prefix.
 // ===========================================================================
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './MyAccount.css';
 import { Button } from '@shared/ui';
 import { AccountInfoPanel } from './AccountInfoPanel';
@@ -56,8 +56,7 @@ import {
   fetchMe, fetchContact, updateContact, fetchDocumentFile, saveBlob, loginApiReady,
   type LoginApiConfig, type AccountRecord,
   fetchLeaseCoverage, previewCoverage, applyCoverage,
-  payLease,
-} from '@shared/accountApi';
+  payLease, fetchPrepayQuote, } from '@shared/accountApi';
 import {
   editFormFrom, updateFromEditForm,
   primaryContactFrom, alternateContactFrom,
@@ -68,6 +67,8 @@ import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { fetchGatewayInfo } from '@shared/paymentGateway';
 import type { AccountDocument, EditForm } from './data';
 import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROPERTIES, SPACES, USER } from './data';
+import { SubmenuIcon } from './icons';
+import { AccountSheet } from './AccountSheet';
 
 /** The three panels that share the middle slot. */
 export type View = 'account' | 'payment' | 'edit';
@@ -581,7 +582,18 @@ export function MyAccount({
     return {
       gpPublicKey: explicit || (looked !== undefined ? looked : (canLookUp ? undefined : '')),
       gatewayPending: !explicit && looked === undefined && canLookUp,
-      savedCards: savedCardsFrom(record).filter((c) => c.propertyId === space.propertyId),
+      /* This property's cards, ONE tile per distinct card. The account record
+         lists the same card once per lease it was used on (23 rows of one VISA
+         ····1111 on the test account), which stacked six identical tiles. The
+         first id for each card is kept — any of them charges the same card. */
+      savedCards: savedCardsFrom(record)
+        .filter((c) => c.propertyId === space.propertyId)
+        .filter((c, i, all) => all.findIndex((o) => o.cardType === c.cardType && o.last4 === c.last4 && o.nameOnCard === c.nameOnCard) === i),
+      quotePrepay: async (leaseId, months) => {
+        const r = await fetchPrepayQuote(api, token, leaseId, months);
+        if (!r.ok && r.unauthorized) signOut();
+        return r.ok ? r.data : null;
+      },
       pay: async (leaseId, body, idempotencyKey) => {
         const r = await payLease(api, token, leaseId, body, idempotencyKey);
         if (r.ok) {
@@ -714,28 +726,39 @@ export function MyAccount({
    */
   const busy = authed === null;
 
+  // Phone account menu (icon beside the greeting → bottom sheet). Its rows are
+  // the page's own actions; see AccountSheet.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const closeSheet = useCallback(() => setSheetOpen(false), []);
+  const sheetItems = [
+    { label: 'Pay Bill', onSelect: () => setView('payment') },
+    ...(space ? [{ label: `Account Info Space ${space.number}`, onSelect: () => selectUnit(space.id) }] : []),
+    { label: 'Logout', onSelect: signOut },
+  ];
+
   return (
     <div ref={rootRef} className={`ma-wrapper${busy ? ' ma-wrapper--busy' : ''}`} aria-busy={busy || undefined}>
       {busy && <span className="ma-sr-only" role="status">Loading your account…</span>}
+      {sheetOpen && <AccountSheet items={sheetItems} onClose={closeSheet} />}
       {/* React 18 has no boolean `inert`; an empty string is the attribute. */}
       <div className="ma-grid" {...(busy ? { inert: '' } : {})}>
         <p role="heading" aria-level={1} className="ma-greeting">Hi {name},</p>
-        {/* The line and its Log out control are one flex row, so the button
-            sits with the sentence it belongs to and wraps under it rather than
-            being squeezed when the email is long. */}
+        {/* Phone only (CSS shows it ≤720px): opens the account bottom sheet. */}
+        <button
+          type="button"
+          className="ma-submenu-btn"
+          aria-label="Account menu"
+          aria-haspopup="menu"
+          aria-expanded={sheetOpen}
+          onClick={() => setSheetOpen(true)}
+        >
+          <SubmenuIcon />
+        </button>
+        {/* No Log out button here — the Figma frame has none; logging out is in
+            the nav bar's My Account menu (#02). signOut is still used when the
+            session is rejected (unauthorized). */}
         <div className="ma-logged-in">
           <span className="ma-logged-in__text">You’re logged in as {email}</span>
-          {/* Clears the stored session BEFORE navigating. An href alone would
-              leave the token in storage and the next visit would walk straight
-              back in. */}
-          <Button
-            tone="dark"
-            fill="outline"
-            className="ma-btn-40"
-            onClick={signOut}
-          >
-            Log out
-          </Button>
         </div>
 
         <div className="ma-main">

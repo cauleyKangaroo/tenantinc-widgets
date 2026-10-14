@@ -94,7 +94,8 @@
 
 .ma-logged-in {
   grid-column: 2;
-  align-self: center;
+  /* Level with the foot of the greeting, as in the frame, not centred on it. */
+  align-self: end;
   /* The sentence and the Log out button on one row, ending at the right edge
      with the greeting opposite. Wraps rather than squeezes: a long email makes
      the button drop beneath the line, which is preferable to either the text
@@ -2127,3 +2128,75 @@
    grid, so it has to be told to fill the row — .ma-method itself only sets
    height and padding, the width came from the grid track. */
 .ma-method--alt { width: 100%; margin-top: 18px; }
+
+/* ── Phone account menu (AccountSheet.tsx) ──────────────────────────────────
+   The trigger is pinned to the greeting row's right edge rather than placed in
+   the grid, so the desktop layout has no new item in it at all; it only
+   exists at phone width. */
+.ma-submenu-btn { display: none; }
+
+@media (max-width: 720px) {
+  .ma-grid { position: relative; }
+  /* Room for the icon, so a long name never runs under it. */
+  .ma-greeting { padding-right: 48px; }
+  /* No "You're logged in as …" line on a phone. */
+  .ma-logged-in { display: none; }
+
+  .ma-submenu-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    /* One greeting line tall (28px × 1.2), so the icon centres on it. */
+    height: 34px;
+    width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: none;
+    color: var(--hb-text-night, #101318);
+    cursor: pointer;
+  }
+  .ma-submenu-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 4px; }
+}
+
+/* Portalled to <body>, so these rules cannot lean on .ma-wrapper's tokens. */
+.ma-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(16, 19, 24, 0.4);
+}
+
+.ma-sheet {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  /* Clear of the iPhone home indicator. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.ma-sheet__item {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 16px 20px;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  text-align: left;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #101318;
+  cursor: pointer;
+}
+.ma-sheet__item + .ma-sheet__item { border-top: 1px solid #e3e8ef; }
+.ma-sheet__item:active { background: #f4f6f8; }
+.ma-sheet__item:focus-visible { outline: none; box-shadow: inset 0 0 0 3px rgba(16, 19, 24, 0.18); }
