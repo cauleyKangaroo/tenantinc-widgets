@@ -3099,7 +3099,7 @@ export function RentalFlow2Step({
             </div>
             {!isMobile && railFor(true)}
           </div>
-        ) : accessGranted || (formMode === '1step' && !oneStepIdv) ? (
+        ) : accessGranted || (formMode === '1step' && (!oneStepIdv || Boolean(idvApi))) ? (
           <div className="rfc-layout">
             <Confirmation
               kind="rental"
@@ -3447,6 +3447,9 @@ export function RentalFlow2Step({
                     // One-step has no post-rental screen: file the verified
                     // address and licence on the tenant now, like Get Access does.
                     // Not awaited — a failure is logged and cannot undo the lease.
+                    // The ID check ran before payment, so there is no paid
+                    // ID screen: the confirmation says whether it was verified.
+                    if (formMode === '1step' && idvApi) setIdVerified(Boolean(info.idvId));
                     if (res.contactId && info.idvDetails) {
                       const d = info.idvDetails;
                       void updateContactDetails(ctx, res.contactId, {

@@ -486,6 +486,16 @@ async function testEmailRecovery() {
   await assert.rejects(api.lookup(scope, 'contact'), /pending/, 'contact lookup does not turn an existing pending record into another start');
   payload = { status: 'failed', idv_id: rawId, verified: true };
   assert.equal(await api.lookup(scope, 'contact'), undefined, 'contact lookup must require complete status');
+  payload = { idv_id: rawId, verified: true };
+  assert.equal((await api.lookup(scope, 'contact')).idvId, rawId, 'a verified record without a status still counts, so no second start');
+  payload = { idv_id: rawId };
+  await assert.rejects(api.lookup(scope, 'contact'), /could not be confirmed/, 'an unverified record without a status is unresolved, not absent');
+  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, first_name: 'J王', last_name: 'Chen' }];
+  assert.equal(await api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'J李', last: 'Chen' }), undefined, 'different non-Latin names do not collide');
+  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, first_name: '小明', last_name: '王' }];
+  assert.equal((await api.lookupByEmail(scope, 'test@example.com', undefined, { first: '小明', last: '王' })).idvId, rawId, 'fully non-Latin names match');
+  payload = [{ status: 'pending', idv_id: rawId }];
+  await assert.rejects(api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'Raymond', last: 'Nassar' }), /pending/, 'a nameless pending session blocks another start');
 }
 
 (async () => {

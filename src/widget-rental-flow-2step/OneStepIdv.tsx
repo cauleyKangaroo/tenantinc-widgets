@@ -75,6 +75,8 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
   const [licence, setLicence] = useState<LicenceValue>(EMPTY_LICENCE);
   const [editMail, setEditMail] = useState(false);
   const [editDl, setEditDl] = useState(false);
+  /** The contact the scanned details belong to; another contact must not inherit them. */
+  const seededFor = useRef<string | undefined>();
   // Seed from the scan each time a verification completes. The ID is the
   // source; Edit is how the renter corrects it.
   useEffect(() => {
@@ -85,6 +87,7 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
       query: a?.street ?? '', address1: a?.street ?? '', city: a?.city ?? '',
       state: (a?.state ?? '').toUpperCase().slice(0, 2), zip: a?.zip ?? '',
     };
+    seededFor.current = contactFingerprint;
     setMailing(seeded);
     // Always the summary first (Figma Complete); Edit opens the fields.
     setEditMail(false);
@@ -114,7 +117,18 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
   const phone = contact.phone;
   const valid = Boolean(first && last && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && isPossiblePhone(phone, 'US'));
   const contactFingerprint = JSON.stringify([first, last, email.toLowerCase(), phone.replace(/\D/g, '')]);
-  useEffect(() => { setLater(false); setHandoffOpen(false); }, [contactFingerprint]);
+  useEffect(() => {
+    setLater(false);
+    setHandoffOpen(false);
+    // Scanned details are the verified person's: drop them if the contact changes.
+    if (seededFor.current && seededFor.current !== contactFingerprint) {
+      seededFor.current = undefined;
+      setMailing(EMPTY_MAILING);
+      setLicence(EMPTY_LICENCE);
+      setEditMail(false);
+      setEditDl(false);
+    }
+  }, [contactFingerprint]);
   useEffect(() => {
     if (handheld || later || prepareError || (!identity && !preparing)
       || kind === 'complete' || kind === 'failed' || kind === 'expired' || kind === 'error') {
@@ -126,7 +140,7 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
       // Optional: deferring, or a failed check (verified at move-in instead), still lets the renter pay.
       || validCompletion || (config.requirement === 'optional' && ((later && canDefer) || failedCheck)))
       ? { contact: { first, last, email, phone }, scope: { companyId: config.scope.companyId, propertyId: config.scope.propertyId }, verified: validCompletion, idvId: validCompletion ? completedIdvId : undefined } : undefined);
-  }, [config.policyPending, config.requirement, config.scope.companyId, config.scope.propertyId, validCompletion, later, canDefer, first, last, email, phone, completedIdvId, onReady]);
+  }, [config.policyPending, config.requirement, config.scope.companyId, config.scope.propertyId, validCompletion, later, canDefer, failedCheck, first, last, email, phone, completedIdvId, onReady]);
 
   useEffect(() => {
     if (!autoStart.current || preparing) return;

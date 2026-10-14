@@ -169,6 +169,14 @@ async function main() {
   await render({ ...contact, email: 'changed@example.com' });
   assert.equal(controllerOptions.enabled, false, 'a different identity cannot use the previous verification');
   assert.equal(readyContact, undefined);
+  {
+    const other = { ...contact, first: 'Other', email: 'other@example.com' };
+    await React.act(async () => root.render(React.createElement(Component, { config: { ...config, requirement: 'optional' }, contact: other, onReady, onDetails: d => { detailsReport = d; } })));
+    await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Verify ID Later')));
+    assert.equal(detailsReport.contact.mailingAddress, undefined, "another contact does not inherit the verified renter's scanned address");
+    assert.equal(detailsReport.contact.driverLicense, undefined, "another contact does not inherit the verified renter's licence");
+    assert.equal(document.querySelector('input[aria-label="Address 1"]'), null);
+  }
   await React.act(async () => root.unmount());
   let restoredRoot = createRoot(document.getElementById('root'));
   await React.act(async () => restoredRoot.render(React.createElement(Component, { config, contact, onReady })));
@@ -212,6 +220,8 @@ async function main() {
   await React.act(async () => restoredRoot.render(React.createElement(Component, { config: optionalConfig, contact, onReady, onDetails: d => { detailsReport = d; } })));
   assert.ok(readyContact, 'an optional renter whose check failed can still pay and verify at move-in');
   phase = 'ready';
+  await React.act(async () => restoredRoot.render(React.createElement(Component, { config: optionalConfig, contact, onReady, onDetails: d => { detailsReport = d; } })));
+  assert.equal(readyContact, undefined, 'Reverify takes back the failed-check permission to pay');
   await React.act(async () => restoredRoot.render(React.createElement(Component, { config: { ...config, policyPending: true }, contact, onReady })));
   assert.equal(readyContact, undefined, 'pending property policy cannot allow payment');
   await React.act(async () => restoredRoot.unmount());

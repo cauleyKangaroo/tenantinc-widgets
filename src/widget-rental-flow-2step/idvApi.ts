@@ -95,8 +95,9 @@ function operation(raw: unknown, allowList = false): { status: number; data: Jso
 }
 
 function comparableName(value: unknown): string {
+  // Keep every script's letters and digits; drop accents, case, spaces and punctuation.
   return typeof value === 'string'
-    ? value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '')
+    ? value.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
     : '';
 }
 
@@ -191,7 +192,11 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
         true,
       );
       if (data.status === 'pending') throw new Error('Verification is still pending. Check again before starting another session.');
-      if (data.status !== 'complete') return undefined;
+      if (data.status === undefined || data.status === null || data.status === '') {
+        // No status on the record: nothing there, or a verified one; anything else is unresolved.
+        if (!data.idv_id) return undefined;
+        if (data.authenticated !== true && data.verified !== true) throw new Error('Verification status could not be confirmed.');
+      } else if (data.status !== 'complete') return undefined;
       if (!data.idv_id || (data.authenticated !== true && data.verified !== true)) throw new Error('Completed verification could not be confirmed.');
       return {
         idvId: text(data.idv_id, 'lookup id'),
@@ -210,11 +215,14 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
       // The lookup is company-wide by email, so a shared address must not lend
       // one person's verification to another: only records whose name (as read
       // off the ID) matches the renter count.
-      const rows = data.map(row => record(row, 'lookup record'))
-        .filter(row => !name || (sameName(row.first_name, name.first) && sameName(row.last_name, name.last)));
+      const all = data.map(row => record(row, 'lookup record'));
+      const rows = all.filter(row => !name || (sameName(row.first_name, name.first) && sameName(row.last_name, name.last)));
+      // A pending session whose name is not on the record could be this renter's.
+      const unnamedPending = Boolean(name) && all.some(row => row.status === 'pending'
+        && (!comparableName(row.first_name) || !comparableName(row.last_name)));
       const completed = rows.filter(row => row.status === 'complete');
       if (!completed.length) {
-        if (rows.some(row => row.status === 'pending')) throw new Error('Verification is still pending. Check again before starting another session.');
+        if (unnamedPending || rows.some(row => row.status === 'pending')) throw new Error('Verification is still pending. Check again before starting another session.');
         return undefined;
       }
       const timestamp = (row: JsonRecord): number => {

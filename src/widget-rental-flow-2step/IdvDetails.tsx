@@ -33,6 +33,9 @@ export type MailingErrors = Partial<Record<'country' | 'address1' | 'city' | 'st
 export type LicenceErrors = Partial<Record<'number' | 'exp' | 'state', string>>;
 
 const STATE_OPTIONS = US_STATES.map((s) => ({ value: s.code, label: s.code }));
+/** Canada's provinces and territories — none collide with a US code. */
+const CA_PROVINCES = ['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'];
+const REGION_OPTIONS = [...STATE_OPTIONS, ...CA_PROVINCES.map((code) => ({ value: code, label: code }))];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** "06/18/2027" → "Jun 18, 2027". */
@@ -123,7 +126,7 @@ export function MailingAddressFields({ value, onChange, errors = {}, required = 
 }) {
   const us = value.country !== 'Canada';
   const searchable = Boolean(value.country) || !showCountry;
-  const showParts = !compact || Boolean(value.address1.trim() || value.city.trim() || value.state.trim() || value.zip.trim())
+  const showParts = !compact || Boolean(value.query.trim() || value.address1.trim() || value.city.trim() || value.state.trim() || value.zip.trim())
     || Object.values(errors).some(Boolean);
   return (
     <section className="rf-sx-extra rf-idd">
@@ -156,11 +159,11 @@ export function MailingAddressFields({ value, onChange, errors = {}, required = 
         <FormField label="Address 1" required={required} value={value.address1} onChange={(address1) => onChange({ address1 })} autoComplete="address-line1" state={value.address1.trim() ? 'success' : 'default'} error={errors.address1} />
         <FormField label="Address 2" value={value.address2} onChange={(address2) => onChange({ address2 })} autoComplete="address-line2" />
         <div className="rf-idd-pair">
-          {us ? (
-            <SelectField label="State/Province" required={required} value={value.state} options={STATE_OPTIONS} onChange={(state) => onChange({ state })} state={value.state.trim().length === 2 ? 'success' : 'default'} error={errors.state} />
-          ) : (
-            <FormField label="State/Province" required={required} value={value.state} onChange={(state) => onChange({ state: state.toUpperCase().slice(0, 2) })} autoComplete="address-level1" state={value.state.trim().length === 2 ? 'success' : 'default'} error={errors.state} />
-          )}
+          {/* US states and Canadian provinces in one list; the pick sets the country,
+              so a hand-typed Canadian address works without the search. */}
+          <SelectField label="State/Province" required={required} value={value.state} options={showCountry ? (us ? STATE_OPTIONS : CA_PROVINCES) : REGION_OPTIONS}
+            onChange={(state) => onChange(showCountry ? { state } : { state, country: CA_PROVINCES.includes(state) ? 'Canada' : 'United States' })}
+            state={value.state.trim().length === 2 ? 'success' : 'default'} error={errors.state} />
           <FormField label="ZIP/Postal" required={required} value={value.zip} onChange={(zip) => onChange({ zip })} autoComplete="postal-code" state={value.zip.trim() ? 'success' : 'default'} error={errors.zip} />
         </div>
         <FormField label="City" required={required} value={value.city} onChange={(city) => onChange({ city })} autoComplete="address-level2" state={value.city.trim() ? 'success' : 'default'} error={errors.city} />
