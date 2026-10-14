@@ -100,14 +100,14 @@ export function AccountInfoPanel({
     <section className="ma-account">
       <div className="ma-account__body">
         <header className="ma-account__head">
-          <h2 className="ma-account__title">{space.title}</h2>
+          <p role="heading" aria-level={2} className="ma-account__title">{space.title}</p>
           <Button tone="dark" className="ma-btn-40" onClick={onEdit}>Edit</Button>
         </header>
         <hr className="ma-account__rule" />
 
         <div className="ma-account__cols">
           <div className="ma-account__col ma-account__col--contact">
-            <h3 className="ma-account__label">Primary Contact</h3>
+            <p role="heading" aria-level={3} className="ma-account__label">Primary Contact</p>
             <ul className="ma-info__list">
               <InfoRow icon={<UserSettingsIcon />}>{primary.name}</InfoRow>
               {primary.email && <InfoRow icon={<EnvelopeIcon />}>{primary.email}</InfoRow>}
@@ -122,7 +122,7 @@ export function AccountInfoPanel({
           </div>
 
           <div className="ma-account__col ma-account__col--docs">
-            <h3 className="ma-account__label">Documents</h3>
+            <p role="heading" aria-level={3} className="ma-account__label">Documents</p>
             <ul className="ma-info__list ma-docs">
               {/* A lease with nothing filed says so, rather than leaving a
                   heading over an empty list that reads as still loading. */}
@@ -148,8 +148,12 @@ export function AccountInfoPanel({
                   </button>
                   {/* The date is what separates this month's notice from last
                       month's — see documentsOf in leaseMapping. */}
-                  {doc.date && <span className="ma-docs__date">{doc.date}</span>}
-                  {doc.status && <span className="ma-docs__chip">{doc.status}</span>}
+                  {/* A signed document shows the "Signed" pill IN PLACE of its
+                      date (client feedback): the pill is what matters on a
+                      lease, and the notices that need dates are never signed. */}
+                  {doc.status
+                    ? <span className="ma-docs__chip">{doc.status}</span>
+                    : doc.date && <span className="ma-docs__date">{doc.date}</span>}
                 </li>
               ))}
             </ul>
@@ -158,7 +162,7 @@ export function AccountInfoPanel({
 
         {alt && (
           <div className="ma-account__alt">
-            <h3 className="ma-account__label">Alternate Contact</h3>
+            <p role="heading" aria-level={3} className="ma-account__label">Alternate Contact</p>
             <AlternateContact contact={alt} />
           </div>
         )}

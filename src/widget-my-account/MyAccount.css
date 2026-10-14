@@ -85,7 +85,7 @@
 
 .ma-greeting {
   grid-column: 1 !important;
-  font-size: 36px !important;
+  font-size: 34px !important;
   font-weight: 600 !important;
   line-height: 1.2 !important;
   letter-spacing: -0.02em !important;
@@ -1096,7 +1096,7 @@
 }
 
 .ma-account__title {
-  font-size: 36px !important;
+  font-size: 24px !important;
   font-weight: 600 !important;
   line-height: 1.2 !important;
   color: var(--hb-text-night) !important;
@@ -1181,7 +1181,7 @@
 
 .ma-info__text {
   min-width: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
   color: var(--hb-text-night);
@@ -1213,7 +1213,7 @@
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
   color: var(--hb-text-night);
@@ -1820,7 +1820,7 @@
   .ma-pay__head { margin-bottom: 24px; }
 
   .ma-account__body { padding: 24px 20px; }
-  .ma-account__title { font-size: 28px !important; }
+  .ma-account__title { font-size: 22px !important; }
   /* NOT flex-direction: column any more. The columns wrap on their own now (see
      .ma-account__cols), and in a column-direction container a flex-basis is a
      HEIGHT — the 367px basis would have become a 367px-tall contact block.

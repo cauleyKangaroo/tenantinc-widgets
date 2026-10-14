@@ -186,7 +186,7 @@ function ContactFields({
 
   return (
     <div className="ma-edit__contact">
-      <h4 className="ma-edit__sub">{title}</h4>
+      <p role="heading" aria-level={4} className="ma-edit__sub">{title}</p>
 
       <div className="ma-edit__row">
         <FormField
@@ -317,11 +317,11 @@ export function EditPanel({
   return (
     <section className="ma-edit">
       <div className="ma-edit__body">
-        <h2 className="ma-edit__title">{space.title}</h2>
+        <p role="heading" aria-level={2} className="ma-edit__title">{space.title}</p>
 
         {/* ── Mailing Address ──────────────────────────────────────────── */}
         <div className="ma-edit__section">
-          <h3 className="ma-edit__label">Mailing Address</h3>
+          <p role="heading" aria-level={3} className="ma-edit__label">Mailing Address</p>
 
           <div className="ma-edit__row ma-edit__row--wide">
             <SelectField
@@ -379,7 +379,7 @@ export function EditPanel({
           {/* Heading, the verify link and the passport alternative share one
               line in the frame, the checkbox pushed to the far right. */}
           <div className="ma-edit__head">
-            <h3 className="ma-edit__label">Drivers Licence</h3>
+            <p role="heading" aria-level={3} className="ma-edit__label">Drivers Licence</p>
             {/* No ID flow behind this yet, so it is a button that goes nowhere
                 rather than a link to a page that does not exist. */}
             <button type="button" className="ma-edit__verify">Verify ID</button>
@@ -421,7 +421,7 @@ export function EditPanel({
 
         {/* ── Communication Preferences ────────────────────────────────── */}
         <div className="ma-edit__section">
-          <h3 className="ma-edit__label">Communication Preferences</h3>
+          <p role="heading" aria-level={3} className="ma-edit__label">Communication Preferences</p>
 
           <div className="ma-edit__prefs">
             {/* The frame spells this "occational". Corrected here rather than
@@ -448,7 +448,7 @@ export function EditPanel({
 
         {/* ── Additional Contacts ──────────────────────────────────────── */}
         <div className="ma-edit__section">
-          <h3 className="ma-edit__label">Additional Contacts</h3>
+          <p role="heading" aria-level={3} className="ma-edit__label">Additional Contacts</p>
 
           <ContactFields
             title="Alternate Contact"

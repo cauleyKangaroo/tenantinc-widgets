@@ -665,17 +665,15 @@
    This was a neutral grey, on the grounds that a coloured border made every
    card look featured in turn as the pointer ran down the list. Primary is not
    that colour: featured is the green below it, so the two stay legible as
-   different things.
-
-   The `.ml-card--featured.ml-card--active` override that kept featured green
-   is gone with it — active wins on source order now. A featured card still
-   says so with its star badge, so giving up the outline while the pointer is
-   on it costs nothing; leaving it green would light a map bubble with no card
-   answering it. */
+   different things. */
 .ml-card--active {
   border-color: var(--color_2, #509e2f);
   filter: drop-shadow(0px 8px 9px rgba(71, 84, 116, 0.2));
 }
+/* Except the FEATURED card: it keeps its green outline when hovered/active,
+   as requested, instead of switching to the primary. Only the border — it
+   still gets the active drop-shadow above. */
+.ml-card--featured.ml-card--active { border-color: var(--hb-secondary, #509e2f); }
 
 /* Photo header */
 .ml-card-head {

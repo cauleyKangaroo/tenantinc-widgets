@@ -149,8 +149,14 @@ function flip(prev: Set<string>, id: string): Set<string> {
 }
 
 export function MakePaymentPanel({
-  spaces, space, onBack, initialResult = null, coverage, payment,
+  spaces, space, onBack, initialResult = null, coverage, payment, enrollAutopay = false,
 }: {
+  /**
+   * Opened from the promo's Enroll: EVERY listed space starts ticked and
+   * enrolled in autopay, exactly as if the tenant had ticked each one's
+   * Autopay Enrollment box — so it can still be unticked per space.
+   */
+  enrollAutopay?: boolean;
   /**
    * Open on a payment result rather than the bare form — the harness uses it
    * to show both banners. Otherwise the result comes from paying.
@@ -190,7 +196,8 @@ export function MakePaymentPanel({
      starts unticked: it is listed so it CAN be paid (prepaid) alongside, not
      because the tenant asked to. A Set of ids rather than a flag per space, so
      the state does not have to be rebuilt when the list changes. */
-  const shouldStartTicked = (s: AccountSpace) => s.id === space?.id || money(s.balance.amount) > 0;
+  const shouldStartTicked = (s: AccountSpace) =>
+    enrollAutopay || s.id === space?.id || money(s.balance.amount) > 0;
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(list.filter(shouldStartTicked).map((s) => s.id)),
   );
@@ -225,6 +232,24 @@ export function MakePaymentPanel({
   const [updateMethod, setUpdateMethod] = useState<Set<string>>(() => new Set());
   const [cancelled, setCancelled] = useState<Set<string>>(() => new Set());
   const [enrolledNow, setEnrolledNow] = useState<Set<string>>(() => new Set());
+
+  /* Enroll from the promo: switch autopay on for every space not already on
+     it — the same two steps the Autopay Enrollment tick takes, including the
+     "update to this payment's method" tick for a space with no card on file.
+     Per space, once: like the selection above, the real spaces can arrive
+     after the panel mounts, and a space the tenant has since changed is left
+     alone. */
+  const autopaySeeded = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!enrollAutopay) return;
+    const fresh = list.filter((s) => !autopaySeeded.current.has(s.id));
+    if (!fresh.length) return;
+    fresh.forEach((s) => autopaySeeded.current.add(s.id));
+    const toEnrol = fresh.filter((s) => !s.autopay.enrolled);
+    setEnrolledNow((prev) => new Set([...prev, ...toEnrol.map((s) => s.id)]));
+    setUpdateMethod((prev) => new Set([...prev, ...toEnrol.filter((s) => !s.autopay.cardLast4).map((s) => s.id)]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enrollAutopay, list.map((s) => s.id).join('|')]);
 
   /** Drop one id from a set — the half of `flip` that is not a toggle. */
   const clearFor = (
@@ -434,9 +459,16 @@ export function MakePaymentPanel({
   const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
   const [payMessage, setPayMessage] = useState<string>('');
   const idemKeys = useRef<Map<string, string>>(new Map());
-  const idemKeyFor = (leaseId: string) => {
-    let k = idemKeys.current.get(leaseId);
-    if (!k) { k = `pay-${leaseId}-${Date.now().toString(36)}`; idemKeys.current.set(leaseId, k); }
+  /* The proxy accepts 8–128 of letters, digits, - and _ ONLY. The step key
+     carries ':' (lease:prepay:months), which it refused with
+     "Idempotency-Key must be 8-128 letters, digits, - or _" (2026-10-14), so
+     anything else becomes '-' before it goes on the wire. */
+  const idemKeyFor = (stepKey: string) => {
+    let k = idemKeys.current.get(stepKey);
+    if (!k) {
+      k = `pay-${stepKey}-${Date.now().toString(36)}`.replace(/[^A-Za-z0-9_-]+/g, '-').slice(0, 128);
+      idemKeys.current.set(stepKey, k);
+    }
     return k;
   };
   const autopayFor = (sp: AccountSpace) =>
@@ -539,7 +571,7 @@ export function MakePaymentPanel({
         )}
         {/* "Upcoming" only once something WAS paid: after a refusal the form
             below is still the payment to make, with the banner saying why. */}
-        <h2 className="ma-pay__title">{result === 'success' ? 'Upcoming Payment' : 'Make a Payment'}</h2>
+        <p role="heading" aria-level={2} className="ma-pay__title">{result === 'success' ? 'Upcoming Payment' : 'Make a Payment'}</p>
       </header>
 
       {list.map((sp) => {
