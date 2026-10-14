@@ -31,10 +31,13 @@ function saveCompleted(key: string | undefined, result: SafeIdvResult, owner: st
   if (!key || !owner) return;
   const previous = readStored(key, owner);
   const same = previous?.idvId === result.idvId;
+  // Re-confirming the same verification keeps its original 30-minute window,
+  // so reloads cannot extend how long the scanned details are kept.
+  const expiresAt = same && previous?.completed ? previous.expiresAt : Date.now() / 1000 + COMPLETED_CHECKOUT_TTL_SECONDS;
   const address = result.address ?? (same ? previous?.address : undefined);
   const driversLicense = result.driversLicense ?? (same ? previous?.driversLicense : undefined);
   if (idvSessionSet(key, JSON.stringify({ completed: true, idvId: result.idvId,
-    expiresAt: Date.now() / 1000 + COMPLETED_CHECKOUT_TTL_SECONDS, owner,
+    expiresAt, owner,
     ...(address ? { address } : {}), ...(driversLicense ? { driversLicense } : {}) }))) idvSessionRemove(`${key}:start-uncertain`);
 }
 

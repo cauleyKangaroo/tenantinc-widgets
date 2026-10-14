@@ -96,7 +96,10 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
     setEditDl(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validCompletion, completedIdvId]);
-  const failedCheck = kind === 'failed' || kind === 'expired' || (kind === 'error' && controller.state.retryable);
+  // Only a confirmed failure or expiry. A lookup or request error is unresolved:
+  // the verification may still be in progress, so it neither fails nor pays.
+  const failedCheck = kind === 'failed' || kind === 'expired';
+  const unresolved = kind === 'error' && controller.state.retryable;
   const needsAssistance = kind === 'error' && !controller.state.retryable;
   const deferred = later && config.requirement === 'optional';
   // Typed in when there is no scan: after a failed check or a deferral.
@@ -232,6 +235,9 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
                   if (handheld) controller.continueInNewTab();
                   else setHandoffOpen(true);
                 }}>Continue Verification</Button>
+              </> : unresolved ? <>
+                <p role="status">We could not check your ID verification. Please try again.</p>
+                <Button tone="dark" fill="outline" className="rf-sx-btn" onClick={controller.retry}>Try Again</Button>
               </> : <p role="status">{kind === 'starting' ? 'Starting Verification…' : 'Checking Verification…'}</p>}
           {config.requirement === 'optional' && kind !== 'complete' && !config.policyPending && (
             <Button tone="dark" fill="outline" className="rf-sx-btn" disabled={!canDefer} onClick={() => {

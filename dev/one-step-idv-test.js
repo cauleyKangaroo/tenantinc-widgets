@@ -71,6 +71,7 @@ async function main() {
   let handheld = true;
   let modalProps;
   let resendUncertain = false;
+  let retryable = true;
   let resendCalls = 0;
   const resend = async () => { resendCalls++; return 'sent'; };
   const tab = { location: { href: '' }, close: () => { closed++; } };
@@ -98,6 +99,7 @@ async function main() {
   assert.equal(idvDetails.isRealDate('99/99/2030'), false, 'not a calendar date');
   assert.equal(idvDetails.isRealDate('02/31/2030'), false, 'February has no 31st');
   assert.equal(idvDetails.licenceProblems({ number: 'D123', exp: '02/31/2030', country: 'United States', state: 'CA' }).exp, 'Enter a valid expiration date');
+  assert.equal(idvDetails.contactDetailsFrom(idvDetails.EMPTY_MAILING, { number: 'D123', exp: '02/31/2030', country: 'United States', state: 'CA' }).driverLicenseExp, undefined, 'an impossible optional expiry is never filed');
   let detailsReport;
   const Component = load('../src/widget-rental-flow-2step/OneStepIdv.tsx', {
     react: React, 'react/jsx-runtime': require('react/jsx-runtime'),
@@ -111,7 +113,7 @@ async function main() {
     './IdvDetails': idvDetails,
     './useIdvController': { useIdvController: options => {
       controllerOptions = options;
-      return { state: { kind: options.enabled ? phase : 'idle', result: { authenticated: true, idvId: 'idv05d17e25979d41b1be17aaac798d58de', driversLicense: { number: 'D1234567', state: 'CA', expiration: '2030-01-15' }, address: { street: '1 Main St', city: 'Irvine', state: 'CA', zip: '92618' } }, notificationStatus: 'sent', resendUncertain }, handheld, start, resend,
+      return { state: { kind: options.enabled ? phase : 'idle', result: { authenticated: true, idvId: 'idv05d17e25979d41b1be17aaac798d58de', driversLicense: { number: 'D1234567', state: 'CA', expiration: '2030-01-15' }, address: { street: '1 Main St', city: 'Irvine', state: 'CA', zip: '92618' } }, notificationStatus: 'sent', resendUncertain, retryable }, handheld, start, resend,
         continueInNewTab() {}, retry() {}, verificationUrl: 'https://verify.example.com', popupBlocked: false };
     } },
     './IdIllustration': { IdIllustration: () => null },
@@ -226,6 +228,13 @@ async function main() {
   phase = 'ready';
   await React.act(async () => restoredRoot.render(React.createElement(Component, { config: optionalConfig, contact, onReady, onDetails: d => { detailsReport = d; } })));
   assert.equal(readyContact, undefined, 'Reverify takes back the failed-check permission to pay');
+  phase = 'error'; retryable = true;
+  await React.act(async () => restoredRoot.render(React.createElement(Component, { config: optionalConfig, contact, onReady, onDetails: d => { detailsReport = d; } })));
+  assert.equal(readyContact, undefined, 'an unresolved lookup does not let an optional renter pay');
+  assert.doesNotMatch(document.body.textContent, /ID Verification Failed/, 'an unresolved lookup is not shown as a failed check');
+  assert.match(document.body.textContent, /We could not check your ID verification/);
+  assert.ok([...document.querySelectorAll('button')].some(b => b.textContent === 'Try Again'));
+  phase = 'ready';
   await React.act(async () => restoredRoot.render(React.createElement(Component, { config: { ...config, policyPending: true }, contact, onReady })));
   assert.equal(readyContact, undefined, 'pending property policy cannot allow payment');
   await React.act(async () => restoredRoot.unmount());

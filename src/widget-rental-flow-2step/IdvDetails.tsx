@@ -95,7 +95,8 @@ export function contactDetailsFrom(mailing: MailingValue, licence: LicenceValue)
   const street = mailingStreet(mailing);
   return {
     driverLicense: licence.number.trim() && !isMaskedLicence(licence.number) ? licence.number.trim() : undefined,
-    driverLicenseExp: licence.exp.trim() || undefined,
+    // Optional licences are not validated on the way in, so never file an impossible date.
+    driverLicenseExp: isRealDate(licence.exp) ? licence.exp.trim() : undefined,
     driverLicenseState: licence.state.trim() || undefined,
     mailingAddress: street ? {
       address: street,

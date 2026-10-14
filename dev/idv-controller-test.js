@@ -352,6 +352,8 @@ async function main() {
   root = createRoot(document.getElementById('root'));
   await render(keepDetails);
   assert.equal(controller.state.result.address.street, '1 Main St', 'a live completion carries the address');
+  const plantedExpiry = JSON.parse(saved.get('mariposa:idv:v1:co:prop:keep-details')).expiresAt;
+  assert.ok(plantedExpiry < Date.now() / 1000 + 700, 're-confirming keeps the original 30-minute window, not a fresh one');
   await React.act(async () => root.unmount());
   pollExpired = true;
   root = createRoot(document.getElementById('root'));

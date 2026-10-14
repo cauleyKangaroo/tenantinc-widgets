@@ -458,7 +458,7 @@ export function SuccessStep({
       idVerified: idvDecision.idVerified,
       // The scan returns the number masked (****1847); never file that as the licence.
       driverLicense: passportSelected || isMaskedLicence(dlNumber) ? undefined : dlNumber.trim() || undefined,
-      driverLicenseExp: passportSelected ? undefined : dlExp.trim() || undefined,
+      driverLicenseExp: passportSelected || !isRealDate(dlExp) ? undefined : dlExp.trim(),
       driverLicenseState: passportSelected ? undefined : dlState.trim() || undefined,
       mailingAddress: mailAddress.trim()
         ? {
