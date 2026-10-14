@@ -72,6 +72,8 @@ export function newSessionToken(): string {
 export const CUSTOMER_ADDRESS_COUNTRIES = 'us,ca';
 
 interface AutocompleteOptions {
+  /** Opt-in strict failures for search UIs that distinguish outages from no results. */
+  strict?: boolean;
   base?: string;
   /** ISO country codes, up to 5. Default 'us' — see CUSTOMER_ADDRESS_COUNTRIES. */
   country?: string;
@@ -110,11 +112,12 @@ export async function fetchPlaceSuggestions(
       headers: { Accept: 'application/json' },
       signal: opts.signal,
     });
-    if (!res.ok) return [];
+    if (!res.ok) { if (opts.strict) throw new Error('Place search unavailable'); return []; }
     const json = await res.json() as { ok?: boolean; predictions?: PlacePrediction[] };
-    if (!json?.ok || !Array.isArray(json.predictions)) return [];
+    if (!json?.ok || !Array.isArray(json.predictions)) { if (opts.strict) throw new Error('Place search unavailable'); return []; }
     return json.predictions.filter((p) => p && typeof p.placeId === 'string');
-  } catch {
+  } catch (error) {
+    if (opts.strict) throw error;
     // Includes the AbortError from a superseded keystroke, which is routine.
     return [];
   }
@@ -127,7 +130,7 @@ export async function fetchPlaceSuggestions(
  * typed" rather than clearing the field.
  */
 export async function fetchPlaceDetails(
-  placeId: string, opts: { base?: string; sessionToken?: string; signal?: AbortSignal } = {},
+  placeId: string, opts: { base?: string; sessionToken?: string; signal?: AbortSignal; strict?: boolean } = {},
 ): Promise<PlaceDetails | null> {
   if (!placeId) return null;
   const base = (opts.base || DEFAULT_PLACES_BASE).replace(/\/$/, '');
@@ -138,7 +141,7 @@ export async function fetchPlaceDetails(
       headers: { Accept: 'application/json' },
       signal: opts.signal,
     });
-    if (!res.ok) return null;
+    if (!res.ok) { if (opts.strict) throw new Error('Place details unavailable'); return null; }
     const json = await res.json() as {
       ok?: boolean;
       placeId?: string;
@@ -148,7 +151,7 @@ export async function fetchPlaceDetails(
       lat?: string | number;
       lng?: string | number;
     };
-    if (!json?.ok || !json.address) return null;
+    if (!json?.ok || !json.address) { if (opts.strict) throw new Error('Place details unavailable'); return null; }
     const num = (v: string | number | undefined): number | undefined => {
       if (v === undefined || v === null || v === '') return undefined;
       const n = Number(v);
@@ -170,7 +173,8 @@ export async function fetchPlaceDetails(
       lat: num(json.lat),
       lng: num(json.lng),
     };
-  } catch {
+  } catch (error) {
+    if (opts.strict) throw error;
     return null;
   }
 }

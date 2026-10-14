@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './NavigationBar.css';
 import storelocalLogo from './Storelocal_logo.png';
 import { LanguageMenu } from './LanguageMenu';
+import { AccountMenu } from './AccountMenu';
 import { CloseCircleIcon } from '@shared/ui';
 import {
   ChevronDown,
@@ -840,12 +841,7 @@ export function NavigationBar({
         </a>
       )}
       {showLanguage && <LanguageMenu enLabel={language} />}
-      {showAccount && (
-        <a className="nav-top-item" href="/login">
-          <UserCircleIcon size={24} />
-          <span>{accountLabel}</span>
-        </a>
-      )}
+      {showAccount && <AccountMenu label={accountLabel} />}
     </div>
   );
 

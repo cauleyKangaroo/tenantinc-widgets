@@ -200,3 +200,13 @@ export function PlusIcon({ className }: AssetIconProps) {
     </svg>
   );
 }
+
+/** The phone account-menu trigger — three right-aligned bars (Figma "Group 2934"). */
+export function SubmenuIcon({ className }: AssetIconProps) {
+  return (
+    <svg className={className} width="21" height="16" viewBox="0 0 21 16" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="M1 1h19M7 8h13M12 15h8" />
+    </svg>
+  );
+}

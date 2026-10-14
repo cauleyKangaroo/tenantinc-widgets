@@ -1015,8 +1015,8 @@
           <label>City page base:
             <input id="hs-locations-url" type="text" value="/locations" style="width:130px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
           </label>
-          <label>Recent searches:
-            <input id="hs-history-limit" type="number" min="0" max="5" value="5" style="width:60px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
+          <label>Map page (optional):
+            <input id="hs-map-url" type="text" value="" placeholder="/map" style="width:130px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
           </label>
           <label>CTA label:
             <input id="hs-cta" type="text" value="Find Storage" style="width:110px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" oninput="reinitHomepageSearch()" />
@@ -2347,7 +2347,7 @@ Special</textarea>
         layout:          document.getElementById('hs-layout').value,
         searchUrl:      document.getElementById('hs-search-url').value,
         locationsUrl:   document.getElementById('hs-locations-url').value,
-        historyLimit:    Number(document.getElementById('hs-history-limit').value),
+        mapUrl:         document.getElementById('hs-map-url').value || undefined,
         ctaLabel:       document.getElementById('hs-cta').value || 'Find',
         showStorageType: document.getElementById('hs-show-type').checked,
         storageTypes:   document.getElementById('hs-types').value,
