@@ -71,14 +71,15 @@ function optionalText(value: unknown): string | undefined {
 }
 
 /** Confirmed gateway shape: applicationData.<appId>[0].{status,data,msg}. */
-function operation(raw: unknown): { status: number; data: JsonRecord; msg?: string } {
+function operation(raw: unknown, allowList = false): { status: number; data: JsonRecord; msg?: string } {
+  if (allowList && Array.isArray(raw)) return { status: 200, data: raw as unknown as JsonRecord };
   const outer = record(raw, 'response');
   const apps = outer.applicationData;
   if (!apps || typeof apps !== 'object' || Array.isArray(apps)) {
     // Not in the gateway envelope (e.g. a gateway-level error): read it as the
     // bare payload so its status and message still surface.
     const status = typeof outer.status === 'number' ? outer.status : 200;
-    const data = outer.data && typeof outer.data === 'object' && !Array.isArray(outer.data)
+    const data = outer.data && typeof outer.data === 'object' && (allowList || !Array.isArray(outer.data))
       ? outer.data as JsonRecord
       : outer;
     return { status, data, msg: optionalText(outer.msg) };
@@ -88,7 +89,7 @@ function operation(raw: unknown): { status: number; data: JsonRecord; msg?: stri
   const entry = record(first[0], 'gateway entry');
   return {
     status: typeof entry.status === 'number' ? entry.status : 502,
-    data: record(entry.data ?? {}, 'response data'),
+    data: allowList && Array.isArray(entry.data) ? entry.data as unknown as JsonRecord : record(entry.data ?? {}, 'response data'),
     msg: optionalText(entry.msg) ?? optionalText(entry.message),
   };
 }
@@ -124,6 +125,7 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
     suffix: string,
     init: RequestInit = {},
     companyOnly = false,
+    allowList = false,
   ): Promise<JsonRecord> {
     const path = companyOnly
       ? `/companies/${safeId(scope.companyId)}/${suffix}`
@@ -152,7 +154,7 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
         (async () => {
           const response = await fetcher(url, { ...init, signal: controller.signal, headers: { ...headers, ...init.headers } });
           const raw = await response.json() as unknown;
-          const parsed = operation(raw);
+          const parsed = operation(raw, allowList);
           if (!response.ok || parsed.status >= 400) {
             const status = response.ok ? parsed.status : response.status ?? parsed.status;
             // A gateway or upstream 5xx can occur after capture/SMS succeeds.
@@ -177,7 +179,9 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
         { signal },
         true,
       );
-      if (!data.idv_id) return undefined;
+      if (data.status === 'pending') throw new Error('Verification is still pending. Check again before starting another session.');
+      if (data.status !== 'complete') return undefined;
+      if (!data.idv_id || (data.authenticated !== true && data.verified !== true)) throw new Error('Completed verification could not be confirmed.');
       return {
         idvId: text(data.idv_id, 'lookup id'),
         authenticated: data.authenticated === true || data.verified === true,
@@ -187,6 +191,28 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
           expiration: optionalText(data.dl_expiration),
         } : undefined,
       };
+    },
+
+    async lookupByEmail(scope: IdvScope, email: string, signal?: AbortSignal): Promise<SafeIdvResult | undefined> {
+      const data = await call(scope, `identity-verifications?email=${encodeURIComponent(email.trim())}`, { signal }, true, true);
+      if (!Array.isArray(data)) throw new Error('Invalid email verification lookup response.');
+      const rows = data.map(row => record(row, 'lookup record'));
+      const completed = rows.filter(row => row.status === 'complete');
+      if (!completed.length) {
+        if (rows.some(row => row.status === 'pending')) throw new Error('Verification is still pending. Check again before starting another session.');
+        return undefined;
+      }
+      const timestamp = (row: JsonRecord): number => {
+        const value = row.verified_at ?? row.created_at ?? row.createdAt ?? row.created ?? row.updated_at ?? row.updatedAt;
+        if (typeof value === 'number' && Number.isFinite(value)) return value < 1e12 ? value * 1000 : value;
+        // Staging returns "2026-10-14 17:23:51"; Safari only parses the ISO "T" form.
+        return typeof value === 'string' ? Date.parse(value.trim().replace(/^(\d{4}-\d{2}-\d{2}) /, '$1T')) : NaN;
+      };
+      if (completed.length > 1 && completed.some(row => !Number.isFinite(timestamp(row)))) throw new Error('The newest completed verification could not be identified.');
+      completed.sort((a, b) => timestamp(b) - timestamp(a));
+      const latest = completed[0];
+      if (!latest.idv_id || (latest.authenticated !== true && latest.verified !== true)) throw new Error('Completed verification could not be confirmed.');
+      return { idvId: text(latest.idv_id, 'lookup id'), authenticated: true };
     },
 
     async start(
@@ -204,8 +230,9 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
           email: identity.email,
           phone: identity.phone,
           device,
-          // The guide warns lease_id rejects when email ownership differs. It
-          // remains omitted until the backend confirms the relationship rule.
+          // Links the verification to an existing lease (rent first, then
+          // verify). The email must be the lease's primary tenant email.
+          ...(identity.leaseId ? { lease_id: identity.leaseId } : {}),
         }),
       });
       const notificationStatus = optionalText(data.notificationStatus);

@@ -10,6 +10,14 @@ interface StoredIdvSession {
   expiresAt: number;
   /** Kept so "Return to this Device" still works after a reload. */
   verificationUrl?: string;
+  completed?: boolean;
+}
+
+const COMPLETED_CHECKOUT_TTL_SECONDS = 30 * 60;
+function saveCompleted(key: string | undefined, result: SafeIdvResult): void {
+  if (!key) return;
+  if (idvSessionSet(key, JSON.stringify({ completed: true, idvId: result.idvId,
+    expiresAt: Date.now() / 1000 + COMPLETED_CHECKOUT_TTL_SECONDS }))) idvSessionRemove(`${key}:start-uncertain`);
 }
 
 function storageKey(scope: IdvScope, identity: IdvIdentity): string | undefined {
@@ -40,6 +48,8 @@ export interface IdvControllerOptions {
   api?: IdvApi;
   scope: IdvScope;
   identity?: IdvIdentity;
+  /** Verify-first recovery is by email because no lease association exists yet. */
+  lookupByEmail?: boolean;
   allowedVerificationHosts: readonly string[];
   /** Legacy name: best-effort checkout snapshot before mobile handoff.
    *  A save failure no longer prevents opening verification in another tab. */
@@ -74,6 +84,8 @@ export function useIdvController(options: IdvControllerOptions) {
   const activeRequest = useRef<AbortController>();
   const placeholder = useRef<VerificationWindow | null>(null);
   const [popupBlocked, setPopupBlocked] = useState(false);
+  const [lookupAttempt, setLookupAttempt] = useState(0);
+  const lookupFailed = useRef(false);
   const latestOptions = useRef(options);
   latestOptions.current = options;
   const cancelRequest = useCallback(() => {
@@ -100,30 +112,41 @@ export function useIdvController(options: IdvControllerOptions) {
       return undefined;
     }
     const generation = state.generation + 1;
+    lookupFailed.current = false;
     dispatch({ type: 'check' });
     const stored = readStored(key);
     const uncertain = Boolean(key && idvSessionGet(`${key}:start-uncertain`));
-    if (uncertain && !stored) {
+    if (uncertain && !stored && !options.lookupByEmail) {
       setVerificationUrl(undefined);
       dispatch({ type: 'error', generation, retryable: false });
       return undefined;
     }
-    if (stored) {
+    if (stored && !stored.completed) {
       setVerificationUrl(stored.verificationUrl
         ? allowedVerificationUrl(stored.verificationUrl, options.allowedVerificationHosts)?.href
         : undefined);
       dispatch({ type: 'resume', generation, idvId: stored.idvId, expiresAt: stored.expiresAt, resendUncertain: uncertain });
       return undefined;
     }
-    if (!options.identity.contactId) {
+    if (!stored?.completed && !options.lookupByEmail && !options.identity.contactId) {
       dispatch({ type: 'not-verified', generation });
       return undefined;
     }
     let cancelled = false;
     const lookupController = new AbortController();
-    void options.api.lookup({ companyId, propertyId }, options.identity.contactId, lookupController.signal)
+    const lookup = stored?.completed
+      ? options.api.poll({ companyId, propertyId }, stored.idvId, lookupController.signal).then(result => {
+        if (result.status === 'pending') throw new Error('Previously completed verification is still pending.');
+        return result.status === 'complete' ? result : undefined;
+      })
+      : options.lookupByEmail
+        ? options.api.lookupByEmail({ companyId, propertyId }, options.identity.email, lookupController.signal)
+        : options.api.lookup({ companyId, propertyId }, options.identity.contactId!, lookupController.signal);
+    void lookup
       .then((result) => {
         if (cancelled) return;
+        if (uncertain && !result?.authenticated) throw new Error('The previous verification outcome is still unknown.');
+        if (result?.authenticated) saveCompleted(key, result);
         // Only an authenticated result completes (the reducer enforces it too):
         // an old, failed verification on the contact leaves the renter to verify now.
         dispatch(result?.authenticated
@@ -131,12 +154,15 @@ export function useIdvController(options: IdvControllerOptions) {
           : { type: 'not-verified', generation });
       })
       .catch(() => {
-        if (!cancelled) dispatch({ type: 'error', generation, retryable: true });
+        if (!cancelled) {
+          lookupFailed.current = true;
+          dispatch({ type: 'error', generation, retryable: true });
+        }
       });
     return () => { cancelled = true; lookupController.abort(); };
     // Re-resolve only when the renter/rental scope changes, not on each state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, key, options.allowedVerificationHosts, options.api, options.enabled, options.identity, propertyId]);
+  }, [companyId, key, options.allowedVerificationHosts, options.api, options.enabled, options.identity, options.lookupByEmail, propertyId, lookupAttempt]);
 
   useEffect(() => {
     if (state.kind !== 'pending' || !options.api) return undefined;
@@ -152,7 +178,7 @@ export function useIdvController(options: IdvControllerOptions) {
         return { kind: 'complete', value: result };
       },
       onComplete(result) {
-        if (key) { idvSessionRemove(key); idvSessionRemove(`${key}:start-uncertain`); }
+        saveCompleted(key, result);
         dispatch({ type: 'complete', generation: state.generation, result });
       },
       onFailed(reason) {
@@ -322,7 +348,11 @@ export function useIdvController(options: IdvControllerOptions) {
     verificationUrl,
     /** Mobile capture uses a new tab; desktop keeps its SMS handoff modal. */
     handheld,
-    retry: () => { cancelRequest(); dispatch({ type: 'retry', generation: state.generation }); },
+    retry: () => {
+      cancelRequest();
+      if (lookupFailed.current) setLookupAttempt(attempt => attempt + 1);
+      else dispatch({ type: 'retry', generation: state.generation });
+    },
     reset: () => { cancelRequest(); setVerificationUrl(undefined); dispatch({ type: 'reset' }); },
   };
 }

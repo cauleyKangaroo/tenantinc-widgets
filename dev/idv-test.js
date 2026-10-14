@@ -412,6 +412,11 @@ async function testApiTransports() {
     first: 'Ada', last: 'Lovelace', email: 'ada@example.com', phone: '2125551234',
   }, 'mobile');
   assert.equal(JSON.parse(requests[1].init.body).device, 'mobile');
+  assert.equal('lease_id' in JSON.parse(requests[1].init.body), false, 'verify-first start sends no lease_id');
+  await direct.start({ companyId: 'company_one', propertyId: 'property_two' }, {
+    first: 'Ada', last: 'Lovelace', email: 'ada@example.com', phone: '2125551234', leaseId: 'LeaseHash1',
+  }, 'mobile');
+  assert.equal(JSON.parse(requests[2].init.body).lease_id, 'LeaseHash1', 'rent-first start links the lease');
 
   assert.equal(requests[0].init.headers.Authorization, undefined, 'no proxy bearer token');
   assert.equal(requests[0].init.headers['X-Duda-Site-Id'], undefined);
@@ -432,6 +437,41 @@ function testCaptureDevice() {
   assert.equal(withWindow({}, captureDevice), 'desktop');
 }
 
+async function testEmailRecovery() {
+  const rawId = 'idv05d17e25979d41b1be17aaac798d58de';
+  let payload = [];
+  let lastUrl;
+  const api = createIdvApi({ baseUrl: 'https://edge.example/api/v3', appId: 'app', apiKey: 'test' }, async url => {
+    lastUrl = url;
+    return { ok: true, json: async () => ({ applicationData: { app: [{ status: 200, data: payload }] } }) };
+  });
+  const scope = { companyId: 'co', propertyId: 'prop' };
+  assert.equal(await api.lookupByEmail(scope, 'test+idv@example.com'), undefined);
+  assert.ok(lastUrl.endsWith('identity-verifications?email=test%2Bidv%40example.com'));
+  payload = [
+    { status: 'complete', idv_id: 'idv11111111111111111111111111111111', authenticated: true, created_at: '2026-10-13T10:00:00Z' },
+    { status: 'failed', idv_id: 'ignored', authenticated: true, created_at: '2026-10-15T10:00:00Z' },
+    { status: 'complete', idv_id: rawId, verified: true, created_at: '2026-10-14T10:00:00Z' },
+  ];
+  assert.equal((await api.lookupByEmail(scope, 'test@example.com')).idvId, rawId, 'newest completed record wins');
+  // Staging's real record shape: verified_at with a space, no created_at.
+  payload = [
+    { status: 'complete', idv_id: rawId, authenticated: true, verified: true, contact_id: null, matched_on: 'email', verified_at: '2026-10-14 17:23:51' },
+    { status: 'complete', idv_id: 'idv22222222222222222222222222222222', authenticated: true, verified: true, contact_id: null, matched_on: 'email', verified_at: '2026-10-13 09:05:00' },
+  ];
+  assert.equal((await api.lookupByEmail(scope, 'test@example.com')).idvId, rawId, 'staging verified_at orders repeat verifications');
+  payload = [{ status: 'pending', idv_id: rawId, authenticated: true }];
+  await assert.rejects(api.lookupByEmail(scope, 'test@example.com'), /pending/, 'pending recovery never permits another start');
+  payload = [{ status: 'complete', idv_id: rawId, authenticated: false }];
+  await assert.rejects(api.lookupByEmail(scope, 'test@example.com'), /confirmed/);
+  payload = [{ status: 'complete', idv_id: rawId, authenticated: true }, { status: 'complete', idv_id: 'another', authenticated: true }];
+  await assert.rejects(api.lookupByEmail(scope, 'test@example.com'), /newest/, 'unknown ordering is not guessed');
+  payload = { status: 'pending', idv_id: rawId, verified: true };
+  await assert.rejects(api.lookup(scope, 'contact'), /pending/, 'contact lookup does not turn an existing pending record into another start');
+  payload = { status: 'failed', idv_id: rawId, verified: true };
+  assert.equal(await api.lookup(scope, 'contact'), undefined, 'contact lookup must require complete status');
+}
+
 (async () => {
   testReducer();
   testAuthenticationAndResend();
@@ -440,6 +480,7 @@ function testCaptureDevice() {
   testUrls();
   await testPolling();
   await testApiTransports();
+  await testEmailRecovery();
   testCaptureDevice();
   console.log('IDV foundation tests passed');
 })().catch((error) => {

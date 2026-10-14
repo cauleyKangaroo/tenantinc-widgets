@@ -2,10 +2,11 @@ import type { IdvIdentity } from './idvApi';
 import type { IdvScope } from './idvApi';
 import { idvSessionGet, idvSessionSet } from './idvStorage';
 import type { IdvRequirement } from './idvPolicy';
+import { isRawIdvId } from './idvLinking';
 
 export type LeadContact = Pick<IdvIdentity, 'first' | 'last' | 'email' | 'phone'>;
 export interface PreparedIdvLead { contact: LeadContact; contactId: string; leadId: string; expiresAt: number }
-export interface IdvCheckoutReadiness { contact: LeadContact; scope: IdvScope; verified: boolean }
+export interface IdvCheckoutReadiness { contact: LeadContact; scope: IdvScope; verified: boolean; idvId?: string }
 const LEAD_TTL_MS = 30 * 60 * 1000;
 const leadKey = (scope: IdvScope) => `mariposa:idv:lead:v1:${scope.companyId}:${scope.propertyId}`;
 
@@ -20,7 +21,15 @@ export function allowsOneStepPayment(policy: { requirement: IdvRequirement; poli
   return !policy || (!policy.policyPending && (policy.requirement === 'disabled'
     || Boolean(readiness && sameLeadContact(readiness.contact, currentContact)
       && readiness.scope.companyId === policy.scope.companyId && readiness.scope.propertyId === policy.scope.propertyId
-      && (policy.requirement === 'optional' || readiness.verified))));
+      && (readiness.verified ? isRawIdvId(readiness.idvId) : policy.requirement === 'optional'))));
+}
+
+export function checkoutIdvId(policy: { requirement: IdvRequirement; policyPending: boolean; scope: IdvScope } | undefined,
+  readiness: IdvCheckoutReadiness | undefined, contact: LeadContact): string | undefined {
+  return policy && readiness?.verified && isRawIdvId(readiness.idvId)
+    && readiness.scope.companyId === policy.scope.companyId && readiness.scope.propertyId === policy.scope.propertyId
+    && sameLeadContact(readiness.contact, contact) && allowsOneStepPayment(policy, readiness, contact)
+    ? readiness.idvId : undefined;
 }
 
 /** The actual v1 lead response, verified against staging on 2026-10-14. */

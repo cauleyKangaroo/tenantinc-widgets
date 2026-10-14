@@ -17,6 +17,7 @@ async function main() {
   const tabs = [];
   let blockPopups = false;
   let captureDevice = 'mobile';
+  let pollingOptions;
   const openTab = () => {
     if (blockPopups) return null;
     const tab = { closed: false, opener: {}, location: { href: '' }, close() { this.closed = true; } };
@@ -35,7 +36,7 @@ async function main() {
     require(name) {
       if (name === 'react') return React;
       if (name === './idvApi') return { ...require('../.tmp-idv-test/idvApi.js'), captureDevice: () => captureDevice };
-      if (name === './idvPolling') return { startIdvPolling: () => () => {} };
+      if (name === './idvPolling') return { startIdvPolling: value => { pollingOptions = value; return () => {}; } };
       if (name === './idvStorage') return {
         idvSessionGet: (key) => saved.get(key) ?? null,
         idvSessionSet: (key, value) => {
@@ -224,6 +225,55 @@ async function main() {
   await React.act(async () => restoredRoot.render(React.createElement(Probe, { value: failed })));
   assert.equal(controller.state.kind, 'error', 'uncertain start remains blocked after remount');
   await React.act(async () => restoredRoot.unmount());
+  const rawId = 'idv05d17e25979d41b1be17aaac798d58de';
+  let recoveryCalls = 0;
+  let recoveryPolls = 0;
+  let recoveryStarts = 0;
+  let recoveryFails = false;
+  const recovery = { ...options, lookupByEmail: true,
+    identity: { ...identity, contactId: 'recover-contact', leaseId: undefined },
+    api: {
+      lookupByEmail: async () => { recoveryCalls++; if (recoveryFails) throw new Error('unavailable'); return { idvId: rawId, authenticated: true }; },
+      poll: async () => { recoveryPolls++; return { status: 'complete', idvId: rawId, authenticated: true }; },
+      start: async () => { recoveryStarts++; return response; },
+    },
+  };
+  root = createRoot(document.getElementById('root'));
+  await render(recovery);
+  assert.equal(controller.state.kind, 'complete');
+  const recoveryKey = 'mariposa:idv:v1:co:prop:recover-contact';
+  assert.equal(JSON.parse(saved.get(recoveryKey)).completed, true, 'completed ID remains available for checkout after reload');
+  await React.act(async () => root.unmount());
+  root = createRoot(document.getElementById('root'));
+  await render(recovery);
+  assert.equal(controller.state.kind, 'complete');
+  assert.equal(recoveryPolls, 1, 'cached completion is checked with the backend, never trusted locally');
+  assert.equal(recoveryCalls, 1);
+  await React.act(async () => root.unmount());
+  saved.delete(recoveryKey);
+  recoveryFails = true;
+  root = createRoot(document.getElementById('root'));
+  await render(recovery);
+  assert.equal(controller.state.kind, 'error');
+  await React.act(async () => controller.retry());
+  assert.equal(controller.state.kind, 'error', 'lookup retry still fails safely');
+  assert.equal(recoveryCalls, 3, 'retry repeats the GET');
+  assert.equal(recoveryStarts, 0, 'recovery failures never turn into billable starts');
+  await React.act(async () => root.unmount());
+  const liveCompletion = { ...recovery, identity: { ...identity, contactId: 'live-completion', leaseId: undefined },
+    api: { ...recovery.api, lookupByEmail: async () => undefined, start: async () => ({ ...response, idvId: rawId }) } };
+  root = createRoot(document.getElementById('root'));
+  await render(liveCompletion);
+  await React.act(async () => controller.start());
+  assert.equal(controller.state.kind, 'pending');
+  await React.act(async () => pollingOptions.onComplete({ idvId: rawId, authenticated: true }));
+  assert.equal(controller.state.kind, 'complete');
+  const completionCache = JSON.parse(saved.get('mariposa:idv:v1:co:prop:live-completion'));
+  assert.equal(completionCache.completed, true, 'finishing the phone flow retains its ID for the lease');
+  assert.equal(completionCache.idvId, rawId);
+  assert.ok(completionCache.expiresAt > Date.now() / 1000 && completionCache.expiresAt <= Date.now() / 1000 + 1801);
+  assert.equal('driversLicense' in completionCache, false, 'completion cache stores no scanned ID details');
+  await React.act(async () => root.unmount());
   dom.window.close();
   console.log('IDV controller race tests passed');
 }

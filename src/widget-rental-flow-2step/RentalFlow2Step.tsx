@@ -1640,7 +1640,7 @@ export function RentalFlow2Step({
     email: rentedContact.email,
     phone: rentedContact.phone,
     contactId: rental?.contactId,
-    leaseId: rental?.leaseId ?? 'local-checkout-harness',
+    leaseId: rental?.leaseId,
   } : undefined, [liveCheckoutIdvEnabled, rental, rentedContact]);
   const idvScope = React.useMemo(() => ({
     companyId: effectiveCompanyId ?? '',
@@ -3427,6 +3427,8 @@ export function RentalFlow2Step({
                   // documents/finalize was told 'Monthly' whatever was picked.
                   paymentCycle: info.paymentCycle,
                   extras: info.extras,
+                  idvId: info.idvId,
+                  idvRequired: formMode === '1step' && Boolean(idvApi) && idvRequirement === 'required',
                 })
                   .then((res) => {
                     setPaying(false);

@@ -6,6 +6,7 @@ import type { IdvRequirement } from './idvPolicy';
 import { useIdvController } from './useIdvController';
 import { IdIllustration } from './IdIllustration';
 import { IdVerifyModal } from './IdVerifyModal';
+import { isRawIdvId } from './idvLinking';
 import { parseCreatedIdvLead, readPreparedIdvLead, sameLeadContact, savePreparedIdvLead, type LeadContact, type IdvCheckoutReadiness } from './idvLead';
 import { openVerificationPlaceholder, closeVerificationPlaceholder, navigateVerificationWindow, type VerificationWindow } from './openVerification';
 
@@ -46,8 +47,12 @@ export function OneStepIdv({ config, contact, onReady }: {
     enabled: Boolean(identity) && !config.policyPending && config.requirement !== 'disabled',
     api: config.api, scope: config.scope, identity,
     allowedVerificationHosts: config.allowedVerificationHosts,
+    lookupByEmail: true,
   });
   const kind = controller.state.kind;
+  const completedIdvId = controller.state.kind === 'complete' ? controller.state.result.idvId : undefined;
+  const validCompletion = matches && kind === 'complete' && isRawIdvId(completedIdvId);
+  const canDefer = !preparing && ['idle', 'ready', 'failed', 'expired'].includes(kind);
   const { start, handheld, verificationUrl } = controller;
   const first = contact.first.trim();
   const last = contact.last.trim();
@@ -64,9 +69,9 @@ export function OneStepIdv({ config, contact, onReady }: {
   }, [handheld, later, prepareError, identity, preparing, kind]);
   useEffect(() => {
     onReady(!config.policyPending && (config.requirement === 'disabled'
-      || (matches && kind === 'complete') || (config.requirement === 'optional' && later))
-      ? { contact: { first, last, email, phone }, scope: { companyId: config.scope.companyId, propertyId: config.scope.propertyId }, verified: matches && kind === 'complete' } : undefined);
-  }, [config.policyPending, config.requirement, config.scope.companyId, config.scope.propertyId, kind, matches, later, first, last, email, phone, onReady]);
+      || validCompletion || (config.requirement === 'optional' && later && canDefer))
+      ? { contact: { first, last, email, phone }, scope: { companyId: config.scope.companyId, propertyId: config.scope.propertyId }, verified: validCompletion, idvId: validCompletion ? completedIdvId : undefined } : undefined);
+  }, [config.policyPending, config.requirement, config.scope.companyId, config.scope.propertyId, validCompletion, later, canDefer, first, last, email, phone, completedIdvId, onReady]);
 
   useEffect(() => {
     if (!autoStart.current || preparing) return;
@@ -154,7 +159,7 @@ export function OneStepIdv({ config, contact, onReady }: {
                 {!(kind === 'error' && !controller.state.retryable) && <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={controller.retry}>Reverify</button>}
               </> : <p role="status">{kind === 'starting' ? 'Starting Verification…' : 'Checking Verification…'}</p>}
           {config.requirement === 'optional' && kind !== 'complete' && !config.policyPending && (
-            <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => {
+            <button type="button" className="rf-sx-btn rf-sx-btn--outline" disabled={!canDefer} onClick={() => {
               autoStart.current = false;
               leadRequest.current?.abort();
               closeVerificationPlaceholder(preparedWindow.current);
@@ -170,6 +175,7 @@ export function OneStepIdv({ config, contact, onReady }: {
       {kind === 'pending' && controller.popupBlocked && <p className="rf-sx-idv-note" role="status">The verification tab was blocked. Select Continue Verification to try opening it again.</p>}
       {later && <p className="rf-sx-idv-note" role="status">You can complete verification after payment.</p>}
       {prepareError && <p className="rf-sx-idv-note" role="alert">{prepareError}</p>}
+      {kind === 'complete' && !validCompletion && <p className="rf-sx-idv-note" role="alert">Verification completed, but its linking ID could not be confirmed. Please contact the facility before paying.</p>}
       {!handheld && (
         <IdVerifyModal
           open={handoffOpen}

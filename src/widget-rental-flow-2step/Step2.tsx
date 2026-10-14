@@ -22,7 +22,7 @@ import { splitBusinessName } from './businessName';
 import { skipValidation } from '@shared/devBypass';
 import creditCardRepeat from './assets/credit-card-repeat.svg';
 import { OneStepIdv, type OneStepIdvConfig } from './OneStepIdv';
-import { allowsOneStepPayment, type IdvCheckoutReadiness } from './idvLead';
+import { allowsOneStepPayment, checkoutIdvId, type IdvCheckoutReadiness } from './idvLead';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space now" (Figma 8507-23329).
@@ -372,6 +372,8 @@ export function Step2({
     extras?: RentalExtras;
     /** The Payment Cycle card's selection. */
     paymentCycle?: PaymentCycle;
+    /** One-step: the verification completed for this exact contact, sent on the lease. */
+    idvId?: string;
     /** Resolves true once the rental exists, false on any failure. Apple Pay
      *  completes its sheet from this; the card and bank forms ignore it. */
   }) => void | Promise<boolean>;
@@ -704,6 +706,7 @@ export function Step2({
     ? { ...splitBusinessName(bizName), email: email.trim(), phone }
     : { first: first.trim(), last: last.trim(), email: email.trim(), phone };
   const verificationAllowsPayment = !oneStep || allowsOneStepPayment(oneStepIdv, idvReadyContact, idvContact);
+  const verifiedIdvId = oneStep ? checkoutIdvId(oneStepIdv, idvReadyContact, idvContact) : undefined;
   // The dev validation bypass must never bypass a live ID-verification gate.
   const formComplete = verificationAllowsPayment && (skip || required.every(([, ok]) => ok));
   const bad = (key: string) => !skip && payAttempted
@@ -811,6 +814,7 @@ export function Step2({
     /* The billing period chosen on the Payment Cycle card. Monthly unless the
        property offers more and the shopper picked one. */
     paymentCycle: cycle,
+    idvId: verifiedIdvId,
     /*
      * Which sections the shopper opted into — and on ONE-STEP, the values too.
      *

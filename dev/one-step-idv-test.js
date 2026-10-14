@@ -24,7 +24,9 @@ async function main() {
   global.document = dom.window.document;
   global.IS_REACT_ACT_ENVIRONMENT = true;
   const saved = new Map();
+  const linking = load('../src/widget-rental-flow-2step/idvLinking.ts', {});
   const helpers = load('../src/widget-rental-flow-2step/idvLead.ts', {
+    './idvLinking': linking,
     './idvStorage': { idvSessionGet: key => saved.get(key), idvSessionSet: (key, value) => { saved.set(key, value); return true; } },
   });
   const scope = { companyId: 'company', propertyId: 'property' };
@@ -42,9 +44,15 @@ async function main() {
   assert.equal(helpers.readPreparedIdvLead(scope), undefined, 'expired contact records cannot resume');
   saved.clear();
   const required = { requirement: 'required', policyPending: false, scope };
-  const verifiedReadiness = { contact, scope, verified: true };
+  const rawId = 'idv05d17e25979d41b1be17aaac798d58de';
+  const verifiedReadiness = { contact, scope, verified: true, idvId: rawId };
   assert.equal(helpers.allowsOneStepPayment(required, undefined, contact), false);
   assert.equal(helpers.allowsOneStepPayment(required, verifiedReadiness, contact), true);
+  assert.equal(helpers.allowsOneStepPayment(required, { ...verifiedReadiness, idvId: undefined }, contact), false, 'required checkout cannot lose the linking ID');
+  assert.equal(helpers.allowsOneStepPayment(required, { ...verifiedReadiness, idvId: 'encoded-id' }, contact), false);
+  assert.equal(helpers.checkoutIdvId(required, verifiedReadiness, contact), rawId);
+  assert.equal(helpers.checkoutIdvId(required, verifiedReadiness, { ...contact, email: 'another@example.com' }), undefined);
+  assert.equal(helpers.checkoutIdvId({ ...required, requirement: 'optional' }, { ...verifiedReadiness, verified: false }, contact), undefined, 'Verify Later never supplies a linking ID');
   assert.equal(helpers.allowsOneStepPayment(required, verifiedReadiness, { ...contact, email: 'different@example.com' }), false);
   assert.equal(helpers.allowsOneStepPayment({ ...required, policyPending: true }, verifiedReadiness, contact), false);
   assert.equal(helpers.allowsOneStepPayment(required, { ...verifiedReadiness, verified: false }, contact), false, 'an optional deferral cannot satisfy a required policy');
@@ -77,7 +85,7 @@ async function main() {
     '@shared/ui': { isPossiblePhone: phone => phone.replace(/\D/g, '').length === 10 },
     './useIdvController': { useIdvController: options => {
       controllerOptions = options;
-      return { state: { kind: options.enabled ? phase : 'idle', result: { authenticated: true }, notificationStatus: 'sent', resendUncertain }, handheld, start, resend,
+      return { state: { kind: options.enabled ? phase : 'idle', result: { authenticated: true, idvId: 'idv05d17e25979d41b1be17aaac798d58de' }, notificationStatus: 'sent', resendUncertain }, handheld, start, resend,
         continueInNewTab() {}, retry() {}, verificationUrl: 'https://verify.example.com', popupBlocked: false };
     } },
     './IdIllustration': { IdIllustration: () => null },
@@ -86,6 +94,7 @@ async function main() {
       return props.open ? React.createElement('div', { role: 'dialog', 'data-testid': 'idv-modal' }) : null;
     } },
     './idvLead': helpers,
+    './idvLinking': linking,
     './openVerification': {
       openVerificationPlaceholder: () => { opened++; return tab; },
       closeVerificationPlaceholder: target => { if (target) target.close(); },
@@ -178,6 +187,7 @@ async function main() {
   phase = 'complete'; await renderDesktop();
   assert.equal(document.querySelector('[data-testid="idv-modal"]'), null, 'verified completion closes the modal');
   assert.equal(readyContact.verified, true);
+  assert.equal(readyContact.idvId, 'idv05d17e25979d41b1be17aaac798d58de', 'the completed verification id travels to the lease');
   for (const terminal of ['failed', 'expired', 'error']) {
     phase = 'pending'; await renderDesktop();
     await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Continue Verification')));
@@ -190,6 +200,7 @@ async function main() {
   const source = fs.readFileSync(require.resolve('../src/widget-rental-flow-2step/Step2.tsx'), 'utf8');
   assert.ok(source.indexOf('<OneStepIdv') < source.indexOf('{/* Additional Information */}'));
   assert.match(source, /formComplete = verificationAllowsPayment &&/);
+  assert.match(source, /idvId: verifiedIdvId,/, 'payment hands the verified id to the lease');
   dom.window.close();
   console.log('One-step pre-payment IDV tests passed: lead preparation, recovery, payment gating, mobile new tab, and shared desktop handoff modal.');
 }
