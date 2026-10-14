@@ -102,7 +102,7 @@ async function main() {
   assert.equal(mobileTab.closed, false);
   assert.equal(controller.state.kind, 'pending');
   assert.equal(controller.popupBlocked, false);
-  const preparedOptions = { ...options, api: { ...options.api, lookup: async () => undefined }, identity: { ...identity, leaseId: undefined, contactId: 'pre-payment-contact' } };
+  const preparedOptions = { ...options, api: { ...options.api, lookup: async () => undefined, lookupByEmail: async () => undefined }, identity: { ...identity, leaseId: undefined, contactId: 'pre-payment-contact' } };
   await render(preparedOptions);
   const preparedTab = openTab();
   preparedTab.opener = null;
@@ -388,6 +388,31 @@ async function main() {
   root = createRoot(document.getElementById('root'));
   await render({ ...otherName, identity: { ...identity, contactId: 'legacy', leaseId: undefined } });
   assert.equal(otherPolls, 0, 'a saved session without an owner is not reused');
+  await React.act(async () => root.unmount());
+
+  // Rent first (two-step): a verification done before this rental is not yet
+  // attached to the new contact, so the contact lookup falls back to email.
+  let byContact = 0;
+  let byEmail = 0;
+  let emailName;
+  let fallbackStarts = 0;
+  const rentFirst = { ...options, identity: { ...identity, contactId: 'new-tenant', leaseId: 'lease-2' },
+    api: {
+      lookup: async () => { byContact++; return undefined; },
+      lookupByEmail: async (_scope, _email, _signal, name) => { byEmail++; emailName = { ...name }; return { idvId: rawId, authenticated: true }; },
+      start: async () => { fallbackStarts++; return response; },
+    } };
+  root = createRoot(document.getElementById('root'));
+  await render(rentFirst);
+  assert.equal(controller.state.kind, 'complete', 'an earlier verification found by email is reused');
+  assert.deepEqual([byContact, byEmail, fallbackStarts], [1, 1, 0], 'contact first, then email, and no billable start');
+  assert.deepEqual(emailName, { first: identity.first, last: identity.last }, 'the email fallback is bound to the renter name');
+  await React.act(async () => root.unmount());
+  root = createRoot(document.getElementById('root'));
+  await render({ ...rentFirst, identity: { ...rentFirst.identity, contactId: 'linked-tenant' },
+    api: { ...rentFirst.api, lookup: async () => { byContact++; return { idvId: rawId, authenticated: true }; } } });
+  assert.equal(controller.state.kind, 'complete');
+  assert.equal(byEmail, 1, 'a verification found on the contact does not also query by email');
   await React.act(async () => root.unmount());
   dom.window.close();
   console.log('IDV controller race tests passed');

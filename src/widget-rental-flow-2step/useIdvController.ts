@@ -46,8 +46,12 @@ function saveCompleted(key: string | undefined, result: SafeIdvResult, owner: st
 function lookupRecord(options: IdvControllerOptions, scope: IdvScope, signal: AbortSignal): Promise<SafeIdvResult | undefined> {
   const { api, identity } = options;
   if (!api || !identity) return Promise.resolve(undefined);
-  if (options.lookupByEmail) return api.lookupByEmail(scope, identity.email, signal, { first: identity.first, last: identity.last });
-  return identity.contactId ? api.lookup(scope, identity.contactId, signal) : Promise.resolve(undefined);
+  const byEmail = () => api.lookupByEmail(scope, identity.email, signal, { first: identity.first, last: identity.last });
+  if (options.lookupByEmail) return byEmail();
+  if (!identity.contactId) return Promise.resolve(undefined);
+  // Rent first: a verification done before this rental is matched by email and
+  // not yet attached to the new contact, so the contact lookup finds nothing.
+  return api.lookup(scope, identity.contactId, signal).then((found) => found ?? byEmail());
 }
 
 function storageKey(scope: IdvScope, identity: IdvIdentity): string | undefined {
