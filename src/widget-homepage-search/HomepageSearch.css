@@ -194,7 +194,7 @@
 .hs-suggestion:focus-visible { outline: 3px solid color-mix(in srgb, var(--hs-accent) 40%, white); }
 .hs-history-head { padding: 8px 31px; background: #f9fafb; color: #637381; font-size: 18px; line-height: 27px; font-weight: 400; }
 .hs-our-locations { font-size: 18px; }
-.hs-our-locations:first-child { margin-top: 21px; }
+.hs-suggestions > [role="status"]:empty + .hs-our-locations { margin-top: 21px; }
 .hs-suggestions--browse .hs-suggestion { font-size: 18px; line-height: 24px; padding-block: 6px; }
 .hs-suggestions--browse .hs-city-options { padding-top: 10px; padding-bottom: 26px; }
 .hs-search-status { padding: 32px 16px; text-align: center; color: #637381; background: #f6f7f8; }
