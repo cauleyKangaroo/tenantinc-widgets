@@ -123,6 +123,10 @@ function documentsOf(lease: Record<string, unknown>): AccountDocument[] {
     .map((d) => {
       const label = str(d.name);
       if (!label) return null;
+      // SIGNED documents only (signatureStatus 1). An unsigned template the
+      // lease merely references is not the tenant's paperwork, and listing it
+      // offered downloads of blank forms. Asked for 2026-10-14.
+      if (d.signatureStatus !== 1) return null;
       const ext = str(d.extension);
       const signed = d.signatureStatus === 1 || !!str(d.signedAt);
       return {
@@ -227,9 +231,30 @@ export function spacesFrom(
           ? `Charged on the ${ordinal(num(l.billDay))} of each month`
           : '',
       },
-      lines: [
-        { label: `Monthly Rent ${number ? `#${number}` : ''}`.trim(), amount: rent },
-      ],
+      /*
+       * ONE LINE PER OPEN INVOICE when there is something to pay — "Monthly
+       * Rent #301 (07/01/2026 to 07/30/2026)  $100.00", the period beside the
+       * label as the frame draws it, the amount the invoice's own balance.
+       * Nothing owed ⇒ the single rent line as before, so the breakdown is
+       * never empty. The period field names are read defensively: the proxy
+       * writes periodStart/periodEnd on the invoices it quotes and applies
+       * payments to.
+       */
+      lines: (() => {
+        const label = `Monthly Rent ${number ? `#${number}` : ''}`.trim();
+        const open = (Array.isArray(l.invoices) ? (l.invoices as Record<string, unknown>[]) : [])
+          .filter((i) => num(i.balance) > 0);
+        if (!open.length) return [{ label, amount: rent }];
+        return open.map((i) => {
+          const from = shortDate(i.periodStart ?? i.period_start ?? i.startDate ?? i.start_date);
+          const to = shortDate(i.periodEnd ?? i.period_end ?? i.endDate ?? i.end_date);
+          return {
+            label,
+            note: from && to ? `(${from} to ${to})` : from ? `(from ${from})` : undefined,
+            amount: money(num(i.balance)),
+          };
+        });
+      })(),
       coverage: { label: 'Coverage', amount: money(0) },
       taxes: { label: 'Taxes', amount: money(0) },
       total: money(balance),
