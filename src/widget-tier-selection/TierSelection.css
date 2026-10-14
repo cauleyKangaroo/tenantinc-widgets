@@ -1075,9 +1075,9 @@
   border-radius: 20px;
   width: 100%;
   max-width: 1400px; /* Align the 1320px tier grid with the modal header gutters. */
-  /* Use the space inside the equal 16px top/bottom gutters on short screens;
-     retain the 747px Figma height on taller screens. */
-  height: min(747px, calc(100vh - 32px));
+  /* Fit the content (no empty band under the admin fee), never taller than the
+     747px Figma frame or the space inside the 16px gutters; the body scrolls beyond that. */
+  height: auto;
   max-height: min(747px, calc(100vh - 32px));
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
   display: flex;
