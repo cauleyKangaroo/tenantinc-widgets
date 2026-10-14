@@ -176,7 +176,16 @@ export function spacesFrom(
   return leases.map((l) => {
     const u = (l.unit ?? {}) as Record<string, unknown>;
     const number = str(u.number);
-    const balance = num(l.balance);
+    // `balance` is what the account owes on the lease; `openBalance` the sum
+    // of its open invoices. The same figure when both are set — the second
+    // covers a record that fills only one.
+    const balance = num(l.balance) || num(l.openBalance);
+    /* The OLDEST open invoice's due date, ISO, for the balance bar: with
+       several spaces ticked the bar names the earliest of theirs. Falls back
+       to the paid-through date when nothing is open. */
+    const openDues = (Array.isArray(l.invoices) ? (l.invoices as Record<string, unknown>[]) : [])
+      .filter((i) => num(i.balance) > 0).map((i) => str(i.due).slice(0, 10)).filter(Boolean).sort();
+    const dueSort = openDues[0] || str(l.paidThroughDate).slice(0, 10);
     /*
      * `daysLate` decides past-due, not a balance above zero: a balance is
      * normal between bill date and due date, and colouring it red would call
@@ -250,7 +259,10 @@ export function spacesFrom(
         const label = `Monthly Rent ${number ? `#${number}` : ''}`.trim();
         const open = (Array.isArray(l.invoices) ? (l.invoices as Record<string, unknown>[]) : [])
           .filter((i) => num(i.balance) > 0);
-        if (!open.length) return [{ label, amount: rent }];
+        // Nothing open: the line says so and carries $0.00, so the lines add
+        // up to the Total beneath them — a $10 rent over a $0 total read as a
+        // broken sum. The rent itself is on the space card.
+        if (!open.length) return [{ label, note: paidThrough ? `(paid through ${paidThrough} · nothing due)` : '(nothing due)', amount: money(0) }];
         return open.map((i) => {
           const from = shortDate(i.periodStart ?? i.period_start ?? i.startDate ?? i.start_date);
           const to = shortDate(i.periodEnd ?? i.period_end ?? i.endDate ?? i.end_date);
@@ -268,6 +280,7 @@ export function spacesFrom(
         amount: money(balance),
         payThrough: paidThrough,
         pastDue,
+        dueSort,
       },
     };
   });

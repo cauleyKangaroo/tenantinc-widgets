@@ -552,7 +552,18 @@ export function MakePaymentPanel({
   const cardUnavailable = !!payment && !payment.gatewayPending && !liveCardKey;
   /* "Pay through" is per space; with several selected they can disagree, so the
      bar shows the FURTHEST date — that is what paying this total covers. */
-  const payThrough = list.find((s) => selected.has(s.id))?.balance.payThrough ?? '';
+  /* The OLDEST due date among the ticked spaces — anniversary billing gives
+     each lease its own day, and the bar should name the earliest one owed,
+     not whichever space happens to be listed first. Live spaces carry an
+     ISO `dueSort`; the sample has none and keeps the first ticked. */
+  const payThrough = (() => {
+    const ticked = list.filter((s) => selected.has(s.id));
+    const sortable = ticked.filter((s) => s.balance.dueSort);
+    const oldest = sortable.length
+      ? sortable.reduce((a, b) => (b.balance.dueSort! < a.balance.dueSort! ? b : a))
+      : ticked[0];
+    return oldest?.balance.payThrough ?? '';
+  })();
 
   return (
     <section className={`ma-pay${result === 'success' ? ' ma-pay--result' : ''}`} ref={panelRef}>
@@ -719,8 +730,8 @@ export function MakePaymentPanel({
             )}
 
             <div className="ma-lines">
-              {sp.lines.map((line) => (
-                <div className="ma-line" key={`${line.label}|${line.note ?? ''}`}>
+              {sp.lines.map((line, i) => (
+                <div className="ma-line" key={`${line.label}|${line.note ?? ''}|${i}`}>
                   <p className="ma-line__label">
                     <span className="ma-line__strong">{line.label} </span>
                     {line.note && <span className="ma-line__note">{line.note}</span>}

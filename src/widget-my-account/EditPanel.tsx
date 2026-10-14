@@ -45,6 +45,7 @@ import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { CUSTOMER_ADDRESS_COUNTRIES } from '@shared/placesApi';
 import { Checkbox, FormField } from '@shared/ui';
 import { ChevronBigRight24Icon } from './icons';
+import { ConfirmContactModal } from './ConfirmContactModal';
 import { US_STATES, isKnownState, stateCodeFromName, stateNameFromCode } from '@shared/usStates';
 import { EDIT_COUNTRIES, EDIT_DEFAULTS } from './data';
 import type { AccountSpace, ContactForm, EditForm } from './data';
@@ -174,12 +175,20 @@ function StateField({
  * same shape in the frame, so they are the same component — a second copy
  * would only be a place for the two to drift apart.
  */
+/** Every field the confirm dialog restates — a contact is "complete" when
+ *  all of them are in, and only then does the apply-to-all tick ask. */
+export function contactComplete(c: ContactForm): boolean {
+  return [c.first, c.last, c.email, c.phone, c.address, c.city, c.state, c.zip].every((v) => v.trim().length > 0);
+}
+
 function ContactFields({
-  title, contact, onChange,
+  title, contact, onChange, onApplyAll,
 }: {
   title: string;
   contact: ContactForm;
   onChange: (next: ContactForm) => void;
+  /** The apply-to-all tick, routed to the panel: it may need confirming. */
+  onApplyAll: (on: boolean) => void;
 }) {
   const set = <K extends keyof ContactForm>(key: K) => (v: ContactForm[K]) =>
     onChange({ ...contact, [key]: v });
@@ -232,7 +241,11 @@ function ContactFields({
             // from the SAME place, so they cannot contradict the street line.
             // ONE onChange, not three: each set() rebuilds from the same
             // `contact` closure, so three in a row kept only the last one.
-            const next = { ...contact };
+            /* The street too. onChange(p.mainText) has just gone out from the
+               lookup, but `contact` here is the render before it — so a
+               `next` built without the street wrote the OLD address back
+               over the pick, and the field never changed (2026-10-14). */
+            const next = { ...contact, address: place.address.street || place.formattedAddress || contact.address };
             if (place.address.city) next.city = place.address.city;
             // The two-letter code — StateField matches on `code` here.
             if (place.address.stateCode) next.state = place.address.stateCode;
@@ -265,7 +278,7 @@ function ContactFields({
 
       <Checkbox
         checked={contact.applyToAll}
-        onChange={set('applyToAll')}
+        onChange={onApplyAll}
         className="ma-edit__check"
       >
         Apply change to all spaces
@@ -297,6 +310,35 @@ export function EditPanel({
   saveError?: string;
 }) {
   const [form, setForm] = useState<EditForm>(initial ?? EDIT_DEFAULTS);
+  /*
+   * "Apply change to all spaces" CONFIRMS before it sticks — but only once
+   * the contact is complete, because the dialog restates the person and a
+   * half-typed one would show blanks. Ticked early, the tick is kept and the
+   * dialog comes at Save instead, so every write to all leases is confirmed
+   * exactly once. `confirmed` remembers which kinds were.
+   */
+  const [confirm, setConfirm] = useState<{ kind: 'alternate' | 'emergency'; thenSave: boolean } | null>(null);
+  const [confirmed, setConfirmed] = useState<Set<'alternate' | 'emergency'>>(() => new Set());
+  const requestApplyAll = (kind: 'alternate' | 'emergency') => (on: boolean) => {
+    if (!on) {
+      setForm((f) => ({ ...f, [kind]: { ...f[kind], applyToAll: false } }));
+      setConfirmed((prev) => { const next = new Set(prev); next.delete(kind); return next; });
+      return;
+    }
+    if (contactComplete(form[kind])) setConfirm({ kind, thenSave: false });
+    else setForm((f) => ({ ...f, [kind]: { ...f[kind], applyToAll: true } }));
+  };
+  const needsConfirmBeforeSave = (): 'alternate' | 'emergency' | null => {
+    for (const kind of ['alternate', 'emergency'] as const) {
+      if (form[kind].applyToAll && !confirmed.has(kind) && contactComplete(form[kind])) return kind;
+    }
+    return null;
+  };
+  const save = () => {
+    const kind = needsConfirmBeforeSave();
+    if (kind) { setConfirm({ kind, thenSave: true }); return; }
+    void onSave(form);
+  };
   /*
    * Re-seed when the record lands.
    *
@@ -454,11 +496,13 @@ export function EditPanel({
             title="Alternate Contact"
             contact={form.alternate}
             onChange={set('alternate')}
+            onApplyAll={requestApplyAll('alternate')}
           />
           <ContactFields
             title="Emergency Contact"
             contact={form.emergency}
             onChange={set('emergency')}
+            onApplyAll={requestApplyAll('emergency')}
           />
         </div>
       </div>
@@ -474,12 +518,27 @@ export function EditPanel({
         <button
           type="button"
           className="ma-paynow"
-          onClick={() => onSave(form)}
+          onClick={save}
           disabled={saving}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
+      {confirm && (
+        <ConfirmContactModal
+          kind={confirm.kind}
+          contact={form[confirm.kind]}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            const { kind, thenSave } = confirm;
+            setConfirm(null);
+            setConfirmed((prev) => new Set(prev).add(kind));
+            const next: EditForm = { ...form, [kind]: { ...form[kind], applyToAll: true } };
+            setForm(next);
+            if (thenSave) void onSave(next);
+          }}
+        />
+      )}
     </section>
   );
 }

@@ -149,15 +149,20 @@ function contactFormFrom(row: Record<string, unknown> | undefined): ContactForm 
  * and for the no-record case, where `editInitial` is undefined and the panel
  * keeps EDIT_DEFAULTS on its own.
  */
-export function editFormFrom(record: AccountRecord): EditForm {
+export function editFormFrom(record: AccountRecord, leaseId?: string): EditForm {
   const addr = addressParts(primaryAddress(record));
   const secondaries = Array.isArray(record.secondaryContacts)
     ? (record.secondaryContacts as Record<string, unknown>[])
     : [];
 
-  // isEmergency splits the two the panel draws; order is not a signal.
-  const emergency = secondaries.find((c) => c.isEmergency);
-  const alternate = secondaries.find((c) => !c.isEmergency);
+  // Secondary contacts are PER LEASE (each row carries a leaseId). The form
+  // edits the selected space's, so its lease's rows come first; any lease's
+  // is the fallback for a record whose rows carry no lease at all.
+  const forLease = (isEmergency: boolean) =>
+    secondaries.find((c) => Boolean(c.isEmergency) === isEmergency && (!leaseId || str(c.leaseId) === leaseId))
+    ?? secondaries.find((c) => Boolean(c.isEmergency) === isEmergency);
+  const emergency = forLease(true);
+  const alternate = forLease(false);
 
   return {
     ...EDIT_DEFAULTS,
@@ -181,6 +186,7 @@ function secondaryFrom(
   form: ContactForm,
   existing: Record<string, unknown> | undefined,
   isEmergency: boolean,
+  leaseId?: string,
 ): SecondaryContactInput | null {
   // Nothing typed is not an instruction to create an empty contact.
   if (!form.first.trim() && !form.last.trim() && !form.email.trim() && !form.phone.trim()) {
@@ -213,6 +219,8 @@ function secondaryFrom(
   } else {
     out.isAlternate = true;
   }
+  // A new row belongs to a lease; an existing one already does.
+  if (!existing?.id && leaseId) out.leaseId = leaseId;
   if (form.phone.trim()) out.phone = { number: form.phone.replace(/[^\d+]/g, '') };
   if (form.address.trim() || form.city.trim() || form.zip.trim()) {
     out.address = {
@@ -234,7 +242,7 @@ function secondaryFrom(
  * So the ids have to be carried through from whatever was loaded, or saving an
  * edit quietly appends a duplicate and leaves the original untouched.
  */
-export function updateFromEditForm(form: EditForm, record: AccountRecord): ContactUpdate {
+export function updateFromEditForm(form: EditForm, record: AccountRecord, leaseId?: string): ContactUpdate {
   const existingAddress = primaryAddress(record);
   const address: ContactAddressInput = {
     line1: form.address.trim(),
@@ -248,9 +256,29 @@ export function updateFromEditForm(form: EditForm, record: AccountRecord): Conta
   const secondaries = Array.isArray(record.secondaryContacts)
     ? (record.secondaryContacts as Record<string, unknown>[])
     : [];
-  const alternate = secondaryFrom(form.alternate, secondaries.find((c) => !c.isEmergency), false);
-  const emergency = secondaryFrom(form.emergency, secondaries.find((c) => c.isEmergency), true);
-  const secondaryContacts = [alternate, emergency].filter(Boolean) as SecondaryContactInput[];
+  /*
+   * ONE ROW PER LEASE. Secondary contacts hang off a lease, so "Apply change
+   * to all spaces" means the same person written to every lease on the
+   * record — an existing row updated by id, a lease without one given a new
+   * row with its leaseId. Unticked, only the selected space's lease is
+   * touched (the one the form was seeded from).
+   */
+  const leaseIds = (Array.isArray(record.leases) ? (record.leases as Record<string, unknown>[]) : [])
+    .map((l) => str(l.id)).filter(Boolean);
+  const existingFor = (isEmergency: boolean, id: string) =>
+    secondaries.find((c) => Boolean(c.isEmergency) === isEmergency && str(c.leaseId) === id)
+    ?? (id === leaseId ? secondaries.find((c) => Boolean(c.isEmergency) === isEmergency && !str(c.leaseId)) : undefined);
+  const rowsFor = (contact: ContactForm, isEmergency: boolean): SecondaryContactInput[] => {
+    const targets = contact.applyToAll ? leaseIds : (leaseId ? [leaseId] : []);
+    if (!targets.length) {
+      const one = secondaryFrom(contact, secondaries.find((c) => Boolean(c.isEmergency) === isEmergency), isEmergency);
+      return one ? [one] : [];
+    }
+    return targets
+      .map((id) => secondaryFrom(contact, existingFor(isEmergency, id), isEmergency, id))
+      .filter((r): r is SecondaryContactInput => r !== null);
+  };
+  const secondaryContacts = [...rowsFor(form.alternate, false), ...rowsFor(form.emergency, true)];
 
   /*
    * Blank fields are OMITTED, not sent as ''.

@@ -61,6 +61,8 @@ export interface BalanceDue {
   amount: string;
   payThrough: string;
   pastDue: boolean;
+  /** YYYY-MM-DD of the oldest open invoice (live only), for ordering. */
+  dueSort?: string;
 }
 
 export interface Contact {
