@@ -473,5 +473,7 @@ localStorage (`@shared/unitHandoff`, `ti.reservation`). In the flow this is
 the widget refuses with "This facility requires the lease to be signed in person.
 Please contact the office to finish your rental." — the same refusal `documents/finalize`
 used to give for Traditional signing. Bellflower is such a property today. The generate call never fails the rental: the lease exists and is
-paid by then, so a failure is logged and reported as `documentGenerated: false`.
+paid by then. It runs in the **background** (it takes ~7s and must not hold the
+"finalizing" screen); a failure is logged, and the result is exposed as the
+`documentGeneration` promise on the rent result.
 `documents/preview` (the step-2 agreement panel) is unchanged.
