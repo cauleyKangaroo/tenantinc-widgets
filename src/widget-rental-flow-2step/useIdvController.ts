@@ -15,17 +15,26 @@ interface StoredIdvSession {
    *  so it is kept for the checkout session (images are not). */
   address?: SafeIdvResult['address'];
   driversLicense?: SafeIdvResult['driversLicense'];
+  /** Who the session belongs to (renterFingerprint). The key is the contact ID,
+   *  and leads with one email share it, so the name/phone must match too. */
+  owner?: string;
+}
+
+/** Name, email and phone as one comparable value. */
+export function renterFingerprint(identity: Pick<IdvIdentity, 'first' | 'last' | 'email' | 'phone'>): string {
+  return [identity.first.trim().toLowerCase(), identity.last.trim().toLowerCase(),
+    identity.email.trim().toLowerCase(), identity.phone.replace(/\D/g, '')].join('|');
 }
 
 const COMPLETED_CHECKOUT_TTL_SECONDS = 30 * 60;
-function saveCompleted(key: string | undefined, result: SafeIdvResult): void {
-  if (!key) return;
-  const previous = readStored(key);
+function saveCompleted(key: string | undefined, result: SafeIdvResult, owner: string | undefined): void {
+  if (!key || !owner) return;
+  const previous = readStored(key, owner);
   const same = previous?.idvId === result.idvId;
   const address = result.address ?? (same ? previous?.address : undefined);
   const driversLicense = result.driversLicense ?? (same ? previous?.driversLicense : undefined);
   if (idvSessionSet(key, JSON.stringify({ completed: true, idvId: result.idvId,
-    expiresAt: Date.now() / 1000 + COMPLETED_CHECKOUT_TTL_SECONDS,
+    expiresAt: Date.now() / 1000 + COMPLETED_CHECKOUT_TTL_SECONDS, owner,
     ...(address ? { address } : {}), ...(driversLicense ? { driversLicense } : {}) }))) idvSessionRemove(`${key}:start-uncertain`);
 }
 
@@ -44,8 +53,9 @@ function storageKey(scope: IdvScope, identity: IdvIdentity): string | undefined 
   return `mariposa:idv:v1:${scope.companyId}:${scope.propertyId}:${owner}`;
 }
 
-function readStored(key: string | undefined): StoredIdvSession | undefined {
-  if (!key) return undefined;
+/** The saved session, only when it belongs to `owner` (an entry without an owner is not reused). */
+function readStored(key: string | undefined, owner: string | undefined): StoredIdvSession | undefined {
+  if (!key || !owner) return undefined;
   try {
     const value = JSON.parse(idvSessionGet(key) ?? 'null') as StoredIdvSession | null;
     if (!value || typeof value.idvId !== 'string' || typeof value.expiresAt !== 'number') return undefined;
@@ -54,6 +64,7 @@ function readStored(key: string | undefined): StoredIdvSession | undefined {
       idvSessionRemove(key);
       return undefined;
     }
+    if (value.owner !== owner) return undefined;
     return value;
   } catch {
     idvSessionRemove(key);
@@ -122,6 +133,7 @@ export function useIdvController(options: IdvControllerOptions) {
     () => options.identity ? storageKey({ companyId, propertyId }, options.identity) : undefined,
     [companyId, options.identity, propertyId],
   );
+  const owner = options.identity ? renterFingerprint(options.identity) : undefined;
 
   useEffect(() => {
     if (!options.enabled || !options.api || !options.identity) {
@@ -132,7 +144,7 @@ export function useIdvController(options: IdvControllerOptions) {
     const generation = state.generation + 1;
     lookupFailed.current = false;
     dispatch({ type: 'check' });
-    const stored = readStored(key);
+    const stored = readStored(key, owner);
     const uncertain = Boolean(key && idvSessionGet(`${key}:start-uncertain`));
     if (uncertain && !stored && !options.lookupByEmail) {
       setVerificationUrl(undefined);
@@ -185,7 +197,7 @@ export function useIdvController(options: IdvControllerOptions) {
             driversLicense: result.driversLicense ?? stored.driversLicense,
           };
         }
-        if (result?.authenticated) saveCompleted(key, result);
+        if (result?.authenticated) saveCompleted(key, result, owner);
         // Only an authenticated result completes (the reducer enforces it too):
         // an old, failed verification on the contact leaves the renter to verify now.
         dispatch(result?.authenticated
@@ -218,7 +230,7 @@ export function useIdvController(options: IdvControllerOptions) {
         return { kind: 'complete', value: result };
       },
       onComplete(result) {
-        saveCompleted(key, result);
+        saveCompleted(key, result, owner);
         dispatch({ type: 'complete', generation: state.generation, result });
       },
       onFailed(reason) {
@@ -246,7 +258,7 @@ export function useIdvController(options: IdvControllerOptions) {
           .then((result) => {
             if (expiryLookup.signal.aborted) return;
             if (result?.authenticated) {
-              saveCompleted(key, result);
+              saveCompleted(key, result, owner);
               dispatch({ type: 'complete', generation: state.generation, result });
             } else {
               dispatch({ type: 'expired', generation: state.generation });
@@ -304,7 +316,7 @@ export function useIdvController(options: IdvControllerOptions) {
       // already billed and texted into an error.
       if (key) {
         const saved = idvSessionSet(key, JSON.stringify({
-          idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl.href,
+          idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl.href, owner,
         }));
         if (saved) idvSessionRemove(`${key}:start-uncertain`);
       }
@@ -367,7 +379,7 @@ export function useIdvController(options: IdvControllerOptions) {
       setVerificationUrl(safeUrl.href);
       if (key) {
         const saved = idvSessionSet(key, JSON.stringify({
-          idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl.href,
+          idvId: started.idvId, expiresAt: started.expiresAt, verificationUrl: safeUrl.href, owner,
         }));
         if (saved) idvSessionRemove(`${key}:start-uncertain`);
       }

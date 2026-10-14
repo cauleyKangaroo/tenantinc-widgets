@@ -347,7 +347,8 @@ async function main() {
         if (pollExpired) throw new ExpiredError('This verification session has expired. Please start again.', false);
         return { status: 'complete', ...scanned };
       } } };
-  saved.set('mariposa:idv:v1:co:prop:keep-details', JSON.stringify({ completed: true, idvId: rawId, expiresAt: Date.now() / 1000 + 600 }));
+  const owner = [identity.first, identity.last, identity.email].map(v => v.trim().toLowerCase()).concat(identity.phone.replace(/\D/g, '')).join('|');
+  saved.set('mariposa:idv:v1:co:prop:keep-details', JSON.stringify({ completed: true, idvId: rawId, expiresAt: Date.now() / 1000 + 600, owner }));
   root = createRoot(document.getElementById('root'));
   await render(keepDetails);
   assert.equal(controller.state.result.address.street, '1 Main St', 'a live completion carries the address');
@@ -367,6 +368,24 @@ async function main() {
   await React.act(async () => { controller.retry(); await new Promise(resolve => setTimeout(resolve, 0)); });
   assert.equal(controller.state.kind, 'complete');
   assert.equal(controller.state.result.address.street, '1 Main St', 'a failed lookup does not discard the saved scan');
+  await React.act(async () => root.unmount());
+
+  // A saved session belongs to one renter: same contact ID (leads share it by
+  // email) but a different name must not reuse it.
+  let otherPolls = 0;
+  const otherName = { ...keepDetails, identity: { ...keepDetails.identity, first: 'Someone', last: 'Else' },
+    api: { ...keepDetails.api,
+      poll: async () => { otherPolls++; return { status: 'complete', ...scanned }; },
+      lookupByEmail: async () => undefined } };
+  root = createRoot(document.getElementById('root'));
+  await render(otherName);
+  assert.equal(otherPolls, 0, "another renter's saved verification is not re-confirmed");
+  assert.equal(controller.state.kind, 'ready', 'a different renter on the same contact ID verifies for themselves');
+  await React.act(async () => root.unmount());
+  saved.set('mariposa:idv:v1:co:prop:legacy', JSON.stringify({ completed: true, idvId: rawId, expiresAt: Date.now() / 1000 + 600 }));
+  root = createRoot(document.getElementById('root'));
+  await render({ ...otherName, identity: { ...identity, contactId: 'legacy', leaseId: undefined } });
+  assert.equal(otherPolls, 0, 'a saved session without an owner is not reused');
   await React.act(async () => root.unmount());
   dom.window.close();
   console.log('IDV controller race tests passed');
