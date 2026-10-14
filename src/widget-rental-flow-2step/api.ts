@@ -560,12 +560,10 @@ interface ApiDocument {
 export async function fetchLeaseDocument(ctx: RentalCtx): Promise<LeaseDocument | undefined> {
   const data = unwrap(await getJson(`companies/${ctx.companyId}/properties/${ctx.propertyId}/documents`));
   const docs = (data?.documents as ApiDocument[] | undefined) ?? [];
-  // super-lease first (what the generate call is for); a property without one
-  // (Bellflower, 2026-10-14) falls back to its plain lease, then to any signed
-  // document, so the name on the agreement panel never goes blank.
-  const lease = docs.find((d) => d.type === 'super-lease')
-    ?? docs.find((d) => d.type === 'lease')
-    ?? docs.find((d) => d.signed === 1);
+  // The super-lease is the ONLY document a rental can be completed online
+  // with (see rentSpace). Any other signed document is kept purely so the
+  // agreement panel has a name to show; it does not make the property rentable.
+  const lease = docs.find((d) => d.type === 'super-lease') ?? docs.find((d) => d.signed === 1);
   if (!lease) return undefined;
   return { id: lease.id, name: lease.name, type: lease.type, signed: lease.signed === 1 };
 }
@@ -2509,6 +2507,23 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
   const a: RentArgs = { ...args, contact: { ...args.contact, phone: phoneE164 } };
 
   /*
+   * A property with no super-lease cannot complete a rental online: that is
+   * the "Traditional signing" case documents/finalize used to refuse, and
+   * the refusal moves here, BEFORE the lease is made and the card charged —
+   * a lease nobody can sign for must not exist. Bellflower is one such
+   * property today (2026-10-14).
+   */
+  const leaseDoc = await fetchLeaseDocument(ctx).catch(() => undefined);
+  if (!leaseDoc || leaseDoc.type !== 'super-lease') {
+    console.error('[rental] no super-lease document on this property — online rental refused.', leaseDoc);
+    return {
+      ok: false,
+      stage: 'documents',
+      error: 'This facility requires the lease to be signed in person. Please contact the office to finish your rental.',
+    };
+  }
+
+  /*
    * The lease FIRST, with no documents — documents/finalize is not called any
    * more (TenantInc, 2026-10-14). The agreement is generated against the new
    * lease straight after, from the property's super-lease document.
@@ -2522,10 +2537,7 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
   memoInvalidate('units/available');
 
   let documentGenerated = false;
-  const leaseDoc = await fetchLeaseDocument(ctx).catch(() => undefined);
-  if (!leaseDoc) {
-    console.warn('[rental] lease created but the property has no lease document to generate — the office will need to issue it.');
-  } else if (!lease.contactId) {
+  if (!lease.contactId) {
     console.warn('[rental] lease created but the reply named no tenant contact — the agreement was not generated.');
   } else {
     documentGenerated = await generateLeaseDocument(ctx, {
