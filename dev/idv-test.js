@@ -468,6 +468,14 @@ async function testEmailRecovery() {
   assert.deepEqual({ ...(await api.poll(scope, rawId)).address }, { street: '1 Main St', city: 'Irvine', state: 'CA', zip: '92618' }, 'completion carries the scanned address');
   payload = { status: 'complete', idvId: rawId, authenticated: true };
   assert.equal((await api.poll(scope, rawId)).address, undefined, 'no address when the scan returns none');
+  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, verified: true, first_name: 'RAYMOND', last_name: 'NASSAR', verified_at: '2026-10-14 17:23:51' }];
+  assert.equal((await api.lookupByEmail(scope, 'test@example.com', undefined, { first: ' Raymond ', last: 'nassar' })).idvId, rawId, 'name read off the ID matches the typed name');
+  assert.equal(await api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'Jane', last: 'Nassar' }), undefined, 'a shared email cannot lend another person their verification');
+  assert.equal(await api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'José', last: 'Núñez' }), undefined);
+  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, first_name: 'JOSE', last_name: 'NUNEZ' }];
+  assert.equal((await api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'José', last: 'Núñez' })).idvId, rawId, 'accents and case are ignored');
+  payload = [{ status: 'pending', idv_id: rawId, authenticated: true, first_name: 'OTHER', last_name: 'PERSON' }];
+  assert.equal(await api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'Raymond', last: 'Nassar' }), undefined, "another person's pending session does not block this renter");
   payload = [{ status: 'pending', idv_id: rawId, authenticated: true }];
   await assert.rejects(api.lookupByEmail(scope, 'test@example.com'), /pending/, 'pending recovery never permits another start');
   payload = [{ status: 'complete', idv_id: rawId, authenticated: false }];

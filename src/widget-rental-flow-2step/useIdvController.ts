@@ -20,6 +20,15 @@ function saveCompleted(key: string | undefined, result: SafeIdvResult): void {
     expiresAt: Date.now() / 1000 + COMPLETED_CHECKOUT_TTL_SECONDS }))) idvSessionRemove(`${key}:start-uncertain`);
 }
 
+/** The verification record for this renter: by email before a lease exists
+ *  (verify first), by contact once it does (rent first). */
+function lookupRecord(options: IdvControllerOptions, scope: IdvScope, signal: AbortSignal): Promise<SafeIdvResult | undefined> {
+  const { api, identity } = options;
+  if (!api || !identity) return Promise.resolve(undefined);
+  if (options.lookupByEmail) return api.lookupByEmail(scope, identity.email, signal, { first: identity.first, last: identity.last });
+  return identity.contactId ? api.lookup(scope, identity.contactId, signal) : Promise.resolve(undefined);
+}
+
 function storageKey(scope: IdvScope, identity: IdvIdentity): string | undefined {
   const owner = identity.contactId || identity.leaseId;
   if (!owner) return undefined;
@@ -135,12 +144,7 @@ export function useIdvController(options: IdvControllerOptions) {
     let cancelled = false;
     const lookupController = new AbortController();
     const api = options.api;
-    const identity = options.identity;
-    const recordLookup = () => (options.lookupByEmail
-      ? api.lookupByEmail({ companyId, propertyId }, identity.email, lookupController.signal)
-      : identity.contactId
-        ? api.lookup({ companyId, propertyId }, identity.contactId, lookupController.signal)
-        : Promise.resolve(undefined));
+    const recordLookup = () => lookupRecord(options, { companyId, propertyId }, lookupController.signal);
     const lookup = stored?.completed
       ? api.poll({ companyId, propertyId }, stored.idvId, lookupController.signal).then(result => {
         if (result.status === 'pending') throw new Error('Previously completed verification is still pending.');
@@ -179,7 +183,8 @@ export function useIdvController(options: IdvControllerOptions) {
 
   useEffect(() => {
     if (state.kind !== 'pending' || !options.api) return undefined;
-    return startIdvPolling<SafeIdvResult>({
+    const expiryLookup = new AbortController();
+    const stopPolling = startIdvPolling<SafeIdvResult>({
       expiresAt: state.expiresAt,
       poll: async (signal) => {
         const result = await options.api!.poll({ companyId, propertyId }, state.idvId, signal);
@@ -208,14 +213,35 @@ export function useIdvController(options: IdvControllerOptions) {
           idvSessionRemove(key);
           if (!state.resendUncertain) idvSessionRemove(`${key}:start-uncertain`);
         }
-        dispatch(state.resendUncertain
-          ? { type: 'error', generation: state.generation, retryable: false }
-          : { type: 'expired', generation: state.generation });
+        if (state.resendUncertain) {
+          dispatch({ type: 'error', generation: state.generation, retryable: false });
+          return;
+        }
+        // The capture may have finished while this tab was frozen or between
+        // polls. Check the record before calling it expired, so Reverify never
+        // bills a second verification for one that completed.
+        void lookupRecord(latestOptions.current, { companyId, propertyId }, expiryLookup.signal)
+          .then((result) => {
+            if (expiryLookup.signal.aborted) return;
+            if (result?.authenticated) {
+              saveCompleted(key, result);
+              dispatch({ type: 'complete', generation: state.generation, result });
+            } else {
+              dispatch({ type: 'expired', generation: state.generation });
+            }
+          })
+          .catch(() => {
+            if (expiryLookup.signal.aborted) return;
+            // Unknown outcome: retry repeats this lookup rather than starting again.
+            lookupFailed.current = true;
+            dispatch({ type: 'error', generation: state.generation, retryable: true });
+          });
       },
       onError() {
         // Scheduler owns retry/backoff. State remains pending and observable.
       },
     });
+    return () => { expiryLookup.abort(); stopPolling(); };
   }, [companyId, key, options.api, propertyId, state]);
 
   const device = useCaptureDevice();

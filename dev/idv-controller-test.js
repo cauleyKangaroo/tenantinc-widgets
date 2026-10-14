@@ -288,6 +288,51 @@ async function main() {
   assert.ok(completionCache.expiresAt > Date.now() / 1000 && completionCache.expiresAt <= Date.now() / 1000 + 1801);
   assert.equal('driversLicense' in completionCache, false, 'completion cache stores no scanned ID details');
   await React.act(async () => root.unmount());
+
+  // Expiry checks the record before calling the session expired.
+  let expiryRecord;
+  let expiryFails = false;
+  let expiryLookups = 0;
+  let expiryStarts = 0;
+  const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+  const expiring = contactId => ({ ...recovery, identity: { ...identity, contactId, leaseId: undefined },
+    api: { ...recovery.api,
+      lookupByEmail: async (_scope, _email, _signal, name) => {
+        expiryLookups++;
+        assert.deepEqual({ ...name }, { first: identity.first, last: identity.last }, 'recovery is bound to the renter name');
+        if (expiryFails) throw new Error('unavailable');
+        return expiryRecord;
+      },
+      start: async () => { expiryStarts++; return { ...response, idvId: rawId }; } } });
+  root = createRoot(document.getElementById('root'));
+  await render(expiring('expiry-complete'));
+  await React.act(async () => controller.start());
+  assert.equal(controller.state.kind, 'pending');
+  expiryRecord = { idvId: rawId, authenticated: true };
+  await React.act(async () => { pollingOptions.onExpired(); await settle(); });
+  assert.equal(controller.state.kind, 'complete', 'a capture finished while checkout slept is found at expiry');
+  assert.equal(expiryStarts, 1, 'no second billable start');
+  await React.act(async () => root.unmount());
+  expiryRecord = undefined;
+  root = createRoot(document.getElementById('root'));
+  await render(expiring('expiry-none'));
+  await React.act(async () => controller.start());
+  await React.act(async () => { pollingOptions.onExpired(); await settle(); });
+  assert.equal(controller.state.kind, 'expired', 'no completed record: the session really expired');
+  await React.act(async () => root.unmount());
+  root = createRoot(document.getElementById('root'));
+  await render(expiring('expiry-down'));
+  await React.act(async () => controller.start());
+  const startsBeforeOutage = expiryStarts;
+  expiryFails = true;
+  await React.act(async () => { pollingOptions.onExpired(); await settle(); });
+  assert.equal(controller.state.kind, 'error');
+  assert.equal(controller.state.retryable, true);
+  const lookupsBeforeRetry = expiryLookups;
+  await React.act(async () => { controller.retry(); await settle(); });
+  assert.equal(expiryLookups, lookupsBeforeRetry + 1, 'retry after an unknown expiry repeats the lookup');
+  assert.equal(expiryStarts, startsBeforeOutage, 'an unknown outcome never becomes another billable start');
+  await React.act(async () => root.unmount());
   dom.window.close();
   console.log('IDV controller race tests passed');
 }

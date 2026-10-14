@@ -94,6 +94,17 @@ function operation(raw: unknown, allowList = false): { status: number; data: Jso
   };
 }
 
+function comparableName(value: unknown): string {
+  return typeof value === 'string'
+    ? value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '')
+    : '';
+}
+
+function sameName(recorded: unknown, typed: string): boolean {
+  const a = comparableName(recorded);
+  return Boolean(a) && a === comparableName(typed);
+}
+
 function safeId(value: string): string {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(value)) throw new Error('Invalid ID verification identifier.');
   return encodeURIComponent(value);
@@ -193,10 +204,14 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
       };
     },
 
-    async lookupByEmail(scope: IdvScope, email: string, signal?: AbortSignal): Promise<SafeIdvResult | undefined> {
+    async lookupByEmail(scope: IdvScope, email: string, signal?: AbortSignal, name?: { first: string; last: string }): Promise<SafeIdvResult | undefined> {
       const data = await call(scope, `identity-verifications?email=${encodeURIComponent(email.trim())}`, { signal }, true, true);
       if (!Array.isArray(data)) throw new Error('Invalid email verification lookup response.');
-      const rows = data.map(row => record(row, 'lookup record'));
+      // The lookup is company-wide by email, so a shared address must not lend
+      // one person's verification to another: only records whose name (as read
+      // off the ID) matches the renter count.
+      const rows = data.map(row => record(row, 'lookup record'))
+        .filter(row => !name || (sameName(row.first_name, name.first) && sameName(row.last_name, name.last)));
       const completed = rows.filter(row => row.status === 'complete');
       if (!completed.length) {
         if (rows.some(row => row.status === 'pending')) throw new Error('Verification is still pending. Check again before starting another session.');
