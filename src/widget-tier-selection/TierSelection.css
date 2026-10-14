@@ -1114,7 +1114,7 @@
 .ts-modal-subtitle { font-size: 18px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
 .ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #e53935; }
 .ts-modal-urgency--empty { display: none; }
-.ts-modal-admin { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 20px 0 0; text-align: center; font-size: 18px; line-height: 1.5; font-weight: 400; color: #101318; }
+.ts-modal-admin { box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 20px 0 0; text-align: center; font-size: 18px; line-height: 1.5; font-weight: 400; color: #101318; }
 .ts-modal-admin-info { color: #101318; flex: 0 0 auto; }
 .ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 32px 32px; background: #f4f6f8; }
 /*
