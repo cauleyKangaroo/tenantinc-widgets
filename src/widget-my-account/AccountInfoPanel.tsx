@@ -175,7 +175,10 @@ export function AccountInfoPanel({
           </div>
         </div>
 
-        <ul className="ma-info__list ma-action__links">
+        {/* Change Address Form and Schedule Move Out — switched off for now
+            (2026-10-14): neither has a destination yet, and a link that goes
+            nowhere is worse than none. Restore by uncommenting.
+                <ul className="ma-info__list ma-action__links">
           <li className="ma-info__row">
             <span className="ma-info__icon"><FileTextIcon /></span>
             <button type="button" className="ma-docs__link">Change Address Form</button>
@@ -185,6 +188,7 @@ export function AccountInfoPanel({
             <button type="button" className="ma-docs__link">Schedule Move Out</button>
           </li>
         </ul>
+        */}
       </div>
     </section>
   );

@@ -866,8 +866,44 @@ export type LeasePaymentMethod =
 
 export interface LeasePaymentRequest {
   amount: number;
-  invoices: Array<{ id: string; amount: number }>;
+  /** The open invoices this pays. Absent on a PREPAY. */
+  invoices?: Array<{ id: string; amount: number }>;
+  /** Months ahead to prepay — its own payment, with `amount` from the prepay
+   *  quote (never rent × months: the quote carries tax and fees). */
+  prepayMonths?: number;
   paymentMethod: LeasePaymentMethod;
+}
+
+/**
+ * What prepaying N months would cost, and how far it pays the lease through.
+ *
+ *   GET /api/account/leases/{lease}/prepay?months=N
+ *     → { months, total, paidThrough, invoices: [{ periodStart, periodEnd,
+ *         due, subTotal, totalTax, totalDiscounts, totalDue, balance, lines }] }
+ *
+ * Verified live 2026-10-14: a $93 lease quoted 101.14 for one month (tax and
+ * fees on top), paid through 2026-11-30 — which is why the quote, not the
+ * rent, is what the payment sends.
+ */
+export interface PrepayQuote {
+  months: number;
+  total: number;
+  /** YYYY-MM-DD. */
+  paidThrough: string;
+}
+
+function readPrepayQuote(d: Record<string, unknown>): PrepayQuote | null {
+  if (typeof d.total !== 'number') return null;
+  return { months: typeof d.months === 'number' ? d.months : 0, total: d.total, paidThrough: strOr(d.paidThrough) };
+}
+
+export async function fetchPrepayQuote(
+  cfg: LoginApiConfig,
+  token: string,
+  leaseId: string,
+  months: number,
+): Promise<AuthedResult<PrepayQuote>> {
+  return getJson(cfg, token, `/api/account/leases/${encodeURIComponent(leaseId)}/prepay?months=${encodeURIComponent(String(months))}`, readPrepayQuote);
 }
 
 export interface LeasePaymentReceipt {
@@ -881,7 +917,10 @@ export interface LeasePaymentReceipt {
   raw: Record<string, unknown>;
 }
 
-function readReceipt(d: Record<string, unknown>): LeasePaymentReceipt {
+function readReceipt(raw: Record<string, unknown>): LeasePaymentReceipt {
+  // Live reply (2026-10-14): { payment: { id, amount, status }, message } —
+  // the receipt sits under `payment`. Older/flat shapes are read as before.
+  const d = (raw.payment && typeof raw.payment === 'object' ? { ...raw, ...(raw.payment as Record<string, unknown>) } : raw);
   const pm = (d.paymentMethod && typeof d.paymentMethod === 'object' ? d.paymentMethod : {}) as Record<string, unknown>;
   const last4 = strOr(d.last4) || strOr(pm.last4) || strOr(d.cardLast4);
   return {
