@@ -1097,7 +1097,7 @@
 /* Room on the right for the close button, which is pinned rather than laid
    out here — see .ts-modal-close. Without it a long heading or admin line
    would run under the mark. */
-.ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; padding-right: 72px; }
+.ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; padding-right: 88px; }
 .ts-modal-heading-main { text-align: left; }
 .ts-modal-actions { display: flex; align-items: flex-start; justify-content: flex-end; gap: 20px; flex: 0 0 auto; }
 /* Keep urgency on the top row, immediately before the pinned close control.
