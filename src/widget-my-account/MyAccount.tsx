@@ -56,8 +56,7 @@ import {
   fetchMe, fetchContact, updateContact, fetchDocumentFile, saveBlob, loginApiReady,
   type LoginApiConfig, type AccountRecord,
   fetchLeaseCoverage, previewCoverage, applyCoverage,
-  payLease,
-} from '@shared/accountApi';
+  payLease, fetchPrepayQuote, } from '@shared/accountApi';
 import {
   editFormFrom, updateFromEditForm,
   primaryContactFrom, alternateContactFrom,
@@ -579,7 +578,18 @@ export function MyAccount({
     return {
       gpPublicKey: explicit || (looked !== undefined ? looked : (canLookUp ? undefined : '')),
       gatewayPending: !explicit && looked === undefined && canLookUp,
-      savedCards: savedCardsFrom(record).filter((c) => c.propertyId === space.propertyId),
+      /* This property's cards, ONE tile per distinct card. The account record
+         lists the same card once per lease it was used on (23 rows of one VISA
+         ····1111 on the test account), which stacked six identical tiles. The
+         first id for each card is kept — any of them charges the same card. */
+      savedCards: savedCardsFrom(record)
+        .filter((c) => c.propertyId === space.propertyId)
+        .filter((c, i, all) => all.findIndex((o) => o.cardType === c.cardType && o.last4 === c.last4 && o.nameOnCard === c.nameOnCard) === i),
+      quotePrepay: async (leaseId, months) => {
+        const r = await fetchPrepayQuote(api, token, leaseId, months);
+        if (!r.ok && r.unauthorized) signOut();
+        return r.ok ? r.data : null;
+      },
       pay: async (leaseId, body, idempotencyKey) => {
         const r = await payLease(api, token, leaseId, body, idempotencyKey);
         if (r.ok) {

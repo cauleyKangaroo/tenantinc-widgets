@@ -53,7 +53,7 @@
 // ===========================================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CoveragePlan, LeaseCoverage, LeasePaymentMethod, LeasePaymentReceipt, LeasePaymentRequest } from '@shared/accountApi';
+import type { CoveragePlan, LeaseCoverage, LeasePaymentMethod, LeasePaymentReceipt, LeasePaymentRequest, PrepayQuote } from '@shared/accountApi';
 import { Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
 import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from '@shared/paymentForms';
 import {
@@ -91,6 +91,8 @@ export interface PaymentHandlers {
   savedCards: SavedCard[];
   pay: (leaseId: string, body: LeasePaymentRequest, idempotencyKey: string) =>
     Promise<{ ok: true; receipt: LeasePaymentReceipt } | { ok: false; message: string }>;
+  /** What N months ahead would cost on a lease — the figure the prepay sends. */
+  quotePrepay: (leaseId: string, months: number) => Promise<PrepayQuote | null>;
 }
 
 /** What MyAccount gives the panel to talk to the coverage endpoints. */
@@ -343,12 +345,47 @@ export function MakePaymentPanel({
      the month already due; ticked at 1 is x2, that month plus one more.
      The frames show the control but not the arithmetic behind it, so this is
      the reading, stated here rather than buried in the render. */
-  const monthsFactor = prepay ? 1 + prepayMonths : 1;
+  const monthsFactor = payment ? 1 : (prepay ? 1 + prepayMonths : 1);
+
+  /*
+   * LIVE PREPAY. The arithmetic above is the sample's: it scales the printed
+   * breakdown. A real lease is priced by the proxy — tax and fees ride on the
+   * rent — so each selected space is QUOTED for the chosen months (debounced
+   * behind the stepper) and the quote's total is what the line, the bar and
+   * the payment all use. 'loading' while out, 'failed' when the quote could
+   * not be had, and Pay says so rather than guessing a figure.
+   */
+  const [prepayQuotes, setPrepayQuotes] = useState<Record<string, PrepayQuote | 'loading' | 'failed'>>({});
+  /* STRING keys, not the arrays: `list` is rebuilt on every render and
+     `selected` is a Set, so keying the effect on them re-ran it each render,
+     reset every quote to 'loading' and dropped the replies as cancelled. */
+  const selectedKey = [...selected].sort().join('|');
+  useEffect(() => {
+    if (!payment || !prepay) { setPrepayQuotes({}); return undefined; }
+    const ids = selectedKey ? selectedKey.split('|') : [];
+    setPrepayQuotes(Object.fromEntries(ids.map((id) => [id, 'loading' as const])));
+    let cancelled = false;
+    const t = window.setTimeout(() => {
+      ids.forEach((id) => {
+        void payment.quotePrepay(id, prepayMonths)
+          .then((q) => { if (!cancelled) setPrepayQuotes((prev) => ({ ...prev, [id]: q ?? 'failed' })); });
+      });
+    }, 350);
+    return () => { cancelled = true; window.clearTimeout(t); };
+    // `payment` is rebuilt by its parent on unrelated state; its quotePrepay is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!payment, prepay, prepayMonths, listKey, selectedKey]);
+  const prepayQuoteFor = (sp: AccountSpace): PrepayQuote | null => {
+    const q = prepayQuotes[sp.id];
+    return q && q !== 'loading' && q !== 'failed' ? q : null;
+  };
+  const prepayAmount = (sp: AccountSpace): number => prepayQuoteFor(sp)?.total ?? 0;
 
   const balanceTotal = useMemo(
     () => list.filter((s) => selected.has(s.id))
-      .reduce((sum, s) => sum + (money(s.total) || money(s.balance.amount)), 0) * monthsFactor,
-    [list, selected, monthsFactor],
+      .reduce((sum, s) => sum + (money(s.total) || money(s.balance.amount)) * monthsFactor + prepayAmount(s), 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [list, selected, monthsFactor, prepayQuotes],
   );
   const anyPastDue = list.some((s) => selected.has(s.id) && s.balance.pastDue);
 
@@ -413,9 +450,30 @@ export function MakePaymentPanel({
   };
   const payLive = async (card?: CardFormValue, saved?: SavedCard) => {
     if (!payment || paying) return;
-    const targets = list.filter((s) => selected.has(s.id) && s.openInvoices.length > 0);
-    if (targets.length === 0) {
-      finishPayment('failed', null, 'There is nothing outstanding on the selected space(s) to pay.');
+    /*
+     * One STEP per thing to pay: a space's open invoices, and — with prepay
+     * on — its prepay, each its own call (the API takes `invoices` or
+     * `prepayMonths`, and the prepay's amount is the quote's). A space can
+     * contribute both. The order is invoices first, so what is owed is
+     * settled before anything is paid ahead.
+     */
+    type Step = { sp: AccountSpace; body: Omit<LeasePaymentRequest, 'paymentMethod'>; label: string; key: string };
+    const steps: Step[] = [];
+    for (const sp of list.filter((s) => selected.has(s.id))) {
+      if (sp.openInvoices.length > 0) {
+        const invoices = sp.openInvoices.map((i) => ({ id: i.id, amount: i.amount }));
+        const amount = Math.round(invoices.reduce((n, i) => n + i.amount, 0) * 100) / 100;
+        steps.push({ sp, body: { amount, invoices }, label: sp.paymentNumber, key: sp.id });
+      }
+      if (prepay) {
+        const q = prepayQuotes[sp.id];
+        if (!q || q === 'loading') { finishPayment('failed', null, 'The prepay amount is still being calculated. Please try again in a moment.'); return; }
+        if (q === 'failed') { finishPayment('failed', null, `We could not price the prepay for ${sp.paymentNumber}. Please try again.`); return; }
+        steps.push({ sp, body: { amount: q.total, prepayMonths: q.months }, label: `${sp.paymentNumber} prepay`, key: `${sp.id}:prepay:${q.months}` });
+      }
+    }
+    if (steps.length === 0) {
+      finishPayment('failed', null, 'There is nothing outstanding on the selected space(s) to pay. Tick "Prepay Additional Month(s)" to pay ahead.');
       return;
     }
     if (!saved && !card?.token) {
@@ -428,21 +486,19 @@ export function MakePaymentPanel({
     let savedId = saved?.id ?? '';
     let paidTotal = 0;
     let last: LeasePaymentReceipt | undefined;
-    const paid: AccountSpace[] = [];
+    const paid: Step[] = [];
     let failure = '';
-    for (const sp of targets) {
-      const invoices = sp.openInvoices.map((i) => ({ id: i.id, amount: i.amount }));
-      const amount = Math.round(invoices.reduce((n, i) => n + i.amount, 0) * 100) / 100;
+    for (const step of steps) {
       const method: LeasePaymentMethod = savedId
         ? { type: 'saved', id: savedId }
-        : { type: 'hosted-card', token: card!.token!, zip: card!.zip, saveToAccount: targets.length > 1, autopay: autopayFor(sp) };
-      const r = await payment.pay(sp.id, { amount, invoices, paymentMethod: method }, idemKeyFor(sp.id));
+        : { type: 'hosted-card', token: card!.token!, zip: card!.zip, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) };
+      const r = await payment.pay(step.sp.id, { ...step.body, paymentMethod: method }, idemKeyFor(step.key));
       if (!r.ok) { failure = r.message; break; }
-      idemKeys.current.delete(sp.id);
-      paidTotal += amount; last = r.receipt; paid.push(sp);
-      if (!savedId && paid.length < targets.length) {
+      idemKeys.current.delete(step.key);
+      paidTotal += step.body.amount; last = r.receipt; paid.push(step);
+      if (!savedId && paid.length < steps.length) {
         if (r.receipt.savedPaymentMethodId) savedId = r.receipt.savedPaymentMethodId;
-        else { failure = 'The card could only be charged once in this session. Please pay the remaining space(s) separately.'; break; }
+        else { failure = 'The card could only be charged once in this session. Please pay the remaining item(s) separately.'; break; }
       }
     }
     setPaying(false);
@@ -454,8 +510,8 @@ export function MakePaymentPanel({
     };
     if (!failure) { finishPayment('success', summary, ''); return; }
     if (paid.length) {
-      const unpaid = targets.filter((s) => !paid.includes(s)).map((s) => s.paymentNumber).join(', ');
-      finishPayment('failed', summary, `${paid.map((s) => s.paymentNumber).join(', ')} paid (${summary.amount}). Not paid: ${unpaid}. ${failure}`);
+      const unpaid = steps.filter((s) => !paid.includes(s)).map((s) => s.label).join(', ');
+      finishPayment('failed', summary, `${paid.map((s) => s.label).join(', ')} paid (${summary.amount}). Not paid: ${unpaid}. ${failure}`);
     } else finishPayment('failed', null, failure);
   };
   const bankNotLive = () =>
@@ -709,6 +765,23 @@ export function MakePaymentPanel({
                 )}
               </>)}
 
+              {/* LIVE PREPAY, as quoted for this space: the months and the date
+                  it pays the lease through, and the proxy's total. */}
+              {payment && prepay && selected.has(sp.id) && (
+                <div className="ma-line">
+                  <p className="ma-line__label ma-line__label--plain">
+                    Prepay {prepayMonths} month{prepayMonths === 1 ? '' : 's'}
+                    {prepayQuoteFor(sp)?.paidThrough && (
+                      <span className="ma-line__note"> · paid through {prepayQuoteFor(sp)!.paidThrough}</span>
+                    )}
+                  </p>
+                  <p className="ma-line__amount">
+                    {prepayQuotes[sp.id] === 'loading' ? 'Calculating…'
+                      : prepayQuotes[sp.id] === 'failed' ? 'Unavailable'
+                        : formatMoney(prepayAmount(sp))}
+                  </p>
+                </div>
+              )}
               <div className="ma-line">
                 <p className="ma-line__label ma-line__label--plain">{sp.taxes.label}</p>
                 <p className="ma-line__amount">{scaleMoney(sp.taxes.amount, monthsFactor)}</p>
@@ -716,7 +789,9 @@ export function MakePaymentPanel({
 
               <div className="ma-line ma-line--total">
                 <p className="ma-line__label ma-line__label--total">Total:</p>
-                <p className="ma-line__amount ma-line__amount--total">{scaleMoney(sp.total, monthsFactor)}</p>
+                <p className="ma-line__amount ma-line__amount--total">
+                  {prepayAmount(sp) ? formatMoney(money(sp.total) + prepayAmount(sp)) : scaleMoney(sp.total, monthsFactor)}
+                </p>
               </div>
             </div>
             </div>
@@ -748,9 +823,9 @@ export function MakePaymentPanel({
           <p className="ma-balance__through">{payThrough}</p>
         </div>
 
-        {/* Live: the API posts against invoices and a month not yet billed has
-            none, so prepaying is not something it can take. Static only. */}
-        {!payment && (
+        {/* Prepay: live, each ticked space is quoted for the months chosen
+            (see prepayQuotes) and paid with its own prepay call. */}
+        {(
                   <div className="ma-balance__prepay">
             <Checkbox checked={prepay} onChange={setPrepay} className="ma-balance__check">
               Prepay Additional Month(s)
