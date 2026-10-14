@@ -162,8 +162,12 @@ export function useIdvController(options: IdvControllerOptions) {
         // The status endpoint answers 404 once the capture session has expired,
         // even for a completed verification; the lookup still has the record.
         if (error instanceof IdvRequestError && !error.outcomeUnknown) {
-          if (key) idvSessionRemove(key);
-          return recordLookup();
+          // Keep the saved session (and its scanned details) until the lookup
+          // answers; drop it only when the lookup confirms there is nothing.
+          return recordLookup().then((found) => {
+            if (!found?.authenticated && key) idvSessionRemove(key);
+            return found;
+          });
         }
         throw error;
       })

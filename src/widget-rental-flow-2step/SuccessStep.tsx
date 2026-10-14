@@ -20,7 +20,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Checkbox, FormField, SelectField } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import {
-  MailingAddressReadout, MailingAddressFields, LicenceReadout, LicenceFields, isMaskedLicence, mailingStreet,
+  MailingAddressReadout, MailingAddressFields, LicenceReadout, LicenceFields, isMaskedLicence, isRealDate, mailingStreet,
   type MailingValue, type LicenceValue,
 } from './IdvDetails';
 import {
@@ -362,7 +362,7 @@ export function SuccessStep({
       } : {}),
       ...(licenceRequired && !passportSelected ? {
         dlNumber: dlNumber.trim() && !isMaskedLicence(dlNumber) ? '' : 'Enter the license number',
-        dlExp: dlExp.length === 10 ? '' : 'Enter the expiration date',
+        dlExp: isRealDate(dlExp) ? '' : 'Enter a valid expiration date',
         dlState: dlState.trim().length === 2 ? '' : 'Select the state',
       } : {}),
       /* The three Driver's Licence fields are OPTIONAL and deliberately absent

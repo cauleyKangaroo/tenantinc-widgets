@@ -70,10 +70,19 @@ export function mailingProblems(v: MailingValue): MailingErrors {
   };
 }
 
+/** MM/DD/YYYY that is a real calendar date (not 99/99/2030 or 02/31/2030). */
+export function isRealDate(masked: string): boolean {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(masked.trim());
+  if (!m) return false;
+  const [month, day, year] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const d = new Date(Date.UTC(year, month - 1, day));
+  return d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day;
+}
+
 export function licenceProblems(v: LicenceValue): LicenceErrors {
   return {
     ...(v.number.trim() && !isMaskedLicence(v.number) ? {} : { number: 'Enter the license number' }),
-    ...(/^\d{2}\/\d{2}\/\d{4}$/.test(v.exp.trim()) ? {} : { exp: 'Enter the expiration date' }),
+    ...(isRealDate(v.exp) ? {} : { exp: 'Enter a valid expiration date' }),
     ...(v.state.trim().length === 2 ? {} : { state: 'Select the state' }),
   };
 }

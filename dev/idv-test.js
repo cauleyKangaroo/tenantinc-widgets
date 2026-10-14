@@ -496,6 +496,8 @@ async function testEmailRecovery() {
   assert.equal((await api.lookupByEmail(scope, 'test@example.com', undefined, { first: '小明', last: '王' })).idvId, rawId, 'fully non-Latin names match');
   payload = [{ status: 'pending', idv_id: rawId }];
   await assert.rejects(api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'Raymond', last: 'Nassar' }), /pending/, 'a nameless pending session blocks another start');
+  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, verified_at: '2026-10-14 17:23:51' }];
+  await assert.rejects(api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'Raymond', last: 'Nassar' }), /could not be matched/, 'a nameless completed record is unresolved, not absent');
 }
 
 (async () => {

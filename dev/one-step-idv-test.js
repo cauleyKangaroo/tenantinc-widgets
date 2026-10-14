@@ -94,6 +94,10 @@ async function main() {
   const idvStatus = load('../src/widget-rental-flow-2step/IdvStatus.tsx', {
     'react/jsx-runtime': require('react/jsx-runtime'), './planIcons': { TickSingleIcon: () => null, AlertTriangleIcon: () => null },
   });
+  assert.equal(idvDetails.isRealDate('02/07/2030'), true);
+  assert.equal(idvDetails.isRealDate('99/99/2030'), false, 'not a calendar date');
+  assert.equal(idvDetails.isRealDate('02/31/2030'), false, 'February has no 31st');
+  assert.equal(idvDetails.licenceProblems({ number: 'D123', exp: '02/31/2030', country: 'United States', state: 'CA' }).exp, 'Enter a valid expiration date');
   let detailsReport;
   const Component = load('../src/widget-rental-flow-2step/OneStepIdv.tsx', {
     react: React, 'react/jsx-runtime': require('react/jsx-runtime'),

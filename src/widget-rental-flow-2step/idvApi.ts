@@ -223,6 +223,10 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
       const completed = rows.filter(row => row.status === 'complete');
       if (!completed.length) {
         if (unnamedPending || rows.some(row => row.status === 'pending')) throw new Error('Verification is still pending. Check again before starting another session.');
+        // A completed record with no name on it might be this renter's: unresolved, not absent.
+        if (name && all.some(row => row.status === 'complete' && (!comparableName(row.first_name) || !comparableName(row.last_name)))) {
+          throw new Error('A completed verification could not be matched to this renter.');
+        }
         return undefined;
       }
       const timestamp = (row: JsonRecord): number => {

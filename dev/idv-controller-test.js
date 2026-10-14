@@ -339,9 +339,10 @@ async function main() {
     address: { street: '1 Main St', city: 'Irvine', state: 'CA', zip: '92618' },
     driversLicense: { number: '****5273', state: 'CA', expiration: '2030-02-07' } };
   let pollExpired = false;
+  let lookupDown = false;
   const keepDetails = { ...recovery, identity: { ...identity, contactId: 'keep-details', leaseId: undefined },
     api: { ...recovery.api,
-      lookupByEmail: async () => ({ idvId: rawId, authenticated: true }),
+      lookupByEmail: async () => { if (lookupDown) throw new Error('unavailable'); return { idvId: rawId, authenticated: true }; },
       poll: async () => {
         if (pollExpired) throw new ExpiredError('This verification session has expired. Please start again.', false);
         return { status: 'complete', ...scanned };
@@ -357,6 +358,15 @@ async function main() {
   assert.equal(controller.state.kind, 'complete');
   assert.equal(controller.state.result.address.street, '1 Main St', 'the address survives an expired session');
   assert.equal(controller.state.result.driversLicense.number, '****5273', 'the licence survives an expired session');
+  await React.act(async () => root.unmount());
+  lookupDown = true;
+  root = createRoot(document.getElementById('root'));
+  await render(keepDetails);
+  assert.equal(controller.state.kind, 'error', 'a failed fallback lookup is an error, not a new start');
+  lookupDown = false;
+  await React.act(async () => { controller.retry(); await new Promise(resolve => setTimeout(resolve, 0)); });
+  assert.equal(controller.state.kind, 'complete');
+  assert.equal(controller.state.result.address.street, '1 Main St', 'a failed lookup does not discard the saved scan');
   await React.act(async () => root.unmount());
   dom.window.close();
   console.log('IDV controller race tests passed');

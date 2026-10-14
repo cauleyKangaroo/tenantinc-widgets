@@ -3449,7 +3449,8 @@ export function RentalFlow2Step({
                     // Not awaited — a failure is logged and cannot undo the lease.
                     // The ID check ran before payment, so there is no paid
                     // ID screen: the confirmation says whether it was verified.
-                    if (formMode === '1step' && idvApi) setIdVerified(Boolean(info.idvId));
+                    // Same rule as two-step: verification off counts as satisfied.
+                    if (formMode === '1step' && idvApi) setIdVerified(idvRequirement === 'disabled' || Boolean(info.idvId));
                     if (res.contactId && info.idvDetails) {
                       const d = info.idvDetails;
                       void updateContactDetails(ctx, res.contactId, {
