@@ -54,7 +54,7 @@
   text-transform: none !important;
   letter-spacing: normal !important;
   /* A long facility name must break rather than push the column wider. */
-  overflow-wrap: break-word;
+  overflow-wrap: break-word !important;
 }
 
 /* The loading state. Exactly the height of the line it stands in for — 30px

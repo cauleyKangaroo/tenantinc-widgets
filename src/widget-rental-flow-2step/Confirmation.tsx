@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@shared/ui';
 import {
   KeyIcon, MessageIcon, TickCircleIcon, WriteReviewIcon,
@@ -97,6 +97,95 @@ const WHATS_NEXT = [
   'Call your facility manager with any questions you may have.',
   'If you decide you need a different unit, we can easily make that change for you.',
 ];
+
+/** How long "Copied" stays up, start of the rise to fully faded out. Must
+ *  match the rfc-copied animation, which owns the actual timing curve. */
+const COPIED_MS = 1450;
+
+/**
+ * Write to the clipboard, with a fallback.
+ *
+ * navigator.clipboard needs a SECURE context, which a Duda preview served over
+ * plain http is not — there the modern call rejects (or is missing outright)
+ * and the legacy selection trick is the only thing that works. Returns whether
+ * the text actually landed, so a silent failure never shows "Copied".
+ */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* insecure context or permission refused — try the legacy path */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    // Off-screen rather than display:none — a hidden element cannot be selected.
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Two overlapping rounded squares — the copy mark beside the code. */
+function CopyGlyph({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <rect x="9" y="9" width="12" height="12" rx="3" />
+      <path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+/**
+ * The code, with a button that copies it to the clipboard. "Copied" fades up
+ * and in, holds, then fades out — the press is confirmed without a dialog to
+ * dismiss.
+ *
+ * `text` is what gets copied and `display` is what is drawn, because they are
+ * not the same thing: an access code renders as "#1234*" and the shopper wants
+ * the bare code, not the frame's punctuation, in their clipboard.
+ */
+function CopyableCode({ text, display, label }: { text: string; display: string; label: string }) {
+  // seq keys the toast so a second press REMOUNTS it and the animation plays
+  // again. Toggling a class alone would do nothing while the class is already
+  // on, so an impatient second click would look like it did not register.
+  const [copied, setCopied] = useState<{ on: boolean; seq: number }>({ on: false, seq: 0 });
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  const onCopy = async () => {
+    // Only confirm what actually happened: a refused clipboard shows nothing
+    // rather than claiming a copy the shopper does not have.
+    if (!(await copyText(text))) return;
+    setCopied((c) => ({ on: true, seq: c.seq + 1 }));
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied((c) => ({ ...c, on: false })), COPIED_MS);
+  };
+
+  return (
+    <span className="rfc-code-wrap">
+      <span className="rfc-code">{display}</span>
+      <button type="button" className="rfc-code-copy" onClick={onCopy} aria-label={`Copy ${label}`}>
+        <CopyGlyph size={24} />
+      </button>
+      {/* aria-hidden: this one is the visual badge, kept mounted so it can fade
+          OUT (an unmounted element cannot animate). The announcement is the
+          live region below, which only ever holds text at the moment of the
+          copy — so it is read once, and the badge is not read twice. */}
+      <span key={copied.seq} className={`rfc-copied${copied.on ? ' rfc-copied--on' : ''}`} aria-hidden="true">Copied</span>
+      <span className="rfc-sr-only" role="status">{copied.on ? `${label} copied` : ''}</span>
+    </span>
+  );
+}
 
 function GoogleG() {
   return (
@@ -318,7 +407,7 @@ export function Confirmation({
                 <div className="rfc-code-top">
                   <span className="rfc-code-label"><KeyIcon size={24} />{codeLabel}</span>
                   {code
-                    ? <span className="rfc-code">{isReservation ? code : `#${code}*`}</span>
+                    ? <CopyableCode text={code} display={isReservation ? code : `#${code}*`} label={codeLabel} />
                     : <span className="rfc-code-note">Shown at the facility on move-in.</span>}
                 </div>
                 {/* Wallet strip — shown even before pass URLs exist (Figma). */}

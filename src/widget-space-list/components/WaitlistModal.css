@@ -84,16 +84,16 @@
 }
 
 .sl-wl-heading {
-  display: flex;
-  flex-direction: column;
-  margin: 0 0 18px;
-  font-family: inherit;
-  font-size: 36px;
-  font-weight: 700;
-  line-height: 42px;
-  letter-spacing: 0;
-  color: var(--hb-text-night, #101318);
-  text-transform: none;
+  display: flex !important;
+  flex-direction: column !important;
+  margin: 0 0 18px !important;
+  font-family: inherit !important;
+  font-size: 36px !important;
+  font-weight: 700 !important;
+  line-height: 42px !important;
+  letter-spacing: 0 !important;
+  color: var(--hb-text-night, #101318) !important;
+  text-transform: none !important;
 }
 
 .sl-wl-kicker { color: var(--hb-secondary, #509e2f); }
@@ -134,7 +134,7 @@
   .sl-wl-modal { max-height: calc(100vh - 24px); }
   .sl-wl-head { padding: 16px 20px; }
   .sl-wl-body { padding: 28px 20px 32px; }
-  .sl-wl-heading { font-size: 28px; line-height: 34px; margin-bottom: 12px; }
+  .sl-wl-heading { font-size: 28px !important; line-height: 34px !important; margin-bottom: 12px !important; }
   .sl-wl-text { margin-bottom: 20px; }
   .sl-wl-grid { grid-template-columns: 1fr; gap: 16px; }
   .sl-wl-actions { width: 100%; margin-top: 28px; }

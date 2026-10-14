@@ -43,3 +43,23 @@ export function scrollToSpaceList(): void {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch { /* ignore */ }
 }
+
+/**
+ * URL hash that lands a visitor ON the Space List — `…/property-page#spaces`.
+ *
+ * Written by the rental flow's "Change Space" link (#99), read by the Space
+ * List (#05) once its units are in. A hash rather than a query param: it never
+ * reaches the server, and a page with no Space List simply ignores it.
+ */
+export const SPACES_HASH = 'spaces';
+
+/** `url` with its hash replaced by the Space List's. Unparseable ⇒ unchanged. */
+export function withSpacesHash(url: string): string {
+  const base = url.split('#')[0];
+  return base ? `${base}#${SPACES_HASH}` : url;
+}
+
+/** True when the page was opened asking for the Space List. */
+export function wantsSpaceList(): boolean {
+  try { return window.location.hash.replace(/^#/, '').toLowerCase() === SPACES_HASH; } catch { return false; }
+}

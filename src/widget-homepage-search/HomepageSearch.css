@@ -200,14 +200,14 @@
   color: #101318;
 }
 .hs-card-heading {
-  margin: 0 0 14px 9px;
-  color: #101318;
-  font-family: inherit;
-  font-size: 30px;
-  font-weight: 600;
-  line-height: 1.2;
-  text-transform: none;
-  letter-spacing: normal;
+  margin: 0 0 14px 9px !important;
+  color: #101318 !important;
+  font-family: inherit !important;
+  font-size: 30px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 .hs--search-card .hs-bar {
   position: relative;
@@ -296,7 +296,7 @@
   .hs-find .hs-search-icon { display: block; }
   .hs-suggestions { top: 75px; left: 8px; width: min(360px, calc(100% - 16px)); border-radius: 12px; }
   .hs-card { margin: 0 auto; padding: 28px 22px 32px; border-radius: 22px; }
-  .hs-card-heading { margin-left: 0; padding-right: 0; font-size: 26px; }
+  .hs-card-heading { margin-left: 0 !important; padding-right: 0 !important; font-size: 26px !important; }
   .hs--search-card .hs-suggestions { top: 151px; left: 26px; width: calc(100% - 44px); }
   .hs-promotion { margin-left: 0; }
   .hs-promotion-title { font-size: clamp(40px, 12vw, 54px); }
