@@ -1993,8 +1993,9 @@ export type RentResult =
   | {
     ok: true;
     leaseId: string;
-    /** The agreement was generated against the lease (generateLeaseDocument). */
-    documentGenerated?: boolean;
+    /** The agreement being generated against the lease, in the background
+     *  (generateLeaseDocument) — resolves true once it has. */
+    documentGeneration?: Promise<boolean>;
     paymentId?: string;
     paymentMethodId?: string;
     unitNumber?: string;
@@ -2443,7 +2444,8 @@ async function finalizeLease(
  *
  * Never throws: by now the customer has a lease and has paid, and a document
  * that failed to generate is the office's to regenerate — not a failed
- * rental. Reported on the result as `documentGenerated` and logged.
+ * rental. Runs in the background after the lease; the outcome is logged and
+ * handed back as `documentGeneration` (a promise) on the result.
  */
 export async function generateLeaseDocument(
   ctx: RentalCtx,
@@ -2536,16 +2538,22 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
   }
   memoInvalidate('units/available');
 
-  let documentGenerated = false;
-  if (!lease.contactId) {
-    console.warn('[rental] lease created but the reply named no tenant contact — the agreement was not generated.');
-  } else {
-    documentGenerated = await generateLeaseDocument(ctx, {
+  /*
+   * NOT AWAITED. Generation takes ~7s (measured live 2026-10-14) and the
+   * customer is already a tenant: holding the "finalizing" screen for it
+   * made the loader look stuck for exactly that long once finalize was gone.
+   * It runs in the background; the outcome is logged and handed back as a
+   * promise for anything that does want to wait for it.
+   */
+  const documentGeneration: Promise<boolean> = !lease.contactId
+    ? (console.warn('[rental] lease created but the reply named no tenant contact — the agreement was not generated.'), Promise.resolve(false))
+    : generateLeaseDocument(ctx, {
       leaseId: lease.leaseId, documentId: leaseDoc.id, type: leaseDoc.type,
       contactId: lease.contactId, propertyId: ctx.propertyId,
+    }).then((ok) => {
+      if (!ok) console.warn('[rental] lease created but the agreement did not generate — the office can regenerate it.');
+      return ok;
     });
-    if (!documentGenerated) console.warn('[rental] lease created but the agreement did not generate — the office can regenerate it.');
-  }
 
   // The rental is DONE at this point. Autopay is an add-on: a failure here is
   // reported alongside success, never as a failed rental.
@@ -2569,7 +2577,7 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
     status: lease.status,
     unitNumber: a.unit.number,
     autopay,
-    documentGenerated,
+    documentGeneration,
   };
 }
 
