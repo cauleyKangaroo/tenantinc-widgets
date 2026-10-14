@@ -3,6 +3,7 @@ import './Footer.css';
 import tenantLogo from './tenant-logo.svg';
 import { SOCIALS, PhoneIcon, AiSparkleIcon, ChevronBigRightIcon } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID, type PropertyContact } from '@shared/propertyContact';
+import { boundText } from '@shared/propertyBinding';
 import { readSitePages, pageColumnFor, parseRoutes, type SitePage } from '@shared/sitePages';
 import { openFindStorage } from '@shared/findStorageBus';
 import { hasCollectionsApi } from '@shared/dudaCollections';
@@ -198,6 +199,20 @@ export interface FooterProps {
    */
   loginHref?: string;
   contactHref?: string;
+  /**
+   * The content-menu fields the site now fills the footer from (Duda sends ''
+   * for an empty field). `footer_text` replaces the description paragraph; the
+   * six links decide which social icons show — an empty link hides its icon,
+   * and with all six empty the whole "Follow …" block is gone. Any provided
+   * link outranks the `Properties` collection's socials.
+   */
+  footer_text?: string;
+  facebook_link?: string;
+  instagram_link?: string;
+  youtube_link?: string;
+  twitter_link?: string;
+  linkedin_link?: string;
+  tiktok_link?: string;
 }
 
 export function Footer({
@@ -216,6 +231,8 @@ export function Footer({
   propertyBasePath = DEFAULT_PROPERTY_BASE_PATH,
   loginHref = '/login',
   contactHref = '/contact-us',
+  footer_text,
+  facebook_link, instagram_link, youtube_link, twitter_link, linkedin_link, tiktok_link,
 }: FooterProps) {
   // Phone + social links from the Duda `Properties` collection; the static values
   // above remain the fallback (this bundle holds no API key of its own).
@@ -426,13 +443,31 @@ export function Footer({
   const displayFollowName = contact?.name || companyName;
   const telHref = `tel:${(contact?.phoneDigits || displayPhone).replace(/[^0-9+]/g, '')}`;
 
-  // With live data, show only the platforms this property actually has, linked.
-  // Without it, keep the full static row (unlinked) exactly as before.
-  const socialLinks = contact?.socials.length
-    ? SOCIALS
+  /*
+   * Which icons, and where they go.
+   *
+   * 1. The content-menu links, when any is filled: exactly the platforms with a
+   *    link, in the row's fixed order. An empty field hides its icon.
+   * 2. Else the `Properties` collection's socials for this property (dynamic
+   *    pages), as before.
+   * 3. Else nothing — and with nothing the "Follow …" block does not render.
+   *    The old unlinked placeholder row is gone: a dead icon is a broken link.
+   */
+  const configured: Record<string, string> = {
+    facebook: boundText(facebook_link), instagram: boundText(instagram_link), youtube: boundText(youtube_link),
+    x: boundText(twitter_link), linkedin: boundText(linkedin_link), tiktok: boundText(tiktok_link),
+  };
+  const anyConfigured = Object.values(configured).some(Boolean);
+  const socialLinks = anyConfigured
+    ? SOCIALS.filter((s) => configured[s.key]).map((s) => ({ ...s, href: configured[s.key] }))
+    : contact?.socials.length
+      ? SOCIALS
         .filter((s) => contact.socials.some((c) => c.platform === s.key))
         .map((s) => ({ ...s, href: contact.socials.find((c) => c.platform === s.key)!.url }))
-    : SOCIALS.map((s) => ({ ...s, href: '#' }));
+      : [];
+  /* The text under the logo: the content-menu field when filled, else the
+     prop/default — so a site that has not filled it in looks as it did. */
+  const displayDescription = boundText(footer_text) || description;
 
   return (
     <div className="ft-wrapper">
@@ -505,7 +540,7 @@ export function Footer({
               <span>Live Chat</span>
             </button>
           </div>
-          <p className="ft-desc">{description}</p>
+          <p className="ft-desc">{displayDescription}</p>
         </div>
       </div>
 
@@ -527,24 +562,26 @@ export function Footer({
       )}
 
       <div className="ft-inner ft-follow">
+        {/* No links at all ⇒ no "Follow …" block. With content-menu links the
+            answer is known at once; otherwise it waits for the collection read
+            (hidden, not absent, so nothing moves when it lands) and is dropped
+            if that read brings nothing either. */}
+        {(anyConfigured || !contactSettled || socialLinks.length > 0) && (
         <div className="ft-follow-left">
           <span className="ft-follow-label">Follow {displayFollowName}</span>
-          {/* Hidden, not absent, until the contact read settles: the unlinked
-              static row would otherwise paint and then lose the platforms this
-              property doesn't have. visibility keeps the row's box, so nothing
-              moves when it appears. */}
           <div
             className="ft-socials"
-            style={contactSettled ? undefined : { visibility: 'hidden' }}
-            aria-hidden={contactSettled ? undefined : true}
+            style={anyConfigured || contactSettled ? undefined : { visibility: 'hidden' }}
+            aria-hidden={anyConfigured || contactSettled ? undefined : true}
           >
             {socialLinks.map(({ key, label, Icon, href }) => (
-              <a key={key} className="ft-social" href={href} aria-label={label} title={label}>
+              <a key={key} className="ft-social" href={href} aria-label={label} title={label} target="_blank" rel="noopener noreferrer">
                 <Icon />
               </a>
             ))}
           </div>
         </div>
+        )}
         <div className="ft-powered">
           <span className="ft-powered-label">powered by</span>
           <img className="ft-tenant" src={tenantLogo} alt="Tenant" />
