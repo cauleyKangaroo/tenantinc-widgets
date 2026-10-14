@@ -434,9 +434,16 @@ export function MakePaymentPanel({
   const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
   const [payMessage, setPayMessage] = useState<string>('');
   const idemKeys = useRef<Map<string, string>>(new Map());
-  const idemKeyFor = (leaseId: string) => {
-    let k = idemKeys.current.get(leaseId);
-    if (!k) { k = `pay-${leaseId}-${Date.now().toString(36)}`; idemKeys.current.set(leaseId, k); }
+  /* The proxy accepts 8–128 of letters, digits, - and _ ONLY. The step key
+     carries ':' (lease:prepay:months), which it refused with
+     "Idempotency-Key must be 8-128 letters, digits, - or _" (2026-10-14), so
+     anything else becomes '-' before it goes on the wire. */
+  const idemKeyFor = (stepKey: string) => {
+    let k = idemKeys.current.get(stepKey);
+    if (!k) {
+      k = `pay-${stepKey}-${Date.now().toString(36)}`.replace(/[^A-Za-z0-9_-]+/g, '-').slice(0, 128);
+      idemKeys.current.set(stepKey, k);
+    }
     return k;
   };
   const autopayFor = (sp: AccountSpace) =>
