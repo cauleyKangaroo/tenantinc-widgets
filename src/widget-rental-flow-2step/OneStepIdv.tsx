@@ -5,6 +5,7 @@ import type { IdvApi, IdvScope } from './idvApi';
 import type { IdvRequirement } from './idvPolicy';
 import { useIdvController } from './useIdvController';
 import { IdIllustration } from './IdIllustration';
+import { IdVerifyModal } from './IdVerifyModal';
 import { parseCreatedIdvLead, readPreparedIdvLead, sameLeadContact, savePreparedIdvLead, type LeadContact, type IdvCheckoutReadiness } from './idvLead';
 import { openVerificationPlaceholder, closeVerificationPlaceholder, navigateVerificationWindow, type VerificationWindow } from './openVerification';
 
@@ -26,6 +27,7 @@ export function OneStepIdv({ config, contact, onReady }: {
   const [preparing, setPreparing] = useState(false);
   const [prepareError, setPrepareError] = useState('');
   const [later, setLater] = useState(false);
+  const [handoffOpen, setHandoffOpen] = useState(false);
   const inFlight = useRef(false);
   const leadRequest = useRef<AbortController>();
   const titleId = useId();
@@ -53,7 +55,13 @@ export function OneStepIdv({ config, contact, onReady }: {
   const phone = contact.phone;
   const valid = Boolean(first && last && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && isPossiblePhone(phone, 'US'));
   const contactFingerprint = JSON.stringify([first, last, email.toLowerCase(), phone.replace(/\D/g, '')]);
-  useEffect(() => { setLater(false); }, [contactFingerprint]);
+  useEffect(() => { setLater(false); setHandoffOpen(false); }, [contactFingerprint]);
+  useEffect(() => {
+    if (handheld || later || prepareError || (!identity && !preparing)
+      || kind === 'complete' || kind === 'failed' || kind === 'expired' || kind === 'error') {
+      setHandoffOpen(false);
+    }
+  }, [handheld, later, prepareError, identity, preparing, kind]);
   useEffect(() => {
     onReady(!config.policyPending && (config.requirement === 'disabled'
       || (matches && kind === 'complete') || (config.requirement === 'optional' && later))
@@ -89,6 +97,7 @@ export function OneStepIdv({ config, contact, onReady }: {
     inFlight.current = true;
     setPreparing(true);
     setPrepareError('');
+    if (!handheld) setHandoffOpen(true);
     const captured = { first, last, email, phone };
     const request = new AbortController();
     leadRequest.current = request;
@@ -130,10 +139,16 @@ export function OneStepIdv({ config, contact, onReady }: {
               {preparing ? 'Preparing Verification…' : 'Verify ID Now'}
             </button>
           ) : kind === 'complete' ? <p role="status">ID Verification Complete</p>
-            : kind === 'ready' ? <button type="button" className="rf-sx-btn rf-sx-btn--solid" onClick={() => void controller.start()}>Verify ID Now</button>
+            : kind === 'ready' ? <button type="button" className="rf-sx-btn rf-sx-btn--solid" onClick={() => {
+              if (!handheld) setHandoffOpen(true);
+              void controller.start();
+            }}>Verify ID Now</button>
               : kind === 'pending' ? <>
                 <p role="status">Verification in progress. Complete the steps on your phone, then return here.</p>
-                <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={controller.continueInNewTab}>Continue Verification</button>
+                <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={() => {
+                  if (handheld) controller.continueInNewTab();
+                  else setHandoffOpen(true);
+                }}>Continue Verification</button>
               </> : kind === 'failed' || kind === 'expired' || kind === 'error' ? <>
                 <p role="status">{kind === 'error' && !controller.state.retryable ? 'Verification Needs Assistance. Please contact the facility.' : 'Verification could not be completed. Please try again.'}</p>
                 {!(kind === 'error' && !controller.state.retryable) && <button type="button" className="rf-sx-btn rf-sx-btn--outline" onClick={controller.retry}>Reverify</button>}
@@ -155,6 +170,22 @@ export function OneStepIdv({ config, contact, onReady }: {
       {kind === 'pending' && controller.popupBlocked && <p className="rf-sx-idv-note" role="status">The verification tab was blocked. Select Continue Verification to try opening it again.</p>}
       {later && <p className="rf-sx-idv-note" role="status">You can complete verification after payment.</p>}
       {prepareError && <p className="rf-sx-idv-note" role="alert">{prepareError}</p>}
+      {!handheld && (
+        <IdVerifyModal
+          open={handoffOpen}
+          onClose={() => setHandoffOpen(false)}
+          // Connected mode never takes a completion result from presentation.
+          // Only the controller's authenticated poll/lookup can allow payment.
+          onResult={() => setHandoffOpen(false)}
+          phone={identity?.phone ?? phone}
+          connected
+          lifecycle={preparing ? 'starting' : kind}
+          notificationStatus={kind === 'pending' ? controller.state.notificationStatus : undefined}
+          onResend={controller.resend}
+          resendUncertain={kind === 'pending' && controller.state.resendUncertain === true}
+          verificationUrl={verificationUrl}
+        />
+      )}
     </section>
   );
 }

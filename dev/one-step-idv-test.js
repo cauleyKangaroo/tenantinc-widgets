@@ -60,6 +60,11 @@ async function main() {
   let handedOff;
   let readyContact;
   let controllerOptions;
+  let handheld = true;
+  let modalProps;
+  let resendUncertain = false;
+  let resendCalls = 0;
+  const resend = async () => { resendCalls++; return 'sent'; };
   const tab = { location: { href: '' }, close: () => { closed++; } };
   const start = async target => { starts++; handedOff = target; };
   const Component = load('../src/widget-rental-flow-2step/OneStepIdv.tsx', {
@@ -72,10 +77,14 @@ async function main() {
     '@shared/ui': { isPossiblePhone: phone => phone.replace(/\D/g, '').length === 10 },
     './useIdvController': { useIdvController: options => {
       controllerOptions = options;
-      return { state: { kind: options.enabled ? phase : 'idle', result: { authenticated: true } }, handheld: true, start,
+      return { state: { kind: options.enabled ? phase : 'idle', result: { authenticated: true }, notificationStatus: 'sent', resendUncertain }, handheld, start, resend,
         continueInNewTab() {}, retry() {}, verificationUrl: 'https://verify.example.com', popupBlocked: false };
     } },
     './IdIllustration': { IdIllustration: () => null },
+    './IdVerifyModal': { IdVerifyModal: props => {
+      modalProps = props;
+      return props.open ? React.createElement('div', { role: 'dialog', 'data-testid': 'idv-modal' }) : null;
+    } },
     './idvLead': helpers,
     './openVerification': {
       openVerificationPlaceholder: () => { opened++; return tab; },
@@ -100,6 +109,7 @@ async function main() {
   assert.equal(controllerOptions.identity.contactId, 'contact');
   assert.equal(starts, 1, 'prepared contact starts verification once');
   assert.equal(handedOff, tab, 'the original user-gesture window is reused');
+  assert.equal(document.querySelector('[data-testid="idv-modal"]'), null, 'mobile never shows the desktop handoff modal');
   phase = 'pending'; await render();
   assert.equal(readyContact, undefined, 'pending verification cannot allow payment');
   phase = 'complete'; await render();
@@ -132,10 +142,55 @@ async function main() {
   assert.equal(closed, closedBeforeFailure + 1, 'failed preparation closes its blank mobile tab');
   assert.match(document.querySelector('[role="alert"]').textContent, /could not be prepared/);
   await React.act(async () => failingRoot.unmount());
+  handheld = false;
+  phase = 'ready';
+  const desktopRoot = createRoot(document.getElementById('root'));
+  const renderDesktop = () => React.act(async () => desktopRoot.render(React.createElement(Component, { config, contact, onReady })));
+  await renderDesktop();
+  const windowsBeforeDesktop = opened;
+  const startsBeforeDesktop = starts;
+  await React.act(async () => Simulate.click(document.querySelector('button')));
+  assert.ok(document.querySelector('[data-testid="idv-modal"]'), 'desktop opens the existing handoff modal during contact preparation');
+  assert.equal(modalProps.lifecycle, 'starting');
+  assert.equal(modalProps.connected, true);
+  assert.equal(opened, windowsBeforeDesktop, 'desktop preparation does not open a new tab');
+  await React.act(async () => resolveLead(envelope));
+  assert.equal(starts, startsBeforeDesktop + 1);
+  phase = 'pending'; await renderDesktop();
+  assert.equal(modalProps.phone, contact.phone);
+  assert.equal(modalProps.verificationUrl, 'https://verify.example.com');
+  assert.equal(modalProps.notificationStatus, 'sent');
+  assert.equal(modalProps.onResend, resend, 'the shared modal uses the controller resend');
+  await React.act(async () => modalProps.onResend());
+  assert.equal(resendCalls, 1);
+  resendUncertain = true; await renderDesktop();
+  assert.equal(modalProps.resendUncertain, true, 'the existing resend uncertainty brake is preserved');
+  await React.act(async () => modalProps.onClose());
+  assert.equal(document.querySelector('[data-testid="idv-modal"]'), null);
+  assert.equal(readyContact, undefined, 'closing the handoff modal does not verify the renter');
+  await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Continue Verification')));
+  assert.ok(document.querySelector('[data-testid="idv-modal"]'), 'desktop Continue reopens the same handoff modal');
+  assert.equal(starts, startsBeforeDesktop + 1, 'reopening does not create another billable session');
+  assert.equal(opened, windowsBeforeDesktop, 'desktop Continue does not open a browser tab');
+  await React.act(async () => modalProps.onResult('complete'));
+  assert.equal(readyContact, undefined, 'presentation cannot override backend verification');
+  await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Continue Verification')));
+  phase = 'complete'; await renderDesktop();
+  assert.equal(document.querySelector('[data-testid="idv-modal"]'), null, 'verified completion closes the modal');
+  assert.equal(readyContact.verified, true);
+  for (const terminal of ['failed', 'expired', 'error']) {
+    phase = 'pending'; await renderDesktop();
+    await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Continue Verification')));
+    assert.ok(document.querySelector('[data-testid="idv-modal"]'));
+    phase = terminal; await renderDesktop();
+    assert.equal(document.querySelector('[data-testid="idv-modal"]'), null, `${terminal} closes the handoff modal`);
+    assert.equal(readyContact, undefined, `${terminal} does not allow payment`);
+  }
+  await React.act(async () => desktopRoot.unmount());
   const source = fs.readFileSync(require.resolve('../src/widget-rental-flow-2step/Step2.tsx'), 'utf8');
   assert.ok(source.indexOf('<OneStepIdv') < source.indexOf('{/* Additional Information */}'));
   assert.match(source, /formComplete = verificationAllowsPayment &&/);
   dom.window.close();
-  console.log('One-step pre-payment IDV tests passed: real lead envelope, recovery, payment gating, identity isolation, and mobile handoff.');
+  console.log('One-step pre-payment IDV tests passed: lead preparation, recovery, payment gating, mobile new tab, and shared desktop handoff modal.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
