@@ -368,6 +368,9 @@ export interface EditForm {
   usePassport: boolean;
   licenceNumber: string;
   licenceState: string;
+  /** ISO code — the passport's issuing country. Only shown with `usePassport`. */
+  licenceCountry: string;
+  /** Typed MM/DD/YYYY (the kit's date mask); converted at the API boundary. */
   licenceExpiry: string;
 
   /* Communication preferences — both ticked in the frame. */
@@ -416,6 +419,7 @@ export const EDIT_DEFAULTS: EditForm = {
   /* Spelled out here and abbreviated in the addresses above — the frame does
      both, so both are kept. */
   licenceState: 'California',
+  licenceCountry: '',
   licenceExpiry: '02/02/2031',
 
   marketingEmails: true,

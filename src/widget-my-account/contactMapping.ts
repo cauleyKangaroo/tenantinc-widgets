@@ -5,10 +5,9 @@
 //   editFormFrom(record)        the loaded record -> the form's initial values
 //   updateFromEditForm(form, record)  the edited form -> the PATCH body
 //
-// THE FORM IS WIDER THAN THE API. Three of its controls have no documented
+// THE FORM IS WIDER THAN THE API. Two of its controls have no documented
 // field anywhere in the contact payload:
 //
-//   usePassport      — swaps which ID is being provided; nothing carries it
 //   marketingEmails  — no contact-level preference exists
 //   textMessages     — `phones[].sms` is close, but it belongs to one phone
 //                      rather than the contact, and guessing wrong would
@@ -18,11 +17,24 @@
 // leaving them out is the safe half of the trade: the reader can still tick
 // them and nothing is corrupted, but the ticks do not persist. That needs an
 // API field before it can work, and inventing one would be worse than the gap.
+//
+// PASSPORT. The contact record has NO passport fields — verified 2026-10-14:
+// the upstream PUT rejects `passport`, `passport_number`, `passport_country`
+// and `id_type` outright ("is not allowed"), and the proxy's PATCH schema
+// lists only the five driverLicense* keys. So "Use passport for ID" files
+// the passport in the SAME slots: number → driverLicense, issuing country →
+// driverLicenseCountry, expiry → driverLicenseExpiration, and the licence
+// state is BLANKED. Which document it was is not stored anywhere, so on the
+// way back in it is inferred: a country with no state reads as a passport
+// (a licence always carries its state). That is the whole signal, and it is
+// why the state must be cleared rather than left to linger.
 // ===========================================================================
 
 import type {
   AccountRecord, ContactUpdate, ContactAddressInput, SecondaryContactInput,
 } from '@shared/accountApi';
+import { countryCode as isoCountryCode } from '@shared/countries';
+import { isKnownState, stateCodeFromName, stateNameFromCode } from '@shared/usStates';
 import { EDIT_DEFAULTS } from './data';
 import type { Contact, ContactForm, EditForm } from './data';
 
@@ -41,6 +53,37 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
  * change it types a real number, which has no asterisks and saves normally.
  */
 const isMasked = (v: string): boolean => v.includes('*');
+
+/*
+ * The expiry travels as YYYY-MM-DD — the proxy rejects anything else
+ * ("must be a date as YYYY-MM-DD", verified 2026-10-14) — while the form's
+ * date mask types MM/DD/YYYY. Both directions live here so they cannot drift.
+ * A partial or impossible date converts to '' and is then omitted, never sent
+ * as a string the API would refuse.
+ */
+export function mdyToIso(v: string): string {
+  const m = v.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? v.trim() : '';
+  const [, mm, dd, yyyy] = m;
+  const d = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
+  const real = d.getUTCFullYear() === Number(yyyy) && d.getUTCMonth() === Number(mm) - 1 && d.getUTCDate() === Number(dd);
+  return real ? `${yyyy}-${mm}-${dd}` : '';
+}
+export function isoToMdy(v: string): string {
+  const m = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : v.trim();
+}
+
+/* The licence state is stored as a CODE ("CA") and the form's picker offers
+   NAMES ("California"); a code dropped straight into the picker matches no
+   option and the menu shows nothing chosen. Known states convert each way;
+   anything else (a province, free text) passes through untouched. */
+const licenceStateIn = (v: string): string => (isKnownState(v) ? stateNameFromCode(v) : v);
+const licenceStateOut = (v: string): string => (isKnownState(v) ? stateCodeFromName(stateNameFromCode(v)) : v);
+
+/** A country with no state is a passport — see the header note. */
+const isPassport = (record: AccountRecord): boolean =>
+  Boolean(str(record.driverLicenseCountry).trim()) && !str(record.driverLicenseState).trim();
 
 /*
  * The addresses the form edits.
@@ -173,9 +216,11 @@ export function editFormFrom(record: AccountRecord, leaseId?: string): EditForm 
     state: str(addr.state),
     zip: str(addr.zip),
 
+    usePassport: isPassport(record),
     licenceNumber: str(record.driverLicense),
-    licenceState: str(record.driverLicenseState),
-    licenceExpiry: str(record.driverLicenseExpiration),
+    licenceState: licenceStateIn(str(record.driverLicenseState)),
+    licenceCountry: isoCountryCode(str(record.driverLicenseCountry)),
+    licenceExpiry: isoToMdy(str(record.driverLicenseExpiration)),
 
     alternate: contactFormFrom(alternate) ?? emptyContact(),
     emergency: contactFormFrom(emergency) ?? emptyContact(),
@@ -294,8 +339,17 @@ export function updateFromEditForm(form: EditForm, record: AccountRecord, leaseI
   if (form.licenceNumber.trim() && !isMasked(form.licenceNumber)) {
     details.driverLicense = form.licenceNumber.trim();
   }
-  if (form.licenceState.trim()) details.driverLicenseState = form.licenceState.trim();
-  if (form.licenceExpiry.trim()) details.driverLicenseExpiration = form.licenceExpiry.trim();
+  const expiry = mdyToIso(form.licenceExpiry);
+  if (expiry) details.driverLicenseExpiration = expiry;
+  if (form.usePassport) {
+    // Passport: the issuing country goes in the country slot and the state
+    // is BLANKED — '' is the proxy's "clear it" (verified 2026-10-14), and a
+    // lingering state would read the record back as a licence.
+    if (form.licenceCountry.trim()) details.driverLicenseCountry = form.licenceCountry.trim();
+    details.driverLicenseState = '';
+  } else if (form.licenceState.trim()) {
+    details.driverLicenseState = licenceStateOut(form.licenceState.trim());
+  }
 
   const body: ContactUpdate = {};
   if (Object.keys(details).length) body.details = details;
@@ -357,7 +411,7 @@ export function primaryContactFrom(record: AccountRecord): Contact {
     email: str(record.email) || undefined,
     phone: phoneOf(record.phones) || undefined,
     address: addressLines(primaryAddress(record)),
-    licence: licence ? `Drivers License: ${licence}` : undefined,
+    licence: licence ? `${isPassport(record) ? 'Passport' : 'Drivers License'}: ${licence}` : undefined,
   };
 }
 

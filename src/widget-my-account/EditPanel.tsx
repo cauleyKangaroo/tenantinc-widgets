@@ -5,7 +5,9 @@
 // Four sections under the space heading:
 //   Mailing Address           country + address, then city / state / ZIP
 //   Drivers Licence           a "Verify ID" link and a passport alternative,
-//                             then number / state / expiry
+//                             then number / state / expiry — or, with the
+//                             passport ticked, number / issuing country /
+//                             expiry under a "Passport" heading
 //   Communication Preferences the two marketing opt-ins
 //   Additional Contacts       the alternate contact and the emergency contact,
 //                             the same nine fields each
@@ -47,12 +49,18 @@ import { Checkbox, FormField } from '@shared/ui';
 import { ChevronBigRight24Icon } from './icons';
 import { ConfirmContactModal } from './ConfirmContactModal';
 import { US_STATES, isKnownState, stateCodeFromName, stateNameFromCode } from '@shared/usStates';
+import { COUNTRIES, countryNameOf } from '@shared/countries';
+import { mdyToIso } from './contactMapping';
 import { EDIT_COUNTRIES, EDIT_DEFAULTS } from './data';
 import type { AccountSpace, ContactForm, EditForm } from './data';
 
 interface Option { value: string; label: string }
 
 const COUNTRY_OPTIONS: Option[] = EDIT_COUNTRIES.map((c) => ({ value: c, label: c }));
+/* A passport can come from anywhere, so its country picker is the whole ISO
+   list — unlike the address pickers, which stay on the countries the address
+   lookup can complete. Stores the code; that is what the record holds. */
+const PASSPORT_COUNTRY_OPTIONS: Option[] = COUNTRIES.map((c) => ({ value: c.code, label: c.name }));
 
 /* The addresses store the CODE and the frame prints it ("CA"); the licence
    stores the NAME and the frame prints that ("California"). The picker lists
@@ -99,10 +107,13 @@ const filled = (v: string) => (v.trim() ? 'success' as const : 'default' as cons
  * look as the green border alone, so that is what `valid` does.
  */
 function SelectField({
-  label, value, onChange, options, required, valid, placeholder,
+  label, value, onChange, options, required, valid, placeholder, display,
 }: {
   label: string;
   value: string;
+  /** What the face prints when it should not be the raw value — a country
+   *  stored as its code but read as its name. Defaults to the value. */
+  display?: string;
   onChange: (v: string) => void;
   options: Option[];
   required?: boolean;
@@ -124,7 +135,7 @@ function SelectField({
         <FormField
           label={label}
           required={required}
-          value={value}
+          value={display ?? value}
           onChange={() => {}}
           className={valid ? 'ma-edit__valid' : undefined}
         />
@@ -334,7 +345,14 @@ export function EditPanel({
     }
     return null;
   };
+  /* The expiry is typed through the date mask and sent as YYYY-MM-DD; a date
+     the mask left half-typed, or one that does not exist, is caught here
+     rather than bounced by the API after the round trip. */
+  const expiryError = form.licenceExpiry.trim() && !mdyToIso(form.licenceExpiry)
+    ? 'Enter the date as MM/DD/YYYY'
+    : undefined;
   const save = () => {
+    if (expiryError) return;
     const kind = needsConfirmBeforeSave();
     if (kind) { setConfirm({ kind, thenSave: true }); return; }
     void onSave(form);
@@ -421,7 +439,9 @@ export function EditPanel({
           {/* Heading, the verify link and the passport alternative share one
               line in the frame, the checkbox pushed to the far right. */}
           <div className="ma-edit__head">
-            <p role="heading" aria-level={3} className="ma-edit__label">Drivers Licence</p>
+            <p role="heading" aria-level={3} className="ma-edit__label">
+              {form.usePassport ? 'Passport' : 'Drivers Licence'}
+            </p>
             {/* No ID flow behind this yet, so it is a button that goes nowhere
                 rather than a link to a page that does not exist. */}
             <button type="button" className="ma-edit__verify">Verify ID</button>
@@ -434,21 +454,35 @@ export function EditPanel({
             </Checkbox>
           </div>
 
+          {/* The passport shares the licence's number and expiry fields — the
+              record has one set of ID slots, and that is where it is filed
+              (see contactMapping's header) — and swaps the state for the
+              issuing country. */}
           <div className="ma-edit__row ma-edit__row--thirds">
             <FormField
-              label="License Number" required
+              label={form.usePassport ? 'Passport Number' : 'License Number'} required
               value={form.licenceNumber} onChange={set('licenceNumber')}
               state={filled(form.licenceNumber)}
             />
-            {/* The licence row has no country of its own, so it follows the
-                mailing address's — the only country on the form that could
-                describe the holder. A US address therefore gets the picker
-                here too, rather than one State field on the screen staying
-                free text while the other three became menus. */}
-            <StateField
-              country={form.country} value={form.licenceState}
-              onChange={set('licenceState')} form="name"
-            />
+            {form.usePassport ? (
+              <SelectField
+                label="Country" required placeholder="Select Country"
+                options={PASSPORT_COUNTRY_OPTIONS}
+                value={form.licenceCountry} onChange={set('licenceCountry')}
+                display={countryNameOf(form.licenceCountry)}
+                valid={Boolean(form.licenceCountry)}
+              />
+            ) : (
+              /* The licence row has no country of its own, so it follows the
+                 mailing address's — the only country on the form that could
+                 describe the holder. A US address therefore gets the picker
+                 here too, rather than one State field on the screen staying
+                 free text while the other three became menus. */
+              <StateField
+                country={form.country} value={form.licenceState}
+                onChange={set('licenceState')} form="name"
+              />
+            )}
             {/* Typed, not picked: scrolling a picker back to a birth year or
                 forward to an expiry is slower than typing it, which is why the
                 kit carries this mask at all. */}
@@ -456,6 +490,7 @@ export function EditPanel({
               label="Expiration Date" required mask="date"
               value={form.licenceExpiry} onChange={set('licenceExpiry')}
               state={filled(form.licenceExpiry)}
+              error={expiryError}
               className="ma-edit__nocal"
             />
           </div>
