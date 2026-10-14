@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './HomepageSearch.css';
 import { useLocationPermission } from './useLocationPermission';
+import { matchingCities, nearbyCities, milesBetween, NEARBY_RADIUS_MILES } from './searchResults';
 import { fetchLocationTree, type NavUnitType } from '@shared/propertyNav';
-import { MapPinSolidIcon, SearchIcon } from '@shared/ui/icons';
+import { MapPinSolidIcon, MapPinIcon, SearchIcon } from '@shared/ui/icons';
 import { openFindStorage } from '@shared/findStorageBus';
 import { fetchPlaceDetails, fetchPlaceSuggestions, newSessionToken } from '@shared/placesApi';
 
@@ -26,6 +27,10 @@ export interface HomepageSearchProps {
   propertiesCollection?: string;
   /** City/state location-page base path, e.g. "/locations". */
   locationsUrl?: string;
+  /** Site map page; defaults to the all-properties page at /locations. */
+  mapUrl?: string;
+  /** Optional site-specific existing Places proxy; no client-side Google key. */
+  placesBase?: string;
   /** Deprecated; retained so existing Duda widget configuration remains compatible. */
   locationsCount?: number;
   /** Deprecated; retained so existing Duda widget configuration remains compatible. */
@@ -46,30 +51,31 @@ export interface HomepageSearchProps {
   promotionDisclaimerColor?: string;
   /** Optional Layout-2 disclaimer size in pixels; defaults to the Figma size. */
   promotionDisclaimerFontSize?: number | string;
-  /** Recent resolved city searches kept on this device (0 disables, max 5). */
+  /** Deprecated: kept for existing Duda placements; history is no longer displayed. */
   historyLimit?: number;
   inEditor?: boolean | string;
   siteId?: string;
 }
 
 const DEFAULT_TYPES = 'Storage Type,Self Storage,Parking';
+declare const __HB_DEV_HARNESS__: boolean;
 
-interface SearchTarget { kind: 'state' | 'city' | 'property'; label: string; haystack: string; href: string; types: NavUnitType[]; }
+interface SearchTarget { kind: 'state' | 'city' | 'property'; label: string; haystack: string; href: string; types: NavUnitType[]; zipCodes?: string[]; stateNames?: string[]; stateCodes?: string[]; distanceMiles?: number; }
 interface GeoTarget { lat: number; lng: number; target: SearchTarget; fallbackTarget: SearchTarget; types: NavUnitType[]; }
 interface StorageTypeOption { value: NavUnitType; label: string; }
-interface RecentSearch { label: string; href: string; savedAt: number; }
 interface Coordinates { latitude: number; longitude: number; }
 type InventoryStatus = 'loading' | 'loaded' | 'unavailable';
 const STORAGE_TYPE_OPTIONS: StorageTypeOption[] = [
   { value: 'storage', label: 'Self Storage' },
   { value: 'parking', label: 'Parking' },
 ];
-const HISTORY_KEY = 'ti.homepageSearch.recentCities';
-const HISTORY_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
 const FALLBACK_BAKERSFIELD: SearchTarget = {
   kind: 'city',
   label: 'Bakersfield',
   haystack: 'bakersfield california 93307 101 mt vernon',
+  zipCodes: ['93307'],
+  stateNames: ['California'],
+  stateCodes: ['CA'],
   href: '/locations/california/bakersfield',
   types: ['storage', 'parking'],
 };
@@ -77,6 +83,9 @@ const FALLBACK_FULLERTON: SearchTarget = {
   kind: 'city',
   label: 'Fullerton',
   haystack: 'fullerton california 92831 999 s raymond storage outlet fullerton',
+  zipCodes: ['92831'],
+  stateNames: ['California'],
+  stateCodes: ['CA'],
   href: '/property-landing-page--value-tiers-test/california/fullerton/storage-outlet-fullerton-340079520',
   types: ['storage', 'parking'],
 };
@@ -172,6 +181,8 @@ export function HomepageSearch({
   searchUrl = '/property-landing-page--value-tiers-test',
   propertiesCollection = 'Properties',
   locationsUrl = '/locations',
+  mapUrl = '/locations',
+  placesBase,
   accentColor,
   cardHeading = 'Find Storage Near Me',
   promotionText = '$1 Summer Move-In\nSpecial',
@@ -180,14 +191,12 @@ export function HomepageSearch({
   promotionDisclaimer = '*All new rentals are subject to a $30 Admin Fee. Other fees like coverage may apply, select a space to see price details.',
   promotionDisclaimerColor,
   promotionDisclaimerFontSize,
-  historyLimit = 5,
   inEditor,
   siteId,
 }: HomepageSearchProps) {
   const editorPreview = boolProp(inEditor);
   const [q, setQ] = useState('');
   const [type, setType] = useState<NavUnitType | ''>('');
-  const [selectedTarget, setSelectedTarget] = useState<SearchTarget>();
   const [targets, setTargets] = useState<SearchTarget[]>(FALLBACK_TARGETS);
   // Editor/harness has no published-site dmAPI, so use representative fixture
   // coordinates there only. Published pages never fall back to these rows.
@@ -201,28 +210,20 @@ export function HomepageSearch({
   const [typeAbove, setTypeAbove] = useState(false);
   const [activeType, setActiveType] = useState(-1);
   const [locating, setLocating] = useState(false);
+  const [locationNotice, setLocationNotice] = useState('');
   const [locationDenied, setLocationDenied] = useLocationPermission();
   const [pendingCoordinates, setPendingCoordinates] = useState<Coordinates>();
   const locationRequest = useRef(0);
-  const [resolvingCity, setResolvingCity] = useState(false);
-  const safeHistoryLimit = Math.max(0, Math.min(5, Math.floor(historyLimit)));
-  const [recent, setRecent] = useState<RecentSearch[]>(() => {
-    try {
-      const parsed = JSON.parse(window.localStorage.getItem(HISTORY_KEY) || '[]') as Partial<RecentSearch>[];
-      const cutoff = Date.now() - HISTORY_MAX_AGE;
-      return Array.isArray(parsed) ? parsed.filter((x): x is RecentSearch =>
-        typeof x.label === 'string' && typeof x.href === 'string' && typeof x.savedAt === 'number' && x.savedAt >= cutoff,
-      ).slice(0, 5) : [];
-    } catch { return []; }
-  });
+  const [nearby, setNearby] = useState<{ query: string; type: string; status: 'loading' | 'ready' | 'error'; rows: SearchTarget[]; place?: string }>();
   const findRef = useRef<HTMLAnchorElement>(null);
   const panelContainerRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLFormElement>(null);
-  const suggestionsRef = useRef<HTMLUListElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
   const typeMenuRef = useRef<HTMLUListElement>(null);
   const typeOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const suggestionsId = 'hs-city-suggestions';
-  const typeListId = 'hs-storage-types';
+  const instanceId = React.useId();
+  const suggestionsId = `${instanceId}-cities`;
+  const typeListId = `${instanceId}-types`;
 
   useEffect(() => {
     let cancelled = false;
@@ -231,10 +232,19 @@ export function HomepageSearch({
       collectionName: propertiesCollection,
       basePath: searchUrl,
       cityBasePath: locationsUrl,
+      readAllPages: true,
     }).then((tree) => {
       if (cancelled) return;
       if (!tree.length) {
-        setInventoryStatus('unavailable');
+        if (editorPreview || (__HB_DEV_HARNESS__ && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname))) {
+          setTargets(FALLBACK_TARGETS);
+          setGeoTargets(EDITOR_GEO_TARGETS);
+          setInventoryStatus('loaded');
+          return;
+        }
+        setTargets([]);
+        setGeoTargets([]);
+        setInventoryStatus('loaded');
         return;
       }
       const mapped: SearchTarget[] = [];
@@ -245,9 +255,10 @@ export function HomepageSearch({
         mapped.push({ kind: 'state', label: state.label, haystack: `${state.label} ${state.key}`.toLowerCase(), href: state.href, types: stateTypes });
         for (const city of state.cities) {
           const cityHref = city.properties.length === 1 ? city.properties[0].href : city.href;
-          const facilityTerms = city.properties.flatMap((property) => [property.label, property.address, property.street, property.zip]).join(' ');
+          const zipCodes = [...new Set(city.properties.map(property => property.zip.trim()).filter(Boolean))];
           const cityTypes = [...new Set(city.properties.flatMap((property) => property.vacantUnitTypes))];
-          const cityTarget: SearchTarget = { kind: 'city', label: city.label, haystack: `${city.label} ${state.label} ${city.key} ${facilityTerms}`.toLowerCase(), href: cityHref, types: cityTypes };
+          const stateCodes = [...new Set(city.properties.map(property => property.state.trim()).filter(Boolean))];
+          const cityTarget: SearchTarget = { kind: 'city', label: city.label, haystack: city.label.toLowerCase(), zipCodes, stateNames: [state.label], stateCodes, href: cityHref, types: cityTypes };
           const cityPageTarget: SearchTarget = { ...cityTarget, href: `${cityBase}/${state.key}/${city.key}` };
           mapped.push(cityTarget);
           for (const property of city.properties) {
@@ -278,11 +289,17 @@ export function HomepageSearch({
       setInventoryStatus('loaded');
     }).catch((error) => {
       if (cancelled) return;
+      if (editorPreview || (__HB_DEV_HARNESS__ && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname))) {
+        setTargets(FALLBACK_TARGETS);
+        setGeoTargets(EDITOR_GEO_TARGETS);
+        setInventoryStatus('loaded');
+        return;
+      }
       console.warn('[HomepageSearch] Locations could not be loaded', error);
       setInventoryStatus('unavailable');
     });
     return () => { cancelled = true; };
-  }, [propertiesCollection, searchUrl, locationsUrl]);
+  }, [propertiesCollection, searchUrl, locationsUrl, editorPreview]);
 
   const parts = storageTypes.split(',').map((s) => s.trim()).filter(Boolean);
   const typePlaceholder = parts[0] ?? 'Storage Type';
@@ -300,43 +317,66 @@ export function HomepageSearch({
     if (inventoryStatus === 'loaded' && !selectedTypeAvailable) setType('');
   }, [inventoryStatus, selectedTypeAvailable]);
 
-  const match = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return undefined;
-    if (selectedTarget?.label.toLowerCase() === needle && (!type || selectedTarget.types.includes(type))) return selectedTarget;
-    // Exact state/city/facility names first. Address/ZIP and partial searches
-    // then prefer a property over a broader city/state result.
-    return filteredTargets.find((row) => row.label.toLowerCase() === needle)
-      ?? filteredTargets.find((row) => row.kind === 'property' && row.haystack.includes(needle))
-      ?? filteredTargets.find((row) => row.kind === 'city' && row.haystack.includes(needle))
-      ?? filteredTargets.find((row) => row.haystack.includes(needle));
-  }, [filteredTargets, q, selectedTarget, type]);
-
   // Suggestions are CITY-ONLY and therefore can never advertise a market the
-  // Properties collection does not actually serve. Address/ZIP terms still find
-  // the owning city because each city's haystack includes its facilities.
+  // Properties collection does not actually serve. Match the city name, its
+  // state's name or code, or a facility ZIP, never a facility name or street address.
   const citySuggestions = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return [];
-    return filteredTargets
-      .filter((row) => row.kind === 'city' && row.haystack.includes(needle))
-      .sort((a, b) => {
-        const ae = a.label.toLowerCase() === needle ? -1 : 0;
-        const be = b.label.toLowerCase() === needle ? -1 : 0;
-        return ae - be || a.label.localeCompare(b.label);
-      })
-      .slice(0, 8);
+    return matchingCities(filteredTargets.filter(row => row.kind === 'city'), q);
   }, [filteredTargets, q]);
-
-  const visibleSuggestions: SearchTarget[] = q.trim()
-    ? citySuggestions
-    : recent.slice(0, safeHistoryLimit).flatMap((item) => {
-        const target = targets.find((row) => row.kind === 'city' && row.href === item.href)
-          ?? geoTargets.find((row) => row.fallbackTarget.href === item.href)?.fallbackTarget;
-        return target && (!type || target.types.includes(type)) ? [{ ...target, label: item.label }] : [];
-      });
+  const nearbyCurrent = nearby?.query === q.trim() && nearby.type === type ? nearby : undefined;
+  const visibleSuggestions = inventoryStatus === 'loaded'
+    ? (citySuggestions.length ? citySuggestions : nearbyCurrent?.status === 'ready' ? nearbyCurrent.rows : []) : [];
+  const match = visibleSuggestions[activeSuggestion >= 0 ? activeSuggestion : 0];
   const showCurrentLocation = !locationDenied;
-  const showLocationPanel = suggestionsOpen && ((!q.trim() && showCurrentLocation) || visibleSuggestions.length > 0);
+  const showLocationPanel = suggestionsOpen;
+  const searching = inventoryStatus === 'loading' || (inventoryStatus === 'loaded' && q.trim().length >= 3 && !citySuggestions.length && (!nearbyCurrent || nearbyCurrent.status === 'loading'));
+  const lookupError = inventoryStatus === 'unavailable' || nearbyCurrent?.status === 'error';
+  useEffect(() => {
+    if (showLocationPanel && activeSuggestion >= 0) {
+      document.getElementById(`${instanceId}-city-${activeSuggestion}`)?.scrollIntoView?.({ block: 'nearest' });
+    }
+  }, [activeSuggestion, instanceId, showLocationPanel]);
+
+  useEffect(() => {
+    setActiveSuggestion(-1);
+    setNearby(undefined);
+    const query = q.trim();
+    if (!suggestionsOpen || inventoryStatus !== 'loaded' || citySuggestions.length || query.length < 3) return;
+    const controller = new AbortController();
+    let disposed = false;
+    setNearby({ query, type, status: 'loading', rows: [] });
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+      if (!disposed) setNearby({ query, type, status: 'error', rows: [] });
+    }, 8400);
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const sessionToken = newSessionToken();
+        const predictions = await fetchPlaceSuggestions(query, { base: placesBase, types: 'geocode', sessionToken, signal: controller.signal, strict: true });
+        // A fragment such as "San" must not silently resolve to the first city.
+        const normalizePlacePart = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ');
+        const normalizedQuery = normalizePlacePart(query.replace(/,/g, ' '));
+        const prediction = predictions.find(p => {
+          // Match whole comma-delimited place components, not arbitrary word
+          // prefixes: "Irvine CA" matches "Irvine, CA, USA", but "San"
+          // cannot match the city component "San Francisco".
+          const parts = p.description.split(',').map(normalizePlacePart);
+          return parts.some((_, index) => parts.slice(0, index + 1).join(' ') === normalizedQuery)
+            || (!query.includes(',') && normalizePlacePart(p.mainText) === normalizedQuery);
+        });
+        if (!prediction) return { rows: [] as SearchTarget[], place: undefined };
+        const place = await fetchPlaceDetails(prediction.placeId, { base: placesBase, sessionToken, signal: controller.signal, strict: true });
+        if (!place || place.lat == null || place.lng == null || Math.abs(place.lat) > 90 || Math.abs(place.lng) > 180) throw new Error('City coordinates unavailable');
+        const candidates = type ? geoTargets.filter(candidate => candidate.types.includes(type)) : geoTargets;
+        return { rows: nearbyCities(candidates, place.lat, place.lng), place: place.address.city || prediction.mainText };
+      })().then(result => {
+        if (!disposed && !controller.signal.aborted) setNearby({ query, type, status: 'ready', ...result });
+      }).catch(() => {
+        if (!disposed && !controller.signal.aborted) setNearby({ query, type, status: 'error', rows: [] });
+      }).finally(() => window.clearTimeout(timeout));
+    }, 400);
+    return () => { disposed = true; controller.abort(); window.clearTimeout(timer); window.clearTimeout(timeout); };
+  }, [q, type, inventoryStatus, citySuggestions, geoTargets, suggestionsOpen, placesBase]);
 
   useLayoutEffect(() => {
     if (!showLocationPanel) {
@@ -364,7 +404,7 @@ export function HomepageSearch({
       window.removeEventListener('resize', placePanel);
       window.removeEventListener('scroll', placePanel, true);
     };
-  }, [showLocationPanel, visibleSuggestions.length, q, showCurrentLocation]);
+  }, [showLocationPanel, visibleSuggestions.length, q, showCurrentLocation, searching, lookupError, locationNotice]);
 
   useLayoutEffect(() => {
     if (!typeOpen) {
@@ -396,19 +436,8 @@ export function HomepageSearch({
     if (typeOpen && activeType >= 0) typeOptionRefs.current[activeType]?.focus();
   }, [typeOpen, activeType]);
 
-  const remember = (target: SearchTarget) => {
-    if (!safeHistoryLimit) return;
-    const next = [
-      { label: target.label, href: target.href, savedAt: Date.now() },
-      ...recent.filter((item) => item.href !== target.href),
-    ].slice(0, safeHistoryLimit);
-    setRecent(next);
-    try { window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
-  };
-
   const chooseCity = useCallback((target: SearchTarget) => {
     setQ(target.label);
-    setSelectedTarget(target);
     setSuggestionsOpen(false);
     setActiveSuggestion(-1);
   }, []);
@@ -417,6 +446,7 @@ export function HomepageSearch({
     locationRequest.current += 1;
     setPendingCoordinates(undefined);
     setLocating(false);
+    setLocationNotice('');
   };
 
   // Only explicit suggestion selection navigates. Invalid destinations still
@@ -428,7 +458,6 @@ export function HomepageSearch({
     try { url = new URL(target.href, window.location.origin); } catch { return; }
     if (url.origin !== window.location.origin) return;
     if (type) url.searchParams.set('sl_types', type);
-    remember(target);
     window.location.assign(editorSafeHref(url.pathname + url.search, editorPreview, siteId));
   };
 
@@ -447,11 +476,20 @@ export function HomepageSearch({
 
   useEffect(() => {
     if (!pendingCoordinates || inventoryStatus === 'loading') return;
-    const candidates = type ? geoTargets.filter((candidate) => candidate.types.includes(type)) : geoTargets;
+    if (inventoryStatus === 'unavailable') {
+      // The panel already shows the unavailable message; an empty inventory is not "nothing nearby".
+      console.warn('[HomepageSearch] Current Location: locations could not be loaded');
+      setPendingCoordinates(undefined);
+      setLocating(false);
+      return;
+    }
+    const candidates = geoTargets.filter(candidate => (!type || candidate.types.includes(type))
+      && milesBetween(pendingCoordinates.latitude, pendingCoordinates.longitude, candidate.lat, candidate.lng) <= NEARBY_RADIUS_MILES);
     if (!candidates.length) {
       console.warn('[HomepageSearch] Current Location: no properties with usable coordinates');
       setPendingCoordinates(undefined);
       setLocating(false);
+      setLocationNotice(`No locations within ${NEARBY_RADIUS_MILES} miles of your current location.`);
       return;
     }
     navigateRef.current(nearestCandidate(candidates, pendingCoordinates).target);
@@ -461,8 +499,10 @@ export function HomepageSearch({
 
   const chooseCurrentLocation = () => {
     if (locating || locationDenied) return;
+    setLocationNotice('');
     if (!navigator.geolocation) {
       console.warn('[HomepageSearch] Current Location: browser geolocation is unavailable');
+      setLocationNotice('Your location could not be found. Please try again or enter a city.');
       return;
     }
     setLocating(true);
@@ -471,7 +511,8 @@ export function HomepageSearch({
       ({ coords }) => {
         if (request !== locationRequest.current) return;
         const current = { latitude: coords.latitude, longitude: coords.longitude };
-        const candidates = type ? geoTargets.filter((candidate) => candidate.types.includes(type)) : geoTargets;
+        const candidates = geoTargets.filter(candidate => (!type || candidate.types.includes(type))
+          && milesBetween(current.latitude, current.longitude, candidate.lat, candidate.lng) <= NEARBY_RADIUS_MILES);
         if (candidates.length) {
           navigateRef.current(nearestCandidate(candidates, current).target);
           setLocating(false);
@@ -481,12 +522,19 @@ export function HomepageSearch({
           setPendingCoordinates(current);
           return;
         }
+        if (inventoryStatus === 'unavailable') {
+          console.warn('[HomepageSearch] Current Location: locations could not be loaded');
+          setLocating(false);
+          return;
+        }
         console.warn('[HomepageSearch] Current Location: no properties with usable coordinates');
         setLocating(false);
+        setLocationNotice(`No locations within ${NEARBY_RADIUS_MILES} miles of your current location.`);
       },
       (error) => {
         if (request !== locationRequest.current) return;
         if (error.code === 1) setLocationDenied(true);
+        else setLocationNotice('Your location could not be found. Please try again or enter a city.');
         console.warn(
           `[HomepageSearch] Current Location: geolocation failed (code ${error.code}: ${error.message || 'no browser message'})`,
         );
@@ -494,51 +542,6 @@ export function HomepageSearch({
       },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
     );
-  };
-
-  const navigateToNearbyCity = async () => {
-    const query = q.trim();
-    if (!query) {
-      if (!openFindStorage()) console.warn('[HomepageSearch] Find Storage: no navigation bar answered the open request');
-      return;
-    }
-    if (resolvingCity) return;
-    setResolvingCity(true);
-    try {
-      const sessionToken = newSessionToken();
-      const predictions = await fetchPlaceSuggestions(query, { types: '(cities)', sessionToken });
-      const exact = predictions.find((p) => p.mainText.trim().toLowerCase() === query.toLowerCase()) ?? predictions[0];
-      if (!exact) {
-        if (!openFindStorage()) console.warn('[HomepageSearch] No city match and no navigation bar answered the open request');
-        return;
-      }
-      const place = await fetchPlaceDetails(exact.placeId, { sessionToken });
-      if (!place || place.lat == null || place.lng == null) {
-        if (!openFindStorage()) console.warn('[HomepageSearch] City details were incomplete and no navigation bar answered the open request');
-        return;
-      }
-      const candidates = type ? geoTargets.filter((candidate) => candidate.types.includes(type)) : geoTargets;
-      if (!candidates.length) {
-        if (!openFindStorage()) console.warn('[HomepageSearch] No geocoded properties and no navigation bar answered the open request');
-        return;
-      }
-      const nearest = candidates.reduce((best, candidate) => (
-        distanceSquared(place.lat!, place.lng!, candidate.lat, candidate.lng)
-          < distanceSquared(place.lat!, place.lng!, best.lat, best.lng)
-          ? candidate : best
-      ));
-      const destination = nearest.fallbackTarget;
-      const url = new URL(destination.href, window.location.origin);
-      if (type) url.searchParams.set('sl_types', type);
-      remember({
-        ...destination,
-        label: place.address.city || exact.mainText || query,
-        href: destination.href,
-      });
-      window.location.assign(editorSafeHref(url.pathname + url.search, editorPreview, siteId));
-    } finally {
-      setResolvingCity(false);
-    }
   };
 
   // The Properties collection already produced the correct state/city/facility
@@ -551,6 +554,30 @@ export function HomepageSearch({
     if (type) url.searchParams.set('sl_types', type);
     return editorSafeHref(url.pathname + url.search, editorPreview, siteId);
   })();
+  const mapHref = (() => {
+    if (!mapUrl) return undefined;
+    try {
+      const url = new URL(mapUrl, window.location.origin);
+      return url.origin === window.location.origin ? editorSafeHref(url.pathname + url.search, editorPreview, siteId) : undefined;
+    } catch { return undefined; }
+  })();
+
+  const locationsHref = (() => {
+    const locationsPath = locationsUrl.trim().replace(/\/+$/, '') || '/locations';
+    return editorSafeHref(`/${locationsPath.replace(/^\/+/, '')}`, editorPreview, siteId);
+  })();
+  // One destination for both a click and the link's own href (modifier-click, new tab).
+  const findTarget = href && (activeSuggestion >= 0 || q.trim()) ? match : undefined;
+  const findHref = findTarget ? href
+    // Loading and service failures are not confirmed empty results.
+    : !q.trim() || (!searching && !lookupError && inventoryStatus === 'loaded') ? locationsHref
+      : undefined;
+
+  const submitSearch = () => {
+    if (findTarget) navigateToSuggestion(findTarget);
+    else if (findHref) window.location.assign(findHref);
+    else setSuggestionsOpen(true);
+  };
 
   const style = {
     ...cssVar('--hs-accent', text(accentColor)),
@@ -598,16 +625,17 @@ export function HomepageSearch({
             aria-autocomplete="list"
             aria-expanded={showLocationPanel}
             aria-controls={suggestionsId}
-            aria-activedescendant={activeSuggestion >= 0 ? `hs-city-option-${activeSuggestion}` : undefined}
+            aria-activedescendant={showLocationPanel && activeSuggestion >= 0 && visibleSuggestions[activeSuggestion] ? `${instanceId}-city-${activeSuggestion}` : undefined}
             onFocus={() => { setTypeOpen(false); setSuggestionsOpen(true); }}
-            onChange={(e) => { cancelCurrentLocation(); const v = e.target.value; setQ(v.charAt(0).toUpperCase() + v.slice(1)); setSelectedTarget(undefined); setSuggestionsOpen(true); setActiveSuggestion(-1); }}
+            onChange={(e) => { cancelCurrentLocation(); const v = e.target.value; setQ(v.charAt(0).toUpperCase() + v.slice(1)); setSuggestionsOpen(true); setActiveSuggestion(-1); }}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown' && visibleSuggestions.length) {
                 e.preventDefault(); setSuggestionsOpen(true); setActiveSuggestion((i) => (i + 1) % visibleSuggestions.length);
               } else if (e.key === 'ArrowUp' && visibleSuggestions.length) {
                 e.preventDefault(); setSuggestionsOpen(true); setActiveSuggestion((i) => (i <= 0 ? visibleSuggestions.length - 1 : i - 1));
-              } else if (e.key === 'Enter' && suggestionsOpen && activeSuggestion >= 0) {
-                e.preventDefault(); navigateToSuggestion(visibleSuggestions[activeSuggestion]);
+              } else if (e.key === 'Enter') {
+                e.preventDefault();
+                submitSearch();
               } else if (e.key === 'Escape') {
                 e.preventDefault(); setSuggestionsOpen(false); setActiveSuggestion(-1);
               }
@@ -655,7 +683,7 @@ export function HomepageSearch({
                       ref={(node) => { typeOptionRefs.current[index] = node; }}
                       className={index === activeType ? 'hs-type-option hs-type-option--active' : 'hs-type-option'}
                       onMouseEnter={() => setActiveType(index)}
-                      onClick={() => { setType(option.value); setSelectedTarget(undefined); setTypeOpen(false); setActiveType(-1); }}
+                      onClick={() => { setType(option.value); setTypeOpen(false); setActiveType(-1); }}
                       onKeyDown={(e) => {
                         if (e.key === 'ArrowDown') {
                           e.preventDefault(); setActiveType((index + 1) % typeOptions.length);
@@ -676,16 +704,11 @@ export function HomepageSearch({
         <a
           ref={findRef}
           className="hs-find"
-          href={href ?? undefined}
+          href={findHref}
           onClick={(e) => {
-            if (!href) {
-              e.preventDefault();
-              void navigateToNearbyCity();
-              return;
-            }
-            if (match) remember(match.kind === 'property'
-              ? (filteredTargets.find((target) => target.kind === 'city' && target.haystack.includes(match.label.toLowerCase())) ?? match)
-              : match);
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            e.preventDefault();
+            submitSearch();
           }}
         >
           <span className="hs-find-label">{ctaLabel}</span>
@@ -694,18 +717,16 @@ export function HomepageSearch({
         </form>
 
         {showLocationPanel && (
-          <ul
+          <div
             ref={suggestionsRef}
-            className={`hs-suggestions${suggestionsAbove ? ' hs-suggestions--above' : ''}`}
-            id={suggestionsId}
-            role="listbox"
-            aria-label="Storage locations"
+            className={`hs-suggestions${suggestionsAbove ? ' hs-suggestions--above' : ''}${!searching && visibleSuggestions.length === 0 ? ' hs-suggestions--empty' : ''}${!q.trim() && citySuggestions.length > 0 ? ' hs-suggestions--browse' : ''}`}
             style={suggestionsAbove ? ({ '--hs-suggestions-bottom': `${suggestionsBottom}px` } as React.CSSProperties) : undefined}
           >
+          <div role="status">{locationNotice && <div className="hs-search-status">{locationNotice}</div>}</div>
           {!q.trim() && (
             <>
               {showCurrentLocation && (
-              <li role="presentation">
+              <div>
                 <button
                   className="hs-current-location"
                   type="button"
@@ -722,17 +743,43 @@ export function HomepageSearch({
                   <MapPinSolidIcon size={24} />
                   <span>Current Location</span>
                 </button>
-              </li>
-              )}
-              {visibleSuggestions.length > 0 && (
-                <li className="hs-history-head" role="presentation">Search History</li>
+              </div>
               )}
             </>
           )}
+          {inventoryStatus === 'loaded' && !q.trim() && (
+            <div className="hs-history-head hs-our-locations">Our Locations ({citySuggestions.length})</div>
+          )}
+          {!!q.trim() && !citySuggestions.length && nearbyCurrent?.status === 'ready' && visibleSuggestions.length > 0 && (
+            <div className="hs-history-head">{visibleSuggestions.length} {visibleSuggestions.length === 1 ? 'city' : 'cities'} near {nearbyCurrent.place}</div>
+          )}
+          {searching ? <div className="hs-search-status">Searching…</div>
+            : lookupError ? <div className="hs-search-status">Search is temporarily unavailable. Please try again.</div>
+              : visibleSuggestions.length === 0 && <div className="hs-search-status hs-search-empty">
+                <MapPinIcon size={24} />
+                <span>No Facilities Found</span>
+              </div>}
+          {!searching && visibleSuggestions.length === 0 && (
+            <div>
+              {mapHref ? <a className="hs-map-link" href={mapHref}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m8 8-5 2v11l5-2 8 2 5-2V8l-3 1M8 14v5m8-5v7" />
+                  <path d="M17 6c0 4-5 8-5 8S7 10 7 6a5 5 0 0 1 10 0Z" />
+                  <circle cx="12" cy="6" r="1.5" />
+                </svg>
+                <span>View Map</span>
+              </a>
+                : <button className="hs-suggestion" type="button" onClick={() => {
+                  if (openFindStorage()) setSuggestionsOpen(false);
+                  else setQ('');
+                }}>Browse Locations</button>}
+            </div>
+          )}
+          <ul className="hs-city-options" id={suggestionsId} role="listbox" aria-label="Storage locations">
           {visibleSuggestions.map((city, index) => (
             <li key={`${city.label}-${city.href}`} role="presentation">
               <button
-                id={`hs-city-option-${index}`}
+                id={`${instanceId}-city-${index}`}
                 type="button"
                 role="option"
                 aria-selected={index === activeSuggestion}
@@ -741,11 +788,16 @@ export function HomepageSearch({
                 onClick={() => navigateToSuggestion(city)}
               >
                 <span>{city.label}</span>
+                {city.distanceMiles != null && <span className="hs-distance">{Math.round(city.distanceMiles)} miles</span>}
               </button>
             </li>
           ))}
           </ul>
+          </div>
         )}
+        <span className="hs-results-announcement" role="status" aria-live="polite" aria-atomic="true">
+          {showLocationPanel ? searching ? 'Searching locations' : lookupError ? 'Search temporarily unavailable' : `${visibleSuggestions.length} ${visibleSuggestions.length === 1 ? 'city' : 'cities'} found` : ''}
+        </span>
 
         {searchCard && (
           <div className="hs-promotion">
