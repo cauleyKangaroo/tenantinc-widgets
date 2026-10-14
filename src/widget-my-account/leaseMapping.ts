@@ -24,6 +24,7 @@ import { classifySize, mediaManagerImagesFor } from '@shared/unitArtwork';
 import type {
   AccountDocument, AccountSpace, ActivityRow, Contact, SavedCard, SpaceProperty,
 } from './data';
+import { alternateContactFrom, emergencyContactFrom } from './contactMapping';
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
@@ -157,14 +158,14 @@ function documentsOf(lease: Record<string, unknown>): AccountDocument[] {
 /**
  * Every lease as a space the panels can render.
  *
- * `primary` and `alternate` are passed in rather than re-derived: they are
- * contact-level, identical on every space, and already mapped for the display
- * panel — deriving them twice would be two things to keep in step.
+ * `primary` is passed in rather than re-derived: it is contact-level,
+ * identical on every space, and already mapped for the display panel. The
+ * alternate and emergency contacts are NOT — they are per lease, so each
+ * space reads its own from the record's secondaryContacts.
  */
 export function spacesFrom(
   record: AccountRecord,
   primary: Contact,
-  alternate: Contact | null,
   /** Duda's data.siteId — what builds the site's own artwork URLs. */
   media: { siteId?: string } = {},
 ): AccountSpace[] {
@@ -230,7 +231,8 @@ export function spacesFrom(
         balanceDate: paidThrough,
       },
       primaryContact: primary,
-      alternateContact: alternate ?? undefined,
+      alternateContact: alternateContactFrom(record, str(l.id)) ?? undefined,
+      emergencyContact: emergencyContactFrom(record, str(l.id)) ?? undefined,
       documents: documentsOf(l),
       dueLabel: paidThrough ? `Balance Due (Paid through ${paidThrough})` : 'Balance Due',
       dueAmount: money(balance),

@@ -59,7 +59,7 @@ import {
   payLease, fetchPrepayQuote, } from '@shared/accountApi';
 import {
   editFormFrom, updateFromEditForm,
-  primaryContactFrom, alternateContactFrom,
+  primaryContactFrom,
 } from './contactMapping';
 import { spacesFrom, propertiesFrom, activityFrom, savedCardsFrom } from './leaseMapping';
 import { mergeApiCreds, type ApiCredProps } from '@shared/apiConfig';
@@ -303,15 +303,11 @@ export function MyAccount({
    * The display panel's real content. Undefined until the record lands, which
    * is what keeps the frame's sample on screen in the harness and the editor.
    *
-   * `alternate` is null — not undefined — when the account has none, so the
-   * panel hides that block instead of falling back to the sample contact.
+   * The alternate and emergency contacts are per lease, so they live on each
+   * mapped space (spacesFrom) rather than here.
    */
   const realContact = useMemo(
     () => (record ? primaryContactFrom(record) : undefined),
-    [record],
-  );
-  const realAlternate = useMemo(
-    () => (record ? alternateContactFrom(record) : undefined),
     [record],
   );
   /*
@@ -332,13 +328,13 @@ export function MyAccount({
     const fallback = SPACES[0]?.primaryContact ?? { name: '' };
     // siteId is Duda's own (data.siteId) and is what builds the site's
     // Media Manager artwork URLs for each unit — the same as the space cards.
-    const mapped = spacesFrom(record, realContact ?? fallback, realAlternate ?? null, { siteId });
+    const mapped = spacesFrom(record, realContact ?? fallback, { siteId });
     /*
      * A contact with no leases gets an EMPTY list, not the sample. Someone who
      * has closed their last unit must not be shown a stranger's storage.
      */
     return mapped;
-  }, [record, realContact, realAlternate, siteId]);
+  }, [record, realContact, siteId]);
 
   /*
    * The property's name, address and phone for each sidebar card, from the
@@ -809,7 +805,11 @@ export function MyAccount({
               onPayNow={() => { setEnrollAutopay(false); setView('payment'); }}
               onEdit={() => setView('edit')}
               contact={realContact}
-              alternate={realAlternate}
+              // null, not undefined, once a record is in: a lease with no
+              // secondary contact hides the block rather than showing the
+              // sample's Jerry Boo.
+              alternate={record ? space.alternateContact ?? null : undefined}
+              emergency={record ? space.emergencyContact ?? null : undefined}
               onOpenDocument={gated ? openDocument : undefined}
               busyDocument={busyDocument}
             />

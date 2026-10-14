@@ -142,6 +142,7 @@ export interface AccountSpace {
   /* ── Account Info view (8815-115354) ────────────────────────────────── */
   primaryContact: Contact;
   alternateContact?: Contact;
+  emergencyContact?: Contact;
   documents: AccountDocument[];
   /** "Balance Due (Due Jun 5,2026)" — the due date is baked into the label. */
   dueLabel: string;
@@ -237,6 +238,15 @@ export const SPACES: AccountSpace[] = [
       address: ['635 Water Way', 'Los Angeles, CA 90210'],
       email: 'Jerry@storelocal.com',
       phone: '(988) 873-9387',
+    },
+    // Not in the display frame (8815-115354), which stops at the alternate;
+    // the Edit frame has both, and a saved emergency contact needs somewhere
+    // to show. Same person as the Edit frame's sample.
+    emergencyContact: {
+      name: 'Betty Boo',
+      address: ['635 Water Way', 'Los Angeles, CA 90210'],
+      email: 'Betty@storelocal.com',
+      phone: '(988) 873-9388',
     },
     documents: [
       { label: 'Lease Agreement', status: 'Signed' },
@@ -358,6 +368,9 @@ export interface EditForm {
   usePassport: boolean;
   licenceNumber: string;
   licenceState: string;
+  /** ISO code — the passport's issuing country. Only shown with `usePassport`. */
+  licenceCountry: string;
+  /** Typed MM/DD/YYYY (the kit's date mask); converted at the API boundary. */
   licenceExpiry: string;
 
   /* Communication preferences — both ticked in the frame. */
@@ -406,6 +419,7 @@ export const EDIT_DEFAULTS: EditForm = {
   /* Spelled out here and abbreviated in the addresses above — the frame does
      both, so both are kept. */
   licenceState: 'California',
+  licenceCountry: '',
   licenceExpiry: '02/02/2031',
 
   marketingEmails: true,
