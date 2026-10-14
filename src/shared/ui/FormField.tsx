@@ -26,7 +26,7 @@
 import React, { useId, useMemo, useState } from 'react';
 import './FormField.css';
 import {
-  SearchIcon, CalendarIcon, CheckIcon, AlertIcon, InfoIcon, EyeOnIcon, EyeOffIcon,
+  SearchIcon, CalendarIcon, CheckIcon, AlertIcon, InfoIcon, EyeOnIcon, EyeOffIcon, CloseIcon,
 } from './icons';
 import { formatPhoneInput, type PhoneCountry } from './phone';
 
@@ -224,6 +224,19 @@ export function FormField({
             </button>
           )}
 
+          {/* Clear, before the magnifier: an address that was picked from the
+              list is hard to retype over, so one tap empties the box. Only
+              while there is something to clear. */}
+          {type === 'search' && value && !disabled && (
+            <button
+              type="button"
+              className="hb-field__icon-button hb-field__icon--affordance"
+              onClick={() => onChange('')}
+              aria-label={`Clear ${label}`}
+            >
+              <CloseIcon className="hb-field__icon" />
+            </button>
+          )}
           {type === 'search' && <SearchIcon className="hb-field__icon hb-field__icon--affordance" />}
           {type === 'date' && <CalendarIcon className="hb-field__icon hb-field__icon--affordance" />}
           {mask === 'date' && type !== 'date' && (

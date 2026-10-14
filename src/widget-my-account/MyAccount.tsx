@@ -298,10 +298,6 @@ export function MyAccount({
    * lands and NOT on every render of this component, which would reset a
    * half-finished edit under the reader.
    */
-  const editInitial = useMemo(
-    () => (record ? editFormFrom(record) : undefined),
-    [record],
-  );
 
   /*
    * The display panel's real content. Undefined until the record lands, which
@@ -532,7 +528,7 @@ export function MyAccount({
     setSaving(true);
     setSaveError('');
     try {
-      const r = await updateContact(api, session.token, updateFromEditForm(form, record));
+      const r = await updateContact(api, session.token, updateFromEditForm(form, record, space?.id));
       if (r.ok) {
         // Re-read rather than trusting the echo: the server may normalise what
         // it stored, and the next edit must carry ITS ids, not ours.
@@ -565,6 +561,13 @@ export function MyAccount({
    * mounted at all.
    */
   const space = spaces.find((s) => s.id === selectedId) ?? spaces[0];
+  /* AFTER `space` — it seeds from the selected space's lease, and reading
+     `space` above its declaration threw "Cannot access 'space' before
+     initialization" on every render (2026-10-14). */
+  const editInitial = useMemo(
+    () => (record ? editFormFrom(record, space?.id) : undefined),
+    [record, space?.id],
+  );
 
   // Declared after `space` — see the note above `space` on the dead zone.
   /*
