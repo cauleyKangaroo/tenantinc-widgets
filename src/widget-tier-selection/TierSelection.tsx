@@ -920,7 +920,7 @@ export function TierSelection({
     );
   } else if (variant === 'option2') {
     body = isMobile ? (
-      <Option2Mobile heading={headingMobile} urgency={urgency} adminFeeText={effectiveAdminFeeText} chromeless={chromeless} />
+      <Option2Mobile heading={headingMobile} urgency={urgency} adminFeeText={mode === 'modal' ? undefined : effectiveAdminFeeText} chromeless={chromeless} />
     ) : (
       <Option2Layout heading={heading} subheading={subheading} urgency={urgency} adminFeeText={adminFeeText} chromeless={chromeless} />
     );
@@ -934,7 +934,7 @@ export function TierSelection({
         setSelected={setSelected}
         heading={headingMobile}
         urgency={urgency}
-        adminFeeText={effectiveAdminFeeText}
+        adminFeeText={mode === 'modal' ? undefined : effectiveAdminFeeText}
         promo={promo}
         chromeless={chromeless}
       />
@@ -1059,11 +1059,18 @@ export function TierSelection({
                   heading={isMobile ? headingMobile : heading}
                   subheading={isMobile ? undefined : subheading}
                   urgency={modalShowUrgency === false ? '' : urgency}
-                  adminFeeText={isMobile ? undefined : effectiveAdminFeeText}
                   onClose={() => setModalOpen(false)}
                 />
               </header>
-              <div className="ts-modal-body">{inner}</div>
+              <div className="ts-modal-body">
+                {inner}
+                {effectiveAdminFeeText && (
+                  <p className="ts-modal-admin">
+                    <span>{effectiveAdminFeeText}</span>
+                    <InfoCircle size={22} className="ts-modal-admin-info" />
+                  </p>
+                )}
+              </div>
             </div>
           </div>,
           document.body,
@@ -1086,10 +1093,10 @@ export function TierSelection({
 }
 
 // Modal shell header — the single heading row for modal mode: title + subheading
-// on the left, urgency + admin fee on the right (centered on mobile via CSS). It
+// on the left, urgency on the right (centered on mobile via CSS). It
 // lives in the fixed .ts-modal-header, so the body layouts render chromeless.
-function TierModalHeader({ heading, subheading, urgency, adminFeeText, onClose }: {
-  heading: string; subheading?: string; urgency?: string; adminFeeText?: string; onClose: () => void;
+function TierModalHeader({ heading, subheading, urgency, onClose }: {
+  heading: string; subheading?: string; urgency?: string; onClose: () => void;
 }) {
   return (
     <div className="ts-modal-heading">
@@ -1102,12 +1109,6 @@ function TierModalHeader({ heading, subheading, urgency, adminFeeText, onClose }
             <p className={`ts-modal-urgency${urgency ? '' : ' ts-modal-urgency--empty'}`} aria-hidden={!urgency}>
               {urgency || '\u00a0'}
             </p>
-            {adminFeeText && (
-              <p className="ts-modal-admin">
-                {adminFeeText}
-                <InfoCircle size={22} className="ts-modal-admin-info" />
-              </p>
-            )}
           </div>
         {/* Filled disc: the CSS used to draw this by hand (a #101318 ::before
             behind a white &times;); the icon is the same mark and that pseudo is
