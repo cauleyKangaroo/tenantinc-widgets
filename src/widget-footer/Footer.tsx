@@ -3,7 +3,8 @@ import './Footer.css';
 import tenantLogo from './tenant-logo.svg';
 import { SOCIALS, PhoneIcon, AiSparkleIcon, ChevronBigRightIcon } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID, type PropertyContact } from '@shared/propertyContact';
-import { boundText } from '@shared/propertyBinding';
+import { boundText, boundLink } from '@shared/propertyBinding';
+import { RichText } from '@shared/richText';
 import { readSitePages, pageColumnFor, parseRoutes, type SitePage } from '@shared/sitePages';
 import { openFindStorage } from '@shared/findStorageBus';
 import { hasCollectionsApi } from '@shared/dudaCollections';
@@ -206,13 +207,16 @@ export interface FooterProps {
    * and with all six empty the whole "Follow …" block is gone. Any provided
    * link outranks the `Properties` collection's socials.
    */
+  /** Rich text from the content menu's text editor — arrives as HTML
+   *  (`<p class="rteBlock">…</p>`), rendered as such, never as literal tags. */
   footer_text?: string;
-  facebook_link?: string;
-  instagram_link?: string;
-  youtube_link?: string;
-  twitter_link?: string;
-  linkedin_link?: string;
-  tiktok_link?: string;
+  /** Duda LINK fields: objects ({ href, value, target, … }), or strings. */
+  facebook_link?: unknown;
+  instagram_link?: unknown;
+  youtube_link?: unknown;
+  twitter_link?: unknown;
+  linkedin_link?: unknown;
+  tiktok_link?: unknown;
 }
 
 export function Footer({
@@ -453,17 +457,18 @@ export function Footer({
    * 3. Else nothing — and with nothing the "Follow …" block does not render.
    *    The old unlinked placeholder row is gone: a dead icon is a broken link.
    */
-  const configured: Record<string, string> = {
-    facebook: boundText(facebook_link), instagram: boundText(instagram_link), youtube: boundText(youtube_link),
-    x: boundText(twitter_link), linkedin: boundText(linkedin_link), tiktok: boundText(tiktok_link),
+  // Duda sends a link field as an OBJECT ({ href, value, target, … }) — see boundLink.
+  const configured: Record<string, { href: string; target?: string } | null> = {
+    facebook: boundLink(facebook_link), instagram: boundLink(instagram_link), youtube: boundLink(youtube_link),
+    x: boundLink(twitter_link), linkedin: boundLink(linkedin_link), tiktok: boundLink(tiktok_link),
   };
   const anyConfigured = Object.values(configured).some(Boolean);
   const socialLinks = anyConfigured
-    ? SOCIALS.filter((s) => configured[s.key]).map((s) => ({ ...s, href: configured[s.key] }))
+    ? SOCIALS.filter((s) => configured[s.key]).map((s) => ({ ...s, href: configured[s.key]!.href, target: configured[s.key]!.target }))
     : contact?.socials.length
       ? SOCIALS
         .filter((s) => contact.socials.some((c) => c.platform === s.key))
-        .map((s) => ({ ...s, href: contact.socials.find((c) => c.platform === s.key)!.url }))
+        .map((s) => ({ ...s, href: contact.socials.find((c) => c.platform === s.key)!.url, target: undefined as string | undefined }))
       : [];
   /* The text under the logo: the content-menu field when filled, else the
      prop/default — so a site that has not filled it in looks as it did. */
@@ -540,7 +545,9 @@ export function Footer({
               <span>Live Chat</span>
             </button>
           </div>
-          <p className="ft-desc">{displayDescription}</p>
+          {/* Rich text: the content menu's editor sends HTML, which renders as
+              paragraphs (sanitised); the plain default renders as before. */}
+          <RichText value={displayDescription} className="ft-desc" htmlClassName="ft-desc-rich" />
         </div>
       </div>
 
@@ -574,8 +581,8 @@ export function Footer({
             style={anyConfigured || contactSettled ? undefined : { visibility: 'hidden' }}
             aria-hidden={anyConfigured || contactSettled ? undefined : true}
           >
-            {socialLinks.map(({ key, label, Icon, href }) => (
-              <a key={key} className="ft-social" href={href} aria-label={label} title={label} target="_blank" rel="noopener noreferrer">
+            {socialLinks.map(({ key, label, Icon, href, target }) => (
+              <a key={key} className="ft-social" href={href} aria-label={label} title={label} target={target ?? '_blank'} rel="noopener noreferrer">
                 <Icon />
               </a>
             ))}

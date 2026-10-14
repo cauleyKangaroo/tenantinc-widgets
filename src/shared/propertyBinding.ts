@@ -92,6 +92,29 @@ export const BOUND_FIELD_NAMES = [
  * value, can pass the literal handlebars token through unsubstituted. Treat all of
  * those as "not set" so they never win precedence over real data.
  */
+/**
+ * A Duda LINK content field, as the widget receives it.
+ *
+ * A "Link" field is not a string: Duda hands the widget an object —
+ *   { value, label, type: 'url', href, raw_url, target: '_blank', rel }
+ * (seen live 2026-10-14 on #13's facebook_link). `boundText` on that is
+ * "[object Object]" → not set, which is how two filled links rendered no
+ * icons. This reads the href out of the object, accepts a plain string too
+ * (an older text field, or a hand-typed URL), and carries the author's
+ * `target` so a link set to open in a new tab does.
+ */
+export function boundLink(v: unknown): { href: string; target?: string } | null {
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    const href = boundText(o.href) || boundText(o.value) || boundText(o.raw_url) || boundText(o.url);
+    if (!href) return null;
+    const target = boundText(o.target);
+    return target ? { href, target } : { href };
+  }
+  const href = boundText(v);
+  return href ? { href } : null;
+}
+
 export function boundText(v: unknown): string {
   if (v == null) return '';
   const s = str(v).trim();

@@ -205,6 +205,12 @@
   margin: 0;
 }
 
+/* The editor's paragraphs inside the rich-text version: same type, no stray
+   margins, a line's gap between paragraphs. */
+.ft-desc-rich p { margin: 0; }
+.ft-desc-rich p + p { margin-top: 18px; }
+.ft-desc-rich a { color: inherit; text-decoration: underline; }
+
 /* ── Divider (full width) ───────────────────────────────────────────────── */
 
 .ft-divider {
