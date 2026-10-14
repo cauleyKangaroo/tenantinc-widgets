@@ -86,7 +86,8 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
       state: (a?.state ?? '').toUpperCase().slice(0, 2), zip: a?.zip ?? '',
     };
     setMailing(seeded);
-    setEditMail(Object.keys(mailingProblems(seeded)).length > 0);
+    // Always the summary first (Figma Complete); Edit opens the fields.
+    setEditMail(false);
     const l = scanResult.driversLicense;
     setLicence({ ...EMPTY_LICENCE, number: l?.number ?? '', exp: isoToMasked(l?.expiration), state: (l?.state ?? '').toUpperCase().slice(0, 2) });
     setEditDl(false);
@@ -273,7 +274,7 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
     {validCompletion && (
       <div className="rf2-pre-idv-after">
         <IdvAddressNotice />
-        {editMail ? (
+        {editMail || (showErrors && Object.keys(mailErrors).length > 0) ? (
           <MailingAddressFields
             value={mailing}
             onChange={(patch) => setMailing((m) => ({ ...m, ...patch }))}

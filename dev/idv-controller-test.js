@@ -333,6 +333,31 @@ async function main() {
   assert.equal(expiryLookups, lookupsBeforeRetry + 1, 'retry after an unknown expiry repeats the lookup');
   assert.equal(expiryStarts, startsBeforeOutage, 'an unknown outcome never becomes another billable start');
   await React.act(async () => root.unmount());
+
+  // The scanned address and licence outlive the capture session for checkout.
+  const scanned = { idvId: rawId, authenticated: true,
+    address: { street: '1 Main St', city: 'Irvine', state: 'CA', zip: '92618' },
+    driversLicense: { number: '****5273', state: 'CA', expiration: '2030-02-07' } };
+  let pollExpired = false;
+  const keepDetails = { ...recovery, identity: { ...identity, contactId: 'keep-details', leaseId: undefined },
+    api: { ...recovery.api,
+      lookupByEmail: async () => ({ idvId: rawId, authenticated: true }),
+      poll: async () => {
+        if (pollExpired) throw new ExpiredError('This verification session has expired. Please start again.', false);
+        return { status: 'complete', ...scanned };
+      } } };
+  saved.set('mariposa:idv:v1:co:prop:keep-details', JSON.stringify({ completed: true, idvId: rawId, expiresAt: Date.now() / 1000 + 600 }));
+  root = createRoot(document.getElementById('root'));
+  await render(keepDetails);
+  assert.equal(controller.state.result.address.street, '1 Main St', 'a live completion carries the address');
+  await React.act(async () => root.unmount());
+  pollExpired = true;
+  root = createRoot(document.getElementById('root'));
+  await render(keepDetails);
+  assert.equal(controller.state.kind, 'complete');
+  assert.equal(controller.state.result.address.street, '1 Main St', 'the address survives an expired session');
+  assert.equal(controller.state.result.driversLicense.number, '****5273', 'the licence survives an expired session');
+  await React.act(async () => root.unmount());
   dom.window.close();
   console.log('IDV controller race tests passed');
 }

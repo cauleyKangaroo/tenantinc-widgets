@@ -11,13 +11,22 @@ interface StoredIdvSession {
   /** Kept so "Return to this Device" still works after a reload. */
   verificationUrl?: string;
   completed?: boolean;
+  /** What the scan read off the ID. Only the live completion returns all of it,
+   *  so it is kept for the checkout session (images are not). */
+  address?: SafeIdvResult['address'];
+  driversLicense?: SafeIdvResult['driversLicense'];
 }
 
 const COMPLETED_CHECKOUT_TTL_SECONDS = 30 * 60;
 function saveCompleted(key: string | undefined, result: SafeIdvResult): void {
   if (!key) return;
+  const previous = readStored(key);
+  const same = previous?.idvId === result.idvId;
+  const address = result.address ?? (same ? previous?.address : undefined);
+  const driversLicense = result.driversLicense ?? (same ? previous?.driversLicense : undefined);
   if (idvSessionSet(key, JSON.stringify({ completed: true, idvId: result.idvId,
-    expiresAt: Date.now() / 1000 + COMPLETED_CHECKOUT_TTL_SECONDS }))) idvSessionRemove(`${key}:start-uncertain`);
+    expiresAt: Date.now() / 1000 + COMPLETED_CHECKOUT_TTL_SECONDS,
+    ...(address ? { address } : {}), ...(driversLicense ? { driversLicense } : {}) }))) idvSessionRemove(`${key}:start-uncertain`);
 }
 
 /** The verification record for this renter: by email before a lease exists
@@ -163,6 +172,15 @@ export function useIdvController(options: IdvControllerOptions) {
       .then((result) => {
         if (cancelled) return;
         if (uncertain && !result?.authenticated) throw new Error('The previous verification outcome is still unknown.');
+        // A lookup may not carry the address or licence; fall back to what was
+        // saved with this same verification when the scan completed.
+        if (result?.authenticated && stored?.completed && stored.idvId === result.idvId) {
+          result = {
+            ...result,
+            address: result.address ?? stored.address,
+            driversLicense: result.driversLicense ?? stored.driversLicense,
+          };
+        }
         if (result?.authenticated) saveCompleted(key, result);
         // Only an authenticated result completes (the reducer enforces it too):
         // an old, failed verification on the contact leaves the renter to verify now.

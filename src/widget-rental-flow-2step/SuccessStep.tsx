@@ -217,7 +217,7 @@ export function SuccessStep({
   // Read-only only when the scan SUPPLIED the address. A connected scan returns
   // licence details but no address; locking an empty field would leave Get
   // Access failing its required-address check with nothing to fill in.
-  const mailReadOnly = displayedIdv === 'complete' && mailFromScan && !mailEditing;
+  const [attempted, setAttempted] = useState(false);
   // The licence is required exactly when ID verification is (and none was scanned).
   const licenceRequired = idvEnabled && idvRequirement === 'required' && displayedIdv !== 'complete';
   const dlReadOnly = displayedIdv === 'complete' && !dlEditing;
@@ -300,6 +300,10 @@ export function SuccessStep({
     if (patch.country !== undefined) setDlCountry(patch.country);
     if (patch.state !== undefined) setDlState(patch.state);
   };
+  // Complete always shows the summary (Figma); a failed Get Access opens the
+  // fields only when the address is missing or invalid, so the error is visible.
+  const mailIncomplete = !(mailAddress.trim() && mailCity.trim() && mailState.trim().length === 2 && postalCodeOk(mailZip, mailCountry));
+  const mailReadOnly = displayedIdv === 'complete' && !mailEditing && !(attempted && mailIncomplete);
   const [attemptedReveal, setAttemptedReveal] = useState(false);
   /* Revealed by the lookup, by content already in them, or by a failed submit.
      That last one matters now they are REQUIRED: an address typed straight into
@@ -338,7 +342,6 @@ export function SuccessStep({
    * attempt to continue, not while typing: flagging a field the shopper has not
    * reached yet is noise, and this form can be twenty inputs long.
    */
-  const [attempted, setAttempted] = useState(false);
   const filled = (v: string) => v.trim().length > 0;
   const problems: Record<string, string> = {
     // Only while the detail groups are mounted — a required field that is not
