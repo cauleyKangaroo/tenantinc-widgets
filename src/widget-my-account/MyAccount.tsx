@@ -67,7 +67,7 @@ import { mergeApiCreds, type ApiCredProps } from '@shared/apiConfig';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { fetchGatewayInfo } from '@shared/paymentGateway';
 import type { AccountDocument, EditForm } from './data';
-import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROMO_SUPPLIES, PROPERTIES, SPACES, USER } from './data';
+import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROPERTIES, SPACES, USER } from './data';
 
 /** The three panels that share the middle slot. */
 export type View = 'account' | 'payment' | 'edit';
@@ -193,6 +193,10 @@ export function MyAccount({
     if (fromUrl === 'account' || fromUrl === 'payment' || fromUrl === 'edit') return fromUrl;
     return gated ? 'payment' : initialView;
   });
+
+  /* Set by the promo's Enroll, cleared by Pay Now: whether Make a Payment
+     opens with autopay pre-selected on every space. */
+  const [enrollAutopay, setEnrollAutopay] = useState(false);
 
   const [session, setSession] = useState(() => (gated ? readSession() : null));
   /*
@@ -686,10 +690,11 @@ export function MyAccount({
    */
   const email = orElse(userEmail, session?.signedInAs || USER.email);
 
-  /* The promo swaps with the view — autopay on the default screen, supplies on
-     the payment screen, as the two frames draw them. An editor override wins
-     over both, which is why it is applied here and not in data.ts. */
-  const promo = view === 'payment' ? PROMO_SUPPLIES : PROMO_AUTOPAY;
+  /* Autopay only. The payment screen's "Stock up on Storage Supplies" card is
+     OFF until the box shop exists (client feedback) — PROMO_SUPPLIES stays in
+     data.ts for then. An editor override still wins over the copy. */
+  const showPromo = view !== 'payment';
+  const promo = PROMO_AUTOPAY;
   const promoLabel = orElse(promoCta, promo.cta);
 
   /*
@@ -714,7 +719,7 @@ export function MyAccount({
       {busy && <span className="ma-sr-only" role="status">Loading your account…</span>}
       {/* React 18 has no boolean `inert`; an empty string is the attribute. */}
       <div className="ma-grid" {...(busy ? { inert: '' } : {})}>
-        <h1 className="ma-greeting">Hi {name},</h1>
+        <p role="heading" aria-level={1} className="ma-greeting">Hi {name},</p>
         {/* The line and its Log out control are one flex row, so the button
             sits with the sentence it belongs to and wraps under it rather than
             being squeezed when the email is long. */}
@@ -734,15 +739,28 @@ export function MyAccount({
         </div>
 
         <div className="ma-main">
-          <section className="ma-promo">
-            <div className="ma-promo__text">
-              <h2 className="ma-promo__title">{orElse(promoTitle, promo.title)}</h2>
-              <p className="ma-promo__body">{orElse(promoBody, promo.body)}</p>
-            </div>
-            {promoUrl
-              ? <Button tone="cta" href={promoUrl} className="ma-btn-40">{promoLabel}</Button>
-              : <Button tone="cta" className="ma-btn-40">{promoLabel}</Button>}
-          </section>
+          {showPromo && (
+            <section className="ma-promo">
+              <div className="ma-promo__text">
+                <p role="heading" aria-level={2} className="ma-promo__title">{orElse(promoTitle, promo.title)}</p>
+                <p className="ma-promo__body">{orElse(promoBody, promo.body)}</p>
+              </div>
+              {/* Enroll opens Make a Payment with every space at the property
+                  ticked and autopay switched on for each. An editor-set
+                  promoUrl still overrides it with a plain link. */}
+              {promoUrl
+                ? <Button tone="cta" href={promoUrl} className="ma-btn-40">{promoLabel}</Button>
+                : (
+                  <Button
+                    tone="cta"
+                    className="ma-btn-40"
+                    onClick={space ? () => { setEnrollAutopay(true); setView('payment'); } : undefined}
+                  >
+                    {promoLabel}
+                  </Button>
+                )}
+            </section>
+          )}
 
           {/* A signed-in contact with no leases is a real account, not a
               broken page: every panel below needs a space, so without one
@@ -751,7 +769,7 @@ export function MyAccount({
           {!space && (
             <section className="ma-account" role="status">
               <div className="ma-account__body">
-                <h2 className="ma-account__title">No active rentals</h2>
+                <p role="heading" aria-level={2} className="ma-account__title">No active rentals</p>
                 <p className="ma-account__label">There are no spaces on this account yet.</p>
               </div>
             </section>
@@ -762,7 +780,7 @@ export function MyAccount({
           {space && view === 'account' && (
             <AccountInfoPanel
               space={space}
-              onPayNow={() => setView('payment')}
+              onPayNow={() => { setEnrollAutopay(false); setView('payment'); }}
               onEdit={() => setView('edit')}
               contact={realContact}
               alternate={realAlternate}
@@ -776,6 +794,7 @@ export function MyAccount({
               space={space}
               onBack={() => setView('account')}
               initialResult={initialPaymentResult ?? null}
+              enrollAutopay={enrollAutopay}
               coverage={coverageHandlers}
               payment={paymentHandlers}
             />

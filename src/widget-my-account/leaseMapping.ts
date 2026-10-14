@@ -124,7 +124,13 @@ function documentsOf(lease: Record<string, unknown>): AccountDocument[] {
       const label = str(d.name);
       if (!label) return null;
       const ext = str(d.extension);
-      const signed = d.signatureStatus === 1 || !!str(d.signedAt);
+      /* Tolerant on purpose: the live record's signed flag is unverified, and
+         the client's screen showed no pill on a signed Lease Agreement — so
+         the status is accepted as a number, a numeric string or a word, and
+         either spelling of the signed date counts. */
+      const status = String(d.signatureStatus ?? d.signature_status ?? d.status ?? '').trim().toLowerCase();
+      const signed = status === '1' || status === 'signed' || status === 'true'
+        || d.signed === true || !!str(d.signedAt) || !!str(d.signed_at);
       return {
         doc: {
           label,
