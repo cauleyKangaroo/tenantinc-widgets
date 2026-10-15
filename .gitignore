@@ -1,5 +1,6 @@
 node_modules/
 .tmp-idv-test/
+.tmp-contact-test/
 .env
 .env.local
 .DS_Store

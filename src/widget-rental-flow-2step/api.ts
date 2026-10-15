@@ -2766,6 +2766,11 @@ export async function createBulkPayment(
 
 // --- Contact update (post-lease details) ------------------------------------
 //
+// FALLBACK PATH (2026-10-15). With `login_api_base` set the widget files these
+// through the proxy instead — PATCH /api/tenant/contacts/{contactId}, see
+// contactPatch.ts — which also carries the alternate contact. This direct
+// PUT remains for a page with no proxy base (harness, editor, older sites).
+//
 // PUT companies/{co}/contacts/{contactId}. NOT in the rental-flow guide —
 // found by probing and verified against the sandbox 2026-08-21, which is why
 // what it does and does NOT accept is written down here rather than assumed.

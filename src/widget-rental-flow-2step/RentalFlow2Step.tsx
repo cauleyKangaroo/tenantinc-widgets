@@ -3,6 +3,7 @@ import './RentalFlow2Step.css';
 import { Step2, type AutopayMode, type PaymentCycle, type KeyShareOption } from './Step2';
 import type { BillingCountry } from '@shared/paymentForms';
 import { instoreFrom, asInstoreMode, asInstoreAmount } from '@shared/instorePrice';
+import { contactPatchBody, patchContactViaProxy } from './contactPatch';
 import {
   fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
   cyclesForUnitType,
@@ -280,6 +281,14 @@ export interface RentalFlow2StepProps extends ApiCredProps, WalletConfigProps {
   idvRequirementPreview?: IdvRequirement;
   siteId?: string;
   elementId?: string;
+  /**
+   * The My Account proxy's base URL (the same `login_api_base` #19 takes —
+   * copy that JS-tab line). Used for ONE call: filing Step 2's details
+   * against the contact, PATCH {base}/api/tenant/contacts/{contactId}.
+   * Unset → the old direct PUT to the edge API, which cannot carry the
+   * alternate contact. See contactPatch.ts.
+   */
+  login_api_base?: string;
 }
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -1172,6 +1181,7 @@ export function RentalFlow2Step({
   idvRequirementPreview,
   siteId,
   elementId,
+  login_api_base,
   // Site-level REST credentials from the Content Library's custom site texts.
   api_domain,
   app_id,
@@ -3367,7 +3377,12 @@ export function RentalFlow2Step({
                 // Deliberately NOT awaited: the rental is already complete, the
                 // shopper is owed their access screen immediately, and a failure
                 // here is logged rather than shown — it cannot undo a lease.
-                if (rental?.contactId && details) {
+                if (rental?.contactId && details && login_api_base && siteId) {
+                  // Through the proxy, which also takes the alternate contact
+                  // the direct PUT below has no field for. See contactPatch.ts.
+                  const body = contactPatchBody(details, rental.leaseId);
+                  if (body) void patchContactViaProxy(login_api_base, siteId, rental.contactId, body);
+                } else if (rental?.contactId && details) {
                   void updateContactDetails(ctx, rental.contactId, {
                     driverLicense: details.driverLicense,
                     driverLicenseExp: details.driverLicenseExp
