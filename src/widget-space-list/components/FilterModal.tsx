@@ -1,15 +1,22 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { SpaceType, UnitSize } from '../types';
-import type { FilterState } from '../filters';
+import { DEFAULT_FILTERS, activeFilterCount, type FilterState } from '../filters';
 import { TYPE_OPTIONS, SIZE_OPTIONS } from '../data';
 import { Checkbox, CloseCircleIcon } from '@shared/ui';
 
+/*
+ * The modal edits a DRAFT, not the live filters. Picks only reach the listing
+ * when "Apply Filters" is pressed; closing any other way (X, Escape, a click
+ * on the backdrop) discards them, and Reset clears the draft without applying.
+ * It used to write straight through on every tap, so the list changed behind
+ * the modal before the visitor had decided anything.
+ */
 interface FilterModalProps {
+  /** The filters currently applied — the draft starts from these. */
   filters: FilterState;
-  onChange: (next: FilterState) => void;
-  badge: number;
+  /** Commits the draft. Called only by "Apply Filters". */
+  onApply: (next: FilterState) => void;
   onClose: () => void;
-  onReset: () => void;
   amenityOptions: string[];
   /** Types present on this property. Omitted → the static storage/parking pair. */
   typeOptions?: { value: SpaceType; label: string }[];
@@ -34,16 +41,19 @@ function FilterIcon() {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function FilterModal({
-  filters,
-  onChange,
-  badge,
+  filters: applied,
+  onApply,
   onClose,
-  onReset,
   amenityOptions,
   typeOptions = TYPE_OPTIONS,
   featureOptions,
   promotionOptions,
 }: FilterModalProps) {
+  // The draft. Seeded once from the applied filters when the modal opens (it
+  // is mounted only while open), so every open starts from what is applied.
+  const [filters, setFilters] = useState<FilterState>(applied);
+  const badge = activeFilterCount(filters);
+
   // Close on Escape; lock host-page scroll while the lightbox is open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -77,7 +87,8 @@ export function FilterModal({
             <span className="sl-filter-badge">{badge}</span>
           </div>
           <div className="sl-modal-header-right">
-            <button className="sl-modal-reset" onClick={onReset}>Reset</button>
+            {/* Clears the draft only; Apply Filters commits it. */}
+            <button className="sl-modal-reset" onClick={() => setFilters(DEFAULT_FILTERS)}>Reset</button>
             <button className="sl-modal-close" onClick={onClose} aria-label="Close filters">
               {/* Filled disc: the filter modal is #ffffff. 32 is the mark's own
                   Figma size and it fills the 32px button box exactly — the box
@@ -115,7 +126,7 @@ export function FilterModal({
                       const next = active
                         ? filters.types.filter((t) => t !== val)
                         : [...filters.types, val];
-                      onChange({
+                      setFilters({
                         ...filters,
                         types: next,
                         sizes: next.length > 0 && !next.includes('storage') ? [] : filters.sizes,
@@ -143,7 +154,7 @@ export function FilterModal({
                       key={opt.value}
                       className={`sl-pill${active ? ' active' : ''}`}
                       onClick={() =>
-                        onChange({ ...filters, sizes: toggle<UnitSize>(filters.sizes, opt.value) })
+                        setFilters({ ...filters, sizes: toggle<UnitSize>(filters.sizes, opt.value) })
                       }
                     >
                       {active && <span className="sl-pill-x"><CloseCircleIcon outlined size={24} /></span>}
@@ -166,7 +177,7 @@ export function FilterModal({
                   <button
                     key={name}
                     className={`sl-pill${active ? ' active' : ''}`}
-                    onClick={() => onChange({ ...filters, features: toggle(filters.features, name) })}
+                    onClick={() => setFilters({ ...filters, features: toggle(filters.features, name) })}
                   >
                     {active && <span className="sl-pill-x"><CloseCircleIcon outlined size={24} /></span>}
                     {name}
@@ -193,7 +204,7 @@ export function FilterModal({
                   className="sl-filter-check"
                   checked={filters.amenities.includes(amenity)}
                   onChange={() =>
-                    onChange({ ...filters, amenities: toggle(filters.amenities, amenity) })
+                    setFilters({ ...filters, amenities: toggle(filters.amenities, amenity) })
                   }
                 >
                   {amenity}
@@ -214,7 +225,7 @@ export function FilterModal({
                   className="sl-filter-check"
                   checked={filters.promotions.includes(promo)}
                   onChange={() =>
-                    onChange({ ...filters, promotions: toggle(filters.promotions, promo) })
+                    setFilters({ ...filters, promotions: toggle(filters.promotions, promo) })
                   }
                 >
                   {promo}
@@ -229,12 +240,9 @@ export function FilterModal({
             is the scroller — so it holds the bottom of the lightbox at every
             height without `position: sticky` and without leaving the flow.
 
-            The filters already apply as they are touched, so this CONFIRMS and
-            dismisses rather than committing anything: closing is applying. It
-            exists because on a long list — and on a phone, where the modal is
-            nearly full height — the only way out was the X back at the top. */}
+            The ONLY way the draft reaches the listing: commit, then close. */}
         <div className="sl-modal-footer">
-          <button type="button" className="sl-apply-filters" onClick={onClose}>
+          <button type="button" className="sl-apply-filters" onClick={() => { onApply(filters); onClose(); }}>
             Apply Filters
           </button>
         </div>
