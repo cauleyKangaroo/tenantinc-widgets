@@ -1313,6 +1313,22 @@ export function Step2({
               ready to pay), so
               a lone wallet's full-width span is decided in CSS from what
               actually rendered, not guessed here. */}
+          {/* Wallets are one-tap, so there is no moment to visibly untick the
+              autopay box before paying — this says it instead, wherever
+              autopay would otherwise apply (mandatory, or ticked).
+              Gated on what each button REPORTS as on screen, not on what the
+              parent allowed: either can still decline at runtime, and a note
+              about wallets nobody can see would only confuse.
+              Above the wallet buttons, as a blue info tag (Figma). */}
+          {((showApple && appleOnScreen) || (showGoogle && googleOnScreen)) && (mode === 'default' || autopay) && (
+            <p className="rf2-gp-note rf2-gp-note--info">
+              <InfoIcon size={20} className="rf2-gp-note-ico" />
+              <span>
+                Apple Pay and Google Pay are one-time payments and won&rsquo;t enroll in autopay.
+                To pay automatically each {cycleWord.noun}, use Credit / Debit or Pay by Bank.
+              </span>
+            </p>
+          )}
           {(!methodOpen || showApple || showGoogle) && (
           <div className={`rf2-paygrid${methodOpen ? ' rf2-paygrid--wallets' : ''}`}>
             {showGoogle && walletCtx && (
@@ -1362,18 +1378,6 @@ export function Step2({
               </>
             )}
           </div>
-          )}
-          {/* Wallets are one-tap, so there is no moment to visibly untick the
-              autopay box before paying — this says it instead, wherever
-              autopay would otherwise apply (mandatory, or ticked).
-              Gated on what each button REPORTS as on screen, not on what the
-              parent allowed: either can still decline at runtime, and a note
-              about wallets nobody can see would only confuse. */}
-          {((showApple && appleOnScreen) || (showGoogle && googleOnScreen)) && (mode === 'default' || autopay) && (
-            <p className="rf2-gp-note">
-              Apple Pay and Google Pay are one-time payments and won&rsquo;t enroll in autopay.
-              To pay automatically each {cycleWord.noun}, use Credit / Debit or Pay by Bank.
-            </p>
           )}
           {payAttempted && !formComplete && (
             <p className="rf2-gp-note rf2-gp-note--error">
