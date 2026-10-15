@@ -15,7 +15,9 @@
     "test:tier-skip": "node dev/tier-skip-test.js",
     "test:location-permission": "node dev/location-permission-test.js",
     "test:homepage-search": "node dev/homepage-search-test.js",
+    "test:one-step-idv": "node dev/one-step-idv-test.js",
     "test:locations-banner": "node dev/locations-banner-test.js",
+    "test:contact-patch": "tsc src/widget-rental-flow-2step/contactPatch.ts --module commonjs --target ES2022 --moduleResolution node --esModuleInterop --skipLibCheck --lib ES2022,DOM --outDir .tmp-contact-test && node dev/contact-patch-test.js",
     "test:idv": "tsc src/widget-rental-flow-2step/idvState.ts src/widget-rental-flow-2step/idvPolling.ts src/widget-rental-flow-2step/openVerification.ts src/widget-rental-flow-2step/idvPresentation.ts src/widget-rental-flow-2step/idvPolicy.ts src/widget-rental-flow-2step/idvApi.ts src/widget-rental-flow-2step/idvStorage.ts --module commonjs --target ES2022 --moduleResolution node --esModuleInterop --skipLibCheck --lib ES2022,DOM --outDir .tmp-idv-test && node dev/idv-test.js && node dev/idv-controller-test.js"
   },
   "dependencies": {

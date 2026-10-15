@@ -193,13 +193,13 @@ export function useIdvController(options: IdvControllerOptions) {
       && latest.scope.propertyId === captured.scope.propertyId
       && latest.allowedVerificationHosts === captured.allowedVerificationHosts;
   }, []);
-  const start = useCallback(async () => {
+  const start = useCallback(async (preparedWindow?: VerificationWindow | null) => {
     if (!options.enabled || activeRequest.current || state.kind !== 'ready' || !startApi || !startIdentity) return;
     const request = new AbortController();
     const captured = options;
     activeRequest.current = request;
     // Must run before the first await, while the tap's user activation exists.
-    const target = handheld ? openVerificationPlaceholder() : null;
+    const target = handheld ? (preparedWindow === undefined ? openVerificationPlaceholder() : preparedWindow) : null;
     placeholder.current = target;
     let navigated = false;
     setPopupBlocked(false);

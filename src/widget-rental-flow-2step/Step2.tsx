@@ -21,6 +21,8 @@ import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry }
 import { splitBusinessName } from './businessName';
 import { skipValidation } from '@shared/devBypass';
 import creditCardRepeat from './assets/credit-card-repeat.svg';
+import { OneStepIdv, type OneStepIdvConfig } from './OneStepIdv';
+import { allowsOneStepPayment, type IdvCheckoutReadiness } from './idvLead';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space now" (Figma 8507-23329).
@@ -306,6 +308,7 @@ export function Step2({
   brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, leasePreviewUrl, leasePreviewHtml, leasePreviewUpdating, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
   showApplePay = false, showGooglePay = false, walletCtx, walletConfig = WALLET_DEFAULTS,
+  oneStepIdv,
 }: {
   moveIn: Date;
   /**
@@ -323,6 +326,8 @@ export function Step2({
    * it does not remove them from anywhere.
    */
   oneStep?: boolean;
+  /** Pre-payment verification is exclusive to one-step, behind existing IDV release gates. */
+  oneStepIdv?: OneStepIdvConfig;
   /**
    * The property's autopay treatment, from Hummingbird. Unset shows a small
    * demo picker so all four can be reviewed — pass a value and it disappears.
@@ -436,6 +441,7 @@ export function Step2({
   /** The content panel's wallet settings, resolved over WALLET_DEFAULTS. */
   walletConfig?: WalletConfig;
 }) {
+  const [idvReadyContact, setIdvReadyContact] = useState<IdvCheckoutReadiness>();
   // Ticked when step 1 said this is a business rental, so the shopper does not
   // answer the same question twice and its fields open ready to fill.
   const [business, setBusiness] = useState(contact?.business ?? false);
@@ -726,7 +732,12 @@ export function Step2({
      Both the gate and the per-field red state read it, so they cannot
      disagree about whether the form is finished. */
   const skip = skipValidation();
-  const formComplete = skip || required.every(([, ok]) => ok);
+  const idvContact = business
+    ? { ...splitBusinessName(bizName), email: email.trim(), phone }
+    : { first: first.trim(), last: last.trim(), email: email.trim(), phone };
+  const verificationAllowsPayment = !oneStep || allowsOneStepPayment(oneStepIdv, idvReadyContact, idvContact);
+  // The dev validation bypass must never bypass a live ID-verification gate.
+  const formComplete = verificationAllowsPayment && (skip || required.every(([, ok]) => ok));
   const bad = (key: string) => !skip && payAttempted
     && !(required.find(([k]) => k === key)?.[1] ?? true);
   /* The shared groups render FormField's own message, so they need the text
@@ -1123,6 +1134,10 @@ export function Step2({
         </section>
         )}
 
+        {oneStep && oneStepIdv && (oneStepIdv.policyPending || oneStepIdv.requirement !== 'disabled') && (
+          <OneStepIdv key={`${oneStepIdv.scope.companyId}:${oneStepIdv.scope.propertyId}`} config={oneStepIdv} contact={idvContact} onReady={setIdvReadyContact} />
+        )}
+
         {/* Additional Information */}
         <section className="rf2-plain">
           <span className="rf2-h">Additional Information</span>
@@ -1362,7 +1377,9 @@ export function Step2({
           )}
           {payAttempted && !formComplete && (
             <p className="rf2-gp-note rf2-gp-note--error">
-              Complete the highlighted fields (and accept the rental agreement) to continue to payment.
+              {!verificationAllowsPayment
+                ? 'Complete ID verification above before continuing to payment.'
+                : 'Complete the highlighted fields (and accept the rental agreement) to continue to payment.'}
             </p>
           )}
           {walletError && (

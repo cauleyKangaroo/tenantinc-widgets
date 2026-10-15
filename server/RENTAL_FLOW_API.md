@@ -477,3 +477,42 @@ paid by then. It runs in the **background** (it takes ~7s and must not hold the
 "finalizing" screen); a failure is logged, and the result is exposed as the
 `documentGeneration` promise on the rent result.
 `documents/preview` (the step-2 agreement panel) is unchanged.
+
+## Step 2 details → the contact, through the proxy (changed 2026-10-15)
+
+Step 2 ("Get Access") used to file the licence, mailing address and date of
+birth with a direct `PUT …/v2/companies/{co}/contacts/{contactId}` to the edge
+API, and dropped the alternate contact because that PUT has no field for it.
+
+With the widget's `login_api_base` prop set (the same value #19 My Account
+takes — copy its JS-tab line), it now sends ONE call to the My Account proxy:
+
+```
+PATCH {login_api_base}/api/tenant/contacts/{contactId}
+X-Duda-Site-Id: {siteId}
+{
+  "details": { "dob": "1990-01-31", "driverLicense": "D1234567",
+               "driverLicenseState": "TX", "driverLicenseExpiration": "2030-01-31" },
+  "addresses": [ { "type": "Mailing", "primary": false, "line1": "PO Box 12",
+                   "city": "Austin", "state": "TX", "zip": "78702" } ],
+  "secondaryContacts": [ { "leaseId": "<lease>", "isAlternate": true, "isEmergency": false,
+                           "first": "Robert", "last": "Doe", "email": "rob@example.com",
+                           "phone": { "number": "5559998888", "type": "Cell", "sms": false },
+                           "address": { "line1": "9 Elm St", "city": "Austin", "state": "TX",
+                                        "zip": "78703", "country": "US" } } ]
+}
+```
+
+- Only what was filled is sent — a present-but-empty key blanks a value.
+- Dates go as YYYY-MM-DD; the form types MM/DD/YYYY and `contactPatch.ts`
+  converts. Phone numbers go as bare digits.
+- `military` is NOT sent: the form only asks for a date of birth (→
+  `details.dob`); the contract's military object needs branch, rank, service
+  dates and more, none of which are collected. Vehicle still has no field.
+- Fire-and-forget after the lease, logged on failure, never shown — a failure
+  here cannot undo a rental.
+- `npm run test:contact-patch` pins the body shape.
+- **Not yet live (2026-10-15):** `devus-mariposa-duda-proxy` answers
+  `route_not_found` for this path and no proxy branch we hold carries it, so
+  the call could not be exercised end to end. Without `login_api_base` the
+  widget keeps the direct PUT.
