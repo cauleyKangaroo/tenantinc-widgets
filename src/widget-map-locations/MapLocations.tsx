@@ -311,7 +311,9 @@ function PropertyCard({
           )
         ) : (
           <>
-            <div className="ml-units">
+            {/* Fewer than three spaces ⇒ no reserved three-row height, so the
+                card ends under its last size instead of a block of white. */}
+            <div className={`ml-units${shown.length < 3 ? ' ml-units--fit' : ''}`}>
               {shown.map((u) => (
                 <UnitRow
                   key={u.id}
