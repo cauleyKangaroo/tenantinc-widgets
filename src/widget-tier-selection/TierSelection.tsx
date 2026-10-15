@@ -1067,7 +1067,6 @@ export function TierSelection({
                 {effectiveAdminFeeText && (
                   <p className="ts-modal-admin">
                     <span>{effectiveAdminFeeText}</span>
-                    <InfoCircle size={22} className="ts-modal-admin-info" />
                   </p>
                 )}
               </div>
