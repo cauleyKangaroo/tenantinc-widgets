@@ -56,7 +56,7 @@
 .pi-msg-close svg { flex: 0 0 auto; width: 32px !important; height: 32px !important; }
 
 .pi-msg-body { background: #fff; padding: 30px 24px; display: flex; flex-direction: column; gap: 16px; }
-.pi-req { color: #e53935; margin-left: 2px; }
+.pi-req { color: #d32f2f; margin-left: 2px; }
 
 /* Facility area */
 .pi-msg-facility-area { position: relative; display: flex; flex-direction: column; gap: 12px; }
@@ -277,7 +277,7 @@
 
 .pi-msg-error {
   margin: 0 32px;
-  color: #e53935;
+  color: #d32f2f;
   font: 500 15px 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
 

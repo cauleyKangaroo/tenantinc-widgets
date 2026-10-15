@@ -7,7 +7,7 @@
      resting   1px  --hb-cloud-darker    #A5B4BF
      active    1px  --hb-text-night      #101318   (:focus-within — real focus)
      success   1px  --hb-ada-green       #028A0C   (caller sets state="success")
-     error     1px  --hb-ada-red         #E53935   (caller passes an error)
+     error     1px  --hb-ada-red         #D32F2F   (caller passes an error)
 
    Active is driven by `:focus-within`, not a class, so the field lights up from
    real keyboard/mouse focus and can never disagree with where the caret is.
