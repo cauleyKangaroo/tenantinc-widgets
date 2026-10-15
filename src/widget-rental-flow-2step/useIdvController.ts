@@ -76,7 +76,9 @@ async function confirmExpired(api: IdvApi, scope: IdvScope, idvId: string, signa
 }
 
 function storageKey(scope: IdvScope, identity: IdvIdentity): string | undefined {
-  const owner = identity.contactId || identity.leaseId;
+  // A lease gets its own key: another lease for the same contact must start
+  // (and link) its own verification rather than restore this one.
+  const owner = identity.leaseId || identity.contactId;
   if (!owner) return undefined;
   return `mariposa:idv:v1:${scope.companyId}:${scope.propertyId}:${owner}`;
 }
@@ -90,6 +92,11 @@ function readStored(key: string | undefined, owner: string | undefined): StoredI
     if (value.verificationUrl !== undefined && typeof value.verificationUrl !== 'string') return undefined;
     if (Date.now() >= value.expiresAt * 1_000) {
       idvSessionRemove(key);
+      // A pending session that ended while checkout was closed is checked once
+      // more before another start is allowed.
+      if (!value.completed && value.owner === owner) {
+        idvSessionSet(`${key}${EXPIRY_CHECK}`, JSON.stringify({ idvId: value.idvId, owner }));
+      }
       return undefined;
     }
     if (value.owner !== owner) return undefined;

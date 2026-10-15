@@ -349,6 +349,49 @@ async function main() {
   await unmount();
   assert.equal(starts, 5, 'one start per case, none from expiry or recovery');
 
+  // A session that ended while checkout was closed is checked before any new start.
+  polls = 0;
+  const startsBeforeClosed = starts;
+  saved.set('mariposa:idv:v1:co:prop:closed-tab', JSON.stringify({ idvId: rawId, expiresAt: Date.now() / 1000 - 5, owner }));
+  pollMode = 'complete';
+  await mount(guest('closed-tab'));
+  await React.act(async () => { await settle(); });
+  assert.equal(polls, 1, 'the expired session is checked by its own ID');
+  assert.equal(controller.state.kind, 'complete', 'a scan finished while checkout was closed is not lost');
+  await unmount();
+  saved.set('mariposa:idv:v1:co:prop:closed-gone', JSON.stringify({ idvId: rawId, expiresAt: Date.now() / 1000 - 5, owner }));
+  pollMode = 'expired';
+  await mount(guest('closed-gone'));
+  await React.act(async () => { await settle(); });
+  assert.equal(controller.state.kind, 'expired', 'confirmed expiry offers Reverify');
+  await unmount();
+  saved.set('mariposa:idv:v1:co:prop:closed-down', JSON.stringify({ idvId: rawId, expiresAt: Date.now() / 1000 - 5, owner }));
+  pollMode = 'down';
+  await mount(guest('closed-down'));
+  await React.act(async () => { await settle(); });
+  assert.equal(controller.state.kind, 'error', 'an unknown outcome blocks a new start');
+  await unmount();
+  saved.set('mariposa:idv:v1:co:prop:closed-other', JSON.stringify({ idvId: rawId, expiresAt: Date.now() / 1000 - 5, owner: 'someone|else|x|1' }));
+  polls = 0;
+  await mount(guest('closed-other'));
+  assert.equal(polls, 0, "another renter's expired session is not checked");
+  assert.equal(controller.state.kind, 'ready');
+  await unmount();
+  assert.equal(starts, startsBeforeClosed, 'none of these start another session');
+
+  // Two-step: each lease keeps its own session, so a second lease links its own verification.
+  pollMode = 'complete';
+  const leased = leaseId => ({ ...options, identity: { ...identity, contactId: 'same-contact', leaseId }, api: guestApi });
+  await mount(leased('lease-a'));
+  await React.act(async () => controller.start());
+  await React.act(async () => pollingOptions.onComplete(scanned));
+  assert.equal(JSON.parse(saved.get('mariposa:idv:v1:co:prop:lease-a')).completed, true, 'saved under the lease');
+  assert.equal(saved.has('mariposa:idv:v1:co:prop:same-contact'), false, 'not under the shared contact');
+  await unmount();
+  await mount(leased('lease-b'));
+  assert.equal(controller.state.kind, 'ready', "a second lease does not restore the first lease's verification");
+  await unmount();
+
   // Resend is closed once the session window has passed.
   pollMode = 'pending';
   await mount({ ...guest('late-resend'), api: { ...guestApi, start: async () => { starts++; return { ...response, idvId: rawId, expiresAt: Date.now() / 1000 - 1 }; } } });
