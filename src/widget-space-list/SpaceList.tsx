@@ -11,7 +11,6 @@ import { PropertyIdProvider, PropertyExtrasProvider } from './propertyContext';
 import { CompanyIdProvider } from './companyContext';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
-  DEFAULT_FILTERS,
   FilterState,
   filterUnits,
   activeFilterCount,
@@ -711,13 +710,9 @@ export function SpaceList({
       {panelOpen && (
         <FilterModal
           filters={filters}
-          onChange={setFilters}
-          badge={badge}
+          /* The modal works on a draft; only "Apply Filters" commits it. */
+          onApply={setFilters}
           onClose={() => setPanelOpen(false)}
-          /* Reset CLOSES as well as clearing. Both panels write straight
-             through (`onChange={setFilters}`), so there is no draft for the
-             close to discard — the cleared state is already the live one. */
-          onReset={() => { setFilters(DEFAULT_FILTERS); setPanelOpen(false); }}
           amenityOptions={amenityOptions}
           typeOptions={typeOptions}
           featureOptions={featureOptions}
