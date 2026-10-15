@@ -2539,6 +2539,20 @@
 .rf2-gp-submit iframe { border: 0; width: 100%; height: 52px; }
 .rf2-gp-note { font-size: 14px; color: #5c6370; margin: 0; }
 .rf2-gp-note--error { color: #b3261e; }
+/* The wallet/autopay note as a blue info tag (Figma): the same blue pair as
+   .rf2-autopay-note (#e7f1ff on #3d8fff), icon left, dark text. */
+.rf2-gp-note--info {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #e7f1ff;
+  border: 1px solid #3d8fff;
+  border-radius: 8px;
+  color: var(--hb-text-night, #101318);
+  line-height: 1.4;
+}
+.rf2-gp-note-ico { flex: 0 0 auto; color: #3d8fff; }
 .rf2-gp--unconfigured {
   font-size: 14px; color: #5c6370; background: #f5f6f8;
   border: 1px dashed #d0d3d8; border-radius: 8px; padding: 14px 16px;
