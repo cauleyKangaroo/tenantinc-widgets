@@ -846,6 +846,14 @@ export async function applyCoverage(
 //     paymentMethod: { type: "saved", id }                       a card on file
 //                    { type: "hosted-card", token, zip,
 //                      saveToAccount, autopay }                  a GP token
+//                    { type: "ach", account_number, routing_number,
+//                      account_type, save_to_account, auto_charge,
+//                      address, city, state, zip, address2?, country? }
+//                                                                 Pay by Bank
+//
+// The bank object is #99's ACH `payment_method` VERBATIM (achPaymentMethod in
+// widget-rental-flow-2step/api.ts): same keys, same snake_case, so the proxy
+// forwards the one shape the rental flow already sends upstream.
 //
 // PER LEASE — one call per space. The endpoint is under the lease, and the
 // invoices are that lease's; several spaces mean several calls, each with
@@ -862,7 +870,28 @@ export async function applyCoverage(
 
 export type LeasePaymentMethod =
   | { type: 'saved'; id: string }
-  | { type: 'hosted-card'; token: string; zip: string; saveToAccount: boolean; autopay: boolean };
+  | { type: 'hosted-card'; token: string; zip: string; saveToAccount: boolean; autopay: boolean }
+  | LeaseBankPaymentMethod;
+
+/** Pay by Bank — the rental flow's ACH payment object, key for key. */
+export interface LeaseBankPaymentMethod {
+  type: 'ach';
+  /** Digits only. */
+  account_number: string;
+  /** Digits only — nine of them. */
+  routing_number: string;
+  /** 'Checking' | 'Savings'. */
+  account_type: string;
+  save_to_account: boolean;
+  auto_charge: boolean;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  /** Omitted when empty, never sent blank. */
+  address2?: string;
+  country?: string;
+}
 
 export interface LeasePaymentRequest {
   amount: number;

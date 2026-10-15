@@ -516,3 +516,23 @@ X-Duda-Site-Id: {siteId}
   `route_not_found` for this path and no proxy branch we hold carries it, so
   the call could not be exercised end to end. Without `login_api_base` the
   widget keeps the direct PUT.
+
+## Step 2 vehicle → the lease, through the proxy (added 2026-10-15)
+
+The Vehicle section used to be collected and dropped. With `login_api_base`
+set it is now filed against the LEASE, as its own call after the contact PATCH:
+
+```
+PUT {login_api_base}/api/tenant/leases/{leaseId}/vehicle
+X-Duda-Site-Id: {siteId}
+{ "type": "car", "make": "Honda", "model": "Civic", "year": "2020", "color": "Black",
+  "licensePlateNumber": "XYZ789", "licensePlateState": "TX", "licensePlateCountry": "US" }
+```
+
+- `type` is the picker's label lower-cased (Car / Motorcycle / RV / Boat /
+  Trailer → car / motorcycle / rv / boat / trailer); it is the only required
+  field, so no type ⇒ no call.
+- The plate's state and country are picked as names and sent as codes.
+- Only what was filled travels. `npm run test:contact-patch` pins the body.
+- **Not yet live (2026-10-15):** the proxy answers `route_not_found` for this
+  path, like the contacts PATCH.

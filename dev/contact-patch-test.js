@@ -4,7 +4,7 @@
 // source is compiled to CJS first by the "test:contact-patch" script.
 //   npm run test:contact-patch
 const assert = require('assert');
-const { contactPatchBody, mdyToIso, phoneNumber } = require('../.tmp-contact-test/widget-rental-flow-2step/contactPatch.js');
+const { contactPatchBody, vehicleBody, mdyToIso, phoneNumber } = require('../.tmp-contact-test/widget-rental-flow-2step/contactPatch.js');
 
 let passed = 0;
 const eq = (label, actual, expected) => {
@@ -54,5 +54,14 @@ eq('alternate without address or phone', contactPatchBody({ extras: { altFirst: 
 eq('Canada → CA', contactPatchBody({ extras: { altFirst: 'A', altCountry: 'Canada', altAddress: '1 Rue', altCity: 'Montreal', altState: 'QC', altZip: 'H1A 1A1' } }).secondaryContacts[0].address.country, 'CA');
 eq('passport path (no licence fields) + nothing else → null', contactPatchBody({ driverLicense: undefined, extras: { dob: '' } }), null);
 eq('empty → null', contactPatchBody({}), null);
+
+// 4) Vehicle → PUT /api/tenant/leases/{leaseId}/vehicle body.
+eq('vehicle full', vehicleBody({ vType: 'Car', make: 'Honda', model: 'Civic', year: '2020', colour: 'Black', plate: 'XYZ789', stateVal: 'Texas', country: 'United States' }), {
+  type: 'car', make: 'Honda', model: 'Civic', year: '2020', color: 'Black', licensePlateNumber: 'XYZ789', licensePlateState: 'TX', licensePlateCountry: 'US',
+});
+eq('vehicle type only', vehicleBody({ vType: 'RV', make: '', plate: '  ' }), { type: 'rv' });
+eq('vehicle: no type → null', vehicleBody({ vType: '', make: 'Honda' }), null);
+eq('vehicle: no extras → null', vehicleBody(undefined), null);
+eq('vehicle: Canada plate', vehicleBody({ vType: 'Trailer', stateVal: 'Nevada', country: 'Canada' }).licensePlateCountry, 'CA');
 
 console.log(`contact-patch tests: ${passed} passed`);
