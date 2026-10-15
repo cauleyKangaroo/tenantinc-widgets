@@ -291,9 +291,13 @@ export function SectionAccordion({
   // Notes likewise: it is the property's `notes` cell on PropertiesInternal
   // (see SpaceList), and a property with none gets no Notes row at all.
   const hasNotes = !!(notesContent ?? '').trim();
+  // About: its TITLE (about_content_title on PropertiesInternal) decides —
+  // no title, no row; a title with an empty body still shows.
+  const hasAbout = !!(aboutTitle ?? '').trim();
   const allKeys = ACCORDION_SECTIONS.map((s) => s.key).filter(
     (k) => (k !== 'highlights' || featureHighlights.length > 0)
       && (k !== 'notes' || hasNotes)
+      && (k !== 'about' || hasAbout)
       && (!mobile || MOBILE_SECTION_KEYS.has(k)),
   );
 

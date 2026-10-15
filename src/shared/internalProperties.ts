@@ -509,6 +509,35 @@ export async function fetchPropertyNotes(
 }
 
 /**
+ * The "About" accordion of #05's sidebar — `about_content_title` (its row
+ * label) and `about_content_text` (its body) on PropertiesInternal.
+ *
+ * The TITLE decides whether the accordion exists: no title, no row. A title
+ * with an empty body still shows (the row opens onto nothing), per the spec
+ * received 2026-10-15. The title is plain text (rteBlock stripped, since the
+ * column is Rich Text on a native collection); the body keeps its markup for
+ * RichText to render, with only the emptiness check stripping it.
+ */
+const ABOUT_TITLE_FIELD = 'about_content_title';
+const ABOUT_TEXT_FIELD = 'about_content_text';
+export interface PropertyAbout { title: string; body?: string }
+export async function fetchPropertyAbout(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<PropertyAbout | undefined> {
+  const wanted = propertyId.trim();
+  if (!wanted) return undefined;
+  const row = (await readInternalProperties(collectionName))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return undefined;
+  const title = plainText(row[ABOUT_TITLE_FIELD]).trim();
+  if (!title) return undefined;
+  const rawBody = row[ABOUT_TEXT_FIELD];
+  const body = typeof rawBody === 'string' && plainText(rawBody).trim() ? rawBody : undefined;
+  return { title, body };
+}
+
+/**
  * Sort by curated `nearbyLocationPriorityOrder`, then by name.
  *
  * Name is the tie-break the spec asks for: two properties sharing a
