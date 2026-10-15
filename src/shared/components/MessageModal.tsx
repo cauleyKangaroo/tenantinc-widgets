@@ -83,17 +83,44 @@ function ChevronDown({ size = 24 }: { size?: number }) {
  */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function Field({
-  label, required, type = 'text', value, onChange, disabled,
-}: {
-  label: string; required?: boolean; type?: FieldType;
-  value: string; onChange: (v: string) => void; disabled?: boolean;
-}) {
-  const valid = type === 'email'
+/** Whether a value passes for its type — the one rule the tick, the field's
+ *  error and the submit gate all share, so they can never disagree. */
+function fieldValid(type: FieldType, value: string): boolean {
+  return type === 'email'
     ? EMAIL_RE.test(value.trim())
     : type === 'tel'
       ? isPossiblePhone(value, 'US')
       : value.trim().length > 0;
+}
+
+/**
+ * Why a field fails, as the message under it — or '' when it passes. Shown
+ * once Submit has been pressed (every field at once, not just the first), and
+ * for a FORMAT fault as soon as the field is left with something typed in it,
+ * so a mistyped email is caught at the field rather than at the button.
+ */
+function fieldProblem(label: string, type: FieldType, value: string): string {
+  const v = value.trim();
+  if (!v) return `Enter your ${label.toLowerCase()}`;
+  if (type === 'email' && !EMAIL_RE.test(v)) return 'Enter a valid email address';
+  if (type === 'tel' && !isPossiblePhone(value, 'US')) return 'Enter a valid mobile number';
+  return '';
+}
+
+function Field({
+  label, required, type = 'text', value, onChange, disabled, attempted,
+}: {
+  label: string; required?: boolean; type?: FieldType;
+  value: string; onChange: (v: string) => void; disabled?: boolean;
+  /** Submit has been pressed: every fault shows, including an empty field. */
+  attempted?: boolean;
+}) {
+  const [touched, setTouched] = useState(false);
+  const valid = fieldValid(type, value);
+  const problem = fieldProblem(label, type, value);
+  // Empty is only a fault once Submit has been tried; a wrong FORMAT shows as
+  // soon as the field is left, since the shopper has finished with it.
+  const show = problem && (attempted || (touched && value.trim().length > 0));
 
   return (
     <FormField
@@ -102,9 +129,11 @@ function Field({
       required={required}
       value={value}
       onChange={onChange}
+      onBlur={() => setTouched(true)}
       disabled={disabled}
       phoneCountry={type === 'tel' ? 'US' : undefined}
       state={valid ? 'success' : 'default'}
+      error={show ? problem : undefined}
     />
   );
 }
@@ -115,25 +144,31 @@ function Field({
  * as the same control family rather than a lookalike.
  */
 function MessageBox({
-  label, required, value, onChange, disabled,
+  label, required, value, onChange, disabled, error,
 }: {
   label: string; required?: boolean; value: string;
   onChange: (v: string) => void; disabled?: boolean;
+  /** Shown under the box in the kit's error style, with a red border. */
+  error?: string;
 }) {
   const filled = value.trim().length > 0;
   return (
-    <label className={`pi-msg-area${filled ? ' pi-msg-area--valid' : ''}`}>
-      {/* Input before label, and placeholder=" ", so the same
-          :placeholder-shown rule the kit uses can float it. */}
-      <textarea
-        className="pi-msg-area-input"
-        value={value}
-        placeholder=" "
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      <span className="pi-msg-area-label">{label}{required && <span className="pi-req">*</span>}</span>
-    </label>
+    <div className="pi-msg-area-wrap">
+      <label className={`pi-msg-area${filled ? ' pi-msg-area--valid' : ''}${error ? ' pi-msg-area--error' : ''}`}>
+        {/* Input before label, and placeholder=" ", so the same
+            :placeholder-shown rule the kit uses can float it. */}
+        <textarea
+          className="pi-msg-area-input"
+          value={value}
+          placeholder=" "
+          disabled={disabled}
+          aria-invalid={error ? true : undefined}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <span className="pi-msg-area-label">{label}{required && <span className="pi-req">*</span>}</span>
+      </label>
+      {error && <p className="pi-msg-field-error" role="alert">{error}</p>}
+    </div>
   );
 }
 
@@ -171,26 +206,40 @@ export function MessageModal({
   const [form, setForm] = useState({ first: '', last: '', email: '', mobile: '', message: '' });
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [error, setError] = useState('');
+  /* Submit has been pressed with something wrong. From then on EVERY field
+     reports its own fault beneath itself — before, one summary line named
+     only the first problem, so a form with four faults was fixed one press at
+     a time. The faults clear as each field is corrected. */
+  const [attempted, setAttempted] = useState(false);
   const set = (key: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [key]: v }));
   const submitting = status === 'submitting';
 
-  /* Reset the form each time the modal is opened — the property included, so a
-     shopper who cleared it last time gets the page's own property back rather
-     than an empty field they have to fill in again.
-     Keyed on the NAME, not the object: the callers build `{name, address}`
-     inline on every render, so depending on the object itself would re-run this
-     on each one and wipe what the shopper had typed. */
-  const defaultName = defaultFacility?.id ?? defaultFacility?.name;
+  /* Reset the form each time the modal is OPENED — and only then. This used
+     to key on the preselected property's name as well, so when the portfolio
+     list landed after the modal was open (the preselection then switches from
+     a name key to an id key) it ran again and wiped what the shopper had
+     typed, errors and all. The preselection now follows that change on its
+     own, below, without touching the form. */
   useEffect(() => {
     if (!open) return;
     setForm({ first: '', last: '', email: '', mobile: '', message: '' });
     setConsent(false);
     setStatus('idle');
     setError('');
+    setAttempted(false);
     setSelected(defaultFacility ?? null);
     setListOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, defaultName]);
+  }, [open]);
+  /* The page's property, re-applied when its identity settles. Keyed on the
+     NAME/ID, not the object: the callers build `{name, address}` inline on
+     every render. */
+  const defaultName = defaultFacility?.id ?? defaultFacility?.name;
+  useEffect(() => {
+    if (!open) return;
+    setSelected(defaultFacility ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultName]);
 
   useEffect(() => {
     if (!open) return;
@@ -204,30 +253,24 @@ export function MessageModal({
     };
   }, [open, onClose]);
 
+  /* The same checks the fields draw from, so the gate and the red borders
+     cannot disagree about what is wrong. */
+  const formValid = fieldValid('text', form.first) && fieldValid('text', form.last)
+    && fieldValid('email', form.email) && fieldValid('tel', form.mobile)
+    && form.message.trim().length > 0 && consent;
+
   async function handleSubmit() {
     setError('');
+    if (!formValid) {
+      // Every fault shows at once, at its field — nothing is sent.
+      setAttempted(true);
+      return;
+    }
     const first = form.first.trim();
     const last = form.last.trim();
     const email = form.email.trim();
     const mobile = form.mobile.trim();
     const message = form.message.trim();
-
-    if (!first || !last || !email || !mobile || !message) {
-      setError('Please fill in all required fields.');
-      return;
-    }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-    if (mobile.replace(/\D/g, '').length < 10) {
-      setError('Please enter a valid mobile number.');
-      return;
-    }
-    if (!consent) {
-      setError('Please agree to receive messages to continue.');
-      return;
-    }
 
     setStatus('submitting');
     try {
@@ -323,15 +366,18 @@ export function MessageModal({
           <div className="pi-msg-form">
             <div className="pi-msg-rows">
               <div className="pi-msg-row">
-                <Field label="First Name" required value={form.first} onChange={set('first')} disabled={submitting} />
-                <Field label="Last Name" required value={form.last} onChange={set('last')} disabled={submitting} />
+                <Field label="First Name" required value={form.first} onChange={set('first')} disabled={submitting} attempted={attempted} />
+                <Field label="Last Name" required value={form.last} onChange={set('last')} disabled={submitting} attempted={attempted} />
               </div>
               <div className="pi-msg-row">
-                <Field label="Email" required type="email" value={form.email} onChange={set('email')} disabled={submitting} />
-                <Field label="Mobile" required type="tel" value={form.mobile} onChange={set('mobile')} disabled={submitting} />
+                <Field label="Email" required type="email" value={form.email} onChange={set('email')} disabled={submitting} attempted={attempted} />
+                <Field label="Mobile" required type="tel" value={form.mobile} onChange={set('mobile')} disabled={submitting} attempted={attempted} />
               </div>
             </div>
-            <MessageBox label="Leave us a Message" required value={form.message} onChange={set('message')} disabled={submitting} />
+            <MessageBox
+              label="Leave us a Message" required value={form.message} onChange={set('message')} disabled={submitting}
+              error={attempted && !form.message.trim() ? 'Enter your message' : undefined}
+            />
           </div>
         </div>
         )}
@@ -342,22 +388,35 @@ export function MessageModal({
               site. Imported from its own module rather than the @shared/ui
               barrel — that would drag in Button, FormField, SummaryRail and
               paymentIcons' ~39KB of data URIs for a single control. */}
-          <Checkbox checked={consent} onChange={setConsent} className="pi-msg-consent">
+          {/* Required like the fields: unticked at Submit, the box goes red
+              and says so beneath, and clears the moment it is ticked. */}
+          <Checkbox
+            checked={consent} onChange={setConsent}
+            className={`pi-msg-consent${attempted && !consent ? ' pi-msg-consent--error' : ''}`}
+          >
             <span className="pi-msg-consent-text">
               By providing your phone number, you consent to receive informational text messages from {facilityName}.
               Message frequency varies. Message &amp; data rates may apply. Reply HELP for help or STOP to unsubscribe at any time.
             </span>
           </Checkbox>
+          {attempted && !consent && (
+            <p className="pi-msg-field-error pi-msg-field-error--consent" role="alert">Please agree to receive messages to continue</p>
+          )}
           <a className="pi-msg-terms" href={termsHref}>Click to see our Terms and Privacy Policy</a>
 
+          {/* Only a SEND failure lands here now; field faults sit at their fields. */}
           {error && <p className="pi-msg-error" role="alert">{error}</p>}
 
           <div className="pi-msg-actions">
+            {/* reCAPTCHA — switched off (2026-10-15): there is no verification
+                behind the mock, so it only looked like a gate. Restore by
+                uncommenting once a real site key is wired in.
             <div className="pi-msg-captcha" aria-hidden="true">
               <span className="pi-msg-captcha-box" />
               <span className="pi-msg-captcha-label">I&rsquo;m not a robot</span>
               <span className="pi-msg-captcha-brand">reCAPTCHA</span>
             </div>
+            */}
             <div className="pi-msg-buttons">
               <button type="button" className="pi-msg-cancel" onClick={onClose} disabled={submitting}>Cancel</button>
               <button type="button" className="pi-msg-submit" onClick={handleSubmit} disabled={submitting}>

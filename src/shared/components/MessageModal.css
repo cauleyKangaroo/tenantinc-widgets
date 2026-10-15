@@ -160,6 +160,25 @@
    whatever was typed. */
 .pi-msg-area--valid { border-color: var(--hb-field-border-success, #028a0c); }
 .pi-msg-area--valid:focus-within { border-color: var(--hb-field-border-success, #028a0c); }
+/* The kit's error state, on the textarea: red border, red label. */
+.pi-msg-area--error,
+.pi-msg-area--error:focus-within { border-color: var(--hb-field-border-error, #b3261e); }
+.pi-msg-area--error .pi-msg-area-label { color: var(--hb-ada-red, #b3261e); }
+.pi-msg-area-wrap { display: flex; flex-direction: column; gap: 4px; }
+/* The kit's .hb-field__error, for the textarea and the consent box — same
+   colour, size and right alignment, so every fault on the form reads alike. */
+.pi-msg-field-error {
+  margin: 0;
+  color: var(--hb-ada-red, #b3261e);
+  font-size: var(--hb-font-size-label, 12px);
+  font-weight: var(--hb-font-weight-regular, 400);
+  line-height: var(--hb-line-height-label, 16px);
+  text-align: right;
+}
+.pi-msg-field-error--consent { text-align: left; margin-top: -8px; }
+/* Unticked at Submit: the box itself goes red, like a field's border. */
+.hb-check.pi-msg-consent--error .hb-check__box { border-color: var(--hb-field-border-error, #b3261e); box-shadow: 0 0 0 1px var(--hb-field-border-error, #b3261e) inset; }
+.hb-check.pi-msg-consent--error .pi-msg-consent-text { color: var(--hb-ada-red, #b3261e); }
 
 .pi-msg-area-input {
   position: absolute;
