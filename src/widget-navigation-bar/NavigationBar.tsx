@@ -736,13 +736,9 @@ export function NavigationBar({
                   setMegaOpen((o) => !o);
                 }}
               >
+                {/* No chevron on Find Storage: it opens the mega menu, not a
+                    dropdown, and the design drops the caret here. */}
                 <span>{link.label}</span>
-                {link.hasDropdown && (
-                  <ChevronDown
-                    size={20}
-                    className={`nav-link-chevron${megaOpen ? ' is-open' : ''}`}
-                  />
-                )}
               </button>
             ) : isFolderToggle ? (
               <button

@@ -509,49 +509,40 @@ export function MakePaymentPanel({
     panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   /*
-   * The bank account as #99 sends it (achPaymentMethod in its api.ts) — the
-   * SAME object, so the two widgets cannot drift. `save_to_account` is true
-   * as there: the lease needs a stored method to enrol in autopay, and the
-   * details are re-sent for each further space rather than relying on the
-   * reply naming the stored one.
+   * The bank account as the proxy's contract spells it (2026-10-15): camelCase,
+   * the account type lower-case, the holder's name, and the billing address as
+   * one object. Saved, as #99's is: the lease needs a stored method to enrol
+   * in autopay, and the details are re-sent for each further space rather
+   * than relying on the reply naming the stored one.
    */
-  const achMethod = (bank: BankFormValue, autoCharge: boolean): LeaseBankPaymentMethod => ({
+  const achMethod = (bank: BankFormValue, autopay: boolean): LeaseBankPaymentMethod => ({
     type: 'ach',
-    account_number: bank.accountNumber.replace(/\D/g, ''),
-    routing_number: bank.routingNumber.replace(/\D/g, ''),
-    account_type: bank.accountType,
-    save_to_account: true,
-    auto_charge: autoCharge,
-    address: bank.address,
-    city: bank.city,
-    state: bank.state,
-    zip: bank.zip,
-    ...(bank.address2.trim() ? { address2: bank.address2.trim() } : {}),
-    ...(bank.country.trim() ? { country: bank.country.trim() } : {}),
+    accountNumber: bank.accountNumber.replace(/\D/g, ''),
+    routingNumber: bank.routingNumber.replace(/\D/g, ''),
+    accountType: bank.accountType.trim().toLowerCase() === 'savings' ? 'savings' : 'checking',
+    firstName: bank.firstName.trim(),
+    lastName: bank.lastName.trim(),
+    saveToAccount: true,
+    autopay,
+    address: {
+      line1: bank.address.trim(),
+      ...(bank.address2.trim() ? { line2: bank.address2.trim() } : {}),
+      city: bank.city.trim(),
+      state: bank.state.trim(),
+      zip: bank.zip.trim(),
+      country: bank.country.trim() || 'United States',
+    },
   });
   /*
-   * The wallet payment object as #99 sends it (walletPaymentMethod in its
-   * api.ts) — the SAME object: Hummingbird's type names, the single-use token
-   * as `token`, never saved, never autopay, the TENANT's name, and whatever
-   * billing address the sheet returned, each part omitted when empty.
+   * The wallet payment method as the proxy's contract spells it (2026-10-15):
+   * the type as 'google-pay' / 'apple-pay' and the token EXACTLY as #99's
+   * buttons hand it over — Google's token string, Apple's whole token object
+   * stringified. Nothing else: the proxy rejects keys it does not list.
    */
-  const walletMethod = (wallet: WalletPayment): LeaseWalletPaymentMethod => {
-    const tenant = payment?.wallet?.tenant;
-    const body: LeaseWalletPaymentMethod = {
-      type: wallet.type === 'googlepay' ? 'google' : 'apple',
-      token: wallet.token,
-      save_to_account: false,
-      auto_charge: false,
-    };
-    if (tenant?.first.trim()) body.first = tenant.first.trim();
-    if (tenant?.last.trim()) body.last = tenant.last.trim();
-    if (wallet.address?.trim()) body.address = wallet.address.trim();
-    if (wallet.city?.trim()) body.city = wallet.city.trim();
-    if (wallet.state?.trim()) body.state = wallet.state.trim();
-    const zip = (wallet.zip ?? '').replace(/\D/g, '').slice(0, 5);
-    if (zip.length === 5) body.zip = zip;
-    return body;
-  };
+  const walletMethod = (wallet: WalletPayment): LeaseWalletPaymentMethod => ({
+    type: wallet.type === 'googlepay' ? 'google-pay' : 'apple-pay',
+    token: wallet.token,
+  });
   /** How many separate payments the ticked spaces need — see payLive's steps. */
   const stepCount = () => list.filter((s) => selected.has(s.id))
     .reduce((n, sp) => n + (sp.openInvoices.length > 0 ? 1 : 0) + (prepay ? 1 : 0), 0);

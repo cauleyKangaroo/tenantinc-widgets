@@ -846,20 +846,17 @@ export async function applyCoverage(
 //     paymentMethod: { type: "saved", id }                       a card on file
 //                    { type: "hosted-card", token, zip,
 //                      saveToAccount, autopay }                  a GP token
-//                    { type: "ach", account_number, routing_number,
-//                      account_type, save_to_account, auto_charge,
-//                      address, city, state, zip, address2?, country? }
+//                    { type: "ach", accountNumber, routingNumber,
+//                      accountType: "checking" | "savings",
+//                      firstName, lastName, saveToAccount, autopay,
+//                      address: { line1, city, state, zip, country } }
 //                                                                 Pay by Bank
+//                    { type: "google-pay" | "apple-pay", token }  a wallet
 //
-//                    { type: "google" | "apple", token,
-//                      save_to_account: false, auto_charge: false,
-//                      first?, last?, address?, city?, state?, zip? }
-//                                                                 Google / Apple Pay
-//
-// The bank and wallet objects are #99's `payment_method` VERBATIM
-// (achPaymentMethod / walletPaymentMethod in widget-rental-flow-2step/api.ts):
-// same keys, same snake_case, so the proxy forwards the one shape the rental
-// flow already sends upstream. A wallet token is single-use and never enrols.
+// Both per the proxy's own contract (TenantInc, 2026-10-15) — camelCase like
+// the card methods, NOT #99's snake_case upstream objects. The wallet token
+// is exactly what #99 collects: Google's tokenizationData.token string, or
+// Apple's whole token object JSON-stringified. Single-use, never enrols.
 //
 // PER LEASE — one call per space. The endpoint is under the lease, and the
 // invoices are that lease's; several spaces mean several calls, each with
@@ -880,42 +877,27 @@ export type LeasePaymentMethod =
   | LeaseBankPaymentMethod
   | LeaseWalletPaymentMethod;
 
-/** Google Pay / Apple Pay — the rental flow's wallet payment object, key for key. */
+/** Google Pay / Apple Pay — the proxy's wallet payment method. */
 export interface LeaseWalletPaymentMethod {
-  /** Hummingbird's names, as #99 sends them: 'google' | 'apple'. */
-  type: 'google' | 'apple';
-  /** SINGLE-USE. Google's tokenizationData.token; Apple's whole token object, stringified. */
+  type: 'google-pay' | 'apple-pay';
+  /** SINGLE-USE, as #99 collects it: Google's tokenizationData.token; Apple's
+   *  whole token object, JSON-stringified. */
   token: string;
-  save_to_account: false;
-  auto_charge: false;
-  /** The TENANT's name, not the wallet card's holder. */
-  first?: string;
-  last?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  /** Five digits, when the wallet returned one. */
-  zip?: string;
 }
 
-/** Pay by Bank — the rental flow's ACH payment object, key for key. */
+/** Pay by Bank — the proxy's ACH payment method. */
 export interface LeaseBankPaymentMethod {
   type: 'ach';
   /** Digits only. */
-  account_number: string;
+  accountNumber: string;
   /** Digits only — nine of them. */
-  routing_number: string;
-  /** 'Checking' | 'Savings'. */
-  account_type: string;
-  save_to_account: boolean;
-  auto_charge: boolean;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  /** Omitted when empty, never sent blank. */
-  address2?: string;
-  country?: string;
+  routingNumber: string;
+  accountType: 'checking' | 'savings';
+  firstName: string;
+  lastName: string;
+  saveToAccount: boolean;
+  autopay: boolean;
+  address: { line1: string; line2?: string; city: string; state: string; zip: string; country: string };
 }
 
 export interface LeasePaymentRequest {
