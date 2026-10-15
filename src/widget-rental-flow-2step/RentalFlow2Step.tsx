@@ -3492,6 +3492,15 @@ export function RentalFlow2Step({
                post-purchase screen. Everything else is shared. */
             oneStep={formMode === '1step'}
             autopayMode={autopayMode}
+            oneStepIdv={formMode === '1step' && idvApi ? {
+              api: idvApi,
+              scope: idvScope,
+              leadConfig: { baseUrl: idvBaseUrl, appId: idvAppId, apiKey: idvApiKey,
+                companyId: idvScope.companyId, propertyId: idvScope.propertyId },
+              allowedVerificationHosts: allowedIdvHosts,
+              requirement: idvRequirement,
+              policyPending: idvPolicyPending,
+            } : undefined}
             paymentCycles={offeredCycles}
             keyShareOptions={keyShareOptions?.length ? keyShareOptions : (previewContent ? PREVIEW_KEY_SHARES : keyShareOptions)}
             moveIn={moveIn}

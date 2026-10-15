@@ -31,7 +31,7 @@ export interface LeadInput {
  *    (`"notes" is not allowed`) despite the sample curl showing one;
  *  - source is fixed to "website"; the contact is deduped server-side by email.
  */
-export async function createLead(cfg: LeadApiConfig, input: LeadInput): Promise<unknown> {
+export async function createLead(cfg: LeadApiConfig, input: LeadInput, options: { signal?: AbortSignal } = {}): Promise<unknown> {
   const url = `${cfg.baseUrl}/applications/${cfg.appId}/v1/companies/${cfg.companyId}/leads/`;
 
   const body = {
@@ -50,6 +50,7 @@ export async function createLead(cfg: LeadApiConfig, input: LeadInput): Promise<
 
   const res = await fetch(url, {
     method: 'POST',
+    signal: options.signal,
     headers: {
       'x-storageapi-date': String(Math.floor(Date.now() / 1000)),
       'x-storageapi-key': cfg.apiKey,

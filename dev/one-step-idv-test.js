@@ -1,0 +1,196 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('typescript');
+const React = require('react');
+const { createRoot } = require('react-dom/client');
+const { Simulate } = require('react-dom/test-utils');
+const { JSDOM } = require('jsdom');
+
+function load(file, imports, context = {}) {
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(require.resolve(file), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
+  }).outputText, { exports, Date, JSON, AbortController, window: global.window, ...context, require: name => {
+    if (name in imports) return imports[name];
+    throw new Error(`Unexpected import ${name}`);
+  } });
+  return exports;
+}
+
+async function main() {
+  const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost/' });
+  global.window = dom.window;
+  global.document = dom.window.document;
+  global.IS_REACT_ACT_ENVIRONMENT = true;
+  const saved = new Map();
+  const helpers = load('../src/widget-rental-flow-2step/idvLead.ts', {
+    './idvStorage': { idvSessionGet: key => saved.get(key), idvSessionSet: (key, value) => { saved.set(key, value); return true; } },
+  });
+  const scope = { companyId: 'company', propertyId: 'property' };
+  const contact = { first: 'Test', last: 'Renter', email: 'test@example.com', phone: '2025550100' };
+  const envelope = { applicationData: { app: [{ status: 200, data: { lead_id: 'lead', contact_id: 'contact' } }] } };
+  const lead = helpers.parseCreatedIdvLead(envelope, 'app', contact);
+  assert.equal(lead.contactId, 'contact');
+  assert.equal(lead.leadId, 'lead');
+  assert.throws(() => helpers.parseCreatedIdvLead({ applicationData: { app: [{ status: 400, data: {} }] } }, 'app', contact));
+  assert.throws(() => helpers.parseCreatedIdvLead(envelope, 'wrong-app', contact));
+  helpers.savePreparedIdvLead(scope, lead);
+  assert.equal(helpers.readPreparedIdvLead(scope).contactId, 'contact');
+  assert.equal(helpers.readPreparedIdvLead({ ...scope, propertyId: 'another' }), undefined);
+  helpers.savePreparedIdvLead(scope, { ...lead, expiresAt: Date.now() - 1 });
+  assert.equal(helpers.readPreparedIdvLead(scope), undefined, 'expired contact records cannot resume');
+  saved.clear();
+  const required = { requirement: 'required', policyPending: false, scope };
+  const verifiedReadiness = { contact, scope, verified: true };
+  assert.equal(helpers.allowsOneStepPayment(required, undefined, contact), false);
+  assert.equal(helpers.allowsOneStepPayment(required, verifiedReadiness, contact), true);
+  assert.equal(helpers.allowsOneStepPayment(required, verifiedReadiness, { ...contact, email: 'different@example.com' }), false);
+  assert.equal(helpers.allowsOneStepPayment({ ...required, policyPending: true }, verifiedReadiness, contact), false);
+  assert.equal(helpers.allowsOneStepPayment(required, { ...verifiedReadiness, verified: false }, contact), false, 'an optional deferral cannot satisfy a required policy');
+  assert.equal(helpers.allowsOneStepPayment({ ...required, scope: { ...scope, propertyId: 'another' } }, verifiedReadiness, contact), false, 'readiness cannot carry to another scope');
+  assert.equal(helpers.allowsOneStepPayment(undefined, undefined, contact), true, 'two-step and disconnected flows are unchanged');
+
+  let phase = 'ready';
+  let leadCalls = 0;
+  let resolveLead;
+  let starts = 0;
+  let opened = 0;
+  let closed = 0;
+  let handedOff;
+  let readyContact;
+  let controllerOptions;
+  let handheld = true;
+  let modalProps;
+  let resendUncertain = false;
+  let resendCalls = 0;
+  const resend = async () => { resendCalls++; return 'sent'; };
+  const tab = { location: { href: '' }, close: () => { closed++; } };
+  const start = async target => { starts++; handedOff = target; };
+  const Component = load('../src/widget-rental-flow-2step/OneStepIdv.tsx', {
+    react: React, 'react/jsx-runtime': require('react/jsx-runtime'),
+    '@shared/leadsApi': { createLead: (cfg, input, options) => {
+      leadCalls++; assert.equal(cfg.companyId, scope.companyId); assert.equal(input.email, contact.email);
+      assert.ok(options.signal);
+      return new Promise(resolve => { resolveLead = resolve; });
+    } },
+    '@shared/ui': { isPossiblePhone: phone => phone.replace(/\D/g, '').length === 10 },
+    './useIdvController': { useIdvController: options => {
+      controllerOptions = options;
+      return { state: { kind: options.enabled ? phase : 'idle', result: { authenticated: true }, notificationStatus: 'sent', resendUncertain }, handheld, start, resend,
+        continueInNewTab() {}, retry() {}, verificationUrl: 'https://verify.example.com', popupBlocked: false };
+    } },
+    './IdIllustration': { IdIllustration: () => null },
+    './IdVerifyModal': { IdVerifyModal: props => {
+      modalProps = props;
+      return props.open ? React.createElement('div', { role: 'dialog', 'data-testid': 'idv-modal' }) : null;
+    } },
+    './idvLead': helpers,
+    './openVerification': {
+      openVerificationPlaceholder: () => { opened++; return tab; },
+      closeVerificationPlaceholder: target => { if (target) target.close(); },
+      navigateVerificationWindow: () => true,
+    },
+  }).OneStepIdv;
+  const config = { ...required, api: {}, scope, leadConfig: { ...scope, appId: 'app' }, allowedVerificationHosts: ['verify.example.com'] };
+  const onReady = value => { readyContact = value; };
+  const root = createRoot(document.getElementById('root'));
+  const render = (c = contact) => React.act(async () => root.render(React.createElement(Component, { config, contact: c, onReady })));
+  await render();
+  assert.equal(readyContact, undefined);
+  await React.act(async () => {
+    Simulate.click(document.querySelector('button'));
+    Simulate.click(document.querySelector('button'));
+  });
+  assert.equal(leadCalls, 1, 'double click creates only one lead');
+  assert.equal(opened, 1, 'mobile placeholder opens before the lead response');
+  assert.equal(starts, 0, 'IDV cannot start before a contact exists');
+  await React.act(async () => resolveLead(envelope));
+  assert.equal(controllerOptions.identity.contactId, 'contact');
+  assert.equal(starts, 1, 'prepared contact starts verification once');
+  assert.equal(handedOff, tab, 'the original user-gesture window is reused');
+  assert.equal(document.querySelector('[data-testid="idv-modal"]'), null, 'mobile never shows the desktop handoff modal');
+  phase = 'pending'; await render();
+  assert.equal(readyContact, undefined, 'pending verification cannot allow payment');
+  phase = 'complete'; await render();
+  assert.equal(readyContact.contact.email, contact.email);
+  assert.equal(helpers.allowsOneStepPayment(required, readyContact, contact), true);
+  await render({ ...contact, email: 'changed@example.com' });
+  assert.equal(controllerOptions.enabled, false, 'a different identity cannot use the previous verification');
+  assert.equal(readyContact, undefined);
+  await React.act(async () => root.unmount());
+  const restoredRoot = createRoot(document.getElementById('root'));
+  await React.act(async () => restoredRoot.render(React.createElement(Component, { config, contact, onReady })));
+  assert.equal(controllerOptions.identity.contactId, 'contact', 'remount reuses the contact ID for backend lookup');
+  assert.equal(leadCalls, 1, 'remount does not create another lead');
+  const optionalConfig = { ...config, requirement: 'optional' };
+  phase = 'ready';
+  await React.act(async () => restoredRoot.render(React.createElement(Component, { config: optionalConfig, contact, onReady })));
+  await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Verify ID Later')));
+  assert.equal(readyContact.contact.email, contact.email, 'optional verification can be deferred');
+  await React.act(async () => restoredRoot.render(React.createElement(Component, { config: { ...config, policyPending: true }, contact, onReady })));
+  assert.equal(readyContact, undefined, 'pending property policy cannot allow payment');
+  await React.act(async () => restoredRoot.unmount());
+  saved.clear();
+  const failingRoot = createRoot(document.getElementById('root'));
+  await React.act(async () => failingRoot.render(React.createElement(Component, { config, contact, onReady })));
+  const startsBeforeFailure = starts;
+  const closedBeforeFailure = closed;
+  await React.act(async () => Simulate.click(document.querySelector('button')));
+  await React.act(async () => resolveLead({ applicationData: { app: [{ status: 400, data: {} }] } }));
+  assert.equal(starts, startsBeforeFailure, 'failed contact creation never starts billable IDV');
+  assert.equal(closed, closedBeforeFailure + 1, 'failed preparation closes its blank mobile tab');
+  assert.match(document.querySelector('[role="alert"]').textContent, /could not be prepared/);
+  await React.act(async () => failingRoot.unmount());
+  handheld = false;
+  phase = 'ready';
+  const desktopRoot = createRoot(document.getElementById('root'));
+  const renderDesktop = () => React.act(async () => desktopRoot.render(React.createElement(Component, { config, contact, onReady })));
+  await renderDesktop();
+  const windowsBeforeDesktop = opened;
+  const startsBeforeDesktop = starts;
+  await React.act(async () => Simulate.click(document.querySelector('button')));
+  assert.ok(document.querySelector('[data-testid="idv-modal"]'), 'desktop opens the existing handoff modal during contact preparation');
+  assert.equal(modalProps.lifecycle, 'starting');
+  assert.equal(modalProps.connected, true);
+  assert.equal(opened, windowsBeforeDesktop, 'desktop preparation does not open a new tab');
+  await React.act(async () => resolveLead(envelope));
+  assert.equal(starts, startsBeforeDesktop + 1);
+  phase = 'pending'; await renderDesktop();
+  assert.equal(modalProps.phone, contact.phone);
+  assert.equal(modalProps.verificationUrl, 'https://verify.example.com');
+  assert.equal(modalProps.notificationStatus, 'sent');
+  assert.equal(modalProps.onResend, resend, 'the shared modal uses the controller resend');
+  await React.act(async () => modalProps.onResend());
+  assert.equal(resendCalls, 1);
+  resendUncertain = true; await renderDesktop();
+  assert.equal(modalProps.resendUncertain, true, 'the existing resend uncertainty brake is preserved');
+  await React.act(async () => modalProps.onClose());
+  assert.equal(document.querySelector('[data-testid="idv-modal"]'), null);
+  assert.equal(readyContact, undefined, 'closing the handoff modal does not verify the renter');
+  await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Continue Verification')));
+  assert.ok(document.querySelector('[data-testid="idv-modal"]'), 'desktop Continue reopens the same handoff modal');
+  assert.equal(starts, startsBeforeDesktop + 1, 'reopening does not create another billable session');
+  assert.equal(opened, windowsBeforeDesktop, 'desktop Continue does not open a browser tab');
+  await React.act(async () => modalProps.onResult('complete'));
+  assert.equal(readyContact, undefined, 'presentation cannot override backend verification');
+  await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Continue Verification')));
+  phase = 'complete'; await renderDesktop();
+  assert.equal(document.querySelector('[data-testid="idv-modal"]'), null, 'verified completion closes the modal');
+  assert.equal(readyContact.verified, true);
+  for (const terminal of ['failed', 'expired', 'error']) {
+    phase = 'pending'; await renderDesktop();
+    await React.act(async () => Simulate.click([...document.querySelectorAll('button')].find(button => button.textContent === 'Continue Verification')));
+    assert.ok(document.querySelector('[data-testid="idv-modal"]'));
+    phase = terminal; await renderDesktop();
+    assert.equal(document.querySelector('[data-testid="idv-modal"]'), null, `${terminal} closes the handoff modal`);
+    assert.equal(readyContact, undefined, `${terminal} does not allow payment`);
+  }
+  await React.act(async () => desktopRoot.unmount());
+  const source = fs.readFileSync(require.resolve('../src/widget-rental-flow-2step/Step2.tsx'), 'utf8');
+  assert.ok(source.indexOf('<OneStepIdv') < source.indexOf('{/* Additional Information */}'));
+  assert.match(source, /formComplete = verificationAllowsPayment &&/);
+  dom.window.close();
+  console.log('One-step pre-payment IDV tests passed: lead preparation, recovery, payment gating, mobile new tab, and shared desktop handoff modal.');
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });
