@@ -53,9 +53,9 @@
 // ===========================================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CoveragePlan, LeaseCoverage, LeasePaymentMethod, LeasePaymentReceipt, LeasePaymentRequest, PrepayQuote } from '@shared/accountApi';
+import type { CoveragePlan, LeaseBankPaymentMethod, LeaseCoverage, LeasePaymentMethod, LeasePaymentReceipt, LeasePaymentRequest, PrepayQuote } from '@shared/accountApi';
 import { Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
-import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from '@shared/paymentForms';
+import { BankForm, CardForm, PaymentFormSkeleton, type BankFormValue, type CardFormValue } from '@shared/paymentForms';
 import {
   BankIcon, ChevronBigLeft24Icon, ChevronBigRight24Icon, CreditCardIcon, CreditCardRemoveIcon,
   CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
@@ -81,8 +81,9 @@ const FORM_SKELETON_MS = 700;
  * PROPERTY (every space on the panel is at one property): a string mounts
  * the hosted card fields, '' means the facility takes no card online and the
  * card option is replaced by a notice, undefined means the lookup is still
- * out. The account payments API takes a hosted-field TOKEN or a saved method
- * — never card digits — so there is no plain-input fallback here on purpose.
+ * out. The account payments API takes a hosted-field TOKEN, a saved method
+ * or a bank account (#99's ACH object) — never card digits — so there is no
+ * plain-input card fallback here on purpose.
  */
 export interface PaymentHandlers {
   gpPublicKey: string | undefined;
@@ -480,7 +481,28 @@ export function MakePaymentPanel({
     setResult(outcome);
     panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
-  const payLive = async (card?: CardFormValue, saved?: SavedCard) => {
+  /*
+   * The bank account as #99 sends it (achPaymentMethod in its api.ts) — the
+   * SAME object, so the two widgets cannot drift. `save_to_account` is true
+   * as there: the lease needs a stored method to enrol in autopay, and the
+   * details are re-sent for each further space rather than relying on the
+   * reply naming the stored one.
+   */
+  const achMethod = (bank: BankFormValue, autoCharge: boolean): LeaseBankPaymentMethod => ({
+    type: 'ach',
+    account_number: bank.accountNumber.replace(/\D/g, ''),
+    routing_number: bank.routingNumber.replace(/\D/g, ''),
+    account_type: bank.accountType,
+    save_to_account: true,
+    auto_charge: autoCharge,
+    address: bank.address,
+    city: bank.city,
+    state: bank.state,
+    zip: bank.zip,
+    ...(bank.address2.trim() ? { address2: bank.address2.trim() } : {}),
+    ...(bank.country.trim() ? { country: bank.country.trim() } : {}),
+  });
+  const payLive = async (card?: CardFormValue, saved?: SavedCard, bank?: BankFormValue) => {
     if (!payment || paying) return;
     /*
      * One STEP per thing to pay: a space's open invoices, and — with prepay
@@ -508,7 +530,7 @@ export function MakePaymentPanel({
       finishPayment('failed', null, 'There is nothing outstanding on the selected space(s) to pay. Tick "Prepay Additional Month(s)" to pay ahead.');
       return;
     }
-    if (!saved && !card?.token) {
+    if (!saved && !card?.token && !bank) {
       // Plain inputs would mean a card number in this bundle, which the API
       // does not take and this page must never hold.
       finishPayment('failed', null, 'Card payments need the secure card fields, which did not load. Please refresh and try again.');
@@ -523,22 +545,27 @@ export function MakePaymentPanel({
     for (const step of steps) {
       const method: LeasePaymentMethod = savedId
         ? { type: 'saved', id: savedId }
-        : { type: 'hosted-card', token: card!.token!, zip: card!.zip, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) };
+        : bank
+          ? achMethod(bank, autopayFor(step.sp))
+          : { type: 'hosted-card', token: card!.token!, zip: card!.zip, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) };
       const r = await payment.pay(step.sp.id, { ...step.body, paymentMethod: method }, idemKeyFor(step.key));
       if (!r.ok) { failure = r.message; break; }
       idemKeys.current.delete(step.key);
       paidTotal += step.body.amount; last = r.receipt; paid.push(step);
-      if (!savedId && paid.length < steps.length) {
+      // A bank account can be sent again; only a card TOKEN is single-use.
+      if (bank && !savedId && r.receipt.savedPaymentMethodId) savedId = r.receipt.savedPaymentMethodId;
+      if (!bank && !savedId && paid.length < steps.length) {
         if (r.receipt.savedPaymentMethodId) savedId = r.receipt.savedPaymentMethodId;
         else { failure = 'The card could only be charged once in this session. Please pay the remaining item(s) separately.'; break; }
       }
     }
     setPaying(false);
-    const last4 = saved?.last4 || (card?.maskedCardNumber ?? '').replace(/\D/g, '').slice(-4);
+    const last4 = saved?.last4
+      || (bank ? bank.accountNumber.slice(-4) : (card?.maskedCardNumber ?? '').replace(/\D/g, '').slice(-4));
     const summary: PaymentReceipt = {
       number: last?.number || '—',
       amount: formatMoney(paidTotal),
-      method: last?.method || (last4 ? `xxxx ${last4}` : '—'),
+      method: last?.method || (last4 ? `${bank ? 'Bank ' : ''}xxxx ${last4}` : '—'),
     };
     if (!failure) { finishPayment('success', summary, ''); return; }
     if (paid.length) {
@@ -546,8 +573,6 @@ export function MakePaymentPanel({
       finishPayment('failed', summary, `${paid.map((s) => s.label).join(', ')} paid (${summary.amount}). Not paid: ${unpaid}. ${failure}`);
     } else finishPayment('failed', null, failure);
   };
-  const bankNotLive = () =>
-    finishPayment('failed', null, 'Bank payments are not available online yet. Please pay by card, or contact the office.');
   const liveCardKey = payment?.gpPublicKey;
   const cardUnavailable = !!payment && !payment.gatewayPending && !liveCardKey;
   /* "Pay through" is per space; with several selected they can disagree, so the
@@ -1000,22 +1025,14 @@ export function MakePaymentPanel({
               />
             )
           ) : (
-            <>
-              {/* The account payments API takes a card token or a saved method
-                  and nothing else yet. The tile stays — bank is on the way —
-                  but on a live account it must say so before the details are
-                  typed, and a "Pay Now" here cannot pretend to have paid. */}
-              {payment && (
-                <p className="ma-pay__notice" role="status">
-                  Bank payments are coming soon and are not available online yet. Please pay by card for now.
-                </p>
-              )}
-              <BankForm
-                total={balanceTotal}
-                onPay={() => (payment ? bankNotLive() : pay())}
-                defaultCountry="United States"
-              />
-            </>
+            /* #99's bank form, and its ACH object goes to the account
+               payments API exactly as #99 sends it (achMethod above). */
+            <BankForm
+              total={balanceTotal}
+              onPay={(v) => (payment ? void payLive(undefined, undefined, v) : pay())}
+              busy={paying}
+              defaultCountry="United States"
+            />
           )}
         </section>
       )}
