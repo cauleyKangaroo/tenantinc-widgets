@@ -377,7 +377,7 @@
 
 .ma-result--failed {
   padding: 41px 43px 42px 107px;
-  background: rgba(229, 57, 53, 0.1);
+  background: rgba(211, 47, 47, 0.1);
 }
 
 .ma-result__top {
@@ -551,7 +551,7 @@
 /* Outcome of a coverage call: what is now scheduled, or why it was refused.
    The error colour is the kit's, so it reads like every other refusal. */
 .ma-coverage-note { margin: 6px 0 2px; font-size: 14px; line-height: 20px; color: var(--hb-grayscale-medium, #637381); }
-.ma-coverage-note--error { color: var(--hb-ada-red, #d73632); }
+.ma-coverage-note--error { color: var(--hb-ada-red, #d32f2f); }
 
 .ma-coverage__price { flex: 0 0 63px; }
 
@@ -816,7 +816,7 @@
 .ma-methods .rf2-pay.rf2-wallet--apple:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
 .ma-methods > .rf2-wallet:first-child:not(:has(+ .rf2-wallet)):not(:has(~ .ma-method)) { grid-column: 1 / -1; }
 .ma-methods:empty { display: none; }
-.ma-pay__notice--error { color: var(--hb-ada-red, #b3261e); }
+.ma-pay__notice--error { color: var(--hb-ada-red, #d32f2f); }
 
 /* Apple's lockup is currentColor, so the dark tile's white carries it. */
 .ma-applepay {
@@ -1780,7 +1780,7 @@
    stretching the row. */
 .ma-edit__error {
   margin: 0 auto 0 0;
-  color: var(--hb-ada-red, #C8102E);
+  color: var(--hb-ada-red, #d32f2f);
   font-size: 14px;
   line-height: 1.4;
   max-width: 48ch;

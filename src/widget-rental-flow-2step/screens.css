@@ -454,7 +454,7 @@
   gap: 8px !important;
 }
 .rf-sx-idv-tick { flex: 0 0 auto; color: var(--hb-secondary, #509e2f); }
-.rf-sx-idv-alert { flex: 0 0 auto; color: var(--hb-ada-red, #e53935); }
+.rf-sx-idv-alert { flex: 0 0 auto; color: var(--hb-ada-red, #d32f2f); }
 
 .rf-sx-idv-lede {
   margin: 0 0 16px;
@@ -495,12 +495,12 @@
 /* Results: failed / later. */
 .rf-sx-idv--alert {
   padding: 24px 30px;
-  border: 3px solid var(--hb-ada-red, #e53935);
+  border: 3px solid var(--hb-ada-red, #d32f2f);
   border-radius: 10px;
   background: var(--hb-white, #fff);
 }
 .rf-sx-idv--alert .rf-sx-idv-lede { margin-bottom: 0; }
-.rf-sx-idv-danger { color: var(--hb-ada-red, #e53935); font-weight: 700; }
+.rf-sx-idv-danger { color: var(--hb-ada-red, #d32f2f); font-weight: 700; }
 /* A <button>, not an <a>: it changes state on this page and goes nowhere, so
    a link would lie about it to a screen reader and to a middle click. Styled
    back down to the surrounding sentence. */
@@ -705,7 +705,7 @@
    line rather than drifting to the middle. */
 .rf-sx-idv-current {
   margin: 0;
-  color: var(--hb-ada-red, #e53935);
+  color: var(--hb-ada-red, #d32f2f);
   font-size: 16px;
   line-height: 20px;
 }

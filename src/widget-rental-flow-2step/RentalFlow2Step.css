@@ -151,7 +151,7 @@
 }
 /* ada/red, matching the mobile bar's countdown. tabular-nums so the digits do
    not jitter as it ticks. */
-.rf-hdr-hold b { color: var(--hb-ada-red, #e53935); font-variant-numeric: tabular-nums; }
+.rf-hdr-hold b { color: var(--hb-ada-red, #d32f2f); font-variant-numeric: tabular-nums; }
 
 /* Narrower banner, as #02 does at small widths. */
 /* #02's own breakpoints (1120 / 1024), not a single step at 900. The previous
@@ -284,7 +284,7 @@
   transform: translateY(-50%);
   color: #028a0c;
 }
-.rf-req { color: #e53935; margin-left: 2px; }
+.rf-req { color: #d32f2f; margin-left: 2px; }
 
 .rf-consent { margin: 0; padding-left: 12px; font-size: 14px; line-height: 18px; color: #637381; }
 .rf-consent a { color: inherit; text-decoration: underline; }
@@ -679,7 +679,7 @@
 /* Same green/red as the form fields, so these controls read as fields rather
    than as buttons that happen to sit in the row. */
 .rf2-movein--valid { border-color: var(--hb-field-border-success, #028a0c); }
-.rf2-movein--error { border-color: var(--hb-field-border-error, #e53935); }
+.rf2-movein--error { border-color: var(--hb-field-border-error, #d32f2f); }
 /* Full width: the half-width base exists to pair Move-in Date with the fields
    beside it, and the DOB control has no partner. */
 .rf2-movein--full { width: 100%; }
@@ -2485,7 +2485,7 @@
   color: var(--hb-secondary, #509e2f);
 }
 .rfc-next-check svg { display: block; }
-.rfc-error-eyebrow { color: #dc2626; }
+.rfc-error-eyebrow { color: #d32f2f; }
 .rfc-error-panel {
   background: #fef2f2; border: 1px solid #fca5a5; border-radius: 10px;
   padding: 16px 18px; margin-bottom: 18px;
@@ -2538,7 +2538,7 @@
 .rf2-gp-submit { max-width: 260px; }
 .rf2-gp-submit iframe { border: 0; width: 100%; height: 52px; }
 .rf2-gp-note { font-size: 14px; color: #5c6370; margin: 0; }
-.rf2-gp-note--error { color: #b3261e; }
+.rf2-gp-note--error { color: #d32f2f; }
 /* The wallet/autopay note as a blue info tag (Figma): the same blue pair as
    .rf2-autopay-note (#e7f1ff on #3d8fff), icon left, dark text. */
 .rf2-gp-note--info {
@@ -2577,9 +2577,9 @@
 .rfr-holdtime { color: #e03e2f; font-variant-numeric: tabular-nums; }
 
 /* --- Validation states --------------------------------------------------- */
-.rf-field--error .rf-field-input { border-color: #b3261e; }
-.rf-field--error .rf-field-label { color: #b3261e; }
-.rf-form-error { font-size: 14px; color: #b3261e; margin: 4px 0 0; }
+.rf-field--error .rf-field-input { border-color: #d32f2f; }
+.rf-field--error .rf-field-label { color: #d32f2f; }
+.rf-form-error { font-size: 14px; color: #d32f2f; margin: 4px 0 0; }
 .rf-availability {
   margin: 12px auto 0;
   max-width: 420px;
@@ -2588,26 +2588,23 @@
   line-height: 20px;
   text-align: center;
 }
-/* The error states are a BOX, not loose red text (Figma 12029-86499). Same
-   treatment as .rf-payerr, which is the banner already built for the payment
-   step — 16px padding, 16px radius, a 24px alert mark and the text beside it.
-   Only the ground differs, and deliberately: .rf-payerr is white because it
-   sits on the grey method panel, while this one sits on .rf-card, which is
-   white — a white box there would be invisible. The frame's own
-   rgba(253,239,239,0.45) is what it calls for.
+/* The error states are a BOX, not loose red text — the same pink tag as the
+   payment banner (.rf-payerr in @shared/paymentForms.css): #f3e7e9, padding
+   12 / 39 / 12 / 15, 10px between the 24px alert mark and the text, 10px
+   radius, so every error banner in the flow looks the same.
    `text-align: left` because .rf-availability centres its text for the plain
    loading line; centred text beside a left-hand icon reads as misaligned. */
 .rf-availability--error {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 16px;
-  background: rgba(253, 239, 239, 0.45);
-  color: #b3261e;
+  gap: 10px;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
+  color: #d32f2f;
   text-align: left;
 }
-.rf-availability-ico { flex: 0 0 auto; color: #b3261e; }
+.rf-availability-ico { flex: 0 0 auto; color: #d32f2f; }
 .rf-availability a,
 .rf-availability button {
   color: inherit;
@@ -2616,19 +2613,19 @@
   text-decoration: underline;
 }
 .rf-availability button { border: 0; padding: 0; background: transparent; cursor: pointer; }
-.rf2-field--error .rf2-field-input { border-color: #b3261e; }
-.rf2-field--error .rf2-field-label { color: #b3261e; }
+.rf2-field--error .rf2-field-input { border-color: #d32f2f; }
+.rf2-field--error .rf2-field-label { color: #d32f2f; }
 /* Required-agreement message. Replaces a 2px red outline that used to ring the
    whole row: it flagged that something was wrong without ever saying what, and
    a box drawn around a single checkbox reads as a container, not an error.
    The container carries the gutter now, so this needs none of its own — it
    lines up with the checkbox row above it either way. Colour is the same
-   #b3261e the other validation messages use (.rf-form-error). */
+   #d32f2f the other validation messages use (.rf-form-error). */
 .rf2-agree-error {
   margin: 0;
   font-size: 14px;
   line-height: 18px;
-  color: #b3261e;
+  color: #d32f2f;
 }
 
 /* ── Move-in cost line items — 14px ───────────────────────────────────────
@@ -2854,7 +2851,7 @@
    space. tabular-nums so the digits do not jitter as it ticks. */
 .rfm-bar-hold b {
   font-weight: 600;
-  color: var(--hb-ada-red, #e53935);
+  color: var(--hb-ada-red, #d32f2f);
   font-variant-numeric: tabular-nums;
 }
 .rfm-bar-chev { flex: 0 0 auto; color: #101318; transform: rotate(90deg); transition: transform 0.15s ease; }
