@@ -377,10 +377,10 @@ export function Promotions({
   bannerUrl = '#',
   bannerAlt = '',
   demoBars,
-  barText,
+  // `barText` is accepted but unread — the bars are API-driven only; see barItems.
   barUrl = '#',
   barCtaLabel = 'See Qualifying Units',
-  barInfo,
+  // `barInfo` is accepted but unread — the bars are API-driven only; see barItems.
   propertyId,
   companyId,
   spaceGroupId,
@@ -501,8 +501,11 @@ export function Promotions({
     return <div className="promo-wrapper"><PromoBarsSkeleton count={readPromoCount(effectivePropertyId)} /></div>;
   }
 
-  // One bar per live promo. `barText` remains an explicit editor override for
-  // sites that want to hand-write a single bar instead.
+  // One bar per live promo, and ONLY live promos. `barText` used to stand in
+  // as a hand-written bar whenever the API returned none — but a Duda
+  // instance carries that field's default text, so every property WITHOUT a
+  // promotion showed an invented one (2026-10-15). It is still accepted so an
+  // existing content menu cannot break, but nothing reads it any more.
   const barItems: BarItem[] = demoCount
     ? Array.from({ length: demoCount }, (_, i) => ({
         id: `demo-${i}`,
@@ -519,12 +522,9 @@ export function Promotions({
         url: barUrl,
         ctaLabel: barCtaLabel,
       }))
-    : barText
-      ? [{ id: 'bar', title: barText, info: barInfo, url: barUrl, ctaLabel: barCtaLabel }]
-      : [];
+    : [];
 
-  // No promotions and no manual override → render nothing rather than an
-  // empty green bar.
+  // No promotions → render nothing rather than an empty green bar.
   if (!barItems.length) return null;
 
   return (
