@@ -1147,6 +1147,9 @@
   .rf2-doc-updating::before { animation: none; }
 }
 
+/* The inline preview's frame: not scrollable, and transparent to the pointer
+   so a wheel over it scrolls the page. The lightbox's frame scrolls. */
+.rf2-doc-frame--still { pointer-events: none; overflow: hidden; }
 .rf2-doc-frame {
   display: block;
   width: 100%;
