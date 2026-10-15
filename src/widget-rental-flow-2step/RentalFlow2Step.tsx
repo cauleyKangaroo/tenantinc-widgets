@@ -3,7 +3,7 @@ import './RentalFlow2Step.css';
 import { Step2, type AutopayMode, type PaymentCycle, type KeyShareOption } from './Step2';
 import type { BillingCountry } from '@shared/paymentForms';
 import { instoreFrom, asInstoreMode, asInstoreAmount } from '@shared/instorePrice';
-import { contactPatchBody, patchContactViaProxy } from './contactPatch';
+import { contactPatchBody, patchContactViaProxy, vehicleBody, putVehicleViaProxy } from './contactPatch';
 import {
   fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
   cyclesForUnitType,
@@ -3382,6 +3382,9 @@ export function RentalFlow2Step({
                   // the direct PUT below has no field for. See contactPatch.ts.
                   const body = contactPatchBody(details, rental.leaseId);
                   if (body) void patchContactViaProxy(login_api_base, siteId, rental.contactId, body);
+                  // The vehicle is the LEASE's, so it is its own call.
+                  const vehicle = vehicleBody(details.extras);
+                  if (vehicle && rental.leaseId) void putVehicleViaProxy(login_api_base, siteId, rental.leaseId, vehicle);
                 } else if (rental?.contactId && details) {
                   void updateContactDetails(ctx, rental.contactId, {
                     driverLicense: details.driverLicense,
