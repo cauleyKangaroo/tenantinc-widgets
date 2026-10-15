@@ -457,6 +457,9 @@ export function MakePaymentPanel({
      once per lease per attempt and kept until that lease is paid, so a retry
      after a dropped connection cannot charge it twice. */
   const [paying, setPaying] = useState(false);
+  /* WHICH saved card is being charged, so only its tile says so. Every tile
+     read the shared `paying` flag and all of them said "Paying…" at once. */
+  const [payingCardId, setPayingCardId] = useState('');
   const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
   const [payMessage, setPayMessage] = useState<string>('');
   const idemKeys = useRef<Map<string, string>>(new Map());
@@ -537,6 +540,7 @@ export function MakePaymentPanel({
       return;
     }
     setPaying(true);
+    setPayingCardId(saved?.id ?? '');
     let savedId = saved?.id ?? '';
     let paidTotal = 0;
     let last: LeasePaymentReceipt | undefined;
@@ -560,6 +564,7 @@ export function MakePaymentPanel({
       }
     }
     setPaying(false);
+    setPayingCardId('');
     const last4 = saved?.last4
       || (bank ? bank.accountNumber.slice(-4) : (card?.maskedCardNumber ?? '').replace(/\D/g, '').slice(-4));
     const summary: PaymentReceipt = {
@@ -953,7 +958,7 @@ export function MakePaymentPanel({
               onClick={() => void payLive(undefined, c)}
             >
               <CreditCardIcon />
-              <span>{paying ? 'Paying…' : `Pay with ${c.cardType ? c.cardType.toUpperCase() : 'card'} xxxx ${c.last4}`}</span>
+              <span>{payingCardId === c.id ? 'Paying…' : `Pay with ${c.cardType ? c.cardType.toUpperCase() : 'card'} xxxx ${c.last4}`}</span>
             </button>
           ))}
         </div>
