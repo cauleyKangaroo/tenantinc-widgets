@@ -61,6 +61,8 @@ import {
   editFormFrom, updateFromEditForm,
   primaryContactFrom,
 } from './contactMapping';
+import { configureApi, TENANT_PAYMENTS } from '../widget-rental-flow-2step/api';
+import { resolveWalletConfig, type WalletConfigProps } from '../widget-rental-flow-2step/walletConfig';
 import { spacesFrom, propertiesFrom, activityFrom, savedCardsFrom } from './leaseMapping';
 import { mergeApiCreds, type ApiCredProps } from '@shared/apiConfig';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
@@ -73,7 +75,7 @@ import { AccountSheet } from './AccountSheet';
 /** The three panels that share the middle slot. */
 export type View = 'account' | 'payment' | 'edit';
 
-export interface MyAccountProps {
+export interface MyAccountProps extends WalletConfigProps {
   /**
    * First name for the greeting — "Hi {name},". Defaults to the frames' own
    * sample so the widget renders as designed with no props at all.
@@ -162,6 +164,11 @@ export function MyAccount({
   api_domain, app_id, api_key, companyId: companyIdProp, gpPublicKey: gpPublicKeyProp,
   inEditor = false,
   loginUrl = '/login',
+  // Apple Pay / Google Pay content-panel fields and site texts — the SAME
+  // names the rental flow's JS tab forwards, so the lines can be copied.
+  googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
+  googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
+  applePayMerchantIdentifier, currency_code, country_code, environment: siteEnvironment,
 }: MyAccountProps) {
 
   const api: LoginApiConfig = useMemo(
@@ -410,6 +417,21 @@ export function MyAccount({
    * missing means not answered yet.
    */
   const creds = useMemo(() => mergeApiCreds({ api_domain, app_id, api_key }, { baseUrl: '', appId: '', apiKey: '' }), [api_domain, app_id, api_key]);
+  /* The wallet buttons are #99's own and mint their Google Pay JWT / Apple
+     merchant session through #99's api module, which reads the credentials
+     it was configured with — so it is configured here exactly as #99 does. */
+  useMemo(() => configureApi({ api_domain, app_id, api_key }), [api_domain, app_id, api_key]);
+  /* Validated once per change, not per render: Google's button is rebuilt
+     whenever its config object changes identity. */
+  const walletConfig = useMemo(() => resolveWalletConfig({
+    googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
+    googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
+    applePayMerchantIdentifier, currency_code, country_code, environment: siteEnvironment,
+  }), [
+    googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
+    googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
+    applePayMerchantIdentifier, currency_code, country_code, siteEnvironment,
+  ]);
   const [resolvedCompanyId, setResolvedCompanyId] = useState<string>('');
   useEffect(() => {
     let cancelled = false;
@@ -419,6 +441,9 @@ export function MyAccount({
     return () => { cancelled = true; };
   }, [companyIdProp]);
   const [gatewayKeys, setGatewayKeys] = useState<Record<string, string>>({});
+  /** The gateway's NAME per property — the wallets are offered only on
+   *  tenant_payments, as in the rental flow. */
+  const [gatewayNames, setGatewayNames] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!record || gpPublicKeyProp) return undefined;
     if (!creds.baseUrl || !creds.appId || !creds.apiKey || !resolvedCompanyId) return undefined;
@@ -431,6 +456,7 @@ export function MyAccount({
       void fetchGatewayInfo(creds, resolvedCompanyId, pid, '[MyAccount]').then((g) => {
         if (cancelled) return;
         setGatewayKeys((prev) => ({ ...prev, [pid]: g?.publicKey ?? '' }));
+        setGatewayNames((prev) => ({ ...prev, [pid]: g?.gateway ?? '' }));
       });
     }
     return () => { cancelled = true; };
@@ -578,9 +604,22 @@ export function MyAccount({
     const explicit = (gpPublicKeyProp ?? '').trim();
     const looked = gatewayKeys[space.propertyId];
     const canLookUp = !!(creds.baseUrl && creds.appId && creds.apiKey && resolvedCompanyId);
+    /* Wallets as #99 offers them: the content panel enables each, and the
+       property must be on tenant_payments (an explicit GP key says so without
+       a lookup). Their JWT / merchant session need the credentials and the
+       company id, so without those nothing is offered. */
+    const onTenantPayments = !!explicit || gatewayNames[space.propertyId] === TENANT_PAYMENTS;
+    const walletsReady = onTenantPayments && canLookUp;
     return {
       gpPublicKey: explicit || (looked !== undefined ? looked : (canLookUp ? undefined : '')),
       gatewayPending: !explicit && looked === undefined && canLookUp,
+      wallet: {
+        config: walletConfig,
+        ctx: { companyId: resolvedCompanyId, propertyId: space.propertyId },
+        googlePay: walletsReady && walletConfig.googlePayEnabled,
+        applePay: walletsReady && walletConfig.applePayEnabled,
+        tenant: { first: str(record.first), last: str(record.last) },
+      },
       /* This property's cards, ONE tile per distinct card. The account record
          lists the same card once per lease it was used on (23 rows of one VISA
          ····1111 on the test account), which stacked six identical tiles. The
@@ -605,7 +644,7 @@ export function MyAccount({
     };
     // signOut is stable for the life of the session; the token is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gated, session?.token, api, record, space, gatewayKeys, creds, resolvedCompanyId, gpPublicKeyProp]);
+  }, [gated, session?.token, api, record, space, gatewayKeys, gatewayNames, creds, resolvedCompanyId, gpPublicKeyProp, walletConfig]);
   const [activityOpen, setActivityOpen] = useState(false);
   /* Make a Payment lists every space AT THE SAME PROPERTY as the unit whose
      Pay Now was clicked — all of them, each with its own tick, so the tenant

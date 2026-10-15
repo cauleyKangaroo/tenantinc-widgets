@@ -851,9 +851,15 @@ export async function applyCoverage(
 //                      address, city, state, zip, address2?, country? }
 //                                                                 Pay by Bank
 //
-// The bank object is #99's ACH `payment_method` VERBATIM (achPaymentMethod in
-// widget-rental-flow-2step/api.ts): same keys, same snake_case, so the proxy
-// forwards the one shape the rental flow already sends upstream.
+//                    { type: "google" | "apple", token,
+//                      save_to_account: false, auto_charge: false,
+//                      first?, last?, address?, city?, state?, zip? }
+//                                                                 Google / Apple Pay
+//
+// The bank and wallet objects are #99's `payment_method` VERBATIM
+// (achPaymentMethod / walletPaymentMethod in widget-rental-flow-2step/api.ts):
+// same keys, same snake_case, so the proxy forwards the one shape the rental
+// flow already sends upstream. A wallet token is single-use and never enrols.
 //
 // PER LEASE — one call per space. The endpoint is under the lease, and the
 // invoices are that lease's; several spaces mean several calls, each with
@@ -871,7 +877,26 @@ export async function applyCoverage(
 export type LeasePaymentMethod =
   | { type: 'saved'; id: string }
   | { type: 'hosted-card'; token: string; zip: string; saveToAccount: boolean; autopay: boolean }
-  | LeaseBankPaymentMethod;
+  | LeaseBankPaymentMethod
+  | LeaseWalletPaymentMethod;
+
+/** Google Pay / Apple Pay — the rental flow's wallet payment object, key for key. */
+export interface LeaseWalletPaymentMethod {
+  /** Hummingbird's names, as #99 sends them: 'google' | 'apple'. */
+  type: 'google' | 'apple';
+  /** SINGLE-USE. Google's tokenizationData.token; Apple's whole token object, stringified. */
+  token: string;
+  save_to_account: false;
+  auto_charge: false;
+  /** The TENANT's name, not the wallet card's holder. */
+  first?: string;
+  last?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  /** Five digits, when the wallet returned one. */
+  zip?: string;
+}
 
 /** Pay by Bank — the rental flow's ACH payment object, key for key. */
 export interface LeaseBankPaymentMethod {
