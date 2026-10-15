@@ -288,8 +288,12 @@ export function SectionAccordion({
     // tick later, so the first pass would otherwise fix the wrong tenant's count.
   }, [currentPropertyId, boundCompanyId, mobile]);
 
+  // Notes likewise: it is the property's `notes` cell on PropertiesInternal
+  // (see SpaceList), and a property with none gets no Notes row at all.
+  const hasNotes = !!(notesContent ?? '').trim();
   const allKeys = ACCORDION_SECTIONS.map((s) => s.key).filter(
     (k) => (k !== 'highlights' || featureHighlights.length > 0)
+      && (k !== 'notes' || hasNotes)
       && (!mobile || MOBILE_SECTION_KEYS.has(k)),
   );
 

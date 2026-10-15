@@ -30,6 +30,7 @@ import {
   writeFeatureToUrl,
   type FeatureHighlight,
 } from './featureHighlights';
+import { fetchPropertyNotes } from '@shared/internalProperties';
 import { FEATURE_PAGE_COLLECTION, fetchFeaturePageCopy } from './featurePageSource';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { FilterModal } from './components/FilterModal';
@@ -316,6 +317,24 @@ export function SpaceList({
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [effectivePropertyId, effectiveCompanyId, spaceGroupId, isDynamicTarget]);
+
+  /*
+   * The sidebar's NOTES come from the `PropertiesInternal` collection — the
+   * property's `notes` cell — not from the content menu. Undefined until the
+   * read settles, and undefined when the cell is blank or there is no dmAPI;
+   * the section is only offered while there is content (SectionAccordion).
+   * The content-menu `notesContent` remains the fallback for a site whose
+   * collection has no such column yet.
+   */
+  const [collectionNotes, setCollectionNotes] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    fetchPropertyNotes(effectivePropertyId)
+      .then((n) => { if (!cancelled) setCollectionNotes(n); })
+      .catch((err) => console.error('[SpaceList] notes read failed:', err));
+    return () => { cancelled = true; };
+  }, [effectivePropertyId]);
+  const sidebarNotes = collectionNotes ?? ((notesContent ?? '').trim() ? notesContent : undefined);
 
   useEffect(() => {
     if (effectiveCompanyId === null) return;
@@ -651,7 +670,7 @@ export function SpaceList({
       propertyExtras={propertyExtras}
       aboutTitle={aboutTitle}
       aboutContent={aboutContent}
-      notesContent={notesContent}
+      notesContent={sidebarNotes}
       blogCollection={blogCollection}
       blogBasePath={blogBasePath}
       featureHighlights={featureHighlights}
@@ -670,7 +689,7 @@ export function SpaceList({
       propertyExtras={propertyExtras}
       aboutTitle={aboutTitle}
       aboutContent={aboutContent}
-      notesContent={notesContent}
+      notesContent={sidebarNotes}
       blogCollection={blogCollection}
       blogBasePath={blogBasePath}
       featureHighlights={featureHighlights}

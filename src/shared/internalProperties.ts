@@ -482,6 +482,33 @@ export async function fetchPropertySlug(
 }
 
 /**
+ * `notes` — the operator's free-text notes for a property, shown as the
+ * Notes section of #05's sidebar. The section exists only while this has
+ * something to say: `undefined` means no dmAPI (editor, harness), no row, no
+ * column, or a blank cell, and the caller then shows no Notes at all.
+ *
+ * Returns the cell's MARKUP, not its text: this is a native collection whose
+ * column is Rich Text, so the value arrives as `<p class="rteBlock">…</p>`
+ * with whatever formatting the editor applied, and the section renders it
+ * through RichText. Only the EMPTINESS check strips it, so a cell holding
+ * nothing but an empty paragraph still counts as blank.
+ */
+const NOTES_FIELD = 'notes';
+export async function fetchPropertyNotes(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<string | undefined> {
+  const wanted = propertyId.trim();
+  if (!wanted) return undefined;
+  const row = (await readInternalProperties(collectionName))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return undefined;
+  const raw = row[NOTES_FIELD];
+  if (typeof raw !== 'string' || !plainText(raw).trim()) return undefined;
+  return raw;
+}
+
+/**
  * Sort by curated `nearbyLocationPriorityOrder`, then by name.
  *
  * Name is the tie-break the spec asks for: two properties sharing a
