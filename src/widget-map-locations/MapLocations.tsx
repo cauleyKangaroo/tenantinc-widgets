@@ -969,6 +969,36 @@ export function MapLocations({
   // 10609:72649). That's DOM structure, so it needs a JS breakpoint rather
   // than the media queries the rest of the layout uses.
   const isMobile = useMediaQuery(MOBILE_STICKY_QUERY);
+
+  /* Desktop: the breadcrumb + header block sticks to the top of the window
+     (.ml-sticky-head). Two things are published on the wrapper for it:
+     --ml-head-h, its height, so the pinned map and a card revealed from a
+     marker sit UNDER it rather than behind it; and --ml-sticky-bg, the colour
+     of the page section behind the widget, so cards scrolling under the header
+     are covered by the page's own background rather than a guessed one.
+     Mobile keeps its own composition and is not sticky. */
+  const headRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const head = headRef.current;
+    if (!wrap) return undefined;
+    if (isMobile || !head) {
+      wrap.style.removeProperty('--ml-head-h');
+      return undefined;
+    }
+    let bg = '';
+    for (let el = wrap.parentElement; el; el = el.parentElement) {
+      const c = getComputedStyle(el).backgroundColor;
+      if (c && c !== 'transparent' && !/rgba\(.*,\s*0\)$/.test(c)) { bg = c; break; }
+    }
+    wrap.style.setProperty('--ml-sticky-bg', bg || '#fff');
+    const publish = () => wrap.style.setProperty('--ml-head-h', `${head.offsetHeight}px`);
+    publish();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null;
+    ro?.observe(head);
+    return () => ro?.disconnect();
+  }, [isMobile]);
+
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   const showMap = !isMobile || mobileView === 'map';
   const showCards = !isMobile || mobileView === 'list';
@@ -1171,8 +1201,6 @@ export function MapLocations({
           only: the node this comes from is the 1316px frame, and #08's mobile
           frames are drawn separately (10609:*) — see the note on RfSkeleton's
           mobile branch for why a desktop shape is not just a narrower one. */}
-      {!isMobile && <Breadcrumb items={crumbs} />}
-
       {isMobile ? (
         /* Mobile — search, then a Map/List toggle beside "Filter & Sort",
            then the count. Figma 10609:72429 / 10609:72649. */
@@ -1242,7 +1270,10 @@ export function MapLocations({
           </p>
         </>
       ) : (
-        /* Desktop — count on the left, Filter + sort pills on the right. */
+        /* Desktop — breadcrumb, then count on the left and Filter + sort pills
+           on the right; the two together are the sticky block. */
+        <div className="ml-sticky-head" ref={headRef}>
+        <Breadcrumb items={crumbs} />
         <div className="ml-header">
           <p className="ml-heading">
             {loading
@@ -1299,6 +1330,7 @@ export function MapLocations({
               )}
             </div>
           </div>
+        </div>
         </div>
       )}
 
