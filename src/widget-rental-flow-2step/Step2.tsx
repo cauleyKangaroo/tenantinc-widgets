@@ -43,10 +43,29 @@ const FORM_SKELETON_MS = 700;
  * document URL exists this becomes an <iframe>/<embed> and both surfaces get it
  * at once.
  */
+/**
+ * A document that must NOT scroll in place: the inline preview is a glimpse,
+ * and the agreement is read in the "View Document" lightbox. The frame is
+ * told not to scroll, pointer events pass through it (so a wheel over the
+ * preview scrolls the PAGE, not the document), and a srcDoc document gets
+ * `overflow: hidden` on its own body so no scrollbar is drawn inside either.
+ */
+const STILL_STYLE = '<style>html,body{overflow:hidden!important}</style>';
+function stillDoc(html: string): string {
+  return /<head[^>]*>/i.test(html)
+    ? html.replace(/<head[^>]*>/i, (m) => m + STILL_STYLE)
+    : STILL_STYLE + html;
+}
+
 function LeaseDocBody(
-  { title, previewUrl, previewHtml, updating }:
-  { title?: string; previewUrl?: string; previewHtml?: string; updating?: boolean },
+  { title, previewUrl, previewHtml, updating, scroll = true }:
+  { title?: string; previewUrl?: string; previewHtml?: string; updating?: boolean;
+    /** False for the inline preview, which only hints at the document — it is
+     *  read, and scrolled, in the View Document lightbox. */
+    scroll?: boolean },
 ) {
+  const frameClass = `rf2-doc-frame${scroll ? '' : ' rf2-doc-frame--still'}`;
+  const doc = (html: string) => (scroll ? html : stillDoc(html));
   /*
    * The preview on screen was prefetched before Step 1 was filled in (see the
    * preview effect in RentalFlow2Step), so when the personalised one is on its
@@ -97,10 +116,11 @@ function LeaseDocBody(
     return (
       <div className="rf2-doc-page rf2-doc-page--frame">
         <iframe
-          className="rf2-doc-frame"
-          srcDoc={previewHtml}
+          className={frameClass}
+          srcDoc={doc(previewHtml)}
           title={title ?? 'Rental Agreement'}
           sandbox=""
+          scrolling={scroll ? undefined : 'no'}
         />
         {badge}
       </div>
@@ -119,11 +139,12 @@ function LeaseDocBody(
     return (
       <div className="rf2-doc-page rf2-doc-page--frame">
         <iframe
-          className="rf2-doc-frame"
+          className={frameClass}
           src={previewUrl}
           title={title ?? 'Rental Agreement'}
           loading="lazy"
           sandbox="allow-scripts allow-same-origin"
+          scrolling={scroll ? undefined : 'no'}
         />
         {badge}
       </div>
@@ -136,10 +157,11 @@ function LeaseDocBody(
     return (
       <div className="rf2-doc-page rf2-doc-page--frame">
         <iframe
-          className="rf2-doc-frame"
-          srcDoc={previewHtml}
+          className={frameClass}
+          srcDoc={doc(previewHtml)}
           title={title ?? 'Rental Agreement'}
           sandbox=""
+          scrolling={scroll ? undefined : 'no'}
         />
         {badge}
       </div>
@@ -1184,7 +1206,9 @@ export function Step2({
             </button>
           </div>
           <div className="rf2-agree-doc">
-            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} updating={leasePreviewUpdating} />
+            {/* A glimpse only — not scrollable here. Reading and scrolling
+                happen in the View Document lightbox below. */}
+            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} updating={leasePreviewUpdating} scroll={false} />
           </div>
           <RfCheckbox
             checked={agree}
