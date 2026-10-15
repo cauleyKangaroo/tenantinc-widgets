@@ -30,7 +30,7 @@ import {
   writeFeatureToUrl,
   type FeatureHighlight,
 } from './featureHighlights';
-import { fetchPropertyNotes } from '@shared/internalProperties';
+import { fetchPropertyNotes, fetchPropertyAbout, type PropertyAbout } from '@shared/internalProperties';
 import { FEATURE_PAGE_COLLECTION, fetchFeaturePageCopy } from './featurePageSource';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { FilterModal } from './components/FilterModal';
@@ -81,8 +81,8 @@ export function SpaceList({
   limitedAvailabilityCopy = '',
   startingAtLabel = 'Starting at',
   showSizeGuideVideos = true,
-  aboutTitle,
-  aboutContent,
+  // `aboutTitle` (content menu) is accepted but unread — About is the collection's alone; see collectionAbout.
+  // `aboutContent` (content menu) is accepted but unread — About is the collection's alone; see collectionAbout.
   // `notesContent` (content menu) is accepted but unread — the Notes section is the collection's alone; see collectionNotes.
   blogCollection,
   blogBasePath,
@@ -336,6 +336,20 @@ export function SpaceList({
     return () => { cancelled = true; };
   }, [effectivePropertyId]);
   const sidebarNotes = collectionNotes;
+  /*
+   * The ABOUT accordion likewise: `about_content_title` and
+   * `about_content_text` on PropertiesInternal. The title decides whether
+   * the row exists; the body may be empty. The content menu's aboutTitle /
+   * aboutContent are accepted but unread, for the same reason as notesContent.
+   */
+  const [collectionAbout, setCollectionAbout] = useState<PropertyAbout | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    fetchPropertyAbout(effectivePropertyId)
+      .then((a) => { if (!cancelled) setCollectionAbout(a); })
+      .catch((err) => console.error('[SpaceList] about read failed:', err));
+    return () => { cancelled = true; };
+  }, [effectivePropertyId]);
 
   useEffect(() => {
     if (effectiveCompanyId === null) return;
@@ -669,8 +683,8 @@ export function SpaceList({
       onReorderClick={() => { setSaveError(null); setReorderOpen(true); }}
       showSizeGuideVideos={showSizeGuideVideos}
       propertyExtras={propertyExtras}
-      aboutTitle={aboutTitle}
-      aboutContent={aboutContent}
+      aboutTitle={collectionAbout?.title}
+      aboutContent={collectionAbout?.body}
       notesContent={sidebarNotes}
       blogCollection={blogCollection}
       blogBasePath={blogBasePath}
@@ -688,8 +702,8 @@ export function SpaceList({
       inEditor={inEditor}
       showSizeGuideVideos={showSizeGuideVideos}
       propertyExtras={propertyExtras}
-      aboutTitle={aboutTitle}
-      aboutContent={aboutContent}
+      aboutTitle={collectionAbout?.title}
+      aboutContent={collectionAbout?.body}
       notesContent={sidebarNotes}
       blogCollection={blogCollection}
       blogBasePath={blogBasePath}
