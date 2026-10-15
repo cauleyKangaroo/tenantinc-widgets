@@ -831,6 +831,9 @@
    every card below it up. The rows still sit at the top; the foot below just
    keeps its place. Only the wide card has rows — the compact one is a CTA. */
 .ml-units { display: flex; flex-direction: column; width: 100%; min-height: 171px; }
+/* A facility listing fewer than three spaces: no reserved rows, no white gap
+   under its last size. The placeholder still reserves three (it cannot know). */
+.ml-units--fit { min-height: 0; }
 
 /* Divider between rows, per the Figma's Line 25 — a border beats an <img>. */
 .ml-unit {
@@ -1044,6 +1047,11 @@
      column stays put whatever is in it. */
   min-height: 156px;
   background: #fff;
+  /* Outlined in the open bubble's colour and weight (.ml-bubble--active: 4px,
+     the site CTA), so card and bubble read as one selection. border-box keeps
+     the card's outer size — and so its place under the bubble — unchanged. */
+  box-sizing: border-box;
+  border: 4px solid var(--color_2, #509e2f);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
