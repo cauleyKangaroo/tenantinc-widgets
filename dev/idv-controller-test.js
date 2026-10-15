@@ -102,7 +102,7 @@ async function main() {
   assert.equal(mobileTab.closed, false);
   assert.equal(controller.state.kind, 'pending');
   assert.equal(controller.popupBlocked, false);
-  const preparedOptions = { ...options, api: { ...options.api, lookup: async () => undefined, lookupByEmail: async () => undefined }, identity: { ...identity, leaseId: undefined, contactId: 'pre-payment-contact' } };
+  const preparedOptions = { ...options, api: { ...options.api }, identity: { ...identity, leaseId: undefined, contactId: 'pre-payment-contact' } };
   await render(preparedOptions);
   const preparedTab = openTab();
   preparedTab.opener = null;
@@ -226,194 +226,155 @@ async function main() {
   assert.equal(controller.state.kind, 'error', 'uncertain start remains blocked after remount');
   await React.act(async () => restoredRoot.unmount());
   const rawId = 'idv05d17e25979d41b1be17aaac798d58de';
-  let recoveryCalls = 0;
-  let recoveryPolls = 0;
-  let recoveryStarts = 0;
-  let recoveryFails = false;
-  let sessionExpired = false;
-  const { IdvRequestError: ExpiredError } = require('../.tmp-idv-test/idvApi.js');
-  const recovery = { ...options, lookupByEmail: true,
-    identity: { ...identity, contactId: 'recover-contact', leaseId: undefined },
-    api: {
-      lookupByEmail: async () => { recoveryCalls++; if (recoveryFails) throw new Error('unavailable'); return { idvId: rawId, authenticated: true }; },
-      poll: async () => {
-        recoveryPolls++;
-        if (sessionExpired) throw new ExpiredError('This verification session has expired. Please start again.', false);
-        return { status: 'complete', idvId: rawId, authenticated: true };
-      },
-      start: async () => { recoveryStarts++; return response; },
-    },
-  };
-  root = createRoot(document.getElementById('root'));
-  await render(recovery);
-  assert.equal(controller.state.kind, 'complete');
-  const recoveryKey = 'mariposa:idv:v1:co:prop:recover-contact';
-  assert.equal(JSON.parse(saved.get(recoveryKey)).completed, true, 'completed ID remains available for checkout after reload');
-  await React.act(async () => root.unmount());
-  root = createRoot(document.getElementById('root'));
-  await render(recovery);
-  assert.equal(controller.state.kind, 'complete');
-  assert.equal(recoveryPolls, 1, 'cached completion is checked with the backend, never trusted locally');
-  assert.equal(recoveryCalls, 1);
-  await React.act(async () => root.unmount());
-  sessionExpired = true;
-  root = createRoot(document.getElementById('root'));
-  await render(recovery);
-  assert.equal(controller.state.kind, 'complete', 'an expired capture session falls back to the record lookup');
-  assert.equal(recoveryCalls, 2);
-  assert.equal(recoveryStarts, 0, 'an expired session never becomes another billable start');
-  sessionExpired = false;
-  await React.act(async () => root.unmount());
-  saved.delete(recoveryKey);
-  recoveryFails = true;
-  root = createRoot(document.getElementById('root'));
-  await render(recovery);
-  assert.equal(controller.state.kind, 'error');
-  await React.act(async () => controller.retry());
-  assert.equal(controller.state.kind, 'error', 'lookup retry still fails safely');
-  assert.equal(recoveryCalls, 4, 'retry repeats the GET');
-  assert.equal(recoveryStarts, 0, 'recovery failures never turn into billable starts');
-  await React.act(async () => root.unmount());
-  const liveCompletion = { ...recovery, identity: { ...identity, contactId: 'live-completion', leaseId: undefined },
-    api: { ...recovery.api, lookupByEmail: async () => undefined, start: async () => ({ ...response, idvId: rawId }) } };
-  root = createRoot(document.getElementById('root'));
-  await render(liveCompletion);
-  await React.act(async () => controller.start());
-  assert.equal(controller.state.kind, 'pending');
-  await React.act(async () => pollingOptions.onComplete({ idvId: rawId, authenticated: true }));
-  assert.equal(controller.state.kind, 'complete');
-  const completionCache = JSON.parse(saved.get('mariposa:idv:v1:co:prop:live-completion'));
-  assert.equal(completionCache.completed, true, 'finishing the phone flow retains its ID for the lease');
-  assert.equal(completionCache.idvId, rawId);
-  assert.ok(completionCache.expiresAt > Date.now() / 1000 && completionCache.expiresAt <= Date.now() / 1000 + 1801);
-  assert.equal('driversLicense' in completionCache, false, 'completion cache stores no scanned ID details');
-  await React.act(async () => root.unmount());
-
-  // Expiry checks the record before calling the session expired.
-  let expiryRecord;
-  let expiryFails = false;
-  let expiryLookups = 0;
-  let expiryStarts = 0;
   const settle = () => new Promise(resolve => setTimeout(resolve, 0));
-  const expiring = contactId => ({ ...recovery, identity: { ...identity, contactId, leaseId: undefined },
-    api: { ...recovery.api,
-      lookupByEmail: async (_scope, _email, _signal, name) => {
-        expiryLookups++;
-        assert.deepEqual({ ...name }, { first: identity.first, last: identity.last }, 'recovery is bound to the renter name');
-        if (expiryFails) throw new Error('unavailable');
-        return expiryRecord;
-      },
-      start: async () => { expiryStarts++; return { ...response, idvId: rawId }; } } });
-  root = createRoot(document.getElementById('root'));
-  await render(expiring('expiry-complete'));
-  await React.act(async () => controller.start());
-  assert.equal(controller.state.kind, 'pending');
-  expiryRecord = { idvId: rawId, authenticated: true };
-  await React.act(async () => { pollingOptions.onExpired(); await settle(); });
-  assert.equal(controller.state.kind, 'complete', 'a capture finished while checkout slept is found at expiry');
-  assert.equal(expiryStarts, 1, 'no second billable start');
-  await React.act(async () => root.unmount());
-  expiryRecord = undefined;
-  root = createRoot(document.getElementById('root'));
-  await render(expiring('expiry-none'));
-  await React.act(async () => controller.start());
-  await React.act(async () => { pollingOptions.onExpired(); await settle(); });
-  assert.equal(controller.state.kind, 'expired', 'no completed record: the session really expired');
-  await React.act(async () => root.unmount());
-  root = createRoot(document.getElementById('root'));
-  await render(expiring('expiry-down'));
-  await React.act(async () => controller.start());
-  const startsBeforeOutage = expiryStarts;
-  expiryFails = true;
-  await React.act(async () => { pollingOptions.onExpired(); await settle(); });
-  assert.equal(controller.state.kind, 'error');
-  assert.equal(controller.state.retryable, true);
-  const lookupsBeforeRetry = expiryLookups;
-  await React.act(async () => { controller.retry(); await settle(); });
-  assert.equal(expiryLookups, lookupsBeforeRetry + 1, 'retry after an unknown expiry repeats the lookup');
-  assert.equal(expiryStarts, startsBeforeOutage, 'an unknown outcome never becomes another billable start');
-  await React.act(async () => root.unmount());
-
-  // The scanned address and licence outlive the capture session for checkout.
+  const { IdvRequestError: ExpiredError } = require('../.tmp-idv-test/idvApi.js');
+  const owner = [identity.first, identity.last, identity.email].map(v => v.trim().toLowerCase()).concat(identity.phone.replace(/\D/g, '')).join('|');
+  let polls = 0;
+  let starts = 0;
+  let pollMode = 'complete';
   const scanned = { idvId: rawId, authenticated: true,
     address: { street: '1 Main St', city: 'Irvine', state: 'CA', zip: '92618' },
     driversLicense: { number: '****5273', state: 'CA', expiration: '2030-02-07' } };
-  let pollExpired = false;
-  let lookupDown = false;
-  const keepDetails = { ...recovery, identity: { ...identity, contactId: 'keep-details', leaseId: undefined },
-    api: { ...recovery.api,
-      lookupByEmail: async () => { if (lookupDown) throw new Error('unavailable'); return { idvId: rawId, authenticated: true }; },
-      poll: async () => {
-        if (pollExpired) throw new ExpiredError('This verification session has expired. Please start again.', false);
-        return { status: 'complete', ...scanned };
-      } } };
-  const owner = [identity.first, identity.last, identity.email].map(v => v.trim().toLowerCase()).concat(identity.phone.replace(/\D/g, '')).join('|');
-  saved.set('mariposa:idv:v1:co:prop:keep-details', JSON.stringify({ completed: true, idvId: rawId, expiresAt: Date.now() / 1000 + 600, owner }));
-  root = createRoot(document.getElementById('root'));
-  await render(keepDetails);
-  assert.equal(controller.state.result.address.street, '1 Main St', 'a live completion carries the address');
-  const plantedExpiry = JSON.parse(saved.get('mariposa:idv:v1:co:prop:keep-details')).expiresAt;
-  assert.ok(plantedExpiry < Date.now() / 1000 + 700, 're-confirming keeps the original 30-minute window, not a fresh one');
-  await React.act(async () => root.unmount());
-  pollExpired = true;
-  root = createRoot(document.getElementById('root'));
-  await render(keepDetails);
+  const guestApi = {
+    poll: async () => {
+      polls++;
+      if (pollMode === 'expired') throw new ExpiredError('This verification session has expired. Please start again.', false);
+      if (pollMode === 'down') throw new ExpiredError('gateway timeout', true);
+      if (pollMode === 'failed') return { status: 'failed', idvId: rawId, reason: 'mismatch' };
+      if (pollMode === 'pending') return { status: 'pending', idvId: rawId };
+      if (pollMode === 'bare') return { status: 'complete', idvId: rawId, authenticated: true };
+      return { status: 'complete', ...scanned };
+    },
+    start: async () => { starts++; return { ...response, idvId: rawId }; },
+  };
+  const guest = contactId => ({ ...options, identity: { ...identity, contactId, leaseId: undefined }, api: guestApi });
+  const mount = async (value) => { root = createRoot(document.getElementById('root')); await render(value); };
+  const unmount = async () => React.act(async () => root.unmount());
+
+  // A guest with no session of their own is never matched to an earlier one.
+  await mount(guest('fresh-guest'));
+  assert.equal(controller.state.kind, 'ready', 'a guest verifies now');
+  assert.equal(polls, 0, 'no lookup, by email or contact, for a guest');
+  await unmount();
+
+  // This checkout's own completed session is re-confirmed on reload.
+  const doneKey = 'mariposa:idv:v1:co:prop:done-guest';
+  await mount(guest('done-guest'));
+  await React.act(async () => controller.start());
+  await React.act(async () => pollingOptions.onComplete(scanned));
   assert.equal(controller.state.kind, 'complete');
-  assert.equal(controller.state.result.address.street, '1 Main St', 'the address survives an expired session');
-  assert.equal(controller.state.result.driversLicense.number, '****5273', 'the licence survives an expired session');
-  await React.act(async () => root.unmount());
-  lookupDown = true;
-  root = createRoot(document.getElementById('root'));
-  await render(keepDetails);
-  assert.equal(controller.state.kind, 'error', 'a failed fallback lookup is an error, not a new start');
-  lookupDown = false;
-  await React.act(async () => { controller.retry(); await new Promise(resolve => setTimeout(resolve, 0)); });
+  const cache = JSON.parse(saved.get(doneKey));
+  assert.equal(cache.completed, true, 'finishing the phone flow retains its ID for the lease');
+  assert.ok(cache.expiresAt > Date.now() / 1000 && cache.expiresAt <= Date.now() / 1000 + 1801);
+  await unmount();
+  polls = 0;
+  await mount(guest('done-guest'));
   assert.equal(controller.state.kind, 'complete');
-  assert.equal(controller.state.result.address.street, '1 Main St', 'a failed lookup does not discard the saved scan');
-  await React.act(async () => root.unmount());
+  assert.equal(polls, 1, 'the saved completion is checked with the backend');
+  assert.equal(controller.state.result.address.street, '1 Main St');
+  await unmount();
+  pollMode = 'down';
+  await mount(guest('done-guest'));
+  assert.equal(controller.state.kind, 'error', 'an unknown answer is an error, not a new start');
+  assert.equal(controller.state.retryable, true);
+  pollMode = 'complete';
+  await React.act(async () => { controller.retry(); await settle(); });
+  assert.equal(controller.state.kind, 'complete', 'retry checks again');
+  assert.equal(JSON.parse(saved.get(doneKey)).expiresAt, cache.expiresAt, 're-confirming keeps the original 30-minute window');
+  assert.equal(starts, 1, 'reloads never start another billable session');
+  await unmount();
+  pollMode = 'bare';
+  await mount(guest('done-guest'));
+  assert.equal(controller.state.result.address.street, '1 Main St', 'a confirmed result keeps the saved address');
+  assert.equal(controller.state.result.driversLicense.number, '****5273', 'and the saved licence');
+  await unmount();
+  // Browser storage never supplies "verified": a 404 confirms nothing.
+  pollMode = 'expired';
+  await mount(guest('done-guest'));
+  assert.equal(controller.state.kind, 'expired', 'an ended session the server cannot confirm is not verified');
+  assert.equal(saved.has(doneKey), false, 'the unconfirmed completion is dropped');
+  await unmount();
+  saved.set('mariposa:idv:v1:co:prop:forged', JSON.stringify({ completed: true, idvId: 'idv00000000000000000000000000000000', expiresAt: Date.now() / 1000 + 9999, owner }));
+  await mount(guest('forged'));
+  assert.equal(controller.state.kind, 'expired', 'an edited storage entry is not a verification');
+  await unmount();
+  for (const mode of ['failed', 'pending']) {
+    pollMode = mode;
+    saved.set('mariposa:idv:v1:co:prop:not-complete', JSON.stringify({ completed: true, idvId: rawId, expiresAt: Date.now() / 1000 + 600, owner }));
+    await mount(guest('not-complete'));
+    assert.equal(controller.state.kind, 'expired', `a ${mode} answer does not complete`);
+    await unmount();
+  }
+  assert.equal(starts, 1);
+
+  // Expiry checks this session once more before calling it expired.
+  const expiryCase = async (contactId, mode) => {
+    pollMode = 'pending';
+    await mount(guest(contactId));
+    await React.act(async () => controller.start());
+    assert.equal(controller.state.kind, 'pending');
+    pollMode = mode;
+    await React.act(async () => { pollingOptions.onExpired(); await settle(); });
+  };
+  starts = 0;
+  await expiryCase('expiry-complete', 'complete');
+  assert.equal(controller.state.kind, 'complete', 'a capture finished while checkout slept is found at expiry');
+  assert.equal(saved.has('mariposa:idv:v1:co:prop:expiry-complete:expiry-check'), false);
+  await unmount();
+  await expiryCase('expiry-gone', 'expired');
+  assert.equal(controller.state.kind, 'expired', 'the backend says expired: the session really expired');
+  await unmount();
+  await expiryCase('expiry-failed', 'failed');
+  assert.equal(controller.state.kind, 'failed');
+  await unmount();
+  await expiryCase('expiry-down', 'down');
+  assert.equal(controller.state.kind, 'error');
+  assert.equal(controller.state.retryable, true);
+  assert.equal(saved.has('mariposa:idv:v1:co:prop:expiry-down:expiry-check'), true, 'an unconfirmed expiry is remembered');
+  await unmount();
+  polls = 0;
+  await mount(guest('expiry-down'));
+  assert.equal(polls, 1, 'a reload checks the expired session again');
+  assert.equal(controller.state.kind, 'error', 'still unknown: never a fresh start');
+  pollMode = 'complete';
+  await React.act(async () => { controller.retry(); await settle(); });
+  assert.equal(controller.state.kind, 'complete', 'retry after an unknown expiry checks the same session');
+  assert.equal(saved.has('mariposa:idv:v1:co:prop:expiry-down:expiry-check'), false);
+  await unmount();
+  await expiryCase('expiry-reload-gone', 'down');
+  await unmount();
+  pollMode = 'expired';
+  await mount(guest('expiry-reload-gone'));
+  assert.equal(controller.state.kind, 'expired', 'a reload that confirms expiry shows expired');
+  await unmount();
+  assert.equal(starts, 5, 'one start per case, none from expiry or recovery');
+
+  // Resend is closed once the session window has passed.
+  pollMode = 'pending';
+  await mount({ ...guest('late-resend'), api: { ...guestApi, start: async () => { starts++; return { ...response, idvId: rawId, expiresAt: Date.now() / 1000 - 1 }; } } });
+  await React.act(async () => controller.start());
+  const startsBeforeResend = starts;
+  await React.act(async () => { await controller.resend(); });
+  assert.equal(starts, startsBeforeResend, 'no resend while the expiry check runs');
+  await unmount();
 
   // A saved session belongs to one renter: same contact ID (leads share it by
   // email) but a different name must not reuse it.
-  let otherPolls = 0;
-  const otherName = { ...keepDetails, identity: { ...keepDetails.identity, first: 'Someone', last: 'Else' },
-    api: { ...keepDetails.api,
-      poll: async () => { otherPolls++; return { status: 'complete', ...scanned }; },
-      lookupByEmail: async () => undefined } };
-  root = createRoot(document.getElementById('root'));
-  await render(otherName);
-  assert.equal(otherPolls, 0, "another renter's saved verification is not re-confirmed");
+  polls = 0;
+  saved.set('mariposa:idv:v1:co:prop:keep-details', JSON.stringify({ completed: true, idvId: rawId, expiresAt: Date.now() / 1000 + 600, owner }));
+  await mount({ ...guest('keep-details'), identity: { ...identity, contactId: 'keep-details', leaseId: undefined, first: 'Someone', last: 'Else' } });
+  assert.equal(polls, 0, "another renter's saved verification is not re-confirmed");
   assert.equal(controller.state.kind, 'ready', 'a different renter on the same contact ID verifies for themselves');
-  await React.act(async () => root.unmount());
+  await unmount();
   saved.set('mariposa:idv:v1:co:prop:legacy', JSON.stringify({ completed: true, idvId: rawId, expiresAt: Date.now() / 1000 + 600 }));
-  root = createRoot(document.getElementById('root'));
-  await render({ ...otherName, identity: { ...identity, contactId: 'legacy', leaseId: undefined } });
-  assert.equal(otherPolls, 0, 'a saved session without an owner is not reused');
-  await React.act(async () => root.unmount());
+  await mount(guest('legacy'));
+  assert.equal(polls, 0, 'a saved session without an owner is not reused');
+  await unmount();
+  saved.set('mariposa:idv:v1:co:prop:other-expiry:expiry-check', JSON.stringify({ idvId: rawId, owner: 'someone|else|x|1' }));
+  await mount(guest('other-expiry'));
+  assert.equal(polls, 0, "another renter's pending expiry check is ignored");
+  await unmount();
 
-  // Rent first (two-step): a verification done before this rental is not yet
-  // attached to the new contact, so the contact lookup falls back to email.
-  let byContact = 0;
-  let byEmail = 0;
-  let emailName;
-  let fallbackStarts = 0;
-  const rentFirst = { ...options, identity: { ...identity, contactId: 'new-tenant', leaseId: 'lease-2' },
-    api: {
-      lookup: async () => { byContact++; return undefined; },
-      lookupByEmail: async (_scope, _email, _signal, name) => { byEmail++; emailName = { ...name }; return { idvId: rawId, authenticated: true }; },
-      start: async () => { fallbackStarts++; return response; },
-    } };
-  root = createRoot(document.getElementById('root'));
-  await render(rentFirst);
-  assert.equal(controller.state.kind, 'complete', 'an earlier verification found by email is reused');
-  assert.deepEqual([byContact, byEmail, fallbackStarts], [1, 1, 0], 'contact first, then email, and no billable start');
-  assert.deepEqual(emailName, { first: identity.first, last: identity.last }, 'the email fallback is bound to the renter name');
-  await React.act(async () => root.unmount());
-  root = createRoot(document.getElementById('root'));
-  await render({ ...rentFirst, identity: { ...rentFirst.identity, contactId: 'linked-tenant' },
-    api: { ...rentFirst.api, lookup: async () => { byContact++; return { idvId: rawId, authenticated: true }; } } });
-  assert.equal(controller.state.kind, 'complete');
-  assert.equal(byEmail, 1, 'a verification found on the contact does not also query by email');
-  await React.act(async () => root.unmount());
   dom.window.close();
   console.log('IDV controller race tests passed');
 }

@@ -41,17 +41,38 @@ function saveCompleted(key: string | undefined, result: SafeIdvResult, owner: st
     ...(address ? { address } : {}), ...(driversLicense ? { driversLicense } : {}) }))) idvSessionRemove(`${key}:start-uncertain`);
 }
 
-/** The verification record for this renter: by email before a lease exists
- *  (verify first), by contact once it does (rent first). */
-function lookupRecord(options: IdvControllerOptions, scope: IdvScope, signal: AbortSignal): Promise<SafeIdvResult | undefined> {
-  const { api, identity } = options;
-  if (!api || !identity) return Promise.resolve(undefined);
-  const byEmail = () => api.lookupByEmail(scope, identity.email, signal, { first: identity.first, last: identity.last });
-  if (options.lookupByEmail) return byEmail();
-  if (!identity.contactId) return Promise.resolve(undefined);
-  // Rent first: a verification done before this rental is matched by email and
-  // not yet attached to the new contact, so the contact lookup finds nothing.
-  return api.lookup(scope, identity.contactId, signal).then((found) => found ?? byEmail());
+/** A session that expired before its outcome was confirmed. Kept until the
+ *  status check answers, so a reload checks it again instead of starting another. */
+const EXPIRY_CHECK = ':expiry-check';
+
+function readExpiryCheck(key: string | undefined, owner: string | undefined): string | undefined {
+  if (!key || !owner) return undefined;
+  try {
+    const value = JSON.parse(idvSessionGet(`${key}${EXPIRY_CHECK}`) ?? 'null') as { idvId?: unknown; owner?: unknown } | null;
+    return value && typeof value.idvId === 'string' && value.owner === owner ? value.idvId : undefined;
+  } catch {
+    idvSessionRemove(`${key}${EXPIRY_CHECK}`);
+    return undefined;
+  }
+}
+
+type ExpiredOutcome = { kind: 'complete'; result: SafeIdvResult } | { kind: 'failed'; reason?: string } | { kind: 'expired' };
+
+/** This session's own status once its window has passed. The capture may have
+ *  finished between polls or while the tab was frozen. */
+async function confirmExpired(api: IdvApi, scope: IdvScope, idvId: string, signal: AbortSignal): Promise<ExpiredOutcome> {
+  try {
+    const result = await api.poll(scope, idvId, signal);
+    if (result.status === 'complete') {
+      return result.authenticated ? { kind: 'complete', result } : { kind: 'failed', reason: 'not-authenticated' };
+    }
+    if (result.status === 'failed') return { kind: 'failed', reason: result.reason };
+    return { kind: 'expired' };
+  } catch (error) {
+    // A definite 4xx is the backend saying the session has expired.
+    if (error instanceof IdvRequestError && !error.outcomeUnknown) return { kind: 'expired' };
+    throw error;
+  }
 }
 
 function storageKey(scope: IdvScope, identity: IdvIdentity): string | undefined {
@@ -84,8 +105,6 @@ export interface IdvControllerOptions {
   api?: IdvApi;
   scope: IdvScope;
   identity?: IdvIdentity;
-  /** Verify-first recovery is by email because no lease association exists yet. */
-  lookupByEmail?: boolean;
   allowedVerificationHosts: readonly string[];
   /** Legacy name: best-effort checkout snapshot before mobile handoff.
    *  A save failure no longer prevents opening verification in another tab. */
@@ -153,7 +172,8 @@ export function useIdvController(options: IdvControllerOptions) {
     dispatch({ type: 'check' });
     const stored = readStored(key, owner);
     const uncertain = Boolean(key && idvSessionGet(`${key}:start-uncertain`));
-    if (uncertain && !stored && !options.lookupByEmail) {
+    const expiring = stored ? undefined : readExpiryCheck(key, owner);
+    if (uncertain && !stored && !expiring) {
       setVerificationUrl(undefined);
       dispatch({ type: 'error', generation, retryable: false });
       return undefined;
@@ -165,51 +185,63 @@ export function useIdvController(options: IdvControllerOptions) {
       dispatch({ type: 'resume', generation, idvId: stored.idvId, expiresAt: stored.expiresAt, resendUncertain: uncertain });
       return undefined;
     }
-    if (!stored?.completed && !options.lookupByEmail && !options.identity.contactId) {
-      dispatch({ type: 'not-verified', generation });
-      return undefined;
-    }
     let cancelled = false;
     const lookupController = new AbortController();
     const api = options.api;
-    const recordLookup = () => lookupRecord(options, { companyId, propertyId }, lookupController.signal);
-    const lookup = stored?.completed
-      ? api.poll({ companyId, propertyId }, stored.idvId, lookupController.signal).then(result => {
-        if (result.status === 'pending') throw new Error('Previously completed verification is still pending.');
-        return result.status === 'complete' ? result : undefined;
-      }, (error: unknown) => {
-        // The status endpoint answers 404 once the capture session has expired,
-        // even for a completed verification; the lookup still has the record.
-        if (error instanceof IdvRequestError && !error.outcomeUnknown) {
-          // Keep the saved session (and its scanned details) until the lookup
-          // answers; drop it only when the lookup confirms there is nothing.
-          return recordLookup().then((found) => {
-            if (!found?.authenticated && key) idvSessionRemove(key);
-            return found;
-          });
-        }
+    if (expiring) {
+      void confirmExpired(api, { companyId, propertyId }, expiring, lookupController.signal)
+        .then((outcome) => {
+          if (cancelled) return;
+          if (key) idvSessionRemove(`${key}${EXPIRY_CHECK}`);
+          if (outcome.kind === 'complete') saveCompleted(key, outcome.result, owner);
+          dispatch(outcome.kind === 'complete'
+            ? { type: 'complete', generation, result: outcome.result }
+            : outcome.kind === 'failed'
+              ? { type: 'failed', generation, reason: outcome.reason }
+              : { type: 'expired', generation });
+        })
+        .catch(() => {
+          if (!cancelled) {
+            lookupFailed.current = true;
+            dispatch({ type: 'error', generation, retryable: true });
+          }
+        });
+      return () => { cancelled = true; lookupController.abort(); };
+    }
+    // Guests are never matched to an earlier verification: only this
+    // checkout's own session is resumed or re-confirmed.
+    if (!stored) {
+      dispatch({ type: 'not-verified', generation });
+      return undefined;
+    }
+    // Only the server can say verified. The saved entry is browser storage
+    // anyone can edit, so it supplies scan details for a confirmed result,
+    // never the result itself.
+    void api.poll({ companyId, propertyId }, stored.idvId, lookupController.signal)
+      .then((result): SafeIdvResult | undefined => (
+        result.status === 'complete' && result.authenticated ? result : undefined
+      ), (error: unknown) => {
+        // A definite 4xx (404 once the capture session has ended) confirms nothing.
+        if (error instanceof IdvRequestError && !error.outcomeUnknown) return undefined;
         throw error;
       })
-      : recordLookup();
-    void lookup
       .then((result) => {
         if (cancelled) return;
-        if (uncertain && !result?.authenticated) throw new Error('The previous verification outcome is still unknown.');
-        // A lookup may not carry the address or licence; fall back to what was
-        // saved with this same verification when the scan completed.
-        if (result?.authenticated && stored?.completed && stored.idvId === result.idvId) {
-          result = {
-            ...result,
-            address: result.address ?? stored.address,
-            driversLicense: result.driversLicense ?? stored.driversLicense,
-          };
+        if (uncertain && !result) throw new Error('The previous verification outcome is still unknown.');
+        if (!result) {
+          if (key) idvSessionRemove(key);
+          dispatch({ type: 'expired', generation });
+          return;
         }
-        if (result?.authenticated) saveCompleted(key, result, owner);
-        // Only an authenticated result completes (the reducer enforces it too):
-        // an old, failed verification on the contact leaves the renter to verify now.
-        dispatch(result?.authenticated
-          ? { type: 'complete', generation, result }
-          : { type: 'not-verified', generation });
+        // A later poll may not carry the address or licence; fall back to what
+        // was saved with this same verification when the scan completed.
+        const confirmed = stored.idvId === result.idvId ? {
+          ...result,
+          address: result.address ?? stored.address,
+          driversLicense: result.driversLicense ?? stored.driversLicense,
+        } : result;
+        saveCompleted(key, confirmed, owner);
+        dispatch({ type: 'complete', generation, result: confirmed });
       })
       .catch(() => {
         if (!cancelled) {
@@ -220,7 +252,7 @@ export function useIdvController(options: IdvControllerOptions) {
     return () => { cancelled = true; lookupController.abort(); };
     // Re-resolve only when the renter/rental scope changes, not on each state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, key, options.allowedVerificationHosts, options.api, options.enabled, options.identity, options.lookupByEmail, propertyId, lookupAttempt]);
+  }, [companyId, key, options.allowedVerificationHosts, options.api, options.enabled, options.identity, propertyId, lookupAttempt]);
 
   useEffect(() => {
     if (state.kind !== 'pending' || !options.api) return undefined;
@@ -258,18 +290,19 @@ export function useIdvController(options: IdvControllerOptions) {
           dispatch({ type: 'error', generation: state.generation, retryable: false });
           return;
         }
-        // The capture may have finished while this tab was frozen or between
-        // polls. Check the record before calling it expired, so Reverify never
-        // bills a second verification for one that completed.
-        void lookupRecord(latestOptions.current, { companyId, propertyId }, expiryLookup.signal)
-          .then((result) => {
+        // Check this session once more before calling it expired, so Reverify
+        // never bills a second verification for one that completed.
+        if (key) idvSessionSet(`${key}${EXPIRY_CHECK}`, JSON.stringify({ idvId: state.idvId, owner }));
+        void confirmExpired(options.api!, { companyId, propertyId }, state.idvId, expiryLookup.signal)
+          .then((outcome) => {
             if (expiryLookup.signal.aborted) return;
-            if (result?.authenticated) {
-              saveCompleted(key, result, owner);
-              dispatch({ type: 'complete', generation: state.generation, result });
-            } else {
-              dispatch({ type: 'expired', generation: state.generation });
-            }
+            if (key) idvSessionRemove(`${key}${EXPIRY_CHECK}`);
+            if (outcome.kind === 'complete') saveCompleted(key, outcome.result, owner);
+            dispatch(outcome.kind === 'complete'
+              ? { type: 'complete', generation: state.generation, result: outcome.result }
+              : outcome.kind === 'failed'
+                ? { type: 'failed', generation: state.generation, reason: outcome.reason }
+                : { type: 'expired', generation: state.generation });
           })
           .catch(() => {
             if (expiryLookup.signal.aborted) return;
@@ -368,7 +401,8 @@ export function useIdvController(options: IdvControllerOptions) {
   ]);
 
   const resend = useCallback(async () => {
-    if (!options.enabled || activeRequest.current || state.kind !== 'pending' || state.resendUncertain || !options.api || !options.identity) return undefined;
+    if (!options.enabled || activeRequest.current || state.kind !== 'pending' || state.resendUncertain
+      || Date.now() >= state.expiresAt * 1_000 || !options.api || !options.identity) return undefined;
     const request = new AbortController();
     const captured = options;
     activeRequest.current = request;

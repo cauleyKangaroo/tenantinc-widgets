@@ -71,15 +71,14 @@ function optionalText(value: unknown): string | undefined {
 }
 
 /** Confirmed gateway shape: applicationData.<appId>[0].{status,data,msg}. */
-function operation(raw: unknown, allowList = false): { status: number; data: JsonRecord; msg?: string } {
-  if (allowList && Array.isArray(raw)) return { status: 200, data: raw as unknown as JsonRecord };
+function operation(raw: unknown): { status: number; data: JsonRecord; msg?: string } {
   const outer = record(raw, 'response');
   const apps = outer.applicationData;
   if (!apps || typeof apps !== 'object' || Array.isArray(apps)) {
     // Not in the gateway envelope (e.g. a gateway-level error): read it as the
     // bare payload so its status and message still surface.
     const status = typeof outer.status === 'number' ? outer.status : 200;
-    const data = outer.data && typeof outer.data === 'object' && (allowList || !Array.isArray(outer.data))
+    const data = outer.data && typeof outer.data === 'object' && !Array.isArray(outer.data)
       ? outer.data as JsonRecord
       : outer;
     return { status, data, msg: optionalText(outer.msg) };
@@ -89,21 +88,9 @@ function operation(raw: unknown, allowList = false): { status: number; data: Jso
   const entry = record(first[0], 'gateway entry');
   return {
     status: typeof entry.status === 'number' ? entry.status : 502,
-    data: allowList && Array.isArray(entry.data) ? entry.data as unknown as JsonRecord : record(entry.data ?? {}, 'response data'),
+    data: record(entry.data ?? {}, 'response data'),
     msg: optionalText(entry.msg) ?? optionalText(entry.message),
   };
-}
-
-function comparableName(value: unknown): string {
-  // Keep every script's letters and digits; drop accents, case, spaces and punctuation.
-  return typeof value === 'string'
-    ? value.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
-    : '';
-}
-
-function sameName(recorded: unknown, typed: string): boolean {
-  const a = comparableName(recorded);
-  return Boolean(a) && a === comparableName(typed);
 }
 
 function safeId(value: string): string {
@@ -136,12 +123,8 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
     scope: IdvScope,
     suffix: string,
     init: RequestInit = {},
-    companyOnly = false,
-    allowList = false,
   ): Promise<JsonRecord> {
-    const path = companyOnly
-      ? `/companies/${safeId(scope.companyId)}/${suffix}`
-      : `/companies/${safeId(scope.companyId)}/properties/${safeId(scope.propertyId)}/${suffix}`;
+    const path = `/companies/${safeId(scope.companyId)}/properties/${safeId(scope.propertyId)}/${suffix}`;
     const url = `${base}/applications/${safeId(config.appId)}/v2${path}`;
     const headers: Record<string, string> = {
       Accept: 'application/json',
@@ -166,7 +149,7 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
         (async () => {
           const response = await fetcher(url, { ...init, signal: controller.signal, headers: { ...headers, ...init.headers } });
           const raw = await response.json() as unknown;
-          const parsed = operation(raw, allowList);
+          const parsed = operation(raw);
           if (!response.ok || parsed.status >= 400) {
             const status = response.ok ? parsed.status : response.status ?? parsed.status;
             // A gateway or upstream 5xx can occur after capture/SMS succeeds.
@@ -184,72 +167,6 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
   }
 
   return {
-    async lookup(scope: IdvScope, contactId: string, signal?: AbortSignal): Promise<SafeIdvResult | undefined> {
-      const data = await call(
-        scope,
-        `identity-verifications?contact_id=${safeId(contactId)}`,
-        { signal },
-        true,
-      );
-      if (data.status === 'pending') throw new Error('Verification is still pending. Check again before starting another session.');
-      if (data.status === undefined || data.status === null || data.status === '') {
-        // No status on the record: nothing there, or a verified one; anything else is unresolved.
-        if (!data.idv_id) return undefined;
-        if (data.authenticated !== true && data.verified !== true) throw new Error('Verification status could not be confirmed.');
-      } else if (data.status !== 'complete') return undefined;
-      if (!data.idv_id || (data.authenticated !== true && data.verified !== true)) throw new Error('Completed verification could not be confirmed.');
-      return {
-        idvId: text(data.idv_id, 'lookup id'),
-        authenticated: data.authenticated === true || data.verified === true,
-        driversLicense: data.dl_number || data.dl_state || data.dl_expiration ? {
-          number: optionalText(data.dl_number),
-          state: optionalText(data.dl_state),
-          expiration: optionalText(data.dl_expiration),
-        } : undefined,
-      };
-    },
-
-    async lookupByEmail(scope: IdvScope, email: string, signal?: AbortSignal, name?: { first: string; last: string }): Promise<SafeIdvResult | undefined> {
-      const data = await call(scope, `identity-verifications?email=${encodeURIComponent(email.trim())}`, { signal }, true, true);
-      if (!Array.isArray(data)) throw new Error('Invalid email verification lookup response.');
-      // The lookup is company-wide by email, so a shared address must not lend
-      // one person's verification to another: only records whose name (as read
-      // off the ID) matches the renter count.
-      const all = data.map(row => record(row, 'lookup record'));
-      const rows = all.filter(row => !name || (sameName(row.first_name, name.first) && sameName(row.last_name, name.last)));
-      // A pending session whose name is not on the record could be this renter's.
-      const unnamedPending = Boolean(name) && all.some(row => row.status === 'pending'
-        && (!comparableName(row.first_name) || !comparableName(row.last_name)));
-      const completed = rows.filter(row => row.status === 'complete');
-      if (!completed.length) {
-        if (unnamedPending || rows.some(row => row.status === 'pending')) throw new Error('Verification is still pending. Check again before starting another session.');
-        // A completed record with no name on it might be this renter's: unresolved, not absent.
-        if (name && all.some(row => row.status === 'complete' && (!comparableName(row.first_name) || !comparableName(row.last_name)))) {
-          throw new Error('A completed verification could not be matched to this renter.');
-        }
-        return undefined;
-      }
-      const timestamp = (row: JsonRecord): number => {
-        const value = row.verified_at ?? row.created_at ?? row.createdAt ?? row.created ?? row.updated_at ?? row.updatedAt;
-        if (typeof value === 'number' && Number.isFinite(value)) return value < 1e12 ? value * 1000 : value;
-        // Staging returns "2026-10-14 17:23:51"; Safari only parses the ISO "T" form.
-        return typeof value === 'string' ? Date.parse(value.trim().replace(/^(\d{4}-\d{2}-\d{2}) /, '$1T')) : NaN;
-      };
-      if (completed.length > 1 && completed.some(row => !Number.isFinite(timestamp(row)))) throw new Error('The newest completed verification could not be identified.');
-      completed.sort((a, b) => timestamp(b) - timestamp(a));
-      const latest = completed[0];
-      if (!latest.idv_id || (latest.authenticated !== true && latest.verified !== true)) throw new Error('Completed verification could not be confirmed.');
-      return {
-        idvId: text(latest.idv_id, 'lookup id'),
-        authenticated: true,
-        driversLicense: latest.dl_number || latest.dl_state || latest.dl_expiration ? {
-          number: optionalText(latest.dl_number),
-          state: optionalText(latest.dl_state),
-          expiration: optionalText(latest.dl_expiration),
-        } : undefined,
-      };
-    },
-
     async start(
       scope: IdvScope,
       identity: IdvIdentity,

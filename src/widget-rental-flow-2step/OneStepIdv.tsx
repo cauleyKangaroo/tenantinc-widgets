@@ -64,7 +64,6 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
     enabled: Boolean(identity) && !config.policyPending && config.requirement !== 'disabled',
     api: config.api, scope: config.scope, identity,
     allowedVerificationHosts: config.allowedVerificationHosts,
-    lookupByEmail: true,
   });
   const kind = controller.state.kind;
   const completedIdvId = controller.state.kind === 'complete' ? controller.state.result.idvId : undefined;
@@ -96,7 +95,7 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
     setEditDl(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validCompletion, completedIdvId]);
-  // Only a confirmed failure or expiry. A lookup or request error is unresolved:
+  // Only a confirmed failure or expiry. A status or request error is unresolved:
   // the verification may still be in progress, so it neither fails nor pays.
   const failedCheck = kind === 'failed' || kind === 'expired';
   const unresolved = kind === 'error' && controller.state.retryable;
@@ -263,7 +262,7 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
           open={handoffOpen}
           onClose={() => setHandoffOpen(false)}
           // Connected mode never takes a completion result from presentation.
-          // Only the controller's authenticated poll/lookup can allow payment.
+          // Only the controller's authenticated poll can allow payment.
           onResult={() => setHandoffOpen(false)}
           phone={identity?.phone ?? phone}
           connected

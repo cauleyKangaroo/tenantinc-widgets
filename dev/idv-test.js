@@ -116,7 +116,7 @@ function testAuthenticationAndResend() {
   assert.deepEqual(
     idvReducer(checking, { type: 'complete', generation: checking.generation, result: unauth }),
     { kind: 'ready', generation: checking.generation },
-    'an old failed verification found by lookup leaves the renter able to verify now',
+    'an unauthenticated result while checking leaves the renter able to verify now',
   );
   const ready = idvReducer(checking, { type: 'not-verified', generation: checking.generation });
   const starting = idvReducer(ready, { type: 'start', generation: ready.generation });
@@ -370,7 +370,7 @@ async function testApiTransports() {
   }
   const hung = createIdvApi({ baseUrl: 'https://api.example.com', appId: 'app', apiKey: 'test', requestTimeoutMs: 5 },
     () => new Promise(() => {}));
-  await assert.rejects(hung.lookup({ companyId: 'co', propertyId: 'prop' }, 'contact'), /outcome may be unknown/);
+  await assert.rejects(hung.poll({ companyId: 'co', propertyId: 'prop' }, 'idv11111111111111111111111111111111'), /outcome may be unknown/);
   await assert.rejects(hung.start({ companyId: 'co', propertyId: 'prop' }, {
     first: 'Test', last: 'Renter', email: 'test@example.com', phone: '5555555555',
   }), /outcome may be unknown/);
@@ -437,67 +437,24 @@ function testCaptureDevice() {
   assert.equal(withWindow({}, captureDevice), 'desktop');
 }
 
-async function testEmailRecovery() {
+async function testCompletionPoll() {
   const rawId = 'idv05d17e25979d41b1be17aaac798d58de';
-  let payload = [];
-  let lastUrl;
+  let payload = {};
+  const urls = [];
   const api = createIdvApi({ baseUrl: 'https://edge.example/api/v3', appId: 'app', apiKey: 'test' }, async url => {
-    lastUrl = url;
+    urls.push(url);
     return { ok: true, json: async () => ({ applicationData: { app: [{ status: 200, data: payload }] } }) };
   });
   const scope = { companyId: 'co', propertyId: 'prop' };
-  assert.equal(await api.lookupByEmail(scope, 'test+idv@example.com'), undefined);
-  assert.ok(lastUrl.endsWith('identity-verifications?email=test%2Bidv%40example.com'));
-  payload = [
-    { status: 'complete', idv_id: 'idv11111111111111111111111111111111', authenticated: true, created_at: '2026-10-13T10:00:00Z' },
-    { status: 'failed', idv_id: 'ignored', authenticated: true, created_at: '2026-10-15T10:00:00Z' },
-    { status: 'complete', idv_id: rawId, verified: true, created_at: '2026-10-14T10:00:00Z' },
-  ];
-  assert.equal((await api.lookupByEmail(scope, 'test@example.com')).idvId, rawId, 'newest completed record wins');
-  // Staging's real record shape: verified_at with a space, no created_at.
-  payload = [
-    { status: 'complete', idv_id: rawId, authenticated: true, verified: true, contact_id: null, matched_on: 'email', verified_at: '2026-10-14 17:23:51' },
-    { status: 'complete', idv_id: 'idv22222222222222222222222222222222', authenticated: true, verified: true, contact_id: null, matched_on: 'email', verified_at: '2026-10-13 09:05:00' },
-  ];
-  assert.equal((await api.lookupByEmail(scope, 'test@example.com')).idvId, rawId, 'staging verified_at orders repeat verifications');
-  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, verified: true, dl_number: 'D1234567', dl_state: 'CA', dl_expiration: '2030-01-15', verified_at: '2026-10-14 17:23:51' }];
-  assert.deepEqual({ ...(await api.lookupByEmail(scope, 'test@example.com')).driversLicense }, { number: 'D1234567', state: 'CA', expiration: '2030-01-15' }, 'email recovery keeps the licence for display');
+  assert.equal(api.lookup, undefined, 'no contact lookup: a browser-supplied contact ID is not trusted');
+  assert.equal(api.lookupByEmail, undefined, 'no email lookup: anyone could recover a stranger by email');
   payload = { status: 'complete', idvId: rawId, authenticated: true,
     driversLicense: { number: 'D1234567', state: 'CA', expiration: '2030-01-15' },
     address: { address1: '1 Main St', city: 'Irvine', stateCode: 'CA', postalCode: '92618' } };
   assert.deepEqual({ ...(await api.poll(scope, rawId)).address }, { street: '1 Main St', city: 'Irvine', state: 'CA', zip: '92618' }, 'completion carries the scanned address');
   payload = { status: 'complete', idvId: rawId, authenticated: true };
   assert.equal((await api.poll(scope, rawId)).address, undefined, 'no address when the scan returns none');
-  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, verified: true, first_name: 'RAYMOND', last_name: 'NASSAR', verified_at: '2026-10-14 17:23:51' }];
-  assert.equal((await api.lookupByEmail(scope, 'test@example.com', undefined, { first: ' Raymond ', last: 'nassar' })).idvId, rawId, 'name read off the ID matches the typed name');
-  assert.equal(await api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'Jane', last: 'Nassar' }), undefined, 'a shared email cannot lend another person their verification');
-  assert.equal(await api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'José', last: 'Núñez' }), undefined);
-  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, first_name: 'JOSE', last_name: 'NUNEZ' }];
-  assert.equal((await api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'José', last: 'Núñez' })).idvId, rawId, 'accents and case are ignored');
-  payload = [{ status: 'pending', idv_id: rawId, authenticated: true, first_name: 'OTHER', last_name: 'PERSON' }];
-  assert.equal(await api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'Raymond', last: 'Nassar' }), undefined, "another person's pending session does not block this renter");
-  payload = [{ status: 'pending', idv_id: rawId, authenticated: true }];
-  await assert.rejects(api.lookupByEmail(scope, 'test@example.com'), /pending/, 'pending recovery never permits another start');
-  payload = [{ status: 'complete', idv_id: rawId, authenticated: false }];
-  await assert.rejects(api.lookupByEmail(scope, 'test@example.com'), /confirmed/);
-  payload = [{ status: 'complete', idv_id: rawId, authenticated: true }, { status: 'complete', idv_id: 'another', authenticated: true }];
-  await assert.rejects(api.lookupByEmail(scope, 'test@example.com'), /newest/, 'unknown ordering is not guessed');
-  payload = { status: 'pending', idv_id: rawId, verified: true };
-  await assert.rejects(api.lookup(scope, 'contact'), /pending/, 'contact lookup does not turn an existing pending record into another start');
-  payload = { status: 'failed', idv_id: rawId, verified: true };
-  assert.equal(await api.lookup(scope, 'contact'), undefined, 'contact lookup must require complete status');
-  payload = { idv_id: rawId, verified: true };
-  assert.equal((await api.lookup(scope, 'contact')).idvId, rawId, 'a verified record without a status still counts, so no second start');
-  payload = { idv_id: rawId };
-  await assert.rejects(api.lookup(scope, 'contact'), /could not be confirmed/, 'an unverified record without a status is unresolved, not absent');
-  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, first_name: 'J王', last_name: 'Chen' }];
-  assert.equal(await api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'J李', last: 'Chen' }), undefined, 'different non-Latin names do not collide');
-  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, first_name: '小明', last_name: '王' }];
-  assert.equal((await api.lookupByEmail(scope, 'test@example.com', undefined, { first: '小明', last: '王' })).idvId, rawId, 'fully non-Latin names match');
-  payload = [{ status: 'pending', idv_id: rawId }];
-  await assert.rejects(api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'Raymond', last: 'Nassar' }), /pending/, 'a nameless pending session blocks another start');
-  payload = [{ status: 'complete', idv_id: rawId, authenticated: true, verified_at: '2026-10-14 17:23:51' }];
-  await assert.rejects(api.lookupByEmail(scope, 'test@example.com', undefined, { first: 'Raymond', last: 'Nassar' }), /could not be matched/, 'a nameless completed record is unresolved, not absent');
+  assert.ok(urls.every(url => url.includes(`/properties/prop/identity-verification/${rawId}`) && !url.includes('identity-verifications')));
 }
 
 (async () => {
@@ -508,7 +465,7 @@ async function testEmailRecovery() {
   testUrls();
   await testPolling();
   await testApiTransports();
-  await testEmailRecovery();
+  await testCompletionPoll();
   testCaptureDevice();
   console.log('IDV foundation tests passed');
 })().catch((error) => {

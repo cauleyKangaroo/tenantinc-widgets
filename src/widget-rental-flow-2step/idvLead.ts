@@ -58,7 +58,7 @@ export function readPreparedIdvLead(scope: IdvScope): PreparedIdvLead | undefine
 }
 
 export function savePreparedIdvLead(scope: IdvScope, lead: PreparedIdvLead): void {
-  // Contact preparation is not an IDV start. If this cannot save, the contact's
-  // backend lookup and the controller's own uncertainty markers still apply.
+  // Contact preparation is not an IDV start. If this cannot save, the
+  // controller's own uncertainty markers still apply.
   idvSessionSet(leadKey(scope), JSON.stringify(lead));
 }
