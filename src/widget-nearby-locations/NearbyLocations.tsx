@@ -1081,16 +1081,24 @@ export function NearbyLocations({
    * only adds an id once a visitor has swiped past it. The result is
    * `cardsPerPage` ids — **3 for a one-row layout, 6 for two** — which is exactly
    * the fan-out the spaces effect performs.
+   *
+   * THE DESKTOP INDEX IS A COLUMN, NOT A PAGE. The strip steps one column at a
+   * time (see useCarousel above), so the cards on screen at index i are the
+   * columns i … i+2 — cards i×rows … (i+3)×rows. This used to slice by PAGE
+   * (index × cardsPerPage), which only agrees with the strip at index 0: one
+   * step on, it named cards 3–5 while columns 1–3 were on screen, so two of
+   * the three visible columns were treated as off screen (and collapsed to
+   * nothing), and two steps on none of them matched — every card vanished.
    */
   const visibleIds = useMemo(() => {
     if (!apiProperties?.length) return [] as string[];
     const ids = apiProperties
-      .slice(safePage * cardsPerPage, safePage * cardsPerPage + cardsPerPage)
+      .slice(safePage * rowCount, (safePage + COLUMNS) * rowCount)
       .map((p) => p.id);
     const onMobile = apiProperties[Math.min(mobileIdx, apiProperties.length - 1)]?.id;
     if (onMobile && !ids.includes(onMobile)) ids.push(onMobile);
     return ids;
-  }, [apiProperties, safePage, cardsPerPage, mobileIdx]);
+  }, [apiProperties, safePage, rowCount, mobileIdx]);
 
   /**
    * Spaces for the visible cards — one parallel batch per page.
@@ -1206,10 +1214,12 @@ export function NearbyLocations({
    * which layout-shift scoring excludes.
    */
   const deskPageIds = useMemo(
+    // Columns safePage … safePage+2, as the strip shows them — see visibleIds
+    // for why this is by column and not by page.
     () => (apiProperties ?? [])
-      .slice(safePage * cardsPerPage, safePage * cardsPerPage + cardsPerPage)
+      .slice(safePage * rowCount, (safePage + COLUMNS) * rowCount)
       .map((p) => p.id),
-    [apiProperties, safePage, cardsPerPage],
+    [apiProperties, safePage, rowCount],
   );
 
   // Map pins from the live properties (price = cheapest starting rate).
