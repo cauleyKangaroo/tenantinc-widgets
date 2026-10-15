@@ -238,7 +238,9 @@ async function main() {
   const guestApi = {
     poll: async () => {
       polls++;
-      if (pollMode === 'expired') throw new ExpiredError('This verification session has expired. Please start again.', false);
+      if (pollMode === 'expired') throw new ExpiredError('This verification session has expired. Please start again.', false, 404);
+      if (pollMode === 'forbidden') throw new ExpiredError('Forbidden', false, 403);
+      if (pollMode === 'limited') throw new ExpiredError('Too many requests', false, 429);
       if (pollMode === 'down') throw new ExpiredError('gateway timeout', true);
       if (pollMode === 'failed') return { status: 'failed', idvId: rawId, reason: 'mismatch' };
       if (pollMode === 'pending') return { status: 'pending', idvId: rawId };
@@ -298,11 +300,17 @@ async function main() {
   await mount(guest('forged'));
   assert.equal(controller.state.kind, 'expired', 'an edited storage entry is not a verification');
   await unmount();
-  for (const mode of ['failed', 'pending']) {
+  pollMode = 'failed';
+  saved.set('mariposa:idv:v1:co:prop:not-complete', JSON.stringify({ completed: true, idvId: rawId, expiresAt: Date.now() / 1000 + 600, owner }));
+  await mount(guest('not-complete'));
+  assert.equal(controller.state.kind, 'expired', 'a failed answer does not complete');
+  await unmount();
+  for (const mode of ['pending', 'forbidden', 'limited']) {
     pollMode = mode;
-    saved.set('mariposa:idv:v1:co:prop:not-complete', JSON.stringify({ completed: true, idvId: rawId, expiresAt: Date.now() / 1000 + 600, owner }));
-    await mount(guest('not-complete'));
-    assert.equal(controller.state.kind, 'expired', `a ${mode} answer does not complete`);
+    saved.set('mariposa:idv:v1:co:prop:unclear', JSON.stringify({ completed: true, idvId: rawId, expiresAt: Date.now() / 1000 + 600, owner }));
+    await mount(guest('unclear'));
+    assert.equal(controller.state.kind, 'error', `a ${mode} answer is unresolved, not expired`);
+    assert.equal(saved.has('mariposa:idv:v1:co:prop:unclear'), true, `a ${mode} answer keeps the saved completion`);
     await unmount();
   }
   assert.equal(starts, 1);
@@ -327,6 +335,12 @@ async function main() {
   await expiryCase('expiry-failed', 'failed');
   assert.equal(controller.state.kind, 'failed');
   await unmount();
+  for (const mode of ['pending', 'forbidden', 'limited']) {
+    await expiryCase(`expiry-${mode}`, mode);
+    assert.equal(controller.state.kind, 'error', `${mode} at expiry does not open Reverify`);
+    assert.equal(saved.has(`mariposa:idv:v1:co:prop:expiry-${mode}:expiry-check`), true, `${mode} keeps the check for a reload`);
+    await unmount();
+  }
   await expiryCase('expiry-down', 'down');
   assert.equal(controller.state.kind, 'error');
   assert.equal(controller.state.retryable, true);
@@ -347,7 +361,7 @@ async function main() {
   await mount(guest('expiry-reload-gone'));
   assert.equal(controller.state.kind, 'expired', 'a reload that confirms expiry shows expired');
   await unmount();
-  assert.equal(starts, 5, 'one start per case, none from expiry or recovery');
+  assert.equal(starts, 8, 'one start per case, none from expiry or recovery');
 
   // A session that ended while checkout was closed is checked before any new start.
   polls = 0;

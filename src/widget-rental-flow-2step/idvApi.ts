@@ -43,7 +43,7 @@ type FetchLike = typeof fetch;
 
 /** An explicit API rejection is retryable; missing/unusable responses are not. */
 export class IdvRequestError extends Error {
-  constructor(message: string, public readonly outcomeUnknown: boolean) {
+  constructor(message: string, public readonly outcomeUnknown: boolean, public readonly status?: number) {
     super(message);
     this.name = 'IdvRequestError';
   }
@@ -155,7 +155,7 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
             // A gateway or upstream 5xx can occur after capture/SMS succeeds.
             // Only a 4xx rejection, with no conflicting upstream 5xx, is definite.
             const outcomeUnknown = status < 400 || status >= 500 || parsed.status >= 500;
-            throw new IdvRequestError(parsed.msg || `ID verification request failed (${status}).`, outcomeUnknown);
+            throw new IdvRequestError(parsed.msg || `ID verification request failed (${status}).`, outcomeUnknown, status);
           }
           return parsed.data;
         })(),

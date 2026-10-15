@@ -56,6 +56,12 @@ function readExpiryCheck(key: string | undefined, owner: string | undefined): st
   }
 }
 
+/** The status endpoint's "session has expired" answer. A 401, 403 or 429 says
+ *  nothing about how the session ended. */
+function sessionEnded(error: unknown): boolean {
+  return error instanceof IdvRequestError && !error.outcomeUnknown && error.status === 404;
+}
+
 type ExpiredOutcome = { kind: 'complete'; result: SafeIdvResult } | { kind: 'failed'; reason?: string } | { kind: 'expired' };
 
 /** This session's own status once its window has passed. The capture may have
@@ -67,12 +73,12 @@ async function confirmExpired(api: IdvApi, scope: IdvScope, idvId: string, signa
       return result.authenticated ? { kind: 'complete', result } : { kind: 'failed', reason: 'not-authenticated' };
     }
     if (result.status === 'failed') return { kind: 'failed', reason: result.reason };
-    return { kind: 'expired' };
   } catch (error) {
-    // A definite 4xx is the backend saying the session has expired.
-    if (error instanceof IdvRequestError && !error.outcomeUnknown) return { kind: 'expired' };
+    if (sessionEnded(error)) return { kind: 'expired' };
     throw error;
   }
+  // Still pending past its window: not a confirmed end, so no new start yet.
+  throw new Error('The verification outcome is not confirmed yet.');
 }
 
 function storageKey(scope: IdvScope, identity: IdvIdentity): string | undefined {
@@ -225,11 +231,12 @@ export function useIdvController(options: IdvControllerOptions) {
     // anyone can edit, so it supplies scan details for a confirmed result,
     // never the result itself.
     void api.poll({ companyId, propertyId }, stored.idvId, lookupController.signal)
-      .then((result): SafeIdvResult | undefined => (
-        result.status === 'complete' && result.authenticated ? result : undefined
-      ), (error: unknown) => {
-        // A definite 4xx (404 once the capture session has ended) confirms nothing.
-        if (error instanceof IdvRequestError && !error.outcomeUnknown) return undefined;
+      .then((result): SafeIdvResult | undefined => {
+        if (result.status === 'pending') throw new Error('The verification outcome is not confirmed yet.');
+        return result.status === 'complete' && result.authenticated ? result : undefined;
+      }, (error: unknown) => {
+        // A 404 (the capture session has ended) confirms nothing.
+        if (sessionEnded(error)) return undefined;
         throw error;
       })
       .then((result) => {
