@@ -83,7 +83,7 @@ export function SpaceList({
   showSizeGuideVideos = true,
   aboutTitle,
   aboutContent,
-  notesContent,
+  // `notesContent` (content menu) is accepted but unread — the Notes section is the collection's alone; see collectionNotes.
   blogCollection,
   blogBasePath,
   featureCollection = FEATURE_PAGE_COLLECTION,
@@ -320,11 +320,12 @@ export function SpaceList({
 
   /*
    * The sidebar's NOTES come from the `PropertiesInternal` collection — the
-   * property's `notes` cell — not from the content menu. Undefined until the
-   * read settles, and undefined when the cell is blank or there is no dmAPI;
-   * the section is only offered while there is content (SectionAccordion).
-   * The content-menu `notesContent` remains the fallback for a site whose
-   * collection has no such column yet.
+   * property's `notes` cell — and from NOWHERE ELSE. Undefined until the read
+   * settles, and undefined when the cell is blank or there is no dmAPI; the
+   * section is only offered while there is content (SectionAccordion). The
+   * content menu's `notesContent` is deliberately NOT a fallback: a Duda
+   * instance carries that field's default text, which put a Notes row with
+   * invented copy on every property that had none (2026-10-15).
    */
   const [collectionNotes, setCollectionNotes] = useState<string | undefined>(undefined);
   useEffect(() => {
@@ -334,7 +335,7 @@ export function SpaceList({
       .catch((err) => console.error('[SpaceList] notes read failed:', err));
     return () => { cancelled = true; };
   }, [effectivePropertyId]);
-  const sidebarNotes = collectionNotes ?? ((notesContent ?? '').trim() ? notesContent : undefined);
+  const sidebarNotes = collectionNotes;
 
   useEffect(() => {
     if (effectiveCompanyId === null) return;
