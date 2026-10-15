@@ -626,6 +626,9 @@
 .rf2-link--btn {
   appearance: none; background: none; border: 0; padding: 0;
   font: inherit; line-height: inherit;
+  /* After `font: inherit`, which resets font-size to the host page's — so
+     the 16px .rf2-link asks for was never applied. Pinned here. */
+  font-size: 16px;
 }
 
 /* Contact form (label-above fields) */
