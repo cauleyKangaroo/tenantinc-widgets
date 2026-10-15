@@ -1021,34 +1021,30 @@ export function MapLocations({
   // which the static data never was, but a filtered or still-loading live list
   // is. Centre on the active facility when there is one, else the first
   // plottable, else nothing renders the map at all (see hasMap below).
-  const centerOf = plottable.find((f) => f.id === activeId) ?? plottable[0];
-
   /**
-   * Centre the MAP so the open marker sits up and to the right of the middle,
-   * not on it — the popup hangs below-left of its bubble, so a dead-centred
-   * marker pushed the card into the bottom-left corner. Shifting the centre
-   * south-west by the same amount moves the pair back into the middle.
-   *
-   * Measured as a fraction of the plotted SPREAD rather than a fixed number of
-   * degrees, because NearbyMap picks its own zoom to fit every point: a tight
-   * cluster of city facilities and a whole state need the same visual nudge but
-   * wildly different degree offsets, and the spread tracks the zoom.
-   *
-   * Only while a popup is open. With none there is nothing to make room for,
-   * and the default view stays exactly where it was — including on hover, which
-   * moves `activeId` but opens nothing.
+   * THE MAP STAYS PUT. Its centre is the middle of the plotted facilities and
+   * changes only when that set does — a new city, a filter — never on a click
+   * or a hover. It used to be derived from the active marker and nudged on
+   * every popup, so the map panned each time a bubble was clicked, and on
+   * hover too (hovering moves `activeId`). The one exception is a clicked
+   * marker that is off screen, which `keepInView` below brings back.
    */
   const center = useMemo(() => {
-    if (!centerOf) return null;
-    if (openId !== centerOf.id) return { lat: centerOf.lat, lng: centerOf.lng };
-    const lats = plottable.map((f) => f.lat);
-    const lngs = plottable.map((f) => f.lng);
-    // A single plotted property has no spread; fall back to something small
-    // enough to read as a nudge at the zoom one point gets.
-    const latSpan = (Math.max(...lats) - Math.min(...lats)) || 0.03;
-    const lngSpan = (Math.max(...lngs) - Math.min(...lngs)) || 0.03;
-    return { lat: centerOf.lat - latSpan * 0.10, lng: centerOf.lng - lngSpan * 0.15 };
-  }, [centerOf, openId, plottable]);
+    if (!plottable.length) return null;
+    const lat = plottable.reduce((n, f) => n + f.lat, 0) / plottable.length;
+    const lng = plottable.reduce((n, f) => n + f.lng, 0) / plottable.length;
+    return { lat, lng };
+  }, [plottable]);
+  /** The facility the visitor last CLICKED — its bubble or its card — for
+   *  NearbyMap to keep on screen. A counter in the key, so clicking the same
+   *  card again after dragging it off screen asks again. Hovering only moves
+   *  `activeId` and never counts. */
+  const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
+  const focusOn = (id: string) => setFocus((cur) => ({ id, n: (cur?.n ?? 0) + 1 }));
+  const keepInView = useMemo(() => {
+    const f = focus ? plottable.find((p) => p.id === focus.id) : undefined;
+    return f && focus ? { lat: f.lat, lng: f.lng, key: `${f.id}:${focus.n}` } : null;
+  }, [focus, plottable]);
 
   const hasMap = center !== null;
 
@@ -1166,6 +1162,7 @@ export function MapLocations({
             e.stopPropagation();
             setActiveId(p.id);
             setOpenId((cur) => (cur === p.id ? null : p.id));
+            focusOn(p.id);
             revealCard(p.id);
           }}
           title={p.name}
@@ -1354,6 +1351,7 @@ export function MapLocations({
                 onActivate={() => setActiveId(f.id)}
                 onSelect={() => {
                   setActiveId(f.id);
+                  focusOn(f.id);
                   /* Close a bubble belonging to a DIFFERENT property. Clicking
                      the card of the one already open leaves it alone — it is
                      the same facility, so the bubble is still about what the
@@ -1409,6 +1407,7 @@ export function MapLocations({
                 height="100%"
                 renderPin={renderPin}
                 hideCenterMarker
+                keepInView={keepInView}
                 /* Draggable and zoomable; the bubbles above reproject against
                    the live map so they stay on their properties. With no Maps
                    key this falls back to the frozen embed unchanged. */

@@ -119,7 +119,7 @@
   font-family: inherit;
   font-size: 14px;
   line-height: 20px;
-  color: var(--hb-ada-red, #e53935);
+  color: var(--hb-ada-red, #d32f2f);
 }
 
 .sl-wl-actions {
