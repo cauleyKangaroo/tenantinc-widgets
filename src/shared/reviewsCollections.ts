@@ -59,7 +59,7 @@ export const YELP_COLLECTION = 'YelpReviews';
 const MS_DAY = 86400000;
 
 /** "2 months ago" from a date — Yelp gives no relativeTime of its own. */
-function relativeFrom(d: Date | null): string {
+export function relativeFrom(d: Date | null): string {
   if (!d) return '';
   const days = Math.max(0, Math.floor((Date.now() - d.getTime()) / MS_DAY));
   if (days < 1) return 'today';

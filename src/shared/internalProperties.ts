@@ -560,6 +560,30 @@ export async function fetchPlaceIds(
 }
 
 /**
+ * One property's review ids — `placeId` (Google Business) and `yelpPlaceId`
+ * (Yelp business id or alias) on PropertiesInternal — for the reviews widget.
+ * Either may be absent. Fails soft to an empty object.
+ */
+const YELP_ID_FIELD = 'yelpPlaceId';
+export interface PropertyReviewIds { placeId?: string; yelpId?: string }
+export async function fetchReviewIds(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<PropertyReviewIds> {
+  const wanted = propertyId.trim();
+  if (!wanted) return {};
+  const row = (await readInternalProperties(collectionName).catch(() => [] as CollectionRow[]))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return {};
+  const placeId = plainText(row[PLACE_ID_FIELD]).trim();
+  const yelpId = plainText(row[YELP_ID_FIELD]).trim();
+  return {
+    ...(PLACE_ID_SHAPE.test(placeId) ? { placeId } : {}),
+    ...(/^[A-Za-z0-9_-]{3,512}$/.test(yelpId) ? { yelpId } : {}),
+  };
+}
+
+/**
  * Sort by curated `nearbyLocationPriorityOrder`, then by name.
  *
  * Name is the tie-break the spec asks for: two properties sharing a
