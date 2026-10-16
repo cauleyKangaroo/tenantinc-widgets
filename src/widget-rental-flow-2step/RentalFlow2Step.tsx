@@ -49,7 +49,7 @@ import { Shimmer } from '@shared/Shimmer';
 import { FormField, Button, DateModal, AlertIcon, formatPrice, capitalizeFirst, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { fetchIdvRequirementSetting, fetchPropertySlug, fetchSingleStep } from '@shared/internalProperties';
+import { fetchIdvRequirementSetting, fetchPropertySlug, fetchSingleStep, fetchReviewIds } from '@shared/internalProperties';
 import { normaliseBasePath } from '@shared/propertyNav';
 import { withSpacesHash } from '@shared/promoBus';
 import { skipValidation } from '@shared/devBypass';
@@ -127,10 +127,11 @@ export interface RentalFlow2StepProps extends ApiCredProps, WalletConfigProps {
   /**
    * Where "Write a Review" points — the operator's Google review link.
    *
-   * The confirmation and access screens show the review card ONLY when this is
-   * set. The Figma frames draw it, but a review link is per-facility operator
-   * data with no sensible default: a made-up or empty link would send people
-   * nowhere, so the card stays hidden until someone supplies one.
+   * THE FALLBACK ONLY, since 2026-10-16: the link is built per property from
+   * its Google Business `placeId` on PropertiesInternal (see `placeReviewUrl`
+   * below) — Google's own write-a-review deep link, which opens the rating
+   * dialog for that listing. This content-menu URL is used when the property
+   * has no place id, and the card's generic destination when neither exists.
    */
   reviewUrl?: string;
   /**
@@ -1376,6 +1377,26 @@ export function RentalFlow2Step({
   const configuredGpKey = ((cfg as { gpPublicKey?: string }).gpPublicKey ?? '').trim();
   const cfgCtx = React.useMemo(() => defaultRentalCtx(), []);
   const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp }, cfgCtx.propertyId);
+  /*
+   * "Write a Review" / the stars → THIS property's Google listing, in its
+   * rating dialog: https://search.google.com/local/writereview?placeid=…
+   * (Google's documented review deep link). The place id is the property's
+   * `placeId` on PropertiesInternal — the same cell #03, #07, #08 and #09
+   * read their ratings with. Empty off the published site (no dmAPI) and
+   * for a property without one, when the content-menu `reviewUrl` stands in.
+   */
+  const [placeReviewUrl, setPlaceReviewUrl] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    fetchReviewIds(effectivePropertyId)
+      .then((ids) => {
+        if (cancelled) return;
+        setPlaceReviewUrl(ids.placeId ? `https://search.google.com/local/writereview?placeid=${encodeURIComponent(ids.placeId)}` : '');
+      })
+      .catch(() => { if (!cancelled) setPlaceReviewUrl(''); });
+    return () => { cancelled = true; };
+  }, [effectivePropertyId]);
+  const effectiveReviewUrl = placeReviewUrl || reviewUrl;
   /*
    * PropertiesInternal.single_step — the facility's own ToggleSwitch, and the
    * answer that wins.
@@ -3055,7 +3076,7 @@ export function RentalFlow2Step({
             gateHours={snapProp?.gateHours?.length ? snapProp.gateHours : confHours?.gateHours}
             rentUrl={confirmation.kind === 'reservation' ? checkoutUrl : undefined}
             onRetry={goToCheckout}
-            reviewUrl={reviewUrl}
+            reviewUrl={effectiveReviewUrl}
             appStoreUrl={appStoreUrl}
             playStoreUrl={playStoreUrl}
           />
@@ -3334,7 +3355,7 @@ export function RentalFlow2Step({
               // carry no hours, in which case they're fetched separately.
               officeHours={propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours}
               gateHours={propertyInfo?.gateHours?.length ? propertyInfo.gateHours : confHours?.gateHours}
-              reviewUrl={reviewUrl}
+              reviewUrl={effectiveReviewUrl}
               appStoreUrl={appStoreUrl}
               playStoreUrl={playStoreUrl}
             />

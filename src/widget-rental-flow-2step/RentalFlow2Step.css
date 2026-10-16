@@ -2407,6 +2407,11 @@
    their own asset (41.671 pitch less the 27.671 glyph), so the row reads as one
    evenly spaced set rather than a mark and then a strip. */
 .rfc-review-rating { display: inline-flex; align-items: center; gap: 14px; }
+/* It is a link now (to the property's Google rating dialog): no underline, no
+   colour change, and a keyboard ring so the tap target is visible. */
+.rfc-review-rating,
+.rfc-review-rating:hover { text-decoration: none; color: inherit; }
+.rfc-review-rating:focus-visible { outline: 2px solid #101318; outline-offset: 4px; border-radius: 4px; }
 /* The G is our existing 4-colour vector rather than the frame's 1920px PNG: the
    glyph is the same mark, and the raster would have cost ~800KB of base64 in a
    bundle where it renders 39px wide. Boxed at the frame's 39x40 with the square
