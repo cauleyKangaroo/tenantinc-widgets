@@ -29,6 +29,7 @@ import { configureApi } from '../widget-space-list/apiCreds';
 import type { ApiCredProps } from '@shared/apiConfig';
 import { resolvePropertyId, resolveRequireId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { readSpaceListHeading, onSpaceListHeading } from '@shared/spaceListHeadingBus';
 
 export interface SpaceListHeadingProps extends ApiCredProps {
   /**
@@ -54,6 +55,11 @@ export function SpaceListHeading({
   app_id,
   api_key,
 }: SpaceListHeadingProps) {
+  // The title #05 publishes (see @shared/spaceListHeadingBus) — read now in
+  // case #05 mounted first, then kept current.
+  const [listHeading, setListHeading] = useState(readSpaceListHeading);
+  useEffect(() => onSpaceListHeading(setListHeading), []);
+
   /*
    * #18's one API call runs through #05's propertyApi, so the store it must
    * configure is #05's — this bundle carries its own copy of that module, so
@@ -143,7 +149,13 @@ export function SpaceListHeading({
      every unit to know which amenities the property actually has. Loading the
      whole listing to title it would defeat the point of splitting this out. On
      a feature page, set the heading explicitly in the content panel. */
-  const title = boundText(propertyHeader)
+  /* Precedence: the heading set on #05 (its content-menu heading, or a
+     feature page's — what desktop shows) → this widget's own heading → the
+     default built here. #05's comes first because it is the field editors
+     use: this widget only stands in for #05's title on mobile, and #05 sends
+     nothing when its title is just the default. */
+  const title = listHeading
+    || boundText(propertyHeader)
     || `Storage Units in ${propertyName || cfg.propertyName}`;
 
   /* Nothing until the lookup answers.
@@ -154,7 +166,7 @@ export function SpaceListHeading({
      Once the lookup HAS answered without a name (no row, or the request
      failed) the configured name is the best there is: a heading beats a grey
      bar that never resolves. */
-  if (!settled && !boundText(propertyHeader)) {
+  if (!settled && !boundText(propertyHeader) && !listHeading) {
     return (
       <div className="slh-wrapper" ref={rootRef}>
         <div className="slh-skeleton" aria-hidden="true" />
