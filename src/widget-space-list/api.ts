@@ -431,6 +431,12 @@ export interface TierProbe {
    * NULL = could not tell; the caller must not read that as "no".
    */
   tiers: boolean | null;
+  /** Renderable panels, including sold-out panels. Unknown on probe failure. */
+  panelCount?: number;
+  /** Panels with a unit to rent. Sold-out panels are not counted. */
+  availableCount?: number;
+  /** Only set when exactly one tier is available. */
+  singleTier?: string;
   /*
    * The unit the engine would quote, when it named one.
    *
@@ -519,10 +525,23 @@ export async function probeTierOffers(
     if (!res.ok || inner?.status !== 200) return { tiers: null };
 
     const offers = inner.data?.offers ?? [];
-    const tiers = offers.some((o) => {
-      const t = o.value_tier?.type;
-      return !!t && VALUE_TIER_TYPES.has(t);
+    // Match #14's classification: ignore unknown/inconsistent/duplicate offers;
+    // a sold-out panel is still a panel, but only available ones can be rented.
+    const seenTiers = new Set<string>();
+    const seenUnits = new Set<string>();
+    const panels = offers.filter((o) => {
+      const type = o.value_tier?.type;
+      if (!type || !VALUE_TIER_TYPES.has(type) || seenTiers.has(type)) return false;
+      if (o.unit_id == null && o.price == null) { seenTiers.add(type); return true; }
+      if (typeof o.unit_id !== 'string' || !o.unit_id || typeof o.price !== 'number'
+        || !Number.isFinite(o.price) || o.price < 0 || seenUnits.has(o.unit_id)) return false;
+      seenTiers.add(type);
+      seenUnits.add(o.unit_id);
+      return true;
     });
+    const tiers = panels.length > 0;
+    const available = panels.filter((o) => o.unit_id);
+    const single = available.length === 1 ? available[0] : undefined;
 
     /*
      * The quotable offer, if the engine named one.
@@ -535,13 +554,16 @@ export async function probeTierOffers(
      * price even though every `value_tier.type` is null, which is why skipping
      * the popup can still complete a rental.
      */
-    const quotable = offers.find((o) => (
+    const quotable = single ?? offers.find((o) => (
       typeof o.unit_id === 'string' && o.unit_id.length > 0
       && typeof o.price === 'number' && Number.isFinite(o.price) && o.price >= 0
     ));
 
     return {
       tiers,
+      panelCount: panels.length,
+      availableCount: available.length,
+      singleTier: single?.value_tier?.type ?? undefined,
       unitId: quotable?.unit_id ?? undefined,
       price: typeof quotable?.price === 'number' ? quotable.price : undefined,
     };

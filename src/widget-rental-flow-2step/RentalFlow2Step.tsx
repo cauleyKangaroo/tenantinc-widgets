@@ -1640,7 +1640,7 @@ export function RentalFlow2Step({
     email: rentedContact.email,
     phone: rentedContact.phone,
     contactId: rental?.contactId,
-    leaseId: rental?.leaseId ?? 'local-checkout-harness',
+    leaseId: rental?.leaseId,
   } : undefined, [liveCheckoutIdvEnabled, rental, rentedContact]);
   const idvScope = React.useMemo(() => ({
     companyId: effectiveCompanyId ?? '',
@@ -3099,7 +3099,7 @@ export function RentalFlow2Step({
             </div>
             {!isMobile && railFor(true)}
           </div>
-        ) : accessGranted || (formMode === '1step' && !oneStepIdv) ? (
+        ) : accessGranted || (formMode === '1step' && (!oneStepIdv || Boolean(idvApi))) ? (
           <div className="rfc-layout">
             <Confirmation
               kind="rental"
@@ -3279,6 +3279,8 @@ export function RentalFlow2Step({
               allowedVerificationHosts: allowedIdvHosts,
               requirement: idvRequirement,
               policyPending: idvPolicyPending,
+              remoteOperated: idvRemoteOperated === true,
+              facilityPhone: formatUsPhone(propertyInfo?.phone),
             } : undefined}
             paymentCycles={offeredCycles}
             keyShareOptions={keyShareOptions?.length ? keyShareOptions : (previewContent ? PREVIEW_KEY_SHARES : keyShareOptions)}
@@ -3427,6 +3429,8 @@ export function RentalFlow2Step({
                   // documents/finalize was told 'Monthly' whatever was picked.
                   paymentCycle: info.paymentCycle,
                   extras: info.extras,
+                  idvId: info.idvId,
+                  idvRequired: formMode === '1step' && Boolean(idvApi) && idvRequirement === 'required',
                 })
                   .then((res) => {
                     setPaying(false);
@@ -3440,6 +3444,22 @@ export function RentalFlow2Step({
                       return false;
                     }
                     console.log(`${logTag} rental complete — lease ${res.leaseId}`);
+                    // One-step has no post-rental screen: file the verified
+                    // address and licence on the tenant now, like Get Access does.
+                    // Not awaited — a failure is logged and cannot undo the lease.
+                    // The ID check ran before payment, so there is no paid
+                    // ID screen: the confirmation says whether it was verified.
+                    // Same rule as two-step: verification off counts as satisfied.
+                    if (formMode === '1step' && idvApi) setIdVerified(idvRequirement === 'disabled' || Boolean(info.idvId));
+                    if (res.contactId && info.idvDetails) {
+                      const d = info.idvDetails;
+                      void updateContactDetails(ctx, res.contactId, {
+                        driverLicense: d.driverLicense,
+                        driverLicenseExp: d.driverLicenseExp ? dobToIso(d.driverLicenseExp) : undefined,
+                        driverLicenseState: d.driverLicenseState,
+                        mailingAddress: d.mailingAddress,
+                      });
+                    }
                     setRental(res);
                     if (info.contact) setRentedContact(info.contact);
                     if (info.extras) setChosenSections(info.extras);

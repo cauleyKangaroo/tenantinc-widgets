@@ -1067,7 +1067,6 @@ export function TierSelection({
                 {effectiveAdminFeeText && (
                   <p className="ts-modal-admin">
                     <span>{effectiveAdminFeeText}</span>
-                    <InfoCircle size={22} className="ts-modal-admin-info" />
                   </p>
                 )}
               </div>
@@ -1104,12 +1103,12 @@ function TierModalHeader({ heading, subheading, urgency, onClose }: {
         <h2 className="ts-modal-title">{heading}</h2>
         {subheading && <p className="ts-modal-subtitle">{subheading}</p>}
       </div>
-      <div className="ts-modal-actions">
-          <div className="ts-modal-meta">
-            <p className={`ts-modal-urgency${urgency ? '' : ' ts-modal-urgency--empty'}`} aria-hidden={!urgency}>
-              {urgency || '\u00a0'}
-            </p>
-          </div>
+      <div className={`ts-modal-actions${urgency ? '' : ' ts-modal-actions--no-urgency'}`}>
+          {urgency && (
+            <div className="ts-modal-meta">
+              <p className="ts-modal-urgency">{urgency}</p>
+            </div>
+          )}
         {/* Filled disc: the CSS used to draw this by hand (a #101318 ::before
             behind a white &times;); the icon is the same mark and that pseudo is
             gone. 52 desktop / 32 mobile, but the SIZE LIVES IN CSS — see
