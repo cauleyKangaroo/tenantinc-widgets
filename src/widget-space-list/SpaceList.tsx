@@ -48,6 +48,7 @@ import { SIZE_FILTER_EVENT, unitMatchesSize, type SizeFilterSelection } from '@s
 import { RichText } from '@shared/richText';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { PromoTagIcon } from './components/Pricing';
+import { publishSpaceListHeading } from '@shared/spaceListHeadingBus';
 
 export function SpaceList({
   layoutMode = 'grid',
@@ -765,6 +766,24 @@ export function SpaceList({
      name. */
   const authoredHeading = activeFeature ? activeFeature.heading?.trim() : boundText(propertyHeader);
   const titlePending = !authoredHeading && !propertyLabel;
+  const pageTitle = activeFeature
+    // A feature page names the feature. With no explicit heading on the row
+    // it still names the location, the way the unfiltered page does — the
+    // page really is "climate controlled units at THIS facility".
+    ? activeFeature.heading?.trim() ||
+      `${activeFeature.name} Storage Units in ${propertyLabel}`
+    : boundText(propertyHeader) ||
+      `Storage Units in ${propertyLabel}`;
+
+  /* MOBILE SHOWS THIS TOO. On phones this widget hides its title and #18
+     draws it, so #18 is told the title — otherwise the content menu's heading
+     changed desktop only. Only a title this widget KNOWS better than #18 is
+     sent: the authored heading, or a feature page's. The plain default is
+     not, so it never overrides a heading set on #18 itself. */
+  const shareTitle = !titlePending && (!!activeFeature || !!boundText(propertyHeader));
+  useEffect(() => {
+    publishSpaceListHeading(shareTitle ? pageTitle : '');
+  }, [shareTitle, pageTitle]);
 
   // Filters are always a top bar inside the listing column; the accordion panel
   // sits on whichever side apLocation specifies.
@@ -792,16 +811,7 @@ export function SpaceList({
         {titlePending ? (
           <div className="sl-title-skeleton" aria-hidden="true" />
         ) : (
-        <h1 className="sl-page-title">
-          {activeFeature
-            // A feature page names the feature. With no explicit heading on the row
-            // it still names the location, the way the unfiltered page does — the
-            // page really is "climate controlled units at THIS facility".
-            ? activeFeature.heading?.trim() ||
-              `${activeFeature.name} Storage Units in ${propertyLabel}`
-            : boundText(propertyHeader) ||
-              `Storage Units in ${propertyLabel}`}
-        </h1>
+        <h1 className="sl-page-title">{pageTitle}</h1>
         )}
       </div>
       )}
