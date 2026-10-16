@@ -3,6 +3,7 @@ import { createApiCredsStore, type ApiCredProps, type ApiCreds } from '@shared/a
 import { memoGet, memoInvalidate, MEMO_TTL } from '@shared/requestMemo';
 import { normalizePhone } from '@shared/ui/phone';
 import { cardBrand } from './gpTokenize';
+import { leaseIdvProblem } from './idvLinking';
 
 /**
  * "2026-08-21" -> "08/21/2026", the format the rail's frame prints
@@ -1985,6 +1986,10 @@ export interface RentArgs {
   noticeDelivery?: 'hand_delivery' | 'email' | 'mail';
   /** Military / alternate-contact / vehicle sections, when the shopper opened them. */
   extras?: RentalExtras;
+  /** A verification completed before payment (one-step); links it to the new lease. */
+  idvId?: string;
+  /** Required one-step verification must have a valid linking ID before any write. */
+  idvRequired?: boolean;
 }
 
 export type RentStage = 'documents' | 'lease' | 'autopay';
@@ -2387,6 +2392,8 @@ export async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise
 async function finalizeLease(
   ctx: RentalCtx, args: RentArgs,
 ): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string; accessCode?: string; contactId?: string; status?: string }> {
+  const idvProblem = leaseIdvProblem(args.idvId, args.idvRequired);
+  if (idvProblem) throw new Error(idvProblem);
   const body: Record<string, unknown> = {
     contacts: rentContacts(args.contact, args.extras),
     payment_method: paymentMethodFor(args),
@@ -2403,6 +2410,8 @@ async function finalizeLease(
   if (args.promotionIds?.length) {
     body.promotions = args.promotionIds.map((id) => ({ promotion_id: id }));
   }
+  // Raw idv id ("idv" + 32 hex), never hash-encoded.
+  if (args.idvId) body.idv_id = args.idvId;
 
   const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/lease`, body);
   if (inner.status !== 200 || !inner.data) {
@@ -2487,6 +2496,8 @@ async function enableAutopay(ctx: RentalCtx, leaseId: string, paymentMethodId: s
  * enrolment did not.
  */
 export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentResult> {
+  const idvProblem = leaseIdvProblem(args.idvId, args.idvRequired);
+  if (idvProblem) return { ok: false, error: idvProblem, stage: 'documents' };
   if (!writesEnabled(ctx)) {
     return { ok: false, error: 'Rentals are not configured for this site.', stage: 'documents' };
   }

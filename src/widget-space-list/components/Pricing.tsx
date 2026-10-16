@@ -307,13 +307,13 @@ export function CtaButton({ unit, config, full, colClass }: {
    * localStorage or the rental flow would price a different tier depending on
    * which route the shopper happened to take.
    */
-  const saveForRental = () => saveUnitSelection({
+  const saveForRental = (probe?: TierProbe) => saveUnitSelection({
     tierId: unit.id,
     unitGroupId: unit.unitGroupId,
     size: unit.dimensions,
     // The rental flow matches a real unit on size AND price, so the shopper
     // gets the tier they clicked, not the cheapest of that size.
-    price: unit.startingPrice,
+    price: probe?.price ?? unit.startingPrice,
     propertyId: config.propertyId || cfg.propertyId || undefined,
     companyId: config.companyId || undefined,
     // So a Select that skips the tier popup still reaches the rail with the
@@ -334,14 +334,11 @@ export function CtaButton({ unit, config, full, colClass }: {
    *
    *   size · unitGroupId · propertyId · companyId · the in-store rule
    *
-   * `unitId` and `tier` are the two #14 adds that cannot exist here — they come
-   * from the chosen OFFER, and this path runs precisely because there are no
-   * offers with a tier. The rental flow resolves the unit from unitGroupId +
-   * size + price instead, which is the route it already uses for a Select with
-   * value tiers switched off.
+   * A sole available tier carries the same unitId and tier as #14's Select.
+   * Untiered offers omit tier; without a quoted unit, rental resolves by group.
    */
   function goToRental(probe?: TierProbe) {
-    saveForRental();
+    saveForRental(probe);
     const base = rentalHref(config.rentalPageUrl);
     let url: URL;
     try {
@@ -367,10 +364,10 @@ export function CtaButton({ unit, config, full, colClass }: {
      * authoritative, so without it the two routes arrive differently and the
      * flow has to re-pick a unit by size and price instead.
      *
-     * `tier` is the one param that is deliberately absent: there is no
-     * Good/Better/Best here, and inventing one would mislabel the rail.
+     * Only send a tier when the probe identified the one available tier.
      */
     if (probe?.unitId) url.searchParams.set('unitId', probe.unitId);
+    if (probe?.singleTier) url.searchParams.set('tier', probe.singleTier);
     const propertyId = config.propertyId || cfg.propertyId || '';
     if (propertyId) url.searchParams.set('propertyId', propertyId);
     if (config.companyId) url.searchParams.set('companyId', config.companyId);
@@ -407,6 +404,7 @@ export function CtaButton({ unit, config, full, colClass }: {
         config.companyId || undefined,
       );
       if (probe.tiers === false) { goToRental(probe); return; }
+      if (probe.availableCount === 1 && probe.singleTier && probe.unitId) { goToRental(probe); return; }
       openValueTiers();
     } finally {
       setCheckingTiers(false);
@@ -510,7 +508,7 @@ export function CtaButton({ unit, config, full, colClass }: {
         <a
           className={`sl-select-btn${fullClass}`}
           href={rentalHref(config.rentalPageUrl)}
-          onClick={saveForRental}
+          onClick={() => saveForRental()}
         >
           {config.ctaButtonCopy}
         </a>
