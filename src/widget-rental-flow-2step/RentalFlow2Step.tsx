@@ -46,7 +46,7 @@ import {
 import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
-import { FormField, Button, DateModal, AlertIcon, formatPrice, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, DateModal, AlertIcon, formatPrice, capitalizeFirst, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { fetchIdvRequirementSetting, fetchPropertySlug, fetchSingleStep } from '@shared/internalProperties';
@@ -764,9 +764,9 @@ function Step1Form({
         ) : (
           <div className="rf-row">
             <Field id="rf-first" label="First Name" value={first}
-              valid={first.trim().length > 0} error={bad('rf-first')} onChange={setFirst} />
+              valid={first.trim().length > 0} error={bad('rf-first')} onChange={(v) => setFirst(capitalizeFirst(v))} />
             <Field id="rf-last" label="Last Name" value={last}
-              valid={last.trim().length > 0} error={bad('rf-last')} onChange={setLast} />
+              valid={last.trim().length > 0} error={bad('rf-last')} onChange={(v) => setLast(capitalizeFirst(v))} />
           </div>
         )}
       </div>
@@ -908,9 +908,9 @@ export function UnavailableStep({ similar, submitLead, property, spaceLabel }: {
         </div>
         <div className="rf-row">
           <Field id="rf-ua-first" label="First Name" value={first}
-            valid={first.trim().length > 0} error={bad('rf-ua-first')} onChange={setFirst} />
+            valid={first.trim().length > 0} error={bad('rf-ua-first')} onChange={(v) => setFirst(capitalizeFirst(v))} />
           <Field id="rf-ua-last" label="Last Name" value={last}
-            valid={last.trim().length > 0} error={bad('rf-ua-last')} onChange={setLast} />
+            valid={last.trim().length > 0} error={bad('rf-ua-last')} onChange={(v) => setLast(capitalizeFirst(v))} />
         </div>
       </div>
 

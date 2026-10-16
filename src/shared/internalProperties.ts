@@ -538,6 +538,28 @@ export async function fetchPropertyAbout(
 }
 
 /**
+ * `placeId` — the property's Google Business place id on PropertiesInternal,
+ * keyed by property id. What the live rating and review count are fetched
+ * with (@shared/googlePlaceRating). Only well-formed ids are kept; a blank
+ * or rteBlock-wrapped-blank cell is simply absent. Fails soft to an empty
+ * map (no dmAPI in the editor or harness, no column).
+ */
+const PLACE_ID_FIELD = 'placeId';
+const PLACE_ID_SHAPE = /^[A-Za-z0-9_-]{10,512}$/;
+export async function fetchPlaceIds(
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const rows = await readInternalProperties(collectionName).catch(() => [] as CollectionRow[]);
+  for (const r of rows) {
+    const id = str(r.id).trim();
+    const placeId = plainText(r[PLACE_ID_FIELD]).trim();
+    if (id && PLACE_ID_SHAPE.test(placeId)) out.set(id, placeId);
+  }
+  return out;
+}
+
+/**
  * Sort by curated `nearbyLocationPriorityOrder`, then by name.
  *
  * Name is the tie-break the spec asks for: two properties sharing a

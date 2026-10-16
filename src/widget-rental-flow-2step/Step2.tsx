@@ -17,7 +17,7 @@ import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankF
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
-import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, capitalizeFirst, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { splitBusinessName } from './businessName';
 import { skipValidation } from '@shared/devBypass';
 import creditCardRepeat from './assets/credit-card-repeat.svg';
@@ -942,8 +942,8 @@ export function Step2({
           <FieldAbove label="Business Name" required value={bizName} onChange={setBizName} error={bad('bizName')} />
         ) : (
           <div className="rf2-row">
-            <FieldAbove label="First Name" required value={first} onChange={setFirst} error={bad('first')} />
-            <FieldAbove label="Last Name" required value={last} onChange={setLast} error={bad('last')} />
+            <FieldAbove label="First Name" required value={first} onChange={(v) => setFirst(capitalizeFirst(v))} error={bad('first')} />
+            <FieldAbove label="Last Name" required value={last} onChange={(v) => setLast(capitalizeFirst(v))} error={bad('last')} />
           </div>
         )}
         {/* Where step 2 comes to rest. The shopper filled their contact details

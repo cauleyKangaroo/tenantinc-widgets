@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './NearbyLocations.css';
 import { PROPERTY_IMAGES, cover, propertyImage } from '@shared/demoImages';
 import { fetchPropertyHeroImages } from '@shared/propertyImages';
-import { fetchGoogleRatingsByPlace, matchedRatingForProperty } from '@shared/reviewsCollections';
+import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
+import { fetchPlaceRating } from '@shared/googlePlaceRating';
+import { fetchPlaceIds } from '@shared/internalProperties';
 import {
   StarRating,
   PhoneIcon,
@@ -685,6 +687,16 @@ export interface NearbyLocationsProps extends ApiCredProps {
   /** Value tiers as a PAGE rather than a modal. Set ⇒ Select navigates there
    *  with `size`/`unitGroupId`/`propertyId`/`companyId`, as #05 does. */
   valueTiersPageUrl?: string;
+  /**
+   * Duda's data.siteId. The proxy's reviews route refuses without a site id,
+   * so without this the cards keep the collection's rating only.
+   */
+  siteId?: string;
+  /**
+   * The proxy that answers /api/reviews/google/fetch — the same base #19 My
+   * Account takes as `login_api_base`. Omitted → the shared default host.
+   */
+  login_api_base?: string;
 }
 
 export function NearbyLocations({
@@ -699,6 +711,8 @@ export function NearbyLocations({
   internalCollection = INTERNAL_PROPERTIES_COLLECTION,
   propertyBasePath = DEFAULT_PROPERTY_BASE_PATH,
   rentalPageUrl,
+  siteId,
+  login_api_base,
   enableValueTiers = false,
   valueTiersChannel,
   valueTiersPageUrl,
@@ -822,6 +836,8 @@ export function NearbyLocations({
   // Reference coordinates (map centre).
   const [refLoc, setRefLoc] = useState<{ lat: number; lng: number } | null>(null);
 
+  /** The reviews proxy base, trimmed; '' falls back to the default host. */
+  const reviewsBase = (login_api_base ?? '').trim();
   useEffect(() => {
     let cancelled = false;
     // Re-running means the ordering or the layout changed, so the cards on screen
@@ -945,10 +961,27 @@ export function NearbyLocations({
         // photos do: a rating row arriving after the card would push the name
         // up inside its bottom-pinned block. A collection read, so it costs no
         // more than the photo read it runs beside. Fails soft to no ratings.
-        const [heroes, ratings] = await Promise.all([
+        const [heroes, ratings, placeIds] = await Promise.all([
           fetchPropertyHeroImages(internalCollection).catch(() => new Map<string, string>()),
           fetchGoogleRatingsByPlace('#07 nearby').catch(() => ({ byPlace: new Map(), overall: null })),
+          fetchPlaceIds(internalCollection).catch(() => new Map<string, string>()),
         ]);
+        /*
+         * THE LIVE RATING, PER PROPERTY. Each card's property has its own
+         * Google Business place id on PropertiesInternal, and the proxy's
+         * reviews route answers with that place's rating and review count
+         * (verified live 2026-10-16: Bellflower → 4.6, 396). One call per
+         * place, in parallel and inside this same await so the rating row
+         * paints with the card, never after it. The collection match below
+         * stays as the fallback for a property with no place id.
+         */
+        const placeRatings = new Map<string, RatingSummary>();
+        await Promise.all(top.map(async (p) => {
+          const placeId = placeIds.get(p.id);
+          if (!placeId) return;
+          const r = await fetchPlaceRating(placeId, { base: reviewsBase, siteId }).catch(() => null);
+          if (r) placeRatings.set(p.id, r);
+        }));
 
         // THE SLUG IS COLLECTION-ONLY. Verified live 2026-08-25: the REST
         // `/properties` response carries no `slug` field on either company, so
@@ -974,7 +1007,7 @@ export function NearbyLocations({
           const cached = spacesCache.current.get(p.id);
           // Matched only: these cards are OTHER facilities, so the site-wide
           // fallback would be another business's score on this one.
-          const rated = matchedRatingForProperty(p.name, ratings);
+          const rated = placeRatings.get(p.id) ?? matchedRatingForProperty(p.name, ratings);
           return {
             ...p,
             rating: rated?.score,
@@ -1002,7 +1035,7 @@ export function NearbyLocations({
     })();
 
     return () => { cancelled = true; clearTimeout(deadline); };
-  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection, companyId]);
+  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection, companyId, reviewsBase, siteId]);
 
   // While loading we render skeleton cards — showing DEMO_PROPERTIES here meant
   // real-looking names/prices flashed up and were then replaced. Demo data is
