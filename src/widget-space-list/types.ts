@@ -311,7 +311,7 @@ export interface SpaceListProps extends ApiCredProps {
   /** Toggle: show "Only X left" urgency messages on eligible units. Default true. */
   showUrgencyMessage?: boolean;
   /** Toggle: Select skips the tier popup when only one tier is available. Default false. */
-  skipTierPopupForSingle?: boolean;
+  skipTierPopupForSingle?: boolean | string;
   /**
    * Show the urgency message when a tier has this many units vacant or fewer.
    * Default 5. Duda content-menu number fields can arrive as strings, so this is

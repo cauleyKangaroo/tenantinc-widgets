@@ -203,7 +203,7 @@ export function SpaceList({
       junkFeeCopy.trim() ||
       '* Prices shown exclude applicable taxes and admin fees. Final price confirmed at checkout.',
     showUrgencyMessage,
-    skipTierPopupForSingle,
+    skipTierPopupForSingle: skipTierPopupForSingle === true || skipTierPopupForSingle === 'true',
     // Duda content-menu numbers can arrive as strings ("5") or blank, so floor it
     // to a positive integer and fall back to 5 on anything unusable.
     urgencyThreshold: (() => {
