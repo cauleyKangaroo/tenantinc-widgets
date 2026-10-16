@@ -134,6 +134,39 @@
   flex-direction: column;
   gap: 20px;
 }
+/* DESKTOP (two columns): the spaces column scrolls on its own. With more spaces
+   than the account panel is tall, it used to run on far below it; now it pins
+   to the top of the window and scrolls inside itself, while the account panel
+   scrolls with the page — each independently.
+   - sticky + max-height of the window: the list never outgrows the screen, and
+     its scrollbar only appears when the spaces do not fit (overflow-y: auto).
+     The grid's `align-items: start` is what lets it stick.
+   - The 16px padding is room for the cards' shadow and selected outline, which
+     a scroll box would otherwise clip; the equal negative margin cancels it,
+     so at rest nothing moves.
+   - overscroll-behavior: reaching either end of the list does not hand the
+     scroll on to the page.
+   Stacked layouts (≤1180px) are untouched: one column, the page scrolls. */
+@media (min-width: 1181px) {
+  .ma-side {
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: -16px;
+    padding: 16px;
+    /* Scrolls (wheel, trackpad, touch, keyboard) with no visible system
+       scrollbar: Firefox here, WebKit/Blink in the rule below. */
+    scrollbar-width: none;
+  }
+  .ma-side::-webkit-scrollbar { display: none; }
+  /* .ma-side is a flex column, and flex items SHRINK to fit a capped
+     container by default — so the property card was squeezed (and, being
+     overflow: hidden, cut off mid-unit) instead of the column scrolling. Every
+     card and the "+ Add a Space" button keep their natural height. */
+  .ma-side > * { flex-shrink: 0; }
+}
 
 /* Kit buttons at the frame's 40px. The token above does the height; this only
    tightens the horizontal padding to match the drawn boxes. */
