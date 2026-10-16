@@ -36,7 +36,8 @@ import { slugLabel } from '@shared/propertyNav';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
-import { fetchFeaturedIds } from '@shared/internalProperties';
+import { fetchFeaturedIds, fetchPlaceIds } from '@shared/internalProperties';
+import { fetchPlaceRating } from '@shared/googlePlaceRating';
 import { Shimmer } from '@shared/Shimmer';
 import cfg from './config.json';
 import { useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
@@ -505,6 +506,11 @@ export interface MapLocationsProps extends ApiCredProps {
   featuredPropertyId?: string;
   /** @deprecated The sort is a real control now — see SORT_OPTIONS. */
   sortLabel?: string;
+  /** Duda's data.siteId — the proxy's reviews route refuses without one. */
+  siteId?: string;
+  /** The proxy that answers /api/reviews/google/fetch — the same base #19 My
+   *  Account takes as `login_api_base`. Omitted → the shared default host. */
+  login_api_base?: string;
 }
 
 /**
@@ -659,6 +665,8 @@ export function MapLocations({
   api_domain,
   app_id,
   api_key,
+  siteId,
+  login_api_base,
 }: MapLocationsProps) {
   /*
    * Credentials in place BEFORE the data effects fire. During render, not
@@ -797,6 +805,43 @@ export function MapLocations({
     return () => { cancelled = true; };
   }, []);
 
+  /*
+   * THE LIVE RATING, PER FACILITY. Each facility's Google Business place id
+   * sits on PropertiesInternal (`placeId`), and the proxy's reviews route
+   * answers with that place's rating and review count (verified live
+   * 2026-10-16: Bellflower 4.6 / 396, Bakersfield 4.8 / 596). One call per
+   * place, in parallel, cached per place for the page. The collection match
+   * above stays as the fallback for a facility with no place id.
+   *
+   * Keyed on the facility SET (ids), so a filter change does not refetch,
+   * and gates the same skeleton as the collection read — a card paints with
+   * its rating row or without one, never gains it afterwards.
+   */
+  const reviewsBase = (login_api_base ?? '').trim();
+  const [placeRatings, setPlaceRatings] = useState<Map<string, RatingSummary>>(() => new Map());
+  const [placeRatingsSettled, setPlaceRatingsSettled] = useState(false);
+  const facilityIdsKey = (liveFacilities ?? []).map((f) => f.id).join('|');
+  useEffect(() => {
+    if (liveFacilities === null) return undefined;
+    let cancelled = false;
+    setPlaceRatingsSettled(false);
+    (async () => {
+      const ids = await fetchPlaceIds().catch(() => new Map<string, string>());
+      const out = new Map<string, RatingSummary>();
+      await Promise.all(liveFacilities.map(async (f) => {
+        const placeId = ids.get(f.id);
+        if (!placeId) return;
+        const r = await fetchPlaceRating(placeId, { base: reviewsBase, siteId }).catch(() => null);
+        if (r) out.set(f.id, r);
+      }));
+      if (!cancelled) setPlaceRatings(out);
+    })().finally(() => { if (!cancelled) setPlaceRatingsSettled(true); });
+    return () => { cancelled = true; };
+    // `liveFacilities` is represented by its ids key, so a re-sorted array of
+    // the same facilities does not refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [facilityIdsKey, reviewsBase, siteId]);
+
   // Both calls complete before anything paints: a card is rendered whole or not
   // at all.
   //
@@ -856,7 +901,7 @@ export function MapLocations({
 
   // Both reads, so a card paints with its rating row or without one — never
   // gains it afterwards (see the ratings effect above).
-  const loading = liveFacilities === null || !ratingsSettled;
+  const loading = liveFacilities === null || !ratingsSettled || !placeRatingsSettled;
   // Nothing stands in before the first response — the column renders skeletons
   // instead (see CitySkeleton). Demo facilities used to fill this gap, but they
   // carry invented names, addresses, prices and coordinates, so the page painted
@@ -891,14 +936,15 @@ export function MapLocations({
     // Matched per facility only. The site-wide fallback put ONE business's
     // score and review count on every card it could not match by name — the
     // audit found two facilities both reading "4.8 · 519 Reviews".
-    const r = matchedRatingForProperty(f.name, ratings);
+    // The facility's own place first, then the collection matched by name.
+    const r = placeRatings.get(f.id) ?? matchedRatingForProperty(f.name, ratings);
     if (r) return { ...f, rating: r.score, reviewCount: r.count };
     if (isPreview && !(f.rating > 0)) {
       const demo = CITY_FACILITIES[i % CITY_FACILITIES.length];
       return { ...f, rating: demo.rating, reviewCount: demo.reviewCount };
     }
     return f;
-  }), [filtered, ratings, isPreview]);
+  }), [filtered, ratings, placeRatings, isPreview]);
 
   /*
    * Featuring is an operator choice, and nothing in the properties API carries
@@ -1344,7 +1390,7 @@ export function MapLocations({
                 active={f.id === activeId}
                 compact={isMobile}
                 filters={filters}
-                rating={matchedRatingForProperty(f.name, ratings)}
+                rating={placeRatings.get(f.id) ?? matchedRatingForProperty(f.name, ratings)}
                 rentalPageUrl={rentalPageUrl}
                 companyId={resolvedCompanyId ?? undefined}
                 propertyBasePath={normalisedPropertyBase}
