@@ -12,6 +12,7 @@ import {
 import { fetchPropertyMedia } from '@shared/propertyImages';
 import { VideoSlide, videoPosterOrFallback } from './VideoSlide';
 import { fetchReviewSource } from '@shared/reviewsCollections';
+import { fetchPropertyReviewSources } from '@shared/liveReviews';
 import {
   MapPinIcon, MapPinSolidIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
@@ -72,6 +73,11 @@ export interface PropertyInfoProps {
   /** The rental page a FOUND reservation is completed on. Same field #05 has
    *  (`rentalPageUrl`); default `/rental`. */
   rentalPageUrl?: string;
+  /** Duda's data.siteId — the proxy's reviews routes refuse without one. */
+  siteId?: string;
+  /** The proxy that answers /api/reviews/google/fetch — the same base #19 My
+   *  Account takes. Omitted → the shared default host. */
+  login_api_base?: string;
   breadcrumb?: string[];
   /**
    * Mobile: pin the contact row (Phone/Email/Billpay/Map/Locations) to the top of
@@ -288,6 +294,8 @@ export function PropertyInfo(props: Props) {
     rating = DEFAULTS.rating,
     reviewCount = DEFAULTS.reviewCount,
     reviewsUrl = '#',
+    siteId,
+    login_api_base,
     mapsProxyBase,
     address = DEFAULTS.address,
     addressUrl = '#',
@@ -390,9 +398,10 @@ export function PropertyInfo(props: Props) {
   // answers in ~570ms, so a delay would just add a third visible state.
   const [loading, setLoading] = useState(true);
 
-  // Google rating average + total from the `GoogleReviews` collection; the
-  // rating/reviewCount props stay as the fallback.
-  const [googleRating, setGoogleRating] = useState<{ score: number; count: number } | null>(null);
+  // THIS property's Google rating, total and reviews link — live through the
+  // proxy from the property's `placeId` on PropertiesInternal — else the
+  // site-wide `GoogleReviews` collection, else the rating/reviewCount props.
+  const [googleRating, setGoogleRating] = useState<{ score: number; count: number; reviewsUrl?: string } | null>(null);
   // Held by the MAIN skeleton, not a per-section one like the gallery below.
   //
   // The gallery waits on the property (it needs an id), so it outlives the main
@@ -409,22 +418,28 @@ export function PropertyInfo(props: Props) {
   // there is no dmAPI (the Duda editor and the dev harness), and its failures are
   // caught below.
   //
-  // Deps stay [] on purpose. The rating is site-wide, not per-property, so a
-  // binding change re-runs the property effect only and this stays settled.
+  // Re-runs when the bound property changes: the rating is PER PROPERTY now.
   const [ratingLoading, setRatingLoading] = useState(true);
+  const boundPropertyId = boundText(propertyId);
+  const reviewsBase = (login_api_base ?? '').trim();
 
   useEffect(() => {
     let cancelled = false;
-    fetchReviewSource('google', '#03 property-info')
+    setRatingLoading(true);
+    const own = boundPropertyId
+      ? fetchPropertyReviewSources(boundPropertyId, { base: reviewsBase, siteId }).then((r) => r.google)
+      : Promise.resolve(null);
+    own
+      .then((live) => live ?? fetchReviewSource('google', '#03 property-info'))
       .then((src) => {
         if (!cancelled && src && src.score > 0) {
-          setGoogleRating({ score: src.score, count: src.count });
+          setGoogleRating({ score: src.score, count: src.count, reviewsUrl: src.reviewsUrl || undefined });
         }
       })
-      .catch((err) => console.error('[PropertyInfo] GoogleReviews read error:', err))
+      .catch((err) => console.error('[PropertyInfo] Google rating read error:', err))
       .finally(() => { if (!cancelled) setRatingLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [boundPropertyId, reviewsBase, siteId]);
 
   // Re-runs whenever a binding changes, so switching row in the dynamic-page
   // dropdown (or connecting a field in the editor) repaints with the new property
@@ -495,6 +510,8 @@ export function PropertyInfo(props: Props) {
   // Google rating: collection first, then the prop/DEFAULT.
   const displayRating = googleRating?.score ?? rating;
   const displayReviewCount = googleRating?.count ?? reviewCount;
+  // The live place's own Google reviews page, else the content-menu link.
+  const displayReviewsUrl = googleRating?.reviewsUrl || reviewsUrl;
 
   // Precedence: API value -> prop -> DEFAULT (empty API strings/arrays don't win).
   const displayName = property?.name || name;
@@ -1036,7 +1053,7 @@ export function PropertyInfo(props: Props) {
               <div className="pi-hero-rating">
                 <span className="pi-hero-score">{displayRating}</span>
                 <Stars rating={displayRating} width={77} />
-                <a className="pi-reviews pi-hero-reviews" href={reviewsUrl}>{displayReviewCount} Reviews</a>
+                <a className="pi-reviews pi-hero-reviews" href={displayReviewsUrl}>{displayReviewCount} Reviews</a>
               </div>
               <a className="pi-hero-address" href={mapsHref}>
                 <MapPinIcon size={24} />
@@ -1063,7 +1080,7 @@ export function PropertyInfo(props: Props) {
         <div className="pi-rating">
           <span className="pi-rating-score">{displayRating}</span>
           <Stars rating={displayRating} width={77} />
-          <a className="pi-reviews" href={reviewsUrl}>{displayReviewCount} Reviews</a>
+          <a className="pi-reviews" href={displayReviewsUrl}>{displayReviewCount} Reviews</a>
         </div>
 
         <div className="pi-contact">
@@ -1283,7 +1300,7 @@ export function PropertyInfo(props: Props) {
           <div className="pi-m-rating">
             <span className="pi-m-score">{displayRating}</span>
             <Stars rating={displayRating} width={77} />
-            <a className="pi-reviews pi-m-reviews" href={reviewsUrl}>{displayReviewCount} Reviews</a>
+            <a className="pi-reviews pi-m-reviews" href={displayReviewsUrl}>{displayReviewCount} Reviews</a>
           </div>
           <a className="pi-m-address" href={mapsHref}>
             <MapPinSolidIcon size={16} />

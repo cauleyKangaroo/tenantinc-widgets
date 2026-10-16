@@ -8,8 +8,7 @@ import {
   type Platform,
 } from './icons';
 import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
-import { fetchGoogleReviewsLive, fetchYelpReviewsLive } from '@shared/liveReviews';
-import { fetchReviewIds, type PropertyReviewIds } from '@shared/internalProperties';
+import { fetchPropertyReviewSources } from '@shared/liveReviews';
 import { boundText } from '@shared/propertyBinding';
 import { Shimmer } from '@shared/Shimmer';
 import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
@@ -335,17 +334,7 @@ export function Reviews({
      * other still shows. Only when NEITHER answers does the site-wide
      * collection read run, as before.
      */
-    const perProperty = async (): Promise<{ google: ReviewSourceData | null; yelp: ReviewSourceData | null }> => {
-      if (!effectivePropertyId) return { google: null, yelp: null };
-      const ids: PropertyReviewIds = await fetchReviewIds(effectivePropertyId).catch(() => ({}));
-      const opts = { base: reviewsBase, siteId };
-      const [google, yelp] = await Promise.all([
-        ids.placeId ? fetchGoogleReviewsLive(ids.placeId, opts).catch(() => null) : Promise.resolve(null),
-        ids.yelpId ? fetchYelpReviewsLive(ids.yelpId, opts).catch(() => null) : Promise.resolve(null),
-      ]);
-      return { google, yelp };
-    };
-    perProperty()
+    fetchPropertyReviewSources(effectivePropertyId, { base: reviewsBase, siteId })
       .then((own) => (own.google || own.yelp ? own : fetchAllReviewSources('#09 reviews')))
       .then(({ google, yelp }) => {
         if (cancelled) return;
