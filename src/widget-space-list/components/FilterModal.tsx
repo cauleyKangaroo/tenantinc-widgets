@@ -7,7 +7,8 @@ import { Checkbox, CloseCircleIcon } from '@shared/ui';
 /*
  * The modal edits a DRAFT, not the live filters. Picks only reach the listing
  * when "Apply Filters" is pressed; closing any other way (X, Escape, a click
- * on the backdrop) discards them, and Reset clears the draft without applying.
+ * on the backdrop) discards them. Reset is the exception: it clears the live
+ * filters to the defaults and closes, straight away.
  * It used to write straight through on every tap, so the list changed behind
  * the modal before the visitor had decided anything.
  */
@@ -87,8 +88,9 @@ export function FilterModal({
             <span className="sl-filter-badge">{badge}</span>
           </div>
           <div className="sl-modal-header-right">
-            {/* Clears the draft only; Apply Filters commits it. */}
-            <button className="sl-modal-reset" onClick={() => setFilters(DEFAULT_FILTERS)}>Reset</button>
+            {/* Reset is immediate, as it always was: the live filters go back
+                to the defaults and the modal closes. */}
+            <button className="sl-modal-reset" onClick={() => { onApply(DEFAULT_FILTERS); onClose(); }}>Reset</button>
             <button className="sl-modal-close" onClick={onClose} aria-label="Close filters">
               {/* Filled disc: the filter modal is #ffffff. 32 is the mark's own
                   Figma size and it fills the 32px button box exactly — the box
