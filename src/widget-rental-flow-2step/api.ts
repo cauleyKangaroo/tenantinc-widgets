@@ -1998,9 +1998,6 @@ export type RentResult =
   | {
     ok: true;
     leaseId: string;
-    /** The agreement being generated against the lease, in the background
-     *  (generateLeaseDocument) — resolves true once it has. */
-    documentGeneration?: Promise<boolean>;
     paymentId?: string;
     paymentMethodId?: string;
     unitNumber?: string;
@@ -2346,9 +2343,15 @@ function documentsBody(args: DocumentPreviewArgs): Record<string, unknown> {
 }
 
 /**
- * @deprecated Not called since 2026-10-14 — the lease is created without
- * documents and the agreement generated afterwards (generateLeaseDocument).
- * Kept exported in case the signing-first path is ever wanted again.
+ * API 9 — sign the documents and get the set the lease is made from.
+ *
+ * BACK IN THE SEQUENCE (2026-10-16, at TenantInc's request). For two days
+ * the lease was created without documents and the agreement generated
+ * against it afterwards (`…/leases/{lease}/documents/{doc}/generate`); that
+ * call is gone again and this one is awaited BEFORE the lease, as it was.
+ * The "finalizing" screen therefore holds for the whole of it: the bar
+ * creeps toward its cap while the request is out and completes only when
+ * the response is in (ProcessingModal, `waiting`).
  */
 export async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseDocumentRef[]> {
   const body = documentsBody(args);
@@ -2383,18 +2386,16 @@ export async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise
 /**
  * API 10 — finalize the lease and take the move-in payment.
  *
- * NO `documents` ANY MORE. The lease used to be made from the signed set
- * documents/finalize returned; TenantInc's change (2026-10-14) is that the
- * lease is created first, on its own, and the agreement is generated
- * AFTERWARDS against it — see generateLeaseDocument. So finalize is not
- * called and the body carries no documents array.
+ * `documents` is the signed set documents/finalize (API 9) returned — the
+ * lease is made FROM it, which is why that call comes first and is awaited.
  */
 async function finalizeLease(
-  ctx: RentalCtx, args: RentArgs,
+  ctx: RentalCtx, args: RentArgs, documents: LeaseDocumentRef[],
 ): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string; accessCode?: string; contactId?: string; status?: string }> {
   const idvProblem = leaseIdvProblem(args.idvId, args.idvRequired);
   if (idvProblem) throw new Error(idvProblem);
   const body: Record<string, unknown> = {
+    documents,
     contacts: rentContacts(args.contact, args.extras),
     payment_method: paymentMethodFor(args),
     start_date: args.startDate,
@@ -2440,45 +2441,6 @@ async function finalizeLease(
 }
 
 /** API 11 — enrol the saved card for recurring rent. */
-/**
- * Generate the lease agreement AGAINST the lease that now exists.
- *
- *   GET v1/companies/{co}/leases/{lease}/documents/{doc}/generate
- *       ?type=super-lease&contact_id={tenant contact}&property_id={property}
- *     → { message: "Document successfully generated", name: "Superlease" }
- *
- * `doc` is the property's super-lease document (fetchLeaseDocument), `type`
- * is that document's type, `contact_id` is tenants[0].contact_id from the
- * lease reply. Verified live 2026-10-14: 200 in ~7s on an active lease.
- *
- * Never throws: by now the customer has a lease and has paid, and a document
- * that failed to generate is the office's to regenerate — not a failed
- * rental. Runs in the background after the lease; the outcome is logged and
- * handed back as `documentGeneration` (a promise) on the result.
- */
-export async function generateLeaseDocument(
-  ctx: RentalCtx,
-  args: { leaseId: string; documentId: string; type: string; contactId: string; propertyId: string },
-): Promise<boolean> {
-  const { baseUrl, appId } = creds();
-  const q = new URLSearchParams({ type: args.type, contact_id: args.contactId, property_id: args.propertyId });
-  const url = `${baseUrl}/applications/${appId}/v1/companies/${encodeURIComponent(ctx.companyId)}`
-    + `/leases/${encodeURIComponent(args.leaseId)}/documents/${encodeURIComponent(args.documentId)}/generate?${q}`;
-  try {
-    const res = await fetch(url, { headers: headers() });
-    const env = await res.json().catch(() => undefined) as { applicationData?: Record<string, InnerResult[]> } | undefined;
-    const inner = env?.applicationData?.[appId]?.[0];
-    if (!res.ok || inner?.status !== 200) {
-      console.warn('[rental] lease document generate rejected:', inner?.status ?? res.status, inner?.msg ?? '');
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.warn('[rental] lease document generate failed:', err);
-    return false;
-  }
-}
-
 async function enableAutopay(ctx: RentalCtx, leaseId: string, paymentMethodId: string): Promise<boolean> {
   const inner = await sendV1(
     'PUT', `companies/${ctx.companyId}/leases/${leaseId}/payment-methods/${paymentMethodId}/autopay`, {},
@@ -2520,51 +2482,26 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
   const a: RentArgs = { ...args, contact: { ...args.contact, phone: phoneE164 } };
 
   /*
-   * A property with no super-lease cannot complete a rental online: that is
-   * the "Traditional signing" case documents/finalize used to refuse, and
-   * the refusal moves here, BEFORE the lease is made and the card charged —
-   * a lease nobody can sign for must not exist. Bellflower is one such
-   * property today (2026-10-14).
+   * Documents first, then the lease made from them — the original order,
+   * restored 2026-10-16 at TenantInc's request (see finalizeDocuments). A
+   * property on Traditional signing is refused HERE, before any lease exists
+   * or a card is charged: finalize returns the set unsigned and the helper
+   * throws the in-person message.
    */
-  const leaseDoc = await fetchLeaseDocument(ctx).catch(() => undefined);
-  if (!leaseDoc || leaseDoc.type !== 'super-lease') {
-    console.error('[rental] no super-lease document on this property — online rental refused.', leaseDoc);
-    return {
-      ok: false,
-      stage: 'documents',
-      error: 'This facility requires the lease to be signed in person. Please contact the office to finish your rental.',
-    };
+  let documents: LeaseDocumentRef[];
+  try {
+    documents = await finalizeDocuments(ctx, a);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err), stage: 'documents' };
   }
 
-  /*
-   * The lease FIRST, with no documents — documents/finalize is not called any
-   * more (TenantInc, 2026-10-14). The agreement is generated against the new
-   * lease straight after, from the property's super-lease document.
-   */
   let lease: Awaited<ReturnType<typeof finalizeLease>>;
   try {
-    lease = await finalizeLease(ctx, a);
+    lease = await finalizeLease(ctx, a, documents);
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err), stage: 'lease' };
   }
   memoInvalidate('units/available');
-
-  /*
-   * NOT AWAITED. Generation takes ~7s (measured live 2026-10-14) and the
-   * customer is already a tenant: holding the "finalizing" screen for it
-   * made the loader look stuck for exactly that long once finalize was gone.
-   * It runs in the background; the outcome is logged and handed back as a
-   * promise for anything that does want to wait for it.
-   */
-  const documentGeneration: Promise<boolean> = !lease.contactId
-    ? (console.warn('[rental] lease created but the reply named no tenant contact — the agreement was not generated.'), Promise.resolve(false))
-    : generateLeaseDocument(ctx, {
-      leaseId: lease.leaseId, documentId: leaseDoc.id, type: leaseDoc.type,
-      contactId: lease.contactId, propertyId: ctx.propertyId,
-    }).then((ok) => {
-      if (!ok) console.warn('[rental] lease created but the agreement did not generate — the office can regenerate it.');
-      return ok;
-    });
 
   // The rental is DONE at this point. Autopay is an add-on: a failure here is
   // reported alongside success, never as a failed rental.
@@ -2588,7 +2525,6 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
     status: lease.status,
     unitNumber: a.unit.number,
     autopay,
-    documentGeneration,
   };
 }
 

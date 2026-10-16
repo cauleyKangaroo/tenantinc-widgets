@@ -457,25 +457,24 @@ localStorage (`@shared/unitHandoff`, `ti.reservation`). In the flow this is
 - the lease is `POST units/{u}/lease` with **`reservation_id`** and no `hold_token`;
 - step 1 is prefilled from the reservation's contact and offers Rent only.
 
-## Lease first, agreement after (changed 2026-10-14)
+## Documents first, then the lease (restored 2026-10-16)
 
-`documents/finalize` (API 9) is **no longer called**. The rental is now:
+For two days (2026-10-14 → 16) the widget created the lease without
+`documents` and then called
+`GET v1/companies/{co}/leases/{lease_id}/documents/{document_id}/generate?type=super-lease&contact_id=…&property_id=…`
+to produce the agreement. **At TenantInc's request that is reverted**: the generate
+call is gone and the original sequence is back —
 
-1. `POST units/{u}/lease` — same body as before **minus `documents`** (`contacts`,
-   `payment_method`, `start_date`, `platform`, `source`, `deliveryMethod`,
-   `additional_months`, and `hold_token` or `reservation_id`).
-2. `GET v1/companies/{co}/leases/{lease_id}/documents/{document_id}/generate?type=super-lease&contact_id={tenants[0].contact_id}&property_id={property_id}`
-   → `{ message: "Document successfully generated", name: "Superlease" }` (~7s, verified live).
+1. `POST units/{u}/documents/finalize` (API 9) — awaited. Returns the signed set;
+   an UNSIGNED set means Traditional signing and the rental is refused with
+   "This facility requires the lease to be signed in person…" before any lease
+   exists or a card is charged.
+2. `POST units/{u}/lease` (API 10) — made FROM that `documents` array, plus
+   `contacts`, `payment_method`, `start_date`, `platform`, `source`,
+   `deliveryMethod`, `additional_months`, and `hold_token` or `reservation_id`.
 
-`document_id` is the property's document of type `super-lease` from
-`GET v2/companies/{co}/properties/{p}/documents` (`fetchLeaseDocument`). A property
-**without one cannot be rented online**: before the lease is made (and the card charged)
-the widget refuses with "This facility requires the lease to be signed in person.
-Please contact the office to finish your rental." — the same refusal `documents/finalize`
-used to give for Traditional signing. Bellflower is such a property today. The generate call never fails the rental: the lease exists and is
-paid by then. It runs in the **background** (it takes ~7s and must not hold the
-"finalizing" screen); a failure is logged, and the result is exposed as the
-`documentGeneration` promise on the rent result.
+The "finalizing" screen holds for the whole of both calls: ProcessingModal's bar
+creeps toward a cap while `waiting` and completes only when the result is in.
 `documents/preview` (the step-2 agreement panel) is unchanged.
 
 ## Step 2 details → the contact, through the proxy (changed 2026-10-15)
