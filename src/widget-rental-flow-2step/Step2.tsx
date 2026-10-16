@@ -296,19 +296,17 @@ export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
 export type PaymentCycle = 'monthly' | 'quarterly' | 'annual';
 
 /*
- * Labels verbatim from the frame, in the frame's order.
+ * Labels and savings verbatim from the frame, in the frame's order.
  *
- * The frame also put "Save 10%" and "Save 15%" beside quarterly and annual.
- * Those are GONE: nothing in the API carries a discount for a billing period
- * — `payment_cycles` returns booleans and a `revert_payment_cycle` month count
- * and no rates at all — so the figures were frame copy being printed as if
- * they were this property's terms. Restore them when a real percentage has a
- * source, per property and per space type.
+ * The savings are FIXED COPY, confirmed by the client 2026-10-16: quarterly is
+ * always 10% and annual always 15%, at every property. They are not read from
+ * the API — `payment_cycles` carries no rates — so if a facility's prepay
+ * discount is ever configured differently, this text will not follow it.
  */
-const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string }> = [
+const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string; save?: string }> = [
   { id: 'monthly',   label: 'Pay Monthly' },
-  { id: 'quarterly', label: 'Pay Quarterly' },
-  { id: 'annual',    label: 'Pay Annual' },
+  { id: 'quarterly', label: 'Pay Quarterly', save: 'Save 10%' },
+  { id: 'annual',    label: 'Pay Annual',    save: 'Save 15%' },
 ];
 
 /**
@@ -1324,6 +1322,7 @@ export function Step2({
                       <span className="rf2-cycle-radio"><span className="rf2-cycle-dot" /></span>
                       <span className="rf2-cycle-text">
                         <span>{c.label}</span>
+                        {c.save && <span className="rf2-cycle-save">{c.save}</span>}
                       </span>
                     </label>
                   ))}
