@@ -809,6 +809,11 @@
   cursor: pointer;
 }
 .ts-o2m-animated-card .ts-o2m-head { cursor: pointer; }
+/* Mobile: the badge sits on the card's top edge LEFT-aligned with the card's
+   content (its 22px inline padding) instead of centred. Only the horizontal
+   placement changes — translateY keeps it straddling the border as before.
+   .ts-o2m-badge is the mobile card's own class, so desktop is untouched. */
+.ts-o2m-badge { left: 22px; transform: translateY(-50%); }
 .ts-o2m-animated-card .ts-o2m-badge { opacity: 0; transition: opacity 200ms ease; }
 .ts-o2m-animated-card.ts-o2m-card--expanded .ts-o2m-badge { opacity: 1; }
 .ts-o2m-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }

@@ -1348,6 +1348,9 @@
 }
 
 .rf2-autopay--on { border-color: var(--color_2, #509e2f); }
+/* Payment Cycle: outlined the same way once the shopper picks a period. The
+   2px transparent border is already there, so the box does not move. */
+.rf2-cycle--on { border-color: var(--color_2, #509e2f); }
 /* PRESELECTED never takes the CTA colour, and loses its outline entirely once
    ticked — the blue border and the blue notice are one argument, so they
    arrive and leave together.
@@ -1654,6 +1657,14 @@
      was putting 28px back on both sides, which is what stopped the blue
      reaching the border. Same (0,2,0), later in source, so it wins. */
   .rf-wrapper .rf2-autopay--withbar { padding: 0; }
+  /* Payment Cycle on mobile (Figma): the same #F4F6F8 box as the autopay row
+     above it, with the heading on its own line and the three periods stacked
+     one per line beneath it, rather than side by side wrapping 2 + 1. The
+     disclaimer stays at the foot of the box. (0,2,0) for the same reason as
+     the autopay rule above. */
+  .rf-wrapper .rf2-cycle { background: #f4f6f8; }
+  .rf-wrapper .rf2-cycle-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .rf-wrapper .rf2-cycle-opts { flex-direction: column; align-items: flex-start; gap: 10px; }
   /* Gutters only, no sides: .rf2-agree carries the 20px here, same as the
      panels. These two kept their own 20px and 16px, which on top of the
      container's would have double-inset the head and the document. */

@@ -523,6 +523,9 @@ export function Step2({
      `useId` because a page can hold two of these and radios group by name. */
   const cycleName = useId();
   const [cycle, setCycle] = useState<PaymentCycle>('monthly');
+  /* Monthly is preselected, so "a period is selected" is always true; the card
+     outlines (like the autopay row when ticked) once the shopper PICKS one. */
+  const [cyclePicked, setCyclePicked] = useState(false);
   /* The frame's three rows, narrowed to what this property sells for this
      space type. Undefined `paymentCycles` means not yet known, which renders
      nothing rather than all three. */
@@ -1300,7 +1303,7 @@ export function Step2({
               type — a radiogroup with nothing in it, or with one forced answer,
               is not a choice. */}
           {cycleOptions.length > 0 && (
-            <div className="rf2-cycle">
+            <div className={`rf2-cycle${cyclePicked ? ' rf2-cycle--on' : ''}`}>
               <div className="rf2-cycle-row">
                 <span className="rf2-cycle-head">
                   <img src={creditCardRepeat} width={24} height={24} alt="" aria-hidden="true" />
@@ -1316,7 +1319,7 @@ export function Step2({
                         name={cycleName}
                         value={c.id}
                         checked={cycle === c.id}
-                        onChange={() => setCycle(c.id)}
+                        onChange={() => { setCycle(c.id); setCyclePicked(true); }}
                       />
                       <span className="rf2-cycle-radio"><span className="rf2-cycle-dot" /></span>
                       <span className="rf2-cycle-text">
