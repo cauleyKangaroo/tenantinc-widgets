@@ -516,10 +516,13 @@ export function Confirmation({
           {/* The five stars are ONE exported asset, not five copies of a star:
               the frame spaces them 41.671px apart inside a 194.356x27 box, and
               rebuilding that from a repeated glyph is a gap to get wrong. */}
-          <div className="rfc-review-rating">
+          {/* The stars go where "Write a Review" goes — the property's Google
+              listing, in its rating dialog — so a tap on the rating itself
+              rates the property, not just the button beneath. */}
+          <a className="rfc-review-rating" href={reviewUrl ?? DEMO_REVIEW_URL} target="_blank" rel="noreferrer" aria-label="Rate us on Google">
             <span className="rfc-review-g"><GoogleG /></span>
             <img className="rfc-review-stars" src={reviewStars} width={194.356} height={27.0004} alt="Rate us out of five" />
-          </div>
+          </a>
           <a className="rfc-review-link" href={reviewUrl ?? DEMO_REVIEW_URL} target="_blank" rel="noreferrer">
             <WriteReviewIcon size={24} />
             Write a Review
