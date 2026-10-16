@@ -7,7 +7,7 @@ import cfg from './config.json';
 import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
 import { boundText, resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { PropertyIdProvider, PropertyExtrasProvider } from './propertyContext';
+import { PropertyIdProvider, PropertyExtrasProvider, ReviewsProxyProvider } from './propertyContext';
 import { CompanyIdProvider } from './companyContext';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
@@ -92,6 +92,7 @@ export function SpaceList({
   inEditor    = false,
   elementId,
   siteId,
+  login_api_base,
   configApiUrl,
   configCollection = 'accordionConfig',
   spaceImageBaseUrl,
@@ -769,6 +770,7 @@ export function SpaceList({
   // sits on whichever side apLocation specifies.
   return (
     <PropertyIdProvider propertyId={effectivePropertyId}>
+    <ReviewsProxyProvider siteId={siteId ?? ''} base={login_api_base ?? ''}>
     <PropertyExtrasProvider extras={propertyExtras}>
      <CompanyIdProvider companyId={effectiveCompanyId ?? ''}>
     <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
@@ -879,6 +881,7 @@ export function SpaceList({
     </div>
      </CompanyIdProvider>
     </PropertyExtrasProvider>
+    </ReviewsProxyProvider>
     </PropertyIdProvider>
   );
 }

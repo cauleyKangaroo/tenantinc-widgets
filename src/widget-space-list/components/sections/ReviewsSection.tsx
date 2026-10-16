@@ -3,6 +3,8 @@ import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
 import { Shimmer } from '@shared/Shimmer';
 import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
+import { fetchPropertyReviewSources } from '@shared/liveReviews';
+import { usePropertyId, useReviewsProxy } from '../../propertyContext';
 import { CarouselChevron } from '../chevron';
 
 type Platform = 'google' | 'yelp';
@@ -145,9 +147,13 @@ function Stars({
 
 export function ReviewsSection() {
   const [platform, setPlatform] = useState<Platform>('google');
+  const propertyId = usePropertyId();
+  const proxy = useReviewsProxy();
 
-  // Google + Yelp from their Duda collections — both the review list AND the
-  // summary score/count. ALL_REVIEWS + PLATFORM_META stay as the fallback (dev
+  // THIS property's Google + Yelp, live through the proxy from its
+  // PropertiesInternal ids (placeId / yelpPlaceId) — the review list AND the
+  // summary score/count. The site-wide collections are the fallback when
+  // neither platform answers; ALL_REVIEWS + PLATFORM_META the last one (dev
   // harness, Duda editor, or missing/empty collections).
   const [live, setLive] = useState<Partial<Record<Platform, ReviewSourceData>> | null>(null);
   // True until the read settles, so the demo reviews never paint first.
@@ -155,7 +161,9 @@ export function ReviewsSection() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchAllReviewSources('#05 reviews accordion')
+    setLoading(true);
+    fetchPropertyReviewSources(propertyId, { base: proxy.base, siteId: proxy.siteId })
+      .then((own) => (own.google || own.yelp ? own : fetchAllReviewSources('#05 reviews accordion')))
       .then(({ google, yelp }) => {
         if (cancelled) return;
         const next: Partial<Record<Platform, ReviewSourceData>> = {};
@@ -163,10 +171,10 @@ export function ReviewsSection() {
         if (yelp?.reviews.length) next.yelp = yelp;
         if (Object.keys(next).length) setLive(next);
       })
-      .catch((err) => console.error('[ReviewsSection] collection read error:', err))
+      .catch((err) => console.error('[ReviewsSection] reviews read error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [propertyId, proxy.base, proxy.siteId]);
 
   const liveSource = live?.[platform];
   const fallbackMeta = PLATFORM_META[platform];

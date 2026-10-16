@@ -32,6 +32,7 @@
 
 import { DEFAULT_PLACES_BASE } from './placesApi';
 import { relativeFrom, type ReviewItem, type ReviewSourceData } from './reviewsCollections';
+import { fetchReviewIds } from './internalProperties';
 
 const TIMEOUT_MS = 8000;
 const ID_SHAPE = /^[A-Za-z0-9_-]{3,512}$/;
@@ -131,6 +132,25 @@ export function fetchYelpReviewsLive(businessId: string, opts: LiveReviewsOption
     if (!score && !reviews.length) return null;
     return { platform: 'yelp', name: str(d.businessName), score, count: Math.round(num(d.reviewCount)), reviewsUrl: str(d.reviewsUrl), reviews };
   });
+}
+
+/**
+ * Both platforms for ONE PROPERTY: its `placeId` / `yelpPlaceId` from
+ * PropertiesInternal, each fetched only when present, in parallel. A platform
+ * with no id or no answer is null; the caller decides what that means (the
+ * reviews widgets fall back to the site-wide collections when BOTH are null).
+ */
+export async function fetchPropertyReviewSources(
+  propertyId: string, opts: LiveReviewsOptions = {},
+): Promise<{ google: ReviewSourceData | null; yelp: ReviewSourceData | null }> {
+  const id = propertyId.trim();
+  if (!id) return { google: null, yelp: null };
+  const ids = await fetchReviewIds(id).catch(() => ({} as { placeId?: string; yelpId?: string }));
+  const [google, yelp] = await Promise.all([
+    ids.placeId ? fetchGoogleReviewsLive(ids.placeId, opts).catch(() => null) : Promise.resolve(null),
+    ids.yelpId ? fetchYelpReviewsLive(ids.yelpId, opts).catch(() => null) : Promise.resolve(null),
+  ]);
+  return { google, yelp };
 }
 
 /** Tests and the harness only. */
