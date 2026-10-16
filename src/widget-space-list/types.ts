@@ -120,6 +120,7 @@ export interface WidgetConfig {
   /** Disclaimer copy shown when `showJunkFeeDisclaimer` is on. Empty = render nothing. */
   junkFeeCopy: string;
   showUrgencyMessage: boolean;
+  skipTierPopupForSingle: boolean;
   /** Vacancy at or below which the urgency message shows. Always a positive int. */
   urgencyThreshold: number;
   /** Ordering of the units within each size group / category accordion. */
@@ -309,6 +310,8 @@ export interface SpaceListProps extends ApiCredProps {
   junkFeeCopy?: string;
   /** Toggle: show "Only X left" urgency messages on eligible units. Default true. */
   showUrgencyMessage?: boolean;
+  /** Toggle: Select skips the tier popup when only one tier is available. Default false. */
+  skipTierPopupForSingle?: boolean;
   /**
    * Show the urgency message when a tier has this many units vacant or fewer.
    * Default 5. Duda content-menu number fields can arrive as strings, so this is

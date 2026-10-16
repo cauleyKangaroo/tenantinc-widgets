@@ -404,7 +404,7 @@ export function CtaButton({ unit, config, full, colClass }: {
         config.companyId || undefined,
       );
       if (probe.tiers === false) { goToRental(probe); return; }
-      if (probe.availableCount === 1 && probe.singleTier && probe.unitId) { goToRental(probe); return; }
+      if (config.skipTierPopupForSingle && probe.availableCount === 1 && probe.singleTier && probe.unitId) { goToRental(probe); return; }
       openValueTiers();
     } finally {
       setCheckingTiers(false);
