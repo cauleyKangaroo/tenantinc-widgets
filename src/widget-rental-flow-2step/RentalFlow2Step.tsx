@@ -10,7 +10,7 @@ import {
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection,
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
-  updateContactDetails, dobToIso, fetchReservationCode,
+  updateContactDetails, dobToIso, fetchReservationCode, fetchReservationRecord,
   fetchPaymentGateway, TENANT_PAYMENTS, configureApi, currentApiCreds, previewDocuments,
   type RentResult, type ApiCredProps, type PaymentCycleKey, type RentalExtras, type QuoteOptions,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
@@ -1247,6 +1247,23 @@ export function RentalFlow2Step({
   // The stored reservation only speaks for the reservation on the URL: a stale
   // one from an earlier visit must not attach itself to a different id.
   const reservation = reservationIdProp && reservationStored?.reservationId === reservationIdProp ? reservationStored : null;
+  /*
+   * THE RESERVING CONTACT'S ID, for the lease's `contacts`. The hand-off from
+   * "Find my Reservation" carries it; a page reached by URL alone (or an older
+   * hand-off) does not, so the reservation record is read for it. Without
+   * it the lease created a SECOND contact from the typed details instead of
+   * joining the one the reservation belongs to (2026-10-16).
+   */
+  const [reservationContactId, setReservationContactId] = useState<string>(reservation?.contactId ?? '');
+  useEffect(() => {
+    if (!reservationIdProp || reservationContactId) return undefined;
+    let cancelled = false;
+    fetchReservationRecord(ctx, reservationIdProp)
+      .then((rec) => { if (!cancelled && rec?.contactId) setReservationContactId(rec.contactId); })
+      .catch(() => { /* soft: the lease still works, with a fresh contact */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reservationIdProp]);
 
   // The URL still wins everywhere — existing links and the value-tiers handoff
   // behave exactly as before; the stored pick only fills what the URL omits.
@@ -3635,6 +3652,9 @@ export function RentalFlow2Step({
                   holdToken: hold?.holdToken,
                   reservationId: reservationIdProp,
                   contact: {
+                    // Completing a reservation: the lease is for the contact
+                    // who reserved, by id (see reservationContactId).
+                    contactId: reservationIdProp ? (reservationContactId || undefined) : undefined,
                     first: c?.first ?? '',
                     last: c?.last ?? '',
                     email: c?.email ?? '',

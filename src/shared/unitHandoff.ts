@@ -149,6 +149,10 @@ export interface ReservationHandoff {
   size?: string;
   /** The reserving contact, to prefill step 1. */
   contact?: { first: string; last: string; email: string; phone: string };
+  /** The reserving contact's record id (Lease.Tenants[0].contact_id), so the
+   *  lease made from the reservation names the SAME contact rather than
+   *  creating a second one from the typed details. */
+  contactId?: string;
   savedAt: number;
 }
 

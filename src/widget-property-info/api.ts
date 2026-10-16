@@ -318,6 +318,8 @@ export interface FoundReservation {
   propertyId?: string;
   leaseId?: string;
   contact?: { first: string; last: string; email: string; phone: string };
+  /** The reserving contact's id — see ReservationHandoff.contactId. */
+  contactId?: string;
 }
 
 export type FindReservationResult =
@@ -371,6 +373,7 @@ export async function findReservation(
         unitNumber: str(unit.number) || undefined,
         propertyId: str(unit.property_id) || propertyId,
         leaseId: str(r.lease_id) || str(lease.id) || undefined,
+        contactId: str(tenant?.contact_id) || str(c.id) || undefined,
         contact: str(c.first) || str(c.email) ? {
           first: str(c.first), last: str(c.last), email: str(c.email),
           phone: phone ? prettyPhone(str(phone.phone)) : '',

@@ -1608,7 +1608,18 @@ async function reserveViaEdge(ctx: RentalCtx, args: ReserveArgs): Promise<Reserv
  */
 export const RESERVATION_CODE_TIMEOUT_MS = 5000;
 
+/** The reservation's code and its reserving contact's id, in one read. */
+export interface ReservationRecord {
+  code?: string;
+  /** Lease.Tenants[0].contact_id — the contact the reservation was made for. */
+  contactId?: string;
+}
+
 export async function fetchReservationCode(ctx: RentalCtx, reservationId: string): Promise<string | undefined> {
+  return (await fetchReservationRecord(ctx, reservationId))?.code;
+}
+
+export async function fetchReservationRecord(ctx: RentalCtx, reservationId: string): Promise<ReservationRecord | undefined> {
   if (!ctx.companyId || !reservationId) return undefined;
   const { baseUrl, appId } = creds();
   const controller = new AbortController();
@@ -1628,7 +1639,16 @@ export async function fetchReservationCode(ctx: RentalCtx, reservationId: string
     }
     const d = inner.data as Record<string, unknown>;
     const r = (d.reservation ?? d) as Record<string, unknown>;
-    return typeof r.code === 'string' && r.code.trim() ? r.code.trim() : undefined;
+    const lease = (r.Lease ?? {}) as Record<string, unknown>;
+    const tenant = ((lease.Tenants as Array<Record<string, unknown>> | undefined) ?? [])[0];
+    const contactRec = (tenant?.Contact ?? {}) as Record<string, unknown>;
+    const contactId = typeof tenant?.contact_id === 'string' && tenant.contact_id.trim()
+      ? tenant.contact_id.trim()
+      : (typeof contactRec.id === 'string' ? contactRec.id.trim() : '');
+    return {
+      code: typeof r.code === 'string' && r.code.trim() ? r.code.trim() : undefined,
+      contactId: contactId || undefined,
+    };
   } catch (err) {
     console.warn('[rental] reservation lookup failed:', err);
     return undefined;
@@ -1791,6 +1811,14 @@ export interface RentAddress {
 }
 
 export interface RentContact extends RentAddress {
+  /**
+   * The EXISTING contact record this rental is for — set when a reservation
+   * is being completed (the reserving contact, from the reservation record).
+   * Sent as the contact's `id` so the lease joins that record instead of
+   * creating a second contact from the typed details. Absent on a fresh
+   * rental.
+   */
+  contactId?: string;
   first: string;
   last: string;
   email: string;
@@ -2016,6 +2044,8 @@ export type RentResult =
 /** The `contacts` array both calls take. Phones are E.164 with the type lowercase. */
 function rentContacts(c: RentContact, extras?: RentalExtras): unknown[] {
   const contact: Record<string, unknown> = {
+    // The reserving contact's record, when completing a reservation.
+    ...(c.contactId?.trim() ? { id: c.contactId.trim() } : {}),
     first: c.first,
     last: c.last,
     email: c.email,
@@ -2097,37 +2127,28 @@ function vehicleInfo(extras?: RentalExtras): Record<string, unknown> | undefined
 
 /** The `payment_method` object. Card only — ACH is not wired yet. */
 /**
- * Stand-in card for the hosted-fields path.
- *
- * Hosted fields keep the real PAN and expiry inside Global Payments' iframe —
- * that is their entire purpose — but API 10 CHARGES the card, so it rejects
- * anything that is not a chargeable number. Verified 2026-08-25: a masked
- * number clears API 9's presence check and is then declined at API 10 with
- * "Issuer Rejection: 6 - The credit card number is invalid."
- *
- * So the real card is represented by its real `token`, and these digits ride
- * along to satisfy the charge. The expiry is the test card's own, because an
- * expiry belonging to a different card would be incoherent beside this number.
- *
- * THIS IS THE ONE PLACE TO CHANGE when TenantInc accepts a token in place of
- * card_number/cvv2: send `card.maskedCardNumber` and an empty cvv2 instead.
+ * NO STAND-IN CARD ANY MORE (2026-10-16). The hosted-fields path used to send
+ * a fixed test PAN (4111…) and test expiry beside the real token, because the
+ * lease charge once rejected anything that was not a chargeable number. That
+ * is gone at TenantInc's instruction: in hosted mode the card goes over as
+ * its single-use `token` plus the gateway's MASK as `card_number` — digits
+ * the page never had are never invented — and no expiry at all, since the
+ * iframe holds it. The typed-card path (non-hosted gateways) is unchanged.
  */
-const HOSTED_FIELDS_STAND_IN = { number: '4111111111111111', expMonth: '09', expYear: '2027' };
-
 function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<string, unknown> {
   const parts = card.nameOnCard.trim().split(/\s+/);
   // No PAN ⇒ hosted fields collected it and never handed it over.
   const typed = card.cardNumber.replace(/\D/g, '');
   const hosted = !typed;
-  const number = hosted ? HOSTED_FIELDS_STAND_IN.number : typed;
+  const number = hosted ? (card.maskedCardNumber ?? '') : typed;
   const body: Record<string, unknown> = {
     type: 'card',
     card_number: number,
     // The shopper's real CVV either way — hosted fields never capture it, so
     // it is still typed into a field of ours.
     cvv2: card.cvv,
-    exp_mo: hosted ? HOSTED_FIELDS_STAND_IN.expMonth : card.expMonth,
-    exp_yr: hosted ? HOSTED_FIELDS_STAND_IN.expYear : card.expYear,
+    // Expiry only when WE collected it; the hosted iframe keeps its own.
+    ...(hosted ? {} : { exp_mo: card.expMonth, exp_yr: card.expYear }),
     name_on_card: card.nameOnCard,
     first: parts[0] ?? '',
     last: parts.slice(1).join(' ') || (parts[0] ?? ''),
@@ -2820,7 +2841,7 @@ export async function updateContactDetails(
  *
  * `tenant_payments` is the Global Payments hosted-fields path: the PAN is typed
  * into GP's iframe, never reaches us, and the payload carries the token plus
- * the stand-in digits API 10 needs to charge (see HOSTED_FIELDS_STAND_IN).
+ * the gateway's mask as card_number (see cardPaymentMethod).
  *
  * Anything else — `authorizenet` today — has no hosted-fields integration, so
  * the property collects the card in our own inputs and the REAL number, expiry
