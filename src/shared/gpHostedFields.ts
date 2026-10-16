@@ -12,11 +12,14 @@
 //   - the real CVV ......................... no
 //   - the card brand ....................... no
 //
-// Hummingbird's lease (API 10) charges the card itself, so it needs a real
-// PAN and CVV. An iframe cannot supply either. The rental therefore sends a
-// STATIC test PAN plus the real token, and keeps the CVV in a field of our
-// own — which is why `card-cvv` is deliberately NOT one of the frames below.
-// Tokenization works without it (tested). See server/RENTAL_FLOW_API.md.
+// Hummingbird's finalize/lease now take the card as `hosted-card`: the token
+// plus the EXPIRY (exp_mo / exp_yr are required — verified 2026-10-16) and
+// the CVV. Neither can come out of a frame, so BOTH are typed into fields of
+// our own: `card-cvv` was never a frame here, and `card-expiration` is now
+// optional (`expiryTarget` omitted ⇒ no frame). The gateway tokenizes from
+// the number alone — verified against the sandbox tokenizer 2026-10-16, with
+// and without an expiry it answers the same `{ token_value, card.number }`.
+// No static test PAN is sent any more. See server/RENTAL_FLOW_API.md.
 //
 // Loading GP's library is the one remote dependency in this bundle. It fails
 // soft: if the script will not load, the caller keeps its plain inputs and
@@ -99,7 +102,8 @@ export interface MountHostedCardOptions {
   publicKey: string;
   /** CSS selectors — GP resolves these itself, so they must be in the DOM. */
   numberTarget: string;
-  expiryTarget: string;
+  /** Omit to collect the expiry in a field of your own (see the header). */
+  expiryTarget?: string;
   submitTarget: string;
   onToken(result: HostedCardResult): void;
   onError(message: string): void;
@@ -297,7 +301,7 @@ export async function mountHostedCard(
            all say MM / YY and EXPIRY_DIGITS is 4, so the hosted placeholder was
            the only thing asking for four year digits. GP's expiration validator
            takes either, so this is the label agreeing with the rest. */
-        'card-expiration': { target: opts.expiryTarget, placeholder: 'MM / YY' },
+        ...(opts.expiryTarget ? { 'card-expiration': { target: opts.expiryTarget, placeholder: 'MM / YY' } } : {}),
         // GP will only tokenize from a gesture inside its own frame — the
         // form object exposes no programmatic equivalent — so this button
         // has to exist even though ours is the one the shopper sees.
@@ -314,7 +318,7 @@ export async function mountHostedCard(
         opts.onFieldValid?.(field, valid);
       };
       form.on('card-number-test', report('number'));
-      form.on('card-expiration-test', report('expiry'));
+      if (opts.expiryTarget) form.on('card-expiration-test', report('expiry'));
     }
 
     form.on('token-success', (resp) => {
@@ -376,6 +380,7 @@ export async function mountHostedCard(
     return {
       dispose: () => { try { form.dispose(); } catch { /* already gone */ } },
       focusField: (field) => {
+        if (field === 'expiry' && !opts.expiryTarget) return;
         const name = field === 'number' ? 'card-number' : 'card-expiration';
         try { form.frames?.[name]?.setFocus(); } catch { /* frame gone */ }
       },

@@ -846,6 +846,7 @@ export function PropertyInfo(props: Props) {
       saveReservationHandoff({
         reservationId: res.id, code: res.code, unitId: res.unitId, unitNumber: res.unitNumber,
         propertyId: res.propertyId ?? propertyIdForLookup, companyId: r.companyId, contact: res.contact,
+        contactId: res.contactId,
       });
       const base = rentalPageUrl?.trim()
         || (reservationUrl && reservationUrl !== '#' ? reservationUrl : '')

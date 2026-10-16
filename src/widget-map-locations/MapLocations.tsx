@@ -37,6 +37,7 @@ import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { fetchFeaturedIds, fetchPlaceIds } from '@shared/internalProperties';
+import { fetchLocationCopy, type LocationCopy } from '@shared/locationCopy';
 import { fetchPlaceRating } from '@shared/googlePlaceRating';
 import { Shimmer } from '@shared/Shimmer';
 import cfg from './config.json';
@@ -553,30 +554,6 @@ function sortFacilities(list: CityFacility[], by: SortId): CityFacility[] {
     featuredFirst(a, b) || (rating(b) - rating(a)) || (count(b) - count(a)));
 }
 
-/**
- * SEO copy, written with placeholders rather than a place name.
- *
- * `{city}` and `{city}, {state}` are filled from the page's own scope, so one
- * body of copy serves every city page. On a STATE page (`/locations/{state}`,
- * no city segment) there is no city to name, so both resolve to the state —
- * "Storage in California", not "Storage in , California".
- *
- * Editors get the same tokens: anything typed into the `seoContent` field runs
- * through the same substitution, so operator-written copy stays portable
- * between pages instead of being pinned to one town.
- *
- * Every block is a heading <p> followed by a body <p> — never a <br> between the
- * two. The first block was already written this way and the other two were not,
- * so the first sat looser than the pair beneath it. `.ml-seo-body` gives a
- * heading paragraph a smaller bottom margin than a body one, which is what puts
- * the small gap under each heading while keeping the blocks themselves apart.
- */
-const DEFAULT_SEO = `<p><strong>Storage in {city}</strong></p>
-<p>If you are looking for high quality self storage in {city}, {state}, we can help. We provide customers with a high quality, well-maintained self storage facility at a great price. A friendly, professional on-site manager is always here to help you.</p>
-<p><strong>Self Storage Features</strong></p>
-<p>At our storage facilities, we offer a wide range of features and amenities that make packing and self storage easy. You will find drive-up storage units for simple loading and unloading, delivery receiving services, packing and moving supplies right on site, and long gate access hours.</p>
-<p><strong>Secure Storage Units</strong></p>
-<p>When you rent storage units in {city}, {state}, you want total security. Our property is covered with 24/7 video surveillance, electronic gate access, and a manager who is always on site.</p>`;
 
 /**
  * Fill `{city}` / `{state}` in a body of copy.
@@ -654,8 +631,8 @@ export function MapLocations({
   state,
   locationBasePath = DEFAULT_LOCATION_BASE_PATH,
   companyId,
-  seoHeading,
-  seoContent = DEFAULT_SEO,
+  // `seoHeading` (content menu) is accepted but unread — the text section is the Cities/States row's alone; see locationCopy.
+  // `seoContent` (content menu) is accepted but unread — the text section is the Cities/States row's alone; see locationCopy.
   rowHeight = '100vh',
   rentalPageUrl,
   propertyBasePath = DEFAULT_PROPERTY_BASE_PATH,
@@ -694,6 +671,27 @@ export function MapLocations({
     state: (state ?? '').trim() || fromUrl.state || '',
     city: (city ?? '').trim() || fromUrl.city || '',
   };
+
+  /*
+   * THIS PAGE'S OWN COPY — `text_heading` / `text_body` on its `Cities` row
+   * (or `States` row on a state page), read from the collections the proxy
+   * builds. THE ONLY SOURCE (2026-10-16): the content-menu `seoHeading` /
+   * `seoContent` are per widget instance and read the same on every city,
+   * and the built-in default copy was the same again — so neither stands in
+   * any more. No row, or blank cells, means NO text section on that page.
+   * Both props are still accepted so an existing Duda instance cannot break,
+   * but nothing reads them. See @shared/locationCopy.
+   */
+  const [locationCopy, setLocationCopy] = useState<LocationCopy | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchLocationCopy(scope)
+      .then((c) => { if (!cancelled) setLocationCopy(c); })
+      .catch(() => { if (!cancelled) setLocationCopy(null); });
+    return () => { cancelled = true; };
+    // Keyed on the two strings, not the `scope` object, which is rebuilt every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope.state, scope.city]);
 
   /**
    * Breadcrumb trail — Figma 10622:77309.
@@ -1466,14 +1464,17 @@ export function MapLocations({
 
       {/* City SEO copy. The mobile map view is a full-screen map, so the frame
           drops the copy there — it comes back with the list. */}
-      {seoContent && showCards && (
+      {locationCopy && showCards && (
         <div className="ml-seo">
-          {/* The heading takes the tokens too, so an editor-typed heading can
-              travel between pages the same way the body does. */}
-          <p className="ml-seo-heading">
-            {fillPlaceTokens(seoHeading?.trim() || `Self Storage Units in ${cityLabel}`, placeTokens)}
-          </p>
-          <RichText value={fillPlaceTokens(seoContent, placeTokens)} className="ml-seo-body" />
+          {/* The heading takes the tokens too, so copy written once can
+              travel between pages the same way the body does. Each part is
+              shown only when its cell has content. */}
+          {locationCopy.heading && (
+            <p className="ml-seo-heading">{fillPlaceTokens(locationCopy.heading, placeTokens)}</p>
+          )}
+          {locationCopy.body && (
+            <RichText value={fillPlaceTokens(locationCopy.body, placeTokens)} className="ml-seo-body" />
+          )}
         </div>
       )}
 
