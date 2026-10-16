@@ -290,7 +290,10 @@ export function GooglePayButton({
     const button = client.createButton({
       onClick: handleClick,
       buttonColor: 'black',
-      buttonType: 'pay',
+      // 'plain' = the logo alone ("G Pay"). 'pay' renders "Pay with G Pay"
+      // whenever the button is wide enough and the bare logo when it is not,
+      // so the label changed with screen size.
+      buttonType: 'plain',
       buttonSizeMode: 'fill',
       buttonRadius: 12,
     });

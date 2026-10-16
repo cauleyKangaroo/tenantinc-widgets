@@ -840,7 +840,6 @@
 .ma-methods .rf2-pay svg { flex: 0 0 auto; }
 .ma-methods .rf2-wallet--google { height: 64px; min-width: 0; }
 .ma-methods .rf2-wallet--google > * { width: 100%; height: 100%; }
-.ma-methods .rf2-wallet-with { font: 500 20px 'Montserrat', sans-serif; color: #fff; }
 .ma-methods .rf2-pay.rf2-wallet--apple { cursor: pointer !important; transition: background-color .15s ease; }
 .ma-methods .rf2-pay.rf2-wallet--apple,
 .ma-methods .rf2-pay.rf2-wallet--apple:focus { background: #000 !important; }
