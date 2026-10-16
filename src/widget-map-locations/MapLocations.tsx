@@ -37,6 +37,7 @@ import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { fetchFeaturedIds, fetchPlaceIds } from '@shared/internalProperties';
+import { fetchLocationCopy, type LocationCopy } from '@shared/locationCopy';
 import { fetchPlaceRating } from '@shared/googlePlaceRating';
 import { Shimmer } from '@shared/Shimmer';
 import cfg from './config.json';
@@ -694,6 +695,24 @@ export function MapLocations({
     state: (state ?? '').trim() || fromUrl.state || '',
     city: (city ?? '').trim() || fromUrl.city || '',
   };
+
+  /*
+   * THIS PAGE'S OWN COPY — `text_heading` / `text_body` on its `Cities` row
+   * (or `States` row on a state page), read from the collections the proxy
+   * builds. The content-menu `seoHeading` / `seoContent` are per widget
+   * instance, so they read the same on every city; a row's copy wins over
+   * them, and they stay as the fallback. See @shared/locationCopy.
+   */
+  const [locationCopy, setLocationCopy] = useState<LocationCopy | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchLocationCopy(scope)
+      .then((c) => { if (!cancelled) setLocationCopy(c); })
+      .catch(() => { if (!cancelled) setLocationCopy(null); });
+    return () => { cancelled = true; };
+    // Keyed on the two strings, not the `scope` object, which is rebuilt every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope.state, scope.city]);
 
   /**
    * Breadcrumb trail — Figma 10622:77309.
@@ -1471,9 +1490,9 @@ export function MapLocations({
           {/* The heading takes the tokens too, so an editor-typed heading can
               travel between pages the same way the body does. */}
           <p className="ml-seo-heading">
-            {fillPlaceTokens(seoHeading?.trim() || `Self Storage Units in ${cityLabel}`, placeTokens)}
+            {fillPlaceTokens(locationCopy?.heading || seoHeading?.trim() || `Self Storage Units in ${cityLabel}`, placeTokens)}
           </p>
-          <RichText value={fillPlaceTokens(seoContent, placeTokens)} className="ml-seo-body" />
+          <RichText value={fillPlaceTokens(locationCopy?.body || seoContent, placeTokens)} className="ml-seo-body" />
         </div>
       )}
 
