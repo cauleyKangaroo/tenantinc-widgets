@@ -2907,6 +2907,26 @@ function readGateway(raw: unknown): PaymentGateway | null {
  * to a property that is not on GP cannot take a payment at all.
  */
 export async function fetchPaymentGateway(ctx: RentalCtx): Promise<PaymentGateway | null> {
+  return (await fetchPaymentGatewayInfo(ctx))?.gateway ?? null;
+}
+
+/** The gateway AND its Global Payments public key, from the same reply. */
+export interface PaymentGatewayInfo {
+  gateway: PaymentGateway | null;
+  /** `public_api_key` — the property's own GP public key ("pkapi_prod_…" on a
+   *  live site, "pkapi_cert_…" on the sandbox); '' when the reply has none. */
+  publicKey: string;
+}
+
+/**
+ * The gateway reply in full. THE KEY COMES FROM HERE (2026-10-16): the flow
+ * used to mount the hosted fields with the key baked into config.json — the
+ * sandbox cert key — on every site, so a production property tokenized
+ * against the wrong account. `public_api_key` is per property, which is what
+ * the gateway lookup is for. config.json's key is the fallback only when the
+ * reply carries none.
+ */
+export async function fetchPaymentGatewayInfo(ctx: RentalCtx): Promise<PaymentGatewayInfo | null> {
   if (!ctx.companyId || !ctx.propertyId) return null;
   try {
     const res = await fetch(
@@ -2925,8 +2945,9 @@ export async function fetchPaymentGateway(ctx: RentalCtx): Promise<PaymentGatewa
       console.warn('[rental] gateway lookup rejected:', inner?.status, inner?.msg);
       return null;
     }
-    const raw = (inner.data as { gateway?: unknown } | undefined)?.gateway;
-    return readGateway(raw);
+    const data = inner.data as { gateway?: unknown; public_api_key?: unknown } | undefined;
+    const publicKey = typeof data?.public_api_key === 'string' ? data.public_api_key.trim() : '';
+    return { gateway: readGateway(data?.gateway), publicKey };
   } catch (err) {
     console.warn('[rental] gateway lookup threw:', err);
     return null;

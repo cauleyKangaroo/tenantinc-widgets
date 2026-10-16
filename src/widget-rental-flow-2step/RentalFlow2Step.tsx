@@ -11,7 +11,7 @@ import {
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso, fetchReservationCode, fetchReservationRecord,
-  fetchPaymentGateway, TENANT_PAYMENTS, configureApi, currentApiCreds, previewDocuments,
+  fetchPaymentGatewayInfo, TENANT_PAYMENTS, configureApi, currentApiCreds, previewDocuments,
   type RentResult, type ApiCredProps, type PaymentCycleKey, type RentalExtras, type QuoteOptions,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx, type PropertyInfo,
@@ -1535,21 +1535,32 @@ export function RentalFlow2Step({
    * the safe direction: real card details reach a gateway that wanted them,
    * whereas a GP iframe on a non-GP property cannot take a payment at all.
    */
-  const [gateway, setGateway] = useState<string | null | undefined>(undefined);
+  /* The gateway AND its public key, from one reply. `undefined` while out,
+     `null` when it could not be read. */
+  const [gatewayInfo, setGatewayInfo] = useState<{ gateway: string | null; publicKey: string } | null | undefined>(undefined);
   useEffect(() => {
     // Wait for the resolved company — asking under the config default would
     // read another tenant's gateway and could pick the wrong form entirely.
     if (!effectiveCompanyId || !effectivePropertyId) return undefined;
     let cancelled = false;
-    fetchPaymentGateway(ctx)
-      .then((g) => { if (!cancelled) setGateway(g); })
-      .catch(() => { if (!cancelled) setGateway(null); });
+    fetchPaymentGatewayInfo(ctx)
+      .then((g) => { if (!cancelled) setGatewayInfo(g); })
+      .catch(() => { if (!cancelled) setGatewayInfo(null); });
     return () => { cancelled = true; };
   }, [effectiveCompanyId, effectivePropertyId, ctx]);
+  const gateway = gatewayInfo === undefined ? undefined : (gatewayInfo?.gateway ?? null);
 
   const gatewayPending = gateway === undefined;
-  /** Hosted fields belong to tenant_payments alone. */
-  const gpKey = gateway === TENANT_PAYMENTS ? configuredGpKey : '';
+  /**
+   * Hosted fields belong to tenant_payments alone, and THEIR KEY IS THE
+   * PROPERTY'S — `public_api_key` from the gateway reply. config.json's key
+   * is the fallback only when the reply carries none, and that is said out
+   * loud: a live site tokenizing against the bundled sandbox key is exactly
+   * the fault this replaces (2026-10-16).
+   */
+  const gpKey = gateway === TENANT_PAYMENTS
+    ? (gatewayInfo?.publicKey || (configuredGpKey && (console.warn(`${logTag} gateway reply carried no public_api_key — falling back to the bundled key`), configuredGpKey)) || '')
+    : '';
   const [step, setStep] = useState<1 | 2>(1);
   const [phase, setPhase] = useState<'in' | 'out'>('in');
   const [dateModalOpen, setDateModalOpen] = useState(false);
