@@ -43,7 +43,7 @@ type FetchLike = typeof fetch;
 
 /** An explicit API rejection is retryable; missing/unusable responses are not. */
 export class IdvRequestError extends Error {
-  constructor(message: string, public readonly outcomeUnknown: boolean) {
+  constructor(message: string, public readonly outcomeUnknown: boolean, public readonly status?: number) {
     super(message);
     this.name = 'IdvRequestError';
   }
@@ -123,11 +123,8 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
     scope: IdvScope,
     suffix: string,
     init: RequestInit = {},
-    companyOnly = false,
   ): Promise<JsonRecord> {
-    const path = companyOnly
-      ? `/companies/${safeId(scope.companyId)}/${suffix}`
-      : `/companies/${safeId(scope.companyId)}/properties/${safeId(scope.propertyId)}/${suffix}`;
+    const path = `/companies/${safeId(scope.companyId)}/properties/${safeId(scope.propertyId)}/${suffix}`;
     const url = `${base}/applications/${safeId(config.appId)}/v2${path}`;
     const headers: Record<string, string> = {
       Accept: 'application/json',
@@ -158,7 +155,7 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
             // A gateway or upstream 5xx can occur after capture/SMS succeeds.
             // Only a 4xx rejection, with no conflicting upstream 5xx, is definite.
             const outcomeUnknown = status < 400 || status >= 500 || parsed.status >= 500;
-            throw new IdvRequestError(parsed.msg || `ID verification request failed (${status}).`, outcomeUnknown);
+            throw new IdvRequestError(parsed.msg || `ID verification request failed (${status}).`, outcomeUnknown, status);
           }
           return parsed.data;
         })(),
@@ -170,25 +167,6 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
   }
 
   return {
-    async lookup(scope: IdvScope, contactId: string, signal?: AbortSignal): Promise<SafeIdvResult | undefined> {
-      const data = await call(
-        scope,
-        `identity-verifications?contact_id=${safeId(contactId)}`,
-        { signal },
-        true,
-      );
-      if (!data.idv_id) return undefined;
-      return {
-        idvId: text(data.idv_id, 'lookup id'),
-        authenticated: data.authenticated === true || data.verified === true,
-        driversLicense: data.dl_number || data.dl_state || data.dl_expiration ? {
-          number: optionalText(data.dl_number),
-          state: optionalText(data.dl_state),
-          expiration: optionalText(data.dl_expiration),
-        } : undefined,
-      };
-    },
-
     async start(
       scope: IdvScope,
       identity: IdvIdentity,
@@ -204,8 +182,9 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
           email: identity.email,
           phone: identity.phone,
           device,
-          // The guide warns lease_id rejects when email ownership differs. It
-          // remains omitted until the backend confirms the relationship rule.
+          // Links the verification to an existing lease (rent first, then
+          // verify). The email must be the lease's primary tenant email.
+          ...(identity.leaseId ? { lease_id: identity.leaseId } : {}),
         }),
       });
       const notificationStatus = optionalText(data.notificationStatus);
@@ -230,10 +209,20 @@ export function createIdvApi(config: IdvCredentials, fetcher: FetchLike = fetch)
       const license = data.driversLicense && typeof data.driversLicense === 'object'
         ? data.driversLicense as JsonRecord
         : undefined;
+      const address = data.address && typeof data.address === 'object'
+        ? data.address as JsonRecord
+        : undefined;
+      const scanned = address ? {
+        street: optionalText(address.address1) ?? optionalText(address.address),
+        city: optionalText(address.city),
+        state: optionalText(address.stateCode) ?? optionalText(address.state),
+        zip: optionalText(address.postalCode) ?? optionalText(address.zip),
+      } : undefined;
       return {
         status,
         idvId: returnedId,
         authenticated: data.authenticated === true,
+        address: scanned?.street ? scanned : undefined,
         driversLicense: license ? {
           number: optionalText(license.number),
           state: optionalText(license.state),

@@ -4,6 +4,8 @@ export type SafeIdvResult = {
   idvId: string;
   authenticated: boolean;
   driversLicense?: { number?: string; state?: string; expiration?: string };
+  /** Read off the ID at capture. Only the completion poll returns it. */
+  address?: { street?: string; city?: string; state?: string; zip?: string };
 };
 
 type Generation = { generation: number };
@@ -89,12 +91,13 @@ export function idvReducer(state: IdvState, action: IdvAction): IdvState {
       return state.kind === 'checking' || state.kind === 'pending'
         ? { kind: 'complete', generation: state.generation, result: action.result }
         : state;
+    // From checking only when a reload re-checks a session that ended.
     case 'failed':
-      return state.kind === 'pending'
+      return state.kind === 'pending' || state.kind === 'checking'
         ? { kind: 'failed', generation: state.generation, reason: action.reason }
         : state;
     case 'expired':
-      return state.kind === 'pending' ? { kind: 'expired', generation: state.generation } : state;
+      return state.kind === 'pending' || state.kind === 'checking' ? { kind: 'expired', generation: state.generation } : state;
     case 'error':
       return state.kind === 'checking' || state.kind === 'starting' || state.kind === 'pending' || state.kind === 'resending'
         ? { kind: 'error', generation: state.generation, retryable: action.retryable }

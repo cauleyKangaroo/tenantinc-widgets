@@ -116,7 +116,7 @@ function testAuthenticationAndResend() {
   assert.deepEqual(
     idvReducer(checking, { type: 'complete', generation: checking.generation, result: unauth }),
     { kind: 'ready', generation: checking.generation },
-    'an old failed verification found by lookup leaves the renter able to verify now',
+    'an unauthenticated result while checking leaves the renter able to verify now',
   );
   const ready = idvReducer(checking, { type: 'not-verified', generation: checking.generation });
   const starting = idvReducer(ready, { type: 'start', generation: ready.generation });
@@ -370,7 +370,7 @@ async function testApiTransports() {
   }
   const hung = createIdvApi({ baseUrl: 'https://api.example.com', appId: 'app', apiKey: 'test', requestTimeoutMs: 5 },
     () => new Promise(() => {}));
-  await assert.rejects(hung.lookup({ companyId: 'co', propertyId: 'prop' }, 'contact'), /outcome may be unknown/);
+  await assert.rejects(hung.poll({ companyId: 'co', propertyId: 'prop' }, 'idv11111111111111111111111111111111'), /outcome may be unknown/);
   await assert.rejects(hung.start({ companyId: 'co', propertyId: 'prop' }, {
     first: 'Test', last: 'Renter', email: 'test@example.com', phone: '5555555555',
   }), /outcome may be unknown/);
@@ -412,6 +412,11 @@ async function testApiTransports() {
     first: 'Ada', last: 'Lovelace', email: 'ada@example.com', phone: '2125551234',
   }, 'mobile');
   assert.equal(JSON.parse(requests[1].init.body).device, 'mobile');
+  assert.equal('lease_id' in JSON.parse(requests[1].init.body), false, 'verify-first start sends no lease_id');
+  await direct.start({ companyId: 'company_one', propertyId: 'property_two' }, {
+    first: 'Ada', last: 'Lovelace', email: 'ada@example.com', phone: '2125551234', leaseId: 'LeaseHash1',
+  }, 'mobile');
+  assert.equal(JSON.parse(requests[2].init.body).lease_id, 'LeaseHash1', 'rent-first start links the lease');
 
   assert.equal(requests[0].init.headers.Authorization, undefined, 'no proxy bearer token');
   assert.equal(requests[0].init.headers['X-Duda-Site-Id'], undefined);
@@ -432,6 +437,26 @@ function testCaptureDevice() {
   assert.equal(withWindow({}, captureDevice), 'desktop');
 }
 
+async function testCompletionPoll() {
+  const rawId = 'idv05d17e25979d41b1be17aaac798d58de';
+  let payload = {};
+  const urls = [];
+  const api = createIdvApi({ baseUrl: 'https://edge.example/api/v3', appId: 'app', apiKey: 'test' }, async url => {
+    urls.push(url);
+    return { ok: true, json: async () => ({ applicationData: { app: [{ status: 200, data: payload }] } }) };
+  });
+  const scope = { companyId: 'co', propertyId: 'prop' };
+  assert.equal(api.lookup, undefined, 'no contact lookup: a browser-supplied contact ID is not trusted');
+  assert.equal(api.lookupByEmail, undefined, 'no email lookup: anyone could recover a stranger by email');
+  payload = { status: 'complete', idvId: rawId, authenticated: true,
+    driversLicense: { number: 'D1234567', state: 'CA', expiration: '2030-01-15' },
+    address: { address1: '1 Main St', city: 'Irvine', stateCode: 'CA', postalCode: '92618' } };
+  assert.deepEqual({ ...(await api.poll(scope, rawId)).address }, { street: '1 Main St', city: 'Irvine', state: 'CA', zip: '92618' }, 'completion carries the scanned address');
+  payload = { status: 'complete', idvId: rawId, authenticated: true };
+  assert.equal((await api.poll(scope, rawId)).address, undefined, 'no address when the scan returns none');
+  assert.ok(urls.every(url => url.includes(`/properties/prop/identity-verification/${rawId}`) && !url.includes('identity-verifications')));
+}
+
 (async () => {
   testReducer();
   testAuthenticationAndResend();
@@ -440,6 +465,7 @@ function testCaptureDevice() {
   testUrls();
   await testPolling();
   await testApiTransports();
+  await testCompletionPoll();
   testCaptureDevice();
   console.log('IDV foundation tests passed');
 })().catch((error) => {
