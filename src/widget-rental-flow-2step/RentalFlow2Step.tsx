@@ -1243,7 +1243,25 @@ export function RentalFlow2Step({
   const reservationStoredRef = useRef<ReturnType<typeof readReservationHandoff> | undefined>(undefined);
   if (reservationStoredRef.current === undefined) reservationStoredRef.current = readReservationHandoff();
   const reservationStored = reservationStoredRef.current;
-  const reservationIdProp = urlParam('reservationId') ?? reservationStored?.reservationId;
+  /*
+   * WHEN THE STORED HAND-OFF APPLIES. It is written by "Find my Reservation"
+   * and lives for an hour, and it used to be adopted whenever the URL had no
+   * reservationId of its own — including a visit that came from the space
+   * list naming a DIFFERENT unit. The page then ran in reservation mode and
+   * hid Reserve for that fresh unit (2026-10-16). So it applies only when the
+   * URL names that reservation, or names no other unit; a URL that picks
+   * another unit is a new intent, and the stale hand-off is cleared so it
+   * cannot resurface on the next visit either.
+   */
+  const urlReservationId = urlParam('reservationId');
+  const urlUnitId = urlParam('unitId');
+  const storedApplies = !!reservationStored && (
+    urlReservationId
+      ? reservationStored.reservationId === urlReservationId
+      : (!urlUnitId || urlUnitId === reservationStored.unitId)
+  );
+  if (reservationStored && !storedApplies && !urlReservationId) clearReservationHandoff();
+  const reservationIdProp = urlReservationId ?? (storedApplies ? reservationStored?.reservationId : undefined);
   // The stored reservation only speaks for the reservation on the URL: a stale
   // one from an earlier visit must not attach itself to a different id.
   const reservation = reservationIdProp && reservationStored?.reservationId === reservationIdProp ? reservationStored : null;
