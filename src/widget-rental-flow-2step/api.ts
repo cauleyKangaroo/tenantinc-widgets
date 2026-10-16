@@ -2128,12 +2128,13 @@ function vehicleInfo(extras?: RentalExtras): Record<string, unknown> | undefined
 /** The `payment_method` object. Card only — ACH is not wired yet. */
 /**
  * NO STAND-IN CARD ANY MORE (2026-10-16). The hosted-fields path used to send
- * a fixed test PAN (4111…) and test expiry beside the real token, because the
- * lease charge once rejected anything that was not a chargeable number. That
- * is gone at TenantInc's instruction: in hosted mode the card goes over as
- * its single-use `token` plus the gateway's MASK as `card_number` — digits
- * the page never had are never invented — and no expiry at all, since the
- * iframe holds it. The typed-card path (non-hosted gateways) is unchanged.
+ * a fixed test PAN (4111…) and test expiry beside the real token. At
+ * TenantInc's instruction it now goes over as `type: 'hosted-card'`: the
+ * single-use `token`, the gateway's MASK as `card_number`, and the REAL
+ * expiry and CVV — both typed into fields of ours, since the gateway's token
+ * reply carries neither and the API requires exp_mo / exp_yr (the live
+ * finalize rejected their absence, 2026-10-16). The typed-card path
+ * (non-hosted gateways) is unchanged: `type: 'card'` with the real digits.
  */
 function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<string, unknown> {
   const parts = card.nameOnCard.trim().split(/\s+/);
@@ -2142,13 +2143,14 @@ function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<strin
   const hosted = !typed;
   const number = hosted ? (card.maskedCardNumber ?? '') : typed;
   const body: Record<string, unknown> = {
-    type: 'card',
+    type: hosted ? 'hosted-card' : 'card',
     card_number: number,
     // The shopper's real CVV either way — hosted fields never capture it, so
-    // it is still typed into a field of ours.
+    // it is typed into a field of ours.
     cvv2: card.cvv,
-    // Expiry only when WE collected it; the hosted iframe keeps its own.
-    ...(hosted ? {} : { exp_mo: card.expMonth, exp_yr: card.expYear }),
+    // The real expiry, typed into our own cell in both modes.
+    exp_mo: card.expMonth,
+    exp_yr: card.expYear,
     name_on_card: card.nameOnCard,
     first: parts[0] ?? '',
     last: parts.slice(1).join(' ') || (parts[0] ?? ''),

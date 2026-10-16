@@ -535,3 +535,24 @@ X-Duda-Site-Id: {siteId}
 - Only what was filled travels. `npm run test:contact-patch` pins the body.
 - **Not yet live (2026-10-15):** the proxy answers `route_not_found` for this
   path, like the contacts PATCH.
+
+## Card payments: `hosted-card`, no stand-in number (changed 2026-10-16)
+
+On a hosted-fields gateway (`tenant_payments`) the card used to go over as
+`type: "card"` with a FIXED test PAN (4111…) and test expiry beside the real
+token. Gone, at TenantInc's instruction. The payment_method is now:
+
+```
+{ "type": "hosted-card", "token": "supt_…", "card_number": "411111******1111",
+  "exp_mo": "12", "exp_yr": "2028", "cvv2": "…", "name_on_card", "first", "last",
+  "zip", "card_type", "save_to_account", "auto_charge" }
+```
+
+- `token` and `card_number` (the gateway's mask) come from Global Payments'
+  token reply. That reply carries NO expiry and no CVV (sandbox tokenizer
+  checked 2026-10-16: with or without an expiry it answers only
+  `{ token_value, card.number }`), and the API requires `exp_mo` / `exp_yr`
+  (finalize rejected their absence) — so the expiry is now typed into a cell
+  of ours, like the CVV always was. The gateway's expiry frame is no longer
+  mounted; the gateway tokenizes from the number alone.
+- Non-hosted gateways are unchanged: `type: "card"` with the real digits.
