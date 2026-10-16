@@ -491,9 +491,11 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
 
 /** What the rental APIs need from this form. `expiry` is split for them. */
 export interface CardFormValue {
-  /** Empty in hosted-fields mode — GP's iframe never gives us the digits.
-   *  cardPaymentMethod() substitutes the static test PAN in that case. */
+  /** Empty in hosted-fields mode — GP's iframe never gives us the digits;
+   *  the payment then goes over as `hosted-card` with the token. */
   cardNumber: string;
+  /** Typed into a field of ours in BOTH modes — the gateway's token reply
+   *  carries no expiry, and the API requires one (exp_mo / exp_yr). */
   expMonth: string;
   expYear: string;
   cvv: string;
@@ -665,14 +667,13 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
   /* The row is one bordered box holding three inputs, so it turns green as a
      unit rather than per-input — there is only one border to turn. */
   const cardRowValid = hosted
-    /* All THREE, not the CVV alone. GP reports each frame's validity on every
-       keystroke, so the number and the expiry are knowable — reading only the
-       CVV turned the row green, and its tick on, beside an empty expiry. */
-    ? gpValid.number && gpValid.expiry && validCvv('', cvv)
+    /* All THREE, not the CVV alone. GP reports the number frame's validity on
+       every keystroke; the expiry and CVV are ours in both modes now. */
+    ? gpValid.number && validExpiry(expiry) && validCvv('', cvv)
     : validCard(number) && validExpiry(expiry) && validCvv(number, cvv);
-  // GP's frame reports its own expiry problems; ours would be judging a field
-  // it cannot see.
-  const expError = hosted ? '' : expiryError(expiry);
+  // The expiry is typed into our own field in both modes (GP's token reply
+  // carries none and the API requires it), so it is judged the same way.
+  const expError = expiryError(expiry);
   const [payAttempted, setPayAttempted] = useState(false);
 
   /* The row is one box with three inputs, so it cannot ring the offending cell
@@ -704,7 +705,11 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
          attempt (see the handler below). The plain cells keep the blur rule:
          :placeholder-shown lets us see whether they hold anything. */
       if (payAttempted && !gpValid.number) return 'Enter a complete card number';
-      if (payAttempted && !gpValid.expiry) return 'Enter the expiry date as MM / YY';
+      // The expiry is OUR cell here too — same rules as the plain row.
+      if (expError) return expError;
+      if ((payAttempted || (touched.expiry && digits(expiry).length > 0)) && !validExpiry(expiry)) {
+        return 'Enter the expiry date as MM / YY';
+      }
     } else {
       const n = digits(number);
       if ((payAttempted || (touched.number && n.length > 0)) && !validCard(number)) {
@@ -851,9 +856,10 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
     const [mm, yy] = digits(expiry).match(/.{1,2}/g) ?? ['', ''];
     return {
       cardNumber: hosted ? '' : digits(number),
-      expMonth: hosted ? '' : mm,
+      // Ours in both modes — see CardFormValue.expMonth.
+      expMonth: mm,
       // The row takes MM/YY; the API wants a full year.
-      expYear: hosted ? '' : (yy.length === 2 ? `20${yy}` : yy),
+      expYear: yy.length === 2 ? `20${yy}` : yy,
       cvv,
       token: tok?.token,
       maskedCardNumber: tok?.masked,
@@ -893,7 +899,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
     void mountHostedCard({
       publicKey: gpPublicKey,
       numberTarget: `#${numId}`,
-      expiryTarget: `#${expId}`,
+      // No expiry frame: the expiry is typed into our own cell (see the row).
       submitTarget: `#${subId}`,
       onReady: () => { if (!dead) setGpReady(true); },
       onToken: (t) => onTokenRef.current(t),
@@ -959,7 +965,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
         if (valid && !wasValid) {
           window.setTimeout(() => {
             if (dead) return;
-            if (field === 'number') hostedRef.current?.focusField('expiry');
+            if (field === 'number') expiryRef.current?.focus();
             else cvvRef.current?.focus();
           }, 0);
         }
@@ -1032,23 +1038,23 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
             and there is a band of widths where CVV sits alone under a row that
             still has expiry on it. */}
         <span className="rf-cardrow-short">
-          <span className={`rf-cardcell rf-cardcell--exp${hosted ? ' rf-cardcell--exp-wide' : ''}`}>
-            <span id={expId} className={`rf-gpfield${hosted === false ? ' rf-gpfield--off' : ''}`} />
-            {hosted === false && (
-              <input
-                className="rf-cardrow-input"
-                ref={expiryRef}
-                value={expiry}
-                onChange={(e) => onExpiry(e.target.value)}
-                onBlur={() => markTouched('expiry')}
-                onKeyDown={backspaceInto(numberRef)}
-                placeholder=" "
-                inputMode="numeric"
-                autoComplete="cc-exp"
-                aria-label="Card expiry, MM / YY (required)"
-              />
-            )}
-            {hosted === false && <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>}
+          {/* OUR cell in both modes (2026-10-16): the gateway's token reply
+              carries no expiry and the API requires exp_mo / exp_yr, so the
+              frame that used to sit here is gone and the shopper types it. */}
+          <span className="rf-cardcell rf-cardcell--exp">
+            <input
+              className="rf-cardrow-input"
+              ref={expiryRef}
+              value={expiry}
+              onChange={(e) => onExpiry(e.target.value)}
+              onBlur={() => markTouched('expiry')}
+              onKeyDown={hosted ? backspaceIntoFrame('number') : backspaceInto(numberRef)}
+              placeholder=" "
+              inputMode="numeric"
+              autoComplete="cc-exp"
+              aria-label="Card expiry, MM / YY (required)"
+            />
+            <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>
           </span>
 
           <span className="rf-cardcell rf-cardcell--cvv">
@@ -1066,7 +1072,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
                  in BOTH modes now. Hosted used to stop here on the grounds that
                  GP's frame "cannot be focused from here" — it can, through
                  set-focus; see HostedCardHandle.focusField. */
-              onKeyDown={hosted ? backspaceIntoFrame('expiry') : backspaceInto(expiryRef)}
+              onKeyDown={backspaceInto(expiryRef)}
               placeholder=" "
               inputMode="numeric"
               autoComplete="cc-csc"
