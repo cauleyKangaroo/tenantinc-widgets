@@ -2911,6 +2911,18 @@
 .rfm-bar-title { font-size: 18px; font-weight: 600; line-height: 18px; color: #101318; }
 .rfm-bar-total { font-size: 18px; font-weight: 600; color: #101318; white-space: nowrap; }
 .rfm-bar-hold { font-size: 16px; line-height: 28px; color: #101318; }
+/* The mobile cost bar ("Total Cost to Move-In:" / "Holding Space for 14:59")
+   in Montserrat whatever the Duda theme says. The bar asks for it, but its
+   text sits in <span>s and a <b> (and the desktop header's hold line is a
+   <p>), which themes style from id-scoped selectors — and a rule aimed at the
+   element always beats an inherited font. !important is how .rf-eyebrow /
+   .rf-heading win the same fight. */
+.rfm-bar,
+.rfm-bar *,
+.rf-hdr-hold,
+.rf-hdr-hold b {
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+}
 /* ada/red, per the frame. No margin: the markup already has a word space
    before it, and the frame's 8px on top of that read as a gap rather than a
    space. tabular-nums so the digits do not jitter as it ticks. */
