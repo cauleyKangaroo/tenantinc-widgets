@@ -159,7 +159,7 @@ export function ChevronSolidIcon({ size = 14, className }: { size?: number; clas
  *
  * BOTH halves are the frame's own exported artwork: the four-colour G Mark and
  * Google's "Pay" wordmark. What this replaces drew an approximate G by hand and
- * set the word "Pay" in Montserrat 20/500 — the site's font, not Google's
+ * set the word "Pay" in Poppins 20/500 — the site's font, not Google's
  * lockup, which is the "pay wording is not correct" of the report and is also
  * outside Google's brand rules.
  *

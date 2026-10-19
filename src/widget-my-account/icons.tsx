@@ -214,6 +214,30 @@ export function PlusIcon({ className }: AssetIconProps) {
   );
 }
 
+/* Phone account menu rows (Pay Bill uses CreditCardIcon above). Inline, like
+   the stepper glyphs: 2px #111 strokes on a 24px frame, matching the exported
+   credit card beside them. */
+/** A space's Account Info — lines in a rounded square. */
+export function AccountInfoIcon({ className }: AssetIconProps) {
+  return (
+    <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none"
+      stroke="#111111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="6" />
+      <path d="M8 9h8M8 12h8M8 15h5" />
+    </svg>
+  );
+}
+
+/** Logout — an arrow leaving a door frame. */
+export function LogoutIcon({ className }: AssetIconProps) {
+  return (
+    <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none"
+      stroke="#111111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 4h3a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-3M15 12H4M8 8l-4 4 4 4" />
+    </svg>
+  );
+}
+
 /** The phone account-menu trigger — three right-aligned bars (Figma "Group 2934"). */
 export function SubmenuIcon({ className }: AssetIconProps) {
   return (

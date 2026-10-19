@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import type { DudaInitParams } from './types';
 // Every widget mounts through here, so every bundle carries the metric-matched
-// Montserrat fallback its font stacks name (see fontFallback.css).
+// Poppins fallback its font stacks name (see fontFallback.css).
 import './fontFallback.css';
 
 /**

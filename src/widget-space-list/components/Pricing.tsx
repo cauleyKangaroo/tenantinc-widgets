@@ -275,8 +275,11 @@ export function JunkFeeDisclaimer({ config }: { config: WidgetConfig }) {
  * page. `colClass` is the per-layout column, which each caller used to wrap
  * this in.
  */
-export function CtaButton({ unit, config, full, colClass }: {
+export function CtaButton({ unit, config, full, colClass, aside }: {
   unit: Unit; config: WidgetConfig; full?: boolean; colClass: string;
+  /** Rendered on the note's line, to its left, when it fits — and on a line
+   *  of its own below when it does not. The grid card's price small print. */
+  aside?: React.ReactNode;
 }) {
   const fullClass = full ? ' sl-select-full' : '';
 
@@ -477,6 +480,10 @@ export function CtaButton({ unit, config, full, colClass }: {
     return `${config.valueTiersPageUrl}?${p.toString()}`;
   })();
 
+  const noteEl = tiersError
+    ? <div className="sl-limited-label" role="alert">Pricing is temporarily unavailable — please try again.</div>
+    : note ? <div className="sl-limited-label">{note}</div> : null;
+
   return (
     <>
       <div className={colClass}>
@@ -515,10 +522,15 @@ export function CtaButton({ unit, config, full, colClass }: {
       )}
       </div>
       {/* Outside the column, so it measures against the ROW. Both messages keep
-          the one slot they have always shared. */}
-      {tiersError
-        ? <div className="sl-limited-label" role="alert">Pricing is temporarily unavailable — please try again.</div>
-        : note && <div className="sl-limited-label">{note}</div>}
+          the one slot they have always shared. With an `aside` (the grid
+          card's price small print) the two share a row instead — see
+          .sl-note-row. */}
+      {aside ? (
+        <div className="sl-note-row">
+          {noteEl}
+          {aside}
+        </div>
+      ) : noteEl}
       {/* Portalled to <body>, so where it sits in this tree does not matter.
           Filed against the page's own property and company, as Select is. */}
       {waitlistCta && (

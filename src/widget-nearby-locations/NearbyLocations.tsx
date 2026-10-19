@@ -1095,6 +1095,24 @@ export function NearbyLocations({
   const reduceMotion = usePrefersReducedMotion();
   const safePage = deskCar.index;
   const mobileIdx = mobileCar.index;
+
+  /* MOBILE MAP VIEW MATCHES THE CARD'S HEIGHT — the same approach as #05's
+     nearby accordion (NearbySection): measured, not guessed, because a card's
+     height depends on how many unit rows and promos its facility has. Read
+     from the card on screen while List View shows and has settled, and
+     re-read when the card or the data changes, so the figure is current
+     before Map View is opened. A number rather than '100%' for the same
+     reason as there: NearbyMap takes it as an explicit height. Never
+     measured ⇒ undefined, and the map keeps its own default as before. */
+  const [mobileCardHeight, setMobileCardHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (mobileView !== 'list' || loading) return;
+    const col = mobileTrackRef.current?.children[mobileIdx] as HTMLElement | undefined;
+    if (col) setMobileCardHeight(col.offsetHeight);
+  }, [mobileView, loading, mobileIdx, properties]);
+  /* 280, the accordion's floor, so a measurement taken mid-layout can never
+     open a sliver of a map. */
+  const mobileMapHeight = mobileCardHeight != null ? Math.max(mobileCardHeight, 280) : undefined;
   /* Pulled out so the reset effect can depend on THESE rather than on the two
      carousel objects, which are new every render and would re-run it — and
      re-running it refetches. Both are useCallback'd inside the hook. */
@@ -1478,6 +1496,7 @@ export function NearbyLocations({
           <NearbyMap
             center={mapCenter}
             points={mapPoints}
+            height={mobileMapHeight}
             className="nl-map"
             /* Draggable and zoomable; the pins reproject against the live map.
                With no Maps key this is the frozen embed exactly as before. */

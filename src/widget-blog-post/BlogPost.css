@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 /* ===========================================================================
    Widget #16 — Blog Post
@@ -14,7 +14,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────────── */
 
 .bpp-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   width: 100%;
   max-width: 1330px;
   margin: 0 auto;
@@ -172,7 +172,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   color: #101318;

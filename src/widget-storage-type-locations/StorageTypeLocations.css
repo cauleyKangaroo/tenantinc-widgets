@@ -2,7 +2,7 @@
   /* Fixed to the facility-page Figma; Duda theme typography must not alter it. */
   --stl-text: #000000;
   --stl-link: #306fb6;
-  font-family: 'Montserrat', 'Montserrat Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   width: 100%;
   box-sizing: border-box;
   color: var(--stl-text);
