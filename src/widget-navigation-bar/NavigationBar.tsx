@@ -318,6 +318,11 @@ export interface NavigationBarProps extends ApiCredProps {
   /** Property whose phone number is pulled from the `Properties` collection.
    *  The `phone` prop/default remains the fallback. */
   propertyId?: string;
+  /** Duda's data.siteId — feeds the Find Storage menu's live ratings. */
+  siteId?: string;
+  /** The proxy base (the site's `login_api_base`) that answers the reviews
+   *  route the Find Storage menu's ratings come from. */
+  login_api_base?: string;
   /** Colour of the raised logo tile. Default storelocal green. */
   logoBg?: string;
   /** Primary-bar height. 'narrow' = 100px, 'wide' = 180px. Default 'narrow'. */
@@ -421,6 +426,8 @@ export function NavigationBar({
   api_domain,
   app_id,
   api_key,
+  siteId,
+  login_api_base,
 }: NavigationBarProps) {
   // REST creds for the Email circle's "Send us a Message" modal, as #03 does.
   useMemo(
@@ -953,7 +960,13 @@ export function NavigationBar({
           `tenantinc:find-storage:*` window events even when the in-bar Find
           Storage link is the hover cascade ('dropdown' mode). Below 1024px this
           panel is display:none and those events open the drawer instead. */}
-      <FindStorageMegaMenu open={megaOpen} onClose={() => setMegaOpen(false)} tree={megaTree} />
+      <FindStorageMegaMenu
+        open={megaOpen}
+        onClose={() => setMegaOpen(false)}
+        tree={megaTree}
+        siteId={siteId}
+        reviewsBase={(login_api_base ?? '').trim()}
+      />
 
       {/* Raised logo tile — absolutely positioned so it spans both bars and
           protrudes below. Space is reserved via padding-left on the bar inners
