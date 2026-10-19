@@ -19,7 +19,7 @@ import {
   LightboxChevron,
 } from './icons';
 import { MessageModal } from '@shared/components/MessageModal';
-import { CloseCircleIcon } from '@shared/ui/icons';
+import { AlertIcon, CloseCircleIcon } from '@shared/ui/icons';
 import { InteractiveMap } from '@shared/InteractiveMap';
 // boundText: a Duda content field can arrive as an unsubstituted {{handlebars}}
 // token, which would be sent to Google as a key and rejected.
@@ -1223,7 +1223,10 @@ export function PropertyInfo(props: Props) {
                   {reservationBusy ? 'Finding…' : 'Go'}
                 </button>
                 {reservationError && (
-                  <p id="pi-res-error" className="pi-res-error" role="alert">{reservationError}</p>
+                  <div id="pi-res-error" className="pi-res-error" role="alert">
+                    <AlertIcon size={24} className="pi-res-error-ico" />
+                    <span>{reservationError}</span>
+                  </div>
                 )}
               </form>
             ) : (

@@ -1087,7 +1087,11 @@ export function NearbyLocations({
      so the card did not move under the finger — it jumped after the fact.
      useCarousel follows the drag and snaps on release, the same hook and feel
      #05's nearby section and the blog listing use. */
-  const mobileCar = useCarousel({ count: properties.length, perView: 1, draggable: true });
+  /* Smooth mode (trackRef): the drag is written straight to the track as
+     --carousel-drag rather than re-rendering every card on each touchmove,
+     and a quick flick advances. */
+  const mobileTrackRef = useRef<HTMLDivElement>(null);
+  const mobileCar = useCarousel({ count: properties.length, perView: 1, draggable: true, trackRef: mobileTrackRef });
   const reduceMotion = usePrefersReducedMotion();
   const safePage = deskCar.index;
   const mobileIdx = mobileCar.index;
@@ -1422,13 +1426,18 @@ export function NearbyLocations({
                     {...mobileCar.handlers}
                   >
                     <div
+                      ref={mobileTrackRef}
                       className="nl-track"
                       style={{
-                        transform: `translateX(calc(${(mobileCar.offsetPct / 100).toFixed(6)} * var(--nl-step)))`,
+                        transform: `translateX(calc((${(mobileCar.offsetPct / 100).toFixed(6)} + var(--carousel-drag, 0)) * var(--nl-step)))`,
+                        /* The settle after a swipe: ease-out-quart — leaves at
+                           the finger's speed and glides into place, like a
+                           native scroll, rather than braking late. Mobile only;
+                           the desktop arrows keep their own curve. */
                         transition:
                           reduceMotion || mobileCar.dragging
                             ? 'none'
-                            : 'transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)',
+                            : 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
                       }}
                     >
                       {properties.map((property, i) => (

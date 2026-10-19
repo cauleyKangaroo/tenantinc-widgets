@@ -90,6 +90,19 @@ export function InfoNoticeIcon({ className }: AssetIconProps) {
   return <img src={infoNoticeAsset} alt="" width={24} height={24} className={className} aria-hidden="true" />;
 }
 
+/** InfoNoticeIcon's own path (assets/info-notice.svg), drawn in currentColor
+ *  instead of the asset's fixed blue — for places that colour it in CSS. */
+export function InfoNoticeCurrentIcon({ className }: AssetIconProps) {
+  return (
+    <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM13 17H11V11H13V17ZM13 9H11V7H13V9Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 /**
  * Solid rounded triangle — the Payment Activity disclosure on MOBILE (the
  * phone frame draws a filled ▼, not the desktop's outline chevron). Same

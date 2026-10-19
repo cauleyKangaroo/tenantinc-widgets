@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button } from '@shared/ui';
+import { AlertIcon, Button } from '@shared/ui';
 import {
   KeyIcon, MessageIcon, TickCircleIcon, WriteReviewIcon,
   MapPinGlyph, PhoneGlyph, CalendarGlyph, ClockGlyph,
@@ -312,12 +312,15 @@ export function Confirmation({
           <h2 className="rf-heading">We couldn&rsquo;t complete your {kind}</h2>
         </div>
         <div className="rfc-error-panel">
+          <AlertIcon size={24} className="rfc-error-ico" />
+          <div className="rfc-error-text">
           <p className="rfc-error-msg">{errorMessage}</p>
           <p className="rfc-error-sub">
             Your card was not charged. You can try again{facilityPhone ? (
               <>, or call the facility at <a href={`tel:${facilityPhone.replace(/\D/g, '')}`}>{facilityPhone}</a> and we&rsquo;ll finish it together</>
             ) : ''}.
           </p>
+          </div>
         </div>
         {onRetry && <Button tone="cta" className="rfc-retry" onClick={onRetry}>Try again</Button>}
       </div>

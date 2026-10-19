@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Checkbox } from '@shared/ui/Checkbox';
 import { FormField, type FieldType } from '@shared/ui/FormField';
 import { isPossiblePhone } from '@shared/ui/phone';
-import { CloseCircleIcon } from '@shared/ui/icons';
+import { AlertIcon, CloseCircleIcon } from '@shared/ui/icons';
 import type { LeadInput } from '@shared/leadsApi';
 import './MessageModal.css';
 
@@ -405,7 +405,12 @@ export function MessageModal({
           <a className="pi-msg-terms" href={termsHref}>Click to see our Terms and Privacy Policy</a>
 
           {/* Only a SEND failure lands here now; field faults sit at their fields. */}
-          {error && <p className="pi-msg-error" role="alert">{error}</p>}
+          {error && (
+            <div className="pi-msg-error" role="alert">
+              <AlertIcon size={24} className="pi-msg-error-ico" />
+              <span>{error}</span>
+            </div>
+          )}
 
           <div className="pi-msg-actions">
             {/* reCAPTCHA — switched off (2026-10-15): there is no verification

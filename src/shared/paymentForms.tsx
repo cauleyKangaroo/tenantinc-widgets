@@ -33,6 +33,7 @@ import {
   COUNTRY_OPTIONS, placesCountryFor, postalCodeOk, postalLabel, regionLabel,
 } from '@shared/addressCountry';
 import { mountHostedCard, type HostedCardHandle } from '@shared/gpHostedFields';
+import { useMediaQuery } from '@shared/stickyStack';
 import './paymentForms.css';
 import { skipValidation } from '@shared/devBypass';
 
@@ -510,7 +511,7 @@ export interface CardFormValue {
   zip: string;
 }
 
-export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipOnlyBilling, defaultCountry = '', payLabel }: {
+export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipOnlyBilling, defaultCountry = '', payLabel, floatHostedNumberLabel = false }: {
   total: number;
   /** Overrides "Pay Now $X" — the always-on autopay frame reads
    *  "Agree & Pay $X", because that button is where the recurring
@@ -548,6 +549,18 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
   zipOnlyBilling?: boolean;
   /** Country the billing select opens on — see `BillingCountry`. */
   defaultCountry?: BillingCountry;
+  /**
+   * OPT-IN (the rental flow): on a phone (≤640px, where each cell is its own
+   * 56px box) the HOSTED Card Number gets a floating label like the other
+   * fields, instead of the frame's own placeholder. The frame's placeholder is
+   * blanked on the live frame (no remount), the frame is stretched over its
+   * whole box (tap target), our label rises on focus and stays up once
+   * anything has been typed (GP's card-number-test fires on `input` only). GP
+   * never reports emptiness, so a number typed and then fully deleted keeps the
+   * label up. Above 640px the frame's placeholder is restored and nothing
+   * changes.
+   */
+  floatHostedNumberLabel?: boolean;
 }) {
   const [number, setNumber] = useState('');
   const [expiry, setExpiry] = useState('');
@@ -659,6 +672,48 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
      card row reaches it. */
   const hostedRef = useRef<HostedCardHandle | null>(null);
 
+  /* Floating label for the HOSTED number (opt-in, phones only — see the
+     floatHostedNumberLabel prop). `numberTyped` latches on the first
+     card-number-test, which GP fires on `input` alone. */
+  const isPhone = useMediaQuery('(max-width: 640px)');
+  const floatNumber = floatHostedNumberLabel && isPhone && hosted === true;
+  const [numberTyped, setNumberTyped] = useState(false);
+  /* Focus INSIDE the cross-origin frame. :focus-within on the cell catches it
+     in desktop Chrome but not in mobile Safari, and GP posts no focus event —
+     so it is read from this side: entering the frame blurs this window and
+     makes the iframe document.activeElement; coming back fires focus/focusin. */
+  const [numberFocused, setNumberFocused] = useState(false);
+  useEffect(() => {
+    if (!floatNumber) { setNumberFocused(false); return undefined; }
+    const frame = () => document.getElementById(numId)?.querySelector('iframe') ?? null;
+    const check = () => {
+      const f = frame();
+      setNumberFocused(!!f && document.activeElement === f);
+    };
+    // activeElement settles a tick after the window blur.
+    const onBlur = () => { window.setTimeout(check, 0); };
+    const onBack = () => setNumberFocused(false);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('focus', onBack);
+    document.addEventListener('focusin', onBack);
+    return () => {
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('focus', onBack);
+      document.removeEventListener('focusin', onBack);
+    };
+  }, [floatNumber, numId]);
+  // The frame's own placeholder steps aside while our label is showing, and
+  // comes back above 640px — on the live frame, so typed digits survive.
+  useEffect(() => {
+    if (hosted !== true || !gpReady || !floatHostedNumberLabel) return;
+    hostedRef.current?.setNumberPlaceholder(floatNumber ? '' : 'Card Number');
+    // Our label cannot be tied to an input inside another origin's frame, and
+    // GP gives its iframe no accessible name, so name the iframe itself — a
+    // screen reader announces it on entering — while the placeholder is blank.
+    const frame = document.getElementById(numId)?.querySelector('iframe');
+    if (frame && floatNumber) frame.setAttribute('title', 'Card Number');
+  }, [hosted, gpReady, floatHostedNumberLabel, floatNumber, numId]);
+
   /* Validity as a REF as well as state. The auto-advance needs to know whether
      this event is the TRANSITION to valid, and reading that from the state
      updater meant doing the focus inside it — see the advance below. */
@@ -671,6 +726,11 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
        every keystroke; the expiry and CVV are ours in both modes now. */
     ? gpValid.number && validExpiry(expiry) && validCvv('', cvv)
     : validCard(number) && validExpiry(expiry) && validCvv(number, cvv);
+  /* Each half on its own, for MOBILE (rental flow), where the number and the
+     MM / YY + CVV pair are two separate boxes and each validates by itself.
+     Desktop keeps the single row check above — one border, one tick. */
+  const numberValid = hosted ? gpValid.number : validCard(number);
+  const pairValid = validExpiry(expiry) && validCvv(hosted ? '' : number, cvv);
   // The expiry is typed into our own field in both modes (GP's token reply
   // carries none and the API requires it), so it is judged the same way.
   const expError = expiryError(expiry);
@@ -899,6 +959,9 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
     void mountHostedCard({
       publicKey: gpPublicKey,
       numberTarget: `#${numId}`,
+      // The floating-label layout stretches the number frame over its box on
+      // phones; harmless (identical) in a normal 20px frame.
+      tallNumberFrame: floatHostedNumberLabel,
       // No expiry frame: the expiry is typed into our own cell (see the row).
       submitTarget: `#${subId}`,
       onReady: () => { if (!dead) setGpReady(true); },
@@ -935,6 +998,9 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
            expose, and stranding the label over an empty field is the worse of
            the two. */
         if (dead) return;
+        // Card number: the event fires on `input` only, so its arrival means
+        // the shopper has typed into it (the floating label's "has a value").
+        if (field === 'number') setNumberTyped(true);
         /* Whether the frame validates, and nothing more. Its arrival proves
            nothing about content: GP binds this to focus and blur as well as to
            typing. */
@@ -997,7 +1063,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
         would mean fighting its internals. Same tokens, so it sits flush with the
         real form fields above and below it.
       */}
-      <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${cardCellError ? ' rf-cardrow--error' : ''}${hosted !== false && !gpReady ? ' rf-cardrow--loading' : ''}`}>
+      <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${numberValid ? ' rf-cardrow--number-valid' : ''}${pairValid ? ' rf-cardrow--pair-valid' : ''}${cardCellError ? ' rf-cardrow--error' : ''}${hosted !== false && !gpReady ? ' rf-cardrow--loading' : ''}`}>
         <CreditCardIcon size={24} className="rf-cardrow-ico" />
 
         {/*
@@ -1008,7 +1074,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
           so that pseudo-class is reliable. Exactly the kit's mechanism; see
           FormField.css.
         */}
-        <span className="rf-cardcell rf-cardcell--number">
+        <span className={`rf-cardcell rf-cardcell--number${floatNumber ? ' rf-cardcell--float' : ''}${floatNumber && numberTyped ? ' rf-cardcell--typed' : ''}${floatNumber && numberFocused ? ' rf-cardcell--focused' : ''}`}>
           {/* Both are always in the DOM: GP resolves its targets by selector,
               so the container must exist before the frames are mounted. Only
               one is ever visible. */}
@@ -1031,6 +1097,13 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
               is emptied — a second label drawn from here would sit on top of
               it and could not know when to leave. */}
           {hosted === false && <label className="rf-cardcell-label">Card Number<span className="rf-req">*</span></label>}
+          {/* The hosted cell's floating label (phones, opt-in): drawn here only
+              while the frame's own placeholder is blanked — see floatNumber. */}
+          {floatNumber && (
+            <span className="rf-cardcell-label rf-cardcell-label--hosted" aria-hidden="true">
+              Card Number<span className="rf-req">*</span>
+            </span>
+          )}
         </span>
 
         {/* Expiry and CVV are wrapped together so they move to a second line as
@@ -1080,6 +1153,14 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
             />
             <label className="rf-cardcell-label">CVV<span className="rf-req">*</span></label>
           </span>
+          {/* MOBILE ONLY (hidden in CSS above 640px): on a phone the pair is its
+              own bordered box, so it gets its own tick, shown when ITS two
+              fields are valid (pairValid) — the same condition as its green
+              border. Always rendered, visibility only, so nothing shifts. */}
+          <CheckIcon
+            className={`rf-cardpair-tick${pairValid ? '' : ' rf-cardpair-tick--pending'}`}
+            aria-hidden="true"
+          />
         </span>
 
         {/* One tick for the row, not three: the three inputs share a single

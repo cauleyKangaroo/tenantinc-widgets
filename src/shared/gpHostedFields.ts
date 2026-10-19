@@ -40,6 +40,9 @@ interface IframeFieldLike {
    *  `el.focus()` on its own input. The ONLY way to move the caret into a
    *  hosted field — it is cross-origin, so nothing else reaches it. */
   setFocus(): void;
+  /** Posts `ui:iframe-field:set-placeholder` — changes the live frame's
+   *  placeholder (gp-1.0.0, IframeField.prototype.setPlaceholder). */
+  setPlaceholder(placeholder: string): void;
 }
 
 interface UIFormLike {
@@ -109,6 +112,15 @@ export interface MountHostedCardOptions {
   onError(message: string): void;
   /** All frames have registered; the caller can stop showing a placeholder. */
   onReady(): void;
+  /**
+   * Let the number frame be TALLER than one line (the caller's floating-label
+   * layout stretches it over the whole field box so a tap anywhere in the box
+   * lands in it). The input fills the frame (100vh, which inside an iframe is
+   * the iframe's own height) and pads its text down to the value line. In a
+   * normal 20px frame both resolve to exactly what they were: 20px tall, no
+   * padding — so where the frame is not stretched nothing changes.
+   */
+  tallNumberFrame?: boolean;
   /**
    * A hosted field has been typed in, and whether what is in it now validates.
    *
@@ -261,6 +273,28 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
   },
 };
 
+/*
+ * FIELD_STYLES for a number frame that may be stretched over its whole field
+ * box (MountHostedCardOptions.tallNumberFrame). Only the input's height and top
+ * padding differ, and both are written so a normal 20px frame is unchanged:
+ *   height: 100vh       — inside an iframe, the iframe's own height: 20px in
+ *                         a 20px frame (as before), the full box when tall;
+ *   padding-top: clamp(0px, 100vh - 20px, 15px)
+ *                       — 0 in a 20px frame; 15px in any full field box
+ *                         (54px on a phone, 56px in the desktop row). With
+ *                         border-box and the 20px line centred in what is
+ *                         left, 15px puts the digits 7.5px below centre —
+ *                         exactly where FormField's value line sits.
+ */
+const TALL_FIELD_STYLES: typeof FIELD_STYLES = {
+  ...FIELD_STYLES,
+  '#secure-payment-field': {
+    ...(FIELD_STYLES['#secure-payment-field'] as Record<string, string>),
+    height: '100vh',
+    'padding-top': 'clamp(0px, calc(100vh - 20px), 15px)',
+  },
+};
+
 export interface HostedCardHandle {
   dispose(): void;
   /**
@@ -272,6 +306,12 @@ export interface HostedCardHandle {
    * the middle of someone typing.
    */
   focusField(field: 'number' | 'expiry'): void;
+  /**
+   * Change the card-number frame's placeholder on the live frame (GP's
+   * IframeField.setPlaceholder posts `set-placeholder`) — no remount, so a
+   * typed number survives. '' when the parent draws its own floating label.
+   */
+  setNumberPlaceholder(text: string): void;
 }
 
 /**
@@ -307,7 +347,7 @@ export async function mountHostedCard(
         // has to exist even though ours is the one the shopper sees.
         submit: { target: opts.submitTarget, value: 'Pay' },
       },
-      styles: FIELD_STYLES,
+      styles: opts.tallNumberFrame ? TALL_FIELD_STYLES : FIELD_STYLES,
     });
 
     form.ready(() => opts.onReady());
@@ -383,6 +423,9 @@ export async function mountHostedCard(
         if (field === 'expiry' && !opts.expiryTarget) return;
         const name = field === 'number' ? 'card-number' : 'card-expiration';
         try { form.frames?.[name]?.setFocus(); } catch { /* frame gone */ }
+      },
+      setNumberPlaceholder: (text) => {
+        try { form.frames?.['card-number']?.setPlaceholder(text); } catch { /* frame gone */ }
       },
     };
   } catch (err) {

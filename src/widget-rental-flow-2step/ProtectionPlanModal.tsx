@@ -21,7 +21,7 @@ import { FireGlyph, DropGlyph, EyeGlyph, WindGlyph, SnowGlyph, DownloadIcon } fr
 
 /** The covered causes, in the design's order. */
 const COVERAGE: { icon: React.ReactNode; text: string }[] = [
-  { icon: <FireGlyph />, text: 'Fire or Lightening, Explosion' },
+  { icon: <FireGlyph />, text: 'Fire or Lightning, Explosion' },
   { icon: <DropGlyph />, text: 'Smoke or Water Damage; No Flooding' },
   { icon: <EyeGlyph />, text: 'Vandalism, Malicious Mischief or Burglary' },
   { icon: <WindGlyph />, text: 'Windstorm or Hail' },

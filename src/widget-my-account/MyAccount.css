@@ -408,10 +408,13 @@
   background: rgba(80, 158, 47, 0.11);
 }
 
+/* As the site's error tag: #f3e7e9, 12 / 39 / 12 / 15, 10px icon gap, 10px
+   radius, the alert mark beside the title and its sub-line. */
 .ma-result--failed {
-  padding: 41px 43px 42px 107px;
-  background: rgba(211, 47, 47, 0.1);
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
 }
+.ma-result__alert { flex: 0 0 auto; color: #d32f2f; }
+.ma-result__failed-text { min-width: 0; }
 
 .ma-result__top {
   display: grid;
@@ -492,7 +495,6 @@
   .ma-pay--result { padding-top: 25px; }
   .ma-result { margin-bottom: 28px; }
   .ma-result--success { padding: 20px 16px; }
-  .ma-result--failed { padding: 20px 16px; }
   .ma-result__top { grid-template-columns: 40px 1fr; column-gap: 10px; }
   .ma-result__tick { width: 40px; height: 40px; }
   .ma-result__text { padding-top: 4px; }
@@ -584,7 +586,10 @@
 /* Outcome of a coverage call: what is now scheduled, or why it was refused.
    The error colour is the kit's, so it reads like every other refusal. */
 .ma-coverage-note { margin: 6px 0 2px; font-size: 14px; line-height: 20px; color: var(--hb-grayscale-medium, #637381); }
-.ma-coverage-note--error { color: var(--hb-ada-red, #d32f2f); }
+.ma-coverage-note--error {
+  color: var(--hb-ada-red, #d32f2f);
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
+}
 
 .ma-coverage__price { flex: 0 0 63px; }
 
@@ -840,7 +845,6 @@
 .ma-methods .rf2-pay svg { flex: 0 0 auto; }
 .ma-methods .rf2-wallet--google { height: 64px; min-width: 0; }
 .ma-methods .rf2-wallet--google > * { width: 100%; height: 100%; }
-.ma-methods .rf2-wallet-with { font: 500 20px 'Montserrat', sans-serif; color: #fff; }
 .ma-methods .rf2-pay.rf2-wallet--apple { cursor: pointer !important; transition: background-color .15s ease; }
 .ma-methods .rf2-pay.rf2-wallet--apple,
 .ma-methods .rf2-pay.rf2-wallet--apple:focus { background: #000 !important; }
@@ -849,7 +853,14 @@
 .ma-methods .rf2-pay.rf2-wallet--apple:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
 .ma-methods > .rf2-wallet:first-child:not(:has(+ .rf2-wallet)):not(:has(~ .ma-method)) { grid-column: 1 / -1; }
 .ma-methods:empty { display: none; }
-.ma-pay__notice--error { color: var(--hb-ada-red, #d32f2f); }
+.ma-pay__notice.ma-pay__notice--error {
+  color: var(--hb-ada-red, #d32f2f);
+  /* The error tag; its 16px top clearance was the notice's own top padding. */
+  margin-top: 16px;
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
+}
+/* The 24px alert mark on every My Account error tag. */
+.ma-alert-ico { flex: 0 0 auto; color: var(--hb-ada-red, #d32f2f); }
 
 /* Apple's lockup is currentColor, so the dark tile's white carries it. */
 .ma-applepay {
@@ -1491,9 +1502,9 @@
   .ma-act__scroll { display: none; }
   .ma-actm { display: block; }
 
-  /* The phone frame draws Payment Activity flat on the page: no card fill,
-     no shadow. */
-  .ma-activity { background: none; box-shadow: none; }
+  /* White on the phone (it used to sit flat on the page's grey), still
+     without the desktop card's shadow. */
+  .ma-activity { background: #fff; box-shadow: none; border-radius: 12px; }
 
   /* Bar: the frame's filled ▼ in place of the outline chevron — down closed,
      up open. (Its 19/23 padding is in the main ≤720px block below.) */
@@ -1518,7 +1529,7 @@
     grid-template-columns: minmax(0, 1fr) auto 72px;
     column-gap: 12px;
     align-items: center;
-    padding: 0 12px 0 16px;
+    padding: 0 14px 0 16px;
   }
   .ma-actm__head > span:not(:first-child),
   .ma-actm__main > span:not(:first-child) { text-align: right; }
@@ -1534,15 +1545,21 @@
   }
 
   .ma-actm__list { margin: 0; padding: 0; list-style: none; }
+  /* Figma 13613-64465: every payment is WHITE, details included, divided by
+     a 1px #8E8E8F @ 15% rule. The header bar is the only grey. */
   .ma-actm__item {
+    box-sizing: border-box;
     min-height: 88px;
-    border-bottom: 1px solid rgba(16, 19, 24, 0.10);
+    border-bottom: 1px solid rgba(142, 142, 143, 0.15);
   }
 
+  /* The date line 10px from the top of the row, on a 1.2 leading. */
   .ma-actm__main {
-    min-height: 40px;
+    min-height: 36px;
+    padding-top: 10px;
+    align-items: start;
     font-size: 16px;
-    line-height: 1.5;
+    line-height: 1.2;
     color: var(--hb-text-night);
   }
   .ma-actm__amount { font-weight: 700; white-space: nowrap; }
@@ -1551,8 +1568,8 @@
   .ma-actm__details {
     display: flex;
     flex-direction: column;
-    padding: 9px 12px 9px 16px;
-    background: var(--ma-panel);
+    padding: 8px 14px 9px 16px;
+    background: none;
     font-size: 14px;
     line-height: 16.8px;
     color: var(--hb-grayscale-medium);
@@ -1813,6 +1830,7 @@
    stretching the row. */
 .ma-edit__error {
   margin: 0 auto 0 0;
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
   color: var(--hb-ada-red, #d32f2f);
   font-size: 14px;
   line-height: 1.4;
@@ -1936,8 +1954,13 @@
 
   .ma-methods { grid-template-columns: 1fr; }
 
-  .ma-activity__bar { padding: 19px 23px; }
-  .ma-activity__body { padding: 0 24px 20px; }
+  /* Figma 13613-64404: a 64px bar, the title 21px from the top and 23px in,
+     18px bold with 0.18px tracking. The desktop bar's 82px floor goes. */
+  .ma-activity__bar { padding: 20px 23px; min-height: 64px; }
+  .ma-activity__title { font-size: 18px; line-height: 22px; letter-spacing: 0.01em; color: #000; }
+  /* The header bar and the rows run the panel's full width (the frame's list
+     starts at the panel's left edge); only the foot keeps its padding. */
+  .ma-activity__body { padding: 0 0 20px; }
 
   .ma-unit__panel { gap: 8px; }
   .ma-unit__image { width: 120px; height: 88px; }
@@ -2056,6 +2079,14 @@
     border-radius: 0;
     box-shadow: none;
   }
+
+  /* The greeting sits on the same 26px left edge as everything in the panel
+     below it (the wrapper's 16 + 10), at the panel title's 24px. */
+  .ma-greeting { padding-left: 10px; font-size: 24px !important; }
+
+  /* No back arrow on a phone: the account menu beside the greeting already
+     offers Account Info. The title takes the arrow's place on the left edge. */
+  .ma-pay__back { display: none; }
 
   /* Autopay: the two actions drop BELOW the card details instead of sitting in
      a right-hand column, which at 340px would leave both halves too narrow. */
@@ -2213,19 +2244,36 @@
    the grid, so the desktop layout has no new item in it at all; it only
    exists at phone width. */
 .ma-submenu-btn { display: none; }
+/* Wrapper for the greeting and the icon. Not a box at all above 720px, so the
+   desktop grid is exactly as it was. */
+.ma-topbar { display: contents; }
 
 @media (max-width: 720px) {
-  .ma-grid { position: relative; }
-  /* Room for the icon, so a long name never runs under it. */
-  .ma-greeting { padding-right: 48px; }
+  /* The greeting row as a WHITE bar pinned to the top of the page while the
+     account scrolls under it. Full-bleed: the negative margins cancel the
+     wrapper's 24px top and 16px side padding, and the 16px side padding here
+     puts the greeting back where it was (its own 10px takes it to the 26px
+     edge everything below shares). */
+  .ma-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: -24px -16px 0;
+    padding: 14px 16px;
+    background: #fff;
+    box-shadow: 0 4px 10px rgba(71, 84, 116, 0.08);
+  }
+  .ma-topbar .ma-greeting { min-width: 0; }
   /* No "You're logged in as …" line on a phone. */
   .ma-logged-in { display: none; }
 
+  /* In the bar's flex row now, centred on the greeting by the bar itself. */
   .ma-submenu-btn {
-    position: absolute;
-    top: 0;
-    right: 0;
-    /* One greeting line tall (28px × 1.2), so the icon centres on it. */
+    flex: none;
     height: 34px;
     width: 40px;
     display: flex;
@@ -2316,7 +2364,7 @@
   font-weight: 700;
   color: #101318;
 }
-.ma-confirm__warn { width: 20px; height: 20px; flex: 0 0 auto; }
+.ma-confirm__warn { width: 20px; height: 20px; flex: 0 0 auto; color: var(--hb-text-night, #101318); }
 .ma-confirm__close {
   display: flex;
   padding: 4px;
@@ -2327,7 +2375,10 @@
 }
 .ma-confirm__body { padding: 20px; }
 .ma-confirm__lede { margin: 0 0 16px; font-size: 14px; line-height: 20px; color: #101318; }
-.ma-confirm__list { margin: 0; }
+/* Its own reset: the modal is portalled to <body>, outside .ma-wrapper, so the
+   page's `.ma-wrapper ul` reset never reaches it and the browser's 40px list
+   indent pushed the rows in from the sentence above. */
+.ma-confirm__list { margin: 0; padding: 0; list-style: none; }
 .ma-confirm__actions {
   display: flex;
   align-items: center;

@@ -266,6 +266,56 @@
    :placeholder-shown cannot see it and the parent is told from JS instead. */
 .rf-cardcell-label--gone { opacity: 0; }
 
+@media (max-width: 640px) {
+  /* ── Rental flow, MOBILE: the card cells FLOAT their label ───────────────────
+     Scoped to the rental flow (.rf-wrapper / CardForm's floatHostedNumberLabel):
+     My Account's Make a Payment uses this same form and keeps the hide-on-type
+     cells above. Same mechanism as FormField: the value sits on the lower line
+     (15px down) and, on focus or with a value, the label rises 18px at the label
+     size and stays. Phones only (≤640px), where each cell is its own 56px box;
+     desktop keeps the hide-on-type cells above.
+
+     Our own cells — MM / YY, CVV (and Card Number when it is not hosted). */
+  .rf-wrapper .rf-cardrow-input { margin-top: 15px; }
+  .rf-wrapper .rf-cardcell-label {
+    transition: transform var(--hb-transition, .15s ease), font-size var(--hb-transition, .15s ease);
+  }
+  .rf-wrapper .rf-cardrow-input:focus + .rf-cardcell-label,
+  .rf-wrapper .rf-cardrow-input:not(:placeholder-shown) + .rf-cardcell-label {
+    opacity: 1;
+    transform: translateY(-18px);
+    font-size: var(--hb-font-size-label, 12px);
+    line-height: var(--hb-line-height-label, 15px);
+  }
+
+  /* The hosted Card Number (Global Payments' iframe). Its own placeholder is
+     blanked while ours shows; the frame covers the WHOLE cell, so a tap anywhere
+     in it lands in the field, and pads its digits down to the value line inside
+     (TALL_FIELD_STYLES in gpHostedFields.ts). The label floats on focus —
+     :focus-within where the browser applies it to an iframe, and
+     .rf-cardcell--focused from CardForm where it does not (mobile Safari) — and
+     stays up once anything has been typed (.rf-cardcell--typed). */
+  .rf-cardcell--float .rf-gpfield {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: auto;
+    margin: 0;
+  }
+  .rf-cardcell--float .rf-cardcell-label--hosted {
+    transition: transform var(--hb-transition, .15s ease), font-size var(--hb-transition, .15s ease);
+  }
+  .rf-cardcell--float:focus-within .rf-cardcell-label--hosted,
+  .rf-cardcell--focused .rf-cardcell-label--hosted,
+  .rf-cardcell--typed .rf-cardcell-label--hosted {
+    transform: translateY(-18px);
+    font-size: var(--hb-font-size-label, 12px);
+    line-height: var(--hb-line-height-label, 15px);
+  }
+}
+
 /* Valid card row — one border, so it turns green as a unit (Figma 10080-28126). */
 .rf-cardrow--valid { border-color: var(--hb-field-border-success, #028a0c); }
 .rf-cardrow-tick { flex: 0 0 auto; align-self: center; color: var(--hb-ada-green, #028a0c); }
@@ -273,6 +323,9 @@
    shifts. It also drops the icon out of the accessibility tree, which display
    would too but width would not. */
 .rf-cardrow-tick--pending { visibility: hidden; }
+/* The MM / YY + CVV box's own tick exists for phones only (see the ≤640px
+   block); on desktop the three share one row and its single tick above. */
+.rf-cardpair-tick { display: none; }
 /* An expiry that is complete but unusable. */
 .rf-cardrow--error { border-color: var(--hb-field-border-error, #d32f2f); }
 /* ── Payment error banner (Figma 12029-93132) ─────────────────────────────
@@ -451,6 +504,16 @@
      1px border would poke out of it by a pixel each way. */
   .rf-cardrow-short .rf-cardcell { height: 100%; }
 
+  /* MOBILE, hosted Card Number (see the floating-label rules above the media
+     queries): this cell IS the bordered box here, with 15px padding, so the
+     stretched frame and our label start 15px in, and the frame stops short of
+     the valid tick on the right. */
+  .rf-cardcell--float .rf-gpfield {
+    left: 15px;
+    right: calc(15px + 24px + 8px);
+  }
+  .rf-cardcell--float .rf-cardcell-label--hosted { left: 15px; }
+
   /* The tick was the row's last flex item; as a column item it would be a
      third line. Pinned to the right of the number box instead — centred in
      the 56px box, inside its 15px padding — so the number's own box is what
@@ -460,4 +523,22 @@
     top: calc((var(--hb-field-height, 56px) - 24px) / 2);
     right: 15px;
   }
+  /* The MM / YY + CVV box's own tick — the last item in its flex row, so it
+     sits at the right inside the box's 15px padding, level with the number
+     box's tick above it. */
+  .rf-wrapper .rf-cardpair-tick {
+    display: block;
+    flex: 0 0 auto;
+    color: var(--hb-ada-green, #028a0c);
+  }
+  .rf-wrapper .rf-cardpair-tick--pending { visibility: hidden; }
+  /* Rental flow: each box validates BY ITSELF here — the number box goes
+     green (and shows its tick) when the number is valid, the MM / YY + CVV box
+     when its two are, rather than both waiting for all three. The row-wide
+     .rf-cardrow--valid rules above still apply, and agree. */
+  .rf-wrapper .rf-cardrow--number-valid .rf-cardcell--number,
+  .rf-wrapper .rf-cardrow--pair-valid .rf-cardrow-short {
+    border-color: var(--hb-field-border-success, #028a0c);
+  }
+  .rf-wrapper .rf-cardrow--number-valid .rf-cardrow-tick { visibility: visible; }
 }

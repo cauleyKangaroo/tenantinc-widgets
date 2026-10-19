@@ -42,8 +42,13 @@ export interface SizeItem {
   content: string;
 }
 
-/** "5 x 5" → "5’ x 5’"; anything unexpected passes through untouched. */
-function prettyDimensions(raw: string): string {
+/**
+ * A size from the API in `XxY` form → `X’ x Y’` ("5x10" → "5’ x 10’").
+ * Also takes "5 x 10", "10X20", "10 × 15" and decimals ("7.5x10"). Anything
+ * that is not a plain W x L — "Storage Locker", "Covered Parking", or a value
+ * already formatted — is returned untouched, so it is safe on any size name.
+ */
+export function formatSizeDimensions(raw: string): string {
   const m = raw.match(/^\s*(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)\s*$/i);
   return m ? `${m[1]}’ x ${m[2]}’` : raw;
 }
@@ -73,7 +78,7 @@ export async function fetchSizes(widgetTag: string): Promise<SizeItem[] | null> 
         id: str(r.sizeId) || str(r.__rowId) || `size-${i}`,
         name: plainText(r.name),
         dimensions,
-        dimensionsLabel: prettyDimensions(dimensions),
+        dimensionsLabel: formatSizeDimensions(dimensions),
         sizeLabel: plainText(r.sizeLabel),
         category: str(r.category),
         sortOrder: num(r.sortOrder, i),

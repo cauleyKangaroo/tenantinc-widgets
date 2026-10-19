@@ -58,7 +58,7 @@ import { GooglePayButton } from '../widget-rental-flow-2step/GooglePayButton';
 import { ApplePayButton } from '../widget-rental-flow-2step/ApplePayButton';
 import type { RentalCtx, WalletPayment } from '../widget-rental-flow-2step/api';
 import type { WalletConfig } from '../widget-rental-flow-2step/walletConfig';
-import { Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
+import { AlertIcon, Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
 import { BankForm, CardForm, PaymentFormSkeleton, type BankFormValue, type CardFormValue } from '@shared/paymentForms';
 import {
   BankIcon, ChevronBigLeft24Icon, ChevronBigRight24Icon, CreditCardIcon, CreditCardRemoveIcon,
@@ -913,9 +913,11 @@ export function MakePaymentPanel({
                   </div>
                 )}
                 {coverageNote[sp.id] && (
-                  <p className={`ma-coverage-note${coverageNote[sp.id]!.kind === 'error' ? ' ma-coverage-note--error' : ''}`} role={coverageNote[sp.id]!.kind === 'error' ? 'alert' : 'status'}>
-                    {coverageNote[sp.id]!.text}
-                  </p>
+                  <div className={`ma-coverage-note${coverageNote[sp.id]!.kind === 'error' ? ' ma-coverage-note--error' : ''}`} role={coverageNote[sp.id]!.kind === 'error' ? 'alert' : 'status'}>
+                    {/* The alert mark only on an error; a status note stays plain. */}
+                    {coverageNote[sp.id]!.kind === 'error' && <AlertIcon size={24} className="ma-alert-ico" />}
+                    <span>{coverageNote[sp.id]!.text}</span>
+                  </div>
                 )}
               </>)}
 
@@ -1104,7 +1106,10 @@ export function MakePaymentPanel({
         )}
       </div>
       {walletError && (
-        <p className="ma-pay__notice ma-pay__notice--error" role="alert">{walletError}</p>
+        <div className="ma-pay__notice ma-pay__notice--error" role="alert">
+          <AlertIcon size={24} className="ma-alert-ico" />
+          <span>{walletError}</span>
+        </div>
       )}
 
       {/* The forms are #99's, from `@shared/paymentForms` — same fields, same

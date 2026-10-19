@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FormField, type FieldType } from '@shared/ui/FormField';
 import { Button } from '@shared/ui/Button';
-import { CloseSolidIcon } from '@shared/ui/icons';
+import { AlertIcon, CloseSolidIcon } from '@shared/ui/icons';
 import { isPossiblePhone } from '@shared/ui/phone';
 import type { LeadInput } from '@shared/leadsApi';
 import { ContactConfirmationModal, type ConfirmationFacility } from '@shared/components/ContactConfirmation';
@@ -234,7 +234,12 @@ export function WaitlistModal({
               <Field label="Move-in Date" type="date" value={form.moveIn} onChange={set('moveIn')} disabled={submitting} />
             </div>
 
-            {error && <p className="sl-wl-error" role="alert">{error}</p>}
+            {error && (
+              <div className="sl-wl-error" role="alert">
+                <AlertIcon size={24} className="sl-wl-error-ico" />
+                <span>{error}</span>
+              </div>
+            )}
 
             <div className="sl-wl-actions">
               <Button type="submit" block busy={submitting}>Join Waitlist</Button>

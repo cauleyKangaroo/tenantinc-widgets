@@ -45,7 +45,7 @@
 import { useEffect, useState } from 'react';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { CUSTOMER_ADDRESS_COUNTRIES } from '@shared/placesApi';
-import { Checkbox, FormField } from '@shared/ui';
+import { AlertIcon, Checkbox, FormField } from '@shared/ui';
 import { ChevronBigRight24Icon } from './icons';
 import { ConfirmContactModal } from './ConfirmContactModal';
 import { US_STATES, isKnownState, stateCodeFromName, stateNameFromCode } from '@shared/usStates';
@@ -548,7 +548,12 @@ export function EditPanel({
           Cancel is drawn as plain bold text, not a button box — but it IS a
           button, so it focuses and activates from the keyboard. */}
       <div className="ma-edit__actions">
-        {saveError && <p className="ma-edit__error" role="alert">{saveError}</p>}
+        {saveError && (
+          <div className="ma-edit__error" role="alert">
+            <AlertIcon size={24} className="ma-alert-ico" />
+            <span>{saveError}</span>
+          </div>
+        )}
         <button type="button" className="ma-edit__cancel" onClick={onCancel} disabled={saving}>
           Cancel
         </button>

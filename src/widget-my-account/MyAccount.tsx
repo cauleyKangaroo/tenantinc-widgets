@@ -780,18 +780,23 @@ export function MyAccount({
       {sheetOpen && <AccountSheet items={sheetItems} onClose={closeSheet} />}
       {/* React 18 has no boolean `inert`; an empty string is the attribute. */}
       <div className="ma-grid" {...(busy ? { inert: '' } : {})}>
-        <p role="heading" aria-level={1} className="ma-greeting">Hi {name},</p>
-        {/* Phone only (CSS shows it ≤720px): opens the account bottom sheet. */}
-        <button
-          type="button"
-          className="ma-submenu-btn"
-          aria-label="Account menu"
-          aria-haspopup="menu"
-          aria-expanded={sheetOpen}
-          onClick={() => setSheetOpen(true)}
-        >
-          <SubmenuIcon />
-        </button>
+        {/* The greeting row. `display: contents` above 720px, so the two stay
+            ordinary items of .ma-grid there; on a phone it is the white bar
+            that sticks to the top of the page. */}
+        <div className="ma-topbar">
+          <p role="heading" aria-level={1} className="ma-greeting">Hi {name},</p>
+          {/* Phone only (CSS shows it ≤720px): opens the account bottom sheet. */}
+          <button
+            type="button"
+            className="ma-submenu-btn"
+            aria-label="Account menu"
+            aria-haspopup="menu"
+            aria-expanded={sheetOpen}
+            onClick={() => setSheetOpen(true)}
+          >
+            <SubmenuIcon />
+          </button>
+        </div>
         {/* No Log out button here — the Figma frame has none; logging out is in
             the nav bar's My Account menu (#02). signOut is still used when the
             session is rejected (unauthorized). */}

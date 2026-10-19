@@ -1302,8 +1302,8 @@
   line-height: 14px;
 }
 
-/* Unused while no endpoint carries a per-period discount - see PAYMENT_CYCLES
-   in Step2.tsx. Kept so restoring the badge is a render change, not a redesign. */
+/* "Save 10%" / "Save 15%" under quarterly and annual — see PAYMENT_CYCLES in
+   Step2.tsx. */
 .rf2-cycle-save { font-weight: 600; }
 
 .rf2-cycle-disclaimer {
@@ -1348,6 +1348,10 @@
 }
 
 .rf2-autopay--on { border-color: var(--color_2, #509e2f); }
+/* Payment Cycle: outlined once the shopper picks a period, in the Duda theme's
+   PRIMARY (--color_1; #0f6369 is the site's own Primary, for the harness). The
+   2px transparent border is already there, so the box does not move. */
+.rf2-cycle--on { border-color: var(--color_1, #0f6369); }
 /* PRESELECTED never takes the CTA colour, and loses its outline entirely once
    ticked — the blue border and the blue notice are one argument, so they
    arrive and leave together.
@@ -1567,7 +1571,6 @@
    host, so the host carries the 64px the Apple button gets from .rf2-pay. */
 .rf2-wallet--google { height: 64px; min-width: 0; }
 .rf2-wallet--google > * { width: 100%; height: 100%; }
-.rf2-wallet-with { font: 500 20px 'Montserrat', sans-serif; color: #fff; }
 /* Apple Pay matches the Google Pay button beside it, state for state — the
    values are Google's own black-button styles from pay.js: #000 at rest,
    #3c4043 hovered, #5f6368 pressed. Without this the Apple button inherited
@@ -1654,6 +1657,14 @@
      was putting 28px back on both sides, which is what stopped the blue
      reaching the border. Same (0,2,0), later in source, so it wins. */
   .rf-wrapper .rf2-autopay--withbar { padding: 0; }
+  /* Payment Cycle on mobile (Figma): the same #F4F6F8 box as the autopay row
+     above it, with the heading on its own line and the three periods stacked
+     one per line beneath it, rather than side by side wrapping 2 + 1. The
+     disclaimer stays at the foot of the box. (0,2,0) for the same reason as
+     the autopay rule above. */
+  .rf-wrapper .rf2-cycle { background: #f4f6f8; }
+  .rf-wrapper .rf2-cycle-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .rf-wrapper .rf2-cycle-opts { flex-direction: column; align-items: flex-start; gap: 10px; }
   /* Gutters only, no sides: .rf2-agree carries the 20px here, same as the
      panels. These two kept their own 20px and 16px, which on top of the
      container's would have double-inset the head and the document. */
@@ -2495,11 +2506,15 @@
 .rfc-next-check svg { display: block; }
 .rfc-error-eyebrow { color: #d32f2f; }
 .rfc-error-panel {
-  background: #fef2f2; border: 1px solid #fca5a5; border-radius: 10px;
-  padding: 16px 18px; margin-bottom: 18px;
+  /* The site's error tag (as the other flow banners), the message and its
+     sub-line stacked beside the alert mark. */
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
+  margin-bottom: 18px;
 }
-.rfc-error-msg { font-weight: 700; margin: 0 0 8px; color: #991b1b; }
-.rfc-error-sub { font-size: 13px; margin: 0; color: #7f1d1d; }
+.rfc-error-ico { flex: 0 0 auto; color: #d32f2f; }
+.rfc-error-text { min-width: 0; }
+.rfc-error-msg { font-weight: 700; margin: 0 0 8px; color: #d32f2f; }
+.rfc-error-sub { font-size: 13px; margin: 0; color: #d32f2f; }
 .rfc-retry { width: auto; padding: 12px 28px; }
 
 /* Conditional field groups expanding under step-2 checkboxes (Figma 12-13).
@@ -2547,6 +2562,19 @@
 .rf2-gp-submit iframe { border: 0; width: 100%; height: 52px; }
 .rf2-gp-note { font-size: 14px; color: #5c6370; margin: 0; }
 .rf2-gp-note--error { color: #d32f2f; }
+/* An error note as the site's error tag (the other flow banners): #f3e7e9,
+   padding 12 / 39 / 12 / 15, 10px between the 24px alert mark and the text,
+   10px radius, icon centred. A modifier, so the error notes not yet converted
+   keep their plain line. The payment section's own 22px gap spaces it. */
+.rf2-gp-note--tag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
+}
+.rf2-gp-note-alert-ico { flex: 0 0 auto; color: #d32f2f; }
 /* The wallet/autopay note as a blue info tag (Figma): the same blue pair as
    .rf2-autopay-note (#e7f1ff on #3d8fff), icon left, dark text. */
 .rf2-gp-note--info {
@@ -2588,6 +2616,25 @@
 .rf-field--error .rf-field-input { border-color: #d32f2f; }
 .rf-field--error .rf-field-label { color: #d32f2f; }
 .rf-form-error { font-size: 14px; color: #d32f2f; margin: 4px 0 0; }
+/* As the site's error tag (the payment / space banners): #f3e7e9, padding
+   12 / 39 / 12 / 15, 10px between the 24px alert mark and the text, 10px
+   radius, icon centred. A modifier, so the plain .rf-form-error lines that
+   have not been converted keep their look. */
+.rf-form-error--tag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Clear of the Rent / Reserve buttons above it; the plain line's 4px read
+     as part of the button group once it became a filled box. */
+  margin-top: 16px;
+  /* Left, as every tag: .rf-ua-error centres its plain line, and centred
+     text beside a left-hand icon reads as misaligned. */
+  text-align: left;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
+}
+.rf-form-error-ico { flex: 0 0 auto; color: #d32f2f; }
 .rf-availability {
   margin: 12px auto 0;
   max-width: 420px;
@@ -2629,12 +2676,22 @@
    The container carries the gutter now, so this needs none of its own — it
    lines up with the checkbox row above it either way. Colour is the same
    #d32f2f the other validation messages use (.rf-form-error). */
+/* The site's error tag, as the other flow banners: #f3e7e9, padding
+   12 / 39 / 12 / 15, 10px between the 24px alert mark and the text, 10px
+   radius, icon centred; 16px clear of the "I agree" bar above it. */
 .rf2-agree-error {
-  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
   font-size: 14px;
   line-height: 18px;
   color: #d32f2f;
 }
+.rf2-agree-error-ico { flex: 0 0 auto; color: #d32f2f; }
 
 /* ── Move-in cost line items — 14px ───────────────────────────────────────
    Rent (Prorated), Admin Fee, Protection, Total Tax and any discount rows.
@@ -2854,6 +2911,18 @@
 .rfm-bar-title { font-size: 18px; font-weight: 600; line-height: 18px; color: #101318; }
 .rfm-bar-total { font-size: 18px; font-weight: 600; color: #101318; white-space: nowrap; }
 .rfm-bar-hold { font-size: 16px; line-height: 28px; color: #101318; }
+/* The mobile cost bar ("Total Cost to Move-In:" / "Holding Space for 14:59")
+   in Montserrat whatever the Duda theme says. The bar asks for it, but its
+   text sits in <span>s and a <b> (and the desktop header's hold line is a
+   <p>), which themes style from id-scoped selectors — and a rule aimed at the
+   element always beats an inherited font. !important is how .rf-eyebrow /
+   .rf-heading win the same fight. */
+.rfm-bar,
+.rfm-bar *,
+.rf-hdr-hold,
+.rf-hdr-hold b {
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+}
 /* ada/red, per the frame. No margin: the markup already has a word space
    before it, and the frame's 8px on top of that read as a gap rather than a
    space. tabular-nums so the digits do not jitter as it ticks. */

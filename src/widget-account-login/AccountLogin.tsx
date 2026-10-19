@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './AccountLogin.css';
 import { CheckTick, CaretDown, UserCircle, InfoSolid } from './icons';
+import { AlertIcon } from '@shared/ui';
 import { hasCollectionsApi, logSource, str } from '@shared/dudaCollections';
 import { readPropertiesFromCollection, PROPERTIES_COLLECTION } from '@shared/propertiesSource';
 import { skipValidation } from '@shared/devBypass';
@@ -836,7 +837,12 @@ export function AccountLogin({
             ))}
           </ul>
 
-          {pickError && <p className="al-error al-pick-error" role="alert">{pickError}</p>}
+          {pickError && (
+            <div className="al-error al-pick-error" role="alert">
+              <AlertIcon size={24} className="al-error-ico" />
+              <span>{pickError}</span>
+            </div>
+          )}
 
           <div className="al-merge">
             <InfoSolid className="al-merge-icon" />
@@ -879,7 +885,12 @@ export function AccountLogin({
               (well past the click), so inserting them pushed Continue and
               Resend down — a layout shift. A longer message still grows it. */}
           <div className="al-msg-slot">
-            {codeError && <p className="al-error" role="alert">{codeError}</p>}
+            {codeError && (
+              <div className="al-error" role="alert">
+                <AlertIcon size={24} className="al-error-ico" />
+                <span>{codeError}</span>
+              </div>
+            )}
             {resent && !codeError && (
               <p className="al-note" role="status">A new code is on its way.</p>
             )}
@@ -965,7 +976,12 @@ export function AccountLogin({
             {/* Reserved for the same reason as the code step's: a failed send
                 is reported after the round trip, not on the click. */}
             <div className="al-msg-slot">
-              {identifyError && <p className="al-error" role="alert">{identifyError}</p>}
+              {identifyError && (
+                <div className="al-error" role="alert">
+                  <AlertIcon size={24} className="al-error-ico" />
+                  <span>{identifyError}</span>
+                </div>
+              )}
             </div>
 
             <button type="submit" className="al-cta" disabled={!canContinue}>
