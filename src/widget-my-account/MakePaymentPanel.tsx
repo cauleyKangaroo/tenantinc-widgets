@@ -501,6 +501,19 @@ export function MakePaymentPanel({
   };
   const autopayFor = (sp: AccountSpace) =>
     !cancelled.has(sp.id) && (enrolledNow.has(sp.id) || updateMethod.has(sp.id));
+  /* The Balance Due card's Autopay Enrollment — one tick for every space being
+     paid that is not on autopay yet. It drives the SAME `enrolledNow` set as
+     each space's own box, so the two always agree and the enrolment goes out
+     with the payment exactly as a per-space tick does (autopayFor). Spaces the
+     account already has enrolled are left to their own strip: un-enrolling is
+     Cancel Autopay's job, never a side effect of this box. */
+  const autopayCandidates = list.filter((s) => selected.has(s.id) && !s.autopay.enrolled);
+  const allAutopayOn = autopayCandidates.length > 0 && autopayCandidates.every((s) => enrolledNow.has(s.id));
+  const toggleAutopayAll = () => setEnrolledNow((prev) => {
+    const next = new Set(prev);
+    autopayCandidates.forEach((s) => (allAutopayOn ? next.delete(s.id) : next.add(s.id)));
+    return next;
+  });
   const finishPayment = (outcome: PaymentOutcome, r: PaymentReceipt | null, message: string) => {
     setReceipt(r);
     setPayMessage(message);
@@ -1010,6 +1023,14 @@ export function MakePaymentPanel({
                 <output className="ma-stepper__value">{prepayMonths}</output>
                 <span className="ma-stepper__unit">Month(s)</span>
               </div>
+            )}
+
+            {/* Only while a ticked space has autopay to enrol in — with every
+                one already enrolled there is nothing for it to do. */}
+            {autopayCandidates.length > 0 && (
+              <Checkbox checked={allAutopayOn} onChange={toggleAutopayAll} className="ma-balance__check">
+                Autopay Enrollment
+              </Checkbox>
             )}
           </div>
         )}
