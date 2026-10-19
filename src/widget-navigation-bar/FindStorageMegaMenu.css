@@ -1073,6 +1073,15 @@
   padding-right: 0;
 }
 
+/* A search result's state, after the city name: city names repeat across
+   states, so "Irvine" alone is not an answer. Quieter than the name. */
+.nav-mega-city-state {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+}
+
 /* The Figma draws the picked state as a FILLED white pill. `:active`, not
    `.is-active`: a tap goes straight to the city list, so a persistent selection
    would never be seen — this is the touch feedback on the way there. */
