@@ -726,6 +726,11 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
        every keystroke; the expiry and CVV are ours in both modes now. */
     ? gpValid.number && validExpiry(expiry) && validCvv('', cvv)
     : validCard(number) && validExpiry(expiry) && validCvv(number, cvv);
+  /* Each half on its own, for MOBILE (rental flow), where the number and the
+     MM / YY + CVV pair are two separate boxes and each validates by itself.
+     Desktop keeps the single row check above — one border, one tick. */
+  const numberValid = hosted ? gpValid.number : validCard(number);
+  const pairValid = validExpiry(expiry) && validCvv(hosted ? '' : number, cvv);
   // The expiry is typed into our own field in both modes (GP's token reply
   // carries none and the API requires it), so it is judged the same way.
   const expError = expiryError(expiry);
@@ -1058,7 +1063,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
         would mean fighting its internals. Same tokens, so it sits flush with the
         real form fields above and below it.
       */}
-      <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${cardCellError ? ' rf-cardrow--error' : ''}${hosted !== false && !gpReady ? ' rf-cardrow--loading' : ''}`}>
+      <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${numberValid ? ' rf-cardrow--number-valid' : ''}${pairValid ? ' rf-cardrow--pair-valid' : ''}${cardCellError ? ' rf-cardrow--error' : ''}${hosted !== false && !gpReady ? ' rf-cardrow--loading' : ''}`}>
         <CreditCardIcon size={24} className="rf-cardrow-ico" />
 
         {/*
@@ -1148,6 +1153,14 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
             />
             <label className="rf-cardcell-label">CVV<span className="rf-req">*</span></label>
           </span>
+          {/* MOBILE ONLY (hidden in CSS above 640px): on a phone the pair is its
+              own bordered box, so it gets its own tick, shown when ITS two
+              fields are valid (pairValid) — the same condition as its green
+              border. Always rendered, visibility only, so nothing shifts. */}
+          <CheckIcon
+            className={`rf-cardpair-tick${pairValid ? '' : ' rf-cardpair-tick--pending'}`}
+            aria-hidden="true"
+          />
         </span>
 
         {/* One tick for the row, not three: the three inputs share a single

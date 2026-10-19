@@ -750,6 +750,18 @@ a.nl-card-footer {
     background: transparent;
     padding: 24px;
   }
+
+  /* Map View runs edge to edge, as #05's nearby accordion map does: out
+     through the 24px side padding above (top and bottom untouched). The width
+     needs !important because NearbyMap sets `width: 100%` inline — and that
+     100% would leave the map at the padded width, just shifted left. */
+  /* Square corners too, like the accordion's — !important for the same
+     reason: NearbyMap sets `border-radius: 16` inline. */
+  .nl-mobile .nl-map {
+    width: calc(100% + 48px) !important;
+    margin-inline: -24px;
+    border-radius: 0 !important;
+  }
 }
 
 /* ===========================================================================

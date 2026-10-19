@@ -10,7 +10,7 @@ import { fetchWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolvePropertyId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { imageUrl } from '@shared/dudaCollections';
-import { emitShowPromo, scrollToSpaceList } from '@shared/promoBus';
+import { emitShowPromo, scrollToPromoResults } from '@shared/promoBus';
 import { DisclaimerModal } from './DisclaimerModal';
 import { TagIcon, InfoIcon, ChevronRight, CarouselChevron } from './icons';
 import promoBanner from './assets/promo-banner.png';
@@ -169,7 +169,7 @@ function PromoBarItem({ item }: { item: BarItem }) {
             if (!isFilterCta) return;
             e.preventDefault();
             emitShowPromo({ promoId: item.id, promoTitle: item.title });
-            scrollToSpaceList();
+            scrollToPromoResults();
           }}
         >
           <ChevronRight size={24} />

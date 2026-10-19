@@ -2,6 +2,8 @@
 // widget (#05) are separate AMD bundles on the same Duda page, so they talk via
 // a window CustomEvent plus a URL param (for deep-links / reloads).
 
+import { MOBILE_STICKY_QUERY } from './stickyStack';
+
 export const PROMO_EVENT = 'tenantinc:show-promo';
 export const PROMO_PARAM = 'promo';
 
@@ -42,6 +44,80 @@ export function scrollToSpaceList(): void {
     const el = document.querySelector('.sl-wrapper');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch { /* ignore */ }
+}
+
+/** Where the pinned bars (fixed or sticky) covering the top of the viewport
+ *  end, in viewport px — 0 when nothing is pinned there. Walks down the stack,
+ *  so two bars pinned one under the other both count. */
+function pinnedCoverBottom(): number {
+  let y = 1;
+  for (let i = 0; i < 5; i++) {
+    let el: Element | null = document.elementFromPoint(window.innerWidth / 2, y);
+    let pinned: Element | null = null;
+    while (el && el !== document.body && el !== document.documentElement) {
+      const pos = getComputedStyle(el).position;
+      if (pos === 'fixed' || pos === 'sticky') { pinned = el; break; }
+      el = el.parentElement;
+    }
+    if (!pinned) break;
+    y = pinned.getBoundingClientRect().bottom + 1;
+  }
+  return y - 1;
+}
+
+/** Calls `fn` once the window has stopped scrolling (a smooth scroll ending),
+ *  or after a second and a half at most. */
+function afterScrollSettles(fn: () => void): void {
+  const started = performance.now();
+  let last = -1;
+  let still = 0;
+  const tick = () => {
+    const y = window.scrollY;
+    still = y === last ? still + 1 : 0;
+    last = y;
+    const elapsed = performance.now() - started;
+    if ((still >= 3 && elapsed > 120) || elapsed > 1500) { fn(); return; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+/**
+ * "See Qualifying Units": scroll to the Space List, then — on a phone — make
+ * sure its "Showing spaces with …" banner is fully in view.
+ *
+ * The plain scroll lands the list's top edge at the top of the window, but on
+ * mobile the bars that pin there (#03's contact row, #05's filter bar) cover
+ * it. They only pin once the page has scrolled past them, so their height
+ * cannot be known up front: it is measured once the scroll settles, and the
+ * banner eased down to sit 16px below them. Desktop has no pinned bars, so it
+ * keeps the plain scroll.
+ */
+export function scrollToPromoResults(): void {
+  scrollToSpaceList();
+  if (!window.matchMedia?.(MOBILE_STICKY_QUERY).matches) return;
+  afterScrollSettles(() => {
+    try {
+      const banner = document.querySelector('.sl-promo-banner') ?? document.querySelector('.sl-wrapper');
+      if (!banner) return;
+      const want = pinnedCoverBottom() + 16;
+      /* The list's heading too, as desktop shows it. On a phone #05 hides its
+         own title and #18 draws "Storage Units in …" (.slh-title) just above
+         it, outside .sl-wrapper — so the scroll to the list left it behind.
+         Bring the heading in when there is one above the banner, as long as
+         the banner still fits below; otherwise the banner alone, as before. */
+      const heading = document.querySelector('.slh-title');
+      const b = banner.getBoundingClientRect();
+      let target = b.top;
+      if (heading && heading.getClientRects().length) {
+        const h = heading.getBoundingClientRect();
+        const bannerFits = b.bottom - (h.top - want) <= window.innerHeight;
+        if (h.top < b.top && bannerFits) target = h.top;
+      }
+      const delta = target - want;
+      if (delta < 0) window.scrollBy({ top: delta, behavior: 'smooth' });
+    } catch { /* ignore */ }
+  });
 }
 
 /**
