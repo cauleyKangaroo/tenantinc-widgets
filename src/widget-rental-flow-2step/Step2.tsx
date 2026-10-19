@@ -17,7 +17,7 @@ import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankF
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
-import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, AlertIcon, capitalizeFirst, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { splitBusinessName } from './businessName';
 import { skipValidation } from '@shared/devBypass';
 import creditCardRepeat from './assets/credit-card-repeat.svg';
@@ -43,10 +43,29 @@ const FORM_SKELETON_MS = 700;
  * document URL exists this becomes an <iframe>/<embed> and both surfaces get it
  * at once.
  */
+/**
+ * A document that must NOT scroll in place: the inline preview is a glimpse,
+ * and the agreement is read in the "View Document" lightbox. The frame is
+ * told not to scroll, pointer events pass through it (so a wheel over the
+ * preview scrolls the PAGE, not the document), and a srcDoc document gets
+ * `overflow: hidden` on its own body so no scrollbar is drawn inside either.
+ */
+const STILL_STYLE = '<style>html,body{overflow:hidden!important}</style>';
+function stillDoc(html: string): string {
+  return /<head[^>]*>/i.test(html)
+    ? html.replace(/<head[^>]*>/i, (m) => m + STILL_STYLE)
+    : STILL_STYLE + html;
+}
+
 function LeaseDocBody(
-  { title, previewUrl, previewHtml, updating }:
-  { title?: string; previewUrl?: string; previewHtml?: string; updating?: boolean },
+  { title, previewUrl, previewHtml, updating, scroll = true }:
+  { title?: string; previewUrl?: string; previewHtml?: string; updating?: boolean;
+    /** False for the inline preview, which only hints at the document — it is
+     *  read, and scrolled, in the View Document lightbox. */
+    scroll?: boolean },
 ) {
+  const frameClass = `rf2-doc-frame${scroll ? '' : ' rf2-doc-frame--still'}`;
+  const doc = (html: string) => (scroll ? html : stillDoc(html));
   /*
    * The preview on screen was prefetched before Step 1 was filled in (see the
    * preview effect in RentalFlow2Step), so when the personalised one is on its
@@ -77,15 +96,31 @@ function LeaseDocBody(
    * ClickWrap Superlease does), so it stays as the fallback below, but the
    * hosted page is what the shopper signs and is the faithful thing to show.
    */
-  if (previewUrl) {
+  /*
+   * THE MARKUP FIRST. documents/preview returns both a hosted preview URL and
+   * the agreement's own HTML (`template`, ~400 KB with its styles inline).
+   * The URL used to win, and it was the slow half of the wait: after the ~5s
+   * API call the frame then loaded the signing host's shell page and its
+   * twelve scripts and stylesheets before a word appeared, and did it AGAIN
+   * for the personalised copy, going blank in between. Measured live
+   * 2026-10-13. srcDoc renders the same document the instant it arrives,
+   * with no network, and a newer copy replaces it without a blank frame.
+   * ONLY a template that carries its own <style> — a ClickWrap Superlease
+   * does. The others reference classes the signing host supplies
+   * (`table-border`, `common-font`) and render as an unstyled stack of
+   * tables on their own, so those keep the hosted page, with the bare
+   * markup as the last resort below.
+   */
+  const selfStyled = !!previewHtml && /<style[\s>]/i.test(previewHtml);
+  if (previewHtml && selfStyled) {
     return (
       <div className="rf2-doc-page rf2-doc-page--frame">
         <iframe
-          className="rf2-doc-frame"
-          src={previewUrl}
+          className={frameClass}
+          srcDoc={doc(previewHtml)}
           title={title ?? 'Rental Agreement'}
-          loading="lazy"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox=""
+          scrolling={scroll ? undefined : 'no'}
         />
         {badge}
       </div>
@@ -100,14 +135,33 @@ function LeaseDocBody(
    * else — and the frame keeps whatever styling the template does embed from
    * inheriting, or fighting, this widget's CSS.
    */
+  if (previewUrl) {
+    return (
+      <div className="rf2-doc-page rf2-doc-page--frame">
+        <iframe
+          className={frameClass}
+          src={previewUrl}
+          title={title ?? 'Rental Agreement'}
+          loading="lazy"
+          sandbox="allow-scripts allow-same-origin"
+          scrolling={scroll ? undefined : 'no'}
+        />
+        {badge}
+      </div>
+    );
+  }
+
+  // Markup without its own styles, and no hosted page either: still the
+  // real agreement, just plain. Better than the placeholder text below.
   if (previewHtml) {
     return (
       <div className="rf2-doc-page rf2-doc-page--frame">
         <iframe
-          className="rf2-doc-frame"
-          srcDoc={previewHtml}
+          className={frameClass}
+          srcDoc={doc(previewHtml)}
           title={title ?? 'Rental Agreement'}
           sandbox=""
+          scrolling={scroll ? undefined : 'no'}
         />
         {badge}
       </div>
@@ -242,19 +296,17 @@ export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
 export type PaymentCycle = 'monthly' | 'quarterly' | 'annual';
 
 /*
- * Labels verbatim from the frame, in the frame's order.
+ * Labels and savings verbatim from the frame, in the frame's order.
  *
- * The frame also put "Save 10%" and "Save 15%" beside quarterly and annual.
- * Those are GONE: nothing in the API carries a discount for a billing period
- * — `payment_cycles` returns booleans and a `revert_payment_cycle` month count
- * and no rates at all — so the figures were frame copy being printed as if
- * they were this property's terms. Restore them when a real percentage has a
- * source, per property and per space type.
+ * The savings are FIXED COPY, confirmed by the client 2026-10-16: quarterly is
+ * always 10% and annual always 15%, at every property. They are not read from
+ * the API — `payment_cycles` carries no rates — so if a facility's prepay
+ * discount is ever configured differently, this text will not follow it.
  */
-const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string }> = [
+const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string; save?: string }> = [
   { id: 'monthly',   label: 'Pay Monthly' },
-  { id: 'quarterly', label: 'Pay Quarterly' },
-  { id: 'annual',    label: 'Pay Annual' },
+  { id: 'quarterly', label: 'Pay Quarterly', save: 'Save 10%' },
+  { id: 'annual',    label: 'Pay Annual',    save: 'Save 15%' },
 ];
 
 /**
@@ -469,6 +521,9 @@ export function Step2({
      `useId` because a page can hold two of these and radios group by name. */
   const cycleName = useId();
   const [cycle, setCycle] = useState<PaymentCycle>('monthly');
+  /* Monthly is preselected, so "a period is selected" is always true; the card
+     outlines (like the autopay row when ticked) once the shopper PICKS one. */
+  const [cyclePicked, setCyclePicked] = useState(false);
   /* The frame's three rows, narrowed to what this property sells for this
      space type. Undefined `paymentCycles` means not yet known, which renders
      nothing rather than all three. */
@@ -888,8 +943,8 @@ export function Step2({
           <FieldAbove label="Business Name" required value={bizName} onChange={setBizName} error={bad('bizName')} />
         ) : (
           <div className="rf2-row">
-            <FieldAbove label="First Name" required value={first} onChange={setFirst} error={bad('first')} />
-            <FieldAbove label="Last Name" required value={last} onChange={setLast} error={bad('last')} />
+            <FieldAbove label="First Name" required value={first} onChange={(v) => setFirst(capitalizeFirst(v))} error={bad('first')} />
+            <FieldAbove label="Last Name" required value={last} onChange={(v) => setLast(capitalizeFirst(v))} error={bad('last')} />
           </div>
         )}
         {/* Where step 2 comes to rest. The shopper filled their contact details
@@ -1162,7 +1217,9 @@ export function Step2({
             </button>
           </div>
           <div className="rf2-agree-doc">
-            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} updating={leasePreviewUpdating} />
+            {/* A glimpse only — not scrollable here. Reading and scrolling
+                happen in the View Document lightbox below. */}
+            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} updating={leasePreviewUpdating} scroll={false} />
           </div>
           <RfCheckbox
             checked={agree}
@@ -1174,9 +1231,10 @@ export function Step2({
           {/* Says what is wrong instead of ringing the row in red. role="alert"
               so it is announced when it appears, not silently drawn. */}
           {bad('agree') && (
-            <p className="rf2-agree-error" role="alert">
-              You must accept the rental agreement to continue.
-            </p>
+            <div className="rf2-agree-error" role="alert">
+              <AlertIcon size={24} className="rf2-agree-error-ico" />
+              <span>You must accept the rental agreement to continue.</span>
+            </div>
           )}
         </section>
 
@@ -1244,7 +1302,7 @@ export function Step2({
               type — a radiogroup with nothing in it, or with one forced answer,
               is not a choice. */}
           {cycleOptions.length > 0 && (
-            <div className="rf2-cycle">
+            <div className={`rf2-cycle${cyclePicked ? ' rf2-cycle--on' : ''}`}>
               <div className="rf2-cycle-row">
                 <span className="rf2-cycle-head">
                   <img src={creditCardRepeat} width={24} height={24} alt="" aria-hidden="true" />
@@ -1260,11 +1318,12 @@ export function Step2({
                         name={cycleName}
                         value={c.id}
                         checked={cycle === c.id}
-                        onChange={() => setCycle(c.id)}
+                        onChange={() => { setCycle(c.id); setCyclePicked(true); }}
                       />
                       <span className="rf2-cycle-radio"><span className="rf2-cycle-dot" /></span>
                       <span className="rf2-cycle-text">
                         <span>{c.label}</span>
+                        {c.save && <span className="rf2-cycle-save">{c.save}</span>}
                       </span>
                     </label>
                   ))}
@@ -1291,6 +1350,22 @@ export function Step2({
               ready to pay), so
               a lone wallet's full-width span is decided in CSS from what
               actually rendered, not guessed here. */}
+          {/* Wallets are one-tap, so there is no moment to visibly untick the
+              autopay box before paying — this says it instead, wherever
+              autopay would otherwise apply (mandatory, or ticked).
+              Gated on what each button REPORTS as on screen, not on what the
+              parent allowed: either can still decline at runtime, and a note
+              about wallets nobody can see would only confuse.
+              Above the wallet buttons, as a blue info tag (Figma). */}
+          {((showApple && appleOnScreen) || (showGoogle && googleOnScreen)) && (mode === 'default' || autopay) && (
+            <p className="rf2-gp-note rf2-gp-note--info">
+              <InfoIcon size={20} className="rf2-gp-note-ico" />
+              <span>
+                Apple Pay and Google Pay are one-time payments and won&rsquo;t enroll in autopay.
+                To pay automatically each {cycleWord.noun}, use Credit / Debit or Pay by Bank.
+              </span>
+            </p>
+          )}
           {(!methodOpen || showApple || showGoogle) && (
           <div className={`rf2-paygrid${methodOpen ? ' rf2-paygrid--wallets' : ''}`}>
             {showGoogle && walletCtx && (
@@ -1341,32 +1416,29 @@ export function Step2({
             )}
           </div>
           )}
-          {/* Wallets are one-tap, so there is no moment to visibly untick the
-              autopay box before paying — this says it instead, wherever
-              autopay would otherwise apply (mandatory, or ticked).
-              Gated on what each button REPORTS as on screen, not on what the
-              parent allowed: either can still decline at runtime, and a note
-              about wallets nobody can see would only confuse. */}
-          {((showApple && appleOnScreen) || (showGoogle && googleOnScreen)) && (mode === 'default' || autopay) && (
-            <p className="rf2-gp-note">
-              Apple Pay and Google Pay are one-time payments and won&rsquo;t enroll in autopay.
-              To pay automatically each {cycleWord.noun}, use Credit / Debit or Pay by Bank.
-            </p>
-          )}
           {payAttempted && !formComplete && (
-            <p className="rf2-gp-note rf2-gp-note--error">
-              {!verificationAllowsPayment
-                ? 'Complete ID verification above before continuing to payment.'
-                : !idvDetailsOk
-                  ? 'Complete your mailing address and driver\u2019s license above before continuing to payment.'
-                : 'Complete the highlighted fields (and accept the rental agreement) to continue to payment.'}
-            </p>
+            <div className="rf2-gp-note rf2-gp-note--error rf2-gp-note--tag">
+              <AlertIcon size={24} className="rf2-gp-note-alert-ico" />
+              <span>
+                {!verificationAllowsPayment
+                  ? 'Complete ID verification above before continuing to payment.'
+                  : !idvDetailsOk
+                    ? 'Complete your mailing address and driver\u2019s license above before continuing to payment.'
+                  : 'Complete the highlighted fields (and accept the rental agreement) to continue to payment.'}
+              </span>
+            </div>
           )}
           {walletError && (
-            <p className="rf2-gp-note rf2-gp-note--error" role="alert">{walletError}</p>
+            <div className="rf2-gp-note rf2-gp-note--error rf2-gp-note--tag" role="alert">
+              <AlertIcon size={24} className="rf2-gp-note-alert-ico" />
+              <span>{walletError}</span>
+            </div>
           )}
           {payError && (
-            <p className="rf2-gp-note rf2-gp-note--error" role="alert">{payError}</p>
+            <div className="rf2-gp-note rf2-gp-note--error rf2-gp-note--tag" role="alert">
+              <AlertIcon size={24} className="rf2-gp-note-alert-ico" />
+              <span>{payError}</span>
+            </div>
           )}
           {/* No Global Payments key on this site yet, so card and bank are the
               static forms from Figma 10080-30277 / 10080-28749 rather than the

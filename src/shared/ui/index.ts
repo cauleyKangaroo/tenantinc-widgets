@@ -36,7 +36,7 @@ export type { MoneyBreakdownProps, MoneyBreakdownData, MoneyLine } from './Money
 export { SummaryRail } from './SummaryRail';
 export type { SummaryRailProps } from './SummaryRail';
 
-export { formatPrice } from './format';
+export { formatPrice, capitalizeFirst } from './format';
 
 export {
   VisaMark, MastercardMark, AmexMark, DiscoverMark, ApplePayMark, GooglePayMark,

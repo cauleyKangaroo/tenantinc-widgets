@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './AccountLogin.css';
 import { CheckTick, CaretDown, UserCircle, InfoSolid } from './icons';
+import { AlertIcon } from '@shared/ui';
 import { hasCollectionsApi, logSource, str } from '@shared/dudaCollections';
 import { readPropertiesFromCollection, PROPERTIES_COLLECTION } from '@shared/propertiesSource';
 import { skipValidation } from '@shared/devBypass';
@@ -89,6 +90,51 @@ const DEMO_PROPERTIES: PropertyOption[] = [
   // instead of asking for a code.
   { id: 'wa-seattle', name: 'Storage Outlet Seattle', loginUrl: 'https://example.com/portal/seattle' },
 ];
+
+// ---------------------------------------------------------------------------
+// Keep Continue clear of iPhone Safari's floating address bar
+//
+// Focusing the identifier or a code box makes Safari scroll only the FIELD
+// above the keyboard. With the bottom tab bar (the iOS default), the address
+// pill floats over the page just above the keyboard — right where the Continue
+// button under the field lands. So once the keyboard is up, scroll just enough
+// to lift the button clear of it.
+//
+// Measured, not sniffed: it only scrolls when the button really is hidden, so
+// Chrome, Android and desktop (nothing covering it) never move. Safari exposes
+// no size for the pill, hence the fixed gap.
+// ---------------------------------------------------------------------------
+
+/** Room kept clear above the keyboard for Safari's address pill (px). */
+const ADDRESS_BAR_GAP = 70;
+
+/** Nearest ancestor that scrolls, or null when the page itself does. */
+function scrollParentOf(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+  }
+  return null;
+}
+
+function liftCtaAboveAddressBar(field: HTMLElement): void {
+  const vv = window.visualViewport;
+  const cta = field.closest('.al-card')?.querySelector<HTMLElement>('.al-cta');
+  if (!vv || !cta) return;
+  const visibleBottom = vv.offsetTop + vv.height - ADDRESS_BAR_GAP;
+  const overlap = cta.getBoundingClientRect().bottom - visibleBottom;
+  if (overlap <= 0) return;
+  (scrollParentOf(cta) ?? window).scrollBy({ top: overlap, behavior: 'smooth' });
+}
+
+/** Wrapper onFocus: waits for the keyboard (viewport resize, or a timeout fallback) then lifts. */
+function keepCtaVisibleOnFocus(e: React.FocusEvent<HTMLElement>): void {
+  const field = e.target;
+  if (!field.matches('#al-identifier, .al-otp-box')) return;
+  const run = () => liftCtaAboveAddressBar(field);
+  window.visualViewport?.addEventListener('resize', () => setTimeout(run, 50), { once: true });
+  setTimeout(run, 350);
+}
 
 // ---------------------------------------------------------------------------
 // Identifier parsing
@@ -791,7 +837,12 @@ export function AccountLogin({
             ))}
           </ul>
 
-          {pickError && <p className="al-error al-pick-error" role="alert">{pickError}</p>}
+          {pickError && (
+            <div className="al-error al-pick-error" role="alert">
+              <AlertIcon size={24} className="al-error-ico" />
+              <span>{pickError}</span>
+            </div>
+          )}
 
           <div className="al-merge">
             <InfoSolid className="al-merge-icon" />
@@ -810,7 +861,7 @@ export function AccountLogin({
     const complete = code.replace(/\s/g, '').length === OTP_LENGTH;
 
     return (
-      <div className="al-wrapper">
+      <div className="al-wrapper" onFocus={inEditor ? undefined : keepCtaVisibleOnFocus}>
         <div className="al-card">
           <div className="al-head">
             <h1 className="al-title" tabIndex={-1} ref={otpHeadingRef}>
@@ -834,7 +885,12 @@ export function AccountLogin({
               (well past the click), so inserting them pushed Continue and
               Resend down — a layout shift. A longer message still grows it. */}
           <div className="al-msg-slot">
-            {codeError && <p className="al-error" role="alert">{codeError}</p>}
+            {codeError && (
+              <div className="al-error" role="alert">
+                <AlertIcon size={24} className="al-error-ico" />
+                <span>{codeError}</span>
+              </div>
+            )}
             {resent && !codeError && (
               <p className="al-note" role="status">A new code is on its way.</p>
             )}
@@ -860,7 +916,7 @@ export function AccountLogin({
   const filled = identifier.trim() !== '';
 
   return (
-    <div className="al-wrapper">
+    <div className="al-wrapper" onFocus={inEditor ? undefined : keepCtaVisibleOnFocus}>
       <div className="al-card">
         <div className="al-head">
           <h1 className="al-title">{heading}</h1>
@@ -920,7 +976,12 @@ export function AccountLogin({
             {/* Reserved for the same reason as the code step's: a failed send
                 is reported after the round trip, not on the click. */}
             <div className="al-msg-slot">
-              {identifyError && <p className="al-error" role="alert">{identifyError}</p>}
+              {identifyError && (
+                <div className="al-error" role="alert">
+                  <AlertIcon size={24} className="al-error-ico" />
+                  <span>{identifyError}</span>
+                </div>
+              )}
             </div>
 
             <button type="submit" className="al-cta" disabled={!canContinue}>

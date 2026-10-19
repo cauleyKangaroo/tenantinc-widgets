@@ -421,3 +421,138 @@ Inputs and where each comes from:
 are Kangaroo proxy endpoints with no counterpart here. The documented rent path
 is lease-set-up → finalize → lease. Confirm whether the proxy wraps these or
 should be retired.
+
+## Reservation code (confirmation page)
+
+The reserve call returns only `reservation.reservation_id` (a database key such as
+`ojDp0WsoKj`). The code the office knows the reservation by lives on the record:
+
+```
+GET {api}/applications/{app}/v1/companies/{companyId}/reservations/{reservationId}
+→ { reservation: { id, code, lease_id, expires, move_in_date, Lease: {...} } }
+```
+
+`companyId` is the site's resolved company (the `Company` collection), never the
+build-time one. The widget reads `reservation.code` (`9W6LZ6`) and shows it as the
+Reservation Code; if the lookup fails it falls back to showing the id, as before.
+Verified live 2026-10-13. See `fetchReservationCode` in `api.ts`.
+
+## Find my Reservation (#03) → complete it in the rental flow
+
+`GET v1/companies/{companyId}/reservations?property_id={propertyId}&code={CODE}` →
+`{ reservations: [ { id, code, lease_id, Lease: { unit_id, Unit: { number, property_id },
+Tenants: [ { Contact } ] } } ] }`. An unknown code is a 200 with an empty list.
+Same credentials and company resolution as every other #03 read; the property is the
+page's own. See `findReservation` in `widget-property-info/api.ts`.
+
+A found reservation is handed to the rental page (`rentalPageUrl`, default `/rental`)
+with `?reservationId=&unitId=&propertyId=&companyId=`; the contact rides in
+localStorage (`@shared/unitHandoff`, `ti.reservation`). In the flow this is
+**reservation mode**: a reserved unit cannot be held or quoted the plain way (both 409
+"This unit has been reserved"), so
+
+- no hold is taken and the unit is never re-picked;
+- the quote is `lease-set-up` with `reservation_id` (POST body, or `?reservation_id=`
+  on the GET) — verified live 2026-10-13;
+- the lease is `POST units/{u}/lease` with **`reservation_id`** and no `hold_token`;
+- step 1 is prefilled from the reservation's contact and offers Rent only.
+
+## Documents first, then the lease (restored 2026-10-16)
+
+For two days (2026-10-14 → 16) the widget created the lease without
+`documents` and then called
+`GET v1/companies/{co}/leases/{lease_id}/documents/{document_id}/generate?type=super-lease&contact_id=…&property_id=…`
+to produce the agreement. **At TenantInc's request that is reverted**: the generate
+call is gone and the original sequence is back —
+
+1. `POST units/{u}/documents/finalize` (API 9) — awaited. Returns the signed set;
+   an UNSIGNED set means Traditional signing and the rental is refused with
+   "This facility requires the lease to be signed in person…" before any lease
+   exists or a card is charged.
+2. `POST units/{u}/lease` (API 10) — made FROM that `documents` array, plus
+   `contacts`, `payment_method`, `start_date`, `platform`, `source`,
+   `deliveryMethod`, `additional_months`, and `hold_token` or `reservation_id`.
+
+The "finalizing" screen holds for the whole of both calls: ProcessingModal's bar
+creeps toward a cap while `waiting` and completes only when the result is in.
+`documents/preview` (the step-2 agreement panel) is unchanged.
+
+## Step 2 details → the contact, through the proxy (changed 2026-10-15)
+
+Step 2 ("Get Access") used to file the licence, mailing address and date of
+birth with a direct `PUT …/v2/companies/{co}/contacts/{contactId}` to the edge
+API, and dropped the alternate contact because that PUT has no field for it.
+
+With the widget's `login_api_base` prop set (the same value #19 My Account
+takes — copy its JS-tab line), it now sends ONE call to the My Account proxy:
+
+```
+PATCH {login_api_base}/api/tenant/contacts/{contactId}
+X-Duda-Site-Id: {siteId}
+{
+  "details": { "dob": "1990-01-31", "driverLicense": "D1234567",
+               "driverLicenseState": "TX", "driverLicenseExpiration": "2030-01-31" },
+  "addresses": [ { "type": "Mailing", "primary": false, "line1": "PO Box 12",
+                   "city": "Austin", "state": "TX", "zip": "78702" } ],
+  "secondaryContacts": [ { "leaseId": "<lease>", "isAlternate": true, "isEmergency": false,
+                           "first": "Robert", "last": "Doe", "email": "rob@example.com",
+                           "phone": { "number": "5559998888", "type": "Cell", "sms": false },
+                           "address": { "line1": "9 Elm St", "city": "Austin", "state": "TX",
+                                        "zip": "78703", "country": "US" } } ]
+}
+```
+
+- Only what was filled is sent — a present-but-empty key blanks a value.
+- Dates go as YYYY-MM-DD; the form types MM/DD/YYYY and `contactPatch.ts`
+  converts. Phone numbers go as bare digits.
+- `military` is NOT sent: the form only asks for a date of birth (→
+  `details.dob`); the contract's military object needs branch, rank, service
+  dates and more, none of which are collected. Vehicle still has no field.
+- Fire-and-forget after the lease, logged on failure, never shown — a failure
+  here cannot undo a rental.
+- `npm run test:contact-patch` pins the body shape.
+- **Not yet live (2026-10-15):** `devus-mariposa-duda-proxy` answers
+  `route_not_found` for this path and no proxy branch we hold carries it, so
+  the call could not be exercised end to end. Without `login_api_base` the
+  widget keeps the direct PUT.
+
+## Step 2 vehicle → the lease, through the proxy (added 2026-10-15)
+
+The Vehicle section used to be collected and dropped. With `login_api_base`
+set it is now filed against the LEASE, as its own call after the contact PATCH:
+
+```
+PUT {login_api_base}/api/tenant/leases/{leaseId}/vehicle
+X-Duda-Site-Id: {siteId}
+{ "type": "car", "make": "Honda", "model": "Civic", "year": "2020", "color": "Black",
+  "licensePlateNumber": "XYZ789", "licensePlateState": "TX", "licensePlateCountry": "US" }
+```
+
+- `type` is the picker's label lower-cased (Car / Motorcycle / RV / Boat /
+  Trailer → car / motorcycle / rv / boat / trailer); it is the only required
+  field, so no type ⇒ no call.
+- The plate's state and country are picked as names and sent as codes.
+- Only what was filled travels. `npm run test:contact-patch` pins the body.
+- **Not yet live (2026-10-15):** the proxy answers `route_not_found` for this
+  path, like the contacts PATCH.
+
+## Card payments: `hosted-card`, no stand-in number (changed 2026-10-16)
+
+On a hosted-fields gateway (`tenant_payments`) the card used to go over as
+`type: "card"` with a FIXED test PAN (4111…) and test expiry beside the real
+token. Gone, at TenantInc's instruction. The payment_method is now:
+
+```
+{ "type": "hosted-card", "token": "supt_…", "card_number": "411111******1111",
+  "exp_mo": "12", "exp_yr": "2028", "cvv2": "…", "name_on_card", "first", "last",
+  "zip", "card_type", "save_to_account", "auto_charge" }
+```
+
+- `token` and `card_number` (the gateway's mask) come from Global Payments'
+  token reply. That reply carries NO expiry and no CVV (sandbox tokenizer
+  checked 2026-10-16: with or without an expiry it answers only
+  `{ token_value, card.number }`), and the API requires `exp_mo` / `exp_yr`
+  (finalize rejected their absence) — so the expiry is now typed into a cell
+  of ours, like the CVV always was. The gateway's expiry frame is no longer
+  mounted; the gateway tokenizes from the number alone.
+- Non-hosted gateways are unchanged: `type: "card"` with the real digits.

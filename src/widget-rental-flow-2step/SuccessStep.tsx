@@ -739,21 +739,21 @@ export function SuccessStep({
         {!provided?.military && (
         <div className="rf-sx-group">
           <Checkbox checked={military} onChange={setMilitary}>I am active military</Checkbox>
-          {military && <MilitaryFields v={extraFields} set={setExtra} bad={bad} />}
+          {military && <MilitaryFields v={extraFields} set={setExtra} bad={bad} validated />}
         </div>
         )}
 
         {!provided?.altContact && (
         <div className="rf-sx-group">
           <Checkbox checked={altContact} onChange={setAltContact}>I am providing an alternate contact</Checkbox>
-          {altContact && <AltContactFields v={extraFields} set={setExtra} bad={bad} primary={primary} />}
+          {altContact && <AltContactFields v={extraFields} set={setExtra} bad={bad} validated primary={primary} />}
         </div>
         )}
 
         {!provided?.vehicle && (
         <div className="rf-sx-group">
           <Checkbox checked={vehicle} onChange={setVehicle}>I am storing a vehicle</Checkbox>
-          {vehicle && <VehicleFields v={extraFields} set={setExtra} bad={bad} />}
+          {vehicle && <VehicleFields v={extraFields} set={setExtra} bad={bad} validated />}
         </div>
         )}
         </div>

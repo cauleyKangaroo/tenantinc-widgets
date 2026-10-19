@@ -335,7 +335,7 @@
   letter-spacing: normal !important;
   /* A long facility name ("Storage Outlet - Bellflower") must break rather than
      push the column wider. Not guarded — no theme sets it. */
-  overflow-wrap: break-word;
+  overflow-wrap: break-word !important;
 }
 
 /* Stand-in for the title while the property name is in flight. 39px is the
@@ -409,14 +409,14 @@
   padding-top: 24px;
 }
 .sl-wrapper .sl-feature-details-title {
-  margin: 0 0 12px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 30px;
-  color: #101318;
-  text-transform: none;
-  letter-spacing: normal;
+  margin: 0 0 12px !important;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 30px !important;
+  color: #101318 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 /* RichText puts this class on EACH generated <p> for plain copy, and on the
    single wrapper for authored HTML — hence the margin rules, which have to read
@@ -471,7 +471,7 @@
   background: #101318;
   color: #ffffff;
 }
-/* Chevron: points right when collapsed, rotates down when the section opens.
+/* Chevron: points down when collapsed, flips up when the section opens.
    margin-right insets it 26px from the right edge. On the chevron rather than as
    padding on the header, so the divider lines above and below stay full width —
    padding there would pull the header's contents in but leave the borders, which
@@ -483,7 +483,7 @@
   flex-shrink: 0;
   margin-right: 26px;
   transition: transform 0.2s;
-  transform: rotate(-90deg);
+  transform: rotate(0deg);
 }
 /* Open: the down glyph flipped to point up. */
 .sl-wrapper .sl-accordion.expanded .sl-chevron { transform: rotate(180deg); }
@@ -601,15 +601,18 @@
   object-fit: contain;
   display: block;
 }
+/* No desktop gap override: the info↔image gap is the frame's 30px at every
+   width (Figma 7112-47390). It used to drop to 16px above 1360px to give the
+   image more room, which put the image off the frame's position. */
 .sl-wrapper .sl-see-fits {
   font-size: 15px;
-  color: var(--color_1, #f45f30);
+  color: var(--hb-text-night, #101318);
   text-decoration: none;
   white-space: nowrap;
   font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .sl-wrapper .sl-see-fits:hover { text-decoration: underline; }
 
@@ -782,7 +785,7 @@
 /* The note under the CTA — "Limited Availability" (sold out, copy configurable
    via limitedAvailabilityCopy) or "Only X left - Rent soon!" (scarcity). One rule
    for both: Figma 7112-47044 and 7112-47400 specify the same 12px/16px SemiBold
-   #fb4c4c right-aligned treatment, and the two messages share a slot under the
+   #d32f2f right-aligned treatment, and the two messages share a slot under the
    button, so they must be pixel-identical. Replaces the old per-layout
    .sl-urgency / .sl-lc-urgency / .sl-dv-urgency rules. */
 /* Spans the whole price+button row: `flex: 0 0 100%` makes it the only thing on
@@ -797,7 +800,7 @@
   min-width: 0;
   font-size: 12px;
   line-height: 16px;
-  color: #fb4c4c;
+  color: #d32f2f;
   font-weight: 600;
   text-align: right;
   /* The rows carry gap:16px, which now also separates the note's line from the
@@ -882,12 +885,12 @@
 .sl-wrapper .sl-lc-see-fits {
   font-size: 15px;
   font-weight: 700;
-  color: var(--color_1, #f45f30);
+  color: var(--hb-text-night, #101318);
   text-decoration: none;
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .sl-wrapper .sl-lc-see-fits:hover { text-decoration: underline; }
 .sl-wrapper .sl-lc-info {
@@ -923,17 +926,26 @@
 }
 
 /* ── Size grid (dimension pills) ── */
-/* 352px = four 82px pills + three 8px gaps. Shrinkable (0 1) so a narrow
-   container drops to 3/2/1 pill columns instead of pushing the whole grid onto
-   its own line; 82px floor keeps one full-width pill legible. */
+/* FOUR columns, always — 352px = four 82px pills + three 8px gaps.
+   A real grid, not a wrapping flex row. The flex version let the content decide
+   how many pills fitted per row, so one long label ("12.8' x 12.8'" measures
+   85px) pushed the row down to three and a group of one got a row of one —
+   both of which make "complete the row with empty slots" meaningless, because
+   there is no column count to complete TO. Fixed tracks give the rows a
+   stable width that the markup can pad out.
+   `1fr` tracks under `width: max-content` all resolve to the WIDEST pill, so a
+   long label widens every column instead of overflowing its own — the grid
+   grows past 352px rather than the label escaping its box. min-width keeps the
+   frame's 82px columns when nothing needs more. */
 .sl-wrapper .sl-lc-sizes {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   align-content: flex-start;
   gap: 8px;
-  flex: 0 1 352px;
-  min-width: 82px;
-  max-width: 352px;
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: 352px;
+  max-width: 100%;
 }
 /* The dimension label must never wrap. Two things used to make it: the browser's
    default button padding (1px 6px) and the selected state's 4px border, which
@@ -968,6 +980,23 @@
   border-width: 2.5px;
   color: #a5b4bf;
 }
+
+/* An empty slot, so every row of the grid is complete (12936-82415). It is the
+   REAL .sl-lc-size box — same 82x40, same radius, same responsive rules — so a
+   filler lines up with the pills and reflows with them; only the paint differs.
+   Figma fills it Cloud/Lighter AND borders it the same colour rather than
+   dropping the border, which keeps the footprint identical to a bordered pill
+   instead of leaving it 4px small. Inert: it is a <span>, so there is nothing
+   to press, and the pointer/hover affordances of a real pill are taken off. */
+.sl-wrapper .sl-lc-size.sl-lc-size-empty {
+  background: #f9fafb;
+  border-color: #f9fafb;
+  cursor: default;
+}
+/* Carries .sl-lc-sizes so it outranks .sl-lc-size:hover:not(.selected) on
+   specificity rather than on source order, which is the fragile half of that
+   pair — a filler must never light up in the CTA colour under the cursor. */
+.sl-wrapper .sl-lc-sizes .sl-lc-size.sl-lc-size-empty:hover { border-color: #f9fafb; }
 /* The badge straddles the pill's border, so it needs a white keyline to still
    read as a separate label rather than merging into the border. Stacked 0-blur
    drop-shadows trace the tag's actual silhouette (notch and all) and paint
@@ -976,8 +1005,11 @@
 .sl-wrapper .sl-lc-size-tag {
   color: var(--color_1, #f45f30);
   position: absolute;
-  top: -7px;
-  right: -5px;
+  /* Figma 7112-47058: the 16px tag frame sits 4px above and 4px past the pill's
+     OUTER edge. Absolute offsets resolve against the padding box, so the border
+     width is added back — 2px here, 4px on the selected pill, 2.5px dashed. */
+  top: -6px;
+  right: -6px;
   display: flex;
   line-height: 0;
   /* Four 0-blur offsets, chained: each pass filters the previous result, so the
@@ -989,6 +1021,9 @@
     drop-shadow(0 1px 0 #ffffff)
     drop-shadow(0 -1px 0 #ffffff);
 }
+
+.sl-wrapper .sl-lc-size.selected .sl-lc-size-tag { top: -8px; right: -8px; }
+.sl-wrapper .sl-lc-size.unavail .sl-lc-size-tag { top: -6.5px; right: -6.5px; }
 
 /* ── Action panel (grey): promo + price + CTA ── */
 .sl-wrapper .sl-lc-action {
@@ -1018,15 +1053,22 @@
   line-height: 16px;
 }
 .sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; color: var(--color_1, #f45f30); }
+/* A GRID, not a wrapping flex row. As a 334px wrapping row the price column only
+   had 178px (334 - 16 - 140) beside the button, and the price figures' width
+   depends on the digits — "$110.00" fitted, "$250.00" did not — so some cards
+   kept Select beside the price and others dropped it underneath. Here the price
+   track can never be narrower than its figures (min-content), and the box grows
+   past 334px by the few px that takes rather than wrapping the button.
+   The CTA note spans both tracks (see the .sl-limited-label rule below). */
 .sl-wrapper .sl-lc-price-button {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(min-content, 1fr) 140px;
   gap: 16px;
-  align-items: flex-start;
+  align-items: start;
   flex: 0 1 334px;
-  min-width: 0;
-  max-width: 100%;
+  min-width: min-content;
 }
+.sl-wrapper .sl-lc-price-button .sl-limited-label { grid-column: 1 / -1; }
 /* The price column absorbs the shrinking (its .sl-prices-row is shrink:0, so it
    never squashes below the figures — the small print wraps instead). Previously
    this was shrink:0 and the button column was min-width:0, so any shortfall
@@ -1087,13 +1129,14 @@
    (that is what made the seam wander card to card). */
 .sl-wrapper .sl-dv-display {
   background: #ffffff;
-  flex: 0 0 55%;
+  /* 55.5 = the frame's 486 of 876. */
+  flex: 0 0 55.5%;
   min-width: 0;
   display: flex;
   align-items: flex-start;
-  /* 30px inset and a 24px column gap between the image and the text — Figma
-     9417-86254. Both hold at every width; see the 907px step below. */
-  gap: 24px;
+  /* 30px inset and a 16px column gap between the image column and the text —
+     Figma 7112-47133. */
+  gap: 16px;
   padding: 30px;
   box-sizing: border-box;
 }
@@ -1102,7 +1145,10 @@
    fixed 100–130px column let it do, and would let it do again on any Duda theme
    whose font is wider than Montserrat. The image cap below is what bounds it. */
 .sl-wrapper .sl-dv-image-col {
-  flex: 0 0 auto;
+  /* The frame's 162px column, but never narrower than its contents —
+     min-width keeps the guarantee above. */
+  flex: 0 0 162px;
+  min-width: max-content;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1129,12 +1175,12 @@
 .sl-wrapper .sl-dv-see-fits {
   font-size: 15px;
   font-weight: 700;
-  color: var(--color_1, #f45f30);
+  color: var(--hb-text-night, #101318);
   text-decoration: none;
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .sl-wrapper .sl-dv-see-fits:hover { text-decoration: underline; }
 .sl-wrapper .sl-dv-info {
@@ -1168,7 +1214,7 @@
 /* ── Action panel (grey): promo + price + CTA, bottom-right at 323px ── */
 .sl-wrapper .sl-dv-action {
   background: #f9fafb;
-  flex: 0 0 45%;
+  flex: 0 0 44.5%;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -1200,9 +1246,15 @@
   gap: 16px;
   align-items: flex-start;
 }
-.sl-wrapper .sl-dv-price { flex: 1 1 auto; min-width: 0; }
+/* The BUTTON gives way first, not the line. The price is floored at its own
+   figures (min-content) and the button is 120px that grows to the frame's 146
+   when there is room, so whether the pair shares a row no longer depends on
+   the digits in the price — "$110.00" and "$250.00" render at different widths,
+   which used to put Select beside some prices and under others. */
+.sl-wrapper .sl-dv-price { flex: 1 1 0; min-width: min-content; }
 .sl-wrapper .sl-dv-btn-col {
-  flex: 0 1 146px;
+  flex: 10 1 120px;
+  max-width: 146px;
   /* See .sl-cta-col — the note is a sibling of this column now. */
   min-width: 0;
   display: flex;
@@ -1282,7 +1334,10 @@
    the container is far narrower than in the dev harness). Tighten the left group
    so the size grid keeps 2–3 pill columns beside the info instead of being
    starved down to a single tall column. */
-@container (max-width: 900px) {
+/* 840, not 900: the Figma frame itself is an 876px card with the full 162px
+   image column and 50px gap, and the full layout needs ~828px
+   (60 padding + 162 + 50 + 164 info + 40 + 352 grid). */
+@container (max-width: 840px) {
   .sl-wrapper .sl-lc-left { gap: 24px; }
   .sl-wrapper .sl-lc-image-col { width: 130px; }
   .sl-wrapper .sl-lc-img { max-width: 130px; }
@@ -1293,7 +1348,7 @@
    feature text keeps room to breathe — the grid still sits BESIDE the info,
    which is the point of the fix. */
 @container (max-width: 820px) {
-  .sl-wrapper .sl-lc-sizes { flex-basis: 172px; max-width: 172px; }
+  .sl-wrapper .sl-lc-sizes { grid-template-columns: repeat(2, 1fr); min-width: 172px; }
 }
 
 @container (max-width: 680px) {
@@ -1307,33 +1362,32 @@
    (~800px once the accordion panel takes its 422) — the whole point of this
    layout is white panel beside grey panel, so narrowing steps give width back
    from the image and the paddings before anything is allowed to stack. */
-/* Below ~907px of listing, 45% stops being enough for the full-size price row and
-   CTA to share a line (408 = 60 padding + the 348 box). Trim the image (to the
-   Figma leaf's own ~97px), the CTA basis and the price size to buy that back — the
-   split itself stays 55/45, since a per-card min-width floor is exactly what would
-   make the seam wander again.
-   The 30px paddings and the 24px display gap are NOT trimmed here any more: they
-   are the design's own values, and the CTA/price trims below recover more width
-   than the 20px paddings did. Between ~600 and ~750 the pair still exceeds the
-   panel and wrap drops the CTA below the price — the safety valve doing its job,
-   at widths only a squeezed Duda column reaches. */
-@container (max-width: 907px) {
-  /* 130px — the LIST card's image at this width (.sl-lc-img in the 900px step
-     above), so the two layouts show the same photo size on a tablet. It was
-     100px, on the theory that trimming it bought the price row room; it cannot,
-     because the image sits in the white 55% panel and the price row in the grey
-     45% one, which the hard split keeps apart. */
+/* The split stays 55.5/44.5 at every width — a per-card min-width floor is
+   exactly what would make the seam wander. Narrowing steps trim the image and
+   the price instead. Between ~600 and ~750 the pair can still exceed the panel
+   and wrap drops the CTA below the price — the safety valve doing its job, at
+   widths only a squeezed Duda column reaches. */
+/* Image column steps with the LIST card's (.sl-lc-img in the 840px step above),
+   so the two layouts show the same photo size on a tablet. */
+@container (max-width: 840px) {
+  .sl-wrapper .sl-dv-image-col { flex-basis: 130px; }
   .sl-wrapper .sl-dv-img { width: 130px; max-width: 130px; }
   /* 13px keeps the link narrower than the image, so the column stays put */
   .sl-wrapper .sl-dv-see-fits { font-size: 13px; gap: 4px; }
-  .sl-wrapper .sl-dv-actions { max-width: 312px; }
+}
+/* Below ~860px of listing the 24px price and even the 120px button stop fitting
+   the grey panel side by side. 22px (vs Figma's 24) and a 12px gap are the last
+   few px the price row needs to stay on ONE row with the CTA — the list card
+   drops to 20px at its narrow step. */
+@container (max-width: 860px) {
   .sl-wrapper .sl-dv-price-button { gap: 12px; }
-  /* min-width:0 here too — this is the narrowest step, so it is where a
-     max-content floor pushed the button furthest past the card's padding. */
-  .sl-wrapper .sl-dv-btn-col { flex: 0 1 120px; min-width: 0; }
-  /* 22px (vs Figma's 24) is the last few px the price row needs to stay on ONE
-     row with the CTA here — the list card drops to 20px at its narrow step. */
+  .sl-wrapper .sl-dv-btn-col { flex-basis: 110px; }
   .sl-wrapper .sl-dv-price .sl-main-price { font-size: 22px; }
+}
+/* The squeezed Duda column (~794px with the accordion panel beside it). 20px is
+   the list card's own narrow-step price size. */
+@container (max-width: 820px) {
+  .sl-wrapper .sl-dv-price .sl-main-price { font-size: 20px; }
 }
 
 /* Genuinely out of room for two columns. Only reachable in Duda, where the
@@ -1395,6 +1449,9 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
+    /* Full width here, so the desktop max-content sizing is undone. */
+    width: auto;
+    min-width: 0;
     max-width: none;
   }
   .sl-wrapper .sl-lc-size { min-width: 0; width: 100%; }
@@ -1408,10 +1465,17 @@
     grid-row: 3;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-    gap: 8px 12px;
+    /* Figma 7112-56210: filled COLUMN-first (chip and the first tick on the
+       left, the rest on the right), 24px rows 4px apart, 16px between the
+       columns. --lc-am-rows comes from ListCard. */
+    grid-auto-flow: column;
+    grid-template-rows: repeat(var(--lc-am-rows, 1), minmax(24px, auto));
+    align-items: center;
+    gap: 4px 16px;
   }
   .sl-wrapper .sl-lc-amenities .sl-features { display: contents; }
+  /* The chip hugs its text with an even 4px inset, as the frame draws it. */
+  .sl-wrapper .sl-lc-amenities .sl-lc-subtype { justify-self: start; padding: 4px; }
 
   /* Price and Select side by side, as the frame draws them — not the stack this
      used to be. Both keep a flex-basis and the row may wrap, so a card narrower
@@ -1419,6 +1483,10 @@
      button beneath the price rather than crushing the figures. */
   .sl-wrapper .sl-lc-action { padding: 16px; gap: 8px 16px; }
   .sl-wrapper .sl-lc-price-button {
+    /* Back to the wrapping flex row the desktop grid replaced — wrapping is the
+       point here. */
+    display: flex;
+    min-width: 0;
     flex: 1 1 100%;
     flex-direction: row;
     flex-wrap: wrap;
@@ -1426,8 +1494,26 @@
     justify-content: space-between;
     gap: 12px 16px;
   }
-  .sl-wrapper .sl-lc-price { flex: 1 1 150px; align-self: flex-start; }
-  .sl-wrapper .sl-lc-btn-col { flex: 0 1 135px; }
+  /* The button gives way before the line does: 135px (the frame's) shrinking
+     to 100px, against a price floored at its own figures. Without this every
+     card on a 360px phone dropped Select under the price. */
+  .sl-wrapper .sl-lc-price { flex: 1 1 0; min-width: min-content; align-self: flex-start; }
+  /* The frame keeps the full 24px price and a 4px gap inside the price block. */
+  .sl-wrapper .sl-list-card .sl-main-price { font-size: 24px; }
+  .sl-wrapper .sl-list-card .sl-prices-row { gap: 4px; }
+  /* The note sits under the BUTTON, centred on it, rather than spanning the row.
+     min-width is the button's 135px; a longer note grows leftwards. */
+  .sl-wrapper .sl-lc-price-button .sl-limited-label {
+    flex: 0 0 auto;
+    min-width: 135px;
+    max-width: 100%;
+    margin-left: auto;
+    text-align: center;
+    /* The base -12px lift assumes a 16px row gap; this row's is 12px, which left
+       the note touching the button. -8px gives the same 4px as the grid card. */
+    margin-top: -8px;
+  }
+  .sl-wrapper .sl-lc-btn-col { flex: 10 1 100px; max-width: 135px; min-width: 0; }
 
   .sl-wrapper .sl-main-price { font-size: 20px; }
 
@@ -1438,7 +1524,11 @@
      full-width. */
   .sl-wrapper .sl-cards-grid { grid-template-columns: 1fr; gap: 16px; }
   .sl-wrapper .sl-card-display-panel { padding: 16px; }
-  .sl-wrapper .sl-card-action-panel { padding: 16px; }
+  /* 12px between the promo and the price row — Figma 7112-57902. */
+  .sl-wrapper .sl-card-action-panel { padding: 16px; gap: 12px; }
+  /* The frame keeps the full 24px price on the grid card; the 20px above is
+     the list card's narrow-frame size. */
+  .sl-wrapper .sl-unit-card .sl-main-price { font-size: 24px; }
   /* Panel is already 16px here — keep the full bottom padding under the note. */
   .sl-wrapper .sl-card-action-panel .sl-junk-disclaimer { margin-bottom: 0; }
   .sl-wrapper .sl-card-top { gap: 16px; align-items: flex-start; }
@@ -1465,6 +1555,15 @@
     order: 0; flex: 1 1 auto; width: auto; min-width: 0; margin-left: 0; height: 44px;
   }
   .sl-wrapper .sl-top-bar-pills { order: 1; flex-basis: 100%; }
+}
+/* Smallest phones (320px screens): 24px would squeeze Select to ~70px. */
+@container (max-width: 300px) {
+  .sl-wrapper .sl-unit-card .sl-main-price { font-size: 20px; }
+}
+/* 360px phones: the list card's 24px price and the button stop sharing a row;
+   20px (its size before the frame match) keeps them together. */
+@container (max-width: 330px) {
+  .sl-wrapper .sl-list-card .sl-main-price { font-size: 20px; }
 }
 
 /* The DEFAULT layout's narrow frame.
@@ -1564,7 +1663,7 @@
   .sl-wrapper .sl-default-card .sl-prices-row,
   .sl-wrapper .sl-default-card .sl-price-left,
   .sl-wrapper .sl-default-card .sl-price-main { flex-shrink: 1; min-width: 0; }
-  .sl-wrapper .sl-default-card .sl-dv-btn-col { flex: none; width: 82px; }
+  .sl-wrapper .sl-default-card .sl-dv-btn-col { flex: none; width: 82px; max-width: none; }
   .sl-wrapper .sl-default-card .sl-select-btn,
   .sl-wrapper .sl-default-card .sl-call-btn,
   .sl-wrapper .sl-default-card .sl-waitlist-btn { padding-inline: 10px; }
@@ -3987,11 +4086,11 @@
 .sl-wrapper .sl-rich h1,
 .sl-wrapper .sl-rich h2,
 .sl-wrapper .sl-rich h3,
-.sl-wrapper .sl-rich h4              { margin: 0 0 8px; font-weight: 700; line-height: 1.3; }
-.sl-wrapper .sl-rich h1 { font-size: 22px; }
-.sl-wrapper .sl-rich h2 { font-size: 20px; }
-.sl-wrapper .sl-rich h3 { font-size: 18px; }
-.sl-wrapper .sl-rich h4 { font-size: 16px; }
+.sl-wrapper .sl-rich h4              { margin: 0 0 8px !important; font-weight: 700 !important; line-height: 1.3 !important; }
+.sl-wrapper .sl-rich h1 { font-size: 22px !important; }
+.sl-wrapper .sl-rich h2 { font-size: 20px !important; }
+.sl-wrapper .sl-rich h3 { font-size: 18px !important; }
+.sl-wrapper .sl-rich h4 { font-size: 16px !important; }
 .sl-wrapper .sl-rich img             { max-width: 100%; height: auto; }
 .sl-wrapper .sl-rich table           { width: 100%; border-collapse: collapse; }
 .sl-wrapper .sl-rich td,

@@ -122,6 +122,65 @@ export function clearUnitSelection(): void {
  * would make the link relative to the current page — fatal on a property page
  * at /storage-units/california/… — and a trailing one would double up.
  */
+// ── A found reservation, on its way to the rental flow ──────────────────────
+//
+// "Find my Reservation" on #03 looks a code up and sends the customer to the
+// rental page to complete it. Like the unit pick above, the details travel in
+// localStorage and only the ids go on the URL: the reservation names a person
+// (the contact), and that does not belong in a link that can be copied.
+//
+// Separate from UnitSelection on purpose: that one describes a pricing TIER
+// the flow still has to resolve to a unit, while a reservation already names
+// the exact unit — and the flow must treat it differently (quote and lease by
+// reservation_id, never hold or re-pick).
+
+const RESERVATION_KEY = 'ti.reservation';
+
+export interface ReservationHandoff {
+  /** The reservation record id — what the quote and the lease are made with. */
+  reservationId: string;
+  /** The customer-facing code they typed. */
+  code: string;
+  unitId: string;
+  unitNumber?: string;
+  propertyId?: string;
+  companyId?: string;
+  /** Display size, when the lookup could tell. */
+  size?: string;
+  /** The reserving contact, to prefill step 1. */
+  contact?: { first: string; last: string; email: string; phone: string };
+  /** The reserving contact's record id (Lease.Tenants[0].contact_id), so the
+   *  lease made from the reservation names the SAME contact rather than
+   *  creating a second one from the typed details. */
+  contactId?: string;
+  savedAt: number;
+}
+
+export function saveReservationHandoff(h: Omit<ReservationHandoff, 'savedAt'>): void {
+  if (!h.reservationId || !h.unitId) return;
+  try {
+    window.localStorage.setItem(RESERVATION_KEY, JSON.stringify({ ...h, savedAt: Date.now() } as ReservationHandoff));
+  } catch { /* storage unavailable — the URL ids still get the flow there */ }
+}
+
+export function readReservationHandoff(maxAgeMs = MAX_AGE_MS): ReservationHandoff | null {
+  try {
+    const raw = window.localStorage.getItem(RESERVATION_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as Partial<ReservationHandoff>;
+    if (!p || typeof p.reservationId !== 'string' || !p.reservationId || typeof p.unitId !== 'string' || !p.unitId) return null;
+    const savedAt = typeof p.savedAt === 'number' ? p.savedAt : 0;
+    if (!savedAt || Date.now() - savedAt > maxAgeMs) return null;
+    return { ...p, reservationId: p.reservationId, unitId: p.unitId, code: p.code ?? '', savedAt } as ReservationHandoff;
+  } catch {
+    return null;
+  }
+}
+
+export function clearReservationHandoff(): void {
+  try { window.localStorage.removeItem(RESERVATION_KEY); } catch { /* nothing to do */ }
+}
+
 export function rentalHref(path?: string): string {
   const trimmed = (path ?? '').trim().replace(/\/+$/, '');
   if (!trimmed) return DEFAULT_RENTAL_PATH;

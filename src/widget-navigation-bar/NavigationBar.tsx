@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './NavigationBar.css';
 import storelocalLogo from './Storelocal_logo.png';
 import { LanguageMenu } from './LanguageMenu';
+import { AccountMenu } from './AccountMenu';
 import { CloseCircleIcon } from '@shared/ui';
 import {
   ChevronDown,
@@ -198,6 +199,19 @@ function forceHardcodedLinks<
 const FIND_STORAGE_LABEL = 'Find Storage';
 
 /**
+ * Where Pay Bill and the account icon go: My Account (#19) on whichever site
+ * the nav is on — root-relative, so every site built from the template gets
+ * its own. A signed-out visitor is sent on to /login by My Account itself.
+ */
+const MY_ACCOUNT_PATH = '/my-account';
+
+/** A content-menu URL, unless it is empty or the old '#' placeholder. */
+const urlOr = (url: string | undefined, fallback: string) => {
+  const u = (url ?? '').trim();
+  return u && u !== '#' ? u : fallback;
+};
+
+/**
  * Turn the collection-derived location tree into Find Storage's MOBILE accordion.
  *
  * Desktop no longer uses this — that link opens <FindStorageMegaMenu /> — but the
@@ -392,9 +406,9 @@ export function NavigationBar({
   liveChatUrl = '#',
   language = 'EN',
   payBillLabel = 'Pay Bill',
-  payBillUrl = '#',
+  payBillUrl = MY_ACCOUNT_PATH,
   accountLabel = 'My Account',
-  accountUrl = '#',
+  accountUrl = MY_ACCOUNT_PATH,
   logoLink,
   links,
   propertyId = DEFAULT_PROPERTY_ID,
@@ -735,13 +749,9 @@ export function NavigationBar({
                   setMegaOpen((o) => !o);
                 }}
               >
+                {/* No chevron on Find Storage: it opens the mega menu, not a
+                    dropdown, and the design drops the caret here. */}
                 <span>{link.label}</span>
-                {link.hasDropdown && (
-                  <ChevronDown
-                    size={20}
-                    className={`nav-link-chevron${megaOpen ? ' is-open' : ''}`}
-                  />
-                )}
               </button>
             ) : isFolderToggle ? (
               <button
@@ -817,6 +827,11 @@ export function NavigationBar({
     </ul>
   );
 
+  // A Duda JS tab can still pass '' or '#' for these, so the default alone is
+  // not enough.
+  const payBillHref = urlOr(payBillUrl, MY_ACCOUNT_PATH);
+  const accountHref = urlOr(accountUrl, MY_ACCOUNT_PATH);
+
   // Secondary-bar utility row (also reused in the mobile drawer when the top bar is on).
   // Each item is gated by its own visibility toggle from the content menu.
   const topItems = (
@@ -834,18 +849,13 @@ export function NavigationBar({
         </a>
       )}
       {showPayBill && (
-        <a className="nav-top-item" href="/login">
+        <a className="nav-top-item" href={payBillHref}>
           <CreditCardIcon size={24} />
           <span>{payBillLabel}</span>
         </a>
       )}
       {showLanguage && <LanguageMenu enLabel={language} />}
-      {showAccount && (
-        <a className="nav-top-item" href="/login">
-          <UserCircleIcon size={24} />
-          <span>{accountLabel}</span>
-        </a>
-      )}
+      {showAccount && <AccountMenu label={accountLabel} />}
     </div>
   );
 
@@ -859,7 +869,7 @@ export function NavigationBar({
         </a>
       )}
       {showPayBill && (
-        <a className="nav-paybill" href={payBillUrl}>
+        <a className="nav-paybill" href={payBillHref}>
           {payBillLabel}
         </a>
       )}
@@ -875,7 +885,7 @@ export function NavigationBar({
         </button>
       )}
       {showAccount && (
-        <a className="nav-icon-btn" href={accountUrl} aria-label="Account">
+        <a className="nav-icon-btn" href={accountHref} aria-label="Account">
           <UserCircleIcon size={40} />
         </a>
       )}

@@ -1,21 +1,18 @@
 import React from 'react';
 import { RichText } from '@shared/richText';
 
-// Notes — free-text copy authored in the Duda content menu (`notesContent`).
+// Notes — the property's `notes` cell on the PropertiesInternal collection
+// (SpaceList reads it; the content-menu `notesContent` is the fallback).
 //
 // Was a grey card that also carried a hardcoded "Visit our other
 // location here: www.propertylandingpage.com" block — demo placeholder with a fake
-// URL and href="#". Both removed, so the accordion shows only what the editor
-// actually wrote. Demo copy below still covers an unconfigured instance.
-const NOTE_TEXT =
-  'This facility offers a range of unit sizes to fit your needs, from small ' +
-  'lockers to large drive-up units. Our friendly on-site team is happy to help ' +
-  'you find the right space and answer any questions before your move-in date. ' +
-  'Reservations are held for 7 days and there is no obligation to rent.';
-
-/** `content` comes from the Duda content menu; blank falls back to the demo copy. */
+// URL and href="#". Both removed. The demo copy that then stood in for an
+// unconfigured instance is gone too (2026-10-15): the section is only
+// offered while there is content, so blank renders nothing rather than
+// invented notes.
 export function NotesSection({ content }: { content?: string } = {}) {
-  const text = (content ?? '').trim() || NOTE_TEXT;
+  const text = (content ?? '').trim();
+  if (!text) return null;
 
   return (
     <section className="sl-section sl-section--notes">

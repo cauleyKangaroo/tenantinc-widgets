@@ -8,6 +8,8 @@ import {
   type Platform,
 } from './icons';
 import { fetchAllReviewSources, type ReviewSourceData } from '@shared/reviewsCollections';
+import { fetchPropertyReviewSources } from '@shared/liveReviews';
+import { boundText } from '@shared/propertyBinding';
 import { Shimmer } from '@shared/Shimmer';
 import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
@@ -285,14 +287,38 @@ function Pagination({ page, total, onPrev, onNext, onDot, canPrev, canNext }: {
 export interface ReviewsProps {
   heading?: string;
   subheading?: string;
+  /**
+   * The page's property — a Duda content-menu field bound to Properties > id.
+   * The JS tab forwards it as `propertyID`; `propertyId` is accepted too for
+   * symmetry with the other widgets. With one, the widget shows THAT
+   * property's Google and Yelp reviews via its PropertiesInternal ids.
+   */
+  propertyID?: unknown;
+  propertyId?: unknown;
+  /** Duda's data.siteId — the proxy's reviews routes refuse without one. */
+  siteId?: string;
+  /** The proxy that answers /api/reviews/{google,yelp}/fetch — the same base
+   *  #19 My Account takes. Omitted → the shared default host. */
+  login_api_base?: string;
 }
 
 export function Reviews({
   heading = 'Customer Reviews',
   subheading = 'Read what our customers have to say about their storage experience with us.',
+  propertyID,
+  propertyId,
+  siteId,
+  login_api_base,
 }: ReviewsProps) {
-  // Google + Yelp reviews from their Duda collections; DEMO_SOURCES stays as the
-  // fallback (dev harness, Duda editor, or a missing/empty collection).
+  /* The page's property, as the JS tab spells it (`propertyID`) or as the
+     other widgets do (`propertyId`). boundText drops '' and an unsubstituted
+     {{token}}, so a page with no binding reads as "no property". */
+  const effectivePropertyId = boundText(propertyID) || boundText(propertyId);
+  const reviewsBase = (login_api_base ?? '').trim();
+  // THIS property's Google + Yelp reviews, live through the proxy, when the
+  // page names a property that has review ids on PropertiesInternal. Else
+  // the site-wide collections; DEMO_SOURCES stays as the last fallback (dev
+  // harness, Duda editor, or a missing/empty collection).
   const [sources, setSources] = useState<ReviewSource[]>(DEMO_SOURCES);
   // True until the collection read settles. Without it DEMO_SOURCES rendered
   // straight away — real-looking authors, ratings and quotes that were then
@@ -301,7 +327,15 @@ export function Reviews({
 
   useEffect(() => {
     let cancelled = false;
-    fetchAllReviewSources('#09 reviews')
+    /*
+     * PER PROPERTY FIRST. The ids come from the property's PropertiesInternal
+     * row; each platform is fetched only when its id exists, and a platform
+     * that answers nothing (no id, refused, timed out) is simply absent — the
+     * other still shows. Only when NEITHER answers does the site-wide
+     * collection read run, as before.
+     */
+    fetchPropertyReviewSources(effectivePropertyId, { base: reviewsBase, siteId })
+      .then((own) => (own.google || own.yelp ? own : fetchAllReviewSources('#09 reviews')))
       .then(({ google, yelp }) => {
         if (cancelled) return;
         const live = [google, yelp]
@@ -320,10 +354,10 @@ export function Reviews({
         // can't blank the widget.
         if (live.length) setSources(live);
       })
-      .catch((err) => console.error('[Reviews] collection read error:', err))
+      .catch((err) => console.error('[Reviews] reviews read error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [effectivePropertyId, reviewsBase, siteId]);
 
   const [mobileSourceIdx, setMobileSourceIdx] = useState(0);
 

@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { useSwipe } from '@shared/useSwipe';
-import { createLead, fetchPropertyDetails, fetchFacilityOptions, propertyBreadcrumb, stateName, configureApi, type PropertyDetails, type BoundPropertyProps, type FacilityOption, type ApiCredProps } from './api';
+import { createLead, fetchPropertyDetails, fetchFacilityOptions, findReservation, propertyBreadcrumb, stateName, configureApi, type PropertyDetails, type BoundPropertyProps, type FacilityOption, type ApiCredProps } from './api';
+import { rentalHref, saveReservationHandoff } from '@shared/unitHandoff';
 import {
   Breadcrumb, collapseMiddle, locationCrumbHead, normaliseBase, placeSlug,
   LOCATION_BASE_PATH, type Crumb,
@@ -11,13 +12,14 @@ import {
 import { fetchPropertyMedia } from '@shared/propertyImages';
 import { VideoSlide, videoPosterOrFallback } from './VideoSlide';
 import { fetchReviewSource } from '@shared/reviewsCollections';
+import { fetchPropertyReviewSources } from '@shared/liveReviews';
 import {
   MapPinIcon, MapPinSolidIcon, PhoneIcon, EnvelopeIcon, ClockIcon, CalendarCheckIcon,
   PhotoExpandIcon, ChevronRight, Stars, SOCIALS, CreditCardIcon, LocationsIcon,
   LightboxChevron,
 } from './icons';
 import { MessageModal } from '@shared/components/MessageModal';
-import { CloseCircleIcon } from '@shared/ui/icons';
+import { AlertIcon, CloseCircleIcon } from '@shared/ui/icons';
 import { InteractiveMap } from '@shared/InteractiveMap';
 // boundText: a Duda content field can arrive as an unsubstituted {{handlebars}}
 // token, which would be sent to Google as a key and rejected.
@@ -68,6 +70,14 @@ export interface PropertyInfoProps {
   callCenterStatus?: string;
   callCenterNote?: string;
   reservationUrl?: string;
+  /** The rental page a FOUND reservation is completed on. Same field #05 has
+   *  (`rentalPageUrl`); default `/rental`. */
+  rentalPageUrl?: string;
+  /** Duda's data.siteId — the proxy's reviews routes refuse without one. */
+  siteId?: string;
+  /** The proxy that answers /api/reviews/google/fetch — the same base #19 My
+   *  Account takes. Omitted → the shared default host. */
+  login_api_base?: string;
   breadcrumb?: string[];
   /**
    * Mobile: pin the contact row (Phone/Email/Billpay/Map/Locations) to the top of
@@ -284,6 +294,8 @@ export function PropertyInfo(props: Props) {
     rating = DEFAULTS.rating,
     reviewCount = DEFAULTS.reviewCount,
     reviewsUrl = '#',
+    siteId,
+    login_api_base,
     mapsProxyBase,
     address = DEFAULTS.address,
     addressUrl = '#',
@@ -296,6 +308,7 @@ export function PropertyInfo(props: Props) {
     callCenterStatus = 'Call Center Open',
     callCenterNote = 'Closes 8:30pm',
     reservationUrl = '#',
+    rentalPageUrl,
     breadcrumb = DEFAULTS.breadcrumb,
     stickyContactRow = true,
     stickyOffsetTop = 0,
@@ -359,6 +372,8 @@ export function PropertyInfo(props: Props) {
   const [hoursOpen, setHoursOpen] = useState(false);
   const [reservationOpen, setReservationOpen] = useState(false);
   const [reservationCode, setReservationCode] = useState('');
+  const [reservationBusy, setReservationBusy] = useState(false);
+  const [reservationError, setReservationError] = useState('');
   const [messageOpen, setMessageOpen] = useState(false);
   /* The whole portfolio, for the contact modal's dropdown. Fetched only once
      the modal is first opened: a shopper who never contacts anyone should not
@@ -383,9 +398,10 @@ export function PropertyInfo(props: Props) {
   // answers in ~570ms, so a delay would just add a third visible state.
   const [loading, setLoading] = useState(true);
 
-  // Google rating average + total from the `GoogleReviews` collection; the
-  // rating/reviewCount props stay as the fallback.
-  const [googleRating, setGoogleRating] = useState<{ score: number; count: number } | null>(null);
+  // THIS property's Google rating, total and reviews link — live through the
+  // proxy from the property's `placeId` on PropertiesInternal — else the
+  // site-wide `GoogleReviews` collection, else the rating/reviewCount props.
+  const [googleRating, setGoogleRating] = useState<{ score: number; count: number; reviewsUrl?: string } | null>(null);
   // Held by the MAIN skeleton, not a per-section one like the gallery below.
   //
   // The gallery waits on the property (it needs an id), so it outlives the main
@@ -402,22 +418,28 @@ export function PropertyInfo(props: Props) {
   // there is no dmAPI (the Duda editor and the dev harness), and its failures are
   // caught below.
   //
-  // Deps stay [] on purpose. The rating is site-wide, not per-property, so a
-  // binding change re-runs the property effect only and this stays settled.
+  // Re-runs when the bound property changes: the rating is PER PROPERTY now.
   const [ratingLoading, setRatingLoading] = useState(true);
+  const boundPropertyId = boundText(propertyId);
+  const reviewsBase = (login_api_base ?? '').trim();
 
   useEffect(() => {
     let cancelled = false;
-    fetchReviewSource('google', '#03 property-info')
+    setRatingLoading(true);
+    const own = boundPropertyId
+      ? fetchPropertyReviewSources(boundPropertyId, { base: reviewsBase, siteId }).then((r) => r.google)
+      : Promise.resolve(null);
+    own
+      .then((live) => live ?? fetchReviewSource('google', '#03 property-info'))
       .then((src) => {
         if (!cancelled && src && src.score > 0) {
-          setGoogleRating({ score: src.score, count: src.count });
+          setGoogleRating({ score: src.score, count: src.count, reviewsUrl: src.reviewsUrl || undefined });
         }
       })
-      .catch((err) => console.error('[PropertyInfo] GoogleReviews read error:', err))
+      .catch((err) => console.error('[PropertyInfo] Google rating read error:', err))
       .finally(() => { if (!cancelled) setRatingLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [boundPropertyId, reviewsBase, siteId]);
 
   // Re-runs whenever a binding changes, so switching row in the dynamic-page
   // dropdown (or connecting a field in the editor) repaints with the new property
@@ -488,6 +510,8 @@ export function PropertyInfo(props: Props) {
   // Google rating: collection first, then the prop/DEFAULT.
   const displayRating = googleRating?.score ?? rating;
   const displayReviewCount = googleRating?.count ?? reviewCount;
+  // The live place's own Google reviews page, else the content-menu link.
+  const displayReviewsUrl = googleRating?.reviewsUrl || reviewsUrl;
 
   // Precedence: API value -> prop -> DEFAULT (empty API strings/arrays don't win).
   const displayName = property?.name || name;
@@ -794,12 +818,49 @@ export function PropertyInfo(props: Props) {
     else if (d.dx >= threshold && index > 0) setIndex(index - 1);
   };
 
-  // There's no reservation-lookup endpoint yet, so "Go" just follows the
-  // configured reservationUrl (what the old link did). Once a lookup exists,
-  // reservationCode is what it needs.
-  const submitReservation = (e: React.FormEvent) => {
+  /*
+   * "Go": look the code up AT THIS PROPERTY, then send the customer to the
+   * rental page to complete it — the same hand-off a space-list "Select"
+   * makes, except the flow is told the reservation id and the exact unit
+   * (see @shared/unitHandoff and the rental flow's reservation mode).
+   *
+   * An empty box is refused in words rather than sent: the lookup would
+   * answer "no reservation" for a blank code and that is the wrong message.
+   * `reservationUrl` is no longer followed — it predates the lookup — except
+   * as the destination when no rental page is configured and it is a real URL.
+   */
+  const submitReservation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (reservationUrl && reservationUrl !== '#') window.location.href = reservationUrl;
+    if (reservationBusy) return;
+    const code = reservationCode.trim().toUpperCase();
+    if (!code) { setReservationError('Enter your reservation code.'); return; }
+    const propertyIdForLookup = property?.id ?? (typeof propertyId === 'string' ? propertyId : '');
+    if (!propertyIdForLookup) { setReservationError('This page is not linked to a facility yet. Please try again shortly.'); return; }
+    setReservationError('');
+    setReservationBusy(true);
+    try {
+      const r = await findReservation({ propertyId, companyId }, propertyIdForLookup, code);
+      if (!r.ok) { setReservationError('We could not look up your reservation right now. Please try again.'); return; }
+      if (!r.reservation) { setReservationError('We couldn’t find a reservation with that code at this facility.'); return; }
+      const res = r.reservation;
+      saveReservationHandoff({
+        reservationId: res.id, code: res.code, unitId: res.unitId, unitNumber: res.unitNumber,
+        propertyId: res.propertyId ?? propertyIdForLookup, companyId: r.companyId, contact: res.contact,
+        contactId: res.contactId,
+      });
+      const base = rentalPageUrl?.trim()
+        || (reservationUrl && reservationUrl !== '#' ? reservationUrl : '')
+        || rentalHref();
+      const url = new URL(rentalHref(base), window.location.origin);
+      // Ids only — the contact rides in storage. The flow reads these first.
+      url.searchParams.set('reservationId', res.id);
+      url.searchParams.set('unitId', res.unitId);
+      url.searchParams.set('propertyId', res.propertyId ?? propertyIdForLookup);
+      url.searchParams.set('companyId', r.companyId);
+      window.location.assign(url.toString());
+    } finally {
+      setReservationBusy(false);
+    }
   };
 
   /* Two effects, not one. The key listener has to see the CURRENT steppers, so
@@ -993,7 +1054,7 @@ export function PropertyInfo(props: Props) {
               <div className="pi-hero-rating">
                 <span className="pi-hero-score">{displayRating}</span>
                 <Stars rating={displayRating} width={77} />
-                <a className="pi-reviews pi-hero-reviews" href={reviewsUrl}>{displayReviewCount} Reviews</a>
+                <a className="pi-reviews pi-hero-reviews" href={displayReviewsUrl}>{displayReviewCount} Reviews</a>
               </div>
               <a className="pi-hero-address" href={mapsHref}>
                 <MapPinIcon size={24} />
@@ -1020,7 +1081,7 @@ export function PropertyInfo(props: Props) {
         <div className="pi-rating">
           <span className="pi-rating-score">{displayRating}</span>
           <Stars rating={displayRating} width={77} />
-          <a className="pi-reviews" href={reviewsUrl}>{displayReviewCount} Reviews</a>
+          <a className="pi-reviews" href={displayReviewsUrl}>{displayReviewCount} Reviews</a>
         </div>
 
         <div className="pi-contact">
@@ -1143,18 +1204,30 @@ export function PropertyInfo(props: Props) {
             {/* Clicking the link swaps it for the reservation-code lookup
                 (Figma 9697-22507); Escape puts the link back. */}
             {reservationOpen ? (
-              <form className="pi-res-form" onSubmit={submitReservation}>
+              <form className="pi-res-form" onSubmit={(e) => void submitReservation(e)} noValidate>
                 <input
-                  className="pi-res-input"
+                  className={`pi-res-input${reservationError ? ' pi-res-input--error' : ''}`}
                   type="text"
                   placeholder="Reservation Code"
                   aria-label="Reservation Code"
+                  aria-invalid={reservationError ? true : undefined}
+                  aria-describedby={reservationError ? 'pi-res-error' : undefined}
                   value={reservationCode}
                   autoFocus
-                  onChange={(e) => setReservationCode(e.target.value)}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  onChange={(e) => { setReservationCode(e.target.value); if (reservationError) setReservationError(''); }}
                   onKeyDown={(e) => { if (e.key === 'Escape') setReservationOpen(false); }}
                 />
-                <button type="submit" className="pi-res-go">Go</button>
+                <button type="submit" className="pi-res-go" disabled={reservationBusy} aria-busy={reservationBusy}>
+                  {reservationBusy ? 'Finding…' : 'Go'}
+                </button>
+                {reservationError && (
+                  <div id="pi-res-error" className="pi-res-error" role="alert">
+                    <AlertIcon size={24} className="pi-res-error-ico" />
+                    <span>{reservationError}</span>
+                  </div>
+                )}
               </form>
             ) : (
               <button
@@ -1231,7 +1304,7 @@ export function PropertyInfo(props: Props) {
           <div className="pi-m-rating">
             <span className="pi-m-score">{displayRating}</span>
             <Stars rating={displayRating} width={77} />
-            <a className="pi-reviews pi-m-reviews" href={reviewsUrl}>{displayReviewCount} Reviews</a>
+            <a className="pi-reviews pi-m-reviews" href={displayReviewsUrl}>{displayReviewCount} Reviews</a>
           </div>
           <a className="pi-m-address" href={mapsHref}>
             <MapPinSolidIcon size={16} />

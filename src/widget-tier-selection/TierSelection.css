@@ -55,13 +55,13 @@
    `h2 { text-transform: uppercase }`, or the dev harness) can't win on
    specificity. */
 .ts-wrapper .ts-title {
-  font-size: 40px;
-  font-weight: 600;
-  line-height: 1.0;
-  margin: 0 0 10px;
+  font-size: 40px !important;
+  font-weight: 600 !important;
+  line-height: 1.0 !important;
+  margin: 0 0 10px !important;
   color: var(--ts-title-color, #101318) !important; /* operator-overridable; defaults black; beats host theme */
-  text-transform: none;
-  letter-spacing: normal;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 .ts-subtitle {
   font-size: 20px;
@@ -497,16 +497,16 @@
 }
 .ts-m-headwrap { text-align: center; margin-bottom: 22px; }
 .ts-wrapper .ts-m-title {
-  text-align: left;
-  margin: 0;
-  font-size: 26px;
-  font-weight: 600;
-  line-height: 1.23;
+  text-align: left !important;
+  margin: 0 !important;
+  font-size: 26px !important;
+  font-weight: 600 !important;
+  line-height: 1.23 !important;
   color: var(--ts-title-color, #101318) !important; /* operator-overridable; defaults black; beats host theme */
-  text-transform: none;
-  letter-spacing: normal;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
-.ts-wrapper .ts-m-urgency { margin: 8px 0 0; text-align: center; font-size: 16px; font-weight: 400; color: #e53935; }
+.ts-wrapper .ts-m-urgency { margin: 8px 0 0; text-align: center; font-size: 16px; font-weight: 400; color: #d32f2f; }
 
 .ts-m-pills .ts-pills { gap: 16px; }
 .ts-m-pills .ts-pill { padding-top: 10px; }
@@ -584,20 +584,20 @@
 
 /* ═══ Option 2 — Good/Better/Best pricing cards ═════════════════════════════ */
 .ts-o2 { max-width: 1320px; margin: 0 auto; }
-.ts-o2-urgency, .ts-o3-urgency { margin: 0; text-align: right; font-size: 24px; font-weight: 700; color: #e53935; }
+.ts-o2-urgency, .ts-o3-urgency { margin: 0; text-align: right; font-size: 24px; font-weight: 700; color: #d32f2f; }
 /* Header row (Figma): heading + subheading on the left, urgency + $30 admin fee
    stacked on the right, sharing one row. */
 .ts-o2-headrow { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; margin-bottom: 28px; }
 .ts-o2-topright { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; }
 .ts-o2-header { text-align: left; }
 .ts-wrapper .ts-o2-title {
-  font-size: 40px;
-  font-weight: 600;
-  line-height: 1.15;
-  margin: 0 0 10px;
-  color: #101318;
-  text-transform: none;
-  letter-spacing: normal;
+  font-size: 40px !important;
+  font-weight: 600 !important;
+  line-height: 1.15 !important;
+  margin: 0 0 10px !important;
+  color: #101318 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 .ts-o2-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; color: #000; margin: 0; }
 
@@ -732,7 +732,7 @@
 
 @media (max-width: 900px) {
   .ts-o2-cards { grid-template-columns: minmax(0, 422px); }
-  .ts-wrapper .ts-o2-title { font-size: 30px; }
+  .ts-wrapper .ts-o2-title { font-size: 30px !important; }
 }
 
 /* ── Option 2 mobile — accordion ───────────────────────────────────────── */
@@ -809,6 +809,11 @@
   cursor: pointer;
 }
 .ts-o2m-animated-card .ts-o2m-head { cursor: pointer; }
+/* Mobile: the badge sits on the card's top edge LEFT-aligned with the card's
+   content (its 22px inline padding) instead of centred. Only the horizontal
+   placement changes — translateY keeps it straddling the border as before.
+   .ts-o2m-badge is the mobile card's own class, so desktop is untouched. */
+.ts-o2m-badge { left: 22px; transform: translateY(-50%); }
 .ts-o2m-animated-card .ts-o2m-badge { opacity: 0; transition: opacity 200ms ease; }
 .ts-o2m-animated-card.ts-o2m-card--expanded .ts-o2m-badge { opacity: 1; }
 .ts-o2m-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
@@ -1049,7 +1054,7 @@
 
 /* Sold-out tier pill — non-selectable placeholder */
 .ts-pill--soldout { opacity: 0.55; cursor: not-allowed; }
-.ts-pill--soldout .ts-pill-tag { color: #b3261e; font-weight: 600; }
+.ts-pill--soldout .ts-pill-tag { color: #d32f2f; font-weight: 600; }
 
 /* Modal presentation (mode="modal") — overlay opened from the Space List. */
 .ts-modal-backdrop {
@@ -1110,9 +1115,9 @@
   .ts-modal-urgency { overflow-wrap: anywhere; }
 }
 .ts-modal-meta { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; }
-.ts-modal-title { font-size: 36px; font-weight: 700; line-height: 1; margin: 0 0 4px; color: var(--ts-title-color, #101318); text-transform: none; letter-spacing: normal; }
-.ts-modal-subtitle { font-size: 18px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
-.ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #e53935; }
+.ts-modal-title { font-size: 36px !important; font-weight: 700 !important; line-height: 1 !important; margin: 0 0 4px !important; color: var(--ts-title-color, #101318) !important; text-transform: none !important; letter-spacing: normal !important; }
+.ts-modal-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
+.ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #d32f2f; }
 .ts-modal-admin { box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 20px 0 0; text-align: center; font-size: 18px; line-height: 1.5; font-weight: 400; color: #101318; }
 .ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 32px 32px; background: #f4f6f8; }
 /*
@@ -1242,14 +1247,14 @@
      where a host theme's own h2 alignment/size would otherwise outrank a
      single class. */
   .ts-modal-title {
-    display: block;
+    display: block !important;
     min-width: 0;
     margin: 0;
     text-align: left !important;
     font-size: clamp(16px, calc((100vw - 80px) / 13.3), 24px) !important;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
   .ts-modal-subtitle { font-size: 18px; overflow-wrap: anywhere; }
   .ts-modal-urgency { text-align: center; width: 100%; min-height: 1.25em; font-size: 16px; line-height: 1.25; }

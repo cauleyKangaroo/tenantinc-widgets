@@ -38,7 +38,7 @@
 // a prefix.
 // ===========================================================================
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './MyAccount.css';
 import { Button } from '@shared/ui';
 import { AccountInfoPanel } from './AccountInfoPanel';
@@ -56,23 +56,26 @@ import {
   fetchMe, fetchContact, updateContact, fetchDocumentFile, saveBlob, loginApiReady,
   type LoginApiConfig, type AccountRecord,
   fetchLeaseCoverage, previewCoverage, applyCoverage,
-  payLease,
-} from '@shared/accountApi';
+  payLease, fetchPrepayQuote, } from '@shared/accountApi';
 import {
   editFormFrom, updateFromEditForm,
-  primaryContactFrom, alternateContactFrom,
+  primaryContactFrom,
 } from './contactMapping';
+import { configureApi, TENANT_PAYMENTS } from '../widget-rental-flow-2step/api';
+import { resolveWalletConfig, type WalletConfigProps } from '../widget-rental-flow-2step/walletConfig';
 import { spacesFrom, propertiesFrom, activityFrom, savedCardsFrom } from './leaseMapping';
 import { mergeApiCreds, type ApiCredProps } from '@shared/apiConfig';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { fetchGatewayInfo } from '@shared/paymentGateway';
 import type { AccountDocument, EditForm } from './data';
-import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROMO_SUPPLIES, PROPERTIES, SPACES, USER } from './data';
+import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROPERTIES, SPACES, USER } from './data';
+import { SubmenuIcon } from './icons';
+import { AccountSheet } from './AccountSheet';
 
 /** The three panels that share the middle slot. */
 export type View = 'account' | 'payment' | 'edit';
 
-export interface MyAccountProps {
+export interface MyAccountProps extends WalletConfigProps {
   /**
    * First name for the greeting — "Hi {name},". Defaults to the frames' own
    * sample so the widget renders as designed with no props at all.
@@ -161,6 +164,11 @@ export function MyAccount({
   api_domain, app_id, api_key, companyId: companyIdProp, gpPublicKey: gpPublicKeyProp,
   inEditor = false,
   loginUrl = '/login',
+  // Apple Pay / Google Pay content-panel fields and site texts — the SAME
+  // names the rental flow's JS tab forwards, so the lines can be copied.
+  googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
+  googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
+  applePayMerchantIdentifier, currency_code, country_code, environment: siteEnvironment,
 }: MyAccountProps) {
 
   const api: LoginApiConfig = useMemo(
@@ -193,6 +201,10 @@ export function MyAccount({
     if (fromUrl === 'account' || fromUrl === 'payment' || fromUrl === 'edit') return fromUrl;
     return gated ? 'payment' : initialView;
   });
+
+  /* Set by the promo's Enroll, cleared by Pay Now: whether Make a Payment
+     opens with autopay pre-selected on every space. */
+  const [enrollAutopay, setEnrollAutopay] = useState(false);
 
   const [session, setSession] = useState(() => (gated ? readSession() : null));
   /*
@@ -293,24 +305,16 @@ export function MyAccount({
    * lands and NOT on every render of this component, which would reset a
    * half-finished edit under the reader.
    */
-  const editInitial = useMemo(
-    () => (record ? editFormFrom(record) : undefined),
-    [record],
-  );
 
   /*
    * The display panel's real content. Undefined until the record lands, which
    * is what keeps the frame's sample on screen in the harness and the editor.
    *
-   * `alternate` is null — not undefined — when the account has none, so the
-   * panel hides that block instead of falling back to the sample contact.
+   * The alternate and emergency contacts are per lease, so they live on each
+   * mapped space (spacesFrom) rather than here.
    */
   const realContact = useMemo(
     () => (record ? primaryContactFrom(record) : undefined),
-    [record],
-  );
-  const realAlternate = useMemo(
-    () => (record ? alternateContactFrom(record) : undefined),
     [record],
   );
   /*
@@ -331,13 +335,13 @@ export function MyAccount({
     const fallback = SPACES[0]?.primaryContact ?? { name: '' };
     // siteId is Duda's own (data.siteId) and is what builds the site's
     // Media Manager artwork URLs for each unit — the same as the space cards.
-    const mapped = spacesFrom(record, realContact ?? fallback, realAlternate ?? null, { siteId });
+    const mapped = spacesFrom(record, realContact ?? fallback, { siteId });
     /*
      * A contact with no leases gets an EMPTY list, not the sample. Someone who
      * has closed their last unit must not be shown a stranger's storage.
      */
     return mapped;
-  }, [record, realContact, realAlternate, siteId]);
+  }, [record, realContact, siteId]);
 
   /*
    * The property's name, address and phone for each sidebar card, from the
@@ -413,6 +417,21 @@ export function MyAccount({
    * missing means not answered yet.
    */
   const creds = useMemo(() => mergeApiCreds({ api_domain, app_id, api_key }, { baseUrl: '', appId: '', apiKey: '' }), [api_domain, app_id, api_key]);
+  /* The wallet buttons are #99's own and mint their Google Pay JWT / Apple
+     merchant session through #99's api module, which reads the credentials
+     it was configured with — so it is configured here exactly as #99 does. */
+  useMemo(() => configureApi({ api_domain, app_id, api_key }), [api_domain, app_id, api_key]);
+  /* Validated once per change, not per render: Google's button is rebuilt
+     whenever its config object changes identity. */
+  const walletConfig = useMemo(() => resolveWalletConfig({
+    googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
+    googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
+    applePayMerchantIdentifier, currency_code, country_code, environment: siteEnvironment,
+  }), [
+    googlePayEnabled, googlePayEnvironment, googlePayMerchantId, googlePayGateway,
+    googlePayGatewayMerchantId, googlePayMerchantName, applePayEnabled,
+    applePayMerchantIdentifier, currency_code, country_code, siteEnvironment,
+  ]);
   const [resolvedCompanyId, setResolvedCompanyId] = useState<string>('');
   useEffect(() => {
     let cancelled = false;
@@ -422,6 +441,9 @@ export function MyAccount({
     return () => { cancelled = true; };
   }, [companyIdProp]);
   const [gatewayKeys, setGatewayKeys] = useState<Record<string, string>>({});
+  /** The gateway's NAME per property — the wallets are offered only on
+   *  tenant_payments, as in the rental flow. */
+  const [gatewayNames, setGatewayNames] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!record || gpPublicKeyProp) return undefined;
     if (!creds.baseUrl || !creds.appId || !creds.apiKey || !resolvedCompanyId) return undefined;
@@ -434,6 +456,7 @@ export function MyAccount({
       void fetchGatewayInfo(creds, resolvedCompanyId, pid, '[MyAccount]').then((g) => {
         if (cancelled) return;
         setGatewayKeys((prev) => ({ ...prev, [pid]: g?.publicKey ?? '' }));
+        setGatewayNames((prev) => ({ ...prev, [pid]: g?.gateway ?? '' }));
       });
     }
     return () => { cancelled = true; };
@@ -527,7 +550,7 @@ export function MyAccount({
     setSaving(true);
     setSaveError('');
     try {
-      const r = await updateContact(api, session.token, updateFromEditForm(form, record));
+      const r = await updateContact(api, session.token, updateFromEditForm(form, record, space?.id));
       if (r.ok) {
         // Re-read rather than trusting the echo: the server may normalise what
         // it stored, and the next edit must carry ITS ids, not ours.
@@ -560,6 +583,13 @@ export function MyAccount({
    * mounted at all.
    */
   const space = spaces.find((s) => s.id === selectedId) ?? spaces[0];
+  /* AFTER `space` — it seeds from the selected space's lease, and reading
+     `space` above its declaration threw "Cannot access 'space' before
+     initialization" on every render (2026-10-14). */
+  const editInitial = useMemo(
+    () => (record ? editFormFrom(record, space?.id) : undefined),
+    [record, space?.id],
+  );
 
   // Declared after `space` — see the note above `space` on the dead zone.
   /*
@@ -574,10 +604,34 @@ export function MyAccount({
     const explicit = (gpPublicKeyProp ?? '').trim();
     const looked = gatewayKeys[space.propertyId];
     const canLookUp = !!(creds.baseUrl && creds.appId && creds.apiKey && resolvedCompanyId);
+    /* Wallets as #99 offers them: the content panel enables each, and the
+       property must be on tenant_payments (an explicit GP key says so without
+       a lookup). Their JWT / merchant session need the credentials and the
+       company id, so without those nothing is offered. */
+    const onTenantPayments = !!explicit || gatewayNames[space.propertyId] === TENANT_PAYMENTS;
+    const walletsReady = onTenantPayments && canLookUp;
     return {
       gpPublicKey: explicit || (looked !== undefined ? looked : (canLookUp ? undefined : '')),
       gatewayPending: !explicit && looked === undefined && canLookUp,
-      savedCards: savedCardsFrom(record).filter((c) => c.propertyId === space.propertyId),
+      wallet: {
+        config: walletConfig,
+        ctx: { companyId: resolvedCompanyId, propertyId: space.propertyId },
+        googlePay: walletsReady && walletConfig.googlePayEnabled,
+        applePay: walletsReady && walletConfig.applePayEnabled,
+        tenant: { first: str(record.first), last: str(record.last) },
+      },
+      /* This property's cards, ONE tile per distinct card. The account record
+         lists the same card once per lease it was used on (23 rows of one VISA
+         ····1111 on the test account), which stacked six identical tiles. The
+         first id for each card is kept — any of them charges the same card. */
+      savedCards: savedCardsFrom(record)
+        .filter((c) => c.propertyId === space.propertyId)
+        .filter((c, i, all) => all.findIndex((o) => o.cardType === c.cardType && o.last4 === c.last4 && o.nameOnCard === c.nameOnCard) === i),
+      quotePrepay: async (leaseId, months) => {
+        const r = await fetchPrepayQuote(api, token, leaseId, months);
+        if (!r.ok && r.unauthorized) signOut();
+        return r.ok ? r.data : null;
+      },
       pay: async (leaseId, body, idempotencyKey) => {
         const r = await payLease(api, token, leaseId, body, idempotencyKey);
         if (r.ok) {
@@ -590,7 +644,7 @@ export function MyAccount({
     };
     // signOut is stable for the life of the session; the token is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gated, session?.token, api, record, space, gatewayKeys, creds, resolvedCompanyId, gpPublicKeyProp]);
+  }, [gated, session?.token, api, record, space, gatewayKeys, gatewayNames, creds, resolvedCompanyId, gpPublicKeyProp, walletConfig]);
   const [activityOpen, setActivityOpen] = useState(false);
   /* Make a Payment lists every space AT THE SAME PROPERTY as the unit whose
      Pay Now was clicked — all of them, each with its own tick, so the tenant
@@ -686,10 +740,11 @@ export function MyAccount({
    */
   const email = orElse(userEmail, session?.signedInAs || USER.email);
 
-  /* The promo swaps with the view — autopay on the default screen, supplies on
-     the payment screen, as the two frames draw them. An editor override wins
-     over both, which is why it is applied here and not in data.ts. */
-  const promo = view === 'payment' ? PROMO_SUPPLIES : PROMO_AUTOPAY;
+  /* Autopay only. The payment screen's "Stock up on Storage Supplies" card is
+     OFF until the box shop exists (client feedback) — PROMO_SUPPLIES stays in
+     data.ts for then. An editor override still wins over the copy. */
+  const showPromo = view !== 'payment';
+  const promo = PROMO_AUTOPAY;
   const promoLabel = orElse(promoCta, promo.cta);
 
   /*
@@ -709,40 +764,64 @@ export function MyAccount({
    */
   const busy = authed === null;
 
+  // Phone account menu (icon beside the greeting → bottom sheet). Its rows are
+  // the page's own actions; see AccountSheet.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const closeSheet = useCallback(() => setSheetOpen(false), []);
+  const sheetItems = [
+    { label: 'Pay Bill', onSelect: () => setView('payment') },
+    ...(space ? [{ label: `Account Info Space ${space.number}`, onSelect: () => selectUnit(space.id) }] : []),
+    { label: 'Logout', onSelect: signOut },
+  ];
+
   return (
     <div ref={rootRef} className={`ma-wrapper${busy ? ' ma-wrapper--busy' : ''}`} aria-busy={busy || undefined}>
       {busy && <span className="ma-sr-only" role="status">Loading your account…</span>}
+      {sheetOpen && <AccountSheet items={sheetItems} onClose={closeSheet} />}
       {/* React 18 has no boolean `inert`; an empty string is the attribute. */}
       <div className="ma-grid" {...(busy ? { inert: '' } : {})}>
-        <h1 className="ma-greeting">Hi {name},</h1>
-        {/* The line and its Log out control are one flex row, so the button
-            sits with the sentence it belongs to and wraps under it rather than
-            being squeezed when the email is long. */}
+        <p role="heading" aria-level={1} className="ma-greeting">Hi {name},</p>
+        {/* Phone only (CSS shows it ≤720px): opens the account bottom sheet. */}
+        <button
+          type="button"
+          className="ma-submenu-btn"
+          aria-label="Account menu"
+          aria-haspopup="menu"
+          aria-expanded={sheetOpen}
+          onClick={() => setSheetOpen(true)}
+        >
+          <SubmenuIcon />
+        </button>
+        {/* No Log out button here — the Figma frame has none; logging out is in
+            the nav bar's My Account menu (#02). signOut is still used when the
+            session is rejected (unauthorized). */}
         <div className="ma-logged-in">
           <span className="ma-logged-in__text">You’re logged in as {email}</span>
-          {/* Clears the stored session BEFORE navigating. An href alone would
-              leave the token in storage and the next visit would walk straight
-              back in. */}
-          <Button
-            tone="dark"
-            fill="outline"
-            className="ma-btn-40"
-            onClick={signOut}
-          >
-            Log out
-          </Button>
         </div>
 
         <div className="ma-main">
-          <section className="ma-promo">
-            <div className="ma-promo__text">
-              <h2 className="ma-promo__title">{orElse(promoTitle, promo.title)}</h2>
-              <p className="ma-promo__body">{orElse(promoBody, promo.body)}</p>
-            </div>
-            {promoUrl
-              ? <Button tone="cta" href={promoUrl} className="ma-btn-40">{promoLabel}</Button>
-              : <Button tone="cta" className="ma-btn-40">{promoLabel}</Button>}
-          </section>
+          {showPromo && (
+            <section className="ma-promo">
+              <div className="ma-promo__text">
+                <p role="heading" aria-level={2} className="ma-promo__title">{orElse(promoTitle, promo.title)}</p>
+                <p className="ma-promo__body">{orElse(promoBody, promo.body)}</p>
+              </div>
+              {/* Enroll opens Make a Payment with every space at the property
+                  ticked and autopay switched on for each. An editor-set
+                  promoUrl still overrides it with a plain link. */}
+              {promoUrl
+                ? <Button tone="cta" href={promoUrl} className="ma-btn-40">{promoLabel}</Button>
+                : (
+                  <Button
+                    tone="cta"
+                    className="ma-btn-40"
+                    onClick={space ? () => { setEnrollAutopay(true); setView('payment'); } : undefined}
+                  >
+                    {promoLabel}
+                  </Button>
+                )}
+            </section>
+          )}
 
           {/* A signed-in contact with no leases is a real account, not a
               broken page: every panel below needs a space, so without one
@@ -751,7 +830,7 @@ export function MyAccount({
           {!space && (
             <section className="ma-account" role="status">
               <div className="ma-account__body">
-                <h2 className="ma-account__title">No active rentals</h2>
+                <p role="heading" aria-level={2} className="ma-account__title">No active rentals</p>
                 <p className="ma-account__label">There are no spaces on this account yet.</p>
               </div>
             </section>
@@ -762,10 +841,14 @@ export function MyAccount({
           {space && view === 'account' && (
             <AccountInfoPanel
               space={space}
-              onPayNow={() => setView('payment')}
+              onPayNow={() => { setEnrollAutopay(false); setView('payment'); }}
               onEdit={() => setView('edit')}
               contact={realContact}
-              alternate={realAlternate}
+              // null, not undefined, once a record is in: a lease with no
+              // secondary contact hides the block rather than showing the
+              // sample's Jerry Boo.
+              alternate={record ? space.alternateContact ?? null : undefined}
+              emergency={record ? space.emergencyContact ?? null : undefined}
               onOpenDocument={gated ? openDocument : undefined}
               busyDocument={busyDocument}
             />
@@ -776,6 +859,7 @@ export function MyAccount({
               space={space}
               onBack={() => setView('account')}
               initialResult={initialPaymentResult ?? null}
+              enrollAutopay={enrollAutopay}
               coverage={coverageHandlers}
               payment={paymentHandlers}
             />

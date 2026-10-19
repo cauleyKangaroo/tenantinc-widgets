@@ -42,6 +42,28 @@
 
 /* ── Header: count + Filter / sort pills ───────────────────────────────── */
 
+/* DESKTOP: breadcrumb + header pinned to the top of the window while the cards
+   scroll (the site nav does not stay, so top: 0). Only rendered on desktop.
+   - gap 24px is the wrapper's own, which used to sit between the two.
+   - The negative margin cancels the padding exactly, so at rest nothing moves;
+     the padding is the breathing room above and below it once it is stuck,
+     and the side 16px covers the cards' outline and shadow as they pass under.
+   - Background is the page section's own colour (--ml-sticky-bg, set in
+     MapLocations.tsx), so cards are hidden under it instead of showing through.
+   - z-index 5: above the cards (≤2) and the map's pins (≤3), below the filter
+     overlay. */
+.ml-sticky-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: -16px;
+  padding: 16px;
+  background: var(--ml-sticky-bg, #fff);
+}
+
 .ml-header {
   display: flex;
   align-items: flex-end;
@@ -580,7 +602,8 @@
    clears #02's 85px bar with a little air; a taller host header is the one
    thing that would need this raised. */
 .ml-card {
-  scroll-margin-top: 100px;
+  /* …and below the sticky header on desktop, whichever is taller. */
+  scroll-margin-top: max(100px, calc(var(--ml-head-h, 0px) + 16px));
 }
 
 .ml-cards {
@@ -596,7 +619,8 @@
 
 .ml-map {
   position: sticky;
-  top: 16px;
+  /* Under the sticky header on desktop (--ml-head-h); 0 on mobile, as before. */
+  top: calc(var(--ml-head-h, 0px) + 16px);
   flex: 1 1 auto;
   min-width: 0;
   /* Fills the window, and keeps filling it as the window resizes — the map is
@@ -609,7 +633,7 @@
      The row is a flex container, so it grows to whatever this resolves to —
      which is what stops the map overhanging a short list of properties: the
      column of cards and the map end together. */
-  height: min(var(--ml-row-h, 100vh), calc(100vh - 32px));
+  height: min(var(--ml-row-h, 100vh), calc(100vh - 32px - var(--ml-head-h, 0px)));
   border-radius: 16px;
   overflow: hidden;
 }
@@ -665,17 +689,15 @@
    This was a neutral grey, on the grounds that a coloured border made every
    card look featured in turn as the pointer ran down the list. Primary is not
    that colour: featured is the green below it, so the two stay legible as
-   different things.
-
-   The `.ml-card--featured.ml-card--active` override that kept featured green
-   is gone with it — active wins on source order now. A featured card still
-   says so with its star badge, so giving up the outline while the pointer is
-   on it costs nothing; leaving it green would light a map bubble with no card
-   answering it. */
+   different things. */
 .ml-card--active {
   border-color: var(--color_2, #509e2f);
   filter: drop-shadow(0px 8px 9px rgba(71, 84, 116, 0.2));
 }
+/* Except the FEATURED card: it keeps its green outline when hovered/active,
+   as requested, instead of switching to the primary. Only the border — it
+   still gets the active drop-shadow above. */
+.ml-card--featured.ml-card--active { border-color: var(--hb-secondary, #509e2f); }
 
 /* Photo header */
 .ml-card-head {
@@ -833,6 +855,9 @@
    every card below it up. The rows still sit at the top; the foot below just
    keeps its place. Only the wide card has rows — the compact one is a CTA. */
 .ml-units { display: flex; flex-direction: column; width: 100%; min-height: 171px; }
+/* A facility listing fewer than three spaces: no reserved rows, no white gap
+   under its last size. The placeholder still reserves three (it cannot know). */
+.ml-units--fit { min-height: 0; }
 
 /* Divider between rows, per the Figma's Line 25 — a border beats an <img>. */
 .ml-unit {
@@ -1046,6 +1071,11 @@
      column stays put whatever is in it. */
   min-height: 156px;
   background: #fff;
+  /* Outlined in the open bubble's colour and weight (.ml-bubble--active: 4px,
+     the site CTA), so card and bubble read as one selection. border-box keeps
+     the card's outer size — and so its place under the bubble — unchanged. */
+  box-sizing: border-box;
+  border: 4px solid var(--color_2, #509e2f);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);

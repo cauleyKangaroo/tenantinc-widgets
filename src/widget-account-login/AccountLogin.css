@@ -63,17 +63,17 @@
 }
 
 .al-title {
-  margin: 0;
-  font-size: 36px;
-  font-weight: 600;
-  line-height: 38px;
-  color: #000;
+  margin: 0 !important;
+  font-size: 36px !important;
+  font-weight: 600 !important;
+  line-height: 38px !important;
+  color: #000 !important;
 }
 
 /* The code step moves focus here on entry; that must not draw a focus ring on
    what is visually just a heading. */
 .al-title:focus {
-  outline: none;
+  outline: none !important;
 }
 
 .al-sub {
@@ -337,13 +337,18 @@
 
 /* ── Messages ──────────────────────────────────────────────────────────────── */
 
+/* The site's error tag: #f3e7e9, 12 / 39 / 12 / 15, 10px icon gap, 10px
+   radius, #d32f2f. Left-aligned — centred text beside a left icon reads as
+   misaligned. */
 .al-error {
   margin: 0;
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
   font-size: 14px;
   line-height: 18px;
-  color: #d02a1e;
-  text-align: center;
+  color: #d32f2f;
+  text-align: left;
 }
+.al-error-ico { flex: 0 0 auto; color: #d32f2f; }
 
 .al-note {
   margin: 0;
@@ -511,8 +516,8 @@
   }
 
   .al-title {
-    font-size: 28px;
-    line-height: 32px;
+    font-size: 28px !important;
+    line-height: 32px !important;
   }
 
   .al-otp {

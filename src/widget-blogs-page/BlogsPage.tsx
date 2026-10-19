@@ -220,10 +220,25 @@ function CardSkeletons({ count }: { count: number }) {
   );
 }
 
+/**
+ * The search field, switched OFF for now.
+ *
+ * It is to become an AI search, which is not defined yet, so the box is out
+ * until it is — the same call #05's filter modal and #10's FAQs already made.
+ * Everything behind it (the `query` state, the match in `filtered`, the
+ * `searchPlaceholder` prop) is left wired, so turning this back to `true` is
+ * the whole of bringing it back.
+ *
+ * With no search the bar is the filter button and the category chips at every
+ * width — see .bpg-bar--nosearch.
+ */
+const SEARCH_ENABLED: boolean = false;
+const BAR_CLASS = `bpg-bar${SEARCH_ENABLED ? '' : ' bpg-bar--nosearch'}`;
+
 /** Pill-shaped placeholders so the real chip labels don't flash in. */
 function BarSkeleton() {
   return (
-    <div className="bpg-bar" aria-hidden="true">
+    <div className={BAR_CLASS} aria-hidden="true">
       <div className="bpg-bar-left">
         <span className="bpg-skel bpg-skel--pill" style={{ width: 44 }} />
         <div className="bpg-chips">
@@ -232,13 +247,13 @@ function BarSkeleton() {
           ))}
         </div>
       </div>
-      <span className="bpg-skel bpg-skel--field" />
+      {SEARCH_ENABLED && <span className="bpg-skel bpg-skel--field" />}
     </div>
   );
 }
 
 /** Chip used in the bar and in the tag panel. */
-function TagChip({ tag, active, onToggle }: { tag: string; active: boolean; onToggle: () => void }) {
+function TagChip({ tag, active, onToggle, xSize = 20 }: { tag: string; active: boolean; onToggle: () => void; xSize?: number }) {
   return (
     <button
       type="button"
@@ -246,8 +261,9 @@ function TagChip({ tag, active, onToggle }: { tag: string; active: boolean; onTo
       onClick={onToggle}
       aria-pressed={active}
     >
-      {/* Outlined ring: an active chip's background is #101318. */}
-      {active && <span className="bpg-chip-x"><CloseCircleIcon outlined size={20} /></span>}
+      {/* Outlined ring: an active chip's background is #101318. 24 in the
+          filter popup, to match #05's pills; 20 on the bar's own chips. */}
+      {active && <span className="bpg-chip-x"><CloseCircleIcon outlined size={xSize} /></span>}
       <span>{tag}</span>
     </button>
   );
@@ -262,15 +278,25 @@ interface FilterPopupProps {
 }
 
 /**
- * All-categories picker (Figma 10630:52147 — "Side panel").
+ * All-categories picker — the SAME lightbox as the property landing page's
+ * "Filter Spaces" (SpaceList's FilterModal / .sl-filter-modal), at every width:
+ * header with icon, title, count badge, Reset and close; tinted section card;
+ * 2px pills; and the sticky "Apply Filters" footer.
  *
- * A lightbox rather than the drop-down strip this used to be: on mobile the
- * inline chip row is hidden entirely, so this is the ONLY way to the tags and it
- * needs the whole screen to show a long category list. Desktop matches the
- * property landing page's filter lightbox (SpaceList's .sl-filter-modal —
- * 436px, centred, 20px radius) so the two read as one system; mobile goes
- * edge-to-edge full screen.
+ * Each widget is its own bundle and #05's rules are scoped to .sl-wrapper, so
+ * nothing can be imported — the markup and the .bpg-modal-* values mirror #05's
+ * one for one. If the Spaces popup changes, change this with it.
  */
+/** #05's filter mark, at its own 17x15 — not the 24px-boxed copy the bar uses,
+ *  which sits the same glyph in different whitespace. */
+function FilterMark() {
+  return (
+    <svg width="17" height="15" viewBox="0 0 17 15" fill="none" aria-hidden="true">
+      <path d="M5 8.33333C3.45 8.33333 2.15833 9.4 1.78333 10.8333H0V12.5H1.78333C2.15833 13.9333 3.45 15 5 15C6.55 15 7.84167 13.9333 8.21667 12.5H16.6667V10.8333H8.21667C7.84167 9.4 6.55 8.33333 5 8.33333ZM5 13.3333C4.08333 13.3333 3.33333 12.5833 3.33333 11.6667C3.33333 10.75 4.08333 10 5 10C5.91667 10 6.66667 10.75 6.66667 11.6667C6.66667 12.5833 5.91667 13.3333 5 13.3333ZM14.8833 2.5C14.5083 1.06667 13.2167 0 11.6667 0C10.1167 0 8.825 1.06667 8.45 2.5H0V4.16667H8.45C8.825 5.6 10.1167 6.66667 11.6667 6.66667C13.2167 6.66667 14.5083 5.6 14.8833 4.16667H16.6667V2.5H14.8833ZM11.6667 5C10.75 5 10 4.25 10 3.33333C10 2.41667 10.75 1.66667 11.6667 1.66667C12.5833 1.66667 13.3333 2.41667 13.3333 3.33333C13.3333 4.25 12.5833 5 11.6667 5Z" fill="currentColor" />
+    </svg>
+  );
+}
+
 function FilterPopup({ tags, activeTags, onToggle, onClear, onClose }: FilterPopupProps) {
   // Escape closes; lock host-page scroll for as long as the lightbox is up —
   // full screen on mobile means the page behind it must not scroll away.
@@ -298,16 +324,16 @@ function FilterPopup({ tags, activeTags, onToggle, onClear, onClose }: FilterPop
       >
         <div className="bpg-modal-header">
           <div className="bpg-modal-title-row">
-            <span className="bpg-modal-icon"><FilterHorizontalIcon size={20} /></span>
+            <span className="bpg-modal-icon"><FilterMark /></span>
             <span className="bpg-modal-title">Filters</span>
-            {activeCount > 0 && <span className="bpg-modal-badge">{activeCount}</span>}
+            {/* Always shown, 0 included — as #05's is. */}
+            <span className="bpg-modal-badge">{activeCount}</span>
           </div>
           <div className="bpg-modal-header-right">
             {/* "Reset", matching #05 and #08 — three filter popups in the same
-                site should not each name this differently. */}
-            {activeCount > 0 && (
-              <button type="button" className="bpg-modal-reset" onClick={onClear}>Reset</button>
-            )}
+                site should not each name this differently. Always there, as
+                #05's is, so the header does not reflow on the first pick. */}
+            <button type="button" className="bpg-modal-reset" onClick={onClear}>Reset</button>
             <button type="button" className="bpg-modal-close" onClick={onClose} aria-label="Close filters">
               {/* Filled disc: .bpg-filter-modal is #fff. 32 fills the 32px
                   button box exactly; the box has no padding to inset it. */}
@@ -323,10 +349,19 @@ function FilterPopup({ tags, activeTags, onToggle, onClear, onClose }: FilterPop
             <div className="bpg-modal-group-title">Categories</div>
             <div className="bpg-modal-chips">
               {tags.map((tag) => (
-                <TagChip key={tag} tag={tag} active={activeTags.includes(tag)} onToggle={() => onToggle(tag)} />
+                <TagChip key={tag} tag={tag} active={activeTags.includes(tag)} onToggle={() => onToggle(tag)} xSize={24} />
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Sticky footer, as #05's. Categories apply as they are tapped, so this
+            CONFIRMS and dismisses rather than committing anything — closing is
+            applying. It is the way out at the bottom of a long list. */}
+        <div className="bpg-modal-footer">
+          <button type="button" className="bpg-apply-filters" onClick={onClose}>
+            Apply Filters
+          </button>
         </div>
       </div>
     </div>
@@ -723,7 +758,7 @@ export function BlogsPage({
       {pageHead}
 
       {/* ── Filter / search bar ─────────────────────────────────────────────── */}
-      <div className="bpg-bar">
+      <div className={BAR_CLASS}>
         <div className="bpg-bar-left">
           {allTags.length > 0 && (
             <button
@@ -755,6 +790,7 @@ export function BlogsPage({
           </div>
         </div>
 
+        {SEARCH_ENABLED && (
         <div className="bpg-search">
           <input
             ref={searchInputRef}
@@ -776,6 +812,7 @@ export function BlogsPage({
             <SearchIcon />
           </button>
         </div>
+        )}
       </div>
 
       {/* ── All-categories popup ────────────────────────────────────────────── */}

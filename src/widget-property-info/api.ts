@@ -296,6 +296,96 @@ async function fetchPropertiesFromApi(bound: BoundPropertyProps = {}): Promise<u
   return res.json();
 }
 
+// ---------------------------------------------------------------------------
+// "Find my Reservation" — look a reservation CODE up at this property
+// ---------------------------------------------------------------------------
+//
+//   GET v1/companies/{co}/reservations?property_id={p}&code={CODE}
+//     → { reservations: [ { id, code, lease_id, expires, Lease: { unit_id,
+//         Unit: { number, property_id, … }, Tenants: [ { Contact } ] } } ] }
+//
+// Verified live 2026-10-13: a known code answers with one reservation; an
+// unknown one answers 200 with an EMPTY list, not an error — so "not found"
+// is a normal result here and the caller says so in words. Same credentials
+// and company resolution as every other read in this file (site texts, then
+// the Company collection), never a build-time id.
+
+export interface FoundReservation {
+  id: string;
+  code: string;
+  unitId: string;
+  unitNumber?: string;
+  propertyId?: string;
+  leaseId?: string;
+  contact?: { first: string; last: string; email: string; phone: string };
+  /** The reserving contact's id — see ReservationHandoff.contactId. */
+  contactId?: string;
+}
+
+export type FindReservationResult =
+  | { ok: true; reservation: FoundReservation | null; companyId: string }
+  | { ok: false; error: string };
+
+/** "19392123003" → "(939) 212-3003" — what step 1's phone field shows. */
+function prettyPhone(raw: string): string {
+  const d = raw.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : raw;
+}
+
+export async function findReservation(
+  bound: BoundPropertyProps, propertyId: string, code: string,
+): Promise<FindReservationResult> {
+  const { baseUrl, appId, apiKey } = creds();
+  const co = await companyId(bound);
+  if (!baseUrl || !appId || !apiKey || !co || !propertyId) {
+    return { ok: false, error: 'Reservation lookup is not configured for this site.' };
+  }
+  const params = new URLSearchParams({ property_id: propertyId, code: code.trim() });
+  try {
+    const res = await fetch(`${baseUrl}/applications/${appId}/v1/companies/${encodeURIComponent(co)}/reservations?${params}`, {
+      headers: { 'x-storageapi-date': String(Math.floor(Date.now() / 1000)), 'x-storageapi-key': apiKey },
+    });
+    const env = await res.json().catch(() => undefined) as
+      { applicationData?: Record<string, Array<{ status?: number; data?: Record<string, unknown>; msg?: string }>> } | undefined;
+    const inner = env?.applicationData?.[appId]?.[0];
+    if (!res.ok || inner?.status !== 200 || !inner.data) {
+      console.warn('[#03 property-info] reservation lookup rejected:', inner?.status ?? res.status, inner?.msg ?? '');
+      return { ok: false, error: `Lookup failed (${inner?.status ?? res.status}).` };
+    }
+    const rows = (inner.data.reservations ?? []) as Array<Record<string, unknown>>;
+    const r = rows[0];
+    if (!r) return { ok: true, reservation: null, companyId: co };
+    const lease = (r.Lease ?? {}) as Record<string, unknown>;
+    const unit = (lease.Unit ?? {}) as Record<string, unknown>;
+    const tenant = ((lease.Tenants as Array<Record<string, unknown>> | undefined) ?? [])[0];
+    const c = (tenant?.Contact ?? {}) as Record<string, unknown>;
+    const phone = ((c.Phones as Array<Record<string, unknown>> | undefined) ?? []).find((p) => p && typeof p.phone === 'string');
+    const str = (v: unknown) => (typeof v === 'string' ? v : '');
+    const unitId = str(unit.id) || str(lease.unit_id);
+    if (!str(r.id) || !unitId) return { ok: true, reservation: null, companyId: co };
+    return {
+      ok: true,
+      companyId: co,
+      reservation: {
+        id: str(r.id),
+        code: str(r.code) || code.trim(),
+        unitId,
+        unitNumber: str(unit.number) || undefined,
+        propertyId: str(unit.property_id) || propertyId,
+        leaseId: str(r.lease_id) || str(lease.id) || undefined,
+        contactId: str(tenant?.contact_id) || str(c.id) || undefined,
+        contact: str(c.first) || str(c.email) ? {
+          first: str(c.first), last: str(c.last), email: str(c.email),
+          phone: phone ? prettyPhone(str(phone.phone)) : '',
+        } : undefined,
+      },
+    };
+  } catch (err) {
+    console.warn('[#03 property-info] reservation lookup failed:', err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 /**
  * Lead creation ("Send us a Message") — delegates to the shared leads API.
  *

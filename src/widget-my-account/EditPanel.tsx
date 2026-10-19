@@ -5,7 +5,9 @@
 // Four sections under the space heading:
 //   Mailing Address           country + address, then city / state / ZIP
 //   Drivers Licence           a "Verify ID" link and a passport alternative,
-//                             then number / state / expiry
+//                             then number / state / expiry — or, with the
+//                             passport ticked, number / issuing country /
+//                             expiry under a "Passport" heading
 //   Communication Preferences the two marketing opt-ins
 //   Additional Contacts       the alternate contact and the emergency contact,
 //                             the same nine fields each
@@ -43,15 +45,22 @@
 import { useEffect, useState } from 'react';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import { CUSTOMER_ADDRESS_COUNTRIES } from '@shared/placesApi';
-import { Checkbox, FormField } from '@shared/ui';
+import { AlertIcon, Checkbox, FormField } from '@shared/ui';
 import { ChevronBigRight24Icon } from './icons';
+import { ConfirmContactModal } from './ConfirmContactModal';
 import { US_STATES, isKnownState, stateCodeFromName, stateNameFromCode } from '@shared/usStates';
+import { COUNTRIES, countryNameOf } from '@shared/countries';
+import { mdyToIso } from './contactMapping';
 import { EDIT_COUNTRIES, EDIT_DEFAULTS } from './data';
 import type { AccountSpace, ContactForm, EditForm } from './data';
 
 interface Option { value: string; label: string }
 
 const COUNTRY_OPTIONS: Option[] = EDIT_COUNTRIES.map((c) => ({ value: c, label: c }));
+/* A passport can come from anywhere, so its country picker is the whole ISO
+   list — unlike the address pickers, which stay on the countries the address
+   lookup can complete. Stores the code; that is what the record holds. */
+const PASSPORT_COUNTRY_OPTIONS: Option[] = COUNTRIES.map((c) => ({ value: c.code, label: c.name }));
 
 /* The addresses store the CODE and the frame prints it ("CA"); the licence
    stores the NAME and the frame prints that ("California"). The picker lists
@@ -98,10 +107,13 @@ const filled = (v: string) => (v.trim() ? 'success' as const : 'default' as cons
  * look as the green border alone, so that is what `valid` does.
  */
 function SelectField({
-  label, value, onChange, options, required, valid, placeholder,
+  label, value, onChange, options, required, valid, placeholder, display,
 }: {
   label: string;
   value: string;
+  /** What the face prints when it should not be the raw value — a country
+   *  stored as its code but read as its name. Defaults to the value. */
+  display?: string;
   onChange: (v: string) => void;
   options: Option[];
   required?: boolean;
@@ -123,7 +135,7 @@ function SelectField({
         <FormField
           label={label}
           required={required}
-          value={value}
+          value={display ?? value}
           onChange={() => {}}
           className={valid ? 'ma-edit__valid' : undefined}
         />
@@ -174,19 +186,27 @@ function StateField({
  * same shape in the frame, so they are the same component — a second copy
  * would only be a place for the two to drift apart.
  */
+/** Every field the confirm dialog restates — a contact is "complete" when
+ *  all of them are in, and only then does the apply-to-all tick ask. */
+export function contactComplete(c: ContactForm): boolean {
+  return [c.first, c.last, c.email, c.phone, c.address, c.city, c.state, c.zip].every((v) => v.trim().length > 0);
+}
+
 function ContactFields({
-  title, contact, onChange,
+  title, contact, onChange, onApplyAll,
 }: {
   title: string;
   contact: ContactForm;
   onChange: (next: ContactForm) => void;
+  /** The apply-to-all tick, routed to the panel: it may need confirming. */
+  onApplyAll: (on: boolean) => void;
 }) {
   const set = <K extends keyof ContactForm>(key: K) => (v: ContactForm[K]) =>
     onChange({ ...contact, [key]: v });
 
   return (
     <div className="ma-edit__contact">
-      <h4 className="ma-edit__sub">{title}</h4>
+      <p role="heading" aria-level={4} className="ma-edit__sub">{title}</p>
 
       <div className="ma-edit__row">
         <FormField
@@ -232,7 +252,11 @@ function ContactFields({
             // from the SAME place, so they cannot contradict the street line.
             // ONE onChange, not three: each set() rebuilds from the same
             // `contact` closure, so three in a row kept only the last one.
-            const next = { ...contact };
+            /* The street too. onChange(p.mainText) has just gone out from the
+               lookup, but `contact` here is the render before it — so a
+               `next` built without the street wrote the OLD address back
+               over the pick, and the field never changed (2026-10-14). */
+            const next = { ...contact, address: place.address.street || place.formattedAddress || contact.address };
             if (place.address.city) next.city = place.address.city;
             // The two-letter code — StateField matches on `code` here.
             if (place.address.stateCode) next.state = place.address.stateCode;
@@ -265,7 +289,7 @@ function ContactFields({
 
       <Checkbox
         checked={contact.applyToAll}
-        onChange={set('applyToAll')}
+        onChange={onApplyAll}
         className="ma-edit__check"
       >
         Apply change to all spaces
@@ -298,6 +322,42 @@ export function EditPanel({
 }) {
   const [form, setForm] = useState<EditForm>(initial ?? EDIT_DEFAULTS);
   /*
+   * "Apply change to all spaces" CONFIRMS before it sticks — but only once
+   * the contact is complete, because the dialog restates the person and a
+   * half-typed one would show blanks. Ticked early, the tick is kept and the
+   * dialog comes at Save instead, so every write to all leases is confirmed
+   * exactly once. `confirmed` remembers which kinds were.
+   */
+  const [confirm, setConfirm] = useState<{ kind: 'alternate' | 'emergency'; thenSave: boolean } | null>(null);
+  const [confirmed, setConfirmed] = useState<Set<'alternate' | 'emergency'>>(() => new Set());
+  const requestApplyAll = (kind: 'alternate' | 'emergency') => (on: boolean) => {
+    if (!on) {
+      setForm((f) => ({ ...f, [kind]: { ...f[kind], applyToAll: false } }));
+      setConfirmed((prev) => { const next = new Set(prev); next.delete(kind); return next; });
+      return;
+    }
+    if (contactComplete(form[kind])) setConfirm({ kind, thenSave: false });
+    else setForm((f) => ({ ...f, [kind]: { ...f[kind], applyToAll: true } }));
+  };
+  const needsConfirmBeforeSave = (): 'alternate' | 'emergency' | null => {
+    for (const kind of ['alternate', 'emergency'] as const) {
+      if (form[kind].applyToAll && !confirmed.has(kind) && contactComplete(form[kind])) return kind;
+    }
+    return null;
+  };
+  /* The expiry is typed through the date mask and sent as YYYY-MM-DD; a date
+     the mask left half-typed, or one that does not exist, is caught here
+     rather than bounced by the API after the round trip. */
+  const expiryError = form.licenceExpiry.trim() && !mdyToIso(form.licenceExpiry)
+    ? 'Enter the date as MM/DD/YYYY'
+    : undefined;
+  const save = () => {
+    if (expiryError) return;
+    const kind = needsConfirmBeforeSave();
+    if (kind) { setConfirm({ kind, thenSave: true }); return; }
+    void onSave(form);
+  };
+  /*
    * Re-seed when the record lands.
    *
    * The panel can mount before the fetch resolves, and a plain useState
@@ -317,11 +377,11 @@ export function EditPanel({
   return (
     <section className="ma-edit">
       <div className="ma-edit__body">
-        <h2 className="ma-edit__title">{space.title}</h2>
+        <p role="heading" aria-level={2} className="ma-edit__title">{space.title}</p>
 
         {/* ── Mailing Address ──────────────────────────────────────────── */}
         <div className="ma-edit__section">
-          <h3 className="ma-edit__label">Mailing Address</h3>
+          <p role="heading" aria-level={3} className="ma-edit__label">Mailing Address</p>
 
           <div className="ma-edit__row ma-edit__row--wide">
             <SelectField
@@ -379,10 +439,14 @@ export function EditPanel({
           {/* Heading, the verify link and the passport alternative share one
               line in the frame, the checkbox pushed to the far right. */}
           <div className="ma-edit__head">
-            <h3 className="ma-edit__label">Drivers Licence</h3>
-            {/* No ID flow behind this yet, so it is a button that goes nowhere
-                rather than a link to a page that does not exist. */}
+            <p role="heading" aria-level={3} className="ma-edit__label">
+              {form.usePassport ? 'Passport' : 'Drivers Licence'}
+            </p>
+            {/* Verify ID — switched off (2026-10-14): there is no ID flow
+                behind it yet, and a button that goes nowhere is worse than
+                none. Restore by uncommenting.
             <button type="button" className="ma-edit__verify">Verify ID</button>
+            */}
             <Checkbox
               checked={form.usePassport}
               onChange={set('usePassport')}
@@ -392,21 +456,35 @@ export function EditPanel({
             </Checkbox>
           </div>
 
+          {/* The passport shares the licence's number and expiry fields — the
+              record has one set of ID slots, and that is where it is filed
+              (see contactMapping's header) — and swaps the state for the
+              issuing country. */}
           <div className="ma-edit__row ma-edit__row--thirds">
             <FormField
-              label="License Number" required
+              label={form.usePassport ? 'Passport Number' : 'License Number'} required
               value={form.licenceNumber} onChange={set('licenceNumber')}
               state={filled(form.licenceNumber)}
             />
-            {/* The licence row has no country of its own, so it follows the
-                mailing address's — the only country on the form that could
-                describe the holder. A US address therefore gets the picker
-                here too, rather than one State field on the screen staying
-                free text while the other three became menus. */}
-            <StateField
-              country={form.country} value={form.licenceState}
-              onChange={set('licenceState')} form="name"
-            />
+            {form.usePassport ? (
+              <SelectField
+                label="Country" required placeholder="Select Country"
+                options={PASSPORT_COUNTRY_OPTIONS}
+                value={form.licenceCountry} onChange={set('licenceCountry')}
+                display={countryNameOf(form.licenceCountry)}
+                valid={Boolean(form.licenceCountry)}
+              />
+            ) : (
+              /* The licence row has no country of its own, so it follows the
+                 mailing address's — the only country on the form that could
+                 describe the holder. A US address therefore gets the picker
+                 here too, rather than one State field on the screen staying
+                 free text while the other three became menus. */
+              <StateField
+                country={form.country} value={form.licenceState}
+                onChange={set('licenceState')} form="name"
+              />
+            )}
             {/* Typed, not picked: scrolling a picker back to a birth year or
                 forward to an expiry is slower than typing it, which is why the
                 kit carries this mask at all. */}
@@ -414,6 +492,7 @@ export function EditPanel({
               label="Expiration Date" required mask="date"
               value={form.licenceExpiry} onChange={set('licenceExpiry')}
               state={filled(form.licenceExpiry)}
+              error={expiryError}
               className="ma-edit__nocal"
             />
           </div>
@@ -421,7 +500,7 @@ export function EditPanel({
 
         {/* ── Communication Preferences ────────────────────────────────── */}
         <div className="ma-edit__section">
-          <h3 className="ma-edit__label">Communication Preferences</h3>
+          <p role="heading" aria-level={3} className="ma-edit__label">Communication Preferences</p>
 
           <div className="ma-edit__prefs">
             {/* The frame spells this "occational". Corrected here rather than
@@ -448,17 +527,19 @@ export function EditPanel({
 
         {/* ── Additional Contacts ──────────────────────────────────────── */}
         <div className="ma-edit__section">
-          <h3 className="ma-edit__label">Additional Contacts</h3>
+          <p role="heading" aria-level={3} className="ma-edit__label">Additional Contacts</p>
 
           <ContactFields
             title="Alternate Contact"
             contact={form.alternate}
             onChange={set('alternate')}
+            onApplyAll={requestApplyAll('alternate')}
           />
           <ContactFields
             title="Emergency Contact"
             contact={form.emergency}
             onChange={set('emergency')}
+            onApplyAll={requestApplyAll('emergency')}
           />
         </div>
       </div>
@@ -467,19 +548,39 @@ export function EditPanel({
           Cancel is drawn as plain bold text, not a button box — but it IS a
           button, so it focuses and activates from the keyboard. */}
       <div className="ma-edit__actions">
-        {saveError && <p className="ma-edit__error" role="alert">{saveError}</p>}
+        {saveError && (
+          <div className="ma-edit__error" role="alert">
+            <AlertIcon size={24} className="ma-alert-ico" />
+            <span>{saveError}</span>
+          </div>
+        )}
         <button type="button" className="ma-edit__cancel" onClick={onCancel} disabled={saving}>
           Cancel
         </button>
         <button
           type="button"
           className="ma-paynow"
-          onClick={() => onSave(form)}
+          onClick={save}
           disabled={saving}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
+      {confirm && (
+        <ConfirmContactModal
+          kind={confirm.kind}
+          contact={form[confirm.kind]}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            const { kind, thenSave } = confirm;
+            setConfirm(null);
+            setConfirmed((prev) => new Set(prev).add(kind));
+            const next: EditForm = { ...form, [kind]: { ...form[kind], applyToAll: true } };
+            setForm(next);
+            if (thenSave) void onSave(next);
+          }}
+        />
+      )}
     </section>
   );
 }

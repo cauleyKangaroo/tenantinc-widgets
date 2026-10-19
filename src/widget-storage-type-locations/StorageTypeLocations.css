@@ -9,13 +9,13 @@
 }
 .stl *, .stl *::before, .stl *::after { box-sizing: border-box; }
 .stl-heading {
-  margin: 0 0 4px;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: #000000;
-  text-transform: none;
-  letter-spacing: 0;
+  margin: 0 0 4px !important;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: #000000 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 .stl-sub {
   margin: 0 0 24px;
@@ -28,15 +28,15 @@
 .stl-sub-emphasis { font-weight: 700; }
 .stl-group + .stl-group { margin-top: 28px; }
 .stl-state {
-  margin: 0 0 10px;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.3;
+  margin: 0 0 10px !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
   /* Duda's global H3 theme may force headings to white. This state label must
      stay dark on the facility page's white background. */
   color: #000000 !important;
-  text-transform: none;
-  letter-spacing: 0;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 
 .stl-list {
@@ -95,19 +95,20 @@
   .stl-skel { animation: none; }
 }
 
+/* The site's error tag — same as the payment and rental-flow banners:
+   #f3e7e9, padding 12 / 39 / 12 / 15, 10px gap, 10px radius, #d32f2f text. */
 .stl--error {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
-  padding: 16px;
-  border: 1px solid #e53935;
-  border-radius: 8px;
-  background: color-mix(in srgb, #e53935 7%, #fff);
-  color: #101318;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
+  color: #d32f2f;
 }
 .stl-error-icon {
   flex: 0 0 auto;
-  color: #e53935;
+  color: #d32f2f;
 }
 .stl-error {
   margin: 1px 0 0;
@@ -119,11 +120,11 @@
 
 @media (max-width: 768px) {
   .stl-heading {
-    margin-bottom: 16px;
-    font-size: 28px;
+    margin-bottom: 16px !important;
+    font-size: 28px !important;
   }
   .stl-sub { margin-bottom: 28px; line-height: 1.25; }
-  .stl-state { font-size: 24px; }
+  .stl-state { font-size: 24px !important; }
   .stl-link { font-size: 16px; line-height: 1.25; }
   /* The 16px/1.25 link is 20px, but the pin (24px + 2px) sets the row. */
   .stl-skel--row { height: 20px; }

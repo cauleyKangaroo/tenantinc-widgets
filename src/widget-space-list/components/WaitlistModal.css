@@ -84,16 +84,16 @@
 }
 
 .sl-wl-heading {
-  display: flex;
-  flex-direction: column;
-  margin: 0 0 18px;
-  font-family: inherit;
-  font-size: 36px;
-  font-weight: 700;
-  line-height: 42px;
-  letter-spacing: 0;
-  color: var(--hb-text-night, #101318);
-  text-transform: none;
+  display: flex !important;
+  flex-direction: column !important;
+  margin: 0 0 18px !important;
+  font-family: inherit !important;
+  font-size: 36px !important;
+  font-weight: 700 !important;
+  line-height: 42px !important;
+  letter-spacing: 0 !important;
+  color: var(--hb-text-night, #101318) !important;
+  text-transform: none !important;
 }
 
 .sl-wl-kicker { color: var(--hb-secondary, #509e2f); }
@@ -116,11 +116,13 @@
 
 .sl-wl-error {
   margin: 16px 0 0;
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
   font-family: inherit;
   font-size: 14px;
   line-height: 20px;
-  color: var(--hb-ada-red, #e53935);
+  color: var(--hb-ada-red, #d32f2f);
 }
+.sl-wl-error-ico { flex: 0 0 auto; color: var(--hb-ada-red, #d32f2f); }
 
 .sl-wl-actions {
   align-self: center;
@@ -134,7 +136,7 @@
   .sl-wl-modal { max-height: calc(100vh - 24px); }
   .sl-wl-head { padding: 16px 20px; }
   .sl-wl-body { padding: 28px 20px 32px; }
-  .sl-wl-heading { font-size: 28px; line-height: 34px; margin-bottom: 12px; }
+  .sl-wl-heading { font-size: 28px !important; line-height: 34px !important; margin-bottom: 12px !important; }
   .sl-wl-text { margin-bottom: 20px; }
   .sl-wl-grid { grid-template-columns: 1fr; gap: 16px; }
   .sl-wl-actions { width: 100%; margin-top: 28px; }

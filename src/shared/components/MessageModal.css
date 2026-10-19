@@ -35,7 +35,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 23px 42px;
+  padding: 23px 24px;
   background: #ffffff;
   box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
 }
@@ -55,8 +55,8 @@
    there to lose to. */
 .pi-msg-close svg { flex: 0 0 auto; width: 32px !important; height: 32px !important; }
 
-.pi-msg-body { background: #fff; padding: 30px 42px; display: flex; flex-direction: column; gap: 16px; }
-.pi-req { color: #e53935; margin-left: 2px; }
+.pi-msg-body { background: #fff; padding: 30px 24px; display: flex; flex-direction: column; gap: 16px; }
+.pi-req { color: #d32f2f; margin-left: 2px; }
 
 /* Facility area */
 .pi-msg-facility-area { position: relative; display: flex; flex-direction: column; gap: 12px; }
@@ -160,6 +160,25 @@
    whatever was typed. */
 .pi-msg-area--valid { border-color: var(--hb-field-border-success, #028a0c); }
 .pi-msg-area--valid:focus-within { border-color: var(--hb-field-border-success, #028a0c); }
+/* The kit's error state, on the textarea: red border, red label. */
+.pi-msg-area--error,
+.pi-msg-area--error:focus-within { border-color: var(--hb-field-border-error, #b3261e); }
+.pi-msg-area--error .pi-msg-area-label { color: var(--hb-ada-red, #b3261e); }
+.pi-msg-area-wrap { display: flex; flex-direction: column; gap: 4px; }
+/* The kit's .hb-field__error, for the textarea and the consent box — same
+   colour, size and right alignment, so every fault on the form reads alike. */
+.pi-msg-field-error {
+  margin: 0;
+  color: var(--hb-ada-red, #b3261e);
+  font-size: var(--hb-font-size-label, 12px);
+  font-weight: var(--hb-font-weight-regular, 400);
+  line-height: var(--hb-line-height-label, 16px);
+  text-align: right;
+}
+.pi-msg-field-error--consent { text-align: left; margin-top: -8px; }
+/* Unticked at Submit: the box itself goes red, like a field's border. */
+.hb-check.pi-msg-consent--error .hb-check__box { border-color: var(--hb-field-border-error, #b3261e); box-shadow: 0 0 0 1px var(--hb-field-border-error, #b3261e) inset; }
+.hb-check.pi-msg-consent--error .pi-msg-consent-text { color: var(--hb-ada-red, #b3261e); }
 
 .pi-msg-area-input {
   position: absolute;
@@ -197,7 +216,7 @@
 }
 
 /* Footer */
-.pi-msg-foot { background: #f9fafb; padding: 19px 42px; display: flex; flex-direction: column; gap: 16px; }
+.pi-msg-foot { background: #f9fafb; padding: 19px 24px; display: flex; flex-direction: column; gap: 16px; }
 /* The box, its checked state and the hidden input are all the shared
    Checkbox's now (see MessageModal) — the hand-rolled .pi-msg-check rules that
    were here are gone. What remains is the one thing the kit's root does not
@@ -256,11 +275,21 @@
 .pi-msg-submit:hover { background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black); }
 .pi-msg-submit:disabled, .pi-msg-cancel:disabled { opacity: 0.6; cursor: default; }
 
+/* The site's error tag, as the payment / rental-flow banners: #f3e7e9,
+   padding 12 / 39 / 12 / 15, 10px between the 24px alert mark and the text,
+   10px radius, icon centred. Full width of the footer, so no side inset. */
 .pi-msg-error {
-  margin: 0 32px;
-  color: #e53935;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
+  color: #d32f2f;
   font: 500 15px 'Montserrat', 'Montserrat Fallback', sans-serif;
 }
+.pi-msg-error-ico { flex: 0 0 auto; color: #d32f2f; }
 
 .pi-msg-success {
   display: flex;

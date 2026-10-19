@@ -47,3 +47,24 @@ export function PropertyExtrasProvider(
 export function usePropertyExtras(): PropertyExtras | null {
   return useContext(PropertyExtrasContext);
 }
+
+// ---------------------------------------------------------------------------
+// Where the sidebar's Reviews section fetches live reviews: the proxy base
+// (the site's `login_api_base`) and Duda's site id, which the proxy's reviews
+// routes insist on. Both arrive as SpaceList props; the section sits in the
+// module-level VISUALS map (see above), so they travel by context.
+// ---------------------------------------------------------------------------
+
+export interface ReviewsProxy { siteId: string; base: string }
+const ReviewsProxyContext = createContext<ReviewsProxy>({ siteId: '', base: '' });
+
+export function ReviewsProxyProvider(
+  { siteId, base, children }: { siteId: string; base: string; children: React.ReactNode },
+) {
+  const value = React.useMemo(() => ({ siteId, base }), [siteId, base]);
+  return <ReviewsProxyContext.Provider value={value}>{children}</ReviewsProxyContext.Provider>;
+}
+
+export function useReviewsProxy(): ReviewsProxy {
+  return useContext(ReviewsProxyContext);
+}

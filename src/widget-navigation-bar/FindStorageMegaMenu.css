@@ -411,16 +411,16 @@
    equivalent id-scoped rules for them here. */
 
 .nav-mega-heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
   margin: 0 !important;
   font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 16px !important;
   font-weight: 700 !important;
   line-height: normal !important;
-  color: #fff;
-  text-transform: uppercase;
+  color: #fff !important;
+  text-transform: uppercase !important;
 }
 
 /* Figma 10557-107158: "NEARBY STORAGE FACILITIES" is 14, not the 16 above. */

@@ -151,7 +151,7 @@
 }
 /* ada/red, matching the mobile bar's countdown. tabular-nums so the digits do
    not jitter as it ticks. */
-.rf-hdr-hold b { color: var(--hb-ada-red, #e53935); font-variant-numeric: tabular-nums; }
+.rf-hdr-hold b { color: var(--hb-ada-red, #d32f2f); font-variant-numeric: tabular-nums; }
 
 /* Narrower banner, as #02 does at small widths. */
 /* #02's own breakpoints (1120 / 1024), not a single step at 900. The previous
@@ -226,7 +226,7 @@
 }
 /* Hardcoded #101318, per the frame — this line never follows the site theme. */
 .rf-wrapper .rf-heading {
-  margin: 0;
+  margin: 0 !important;
   font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
   font-size: 36px !important;
   font-weight: 700 !important;
@@ -284,7 +284,7 @@
   transform: translateY(-50%);
   color: #028a0c;
 }
-.rf-req { color: #e53935; margin-left: 2px; }
+.rf-req { color: #d32f2f; margin-left: 2px; }
 
 .rf-consent { margin: 0; padding-left: 12px; font-size: 14px; line-height: 18px; color: #637381; }
 .rf-consent a { color: inherit; text-decoration: underline; }
@@ -561,15 +561,15 @@
    off the text's centre line. Every other modal title in the flow resets it;
    this rule predates its only current caller and never had to. */
 .rf-modal-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #101318;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  color: #101318 !important;
 }
-.rf-modal-title svg { flex: 0 0 auto; }
+.rf-modal-title svg { flex: 0 0 auto !important; }
 .rf-modal-close {
   flex: 0 0 auto;
   width: 32px; height: 32px;
@@ -603,7 +603,7 @@
 
 @media (max-width: 640px) {
   .rf-modal-head { padding: 18px 20px; }
-  .rf-modal-title { font-size: 20px; }
+  .rf-modal-title { font-size: 20px !important; }
   .rf-modal-body { padding: 24px 16px; }
   .rf-cals { gap: 16px; }
 }
@@ -626,6 +626,9 @@
 .rf2-link--btn {
   appearance: none; background: none; border: 0; padding: 0;
   font: inherit; line-height: inherit;
+  /* After `font: inherit`, which resets font-size to the host page's — so
+     the 16px .rf2-link asks for was never applied. Pinned here. */
+  font-size: 16px;
 }
 
 /* Contact form (label-above fields) */
@@ -676,7 +679,7 @@
 /* Same green/red as the form fields, so these controls read as fields rather
    than as buttons that happen to sit in the row. */
 .rf2-movein--valid { border-color: var(--hb-field-border-success, #028a0c); }
-.rf2-movein--error { border-color: var(--hb-field-border-error, #e53935); }
+.rf2-movein--error { border-color: var(--hb-field-border-error, #d32f2f); }
 /* Full width: the half-width base exists to pair Move-in Date with the fields
    beside it, and the DOB control has no partner. */
 .rf2-movein--full { width: 100%; }
@@ -972,6 +975,49 @@
   .rf2-plan-menu { right: 0; }
 }
 
+/* ── Additional-info dropdowns (Select in additionalInfo.tsx) ─────────────
+   Vehicle Type / Country / State open the plan menu above instead of the
+   native picker. A size container so the menu's cqi type scales against the
+   field, as it does against the plan control. */
+.rf-select--menu { container-type: inline-size; }
+/* Transparent hit area over the FormField face — where the native <select>
+   used to sit. A full button reset: hosts style bare buttons. */
+.rf-select-trigger {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.rf-select-trigger:focus { outline: none; }
+/* It sits ON TOP of the field's text, so it must stay see-through in every
+   state. Hosts style `button:hover` (the harness: #f3f4f6; Duda themes their
+   own), which outranks a single class and painted over the text on hover. */
+.rf-select--menu .rf-select-trigger,
+.rf-select--menu .rf-select-trigger:hover,
+.rf-select--menu .rf-select-trigger:focus,
+.rf-select--menu .rf-select-trigger:active {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+/* No chevron cell here, so the list spans the whole field. */
+.rf-select-menu { right: 0; }
+/* Doubled class: the resting rotate(90deg) is in @shared/ui SelectField.css,
+   so this must not depend on which stylesheet loads last. */
+.rf-select--menu .rf-select-chev { transition: transform 0.15s; }
+.rf-select--menu .rf-select-chev.rf-select-chev--up { transform: rotate(-90deg); }
+/* The current choice, as a native picker marks it. */
+.rf-select-opt--on { background: #f4f6f8; }
+
 /* Additional Information toggles */
 /* 4px is the frame's own gap (8507-23354) and was already correct — the rows
    read tight because of the BOX, not the gap. Figma draws an 18px box inside a
@@ -1101,6 +1147,9 @@
   .rf2-doc-updating::before { animation: none; }
 }
 
+/* The inline preview's frame: not scrollable, and transparent to the pointer
+   so a wheel over it scrolls the page. The lightbox's frame scrolls. */
+.rf2-doc-frame--still { pointer-events: none; overflow: hidden; }
 .rf2-doc-frame {
   display: block;
   width: 100%;
@@ -1253,8 +1302,8 @@
   line-height: 14px;
 }
 
-/* Unused while no endpoint carries a per-period discount - see PAYMENT_CYCLES
-   in Step2.tsx. Kept so restoring the badge is a render change, not a redesign. */
+/* "Save 10%" / "Save 15%" under quarterly and annual — see PAYMENT_CYCLES in
+   Step2.tsx. */
 .rf2-cycle-save { font-weight: 600; }
 
 .rf2-cycle-disclaimer {
@@ -1299,6 +1348,10 @@
 }
 
 .rf2-autopay--on { border-color: var(--color_2, #509e2f); }
+/* Payment Cycle: outlined once the shopper picks a period, in the Duda theme's
+   PRIMARY (--color_1; #0f6369 is the site's own Primary, for the harness). The
+   2px transparent border is already there, so the box does not move. */
+.rf2-cycle--on { border-color: var(--color_1, #0f6369); }
 /* PRESELECTED never takes the CTA colour, and loses its outline entirely once
    ticked — the blue border and the blue notice are one argument, so they
    arrive and leave together.
@@ -1369,6 +1422,9 @@
   }
   .rf2-plan-body--ks .rf2-ks-price { font-size: 13px; }
   .rf2-plan-body--ks .rf2-ks-price span { font-size: 11px; }
+  /* The OPEN list's prices ("Included", "$10") at the protection plan list's
+     size — .rf2-plan-price b — rather than the desktop 20px. */
+  .rf2-plan-menu .rf2-ks-price { font-size: clamp(17px, 4.6cqi, 20px); }
 }
 
 /* The key-share card carries a paragraph where the autopay tip carries one
@@ -1515,7 +1571,6 @@
    host, so the host carries the 64px the Apple button gets from .rf2-pay. */
 .rf2-wallet--google { height: 64px; min-width: 0; }
 .rf2-wallet--google > * { width: 100%; height: 100%; }
-.rf2-wallet-with { font: 500 20px 'Montserrat', sans-serif; color: #fff; }
 /* Apple Pay matches the Google Pay button beside it, state for state — the
    values are Google's own black-button styles from pay.js: #000 at rest,
    #3c4043 hovered, #5f6368 pressed. Without this the Apple button inherited
@@ -1602,6 +1657,14 @@
      was putting 28px back on both sides, which is what stopped the blue
      reaching the border. Same (0,2,0), later in source, so it wins. */
   .rf-wrapper .rf2-autopay--withbar { padding: 0; }
+  /* Payment Cycle on mobile (Figma): the same #F4F6F8 box as the autopay row
+     above it, with the heading on its own line and the three periods stacked
+     one per line beneath it, rather than side by side wrapping 2 + 1. The
+     disclaimer stays at the foot of the box. (0,2,0) for the same reason as
+     the autopay rule above. */
+  .rf-wrapper .rf2-cycle { background: #f4f6f8; }
+  .rf-wrapper .rf2-cycle-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .rf-wrapper .rf2-cycle-opts { flex-direction: column; align-items: flex-start; gap: 10px; }
   /* Gutters only, no sides: .rf2-agree carries the 20px here, same as the
      panels. These two kept their own 20px and 16px, which on top of the
      container's would have double-inset the head and the document. */
@@ -2038,6 +2101,12 @@
 .rfc-details b { font-weight: 600; }
 .rfc-info-dates p { white-space: nowrap; }
 .rfc-info-dates p:last-child { margin-bottom: 0; }
+/* The calendar belongs to the BLOCK, so it sits on the first line of it
+   (Reservation Date) rather than floating in the gap between the two dates,
+   where it reads as labelling neither. Matches .rfc-info-hours, which is
+   already flex-start above its Office/Gate stack.
+   Mobile only, as asked — the desktop rail still centres it. */
+.rf-wrapper--mobile .rfc-info-dates { align-items: flex-start; }
 /* Hours: clock icon + Office/Gate blocks, with clear spacing before Gate. */
 .rfc-info-hours { display: flex; align-items: flex-start; gap: 10px; margin-top: 0; }
 .rfc-hours { color: #000 !important; line-height: 24px !important; margin: 0 !important; }
@@ -2071,6 +2140,81 @@
 }
 .rfc-code-label { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; color: #101318; }
 .rfc-code { font-size: 30px; font-weight: 600; color: #101318; word-break: break-word; line-height: 1.1; }
+
+/* ── Copy the code ──────────────────────────────────────────────────────── */
+/* position: relative so the "Copied" badge can hang above the code rather than
+   taking part in the layout — it must not nudge the card as it appears. */
+.rfc-code-wrap { position: relative; display: inline-flex; align-items: center; gap: 10px; }
+.rfc-code-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  /* 40px hit target around a 24px glyph — the icon alone is under the 44px
+     touch minimum, and this is the one control on the card. */
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: #101318;
+  cursor: pointer;
+}
+.rfc-code-copy:hover { background: rgba(16, 19, 24, 0.06); }
+.rfc-code-copy:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); }
+
+.rfc-copied {
+  position: absolute;
+  left: 50%;
+  /* BELOW the code, not above it: the "Reservation Code" label sits directly
+     above, so a badge there lands squarely on top of the words it is
+     confirming. The card keeps clear space under the code. */
+  top: calc(100% + 8px);
+  /* The X half is the centring, the Y half is the rise — both live in the one
+     transform, so the keyframes have to restate the centring on every stop. */
+  transform: translateX(-50%) translateY(6px);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #101318;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+/* Up and in (200ms), hold (1s), out (250ms) = COPIED_MS in Confirmation.tsx,
+   which is when the class comes off. `forwards` holds the last frame so it
+   cannot flash back to full opacity in between. */
+.rfc-copied--on { animation: rfc-copied 1.45s ease forwards; }
+@keyframes rfc-copied {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  14%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  83%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(0); }
+}
+/* Still confirm the copy, just without the travel. */
+@media (prefers-reduced-motion: reduce) {
+  .rfc-copied--on { animation: rfc-copied-fade 1.45s ease forwards; }
+  @keyframes rfc-copied-fade {
+    0%, 100% { opacity: 0; transform: translateX(-50%); }
+    14%, 83% { opacity: 1; transform: translateX(-50%); }
+  }
+}
+
+.rfc-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .rfc-code-note { font-size: 13px; color: #637381; }
 /* ── Smart Entry card (Figma 8507-24845) ──────────────────────────────────
    The dashed card's upper half when gateCodeType is smartentrysystem: the two
@@ -2274,6 +2418,11 @@
    their own asset (41.671 pitch less the 27.671 glyph), so the row reads as one
    evenly spaced set rather than a mark and then a strip. */
 .rfc-review-rating { display: inline-flex; align-items: center; gap: 14px; }
+/* It is a link now (to the property's Google rating dialog): no underline, no
+   colour change, and a keyboard ring so the tap target is visible. */
+.rfc-review-rating,
+.rfc-review-rating:hover { text-decoration: none; color: inherit; }
+.rfc-review-rating:focus-visible { outline: 2px solid #101318; outline-offset: 4px; border-radius: 4px; }
 /* The G is our existing 4-colour vector rather than the frame's 1920px PNG: the
    glyph is the same mark, and the raster would have cost ~800KB of base64 in a
    bundle where it renders 39px wide. Boxed at the frame's 39x40 with the square
@@ -2355,13 +2504,17 @@
   color: var(--hb-secondary, #509e2f);
 }
 .rfc-next-check svg { display: block; }
-.rfc-error-eyebrow { color: #dc2626; }
+.rfc-error-eyebrow { color: #d32f2f; }
 .rfc-error-panel {
-  background: #fef2f2; border: 1px solid #fca5a5; border-radius: 10px;
-  padding: 16px 18px; margin-bottom: 18px;
+  /* The site's error tag (as the other flow banners), the message and its
+     sub-line stacked beside the alert mark. */
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
+  margin-bottom: 18px;
 }
-.rfc-error-msg { font-weight: 700; margin: 0 0 8px; color: #991b1b; }
-.rfc-error-sub { font-size: 13px; margin: 0; color: #7f1d1d; }
+.rfc-error-ico { flex: 0 0 auto; color: #d32f2f; }
+.rfc-error-text { min-width: 0; }
+.rfc-error-msg { font-weight: 700; margin: 0 0 8px; color: #d32f2f; }
+.rfc-error-sub { font-size: 13px; margin: 0; color: #d32f2f; }
 .rfc-retry { width: auto; padding: 12px 28px; }
 
 /* Conditional field groups expanding under step-2 checkboxes (Figma 12-13).
@@ -2408,7 +2561,34 @@
 .rf2-gp-submit { max-width: 260px; }
 .rf2-gp-submit iframe { border: 0; width: 100%; height: 52px; }
 .rf2-gp-note { font-size: 14px; color: #5c6370; margin: 0; }
-.rf2-gp-note--error { color: #b3261e; }
+.rf2-gp-note--error { color: #d32f2f; }
+/* An error note as the site's error tag (the other flow banners): #f3e7e9,
+   padding 12 / 39 / 12 / 15, 10px between the 24px alert mark and the text,
+   10px radius, icon centred. A modifier, so the error notes not yet converted
+   keep their plain line. The payment section's own 22px gap spaces it. */
+.rf2-gp-note--tag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
+}
+.rf2-gp-note-alert-ico { flex: 0 0 auto; color: #d32f2f; }
+/* The wallet/autopay note as a blue info tag (Figma): the same blue pair as
+   .rf2-autopay-note (#e7f1ff on #3d8fff), icon left, dark text. */
+.rf2-gp-note--info {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #e7f1ff;
+  border: 1px solid #3d8fff;
+  border-radius: 8px;
+  color: var(--hb-text-night, #101318);
+  line-height: 1.4;
+}
+.rf2-gp-note-ico { flex: 0 0 auto; color: #3d8fff; }
 .rf2-gp--unconfigured {
   font-size: 14px; color: #5c6370; background: #f5f6f8;
   border: 1px dashed #d0d3d8; border-radius: 8px; padding: 14px 16px;
@@ -2433,9 +2613,28 @@
 .rfr-holdtime { color: #e03e2f; font-variant-numeric: tabular-nums; }
 
 /* --- Validation states --------------------------------------------------- */
-.rf-field--error .rf-field-input { border-color: #b3261e; }
-.rf-field--error .rf-field-label { color: #b3261e; }
-.rf-form-error { font-size: 14px; color: #b3261e; margin: 4px 0 0; }
+.rf-field--error .rf-field-input { border-color: #d32f2f; }
+.rf-field--error .rf-field-label { color: #d32f2f; }
+.rf-form-error { font-size: 14px; color: #d32f2f; margin: 4px 0 0; }
+/* As the site's error tag (the payment / space banners): #f3e7e9, padding
+   12 / 39 / 12 / 15, 10px between the 24px alert mark and the text, 10px
+   radius, icon centred. A modifier, so the plain .rf-form-error lines that
+   have not been converted keep their look. */
+.rf-form-error--tag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Clear of the Rent / Reserve buttons above it; the plain line's 4px read
+     as part of the button group once it became a filled box. */
+  margin-top: 16px;
+  /* Left, as every tag: .rf-ua-error centres its plain line, and centred
+     text beside a left-hand icon reads as misaligned. */
+  text-align: left;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
+}
+.rf-form-error-ico { flex: 0 0 auto; color: #d32f2f; }
 .rf-availability {
   margin: 12px auto 0;
   max-width: 420px;
@@ -2444,26 +2643,23 @@
   line-height: 20px;
   text-align: center;
 }
-/* The error states are a BOX, not loose red text (Figma 12029-86499). Same
-   treatment as .rf-payerr, which is the banner already built for the payment
-   step — 16px padding, 16px radius, a 24px alert mark and the text beside it.
-   Only the ground differs, and deliberately: .rf-payerr is white because it
-   sits on the grey method panel, while this one sits on .rf-card, which is
-   white — a white box there would be invisible. The frame's own
-   rgba(253,239,239,0.45) is what it calls for.
+/* The error states are a BOX, not loose red text — the same pink tag as the
+   payment banner (.rf-payerr in @shared/paymentForms.css): #f3e7e9, padding
+   12 / 39 / 12 / 15, 10px between the 24px alert mark and the text, 10px
+   radius, so every error banner in the flow looks the same.
    `text-align: left` because .rf-availability centres its text for the plain
    loading line; centred text beside a left-hand icon reads as misaligned. */
 .rf-availability--error {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 16px;
-  background: rgba(253, 239, 239, 0.45);
-  color: #b3261e;
+  gap: 10px;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
+  color: #d32f2f;
   text-align: left;
 }
-.rf-availability-ico { flex: 0 0 auto; color: #b3261e; }
+.rf-availability-ico { flex: 0 0 auto; color: #d32f2f; }
 .rf-availability a,
 .rf-availability button {
   color: inherit;
@@ -2472,20 +2668,30 @@
   text-decoration: underline;
 }
 .rf-availability button { border: 0; padding: 0; background: transparent; cursor: pointer; }
-.rf2-field--error .rf2-field-input { border-color: #b3261e; }
-.rf2-field--error .rf2-field-label { color: #b3261e; }
+.rf2-field--error .rf2-field-input { border-color: #d32f2f; }
+.rf2-field--error .rf2-field-label { color: #d32f2f; }
 /* Required-agreement message. Replaces a 2px red outline that used to ring the
    whole row: it flagged that something was wrong without ever saying what, and
    a box drawn around a single checkbox reads as a container, not an error.
    The container carries the gutter now, so this needs none of its own — it
    lines up with the checkbox row above it either way. Colour is the same
-   #b3261e the other validation messages use (.rf-form-error). */
+   #d32f2f the other validation messages use (.rf-form-error). */
+/* The site's error tag, as the other flow banners: #f3e7e9, padding
+   12 / 39 / 12 / 15, 10px between the 24px alert mark and the text, 10px
+   radius, icon centred; 16px clear of the "I agree" bar above it. */
 .rf2-agree-error {
-  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
   font-size: 14px;
   line-height: 18px;
-  color: #b3261e;
+  color: #d32f2f;
 }
+.rf2-agree-error-ico { flex: 0 0 auto; color: #d32f2f; }
 
 /* ── Move-in cost line items — 14px ───────────────────────────────────────
    Rent (Prorated), Admin Fee, Protection, Total Tax and any discount rows.
@@ -2619,6 +2825,20 @@
 }
 .rf-wrapper .rf-sheethead-phone svg { flex: 0 0 auto; }
 
+/* GREY HEADER OVER A WHITE SUMMARY in the mobile dropdown.
+   With the sheet open this row is the top of the screen, and white against
+   iPhone Safari's own light toolbar it read as part of the browser. #f4f6f8 is
+   the grey every section panel on these pages sits on (.rf2-panel), so the
+   header reads as page rather than chrome — and the summary beneath it goes
+   white, so the grey marks the header off from it. Originally these were the
+   other way round: white header, #f4f6f8 summary (the .rfm-sheet rule further
+   down, which the extra .rf-wrapper here outranks).
+   Text stays dark, and a logo drawn for a light ground still works on it. */
+.rf-wrapper .rf-sheethead { background: #f4f6f8; }
+.rf-wrapper .rfm-sheet,
+.rf-wrapper .rfm-sheet .ts-card,
+.rf-wrapper .rfm-sheet .rfr-card { background: #fff; }
+
 /* --- Mobile: sticky top cost bar + drop-down rail sheet ------------------ */
 /* The bar's slot in the flow. Everything visible sits in .rfm-panel, which is
    absolute, so opening the sheet cannot move the page behind it — this element
@@ -2696,7 +2916,7 @@
    space. tabular-nums so the digits do not jitter as it ticks. */
 .rfm-bar-hold b {
   font-weight: 600;
-  color: var(--hb-ada-red, #e53935);
+  color: var(--hb-ada-red, #d32f2f);
   font-variant-numeric: tabular-nums;
 }
 .rfm-bar-chev { flex: 0 0 auto; color: #101318; transform: rotate(90deg); transition: transform 0.15s ease; }
@@ -2825,6 +3045,17 @@
 .rfm-sheet .ts-feat { font-size: 12px; }
 .rfm-sheet .ts-card-top { flex-wrap: wrap; gap: 12px; }
 .rfm-sheet .ts-card-prices { height: auto; }
+/* Prices drop to sit on the last amenity tick rather than hanging near the top
+   with dead space beneath them. The right column already stretches to the
+   row's height (the left column, ending in the ticks, is the taller of the
+   two), so the prices only need pushing to its floor.
+   margin-top:auto, NOT justify-content:space-between — "Change Space" is only
+   drawn when the shopper arrived from the value-tiers page, and with it absent
+   space-between has a single child to distribute and leaves it at the TOP,
+   which is the bug this is fixing. An auto margin pins the prices down whether
+   the link is there or not. Sheet only: the desktop rail is wider and reads
+   better with the two together at the top. */
+.rfm-sheet .ts-card-prices { margin-top: auto; }
 .rfm-sheet .ts-card-line span,
 .rfm-sheet .ts-bd-row span { min-width: 0; overflow-wrap: anywhere; }
 .rfm-sheet .ts-card-storename { overflow-wrap: anywhere; }

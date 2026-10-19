@@ -409,8 +409,12 @@
   padding: 0 23px;
 }
 
+/* A FLOOR, not a reservation. 320px held nine lines open for every review, so
+   a short one — Yelp hands out an excerpt, not the full text — sat above a
+   block of dead space. The card fits its content and only grows to the floor
+   when there is less than that to show. */
 .rw-mobile-body .rw-card {
-  min-height: 320px;
+  min-height: 0;
 }
 
 /* ── Responsive breakpoint ──────────────────────────────────────────────── */

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { Unit, UnitSize, WidgetConfig } from '../types';
 import { PriceBlock, CtaButton, FeatureList, CheckIcon, JunkFeeDisclaimer, PromoTagIcon } from './Pricing';
 import { unitImageSrc, unitImageOnError } from './unitImage';
@@ -42,6 +42,39 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
   // The selected unit may disappear if filters change; fall back to first.
   const selected = units.find((u) => u.id === selectedId) ?? units[0];
 
+  // The frame completes the last row with empty slots, so the grid reads as a
+  // block rather than a ragged edge. How many to add depends on the column
+  // count, and that is NOT a constant — four columns at desktop, two below an
+  // 820px card, three below 680px — so it is read from the laid-out grid
+  // rather than hardcoded.
+  //
+  // Read from grid-template-columns, i.e. the TRACKS, not from how the items
+  // happened to land. Counting items per row (their offsetTop) asks the
+  // content how wide the grid is, which gets it wrong in exactly the cases
+  // this feature exists for: one long label packs 3 to a row, and a group of
+  // one unit looks like a 1-column grid that is already complete. The track
+  // list is the column count whatever the content does, so a single pill
+  // correctly pads out to a full row.
+  const sizesRef = useRef<HTMLDivElement>(null);
+  const [cols, setCols] = useState(0);
+  useLayoutEffect(() => {
+    const el = sizesRef.current;
+    if (!el) return undefined;
+    const measure = () => {
+      const tracks = getComputedStyle(el).gridTemplateColumns;
+      const n = tracks && tracks !== 'none' ? tracks.split(' ').filter(Boolean).length : 0;
+      // Only on a real change: the track count does not depend on the fillers,
+      // so this settles on the first pass instead of feeding itself.
+      setCols((c) => (c === n ? c : n));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const fillers = cols > 0 ? (cols - (units.length % cols)) % cols : 0;
+
   return (
     <div className="sl-list-card">
       {/* Display panel — image + amenities (left) and the size grid (right) */}
@@ -69,7 +102,13 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
                 the chip as its first cell. `display: contents` on every other
                 width, so this element does not exist as far as the desktop
                 layout is concerned. */}
-            <div className="sl-lc-amenities">
+            {/* The row count lets the narrow frame fill its two columns
+                top-to-bottom (chip, then the first ticks, then the right
+                column), as Figma 7112-56210 does. Ignored at wider widths. */}
+            <div
+              className="sl-lc-amenities"
+              style={{ '--lc-am-rows': Math.max(1, Math.ceil(((selected.subtype ? 1 : 0) + selected.features.length) / 2)) } as React.CSSProperties}
+            >
               {selected.subtype && (
                 <span className="sl-lc-subtype">
                   <CheckIcon /> {selected.subtype}
@@ -80,7 +119,7 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
           </div>
         </div>
 
-        <div className="sl-lc-sizes">
+        <div className="sl-lc-sizes" ref={sizesRef}>
           {units.map((u) => {
             const isSelected = u.id === selected.id;
             const isUnavail = u.availability === 'waitlist';
@@ -95,6 +134,11 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
               </button>
             );
           })}
+          {/* Decorative: there is no space here, so nothing to press or to
+              announce. */}
+          {Array.from({ length: fillers }, (_, i) => (
+            <span key={`empty-${i}`} className="sl-lc-size sl-lc-size-empty" aria-hidden="true" />
+          ))}
         </div>
       </div>
 

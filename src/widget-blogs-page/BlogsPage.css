@@ -79,17 +79,17 @@
 }
 
 .bpg-title {
-  margin: 0;
+  margin: 0 !important;
   /* The frame is 80px on a 1347px canvas, and this widget can sit in a much
      narrower Duda column where 80px is unreadable. Same clamp as #16's
      .bpp-title, which came from the same 80px origin — one scale across both
      blog pages, and no breakpoint per size. */
-  font-size: clamp(32px, 4.2vw, 80px);
-  font-weight: 600;
-  line-height: 1.25;
-  color: #101318;
+  font-size: clamp(32px, 4.2vw, 80px) !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  color: #101318 !important;
   /* Keeps a two-line heading from breaking one word onto the second line. */
-  text-wrap: balance;
+  text-wrap: balance !important;
 }
 
 .bpg-intro {
@@ -348,7 +348,7 @@
 .bpg-modal-title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -356,26 +356,27 @@
   display: flex;
   align-items: center;
   color: #101318;
+  flex-shrink: 0;
 }
 
 .bpg-modal-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1;
   color: #101318;
 }
 
 .bpg-modal-badge {
-  min-width: 24px;
+  width: 24px;
   height: 24px;
-  padding: 0 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 80px;
-  background: var(--color_2, #509e2f);
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color_1, #f45f30);
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1;
 }
@@ -393,11 +394,10 @@
   padding: 0;
   cursor: pointer;
   font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 500;
   color: #101318;
   text-decoration: underline;
-  text-underline-offset: 2px;
   white-space: nowrap;
 }
 
@@ -425,7 +425,7 @@
 
 .bpg-modal-separator {
   height: 1px;
-  background: #e4e7eb;
+  background: #dfe3e8;
   flex-shrink: 0;
 }
 
@@ -434,7 +434,8 @@
 .bpg-modal-body {
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  gap: 19px;
+  padding: 21px 22px 24px;
   overflow-y: auto;
 }
 
@@ -442,8 +443,8 @@
 .bpg-modal-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px 20px 25px;
+  gap: 2px;
+  padding: 10px 30px 25px;
   border-radius: 12px;
   background: #f9fafb;
 }
@@ -462,25 +463,81 @@
   gap: 8px;
 }
 
-/* Popup chips are the smaller side-panel variant: 36px tall, 1px border, 14px
-   label — not the 44px/2px/16px chips the bar uses. */
+/* Popup chips are #05's filter-modal pills, value for value (.sl-filter-modal
+   .sl-pill): 36px tall, 2px border, 14px label, and a selected one becomes a
+   removable chip — a 24px circle-X seated 6px in, 4px before a 600 label. */
 .bpg-filter-modal .bpg-chip {
   height: 36px;
   padding: 0 15px;
-  gap: 6px;
-  border-width: 1px;
+  gap: 0;
+  border-width: 2px;
   font-size: 14px;
-  line-height: 18px;
+  line-height: 1;
   white-space: normal;
   text-align: left;
 }
 
+.bpg-filter-modal .bpg-chip:hover {
+  background: #f9fafb;
+}
+
 .bpg-filter-modal .bpg-chip.active {
   padding-left: 6px;
+  padding-right: 16px;
+  font-weight: 600;
+}
+
+.bpg-filter-modal .bpg-chip.active:hover {
+  background: #101318;
 }
 
 .bpg-filter-modal .bpg-chip-x {
   margin-left: 0;
+  margin-right: 4px;
+}
+
+/* Sticky footer — #05's (.sl-modal-footer / .sl-apply-filters), value for
+   value. A non-shrinking flex sibling of the body, which is the scroller, so it
+   holds the bottom edge of the lightbox at any height. */
+.bpg-modal-footer {
+  display: flex;
+  flex-shrink: 0;
+  padding: 24px;
+  background: #fff;
+  border-top: 1px solid #dfe3e8;
+}
+
+.bpg-apply-filters {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 50px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color_1, #f45f30);
+  color: var(--color_3, #fff);
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.bpg-apply-filters:hover {
+  background: color-mix(in srgb, var(--color_1, #f45f30) 88%, #000);
+}
+
+.bpg-apply-filters:active {
+  background: color-mix(in srgb, var(--color_1, #f45f30) 78%, #000);
+}
+
+/* On phones the lightbox sits 12px in from every edge and hangs from the top,
+   exactly as #05's does — not the full-screen sheet this used to be. */
+@media (max-width: 480px) {
+  .bpg-modal-overlay { padding: 12px; align-items: flex-start; }
+  .bpg-filter-modal { max-height: calc(100vh - 24px); }
 }
 
 /* ── Grid ──────────────────────────────────────────────────────────────────── */
@@ -890,40 +947,28 @@
     right: -3px;
   }
 
-  /* Full screen. The inline chip row is hidden at this width, so the popup is
-     the only route to the categories and gets the whole viewport. dvh keeps it
-     honest as mobile browser chrome collapses; vh is the fallback. */
-  .bpg-modal-overlay {
-    padding: 0;
-    align-items: stretch;
-    justify-content: stretch;
+  /* NO SEARCH (see SEARCH_ENABLED): the mobile frame above is built around the
+     search field — it leads, and the filter button is widened to sit beside it
+     with the chips hidden. With no field there is nothing to sit beside, so the
+     bar keeps its desktop arrangement instead: the round filter button, then
+     the category chips scrolling under the finger. That is also #05's mobile
+     filter bar, which has no search at this width either. */
+  .bpg-bar--nosearch .bpg-bar-left {
+    order: 0;
+    gap: 8px;
   }
 
-  .bpg-filter-modal {
-    width: 100%;
-    max-width: none;
-    height: 100vh;
-    height: 100dvh;
-    max-height: none;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    animation: none;
+  .bpg-bar--nosearch .bpg-chips {
+    display: flex;
   }
 
-  .bpg-modal-header {
-    padding: 18px 20px 14px;
+  .bpg-bar--nosearch .bpg-filter-btn {
+    width: 44px;
   }
 
-  /* Let the tinted card run to the bottom of the screen rather than hugging a
-     short chip list at the top (the Figma side panel is full-height). */
-  .bpg-modal-body {
-    flex: 1;
-    min-height: 0;
-  }
-
-  .bpg-modal-group {
-    flex: 1;
+  .bpg-bar--nosearch .bpg-filter-badge {
+    top: -6px;
+    right: -6px;
   }
 
   /* Figma's mobile card insets the body 20px rather than 24px. Set as the token,

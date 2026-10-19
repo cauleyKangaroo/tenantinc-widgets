@@ -399,6 +399,42 @@ export async function fetchSingleStep(
 }
 
 /** Column behind the rental flow's ID-verification policy — a Duda Dropdown. */
+/**
+ * `featured` — the operator's toggle on PropertiesInternal. A featured property
+ * is pinned to the top of the state/city listing (#08) and wears the
+ * "Featured Property" badge.
+ *
+ * A toggle column arrives as a real BOOLEAN (verified live 2026-10-13:
+ * `featured: true` on COFFEE, `false` elsewhere) — unlike the Rich Text
+ * columns, nothing to strip. `bool()` still accepts "true"/"1"/"yes" in case a
+ * site made it a text column instead. Fails soft to an empty set: no dmAPI
+ * (editor, harness), no column, or a failed read means nothing is featured,
+ * never an error on the page.
+ */
+const FEATURED_FIELD = 'featured';
+
+export function rowFeatured(row: CollectionRow): boolean {
+  const raw = row[FEATURED_FIELD];
+  if (typeof raw === 'boolean') return raw;
+  if (raw === undefined || raw === null) return false;
+  return bool(plainText(raw).trim(), false);
+}
+
+export async function fetchFeaturedIds(
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  try {
+    for (const row of await readInternalProperties(collectionName)) {
+      const id = str(row.id).trim();
+      if (id && rowFeatured(row)) out.add(id);
+    }
+  } catch (err) {
+    console.warn('[internalProperties] featured read failed — nothing featured:', err);
+  }
+  return out;
+}
+
 const IDV_REQUIREMENT_FIELD = 'idv_requirement';
 
 /**
@@ -422,6 +458,129 @@ export async function fetchIdvRequirementSetting(
   if (raw === undefined || raw === null) return undefined;
   const text = plainText(raw).trim();
   return text || undefined;
+}
+
+/**
+ * This property's `slug` — `state/city/property-name-<id>`, its page path under
+ * the site's property base (see @shared/propertyNav).
+ *
+ * `undefined` means UNANSWERED — no dmAPI, no row, or a blank cell — and the
+ * caller keeps whatever it would have linked to without it. plainText first:
+ * this is a native collection, so the cell can arrive rteBlock-wrapped.
+ */
+export async function fetchPropertySlug(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<string | undefined> {
+  const wanted = propertyId.trim();
+  if (!wanted) return undefined;
+  const row = (await readInternalProperties(collectionName))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return undefined;
+  const slug = plainText(row.slug).trim().replace(/^\/+|\/+$/g, '');
+  return slug || undefined;
+}
+
+/**
+ * `notes` — the operator's free-text notes for a property, shown as the
+ * Notes section of #05's sidebar. The section exists only while this has
+ * something to say: `undefined` means no dmAPI (editor, harness), no row, no
+ * column, or a blank cell, and the caller then shows no Notes at all.
+ *
+ * Returns the cell's MARKUP, not its text: this is a native collection whose
+ * column is Rich Text, so the value arrives as `<p class="rteBlock">…</p>`
+ * with whatever formatting the editor applied, and the section renders it
+ * through RichText. Only the EMPTINESS check strips it, so a cell holding
+ * nothing but an empty paragraph still counts as blank.
+ */
+const NOTES_FIELD = 'notes';
+export async function fetchPropertyNotes(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<string | undefined> {
+  const wanted = propertyId.trim();
+  if (!wanted) return undefined;
+  const row = (await readInternalProperties(collectionName))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return undefined;
+  const raw = row[NOTES_FIELD];
+  if (typeof raw !== 'string' || !plainText(raw).trim()) return undefined;
+  return raw;
+}
+
+/**
+ * The "About" accordion of #05's sidebar — `about_content_title` (its row
+ * label) and `about_content_text` (its body) on PropertiesInternal.
+ *
+ * The TITLE decides whether the accordion exists: no title, no row. A title
+ * with an empty body still shows (the row opens onto nothing), per the spec
+ * received 2026-10-15. The title is plain text (rteBlock stripped, since the
+ * column is Rich Text on a native collection); the body keeps its markup for
+ * RichText to render, with only the emptiness check stripping it.
+ */
+const ABOUT_TITLE_FIELD = 'about_content_title';
+const ABOUT_TEXT_FIELD = 'about_content_text';
+export interface PropertyAbout { title: string; body?: string }
+export async function fetchPropertyAbout(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<PropertyAbout | undefined> {
+  const wanted = propertyId.trim();
+  if (!wanted) return undefined;
+  const row = (await readInternalProperties(collectionName))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return undefined;
+  const title = plainText(row[ABOUT_TITLE_FIELD]).trim();
+  if (!title) return undefined;
+  const rawBody = row[ABOUT_TEXT_FIELD];
+  const body = typeof rawBody === 'string' && plainText(rawBody).trim() ? rawBody : undefined;
+  return { title, body };
+}
+
+/**
+ * `placeId` — the property's Google Business place id on PropertiesInternal,
+ * keyed by property id. What the live rating and review count are fetched
+ * with (@shared/googlePlaceRating). Only well-formed ids are kept; a blank
+ * or rteBlock-wrapped-blank cell is simply absent. Fails soft to an empty
+ * map (no dmAPI in the editor or harness, no column).
+ */
+const PLACE_ID_FIELD = 'placeId';
+const PLACE_ID_SHAPE = /^[A-Za-z0-9_-]{10,512}$/;
+export async function fetchPlaceIds(
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const rows = await readInternalProperties(collectionName).catch(() => [] as CollectionRow[]);
+  for (const r of rows) {
+    const id = str(r.id).trim();
+    const placeId = plainText(r[PLACE_ID_FIELD]).trim();
+    if (id && PLACE_ID_SHAPE.test(placeId)) out.set(id, placeId);
+  }
+  return out;
+}
+
+/**
+ * One property's review ids — `placeId` (Google Business) and `yelpPlaceId`
+ * (Yelp business id or alias) on PropertiesInternal — for the reviews widget.
+ * Either may be absent. Fails soft to an empty object.
+ */
+const YELP_ID_FIELD = 'yelpPlaceId';
+export interface PropertyReviewIds { placeId?: string; yelpId?: string }
+export async function fetchReviewIds(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<PropertyReviewIds> {
+  const wanted = propertyId.trim();
+  if (!wanted) return {};
+  const row = (await readInternalProperties(collectionName).catch(() => [] as CollectionRow[]))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return {};
+  const placeId = plainText(row[PLACE_ID_FIELD]).trim();
+  const yelpId = plainText(row[YELP_ID_FIELD]).trim();
+  return {
+    ...(PLACE_ID_SHAPE.test(placeId) ? { placeId } : {}),
+    ...(/^[A-Za-z0-9_-]{3,512}$/.test(yelpId) ? { yelpId } : {}),
+  };
 }
 
 /**
