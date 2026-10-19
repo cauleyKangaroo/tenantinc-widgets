@@ -1,22 +1,22 @@
 /* Widget #99 (TBD) — Rental Flow (2 Step), first screen. Figma 8507-23264. */
-/* The frame's face. This widget already hardcoded 'Montserrat' in six rules
+/* The frame's face. This widget already hardcoded 'Poppins' in six rules
    but never imported it, so every one of them was silently falling back to
    plain sans-serif. All 16 other widgets carry this same import. */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 .rf-wrapper {
   container-type: inline-size;
-  /* Montserrat, declared — NOT `font-family: inherit`.
+  /* Poppins, declared — NOT `font-family: inherit`.
      Inherit was there to follow the Duda theme, but the flow was never actually
      doing that: .rf-hdr, .rfm-bar, .rf-eyebrow, .rf-heading and the .rf-sx-*
-     headings all force Montserrat (several with !important, to beat the theme's
+     headings all force Poppins (several with !important, to beat the theme's
      id-scoped heading rules). So a site whose theme font was anything else got
-     Montserrat headings over inherited body text — one widget in two fonts.
-     The portalled modals resolve --hb-font to Montserrat as well, being outside
+     Poppins headings over inherited body text — one widget in two fonts.
+     The portalled modals resolve --hb-font to Poppins as well, being outside
      this element entirely.
      Declaring it here settles that the same way the design does: one font, and
      --hb-font carries it into every @shared/ui component inside the flow. */
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
-  --hb-font: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
+  --hb-font: 'Poppins', 'Poppins Fallback', sans-serif;
   color: #101318;
 }
 
@@ -30,7 +30,7 @@
   border-radius: 12px;
   background: #fff;
   color: #101318;
-  font: 400 16px/1.5 'Montserrat', sans-serif;
+  font: 400 16px/1.5 'Poppins', sans-serif;
 }
 .rf-live-idv__warning {
   display: flex;
@@ -75,7 +75,7 @@
   box-sizing: border-box;
   background: #fff;
   box-shadow: 0 2px 4px 2px rgba(71, 84, 116, 0.1);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   /* The Header instance is 140px tall against a 100px white strip (page frame
      8507-23172, where the card and rail both start at y=140). That remaining
      40px is the band the content sits below — and the overhanging logo drops
@@ -191,7 +191,7 @@
 /* Figma 8507-23230. The frame sets font-size on the TITLE CONTAINER, so both
    lines are 36px/600 — the eyebrow is NOT the smaller line it was built as
    (24px); the frame's own render shows the two at matching size.
-   Family is pinned to the frame's Montserrat on EACH line rather than on the
+   Family is pinned to the frame's Poppins on EACH line rather than on the
    container: .rf-heading is an <h2>, and a Duda theme's per-element `h2` rule
    would outrank an inherited value. Note this makes the title stop following a
    site's brand font — the frame's match was asked for explicitly.
@@ -216,7 +216,7 @@
    not size or weight, and it is what keeps the two lines close together. */
 .rf-wrapper .rf-eyebrow {
   margin: 0;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 36px !important;
   font-weight: 700 !important;
   line-height: 20px !important;
@@ -227,7 +227,7 @@
 /* Hardcoded #101318, per the frame — this line never follows the site theme. */
 .rf-wrapper .rf-heading {
   margin: 0 !important;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 36px !important;
   font-weight: 700 !important;
   line-height: 38px !important;
@@ -264,14 +264,14 @@
   border: none;
   background: transparent;
   outline: none;
-  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 400 16px/20px 'Poppins', 'Poppins Fallback', sans-serif;
   color: #101318;
 }
 .rf-field-label {
   position: absolute;
   left: 16px; top: 50%;
   transform: translateY(-50%);
-  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 400 16px/20px 'Poppins', 'Poppins Fallback', sans-serif;
   color: #637381;
   pointer-events: none;
   transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
@@ -296,7 +296,7 @@
   height: 50px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 8px;
-  font: 16px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 16px 'Poppins', 'Poppins Fallback', sans-serif;
   cursor: pointer;
 }
 .rf-btn--rent { border: none; background: var(--color_2, #509e2f); color: var(--color_3, #fff); font-weight: 700; }
@@ -592,7 +592,7 @@
   display: flex; align-items: center; justify-content: center;
   padding: 0;
   border: none; background: none; border-radius: 50%;
-  font: 500 15px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 500 15px 'Poppins', 'Poppins Fallback', sans-serif;
   color: #101318;
   cursor: pointer;
 }
@@ -644,7 +644,7 @@
   border-radius: 8px;
   background: #fff;
   outline: none;
-  font: 400 16px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 400 16px 'Poppins', 'Poppins Fallback', sans-serif;
   color: #101318;
 }
 .rf2-field-input:focus { border-color: #101318; }
@@ -1504,7 +1504,7 @@
   height: 64px;
   display: flex; align-items: center; justify-content: center; gap: 10px;
   border-radius: 12px;
-  font: 500 20px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 500 20px 'Poppins', 'Poppins Fallback', sans-serif;
   letter-spacing: 0.2px;
   cursor: pointer;
 }
@@ -1927,7 +1927,7 @@
   justify-content: space-between;
   gap: 12px;
 }
-.rfc-resend { flex: 0 0 auto; padding: 0; border: none; background: none; font-family: 'Montserrat', 'Montserrat Fallback', sans-serif; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
+.rfc-resend { flex: 0 0 auto; padding: 0; border: none; background: none; font-family: 'Poppins', 'Poppins Fallback', sans-serif; font-size: 16px; font-weight: 600; text-decoration: underline; cursor: pointer; color: #101318; }
 /* Figma 8507-24357: #F4F6F8, radius 12, 35px all round. */
 .rfc-panel { background: #f4f6f8; border-radius: 12px; padding: 30px; margin-bottom: 20px; }
 /* Figma 8507-24357: 28px/600 sitting 39px above the code card, INSIDE the left
@@ -1938,7 +1938,7 @@
    the title being crowded against it. Tracked in the container query below,
    which is where that padding changes. */
 .rfc-space-head {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 28px;
   font-weight: 600;
   line-height: 28px;
@@ -2077,7 +2077,7 @@
    said. Same for the link beside it. */
 .rfc-details .rfc-info-strong {
   margin: 0;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 600;
   line-height: 24px;
@@ -2087,7 +2087,7 @@
    body around them, inheriting the text colour rather than a link blue. */
 .rfc-details .rfc-info-link,
 .rfc-info-link {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 24px;
@@ -2256,7 +2256,7 @@
   border: 1px solid #a6a6a6;
   border-radius: 6px;
   text-decoration: none;
-  /* NOT the page's Montserrat: the real badges are SF Compact and Product
+  /* NOT the page's Poppins: the real badges are SF Compact and Product
      Sans, and this stack lands on SF for Apple and Roboto for Android. */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
@@ -2403,7 +2403,7 @@
    that would fight a longer translation. */
 .rfc-review-q {
   margin: 0;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 24px;
   font-weight: 600;
   line-height: 30px;
@@ -2438,7 +2438,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 1.2;
@@ -2463,7 +2463,7 @@
 /* Its own title rule now. It was borrowing step 2's .rf2-h, which is 20px/700
    there and had to be overridden here — two rules describing one heading. */
 .rfc-next-title {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 22px;
   font-weight: 600;
   line-height: 24px;
@@ -2473,7 +2473,7 @@
    but left a stray 10px above the first one. */
 .rfc-next-list { display: flex; flex-direction: column; gap: 12px; }
 /* Figma: white, radius 10, 20px padding, Elevation S, 12px from tick to text,
-   16px/400 Montserrat on an 18px line. Top-aligned: on a row that wraps to two
+   16px/400 Poppins on an 18px line. Top-aligned: on a row that wraps to two
    lines a centred tick drifts into the gutter between them and stops reading as
    a bullet for the first line. */
 .rfc-next-item {
@@ -2485,7 +2485,7 @@
   border-radius: 10px;
   padding: 20px;
   box-shadow: 0 2px 2px rgba(71, 84, 116, 0.1);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 18px;
@@ -2880,8 +2880,8 @@
   border: none;
   background: #f9fafb;
   text-align: left;
-  /* Montserrat throughout, per the frame — not the inherited theme font. */
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  /* Poppins throughout, per the frame — not the inherited theme font. */
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   cursor: pointer;
   /* Elevation plus the frame's hairline above and below. */
   box-shadow:
@@ -2912,7 +2912,7 @@
 .rfm-bar-total { font-size: 18px; font-weight: 600; color: #101318; white-space: nowrap; }
 .rfm-bar-hold { font-size: 16px; line-height: 28px; color: #101318; }
 /* The mobile cost bar ("Total Cost to Move-In:" / "Holding Space for 14:59")
-   in Montserrat whatever the Duda theme says. The bar asks for it, but its
+   in Poppins whatever the Duda theme says. The bar asks for it, but its
    text sits in <span>s and a <b> (and the desktop header's hold line is a
    <p>), which themes style from id-scoped selectors — and a rule aimed at the
    element always beats an inherited font. !important is how .rf-eyebrow /
@@ -2921,7 +2921,7 @@
 .rfm-bar *,
 .rf-hdr-hold,
 .rf-hdr-hold b {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
 }
 /* ada/red, per the frame. No margin: the markup already has a word space
    before it, and the frame's 8px on top of that read as a gap rather than a

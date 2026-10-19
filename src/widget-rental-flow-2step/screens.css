@@ -30,11 +30,11 @@
    close enough to hide it.
 
    var(--hb-font, …) rather than a flat value: custom properties do not cross a
-   portal either, so this resolves to Montserrat today, and still follows
+   portal either, so this resolves to Poppins today, and still follows
    --hb-font if a site ever defines it at :root. */
 .rf-overlay {
   position: fixed;
-  font-family: var(--hb-font, 'Montserrat', 'Montserrat Fallback', sans-serif);
+  font-family: var(--hb-font, 'Poppins', 'Poppins Fallback', sans-serif);
   inset: 0;
   z-index: 10000;
   display: flex;
@@ -230,7 +230,7 @@
    .rf-sx-idv-title. Not reported yet only because step 2 was not the screenshot. */
 .rf-payment-title {
   margin: 0 !important;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 20px !important;
   font-weight: 700 !important;
   line-height: 1.2 !important;
@@ -285,7 +285,7 @@
 
 .rf-sx { display: flex; flex-direction: column; gap: 24px; font-family: var(--hb-font); }
 /* The title is step 2's .rf-title / .rf-eyebrow / .rf-heading now — size, gap,
-   Montserrat, colours and the host-proofing specificity all live there, in one
+   Poppins, colours and the host-proofing specificity all live there, in one
    place, instead of a second set drifting to 30px and --hb-secondary. Only the
    margin is overridden: .rf-title carries 26px for step 2's static layout,
    while .rf-sx is a flex column that already spaces its children by 24px, so
@@ -312,7 +312,7 @@
 
 .rf-sx-idv-title {
   margin: 0 0 16px !important;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 20px !important;
   font-weight: 600 !important;
   line-height: 1.2 !important;
@@ -687,7 +687,7 @@
 /* See the note on .rf-sx-idv-title. */
 .rf-sx-extra-title {
   margin: 0 !important;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 20px !important;
   font-weight: 700 !important;
   line-height: 1.2 !important;

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 /* All rules are prefixed with .sl- and live under the .sl-wrapper root, so
    they don't leak into the host Duda page. Every selector is also scoped under
@@ -6,7 +6,7 @@
    overrides without resorting to !important. */
 
 .sl-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -180,7 +180,7 @@
   height: 31px;
   cursor: pointer;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-weight: 700;
   line-height: 1;
   transition: background 0.15s;
@@ -219,7 +219,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
   line-height: 1;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-weight: 400;
   display: flex;
   align-items: center;
@@ -291,13 +291,13 @@
 }
 .sl-wrapper .sl-promo-banner-tag svg { color: var(--color_1, #f45f30); flex: 0 0 auto; }
 .sl-wrapper .sl-promo-banner-text {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 500;
 }
 .sl-wrapper .sl-promo-banner-text strong { font-weight: 700; }
 .sl-wrapper .sl-promo-banner-clear {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #101318;
@@ -321,7 +321,7 @@
    matches #03's .pi-name — 30px / 22px, 700 — so the two widgets' titles are
    one size on a page that shows both. */
 .sl-wrapper .sl-page-title {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 30px !important;
   font-weight: 700 !important;
   /* Unitless on purpose: a long feature-page heading wraps to two lines, and a
@@ -391,7 +391,7 @@
    hidden, so it is a control rather than decoration. */
 .sl-wrapper .sl-feature-intro-clear {
   flex: 0 0 auto;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #101318;
@@ -410,7 +410,7 @@
 }
 .sl-wrapper .sl-feature-details-title {
   margin: 0 0 12px !important;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 24px !important;
   font-weight: 700 !important;
   line-height: 30px !important;
@@ -707,6 +707,18 @@
   color: #101318;
   line-height: 1.2;
 }
+@media (prefers-reduced-motion: reduce) {
+  .sl-wrapper .sl-lc-promo-wrap,
+  .sl-wrapper .sl-lc-promo-wrap + .sl-lc-price-button { transition: none !important; }
+}
+/* A figure holding the width of the widest it can become (Figure in
+   Pricing.tsx): every alternative in one cell, right-aligned, only the real one
+   visible. The strike is restated on the spans because text-decoration does
+   not carry into an inline-grid's children. */
+.sl-wrapper .sl-figure { display: inline-grid; justify-items: end; }
+.sl-wrapper .sl-figure > * { grid-area: 1 / 1; }
+.sl-wrapper .sl-figure-ghost { visibility: hidden; }
+.sl-wrapper .sl-strike .sl-figure > * { text-decoration: line-through; }
 /* Figma: "+ Plus $20 Admin Fee" is 12px/16px black, same small print as above. */
 .sl-wrapper .sl-admin-fee {
   font-size: 12px;
@@ -742,7 +754,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -769,7 +781,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -800,18 +812,59 @@
   min-width: 0;
   font-size: 12px;
   line-height: 16px;
-  color: #d32f2f;
+  /* Hardcoded and !important: the theme must never recolour the urgency note. */
+  color: #D32F2F !important;
   font-weight: 600;
   text-align: right;
   /* The rows carry gap:16px, which now also separates the note's line from the
-     button's. -12px brings the pair back to the 4px the design has always had.
+     button's. -7px leaves 9px between them: the design's 4px plus the 5px
+     asked for (2026-10) to move the note away from the button. The per-layout
+     overrides below are all set to land on the same 9px.
      A negative margin rather than a row-gap override, because .sl-dv-price-button
      was already a wrapping row and its 16px between the price and the button
      when THEY wrap is not this note's business to change. */
-  margin-top: -12px;
+  margin-top: -7px;
   white-space: normal;
   overflow-wrap: break-word;
 }
+/* ── Grid card: urgency note + price small print on ONE line when they fit ──
+   The small print is editor copy (junkFeeCopy) of any length, so this is
+   decided by the browser, not a character count: a wrapping row whose items
+   are sized to their content. If the small print's single-line width fits
+   beside the note it stays there, on the left; if not, flex-wrap drops it
+   onto its own line below at full width, where its text wraps normally.
+   row-REVERSE keeps the note first in the source (and on the right) while
+   the small print is the one that moves down; its margin-right:auto holds
+   it to the left edge on either line. */
+.sl-wrapper .sl-note-row {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: 16px;
+  row-gap: 8px;
+  /* What the note alone carries: 9px under the button. */
+  margin-top: -7px;
+}
+.sl-wrapper .sl-note-row .sl-limited-label {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+.sl-wrapper .sl-note-row .sl-junk-disclaimer {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0 auto 0 0;
+  text-align: left;
+}
+/* The panel's own tightening for the small print, moved to the row that now
+   holds it (the old rule targets a disclaimer that was the panel's last child). */
+.sl-wrapper .sl-card-action-panel .sl-card-pricing:has(.sl-note-row) {
+  margin-bottom: -12px;
+}
+
 /* Figma 7112-47056: the price small print is BLACK 12px/16px, and it must wrap
    rather than run on — it used to be grey and, being nowrap-wide, got clipped by
    the card's overflow:hidden. */
@@ -961,7 +1014,7 @@
   border-radius: 4px;
   background: #ffffff;
   border: 2px solid #a5b4bf;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 500;
   color: #242627;
@@ -1053,6 +1106,11 @@
   line-height: 16px;
 }
 .sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; color: var(--color_1, #f45f30); }
+/* The promo's slot (ListCard). Beside the price — wide cards — it simply comes
+   and goes, as the badge always did; where it stacks above the price (the
+   680px step below) it slides open and shut instead. */
+.sl-wrapper .sl-lc-promo-wrap { flex: 1 1 220px; min-width: 200px; }
+.sl-wrapper .sl-lc-promo-wrap:not(.is-open) { display: none; }
 /* A GRID, not a wrapping flex row. As a 334px wrapping row the price column only
    had 178px (334 - 16 - 140) beside the button, and the price figures' width
    depends on the digits — "$110.00" fitted, "$250.00" did not — so some cards
@@ -1143,7 +1201,7 @@
 /* Self-sizing (no fixed width): the column is as wide as its widest child, so the
    nowrap "See what fits" link can never paint over the amenity list — which a
    fixed 100–130px column let it do, and would let it do again on any Duda theme
-   whose font is wider than Montserrat. The image cap below is what bounds it. */
+   whose font is wider than Poppins. The image cap below is what bounds it. */
 .sl-wrapper .sl-dv-image-col {
   /* The frame's 162px column, but never narrower than its contents —
      min-width keeps the guarantee above. */
@@ -1183,6 +1241,35 @@
   gap: 8px;
 }
 .sl-wrapper .sl-dv-see-fits:hover { text-decoration: underline; }
+
+/* "See what fits" + its play icon are BLACK in every card layout, and
+   !important: they are <a>s, and Duda's theme link colour was beating the
+   rules above and painting them the site's primary teal. Every link state is
+   named because a theme usually styles :visited/:hover separately. The icon is
+   stroked in currentColor, but its stroke is pinned too in case a theme styles
+   `a svg` directly. */
+.sl-wrapper .sl-see-fits,
+.sl-wrapper .sl-see-fits:link,
+.sl-wrapper .sl-see-fits:visited,
+.sl-wrapper .sl-see-fits:hover,
+.sl-wrapper .sl-see-fits:focus,
+.sl-wrapper .sl-lc-see-fits,
+.sl-wrapper .sl-lc-see-fits:link,
+.sl-wrapper .sl-lc-see-fits:visited,
+.sl-wrapper .sl-lc-see-fits:hover,
+.sl-wrapper .sl-lc-see-fits:focus,
+.sl-wrapper .sl-dv-see-fits,
+.sl-wrapper .sl-dv-see-fits:link,
+.sl-wrapper .sl-dv-see-fits:visited,
+.sl-wrapper .sl-dv-see-fits:hover,
+.sl-wrapper .sl-dv-see-fits:focus {
+  color: #101318 !important;
+}
+.sl-wrapper .sl-see-fits svg,
+.sl-wrapper .sl-lc-see-fits svg,
+.sl-wrapper .sl-dv-see-fits svg {
+  stroke: #101318 !important;
+}
 .sl-wrapper .sl-dv-info {
   display: flex;
   flex-direction: column;
@@ -1359,6 +1446,23 @@
 @container (max-width: 680px) {
   /* Action panel: promo + price/CTA stack and go full width */
   .sl-wrapper .sl-lc-promo { flex: 1 1 100%; }
+  /* Open/shut by its row height (0fr <-> 1fr), with a fade. Closed, the price
+     row beneath is pulled up by the panel's row gap, so a shut box leaves no
+     space at all (a negative margin on the empty row itself cannot: a flex
+     line never goes below zero). The 480px step restates it for its gap. */
+  .sl-wrapper .sl-lc-promo-wrap,
+  .sl-wrapper .sl-lc-promo-wrap:not(.is-open) {
+    display: grid;
+    flex: 1 1 100%;
+    min-width: 0;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition: grid-template-rows 0.22s ease, opacity 0.22s ease;
+  }
+  .sl-wrapper .sl-lc-promo-wrap:not(.is-open) { grid-template-rows: 0fr; opacity: 0; }
+  .sl-wrapper .sl-lc-promo-wrap + .sl-lc-price-button { transition: margin-top 0.22s ease; }
+  .sl-wrapper .sl-lc-promo-wrap:not(.is-open) + .sl-lc-price-button { margin-top: -24px; }
+  .sl-wrapper .sl-lc-promo-clip { min-height: 0; overflow: hidden; }
   .sl-wrapper .sl-lc-price-button { flex: 1 1 100%; justify-content: space-between; }
   .sl-wrapper .sl-lc-action { justify-content: stretch; }
 }
@@ -1386,6 +1490,9 @@
    drops to 20px at its narrow step. */
 @container (max-width: 860px) {
   .sl-wrapper .sl-dv-price-button { gap: 12px; }
+  /* The base -7px lift assumes a 16px gap; at 12px it left 5px. -3px gives
+     the same 9px under the button as every other layout. */
+  .sl-wrapper .sl-dv-price-button .sl-limited-label { margin-top: -3px; }
   .sl-wrapper .sl-dv-btn-col { flex-basis: 110px; }
   .sl-wrapper .sl-dv-price .sl-main-price { font-size: 22px; }
 }
@@ -1487,6 +1594,7 @@
      than the frame (a phone inside a Duda column with its own padding) drops the
      button beneath the price rather than crushing the figures. */
   .sl-wrapper .sl-lc-action { padding: 16px; gap: 8px 16px; }
+  .sl-wrapper .sl-lc-promo-wrap:not(.is-open) + .sl-lc-price-button { margin-top: -8px; }
   .sl-wrapper .sl-lc-price-button {
     /* Back to the wrapping flex row the desktop grid replaced — wrapping is the
        point here. */
@@ -1515,8 +1623,8 @@
     margin-left: auto;
     text-align: center;
     /* The base -12px lift assumes a 16px row gap; this row's is 12px, which left
-       the note touching the button. -8px gives the same 4px as the grid card. */
-    margin-top: -8px;
+       the note touching the button. -3px gives the same 9px as the grid card. */
+    margin-top: -3px;
   }
   .sl-wrapper .sl-lc-btn-col { flex: 10 1 100px; max-width: 135px; min-width: 0; }
 
@@ -1536,6 +1644,7 @@
   .sl-wrapper .sl-unit-card .sl-main-price { font-size: 24px; }
   /* Panel is already 16px here — keep the full bottom padding under the note. */
   .sl-wrapper .sl-card-action-panel .sl-junk-disclaimer { margin-bottom: 0; }
+  .sl-wrapper .sl-card-action-panel .sl-card-pricing:has(.sl-note-row) { margin-bottom: 0; }
   .sl-wrapper .sl-card-top { gap: 16px; align-items: flex-start; }
   .sl-wrapper .sl-card-info { width: auto; flex: 1 1 auto; min-width: 0; }
   .sl-wrapper .sl-card-image-col { flex: 0 0 auto; width: 132px; }
@@ -1559,7 +1668,10 @@
   .sl-wrapper .sl-top-bar-search {
     order: 0; flex: 1 1 auto; width: auto; min-width: 0; margin-left: 0; height: 44px;
   }
-  .sl-wrapper .sl-top-bar-pills { order: 1; flex-basis: 100%; }
+  /* Was flex-basis:100% (its own row under icon + search). The search is
+     commented out in TopFilterBar for now, so the pills sit beside the icon
+     and take the full remaining width. Restore 100% if the search returns. */
+  .sl-wrapper .sl-top-bar-pills { order: 1; flex: 1 1 0; }
 }
 /* Smallest phones (320px screens): 24px would squeeze Select to ~70px. */
 @container (max-width: 300px) {
@@ -1702,7 +1814,7 @@
   .sl-wrapper .sl-default-card .sl-limited-label {
     grid-area: note;
     flex: none;
-    margin-top: 4px;
+    margin-top: 9px;
     justify-self: end;
     text-align: right;
   }
@@ -2138,7 +2250,7 @@
   padding: 8px 14px;
   cursor: pointer;
   white-space: nowrap;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 .sl-wrapper .sl-nb-select-btn:hover { background: color-mix(in srgb, var(--color_2, #509e2f) 80%, black); }
 
@@ -2209,7 +2321,7 @@
   border-radius: 100px;
   border: 1px solid #d1d5db;
   background: #ffffff;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #101318;
@@ -2400,7 +2512,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: #101318;
@@ -2433,7 +2545,7 @@
   border: none;
   outline: none;
   padding: 12px 20px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   color: #101318;
   background: transparent;
@@ -2474,7 +2586,7 @@
   border: none;
   cursor: pointer;
   text-align: left;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 15px;
   font-weight: 500;
   color: #101318;
@@ -2621,7 +2733,7 @@
 }
 
 .sl-wrapper .sl-sa-title {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 20px;
   font-weight: 700;
   color: #101318;
@@ -2640,7 +2752,7 @@
   color: #ffffff;
   font-size: 13px;
   font-weight: 600;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   flex-shrink: 0;
 }
 
@@ -2701,7 +2813,7 @@
 .sl-wrapper .sl-fh-label {
   flex: 1 1 auto;
   min-width: 0;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 600;
   line-height: normal;
@@ -2840,7 +2952,7 @@
   border-radius: 100px;
   padding: 11px 17px;
   font-size: 14px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-weight: 600;
   cursor: pointer;
   background: #ffffff;
@@ -2884,14 +2996,14 @@
   font-weight: 700;
   color: #101318;
   line-height: 1;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-rv2-out-of {
   font-size: 17px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 
 /* flex-start so the stars and "N ratings" share a left edge. They were flex-end,
@@ -2918,7 +3030,7 @@
   font-size: 12px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 
 /* Review card */
@@ -2989,7 +3101,7 @@
   font-weight: 600;
   color: #101318;
   line-height: 20px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   margin: 0;
 }
 
@@ -2998,7 +3110,7 @@
   font-weight: 400;
   color: #637381;
   line-height: 20px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   margin: 0;
 }
 
@@ -3007,7 +3119,7 @@
   font-weight: 400;
   color: #101318;
   line-height: 20px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   margin: 0;
 }
 
@@ -3084,7 +3196,7 @@
   border-radius: 70px;
   padding: 11px 17px;
   font-size: 14px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-weight: 600;
   cursor: pointer;
   background: #ffffff;
@@ -3165,7 +3277,7 @@
   justify-content: center;
   font-size: 14px;
   color: #637381;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 
 /* Property card */
@@ -3217,7 +3329,7 @@
   color: #ffffff;
   font-size: 24px;
   font-weight: 700;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   line-height: 1.1;
 }
 
@@ -3241,7 +3353,7 @@
   font-size: 18px;
   font-weight: 700;
   color: #ffffff;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   margin: 0;
   line-height: 1.1;
   white-space: nowrap;
@@ -3259,7 +3371,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #ffffff;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-nb2-stars {
@@ -3271,7 +3383,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #ffffff;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   text-decoration: underline;
 }
 
@@ -3292,7 +3404,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #ffffff;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   text-decoration: underline;
   white-space: nowrap;
   overflow: hidden;
@@ -3327,7 +3439,7 @@
   font-size: 14px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 
 /* Unit rows */
@@ -3360,7 +3472,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   white-space: nowrap;
 }
 
@@ -3368,7 +3480,7 @@
   font-size: 12px;
   font-weight: 400;
   color: #637381;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3402,7 +3514,7 @@
   font-size: 8px;
   font-weight: 500;
   color: #637381;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   line-height: 1.5;
 }
 
@@ -3410,7 +3522,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #637381;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   text-decoration: line-through;
   line-height: 1.5;
 }
@@ -3435,7 +3547,7 @@
   font-size: 8px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   line-height: 1.4;
 }
 
@@ -3443,7 +3555,7 @@
   font-size: 20px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   line-height: 1.2;
 }
 
@@ -3453,7 +3565,7 @@
   color: var(--color_3, #fff);
   font-size: 14px;
   font-weight: 700;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   border: none;
   border-radius: 4px;
   height: 33px;
@@ -3481,7 +3593,7 @@
   font-size: 12px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-nb2-see-all {
@@ -3490,7 +3602,7 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--color_2, #509e2f);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   text-decoration: underline;
   gap: 2px;
 }
@@ -3602,7 +3714,7 @@
   font-size: 20px;
   font-weight: 700;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -3631,7 +3743,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   line-height: 1.5;
   margin: 0;
 }
@@ -3656,7 +3768,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   line-height: 1.5;
   margin: 0;
 }
@@ -3685,7 +3797,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   line-height: 24px;
   margin: 0;
 }
@@ -3694,7 +3806,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   line-height: 24px;
   margin: 0;
 }
@@ -3709,7 +3821,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   text-decoration: underline;
   padding: 4px 0 0;
 }
@@ -3739,7 +3851,7 @@
   background: #fff;
   border-radius: 20px;
   box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   animation: sl-hours-pop 0.15s ease-out;
 }
 @keyframes sl-hours-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -3802,7 +3914,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #637381;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   background: #ffffff;
   min-width: 0;
 }
@@ -3818,7 +3930,7 @@
   color: #ffffff;
   font-size: 16px;
   font-weight: 600;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -3903,7 +4015,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   line-height: 1.4;
 }
 
@@ -4070,7 +4182,7 @@
   border-radius: 8px;
   background: var(--color_1, #f45f30);
   color: var(--color_3, #fff);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   text-decoration: none;
@@ -4147,7 +4259,7 @@
   color: #101318;
   line-height: 30px;
   margin: 0;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 
 .sl-wrapper .sl-blog2-byline {
@@ -4283,7 +4395,7 @@
   font-size: 14px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s;
@@ -4374,7 +4486,7 @@
   color: #101318;
   line-height: 1.2;
   margin: 0;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 
 /* CTA link */
@@ -4511,7 +4623,7 @@
   font-size: 14px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
@@ -4554,7 +4666,7 @@
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   line-height: 18px;
   text-align: center;
   box-sizing: border-box;
@@ -4578,7 +4690,7 @@
   font-size: 16px;
   font-weight: 400;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   background: #ffffff;
   box-sizing: border-box;
   outline: none;
@@ -4719,7 +4831,7 @@
   background: none;
   border: none;
   padding: 0;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 18px;
   font-weight: 500;
   color: #101318;
@@ -4767,7 +4879,7 @@
   font-size: 16px;
   font-weight: 500;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   background: #ffffff;
   outline: none;
   box-sizing: border-box;
@@ -4856,7 +4968,7 @@
      flat #f26500, which would ignore the site's theme. */
   background: var(--color_1, #f45f30);
   color: var(--color_3, #fff);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 700;
   line-height: 16px;
@@ -4900,7 +5012,7 @@
   gap: 8px;
   width: 100%;
   padding: 12px 16px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   color: #f45f30;
@@ -4932,13 +5044,13 @@
   gap: 2px;
 }
 .sl-wrapper .sl-reorder-title {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 18px;
   font-weight: 700;
   color: #101318;
 }
 .sl-wrapper .sl-reorder-subtitle {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 12px;
   font-weight: 500;
   color: #8a9099;
@@ -5003,14 +5115,14 @@
   border-radius: 7px;
   background: #f1f3f5;
   color: #6b7280;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 13px;
   font-weight: 700;
 }
 .sl-wrapper .sl-reorder-label {
   flex: 1;
   min-width: 0;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   color: #101318;
@@ -5051,7 +5163,7 @@
   border: 1px solid #fca5a5;
   border-radius: 10px;
   color: #b91c1c;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 13px;
 }
 
@@ -5065,14 +5177,14 @@
   flex-shrink: 0;
 }
 .sl-wrapper .sl-reorder-count {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 13px;
   color: #8a9099;
 }
 .sl-wrapper .sl-reorder-actions { display: flex; gap: 10px; }
 .sl-wrapper .sl-reorder-cancel,
 .sl-wrapper .sl-reorder-save {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
   padding: 10px 22px;

@@ -29,8 +29,8 @@
 
 /* Inlined by webpack as a data: URI (asset/inline). It has to be a data: URI
    rather than a URL: the frames are on GP's origin and can fetch nothing of
-   ours. Printable-ASCII subset of Montserrat 400 — see FIELD_STYLES. */
-import montserratWoff2 from './assets/montserrat-400-ascii.woff2';
+   ours. Printable-ASCII subset of Poppins 400 — see FIELD_STYLES. */
+import poppinsWoff2 from './assets/poppins-400-ascii.woff2';
 
 /** Officially Heartland-hosted; `hps.github.io` serves a byte-identical copy. */
 const LIB = 'https://api2.heartlandportico.com/SecureSubmit.v1/token/gp-1.0.0/globalpayments.js';
@@ -161,17 +161,17 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
    *     mattering. field.html (hps.github.io) sends no CSP header at all, so
    *     there is nothing to forbid it.
    *
-   * The face is subsetted to printable ASCII — 9.5KB, against 16.5KB for the
+   * The face is subsetted to printable ASCII — 4.6KB of Poppins 400 (the Montserrat file it replaced was 9.5KB), against far more for the
    * full latin subset — since all these two frames can ever show is a card
    * number, an expiry, and their two placeholders.
    */
   '@font-face': {
-    'font-family': "'Montserrat'",
+    'font-family': "'Poppins'",
     'font-style': 'normal',
     // Only 400 is inlined: nothing in these frames asks for another weight.
     'font-weight': '400',
     // Quoted, so the base64 payload cannot terminate the url() token early.
-    src: `url("${montserratWoff2}") format('woff2')`,
+    src: `url("${poppinsWoff2}") format('woff2')`,
     // The digits must not render in a fallback face for a frame or two and then
     // reflow. There is no network fetch to wait on, so there is nothing to gain
     // by swapping.
@@ -198,11 +198,11 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
     background: 'transparent',
     color: '#101318',
     // Named, not `inherit`: the frame is a separate document and inherits
-    // nothing from us. Montserrat now resolves against the @font-face above;
+    // nothing from us. Poppins now resolves against the @font-face above;
     // the stack after it is the kit's own, so an environment that somehow
     // cannot use the inlined face degrades the same way the rest of the flow
     // does rather than to GP's default.
-    'font-family': "'Montserrat', 'Montserrat Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    'font-family': "'Poppins', 'Poppins Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
     /*
      * Pinned, and the browser told to leave it alone.
      *

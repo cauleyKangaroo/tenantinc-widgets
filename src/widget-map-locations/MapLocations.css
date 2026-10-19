@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 /* Widget #08 — Map Locations (city page). Figma 10622:77201. */
 
@@ -22,7 +22,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .ml-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   width: 100%;
   max-width: 1330px;
   margin: 0 auto;
@@ -1003,7 +1003,7 @@
   border-radius: 100px;
   background: #fff;
   color: #000;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 20px;
   font-weight: 600;
   line-height: 36px;

@@ -2,7 +2,7 @@
   /* Search-button accent. Operator can pass accentColor; else the
      Duda theme's --color_2; else the default brand red. */
   --hs-accent: var(--color_2, #e4002b);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   position: relative;
@@ -208,6 +208,15 @@
 .hs-results-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 767px) {
   .hs-city-options .hs-suggestion { min-height: 44px; }
+  /* EVEN on every side, as asked: the result text sat 32px from the left but
+     28px from the top and bottom. 8px on the list plus 10px on the row puts the
+     text ~20px from the top and bottom edges, the same as its 20px inset; the
+     other rows take the same 20px edge so everything lines up. */
+  .hs-suggestions ul.hs-city-options[role="listbox"] { padding: 8px 0; }
+  .hs-suggestion { padding: 10px 20px; }
+  .hs-suggestions--browse .hs-suggestion { padding-block: 10px; }
+  .hs-history-head { padding: 8px 20px; }
+  .hs-current-location { padding: 20px; }
 }
 
 /* ── Layout 2: promotional search card (latest Figma Locations Modal) ───── */

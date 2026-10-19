@@ -232,7 +232,7 @@ function WalletBadge({ brand, href }: { brand: 'apple' | 'google'; href?: string
  * screen for black artwork with white text.
  *
  * The badge text therefore uses a SYSTEM stack rather than the page's
- * Montserrat: the real badges are set in SF Compact and Product Sans, and the
+ * Poppins: the real badges are set in SF Compact and Product Sans, and the
  * system stack lands on SF on Apple devices and Roboto on Android, which is
  * far closer than the body font. Before launch these should be swapped for
  * Apple's and Google's own downloadable badge artwork, which both ask you to

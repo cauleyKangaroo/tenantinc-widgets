@@ -177,7 +177,7 @@ const SIZE_OPTIONS = ['All Sizes', 'Small', 'Medium', 'Large', 'XLarge'];
  * audited screenshot shows a grey macOS menu with a tick, nothing like the site.
  * This is the nav's own dropdown instead — the white 12px-radius panel with
  * `--nav-dd-*` rows (Figma "Sub Tab Element": 42px tall, 15/10 padding,
- * Montserrat 14, an inset bottom hairline per row) — reusing NavigationBar.css's
+ * Poppins 14, an inset bottom hairline per row) — reusing NavigationBar.css's
  * `.nav-dd-panel`/`.nav-dd-item` look so the two menus can't drift apart.
  *
  * The closed box keeps the ".Form 2.0" styling it already had, so only the open
@@ -396,6 +396,12 @@ export function FindStorageMegaMenu({
    * first match and fills the cities column.
    */
   const singleState = tree.length === 1;
+
+  /** Every matching city, flattened across states — the phone's results list. */
+  const searchResults = useMemo(
+    () => filteredTree.flatMap((state) => state.cities.map((city) => ({ state, city }))),
+    [filteredTree],
+  );
 
   // Keep the selection honest against the filter, and on desktop always land on
   // a state: the first one when the menu opens, and the first with a hit while
@@ -959,6 +965,38 @@ export function FindStorageMegaMenu({
       </div>
       <div className="nav-mega-scroll nav-mega-m-list">
         {activeState.cities.map(cityLink)}
+      </div>
+    </div>
+  ) : q ? (
+    /* SEARCHING: the matches replace the page, directly under the field.
+       Page 1 below otherwise puts the nearby facilities first and the matches
+       in the state list under them — some 700px down a phone, beneath the
+       keyboard the field has just raised, and only as "California 78", one
+       more tap from the place that was typed. Here each matching CITY is a row
+       of its own (with its state, since city names repeat across states), and
+       clearing the field brings page 1 back. */
+    <div className="nav-mega-m">
+      <div className="nav-mega-m-head">
+        <h3 className="nav-mega-heading">Search Location</h3>
+        {mobileClose}
+      </div>
+      {searchForm}
+      <div className="nav-mega-scroll nav-mega-m-page">
+        <div className="nav-mega-block nav-mega-block--results">
+          {heading('Results', searchResults.length)}
+          {noMatches}
+          <div className="nav-mega-m-list">
+            {searchResults.map(({ state, city }) => (
+              <a key={`${state.key}/${city.key}`} className="nav-mega-city" href={city.href}>
+                <span className="nav-mega-city-name">{city.label}</span>
+                {!singleState && <span className="nav-mega-city-state">{state.label}</span>}
+                {city.properties.length > 1 && (
+                  <span className="nav-mega-bubble">{city.properties.length}</span>
+                )}
+              </a>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   ) : (
