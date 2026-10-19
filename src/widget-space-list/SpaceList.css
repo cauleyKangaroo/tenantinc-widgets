@@ -1570,6 +1570,31 @@
 @container (max-width: 330px) {
   .sl-wrapper .sl-list-card .sl-main-price { font-size: 20px; }
 }
+/* LIST card, phone: the note ("Limited Availability" / "Only X left") directly
+   under the BUTTON. In the wrapping flex row above it was an item of its own,
+   so it could only start a new line below the whole price column — fee small
+   print included — and sat well clear of the button it belongs to. A grid lets
+   the price span two rows while the button and its note stack in the second
+   column. Same widths as the flex row (button 100–135px, price floored at its
+   figures). Not at 300px and under: there the button already drops beneath the
+   price, and the note with it, which the flex row still does. */
+@container (min-width: 301px) and (max-width: 480px) {
+  .sl-wrapper .sl-lc-price-button {
+    display: grid;
+    grid-template-columns: minmax(min-content, 1fr) minmax(100px, 135px);
+    /* 1fr, so the tall price column's extra height goes below the note rather
+       than between the button and it. */
+    grid-template-rows: auto 1fr;
+  }
+  .sl-wrapper .sl-lc-price-button .sl-lc-price { grid-column: 1; grid-row: 1 / span 2; }
+  .sl-wrapper .sl-lc-price-button .sl-lc-btn-col { grid-column: 2; grid-row: 1; max-width: none; }
+  .sl-wrapper .sl-lc-price-button .sl-limited-label {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    margin-left: 0;
+  }
+}
 
 /* The DEFAULT layout's narrow frame.
    
