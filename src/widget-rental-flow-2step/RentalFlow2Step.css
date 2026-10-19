@@ -1348,9 +1348,10 @@
 }
 
 .rf2-autopay--on { border-color: var(--color_2, #509e2f); }
-/* Payment Cycle: outlined the same way once the shopper picks a period. The
+/* Payment Cycle: outlined once the shopper picks a period, in the Duda theme's
+   PRIMARY (--color_1; #0f6369 is the site's own Primary, for the harness). The
    2px transparent border is already there, so the box does not move. */
-.rf2-cycle--on { border-color: var(--color_2, #509e2f); }
+.rf2-cycle--on { border-color: var(--color_1, #0f6369); }
 /* PRESELECTED never takes the CTA colour, and loses its outline entirely once
    ticked — the blue border and the blue notice are one argument, so they
    arrive and leave together.
