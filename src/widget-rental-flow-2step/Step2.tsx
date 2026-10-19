@@ -1458,7 +1458,7 @@ export function Step2({
               {formLoading ? (
                 <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
               ) : payMethod === 'card' ? (
-                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} defaultCountry={defaultCountry} payLabel={agreeLabel} />
+                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} defaultCountry={defaultCountry} payLabel={agreeLabel} floatHostedNumberLabel />
               ) : (
                 <BankForm total={payNowTotal ?? 0} onPay={(bank) => payStatically(undefined, bank)} busy={paying} defaultCountry={defaultCountry} payLabel={agreeLabel} />
               )}
