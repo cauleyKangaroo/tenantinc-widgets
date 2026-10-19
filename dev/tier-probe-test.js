@@ -61,7 +61,7 @@ async function main() {
   const routes = [];
   const routing = {
     checkingTiers: false, setCheckingTiers() {},
-    config: { propertyId: 'property', companyId: 'company' }, cfg: {}, unit: { unitGroupId: 'group' },
+    config: { propertyId: 'property', companyId: 'company', skipTierPopupForSingle: true }, cfg: {}, unit: { unitGroupId: 'group' },
     probeTierOffers: async () => answer,
     goToRental: p => routes.push(p), openValueTiers: () => routes.push('modal'),
   };
@@ -81,6 +81,18 @@ async function main() {
     await routing.selectTier();
     assert.equal(routes.pop(), 'modal', 'multiple, unknown, or sold-out options keep the modal');
   }
+  routing.config.skipTierPopupForSingle = false;
+  for (const p of [
+    { tiers: true, panelCount: 1, availableCount: 1, singleTier: 'better', unitId: 'sole', price: 120 },
+    { tiers: true, panelCount: 3, availableCount: 1, singleTier: 'best', unitId: 'u106', price: 106 },
+  ]) {
+    answer = p;
+    await routing.selectTier();
+    assert.equal(routes.pop(), 'modal', 'without the setting a single available tier still opens the modal');
+  }
+  answer = { tiers: false };
+  await routing.selectTier();
+  assert.equal(routes.pop(), answer, 'no vacancy still skips the modal');
   console.log('Tier offer probe tests passed');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
