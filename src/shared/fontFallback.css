@@ -1,49 +1,64 @@
 /* ===========================================================================
-   'Montserrat Fallback' — a metric-matched stand-in for Montserrat (CLS).
+   'Poppins Fallback' — a metric-matched stand-in for Poppins (CLS).
 
-   Every widget's stylesheet is injected by its own bundle, so the Montserrat
+   Every widget's stylesheet is injected by its own bundle, so the Poppins
    request only starts once that bundle runs and the swap lands AFTER the first
-   paint. A plain `sans-serif` fallback is ~2-5% narrower than Montserrat, so
-   every text block re-wrapped when the real face arrived — a layout shift on
-   every widget, on every first visit.
+   paint. A plain `sans-serif` fallback is ~5-10% narrower than Poppins and has
+   a much shorter line box, so every text block re-wrapped and re-heightened
+   when the real face arrived — a layout shift on every widget, on every first
+   visit.
 
-   This face is local Arial rescaled to Montserrat's advance widths and line
-   box, so text occupies the same space before and after the swap. Every
-   font stack is `'Montserrat', 'Montserrat Fallback', sans-serif`.
+   This face is local Arial rescaled to Poppins' advance widths and line box,
+   so text occupies the same space before and after the swap. Every font stack
+   is `'Poppins', 'Poppins Fallback', sans-serif`.
 
-   Tuned by MEASUREMENT against the live Google Montserrat in Edge (widget copy
-   at 14/16/24/36px): widths within 0.1% and identical `line-height: normal`
-   boxes at 400, 600 and 700. Per-weight size-adjust, because Montserrat's
-   weights widen at a different rate from Arial's; ascent/descent are scaled
-   with it (85.79% / 22.25% at size-adjust 112.83%) so the line box holds.
+   Tuned by MEASUREMENT against the live Google Poppins in Edge (2026-10-19,
+   widget copy at 14/16/24px): size-adjust is Poppins' width over
+   Arial's for the same string, per weight, because Poppins' weights widen at a
+   different rate from Arial's. Poppins' line box is ascent 1.05 + descent 0.35
+   + line gap 0.10 = 1.5em at `line-height: normal`; each override is that
+   metric divided by the size-adjust, so the rescaled Arial keeps the same box.
+
+   (Replaced the previous font's fallback face on 2026-10-19, when every
+   widget moved to Poppins — same method, new measurements.)
    =========================================================================== */
 
 @font-face {
-  font-family: 'Montserrat Fallback';
+  font-family: 'Poppins Fallback';
   src: local('Arial'), local('ArialMT');
-  font-weight: 100 500;
-  size-adjust: 110.84%;
-  ascent-override: 87.33%;
-  descent-override: 22.65%;
-  line-gap-override: 0%;
+  font-weight: 100 400;
+  size-adjust: 109.46%;
+  ascent-override: 95.93%;
+  descent-override: 31.98%;
+  line-gap-override: 9.14%;
 }
 
 @font-face {
-  font-family: 'Montserrat Fallback';
+  font-family: 'Poppins Fallback';
+  src: local('Arial'), local('ArialMT');
+  font-weight: 500;
+  size-adjust: 111.25%;
+  ascent-override: 94.38%;
+  descent-override: 31.46%;
+  line-gap-override: 8.99%;
+}
+
+@font-face {
+  font-family: 'Poppins Fallback';
   src: local('Arial Bold'), local('Arial-BoldMT');
   font-weight: 600;
-  size-adjust: 107.05%;
-  ascent-override: 90.42%;
-  descent-override: 23.45%;
-  line-gap-override: 0%;
+  size-adjust: 106.50%;
+  ascent-override: 98.59%;
+  descent-override: 32.86%;
+  line-gap-override: 9.39%;
 }
 
 @font-face {
-  font-family: 'Montserrat Fallback';
+  font-family: 'Poppins Fallback';
   src: local('Arial Bold'), local('Arial-BoldMT');
   font-weight: 700 900;
-  size-adjust: 109.01%;
-  ascent-override: 88.80%;
-  descent-override: 23.03%;
-  line-gap-override: 0%;
+  size-adjust: 106.91%;
+  ascent-override: 98.21%;
+  descent-override: 32.74%;
+  line-gap-override: 9.35%;
 }

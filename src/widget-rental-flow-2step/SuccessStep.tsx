@@ -497,7 +497,7 @@ export function SuccessStep({
     <div className="rf-card rf-sx" ref={rootRef}>
       {/* Step 2's own title elements, not a near-copy: .rf-eyebrow is 36px/600
           in the Duda primary, .rf-heading 36px/600 hardcoded black, both with
-          Montserrat and the host-proofing specificity pinned in one place. The
+          Poppins and the host-proofing specificity pinned in one place. The
           .rf-sx-* pair this replaces had drifted to 30px and --hb-secondary. */}
       <div className="rf-title">
         <p className="rf-eyebrow">You&rsquo;ve got your space!</p>

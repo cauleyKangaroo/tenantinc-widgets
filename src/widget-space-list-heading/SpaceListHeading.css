@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
 /* ---------------------------------------------------------------------------
    Widget #18 — Space List Heading
@@ -15,7 +15,7 @@
    --------------------------------------------------------------------------- */
 
 .slh-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   display: block;
   width: 100%;
   box-sizing: border-box;
@@ -42,7 +42,7 @@
    the cascade on a published page — invisible in the dev harness, which has no
    such rules. Same fight #02 documents in NavigationBar.css. */
 .slh-wrapper .slh-title {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 30px !important;
   font-weight: 700 !important;
   /* Unitless on purpose: a long heading wraps to two lines, and a fixed leading

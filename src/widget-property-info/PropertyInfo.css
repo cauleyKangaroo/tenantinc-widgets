@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .pi-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   width: 100%;
   /* max-width bumped by 2×max-gutter so the large-screen content stays ~1330px */
   max-width: 1458px;
@@ -460,7 +460,7 @@
   padding: 0 16px 24px;
 }
 /* Gate and office (plus the call centre when it shows — the same flag as the
-   real block), then the underlined link below them. 19.5px is 16px Montserrat
+   real block), then the underlined link below them. 19.5px is 16px Poppins
    at its normal line height, which is what the real <p>s get. */
 .pi-skel-m-hour { height: 19.5px; width: 72%; }
 .pi-skel-m-hour:nth-of-type(2) { width: 64%; }
@@ -499,7 +499,7 @@
   flex-basis: 100%;
   margin: -4px 0 0;
   display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
-  font: 400 14px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 400 14px/20px 'Poppins', 'Poppins Fallback', sans-serif;
   color: var(--hb-ada-red, #d32f2f);
 }
 .pi-res-error-ico { flex: 0 0 auto; color: var(--hb-ada-red, #d32f2f); }
@@ -520,7 +520,7 @@
   border: 1px solid #a5b4bf;
   border-radius: 8px;
   background: #ffffff;
-  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 400 16px/20px 'Poppins', 'Poppins Fallback', sans-serif;
   color: #101318;
   outline: none;
 }
@@ -546,7 +546,7 @@
   border-radius: 8px;
   background: #000000;
   color: #ffffff;
-  font: 600 16px/16px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 600 16px/16px 'Poppins', 'Poppins Fallback', sans-serif;
   text-align: center;
   cursor: pointer;
 }
@@ -881,7 +881,7 @@ span.pi-lb-img {
   border: 1px solid #f4f6f8;
   border-radius: 20px;
   box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   animation: pi-hours-pop 0.15s ease-out;
 }
 @keyframes pi-hours-fade { from { opacity: 0; } to { opacity: 1; } }

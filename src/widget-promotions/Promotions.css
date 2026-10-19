@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .promo-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   /* Matches .sl-wrapper in #05 exactly. That one is fluid — 20px on a phone,
@@ -689,7 +689,7 @@ img.promo-banner-img {
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 20px;
   font-weight: 600;
   line-height: 36px;
@@ -739,7 +739,7 @@ img.promo-banner-img {
 
 .promo-modal-text {
   margin: 0 0 24px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 400;
   line-height: 24px;

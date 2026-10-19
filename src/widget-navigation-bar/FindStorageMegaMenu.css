@@ -16,9 +16,9 @@
    cities 294 + 294 — expressed as fractions so they scale with the nav's own
    1314px content width and stay lined up with the bar above.
 
-   FONTS. The Figma mixes Montserrat and Inter; every widget in this repo is
-   Montserrat, so the Inter runs (the "Nearby Storage Facilities" header) are
-   rendered in Montserrat at the same size/weight.
+   FONTS. The Figma mixes Poppins and Inter; every widget in this repo is
+   Poppins, so the Inter runs (the "Nearby Storage Facilities" header) are
+   rendered in Poppins at the same size/weight.
    =========================================================================== */
 
 .nav-mega {
@@ -362,14 +362,14 @@
 }
 
 .nav-mega-locmap-city {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 18px !important;
   font-weight: 700 !important;
   line-height: 1.3 !important;
 }
 
 .nav-mega-locmap-street {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 13px !important;
   font-weight: 600 !important;
   line-height: 1.3 !important;
@@ -415,7 +415,7 @@
   align-items: center !important;
   gap: 8px !important;
   margin: 0 !important;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 16px !important;
   font-weight: 700 !important;
   line-height: normal !important;
@@ -535,7 +535,7 @@
   width: 100%;
   padding-right: 24px;
   overflow: hidden;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 16px !important;
   line-height: 20px !important;
   color: #101318;
@@ -547,7 +547,7 @@
 /* ── The open list — Figma "Sub Tab Element" (11691-240556) ───────────────
    Deliberately the same look as NavigationBar.css's `.nav-dd-panel`/`.nav-dd-item`
    (white, 12px radius, #eee hairline, one inset bottom rule per row, rows 42px
-   at 15/10 padding, Montserrat 14): the audit asks for the nav's dropdown, and
+   at 15/10 padding, Poppins 14): the audit asks for the nav's dropdown, and
    two copies of one look drift apart. `min(…, 12rem)` caps a long list so it
    scrolls inside the panel instead of running past the panel's bottom edge —
    the popup's wheel handler finds this scroller and lets it move. */
@@ -579,7 +579,7 @@
   min-height: 42px;
   padding: 10px 15px;
   box-shadow: inset 0 -1px 0 0 rgba(142, 142, 143, 0.15);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 14px !important;
   font-weight: 400 !important;
   line-height: 1.5 !important;
@@ -609,7 +609,7 @@
 .nav-mega-select-label {
   display: block;
   width: 100%;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 12px !important;
   line-height: 15px !important;
   color: #637381;
@@ -696,9 +696,9 @@
   min-width: 0;
 }
 
-/* Figma: Montserrat Regular 18 / 1.1 — the facility name and its distance. */
+/* Figma: Poppins Regular 18 / 1.1 — the facility name and its distance. */
 .nav-mega-loc-name {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 16px !important;
   font-weight: 400 !important;
   line-height: 1.1 !important;
@@ -725,7 +725,7 @@
 }
 
 .nav-mega-loc-score {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 16px !important;
   font-weight: 600 !important;
   line-height: 1.5 !important;
@@ -741,7 +741,7 @@
 }
 
 .nav-mega-loc-reviews {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   line-height: 1.5 !important;
@@ -750,12 +750,12 @@
   white-space: nowrap;
 }
 
-/* Figma: Montserrat Medium 14 / 1.5, underlined, 4px from its 16px icon. */
+/* Figma: Poppins Medium 14 / 1.5, underlined, 4px from its 16px icon. */
 .nav-mega-loc-line {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   line-height: 1.5 !important;
@@ -769,7 +769,7 @@
 
 .nav-mega-empty {
   margin: 0;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 14px !important;
   color: rgba(255, 255, 255, 0.7);
 }
@@ -819,7 +819,7 @@
   border: 1px solid transparent;
   border-radius: 100px;
   background: none;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 18px !important;
   font-weight: 400 !important;
   line-height: normal !important;
@@ -863,7 +863,7 @@
   padding: 0 6px;
   border-radius: 10px;
   background: var(--nav-mega-accent);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 16px !important;
   font-weight: 700 !important;
   line-height: 20px !important;
@@ -919,7 +919,7 @@
   gap: 8px;
   min-height: 34px;
   padding: 6px 12px 6px 0;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 18px !important;
   font-weight: 400 !important;
   line-height: normal !important;
@@ -940,14 +940,14 @@
   white-space: nowrap;
 }
 
-/* Sits at the right-hand end of the cities header row (Figma: Montserrat
+/* Sits at the right-hand end of the cities header row (Figma: Poppins
    regular 16, underlined, uppercase). Shown only when the list scrolls. */
 .nav-mega-seeall {
   flex-shrink: 0;
   padding: 0;
   border: none;
   background: none;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 16px !important;
   line-height: normal !important;
   color: #fff;
@@ -982,7 +982,7 @@
   padding: 0;
   border: none;
   background: none;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif !important;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
   font-size: 16px !important;
   line-height: normal !important;
   color: #fff;

@@ -509,7 +509,7 @@
 /* ── Change Coverage drop-down (Figma 12272-165228) ──────────────────────
    Anchored under its link, right-aligned so it can't run off the card's right
    edge (the link sits at the end of the row). Rows are 15/10 padding, 16px
-   Montserrat at 1.5, a 1px inner divider; 4px white caps top and bottom.
+   Poppins at 1.5, a 1px inner divider; 4px white caps top and bottom.
    The grey row is the CURRENT plan, and the hover. */
 .ma-coverage { position: relative; display: inline-flex; }
 
@@ -834,7 +834,7 @@
   height: 64px;
   display: flex; align-items: center; justify-content: center; gap: 10px;
   border-radius: 12px;
-  font: 500 20px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 500 20px 'Poppins', 'Poppins Fallback', sans-serif;
   letter-spacing: 0.2px;
   cursor: pointer;
 }
@@ -2317,7 +2317,7 @@
   border-radius: 0;
   background: #fff;
   text-align: left;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 700;
   line-height: 1.5;
@@ -2346,7 +2346,7 @@
   border-radius: 16px;
   box-shadow: 0 16px 48px rgba(16, 19, 24, 0.24);
   overflow: hidden;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 .ma-confirm__head {
   display: flex;
@@ -2390,6 +2390,6 @@
   border-radius: 8px;
   background: #101318;
   color: #fff;
-  font: 700 14px/16px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 700 14px/16px 'Poppins', 'Poppins Fallback', sans-serif;
   cursor: pointer;
 }
