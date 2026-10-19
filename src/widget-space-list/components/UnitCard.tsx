@@ -44,9 +44,17 @@ export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig })
         {unit.promo && <PromoBadge text={unit.promo} />}
         <div className="sl-card-pricing">
           <PriceBlock unit={unit} config={config} />
-          <CtaButton unit={unit} config={config} colClass="sl-cta-col" />
+          {/* The price small print rides on the urgency note's line when it
+              fits there, and drops below at full width when it does not. */}
+          <CtaButton
+            unit={unit}
+            config={config}
+            colClass="sl-cta-col"
+            aside={config.showJunkFeeDisclaimer && config.junkFeeCopy
+              ? <JunkFeeDisclaimer config={config} />
+              : null}
+          />
         </div>
-        {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
       </div>
     </div>
   );

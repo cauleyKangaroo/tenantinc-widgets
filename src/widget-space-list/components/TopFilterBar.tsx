@@ -102,7 +102,11 @@ export function TopFilterBar({
         </button>
       </div>
 
-      {/* Search input */}
+      {/* Search input — HIDDEN for now (2026-10), commented out rather than
+          deleted so it can come back: uncomment this block and it is wired as
+          before (searchTerm / onSearchChange are still passed in). With it
+          gone the pills row, already flex:1, takes the width it used. */}
+      {/*
       <div className="sl-top-bar-search">
         <input
           className="sl-top-bar-search-input"
@@ -115,6 +119,7 @@ export function TopFilterBar({
           <SearchIcon />
         </button>
       </div>
+      */}
 
     </div>
   );
