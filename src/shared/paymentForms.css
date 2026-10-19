@@ -323,6 +323,9 @@
    shifts. It also drops the icon out of the accessibility tree, which display
    would too but width would not. */
 .rf-cardrow-tick--pending { visibility: hidden; }
+/* The MM / YY + CVV box's own tick exists for phones only (see the ≤640px
+   block); on desktop the three share one row and its single tick above. */
+.rf-cardpair-tick { display: none; }
 /* An expiry that is complete but unusable. */
 .rf-cardrow--error { border-color: var(--hb-field-border-error, #d32f2f); }
 /* ── Payment error banner (Figma 12029-93132) ─────────────────────────────
@@ -520,4 +523,22 @@
     top: calc((var(--hb-field-height, 56px) - 24px) / 2);
     right: 15px;
   }
+  /* The MM / YY + CVV box's own tick — the last item in its flex row, so it
+     sits at the right inside the box's 15px padding, level with the number
+     box's tick above it. */
+  .rf-wrapper .rf-cardpair-tick {
+    display: block;
+    flex: 0 0 auto;
+    color: var(--hb-ada-green, #028a0c);
+  }
+  .rf-wrapper .rf-cardpair-tick--pending { visibility: hidden; }
+  /* Rental flow: each box validates BY ITSELF here — the number box goes
+     green (and shows its tick) when the number is valid, the MM / YY + CVV box
+     when its two are, rather than both waiting for all three. The row-wide
+     .rf-cardrow--valid rules above still apply, and agree. */
+  .rf-wrapper .rf-cardrow--number-valid .rf-cardcell--number,
+  .rf-wrapper .rf-cardrow--pair-valid .rf-cardrow-short {
+    border-color: var(--hb-field-border-success, #028a0c);
+  }
+  .rf-wrapper .rf-cardrow--number-valid .rf-cardrow-tick { visibility: visible; }
 }
