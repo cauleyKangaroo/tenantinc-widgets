@@ -2364,7 +2364,7 @@
   font-weight: 700;
   color: #101318;
 }
-.ma-confirm__warn { width: 20px; height: 20px; flex: 0 0 auto; }
+.ma-confirm__warn { width: 20px; height: 20px; flex: 0 0 auto; color: var(--hb-text-night, #101318); }
 .ma-confirm__close {
   display: flex;
   padding: 4px;
@@ -2375,7 +2375,10 @@
 }
 .ma-confirm__body { padding: 20px; }
 .ma-confirm__lede { margin: 0 0 16px; font-size: 14px; line-height: 20px; color: #101318; }
-.ma-confirm__list { margin: 0; }
+/* Its own reset: the modal is portalled to <body>, outside .ma-wrapper, so the
+   page's `.ma-wrapper ul` reset never reaches it and the browser's 40px list
+   indent pushed the rows in from the sentence above. */
+.ma-confirm__list { margin: 0; padding: 0; list-style: none; }
 .ma-confirm__actions {
   display: flex;
   align-items: center;
