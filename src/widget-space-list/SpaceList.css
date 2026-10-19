@@ -707,6 +707,18 @@
   color: #101318;
   line-height: 1.2;
 }
+@media (prefers-reduced-motion: reduce) {
+  .sl-wrapper .sl-lc-promo-wrap,
+  .sl-wrapper .sl-lc-promo-wrap + .sl-lc-price-button { transition: none !important; }
+}
+/* A figure holding the width of the widest it can become (Figure in
+   Pricing.tsx): every alternative in one cell, right-aligned, only the real one
+   visible. The strike is restated on the spans because text-decoration does
+   not carry into an inline-grid's children. */
+.sl-wrapper .sl-figure { display: inline-grid; justify-items: end; }
+.sl-wrapper .sl-figure > * { grid-area: 1 / 1; }
+.sl-wrapper .sl-figure-ghost { visibility: hidden; }
+.sl-wrapper .sl-strike .sl-figure > * { text-decoration: line-through; }
 /* Figma: "+ Plus $20 Admin Fee" is 12px/16px black, same small print as above. */
 .sl-wrapper .sl-admin-fee {
   font-size: 12px;
@@ -1094,6 +1106,11 @@
   line-height: 16px;
 }
 .sl-wrapper .sl-lc-promo-icon { display: flex; flex-shrink: 0; color: var(--color_1, #f45f30); }
+/* The promo's slot (ListCard). Beside the price — wide cards — it simply comes
+   and goes, as the badge always did; where it stacks above the price (the
+   680px step below) it slides open and shut instead. */
+.sl-wrapper .sl-lc-promo-wrap { flex: 1 1 220px; min-width: 200px; }
+.sl-wrapper .sl-lc-promo-wrap:not(.is-open) { display: none; }
 /* A GRID, not a wrapping flex row. As a 334px wrapping row the price column only
    had 178px (334 - 16 - 140) beside the button, and the price figures' width
    depends on the digits — "$110.00" fitted, "$250.00" did not — so some cards
@@ -1429,6 +1446,23 @@
 @container (max-width: 680px) {
   /* Action panel: promo + price/CTA stack and go full width */
   .sl-wrapper .sl-lc-promo { flex: 1 1 100%; }
+  /* Open/shut by its row height (0fr <-> 1fr), with a fade. Closed, the price
+     row beneath is pulled up by the panel's row gap, so a shut box leaves no
+     space at all (a negative margin on the empty row itself cannot: a flex
+     line never goes below zero). The 480px step restates it for its gap. */
+  .sl-wrapper .sl-lc-promo-wrap,
+  .sl-wrapper .sl-lc-promo-wrap:not(.is-open) {
+    display: grid;
+    flex: 1 1 100%;
+    min-width: 0;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition: grid-template-rows 0.22s ease, opacity 0.22s ease;
+  }
+  .sl-wrapper .sl-lc-promo-wrap:not(.is-open) { grid-template-rows: 0fr; opacity: 0; }
+  .sl-wrapper .sl-lc-promo-wrap + .sl-lc-price-button { transition: margin-top 0.22s ease; }
+  .sl-wrapper .sl-lc-promo-wrap:not(.is-open) + .sl-lc-price-button { margin-top: -24px; }
+  .sl-wrapper .sl-lc-promo-clip { min-height: 0; overflow: hidden; }
   .sl-wrapper .sl-lc-price-button { flex: 1 1 100%; justify-content: space-between; }
   .sl-wrapper .sl-lc-action { justify-content: stretch; }
 }
@@ -1560,6 +1594,7 @@
      than the frame (a phone inside a Duda column with its own padding) drops the
      button beneath the price rather than crushing the figures. */
   .sl-wrapper .sl-lc-action { padding: 16px; gap: 8px 16px; }
+  .sl-wrapper .sl-lc-promo-wrap:not(.is-open) + .sl-lc-price-button { margin-top: -8px; }
   .sl-wrapper .sl-lc-price-button {
     /* Back to the wrapping flex row the desktop grid replaced — wrapping is the
        point here. */
@@ -4954,6 +4989,13 @@
 @media (max-width: 480px) {
   .sl-wrapper .sl-modal-overlay { padding: 12px; align-items: flex-start; }
   .sl-wrapper .sl-filter-modal { max-height: calc(100vh - 24px); }
+  /* ONE height at every property. The popup's content is built from the
+     property's own units, so a facility with no Space Features (Chula Vista)
+     opened a popup half the size of one that has them. Always the full
+     height it was already capped at; the body takes the spare room, so a
+     short list leaves space above Apply Filters, which stays at the foot. */
+  .sl-wrapper .sl-filter-modal { height: calc(100vh - 24px); }
+  .sl-wrapper .sl-modal-body { flex: 1 1 auto; min-height: 0; }
 }
 
 /* ===========================================================================
