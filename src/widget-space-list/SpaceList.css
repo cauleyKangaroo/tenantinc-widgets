@@ -1283,6 +1283,11 @@
      width from its content and collapses to ~min-content. */
   .sl-wrapper .sl-row { flex-direction: column; align-items: stretch; }
   .sl-wrapper .sl-listing-area { width: 100%; }
+  /* In this COLUMN the listing's 520px flex-basis (set for the side-by-side
+     row) becomes a minimum HEIGHT. A list of cards is taller anyway; the lone
+     "No spaces match your filters." box is not, and left ~400px of empty
+     listing above the sections below it. Content height when empty only. */
+  .sl-wrapper .sl-listing-area--empty { flex-basis: auto; }
   /* The page title STAYS on mobile — it was hidden with the rest of
      .sl-heading on the reasoning that the host page's own H1 already says where
      you are, which is not true on every page that mounts this widget, and a
