@@ -833,7 +833,12 @@ export function SpaceList({
       )}
       <div className="sl-row">
         {showSideAccordions && apLocation === 'left' && sectionPanel}
-        <main className="sl-listing-area" ref={listingAreaRef}>
+        {/* --empty: exactly when the views render "No spaces match your
+            filters." (loaded, nothing to show) — see .sl-listing-area--empty. */}
+        <main
+          className={`sl-listing-area${!loading && visibleUnits.length === 0 ? ' sl-listing-area--empty' : ''}`}
+          ref={listingAreaRef}
+        >
           {topBar}
           {promoId && (
             <div className="sl-promo-banner">
