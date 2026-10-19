@@ -2324,6 +2324,16 @@
   color: #101318;
   cursor: pointer;
 }
+/* Icon, then label, on one line. */
+.ma-sheet__item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.ma-sheet__icon { flex: none; width: 24px; height: 24px; }
+/* One Account Info row per space, so a long account can outgrow the screen:
+   the sheet scrolls rather than pushing Pay Bill off the top. */
+.ma-sheet { max-height: 85vh; overflow-y: auto; }
 .ma-sheet__item + .ma-sheet__item { border-top: 1px solid #e3e8ef; }
 .ma-sheet__item:active { background: #f4f6f8; }
 .ma-sheet__item:focus-visible { outline: none; box-shadow: inset 0 0 0 3px rgba(16, 19, 24, 0.18); }

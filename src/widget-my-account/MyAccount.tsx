@@ -69,7 +69,7 @@ import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { fetchGatewayInfo } from '@shared/paymentGateway';
 import type { AccountDocument, EditForm } from './data';
 import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROPERTIES, SPACES, USER } from './data';
-import { SubmenuIcon } from './icons';
+import { AccountInfoIcon, CreditCardIcon, LogoutIcon, SubmenuIcon } from './icons';
 import { AccountSheet } from './AccountSheet';
 
 /** The three panels that share the middle slot. */
@@ -768,10 +768,16 @@ export function MyAccount({
   // the page's own actions; see AccountSheet.
   const [sheetOpen, setSheetOpen] = useState(false);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
+  // One Account Info row per space on the account (the same list the sidebar
+  // draws), not only the one open. "Space 21", without the card's "#".
   const sheetItems = [
-    { label: 'Pay Bill', onSelect: () => setView('payment') },
-    ...(space ? [{ label: `Account Info Space ${space.number}`, onSelect: () => selectUnit(space.id) }] : []),
-    { label: 'Logout', onSelect: signOut },
+    { label: 'Pay Bill', icon: <CreditCardIcon className="ma-sheet__icon" />, onSelect: () => setView('payment') },
+    ...spaces.map((s) => ({
+      label: `Account Info Space ${s.number.replace(/^#/, '')}`,
+      icon: <AccountInfoIcon className="ma-sheet__icon" />,
+      onSelect: () => selectUnit(s.id),
+    })),
+    { label: 'Logout', icon: <LogoutIcon className="ma-sheet__icon" />, onSelect: signOut },
   ];
 
   return (

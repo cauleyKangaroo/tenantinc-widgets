@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 // ===========================================================================
@@ -12,7 +12,10 @@ import { createPortal } from 'react-dom';
 // ===========================================================================
 
 export interface SheetItem {
+  /** Also the row's key, so it must be unique — one row per space. */
   label: string;
+  /** The glyph before the label. */
+  icon?: ReactNode;
   onSelect: () => void;
 }
 
@@ -43,6 +46,7 @@ export function AccountSheet({ items, onClose }: { items: SheetItem[]; onClose: 
             className="ma-sheet__item"
             onClick={() => { onClose(); item.onSelect(); }}
           >
+            {item.icon}
             {item.label}
           </button>
         ))}
