@@ -230,7 +230,10 @@ export interface FooterProps extends ApiCredProps {
 export function Footer({
   companyName = 'Storage Outlet',
   phone = '(800) 645-9876',
-  description = 'Storage Outlet, headquartered in Irvine, owns and operates 15 self storage properties across Southern California. Our locations offer a wide range of secure and conveniently located storage solutions, including personal storage, business storage, and vehicle storage options. We are committed to providing affordable, reliable, and professional storage experiences in every community we serve. With a focus on convenience, security, and customer service, Storage Outlet continues to grow as a trusted neighborhood storage provider.',
+  // Two paragraphs, broken where Figma 13619-99091 breaks them. Markup rather
+  // than a blank line, so RichText renders ONE .ft-desc block (a blank line
+  // would make each paragraph its own .ft-desc, each with the block's margin).
+  description = '<p>Storage Outlet, headquartered in Irvine, owns and operates 15 self storage properties across Southern California. Our locations offer a wide range of secure and conveniently located storage solutions, including personal storage, business storage, and vehicle storage options.</p><p>We are committed to providing affordable, reliable, and professional storage experiences in every community we serve. With a focus on convenience, security, and customer service, Storage Outlet continues to grow as a trusted neighborhood storage provider.</p>',
   sessionId = '24e6fb82-a285-4a73-b4dc-546500c76981',
   year = 2026,
   propertyId = DEFAULT_PROPERTY_ID,

@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { Unit, UnitSize, WidgetConfig } from '../types';
-import { PriceBlock, CtaButton, FeatureList, CheckIcon, JunkFeeDisclaimer, PromoTagIcon } from './Pricing';
+import { PriceBlock, CtaButton, FeatureList, CheckIcon, JunkFeeDisclaimer, PromoTagIcon, priceFigures } from './Pricing';
 import { unitImageSrc, unitImageOnError } from './unitImage';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
@@ -41,6 +41,18 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
   const [selectedId, setSelectedId] = useState(units[0].id);
   // The selected unit may disappear if filters change; fall back to first.
   const selected = units.find((u) => u.id === selectedId) ?? units[0];
+  // Every figure any size in this card can show, so PriceBlock can hold each
+  // slot at the widest and the price labels stay put between sizes.
+  const figures = units.map((u) => priceFigures(u, config));
+  const anyPromo = units.some((u) => u.promo);
+  // The last promotion shown, kept so a closing promo box still has its text.
+  const lastPromo = useRef<string | undefined>(undefined);
+  if (selected.promo) lastPromo.current = selected.promo;
+  const shownPromo = selected.promo ?? lastPromo.current;
+  const reserve = {
+    strike: Array.from(new Set(figures.map((f) => f.strike))),
+    main: Array.from(new Set(figures.map((f) => f.main))),
+  };
 
   // The frame completes the last row with empty slots, so the grid reads as a
   // block rather than a ragged edge. How many to add depends on the column
@@ -144,15 +156,26 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
 
       {/* Action panel — promo banner + price + CTA */}
       <div className="sl-lc-action">
-        {selected.promo && (
-          <div className="sl-lc-promo">
-            <span className="sl-lc-promo-icon"><PromoTagIcon size={16} /></span>
-            {selected.promo}
+        {/* Slides open / closed between sizes (where it stacks above the
+            price — see .sl-lc-promo-wrap) rather than snapping, so the price
+            row glides instead of jumping. It closes on the LAST promotion shown,
+            so the text does not vanish before the box has shut. Cards where no
+            size has a promotion render none of this. */}
+        {anyPromo && (
+          <div className={`sl-lc-promo-wrap${selected.promo ? ' is-open' : ''}`} aria-hidden={!selected.promo || undefined}>
+            <div className="sl-lc-promo-clip">
+              {shownPromo && (
+                <div className="sl-lc-promo">
+                  <span className="sl-lc-promo-icon"><PromoTagIcon size={16} /></span>
+                  {shownPromo}
+                </div>
+              )}
+            </div>
           </div>
         )}
         <div className="sl-lc-price-button">
           <div className="sl-lc-price">
-            <PriceBlock unit={selected} config={config} />
+            <PriceBlock unit={selected} config={config} reserve={reserve} />
             {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
           </div>
           <CtaButton unit={selected} config={config} full colClass="sl-lc-btn-col" />
