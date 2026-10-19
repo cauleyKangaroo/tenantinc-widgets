@@ -506,7 +506,7 @@
   text-transform: none !important;
   letter-spacing: normal !important;
 }
-.ts-wrapper .ts-m-urgency { margin: 8px 0 0; text-align: center; font-size: 16px; font-weight: 400; color: #e53935; }
+.ts-wrapper .ts-m-urgency { margin: 8px 0 0; text-align: center; font-size: 16px; font-weight: 400; color: #d32f2f; }
 
 .ts-m-pills .ts-pills { gap: 16px; }
 .ts-m-pills .ts-pill { padding-top: 10px; }
@@ -584,7 +584,7 @@
 
 /* ═══ Option 2 — Good/Better/Best pricing cards ═════════════════════════════ */
 .ts-o2 { max-width: 1320px; margin: 0 auto; }
-.ts-o2-urgency, .ts-o3-urgency { margin: 0; text-align: right; font-size: 24px; font-weight: 700; color: #e53935; }
+.ts-o2-urgency, .ts-o3-urgency { margin: 0; text-align: right; font-size: 24px; font-weight: 700; color: #d32f2f; }
 /* Header row (Figma): heading + subheading on the left, urgency + $30 admin fee
    stacked on the right, sharing one row. */
 .ts-o2-headrow { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; margin-bottom: 28px; }
@@ -809,6 +809,11 @@
   cursor: pointer;
 }
 .ts-o2m-animated-card .ts-o2m-head { cursor: pointer; }
+/* Mobile: the badge sits on the card's top edge LEFT-aligned with the card's
+   content (its 22px inline padding) instead of centred. Only the horizontal
+   placement changes — translateY keeps it straddling the border as before.
+   .ts-o2m-badge is the mobile card's own class, so desktop is untouched. */
+.ts-o2m-badge { left: 22px; transform: translateY(-50%); }
 .ts-o2m-animated-card .ts-o2m-badge { opacity: 0; transition: opacity 200ms ease; }
 .ts-o2m-animated-card.ts-o2m-card--expanded .ts-o2m-badge { opacity: 1; }
 .ts-o2m-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
@@ -1049,7 +1054,7 @@
 
 /* Sold-out tier pill — non-selectable placeholder */
 .ts-pill--soldout { opacity: 0.55; cursor: not-allowed; }
-.ts-pill--soldout .ts-pill-tag { color: #b3261e; font-weight: 600; }
+.ts-pill--soldout .ts-pill-tag { color: #d32f2f; font-weight: 600; }
 
 /* Modal presentation (mode="modal") — overlay opened from the Space List. */
 .ts-modal-backdrop {
@@ -1075,9 +1080,9 @@
   border-radius: 20px;
   width: 100%;
   max-width: 1400px; /* Align the 1320px tier grid with the modal header gutters. */
-  /* Use the space inside the equal 16px top/bottom gutters on short screens;
-     retain the 747px Figma height on taller screens. */
-  height: min(747px, calc(100vh - 32px));
+  /* Fit the content (no empty band under the admin fee), never taller than the
+     747px Figma frame or the space inside the 16px gutters; the body scrolls beyond that. */
+  height: auto;
   max-height: min(747px, calc(100vh - 32px));
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
   display: flex;
@@ -1097,16 +1102,23 @@
 /* Room on the right for the close button, which is pinned rather than laid
    out here — see .ts-modal-close. Without it a long heading or admin line
    would run under the mark. */
-.ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; padding-right: 72px; }
+.ts-modal-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 40px; flex-wrap: wrap; padding-right: 88px; }
 .ts-modal-heading-main { text-align: left; }
 .ts-modal-actions { display: flex; align-items: flex-start; justify-content: flex-end; gap: 20px; flex: 0 0 auto; }
+/* Keep urgency on the top row, immediately before the pinned close control.
+   Let the title wrap within its own column instead of moving actions below it. */
+@media (min-width: 641px) {
+  .ts-modal-heading { flex-wrap: nowrap; }
+  .ts-modal-heading-main { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .ts-modal-actions { margin-left: auto; max-width: 45%; }
+  .ts-modal-meta { min-width: 0; flex: 1 1 auto; }
+  .ts-modal-urgency { overflow-wrap: anywhere; }
+}
 .ts-modal-meta { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 8px; flex: 0 0 auto; }
 .ts-modal-title { font-size: 36px !important; font-weight: 700 !important; line-height: 1 !important; margin: 0 0 4px !important; color: var(--ts-title-color, #101318) !important; text-transform: none !important; letter-spacing: normal !important; }
 .ts-modal-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
-.ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #e53935; }
-.ts-modal-urgency--empty { display: none; }
-.ts-modal-admin { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 40px; margin: 0; font-size: 20px; font-weight: 400; color: #101318; }
-.ts-modal-admin-info { color: #101318; flex: 0 0 auto; }
+.ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #d32f2f; }
+.ts-modal-admin { box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 20px 0 0; text-align: center; font-size: 18px; line-height: 1.5; font-weight: 400; color: #101318; }
 .ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 32px 32px; background: #f4f6f8; }
 /*
  * PINNED to the header's top-right corner, not laid out in it.
@@ -1201,18 +1213,23 @@
   .ts-modal-body .ts-m {
     min-height: 100%;
     border-radius: 0;
-    padding: 12px 28px calc(32px + env(safe-area-inset-bottom));
+    padding: 0 28px calc(32px + env(safe-area-inset-bottom));
   }
+  /* The badge sits half above the first card. Keep its clearance inside the
+     scroll area, even while collapsed, so expanding never clips or shifts it. */
+  .ts-modal-body .ts-o2m-cards { padding-top: 16px; }
   .ts-modal-header {
-    /* Tighten the gap without constraining the optional urgency/meta row. */
-    padding: 24px 28px 8px;
+    /* Match the close control's 12px top inset; the title row is 32px tall. */
+    padding: 12px 28px 4px;
   }
   .ts-modal-heading { justify-content: center; padding-right: 0; }
   /* 24px, not 44: the close mark is 32px at right:12px and the header pads
      28px, so 24 still leaves an 8px gap before it — and the 20px handed back is
      what lets the title below sit on one line at full size. */
-  .ts-modal-heading-main { text-align: left; width: 100%; padding: 0 24px 0 0; }
+  .ts-modal-heading-main { display: flex; align-items: center; min-height: 32px; min-width: 0; text-align: left; width: 100%; padding: 0 24px 0 0; }
   .ts-modal-actions { width: 100%; justify-content: center; }
+  /* No empty flex row or row gap; the close button remains pinned above. */
+  .ts-modal-actions--no-urgency { display: contents; }
   /* Keep the close control out of the mobile message row. Previously it sat
      after the centered metadata, which pushed it down and made its position
      vary as urgency/admin copy appeared or disappeared. */
@@ -1231,17 +1248,17 @@
      single class. */
   .ts-modal-title {
     display: block !important;
+    min-width: 0;
+    margin: 0;
     text-align: left !important;
     font-size: clamp(16px, calc((100vw - 80px) / 13.3), 24px) !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
   }
-  .ts-modal-subtitle { font-size: 16px; overflow-wrap: anywhere; }
+  .ts-modal-subtitle { font-size: 18px; overflow-wrap: anywhere; }
   .ts-modal-urgency { text-align: center; width: 100%; min-height: 1.25em; font-size: 16px; line-height: 1.25; }
-  /* Keep one compact line reserved; no announcement or visible placeholder. */
-  .ts-modal-urgency--empty { display: block; visibility: hidden; }
-  .ts-modal-admin { justify-content: center; min-height: 0; font-size: 14px; }
+  .ts-modal-admin { font-size: 14pt; padding: 0 20px calc(24px + env(safe-area-inset-bottom)); }
 }
 
 /* Promo two-price (STANDARD struck + PROMO RATE) */

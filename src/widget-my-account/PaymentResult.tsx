@@ -13,6 +13,7 @@
 // ===========================================================================
 
 import { CheckTickCircleIcon, MessageIcon } from './icons';
+import { AlertIcon } from '@shared/ui';
 import type { PaymentReceipt } from './data';
 
 export type PaymentOutcome = 'success' | 'failed';
@@ -30,10 +31,13 @@ export function PaymentResult({
   if (outcome === 'failed') {
     return (
       <div className="ma-result ma-result--failed" role="alert">
-        <p className="ma-result__title">Payment Failed</p>
-        <p className="ma-result__sub ma-result__sub--failed">
-          {message || 'Your payment could not be processed. Please try a different payment method or contact your bank for assistance.'}
-        </p>
+        <AlertIcon size={24} className="ma-result__alert" />
+        <div className="ma-result__failed-text">
+          <p className="ma-result__title">Payment Failed</p>
+          <p className="ma-result__sub ma-result__sub--failed">
+            {message || 'Your payment could not be processed. Please try a different payment method or contact your bank for assistance.'}
+          </p>
+        </div>
       </div>
     );
   }

@@ -17,10 +17,12 @@ import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankF
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
-import { FormField, Button, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, AlertIcon, capitalizeFirst, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { splitBusinessName } from './businessName';
 import { skipValidation } from '@shared/devBypass';
 import creditCardRepeat from './assets/credit-card-repeat.svg';
+import { OneStepIdv, type OneStepIdvConfig, type OneStepIdvDetails } from './OneStepIdv';
+import { allowsOneStepPayment, checkoutIdvId, type IdvCheckoutReadiness } from './idvLead';
 
 // ---------------------------------------------------------------------------
 // Rental Flow — step 2, "Secure your space now" (Figma 8507-23329).
@@ -41,10 +43,29 @@ const FORM_SKELETON_MS = 700;
  * document URL exists this becomes an <iframe>/<embed> and both surfaces get it
  * at once.
  */
+/**
+ * A document that must NOT scroll in place: the inline preview is a glimpse,
+ * and the agreement is read in the "View Document" lightbox. The frame is
+ * told not to scroll, pointer events pass through it (so a wheel over the
+ * preview scrolls the PAGE, not the document), and a srcDoc document gets
+ * `overflow: hidden` on its own body so no scrollbar is drawn inside either.
+ */
+const STILL_STYLE = '<style>html,body{overflow:hidden!important}</style>';
+function stillDoc(html: string): string {
+  return /<head[^>]*>/i.test(html)
+    ? html.replace(/<head[^>]*>/i, (m) => m + STILL_STYLE)
+    : STILL_STYLE + html;
+}
+
 function LeaseDocBody(
-  { title, previewUrl, previewHtml, updating }:
-  { title?: string; previewUrl?: string; previewHtml?: string; updating?: boolean },
+  { title, previewUrl, previewHtml, updating, scroll = true }:
+  { title?: string; previewUrl?: string; previewHtml?: string; updating?: boolean;
+    /** False for the inline preview, which only hints at the document — it is
+     *  read, and scrolled, in the View Document lightbox. */
+    scroll?: boolean },
 ) {
+  const frameClass = `rf2-doc-frame${scroll ? '' : ' rf2-doc-frame--still'}`;
+  const doc = (html: string) => (scroll ? html : stillDoc(html));
   /*
    * The preview on screen was prefetched before Step 1 was filled in (see the
    * preview effect in RentalFlow2Step), so when the personalised one is on its
@@ -95,10 +116,11 @@ function LeaseDocBody(
     return (
       <div className="rf2-doc-page rf2-doc-page--frame">
         <iframe
-          className="rf2-doc-frame"
-          srcDoc={previewHtml}
+          className={frameClass}
+          srcDoc={doc(previewHtml)}
           title={title ?? 'Rental Agreement'}
           sandbox=""
+          scrolling={scroll ? undefined : 'no'}
         />
         {badge}
       </div>
@@ -117,11 +139,12 @@ function LeaseDocBody(
     return (
       <div className="rf2-doc-page rf2-doc-page--frame">
         <iframe
-          className="rf2-doc-frame"
+          className={frameClass}
           src={previewUrl}
           title={title ?? 'Rental Agreement'}
           loading="lazy"
           sandbox="allow-scripts allow-same-origin"
+          scrolling={scroll ? undefined : 'no'}
         />
         {badge}
       </div>
@@ -134,10 +157,11 @@ function LeaseDocBody(
     return (
       <div className="rf2-doc-page rf2-doc-page--frame">
         <iframe
-          className="rf2-doc-frame"
-          srcDoc={previewHtml}
+          className={frameClass}
+          srcDoc={doc(previewHtml)}
           title={title ?? 'Rental Agreement'}
           sandbox=""
+          scrolling={scroll ? undefined : 'no'}
         />
         {badge}
       </div>
@@ -272,19 +296,17 @@ export type AutopayMode = 'default' | 'optional' | 'preselected' | 'fee';
 export type PaymentCycle = 'monthly' | 'quarterly' | 'annual';
 
 /*
- * Labels verbatim from the frame, in the frame's order.
+ * Labels and savings verbatim from the frame, in the frame's order.
  *
- * The frame also put "Save 10%" and "Save 15%" beside quarterly and annual.
- * Those are GONE: nothing in the API carries a discount for a billing period
- * — `payment_cycles` returns booleans and a `revert_payment_cycle` month count
- * and no rates at all — so the figures were frame copy being printed as if
- * they were this property's terms. Restore them when a real percentage has a
- * source, per property and per space type.
+ * The savings are FIXED COPY, confirmed by the client 2026-10-16: quarterly is
+ * always 10% and annual always 15%, at every property. They are not read from
+ * the API — `payment_cycles` carries no rates — so if a facility's prepay
+ * discount is ever configured differently, this text will not follow it.
  */
-const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string }> = [
+const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string; save?: string }> = [
   { id: 'monthly',   label: 'Pay Monthly' },
-  { id: 'quarterly', label: 'Pay Quarterly' },
-  { id: 'annual',    label: 'Pay Annual' },
+  { id: 'quarterly', label: 'Pay Quarterly', save: 'Save 10%' },
+  { id: 'annual',    label: 'Pay Annual',    save: 'Save 15%' },
 ];
 
 /**
@@ -306,6 +328,7 @@ export function Step2({
   brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, leasePreviewUrl, leasePreviewHtml, leasePreviewUpdating, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
   showApplePay = false, showGooglePay = false, walletCtx, walletConfig = WALLET_DEFAULTS,
+  oneStepIdv,
 }: {
   moveIn: Date;
   /**
@@ -323,6 +346,8 @@ export function Step2({
    * it does not remove them from anywhere.
    */
   oneStep?: boolean;
+  /** Pre-payment verification is exclusive to one-step, behind existing IDV release gates. */
+  oneStepIdv?: OneStepIdvConfig;
   /**
    * The property's autopay treatment, from Hummingbird. Unset shows a small
    * demo picker so all four can be reviewed — pass a value and it disappears.
@@ -399,6 +424,10 @@ export function Step2({
     extras?: RentalExtras;
     /** The Payment Cycle card's selection. */
     paymentCycle?: PaymentCycle;
+    /** One-step: the verification completed for this exact contact, sent on the lease. */
+    idvId?: string;
+    /** One-step: the scanned (or corrected) address and licence, filed on the tenant after the lease. */
+    idvDetails?: OneStepIdvDetails['contact'];
     /** Resolves true once the rental exists, false on any failure. Apple Pay
      *  completes its sheet from this; the card and bank forms ignore it. */
   }) => void | Promise<boolean>;
@@ -436,6 +465,8 @@ export function Step2({
   /** The content panel's wallet settings, resolved over WALLET_DEFAULTS. */
   walletConfig?: WalletConfig;
 }) {
+  const [idvReadyContact, setIdvReadyContact] = useState<IdvCheckoutReadiness>();
+  const [idvDetails, setIdvDetails] = useState<OneStepIdvDetails>();
   // Ticked when step 1 said this is a business rental, so the shopper does not
   // answer the same question twice and its fields open ready to fill.
   const [business, setBusiness] = useState(contact?.business ?? false);
@@ -490,6 +521,9 @@ export function Step2({
      `useId` because a page can hold two of these and radios group by name. */
   const cycleName = useId();
   const [cycle, setCycle] = useState<PaymentCycle>('monthly');
+  /* Monthly is preselected, so "a period is selected" is always true; the card
+     outlines (like the autopay row when ticked) once the shopper PICKS one. */
+  const [cyclePicked, setCyclePicked] = useState(false);
   /* The frame's three rows, narrowed to what this property sells for this
      space type. Undefined `paymentCycles` means not yet known, which renders
      nothing rather than all three. */
@@ -726,7 +760,15 @@ export function Step2({
      Both the gate and the per-field red state read it, so they cannot
      disagree about whether the form is finished. */
   const skip = skipValidation();
-  const formComplete = skip || required.every(([, ok]) => ok);
+  const idvContact = business
+    ? { ...splitBusinessName(bizName), email: email.trim(), phone }
+    : { first: first.trim(), last: last.trim(), email: email.trim(), phone };
+  const verificationAllowsPayment = !oneStep || allowsOneStepPayment(oneStepIdv, idvReadyContact, idvContact);
+  const verifiedIdvId = oneStep ? checkoutIdvId(oneStepIdv, idvReadyContact, idvContact) : undefined;
+  // Whenever the ID block shows the address/licence, its required parts must be filled.
+  const idvDetailsOk = !oneStep || !idvDetails || idvDetails.complete;
+  // The dev validation bypass must never bypass a live ID-verification gate.
+  const formComplete = verificationAllowsPayment && idvDetailsOk && (skip || required.every(([, ok]) => ok));
   const bad = (key: string) => !skip && payAttempted
     && !(required.find(([k]) => k === key)?.[1] ?? true);
   /* The shared groups render FormField's own message, so they need the text
@@ -832,6 +874,8 @@ export function Step2({
     /* The billing period chosen on the Payment Cycle card. Monthly unless the
        property offers more and the shopper picked one. */
     paymentCycle: cycle,
+    idvId: verifiedIdvId,
+    idvDetails: oneStep ? idvDetails?.contact : undefined,
     /*
      * Which sections the shopper opted into — and on ONE-STEP, the values too.
      *
@@ -899,8 +943,8 @@ export function Step2({
           <FieldAbove label="Business Name" required value={bizName} onChange={setBizName} error={bad('bizName')} />
         ) : (
           <div className="rf2-row">
-            <FieldAbove label="First Name" required value={first} onChange={setFirst} error={bad('first')} />
-            <FieldAbove label="Last Name" required value={last} onChange={setLast} error={bad('last')} />
+            <FieldAbove label="First Name" required value={first} onChange={(v) => setFirst(capitalizeFirst(v))} error={bad('first')} />
+            <FieldAbove label="Last Name" required value={last} onChange={(v) => setLast(capitalizeFirst(v))} error={bad('last')} />
           </div>
         )}
         {/* Where step 2 comes to rest. The shopper filled their contact details
@@ -1123,6 +1167,10 @@ export function Step2({
         </section>
         )}
 
+        {oneStep && oneStepIdv && (oneStepIdv.policyPending || oneStepIdv.requirement !== 'disabled') && (
+          <OneStepIdv key={`${oneStepIdv.scope.companyId}:${oneStepIdv.scope.propertyId}`} config={oneStepIdv} contact={idvContact} onReady={setIdvReadyContact} onDetails={setIdvDetails} showErrors={payAttempted} />
+        )}
+
         {/* Additional Information */}
         <section className="rf2-plain">
           <span className="rf2-h">Additional Information</span>
@@ -1169,7 +1217,9 @@ export function Step2({
             </button>
           </div>
           <div className="rf2-agree-doc">
-            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} updating={leasePreviewUpdating} />
+            {/* A glimpse only — not scrollable here. Reading and scrolling
+                happen in the View Document lightbox below. */}
+            <LeaseDocBody title={leaseDocName} previewUrl={leasePreviewUrl} previewHtml={leasePreviewHtml} updating={leasePreviewUpdating} scroll={false} />
           </div>
           <RfCheckbox
             checked={agree}
@@ -1181,9 +1231,10 @@ export function Step2({
           {/* Says what is wrong instead of ringing the row in red. role="alert"
               so it is announced when it appears, not silently drawn. */}
           {bad('agree') && (
-            <p className="rf2-agree-error" role="alert">
-              You must accept the rental agreement to continue.
-            </p>
+            <div className="rf2-agree-error" role="alert">
+              <AlertIcon size={24} className="rf2-agree-error-ico" />
+              <span>You must accept the rental agreement to continue.</span>
+            </div>
           )}
         </section>
 
@@ -1251,7 +1302,7 @@ export function Step2({
               type — a radiogroup with nothing in it, or with one forced answer,
               is not a choice. */}
           {cycleOptions.length > 0 && (
-            <div className="rf2-cycle">
+            <div className={`rf2-cycle${cyclePicked ? ' rf2-cycle--on' : ''}`}>
               <div className="rf2-cycle-row">
                 <span className="rf2-cycle-head">
                   <img src={creditCardRepeat} width={24} height={24} alt="" aria-hidden="true" />
@@ -1267,11 +1318,12 @@ export function Step2({
                         name={cycleName}
                         value={c.id}
                         checked={cycle === c.id}
-                        onChange={() => setCycle(c.id)}
+                        onChange={() => { setCycle(c.id); setCyclePicked(true); }}
                       />
                       <span className="rf2-cycle-radio"><span className="rf2-cycle-dot" /></span>
                       <span className="rf2-cycle-text">
                         <span>{c.label}</span>
+                        {c.save && <span className="rf2-cycle-save">{c.save}</span>}
                       </span>
                     </label>
                   ))}
@@ -1298,6 +1350,22 @@ export function Step2({
               ready to pay), so
               a lone wallet's full-width span is decided in CSS from what
               actually rendered, not guessed here. */}
+          {/* Wallets are one-tap, so there is no moment to visibly untick the
+              autopay box before paying — this says it instead, wherever
+              autopay would otherwise apply (mandatory, or ticked).
+              Gated on what each button REPORTS as on screen, not on what the
+              parent allowed: either can still decline at runtime, and a note
+              about wallets nobody can see would only confuse.
+              Above the wallet buttons, as a blue info tag (Figma). */}
+          {((showApple && appleOnScreen) || (showGoogle && googleOnScreen)) && (mode === 'default' || autopay) && (
+            <p className="rf2-gp-note rf2-gp-note--info">
+              <InfoIcon size={20} className="rf2-gp-note-ico" />
+              <span>
+                Apple Pay and Google Pay are one-time payments and won&rsquo;t enroll in autopay.
+                To pay automatically each {cycleWord.noun}, use Credit / Debit or Pay by Bank.
+              </span>
+            </p>
+          )}
           {(!methodOpen || showApple || showGoogle) && (
           <div className={`rf2-paygrid${methodOpen ? ' rf2-paygrid--wallets' : ''}`}>
             {showGoogle && walletCtx && (
@@ -1348,28 +1416,29 @@ export function Step2({
             )}
           </div>
           )}
-          {/* Wallets are one-tap, so there is no moment to visibly untick the
-              autopay box before paying — this says it instead, wherever
-              autopay would otherwise apply (mandatory, or ticked).
-              Gated on what each button REPORTS as on screen, not on what the
-              parent allowed: either can still decline at runtime, and a note
-              about wallets nobody can see would only confuse. */}
-          {((showApple && appleOnScreen) || (showGoogle && googleOnScreen)) && (mode === 'default' || autopay) && (
-            <p className="rf2-gp-note">
-              Apple Pay and Google Pay are one-time payments and won&rsquo;t enroll in autopay.
-              To pay automatically each {cycleWord.noun}, use Credit / Debit or Pay by Bank.
-            </p>
-          )}
           {payAttempted && !formComplete && (
-            <p className="rf2-gp-note rf2-gp-note--error">
-              Complete the highlighted fields (and accept the rental agreement) to continue to payment.
-            </p>
+            <div className="rf2-gp-note rf2-gp-note--error rf2-gp-note--tag">
+              <AlertIcon size={24} className="rf2-gp-note-alert-ico" />
+              <span>
+                {!verificationAllowsPayment
+                  ? 'Complete ID verification above before continuing to payment.'
+                  : !idvDetailsOk
+                    ? 'Complete your mailing address and driver\u2019s license above before continuing to payment.'
+                  : 'Complete the highlighted fields (and accept the rental agreement) to continue to payment.'}
+              </span>
+            </div>
           )}
           {walletError && (
-            <p className="rf2-gp-note rf2-gp-note--error" role="alert">{walletError}</p>
+            <div className="rf2-gp-note rf2-gp-note--error rf2-gp-note--tag" role="alert">
+              <AlertIcon size={24} className="rf2-gp-note-alert-ico" />
+              <span>{walletError}</span>
+            </div>
           )}
           {payError && (
-            <p className="rf2-gp-note rf2-gp-note--error" role="alert">{payError}</p>
+            <div className="rf2-gp-note rf2-gp-note--error rf2-gp-note--tag" role="alert">
+              <AlertIcon size={24} className="rf2-gp-note-alert-ico" />
+              <span>{payError}</span>
+            </div>
           )}
           {/* No Global Payments key on this site yet, so card and bank are the
               static forms from Figma 10080-30277 / 10080-28749 rather than the

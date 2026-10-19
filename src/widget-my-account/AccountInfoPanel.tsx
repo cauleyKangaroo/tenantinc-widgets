@@ -2,8 +2,10 @@
 // The DEFAULT left-hand panel — Figma 8815-115354 ("Account Info - Display").
 //
 // Heading + Edit, then two columns (Primary Contact | Documents), then
-// Alternate Contact beneath the first column, then a tinted action panel with
-// the balance, "Pay Now" and two more links.
+// Alternate Contact beneath the first column — and beside it the Emergency
+// Contact, which the frame does not draw but the Edit frame (8815-115876)
+// saves, so a saved one has to show somewhere — then a tinted action panel
+// with the balance, "Pay Now" and two more links.
 //
 // "Pay Now" is the only route to the Make a Payment screen, so it takes the
 // notification orange (Primary/Notifications) rather than the CTA green — one
@@ -27,12 +29,12 @@ function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.Re
 }
 
 /**
- * The ALTERNATE contact's row order — name, address, email, phone. The primary
+ * A SECONDARY contact's row order — name, address, email, phone. The primary
  * contact runs name, email, phone, address, licence instead, so it is spelled
  * out at its own call site rather than both sharing one order and one of them
- * coming out wrong.
+ * coming out wrong. The alternate and the emergency contact share this one.
  */
-function AlternateContact({ contact }: { contact: Contact }) {
+function SecondaryContact({ contact }: { contact: Contact }) {
   return (
     <ul className="ma-info__list">
       <InfoRow icon={<UserSettingsIcon />}>{contact.name}</InfoRow>
@@ -64,6 +66,7 @@ export function AccountInfoPanel({
   busyDocument,
   contact,
   alternate,
+  emergency,
   documents,
 }: {
   space: AccountSpace;
@@ -90,24 +93,27 @@ export function AccountInfoPanel({
    * sample's Jerry Boo.
    */
   alternate?: Contact | null;
+  /** Same contract as `alternate`. */
+  emergency?: Contact | null;
   documents?: AccountDocument[];
 }) {
   const primary = contact ?? space.primaryContact;
   const alt = alternate !== undefined ? alternate : space.alternateContact;
+  const emerg = emergency !== undefined ? emergency : space.emergencyContact;
   const docs = documents ?? space.documents;
 
   return (
     <section className="ma-account">
       <div className="ma-account__body">
         <header className="ma-account__head">
-          <h2 className="ma-account__title">{space.title}</h2>
+          <p role="heading" aria-level={2} className="ma-account__title">{space.title}</p>
           <Button tone="dark" className="ma-btn-40" onClick={onEdit}>Edit</Button>
         </header>
         <hr className="ma-account__rule" />
 
         <div className="ma-account__cols">
           <div className="ma-account__col ma-account__col--contact">
-            <h3 className="ma-account__label">Primary Contact</h3>
+            <p role="heading" aria-level={3} className="ma-account__label">Primary Contact</p>
             <ul className="ma-info__list">
               <InfoRow icon={<UserSettingsIcon />}>{primary.name}</InfoRow>
               {primary.email && <InfoRow icon={<EnvelopeIcon />}>{primary.email}</InfoRow>}
@@ -122,7 +128,7 @@ export function AccountInfoPanel({
           </div>
 
           <div className="ma-account__col ma-account__col--docs">
-            <h3 className="ma-account__label">Documents</h3>
+            <p role="heading" aria-level={3} className="ma-account__label">Documents</p>
             <ul className="ma-info__list ma-docs">
               {/* A lease with nothing filed says so, rather than leaving a
                   heading over an empty list that reads as still loading. */}
@@ -148,18 +154,32 @@ export function AccountInfoPanel({
                   </button>
                   {/* The date is what separates this month's notice from last
                       month's — see documentsOf in leaseMapping. */}
-                  {doc.date && <span className="ma-docs__date">{doc.date}</span>}
-                  {doc.status && <span className="ma-docs__chip">{doc.status}</span>}
+                  {/* A signed document shows the "Signed" pill IN PLACE of its
+                      date (client feedback): the pill is what matters on a
+                      lease, and the notices that need dates are never signed. */}
+                  {doc.status
+                    ? <span className="ma-docs__chip">{doc.status}</span>
+                    : doc.date && <span className="ma-docs__date">{doc.date}</span>}
                 </li>
               ))}
             </ul>
           </div>
         </div>
 
-        {alt && (
-          <div className="ma-account__alt">
-            <h3 className="ma-account__label">Alternate Contact</h3>
-            <AlternateContact contact={alt} />
+        {(alt || emerg) && (
+          <div className="ma-account__secondaries">
+            {alt && (
+              <div className="ma-account__alt">
+                <p role="heading" aria-level={3} className="ma-account__label">Alternate Contact</p>
+                <SecondaryContact contact={alt} />
+              </div>
+            )}
+            {emerg && (
+              <div className="ma-account__alt ma-account__alt--emergency">
+                <p role="heading" aria-level={3} className="ma-account__label">Emergency Contact</p>
+                <SecondaryContact contact={emerg} />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -175,7 +195,10 @@ export function AccountInfoPanel({
           </div>
         </div>
 
-        <ul className="ma-info__list ma-action__links">
+        {/* Change Address Form and Schedule Move Out — switched off for now
+            (2026-10-14): neither has a destination yet, and a link that goes
+            nowhere is worse than none. Restore by uncommenting.
+                <ul className="ma-info__list ma-action__links">
           <li className="ma-info__row">
             <span className="ma-info__icon"><FileTextIcon /></span>
             <button type="button" className="ma-docs__link">Change Address Form</button>
@@ -185,6 +208,7 @@ export function AccountInfoPanel({
             <button type="button" className="ma-docs__link">Schedule Move Out</button>
           </li>
         </ul>
+        */}
       </div>
     </section>
   );

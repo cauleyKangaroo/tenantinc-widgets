@@ -5,6 +5,11 @@ import { clearSession, readSession } from '@shared/accountSession';
 // ===========================================================================
 // The top bar's "My Account" item — a menu of My Account, Pay Bill and Logout.
 //
+// Pay Bill opens the My Account page ON ITS PAYMENT SCREEN (`?view=payment`,
+// which #19 reads off the URL). It used to point at /login, so a signed-in
+// customer was sent to the login page instead of to Pay Now. A signed-out one
+// still ends up at login: #19 itself redirects there when it has no session.
+//
 // Logout is the only way out now that #19 has no Log out button of its own. It
 // clears the stored session (@shared/accountSession, the same call #19's
 // signOut makes) BEFORE navigating: a link alone would leave the token in
@@ -22,11 +27,12 @@ import { clearSession, readSession } from '@shared/accountSession';
 export function AccountMenu({
   label = 'My Account',
   accountHref = '/my-account',
-  payBillHref = '/login',
+  payBillHref,
   loginHref = '/login',
 }: {
   label?: string;
   accountHref?: string;
+  /** Defaults to the account page's payment view. */
   payBillHref?: string;
   /** Where Logout lands once the session is cleared. */
   loginHref?: string;
@@ -34,6 +40,7 @@ export function AccountMenu({
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const payHref = payBillHref ?? `${accountHref}${accountHref.includes('?') ? '&' : '?'}view=payment`;
 
   const toggle = () => {
     if (!open) setSignedIn(readSession() !== null);
@@ -70,7 +77,7 @@ export function AccountMenu({
       {open && (
         <div className="nav-acct-menu" role="menu">
           <a role="menuitem" className="nav-acct-opt" href={accountHref}>My Account</a>
-          <a role="menuitem" className="nav-acct-opt" href={payBillHref}>Pay Bill</a>
+          <a role="menuitem" className="nav-acct-opt" href={payHref}>Pay Bill</a>
           {signedIn ? (
             <a
               role="menuitem"

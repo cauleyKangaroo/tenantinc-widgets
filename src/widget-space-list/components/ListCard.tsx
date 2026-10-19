@@ -102,7 +102,13 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
                 the chip as its first cell. `display: contents` on every other
                 width, so this element does not exist as far as the desktop
                 layout is concerned. */}
-            <div className="sl-lc-amenities">
+            {/* The row count lets the narrow frame fill its two columns
+                top-to-bottom (chip, then the first ticks, then the right
+                column), as Figma 7112-56210 does. Ignored at wider widths. */}
+            <div
+              className="sl-lc-amenities"
+              style={{ '--lc-am-rows': Math.max(1, Math.ceil(((selected.subtype ? 1 : 0) + selected.features.length) / 2)) } as React.CSSProperties}
+            >
               {selected.subtype && (
                 <span className="sl-lc-subtype">
                   <CheckIcon /> {selected.subtype}

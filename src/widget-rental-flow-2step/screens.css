@@ -454,7 +454,7 @@
   gap: 8px !important;
 }
 .rf-sx-idv-tick { flex: 0 0 auto; color: var(--hb-secondary, #509e2f); }
-.rf-sx-idv-alert { flex: 0 0 auto; color: var(--hb-ada-red, #e53935); }
+.rf-sx-idv-alert { flex: 0 0 auto; color: var(--hb-ada-red, #d32f2f); }
 
 .rf-sx-idv-lede {
   margin: 0 0 16px;
@@ -495,12 +495,12 @@
 /* Results: failed / later. */
 .rf-sx-idv--alert {
   padding: 24px 30px;
-  border: 3px solid var(--hb-ada-red, #e53935);
+  border: 3px solid var(--hb-ada-red, #d32f2f);
   border-radius: 10px;
   background: var(--hb-white, #fff);
 }
 .rf-sx-idv--alert .rf-sx-idv-lede { margin-bottom: 0; }
-.rf-sx-idv-danger { color: var(--hb-ada-red, #e53935); font-weight: 700; }
+.rf-sx-idv-danger { color: var(--hb-ada-red, #d32f2f); font-weight: 700; }
 /* A <button>, not an <a>: it changes state on this page and goes nowhere, so
    a link would lie about it to a screen reader and to a middle click. Styled
    back down to the surrounding sentence. */
@@ -705,7 +705,7 @@
    line rather than drifting to the middle. */
 .rf-sx-idv-current {
   margin: 0;
-  color: var(--hb-ada-red, #e53935);
+  color: var(--hb-ada-red, #d32f2f);
   font-size: 16px;
   line-height: 20px;
 }
@@ -722,6 +722,22 @@
   font-size: 16px;
   line-height: 24px;
 }
+/* Mailing address + licence after ID verification (IdvDetails.tsx), both flows. */
+.rf-idd { gap: 16px; }
+/* Figma "Renter ID Verify" (Complete-Edit.svg): section headings 14/600,
+   floated field labels 10px, required asterisk #FB4C4C (no theme token has it). */
+.rf-idd .rf-sx-extra-title { font-size: 14px !important; font-weight: 600 !important; }
+.rf-idd-req { color: #fb4c4c; }
+.rf-idd .hb-field__input:focus + .hb-field__label,
+.rf-idd .hb-field__input:not(:placeholder-shown) + .hb-field__label { font-size: 10px; }
+/* "ID Verification Complete" is 16/600 in both flows. */
+.rf-sx-idv--done .rf-sx-idv-title { font-size: 16px !important; }
+.rf-idd-fields { display: flex; flex-direction: column; gap: 16px; }
+.rf-idd-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 360px) { .rf-idd-pair { grid-template-columns: 1fr; } }
+/* One-step: the complete card, then the notice and the details under it. */
+.rf2-pre-idv-after { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
+.rf2-pre-idv-after .rf-sx-idv-current { margin: 0; }
 /* A <button>: it changes what is on the page and goes nowhere, so a link would
    misreport it to a screen reader and to a middle click. */
 .rf-sx-edit {

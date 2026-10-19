@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button } from '@shared/ui';
+import { AlertIcon, Button } from '@shared/ui';
 import {
   KeyIcon, MessageIcon, TickCircleIcon, WriteReviewIcon,
   MapPinGlyph, PhoneGlyph, CalendarGlyph, ClockGlyph,
@@ -312,12 +312,15 @@ export function Confirmation({
           <h2 className="rf-heading">We couldn&rsquo;t complete your {kind}</h2>
         </div>
         <div className="rfc-error-panel">
+          <AlertIcon size={24} className="rfc-error-ico" />
+          <div className="rfc-error-text">
           <p className="rfc-error-msg">{errorMessage}</p>
           <p className="rfc-error-sub">
             Your card was not charged. You can try again{facilityPhone ? (
               <>, or call the facility at <a href={`tel:${facilityPhone.replace(/\D/g, '')}`}>{facilityPhone}</a> and we&rsquo;ll finish it together</>
             ) : ''}.
           </p>
+          </div>
         </div>
         {onRetry && <Button tone="cta" className="rfc-retry" onClick={onRetry}>Try again</Button>}
       </div>
@@ -516,10 +519,13 @@ export function Confirmation({
           {/* The five stars are ONE exported asset, not five copies of a star:
               the frame spaces them 41.671px apart inside a 194.356x27 box, and
               rebuilding that from a repeated glyph is a gap to get wrong. */}
-          <div className="rfc-review-rating">
+          {/* The stars go where "Write a Review" goes — the property's Google
+              listing, in its rating dialog — so a tap on the rating itself
+              rates the property, not just the button beneath. */}
+          <a className="rfc-review-rating" href={reviewUrl ?? DEMO_REVIEW_URL} target="_blank" rel="noreferrer" aria-label="Rate us on Google">
             <span className="rfc-review-g"><GoogleG /></span>
             <img className="rfc-review-stars" src={reviewStars} width={194.356} height={27.0004} alt="Rate us out of five" />
-          </div>
+          </a>
           <a className="rfc-review-link" href={reviewUrl ?? DEMO_REVIEW_URL} target="_blank" rel="noreferrer">
             <WriteReviewIcon size={24} />
             Write a Review

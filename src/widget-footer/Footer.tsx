@@ -3,10 +3,15 @@ import './Footer.css';
 import tenantLogo from './tenant-logo.svg';
 import { SOCIALS, PhoneIcon, AiSparkleIcon, ChevronBigRightIcon } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID, type PropertyContact } from '@shared/propertyContact';
+import { boundText, boundLink } from '@shared/propertyBinding';
+import { RichText } from '@shared/richText';
 import { readSitePages, pageColumnFor, parseRoutes, type SitePage } from '@shared/sitePages';
 import { openFindStorage } from '@shared/findStorageBus';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { fetchAllLocations, normalizeBasePath, type FooterLocation } from './allLocations';
+import { MessageModal } from '@shared/components/MessageModal';
+// Same contact-modal plumbing as #02's Email circle — #03's creds + lead call.
+import { createLead, fetchFacilityOptions, configureApi, type FacilityOption, type ApiCredProps } from '../widget-property-info/api';
 
 // ---------------------------------------------------------------------------
 // Types + fallback data
@@ -17,6 +22,9 @@ interface FooterLink {
   href: string;
   /** Opens in a new tab — see SITEMAP_LINK for the only case that sets it. */
   external?: boolean;
+  /** Handled in place instead of followed (Contact us → the message modal).
+   *  The href stays, so open-in-new-tab still reaches the page. */
+  onClick?: () => void;
 }
 
 interface LinkColumn {
@@ -142,7 +150,9 @@ function boolProp(v: unknown): boolean {
 // Component
 // ---------------------------------------------------------------------------
 
-export interface FooterProps {
+/* ApiCredProps: the site's api_domain / app_id / api_key, for the Contact us
+   modal's property list and lead — the same three #02 and #03 take. */
+export interface FooterProps extends ApiCredProps {
   companyName?: string;
   phone?: string;
   description?: string;
@@ -198,6 +208,23 @@ export interface FooterProps {
    */
   loginHref?: string;
   contactHref?: string;
+  /**
+   * The content-menu fields the site now fills the footer from (Duda sends ''
+   * for an empty field). `footer_text` replaces the description paragraph; the
+   * six links decide which social icons show — an empty link hides its icon,
+   * and with all six empty the whole "Follow …" block is gone. Any provided
+   * link outranks the `Properties` collection's socials.
+   */
+  /** Rich text from the content menu's text editor — arrives as HTML
+   *  (`<p class="rteBlock">…</p>`), rendered as such, never as literal tags. */
+  footer_text?: string;
+  /** Duda LINK fields: objects ({ href, value, target, … }), or strings. */
+  facebook_link?: unknown;
+  instagram_link?: unknown;
+  youtube_link?: unknown;
+  twitter_link?: unknown;
+  linkedin_link?: unknown;
+  tiktok_link?: unknown;
 }
 
 export function Footer({
@@ -216,7 +243,30 @@ export function Footer({
   propertyBasePath = DEFAULT_PROPERTY_BASE_PATH,
   loginHref = '/login',
   contactHref = '/contact-us',
+  footer_text,
+  facebook_link, instagram_link, youtube_link, twitter_link, linkedin_link, tiktok_link,
+  api_domain, app_id, api_key,
 }: FooterProps) {
+  // REST creds for Contact us's "Send us a Message" modal, as #02 and #03 do.
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
+
+  // Contact us → the shared modal. The portfolio for its dropdown is fetched
+  // only once it is first opened.
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [facilityOptions, setFacilityOptions] = useState<FacilityOption[]>([]);
+  useEffect(() => {
+    if (!messageOpen || facilityOptions.length) return;
+    let cancelled = false;
+    void fetchFacilityOptions().then((list) => {
+      if (!cancelled) setFacilityOptions(list);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messageOpen]);
+
   // Phone + social links from the Duda `Properties` collection; the static values
   // above remain the fallback (this bundle holds no API key of its own).
   const [contact, setContact] = useState<PropertyContact | null>(null);
@@ -320,7 +370,9 @@ export function Footer({
     heading: 'Connect',
     links: [
       { label: 'Login', href: loginHref },
-      { label: 'Contact us', href: contactHref },
+      // Opens the shared "Send us a Message" modal, as #02's Email circle and
+      // #03 do, rather than leaving for a contact page.
+      { label: 'Contact us', href: contactHref, onClick: () => setMessageOpen(true) },
     ],
   }), [loginHref, contactHref]);
 
@@ -426,13 +478,32 @@ export function Footer({
   const displayFollowName = contact?.name || companyName;
   const telHref = `tel:${(contact?.phoneDigits || displayPhone).replace(/[^0-9+]/g, '')}`;
 
-  // With live data, show only the platforms this property actually has, linked.
-  // Without it, keep the full static row (unlinked) exactly as before.
-  const socialLinks = contact?.socials.length
-    ? SOCIALS
+  /*
+   * Which icons, and where they go.
+   *
+   * 1. The content-menu links, when any is filled: exactly the platforms with a
+   *    link, in the row's fixed order. An empty field hides its icon.
+   * 2. Else the `Properties` collection's socials for this property (dynamic
+   *    pages), as before.
+   * 3. Else nothing — and with nothing the "Follow …" block does not render.
+   *    The old unlinked placeholder row is gone: a dead icon is a broken link.
+   */
+  // Duda sends a link field as an OBJECT ({ href, value, target, … }) — see boundLink.
+  const configured: Record<string, { href: string; target?: string } | null> = {
+    facebook: boundLink(facebook_link), instagram: boundLink(instagram_link), youtube: boundLink(youtube_link),
+    x: boundLink(twitter_link), linkedin: boundLink(linkedin_link), tiktok: boundLink(tiktok_link),
+  };
+  const anyConfigured = Object.values(configured).some(Boolean);
+  const socialLinks = anyConfigured
+    ? SOCIALS.filter((s) => configured[s.key]).map((s) => ({ ...s, href: configured[s.key]!.href, target: configured[s.key]!.target }))
+    : contact?.socials.length
+      ? SOCIALS
         .filter((s) => contact.socials.some((c) => c.platform === s.key))
-        .map((s) => ({ ...s, href: contact.socials.find((c) => c.platform === s.key)!.url }))
-    : SOCIALS.map((s) => ({ ...s, href: '#' }));
+        .map((s) => ({ ...s, href: contact.socials.find((c) => c.platform === s.key)!.url, target: undefined as string | undefined }))
+      : [];
+  /* The text under the logo: the content-menu field when filled, else the
+     prop/default — so a site that has not filled it in looks as it did. */
+  const displayDescription = boundText(footer_text) || description;
 
   return (
     <div className="ft-wrapper">
@@ -505,7 +576,9 @@ export function Footer({
               <span>Live Chat</span>
             </button>
           </div>
-          <p className="ft-desc">{description}</p>
+          {/* Rich text: the content menu's editor sends HTML, which renders as
+              paragraphs (sanitised); the plain default renders as before. */}
+          <RichText value={displayDescription} className="ft-desc" htmlClassName="ft-desc-rich" />
         </div>
       </div>
 
@@ -527,24 +600,26 @@ export function Footer({
       )}
 
       <div className="ft-inner ft-follow">
+        {/* No links at all ⇒ no "Follow …" block. With content-menu links the
+            answer is known at once; otherwise it waits for the collection read
+            (hidden, not absent, so nothing moves when it lands) and is dropped
+            if that read brings nothing either. */}
+        {(anyConfigured || !contactSettled || socialLinks.length > 0) && (
         <div className="ft-follow-left">
           <span className="ft-follow-label">Follow {displayFollowName}</span>
-          {/* Hidden, not absent, until the contact read settles: the unlinked
-              static row would otherwise paint and then lose the platforms this
-              property doesn't have. visibility keeps the row's box, so nothing
-              moves when it appears. */}
           <div
             className="ft-socials"
-            style={contactSettled ? undefined : { visibility: 'hidden' }}
-            aria-hidden={contactSettled ? undefined : true}
+            style={anyConfigured || contactSettled ? undefined : { visibility: 'hidden' }}
+            aria-hidden={anyConfigured || contactSettled ? undefined : true}
           >
-            {socialLinks.map(({ key, label, Icon, href }) => (
-              <a key={key} className="ft-social" href={href} aria-label={label} title={label}>
+            {socialLinks.map(({ key, label, Icon, href, target }) => (
+              <a key={key} className="ft-social" href={href} aria-label={label} title={label} target={target ?? '_blank'} rel="noopener noreferrer">
                 <Icon />
               </a>
             ))}
           </div>
         </div>
+        )}
         <div className="ft-powered">
           <span className="ft-powered-label">powered by</span>
           <img className="ft-tenant" src={tenantLogo} alt="Tenant" />
@@ -560,6 +635,14 @@ export function Footer({
           <span className="ft-session">Session: {sessionId}</span>
         </div>
       </div>
+
+      <MessageModal
+        open={messageOpen}
+        onClose={() => setMessageOpen(false)}
+        facilities={facilityOptions}
+        defaultFacility={facilityOptions.find((f) => f.id === propertyId) ?? null}
+        submitLead={(input) => createLead(input, { propertyId })}
+      />
     </div>
   );
 }
@@ -579,6 +662,14 @@ function LinkColumnView({ column }: { column: LinkColumn }): React.ReactElement 
               className="ft-link"
               href={link.href}
               {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+              {...(link.onClick ? {
+                onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+                  // A modified click still opens the page in a new tab.
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                  e.preventDefault();
+                  link.onClick!();
+                },
+              } : {})}
             >
               {link.label}
             </a>

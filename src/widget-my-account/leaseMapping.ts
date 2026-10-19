@@ -24,6 +24,7 @@ import { classifySize, mediaManagerImagesFor } from '@shared/unitArtwork';
 import type {
   AccountDocument, AccountSpace, ActivityRow, Contact, SavedCard, SpaceProperty,
 } from './data';
+import { alternateContactFrom, emergencyContactFrom } from './contactMapping';
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
@@ -123,8 +124,18 @@ function documentsOf(lease: Record<string, unknown>): AccountDocument[] {
     .map((d) => {
       const label = str(d.name);
       if (!label) return null;
+      // SIGNED documents only (signatureStatus 1). An unsigned template the
+      // lease merely references is not the tenant's paperwork, and listing it
+      // offered downloads of blank forms. Asked for 2026-10-14.
+      if (d.signatureStatus !== 1) return null;
       const ext = str(d.extension);
-      const signed = d.signatureStatus === 1 || !!str(d.signedAt);
+      /* Tolerant on purpose: the live record's signed flag is unverified, and
+         the client's screen showed no pill on a signed Lease Agreement — so
+         the status is accepted as a number, a numeric string or a word, and
+         either spelling of the signed date counts. */
+      const status = String(d.signatureStatus ?? d.signature_status ?? d.status ?? '').trim().toLowerCase();
+      const signed = status === '1' || status === 'signed' || status === 'true'
+        || d.signed === true || !!str(d.signedAt) || !!str(d.signed_at);
       return {
         doc: {
           label,
@@ -147,14 +158,14 @@ function documentsOf(lease: Record<string, unknown>): AccountDocument[] {
 /**
  * Every lease as a space the panels can render.
  *
- * `primary` and `alternate` are passed in rather than re-derived: they are
- * contact-level, identical on every space, and already mapped for the display
- * panel — deriving them twice would be two things to keep in step.
+ * `primary` is passed in rather than re-derived: it is contact-level,
+ * identical on every space, and already mapped for the display panel. The
+ * alternate and emergency contacts are NOT — they are per lease, so each
+ * space reads its own from the record's secondaryContacts.
  */
 export function spacesFrom(
   record: AccountRecord,
   primary: Contact,
-  alternate: Contact | null,
   /** Duda's data.siteId — what builds the site's own artwork URLs. */
   media: { siteId?: string } = {},
 ): AccountSpace[] {
@@ -166,7 +177,16 @@ export function spacesFrom(
   return leases.map((l) => {
     const u = (l.unit ?? {}) as Record<string, unknown>;
     const number = str(u.number);
-    const balance = num(l.balance);
+    // `balance` is what the account owes on the lease; `openBalance` the sum
+    // of its open invoices. The same figure when both are set — the second
+    // covers a record that fills only one.
+    const balance = num(l.balance) || num(l.openBalance);
+    /* The OLDEST open invoice's due date, ISO, for the balance bar: with
+       several spaces ticked the bar names the earliest of theirs. Falls back
+       to the paid-through date when nothing is open. */
+    const openDues = (Array.isArray(l.invoices) ? (l.invoices as Record<string, unknown>[]) : [])
+      .filter((i) => num(i.balance) > 0).map((i) => str(i.due).slice(0, 10)).filter(Boolean).sort();
+    const dueSort = openDues[0] || str(l.paidThroughDate).slice(0, 10);
     /*
      * `daysLate` decides past-due, not a balance above zero: a balance is
      * normal between bill date and due date, and colouring it red would call
@@ -211,7 +231,8 @@ export function spacesFrom(
         balanceDate: paidThrough,
       },
       primaryContact: primary,
-      alternateContact: alternate ?? undefined,
+      alternateContact: alternateContactFrom(record, str(l.id)) ?? undefined,
+      emergencyContact: emergencyContactFrom(record, str(l.id)) ?? undefined,
       documents: documentsOf(l),
       dueLabel: paidThrough ? `Balance Due (Paid through ${paidThrough})` : 'Balance Due',
       dueAmount: money(balance),
@@ -227,9 +248,33 @@ export function spacesFrom(
           ? `Charged on the ${ordinal(num(l.billDay))} of each month`
           : '',
       },
-      lines: [
-        { label: `Monthly Rent ${number ? `#${number}` : ''}`.trim(), amount: rent },
-      ],
+      /*
+       * ONE LINE PER OPEN INVOICE when there is something to pay — "Monthly
+       * Rent #301 (07/01/2026 to 07/30/2026)  $100.00", the period beside the
+       * label as the frame draws it, the amount the invoice's own balance.
+       * Nothing owed ⇒ the single rent line as before, so the breakdown is
+       * never empty. The period field names are read defensively: the proxy
+       * writes periodStart/periodEnd on the invoices it quotes and applies
+       * payments to.
+       */
+      lines: (() => {
+        const label = `Monthly Rent ${number ? `#${number}` : ''}`.trim();
+        const open = (Array.isArray(l.invoices) ? (l.invoices as Record<string, unknown>[]) : [])
+          .filter((i) => num(i.balance) > 0);
+        // Nothing open: the line says so and carries $0.00, so the lines add
+        // up to the Total beneath them — a $10 rent over a $0 total read as a
+        // broken sum. The rent itself is on the space card.
+        if (!open.length) return [{ label, note: paidThrough ? `(paid through ${paidThrough} · nothing due)` : '(nothing due)', amount: money(0) }];
+        return open.map((i) => {
+          const from = shortDate(i.periodStart ?? i.period_start ?? i.startDate ?? i.start_date);
+          const to = shortDate(i.periodEnd ?? i.period_end ?? i.endDate ?? i.end_date);
+          return {
+            label,
+            note: from && to ? `(${from} to ${to})` : from ? `(from ${from})` : undefined,
+            amount: money(num(i.balance)),
+          };
+        });
+      })(),
       coverage: { label: 'Coverage', amount: money(0) },
       taxes: { label: 'Taxes', amount: money(0) },
       total: money(balance),
@@ -237,6 +282,7 @@ export function spacesFrom(
         amount: money(balance),
         payThrough: paidThrough,
         pastDue,
+        dueSort,
       },
     };
   });

@@ -7,11 +7,10 @@ import cfg from './config.json';
 import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
 import { boundText, resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { PropertyIdProvider, PropertyExtrasProvider } from './propertyContext';
+import { PropertyIdProvider, PropertyExtrasProvider, ReviewsProxyProvider } from './propertyContext';
 import { CompanyIdProvider } from './companyContext';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
 import {
-  DEFAULT_FILTERS,
   FilterState,
   filterUnits,
   activeFilterCount,
@@ -31,6 +30,7 @@ import {
   writeFeatureToUrl,
   type FeatureHighlight,
 } from './featureHighlights';
+import { fetchPropertyNotes, fetchPropertyAbout, type PropertyAbout } from '@shared/internalProperties';
 import { FEATURE_PAGE_COLLECTION, fetchFeaturePageCopy } from './featurePageSource';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { FilterModal } from './components/FilterModal';
@@ -48,6 +48,7 @@ import { SIZE_FILTER_EVENT, unitMatchesSize, type SizeFilterSelection } from '@s
 import { RichText } from '@shared/richText';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { PromoTagIcon } from './components/Pricing';
+import { publishSpaceListHeading } from '@shared/spaceListHeadingBus';
 
 export function SpaceList({
   layoutMode = 'grid',
@@ -81,9 +82,9 @@ export function SpaceList({
   limitedAvailabilityCopy = '',
   startingAtLabel = 'Starting at',
   showSizeGuideVideos = true,
-  aboutTitle,
-  aboutContent,
-  notesContent,
+  // `aboutTitle` (content menu) is accepted but unread — About is the collection's alone; see collectionAbout.
+  // `aboutContent` (content menu) is accepted but unread — About is the collection's alone; see collectionAbout.
+  // `notesContent` (content menu) is accepted but unread — the Notes section is the collection's alone; see collectionNotes.
   blogCollection,
   blogBasePath,
   featureCollection = FEATURE_PAGE_COLLECTION,
@@ -92,6 +93,7 @@ export function SpaceList({
   inEditor    = false,
   elementId,
   siteId,
+  login_api_base,
   configApiUrl,
   configCollection = 'accordionConfig',
   spaceImageBaseUrl,
@@ -317,6 +319,39 @@ export function SpaceList({
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [effectivePropertyId, effectiveCompanyId, spaceGroupId, isDynamicTarget]);
+
+  /*
+   * The sidebar's NOTES come from the `PropertiesInternal` collection — the
+   * property's `notes` cell — and from NOWHERE ELSE. Undefined until the read
+   * settles, and undefined when the cell is blank or there is no dmAPI; the
+   * section is only offered while there is content (SectionAccordion). The
+   * content menu's `notesContent` is deliberately NOT a fallback: a Duda
+   * instance carries that field's default text, which put a Notes row with
+   * invented copy on every property that had none (2026-10-15).
+   */
+  const [collectionNotes, setCollectionNotes] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    fetchPropertyNotes(effectivePropertyId)
+      .then((n) => { if (!cancelled) setCollectionNotes(n); })
+      .catch((err) => console.error('[SpaceList] notes read failed:', err));
+    return () => { cancelled = true; };
+  }, [effectivePropertyId]);
+  const sidebarNotes = collectionNotes;
+  /*
+   * The ABOUT accordion likewise: `about_content_title` and
+   * `about_content_text` on PropertiesInternal. The title decides whether
+   * the row exists; the body may be empty. The content menu's aboutTitle /
+   * aboutContent are accepted but unread, for the same reason as notesContent.
+   */
+  const [collectionAbout, setCollectionAbout] = useState<PropertyAbout | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    fetchPropertyAbout(effectivePropertyId)
+      .then((a) => { if (!cancelled) setCollectionAbout(a); })
+      .catch((err) => console.error('[SpaceList] about read failed:', err));
+    return () => { cancelled = true; };
+  }, [effectivePropertyId]);
 
   useEffect(() => {
     if (effectiveCompanyId === null) return;
@@ -650,9 +685,9 @@ export function SpaceList({
       onReorderClick={() => { setSaveError(null); setReorderOpen(true); }}
       showSizeGuideVideos={showSizeGuideVideos}
       propertyExtras={propertyExtras}
-      aboutTitle={aboutTitle}
-      aboutContent={aboutContent}
-      notesContent={notesContent}
+      aboutTitle={collectionAbout?.title}
+      aboutContent={collectionAbout?.body}
+      notesContent={sidebarNotes}
       blogCollection={blogCollection}
       blogBasePath={blogBasePath}
       featureHighlights={featureHighlights}
@@ -669,9 +704,9 @@ export function SpaceList({
       inEditor={inEditor}
       showSizeGuideVideos={showSizeGuideVideos}
       propertyExtras={propertyExtras}
-      aboutTitle={aboutTitle}
-      aboutContent={aboutContent}
-      notesContent={notesContent}
+      aboutTitle={collectionAbout?.title}
+      aboutContent={collectionAbout?.body}
+      notesContent={sidebarNotes}
       blogCollection={blogCollection}
       blogBasePath={blogBasePath}
       featureHighlights={featureHighlights}
@@ -711,13 +746,9 @@ export function SpaceList({
       {panelOpen && (
         <FilterModal
           filters={filters}
-          onChange={setFilters}
-          badge={badge}
+          /* The modal works on a draft; only "Apply Filters" commits it. */
+          onApply={setFilters}
           onClose={() => setPanelOpen(false)}
-          /* Reset CLOSES as well as clearing. Both panels write straight
-             through (`onChange={setFilters}`), so there is no draft for the
-             close to discard — the cleared state is already the live one. */
-          onReset={() => { setFilters(DEFAULT_FILTERS); setPanelOpen(false); }}
           amenityOptions={amenityOptions}
           typeOptions={typeOptions}
           featureOptions={featureOptions}
@@ -735,11 +766,30 @@ export function SpaceList({
      name. */
   const authoredHeading = activeFeature ? activeFeature.heading?.trim() : boundText(propertyHeader);
   const titlePending = !authoredHeading && !propertyLabel;
+  const pageTitle = activeFeature
+    // A feature page names the feature. With no explicit heading on the row
+    // it still names the location, the way the unfiltered page does — the
+    // page really is "climate controlled units at THIS facility".
+    ? activeFeature.heading?.trim() ||
+      `${activeFeature.name} Storage Units in ${propertyLabel}`
+    : boundText(propertyHeader) ||
+      `Storage Units in ${propertyLabel}`;
+
+  /* MOBILE SHOWS THIS TOO. On phones this widget hides its title and #18
+     draws it, so #18 is told the title — otherwise the content menu's heading
+     changed desktop only. Only a title this widget KNOWS better than #18 is
+     sent: the authored heading, or a feature page's. The plain default is
+     not, so it never overrides a heading set on #18 itself. */
+  const shareTitle = !titlePending && (!!activeFeature || !!boundText(propertyHeader));
+  useEffect(() => {
+    publishSpaceListHeading(shareTitle ? pageTitle : '');
+  }, [shareTitle, pageTitle]);
 
   // Filters are always a top bar inside the listing column; the accordion panel
   // sits on whichever side apLocation specifies.
   return (
     <PropertyIdProvider propertyId={effectivePropertyId}>
+    <ReviewsProxyProvider siteId={siteId ?? ''} base={login_api_base ?? ''}>
     <PropertyExtrasProvider extras={propertyExtras}>
      <CompanyIdProvider companyId={effectiveCompanyId ?? ''}>
     <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
@@ -761,16 +811,7 @@ export function SpaceList({
         {titlePending ? (
           <div className="sl-title-skeleton" aria-hidden="true" />
         ) : (
-        <h1 className="sl-page-title">
-          {activeFeature
-            // A feature page names the feature. With no explicit heading on the row
-            // it still names the location, the way the unfiltered page does — the
-            // page really is "climate controlled units at THIS facility".
-            ? activeFeature.heading?.trim() ||
-              `${activeFeature.name} Storage Units in ${propertyLabel}`
-            : boundText(propertyHeader) ||
-              `Storage Units in ${propertyLabel}`}
-        </h1>
+        <h1 className="sl-page-title">{pageTitle}</h1>
         )}
       </div>
       )}
@@ -850,6 +891,7 @@ export function SpaceList({
     </div>
      </CompanyIdProvider>
     </PropertyExtrasProvider>
+    </ReviewsProxyProvider>
     </PropertyIdProvider>
   );
 }

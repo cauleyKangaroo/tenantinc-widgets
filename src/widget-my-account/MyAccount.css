@@ -85,7 +85,7 @@
 
 .ma-greeting {
   grid-column: 1 !important;
-  font-size: 36px !important;
+  font-size: 34px !important;
   font-weight: 600 !important;
   line-height: 1.2 !important;
   letter-spacing: -0.02em !important;
@@ -133,6 +133,39 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+/* DESKTOP (two columns): the spaces column scrolls on its own. With more spaces
+   than the account panel is tall, it used to run on far below it; now it pins
+   to the top of the window and scrolls inside itself, while the account panel
+   scrolls with the page — each independently.
+   - sticky + max-height of the window: the list never outgrows the screen, and
+     its scrollbar only appears when the spaces do not fit (overflow-y: auto).
+     The grid's `align-items: start` is what lets it stick.
+   - The 16px padding is room for the cards' shadow and selected outline, which
+     a scroll box would otherwise clip; the equal negative margin cancels it,
+     so at rest nothing moves.
+   - overscroll-behavior: reaching either end of the list does not hand the
+     scroll on to the page.
+   Stacked layouts (≤1180px) are untouched: one column, the page scrolls. */
+@media (min-width: 1181px) {
+  .ma-side {
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: -16px;
+    padding: 16px;
+    /* Scrolls (wheel, trackpad, touch, keyboard) with no visible system
+       scrollbar: Firefox here, WebKit/Blink in the rule below. */
+    scrollbar-width: none;
+  }
+  .ma-side::-webkit-scrollbar { display: none; }
+  /* .ma-side is a flex column, and flex items SHRINK to fit a capped
+     container by default — so the property card was squeezed (and, being
+     overflow: hidden, cut off mid-unit) instead of the column scrolling. Every
+     card and the "+ Add a Space" button keep their natural height. */
+  .ma-side > * { flex-shrink: 0; }
 }
 
 /* Kit buttons at the frame's 40px. The token above does the height; this only
@@ -375,10 +408,13 @@
   background: rgba(80, 158, 47, 0.11);
 }
 
+/* As the site's error tag: #f3e7e9, 12 / 39 / 12 / 15, 10px icon gap, 10px
+   radius, the alert mark beside the title and its sub-line. */
 .ma-result--failed {
-  padding: 41px 43px 42px 107px;
-  background: rgba(229, 57, 53, 0.1);
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
 }
+.ma-result__alert { flex: 0 0 auto; color: #d32f2f; }
+.ma-result__failed-text { min-width: 0; }
 
 .ma-result__top {
   display: grid;
@@ -459,7 +495,6 @@
   .ma-pay--result { padding-top: 25px; }
   .ma-result { margin-bottom: 28px; }
   .ma-result--success { padding: 20px 16px; }
-  .ma-result--failed { padding: 20px 16px; }
   .ma-result__top { grid-template-columns: 40px 1fr; column-gap: 10px; }
   .ma-result__tick { width: 40px; height: 40px; }
   .ma-result__text { padding-top: 4px; }
@@ -551,7 +586,10 @@
 /* Outcome of a coverage call: what is now scheduled, or why it was refused.
    The error colour is the kit's, so it reads like every other refusal. */
 .ma-coverage-note { margin: 6px 0 2px; font-size: 14px; line-height: 20px; color: var(--hb-grayscale-medium, #637381); }
-.ma-coverage-note--error { color: var(--hb-ada-red, #d73632); }
+.ma-coverage-note--error {
+  color: var(--hb-ada-red, #d32f2f);
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
+}
 
 .ma-coverage__price { flex: 0 0 63px; }
 
@@ -786,6 +824,43 @@
   color: #000;
 }
 .ma-method--outline:hover { background: var(--ma-panel); }
+
+/* Apple Pay / Google Pay — #99's buttons in this grid, with the rules they
+   carry in RentalFlow2Step.css: 64px, 12px radius, Google's host sized for
+   its SDK button, Apple's black with Google's own hover/pressed greys. A
+   wallet left on its own (the other declined) takes the whole row rather
+   than pairing with Credit / Debit. Mirrors the rental flow, not restyled. */
+.ma-methods .rf2-pay {
+  height: 64px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  border-radius: 12px;
+  font: 500 20px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+}
+.ma-methods .rf2-pay--dark,
+.ma-methods .rf2-pay--dark:hover,
+.ma-methods .rf2-pay--dark:focus,
+.ma-methods .rf2-pay--dark:active { background: #101318 !important; color: #fff; border: none; filter: none; }
+.ma-methods .rf2-pay svg { flex: 0 0 auto; }
+.ma-methods .rf2-wallet--google { height: 64px; min-width: 0; }
+.ma-methods .rf2-wallet--google > * { width: 100%; height: 100%; }
+.ma-methods .rf2-pay.rf2-wallet--apple { cursor: pointer !important; transition: background-color .15s ease; }
+.ma-methods .rf2-pay.rf2-wallet--apple,
+.ma-methods .rf2-pay.rf2-wallet--apple:focus { background: #000 !important; }
+.ma-methods .rf2-pay.rf2-wallet--apple:hover { background: #3c4043 !important; }
+.ma-methods .rf2-pay.rf2-wallet--apple:active { background: #5f6368 !important; }
+.ma-methods .rf2-pay.rf2-wallet--apple:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
+.ma-methods > .rf2-wallet:first-child:not(:has(+ .rf2-wallet)):not(:has(~ .ma-method)) { grid-column: 1 / -1; }
+.ma-methods:empty { display: none; }
+.ma-pay__notice.ma-pay__notice--error {
+  color: var(--hb-ada-red, #d32f2f);
+  /* The error tag; its 16px top clearance was the notice's own top padding. */
+  margin-top: 16px;
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
+}
+/* The 24px alert mark on every My Account error tag. */
+.ma-alert-ico { flex: 0 0 auto; color: var(--hb-ada-red, #d32f2f); }
 
 /* Apple's lockup is currentColor, so the dark tile's white carries it. */
 .ma-applepay {
@@ -1096,7 +1171,7 @@
 }
 
 .ma-account__title {
-  font-size: 36px !important;
+  font-size: 24px !important;
   font-weight: 600 !important;
   line-height: 1.2 !important;
   color: var(--hb-text-night) !important;
@@ -1140,11 +1215,25 @@
    is better off on its own row, which is exactly what this basis triggers. */
 .ma-account__col--docs { flex: 1 1 272px; min-width: 0; }
 
-.ma-account__alt {
-  width: 367px;
-  max-width: 100%;
+/* Alternate | Emergency — the same wrap-not-breakpoint arrangement as the
+   columns above, so on a narrow panel the emergency block drops under the
+   alternate instead of squeezing beside it. */
+.ma-account__secondaries {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 28px 61px;
   margin-top: 29px;
 }
+
+.ma-account__alt {
+  flex: 0 1 367px;
+  min-width: 0;
+  max-width: 100%;
+}
+/* The emergency block takes the Documents column's basis, so it sits beside
+   the alternate exactly where Documents sits beside Primary Contact. */
+.ma-account__alt--emergency { flex: 1 1 272px; }
 
 .ma-account__label {
   margin: 0 0 16px !important;
@@ -1181,7 +1270,7 @@
 
 .ma-info__text {
   min-width: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
   color: var(--hb-text-night);
@@ -1213,7 +1302,7 @@
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
   color: var(--hb-text-night);
@@ -1735,7 +1824,8 @@
    stretching the row. */
 .ma-edit__error {
   margin: 0 auto 0 0;
-  color: var(--hb-ada-red, #C8102E);
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
+  color: var(--hb-ada-red, #d32f2f);
   font-size: 14px;
   line-height: 1.4;
   max-width: 48ch;
@@ -1820,13 +1910,14 @@
   .ma-pay__head { margin-bottom: 24px; }
 
   .ma-account__body { padding: 24px 20px; }
-  .ma-account__title { font-size: 28px !important; }
+  .ma-account__title { font-size: 22px !important; }
   /* NOT flex-direction: column any more. The columns wrap on their own now (see
      .ma-account__cols), and in a column-direction container a flex-basis is a
      HEIGHT — the 367px basis would have become a 367px-tall contact block.
      Full width is asked for as a basis for the same reason. */
   .ma-account__col--contact { flex: 1 1 100%; }
-  .ma-account__alt { width: 100%; }
+  .ma-account__alt,
+  .ma-account__alt--emergency { flex: 1 1 100%; }
 
   .ma-edit__body { padding: 24px 20px; }
   .ma-edit__title { font-size: 28px !important; }
@@ -2200,3 +2291,69 @@
 .ma-sheet__item + .ma-sheet__item { border-top: 1px solid #e3e8ef; }
 .ma-sheet__item:active { background: #f4f6f8; }
 .ma-sheet__item:focus-visible { outline: none; box-shadow: inset 0 0 0 3px rgba(16, 19, 24, 0.18); }
+
+/* ── Confirm dialog (apply an alternate / emergency contact to all spaces) ── */
+.ma-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(16, 19, 24, 0.4);
+}
+.ma-confirm {
+  width: 100%;
+  max-width: 460px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(16, 19, 24, 0.24);
+  overflow: hidden;
+  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+}
+.ma-confirm__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--hb-cloud-darker, #dfe3e8);
+}
+.ma-confirm__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #101318;
+}
+.ma-confirm__warn { width: 20px; height: 20px; flex: 0 0 auto; }
+.ma-confirm__close {
+  display: flex;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: #101318;
+  cursor: pointer;
+}
+.ma-confirm__body { padding: 20px; }
+.ma-confirm__lede { margin: 0 0 16px; font-size: 14px; line-height: 20px; color: #101318; }
+.ma-confirm__list { margin: 0; }
+.ma-confirm__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--hb-cloud-darker, #dfe3e8);
+}
+.ma-confirm__ok {
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 8px;
+  background: #101318;
+  color: #fff;
+  font: 700 14px/16px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  cursor: pointer;
+}

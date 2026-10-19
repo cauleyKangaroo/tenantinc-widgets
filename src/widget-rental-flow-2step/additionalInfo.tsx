@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { FormField, SelectField, isPossiblePhone } from '@shared/ui';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { FormField, SelectField, capitalizeFirst, isPossiblePhone } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import {
   COUNTRY_OPTIONS, placesCountryFor, postalCodeOk, postalLabel, regionLabel,
@@ -49,7 +49,9 @@ export interface ExtraFieldValues {
 
 export const EMPTY_EXTRA_FIELDS: ExtraFieldValues = {
   dob: '',
-  altFirst: '', altLast: '', altPhone: '', altEmail: '', altCountry: '', altAddress: '',
+  // Country starts on United States (still changeable), so the address lookup
+  // beside it is ready straight away.
+  altFirst: '', altLast: '', altPhone: '', altEmail: '', altCountry: 'United States', altAddress: '',
   altCity: '', altState: '', altZip: '',
   vType: '', make: '', model: '', year: '', colour: '', plate: '', country: '', stateVal: '',
 };
@@ -179,7 +181,7 @@ export function extraFieldProblems(
  * place and style as every other field.
  */
 export function Select({
-  label, value, onChange, options, required, error,
+  label, value, onChange, options, required, error, state = 'default',
 }: {
   label: string;
   value: string;
@@ -189,20 +191,67 @@ export function Select({
   /** Rendered by the FormField face below, so a select's message sits in the
    *  same place and style as every other field's. */
   error?: string;
+  /** 'success' draws the valid (green) border — as @shared/ui SelectField:
+   *  border only, no tick, which would sit on the chevron. */
+  state?: 'default' | 'success';
 }) {
+  /* The list is our own menu, the same one the Protection / Key-share plan
+     controls open (.rf2-plan-menu / .rf2-plan-opt), rather than the browser's
+     native picker, which every OS draws differently. The closed field is
+     unchanged: a transparent trigger over the FormField face. Closes on a pick,
+     an outside click or Escape. */
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   return (
-    <div className="rf-select">
-      <label className="rf-select-native">
-        <span className="rf-sr-only">{label}</span>
-        <select value={value} onChange={(e) => onChange(e.target.value)} required={required}>
-          <option value="">{`Select ${label}`}</option>
-          {options.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
-      </label>
+    <div className="rf-select rf-select--menu" ref={wrapRef}>
+      <button
+        type="button"
+        className="rf-select-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={value ? `${label}: ${value}` : `Select ${label}`}
+        aria-required={required || undefined}
+        onClick={() => setOpen((o) => !o)}
+      />
       <div className="rf-select-face" aria-hidden="true">
-        <FormField label={label} required={required} value={value} onChange={() => {}} error={error} />
-        <ChevronBig size={24} className="rf-select-chev" />
+        <FormField
+          label={label} required={required} value={value} onChange={() => {}} error={error}
+          className={state === 'success' ? 'rf-valid' : undefined}
+        />
+        <ChevronBig size={24} className={`rf-select-chev${open ? ' rf-select-chev--up' : ''}`} />
       </div>
+      {open && (
+        <div className="rf2-plan-menu rf-select-menu" role="listbox" aria-label={label}>
+          {options.map((o, i) => (
+            <Fragment key={o}>
+              {i > 0 && <span className="rf2-plan-sep" aria-hidden="true" />}
+              <button
+                type="button"
+                role="option"
+                aria-selected={value === o}
+                className={`rf2-plan-opt${value === o ? ' rf-select-opt--on' : ''}`}
+                onClick={() => { onChange(o); setOpen(false); }}
+              >
+                <span className="rf2-plan-opt-cov"><b>{o}</b></span>
+              </button>
+            </Fragment>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -275,9 +324,9 @@ export function AltContactFields({ v, set, bad, validated, primary }: GroupProps
   return (
     <div className="rf-sx-fields">
       <div className="rf-pay-grid">
-        <FormField label="First Name" required value={v.altFirst} onChange={(altFirst) => set({ altFirst })}
+        <FormField label="First Name" required value={v.altFirst} onChange={(altFirst) => set({ altFirst: capitalizeFirst(altFirst) })}
           error={e.first} state={okState(validated, e.first, filled(v.altFirst))} />
-        <FormField label="Last Name" required value={v.altLast} onChange={(altLast) => set({ altLast })}
+        <FormField label="Last Name" required value={v.altLast} onChange={(altLast) => set({ altLast: capitalizeFirst(altLast) })}
           error={e.last} state={okState(validated, e.last, filled(v.altLast))} />
         <FormField label="Phone" required type="tel" value={v.altPhone} onChange={(altPhone) => set({ altPhone })}
           error={e.phone} state={okState(validated, e.phone, isPossiblePhone(v.altPhone, 'US'))} />
@@ -348,6 +397,7 @@ export function VehicleFields({ v, set, bad, validated }: GroupProps) {
         label="Vehicle Type" required value={v.vType} onChange={(vType) => set({ vType })}
         options={['Car', 'Motorcycle', 'RV', 'Boat', 'Trailer']}
         error={err}
+        state={okState(validated, err, filled(v.vType))}
       />
       <div className="rf-pay-grid">
         {/* Make/Model/Year/Colour/Plate are NOT required in the frame —
@@ -362,9 +412,11 @@ export function VehicleFields({ v, set, bad, validated }: GroupProps) {
           state={okState(validated, undefined, filled(v.colour))} />
         <FormField label="License Plate Number" value={v.plate} onChange={(plate) => set({ plate })}
           state={okState(validated, undefined, filled(v.plate))} />
-        <Select label="Country" value={v.country} onChange={(country) => set({ country })} options={['United States', 'Canada']} />
+        <Select label="Country" value={v.country} onChange={(country) => set({ country })} options={['United States', 'Canada']}
+          state={okState(validated, undefined, filled(v.country))} />
       </div>
-      <Select label="State" value={v.stateVal} onChange={(stateVal) => set({ stateVal })} options={['California', 'Arizona', 'Nevada', 'Texas']} />
+      <Select label="State" value={v.stateVal} onChange={(stateVal) => set({ stateVal })} options={['California', 'Arizona', 'Nevada', 'Texas']}
+        state={okState(validated, undefined, filled(v.stateVal))} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { createApiCredsStore, type ApiCredProps, type ApiCreds } from '@shared/a
 import { memoGet, memoInvalidate, MEMO_TTL } from '@shared/requestMemo';
 import { normalizePhone } from '@shared/ui/phone';
 import { cardBrand } from './gpTokenize';
+import { leaseIdvProblem } from './idvLinking';
 
 /**
  * "2026-08-21" -> "08/21/2026", the format the rail's frame prints
@@ -1607,7 +1608,18 @@ async function reserveViaEdge(ctx: RentalCtx, args: ReserveArgs): Promise<Reserv
  */
 export const RESERVATION_CODE_TIMEOUT_MS = 5000;
 
+/** The reservation's code and its reserving contact's id, in one read. */
+export interface ReservationRecord {
+  code?: string;
+  /** Lease.Tenants[0].contact_id — the contact the reservation was made for. */
+  contactId?: string;
+}
+
 export async function fetchReservationCode(ctx: RentalCtx, reservationId: string): Promise<string | undefined> {
+  return (await fetchReservationRecord(ctx, reservationId))?.code;
+}
+
+export async function fetchReservationRecord(ctx: RentalCtx, reservationId: string): Promise<ReservationRecord | undefined> {
   if (!ctx.companyId || !reservationId) return undefined;
   const { baseUrl, appId } = creds();
   const controller = new AbortController();
@@ -1627,7 +1639,16 @@ export async function fetchReservationCode(ctx: RentalCtx, reservationId: string
     }
     const d = inner.data as Record<string, unknown>;
     const r = (d.reservation ?? d) as Record<string, unknown>;
-    return typeof r.code === 'string' && r.code.trim() ? r.code.trim() : undefined;
+    const lease = (r.Lease ?? {}) as Record<string, unknown>;
+    const tenant = ((lease.Tenants as Array<Record<string, unknown>> | undefined) ?? [])[0];
+    const contactRec = (tenant?.Contact ?? {}) as Record<string, unknown>;
+    const contactId = typeof tenant?.contact_id === 'string' && tenant.contact_id.trim()
+      ? tenant.contact_id.trim()
+      : (typeof contactRec.id === 'string' ? contactRec.id.trim() : '');
+    return {
+      code: typeof r.code === 'string' && r.code.trim() ? r.code.trim() : undefined,
+      contactId: contactId || undefined,
+    };
   } catch (err) {
     console.warn('[rental] reservation lookup failed:', err);
     return undefined;
@@ -1790,6 +1811,14 @@ export interface RentAddress {
 }
 
 export interface RentContact extends RentAddress {
+  /**
+   * The EXISTING contact record this rental is for — set when a reservation
+   * is being completed (the reserving contact, from the reservation record).
+   * Sent as the contact's `id` so the lease joins that record instead of
+   * creating a second contact from the typed details. Absent on a fresh
+   * rental.
+   */
+  contactId?: string;
   first: string;
   last: string;
   email: string;
@@ -1985,6 +2014,10 @@ export interface RentArgs {
   noticeDelivery?: 'hand_delivery' | 'email' | 'mail';
   /** Military / alternate-contact / vehicle sections, when the shopper opened them. */
   extras?: RentalExtras;
+  /** A verification completed before payment (one-step); links it to the new lease. */
+  idvId?: string;
+  /** Required one-step verification must have a valid linking ID before any write. */
+  idvRequired?: boolean;
 }
 
 export type RentStage = 'documents' | 'lease' | 'autopay';
@@ -1993,9 +2026,6 @@ export type RentResult =
   | {
     ok: true;
     leaseId: string;
-    /** The agreement being generated against the lease, in the background
-     *  (generateLeaseDocument) — resolves true once it has. */
-    documentGeneration?: Promise<boolean>;
     paymentId?: string;
     paymentMethodId?: string;
     unitNumber?: string;
@@ -2014,6 +2044,8 @@ export type RentResult =
 /** The `contacts` array both calls take. Phones are E.164 with the type lowercase. */
 function rentContacts(c: RentContact, extras?: RentalExtras): unknown[] {
   const contact: Record<string, unknown> = {
+    // The reserving contact's record, when completing a reservation.
+    ...(c.contactId?.trim() ? { id: c.contactId.trim() } : {}),
     first: c.first,
     last: c.last,
     email: c.email,
@@ -2095,37 +2127,30 @@ function vehicleInfo(extras?: RentalExtras): Record<string, unknown> | undefined
 
 /** The `payment_method` object. Card only — ACH is not wired yet. */
 /**
- * Stand-in card for the hosted-fields path.
- *
- * Hosted fields keep the real PAN and expiry inside Global Payments' iframe —
- * that is their entire purpose — but API 10 CHARGES the card, so it rejects
- * anything that is not a chargeable number. Verified 2026-08-25: a masked
- * number clears API 9's presence check and is then declined at API 10 with
- * "Issuer Rejection: 6 - The credit card number is invalid."
- *
- * So the real card is represented by its real `token`, and these digits ride
- * along to satisfy the charge. The expiry is the test card's own, because an
- * expiry belonging to a different card would be incoherent beside this number.
- *
- * THIS IS THE ONE PLACE TO CHANGE when TenantInc accepts a token in place of
- * card_number/cvv2: send `card.maskedCardNumber` and an empty cvv2 instead.
+ * NO STAND-IN CARD ANY MORE (2026-10-16). The hosted-fields path used to send
+ * a fixed test PAN (4111…) and test expiry beside the real token. At
+ * TenantInc's instruction it now goes over as `type: 'hosted-card'`: the
+ * single-use `token`, the gateway's MASK as `card_number`, and the REAL
+ * expiry and CVV — both typed into fields of ours, since the gateway's token
+ * reply carries neither and the API requires exp_mo / exp_yr (the live
+ * finalize rejected their absence, 2026-10-16). The typed-card path
+ * (non-hosted gateways) is unchanged: `type: 'card'` with the real digits.
  */
-const HOSTED_FIELDS_STAND_IN = { number: '4111111111111111', expMonth: '09', expYear: '2027' };
-
 function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<string, unknown> {
   const parts = card.nameOnCard.trim().split(/\s+/);
   // No PAN ⇒ hosted fields collected it and never handed it over.
   const typed = card.cardNumber.replace(/\D/g, '');
   const hosted = !typed;
-  const number = hosted ? HOSTED_FIELDS_STAND_IN.number : typed;
+  const number = hosted ? (card.maskedCardNumber ?? '') : typed;
   const body: Record<string, unknown> = {
-    type: 'card',
+    type: hosted ? 'hosted-card' : 'card',
     card_number: number,
     // The shopper's real CVV either way — hosted fields never capture it, so
-    // it is still typed into a field of ours.
+    // it is typed into a field of ours.
     cvv2: card.cvv,
-    exp_mo: hosted ? HOSTED_FIELDS_STAND_IN.expMonth : card.expMonth,
-    exp_yr: hosted ? HOSTED_FIELDS_STAND_IN.expYear : card.expYear,
+    // The real expiry, typed into our own cell in both modes.
+    exp_mo: card.expMonth,
+    exp_yr: card.expYear,
     name_on_card: card.nameOnCard,
     first: parts[0] ?? '',
     last: parts.slice(1).join(' ') || (parts[0] ?? ''),
@@ -2341,9 +2366,15 @@ function documentsBody(args: DocumentPreviewArgs): Record<string, unknown> {
 }
 
 /**
- * @deprecated Not called since 2026-10-14 — the lease is created without
- * documents and the agreement generated afterwards (generateLeaseDocument).
- * Kept exported in case the signing-first path is ever wanted again.
+ * API 9 — sign the documents and get the set the lease is made from.
+ *
+ * BACK IN THE SEQUENCE (2026-10-16, at TenantInc's request). For two days
+ * the lease was created without documents and the agreement generated
+ * against it afterwards (`…/leases/{lease}/documents/{doc}/generate`); that
+ * call is gone again and this one is awaited BEFORE the lease, as it was.
+ * The "finalizing" screen therefore holds for the whole of it: the bar
+ * creeps toward its cap while the request is out and completes only when
+ * the response is in (ProcessingModal, `waiting`).
  */
 export async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise<LeaseDocumentRef[]> {
   const body = documentsBody(args);
@@ -2378,16 +2409,16 @@ export async function finalizeDocuments(ctx: RentalCtx, args: RentArgs): Promise
 /**
  * API 10 — finalize the lease and take the move-in payment.
  *
- * NO `documents` ANY MORE. The lease used to be made from the signed set
- * documents/finalize returned; TenantInc's change (2026-10-14) is that the
- * lease is created first, on its own, and the agreement is generated
- * AFTERWARDS against it — see generateLeaseDocument. So finalize is not
- * called and the body carries no documents array.
+ * `documents` is the signed set documents/finalize (API 9) returned — the
+ * lease is made FROM it, which is why that call comes first and is awaited.
  */
 async function finalizeLease(
-  ctx: RentalCtx, args: RentArgs,
+  ctx: RentalCtx, args: RentArgs, documents: LeaseDocumentRef[],
 ): Promise<{ leaseId: string; paymentId?: string; paymentMethodId?: string; accessCode?: string; contactId?: string; status?: string }> {
+  const idvProblem = leaseIdvProblem(args.idvId, args.idvRequired);
+  if (idvProblem) throw new Error(idvProblem);
   const body: Record<string, unknown> = {
+    documents,
     contacts: rentContacts(args.contact, args.extras),
     payment_method: paymentMethodFor(args),
     start_date: args.startDate,
@@ -2403,6 +2434,8 @@ async function finalizeLease(
   if (args.promotionIds?.length) {
     body.promotions = args.promotionIds.map((id) => ({ promotion_id: id }));
   }
+  // Raw idv id ("idv" + 32 hex), never hash-encoded.
+  if (args.idvId) body.idv_id = args.idvId;
 
   const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/lease`, body);
   if (inner.status !== 200 || !inner.data) {
@@ -2431,45 +2464,6 @@ async function finalizeLease(
 }
 
 /** API 11 — enrol the saved card for recurring rent. */
-/**
- * Generate the lease agreement AGAINST the lease that now exists.
- *
- *   GET v1/companies/{co}/leases/{lease}/documents/{doc}/generate
- *       ?type=super-lease&contact_id={tenant contact}&property_id={property}
- *     → { message: "Document successfully generated", name: "Superlease" }
- *
- * `doc` is the property's super-lease document (fetchLeaseDocument), `type`
- * is that document's type, `contact_id` is tenants[0].contact_id from the
- * lease reply. Verified live 2026-10-14: 200 in ~7s on an active lease.
- *
- * Never throws: by now the customer has a lease and has paid, and a document
- * that failed to generate is the office's to regenerate — not a failed
- * rental. Runs in the background after the lease; the outcome is logged and
- * handed back as `documentGeneration` (a promise) on the result.
- */
-export async function generateLeaseDocument(
-  ctx: RentalCtx,
-  args: { leaseId: string; documentId: string; type: string; contactId: string; propertyId: string },
-): Promise<boolean> {
-  const { baseUrl, appId } = creds();
-  const q = new URLSearchParams({ type: args.type, contact_id: args.contactId, property_id: args.propertyId });
-  const url = `${baseUrl}/applications/${appId}/v1/companies/${encodeURIComponent(ctx.companyId)}`
-    + `/leases/${encodeURIComponent(args.leaseId)}/documents/${encodeURIComponent(args.documentId)}/generate?${q}`;
-  try {
-    const res = await fetch(url, { headers: headers() });
-    const env = await res.json().catch(() => undefined) as { applicationData?: Record<string, InnerResult[]> } | undefined;
-    const inner = env?.applicationData?.[appId]?.[0];
-    if (!res.ok || inner?.status !== 200) {
-      console.warn('[rental] lease document generate rejected:', inner?.status ?? res.status, inner?.msg ?? '');
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.warn('[rental] lease document generate failed:', err);
-    return false;
-  }
-}
-
 async function enableAutopay(ctx: RentalCtx, leaseId: string, paymentMethodId: string): Promise<boolean> {
   const inner = await sendV1(
     'PUT', `companies/${ctx.companyId}/leases/${leaseId}/payment-methods/${paymentMethodId}/autopay`, {},
@@ -2487,6 +2481,8 @@ async function enableAutopay(ctx: RentalCtx, leaseId: string, paymentMethodId: s
  * enrolment did not.
  */
 export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentResult> {
+  const idvProblem = leaseIdvProblem(args.idvId, args.idvRequired);
+  if (idvProblem) return { ok: false, error: idvProblem, stage: 'documents' };
   if (!writesEnabled(ctx)) {
     return { ok: false, error: 'Rentals are not configured for this site.', stage: 'documents' };
   }
@@ -2509,51 +2505,26 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
   const a: RentArgs = { ...args, contact: { ...args.contact, phone: phoneE164 } };
 
   /*
-   * A property with no super-lease cannot complete a rental online: that is
-   * the "Traditional signing" case documents/finalize used to refuse, and
-   * the refusal moves here, BEFORE the lease is made and the card charged —
-   * a lease nobody can sign for must not exist. Bellflower is one such
-   * property today (2026-10-14).
+   * Documents first, then the lease made from them — the original order,
+   * restored 2026-10-16 at TenantInc's request (see finalizeDocuments). A
+   * property on Traditional signing is refused HERE, before any lease exists
+   * or a card is charged: finalize returns the set unsigned and the helper
+   * throws the in-person message.
    */
-  const leaseDoc = await fetchLeaseDocument(ctx).catch(() => undefined);
-  if (!leaseDoc || leaseDoc.type !== 'super-lease') {
-    console.error('[rental] no super-lease document on this property — online rental refused.', leaseDoc);
-    return {
-      ok: false,
-      stage: 'documents',
-      error: 'This facility requires the lease to be signed in person. Please contact the office to finish your rental.',
-    };
+  let documents: LeaseDocumentRef[];
+  try {
+    documents = await finalizeDocuments(ctx, a);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err), stage: 'documents' };
   }
 
-  /*
-   * The lease FIRST, with no documents — documents/finalize is not called any
-   * more (TenantInc, 2026-10-14). The agreement is generated against the new
-   * lease straight after, from the property's super-lease document.
-   */
   let lease: Awaited<ReturnType<typeof finalizeLease>>;
   try {
-    lease = await finalizeLease(ctx, a);
+    lease = await finalizeLease(ctx, a, documents);
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err), stage: 'lease' };
   }
   memoInvalidate('units/available');
-
-  /*
-   * NOT AWAITED. Generation takes ~7s (measured live 2026-10-14) and the
-   * customer is already a tenant: holding the "finalizing" screen for it
-   * made the loader look stuck for exactly that long once finalize was gone.
-   * It runs in the background; the outcome is logged and handed back as a
-   * promise for anything that does want to wait for it.
-   */
-  const documentGeneration: Promise<boolean> = !lease.contactId
-    ? (console.warn('[rental] lease created but the reply named no tenant contact — the agreement was not generated.'), Promise.resolve(false))
-    : generateLeaseDocument(ctx, {
-      leaseId: lease.leaseId, documentId: leaseDoc.id, type: leaseDoc.type,
-      contactId: lease.contactId, propertyId: ctx.propertyId,
-    }).then((ok) => {
-      if (!ok) console.warn('[rental] lease created but the agreement did not generate — the office can regenerate it.');
-      return ok;
-    });
 
   // The rental is DONE at this point. Autopay is an add-on: a failure here is
   // reported alongside success, never as a failed rental.
@@ -2577,7 +2548,6 @@ export async function rentSpace(ctx: RentalCtx, args: RentArgs): Promise<RentRes
     status: lease.status,
     unitNumber: a.unit.number,
     autopay,
-    documentGeneration,
   };
 }
 
@@ -2766,6 +2736,11 @@ export async function createBulkPayment(
 
 // --- Contact update (post-lease details) ------------------------------------
 //
+// FALLBACK PATH (2026-10-15). With `login_api_base` set the widget files these
+// through the proxy instead — PATCH /api/tenant/contacts/{contactId}, see
+// contactPatch.ts — which also carries the alternate contact. This direct
+// PUT remains for a page with no proxy base (harness, editor, older sites).
+//
 // PUT companies/{co}/contacts/{contactId}. NOT in the rental-flow guide —
 // found by probing and verified against the sandbox 2026-08-21, which is why
 // what it does and does NOT accept is written down here rather than assumed.
@@ -2868,7 +2843,7 @@ export async function updateContactDetails(
  *
  * `tenant_payments` is the Global Payments hosted-fields path: the PAN is typed
  * into GP's iframe, never reaches us, and the payload carries the token plus
- * the stand-in digits API 10 needs to charge (see HOSTED_FIELDS_STAND_IN).
+ * the gateway's mask as card_number (see cardPaymentMethod).
  *
  * Anything else — `authorizenet` today — has no hosted-fields integration, so
  * the property collects the card in our own inputs and the REAL number, expiry
@@ -2932,6 +2907,26 @@ function readGateway(raw: unknown): PaymentGateway | null {
  * to a property that is not on GP cannot take a payment at all.
  */
 export async function fetchPaymentGateway(ctx: RentalCtx): Promise<PaymentGateway | null> {
+  return (await fetchPaymentGatewayInfo(ctx))?.gateway ?? null;
+}
+
+/** The gateway AND its Global Payments public key, from the same reply. */
+export interface PaymentGatewayInfo {
+  gateway: PaymentGateway | null;
+  /** `public_api_key` — the property's own GP public key ("pkapi_prod_…" on a
+   *  live site, "pkapi_cert_…" on the sandbox); '' when the reply has none. */
+  publicKey: string;
+}
+
+/**
+ * The gateway reply in full. THE KEY COMES FROM HERE (2026-10-16): the flow
+ * used to mount the hosted fields with the key baked into config.json — the
+ * sandbox cert key — on every site, so a production property tokenized
+ * against the wrong account. `public_api_key` is per property, which is what
+ * the gateway lookup is for. config.json's key is the fallback only when the
+ * reply carries none.
+ */
+export async function fetchPaymentGatewayInfo(ctx: RentalCtx): Promise<PaymentGatewayInfo | null> {
   if (!ctx.companyId || !ctx.propertyId) return null;
   try {
     const res = await fetch(
@@ -2950,8 +2945,9 @@ export async function fetchPaymentGateway(ctx: RentalCtx): Promise<PaymentGatewa
       console.warn('[rental] gateway lookup rejected:', inner?.status, inner?.msg);
       return null;
     }
-    const raw = (inner.data as { gateway?: unknown } | undefined)?.gateway;
-    return readGateway(raw);
+    const data = inner.data as { gateway?: unknown; public_api_key?: unknown } | undefined;
+    const publicKey = typeof data?.public_api_key === 'string' ? data.public_api_key.trim() : '';
+    return { gateway: readGateway(data?.gateway), publicKey };
   } catch (err) {
     console.warn('[rental] gateway lookup threw:', err);
     return null;

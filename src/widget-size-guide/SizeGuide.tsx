@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import './SizeGuide.css';
 import { ChevronRight, PlayButton } from './icons';
 import { SIZE_IMAGES, cover } from '@shared/demoImages';
-import { fetchSizes, groupSizesByLabel } from '@shared/sizesCollection';
+import { fetchSizes, groupSizesByLabel, formatSizeDimensions } from '@shared/sizesCollection';
 import { Shimmer } from '@shared/Shimmer';
 import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
@@ -136,7 +136,9 @@ export function SizeGuide({
           label: b.label,
           units: b.items.map((s, i) => ({
             id: s.id,
-            title: s.name || s.dimensionsLabel,
+            // The API sends sizes as "5x10"; shown as "5’ x 10’" (a name like
+            // "Storage Locker" passes through untouched).
+            title: s.name ? formatSizeDimensions(s.name) : s.dimensionsLabel,
             dims: s.dimensions,
             // thumbnailImage is empty on every row so far, so fall back to the
             // bundled demo art rather than rendering an empty tile.

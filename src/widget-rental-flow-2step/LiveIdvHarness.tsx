@@ -65,7 +65,7 @@ export function LiveIdvHarness() {
       <h2>ID Verification Integration Harness</h2>
       <p>
         Fixed scope: <code>{DEV_COMPANY_ID}</code> / <code>{DEV_PROPERTY_ID}</code>.
-        A contact ID is optional; leave it blank to test start and poll without the completed-contact lookup.
+        A contact ID is optional; it only keys the saved session.
       </p>
       <div className="rf-live-idv__grid">
         <label>First name<input value={first} onChange={(event) => setFirst(event.target.value)} /></label>

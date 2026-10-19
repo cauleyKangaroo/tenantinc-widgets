@@ -214,6 +214,9 @@ export interface SpaceListProps extends ApiCredProps {
   elementId?: string;
   /** Duda's site id (data.siteId). */
   siteId?: string;
+  /** The proxy that answers /api/reviews/{google,yelp}/fetch — the same base
+   *  #19 My Account takes. Feeds the sidebar's Reviews section. */
+  login_api_base?: string;
   /**
    * Override for where operator size artwork lives. Empty (the normal case)
    * derives it from `siteId`:
