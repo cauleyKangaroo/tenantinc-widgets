@@ -8,6 +8,7 @@ import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
 import storageLocker from './assets/storage-locker.png';
 import { emitShowSize } from '@shared/sizeFilterBus';
+import { VideoModal, isPlayableVideoId } from '@shared/components/VideoModal';
 
 // ---------------------------------------------------------------------------
 // Types + demo data
@@ -18,8 +19,10 @@ interface SizeUnit {
   title: string;
   /** Raw dimensions ("5 x 10") — what "See Available Spaces" filters #05 to. */
   dims?: string;
-  /** CSS gradient placeholder until live video thumbnails are wired in. */
+  /** The card's picture — the row's thumbnail, else bundled demo art. */
   image: string;
+  /** Wistia id from the Sizes row; the thumbnail plays it in a popup. */
+  videoId?: string;
 }
 
 interface Category {
@@ -76,12 +79,30 @@ const CARDS_PER_PAGE = 3;
 // ---------------------------------------------------------------------------
 
 /** Video thumbnail, then just the title and the CTA — both centred beneath it. */
-function SizeCard({ unit, band, parking = false }: { unit: SizeUnit; band: string; parking?: boolean }) {
+function SizeCard({ unit, band, parking = false, onPlay }: {
+  unit: SizeUnit; band: string; parking?: boolean;
+  /** Opens the video popup. Absent when the row has no playable video. */
+  onPlay?: (unit: SizeUnit) => void;
+}) {
   return (
     <div className="sg-card">
-      <div className="sg-card-image" style={{ background: unit.image }}>
-        <PlayButton size={72} />
-      </div>
+      {/* A BUTTON when the row has a video: tapping the thumbnail opens it in
+          a popup (VideoModal). Without one it stays a plain picture. */}
+      {onPlay ? (
+        <button
+          type="button"
+          className="sg-card-image sg-card-image--video"
+          style={{ background: unit.image }}
+          onClick={() => onPlay(unit)}
+          aria-label={`Play the ${unit.title} size guide video`}
+        >
+          <PlayButton size={72} />
+        </button>
+      ) : (
+        <div className="sg-card-image" style={{ background: unit.image }}>
+          <PlayButton size={72} />
+        </div>
+      )}
       <div className="sg-card-body">
         <p className="sg-card-title">{unit.title}</p>
         {/* Filters the Space List on this page to this size IN THIS TAB and
@@ -143,6 +164,7 @@ export function SizeGuide({
             // thumbnailImage is empty on every row so far, so fall back to the
             // bundled demo art rather than rendering an empty tile.
             image: s.thumbnail ? cover(s.thumbnail) : (CATEGORIES[0].units[i % CATEGORIES[0].units.length]?.image ?? ''),
+            videoId: s.videoId,
           })),
         }));
         if (bands.length) setLive(bands);
@@ -154,6 +176,11 @@ export function SizeGuide({
 
   // Demo bands are the fallback for an EMPTY/failed read only.
   const cats = live ?? CATEGORIES;
+
+  /** The size whose video is open in the popup, or null. */
+  const [playing, setPlaying] = useState<SizeUnit | null>(null);
+  const onPlay = (u: SizeUnit) => setPlaying(u);
+  const closeVideo = React.useCallback(() => setPlaying(null), []);
 
   const category = cats[Math.min(catIdx, cats.length - 1)] ?? cats[0];
   // The Parking tab's sizes filter #05 to parking spaces only.
@@ -266,7 +293,7 @@ export function SizeGuide({
           >
             {category.units.map((unit) => (
               <div className="sg-track-item sg-track-item--desk" key={unit.id}>
-                <SizeCard unit={unit} band={category.key} parking={isParkingTab} />
+                <SizeCard unit={unit} band={category.key} parking={isParkingTab} onPlay={isPlayableVideoId(unit.videoId) ? onPlay : undefined} />
               </div>
             ))}
           </div>
@@ -309,7 +336,7 @@ export function SizeGuide({
                 key={`${category.key}-${unit.id}`}
                 aria-hidden={i === mobileIdx ? undefined : true}
               >
-                <SizeCard unit={unit} band={category.key} parking={isParkingTab} />
+                <SizeCard unit={unit} band={category.key} parking={isParkingTab} onPlay={isPlayableVideoId(unit.videoId) ? onPlay : undefined} />
               </div>
             ))}
           </div>
@@ -326,6 +353,7 @@ export function SizeGuide({
           </div>
         )}
       </div>
+      <VideoModal videoId={playing?.videoId} title={playing?.title} onClose={closeVideo} />
     </div>
   );
 }

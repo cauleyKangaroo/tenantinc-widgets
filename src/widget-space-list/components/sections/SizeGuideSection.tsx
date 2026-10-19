@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { SIZE_IMAGES, cover } from '@shared/demoImages';
 import { fetchSizes, groupSizesByLabel } from '@shared/sizesCollection';
 import { Shimmer } from '@shared/Shimmer';
+import { VideoModal, isPlayableVideoId } from '@shared/components/VideoModal';
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -9,6 +10,8 @@ interface SizeCategory {
   tab: string;
   title: string;
   imageBg: string;
+  /** Wistia id of the band's size; the thumbnail plays it in a popup. */
+  videoId?: string;
 }
 
 const CATEGORIES: SizeCategory[] = [
@@ -80,6 +83,9 @@ export function SizeGuideSection({ showVideos = true }: { showVideos?: boolean }
   // True until the read settles — otherwise the demo tabs/card paint first and are
   // then replaced by the real bands.
   const [loading, setLoading] = useState(true);
+  /** The band whose video is open in the popup, or null. */
+  const [playing, setPlaying] = useState<SizeCategory | null>(null);
+  const closeVideo = React.useCallback(() => setPlaying(null), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,9 +98,12 @@ export function SizeGuideSection({ showVideos = true }: { showVideos?: boolean }
           return {
             tab: b.label,
             title: [first.name, first.dimensionsLabel].filter(Boolean).join(' ').trim(),
-            // The collection's thumbnailImage is empty on every row so far, so
-            // keep the bundled imagery as the poster until it's populated.
-            imageBg: CATEGORIES.find((c) => c.tab === b.label)?.imageBg ?? CATEGORIES[0].imageBg,
+            // The row's own thumbnail when it has one (six of seven do, checked
+            // 2026-10-19), else the bundled imagery.
+            imageBg: first.thumbnail
+              ? cover(first.thumbnail)
+              : (CATEGORIES.find((c) => c.tab === b.label)?.imageBg ?? CATEGORIES[0].imageBg),
+            videoId: first.videoId,
           };
         });
         if (bands.length) setLive(bands);
@@ -142,17 +151,29 @@ export function SizeGuideSection({ showVideos = true }: { showVideos?: boolean }
       <div className="sl-sg2-content">
 
         {/* Video thumbnail — hidden when "Show videos in Size Guide?" is off */}
-        {showVideos && (
+        {showVideos && (isPlayableVideoId(category.videoId) ? (
+          /* A button when the band has a video: it opens in a popup. */
+          <button
+            type="button"
+            className="sl-sg2-image sl-sg2-image--video"
+            style={{ background: category.imageBg }}
+            onClick={() => setPlaying(category)}
+            aria-label={`Play the ${category.title} size guide video`}
+          >
+            <PlayButton />
+          </button>
+        ) : (
           <div className="sl-sg2-image" style={{ background: category.imageBg }}>
             <PlayButton />
           </div>
-        )}
+        ))}
 
         {/* Title + CTA only — the descriptive body copy was removed. */}
         <p className="sl-sg2-title">{category.title}</p>
         <a href="#" className="sl-sg2-cta">See Available Spaces</a>
 
       </div>
+      <VideoModal videoId={playing?.videoId} title={playing?.title} onClose={closeVideo} />
     </div>
   );
 }
