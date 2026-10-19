@@ -17,7 +17,7 @@ import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue, type BankF
 // The protection-plan lightbox's styles (rf-pp-*) live here. Imported from Step2
 // rather than the shell because Step2 is now the only screen that mounts it.
 import './screens.css';
-import { FormField, Button, capitalizeFirst, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, AlertIcon, capitalizeFirst, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { splitBusinessName } from './businessName';
 import { skipValidation } from '@shared/devBypass';
 import creditCardRepeat from './assets/credit-card-repeat.svg';
@@ -1231,9 +1231,10 @@ export function Step2({
           {/* Says what is wrong instead of ringing the row in red. role="alert"
               so it is announced when it appears, not silently drawn. */}
           {bad('agree') && (
-            <p className="rf2-agree-error" role="alert">
-              You must accept the rental agreement to continue.
-            </p>
+            <div className="rf2-agree-error" role="alert">
+              <AlertIcon size={24} className="rf2-agree-error-ico" />
+              <span>You must accept the rental agreement to continue.</span>
+            </div>
           )}
         </section>
 
@@ -1416,19 +1417,28 @@ export function Step2({
           </div>
           )}
           {payAttempted && !formComplete && (
-            <p className="rf2-gp-note rf2-gp-note--error">
-              {!verificationAllowsPayment
-                ? 'Complete ID verification above before continuing to payment.'
-                : !idvDetailsOk
-                  ? 'Complete your mailing address and driver\u2019s license above before continuing to payment.'
-                : 'Complete the highlighted fields (and accept the rental agreement) to continue to payment.'}
-            </p>
+            <div className="rf2-gp-note rf2-gp-note--error rf2-gp-note--tag">
+              <AlertIcon size={24} className="rf2-gp-note-alert-ico" />
+              <span>
+                {!verificationAllowsPayment
+                  ? 'Complete ID verification above before continuing to payment.'
+                  : !idvDetailsOk
+                    ? 'Complete your mailing address and driver\u2019s license above before continuing to payment.'
+                  : 'Complete the highlighted fields (and accept the rental agreement) to continue to payment.'}
+              </span>
+            </div>
           )}
           {walletError && (
-            <p className="rf2-gp-note rf2-gp-note--error" role="alert">{walletError}</p>
+            <div className="rf2-gp-note rf2-gp-note--error rf2-gp-note--tag" role="alert">
+              <AlertIcon size={24} className="rf2-gp-note-alert-ico" />
+              <span>{walletError}</span>
+            </div>
           )}
           {payError && (
-            <p className="rf2-gp-note rf2-gp-note--error" role="alert">{payError}</p>
+            <div className="rf2-gp-note rf2-gp-note--error rf2-gp-note--tag" role="alert">
+              <AlertIcon size={24} className="rf2-gp-note-alert-ico" />
+              <span>{payError}</span>
+            </div>
           )}
           {/* No Global Payments key on this site yet, so card and bank are the
               static forms from Figma 10080-30277 / 10080-28749 rather than the

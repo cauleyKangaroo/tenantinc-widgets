@@ -498,9 +498,11 @@
 .pi-res-error {
   flex-basis: 100%;
   margin: -4px 0 0;
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
   font: 400 14px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
   color: var(--hb-ada-red, #d32f2f);
 }
+.pi-res-error-ico { flex: 0 0 auto; color: var(--hb-ada-red, #d32f2f); }
 
 .pi-res-go:disabled {
   opacity: 0.6;

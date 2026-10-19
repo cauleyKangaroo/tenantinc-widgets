@@ -408,10 +408,13 @@
   background: rgba(80, 158, 47, 0.11);
 }
 
+/* As the site's error tag: #f3e7e9, 12 / 39 / 12 / 15, 10px icon gap, 10px
+   radius, the alert mark beside the title and its sub-line. */
 .ma-result--failed {
-  padding: 41px 43px 42px 107px;
-  background: rgba(211, 47, 47, 0.1);
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
 }
+.ma-result__alert { flex: 0 0 auto; color: #d32f2f; }
+.ma-result__failed-text { min-width: 0; }
 
 .ma-result__top {
   display: grid;
@@ -492,7 +495,6 @@
   .ma-pay--result { padding-top: 25px; }
   .ma-result { margin-bottom: 28px; }
   .ma-result--success { padding: 20px 16px; }
-  .ma-result--failed { padding: 20px 16px; }
   .ma-result__top { grid-template-columns: 40px 1fr; column-gap: 10px; }
   .ma-result__tick { width: 40px; height: 40px; }
   .ma-result__text { padding-top: 4px; }
@@ -584,7 +586,10 @@
 /* Outcome of a coverage call: what is now scheduled, or why it was refused.
    The error colour is the kit's, so it reads like every other refusal. */
 .ma-coverage-note { margin: 6px 0 2px; font-size: 14px; line-height: 20px; color: var(--hb-grayscale-medium, #637381); }
-.ma-coverage-note--error { color: var(--hb-ada-red, #d32f2f); }
+.ma-coverage-note--error {
+  color: var(--hb-ada-red, #d32f2f);
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
+}
 
 .ma-coverage__price { flex: 0 0 63px; }
 
@@ -848,7 +853,14 @@
 .ma-methods .rf2-pay.rf2-wallet--apple:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
 .ma-methods > .rf2-wallet:first-child:not(:has(+ .rf2-wallet)):not(:has(~ .ma-method)) { grid-column: 1 / -1; }
 .ma-methods:empty { display: none; }
-.ma-pay__notice--error { color: var(--hb-ada-red, #d32f2f); }
+.ma-pay__notice.ma-pay__notice--error {
+  color: var(--hb-ada-red, #d32f2f);
+  /* The error tag; its 16px top clearance was the notice's own top padding. */
+  margin-top: 16px;
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
+}
+/* The 24px alert mark on every My Account error tag. */
+.ma-alert-ico { flex: 0 0 auto; color: var(--hb-ada-red, #d32f2f); }
 
 /* Apple's lockup is currentColor, so the dark tile's white carries it. */
 .ma-applepay {
@@ -1812,6 +1824,7 @@
    stretching the row. */
 .ma-edit__error {
   margin: 0 auto 0 0;
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
   color: var(--hb-ada-red, #d32f2f);
   font-size: 14px;
   line-height: 1.4;

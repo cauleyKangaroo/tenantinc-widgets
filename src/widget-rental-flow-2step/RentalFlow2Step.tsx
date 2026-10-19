@@ -807,7 +807,12 @@ function Step1Form({
           </span>
         </div>
       )}
-      {reserveError && <p className="rf-form-error" role="alert">{reserveError}</p>}
+      {reserveError && (
+        <div className="rf-form-error rf-form-error--tag" role="alert">
+          <AlertIcon size={24} className="rf-form-error-ico" />
+          <span>{reserveError}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -918,7 +923,12 @@ export function UnavailableStep({ similar, submitLead, property, spaceLabel }: {
       <div className="rf-actions">
         <Button tone="cta" block busy={busy} onClick={submit}>Contact me</Button>
       </div>
-      {error && <p className="rf-form-error rf-ua-error" role="alert">{error}</p>}
+      {error && (
+        <div className="rf-form-error rf-ua-error rf-form-error--tag" role="alert">
+          <AlertIcon size={24} className="rf-form-error-ico" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {similar && (
         <>

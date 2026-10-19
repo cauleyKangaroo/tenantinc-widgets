@@ -2506,11 +2506,15 @@
 .rfc-next-check svg { display: block; }
 .rfc-error-eyebrow { color: #d32f2f; }
 .rfc-error-panel {
-  background: #fef2f2; border: 1px solid #fca5a5; border-radius: 10px;
-  padding: 16px 18px; margin-bottom: 18px;
+  /* The site's error tag (as the other flow banners), the message and its
+     sub-line stacked beside the alert mark. */
+  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
+  margin-bottom: 18px;
 }
-.rfc-error-msg { font-weight: 700; margin: 0 0 8px; color: #991b1b; }
-.rfc-error-sub { font-size: 13px; margin: 0; color: #7f1d1d; }
+.rfc-error-ico { flex: 0 0 auto; color: #d32f2f; }
+.rfc-error-text { min-width: 0; }
+.rfc-error-msg { font-weight: 700; margin: 0 0 8px; color: #d32f2f; }
+.rfc-error-sub { font-size: 13px; margin: 0; color: #d32f2f; }
 .rfc-retry { width: auto; padding: 12px 28px; }
 
 /* Conditional field groups expanding under step-2 checkboxes (Figma 12-13).
@@ -2558,6 +2562,19 @@
 .rf2-gp-submit iframe { border: 0; width: 100%; height: 52px; }
 .rf2-gp-note { font-size: 14px; color: #5c6370; margin: 0; }
 .rf2-gp-note--error { color: #d32f2f; }
+/* An error note as the site's error tag (the other flow banners): #f3e7e9,
+   padding 12 / 39 / 12 / 15, 10px between the 24px alert mark and the text,
+   10px radius, icon centred. A modifier, so the error notes not yet converted
+   keep their plain line. The payment section's own 22px gap spaces it. */
+.rf2-gp-note--tag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
+}
+.rf2-gp-note-alert-ico { flex: 0 0 auto; color: #d32f2f; }
 /* The wallet/autopay note as a blue info tag (Figma): the same blue pair as
    .rf2-autopay-note (#e7f1ff on #3d8fff), icon left, dark text. */
 .rf2-gp-note--info {
@@ -2599,6 +2616,25 @@
 .rf-field--error .rf-field-input { border-color: #d32f2f; }
 .rf-field--error .rf-field-label { color: #d32f2f; }
 .rf-form-error { font-size: 14px; color: #d32f2f; margin: 4px 0 0; }
+/* As the site's error tag (the payment / space banners): #f3e7e9, padding
+   12 / 39 / 12 / 15, 10px between the 24px alert mark and the text, 10px
+   radius, icon centred. A modifier, so the plain .rf-form-error lines that
+   have not been converted keep their look. */
+.rf-form-error--tag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Clear of the Rent / Reserve buttons above it; the plain line's 4px read
+     as part of the button group once it became a filled box. */
+  margin-top: 16px;
+  /* Left, as every tag: .rf-ua-error centres its plain line, and centred
+     text beside a left-hand icon reads as misaligned. */
+  text-align: left;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
+}
+.rf-form-error-ico { flex: 0 0 auto; color: #d32f2f; }
 .rf-availability {
   margin: 12px auto 0;
   max-width: 420px;
@@ -2640,12 +2676,22 @@
    The container carries the gutter now, so this needs none of its own — it
    lines up with the checkbox row above it either way. Colour is the same
    #d32f2f the other validation messages use (.rf-form-error). */
+/* The site's error tag, as the other flow banners: #f3e7e9, padding
+   12 / 39 / 12 / 15, 10px between the 24px alert mark and the text, 10px
+   radius, icon centred; 16px clear of the "I agree" bar above it. */
 .rf2-agree-error {
-  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
   font-size: 14px;
   line-height: 18px;
   color: #d32f2f;
 }
+.rf2-agree-error-ico { flex: 0 0 auto; color: #d32f2f; }
 
 /* ── Move-in cost line items — 14px ───────────────────────────────────────
    Rent (Prorated), Admin Fee, Protection, Total Tax and any discount rows.
