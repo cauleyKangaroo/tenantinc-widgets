@@ -1935,9 +1935,9 @@ function Option2Mobile({ heading, urgency, adminFeeText, chromeless }: { heading
 function MobileAdminFee({ text }: { text?: string }) {
   if (!text) return null;
   return (
+    // No (i) after the text on mobile — removed at the client's request.
     <p className="ts-o2m-admin ts-mobile-admin">
       {text}
-      <InfoCircle size={20} className="ts-o2-admin-info" />
     </p>
   );
 }
