@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './SpaceList.css';
 import type { SpaceListProps, WidgetConfig, Unit } from './types';
@@ -649,7 +649,10 @@ export function SpaceList({
     return Array.from(seen).sort();
   }, [units, filters.types]);
 
-  const visibleUnits = useMemo(() => {
+  /* The listing for a given set of filters — every narrowing the page applies,
+     not only the modal's. One function so the modal's "View n Matching Spaces"
+     counts its DRAFT exactly the way Apply will then show it. */
+  const listingFor = useCallback((filters: FilterState) => {
     // A feature page shows no filter bar and no search box, so it must not APPLY
     // either: state whose controls aren't on screen would narrow the listing for
     // a reason the visitor can neither see nor undo (filter to Extra Large, click
@@ -668,7 +671,8 @@ export function SpaceList({
     // picks the CTA ("Join waitlist" vs "Call") for whatever is shown. So
     // showUnavailableUnits off + waitlist on still shows nothing sold out.
     return showUnavailableUnits ? filtered : filtered.filter((u) => !isUnavailable(u));
-  }, [units, filters, searchTerm, showUnavailableUnits, promoId, sizeFilter, activeFeature]);
+  }, [units, searchTerm, showUnavailableUnits, promoId, sizeFilter, activeFeature]);
+  const visibleUnits = useMemo(() => listingFor(filters), [listingFor, filters]);
   const badge = activeFilterCount(filters);
   const totalVacant = units.reduce((sum, u) => sum + (u.vacantCount ?? 0), 0);
 
@@ -753,6 +757,7 @@ export function SpaceList({
           typeOptions={typeOptions}
           featureOptions={featureOptions}
           promotionOptions={promotionOptions}
+          countMatches={(draft) => listingFor(draft).length}
         />
       )}
     </>
