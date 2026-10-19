@@ -26,6 +26,7 @@ const CARD_CONFIG: WidgetConfig = {
   showJunkFeeDisclaimer: false,
   junkFeeCopy: '',
   showUrgencyMessage: true,
+  skipTierPopupForSingle: false,
   urgencyThreshold: 5,
   sortBy: 'sizeAsc',
   categoryOrdering: 'spaces',

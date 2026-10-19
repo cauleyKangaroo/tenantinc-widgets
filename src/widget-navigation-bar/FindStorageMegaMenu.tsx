@@ -83,6 +83,8 @@ import {
   ratingForProperty,
   type RatingSummary,
 } from '@shared/reviewsCollections';
+import { fetchPlaceRating } from '@shared/googlePlaceRating';
+import { fetchPlaceIds } from '@shared/internalProperties';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { FormField, Button } from '@shared/ui';
 import { getUserLocation, haversineMiles } from '@shared/nearbyProperties';
@@ -150,6 +152,11 @@ export interface FindStorageMegaMenuProps {
    * moment before the trigger's own click reopens it, and the menu never opens.
    */
   triggerSelector?: string;
+  /** Duda's data.siteId — the proxy's reviews route refuses without one. */
+  siteId?: string;
+  /** The proxy that answers /api/reviews/google/fetch (the site's
+   *  `login_api_base`). Omitted → the shared default host. */
+  reviewsBase?: string;
 }
 
 interface NearbyItem {
@@ -344,6 +351,8 @@ export function FindStorageMegaMenu({
   onClose,
   tree,
   triggerSelector = '[data-nav-mega-trigger]',
+  siteId,
+  reviewsBase,
 }: FindStorageMegaMenuProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const cityListRef = useRef<HTMLDivElement | null>(null);
@@ -483,6 +492,18 @@ export function FindStorageMegaMenu({
       .catch(() => { /* fails soft — rows just show no rating line */ });
   }, [open]);
 
+  /*
+   * THE LIVE RATING, PER FACILITY (2026-10-19). Each property's Google
+   * Business `placeId` on PropertiesInternal, asked of the proxy's reviews
+   * route — the same source #07 and #08's cards use. It replaces the
+   * `GoogleReviews` name match above for any facility that has a place id;
+   * that collection holds one business for the whole site, so every row read
+   * the same score and count. Fetched for the rows ON SCREEN only (the nearby
+   * list), once each — results are cached per place for the page's life.
+   */
+  const [placeRatings, setPlaceRatings] = useState<Map<string, RatingSummary>>(() => new Map());
+  const placeIdsRef = useRef<Promise<Map<string, string>> | null>(null);
+
   const nearby: NearbyItem[] = useMemo(() => {
     const withCoords = coords
       ? allProperties
@@ -495,6 +516,30 @@ export function FindStorageMegaMenu({
     const items = withCoords.length ? withCoords : allProperties.map((p) => ({ property: p, miles: null }));
     return items.slice(0, NEARBY_COUNT);
   }, [coords, allProperties]);
+
+  const nearbyKey = nearby.map((n) => n.property.id).join('|');
+  useEffect(() => {
+    if (!open || !nearbyKey) return undefined;
+    let cancelled = false;
+    if (!placeIdsRef.current) placeIdsRef.current = fetchPlaceIds().catch(() => new Map<string, string>());
+    void placeIdsRef.current.then(async (ids) => {
+      const found = await Promise.all(nearby.map(async (n) => {
+        const placeId = n.property.id ? ids.get(n.property.id) : undefined;
+        if (!placeId) return null;
+        const r = await fetchPlaceRating(placeId, { base: reviewsBase, siteId }).catch(() => null);
+        return r ? [n.property.id, r] as const : null;
+      }));
+      if (cancelled) return;
+      setPlaceRatings((prev) => {
+        const next = new Map(prev);
+        for (const f of found) if (f) next.set(f[0], f[1]);
+        return next;
+      });
+    });
+    return () => { cancelled = true; };
+    // `nearby` is represented by its ids key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, nearbyKey, reviewsBase, siteId]);
 
   // ── Small portfolio: one map card per facility ───────────────────────────
   // Desktop only — the mobile frames are the two pages built above, and a row of
@@ -823,7 +868,9 @@ export function FindStorageMegaMenu({
                   {miles != null && ` - ${milesLabel(miles)}`}
                 </span>
                 {(() => {
-                  const live = ratings ? ratingForProperty(property.label, ratings) : null;
+                  // The facility's own Google place first, then the site-wide collection.
+                  const live = (property.id ? placeRatings.get(property.id) : undefined)
+                    ?? (ratings ? ratingForProperty(property.label, ratings) : null);
                   const r = live && live.score > 0
                     ? { score: live.score, count: live.count }
                     : demoRatings

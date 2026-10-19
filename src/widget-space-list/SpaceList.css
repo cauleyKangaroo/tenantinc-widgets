@@ -318,15 +318,15 @@
 
    Every property the theme touches is guarded together: winning size while
    losing weight or transform just produces a differently wrong heading. It
-   matches #03's .pi-name — 30px / 22px, 700 — so the two widgets' titles are
-   one size on a page that shows both. */
+   used to match #03's .pi-name at 30px; it is 26px now (2026-10-19), a step below
+   the property name, so the page reads property first and listing second. */
 .sl-wrapper .sl-page-title {
   font-family: 'Poppins', 'Poppins Fallback', sans-serif !important;
-  font-size: 30px !important;
+  font-size: 26px !important;
   font-weight: 700 !important;
   /* Unitless on purpose: a long feature-page heading wraps to two lines, and a
      fixed leading crams them together the moment a host theme scales the font
-     up. 1.3 keeps the desktop line box at ~39px and scales with the text. */
+     up. 1.3 keeps the desktop line box at ~34px and scales with the text. */
   line-height: 1.3 !important;
   color: #101318 !important;
   margin: 0 !important;
@@ -343,7 +343,7 @@
    the block Duda measures does not change when the heading arrives and nothing
    below it jumps. Same shimmer as #18's, which holds the same line on mobile. */
 .sl-wrapper .sl-title-skeleton {
-  height: 39px;
+  height: 34px;
   max-width: 420px;
   border-radius: 6px;
   background: linear-gradient(90deg, #eef1f4 25%, #e3e8ec 37%, #eef1f4 63%);
@@ -4989,6 +4989,13 @@
 @media (max-width: 480px) {
   .sl-wrapper .sl-modal-overlay { padding: 12px; align-items: flex-start; }
   .sl-wrapper .sl-filter-modal { max-height: calc(100vh - 24px); }
+  /* ONE height at every property. The popup's content is built from the
+     property's own units, so a facility with no Space Features (Chula Vista)
+     opened a popup half the size of one that has them. Always the full
+     height it was already capped at; the body takes the spare room, so a
+     short list leaves space above Apply Filters, which stays at the foot. */
+  .sl-wrapper .sl-filter-modal { height: calc(100vh - 24px); }
+  .sl-wrapper .sl-modal-body { flex: 1 1 auto; min-height: 0; }
 }
 
 /* ===========================================================================

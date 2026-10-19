@@ -695,17 +695,12 @@
   color: var(--hb-grayscale-medium);
 }
 
+/* Black and bold whether ticked or not — the weight the ticked state already
+   used, so ticking it no longer shifts the text. */
 .ma-balance__check .hb-check__label {
   font-size: 14px;
-  font-weight: 400;
-  line-height: 20px;
-  color: var(--hb-grayscale-medium);
-}
-
-/* Ticked, it is a choice the tenant has made rather than one on offer, and the
-   frame draws it darker and heavier to say so. */
-.hb-check--on.ma-balance__check .hb-check__label {
   font-weight: 600;
+  line-height: 20px;
   color: var(--hb-text-night);
 }
 

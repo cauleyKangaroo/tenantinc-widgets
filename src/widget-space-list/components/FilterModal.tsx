@@ -23,6 +23,9 @@ interface FilterModalProps {
   typeOptions?: { value: SpaceType; label: string }[];
   featureOptions: string[];
   promotionOptions: string[];
+  /** How many spaces the listing would show with these filters — the Apply
+   *  button's label. Text only; omitted → the plain "Apply Filters". */
+  countMatches?: (draft: FilterState) => number;
 }
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -49,11 +52,18 @@ export function FilterModal({
   typeOptions = TYPE_OPTIONS,
   featureOptions,
   promotionOptions,
+  countMatches,
 }: FilterModalProps) {
   // The draft. Seeded once from the applied filters when the modal opens (it
   // is mounted only while open), so every open starts from what is applied.
   const [filters, setFilters] = useState<FilterState>(applied);
   const badge = activeFilterCount(filters);
+  const matches = countMatches ? countMatches(filters) : null;
+  const applyLabel = matches == null
+    ? 'Apply Filters'
+    : matches === 0
+      ? 'No Matching Spaces'
+      : `View ${matches} Matching ${matches === 1 ? 'Space' : 'Spaces'}`;
 
   // Close on Escape; lock host-page scroll while the lightbox is open.
   useEffect(() => {
@@ -244,8 +254,10 @@ export function FilterModal({
 
             The ONLY way the draft reaches the listing: commit, then close. */}
         <div className="sl-modal-footer">
+          {/* The label follows the draft live; the button itself is unchanged —
+              it still applies and closes, whatever the count. */}
           <button type="button" className="sl-apply-filters" onClick={() => { onApply(filters); onClose(); }}>
-            Apply Filters
+            {applyLabel}
           </button>
         </div>
       </div>
