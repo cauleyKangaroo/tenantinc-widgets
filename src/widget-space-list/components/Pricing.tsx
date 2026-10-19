@@ -140,23 +140,60 @@ export function promoRate(unit: Unit): number | null {
   return usable(unit.promoValue);
 }
 
-export function PriceBlock({ unit, config }: { unit: Unit; config: WidgetConfig }) {
+/** The two figures PriceBlock prints for a unit, formatted as it prints them:
+ *  the struck-through one and the main one. Shared so a caller that reserves
+ *  their widths (see `reserve` below) can never disagree with what is shown. */
+export function priceFigures(unit: Unit, config: WidgetConfig): { strike: string; main: string } {
+  const promo = config.enablePromoLogic ? promoRate(unit) : null;
+  return promo !== null
+    ? { strike: fmt(unit.startingPrice), main: fmt(promo) }
+    : { strike: fmt(instorePrice(unit, config)), main: fmt(unit.startingPrice) };
+}
+
+/**
+ * A figure that holds the width of the widest of `all`.
+ *
+ * Every alternative sits in the same grid cell, invisible, so the cell is as
+ * wide as the widest and the visible one is right-aligned in it (as the column
+ * already aligns it). Used by the list card, where picking another size swaps
+ * the figures in place: "$81.11" then "$100.00" used to resize the column and
+ * walk the IN-STORE / STARTING AT labels sideways with it.
+ */
+function Figure({ value, all }: { value: string; all?: string[] }) {
+  const others = all?.filter((v) => v !== value) ?? [];
+  if (!others.length) return <>{value}</>;
+  return (
+    <span className="sl-figure">
+      <span>{value}</span>
+      {others.map((v) => <span key={v} className="sl-figure-ghost" aria-hidden="true">{v}</span>)}
+    </span>
+  );
+}
+
+export function PriceBlock({ unit, config, reserve }: {
+  unit: Unit;
+  config: WidgetConfig;
+  /** Every figure this block may be asked to show in its place — each slot
+   *  keeps the width of the widest, so the labels above them never move. */
+  reserve?: { strike: string[]; main: string[] };
+}) {
   // Promo mode replaces the in-store pair entirely: "Online" (the starting rate,
   // struck through) beside "Promo rate" (the discounted one). instorePriceMode /
   // instorePriceAmount are deliberately not consulted here.
   const promo = config.enablePromoLogic ? promoRate(unit) : null;
+  const fig = priceFigures(unit, config);
 
   if (promo !== null) {
     return (
       <div className="sl-prices-row">
         <div className="sl-price-left">
           <div className="sl-instore-label">{ONLINE_LABEL}</div>
-          <div className="sl-strike">{fmt(unit.startingPrice)}</div>
+          <div className="sl-strike"><Figure value={fig.strike} all={reserve?.strike} /></div>
         </div>
         <div className="sl-price-divider" />
         <div className="sl-price-main">
           <div className="sl-starting-label">{PROMO_RATE_LABEL}</div>
-          <div className="sl-main-price">{fmt(promo)}</div>
+          <div className="sl-main-price"><Figure value={fig.main} all={reserve?.main} /></div>
           {unit.adminFee != null && (
             <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
           )}
@@ -175,14 +212,14 @@ export function PriceBlock({ unit, config }: { unit: Unit; config: WidgetConfig 
         <>
           <div className="sl-price-left">
             <div className="sl-instore-label">{config.instorePriceLabel}</div>
-            <div className="sl-strike">{fmt(instorePrice(unit, config))}</div>
+            <div className="sl-strike"><Figure value={fig.strike} all={reserve?.strike} /></div>
           </div>
           <div className="sl-price-divider" />
         </>
       )}
       <div className="sl-price-main">
         <div className="sl-starting-label">{config.startingAtLabel}</div>
-        <div className="sl-main-price">{fmt(unit.startingPrice)}</div>
+        <div className="sl-main-price"><Figure value={fig.main} all={reserve?.main} /></div>
         {unit.adminFee != null && (
           <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
         )}
@@ -275,8 +312,11 @@ export function JunkFeeDisclaimer({ config }: { config: WidgetConfig }) {
  * page. `colClass` is the per-layout column, which each caller used to wrap
  * this in.
  */
-export function CtaButton({ unit, config, full, colClass }: {
+export function CtaButton({ unit, config, full, colClass, aside }: {
   unit: Unit; config: WidgetConfig; full?: boolean; colClass: string;
+  /** Rendered on the note's line, to its left, when it fits — and on a line
+   *  of its own below when it does not. The grid card's price small print. */
+  aside?: React.ReactNode;
 }) {
   const fullClass = full ? ' sl-select-full' : '';
 
@@ -477,6 +517,10 @@ export function CtaButton({ unit, config, full, colClass }: {
     return `${config.valueTiersPageUrl}?${p.toString()}`;
   })();
 
+  const noteEl = tiersError
+    ? <div className="sl-limited-label" role="alert">Pricing is temporarily unavailable — please try again.</div>
+    : note ? <div className="sl-limited-label">{note}</div> : null;
+
   return (
     <>
       <div className={colClass}>
@@ -515,10 +559,15 @@ export function CtaButton({ unit, config, full, colClass }: {
       )}
       </div>
       {/* Outside the column, so it measures against the ROW. Both messages keep
-          the one slot they have always shared. */}
-      {tiersError
-        ? <div className="sl-limited-label" role="alert">Pricing is temporarily unavailable — please try again.</div>
-        : note && <div className="sl-limited-label">{note}</div>}
+          the one slot they have always shared. With an `aside` (the grid
+          card's price small print) the two share a row instead — see
+          .sl-note-row. */}
+      {aside ? (
+        <div className="sl-note-row">
+          {noteEl}
+          {aside}
+        </div>
+      ) : noteEl}
       {/* Portalled to <body>, so where it sits in this tree does not matter.
           Filed against the page's own property and company, as Select is. */}
       {waitlistCta && (

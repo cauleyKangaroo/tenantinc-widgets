@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
 /* ── Tokens (from Figma variables) ─────────────────────────────────────────
    Night #101318 · Night-Light #637381 · CTA green #509E2F · Orange #F45F30
@@ -7,7 +7,7 @@
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 .ts-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   color: #101318;
@@ -986,7 +986,7 @@
   border-radius: 12px;
   box-shadow: 0 8px 18px 0 rgba(71, 84, 116, 0.2);
   color: #fff;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   text-align: left;
 }
 .ts-pd-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -1075,7 +1075,7 @@
    stay put while the cards/table scroll. */
 .ts-modal {
   position: relative;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif; /* portaled outside .ts-wrapper — pin the font */
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif; /* portaled outside .ts-wrapper — pin the font */
   background: #f4f6f8;
   border-radius: 20px;
   width: 100%;
@@ -1171,7 +1171,7 @@
 .ts-modal-editor-hint {
   border: 2px dashed #c4cdd5; border-radius: 8px; padding: 16px 20px;
   background: #f9fafb; color: #637381; font-size: 14px; line-height: 1.5;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 .ts-modal-editor-hint b { color: #101318; }
 @media (max-width: 640px) {

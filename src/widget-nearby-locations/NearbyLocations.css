@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .nl-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   color: #101318;
@@ -489,7 +489,7 @@
   background: var(--color_2, #509e2f);
   color: var(--color_3, #fff);
   text-decoration: none;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 700;
   line-height: 16px;
@@ -649,7 +649,7 @@ a.nl-card-footer {
   border: 1px solid #101318;
   background: #fff;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 400;
   cursor: pointer;
@@ -749,6 +749,18 @@ a.nl-card-footer {
        stays — it is where the frame puts the card. */
     background: transparent;
     padding: 24px;
+  }
+
+  /* Map View runs edge to edge, as #05's nearby accordion map does: out
+     through the 24px side padding above (top and bottom untouched). The width
+     needs !important because NearbyMap sets `width: 100%` inline — and that
+     100% would leave the map at the padded width, just shifted left. */
+  /* Square corners too, like the accordion's — !important for the same
+     reason: NearbyMap sets `border-radius: 16` inline. */
+  .nl-mobile .nl-map {
+    width: calc(100% + 48px) !important;
+    margin-inline: -24px;
+    border-radius: 0 !important;
   }
 }
 

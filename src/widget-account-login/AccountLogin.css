@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 /* ===========================================================================
    Widget #17 — Account Login
@@ -14,7 +14,7 @@
 /* ── Root ──────────────────────────────────────────────────────────────────── */
 
 .al-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   display: flex;
   justify-content: center;
   width: 100%;
@@ -132,7 +132,7 @@
   border: none;
   background: transparent;
   outline: none;
-  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 400 16px/20px 'Poppins', 'Poppins Fallback', sans-serif;
   color: #101318;
   /* Matches the field's own rounding. Invisible while the background is
      transparent, but load-bearing once autofill fills it: the override below
@@ -149,7 +149,7 @@
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 400 16px/20px 'Poppins', 'Poppins Fallback', sans-serif;
   color: #637381;
   pointer-events: none;
   transition: top 0.15s ease, font-size 0.15s ease, transform 0.15s ease;
@@ -229,7 +229,7 @@
   border-radius: 8px;
   background: var(--color_1, #f26500);
   color: var(--color_3, #fff);
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -288,7 +288,7 @@
   border-radius: 8px;
   background: #fff;
   color: #000;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -323,7 +323,7 @@
   background: #fff;
   outline: none;
   text-align: center;
-  font: 400 24px/1 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 400 24px/1 'Poppins', 'Poppins Fallback', sans-serif;
   color: #000;
 }
 
@@ -377,7 +377,7 @@
   background: none;
   padding: 0;
   cursor: pointer;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #101318;
@@ -410,7 +410,7 @@
 
 .al-head--choose { gap: 24px; }
 
-/* The live Montserrat sets this line at ~488px, Figma's at under 475 — so the
+/* The live Poppins sets this line at ~488px, Figma's at under 475 — so the
    title borrows 10px of each 60px side to stay on one line, as drawn. Narrower
    cards still wrap it. */
 .al-title--choose { margin: 0 -10px; }
@@ -452,7 +452,7 @@
   border-radius: 4px;
   background: #fff;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s;
