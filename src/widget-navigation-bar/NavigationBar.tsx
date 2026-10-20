@@ -34,6 +34,7 @@ import { fetchLocationTree, DEFAULT_CITY_BASE_PATH, type NavState } from '@share
 import { INTERNAL_PROPERTIES_COLLECTION } from '@shared/internalProperties';
 import { imageUrl } from '@shared/dudaCollections';
 import { fetchDudaNavigation, hasNavApi, type DudaNavItem } from '@shared/dudaNav';
+import { Shimmer } from '@shared/Shimmer';
 import { navTreeToLinks } from './navigationMapper';
 import { FindStorageMegaMenu, demoLocationTree, type DemoPortfolio } from './FindStorageMegaMenu';
 
@@ -203,6 +204,12 @@ const FIND_STORAGE_LABEL = 'Find Storage';
  * the nav is on — root-relative, so every site built from the template gets
  * its own. A signed-out visitor is sent on to /login by My Account itself.
  */
+/* Pill widths for the loading nav row, in the shape of the six-page menu
+   .nav-links--pending reserves for (Home, Find Storage, Storage Types,
+   Resources, Size Guide, Blog). Approximate by design: the real menu is
+   whatever the site has, and the row's min-width holds the rest. */
+const NAV_SKELETON_WIDTHS = [52, 112, 118, 90, 96, 46];
+
 const MY_ACCOUNT_PATH = '/my-account';
 
 /** A content-menu URL, unless it is empty or the old '#' placeholder. */
@@ -719,7 +726,20 @@ export function NavigationBar({
   // state › city › facility cascade it used before.
   const navLinks = (
     <ul className={`nav-links${reserveNavRow ? ' nav-links--pending' : ''}`}>
-      {linkList.map((link) => {
+      {reserveNavRow ? (
+        /* Skeleton, NOT the hardcoded fallback menu. While the page tree is in
+           flight `linkList` falls back to baseLinks, so a first-time visitor
+           was shown a plausible set of links that then swapped for the site's
+           real pages — the exact "reads as a glitch" case Shimmer exists to
+           prevent. Grey pills say "loading" instead of saying the wrong thing.
+           Widths approximate the six-page menu .nav-links--pending is measured
+           from, so the row lands at the width it already reserves. */
+        NAV_SKELETON_WIDTHS.map((w, i) => (
+          <li className="nav-item nav-item--skeleton" key={`nav-skeleton-${i}`} aria-hidden="true">
+            <Shimmer w={w} h={16} r={8} />
+          </li>
+        ))
+      ) : linkList.map((link) => {
         // Only claim Find Storage for the mega popup when the editor has actually
         // opted into it — otherwise Find Storage falls into the same hover cascade
         // Storage Types / Resources use, driven by `link.menu`.

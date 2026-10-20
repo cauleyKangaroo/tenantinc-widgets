@@ -48,6 +48,11 @@ interface DmCollectionsAPI {
 }
 interface DmAPILike {
   loadCollectionsAPI?: () => Promise<DmCollectionsAPI>;
+  /** Duda's image resizer. Documented as getOptimizedImageURL, but their own
+   *  custom-widget example calls getResizedImageURL, so both are declared and
+   *  whichever exists at runtime is used. */
+  getOptimizedImageURL?: (url: string, width?: number) => string;
+  getResizedImageURL?: (url: string, width?: number) => string;
 }
 
 export type CollectionRow = Record<string, unknown>;
@@ -503,6 +508,60 @@ export function imageUrl(v: unknown): string {
     }
   }
   return '';
+}
+
+/**
+ * Is this an image Duda MANAGES, as opposed to one merely sitting on its CDN?
+ *
+ * The distinction is the path, not the host: Duda's media library
+ * (`/image_manager_app/...`) and a site's own uploads (`/{siteId}/dms3rep/...`)
+ * are managed and have generated copies at `/opt/{name}-{width}w.{ext}`. The
+ * shared stock bucket `/duda-unit-images/...` sits on the SAME CloudFront
+ * distribution but is not managed, and has no such copies.
+ *
+ * This matters because the resizer is not documented to validate its input —
+ * it says only that the original "must be stored in Duda". Handing it an
+ * unmanaged URL risks getting back a rewritten path that does not exist:
+ * verified 2026-10-20, duda-unit-images/opt/Boxes-640w.png is a 403 while the
+ * plain file is a 200. Guessing wrong there would break the gallery's own
+ * fallback photos, so anything not recognisably managed is left alone.
+ */
+function isDudaManagedImage(url: string): boolean {
+  return url.includes('/image_manager_app/') || url.includes('/dms3rep/');
+}
+
+/**
+ * Duda's resized/WebP copy of an image it hosts, or the original URL unchanged.
+ *
+ * Duda stores uploads once at full size and generates smaller copies on demand;
+ * the URL keeps the original extension (a .png that is really WebP), which is
+ * why audits report "large PNGs". Handing the stored URL straight to an <img>
+ * ships the full-size upload into a card that needs a fraction of it.
+ *
+ * `width` picks a specific size. Prefer Duda's STANDARD widths — 640 / 1280 /
+ * 1920 — which are generated at upload time; any other number is resized when
+ * first requested, so the first visitor pays for it. Omitting width lets Duda
+ * choose from the device, which is right only when the image fills the screen.
+ *
+ * Fails soft, and has to: `dmAPI` is published-site only, so in the Duda editor
+ * and the dev harness this returns the original and the image still renders.
+ * Duda also returns the input unchanged for anything it does not host, so
+ * third-party images (Google review avatars) pass through harmlessly.
+ */
+export function optimizedImageUrl(url: string, width?: number): string {
+  if (!url) return url;
+  if (!isDudaManagedImage(url)) return url;
+  try {
+    const dm = (window as unknown as { dmAPI?: DmAPILike }).dmAPI;
+    const resize = dm?.getOptimizedImageURL ?? dm?.getResizedImageURL;
+    if (typeof resize !== 'function') return url;
+    const out = resize(url, width);
+    // Only take a usable string back. A future signature change that returned
+    // undefined would otherwise blank every image on the page.
+    return typeof out === 'string' && out ? out : url;
+  } catch {
+    return url;
+  }
 }
 
 /** Parse a collection date (ISO, epoch ms/seconds, or a display string). */

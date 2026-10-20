@@ -249,7 +249,14 @@
   text-decoration: underline;
 }
 
-.pi-msg-actions { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+/* flex-end, not space-between. space-between was pushing the captcha mock left
+   and the buttons right; with the mock commented out of the markup it has ONE
+   child, and space-between parks a lone child at the START — Cancel/Submit
+   would sit on the LEFT of the modal. Put space-between back at the same time
+   as the mock. */
+.pi-msg-actions { display: flex; align-items: flex-end; justify-content: flex-end; gap: 16px; }
+/* Unused while the mock is commented out in MessageModal.tsx — kept so that
+   uncommenting it is the only step needed. */
 .pi-msg-captcha {
   /* min-width, not width: the mock can grow a little rather than forcing the
      label to wrap inside a fixed box. */
@@ -333,9 +340,9 @@
   .pi-msg-body { padding: 20px; }
   .pi-msg-foot { padding: 16px 20px; }
   .pi-msg-row { flex-direction: column; }
-  /* column, not column-reverse: the captcha is first in the DOM, so reversing
-     put the buttons above it. It belongs above them — you tick it before you
-     submit. */
+  /* column, not column-reverse: when the captcha mock was here it came first in
+     the DOM and reversing put the buttons above it. Keep that in mind if it
+     comes back — it belongs above them, since you tick it before you submit. */
   .pi-msg-actions { flex-direction: column; align-items: stretch; }
   .pi-msg-buttons { justify-content: flex-end; }
   .pi-msg-captcha { width: 100%; }

@@ -490,6 +490,11 @@
 
   /* Room for the tick, which now sits inside the number box (below). */
   .rf-cardcell--number { padding-right: calc(15px + 24px + 8px); }
+  /* This cell IS the bordered box here, padded 15px, and its label is
+     absolute — so it measured from the border and sat 15px left of the input
+     it labels (and of every other label in the form). The hosted variant has
+     the same offset below; this is the plain-input one. */
+  .rf-cardcell--number .rf-cardcell-label { left: 15px; }
 
   /* Expiry and CVV share their box half and half. An explicit zero basis,
      not the desktop's fixed widths: with the pair now a definite 100% wide,

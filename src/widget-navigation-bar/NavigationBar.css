@@ -296,6 +296,12 @@
    Storage left. A different menu still differs, by far less than the whole
    row. Repeat visits render the cached tree and never need this. */
 .nav-links--pending { min-width: 610px; }
+/* The skeleton row must be EXACTLY as tall as the loaded one, or swapping them
+   is itself a shift: a 16px pill left the row 16px tall against the real
+   links' 24px line box, so the row grew and rose 4px the moment the tree
+   arrived. 24px matches .nav-link's 16px/1.5 line box; the pill stays 16px and
+   centres inside it. */
+.nav-item--skeleton { min-height: 24px; align-items: center; }
 @media (max-width: 1300px) { .nav-links--pending { min-width: 590px; } }
 @media (max-width: 1120px) { .nav-links--pending { min-width: 540px; } }
 

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
+import { optimizedImageUrl } from '@shared/dudaCollections';
 import { useSwipe } from '@shared/useSwipe';
 import { createLead, fetchPropertyDetails, fetchFacilityOptions, findReservation, propertyBreadcrumb, stateName, configureApi, type PropertyDetails, type BoundPropertyProps, type FacilityOption, type ApiCredProps } from './api';
 import { rentalHref, saveReservationHandoff } from '@shared/unitHandoff';
@@ -203,18 +204,33 @@ function PropertySkeleton({ displayMode, showCallCenter }: { displayMode: 'full'
 /**
  * Fills its box with either a real image (URL) or a CSS gradient placeholder.
  * Gradient strings contain "gradient(" — anything else is treated as an image src.
+ *
+ * `w` is the width the box actually DISPLAYS, and it matters a great deal here.
+ * A `PropertiesInternal` photo is the operator's original upload: measured on
+ * the live site, so-bellflower-other-6.png is 4.0MB, and Duda had already
+ * generated a 640px copy of it at 483KB — 8x smaller — that nothing was asking
+ * for. Passing the stored URL to an <img> ships the original every time.
+ *
+ * Sizing happens HERE rather than where the list is built, because one flat
+ * array of URLs feeds three boxes of very different sizes (a 401px hero, a
+ * full-screen lightbox, a thumbnail rail). The list cannot know which.
  */
-function ImageFill({ src, className, alt = '', onClick }: {
+function ImageFill({ src, className, alt = '', onClick, w }: {
   src: string;
   className?: string;
   alt?: string;
   /** Used by the lightbox so a click on the photo doesn't close the overlay. */
   onClick?: React.MouseEventHandler;
+  /** Display width in CSS px. Omitted ⇒ the URL is used as stored. */
+  w?: number;
 }) {
   if (src && src.includes('gradient(')) {
     return <span className={className} style={{ background: src }} aria-hidden="true" onClick={onClick} />;
   }
-  return <img className={className} src={src} alt={alt} onClick={onClick} />;
+  // Non-Duda images (the shared S3 fallbacks) come back unchanged, so this is
+  // safe to apply to every src rather than only the collection ones.
+  const url = w ? optimizedImageUrl(src, w) : src;
+  return <img className={className} src={url} alt={alt} onClick={onClick} />;
 }
 
 // Demo "See all Hours" data (real values come from Duda later, like the other
@@ -1000,7 +1016,7 @@ export function PropertyInfo(props: Props) {
                   /* `interactive`: the lightbox has no button wrapping the
                      cell, so the poster can be one and play on click. */
                   ? <VideoSlide className="pi-lb-img" src={src} active={i === lbCell} title={displayName} interactive />
-                  : <ImageFill className="pi-lb-img" src={src} onClick={(e) => e.stopPropagation()} />}
+                  : <ImageFill className="pi-lb-img" src={src} w={1920} onClick={(e) => e.stopPropagation()} />}
               </span>
             ))}
           </span>
@@ -1021,7 +1037,7 @@ export function PropertyInfo(props: Props) {
                 {/* A thumbnail is never a player — it is a target to click.
                     The poster carries the play badge so a video reads as one
                     in the rail. */}
-                <ImageFill className="pi-lb-thumb-img" src={videoSlides.has(src) ? videoPosterOrFallback(src) : src} />
+                <ImageFill className="pi-lb-thumb-img" src={videoSlides.has(src) ? videoPosterOrFallback(src) : src} w={320} />
                 {videoSlides.has(src) && <span className="pi-lb-thumb-play" aria-hidden="true" />}
               </button>
             ))}
@@ -1043,7 +1059,7 @@ export function PropertyInfo(props: Props) {
       {breadcrumbNav}
       <div className="pi-hero-row">
         <div className="pi-hero-card">
-          <ImageFill className="pi-hero-img" src={heroSlide} />
+          <ImageFill className="pi-hero-img" src={heroSlide} w={640} />
           <span className="pi-hero-overlay" style={{ background: `rgba(16, 19, 24, ${overlay})` }} />
           <button className="pi-hero-expand" onClick={() => setLightbox(true)} aria-label="Open photo gallery">
             <PhotoExpandIcon size={48} />
@@ -1180,7 +1196,7 @@ export function PropertyInfo(props: Props) {
                              the mobile hero plays the video instead. Autoplaying
                              here too would mount a second, invisible player. */
                           autoPlay={!isMobileViewport} />
-                      : <ImageFill className="pi-gallery-img" src={src} />}
+                      : <ImageFill className="pi-gallery-img" src={src} w={640} />}
                   </span>
                 ))}
               </span>
@@ -1284,7 +1300,7 @@ export function PropertyInfo(props: Props) {
             query as the CSS switch, so the two cannot disagree. */}
         {isMobileViewport && collectionVideos[0]
           ? <VideoSlide className="pi-m-hero-img" src={collectionVideos[0]} active autoPlay interactive title={displayName} />
-          : <ImageFill className="pi-m-hero-img" src={heroSlide} />}
+          : <ImageFill className="pi-m-hero-img" src={heroSlide} w={640} />}
         <span className="pi-m-hero-overlay" style={{ background: `rgba(16, 19, 24, ${overlay})` }} />
         <div className="pi-m-hero-top">
           {/* Figma 9693:40309 — inside the hero, so white on the image: a home
