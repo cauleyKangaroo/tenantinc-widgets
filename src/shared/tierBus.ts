@@ -38,6 +38,9 @@ export interface TierOpenRequest {
   /** Mirror Space List's presentation toggle. false hides promo pricing/copy;
    *  it does not change promotion eligibility or checkout application. */
   enablePromoLogic?: boolean;
+  /** Space List's "skip the popup for a single tier" setting. Only true lets
+   *  the modal hand straight off to the rental flow. */
+  skipSingleTier?: boolean;
   /**
    * The operator's struck-through IN-STORE rule, mirrored from Space List —
    * the RULE, never the computed figure. The receiver applies it to the price

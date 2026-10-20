@@ -12,6 +12,7 @@
     "test:phone": "tsc src/shared/ui/phone.ts --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck --outDir .tmp-test && node dev/phone-test.js",
     "test:tier-quotes": "node dev/tier-quote-test.js",
     "test:tier-panels": "node dev/tier-panel-test.js",
+    "test:tier-skip": "node dev/tier-skip-test.js",
     "test:location-permission": "node dev/location-permission-test.js",
     "test:homepage-search": "node dev/homepage-search-test.js",
     "test:one-step-idv": "node dev/one-step-idv-test.js && node dev/idv-lease-test.js",
