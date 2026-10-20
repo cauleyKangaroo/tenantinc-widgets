@@ -511,6 +511,26 @@ export function imageUrl(v: unknown): string {
 }
 
 /**
+ * Is this an image Duda MANAGES, as opposed to one merely sitting on its CDN?
+ *
+ * The distinction is the path, not the host: Duda's media library
+ * (`/image_manager_app/...`) and a site's own uploads (`/{siteId}/dms3rep/...`)
+ * are managed and have generated copies at `/opt/{name}-{width}w.{ext}`. The
+ * shared stock bucket `/duda-unit-images/...` sits on the SAME CloudFront
+ * distribution but is not managed, and has no such copies.
+ *
+ * This matters because the resizer is not documented to validate its input —
+ * it says only that the original "must be stored in Duda". Handing it an
+ * unmanaged URL risks getting back a rewritten path that does not exist:
+ * verified 2026-10-20, duda-unit-images/opt/Boxes-640w.png is a 403 while the
+ * plain file is a 200. Guessing wrong there would break the gallery's own
+ * fallback photos, so anything not recognisably managed is left alone.
+ */
+function isDudaManagedImage(url: string): boolean {
+  return url.includes('/image_manager_app/') || url.includes('/dms3rep/');
+}
+
+/**
  * Duda's resized/WebP copy of an image it hosts, or the original URL unchanged.
  *
  * Duda stores uploads once at full size and generates smaller copies on demand;
@@ -530,6 +550,7 @@ export function imageUrl(v: unknown): string {
  */
 export function optimizedImageUrl(url: string, width?: number): string {
   if (!url) return url;
+  if (!isDudaManagedImage(url)) return url;
   try {
     const dm = (window as unknown as { dmAPI?: DmAPILike }).dmAPI;
     const resize = dm?.getOptimizedImageURL ?? dm?.getResizedImageURL;
