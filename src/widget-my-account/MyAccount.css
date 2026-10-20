@@ -1911,6 +1911,21 @@
   .ma-pay__head { margin-bottom: 24px; }
 
   .ma-account__body { padding: 24px 20px; }
+  /* "Space #41" + Edit stays pinned while that space's details scroll under
+     it — just below the 62px white name bar (.ma-topbar), so the two stack.
+     It sticks only within its own card, so it lets go when the card ends.
+     `clip`, not `hidden`, on the card: hidden makes the card a scroll
+     container of its own, and a sticky child then sticks to THAT (which never
+     scrolls) instead of the page. clip still rounds the corners. */
+  .ma-account { overflow: clip; }
+  .ma-account__head {
+    position: sticky;
+    top: 62px;
+    z-index: 10;
+    margin: -12px -20px 0;
+    padding: 12px 20px;
+    background: #fff;
+  }
   .ma-account__title { font-size: 22px !important; }
   /* NOT flex-direction: column any more. The columns wrap on their own now (see
      .ma-account__cols), and in a column-direction container a flex-basis is a
