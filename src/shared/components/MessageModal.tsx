@@ -353,11 +353,11 @@ export function MessageModal({
           {error && <p className="pi-msg-error" role="alert">{error}</p>}
 
           <div className="pi-msg-actions">
-            <div className="pi-msg-captcha" aria-hidden="true">
-              <span className="pi-msg-captcha-box" />
-              <span className="pi-msg-captcha-label">I&rsquo;m not a robot</span>
-              <span className="pi-msg-captcha-brand">reCAPTCHA</span>
-            </div>
+            {/* The reCAPTCHA mock that sat here is REMOVED until the real thing
+                is wired up: it was a static box with no challenge behind it, so
+                it promised a check that was not happening. Its styles are kept
+                (.pi-msg-captcha* below) so restoring it is just this markup —
+                and see the note on .pi-msg-actions about the row's alignment. */}
             <div className="pi-msg-buttons">
               <button type="button" className="pi-msg-cancel" onClick={onClose} disabled={submitting}>Cancel</button>
               <button type="button" className="pi-msg-submit" onClick={handleSubmit} disabled={submitting}>
