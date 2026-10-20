@@ -48,6 +48,11 @@ interface DmCollectionsAPI {
 }
 interface DmAPILike {
   loadCollectionsAPI?: () => Promise<DmCollectionsAPI>;
+  /** Duda's image resizer. Documented as getOptimizedImageURL, but their own
+   *  custom-widget example calls getResizedImageURL, so both are declared and
+   *  whichever exists at runtime is used. */
+  getOptimizedImageURL?: (url: string, width?: number) => string;
+  getResizedImageURL?: (url: string, width?: number) => string;
 }
 
 export type CollectionRow = Record<string, unknown>;
@@ -503,6 +508,39 @@ export function imageUrl(v: unknown): string {
     }
   }
   return '';
+}
+
+/**
+ * Duda's resized/WebP copy of an image it hosts, or the original URL unchanged.
+ *
+ * Duda stores uploads once at full size and generates smaller copies on demand;
+ * the URL keeps the original extension (a .png that is really WebP), which is
+ * why audits report "large PNGs". Handing the stored URL straight to an <img>
+ * ships the full-size upload into a card that needs a fraction of it.
+ *
+ * `width` picks a specific size. Prefer Duda's STANDARD widths — 640 / 1280 /
+ * 1920 — which are generated at upload time; any other number is resized when
+ * first requested, so the first visitor pays for it. Omitting width lets Duda
+ * choose from the device, which is right only when the image fills the screen.
+ *
+ * Fails soft, and has to: `dmAPI` is published-site only, so in the Duda editor
+ * and the dev harness this returns the original and the image still renders.
+ * Duda also returns the input unchanged for anything it does not host, so
+ * third-party images (Google review avatars) pass through harmlessly.
+ */
+export function optimizedImageUrl(url: string, width?: number): string {
+  if (!url) return url;
+  try {
+    const dm = (window as unknown as { dmAPI?: DmAPILike }).dmAPI;
+    const resize = dm?.getOptimizedImageURL ?? dm?.getResizedImageURL;
+    if (typeof resize !== 'function') return url;
+    const out = resize(url, width);
+    // Only take a usable string back. A future signature change that returned
+    // undefined would otherwise blank every image on the page.
+    return typeof out === 'string' && out ? out : url;
+  } catch {
+    return url;
+  }
 }
 
 /** Parse a collection date (ISO, epoch ms/seconds, or a display string). */

@@ -14,7 +14,7 @@
 // that asks for it.
 // ===========================================================================
 
-import { readCollection, str, plainText, imageUrl, parseDate, type CollectionRow } from '@shared/dudaCollections';
+import { readCollection, str, plainText, imageUrl, optimizedImageUrl, parseDate, type CollectionRow } from '@shared/dudaCollections';
 
 export interface BlogPostData {
   id: string;
@@ -184,9 +184,15 @@ function mapRow(row: CollectionRow, basePath: string, withContent: boolean): Blo
     timestamp: when ? when.getTime() : 0,
     excerpt: plainText(row.description),
     // thumbnail suits the card's ~283x184 box; mainImage is the fallback.
-    image: imageUrl(row.thumbnail) || imageUrl(row.mainImage),
+    // Sized here rather than at each render site, because the two fields
+    // ALREADY encode their display size — that is the whole reason they are
+    // separate. 640 is Duda's standard small width and covers the ~283px card
+    // at 2x; 1280 covers the hero's full column. Both are generated at upload,
+    // so neither costs a resize on first view. Outside Duda (editor, harness)
+    // optimizedImageUrl returns the original and nothing changes.
+    image: optimizedImageUrl(imageUrl(row.thumbnail) || imageUrl(row.mainImage), 640),
     // …and the reverse for #16's hero, which is the full column wide.
-    heroImage: imageUrl(row.mainImage) || imageUrl(row.thumbnail),
+    heroImage: optimizedImageUrl(imageUrl(row.mainImage) || imageUrl(row.thumbnail), 1280),
     href: resolveHref(path, basePath),
     // Only #15 blogs-page filters on these; #12 ignores the field.
     tags: parseTags(row.tags),
