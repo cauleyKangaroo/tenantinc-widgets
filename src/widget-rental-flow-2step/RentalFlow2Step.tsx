@@ -3,15 +3,15 @@ import './RentalFlow2Step.css';
 import { Step2, type AutopayMode, type PaymentCycle, type KeyShareOption } from './Step2';
 import type { BillingCountry } from '@shared/paymentForms';
 import { instoreFrom, asInstoreMode, asInstoreAmount } from '@shared/instorePrice';
-import { contactPatchBody, patchContactViaProxy } from './contactPatch';
+import { contactPatchBody, patchContactViaProxy, vehicleBody, putVehicleViaProxy } from './contactPatch';
 import {
   fetchProperty, fetchSpaceGroups, fetchProtectionPlans, plansForUnitType, fetchLeaseDocument,
   cyclesForUnitType,
   extractSelectionContext, fetchSelectionFromOffers, findUnitForSelection,
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
-  updateContactDetails, dobToIso, fetchReservationCode,
-  fetchPaymentGateway, TENANT_PAYMENTS, configureApi, currentApiCreds, previewDocuments,
+  updateContactDetails, dobToIso, fetchReservationCode, fetchReservationRecord,
+  fetchPaymentGatewayInfo, TENANT_PAYMENTS, configureApi, currentApiCreds, previewDocuments,
   type RentResult, type ApiCredProps, type PaymentCycleKey, type RentalExtras, type QuoteOptions,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx, type PropertyInfo,
@@ -46,10 +46,10 @@ import {
 import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
-import { FormField, Button, DateModal, AlertIcon, formatPrice, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
+import { FormField, Button, DateModal, AlertIcon, formatPrice, capitalizeFirst, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
 import { resolvePropertyId, boundText } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
-import { fetchIdvRequirementSetting, fetchPropertySlug, fetchSingleStep } from '@shared/internalProperties';
+import { fetchIdvRequirementSetting, fetchPropertySlug, fetchSingleStep, fetchReviewIds } from '@shared/internalProperties';
 import { normaliseBasePath } from '@shared/propertyNav';
 import { withSpacesHash } from '@shared/promoBus';
 import { skipValidation } from '@shared/devBypass';
@@ -127,10 +127,11 @@ export interface RentalFlow2StepProps extends ApiCredProps, WalletConfigProps {
   /**
    * Where "Write a Review" points — the operator's Google review link.
    *
-   * The confirmation and access screens show the review card ONLY when this is
-   * set. The Figma frames draw it, but a review link is per-facility operator
-   * data with no sensible default: a made-up or empty link would send people
-   * nowhere, so the card stays hidden until someone supplies one.
+   * THE FALLBACK ONLY, since 2026-10-16: the link is built per property from
+   * its Google Business `placeId` on PropertiesInternal (see `placeReviewUrl`
+   * below) — Google's own write-a-review deep link, which opens the rating
+   * dialog for that listing. This content-menu URL is used when the property
+   * has no place id, and the card's generic destination when neither exists.
    */
   reviewUrl?: string;
   /**
@@ -764,9 +765,9 @@ function Step1Form({
         ) : (
           <div className="rf-row">
             <Field id="rf-first" label="First Name" value={first}
-              valid={first.trim().length > 0} error={bad('rf-first')} onChange={setFirst} />
+              valid={first.trim().length > 0} error={bad('rf-first')} onChange={(v) => setFirst(capitalizeFirst(v))} />
             <Field id="rf-last" label="Last Name" value={last}
-              valid={last.trim().length > 0} error={bad('rf-last')} onChange={setLast} />
+              valid={last.trim().length > 0} error={bad('rf-last')} onChange={(v) => setLast(capitalizeFirst(v))} />
           </div>
         )}
       </div>
@@ -806,7 +807,12 @@ function Step1Form({
           </span>
         </div>
       )}
-      {reserveError && <p className="rf-form-error" role="alert">{reserveError}</p>}
+      {reserveError && (
+        <div className="rf-form-error rf-form-error--tag" role="alert">
+          <AlertIcon size={24} className="rf-form-error-ico" />
+          <span>{reserveError}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -908,16 +914,21 @@ export function UnavailableStep({ similar, submitLead, property, spaceLabel }: {
         </div>
         <div className="rf-row">
           <Field id="rf-ua-first" label="First Name" value={first}
-            valid={first.trim().length > 0} error={bad('rf-ua-first')} onChange={setFirst} />
+            valid={first.trim().length > 0} error={bad('rf-ua-first')} onChange={(v) => setFirst(capitalizeFirst(v))} />
           <Field id="rf-ua-last" label="Last Name" value={last}
-            valid={last.trim().length > 0} error={bad('rf-ua-last')} onChange={setLast} />
+            valid={last.trim().length > 0} error={bad('rf-ua-last')} onChange={(v) => setLast(capitalizeFirst(v))} />
         </div>
       </div>
 
       <div className="rf-actions">
         <Button tone="cta" block busy={busy} onClick={submit}>Contact me</Button>
       </div>
-      {error && <p className="rf-form-error rf-ua-error" role="alert">{error}</p>}
+      {error && (
+        <div className="rf-form-error rf-ua-error rf-form-error--tag" role="alert">
+          <AlertIcon size={24} className="rf-form-error-ico" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {similar && (
         <>
@@ -1242,10 +1253,45 @@ export function RentalFlow2Step({
   const reservationStoredRef = useRef<ReturnType<typeof readReservationHandoff> | undefined>(undefined);
   if (reservationStoredRef.current === undefined) reservationStoredRef.current = readReservationHandoff();
   const reservationStored = reservationStoredRef.current;
-  const reservationIdProp = urlParam('reservationId') ?? reservationStored?.reservationId;
+  /*
+   * WHEN THE STORED HAND-OFF APPLIES. It is written by "Find my Reservation"
+   * and lives for an hour, and it used to be adopted whenever the URL had no
+   * reservationId of its own — including a visit that came from the space
+   * list naming a DIFFERENT unit. The page then ran in reservation mode and
+   * hid Reserve for that fresh unit (2026-10-16). So it applies only when the
+   * URL names that reservation, or names no other unit; a URL that picks
+   * another unit is a new intent, and the stale hand-off is cleared so it
+   * cannot resurface on the next visit either.
+   */
+  const urlReservationId = urlParam('reservationId');
+  const urlUnitId = urlParam('unitId');
+  const storedApplies = !!reservationStored && (
+    urlReservationId
+      ? reservationStored.reservationId === urlReservationId
+      : (!urlUnitId || urlUnitId === reservationStored.unitId)
+  );
+  if (reservationStored && !storedApplies && !urlReservationId) clearReservationHandoff();
+  const reservationIdProp = urlReservationId ?? (storedApplies ? reservationStored?.reservationId : undefined);
   // The stored reservation only speaks for the reservation on the URL: a stale
   // one from an earlier visit must not attach itself to a different id.
   const reservation = reservationIdProp && reservationStored?.reservationId === reservationIdProp ? reservationStored : null;
+  /*
+   * THE RESERVING CONTACT'S ID, for the lease's `contacts`. The hand-off from
+   * "Find my Reservation" carries it; a page reached by URL alone (or an older
+   * hand-off) does not, so the reservation record is read for it. Without
+   * it the lease created a SECOND contact from the typed details instead of
+   * joining the one the reservation belongs to (2026-10-16).
+   */
+  const [reservationContactId, setReservationContactId] = useState<string>(reservation?.contactId ?? '');
+  useEffect(() => {
+    if (!reservationIdProp || reservationContactId) return undefined;
+    let cancelled = false;
+    fetchReservationRecord(ctx, reservationIdProp)
+      .then((rec) => { if (!cancelled && rec?.contactId) setReservationContactId(rec.contactId); })
+      .catch(() => { /* soft: the lease still works, with a fresh contact */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reservationIdProp]);
 
   // The URL still wins everywhere — existing links and the value-tiers handoff
   // behave exactly as before; the stored pick only fills what the URL omits.
@@ -1377,6 +1423,26 @@ export function RentalFlow2Step({
   const cfgCtx = React.useMemo(() => defaultRentalCtx(), []);
   const effectivePropertyId = resolvePropertyId({ propertyId: propertyIdProp }, cfgCtx.propertyId);
   /*
+   * "Write a Review" / the stars → THIS property's Google listing, in its
+   * rating dialog: https://search.google.com/local/writereview?placeid=…
+   * (Google's documented review deep link). The place id is the property's
+   * `placeId` on PropertiesInternal — the same cell #03, #07, #08 and #09
+   * read their ratings with. Empty off the published site (no dmAPI) and
+   * for a property without one, when the content-menu `reviewUrl` stands in.
+   */
+  const [placeReviewUrl, setPlaceReviewUrl] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    fetchReviewIds(effectivePropertyId)
+      .then((ids) => {
+        if (cancelled) return;
+        setPlaceReviewUrl(ids.placeId ? `https://search.google.com/local/writereview?placeid=${encodeURIComponent(ids.placeId)}` : '');
+      })
+      .catch(() => { if (!cancelled) setPlaceReviewUrl(''); });
+    return () => { cancelled = true; };
+  }, [effectivePropertyId]);
+  const effectiveReviewUrl = placeReviewUrl || reviewUrl;
+  /*
    * PropertiesInternal.single_step — the facility's own ToggleSwitch, and the
    * answer that wins.
    *
@@ -1479,21 +1545,32 @@ export function RentalFlow2Step({
    * the safe direction: real card details reach a gateway that wanted them,
    * whereas a GP iframe on a non-GP property cannot take a payment at all.
    */
-  const [gateway, setGateway] = useState<string | null | undefined>(undefined);
+  /* The gateway AND its public key, from one reply. `undefined` while out,
+     `null` when it could not be read. */
+  const [gatewayInfo, setGatewayInfo] = useState<{ gateway: string | null; publicKey: string } | null | undefined>(undefined);
   useEffect(() => {
     // Wait for the resolved company — asking under the config default would
     // read another tenant's gateway and could pick the wrong form entirely.
     if (!effectiveCompanyId || !effectivePropertyId) return undefined;
     let cancelled = false;
-    fetchPaymentGateway(ctx)
-      .then((g) => { if (!cancelled) setGateway(g); })
-      .catch(() => { if (!cancelled) setGateway(null); });
+    fetchPaymentGatewayInfo(ctx)
+      .then((g) => { if (!cancelled) setGatewayInfo(g); })
+      .catch(() => { if (!cancelled) setGatewayInfo(null); });
     return () => { cancelled = true; };
   }, [effectiveCompanyId, effectivePropertyId, ctx]);
+  const gateway = gatewayInfo === undefined ? undefined : (gatewayInfo?.gateway ?? null);
 
   const gatewayPending = gateway === undefined;
-  /** Hosted fields belong to tenant_payments alone. */
-  const gpKey = gateway === TENANT_PAYMENTS ? configuredGpKey : '';
+  /**
+   * Hosted fields belong to tenant_payments alone, and THEIR KEY IS THE
+   * PROPERTY'S — `public_api_key` from the gateway reply. config.json's key
+   * is the fallback only when the reply carries none, and that is said out
+   * loud: a live site tokenizing against the bundled sandbox key is exactly
+   * the fault this replaces (2026-10-16).
+   */
+  const gpKey = gateway === TENANT_PAYMENTS
+    ? (gatewayInfo?.publicKey || (configuredGpKey && (console.warn(`${logTag} gateway reply carried no public_api_key — falling back to the bundled key`), configuredGpKey)) || '')
+    : '';
   const [step, setStep] = useState<1 | 2>(1);
   const [phase, setPhase] = useState<'in' | 'out'>('in');
   const [dateModalOpen, setDateModalOpen] = useState(false);
@@ -1751,7 +1828,7 @@ export function RentalFlow2Step({
     email: rentedContact.email,
     phone: rentedContact.phone,
     contactId: rental?.contactId,
-    leaseId: rental?.leaseId ?? 'local-checkout-harness',
+    leaseId: rental?.leaseId,
   } : undefined, [liveCheckoutIdvEnabled, rental, rentedContact]);
   const idvScope = React.useMemo(() => ({
     companyId: effectiveCompanyId ?? '',
@@ -3055,7 +3132,7 @@ export function RentalFlow2Step({
             gateHours={snapProp?.gateHours?.length ? snapProp.gateHours : confHours?.gateHours}
             rentUrl={confirmation.kind === 'reservation' ? checkoutUrl : undefined}
             onRetry={goToCheckout}
-            reviewUrl={reviewUrl}
+            reviewUrl={effectiveReviewUrl}
             appStoreUrl={appStoreUrl}
             playStoreUrl={playStoreUrl}
           />
@@ -3312,7 +3389,7 @@ export function RentalFlow2Step({
             </div>
             {!isMobile && railFor(true)}
           </div>
-        ) : accessGranted || (formMode === '1step' && !oneStepIdv) ? (
+        ) : accessGranted || (formMode === '1step' && (!oneStepIdv || Boolean(idvApi))) ? (
           <div className="rfc-layout">
             <Confirmation
               kind="rental"
@@ -3334,7 +3411,7 @@ export function RentalFlow2Step({
               // carry no hours, in which case they're fetched separately.
               officeHours={propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours}
               gateHours={propertyInfo?.gateHours?.length ? propertyInfo.gateHours : confHours?.gateHours}
-              reviewUrl={reviewUrl}
+              reviewUrl={effectiveReviewUrl}
               appStoreUrl={appStoreUrl}
               playStoreUrl={playStoreUrl}
             />
@@ -3382,6 +3459,9 @@ export function RentalFlow2Step({
                   // the direct PUT below has no field for. See contactPatch.ts.
                   const body = contactPatchBody(details, rental.leaseId);
                   if (body) void patchContactViaProxy(login_api_base, siteId, rental.contactId, body);
+                  // The vehicle is the LEASE's, so it is its own call.
+                  const vehicle = vehicleBody(details.extras);
+                  if (vehicle && rental.leaseId) void putVehicleViaProxy(login_api_base, siteId, rental.leaseId, vehicle);
                 } else if (rental?.contactId && details) {
                   void updateContactDetails(ctx, rental.contactId, {
                     driverLicense: details.driverLicense,
@@ -3500,6 +3580,8 @@ export function RentalFlow2Step({
               allowedVerificationHosts: allowedIdvHosts,
               requirement: idvRequirement,
               policyPending: idvPolicyPending,
+              remoteOperated: idvRemoteOperated === true,
+              facilityPhone: formatUsPhone(propertyInfo?.phone),
             } : undefined}
             paymentCycles={offeredCycles}
             keyShareOptions={keyShareOptions?.length ? keyShareOptions : (previewContent ? PREVIEW_KEY_SHARES : keyShareOptions)}
@@ -3609,6 +3691,9 @@ export function RentalFlow2Step({
                   holdToken: hold?.holdToken,
                   reservationId: reservationIdProp,
                   contact: {
+                    // Completing a reservation: the lease is for the contact
+                    // who reserved, by id (see reservationContactId).
+                    contactId: reservationIdProp ? (reservationContactId || undefined) : undefined,
                     first: c?.first ?? '',
                     last: c?.last ?? '',
                     email: c?.email ?? '',
@@ -3654,6 +3739,8 @@ export function RentalFlow2Step({
                   // documents/finalize was told 'Monthly' whatever was picked.
                   paymentCycle: info.paymentCycle,
                   extras: info.extras,
+                  idvId: info.idvId,
+                  idvRequired: formMode === '1step' && Boolean(idvApi) && idvRequirement === 'required',
                 })
                   .then((res) => {
                     setPaying(false);
@@ -3667,6 +3754,22 @@ export function RentalFlow2Step({
                       return false;
                     }
                     console.log(`${logTag} rental complete — lease ${res.leaseId}`);
+                    // One-step has no post-rental screen: file the verified
+                    // address and licence on the tenant now, like Get Access does.
+                    // Not awaited — a failure is logged and cannot undo the lease.
+                    // The ID check ran before payment, so there is no paid
+                    // ID screen: the confirmation says whether it was verified.
+                    // Same rule as two-step: verification off counts as satisfied.
+                    if (formMode === '1step' && idvApi) setIdVerified(idvRequirement === 'disabled' || Boolean(info.idvId));
+                    if (res.contactId && info.idvDetails) {
+                      const d = info.idvDetails;
+                      void updateContactDetails(ctx, res.contactId, {
+                        driverLicense: d.driverLicense,
+                        driverLicenseExp: d.driverLicenseExp ? dobToIso(d.driverLicenseExp) : undefined,
+                        driverLicenseState: d.driverLicenseState,
+                        mailingAddress: d.mailingAddress,
+                      });
+                    }
                     setRental(res);
                     if (info.contact) setRentedContact(info.contact);
                     if (info.extras) setChosenSections(info.extras);

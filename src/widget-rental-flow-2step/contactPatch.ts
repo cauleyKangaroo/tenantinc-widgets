@@ -15,8 +15,11 @@
 //                                        this lease) — it used to be collected
 //                                        and DROPPED, the direct PUT had no
 //                                        field for it
-//   vehicle                           → nowhere, still: the contract has no
-//                                        vehicle section
+//   vehicle                           → PUT {base}/api/tenant/leases/{leaseId}/vehicle
+//                                        (its own call — a vehicle belongs to
+//                                        the LEASE, not the contact; spec
+//                                        received 2026-10-15). Also used to be
+//                                        collected and dropped.
 //   military                          → not sent: the form asks only for a
 //                                        date of birth, and the contract's
 //                                        military object needs branch, rank,
@@ -33,6 +36,7 @@
 // ===========================================================================
 
 import { countryCode } from '../shared/countries';
+import { stateCodeFromName } from '../shared/usStates';
 
 /** What Step 2 hands over (see SuccessDetails) — only the parts filed here. */
 export interface ContactPatchInput {
@@ -54,7 +58,33 @@ export interface ContactPatchInput {
     altCity?: string;
     altState?: string;
     altZip?: string;
+    /** Vehicle — 'Car' | 'Motorcycle' | 'RV' | 'Boat' | 'Trailer' as picked. */
+    vType?: string;
+    make?: string;
+    model?: string;
+    year?: string;
+    colour?: string;
+    plate?: string;
+    /** Plate country and state, as NAMES ('United States', 'California'). */
+    country?: string;
+    stateVal?: string;
   };
+}
+
+/**
+ * PUT /api/tenant/leases/{leaseId}/vehicle — the contract's body, verbatim:
+ *   { type, make, model, year, color, licensePlateNumber,
+ *     licensePlateState, licensePlateCountry }
+ */
+export interface VehicleBody {
+  type: string;
+  make?: string;
+  model?: string;
+  year?: string;
+  color?: string;
+  licensePlateNumber?: string;
+  licensePlateState?: string;
+  licensePlateCountry?: string;
 }
 
 export interface ContactPatchBody {
@@ -153,27 +183,62 @@ export function contactPatchBody(input: ContactPatchInput, leaseId?: string): Co
 }
 
 /**
+ * The vehicle body, or null when no vehicle type was picked — the type is
+ * the one field the Vehicle section requires, so without it there is no
+ * vehicle to file. The picker's labels become the contract's lower-case
+ * types ('Car' → 'car'); the plate's state and country, picked as names,
+ * go as codes ('California' → 'CA', 'United States' → 'US'). Only what was
+ * filled travels.
+ */
+export function vehicleBody(extras: ContactPatchInput['extras']): VehicleBody | null {
+  const x = extras;
+  if (!x || !t(x.vType)) return null;
+  const state = t(x.stateVal);
+  const country = t(x.country);
+  const body: VehicleBody = { type: t(x.vType).toLowerCase() };
+  if (t(x.make)) body.make = t(x.make);
+  if (t(x.model)) body.model = t(x.model);
+  if (t(x.year)) body.year = t(x.year);
+  if (t(x.colour)) body.color = t(x.colour);
+  if (t(x.plate)) body.licensePlateNumber = t(x.plate);
+  if (state) body.licensePlateState = stateCodeFromName(state) || state;
+  if (country) body.licensePlateCountry = countryCode(country) || country;
+  return body;
+}
+
+/**
  * Send it. Boolean, never a throw: the rental is complete by the time this
  * runs, and a failure here must not look like a failed rental — it is logged.
  */
-export async function patchContactViaProxy(
-  base: string, siteId: string, contactId: string, body: ContactPatchBody,
-): Promise<boolean> {
-  const url = `${base.replace(/\/$/, '')}/api/tenant/contacts/${encodeURIComponent(contactId)}`;
+async function sendViaProxy(label: string, url: string, method: 'PATCH' | 'PUT', siteId: string, body: unknown): Promise<boolean> {
   try {
     const res = await fetch(url, {
-      method: 'PATCH',
+      method,
       headers: { 'Content-Type': 'application/json', 'X-Duda-Site-Id': siteId },
       body: JSON.stringify(body),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      console.warn(`[rental] contact PATCH failed: ${res.status}`, text.slice(0, 300));
+      console.warn(`[rental] ${label} failed: ${res.status}`, text.slice(0, 300));
       return false;
     }
     return true;
   } catch (err) {
-    console.warn('[rental] contact PATCH threw:', err);
+    console.warn(`[rental] ${label} threw:`, err);
     return false;
   }
+}
+
+export function patchContactViaProxy(
+  base: string, siteId: string, contactId: string, body: ContactPatchBody,
+): Promise<boolean> {
+  const url = `${base.replace(/\/$/, '')}/api/tenant/contacts/${encodeURIComponent(contactId)}`;
+  return sendViaProxy('contact PATCH', url, 'PATCH', siteId, body);
+}
+
+export function putVehicleViaProxy(
+  base: string, siteId: string, leaseId: string, body: VehicleBody,
+): Promise<boolean> {
+  const url = `${base.replace(/\/$/, '')}/api/tenant/leases/${encodeURIComponent(leaseId)}/vehicle`;
+  return sendViaProxy('vehicle PUT', url, 'PUT', siteId, body);
 }

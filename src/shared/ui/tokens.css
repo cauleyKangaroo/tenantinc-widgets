@@ -37,13 +37,13 @@
      Do NOT swap them for arbitrary greens/reds — they carry the pass/fail
      meaning and were picked for contrast. */
   --hb-ada-green: #028a0c;       /* success / validated */
-  --hb-ada-red: #e53935;         /* error / required marker */
+  --hb-ada-red: #d32f2f;         /* error / required marker */
 
   /* ── Typography ──────────────────────────────────────────────────────────
-     Montserrat throughout, matching the rest of the widgets. The stack falls
+     Poppins throughout, matching the rest of the widgets. The stack falls
      back to system UI so a Duda page that hasn't loaded the webfont still
      renders sensibly rather than dropping to Times. */
-  --hb-font: 'Montserrat', 'Montserrat Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --hb-font: 'Poppins', 'Poppins Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --hb-font-weight-regular: 400;
   --hb-font-weight-bold: 700;
 
@@ -86,7 +86,7 @@
      deliberate addition; see FormField.css / Button.css. */
   --hb-transition: 120ms ease-in-out;
   --hb-focus-ring: 0 0 0 3px rgba(16, 19, 24, 0.18);
-  --hb-focus-ring-error: 0 0 0 3px rgba(229, 57, 53, 0.22);
+  --hb-focus-ring-error: 0 0 0 3px rgba(211, 47, 47, 0.22);
   --hb-focus-ring-success: 0 0 0 3px rgba(2, 138, 12, 0.22);
 }
 

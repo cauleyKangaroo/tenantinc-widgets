@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .ub-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
 }
@@ -399,22 +399,16 @@
 }
 
 @media (max-width: 767px) {
-  /* Left-aligned on mobile. Centring needs the message to be shorter than the
-     bar; on a phone it usually wraps to two or three lines, and centred wrapped
-     text reads as ragged. Three things have to change together: the text
-     alignment, the flex centring that holds the message block, and the empty
-     left spacer that only exists to balance the close button. */
+  /* CENTRED on mobile, as on desktop (2026-10 — it was left-aligned from July
+     on the theory that wrapped centred text reads as ragged; the client wants
+     it centred). The empty spacer stays and matches the close track's 32px, so
+     the message centres on the BAR rather than on the space left of the X. */
   .ub-message {
     font-size: 16px;
-    text-align: left;
-  }
-
-  .ub-message-wrap {
-    justify-content: flex-start;
   }
 
   .ub-spacer {
-    display: none;
+    flex-basis: 32px;
   }
 
   .ub-inner {
@@ -423,8 +417,8 @@
 
   .ub-close-wrap {
     /* 32, not 28: the mark is the same 32 here as on desktop and a 28px track
-       would squeeze it. The spacer is display:none at this width, so widening
-       the track cannot pull the message off centre. */
+       would squeeze it. The spacer above is 32 too, which is what keeps the
+       message centred. */
     flex-basis: 32px;
   }
 

@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './NearbyLocations.css';
 import { PROPERTY_IMAGES, cover, propertyImage } from '@shared/demoImages';
 import { fetchPropertyHeroImages } from '@shared/propertyImages';
-import { fetchGoogleRatingsByPlace, matchedRatingForProperty } from '@shared/reviewsCollections';
+import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
+import { fetchPlaceRating } from '@shared/googlePlaceRating';
+import { fetchPlaceIds } from '@shared/internalProperties';
 import {
   StarRating,
   PhoneIcon,
@@ -685,6 +687,16 @@ export interface NearbyLocationsProps extends ApiCredProps {
   /** Value tiers as a PAGE rather than a modal. Set ⇒ Select navigates there
    *  with `size`/`unitGroupId`/`propertyId`/`companyId`, as #05 does. */
   valueTiersPageUrl?: string;
+  /**
+   * Duda's data.siteId. The proxy's reviews route refuses without a site id,
+   * so without this the cards keep the collection's rating only.
+   */
+  siteId?: string;
+  /**
+   * The proxy that answers /api/reviews/google/fetch — the same base #19 My
+   * Account takes as `login_api_base`. Omitted → the shared default host.
+   */
+  login_api_base?: string;
 }
 
 export function NearbyLocations({
@@ -699,6 +711,8 @@ export function NearbyLocations({
   internalCollection = INTERNAL_PROPERTIES_COLLECTION,
   propertyBasePath = DEFAULT_PROPERTY_BASE_PATH,
   rentalPageUrl,
+  siteId,
+  login_api_base,
   enableValueTiers = false,
   valueTiersChannel,
   valueTiersPageUrl,
@@ -822,6 +836,8 @@ export function NearbyLocations({
   // Reference coordinates (map centre).
   const [refLoc, setRefLoc] = useState<{ lat: number; lng: number } | null>(null);
 
+  /** The reviews proxy base, trimmed; '' falls back to the default host. */
+  const reviewsBase = (login_api_base ?? '').trim();
   useEffect(() => {
     let cancelled = false;
     // Re-running means the ordering or the layout changed, so the cards on screen
@@ -945,10 +961,27 @@ export function NearbyLocations({
         // photos do: a rating row arriving after the card would push the name
         // up inside its bottom-pinned block. A collection read, so it costs no
         // more than the photo read it runs beside. Fails soft to no ratings.
-        const [heroes, ratings] = await Promise.all([
+        const [heroes, ratings, placeIds] = await Promise.all([
           fetchPropertyHeroImages(internalCollection).catch(() => new Map<string, string>()),
           fetchGoogleRatingsByPlace('#07 nearby').catch(() => ({ byPlace: new Map(), overall: null })),
+          fetchPlaceIds(internalCollection).catch(() => new Map<string, string>()),
         ]);
+        /*
+         * THE LIVE RATING, PER PROPERTY. Each card's property has its own
+         * Google Business place id on PropertiesInternal, and the proxy's
+         * reviews route answers with that place's rating and review count
+         * (verified live 2026-10-16: Bellflower → 4.6, 396). One call per
+         * place, in parallel and inside this same await so the rating row
+         * paints with the card, never after it. The collection match below
+         * stays as the fallback for a property with no place id.
+         */
+        const placeRatings = new Map<string, RatingSummary>();
+        await Promise.all(top.map(async (p) => {
+          const placeId = placeIds.get(p.id);
+          if (!placeId) return;
+          const r = await fetchPlaceRating(placeId, { base: reviewsBase, siteId }).catch(() => null);
+          if (r) placeRatings.set(p.id, r);
+        }));
 
         // THE SLUG IS COLLECTION-ONLY. Verified live 2026-08-25: the REST
         // `/properties` response carries no `slug` field on either company, so
@@ -974,7 +1007,7 @@ export function NearbyLocations({
           const cached = spacesCache.current.get(p.id);
           // Matched only: these cards are OTHER facilities, so the site-wide
           // fallback would be another business's score on this one.
-          const rated = matchedRatingForProperty(p.name, ratings);
+          const rated = placeRatings.get(p.id) ?? matchedRatingForProperty(p.name, ratings);
           return {
             ...p,
             rating: rated?.score,
@@ -1002,7 +1035,7 @@ export function NearbyLocations({
     })();
 
     return () => { cancelled = true; clearTimeout(deadline); };
-  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection, companyId]);
+  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection, companyId, reviewsBase, siteId]);
 
   // While loading we render skeleton cards — showing DEMO_PROPERTIES here meant
   // real-looking names/prices flashed up and were then replaced. Demo data is
@@ -1054,10 +1087,32 @@ export function NearbyLocations({
      so the card did not move under the finger — it jumped after the fact.
      useCarousel follows the drag and snaps on release, the same hook and feel
      #05's nearby section and the blog listing use. */
-  const mobileCar = useCarousel({ count: properties.length, perView: 1, draggable: true });
+  /* Smooth mode (trackRef): the drag is written straight to the track as
+     --carousel-drag rather than re-rendering every card on each touchmove,
+     and a quick flick advances. */
+  const mobileTrackRef = useRef<HTMLDivElement>(null);
+  const mobileCar = useCarousel({ count: properties.length, perView: 1, draggable: true, trackRef: mobileTrackRef });
   const reduceMotion = usePrefersReducedMotion();
   const safePage = deskCar.index;
   const mobileIdx = mobileCar.index;
+
+  /* MOBILE MAP VIEW MATCHES THE CARD'S HEIGHT — the same approach as #05's
+     nearby accordion (NearbySection): measured, not guessed, because a card's
+     height depends on how many unit rows and promos its facility has. Read
+     from the card on screen while List View shows and has settled, and
+     re-read when the card or the data changes, so the figure is current
+     before Map View is opened. A number rather than '100%' for the same
+     reason as there: NearbyMap takes it as an explicit height. Never
+     measured ⇒ undefined, and the map keeps its own default as before. */
+  const [mobileCardHeight, setMobileCardHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (mobileView !== 'list' || loading) return;
+    const col = mobileTrackRef.current?.children[mobileIdx] as HTMLElement | undefined;
+    if (col) setMobileCardHeight(col.offsetHeight);
+  }, [mobileView, loading, mobileIdx, properties]);
+  /* 280, the accordion's floor, so a measurement taken mid-layout can never
+     open a sliver of a map. */
+  const mobileMapHeight = mobileCardHeight != null ? Math.max(mobileCardHeight, 280) : undefined;
   /* Pulled out so the reset effect can depend on THESE rather than on the two
      carousel objects, which are new every render and would re-run it — and
      re-running it refetches. Both are useCallback'd inside the hook. */
@@ -1081,16 +1136,24 @@ export function NearbyLocations({
    * only adds an id once a visitor has swiped past it. The result is
    * `cardsPerPage` ids — **3 for a one-row layout, 6 for two** — which is exactly
    * the fan-out the spaces effect performs.
+   *
+   * THE DESKTOP INDEX IS A COLUMN, NOT A PAGE. The strip steps one column at a
+   * time (see useCarousel above), so the cards on screen at index i are the
+   * columns i … i+2 — cards i×rows … (i+3)×rows. This used to slice by PAGE
+   * (index × cardsPerPage), which only agrees with the strip at index 0: one
+   * step on, it named cards 3–5 while columns 1–3 were on screen, so two of
+   * the three visible columns were treated as off screen (and collapsed to
+   * nothing), and two steps on none of them matched — every card vanished.
    */
   const visibleIds = useMemo(() => {
     if (!apiProperties?.length) return [] as string[];
     const ids = apiProperties
-      .slice(safePage * cardsPerPage, safePage * cardsPerPage + cardsPerPage)
+      .slice(safePage * rowCount, (safePage + COLUMNS) * rowCount)
       .map((p) => p.id);
     const onMobile = apiProperties[Math.min(mobileIdx, apiProperties.length - 1)]?.id;
     if (onMobile && !ids.includes(onMobile)) ids.push(onMobile);
     return ids;
-  }, [apiProperties, safePage, cardsPerPage, mobileIdx]);
+  }, [apiProperties, safePage, rowCount, mobileIdx]);
 
   /**
    * Spaces for the visible cards — one parallel batch per page.
@@ -1206,10 +1269,12 @@ export function NearbyLocations({
    * which layout-shift scoring excludes.
    */
   const deskPageIds = useMemo(
+    // Columns safePage … safePage+2, as the strip shows them — see visibleIds
+    // for why this is by column and not by page.
     () => (apiProperties ?? [])
-      .slice(safePage * cardsPerPage, safePage * cardsPerPage + cardsPerPage)
+      .slice(safePage * rowCount, (safePage + COLUMNS) * rowCount)
       .map((p) => p.id),
-    [apiProperties, safePage, cardsPerPage],
+    [apiProperties, safePage, rowCount],
   );
 
   // Map pins from the live properties (price = cheapest starting rate).
@@ -1379,13 +1444,18 @@ export function NearbyLocations({
                     {...mobileCar.handlers}
                   >
                     <div
+                      ref={mobileTrackRef}
                       className="nl-track"
                       style={{
-                        transform: `translateX(calc(${(mobileCar.offsetPct / 100).toFixed(6)} * var(--nl-step)))`,
+                        transform: `translateX(calc((${(mobileCar.offsetPct / 100).toFixed(6)} + var(--carousel-drag, 0)) * var(--nl-step)))`,
+                        /* The settle after a swipe: ease-out-quart — leaves at
+                           the finger's speed and glides into place, like a
+                           native scroll, rather than braking late. Mobile only;
+                           the desktop arrows keep their own curve. */
                         transition:
                           reduceMotion || mobileCar.dragging
                             ? 'none'
-                            : 'transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)',
+                            : 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
                       }}
                     >
                       {properties.map((property, i) => (
@@ -1426,6 +1496,7 @@ export function NearbyLocations({
           <NearbyMap
             center={mapCenter}
             points={mapPoints}
+            height={mobileMapHeight}
             className="nl-map"
             /* Draggable and zoomable; the pins reproject against the live map.
                With no Maps key this is the frozen embed exactly as before. */

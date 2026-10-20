@@ -34,6 +34,14 @@ const DRAG_MIN_PX = 8;
 /** Fraction of a step that must be dragged to advance on release. */
 const SNAP_RATIO = 0.25;
 
+/** Smooth mode: finger speed (px/ms) over the last moments that counts as a
+ *  flick and advances, however short the drag. */
+const FLICK_PX_PER_MS = 0.3;
+/** Smooth mode: how far back (ms) the release speed is measured over. */
+const FLICK_WINDOW_MS = 100;
+/** Smooth mode: the CSS custom property the drag offset is written to. */
+export const CAROUSEL_DRAG_VAR = '--carousel-drag';
+
 export interface UseCarouselOptions {
   /** Total items in the strip. */
   count: number;
@@ -41,6 +49,19 @@ export interface UseCarouselOptions {
   perView?: number;
   /** Enable finger-follow dragging. Off for pointer-only desktop rails. */
   draggable?: boolean;
+  /**
+   * OPT-IN smooth drag. With the moving track's element here, the hook writes
+   * the drag offset straight onto it as `--carousel-drag` (in steps) instead of
+   * setting state on every touchmove — so a swipe no longer re-renders the
+   * whole widget dozens of times a second, which is what made a heavy carousel
+   * stutter on a phone. React renders only when a drag starts and ends. A quick
+   * flick also advances even when shorter than SNAP_RATIO.
+   *
+   * The consumer adds the variable into its transform:
+   *   translateX(calc((offsetPct/100 + var(--carousel-drag, 0)) * <step>))
+   * Without it, behaviour is exactly as before (state-driven drag).
+   */
+  trackRef?: React.RefObject<HTMLElement | null>;
 }
 
 export interface CarouselApi {
@@ -74,7 +95,7 @@ export interface CarouselApi {
   ignoreAfterDrag: (fn: () => void) => () => void;
 }
 
-export function useCarousel({ count, perView = 1, draggable = false }: UseCarouselOptions): CarouselApi {
+export function useCarousel({ count, perView = 1, draggable = false, trackRef }: UseCarouselOptions): CarouselApi {
   const [index, setIndex] = useState(0);
   const [dragPct, setDragPct] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -100,12 +121,26 @@ export function useCarousel({ count, perView = 1, draggable = false }: UseCarous
   /** null until the axis is decided; then true = horizontal (we own the drag). */
   const axis = useRef<boolean | null>(null);
   const didDrag = useRef(false);
+  /** Smooth mode only: the live drag offset (in steps), and recent finger
+   *  positions for the release speed. Refs — they change every touchmove. */
+  const dragSteps = useRef(0);
+  const samples = useRef<Array<{ x: number; t: number }>>([]);
+
+  /** Smooth mode: write the offset to the track, no render. */
+  const writeDrag = useCallback((steps: number) => {
+    dragSteps.current = steps;
+    const el = trackRef?.current;
+    if (!el) return;
+    if (steps === 0) el.style.removeProperty(CAROUSEL_DRAG_VAR);
+    else el.style.setProperty(CAROUSEL_DRAG_VAR, steps.toFixed(4));
+  }, [trackRef]);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     const t = e.touches[0];
     start.current = { x: t.clientX, y: t.clientY };
     axis.current = null;
     didDrag.current = false;
+    samples.current = [{ x: t.clientX, t: e.timeStamp }];
     // Measure the step from the live element — the consumer's CSS owns the
     // width, so reading it here keeps this file out of the layout business.
     const el = e.currentTarget as HTMLElement;
@@ -138,20 +173,43 @@ export function useCarousel({ count, perView = 1, draggable = false }: UseCarous
     if ((safeIndex === 0 && moved > 0) || (safeIndex === maxIndex && moved < 0)) {
       moved *= 0.35;
     }
-    setDragPct(moved * 100);
-  }, [dragging, maxIndex, safeIndex]);
+    if (trackRef) {
+      writeDrag(moved);
+      // Keep only the last FLICK_WINDOW_MS of positions for the release speed.
+      const s = samples.current;
+      s.push({ x: t.clientX, t: e.timeStamp });
+      while (s.length > 2 && e.timeStamp - s[0].t > FLICK_WINDOW_MS) s.shift();
+    } else {
+      setDragPct(moved * 100);
+    }
+  }, [dragging, maxIndex, safeIndex, trackRef, writeDrag]);
 
   const onTouchEnd = useCallback(() => {
     start.current = null;
-    const moved = dragPct / 100;
-    setDragPct(0);
+    const moved = trackRef ? dragSteps.current : dragPct / 100;
+    // Smooth mode: clear the offset in the same tick as the index change below,
+    // so the CSS transition runs from where the finger left the strip.
+    if (trackRef) writeDrag(0);
+    else setDragPct(0);
     setDragging(false);
     if (axis.current !== true) return;
+    // A flick: fast enough at release, in the direction it was dragged.
+    let flick = 0;
+    if (trackRef) {
+      const s = samples.current;
+      const a = s[0];
+      const b = s[s.length - 1];
+      const dt = b && a ? b.t - a.t : 0;
+      const v = dt > 0 ? (b.x - a.x) / dt : 0;
+      if (Math.abs(v) >= FLICK_PX_PER_MS && Math.sign(v) === Math.sign(moved) && moved !== 0) {
+        flick = v < 0 ? 1 : -1;
+      }
+    }
     // One step per gesture, however far they flung it — the arrows move by one
     // and the swipe must agree, or the dots mean two different things.
-    if (moved <= -SNAP_RATIO) goTo(safeIndex + 1);
-    else if (moved >= SNAP_RATIO) goTo(safeIndex - 1);
-  }, [dragPct, goTo, safeIndex]);
+    if (moved <= -SNAP_RATIO || flick === 1) goTo(safeIndex + 1);
+    else if (moved >= SNAP_RATIO || flick === -1) goTo(safeIndex - 1);
+  }, [dragPct, goTo, safeIndex, trackRef, writeDrag]);
 
   const ignoreAfterDrag = useCallback((fn: () => void) => () => {
     if (didDrag.current) { didDrag.current = false; return; }
@@ -159,8 +217,12 @@ export function useCarousel({ count, perView = 1, draggable = false }: UseCarous
   }, []);
 
   const handlers = useMemo(
-    () => (draggable ? { onTouchStart, onTouchMove, onTouchEnd } : {}),
-    [draggable, onTouchStart, onTouchMove, onTouchEnd],
+    () => (draggable
+      // Smooth mode also ends on touchcancel (a call, a system gesture), so the
+      // offset written to the track can never be left behind.
+      ? { onTouchStart, onTouchMove, onTouchEnd, ...(trackRef ? { onTouchCancel: onTouchEnd } : {}) }
+      : {}),
+    [draggable, onTouchStart, onTouchMove, onTouchEnd, trackRef],
   );
 
   return {

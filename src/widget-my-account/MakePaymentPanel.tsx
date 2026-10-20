@@ -53,9 +53,13 @@
 // ===========================================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CoveragePlan, LeaseCoverage, LeasePaymentMethod, LeasePaymentReceipt, LeasePaymentRequest, PrepayQuote } from '@shared/accountApi';
-import { Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
-import { BankForm, CardForm, PaymentFormSkeleton, type CardFormValue } from '@shared/paymentForms';
+import type { CoveragePlan, LeaseBankPaymentMethod, LeaseCoverage, LeasePaymentMethod, LeasePaymentReceipt, LeasePaymentRequest, LeaseWalletPaymentMethod, PrepayQuote } from '@shared/accountApi';
+import { GooglePayButton } from '../widget-rental-flow-2step/GooglePayButton';
+import { ApplePayButton } from '../widget-rental-flow-2step/ApplePayButton';
+import type { RentalCtx, WalletPayment } from '../widget-rental-flow-2step/api';
+import type { WalletConfig } from '../widget-rental-flow-2step/walletConfig';
+import { AlertIcon, Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
+import { BankForm, CardForm, PaymentFormSkeleton, type BankFormValue, type CardFormValue } from '@shared/paymentForms';
 import {
   BankIcon, ChevronBigLeft24Icon, ChevronBigRight24Icon, CreditCardIcon, CreditCardRemoveIcon,
   CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
@@ -81,12 +85,30 @@ const FORM_SKELETON_MS = 700;
  * PROPERTY (every space on the panel is at one property): a string mounts
  * the hosted card fields, '' means the facility takes no card online and the
  * card option is replaced by a notice, undefined means the lookup is still
- * out. The account payments API takes a hosted-field TOKEN or a saved method
- * — never card digits — so there is no plain-input fallback here on purpose.
+ * out. The account payments API takes a hosted-field TOKEN, a saved method
+ * or a bank account (#99's ACH object) — never card digits — so there is no
+ * plain-input card fallback here on purpose.
  */
+/**
+ * Apple Pay / Google Pay, as #99 offers them: #99's own buttons, #99's
+ * validated config, and a context naming the company and property for the
+ * Google Pay JWT and the Apple merchant session. `googlePay` / `applePay`
+ * are whether to OFFER each — the button itself can still decline (browser,
+ * readiness) and says so through onAvailabilityChange.
+ */
+export interface WalletHandlers {
+  config: WalletConfig;
+  ctx: RentalCtx;
+  googlePay: boolean;
+  applePay: boolean;
+  /** The TENANT's name — the payment object's first/last, as in #99. */
+  tenant: { first: string; last: string };
+}
+
 export interface PaymentHandlers {
   gpPublicKey: string | undefined;
   gatewayPending: boolean;
+  wallet?: WalletHandlers;
   /** Cards on file at this property, for one-tap "saved" payments. */
   savedCards: SavedCard[];
   pay: (leaseId: string, body: LeasePaymentRequest, idempotencyKey: string) =>
@@ -456,6 +478,12 @@ export function MakePaymentPanel({
      once per lease per attempt and kept until that lease is paid, so a retry
      after a dropped connection cannot charge it twice. */
   const [paying, setPaying] = useState(false);
+  /* WHICH saved card is being charged, so only its tile says so. Every tile
+     read the shared `paying` flag and all of them said "Paying…" at once. */
+  const [payingCardId, setPayingCardId] = useState('');
+  /** What a wallet needs the tenant to see, beside the buttons (#99 does the
+   *  same). A cancelled sheet is silent. */
+  const [walletError, setWalletError] = useState<string | undefined>(undefined);
   const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
   const [payMessage, setPayMessage] = useState<string>('');
   const idemKeys = useRef<Map<string, string>>(new Map());
@@ -473,6 +501,19 @@ export function MakePaymentPanel({
   };
   const autopayFor = (sp: AccountSpace) =>
     !cancelled.has(sp.id) && (enrolledNow.has(sp.id) || updateMethod.has(sp.id));
+  /* The Balance Due card's Autopay Enrollment — one tick for every space being
+     paid that is not on autopay yet. It drives the SAME `enrolledNow` set as
+     each space's own box, so the two always agree and the enrolment goes out
+     with the payment exactly as a per-space tick does (autopayFor). Spaces the
+     account already has enrolled are left to their own strip: un-enrolling is
+     Cancel Autopay's job, never a side effect of this box. */
+  const autopayCandidates = list.filter((s) => selected.has(s.id) && !s.autopay.enrolled);
+  const allAutopayOn = autopayCandidates.length > 0 && autopayCandidates.every((s) => enrolledNow.has(s.id));
+  const toggleAutopayAll = () => setEnrolledNow((prev) => {
+    const next = new Set(prev);
+    autopayCandidates.forEach((s) => (allAutopayOn ? next.delete(s.id) : next.add(s.id)));
+    return next;
+  });
   const finishPayment = (outcome: PaymentOutcome, r: PaymentReceipt | null, message: string) => {
     setReceipt(r);
     setPayMessage(message);
@@ -480,8 +521,75 @@ export function MakePaymentPanel({
     setResult(outcome);
     panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
-  const payLive = async (card?: CardFormValue, saved?: SavedCard) => {
-    if (!payment || paying) return;
+  /*
+   * The bank account as the proxy's contract spells it (2026-10-15): camelCase,
+   * the account type lower-case, the holder's name, and the billing address as
+   * one object. Saved, as #99's is: the lease needs a stored method to enrol
+   * in autopay, and the details are re-sent for each further space rather
+   * than relying on the reply naming the stored one.
+   */
+  const achMethod = (bank: BankFormValue, autopay: boolean): LeaseBankPaymentMethod => ({
+    type: 'ach',
+    accountNumber: bank.accountNumber.replace(/\D/g, ''),
+    routingNumber: bank.routingNumber.replace(/\D/g, ''),
+    accountType: bank.accountType.trim().toLowerCase() === 'savings' ? 'savings' : 'checking',
+    firstName: bank.firstName.trim(),
+    lastName: bank.lastName.trim(),
+    saveToAccount: true,
+    autopay,
+    address: {
+      line1: bank.address.trim(),
+      ...(bank.address2.trim() ? { line2: bank.address2.trim() } : {}),
+      city: bank.city.trim(),
+      state: bank.state.trim(),
+      zip: bank.zip.trim(),
+      country: bank.country.trim() || 'United States',
+    },
+  });
+  /*
+   * The wallet payment method as the proxy's contract spells it (2026-10-15):
+   * the type as 'google-pay' / 'apple-pay' and the token EXACTLY as #99's
+   * buttons hand it over — Google's token string, Apple's whole token object
+   * stringified. Nothing else: the proxy rejects keys it does not list.
+   */
+  const walletMethod = (wallet: WalletPayment): LeaseWalletPaymentMethod => ({
+    type: wallet.type === 'googlepay' ? 'google-pay' : 'apple-pay',
+    token: wallet.token,
+  });
+  /** How many separate payments the ticked spaces need — see payLive's steps. */
+  const stepCount = () => list.filter((s) => selected.has(s.id))
+    .reduce((n, sp) => n + (sp.openInvoices.length > 0 ? 1 : 0) + (prepay ? 1 : 0), 0);
+  /*
+   * The gate a wallet runs between the tap and its sheet — SYNCHRONOUS, as
+   * in #99: Apple Pay throws and Chrome blocks Google's popup if anything is
+   * awaited first. A wallet token pays ONE lease and cannot be stored, so
+   * several ticked spaces are refused here rather than paying the first and
+   * failing the rest.
+   */
+  const canOpenWallet = (): boolean => {
+    setWalletError(undefined);
+    if (!payment || paying) return false;
+    const n = stepCount();
+    if (n === 0) {
+      setWalletError('There is nothing outstanding on the selected space(s) to pay.');
+      return false;
+    }
+    if (n > 1) {
+      setWalletError('Apple Pay and Google Pay can pay one space at a time. Tick a single space without prepay, or pay by card.');
+      return false;
+    }
+    if (prepay && Object.values(prepayQuotes).some((q) => q === 'loading' || q === 'failed')) {
+      setWalletError('The prepay amount is still being calculated. Please try again in a moment.');
+      return false;
+    }
+    return true;
+  };
+  /** The sheet came back with a token: pay with it. Resolves the payment's
+   *  outcome so Apple Pay can complete its sheet with it. */
+  const payWithWallet = (wallet: WalletPayment): Promise<boolean> =>
+    payLive(undefined, undefined, undefined, wallet).then((ok) => ok === true, () => false);
+  const payLive = async (card?: CardFormValue, saved?: SavedCard, bank?: BankFormValue, wallet?: WalletPayment): Promise<boolean> => {
+    if (!payment || paying) return false;
     /*
      * One STEP per thing to pay: a space's open invoices, and — with prepay
      * on — its prepay, each its own call (the API takes `invoices` or
@@ -499,22 +607,29 @@ export function MakePaymentPanel({
       }
       if (prepay) {
         const q = prepayQuotes[sp.id];
-        if (!q || q === 'loading') { finishPayment('failed', null, 'The prepay amount is still being calculated. Please try again in a moment.'); return; }
-        if (q === 'failed') { finishPayment('failed', null, `We could not price the prepay for ${sp.paymentNumber}. Please try again.`); return; }
+        if (!q || q === 'loading') { finishPayment('failed', null, 'The prepay amount is still being calculated. Please try again in a moment.'); return false; }
+        if (q === 'failed') { finishPayment('failed', null, `We could not price the prepay for ${sp.paymentNumber}. Please try again.`); return false; }
         steps.push({ sp, body: { amount: q.total, prepayMonths: q.months }, label: `${sp.paymentNumber} prepay`, key: `${sp.id}:prepay:${q.months}` });
       }
     }
     if (steps.length === 0) {
       finishPayment('failed', null, 'There is nothing outstanding on the selected space(s) to pay. Tick "Prepay Additional Month(s)" to pay ahead.');
-      return;
+      return false;
     }
-    if (!saved && !card?.token) {
+    if (wallet && steps.length > 1) {
+      // Guarded in canOpenWallet too; this is the backstop should the ticks
+      // change while the sheet is open.
+      finishPayment('failed', null, 'You have not been charged. Apple Pay and Google Pay can pay one space at a time.');
+      return false;
+    }
+    if (!saved && !card?.token && !bank && !wallet) {
       // Plain inputs would mean a card number in this bundle, which the API
       // does not take and this page must never hold.
       finishPayment('failed', null, 'Card payments need the secure card fields, which did not load. Please refresh and try again.');
-      return;
+      return false;
     }
     setPaying(true);
+    setPayingCardId(saved?.id ?? '');
     let savedId = saved?.id ?? '';
     let paidTotal = 0;
     let last: LeasePaymentReceipt | undefined;
@@ -523,31 +638,39 @@ export function MakePaymentPanel({
     for (const step of steps) {
       const method: LeasePaymentMethod = savedId
         ? { type: 'saved', id: savedId }
-        : { type: 'hosted-card', token: card!.token!, zip: card!.zip, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) };
+        : wallet
+          ? walletMethod(wallet)
+          : bank
+            ? achMethod(bank, autopayFor(step.sp))
+            : { type: 'hosted-card', token: card!.token!, zip: card!.zip, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) };
       const r = await payment.pay(step.sp.id, { ...step.body, paymentMethod: method }, idemKeyFor(step.key));
       if (!r.ok) { failure = r.message; break; }
       idemKeys.current.delete(step.key);
       paidTotal += step.body.amount; last = r.receipt; paid.push(step);
-      if (!savedId && paid.length < steps.length) {
+      // A bank account can be sent again; only a card TOKEN is single-use.
+      if (bank && !savedId && r.receipt.savedPaymentMethodId) savedId = r.receipt.savedPaymentMethodId;
+      if (!bank && !savedId && paid.length < steps.length) {
         if (r.receipt.savedPaymentMethodId) savedId = r.receipt.savedPaymentMethodId;
         else { failure = 'The card could only be charged once in this session. Please pay the remaining item(s) separately.'; break; }
       }
     }
     setPaying(false);
-    const last4 = saved?.last4 || (card?.maskedCardNumber ?? '').replace(/\D/g, '').slice(-4);
+    setPayingCardId('');
+    const last4 = saved?.last4
+      || (bank ? bank.accountNumber.slice(-4) : (card?.maskedCardNumber ?? '').replace(/\D/g, '').slice(-4));
+    const walletName = wallet ? (wallet.type === 'googlepay' ? 'Google Pay' : 'Apple Pay') : '';
     const summary: PaymentReceipt = {
       number: last?.number || '—',
       amount: formatMoney(paidTotal),
-      method: last?.method || (last4 ? `xxxx ${last4}` : '—'),
+      method: walletName || last?.method || (last4 ? `${bank ? 'Bank ' : ''}xxxx ${last4}` : '—'),
     };
-    if (!failure) { finishPayment('success', summary, ''); return; }
+    if (!failure) { finishPayment('success', summary, ''); return true; }
     if (paid.length) {
       const unpaid = steps.filter((s) => !paid.includes(s)).map((s) => s.label).join(', ');
       finishPayment('failed', summary, `${paid.map((s) => s.label).join(', ')} paid (${summary.amount}). Not paid: ${unpaid}. ${failure}`);
     } else finishPayment('failed', null, failure);
+    return false;
   };
-  const bankNotLive = () =>
-    finishPayment('failed', null, 'Bank payments are not available online yet. Please pay by card, or contact the office.');
   const liveCardKey = payment?.gpPublicKey;
   const cardUnavailable = !!payment && !payment.gatewayPending && !liveCardKey;
   /* "Pay through" is per space; with several selected they can disagree, so the
@@ -803,9 +926,11 @@ export function MakePaymentPanel({
                   </div>
                 )}
                 {coverageNote[sp.id] && (
-                  <p className={`ma-coverage-note${coverageNote[sp.id]!.kind === 'error' ? ' ma-coverage-note--error' : ''}`} role={coverageNote[sp.id]!.kind === 'error' ? 'alert' : 'status'}>
-                    {coverageNote[sp.id]!.text}
-                  </p>
+                  <div className={`ma-coverage-note${coverageNote[sp.id]!.kind === 'error' ? ' ma-coverage-note--error' : ''}`} role={coverageNote[sp.id]!.kind === 'error' ? 'alert' : 'status'}>
+                    {/* The alert mark only on an error; a status note stays plain. */}
+                    {coverageNote[sp.id]!.kind === 'error' && <AlertIcon size={24} className="ma-alert-ico" />}
+                    <span>{coverageNote[sp.id]!.text}</span>
+                  </div>
                 )}
               </>)}
 
@@ -899,6 +1024,14 @@ export function MakePaymentPanel({
                 <span className="ma-stepper__unit">Month(s)</span>
               </div>
             )}
+
+            {/* Only while a ticked space has autopay to enrol in — with every
+                one already enrolled there is nothing for it to do. */}
+            {autopayCandidates.length > 0 && (
+              <Checkbox checked={allAutopayOn} onChange={toggleAutopayAll} className="ma-balance__check">
+                Autopay Enrollment
+              </Checkbox>
+            )}
           </div>
         )}
 
@@ -928,20 +1061,50 @@ export function MakePaymentPanel({
               onClick={() => void payLive(undefined, c)}
             >
               <CreditCardIcon />
-              <span>{paying ? 'Paying…' : `Pay with ${c.cardType ? c.cardType.toUpperCase() : 'card'} xxxx ${c.last4}`}</span>
+              <span>{payingCardId === c.id ? 'Paying…' : `Pay with ${c.cardType ? c.cardType.toUpperCase() : 'card'} xxxx ${c.last4}`}</span>
             </button>
           ))}
         </div>
       )}
       <div className="ma-methods">
-        <button type="button" className="ma-method ma-method--dark">
-          <GooglePayLockup />
-        </button>
-        <button type="button" className="ma-method ma-method--dark">
-          <span className="ma-applepay" role="img" aria-label="Apple Pay">
-            <ApplePayMark />
-          </span>
-        </button>
+        {/* LIVE: #99's own wallet buttons, each of which may decline to render
+            (unsupported browser, not ready to pay, no JWT for this host).
+            The sample keeps the frame's two mock tiles. */}
+        {payment ? (
+          <>
+            {payment.wallet?.googlePay && (
+              <GooglePayButton
+                config={payment.wallet.config}
+                total={balanceTotal}
+                ctx={payment.wallet.ctx}
+                canOpen={canOpenWallet}
+                onToken={payWithWallet}
+                onError={setWalletError}
+              />
+            )}
+            {payment.wallet?.applePay && (
+              <ApplePayButton
+                config={payment.wallet.config}
+                total={balanceTotal}
+                ctx={payment.wallet.ctx}
+                canOpen={canOpenWallet}
+                onToken={payWithWallet}
+                onError={setWalletError}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <button type="button" className="ma-method ma-method--dark">
+              <GooglePayLockup />
+            </button>
+            <button type="button" className="ma-method ma-method--dark">
+              <span className="ma-applepay" role="img" aria-label="Apple Pay">
+                <ApplePayMark />
+              </span>
+            </button>
+          </>
+        )}
         {!methodOpen && (
           <>
             <button
@@ -963,6 +1126,12 @@ export function MakePaymentPanel({
           </>
         )}
       </div>
+      {walletError && (
+        <div className="ma-pay__notice ma-pay__notice--error" role="alert">
+          <AlertIcon size={24} className="ma-alert-ico" />
+          <span>{walletError}</span>
+        </div>
+      )}
 
       {/* The forms are #99's, from `@shared/paymentForms` — same fields, same
           validation, same "Pay Now $X". Only the total differs: here it is the
@@ -1000,22 +1169,14 @@ export function MakePaymentPanel({
               />
             )
           ) : (
-            <>
-              {/* The account payments API takes a card token or a saved method
-                  and nothing else yet. The tile stays — bank is on the way —
-                  but on a live account it must say so before the details are
-                  typed, and a "Pay Now" here cannot pretend to have paid. */}
-              {payment && (
-                <p className="ma-pay__notice" role="status">
-                  Bank payments are coming soon and are not available online yet. Please pay by card for now.
-                </p>
-              )}
-              <BankForm
-                total={balanceTotal}
-                onPay={() => (payment ? bankNotLive() : pay())}
-                defaultCountry="United States"
-              />
-            </>
+            /* #99's bank form, and its ACH object goes to the account
+               payments API exactly as #99 sends it (achMethod above). */
+            <BankForm
+              total={balanceTotal}
+              onPay={(v) => (payment ? void payLive(undefined, undefined, v) : pay())}
+              busy={paying}
+              defaultCountry="United States"
+            />
           )}
         </section>
       )}

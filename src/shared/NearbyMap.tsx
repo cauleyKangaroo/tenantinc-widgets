@@ -100,7 +100,27 @@ interface NearbyMapProps {
    * longer pushes every property to the edge of the frame.
    */
   fitToPoints?: boolean;
+  /**
+   * A point the map must KEEP IN VIEW — the marker that was just clicked.
+   *
+   * The map pans to it only when it is outside the viewport (or within a
+   * small margin of the edge, where its popup would be clipped); a marker
+   * already on screen leaves the map exactly where it is. Anything else that
+   * moves the map is the visitor's own drag or zoom. Keyed, so a re-render
+   * with the same marker is not a new request, and a different marker is.
+   *
+   * This replaces #08's old habit of shifting `center` on every click, which
+   * panned the map on each selection — and on hover, since hovering moved
+   * the active marker the centre was derived from.
+   */
+  keepInView?: { lat: number; lng: number; key: string } | null;
 }
+
+/** A marker counts as off screen only when its POINT is outside the box.
+ *  Kept to a few pixels of tolerance, no more: the fit zoom places the outer
+ *  pins hard against the edges, and a wider margin (48px was tried) made a
+ *  click on one of those pan the map — the very jump this exists to stop. */
+const EDGE_MARGIN = 4;
 
 const TILE = 256;
 
@@ -186,6 +206,7 @@ export function NearbyMap({
   proxyBase,
   interactive = false,
   fitToPoints = false,
+  keepInView = null,
 }: NearbyMapProps) {
   const ref = useRef<HTMLDivElement>(null);
   const holder = useRef<HTMLDivElement>(null);
@@ -370,6 +391,27 @@ export function NearbyMap({
     const wp = worldXY(p.lat, p.lng);
     return { ...p, left: width / 2 + (wp.x - c.x) * scale, top: boxHeight / 2 + (wp.y - c.y) * scale };
   });
+
+  /*
+   * Keep the clicked marker on screen — and ONLY then move. The current
+   * projection is read through a ref so the effect runs on the marker's key
+   * alone, not on every pan the visitor makes afterwards.
+   */
+  const projRef = useRef({ c, scale, width, boxHeight });
+  projRef.current = { c, scale, width, boxHeight };
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !live || !keepInView) return;
+    const { c: pc, scale: ps, width: w, boxHeight: h } = projRef.current;
+    if (!w || !h) return;
+    const wp = worldXY(keepInView.lat, keepInView.lng);
+    const left = w / 2 + (wp.x - pc.x) * ps;
+    const top = h / 2 + (wp.y - pc.y) * ps;
+    const inside = left >= EDGE_MARGIN && left <= w - EDGE_MARGIN && top >= EDGE_MARGIN && top <= h - EDGE_MARGIN;
+    if (inside) return;
+    map.panTo({ lat: keepInView.lat, lng: keepInView.lng });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live, keepInView?.key]);
 
   const open = positioned.find((p) => p.id === openId) ?? null;
 

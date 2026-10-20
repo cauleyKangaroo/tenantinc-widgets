@@ -199,6 +199,19 @@ function forceHardcodedLinks<
 const FIND_STORAGE_LABEL = 'Find Storage';
 
 /**
+ * Where Pay Bill and the account icon go: My Account (#19) on whichever site
+ * the nav is on — root-relative, so every site built from the template gets
+ * its own. A signed-out visitor is sent on to /login by My Account itself.
+ */
+const MY_ACCOUNT_PATH = '/my-account';
+
+/** A content-menu URL, unless it is empty or the old '#' placeholder. */
+const urlOr = (url: string | undefined, fallback: string) => {
+  const u = (url ?? '').trim();
+  return u && u !== '#' ? u : fallback;
+};
+
+/**
  * Turn the collection-derived location tree into Find Storage's MOBILE accordion.
  *
  * Desktop no longer uses this — that link opens <FindStorageMegaMenu /> — but the
@@ -305,6 +318,11 @@ export interface NavigationBarProps extends ApiCredProps {
   /** Property whose phone number is pulled from the `Properties` collection.
    *  The `phone` prop/default remains the fallback. */
   propertyId?: string;
+  /** Duda's data.siteId — feeds the Find Storage menu's live ratings. */
+  siteId?: string;
+  /** The proxy base (the site's `login_api_base`) that answers the reviews
+   *  route the Find Storage menu's ratings come from. */
+  login_api_base?: string;
   /** Colour of the raised logo tile. Default storelocal green. */
   logoBg?: string;
   /** Primary-bar height. 'narrow' = 100px, 'wide' = 180px. Default 'narrow'. */
@@ -393,9 +411,9 @@ export function NavigationBar({
   liveChatUrl = '#',
   language = 'EN',
   payBillLabel = 'Pay Bill',
-  payBillUrl = '#',
+  payBillUrl = MY_ACCOUNT_PATH,
   accountLabel = 'My Account',
-  accountUrl = '#',
+  accountUrl = MY_ACCOUNT_PATH,
   logoLink,
   links,
   propertyId = DEFAULT_PROPERTY_ID,
@@ -408,6 +426,8 @@ export function NavigationBar({
   api_domain,
   app_id,
   api_key,
+  siteId,
+  login_api_base,
 }: NavigationBarProps) {
   // REST creds for the Email circle's "Send us a Message" modal, as #03 does.
   useMemo(
@@ -736,13 +756,9 @@ export function NavigationBar({
                   setMegaOpen((o) => !o);
                 }}
               >
+                {/* No chevron on Find Storage: it opens the mega menu, not a
+                    dropdown, and the design drops the caret here. */}
                 <span>{link.label}</span>
-                {link.hasDropdown && (
-                  <ChevronDown
-                    size={20}
-                    className={`nav-link-chevron${megaOpen ? ' is-open' : ''}`}
-                  />
-                )}
               </button>
             ) : isFolderToggle ? (
               <button
@@ -818,6 +834,11 @@ export function NavigationBar({
     </ul>
   );
 
+  // A Duda JS tab can still pass '' or '#' for these, so the default alone is
+  // not enough.
+  const payBillHref = urlOr(payBillUrl, MY_ACCOUNT_PATH);
+  const accountHref = urlOr(accountUrl, MY_ACCOUNT_PATH);
+
   // Secondary-bar utility row (also reused in the mobile drawer when the top bar is on).
   // Each item is gated by its own visibility toggle from the content menu.
   const topItems = (
@@ -835,7 +856,7 @@ export function NavigationBar({
         </a>
       )}
       {showPayBill && (
-        <a className="nav-top-item" href="/login">
+        <a className="nav-top-item" href={payBillHref}>
           <CreditCardIcon size={24} />
           <span>{payBillLabel}</span>
         </a>
@@ -855,7 +876,7 @@ export function NavigationBar({
         </a>
       )}
       {showPayBill && (
-        <a className="nav-paybill" href={payBillUrl}>
+        <a className="nav-paybill" href={payBillHref}>
           {payBillLabel}
         </a>
       )}
@@ -871,7 +892,7 @@ export function NavigationBar({
         </button>
       )}
       {showAccount && (
-        <a className="nav-icon-btn" href={accountUrl} aria-label="Account">
+        <a className="nav-icon-btn" href={accountHref} aria-label="Account">
           <UserCircleIcon size={40} />
         </a>
       )}
@@ -939,7 +960,13 @@ export function NavigationBar({
           `tenantinc:find-storage:*` window events even when the in-bar Find
           Storage link is the hover cascade ('dropdown' mode). Below 1024px this
           panel is display:none and those events open the drawer instead. */}
-      <FindStorageMegaMenu open={megaOpen} onClose={() => setMegaOpen(false)} tree={megaTree} />
+      <FindStorageMegaMenu
+        open={megaOpen}
+        onClose={() => setMegaOpen(false)}
+        tree={megaTree}
+        siteId={siteId}
+        reviewsBase={(login_api_base ?? '').trim()}
+      />
 
       {/* Raised logo tile — absolutely positioned so it spans both bars and
           protrudes below. Space is reserved via padding-left on the bar inners

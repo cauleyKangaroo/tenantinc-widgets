@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .faq-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   color: #101318;
@@ -58,7 +58,7 @@
   border: 1px solid #101318;
   border-radius: 100px;
   padding: 0 60px 0 21px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   color: #101318;
@@ -118,7 +118,7 @@
   border: none;
   cursor: pointer;
   text-align: left;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   color: #101318;
 }
 

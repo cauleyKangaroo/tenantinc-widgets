@@ -12,11 +12,14 @@
 //   - the real CVV ......................... no
 //   - the card brand ....................... no
 //
-// Hummingbird's lease (API 10) charges the card itself, so it needs a real
-// PAN and CVV. An iframe cannot supply either. The rental therefore sends a
-// STATIC test PAN plus the real token, and keeps the CVV in a field of our
-// own — which is why `card-cvv` is deliberately NOT one of the frames below.
-// Tokenization works without it (tested). See server/RENTAL_FLOW_API.md.
+// Hummingbird's finalize/lease now take the card as `hosted-card`: the token
+// plus the EXPIRY (exp_mo / exp_yr are required — verified 2026-10-16) and
+// the CVV. Neither can come out of a frame, so BOTH are typed into fields of
+// our own: `card-cvv` was never a frame here, and `card-expiration` is now
+// optional (`expiryTarget` omitted ⇒ no frame). The gateway tokenizes from
+// the number alone — verified against the sandbox tokenizer 2026-10-16, with
+// and without an expiry it answers the same `{ token_value, card.number }`.
+// No static test PAN is sent any more. See server/RENTAL_FLOW_API.md.
 //
 // Loading GP's library is the one remote dependency in this bundle. It fails
 // soft: if the script will not load, the caller keeps its plain inputs and
@@ -26,8 +29,8 @@
 
 /* Inlined by webpack as a data: URI (asset/inline). It has to be a data: URI
    rather than a URL: the frames are on GP's origin and can fetch nothing of
-   ours. Printable-ASCII subset of Montserrat 400 — see FIELD_STYLES. */
-import montserratWoff2 from './assets/montserrat-400-ascii.woff2';
+   ours. Printable-ASCII subset of Poppins 400 — see FIELD_STYLES. */
+import poppinsWoff2 from './assets/poppins-400-ascii.woff2';
 
 /** Officially Heartland-hosted; `hps.github.io` serves a byte-identical copy. */
 const LIB = 'https://api2.heartlandportico.com/SecureSubmit.v1/token/gp-1.0.0/globalpayments.js';
@@ -37,6 +40,9 @@ interface IframeFieldLike {
    *  `el.focus()` on its own input. The ONLY way to move the caret into a
    *  hosted field — it is cross-origin, so nothing else reaches it. */
   setFocus(): void;
+  /** Posts `ui:iframe-field:set-placeholder` — changes the live frame's
+   *  placeholder (gp-1.0.0, IframeField.prototype.setPlaceholder). */
+  setPlaceholder(placeholder: string): void;
 }
 
 interface UIFormLike {
@@ -99,12 +105,22 @@ export interface MountHostedCardOptions {
   publicKey: string;
   /** CSS selectors — GP resolves these itself, so they must be in the DOM. */
   numberTarget: string;
-  expiryTarget: string;
+  /** Omit to collect the expiry in a field of your own (see the header). */
+  expiryTarget?: string;
   submitTarget: string;
   onToken(result: HostedCardResult): void;
   onError(message: string): void;
   /** All frames have registered; the caller can stop showing a placeholder. */
   onReady(): void;
+  /**
+   * Let the number frame be TALLER than one line (the caller's floating-label
+   * layout stretches it over the whole field box so a tap anywhere in the box
+   * lands in it). The input fills the frame (100vh, which inside an iframe is
+   * the iframe's own height) and pads its text down to the value line. In a
+   * normal 20px frame both resolve to exactly what they were: 20px tall, no
+   * padding — so where the frame is not stretched nothing changes.
+   */
+  tallNumberFrame?: boolean;
   /**
    * A hosted field has been typed in, and whether what is in it now validates.
    *
@@ -145,17 +161,17 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
    *     mattering. field.html (hps.github.io) sends no CSP header at all, so
    *     there is nothing to forbid it.
    *
-   * The face is subsetted to printable ASCII — 9.5KB, against 16.5KB for the
+   * The face is subsetted to printable ASCII — 4.6KB of Poppins 400 (the Montserrat file it replaced was 9.5KB), against far more for the
    * full latin subset — since all these two frames can ever show is a card
    * number, an expiry, and their two placeholders.
    */
   '@font-face': {
-    'font-family': "'Montserrat'",
+    'font-family': "'Poppins'",
     'font-style': 'normal',
     // Only 400 is inlined: nothing in these frames asks for another weight.
     'font-weight': '400',
     // Quoted, so the base64 payload cannot terminate the url() token early.
-    src: `url("${montserratWoff2}") format('woff2')`,
+    src: `url("${poppinsWoff2}") format('woff2')`,
     // The digits must not render in a fallback face for a frame or two and then
     // reflow. There is no network fetch to wait on, so there is nothing to gain
     // by swapping.
@@ -182,11 +198,11 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
     background: 'transparent',
     color: '#101318',
     // Named, not `inherit`: the frame is a separate document and inherits
-    // nothing from us. Montserrat now resolves against the @font-face above;
+    // nothing from us. Poppins now resolves against the @font-face above;
     // the stack after it is the kit's own, so an environment that somehow
     // cannot use the inlined face degrades the same way the rest of the flow
     // does rather than to GP's default.
-    'font-family': "'Montserrat', 'Montserrat Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    'font-family': "'Poppins', 'Poppins Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
     /*
      * Pinned, and the browser told to leave it alone.
      *
@@ -257,6 +273,28 @@ const FIELD_STYLES: Record<string, Record<string, string> | string> = {
   },
 };
 
+/*
+ * FIELD_STYLES for a number frame that may be stretched over its whole field
+ * box (MountHostedCardOptions.tallNumberFrame). Only the input's height and top
+ * padding differ, and both are written so a normal 20px frame is unchanged:
+ *   height: 100vh       — inside an iframe, the iframe's own height: 20px in
+ *                         a 20px frame (as before), the full box when tall;
+ *   padding-top: clamp(0px, 100vh - 20px, 15px)
+ *                       — 0 in a 20px frame; 15px in any full field box
+ *                         (54px on a phone, 56px in the desktop row). With
+ *                         border-box and the 20px line centred in what is
+ *                         left, 15px puts the digits 7.5px below centre —
+ *                         exactly where FormField's value line sits.
+ */
+const TALL_FIELD_STYLES: typeof FIELD_STYLES = {
+  ...FIELD_STYLES,
+  '#secure-payment-field': {
+    ...(FIELD_STYLES['#secure-payment-field'] as Record<string, string>),
+    height: '100vh',
+    'padding-top': 'clamp(0px, calc(100vh - 20px), 15px)',
+  },
+};
+
 export interface HostedCardHandle {
   dispose(): void;
   /**
@@ -268,6 +306,12 @@ export interface HostedCardHandle {
    * the middle of someone typing.
    */
   focusField(field: 'number' | 'expiry'): void;
+  /**
+   * Change the card-number frame's placeholder on the live frame (GP's
+   * IframeField.setPlaceholder posts `set-placeholder`) — no remount, so a
+   * typed number survives. '' when the parent draws its own floating label.
+   */
+  setNumberPlaceholder(text: string): void;
 }
 
 /**
@@ -297,13 +341,13 @@ export async function mountHostedCard(
            all say MM / YY and EXPIRY_DIGITS is 4, so the hosted placeholder was
            the only thing asking for four year digits. GP's expiration validator
            takes either, so this is the label agreeing with the rest. */
-        'card-expiration': { target: opts.expiryTarget, placeholder: 'MM / YY' },
+        ...(opts.expiryTarget ? { 'card-expiration': { target: opts.expiryTarget, placeholder: 'MM / YY' } } : {}),
         // GP will only tokenize from a gesture inside its own frame — the
         // form object exposes no programmatic equivalent — so this button
         // has to exist even though ours is the one the shopper sees.
         submit: { target: opts.submitTarget, value: 'Pay' },
       },
-      styles: FIELD_STYLES,
+      styles: opts.tallNumberFrame ? TALL_FIELD_STYLES : FIELD_STYLES,
     });
 
     form.ready(() => opts.onReady());
@@ -314,7 +358,7 @@ export async function mountHostedCard(
         opts.onFieldValid?.(field, valid);
       };
       form.on('card-number-test', report('number'));
-      form.on('card-expiration-test', report('expiry'));
+      if (opts.expiryTarget) form.on('card-expiration-test', report('expiry'));
     }
 
     form.on('token-success', (resp) => {
@@ -376,8 +420,12 @@ export async function mountHostedCard(
     return {
       dispose: () => { try { form.dispose(); } catch { /* already gone */ } },
       focusField: (field) => {
+        if (field === 'expiry' && !opts.expiryTarget) return;
         const name = field === 'number' ? 'card-number' : 'card-expiration';
         try { form.frames?.[name]?.setFocus(); } catch { /* frame gone */ }
+      },
+      setNumberPlaceholder: (text) => {
+        try { form.frames?.['card-number']?.setPlaceholder(text); } catch { /* frame gone */ }
       },
     };
   } catch (err) {

@@ -2,7 +2,7 @@
   /* Fixed to the facility-page Figma; Duda theme typography must not alter it. */
   --stl-text: #000000;
   --stl-link: #306fb6;
-  font-family: 'Montserrat', 'Montserrat Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   width: 100%;
   box-sizing: border-box;
   color: var(--stl-text);
@@ -95,19 +95,20 @@
   .stl-skel { animation: none; }
 }
 
+/* The site's error tag — same as the payment and rental-flow banners:
+   #f3e7e9, padding 12 / 39 / 12 / 15, 10px gap, 10px radius, #d32f2f text. */
 .stl--error {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
-  padding: 16px;
-  border: 1px solid #e53935;
-  border-radius: 8px;
-  background: color-mix(in srgb, #e53935 7%, #fff);
-  color: #101318;
+  padding: 12px 39px 12px 15px;
+  border-radius: 10px;
+  background: #f3e7e9;
+  color: #d32f2f;
 }
 .stl-error-icon {
   flex: 0 0 auto;
-  color: #e53935;
+  color: #d32f2f;
 }
 .stl-error {
   margin: 1px 0 0;

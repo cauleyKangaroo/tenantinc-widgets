@@ -36,7 +36,9 @@ import { slugLabel } from '@shared/propertyNav';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
-import { fetchFeaturedIds } from '@shared/internalProperties';
+import { fetchFeaturedIds, fetchPlaceIds } from '@shared/internalProperties';
+import { fetchLocationCopy, type LocationCopy } from '@shared/locationCopy';
+import { fetchPlaceRating } from '@shared/googlePlaceRating';
 import { Shimmer } from '@shared/Shimmer';
 import cfg from './config.json';
 import { useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
@@ -311,7 +313,9 @@ function PropertyCard({
           )
         ) : (
           <>
-            <div className="ml-units">
+            {/* Fewer than three spaces ⇒ no reserved three-row height, so the
+                card ends under its last size instead of a block of white. */}
+            <div className={`ml-units${shown.length < 3 ? ' ml-units--fit' : ''}`}>
               {shown.map((u) => (
                 <UnitRow
                   key={u.id}
@@ -503,6 +507,11 @@ export interface MapLocationsProps extends ApiCredProps {
   featuredPropertyId?: string;
   /** @deprecated The sort is a real control now — see SORT_OPTIONS. */
   sortLabel?: string;
+  /** Duda's data.siteId — the proxy's reviews route refuses without one. */
+  siteId?: string;
+  /** The proxy that answers /api/reviews/google/fetch — the same base #19 My
+   *  Account takes as `login_api_base`. Omitted → the shared default host. */
+  login_api_base?: string;
 }
 
 /**
@@ -545,30 +554,6 @@ function sortFacilities(list: CityFacility[], by: SortId): CityFacility[] {
     featuredFirst(a, b) || (rating(b) - rating(a)) || (count(b) - count(a)));
 }
 
-/**
- * SEO copy, written with placeholders rather than a place name.
- *
- * `{city}` and `{city}, {state}` are filled from the page's own scope, so one
- * body of copy serves every city page. On a STATE page (`/locations/{state}`,
- * no city segment) there is no city to name, so both resolve to the state —
- * "Storage in California", not "Storage in , California".
- *
- * Editors get the same tokens: anything typed into the `seoContent` field runs
- * through the same substitution, so operator-written copy stays portable
- * between pages instead of being pinned to one town.
- *
- * Every block is a heading <p> followed by a body <p> — never a <br> between the
- * two. The first block was already written this way and the other two were not,
- * so the first sat looser than the pair beneath it. `.ml-seo-body` gives a
- * heading paragraph a smaller bottom margin than a body one, which is what puts
- * the small gap under each heading while keeping the blocks themselves apart.
- */
-const DEFAULT_SEO = `<p><strong>Storage in {city}</strong></p>
-<p>If you are looking for high quality self storage in {city}, {state}, we can help. We provide customers with a high quality, well-maintained self storage facility at a great price. A friendly, professional on-site manager is always here to help you.</p>
-<p><strong>Self Storage Features</strong></p>
-<p>At our storage facilities, we offer a wide range of features and amenities that make packing and self storage easy. You will find drive-up storage units for simple loading and unloading, delivery receiving services, packing and moving supplies right on site, and long gate access hours.</p>
-<p><strong>Secure Storage Units</strong></p>
-<p>When you rent storage units in {city}, {state}, you want total security. Our property is covered with 24/7 video surveillance, electronic gate access, and a manager who is always on site.</p>`;
 
 /**
  * Fill `{city}` / `{state}` in a body of copy.
@@ -646,8 +631,8 @@ export function MapLocations({
   state,
   locationBasePath = DEFAULT_LOCATION_BASE_PATH,
   companyId,
-  seoHeading,
-  seoContent = DEFAULT_SEO,
+  // `seoHeading` (content menu) is accepted but unread — the text section is the Cities/States row's alone; see locationCopy.
+  // `seoContent` (content menu) is accepted but unread — the text section is the Cities/States row's alone; see locationCopy.
   rowHeight = '100vh',
   rentalPageUrl,
   propertyBasePath = DEFAULT_PROPERTY_BASE_PATH,
@@ -657,6 +642,8 @@ export function MapLocations({
   api_domain,
   app_id,
   api_key,
+  siteId,
+  login_api_base,
 }: MapLocationsProps) {
   /*
    * Credentials in place BEFORE the data effects fire. During render, not
@@ -684,6 +671,27 @@ export function MapLocations({
     state: (state ?? '').trim() || fromUrl.state || '',
     city: (city ?? '').trim() || fromUrl.city || '',
   };
+
+  /*
+   * THIS PAGE'S OWN COPY — `text_heading` / `text_body` on its `Cities` row
+   * (or `States` row on a state page), read from the collections the proxy
+   * builds. THE ONLY SOURCE (2026-10-16): the content-menu `seoHeading` /
+   * `seoContent` are per widget instance and read the same on every city,
+   * and the built-in default copy was the same again — so neither stands in
+   * any more. No row, or blank cells, means NO text section on that page.
+   * Both props are still accepted so an existing Duda instance cannot break,
+   * but nothing reads them. See @shared/locationCopy.
+   */
+  const [locationCopy, setLocationCopy] = useState<LocationCopy | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchLocationCopy(scope)
+      .then((c) => { if (!cancelled) setLocationCopy(c); })
+      .catch(() => { if (!cancelled) setLocationCopy(null); });
+    return () => { cancelled = true; };
+    // Keyed on the two strings, not the `scope` object, which is rebuilt every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope.state, scope.city]);
 
   /**
    * Breadcrumb trail — Figma 10622:77309.
@@ -795,6 +803,43 @@ export function MapLocations({
     return () => { cancelled = true; };
   }, []);
 
+  /*
+   * THE LIVE RATING, PER FACILITY. Each facility's Google Business place id
+   * sits on PropertiesInternal (`placeId`), and the proxy's reviews route
+   * answers with that place's rating and review count (verified live
+   * 2026-10-16: Bellflower 4.6 / 396, Bakersfield 4.8 / 596). One call per
+   * place, in parallel, cached per place for the page. The collection match
+   * above stays as the fallback for a facility with no place id.
+   *
+   * Keyed on the facility SET (ids), so a filter change does not refetch,
+   * and gates the same skeleton as the collection read — a card paints with
+   * its rating row or without one, never gains it afterwards.
+   */
+  const reviewsBase = (login_api_base ?? '').trim();
+  const [placeRatings, setPlaceRatings] = useState<Map<string, RatingSummary>>(() => new Map());
+  const [placeRatingsSettled, setPlaceRatingsSettled] = useState(false);
+  const facilityIdsKey = (liveFacilities ?? []).map((f) => f.id).join('|');
+  useEffect(() => {
+    if (liveFacilities === null) return undefined;
+    let cancelled = false;
+    setPlaceRatingsSettled(false);
+    (async () => {
+      const ids = await fetchPlaceIds().catch(() => new Map<string, string>());
+      const out = new Map<string, RatingSummary>();
+      await Promise.all(liveFacilities.map(async (f) => {
+        const placeId = ids.get(f.id);
+        if (!placeId) return;
+        const r = await fetchPlaceRating(placeId, { base: reviewsBase, siteId }).catch(() => null);
+        if (r) out.set(f.id, r);
+      }));
+      if (!cancelled) setPlaceRatings(out);
+    })().finally(() => { if (!cancelled) setPlaceRatingsSettled(true); });
+    return () => { cancelled = true; };
+    // `liveFacilities` is represented by its ids key, so a re-sorted array of
+    // the same facilities does not refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [facilityIdsKey, reviewsBase, siteId]);
+
   // Both calls complete before anything paints: a card is rendered whole or not
   // at all.
   //
@@ -854,7 +899,7 @@ export function MapLocations({
 
   // Both reads, so a card paints with its rating row or without one — never
   // gains it afterwards (see the ratings effect above).
-  const loading = liveFacilities === null || !ratingsSettled;
+  const loading = liveFacilities === null || !ratingsSettled || !placeRatingsSettled;
   // Nothing stands in before the first response — the column renders skeletons
   // instead (see CitySkeleton). Demo facilities used to fill this gap, but they
   // carry invented names, addresses, prices and coordinates, so the page painted
@@ -889,14 +934,15 @@ export function MapLocations({
     // Matched per facility only. The site-wide fallback put ONE business's
     // score and review count on every card it could not match by name — the
     // audit found two facilities both reading "4.8 · 519 Reviews".
-    const r = matchedRatingForProperty(f.name, ratings);
+    // The facility's own place first, then the collection matched by name.
+    const r = placeRatings.get(f.id) ?? matchedRatingForProperty(f.name, ratings);
     if (r) return { ...f, rating: r.score, reviewCount: r.count };
     if (isPreview && !(f.rating > 0)) {
       const demo = CITY_FACILITIES[i % CITY_FACILITIES.length];
       return { ...f, rating: demo.rating, reviewCount: demo.reviewCount };
     }
     return f;
-  }), [filtered, ratings, isPreview]);
+  }), [filtered, ratings, placeRatings, isPreview]);
 
   /*
    * Featuring is an operator choice, and nothing in the properties API carries
@@ -967,6 +1013,36 @@ export function MapLocations({
   // 10609:72649). That's DOM structure, so it needs a JS breakpoint rather
   // than the media queries the rest of the layout uses.
   const isMobile = useMediaQuery(MOBILE_STICKY_QUERY);
+
+  /* Desktop: the breadcrumb + header block sticks to the top of the window
+     (.ml-sticky-head). Two things are published on the wrapper for it:
+     --ml-head-h, its height, so the pinned map and a card revealed from a
+     marker sit UNDER it rather than behind it; and --ml-sticky-bg, the colour
+     of the page section behind the widget, so cards scrolling under the header
+     are covered by the page's own background rather than a guessed one.
+     Mobile keeps its own composition and is not sticky. */
+  const headRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const head = headRef.current;
+    if (!wrap) return undefined;
+    if (isMobile || !head) {
+      wrap.style.removeProperty('--ml-head-h');
+      return undefined;
+    }
+    let bg = '';
+    for (let el = wrap.parentElement; el; el = el.parentElement) {
+      const c = getComputedStyle(el).backgroundColor;
+      if (c && c !== 'transparent' && !/rgba\(.*,\s*0\)$/.test(c)) { bg = c; break; }
+    }
+    wrap.style.setProperty('--ml-sticky-bg', bg || '#fff');
+    const publish = () => wrap.style.setProperty('--ml-head-h', `${head.offsetHeight}px`);
+    publish();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null;
+    ro?.observe(head);
+    return () => ro?.disconnect();
+  }, [isMobile]);
+
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   const showMap = !isMobile || mobileView === 'map';
   const showCards = !isMobile || mobileView === 'list';
@@ -989,34 +1065,30 @@ export function MapLocations({
   // which the static data never was, but a filtered or still-loading live list
   // is. Centre on the active facility when there is one, else the first
   // plottable, else nothing renders the map at all (see hasMap below).
-  const centerOf = plottable.find((f) => f.id === activeId) ?? plottable[0];
-
   /**
-   * Centre the MAP so the open marker sits up and to the right of the middle,
-   * not on it — the popup hangs below-left of its bubble, so a dead-centred
-   * marker pushed the card into the bottom-left corner. Shifting the centre
-   * south-west by the same amount moves the pair back into the middle.
-   *
-   * Measured as a fraction of the plotted SPREAD rather than a fixed number of
-   * degrees, because NearbyMap picks its own zoom to fit every point: a tight
-   * cluster of city facilities and a whole state need the same visual nudge but
-   * wildly different degree offsets, and the spread tracks the zoom.
-   *
-   * Only while a popup is open. With none there is nothing to make room for,
-   * and the default view stays exactly where it was — including on hover, which
-   * moves `activeId` but opens nothing.
+   * THE MAP STAYS PUT. Its centre is the middle of the plotted facilities and
+   * changes only when that set does — a new city, a filter — never on a click
+   * or a hover. It used to be derived from the active marker and nudged on
+   * every popup, so the map panned each time a bubble was clicked, and on
+   * hover too (hovering moves `activeId`). The one exception is a clicked
+   * marker that is off screen, which `keepInView` below brings back.
    */
   const center = useMemo(() => {
-    if (!centerOf) return null;
-    if (openId !== centerOf.id) return { lat: centerOf.lat, lng: centerOf.lng };
-    const lats = plottable.map((f) => f.lat);
-    const lngs = plottable.map((f) => f.lng);
-    // A single plotted property has no spread; fall back to something small
-    // enough to read as a nudge at the zoom one point gets.
-    const latSpan = (Math.max(...lats) - Math.min(...lats)) || 0.03;
-    const lngSpan = (Math.max(...lngs) - Math.min(...lngs)) || 0.03;
-    return { lat: centerOf.lat - latSpan * 0.10, lng: centerOf.lng - lngSpan * 0.15 };
-  }, [centerOf, openId, plottable]);
+    if (!plottable.length) return null;
+    const lat = plottable.reduce((n, f) => n + f.lat, 0) / plottable.length;
+    const lng = plottable.reduce((n, f) => n + f.lng, 0) / plottable.length;
+    return { lat, lng };
+  }, [plottable]);
+  /** The facility the visitor last CLICKED — its bubble or its card — for
+   *  NearbyMap to keep on screen. A counter in the key, so clicking the same
+   *  card again after dragging it off screen asks again. Hovering only moves
+   *  `activeId` and never counts. */
+  const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
+  const focusOn = (id: string) => setFocus((cur) => ({ id, n: (cur?.n ?? 0) + 1 }));
+  const keepInView = useMemo(() => {
+    const f = focus ? plottable.find((p) => p.id === focus.id) : undefined;
+    return f && focus ? { lat: f.lat, lng: f.lng, key: `${f.id}:${focus.n}` } : null;
+  }, [focus, plottable]);
 
   const hasMap = center !== null;
 
@@ -1134,6 +1206,7 @@ export function MapLocations({
             e.stopPropagation();
             setActiveId(p.id);
             setOpenId((cur) => (cur === p.id ? null : p.id));
+            focusOn(p.id);
             revealCard(p.id);
           }}
           title={p.name}
@@ -1169,8 +1242,6 @@ export function MapLocations({
           only: the node this comes from is the 1316px frame, and #08's mobile
           frames are drawn separately (10609:*) — see the note on RfSkeleton's
           mobile branch for why a desktop shape is not just a narrower one. */}
-      {!isMobile && <Breadcrumb items={crumbs} />}
-
       {isMobile ? (
         /* Mobile — search, then a Map/List toggle beside "Filter & Sort",
            then the count. Figma 10609:72429 / 10609:72649. */
@@ -1240,7 +1311,10 @@ export function MapLocations({
           </p>
         </>
       ) : (
-        /* Desktop — count on the left, Filter + sort pills on the right. */
+        /* Desktop — breadcrumb, then count on the left and Filter + sort pills
+           on the right; the two together are the sticky block. */
+        <div className="ml-sticky-head" ref={headRef}>
+        <Breadcrumb items={crumbs} />
         <div className="ml-header">
           <p className="ml-heading">
             {loading
@@ -1298,6 +1372,7 @@ export function MapLocations({
             </div>
           </div>
         </div>
+        </div>
       )}
 
       {/* Desktop: the cards travel with the page while the map pins beside them
@@ -1313,13 +1388,14 @@ export function MapLocations({
                 active={f.id === activeId}
                 compact={isMobile}
                 filters={filters}
-                rating={matchedRatingForProperty(f.name, ratings)}
+                rating={placeRatings.get(f.id) ?? matchedRatingForProperty(f.name, ratings)}
                 rentalPageUrl={rentalPageUrl}
                 companyId={resolvedCompanyId ?? undefined}
                 propertyBasePath={normalisedPropertyBase}
                 onActivate={() => setActiveId(f.id)}
                 onSelect={() => {
                   setActiveId(f.id);
+                  focusOn(f.id);
                   /* Close a bubble belonging to a DIFFERENT property. Clicking
                      the card of the one already open leaves it alone — it is
                      the same facility, so the bubble is still about what the
@@ -1375,6 +1451,7 @@ export function MapLocations({
                 height="100%"
                 renderPin={renderPin}
                 hideCenterMarker
+                keepInView={keepInView}
                 /* Draggable and zoomable; the bubbles above reproject against
                    the live map so they stay on their properties. With no Maps
                    key this falls back to the frozen embed unchanged. */
@@ -1387,14 +1464,17 @@ export function MapLocations({
 
       {/* City SEO copy. The mobile map view is a full-screen map, so the frame
           drops the copy there — it comes back with the list. */}
-      {seoContent && showCards && (
+      {locationCopy && showCards && (
         <div className="ml-seo">
-          {/* The heading takes the tokens too, so an editor-typed heading can
-              travel between pages the same way the body does. */}
-          <p className="ml-seo-heading">
-            {fillPlaceTokens(seoHeading?.trim() || `Self Storage Units in ${cityLabel}`, placeTokens)}
-          </p>
-          <RichText value={fillPlaceTokens(seoContent, placeTokens)} className="ml-seo-body" />
+          {/* The heading takes the tokens too, so copy written once can
+              travel between pages the same way the body does. Each part is
+              shown only when its cell has content. */}
+          {locationCopy.heading && (
+            <p className="ml-seo-heading">{fillPlaceTokens(locationCopy.heading, placeTokens)}</p>
+          )}
+          {locationCopy.body && (
+            <RichText value={fillPlaceTokens(locationCopy.body, placeTokens)} className="ml-seo-body" />
+          )}
         </div>
       )}
 

@@ -846,6 +846,17 @@ export async function applyCoverage(
 //     paymentMethod: { type: "saved", id }                       a card on file
 //                    { type: "hosted-card", token, zip,
 //                      saveToAccount, autopay }                  a GP token
+//                    { type: "ach", accountNumber, routingNumber,
+//                      accountType: "checking" | "savings",
+//                      firstName, lastName, saveToAccount, autopay,
+//                      address: { line1, city, state, zip, country } }
+//                                                                 Pay by Bank
+//                    { type: "google-pay" | "apple-pay", token }  a wallet
+//
+// Both per the proxy's own contract (TenantInc, 2026-10-15) — camelCase like
+// the card methods, NOT #99's snake_case upstream objects. The wallet token
+// is exactly what #99 collects: Google's tokenizationData.token string, or
+// Apple's whole token object JSON-stringified. Single-use, never enrols.
 //
 // PER LEASE — one call per space. The endpoint is under the lease, and the
 // invoices are that lease's; several spaces mean several calls, each with
@@ -862,7 +873,32 @@ export async function applyCoverage(
 
 export type LeasePaymentMethod =
   | { type: 'saved'; id: string }
-  | { type: 'hosted-card'; token: string; zip: string; saveToAccount: boolean; autopay: boolean };
+  | { type: 'hosted-card'; token: string; zip: string; saveToAccount: boolean; autopay: boolean }
+  | LeaseBankPaymentMethod
+  | LeaseWalletPaymentMethod;
+
+/** Google Pay / Apple Pay — the proxy's wallet payment method. */
+export interface LeaseWalletPaymentMethod {
+  type: 'google-pay' | 'apple-pay';
+  /** SINGLE-USE, as #99 collects it: Google's tokenizationData.token; Apple's
+   *  whole token object, JSON-stringified. */
+  token: string;
+}
+
+/** Pay by Bank — the proxy's ACH payment method. */
+export interface LeaseBankPaymentMethod {
+  type: 'ach';
+  /** Digits only. */
+  accountNumber: string;
+  /** Digits only — nine of them. */
+  routingNumber: string;
+  accountType: 'checking' | 'savings';
+  firstName: string;
+  lastName: string;
+  saveToAccount: boolean;
+  autopay: boolean;
+  address: { line1: string; line2?: string; city: string; state: string; zip: string; country: string };
+}
 
 export interface LeasePaymentRequest {
   amount: number;

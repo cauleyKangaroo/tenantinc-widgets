@@ -9,6 +9,9 @@ import { readSitePages, pageColumnFor, parseRoutes, type SitePage } from '@share
 import { openFindStorage } from '@shared/findStorageBus';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { fetchAllLocations, normalizeBasePath, type FooterLocation } from './allLocations';
+import { MessageModal } from '@shared/components/MessageModal';
+// Same contact-modal plumbing as #02's Email circle — #03's creds + lead call.
+import { createLead, fetchFacilityOptions, configureApi, type FacilityOption, type ApiCredProps } from '../widget-property-info/api';
 
 // ---------------------------------------------------------------------------
 // Types + fallback data
@@ -19,6 +22,9 @@ interface FooterLink {
   href: string;
   /** Opens in a new tab — see SITEMAP_LINK for the only case that sets it. */
   external?: boolean;
+  /** Handled in place instead of followed (Contact us → the message modal).
+   *  The href stays, so open-in-new-tab still reaches the page. */
+  onClick?: () => void;
 }
 
 interface LinkColumn {
@@ -144,7 +150,9 @@ function boolProp(v: unknown): boolean {
 // Component
 // ---------------------------------------------------------------------------
 
-export interface FooterProps {
+/* ApiCredProps: the site's api_domain / app_id / api_key, for the Contact us
+   modal's property list and lead — the same three #02 and #03 take. */
+export interface FooterProps extends ApiCredProps {
   companyName?: string;
   phone?: string;
   description?: string;
@@ -222,7 +230,10 @@ export interface FooterProps {
 export function Footer({
   companyName = 'Storage Outlet',
   phone = '(800) 645-9876',
-  description = 'Storage Outlet, headquartered in Irvine, owns and operates 15 self storage properties across Southern California. Our locations offer a wide range of secure and conveniently located storage solutions, including personal storage, business storage, and vehicle storage options. We are committed to providing affordable, reliable, and professional storage experiences in every community we serve. With a focus on convenience, security, and customer service, Storage Outlet continues to grow as a trusted neighborhood storage provider.',
+  // Two paragraphs, broken where Figma 13619-99091 breaks them. Markup rather
+  // than a blank line, so RichText renders ONE .ft-desc block (a blank line
+  // would make each paragraph its own .ft-desc, each with the block's margin).
+  description = '<p>Storage Outlet, headquartered in Irvine, owns and operates 15 self storage properties across Southern California. Our locations offer a wide range of secure and conveniently located storage solutions, including personal storage, business storage, and vehicle storage options.</p><p>We are committed to providing affordable, reliable, and professional storage experiences in every community we serve. With a focus on convenience, security, and customer service, Storage Outlet continues to grow as a trusted neighborhood storage provider.</p>',
   sessionId = '24e6fb82-a285-4a73-b4dc-546500c76981',
   year = 2026,
   propertyId = DEFAULT_PROPERTY_ID,
@@ -237,7 +248,28 @@ export function Footer({
   contactHref = '/contact-us',
   footer_text,
   facebook_link, instagram_link, youtube_link, twitter_link, linkedin_link, tiktok_link,
+  api_domain, app_id, api_key,
 }: FooterProps) {
+  // REST creds for Contact us's "Send us a Message" modal, as #02 and #03 do.
+  useMemo(
+    () => configureApi({ api_domain, app_id, api_key }),
+    [api_domain, app_id, api_key],
+  );
+
+  // Contact us → the shared modal. The portfolio for its dropdown is fetched
+  // only once it is first opened.
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [facilityOptions, setFacilityOptions] = useState<FacilityOption[]>([]);
+  useEffect(() => {
+    if (!messageOpen || facilityOptions.length) return;
+    let cancelled = false;
+    void fetchFacilityOptions().then((list) => {
+      if (!cancelled) setFacilityOptions(list);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messageOpen]);
+
   // Phone + social links from the Duda `Properties` collection; the static values
   // above remain the fallback (this bundle holds no API key of its own).
   const [contact, setContact] = useState<PropertyContact | null>(null);
@@ -341,7 +373,9 @@ export function Footer({
     heading: 'Connect',
     links: [
       { label: 'Login', href: loginHref },
-      { label: 'Contact us', href: contactHref },
+      // Opens the shared "Send us a Message" modal, as #02's Email circle and
+      // #03 do, rather than leaving for a contact page.
+      { label: 'Contact us', href: contactHref, onClick: () => setMessageOpen(true) },
     ],
   }), [loginHref, contactHref]);
 
@@ -604,6 +638,14 @@ export function Footer({
           <span className="ft-session">Session: {sessionId}</span>
         </div>
       </div>
+
+      <MessageModal
+        open={messageOpen}
+        onClose={() => setMessageOpen(false)}
+        facilities={facilityOptions}
+        defaultFacility={facilityOptions.find((f) => f.id === propertyId) ?? null}
+        submitLead={(input) => createLead(input, { propertyId })}
+      />
     </div>
   );
 }
@@ -623,6 +665,14 @@ function LinkColumnView({ column }: { column: LinkColumn }): React.ReactElement 
               className="ft-link"
               href={link.href}
               {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+              {...(link.onClick ? {
+                onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+                  // A modified click still opens the page in a new tab.
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                  e.preventDefault();
+                  link.onClick!();
+                },
+              } : {})}
             >
               {link.label}
             </a>

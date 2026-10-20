@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .sg-wrapper {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   width: 100%;
   max-width: 1330px;
   margin: 0 auto;
@@ -70,7 +70,7 @@
   border: 1px solid #101318;
   background: #fff;
   color: #101318;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 1;
@@ -164,6 +164,20 @@
   position: relative;
   z-index: 1;
 }
+
+/* The thumbnail as a button (it opens the video popup): no button chrome, the
+   same box, and a pointer so it reads as playable. */
+.sg-card-image--video {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: filter .15s ease;
+}
+.sg-card-image--video:hover { filter: brightness(0.92); }
+.sg-card-image--video:focus-visible { outline: 2px solid #101318; outline-offset: 3px; }
 
 /* Title + CTA only, centred under the video. */
 .sg-card-body {

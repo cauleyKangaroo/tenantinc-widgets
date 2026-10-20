@@ -1,20 +1,31 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { SpaceType, UnitSize } from '../types';
-import type { FilterState } from '../filters';
+import { DEFAULT_FILTERS, activeFilterCount, type FilterState } from '../filters';
 import { TYPE_OPTIONS, SIZE_OPTIONS } from '../data';
 import { Checkbox, CloseCircleIcon } from '@shared/ui';
 
+/*
+ * The modal edits a DRAFT, not the live filters. Picks only reach the listing
+ * when "Apply Filters" is pressed; closing any other way (X, Escape, a click
+ * on the backdrop) discards them. Reset is the exception: it clears the live
+ * filters to the defaults and closes, straight away.
+ * It used to write straight through on every tap, so the list changed behind
+ * the modal before the visitor had decided anything.
+ */
 interface FilterModalProps {
+  /** The filters currently applied — the draft starts from these. */
   filters: FilterState;
-  onChange: (next: FilterState) => void;
-  badge: number;
+  /** Commits the draft. Called only by "Apply Filters". */
+  onApply: (next: FilterState) => void;
   onClose: () => void;
-  onReset: () => void;
   amenityOptions: string[];
   /** Types present on this property. Omitted → the static storage/parking pair. */
   typeOptions?: { value: SpaceType; label: string }[];
   featureOptions: string[];
   promotionOptions: string[];
+  /** How many spaces the listing would show with these filters — the Apply
+   *  button's label. Text only; omitted → the plain "Apply Filters". */
+  countMatches?: (draft: FilterState) => number;
 }
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -34,16 +45,26 @@ function FilterIcon() {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function FilterModal({
-  filters,
-  onChange,
-  badge,
+  filters: applied,
+  onApply,
   onClose,
-  onReset,
   amenityOptions,
   typeOptions = TYPE_OPTIONS,
   featureOptions,
   promotionOptions,
+  countMatches,
 }: FilterModalProps) {
+  // The draft. Seeded once from the applied filters when the modal opens (it
+  // is mounted only while open), so every open starts from what is applied.
+  const [filters, setFilters] = useState<FilterState>(applied);
+  const badge = activeFilterCount(filters);
+  const matches = countMatches ? countMatches(filters) : null;
+  const applyLabel = matches == null
+    ? 'Apply Filters'
+    : matches === 0
+      ? 'No Matching Spaces'
+      : `View ${matches} Matching ${matches === 1 ? 'Space' : 'Spaces'}`;
+
   // Close on Escape; lock host-page scroll while the lightbox is open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -77,7 +98,9 @@ export function FilterModal({
             <span className="sl-filter-badge">{badge}</span>
           </div>
           <div className="sl-modal-header-right">
-            <button className="sl-modal-reset" onClick={onReset}>Reset</button>
+            {/* Reset is immediate, as it always was: the live filters go back
+                to the defaults and the modal closes. */}
+            <button className="sl-modal-reset" onClick={() => { onApply(DEFAULT_FILTERS); onClose(); }}>Reset</button>
             <button className="sl-modal-close" onClick={onClose} aria-label="Close filters">
               {/* Filled disc: the filter modal is #ffffff. 32 is the mark's own
                   Figma size and it fills the 32px button box exactly — the box
@@ -115,7 +138,7 @@ export function FilterModal({
                       const next = active
                         ? filters.types.filter((t) => t !== val)
                         : [...filters.types, val];
-                      onChange({
+                      setFilters({
                         ...filters,
                         types: next,
                         sizes: next.length > 0 && !next.includes('storage') ? [] : filters.sizes,
@@ -143,7 +166,7 @@ export function FilterModal({
                       key={opt.value}
                       className={`sl-pill${active ? ' active' : ''}`}
                       onClick={() =>
-                        onChange({ ...filters, sizes: toggle<UnitSize>(filters.sizes, opt.value) })
+                        setFilters({ ...filters, sizes: toggle<UnitSize>(filters.sizes, opt.value) })
                       }
                     >
                       {active && <span className="sl-pill-x"><CloseCircleIcon outlined size={24} /></span>}
@@ -166,7 +189,7 @@ export function FilterModal({
                   <button
                     key={name}
                     className={`sl-pill${active ? ' active' : ''}`}
-                    onClick={() => onChange({ ...filters, features: toggle(filters.features, name) })}
+                    onClick={() => setFilters({ ...filters, features: toggle(filters.features, name) })}
                   >
                     {active && <span className="sl-pill-x"><CloseCircleIcon outlined size={24} /></span>}
                     {name}
@@ -193,7 +216,7 @@ export function FilterModal({
                   className="sl-filter-check"
                   checked={filters.amenities.includes(amenity)}
                   onChange={() =>
-                    onChange({ ...filters, amenities: toggle(filters.amenities, amenity) })
+                    setFilters({ ...filters, amenities: toggle(filters.amenities, amenity) })
                   }
                 >
                   {amenity}
@@ -214,7 +237,7 @@ export function FilterModal({
                   className="sl-filter-check"
                   checked={filters.promotions.includes(promo)}
                   onChange={() =>
-                    onChange({ ...filters, promotions: toggle(filters.promotions, promo) })
+                    setFilters({ ...filters, promotions: toggle(filters.promotions, promo) })
                   }
                 >
                   {promo}
@@ -229,13 +252,12 @@ export function FilterModal({
             is the scroller — so it holds the bottom of the lightbox at every
             height without `position: sticky` and without leaving the flow.
 
-            The filters already apply as they are touched, so this CONFIRMS and
-            dismisses rather than committing anything: closing is applying. It
-            exists because on a long list — and on a phone, where the modal is
-            nearly full height — the only way out was the X back at the top. */}
+            The ONLY way the draft reaches the listing: commit, then close. */}
         <div className="sl-modal-footer">
-          <button type="button" className="sl-apply-filters" onClick={onClose}>
-            Apply Filters
+          {/* The label follows the draft live; the button itself is unchanged —
+              it still applies and closes, whatever the count. */}
+          <button type="button" className="sl-apply-filters" onClick={() => { onApply(filters); onClose(); }}>
+            {applyLabel}
           </button>
         </div>
       </div>

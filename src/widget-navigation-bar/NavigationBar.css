@@ -1,12 +1,12 @@
 /* 500 is here for the mega menu's address/phone lines, which the Figma sets in
-   Montserrat MEDIUM. Without it the browser synthesises the weight off 400 and
+   Poppins MEDIUM. Without it the browser synthesises the weight off 400 and
    those lines render visibly lighter and narrower than the frame. */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 
 .nav-bar {
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   width: 100%;
   box-sizing: border-box;
   background: #fff;
@@ -60,7 +60,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
@@ -118,7 +118,7 @@
   gap: 9px;
   padding: 8px 10px;
   border-radius: 6px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
@@ -155,7 +155,7 @@
 .nav-acct-opt {
   display: block;
   padding: 14px 18px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 700;
   line-height: 1.5;
@@ -403,7 +403,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
@@ -444,7 +444,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   font-weight: 400;
   line-height: 1.5;
@@ -579,7 +579,7 @@
   position: fixed;
   inset: 0;
   z-index: 2147483647;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   /* Hidden until open. Delay the visibility flip on close so the panel can
      finish sliding out before the layer leaves the hit/a11y tree. */
   visibility: hidden;
@@ -772,7 +772,7 @@
   border: none;
   outline: none;
   background: none;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   color: #101318;
   cursor: pointer;
@@ -797,7 +797,7 @@
   border: none;
   padding: 0 2px;
   cursor: pointer;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;
   color: #637381;
   white-space: nowrap;
@@ -880,7 +880,7 @@
   border: 1px solid #a5b4bf;
   border-radius: 8px;
   background: #ffffff;
-  font: 400 16px/20px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 400 16px/20px 'Poppins', 'Poppins Fallback', sans-serif;
   color: #101318;
   outline: none;
 }
@@ -904,7 +904,7 @@
   border-radius: 8px;
   background: #000000;
   color: #ffffff;
-  font: 600 16px/16px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 600 16px/16px 'Poppins', 'Poppins Fallback', sans-serif;
   text-align: center;
   cursor: pointer;
 }
@@ -948,7 +948,7 @@
   cursor: pointer;
   text-align: left;
   text-decoration: none;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 600;
   line-height: 1.5;
@@ -1003,7 +1003,7 @@
   border: none;
   cursor: pointer;
   text-align: left;
-  font-family: 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
 }
 
 .nav-mm-sub-toggle.is-open {

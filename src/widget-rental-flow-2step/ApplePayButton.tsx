@@ -309,7 +309,8 @@ export function ApplePayButton({
       onClick={onClick}
       aria-label="Pay with Apple Pay"
     >
-      <span className="rf2-wallet-with" aria-hidden="true">Pay with</span>
+      {/* The mark alone (" Pay"), matching Google's plain button beside it.
+          The label above still says "Pay with Apple Pay" to screen readers. */}
       <ApplePayMark />
     </button>
   );

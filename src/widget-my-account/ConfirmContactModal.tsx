@@ -10,7 +10,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseIcon, MapPinIcon, PhoneIcon } from '@shared/ui';
-import { EnvelopeIcon, UserSettingsIcon, InfoNoticeIcon } from './icons';
+import { EnvelopeIcon, UserSettingsIcon, InfoNoticeCurrentIcon } from './icons';
 import type { ContactForm } from './data';
 
 export function ConfirmContactModal({
@@ -43,7 +43,7 @@ export function ConfirmContactModal({
       <div className="ma-confirm" role="dialog" aria-modal="true" aria-labelledby="ma-confirm-title">
         <header className="ma-confirm__head">
           <h3 id="ma-confirm-title" className="ma-confirm__title">
-            <InfoNoticeIcon className="ma-confirm__warn" />
+            <InfoNoticeCurrentIcon className="ma-confirm__warn" />
             Confirm
           </h3>
           <button type="button" className="ma-confirm__close" onClick={onCancel} aria-label="Close">
