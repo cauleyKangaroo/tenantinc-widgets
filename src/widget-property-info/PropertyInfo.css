@@ -741,14 +741,21 @@ img.pi-lb-img {
   display: block;
 }
 
-/* Gradient placeholder (span) has no intrinsic size — fill the wrap. */
-span.pi-lb-img {
+/* Gradient placeholder (span) has no intrinsic size — fill the wrap.
+   The video poster is a BUTTON with no intrinsic size either: left out of this
+   rule it shrank to its 72px play badge, a dark chip in the middle of the
+   lightbox. Filling the wrap also makes it the same box the player (iframe)
+   takes over on click, so nothing jumps when it starts. */
+span.pi-lb-img,
+button.pi-lb-img {
   width: 100%;
   height: 100%;
   border-radius: 12px;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
   display: block;
 }
+/* …but the poster keeps .pi-video-poster's flex, which centres the badge. */
+button.pi-lb-img { display: flex; }
 
 /* Explicit close affordance. Tap-anywhere still works, but on a phone the photo
    fills most of the screen, so "anywhere" isn't obvious enough on its own. */
