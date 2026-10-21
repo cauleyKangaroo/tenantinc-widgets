@@ -556,3 +556,44 @@ token. Gone, at TenantInc's instruction. The payment_method is now:
   of ours, like the CVV always was. The gateway's expiry frame is no longer
   mounted; the gateway tokenizes from the number alone.
 - Non-hosted gateways are unchanged: `type: "card"` with the real digits.
+
+## Stripe gateway: `tenant_payments_stripe` (added 2026-10-21)
+
+The gateway lookup now asks `GET …/properties/{propertyId}/gateway?type=card`
+(same answer on GP properties, verified live). When the reply's
+`gateway_config` says `gateway: "tenant_payments_stripe"`, the card row is
+Stripe's **Payment Element** (`@shared/stripeHostedFields.ts`) instead of GP's
+frames — per TenantInc's Stripe hand-off (2026-10-21). Everything else in the
+flow (hold, documents/finalize, lease, confirmation) is byte-identical, and a
+GP property is untouched (regression-probed the same day).
+
+- `Stripe(public_key, { stripeAccount: merchant_account })`, element in
+  `mode: 'payment'`, `paymentMethodCreation: 'manual'`, amount/currency from
+  the quote (re-priced totals follow via `elements.update`). Nothing is
+  charged in the browser — Pay mints a **PaymentMethod** (`pm_…`) and
+  Hummingbird charges server-side.
+- Name + billing stay OUR fields (`billingDetails: 'never'`) and ride in
+  `createPaymentMethod`'s `billing_details`. With `address: 'never'` Stripe
+  demands EVERY address member, so the zip-only panel sends the rest as `''`.
+- The payment_method on documents/finalize AND the lease is token-only — no
+  PAN, expiry or CVV ever enters our code:
+
+```
+{ "type": "hosted-card", "token": "pm_…", "zip": "…",
+  "save_to_account": true, "auto_charge": false }
+```
+
+- The lease body additionally carries the hand-off's idempotency block,
+  stable across retries of the same move-in (unit + start date, ≤64 chars of
+  `[A-Za-z0-9_-]`):
+
+```
+"payment": { "type": "hosted-card", "attempt_key": "movein-{unitId}-{yyyymmdd}-{ts}" }
+```
+
+- A `pm_…` id is single-attempt and sensitive: never logged, and a decline
+  comes back to a FRESH Pay (new pm), never a reused id. 3-D Secure is out of
+  scope per the hand-off — such cards decline with the processor's message.
+- If js.stripe.com fails to load there is NO plain-input fallback (a typed
+  PAN has nowhere lawful to go): the row shows "the secure card form could
+  not load" and payment waits.

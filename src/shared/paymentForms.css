@@ -547,3 +547,13 @@
   }
   .rf-wrapper .rf-cardrow--number-valid .rf-cardrow-tick { visibility: visible; }
 }
+
+/* Stripe mode: the Payment Element replaces the three cells, so the row stops
+   being a fixed-height flex strip and wraps the element's own height. */
+.rf-cardrow--stripe {
+  display: block;
+  height: auto;
+  min-height: 56px;
+  padding: 10px 12px;
+}
+.rf-stripe-host { width: 100%; }
