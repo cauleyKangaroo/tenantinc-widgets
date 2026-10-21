@@ -2465,7 +2465,15 @@ async function finalizeLease(
    * timeout cannot charge twice. ≤64 chars of [A-Za-z0-9_-].
    */
   if (args.card?.stripePaymentMethodId) {
-    body.payment = { type: 'hosted-card', attempt_key: moveInAttemptKey(args.unit.id, args.startDate) };
+    body.payment = {
+      type: 'hosted-card',
+      /* The hand-off marks `amount` optional; the API disagrees — the lease
+         answers 400 `"payment.amount" is required` without it (live
+         2026-10-21). The same move-in total the documents body sends, in the
+         same dollar units as every other amount on this API. */
+      amount: args.totalPaymentAmount,
+      attempt_key: moveInAttemptKey(args.unit.id, args.startDate),
+    };
   }
 
   const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/lease`, body);
