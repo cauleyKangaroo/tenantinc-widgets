@@ -1988,7 +1988,21 @@
   .ma-unit__panel { gap: 8px; }
   .ma-unit__image { width: 120px; height: 88px; }
 
-  .ma-unit__footer { flex-wrap: wrap; padding: 16px 20px; }
+  /* Account Info stays on the Balance Due line. At full size the three items
+     need ~333px against a ~300px footer, so the button dropped to a row of its
+     own. A more compact button and 8px gaps make them fit; nowrap guarantees
+     it, and on the very narrowest phones the label block (allowed to shrink)
+     wraps instead of the button dropping. */
+  .ma-unit__footer { flex-wrap: nowrap; gap: 8px; padding: 16px 20px; }
+  /* Top, like the amount beside it. Centred against the 40px button it sat
+     3px lower than the amount, so the two never shared a line. */
+  .ma-unit__due { flex: 0 1 auto; min-width: 0; align-self: flex-start; }
+  /* Right beside the "Balance Due" label and level with it — not centred on
+     the label + date, and not pushed across to the button. The 16px line
+     height matches the label's, so the two share a line exactly. */
+  .ma-unit__dueAmount { align-self: flex-start; margin-left: 0; line-height: 16px; }
+  /* The push moves to the button, which keeps the right edge. */
+  .ma-unit__footer .ma-btn-40 { flex: none; margin-left: auto; padding: 0 12px; font-size: 14px; white-space: nowrap; }
 }
 
 /* ── Make a Payment, multi-space (Figma 8905-133037) ───────────────────────
