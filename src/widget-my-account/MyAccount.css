@@ -670,7 +670,9 @@
   border-radius: 8px;
 }
 
-.ma-balance__left { flex: none; width: 200px; }
+/* Top-aligned, not centred with the rest: with the prepay ticks beside it the
+   card is taller than this block, and centred it floated mid-card. */
+.ma-balance__left { flex: none; width: 200px; align-self: flex-start; }
 
 .ma-balance__heading {
   display: flex;
@@ -711,7 +713,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
+  gap: 6px;
 }
 
 /* ── Prepay stepper (9038-78261) ───────────────────────────────────────────
