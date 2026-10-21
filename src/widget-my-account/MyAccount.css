@@ -260,6 +260,17 @@
 }
 .ma-pay__back:hover { background: var(--ma-chip); }
 .ma-pay__back:focus-visible { outline: none; box-shadow: var(--hb-focus-ring); }
+/* Hidden on desktop too now, as it already was on the phone: the sidebar's
+   Account Info is the way back. The title takes the arrow's place. Remove this
+   line to bring the arrow back. */
+.ma-pay__back { display: none; }
+/* With no arrow, the title lines up with the space ticks below. On desktop
+   those are outdented: .ma-space-head -14px, the check -2px, less the box's own
+   3px margin = the visible box sits 13px left of the text edge. The phone has
+   no outdent, so it is already aligned there. */
+@media (min-width: 721px) {
+  .ma-pay__head { margin-left: -13px; }
+}
 
 /* Space header — the radio sits outdented, level with the card's text edge. */
 .ma-space-head {
