@@ -11,7 +11,10 @@ import {
 } from '@shared/nearbyProperties';
 import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
-import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
+import { NearbyMap, type MapPoint, type PositionedPoint } from '@shared/NearbyMap';
+import { CloseCircleIcon } from '@shared/ui/icons';
+// The city page's (#08) map card is the design for this one — same star.
+import { StarIcon } from '../../../widget-map-locations/icons';
 import cfg from '../../config.json';
 import { credsWithCompany } from '../../apiCreds';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
@@ -293,6 +296,8 @@ export function NearbySection() {
   // too. '' while it is still resolving — see ./companyContext.
   const boundCompanyId = useCompanyId();
   const [view, setView] = useState<ViewMode>('list');
+  /** The map pin whose card is open (Map view). */
+  const [mapOpenId, setMapOpenId] = useState<string | null>(null);
 
   // null = still loading; [] = loaded but nothing nearby.
   const [apiProps, setApiProps] = useState<NearbyProperty[] | null>(null);
@@ -467,6 +472,73 @@ export function NearbySection() {
     active: i === safePage,
   }));
 
+  /* Map pins drawn here rather than by NearbyMap, so a tapped pin opens the
+     city page's (#08) card instead of the shared map's small generic popup —
+     the same card #07's mobile map opens. The PIN is NearbyMap's own default,
+     restyled 1:1 — only the card changed. The card is parked across the top of
+     the map; it is outside the pin box, so it positions against the map. */
+  const renderMapPin = (p: PositionedPoint) => {
+    const isOpen = p.id === mapOpenId;
+    const activeLook = p.active || isOpen;
+    const idx = isOpen ? (apiProps ?? []).findIndex((x) => x.id === p.id) : -1;
+    const prop = idx >= 0 ? apiProps![idx] : undefined;
+    return (
+      <>
+        <button
+          type="button"
+          title={p.name}
+          onClick={(e) => { e.stopPropagation(); setMapOpenId((cur) => (cur === p.id ? null : p.id)); }}
+          style={{
+            position: 'absolute', left: p.left, top: p.top, transform: 'translate(-50%, -100%)',
+            display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+            pointerEvents: 'auto',
+            padding: p.label ? '4px 9px' : 0,
+            width: p.label ? 'auto' : 14,
+            height: p.label ? 'auto' : 14,
+            borderRadius: p.label ? 14 : '50%',
+            background: activeLook ? '#101318' : '#fff',
+            color: activeLook ? '#fff' : '#101318',
+            border: '2px solid #101318',
+            fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+            fontFamily: 'inherit', lineHeight: 1.2,
+          }}
+        >
+          {p.label}
+        </button>
+        {prop && (
+          <div className="sl-nb2-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="sl-nb2-popup-photo" style={{ background: propertyImage(prop.imageUrl, idx) }} />
+            <div className="sl-nb2-popup-body">
+              {/* The NAME is the link to the property — underlined. Plain text
+                  when the row has no slug, as there is nowhere to point. */}
+              <p className="sl-nb2-popup-name">
+                {p.href ? <a href={p.href}>{prop.name}</a> : prop.name}
+              </p>
+              {prop.address && <span className="sl-nb2-popup-address">{prop.address}</span>}
+              {prop.rating != null && (
+                <div className="sl-nb2-popup-rating">
+                  <StarIcon size={16} />
+                  <span className="sl-nb2-popup-score">{Number(prop.rating.toFixed(1))}</span>
+                  <span className="sl-nb2-popup-reviews">{prop.reviewCount} Reviews</span>
+                </div>
+              )}
+              {p.label && <span className="sl-nb2-popup-from">Units starting at {p.label}</span>}
+            </div>
+            <button
+              type="button"
+              className="sl-nb2-popup-close"
+              aria-label="Close"
+              onClick={(e) => { e.stopPropagation(); setMapOpenId(null); }}
+            >
+              <CloseCircleIcon size={32} />
+            </button>
+          </div>
+        )}
+      </>
+    );
+  };
+
   /* MAP VIEW KEEPS LIST VIEW'S HEIGHT, and it is measured rather than guessed:
      the card's height depends on how many unit rows the property has, so no
      constant would match it. Both boxes are read while the LIST is on screen —
@@ -537,6 +609,7 @@ export function NearbySection() {
               points={mapPoints}
               height={mapHeight}
               className="sl-nb2-map"
+              renderPin={renderMapPin}
               interactive
               fitToPoints
             />

@@ -12,7 +12,10 @@ import {
   MapPinIcon,
   ChevronRight,
 } from './icons';
-import { NearbyMap, type MapPoint } from '@shared/NearbyMap';
+import { NearbyMap, type MapPoint, type PositionedPoint } from '@shared/NearbyMap';
+import { CloseCircleIcon } from '@shared/ui/icons';
+// The city page's (#08) map card is the design for this one — same star.
+import { StarIcon } from '../widget-map-locations/icons';
 import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
@@ -811,6 +814,8 @@ export function NearbyLocations({
   }, [companyId]);
 
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
+  /** The map pin whose card is open (mobile Map View). */
+  const [mapOpenId, setMapOpenId] = useState<string | null>(null);
 
   // null = still loading; [] = loaded but nothing to show.
   const [apiProperties, setApiProperties] = useState<Property[] | null>(null);
@@ -1296,6 +1301,73 @@ export function NearbyLocations({
       active: p.id === apiProperties?.[Math.min(mobileIdx, apiProperties.length - 1)]?.id,
     }));
 
+  /* Map pins drawn here rather than by NearbyMap, so a tapped pin can open the
+     city page's (#08) card instead of the shared map's small generic popup.
+     The PIN is NearbyMap's own default, restyled 1:1 — only the card changed.
+     The card is parked across the top of the map, as #08's is on a phone; it
+     is outside the pin box, so it positions against the map. */
+  const renderMapPin = (p: PositionedPoint) => {
+    const isOpen = p.id === mapOpenId;
+    const activeLook = p.active || isOpen;
+    const prop = isOpen ? apiProperties?.find((x) => x.id === p.id) : undefined;
+    const href = prop?.slug ? `${propertyBasePath}/${prop.slug.replace(/^\/+/, '')}` : undefined;
+    return (
+      <>
+        <button
+          type="button"
+          title={p.name}
+          onClick={(e) => { e.stopPropagation(); setMapOpenId((cur) => (cur === p.id ? null : p.id)); }}
+          style={{
+            position: 'absolute', left: p.left, top: p.top, transform: 'translate(-50%, -100%)',
+            display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+            pointerEvents: 'auto',
+            padding: p.label ? '4px 9px' : 0,
+            width: p.label ? 'auto' : 14,
+            height: p.label ? 'auto' : 14,
+            borderRadius: p.label ? 14 : '50%',
+            background: activeLook ? '#101318' : '#fff',
+            color: activeLook ? '#fff' : '#101318',
+            border: '2px solid #101318',
+            fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+            fontFamily: 'inherit', lineHeight: 1.2,
+          }}
+        >
+          {p.label}
+        </button>
+        {prop && (
+          <div className="nl-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="nl-popup-photo" style={{ background: prop.image }} />
+            <div className="nl-popup-body">
+              {/* The NAME is the link to the property — underlined. Plain text
+                  when the row has no slug, as there is nowhere to point. */}
+              <p className="nl-popup-name">
+                {href ? <a href={href}>{prop.name}</a> : prop.name}
+              </p>
+              {prop.address && <span className="nl-popup-address">{prop.address}</span>}
+              {prop.rating != null && (
+                <div className="nl-popup-rating">
+                  <StarIcon size={16} />
+                  <span className="nl-popup-score">{Number(prop.rating.toFixed(1))}</span>
+                  <span className="nl-popup-reviews">{prop.reviewCount} Reviews</span>
+                </div>
+              )}
+              {p.label && <span className="nl-popup-from">Units starting at {p.label}</span>}
+            </div>
+            <button
+              type="button"
+              className="nl-popup-close"
+              aria-label="Close"
+              onClick={(e) => { e.stopPropagation(); setMapOpenId(null); }}
+            >
+              <CloseCircleIcon size={32} />
+            </button>
+          </div>
+        )}
+      </>
+    );
+  };
+
   /* Where to centre the map.
      `refLoc` when there is one — the visitor's own location, or the property
      this page is about — because then the map should be about THEM.
@@ -1498,6 +1570,7 @@ export function NearbyLocations({
             points={mapPoints}
             height={mobileMapHeight}
             className="nl-map"
+            renderPin={renderMapPin}
             /* Draggable and zoomable; the pins reproject against the live map.
                With no Maps key this is the frozen embed exactly as before. */
             interactive
