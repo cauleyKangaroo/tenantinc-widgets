@@ -1846,6 +1846,14 @@ export interface CardPayment extends RentAddress {
   /** VISA | MasterCard | AMEX | … sent as `payment_method.card_type`. */
   cardType?: string;
   /**
+   * Stripe PaymentMethod id (pm_…) from the Payment Element, on a
+   * `tenant_payments_stripe` property. Set ⇒ the payment_method is the
+   * hand-off's token-only object: no card_number, no expiry, no cvv2 — Stripe
+   * holds all three and Hummingbird charges from the id. SINGLE-ATTEMPT: a
+   * decline needs a fresh one.
+   */
+  stripePaymentMethodId?: string;
+  /**
    * The gateway's masked number, e.g. "************1111".
    *
    * DELIBERATELY NOT SENT. The API validates `payment_method` strictly and
@@ -2137,6 +2145,21 @@ function vehicleInfo(extras?: RentalExtras): Record<string, unknown> | undefined
  * (non-hosted gateways) is unchanged: `type: 'card'` with the real digits.
  */
 function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<string, unknown> {
+  /*
+   * STRIPE FIRST (tenant_payments_stripe — hand-off of 2026-10-21, §7):
+   * exactly the documented object and nothing else. "Pass paymentToken
+   * instead of card_number, exp_mo, exp_yr, and cvv2. Do not send raw card
+   * data." The GP and typed-card branches below are untouched.
+   */
+  if (card.stripePaymentMethodId) {
+    return {
+      type: 'hosted-card',
+      token: card.stripePaymentMethodId,
+      zip: card.zip,
+      save_to_account: true,
+      auto_charge: autoCharge,
+    };
+  }
   const parts = card.nameOnCard.trim().split(/\s+/);
   // No PAN ⇒ hosted fields collected it and never handed it over.
   const typed = card.cardNumber.replace(/\D/g, '');
@@ -2436,6 +2459,14 @@ async function finalizeLease(
   }
   // Raw idv id ("idv" + 32 hex), never hash-encoded.
   if (args.idvId) body.idv_id = args.idvId;
+  /*
+   * Stripe path only: the hand-off's optional `payment.attempt_key`, STABLE
+   * across retries of the same move-in (unit + start date) so a retry after a
+   * timeout cannot charge twice. ≤64 chars of [A-Za-z0-9_-].
+   */
+  if (args.card?.stripePaymentMethodId) {
+    body.payment = { type: 'hosted-card', attempt_key: moveInAttemptKey(args.unit.id, args.startDate) };
+  }
 
   const inner = await sendV1('POST', `companies/${ctx.companyId}/units/${args.unit.id}/lease`, body);
   if (inner.status !== 200 || !inner.data) {
@@ -2461,6 +2492,23 @@ async function finalizeLease(
     contactId,
     status: d.status as string | undefined,
   };
+}
+
+/**
+ * One attempt key per (unit, start date) for the page's life — reused on a
+ * retry of the same move-in, new for a different unit or day. The hand-off
+ * allows ≤64 of [A-Za-z0-9_-]; unit ids and dates are already in that set.
+ */
+const attemptKeys = new Map<string, string>();
+function moveInAttemptKey(unitId: string, startDate: string): string {
+  const k = `${unitId}|${startDate}`;
+  let v = attemptKeys.get(k);
+  if (!v) {
+    v = `movein-${unitId}-${startDate.replace(/-/g, '')}-${Date.now().toString(36)}`
+      .replace(/[^A-Za-z0-9_-]+/g, '-').slice(0, 64);
+    attemptKeys.set(k, v);
+  }
+  return v;
 }
 
 /** API 11 — enrol the saved card for recurring rent. */
@@ -2858,6 +2906,8 @@ export type PaymentGateway = string;
 
 /** GP hosted fields belong to this gateway and no other. */
 export const TENANT_PAYMENTS = 'tenant_payments';
+/** Stripe-hosted cards — gateway_config carries the publishable key. */
+export const TENANT_PAYMENTS_STRIPE = 'tenant_payments_stripe';
 
 /**
  * The gateway name, out of either shape this endpoint returns.
@@ -2916,6 +2966,13 @@ export interface PaymentGatewayInfo {
   /** `public_api_key` — the property's own GP public key ("pkapi_prod_…" on a
    *  live site, "pkapi_cert_…" on the sandbox); '' when the reply has none. */
   publicKey: string;
+  /**
+   * `gateway_config`, present when the property is on `tenant_payments_stripe`
+   * (TenantInc's Stripe hand-off, 2026-10-21): the Stripe PUBLISHABLE key, the
+   * facility's CONNECTED ACCOUNT and the currency — everything the browser
+   * needs to mount the Payment Element. Absent on every other gateway.
+   */
+  stripe?: { publicKey: string; merchantAccount: string; currency: string };
 }
 
 /**
@@ -2931,7 +2988,9 @@ export async function fetchPaymentGatewayInfo(ctx: RentalCtx): Promise<PaymentGa
   try {
     const res = await fetch(
       `${creds().baseUrl}/applications/${creds().appId}/v2/companies/${ctx.companyId}`
-      + `/properties/${encodeURIComponent(ctx.propertyId)}/gateway`,
+      // `?type=card` per the Stripe hand-off; verified 2026-10-21 that a GP
+      // property answers identically with and without it.
+      + `/properties/${encodeURIComponent(ctx.propertyId)}/gateway?type=card`,
       { headers: headers() },
     );
     if (!res.ok) {
@@ -2945,9 +3004,17 @@ export async function fetchPaymentGatewayInfo(ctx: RentalCtx): Promise<PaymentGa
       console.warn('[rental] gateway lookup rejected:', inner?.status, inner?.msg);
       return null;
     }
-    const data = inner.data as { gateway?: unknown; public_api_key?: unknown } | undefined;
+    const data = inner.data as {
+      gateway?: unknown; public_api_key?: unknown;
+      gateway_config?: { gateway?: unknown; public_key?: unknown; merchant_account?: unknown; currency?: unknown } | null;
+    } | undefined;
     const publicKey = typeof data?.public_api_key === 'string' ? data.public_api_key.trim() : '';
-    return { gateway: readGateway(data?.gateway), publicKey };
+    const gc = data?.gateway_config;
+    const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+    const stripe = gc && str(gc.gateway) === TENANT_PAYMENTS_STRIPE && str(gc.public_key)
+      ? { publicKey: str(gc.public_key), merchantAccount: str(gc.merchant_account), currency: str(gc.currency) || 'usd' }
+      : undefined;
+    return { gateway: readGateway(data?.gateway), publicKey, ...(stripe ? { stripe } : {}) };
   } catch (err) {
     console.warn('[rental] gateway lookup threw:', err);
     return null;

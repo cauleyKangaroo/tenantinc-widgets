@@ -33,6 +33,7 @@ import {
   COUNTRY_OPTIONS, placesCountryFor, postalCodeOk, postalLabel, regionLabel,
 } from '@shared/addressCountry';
 import { mountHostedCard, type HostedCardHandle } from '@shared/gpHostedFields';
+import { mountStripeCard, type StripeCardHandle, type StripeGatewayConfig } from '@shared/stripeHostedFields';
 import { useMediaQuery } from '@shared/stickyStack';
 import './paymentForms.css';
 import { skipValidation } from '@shared/devBypass';
@@ -502,6 +503,11 @@ export interface CardFormValue {
   cvv: string;
   /** Real single-use gateway token, when hosted fields produced one. */
   token?: string;
+  /** Stripe PaymentMethod id (pm_…), when the Stripe Payment Element produced
+   *  one. Single-attempt; see CardPayment.stripePaymentMethodId. */
+  stripePaymentMethodId?: string;
+  /** The brand, from Stripe's PaymentMethod reply ("visa"); display + card_type. */
+  cardType?: string;
   /** The gateway's mask. Carried, deliberately not sent — see CardPayment. */
   maskedCardNumber?: string;
   nameOnCard: string;
@@ -511,7 +517,7 @@ export interface CardFormValue {
   zip: string;
 }
 
-export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipOnlyBilling, defaultCountry = '', payLabel, floatHostedNumberLabel = false }: {
+export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipOnlyBilling, defaultCountry = '', payLabel, floatHostedNumberLabel = false, stripe = null }: {
   total: number;
   /** Overrides "Pay Now $X" — the always-on autopay frame reads
    *  "Agree & Pay $X", because that button is where the recurring
@@ -525,6 +531,14 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
   /** Global Payments PUBLIC key. Present ⇒ try hosted fields for the number
    *  and expiry. Absent, or the library will not load, ⇒ plain inputs. */
   gpPublicKey?: string;
+  /**
+   * The property is on `tenant_payments_stripe`: its gateway_config, and the
+   * card row becomes Stripe's embedded Payment Element (number, expiry and
+   * CVC all inside it). Name and billing stay this form's own fields and
+   * travel as billing_details. Wins over gpPublicKey — a reply carries one
+   * or the other, never both.
+   */
+  stripe?: StripeGatewayConfig | null;
   /**
    * The property's gateway lookup has not answered yet, so `gpPublicKey` is
    * not yet meaningful — an empty key here means "don't know", not "no GP".
@@ -604,7 +618,45 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
    * plain inputs are not rendered and then yanked away underneath a shopper who
    * has already started typing. Once it settles it never flips again.
    */
+  const stripeMode = !!(stripe && stripe.publicKey);
   const [hosted, setHosted] = useState<boolean | null>(gpPublicKey || gatewayPending ? null : false);
+  /* ── Stripe mode (tenant_payments_stripe) ────────────────────────────────
+     The whole card row is Stripe's Payment Element; these mirror the GP
+     trio (gpReady / gpValid / handle) for that one element. */
+  const [stripeReady, setStripeReady] = useState(false);
+  const [stripeComplete, setStripeComplete] = useState(false);
+  /** A createPaymentMethod round-trip is out — locks the button like `busy`. */
+  const [stripeSubmitting, setStripeSubmitting] = useState(false);
+  const stripeRef = useRef<StripeCardHandle | null>(null);
+  const stripeHostId = `stripe-card-${useId().replace(/:/g, '')}`;
+  useEffect(() => {
+    if (!stripeMode) return undefined;
+    let dead = false;
+    let mounted: StripeCardHandle | null = null;
+    void mountStripeCard({
+      config: stripe!,
+      amountCents: Math.round(total * 100),
+      target: `#${stripeHostId}`,
+      onReady: () => { if (!dead) setStripeReady(true); },
+      onComplete: (c) => { if (!dead) setStripeComplete(c); },
+    }).then((h) => {
+      if (dead) { h?.unmount(); return; }
+      mounted = h;
+      stripeRef.current = h;
+      if (!h) {
+        // No plain-input fallback on a Stripe property: a typed PAN has
+        // nowhere lawful to go, so the failure is said instead.
+        setGpError('The secure card form could not load. Please refresh and try again.');
+      }
+    });
+    return () => { dead = true; mounted?.unmount(); stripeRef.current = null; setStripeReady(false); setStripeComplete(false); };
+    /* Mounted once per key/account; the amount follows `total` below rather
+       than remounting (which would wipe what the shopper typed). */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripeMode, stripe?.publicKey, stripe?.merchantAccount]);
+  useEffect(() => {
+    if (stripeMode) stripeRef.current?.updateAmount(Math.round(total * 100));
+  }, [stripeMode, total]);
   const [gpReady, setGpReady] = useState(false);
   const [gpError, setGpError] = useState('');
   const uid = useId().replace(/:/g, '');
@@ -721,11 +773,15 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
 
   /* The row is one bordered box holding three inputs, so it turns green as a
      unit rather than per-input — there is only one border to turn. */
-  const cardRowValid = hosted
-    /* All THREE, not the CVV alone. GP reports the number frame's validity on
-       every keystroke; the expiry and CVV are ours in both modes now. */
-    ? gpValid.number && validExpiry(expiry) && validCvv('', cvv)
-    : validCard(number) && validExpiry(expiry) && validCvv(number, cvv);
+  const cardRowValid = stripeMode
+    /* Stripe's element validates all three fields itself and reports one
+       completeness flag per keystroke — that flag IS the row's validity. */
+    ? stripeComplete
+    : hosted
+      /* All THREE, not the CVV alone. GP reports the number frame's validity on
+         every keystroke; the expiry and CVV are ours in both modes now. */
+      ? gpValid.number && validExpiry(expiry) && validCvv('', cvv)
+      : validCard(number) && validExpiry(expiry) && validCvv(number, cvv);
   /* Each half on its own, for MOBILE (rental flow), where the number and the
      MM / YY + CVV pair are two separate boxes and each validates by itself.
      Desktop keeps the single row check above — one border, one tick. */
@@ -747,6 +803,11 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
      not — gpValid tracks it, so an empty or half-typed frame can be named here
      too rather than only the CVV. */
   const cardCellError = (() => {
+    if (stripeMode) {
+      // The element draws its own per-field messages; ours only answers a
+      // pay attempt on an incomplete element.
+      return payAttempted && !stripeComplete ? 'Complete your card details' : '';
+    }
     /* TYPED INTO, THEN LEFT — or a pay attempt. Never while a cell still has
        the caret: a sixteen-digit number is wrong for fifteen keystrokes out of
        sixteen, and saying so on each of them is noise the shopper is already
@@ -1063,6 +1124,14 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
         would mean fighting its internals. Same tokens, so it sits flush with the
         real form fields above and below it.
       */}
+      {stripeMode ? (
+        /* Stripe's Payment Element IS the card row: number, expiry and CVC all
+           live inside it, so none of the cells below apply. The host keeps the
+           row's box so the panel does not jump when the element arrives. */
+        <div className={`rf-cardrow rf-cardrow--stripe${cardCellError ? ' rf-cardrow--error' : ''}${!stripeReady ? ' rf-cardrow--loading' : ''}`}>
+          <div id={stripeHostId} className="rf-stripe-host" />
+        </div>
+      ) : (
       <div className={`rf-cardrow${cardRowValid ? ' rf-cardrow--valid' : ''}${numberValid ? ' rf-cardrow--number-valid' : ''}${pairValid ? ' rf-cardrow--pair-valid' : ''}${cardCellError ? ' rf-cardrow--error' : ''}${hosted !== false && !gpReady ? ' rf-cardrow--loading' : ''}`}>
         <CreditCardIcon size={24} className="rf-cardrow-ico" />
 
@@ -1174,6 +1243,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
           aria-hidden="true"
         />
       </div>
+      )}
       {/* Which of the row's three is wrong. Replaces the expiry-only message
           that used to sit here — an incomplete card number or CVV said nothing
           at all before, so the row went red with no reason given. */}
@@ -1294,12 +1364,41 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
         <button
           type="button"
           className="rf-paynow"
-          disabled={busy}
+          disabled={busy || stripeSubmitting}
           /* Hosted: the frame above is the real control, so this one is taken
              out of the tab order rather than offering a second, dead one. */
-          tabIndex={hosted ? -1 : undefined}
-          aria-hidden={hosted ? true : undefined}
+          tabIndex={hosted && !stripeMode ? -1 : undefined}
+          aria-hidden={hosted && !stripeMode ? true : undefined}
           onClick={() => {
+            if (stripeMode) {
+              // Validate HERE, as below; then one createPaymentMethod round
+              // trip. The pm id is single-attempt, so a decline must come
+              // back to a fresh submit, never a reused id.
+              if (!complete) { setPayAttempted(true); return; }
+              if (stripeSubmitting || !stripeRef.current) return;
+              setStripeSubmitting(true);
+              setGpError('');
+              void stripeRef.current.submit({
+                name: name.trim(),
+                zip: zip.trim(),
+                country: country.trim() === 'Canada' ? 'CA' : 'US',
+                ...(zipOnlyBilling ? {} : { line1: address, city, state: stateCode }),
+              }).then((r) => {
+                setStripeSubmitting(false);
+                if (!r.ok) { setGpError(r.message); return; }
+                onPay({
+                  ...valueFrom(),
+                  stripePaymentMethodId: r.card.paymentMethodId,
+                  // Display only — cardPaymentMethod never sends a number on
+                  // the Stripe branch.
+                  maskedCardNumber: r.card.last4 ? `************${r.card.last4}` : undefined,
+                  cardType: r.card.brand || undefined,
+                  expMonth: r.card.expMonth,
+                  expYear: r.card.expYear,
+                });
+              });
+              return;
+            }
             if (hosted) return;
             // Validate HERE rather than disabling the button: a disabled control
             // gives no reason, and the shopper is one field from paying.
@@ -1307,12 +1406,12 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
             onPay(valueFrom());
           }}
         >
-          {busy ? 'Processing…' : (payLabel ?? `Pay Now ${money(total)}`)}
+          {busy || stripeSubmitting ? 'Processing…' : (payLabel ?? `Pay Now ${money(total)}`)}
         </button>
         {/* Hidden while paying so a second click cannot reach the frame. */}
         <span
           id={subId}
-          className={`rf-gp-submit${hosted === false || busy ? ' rf-gp-submit--off' : ''}`}
+          className={`rf-gp-submit${hosted === false || stripeMode || busy ? ' rf-gp-submit--off' : ''}`}
           aria-label={payLabel ?? `Pay Now ${money(total)}`}
         />
       </div>

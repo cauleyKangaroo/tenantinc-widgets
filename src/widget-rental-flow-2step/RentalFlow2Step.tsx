@@ -11,7 +11,7 @@ import {
   fetchMoveInQuote, fetchUnitInfo,
   holdUnit, releaseHold, releaseHoldOnUnload, HOLD_TTL_SECONDS, defaultRentalCtx, reserveSpace, rentSpace, quoteToCosts,
   updateContactDetails, dobToIso, fetchReservationCode, fetchReservationRecord,
-  fetchPaymentGatewayInfo, TENANT_PAYMENTS, configureApi, currentApiCreds, previewDocuments,
+  fetchPaymentGatewayInfo, TENANT_PAYMENTS, TENANT_PAYMENTS_STRIPE, configureApi, currentApiCreds, previewDocuments,
   type RentResult, type ApiCredProps, type PaymentCycleKey, type RentalExtras, type QuoteOptions,
   type ProtectionPlan, type LeaseDocument, type SelectionContext, type MoveInQuote,
   type UnitHold, type RentalCtx, type PropertyInfo,
@@ -1547,7 +1547,7 @@ export function RentalFlow2Step({
    */
   /* The gateway AND its public key, from one reply. `undefined` while out,
      `null` when it could not be read. */
-  const [gatewayInfo, setGatewayInfo] = useState<{ gateway: string | null; publicKey: string } | null | undefined>(undefined);
+  const [gatewayInfo, setGatewayInfo] = useState<{ gateway: string | null; publicKey: string; stripe?: { publicKey: string; merchantAccount: string; currency: string } } | null | undefined>(undefined);
   useEffect(() => {
     // Wait for the resolved company — asking under the config default would
     // read another tenant's gateway and could pick the wrong form entirely.
@@ -1568,6 +1568,9 @@ export function RentalFlow2Step({
    * loud: a live site tokenizing against the bundled sandbox key is exactly
    * the fault this replaces (2026-10-16).
    */
+  /** Stripe config, only on a tenant_payments_stripe property — the card row
+   *  then becomes Stripe's Payment Element (see CardForm). */
+  const stripeGateway = gateway === TENANT_PAYMENTS_STRIPE ? (gatewayInfo?.stripe ?? null) : null;
   const gpKey = gateway === TENANT_PAYMENTS
     ? (gatewayInfo?.publicKey || (configuredGpKey && (console.warn(`${logTag} gateway reply carried no public_api_key — falling back to the bundled key`), configuredGpKey)) || '')
     : '';
@@ -3604,8 +3607,12 @@ export function RentalFlow2Step({
             paying={paying}
             payError={payError}
             gpPublicKey={gpKey}
+            stripeGateway={stripeGateway}
             gatewayPending={gatewayPending}
-            zipOnlyBilling={gateway === TENANT_PAYMENTS}
+            /* Zip-only wherever the card never reaches us: GP's iframe, and
+               Stripe's Payment Element alike — the gateway verifies on the
+               postcode, so a street nothing checks is pure friction. */
+            zipOnlyBilling={gateway === TENANT_PAYMENTS || gateway === TENANT_PAYMENTS_STRIPE}
             defaultCountry={defaultBillingCountry}
             showApplePay={walletsAllowed && walletConfig.applePayEnabled}
             showGooglePay={walletsAllowed && walletConfig.googlePayEnabled}
@@ -3673,6 +3680,10 @@ export function RentalFlow2Step({
                 // and an account/routing pair is posted as it stands.
                 const withToken: Promise<{ token?: string; masked?: string } | null | undefined> = !card
                   ? Promise.resolve(undefined)
+                  : card.stripePaymentMethodId
+                    // Stripe minted the credential already (pm_…); there is
+                    // nothing to tokenize and no GP key on this gateway.
+                    ? Promise.resolve(undefined)
                   : card.token
                     ? Promise.resolve({ token: card.token, masked: card.maskedCardNumber ?? '' })
                     : tokenizeCard(gpKey, {
@@ -3713,7 +3724,8 @@ export function RentalFlow2Step({
                     token: tok?.token,
                     // Held, not sent: the API rejects a masked_credit_card_number
                     // key outright, so it waits here for the field to exist.
-                    maskedCardNumber: tok?.masked,
+                    // Stripe's branch keeps the form's own mask (last4) for display.
+                    maskedCardNumber: tok?.masked ?? card.maskedCardNumber,
                     // card_type is derived by cardPaymentMethod() from the
                     // number it actually sends — in hosted mode there is no
                     // PAN here to read a brand from.

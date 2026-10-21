@@ -326,7 +326,7 @@ const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoi
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
   brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, leasePreviewUrl, leasePreviewHtml, leasePreviewUpdating, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
-  gatewayPending, zipOnlyBilling, defaultCountry, oneStep = false,
+  gatewayPending, zipOnlyBilling, defaultCountry, stripeGateway = null, oneStep = false,
   showApplePay = false, showGooglePay = false, walletCtx, walletConfig = WALLET_DEFAULTS,
   oneStepIdv,
 }: {
@@ -442,6 +442,8 @@ export function Step2({
   payError?: string;
   /** Global Payments PUBLIC key — turns on hosted (iframe) card fields. */
   gpPublicKey?: string;
+  /** The property's Stripe gateway_config, when it is on tenant_payments_stripe. */
+  stripeGateway?: import('@shared/stripeHostedFields').StripeGatewayConfig | null;
   /** The property's gateway is still being looked up, so which card form to
    *  draw is not yet known. The card row waits rather than guessing — swapping
    *  form mid-typing would throw away what the shopper had entered. */
@@ -1458,7 +1460,7 @@ export function Step2({
               {formLoading ? (
                 <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
               ) : payMethod === 'card' ? (
-                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} defaultCountry={defaultCountry} payLabel={agreeLabel} floatHostedNumberLabel />
+                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} stripe={stripeGateway} defaultCountry={defaultCountry} payLabel={agreeLabel} floatHostedNumberLabel />
               ) : (
                 <BankForm total={payNowTotal ?? 0} onPay={(bank) => payStatically(undefined, bank)} busy={paying} defaultCountry={defaultCountry} payLabel={agreeLabel} />
               )}
