@@ -835,6 +835,7 @@
   .ts-mobile-panel, .ts-mobile-panel--open, .ts-o2m-animated-card, .ts-o2m-badge, .ts-m-total-chev { transition: none; }
 }
 .ts-o2m-features { margin-top: 16px; }
+.ts-o2m-features .ts-o2-feat { font-size: 14px; }
 .ts-o2m-promo { margin-top: 16px; }
 .ts-tier-cta--cards-mobile { --hb-button-height: 46px; margin-top: 16px; }
 

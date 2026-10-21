@@ -8,18 +8,19 @@ const ts = require('typescript');
 
 const source = fs.readFileSync(require.resolve('../src/widget-tier-selection/TierSelection.tsx'), 'utf8');
 const parsed = ts.createSourceFile('TierSelection.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-const fn = parsed.statements.filter(
-  (n) => ts.isFunctionDeclaration(n) && n.name?.text === 'soleSelectableTier',
+const names = ['soleSelectableTier', 'canSkipChooser'];
+const fns = parsed.statements.filter(
+  (n) => ts.isFunctionDeclaration(n) && names.includes(n.name?.text),
 );
-assert.equal(fn.length, 1, 'soleSelectableTier should exist exactly once in TierSelection.tsx');
+assert.equal(fns.length, names.length, 'soleSelectableTier and canSkipChooser should each exist once in TierSelection.tsx');
 
-const js = ts.transpileModule(fn[0].getText(parsed), {
+const js = ts.transpileModule(fns.map((n) => n.getText(parsed)).join('\n'), {
   compilerOptions: { target: ts.ScriptTarget.ES2019, jsx: ts.JsxEmit.Preserve },
 }).outputText;
 const ctx = { exports: {} };
 vm.createContext(ctx);
-vm.runInContext(`${js}; exports.soleSelectableTier = soleSelectableTier;`, ctx);
-const { soleSelectableTier } = ctx.exports;
+vm.runInContext(`${js}; exports.soleSelectableTier = soleSelectableTier; exports.canSkipChooser = canSkipChooser;`, ctx);
+const { soleSelectableTier, canSkipChooser } = ctx.exports;
 
 const tier = (key, soldOut = false) => ({ key, unitId: `u-${key}`, soldOut });
 
@@ -49,4 +50,20 @@ assert.equal(
   'all sold out is not a sole option',
 );
 
-console.log('tier-skip: 6 assertions passed');
+// The skip may only follow a Select click on an open modal, with the setting on.
+const clicked = { mode: 'modal', open: true, clickedGroupId: 'g1', skipSingle: true, sample: false };
+assert.equal(canSkipChooser(clicked), true, 'Select on a single-tier group with the setting on skips');
+assert.equal(canSkipChooser({ ...clicked, open: false }), false, 'a closed modal never hands off');
+assert.equal(canSkipChooser({ ...clicked, clickedGroupId: undefined }), false, 'an auto-picked group never hands off');
+assert.equal(canSkipChooser({ ...clicked, skipSingle: false }), false, 'setting off shows the chooser');
+assert.equal(canSkipChooser({ ...clicked, skipSingle: undefined }), false, 'setting missing shows the chooser');
+assert.equal(canSkipChooser({ ...clicked, sample: true }), false, 'harness sample tiers never hand off');
+assert.equal(canSkipChooser({ ...clicked, mode: 'inline' }), false, 'the Value Tiers page never redirects');
+
+// A closed modal must not load offers at all.
+const effect = source.slice(source.indexOf('React.useEffect(() => {\n    let cancelled = false;'));
+const gate = effect.indexOf("if (mode === 'modal' && !modalOpen) return");
+assert.ok(gate > 0 && gate < effect.indexOf('fetchUnitGroups('), 'the load effect returns before any fetch while the modal is closed');
+assert.match(effect, /\}, \[mode, modalOpen,/, 'the load effect reruns when the modal opens or closes');
+
+console.log('tier-skip: 15 assertions passed');

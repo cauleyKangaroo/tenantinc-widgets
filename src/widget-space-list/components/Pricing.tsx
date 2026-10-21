@@ -425,6 +425,7 @@ export function CtaButton({ unit, config, full, colClass }: {
       showPricingDetails: config.showJunkFeeDisclaimer,
       showUrgency: config.showUrgencyMessage,
       enablePromoLogic: config.enablePromoLogic,
+      skipSingleTier: config.skipTierPopupForSingle,
       // The struck-through IN-STORE rate is the operator's own figure, not the
       // API's, so it only exists on this widget. Send the RULE, not the number:
       // the popup and the rail apply it to the price they are actually showing,
