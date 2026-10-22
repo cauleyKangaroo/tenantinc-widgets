@@ -246,6 +246,9 @@ export function MakePaymentPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list.map((s) => s.id).join('|'), space?.id]);
   const [prepay, setPrepay] = useState(false);
+  /* The tenant's own toggle outranks the zero-balance auto-tick below —
+     someone who switched prepay OFF must not have it switched back on. */
+  const prepayTouched = useRef(false);
   /* The three autopay sets — see the header note on why each is per space and
      not a flag. All start empty: the strip's opening state comes from the
      space's own `autopay.enrolled`, and these record what the tenant has
@@ -476,9 +479,30 @@ export function MakePaymentPanel({
   const pay = () => {
     setPayMethod(null);
     setResult('success');
+    // Same post-success clearing as the real path (finishPayment).
+    setPrepay(false);
+    setPrepayMonths(1);
     // The banner is at the top, the button that was pressed at the bottom.
     panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  /* NOTHING DUE ⇒ PREPAY, pre-set (client, 2026-10-22). Pay Now on a paid-up
+     property used to open a panel whose every figure was $0.00 with nothing
+     to actually pay. When every listed space owes nothing, the property's
+     FIRST space is ticked alone and "Prepay Additional Month(s)" switches on
+     at 1 month — the quote fires at once, so the line, the total and the bar
+     show the real figure being paid. Arrival state only: a shown result, an
+     autopay-enroll landing, or a tenant who has touched the toggle themselves
+     all keep their own state. */
+  useEffect(() => {
+    if (result !== null || enrollAutopay || prepay || prepayTouched.current) return;
+    if (!list.length) return;
+    if (!list.every((sp) => (money(sp.total) || money(sp.balance.amount)) === 0)) return;
+    setPrepay(true);
+    setSelected(new Set([list[0].id]));
+    // The composite key re-checks when the real account lands over the sample.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list.map((sp) => `${sp.id}:${sp.total}:${sp.balance.amount}`).join('|'), result, enrollAutopay]);
 
   /* ── LIVE payment ────────────────────────────────────────────────────────
      ONE CALL PER TICKED SPACE: the API posts a payment against a lease and
@@ -531,6 +555,15 @@ export function MakePaymentPanel({
     setReceipt(r);
     setPayMessage(message);
     setPayMethod(null);
+    if (outcome === 'success') {
+      /* The figures below the banner must stop asking for the money just
+         taken: the account re-read zeroes the balance lines, and this clears
+         the prepay ask the same way — otherwise the quote simply re-ran for
+         the same months and the paid amount sat there looking unpaid. */
+      setPrepay(false);
+      setPrepayMonths(1);
+      lastQuotesRef.current = {};
+    }
     setResult(outcome);
     panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -1027,7 +1060,7 @@ export function MakePaymentPanel({
             (see prepayQuotes) and paid with its own prepay call. */}
         {(
                   <div className="ma-balance__prepay">
-            <Checkbox checked={prepay} onChange={setPrepay} className="ma-balance__check">
+            <Checkbox checked={prepay} onChange={(v) => { prepayTouched.current = true; setPrepay(v); }} className="ma-balance__check">
               Prepay Additional Month(s)
             </Checkbox>
   
