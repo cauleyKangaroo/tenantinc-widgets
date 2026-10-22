@@ -2024,6 +2024,8 @@
   /* The header bar and the rows run the panel's full width (the frame's list
      starts at the panel's left edge); only the foot keeps its padding. */
   .ma-activity__body { padding: 0 0 20px; }
+  /* The empty-state line starts under the title (23px in), not at the edge. */
+  .ma-activity__empty { padding: 0 23px; }
 
   .ma-unit__panel { gap: 8px; }
   .ma-unit__image { width: 150px; height: 110px; }
