@@ -1056,7 +1056,9 @@
    behind it — no SVG stroke, so nothing can clip against the viewBox. */
 /* SizeTagIcon draws in currentColor now, so its colour lives here. */
 .sl-wrapper .sl-lc-size-tag {
-  color: var(--color_1, #f45f30);
+  /* Grey like the pill's own border until its size is selected; then the
+     selected border's colour (below). */
+  color: #a5b4bf;
   position: absolute;
   /* Figma 7112-47058: the 16px tag frame sits 4px above and 4px past the pill's
      OUTER edge. Absolute offsets resolve against the padding box, so the border
@@ -1075,7 +1077,7 @@
     drop-shadow(0 -1px 0 #ffffff);
 }
 
-.sl-wrapper .sl-lc-size.selected .sl-lc-size-tag { top: -8px; right: -8px; }
+.sl-wrapper .sl-lc-size.selected .sl-lc-size-tag { top: -8px; right: -8px; color: var(--color_1, #f45f30); }
 .sl-wrapper .sl-lc-size.unavail .sl-lc-size-tag { top: -6.5px; right: -6.5px; }
 
 /* ── Action panel (grey): promo + price + CTA ── */
@@ -1127,6 +1129,17 @@
   min-width: min-content;
 }
 .sl-wrapper .sl-lc-price-button .sl-limited-label { grid-column: 1 / -1; }
+/* Desktop (promo beside the price): the note directly under the BUTTON. As a
+   row of its own it waited for the whole price column, so a tall one — the
+   admin-fee line wrapping to two lines — pushed it well below the button. The
+   price spans both rows instead; `1fr` puts any extra height below the note
+   rather than between it and the button. Narrower widths are unchanged. */
+@container (min-width: 681px) {
+  .sl-wrapper .sl-lc-price-button { grid-template-rows: auto 1fr; }
+  .sl-wrapper .sl-lc-price-button .sl-lc-price { grid-column: 1; grid-row: 1 / span 2; }
+  .sl-wrapper .sl-lc-price-button .sl-lc-btn-col { grid-column: 2; grid-row: 1; }
+  .sl-wrapper .sl-lc-price-button .sl-limited-label { grid-column: 2; grid-row: 2; }
+}
 /* The price column absorbs the shrinking (its .sl-prices-row is shrink:0, so it
    never squashes below the figures — the small print wraps instead). Previously
    this was shrink:0 and the button column was min-width:0, so any shortfall
@@ -5269,7 +5282,7 @@
   padding-right: 28px; /* clears the close button */
   font-size: 14px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.25; /* tighter than the body copy — a two-line name reads as one */
   color: #101318;
 }
 /* Colour restated on every state so a host theme's `a` / `a:hover` cannot

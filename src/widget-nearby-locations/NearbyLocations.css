@@ -885,7 +885,7 @@ a.nl-card-footer {
   padding-right: 28px; /* clears the close button */
   font-size: 14px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.25; /* tighter than the body copy — a two-line name reads as one */
   color: #101318;
 }
 /* The name is the link to the property. Colour restated on every state so a

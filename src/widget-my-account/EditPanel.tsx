@@ -377,7 +377,21 @@ export function EditPanel({
   return (
     <section className="ma-edit">
       <div className="ma-edit__body">
-        <p role="heading" aria-level={2} className="ma-edit__title">{space.title}</p>
+        {/* Title + Cancel/Save, in the place Account Info has title + Edit —
+            so the button the visitor just pressed becomes Cancel/Save. The SAME
+            pair as the action bar below: same classes, same `onCancel` and
+            `save`. That bar is unchanged. */}
+        <header className="ma-edit__top">
+          <p role="heading" aria-level={2} className="ma-edit__title">{space.title}</p>
+          <div className="ma-edit__topActions">
+            <button type="button" className="ma-edit__cancel" onClick={onCancel} disabled={saving}>
+              Cancel
+            </button>
+            <button type="button" className="ma-paynow" onClick={save} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </header>
 
         {/* ── Mailing Address ──────────────────────────────────────────── */}
         <div className="ma-edit__section">
