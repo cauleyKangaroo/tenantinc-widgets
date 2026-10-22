@@ -1809,8 +1809,8 @@
     grid-template-areas:
       "title price cta"
       "title note  note"
-      "fee   fee   fee"
-      "grey  grey  grey";
+      "grey  grey  grey"
+      "fee   fee   fee";
     align-items: start;
     column-gap: 12px;
     /* No bottom padding: the grey block finishes the card. */
@@ -1828,7 +1828,16 @@
   .sl-wrapper .sl-default-card .sl-prices-row { grid-area: price; }
   .sl-wrapper .sl-default-card .sl-dv-btn-col { grid-area: cta; }
   /* Its own row under the urgency note — sharing `note` overlapped the two. */
-  .sl-wrapper .sl-default-card .sl-junk-disclaimer { grid-area: fee; }
+  /* Its own row, at the foot of the grey block — under the amenities line and
+     the promotion. Painted grey and full-bleed like the block above it, so the
+     two read as one panel; the block's bottom padding becomes the 12px gap. */
+  .sl-wrapper .sl-default-card .sl-junk-disclaimer {
+    grid-area: fee;
+    margin: 0 -20px;
+    padding: 0 20px 18px;
+    background: #f9fafb;
+  }
+  .sl-wrapper .sl-default-card:has(.sl-junk-disclaimer) .sl-dv-grey { padding-bottom: 12px; }
   .sl-wrapper .sl-dv-grey { grid-area: grey; }
 
   /* Neither the photo nor "See what fits" appears in this frame, and the ticked
@@ -1879,6 +1888,9 @@
   .sl-wrapper .sl-default-card .sl-select-btn,
   .sl-wrapper .sl-default-card .sl-call-btn,
   .sl-wrapper .sl-default-card .sl-waitlist-btn { padding-inline: 10px; }
+  /* "Join waitlist" is too long for the 82px button on one line and ran out of
+     its border — two centred lines instead (16px lines fit the 50px button). */
+  .sl-wrapper .sl-default-card .sl-waitlist-btn { white-space: normal; text-align: center; }
   /* Placed by the grid, so the base rule's flex sizing and its -12px lift
      (which cancels a flex row-gap that does not exist here) both go. */
   .sl-wrapper .sl-default-card .sl-limited-label {
@@ -1947,8 +1959,8 @@
       "title price"
       "cta   cta"
       "note  note"
-      "fee   fee"
-      "grey  grey";
+      "grey  grey"
+      "fee   fee";
   }
   .sl-wrapper .sl-default-card .sl-dv-btn-col { width: auto; justify-self: stretch; margin-top: 12px; }
 }
@@ -5373,8 +5385,8 @@
   z-index: 2;
   top: 12px;
   right: 12px;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   display: flex;
   align-items: center;

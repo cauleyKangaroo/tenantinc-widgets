@@ -531,7 +531,7 @@ export function NearbySection() {
               aria-label="Close"
               onClick={(e) => { e.stopPropagation(); setMapOpenId(null); }}
             >
-              <CloseCircleIcon size={32} />
+              <CloseCircleIcon size={24} />
             </button>
           </div>
         )}
