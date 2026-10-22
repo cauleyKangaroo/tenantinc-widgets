@@ -40,7 +40,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './MyAccount.css';
-import { Button } from '@shared/ui';
+import { Button, InfoIcon } from '@shared/ui';
 import { AccountInfoPanel } from './AccountInfoPanel';
 import { EditPanel } from './EditPanel';
 import { MakePaymentPanel, type CoverageHandlers, type PaymentHandlers } from './MakePaymentPanel';
@@ -831,6 +831,41 @@ export function MyAccount({
                     {promoLabel}
                   </Button>
                 )}
+            </section>
+          )}
+
+          {/* MOBILE ONLY (CSS hides it above 720px): the Figma phone frame's
+              Balance Due card, straight under the Autopay card. The selected
+              space's balance — the same figure, date and Past Due flag Make a
+              Payment opens on — with Pay Now taking the same route as the
+              account card's own Pay Now. Built from .ma-balance so it is the
+              same box as Make a Payment's. */}
+          {space && view === 'account' && (
+            <section className="ma-balance ma-balance--home" aria-label="Balance due">
+              <div className="ma-balance__left">
+                <div className="ma-balance__heading">
+                  <span className="ma-balance__title">Balance Due</span>
+                  <InfoIcon size={16} className="ma-balance__info" />
+                </div>
+                {/* The sample carries "Pay through …" already; a live space
+                    carries the bare date. */}
+                {space.balance.payThrough && (
+                  <p className="ma-balance__through">
+                    Pay through {space.balance.payThrough.replace(/^pay through\s*/i, '')}
+                  </p>
+                )}
+              </div>
+              <div className="ma-balance__right">
+                <p className="ma-balance__amount">{space.balance.amount}</p>
+                {space.balance.pastDue && <p className="ma-balance__past">Past Due</p>}
+                <button
+                  type="button"
+                  className="ma-paynow ma-balance__paynow"
+                  onClick={() => { setEnrollAutopay(false); setView('payment'); }}
+                >
+                  Pay Now
+                </button>
+              </div>
             </section>
           )}
 

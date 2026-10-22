@@ -1123,18 +1123,26 @@ export function MapLocations({
     const facility = facilities.find((f) => f.id === p.id);
     const isOpen = p.id === openId;
 
-    /* On a phone the frame parks this across the top of the MAP rather than by
-       its bubble, which also keeps it clear of the edges — and .ml-pin is
-       shrink-wrapped around the bubble, so a popup inside it has nothing
-       map-sized to position against. Rendered outside the pin there, inside it
-       on desktop where `right: 0` has to mean the bubble's right edge. */
+    /* On a phone the card is anchored to the TAPPED BUBBLE, as it is on
+       desktop (client, 2026-10-22 — it used to park across the top of the map,
+       which read as unrelated to the price that was tapped). It stays a
+       sibling of the pin rather than a child: .ml-pin is shrink-wrapped
+       around the bubble, so only outside it do left/top resolve against the
+       MAP, which is what the full-width centring needs. `p.top` is the
+       bubble's centre in map pixels (the pin is translate(-50%,-50%)), so
+       the card's bottom sits a bubble-half + 8px above it — unless the
+       bubble is too near the top edge to fit a card above, where it drops
+       BELOW the bubble instead of clipping out of the map box. */
+    const mobilePopupStyle: React.CSSProperties | undefined = isMobile
+      ? (p.top >= 230
+        ? { left: '50%', right: 'auto', top: p.top, transform: 'translate(-50%, calc(-100% - 36px))' }
+        : { left: '50%', right: 'auto', top: p.top + 36, transform: 'translateX(-50%)' })
+      : undefined;
     const popup = isOpen && facility ? (
 
       <div
-        /* On a phone the frame parks the popup across the top of the map
-           rather than over its bubble, which also keeps it from being
-           clipped when the bubble sits near an edge. */
         className={`ml-popup${isMobile ? ' ml-popup--centred' : ''}`}
+        style={mobilePopupStyle}
         onClick={(e) => e.stopPropagation()}
       >
         {/* The CARD is the link, not any one line in it — an <a> laid over

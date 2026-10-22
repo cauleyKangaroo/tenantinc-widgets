@@ -281,7 +281,8 @@ export function spacesFrom(
       total: money(balance),
       balance: {
         amount: money(balance),
-        payThrough: paidThrough,
+        // mm/dd/yyyy under "Balance Due" on Make a Payment.
+        payThrough: shortDate(l.paidThroughDate),
         pastDue,
         dueSort,
       },

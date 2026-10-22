@@ -234,7 +234,11 @@
      on the nav. A coloured tile only appears if a `logoBg` is passed in. */
   border-radius: 0 0 4px 4px;
   text-decoration: none;
-  z-index: 5;
+  /* 25, above #19's sticky mobile greeting bar (.ma-topbar, z 20): the tile
+     hangs below the nav into the page, and at 5 the published My Account page
+     drew that white bar over its bottom half. Still under the nav's own
+     dropdowns (50/60), drawer and mega menu. */
+  z-index: 25;
 }
 
 /* Single-bar mode (top bar off): one 85px bar, so the tile carries the brand
