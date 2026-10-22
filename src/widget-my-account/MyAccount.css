@@ -688,6 +688,10 @@
    card is taller than this block, and centred it floated mid-card. */
 .ma-balance__left { flex: none; width: 200px; align-self: flex-start; }
 
+/* The landing page's mobile-only Balance Due card (MyAccount.tsx). Not shown
+   above the phone breakpoint, where the account card's own strip says it. */
+.ma-balance--home { display: none; }
+
 .ma-balance__heading {
   display: flex;
   align-items: center;
@@ -1959,6 +1963,23 @@
      top. */
   .ma-side { order: 2; }
   .ma-main { order: 3; }
+
+  /* AUTOPAY CARD FIRST on a phone — above the property and its spaces, under
+     the topbar and the logged-in line. It lives inside .ma-main, so the main
+     column stops being a box (`contents`) and its items join the page grid:
+     the promo takes order 1, everything else keeps the main column's order 3.
+     The grid's 20px row gap would close the main items' own 24px, so the
+     4px difference is put back between them. */
+  .ma-main { display: contents; }
+  .ma-main > * { order: 3; min-width: 0; }
+  /* The Balance Due card follows the promo (it is after it in the DOM, so the
+     same order keeps it second). */
+  .ma-main > .ma-promo,
+  .ma-main > .ma-balance--home { order: 1; }
+  .ma-main > :not(.ma-promo):not(.ma-balance--home) + * { margin-top: 4px; }
+  /* The grid's 20px gap and the frame's 24px between the two cards. */
+  .ma-main > .ma-balance--home { display: grid; margin-top: 4px; }
+  .ma-balance--home .ma-balance__paynow { margin-top: 10px; }
 
   .ma-promo {
     flex-direction: column;
