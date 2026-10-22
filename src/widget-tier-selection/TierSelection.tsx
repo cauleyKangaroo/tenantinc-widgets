@@ -184,6 +184,14 @@ function soleSelectableTier(tiers: Tier[]): Tier | undefined {
   return selectable.length === 1 ? selectable[0] : undefined;
 }
 
+/**
+ * Whether the modal may skip its chooser and hand off. Only an open modal, for
+ * the group the shopper clicked Select on, with the operator's skip setting on.
+ */
+function canSkipChooser(r: { mode: 'modal' | 'inline'; open: boolean; clickedGroupId?: string; skipSingle?: boolean; sample: boolean }): boolean {
+  return r.mode === 'modal' && r.open && !!r.clickedGroupId && r.skipSingle === true && !r.sample;
+}
+
 function buildTierData(data: import('./api').ValueTierData, facilityHours?: string, vacant?: number, enablePromoLogic = true, subtitle?: string): TierData {
   // Assign each offer to its OWN authoritative tier slot — never relocate an
   // offer between keys; the key is its selection + rental-flow handoff identity.
@@ -567,6 +575,7 @@ export function TierSelection({
   const [modalShowPricingDetails, setModalShowPricingDetails] = useState<boolean | undefined>(undefined);
   const [modalShowUrgency, setModalShowUrgency] = useState<boolean | undefined>(undefined);
   const [modalEnablePromoLogic, setModalEnablePromoLogic] = useState<boolean | undefined>(undefined);
+  const [modalSkipSingle, setModalSkipSingle] = useState<boolean | undefined>(undefined);
   /* The operator's IN-STORE rule, mirrored from Space List. This widget does
      not render it today — it is carried so the rental rail can show the same
      struck-through figure the listing card showed. */
@@ -691,6 +700,7 @@ export function TierSelection({
       setModalShowPricingDetails(req.showPricingDetails);
       setModalShowUrgency(req.showUrgency);
       setModalEnablePromoLogic(req.enablePromoLogic);
+      setModalSkipSingle(req.skipSingleTier === true);
       setModalInstore(req.instoreAmount || req.instoreValue
         ? { mode: req.instoreMode, amount: req.instoreAmount, value: req.instoreValue, label: req.instoreLabel }
         : undefined);
@@ -770,6 +780,8 @@ export function TierSelection({
     requested.current.clear();
     setSelected('better');
     setPastDelay(false);
+    // A closed modal loads nothing, so nothing can hand off before Select.
+    if (mode === 'modal' && !modalOpen) return () => { cancelled = true; };
     if (effectiveCompanyId === null) return () => { cancelled = true; };
     if (!ctx.propertyId || !ctx.companyId) {
       console.error('[TierSelection] not configured — propertyId and companyId are required');
@@ -860,7 +872,7 @@ export function TierSelection({
         //
         // Counted on SELECTABLE tiers: buildTierData also emits sold-out slots,
         // which are cards you cannot pick, so they do not make it a choice.
-        if (mode === 'modal' && !usedSample) {
+        if (canSkipChooser({ mode, open: modalOpen, clickedGroupId: modalUnitGroupId, skipSingle: modalSkipSingle, sample: usedSample })) {
           const only = soleSelectableTier(tierData.tiers);
           if (only) {
             // No href ⇒ not navigable (no/cross-origin rentUrl). Fall through
@@ -903,7 +915,7 @@ export function TierSelection({
     // changes when a different card is clicked. The proxy's own ~15s offers
     // cache may still serve a very recent response — the uncached move-in quote
     // is the authoritative money figure.
-  }, [mode, inEditor, siteId, elementId, sizeProp, authoritativeGroupId, openGen, ctx, tierProp, defaultTier, effectiveCompanyId, effectivePromoLogic, modalSubtitle]);
+  }, [mode, modalOpen, modalUnitGroupId, modalSkipSingle, inEditor, siteId, elementId, sizeProp, authoritativeGroupId, openGen, ctx, tierProp, defaultTier, effectiveCompanyId, effectivePromoLogic, modalSubtitle]);
 
   useEffect(() => {
     if (status === 'live' && variant === 'option1') ensureQuote(selected);
