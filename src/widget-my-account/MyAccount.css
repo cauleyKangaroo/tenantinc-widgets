@@ -1099,6 +1099,13 @@
   margin-top: 16px;
 }
 
+/* Mobile: 13px between the size line and the ticks. Prefixed with .ma-wrapper
+   because the `.ma-wrapper ul { margin: 0 }` reset outranks a bare
+   .ma-unit__features — which is why the 16px above never applied. */
+@media (max-width: 720px) {
+  .ma-wrapper .ma-unit__features { margin-top: 13px; }
+}
+
 .ma-unit__features li {
   display: flex;
   align-items: center;
@@ -2019,7 +2026,7 @@
   .ma-activity__body { padding: 0 0 20px; }
 
   .ma-unit__panel { gap: 8px; }
-  .ma-unit__image { width: 120px; height: 88px; }
+  .ma-unit__image { width: 150px; height: 110px; }
 
   /* Account Info stays on the Balance Due line. At full size the three items
      need ~333px against a ~300px footer, so the button dropped to a row of its
