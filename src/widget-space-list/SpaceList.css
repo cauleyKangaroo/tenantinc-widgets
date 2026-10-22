@@ -1140,6 +1140,27 @@
   .sl-wrapper .sl-lc-price-button .sl-lc-btn-col { grid-column: 2; grid-row: 1; }
   .sl-wrapper .sl-lc-price-button .sl-limited-label { grid-column: 2; grid-row: 2; }
 }
+
+/* Junk-fee small print. Desktop: the action panel's LEFT column — under the
+   promo, or at the top in its place when there is none (a shut promo is
+   display:none here, so auto-placement moves the note up to row 1). The price
+   row spans both rows on the right. Narrow frames keep it under the price
+   (.sl-lc-fee-inline), so only one copy ever shows. */
+.sl-wrapper .sl-lc-fee { display: none; }
+@container (min-width: 681px) {
+  .sl-wrapper .sl-lc-action {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px 24px;
+  }
+  .sl-wrapper .sl-lc-action > .sl-lc-promo-wrap,
+  .sl-wrapper .sl-lc-action > .sl-lc-fee { grid-column: 1; }
+  .sl-wrapper .sl-lc-action > .sl-lc-price-button { grid-column: 2; grid-row: 1 / span 2; width: 334px; }
+  .sl-wrapper .sl-lc-fee { display: block; }
+  .sl-wrapper .sl-lc-fee .sl-junk-disclaimer { margin-top: 0; }
+  .sl-wrapper .sl-lc-fee-inline { display: none; }
+}
 /* The price column absorbs the shrinking (its .sl-prices-row is shrink:0, so it
    never squashes below the figures — the small print wraps instead). Previously
    this was shrink:0 and the button column was min-width:0, so any shortfall
