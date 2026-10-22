@@ -188,7 +188,18 @@ export function AccountInfoPanel({
           card's rounded bottom. */}
       <div className="ma-action">
         <div className="ma-action__due">
-          <p className="ma-action__dueLabel">{space.dueLabel}</p>
+          {/* "Balance Due (Due Jun 5,2026)" — the bracketed part goes on its
+              own smaller line under the label. A label with no brackets is
+              printed as it is. */}
+          {(() => {
+            const m = /^(.*?)\s*(\(.*\))$/.exec(space.dueLabel);
+            return (
+              <p className="ma-action__dueLabel">
+                {m ? m[1] : space.dueLabel}
+                {m && <span className="ma-action__dueNote">{m[2]}</span>}
+              </p>
+            );
+          })()}
           <div className="ma-action__pay">
             <p className="ma-action__amount">{space.dueAmount}</p>
             <button type="button" className="ma-paynow" onClick={onPayNow}>Pay Now</button>
