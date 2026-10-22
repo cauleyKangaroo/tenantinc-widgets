@@ -2467,7 +2467,12 @@ async function finalizeLease(
       ...(args.coverageAmount != null ? { coverage_amount: args.coverageAmount } : {}),
     } : {}),
     ...(args.nokeTier != null ? { noke_tier: args.nokeTier } : {}),
-    payment_cycle: PAYMENT_CYCLE_NAMES[args.paymentCycle ?? 'monthly'],
+    /* ONLY when the shopper chose a longer period: unlike documents/finalize,
+       the lease call refuses the default by name — 400 `"payment_cycle" must
+       be one of [Quarterly, Annual]` (live 2026-10-22). Monthly is said by
+       omission, exactly as lease-set-up says it. */
+    ...(args.paymentCycle && args.paymentCycle !== 'monthly'
+      ? { payment_cycle: PAYMENT_CYCLE_NAMES[args.paymentCycle] } : {}),
     source: args.source ?? DEFAULT_SOURCE,
     deliveryMethod: { notice_delivery: args.noticeDelivery ?? 'email' },
     additional_months: 0,

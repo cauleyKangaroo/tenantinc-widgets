@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './AccountLogin.css';
 import { CheckTick, CaretDown, UserCircle, InfoSolid } from './icons';
 import { AlertIcon } from '@shared/ui';
@@ -405,6 +405,69 @@ export function AccountLogin({
     () => ({ baseUrl: login_api_base.trim(), siteId: siteId.trim() }),
     [login_api_base, siteId],
   );
+
+  /*
+   * Let the Duda HOST grow with the card.
+   *
+   * Duda's Design → Size "Height" on a widget is a FIXED height on its element,
+   * not a minimum (0 collapses it). Sized for the short steps, it held the
+   * account picker to ~586px while a 5-account picker is ~830 — the card spilled
+   * out of its box and ran into the footer. Nothing inside React reaches that
+   * element, so this walks up to it, as #01 does to hide its own hosts.
+   *
+   * Each host's fixed height comes off and its CURRENT height becomes its
+   * min-height, so the box never gets smaller than the editor drew it — it can
+   * only grow. Same two rules as #01 for which hosts are ours: the mount div and
+   * Duda's container always; above that only while the rest of the ancestor
+   * paints nothing (so a row shared with real content is left alone). Capped,
+   * because only the widget's own few wrappers are ever the problem.
+   * Inline values are restored on unmount.
+   */
+  const hostRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = hostRef.current;
+    if (!el) return undefined;
+
+    const paintsNothing = (node: Node, skip: Node): boolean => {
+      if (node === skip) return true;
+      if (node.nodeType === Node.TEXT_NODE) return !node.textContent?.trim();
+      if (node.nodeType !== Node.ELEMENT_NODE) return true;
+      return (node as Element).getBoundingClientRect().height === 0;
+    };
+
+    const nodes: HTMLElement[] = [];
+    let child: HTMLElement = el;
+    let n: HTMLElement | null = el.parentElement;
+    for (let i = 0; i < 2 && n && n !== document.body; i++) {
+      nodes.push(n);
+      child = n;
+      n = n.parentElement;
+    }
+    for (; nodes.length < 4 && n && n !== document.body; child = n, n = n.parentElement) {
+      if (!Array.from(n.childNodes).every((c) => paintsNothing(c, child))) break;
+      nodes.push(n);
+    }
+
+    const props = ['height', 'min-height'] as const;
+    const previous = nodes.map((node) => props.map((p) => ({
+      value: node.style.getPropertyValue(p),
+      priority: node.style.getPropertyPriority(p),
+    })));
+    nodes.forEach((node) => {
+      const floor = Math.max(parseFloat(getComputedStyle(node).minHeight) || 0, node.getBoundingClientRect().height);
+      node.style.setProperty('height', 'auto', 'important');
+      node.style.setProperty('min-height', `${Math.round(floor)}px`, 'important');
+    });
+    return () => {
+      nodes.forEach((node, i) => {
+        props.forEach((p, j) => {
+          const { value, priority } = previous[i][j];
+          if (value) node.style.setProperty(p, value, priority);
+          else node.style.removeProperty(p);
+        });
+      });
+    };
+  }, []);
   /*
    * Whether this card really signs anyone in.
    *
@@ -771,7 +834,7 @@ export function AccountLogin({
 
   if (step === 'done') {
     return (
-      <div className="al-wrapper">
+      <div className="al-wrapper" ref={hostRef}>
         <div className="al-card">
           <div className="al-head">
             <h1 className="al-title">You’re signed in</h1>
@@ -796,7 +859,7 @@ export function AccountLogin({
     const linkedTo = email || formatDestination(identifier, 'phone');
 
     return (
-      <div className="al-wrapper">
+      <div className="al-wrapper" ref={hostRef}>
         <div className="al-card al-card--choose">
           <div className="al-head al-head--choose">
             {/* A <p>, not an <h1>: the Duda site's own h1 styles beat .al-title
@@ -861,7 +924,7 @@ export function AccountLogin({
     const complete = code.replace(/\s/g, '').length === OTP_LENGTH;
 
     return (
-      <div className="al-wrapper" onFocus={inEditor ? undefined : keepCtaVisibleOnFocus}>
+      <div className="al-wrapper" ref={hostRef} onFocus={inEditor ? undefined : keepCtaVisibleOnFocus}>
         <div className="al-card">
           <div className="al-head">
             <h1 className="al-title" tabIndex={-1} ref={otpHeadingRef}>
@@ -916,7 +979,7 @@ export function AccountLogin({
   const filled = identifier.trim() !== '';
 
   return (
-    <div className="al-wrapper" onFocus={inEditor ? undefined : keepCtaVisibleOnFocus}>
+    <div className="al-wrapper" ref={hostRef} onFocus={inEditor ? undefined : keepCtaVisibleOnFocus}>
       <div className="al-card">
         <div className="al-head">
           <h1 className="al-title">{heading}</h1>
