@@ -1136,7 +1136,9 @@
    rather than between it and the button. Narrower widths are unchanged. */
 @container (min-width: 681px) {
   .sl-wrapper .sl-lc-price-button { grid-template-rows: auto 1fr; }
-  .sl-wrapper .sl-lc-price-button .sl-lc-price { grid-column: 1; grid-row: 1 / span 2; }
+  /* justify-self:end — the price sits right beside the button rather than at
+     the left of its column with a gap before Select. */
+  .sl-wrapper .sl-lc-price-button .sl-lc-price { grid-column: 1; grid-row: 1 / span 2; justify-self: end; }
   .sl-wrapper .sl-lc-price-button .sl-lc-btn-col { grid-column: 2; grid-row: 1; }
   .sl-wrapper .sl-lc-price-button .sl-limited-label { grid-column: 2; grid-row: 2; }
 }
