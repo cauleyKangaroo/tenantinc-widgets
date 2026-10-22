@@ -261,10 +261,11 @@ export function spacesFrom(
         const label = `Monthly Rent ${number ? `#${number}` : ''}`.trim();
         const open = (Array.isArray(l.invoices) ? (l.invoices as Record<string, unknown>[]) : [])
           .filter((i) => num(i.balance) > 0);
-        // Nothing open: the line says so and carries $0.00, so the lines add
-        // up to the Total beneath them — a $10 rent over a $0 total read as a
-        // broken sum. The rent itself is on the space card.
-        if (!open.length) return [{ label, note: paidThrough ? `(paid through ${paidThrough} · nothing due)` : '(nothing due)', amount: money(0) }];
+        // Nothing open: the paid-through date alone says it — "nothing due"
+        // was dropped (2026-10-22, client request). The line keeps its $0.00
+        // so the lines still add up to the Total beneath them; the rent
+        // itself is on the space card.
+        if (!open.length) return [{ label, note: paidThrough ? `(paid through ${paidThrough})` : undefined, amount: money(0) }];
         return open.map((i) => {
           const from = shortDate(i.periodStart ?? i.period_start ?? i.startDate ?? i.start_date);
           const to = shortDate(i.periodEnd ?? i.period_end ?? i.endDate ?? i.end_date);
