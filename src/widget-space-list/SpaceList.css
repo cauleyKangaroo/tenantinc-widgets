@@ -1888,6 +1888,9 @@
   .sl-wrapper .sl-default-card .sl-select-btn,
   .sl-wrapper .sl-default-card .sl-call-btn,
   .sl-wrapper .sl-default-card .sl-waitlist-btn { padding-inline: 10px; }
+  /* "Join waitlist" is too long for the 82px button on one line and ran out of
+     its border — two centred lines instead (16px lines fit the 50px button). */
+  .sl-wrapper .sl-default-card .sl-waitlist-btn { white-space: normal; text-align: center; }
   /* Placed by the grid, so the base rule's flex sizing and its -12px lift
      (which cancels a flex row-gap that does not exist here) both go. */
   .sl-wrapper .sl-default-card .sl-limited-label {
