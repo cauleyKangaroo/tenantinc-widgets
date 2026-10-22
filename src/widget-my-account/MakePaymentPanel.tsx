@@ -903,7 +903,7 @@ export function MakePaymentPanel({
                 <div className="ma-line" key={`${line.label}|${line.note ?? ''}|${i}`}>
                   <p className="ma-line__label">
                     <span className="ma-line__strong">{line.label} </span>
-                    {line.note && <span className="ma-line__note">{line.note}</span>}
+                    {line.note && <span className="ma-line__note ma-line__note--below">{line.note}</span>}
                   </p>
                   <p className="ma-line__amount ma-line__amount--strong">{scaleMoney(line.amount, monthsFactor)}</p>
                 </div>
