@@ -1762,6 +1762,15 @@
     margin-left: 0;
   }
 }
+/* LIST card, phone: the junk-fee small print on its own full-width line below
+   the price row and the urgency note, rather than squeezed under the price.
+   Uses the panel-level copy (.sl-lc-fee, the desktop one) in place of the
+   inline one. */
+@container (max-width: 480px) {
+  .sl-wrapper .sl-lc-fee { display: block; flex: 1 1 100%; }
+  .sl-wrapper .sl-lc-fee .sl-junk-disclaimer { margin-top: 0; }
+  .sl-wrapper .sl-lc-fee-inline { display: none; }
+}
 
 /* The DEFAULT layout's narrow frame.
    
