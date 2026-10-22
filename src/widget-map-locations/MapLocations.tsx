@@ -1183,7 +1183,7 @@ export function MapLocations({
           onClick={(e) => { e.stopPropagation(); setOpenId(null); }}
         >
           {/* Filled disc: the popup card is #fff. */}
-          <CloseCircleIcon size={32} />
+          <CloseCircleIcon size={24} />
         </button>
       </div>
     ) : null;
