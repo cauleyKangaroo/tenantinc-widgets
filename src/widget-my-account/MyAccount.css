@@ -1130,7 +1130,9 @@
   background: var(--ma-panel);
 }
 
-.ma-unit__due { flex: none; }
+/* Top-aligned, with the amount, so the amount sits level with the "Balance
+   Due" label — same as the mobile step below. */
+.ma-unit__due { flex: none; align-self: flex-start; }
 
 .ma-unit__dueLabel {
   font-size: 16px;
@@ -1148,10 +1150,12 @@
 }
 
 .ma-unit__dueAmount {
+  align-self: flex-start;
   margin-left: auto;
   font-size: 16px;
   font-weight: 700;
-  line-height: 20px;
+  /* The label's 16px line height, so the two share a line exactly. */
+  line-height: 16px;
   text-align: right;
   color: var(--hb-text-night);
 }

@@ -562,19 +562,21 @@ token. Gone, at TenantInc's instruction. The payment_method is now:
 The gateway lookup now asks `GET …/properties/{propertyId}/gateway?type=card`
 (same answer on GP properties, verified live). When the reply's
 `gateway_config` says `gateway: "tenant_payments_stripe"`, the card row is
-Stripe's **Payment Element** (`@shared/stripeHostedFields.ts`) instead of GP's
-frames — per TenantInc's Stripe hand-off (2026-10-21). Everything else in the
+Stripe's **Card Element** — ONE iframe asking number / expiry / CVC on a
+single line (`@shared/stripeHostedFields.ts`, switched from the Payment
+Element 2026-10-22 at the client's request; the pm_… contract is identical) —
+instead of GP's frames, per TenantInc's Stripe hand-off (2026-10-21).
+Everything else in the
 flow (hold, documents/finalize, lease, confirmation) is byte-identical, and a
 GP property is untouched (regression-probed the same day).
 
-- `Stripe(public_key, { stripeAccount: merchant_account })`, element in
-  `mode: 'payment'`, `paymentMethodCreation: 'manual'`, amount/currency from
-  the quote (re-priced totals follow via `elements.update`). Nothing is
-  charged in the browser — Pay mints a **PaymentMethod** (`pm_…`) and
-  Hummingbird charges server-side.
-- Name + billing stay OUR fields (`billingDetails: 'never'`) and ride in
-  `createPaymentMethod`'s `billing_details`. With `address: 'never'` Stripe
-  demands EVERY address member, so the zip-only panel sends the rest as `''`.
+- `Stripe(public_key, { stripeAccount: merchant_account })`, then
+  `elements().create('card', { hidePostalCode: true })` — the element is
+  amount-less and nothing is charged in the browser: Pay calls
+  `createPaymentMethod({ type: 'card', card, billing_details })`, which mints
+  a **PaymentMethod** (`pm_…`); Hummingbird charges server-side.
+- Name + billing stay OUR fields (ZIP asked once, below the row) and ride in
+  `createPaymentMethod`'s `billing_details`.
 - The payment_method on documents/finalize AND the lease is token-only — no
   PAN, expiry or CVV ever enters our code:
 

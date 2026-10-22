@@ -548,12 +548,14 @@
   .rf-wrapper .rf-cardrow--number-valid .rf-cardrow-tick { visibility: visible; }
 }
 
-/* Stripe mode: the Payment Element replaces the three cells, so the row stops
-   being a fixed-height flex strip and wraps the element's own height. */
+/* Stripe mode: ONE iframe replaces the three cells — the Card Element is a
+   single line asking number / expiry / CVC, centred in the same 56px field
+   box the GP row uses. */
 .rf-cardrow--stripe {
-  display: block;
+  display: flex;
+  align-items: center;
   height: auto;
-  min-height: 56px;
-  padding: 10px 12px;
+  min-height: var(--hb-field-height, 56px);
+  padding: 0 15px;
 }
 .rf-stripe-host { width: 100%; }

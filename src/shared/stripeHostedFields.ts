@@ -1,19 +1,25 @@
 // ===========================================================================
 // Stripe hosted card fields — the card number, expiry and CVC live inside
-// Stripe's embedded Payment Element, so none of them ever enter our
-// JavaScript. The counterpart of gpHostedFields.ts for properties whose
-// gateway is `tenant_payments_stripe`.
+// Stripe's embedded element, so none of them ever enter our JavaScript. The
+// counterpart of gpHostedFields.ts for properties whose gateway is
+// `tenant_payments_stripe`.
 //
-// Built to TenantInc's Stripe hand-off (received 2026-10-21):
+// ONE ROW, ONE IFRAME. This is Stripe's classic Card Element — a single
+// inline field asking number / expiry / CVC — not the Payment Element the
+// hand-off sketched, which stacks its fields in its own two-line layout and
+// cannot be made a row. Chosen 2026-10-22 at the client's request. The
+// server-side contract is IDENTICAL: createPaymentMethod mints the same
+// single-attempt pm_… either way, and the lease still gets
+// `{type:'hosted-card', token: pm_…}` — so the switch is invisible to
+// Hummingbird. (`hidePostalCode` because ZIP is our own billing field.)
+//
+// Still per TenantInc's Stripe hand-off (received 2026-10-21):
 //   - the gateway reply's `gateway_config` carries the PUBLISHABLE key, the
-//     facility's CONNECTED ACCOUNT id and the currency; all three are safe in
-//     the browser and all three are used here.
-//   - the element is created in `mode: "payment"` with
-//     `paymentMethodCreation: "manual"`: the browser makes a PaymentMethod
-//     (pm_…) and nothing is charged — Hummingbird charges server-side from
-//     the id.
-//   - name and billing stay OUR fields (`billingDetails: never`), passed to
-//     createPaymentMethod as `billing_details`.
+//     facility's CONNECTED ACCOUNT id and the currency; all safe in the
+//     browser. (The Card Element itself is amount-less — nothing is charged
+//     client-side, so the amount only matters server-side.)
+//   - name and billing stay OUR fields, passed to createPaymentMethod as
+//     `billing_details`.
 //   - a pm id is a single-attempt credential: it is handed to the caller and
 //     never logged, and a declined payment needs a FRESH submit.
 //   - 3-D Secure is out of scope; a card that requires it declines with the
@@ -35,9 +41,7 @@ interface StripeElementLike {
   on(event: 'ready' | 'change', handler: (e?: { complete?: boolean }) => void): void;
 }
 interface StripeElementsLike {
-  create(type: 'payment', options: Record<string, unknown>): StripeElementLike;
-  update(options: { amount?: number }): void;
-  submit(): Promise<{ error?: { message?: string } }>;
+  create(type: 'card', options: Record<string, unknown>): StripeElementLike;
 }
 interface StripePaymentMethodResult {
   paymentMethod?: {
@@ -47,7 +51,7 @@ interface StripePaymentMethodResult {
   error?: { message?: string };
 }
 interface StripeLike {
-  elements(options: Record<string, unknown>): StripeElementsLike;
+  elements(options?: Record<string, unknown>): StripeElementsLike;
   createPaymentMethod(options: Record<string, unknown>): Promise<StripePaymentMethodResult>;
 }
 type StripeCtor = (publishableKey: string, options?: { stripeAccount?: string }) => StripeLike;
@@ -89,7 +93,8 @@ export interface StripeGatewayConfig {
   /** `merchant_account` — the facility's connected account ("acct_…"), so the
    *  PaymentMethod belongs to the facility, not the platform. */
   merchantAccount: string;
-  /** `currency`, e.g. "usd". */
+  /** `currency`, e.g. "usd". Unused by the Card Element (it is amount-less);
+   *  kept because the gateway reply carries it and a future element may not be. */
   currency: string;
 }
 
@@ -117,7 +122,8 @@ export interface StripeCardResult {
 }
 
 export interface StripeCardHandle {
-  /** Follow a re-priced total. Cents; clamped to Stripe's minimum. */
+  /** No-op for the Card Element (it carries no amount — nothing is charged
+   *  client-side). Kept so the caller does not change if the element does. */
   updateAmount(amountCents: number): void;
   /** Validate the element and mint a PaymentMethod. One attempt per call. */
   submit(billing: StripeBillingDetails): Promise<
@@ -126,14 +132,11 @@ export interface StripeCardHandle {
   unmount(): void;
 }
 
-/** Stripe refuses zero/negative amounts; 50¢ is the USD floor, and the element
- *  amount is informational here (nothing is charged client-side). */
-const amountFloor = (cents: number): number => Math.max(50, Math.round(cents) || 50);
-
 const GENERIC_DECLINE = 'The card could not be verified. Please check the details and try again.';
 
 export async function mountStripeCard(opts: {
   config: StripeGatewayConfig;
+  /** Ignored by the Card Element — see StripeCardHandle.updateAmount. */
   amountCents: number;
   /** CSS selector of the host the element mounts into — must be in the DOM. */
   target: string;
@@ -146,22 +149,25 @@ export async function mountStripeCard(opts: {
   if (!Ctor) return null;
 
   let stripe: StripeLike;
-  let elements: StripeElementsLike;
   let element: StripeElementLike;
   try {
     stripe = Ctor(opts.config.publicKey, { stripeAccount: opts.config.merchantAccount });
-    elements = stripe.elements({
-      mode: 'payment',
-      // The browser creates the PaymentMethod; Hummingbird charges it.
-      paymentMethodCreation: 'manual',
-      amount: amountFloor(opts.amountCents),
-      currency: (opts.config.currency || 'usd').toLowerCase(),
-      paymentMethodTypes: ['card'],
-    });
-    element = elements.create('payment', {
-      // Name and billing are OUR fields; suppressed here and supplied to
-      // createPaymentMethod as billing_details, per the hand-off.
-      fields: { billingDetails: { name: 'never', address: 'never' } },
+    element = stripe.elements().create('card', {
+      // ZIP is OUR billing field, asked once below the row — not twice.
+      hidePostalCode: true,
+      /* The iframe inherits nothing, so the row's own typography is restated
+         (.rf-cardrow-input): 16px/20px night text in a system stack close to
+         the page's. Placeholder matches the resting field border grey. */
+      style: {
+        base: {
+          color: '#101318',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+          fontSize: '16px',
+          lineHeight: '20px',
+          '::placeholder': { color: '#a5b4bf' },
+        },
+        invalid: { color: '#d32f2f' },
+      },
     });
     element.on('ready', () => opts.onReady());
     if (opts.onComplete) {
@@ -174,27 +180,23 @@ export async function mountStripeCard(opts: {
   }
 
   return {
-    updateAmount(amountCents: number) {
-      try { elements.update({ amount: amountFloor(amountCents) }); } catch { /* keeps the old figure */ }
-    },
+    updateAmount() { /* amount-less element — nothing to follow */ },
     async submit(billing: StripeBillingDetails) {
       try {
-        const { error: submitError } = await elements.submit();
-        if (submitError) return { ok: false as const, message: submitError.message || GENERIC_DECLINE };
-        /* `address: 'never'` (above) makes Stripe demand EVERY address member
-           here — omitting one is an IntegrationError, not a soft miss. The
-           zip-only panel never collects a street, so the rest go as ''. */
         const address: Record<string, string> = {
-          line1: billing.line1?.trim() ?? '',
-          line2: '',
-          city: billing.city?.trim() ?? '',
-          state: billing.state?.trim() ?? '',
           postal_code: billing.zip,
           country: billing.country || 'US',
         };
+        if (billing.line1?.trim()) address.line1 = billing.line1.trim();
+        if (billing.city?.trim()) address.city = billing.city.trim();
+        if (billing.state?.trim()) address.state = billing.state.trim();
+        /* Incomplete fields come back HERE as error.message in the shopper's
+           words ("Your card number is incomplete.") — the Card Element has no
+           separate validate step. */
         const { paymentMethod, error } = await stripe.createPaymentMethod({
-          elements,
-          params: { billing_details: { name: billing.name, address } },
+          type: 'card',
+          card: element,
+          billing_details: { name: billing.name, address },
         });
         if (error || !paymentMethod?.id) {
           return { ok: false as const, message: error?.message || GENERIC_DECLINE };
