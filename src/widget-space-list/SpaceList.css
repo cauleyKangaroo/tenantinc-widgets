@@ -1853,6 +1853,10 @@
   .sl-wrapper .sl-default-card .sl-instore-label,
   .sl-wrapper .sl-default-card .sl-starting-label { font-size: 9px; letter-spacing: 0; }
   .sl-wrapper .sl-default-card .sl-strike { font-size: 14px; }
+  /* IN-STORE directly above the struck price, as STARTING AT sits above the
+     main one. The base column is a fixed 45px with space-between, which at
+     these smaller sizes pinned the label to the top, apart from its figure. */
+  .sl-wrapper .sl-default-card .sl-price-left { height: auto; justify-content: flex-start; }
   .sl-wrapper .sl-default-card .sl-price-divider { height: 30px; }
   /* NOWRAP, and a price block that may shrink.
   

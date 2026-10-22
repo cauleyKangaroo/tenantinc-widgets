@@ -47,6 +47,13 @@ export function AddressAutocomplete({
     if (disabled) return undefined;
     if (pickedRef.current !== null && pickedRef.current === value) return undefined;
     const timer = window.setTimeout(() => {
+      /* Only while the shopper is IN the field. The effect also fires on
+         mount, and a form that opens prefilled (My Account's edit panel has
+         three addresses on it) otherwise greets them with every suggestion
+         menu already open — three Google lookups nobody asked for. Checked at
+         fetch time, not scheduling time, so a blur during the debounce also
+         cancels. */
+      if (!wrapRef.current?.contains(document.activeElement)) return;
       abortRef.current?.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
