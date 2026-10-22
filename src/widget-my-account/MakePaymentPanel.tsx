@@ -403,6 +403,12 @@ export function MakePaymentPanel({
    * not be had, and Pay says so rather than guessing a figure.
    */
   const [prepayQuotes, setPrepayQuotes] = useState<Record<string, PrepayQuote | 'loading' | 'failed'>>({});
+  /* The last figure each lease actually quoted. While a NEW quote is out
+     (every stepper click re-quotes) the old number stays on screen instead of
+     a flash of $0.00 — on a paid-through lease the total was literally zero
+     until the reply landed. DISPLAY ONLY: pay still refuses while the live
+     entry says 'loading', so a stale figure can never be charged. */
+  const lastQuotesRef = useRef<Record<string, PrepayQuote>>({});
   /* STRING keys, not the arrays: `list` is rebuilt on every render and
      `selected` is a Set, so keying the effect on them re-ran it each render,
      reset every quote to 'loading' and dropped the replies as cancelled. */
@@ -415,7 +421,11 @@ export function MakePaymentPanel({
     const t = window.setTimeout(() => {
       ids.forEach((id) => {
         void payment.quotePrepay(id, prepayMonths)
-          .then((q) => { if (!cancelled) setPrepayQuotes((prev) => ({ ...prev, [id]: q ?? 'failed' })); });
+          .then((q) => {
+            if (cancelled) return;
+            if (q) lastQuotesRef.current[id] = q;
+            setPrepayQuotes((prev) => ({ ...prev, [id]: q ?? 'failed' }));
+          });
       });
     }, 350);
     return () => { cancelled = true; window.clearTimeout(t); };
@@ -424,7 +434,10 @@ export function MakePaymentPanel({
   }, [!!payment, prepay, prepayMonths, listKey, selectedKey]);
   const prepayQuoteFor = (sp: AccountSpace): PrepayQuote | null => {
     const q = prepayQuotes[sp.id];
-    return q && q !== 'loading' && q !== 'failed' ? q : null;
+    if (q && q !== 'loading' && q !== 'failed') return q;
+    // Re-quoting: the previous figure, so nothing on screen drops to zero.
+    if (q === 'loading') return lastQuotesRef.current[sp.id] ?? null;
+    return null;
   };
   const prepayAmount = (sp: AccountSpace): number => prepayQuoteFor(sp)?.total ?? 0;
 
@@ -960,9 +973,12 @@ export function MakePaymentPanel({
                     )}
                   </p>
                   <p className="ma-line__amount">
-                    {prepayQuotes[sp.id] === 'loading' ? 'Calculating…'
-                      : prepayQuotes[sp.id] === 'failed' ? 'Unavailable'
-                        : formatMoney(prepayAmount(sp))}
+                    {(() => {
+                      if (prepayQuotes[sp.id] === 'failed') return 'Unavailable';
+                      // During a re-quote the LAST figure holds the line (see
+                      // lastQuotesRef); "Calculating…" only before the first.
+                      return prepayQuoteFor(sp) ? formatMoney(prepayAmount(sp)) : 'Calculating…';
+                    })()}
                   </p>
                 </div>
               )}
