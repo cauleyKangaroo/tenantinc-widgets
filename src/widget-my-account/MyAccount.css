@@ -631,6 +631,9 @@
 }
 .ma-line__strong { font-weight: 600; color: #333; }
 .ma-line__note   { font-weight: 400; color: #333; }
+/* A charge's bracketed period — "(06/01/2026 to 06/30/2026)" — on the line
+   under its label, not run on after it. */
+.ma-line__note--below { display: block; }
 .ma-line__label--plain { font-weight: 400; }
 .ma-line__label--total {
   font-size: 18px;
