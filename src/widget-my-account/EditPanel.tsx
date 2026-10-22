@@ -463,7 +463,19 @@ export function EditPanel({
             */}
             <Checkbox
               checked={form.usePassport}
-              onChange={set('usePassport')}
+              /* Switching ID kind EMPTIES the shared fields, both ways: the
+                 number/expiry slots are the same state either side, so without
+                 this a licence number sat prefilled under the "Passport
+                 Number" label (and vice versa) — one tick away from filing one
+                 document's number as the other. */
+              onChange={(on) => setForm((f) => ({
+                ...f,
+                usePassport: on,
+                licenceNumber: '',
+                licenceExpiry: '',
+                licenceState: '',
+                licenceCountry: '',
+              }))}
               className="ma-edit__check ma-edit__headCheck"
             >
               Use passport for ID
