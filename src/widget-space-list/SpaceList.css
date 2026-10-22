@@ -1753,11 +1753,17 @@
        than between the button and it. */
     grid-template-rows: auto 1fr;
   }
-  .sl-wrapper .sl-lc-price-button .sl-lc-price { grid-column: 1; grid-row: 1 / span 2; }
+  /* justify-self:end — the price sits beside the button, not at the far left.
+     Row 1 only, so the note below can take the full width. */
+  .sl-wrapper .sl-lc-price-button .sl-lc-price { grid-column: 1; grid-row: 1; justify-self: end; }
   .sl-wrapper .sl-lc-price-button .sl-lc-btn-col { grid-column: 2; grid-row: 1; max-width: none; }
+  /* The full row, right-aligned under the button: confined to the button's
+     ~135px column it wrapped ("Only 40 left - Rent / soon!"). */
   .sl-wrapper .sl-lc-price-button .sl-limited-label {
-    grid-column: 2;
+    grid-column: 1 / -1;
     grid-row: 2;
+    justify-self: end;
+    text-align: right;
     min-width: 0;
     margin-left: 0;
   }
@@ -1770,6 +1776,9 @@
   .sl-wrapper .sl-lc-fee { display: block; flex: 1 1 100%; }
   .sl-wrapper .sl-lc-fee .sl-junk-disclaimer { margin-top: 0; }
   .sl-wrapper .sl-lc-fee-inline { display: none; }
+  /* "Join waitlist" in two centred lines, as on the default card — on one line
+     it filled the narrow button edge to edge. */
+  .sl-wrapper .sl-list-card .sl-waitlist-btn { white-space: normal; text-align: center; }
 }
 
 /* The DEFAULT layout's narrow frame.
