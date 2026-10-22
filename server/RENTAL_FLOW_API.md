@@ -475,8 +475,10 @@ call is gone and the original sequence is back —
    Since 2026-10-22 it also REPEATS the lease-set-up choices — `insurance_id`
    + `coverage_amount` (the chosen plan; both omitted on "I have my own
    insurance"), `noke_tier` (the chosen Key-Share tier, omitted where the
-   property has none) and `payment_cycle` — so the engine prices the same
-   move-in it quoted. Without them the computed due excluded the coverage
+   property has none) and `payment_cycle` — Quarterly/Annual ONLY: unlike
+   documents/finalize, the lease 400s on "Monthly" (`"payment_cycle" must be
+   one of [Quarterly, Annual]`, live 2026-10-22), so monthly is said by
+   omission — so the engine prices the same move-in it quoted. Without them the computed due excluded the coverage
    premium, and Stripe's validated `payment.amount` was refused ($144.00
    demanded against a $151.10 quote — the $7.10 prorated plan).
    `additional_months` stays 0 for now (TenantInc).
