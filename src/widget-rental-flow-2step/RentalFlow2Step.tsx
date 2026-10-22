@@ -1634,6 +1634,9 @@ export function RentalFlow2Step({
       id: k.id,
       label: k.unlimited ? 'Unlimited Key-Shares' : `${k.keyLimit} Key-Shares`,
       price: k.price > 0 ? formatPrice(k.price) : 'Included',
+      // The sort sentinel (MAX_SAFE_INTEGER) means the API gave no tier —
+      // that is not a value the lease should ever be handed.
+      tier: k.tier === Number.MAX_SAFE_INTEGER ? undefined : k.tier,
     })),
     [propertyInfo],
   );
@@ -3750,6 +3753,18 @@ export function RentalFlow2Step({
                   // The period the Payment Cycle card was left on. Without it
                   // documents/finalize was told 'Monthly' whatever was picked.
                   paymentCycle: info.paymentCycle,
+                  /*
+                   * The coverage + key-share choices, repeated on the lease so
+                   * the engine prices the same move-in lease-set-up quoted
+                   * (TenantInc, 2026-10-22). "I have my own insurance" sends
+                   * neither insurance field; the coverage amount is the chosen
+                   * plan's own dollar figure, looked up in whichever list the
+                   * dropdown was showing.
+                   */
+                  insuranceId,
+                  coverageAmount: [...shownPlans, ...PREVIEW_PLANS]
+                    .find((p) => p.id === insuranceId)?.coverage,
+                  nokeTier: info.keyShareTier,
                   extras: info.extras,
                   idvId: info.idvId,
                   idvRequired: formMode === '1step' && Boolean(idvApi) && idvRequirement === 'required',

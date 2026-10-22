@@ -472,6 +472,14 @@ call is gone and the original sequence is back —
 2. `POST units/{u}/lease` (API 10) — made FROM that `documents` array, plus
    `contacts`, `payment_method`, `start_date`, `platform`, `source`,
    `deliveryMethod`, `additional_months`, and `hold_token` or `reservation_id`.
+   Since 2026-10-22 it also REPEATS the lease-set-up choices — `insurance_id`
+   + `coverage_amount` (the chosen plan; both omitted on "I have my own
+   insurance"), `noke_tier` (the chosen Key-Share tier, omitted where the
+   property has none) and `payment_cycle` — so the engine prices the same
+   move-in it quoted. Without them the computed due excluded the coverage
+   premium, and Stripe's validated `payment.amount` was refused ($144.00
+   demanded against a $151.10 quote — the $7.10 prorated plan).
+   `additional_months` stays 0 for now (TenantInc).
 
 The "finalizing" screen holds for the whole of both calls: ProcessingModal's bar
 creeps toward a cap while `waiting` and completes only when the result is in.
