@@ -831,7 +831,7 @@
   gap: 4px;
   width: 100%;
   padding: 12px;
-  border: 2px dashed var(--color_1, #f45f30);
+  border: 2px solid transparent; /* outline drawn by ::before — see the dashed-outline block */
   border-radius: 8px;
   background: #fff;
   /* The TagIcon inside draws in currentColor, and this rule exists ONLY to
@@ -1378,4 +1378,26 @@
   .ml-fp-overlay { padding: 0; align-items: stretch; }
   /* Price stacks on mobile — the frame puts Min above Max, full width each. */
   .ml-fp-fields { grid-template-columns: 1fr; flex-direction: column; }
+}
+
+
+/* ── Promo tag dashed outline ──────────────────────────────────────────────
+   A CSS `dashed` border cannot set its dash, gap or end shape — the browser
+   draws square 4/2 dashes. So the 2px border is transparent (the box keeps its
+   exact size) and this layer paints the outline instead: the theme colour,
+   shown only where an SVG mask draws a dashed rounded rectangle: a full 2px
+   stroke, inset 1px so none of it is cut off, with ROUND caps — the design's
+   pill-ended dashes. 5/4 with round caps reads as ~7px dashes and ~2px gaps.
+   Change the dasharray to retune. */
+.ml-promo { position: relative; }
+.ml-promo::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  /* Matches the tag's corners; keeps the outline layer within them. */
+  border-radius: 8px;
+  pointer-events: none;
+  background: var(--color_1, #f45f30);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect x='1' y='1' style='width:calc(100%25 - 2px);height:calc(100%25 - 2px)' rx='7' ry='7' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-dasharray='5 4'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect x='1' y='1' style='width:calc(100%25 - 2px);height:calc(100%25 - 2px)' rx='7' ry='7' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-dasharray='5 4'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }

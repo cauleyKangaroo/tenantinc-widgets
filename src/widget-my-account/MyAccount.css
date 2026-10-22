@@ -1099,6 +1099,13 @@
   margin-top: 16px;
 }
 
+/* Mobile: 13px between the size line and the ticks. Prefixed with .ma-wrapper
+   because the `.ma-wrapper ul { margin: 0 }` reset outranks a bare
+   .ma-unit__features — which is why the 16px above never applied. */
+@media (max-width: 720px) {
+  .ma-wrapper .ma-unit__features { margin-top: 13px; }
+}
+
 .ma-unit__features li {
   display: flex;
   align-items: center;
@@ -1941,6 +1948,15 @@
   .ma-wrapper { padding: 24px 16px 48px; }
   .ma-greeting { font-size: 28px !important; }
 
+  /* PROPERTIES FIRST on a phone (client, 2026-10-22): landing on the stacked
+     page used to open on the pay-bill panel, with the tenant's property and
+     its spaces below the fold. Grid `order` swaps the two columns' stacking —
+     the DOM keeps main before side, so desktop and the tab order are
+     untouched. The topbar and the logged-in line keep order 0 and stay on
+     top. */
+  .ma-side { order: 2; }
+  .ma-main { order: 3; }
+
   .ma-promo {
     flex-direction: column;
     align-items: stretch;
@@ -2017,9 +2033,11 @@
   /* The header bar and the rows run the panel's full width (the frame's list
      starts at the panel's left edge); only the foot keeps its padding. */
   .ma-activity__body { padding: 0 0 20px; }
+  /* The empty-state line starts under the title (23px in), not at the edge. */
+  .ma-activity__empty { padding: 0 23px; }
 
   .ma-unit__panel { gap: 8px; }
-  .ma-unit__image { width: 120px; height: 88px; }
+  .ma-unit__image { width: 150px; height: 110px; }
 
   /* Account Info stays on the Balance Due line. At full size the three items
      need ~333px against a ~300px footer, so the button dropped to a row of its
