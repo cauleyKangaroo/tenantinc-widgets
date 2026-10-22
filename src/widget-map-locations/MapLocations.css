@@ -1259,12 +1259,14 @@
      it shrink and keep the photo square. */
   .ml-popup { width: 371px; height: auto; min-height: 156px; }
 
-  /* Parked across the top of the map instead of over its bubble. */
+  /* Full map width, centred; TOP and TRANSFORM come inline from the pin's
+     own coordinates, so the card sits against the tapped bubble (above it,
+     or below one too near the top edge) instead of parked at the top. */
   .ml-popup--centred {
     /* Outside the pin on mobile, so these resolve against the map again. */
     left: 50%;
     right: auto;
-    top: 16px;
+    top: 16px; /* fallback only — the inline style wins */
     width: calc(100% - 24px);
     max-width: calc(100% - 24px);
     transform: translateX(-50%);
