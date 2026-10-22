@@ -316,7 +316,7 @@ const PAYMENT_CYCLES: Array<{ id: PaymentCycle; label: string; save?: string }> 
  * not map one-to-one onto the frame's wording — an unlimited tier has no key
  * count to print, and a zero price reads as "Price Included", not "$0".
  */
-export interface KeyShareOption { id: string; label: string; price: string; }
+export interface KeyShareOption { id: string; label: string; price: string; tier?: number; }
 
 /** Verbatim from 12285-189509, the card the Learn More reveals. */
 const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoing unit '
@@ -424,6 +424,9 @@ export function Step2({
     extras?: RentalExtras;
     /** The Payment Cycle card's selection. */
     paymentCycle?: PaymentCycle;
+    /** The chosen Key-Share tier's `noke_configs[].tier` — the lease repeats
+     *  it so the engine prices the plan the shopper picked. */
+    keyShareTier?: number;
     /** One-step: the verification completed for this exact contact, sent on the lease. */
     idvId?: string;
     /** One-step: the scanned (or corrected) address and licence, filed on the tenant after the lease. */
@@ -876,6 +879,8 @@ export function Step2({
     /* The billing period chosen on the Payment Cycle card. Monthly unless the
        property offers more and the shopper picked one. */
     paymentCycle: cycle,
+    // The Key-Share card's selection, by TIER — the number the lease sends.
+    keyShareTier: chosenKeyShare?.tier,
     idvId: verifiedIdvId,
     idvDetails: oneStep ? idvDetails?.contact : undefined,
     /*

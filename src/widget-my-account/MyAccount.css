@@ -1160,6 +1160,11 @@
   color: var(--hb-text-night);
 }
 
+/* No "Account Info" button (single unit, account view): the amount is the
+   strip's last item and goes to the right edge, as the frame draws it. Beats
+   the mobile step's margin-left:0 on specificity, so it holds at every width. */
+.ma-unit__dueAmount:last-child { margin-left: auto; }
+
 .ma-add { width: 100%; }
 
 /* ── Account Info panel (8815-115354) ──────────────────────────────────────

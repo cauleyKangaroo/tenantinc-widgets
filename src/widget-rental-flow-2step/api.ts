@@ -2012,6 +2012,13 @@ export interface RentArgs {
   totalPaymentAmount: number;
   costs: RentCostLine[];
   promotionIds?: string[];
+  /** The chosen protection plan — lease-set-up's `insurance_id`, repeated on
+   *  the lease so the engine enrols (and prices) the coverage it quoted. */
+  insuranceId?: string;
+  /** The chosen plan's dollar coverage (e.g. 5000), sent beside the id. */
+  coverageAmount?: number;
+  /** The chosen Nokē key-share tier (`noke_configs[].tier`). */
+  nokeTier?: number;
   /** Reserve first, then rent: the lease attaches to the reservation. */
   reservationId?: string;
   platform?: string;
@@ -2446,6 +2453,21 @@ async function finalizeLease(
     payment_method: paymentMethodFor(args),
     start_date: args.startDate,
     platform: args.platform ?? 'website',
+    /*
+     * The shopper's lease-set-up choices, REPEATED on the lease (TenantInc,
+     * 2026-10-22) so the engine prices the same move-in it quoted. Without
+     * `insurance_id` here the computed due excluded the coverage premium and
+     * Stripe's validated `payment.amount` was refused — "Please provide
+     * payment for the amount of $144.00" against a $151.10 quote, the $7.10
+     * being exactly the prorated plan. `additional_months` stays 0 below, as
+     * lease-set-up sends it.
+     */
+    ...(args.insuranceId ? {
+      insurance_id: args.insuranceId,
+      ...(args.coverageAmount != null ? { coverage_amount: args.coverageAmount } : {}),
+    } : {}),
+    ...(args.nokeTier != null ? { noke_tier: args.nokeTier } : {}),
+    payment_cycle: PAYMENT_CYCLE_NAMES[args.paymentCycle ?? 'monthly'],
     source: args.source ?? DEFAULT_SOURCE,
     deliveryMethod: { notice_delivery: args.noticeDelivery ?? 'email' },
     additional_months: 0,
