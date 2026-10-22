@@ -870,7 +870,22 @@ export function MakePaymentPanel({
                   figure to print. The sample (no handlers) keeps its line. */}
               {(!coverage || !!liveFor(sp)?.current) && (<>
                 <div className="ma-line">
-                  <p className="ma-line__label ma-line__label--plain">{sp.coverage.label}</p>
+                  {/* "Coverage ($2,000)" — the plan's own dollar amount beside
+                      the word, so the line says WHAT is covered, not just that
+                      something is. Live it comes from the coverage read; in
+                      the sample it is parsed off the chosen option's label
+                      ("$5,000 Coverage"); with neither, the bare label. */}
+                  <p className="ma-line__label ma-line__label--plain">
+                    {(() => {
+                      const amt = Number(liveFor(sp)?.current?.coverage);
+                      if (Number.isFinite(amt) && amt > 0) {
+                        return `${sp.coverage.label} ($${amt.toLocaleString('en-US')})`;
+                      }
+                      const demo = COVERAGE_OPTIONS.find((o) => o.id === currentCoverage(sp));
+                      const m = demo?.label.match(/\$[\d,]+/);
+                      return m ? `${sp.coverage.label} (${m[0]})` : sp.coverage.label;
+                    })()}
+                  </p>
                   <div className="ma-line__right">
                     {(() => {
                       const cov = liveFor(sp);
