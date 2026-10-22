@@ -884,8 +884,8 @@ export function MakePaymentPanel({
                         >
                           <ShieldSettingsIcon />
                           <span className="ma-link">
-                            <span className="ma-only-desktop">{coverageBusy[sp.id] === 'preview' ? 'Pricing…' : 'Change Coverage'}</span>
-                            <span className="ma-only-mobile">{coverageBusy[sp.id] === 'preview' ? '…' : 'Change'}</span>
+                            <span className="ma-only-desktop">{coverageBusy[sp.id] === 'preview' ? 'Pricing…' : 'Upgrade Coverage'}</span>
+                            <span className="ma-only-mobile">{coverageBusy[sp.id] === 'preview' ? '…' : 'Upgrade'}</span>
                           </span>
                         </CoverageMenu>
                       );
