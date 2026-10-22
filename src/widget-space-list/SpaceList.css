@@ -1552,7 +1552,9 @@
   }
   .sl-wrapper .sl-dv-actions .sl-dv-price-button,
   .sl-wrapper .sl-dv-actions .sl-dv-price { display: contents; }
-  .sl-wrapper .sl-dv-actions .sl-limited-label { order: 1; grid-column: 1 / -1; margin-top: 0; }
+  /* -8px against the 12px row gap: the note sits 4px above what follows it,
+     right on the button rather than floating above it. */
+  .sl-wrapper .sl-dv-actions .sl-limited-label { order: 1; grid-column: 1 / -1; margin-top: 0; margin-bottom: -8px; }
   .sl-wrapper .sl-dv-actions .sl-promo-badge { order: 2; grid-column: 1 / -1; }
   .sl-wrapper .sl-dv-actions .sl-prices-row { order: 3; grid-column: 1; }
   .sl-wrapper .sl-dv-actions .sl-dv-btn-col { order: 4; grid-column: 2; max-width: none; }
