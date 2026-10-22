@@ -1140,6 +1140,27 @@
   .sl-wrapper .sl-lc-price-button .sl-lc-btn-col { grid-column: 2; grid-row: 1; }
   .sl-wrapper .sl-lc-price-button .sl-limited-label { grid-column: 2; grid-row: 2; }
 }
+
+/* Junk-fee small print. Desktop: the action panel's LEFT column — under the
+   promo, or at the top in its place when there is none (a shut promo is
+   display:none here, so auto-placement moves the note up to row 1). The price
+   row spans both rows on the right. Narrow frames keep it under the price
+   (.sl-lc-fee-inline), so only one copy ever shows. */
+.sl-wrapper .sl-lc-fee { display: none; }
+@container (min-width: 681px) {
+  .sl-wrapper .sl-lc-action {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px 24px;
+  }
+  .sl-wrapper .sl-lc-action > .sl-lc-promo-wrap,
+  .sl-wrapper .sl-lc-action > .sl-lc-fee { grid-column: 1; }
+  .sl-wrapper .sl-lc-action > .sl-lc-price-button { grid-column: 2; grid-row: 1 / span 2; width: 334px; }
+  .sl-wrapper .sl-lc-fee { display: block; }
+  .sl-wrapper .sl-lc-fee .sl-junk-disclaimer { margin-top: 0; }
+  .sl-wrapper .sl-lc-fee-inline { display: none; }
+}
 /* The price column absorbs the shrinking (its .sl-prices-row is shrink:0, so it
    never squashes below the figures — the small print wraps instead). Previously
    this was shrink:0 and the button column was min-width:0, so any shortfall
@@ -1515,6 +1536,27 @@
   .sl-wrapper .sl-dv-price .sl-main-price { font-size: 20px; }
 }
 
+/* Default card's grey panel, top to bottom: urgency note (right), promotion,
+   price + CTA, then the junk-fee small print full width. CSS only — the price
+   row and price column are flattened into this grid and the existing elements
+   re-ordered, so the markup (and the ≤480px frame, which flattens them its own
+   way) is untouched. Absent items simply take no row. */
+@container (min-width: 481px) {
+  .sl-wrapper .sl-dv-actions {
+    display: grid;
+    grid-template-columns: minmax(min-content, 1fr) minmax(110px, 146px);
+    gap: 12px 16px;
+    align-items: center;
+  }
+  .sl-wrapper .sl-dv-actions .sl-dv-price-button,
+  .sl-wrapper .sl-dv-actions .sl-dv-price { display: contents; }
+  .sl-wrapper .sl-dv-actions .sl-limited-label { order: 1; grid-column: 1 / -1; margin-top: 0; }
+  .sl-wrapper .sl-dv-actions .sl-promo-badge { order: 2; grid-column: 1 / -1; }
+  .sl-wrapper .sl-dv-actions .sl-prices-row { order: 3; grid-column: 1; }
+  .sl-wrapper .sl-dv-actions .sl-dv-btn-col { order: 4; grid-column: 2; max-width: none; }
+  .sl-wrapper .sl-dv-actions .sl-junk-disclaimer { order: 5; grid-column: 1 / -1; margin-top: 0; }
+}
+
 /* Genuinely out of room for two columns. Only reachable in Duda, where the
    accordion panel can squeeze the listing well below the wrapper's 640px mobile
    breakpoint — on a real phone the wrapper is narrow too, so SpaceList has
@@ -1720,6 +1762,15 @@
     margin-left: 0;
   }
 }
+/* LIST card, phone: the junk-fee small print on its own full-width line below
+   the price row and the urgency note, rather than squeezed under the price.
+   Uses the panel-level copy (.sl-lc-fee, the desktop one) in place of the
+   inline one. */
+@container (max-width: 480px) {
+  .sl-wrapper .sl-lc-fee { display: block; flex: 1 1 100%; }
+  .sl-wrapper .sl-lc-fee .sl-junk-disclaimer { margin-top: 0; }
+  .sl-wrapper .sl-lc-fee-inline { display: none; }
+}
 
 /* The DEFAULT layout's narrow frame.
    
@@ -1758,6 +1809,7 @@
     grid-template-areas:
       "title price cta"
       "title note  note"
+      "fee   fee   fee"
       "grey  grey  grey";
     align-items: start;
     column-gap: 12px;
@@ -1775,7 +1827,8 @@
   .sl-wrapper .sl-default-card .sl-dv-heading { grid-area: title; min-width: 0; }
   .sl-wrapper .sl-default-card .sl-prices-row { grid-area: price; }
   .sl-wrapper .sl-default-card .sl-dv-btn-col { grid-area: cta; }
-  .sl-wrapper .sl-default-card .sl-junk-disclaimer { grid-area: note; }
+  /* Its own row under the urgency note — sharing `note` overlapped the two. */
+  .sl-wrapper .sl-default-card .sl-junk-disclaimer { grid-area: fee; }
   .sl-wrapper .sl-dv-grey { grid-area: grey; }
 
   /* Neither the photo nor "See what fits" appears in this frame, and the ticked
@@ -1890,6 +1943,7 @@
       "title price"
       "cta   cta"
       "note  note"
+      "fee   fee"
       "grey  grey";
   }
   .sl-wrapper .sl-default-card .sl-dv-btn-col { width: auto; justify-self: stretch; margin-top: 12px; }

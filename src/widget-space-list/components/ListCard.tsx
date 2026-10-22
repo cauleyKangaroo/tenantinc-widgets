@@ -182,10 +182,21 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
         <div className="sl-lc-price-button">
           <div className="sl-lc-price">
             <PriceBlock unit={selected} config={config} reserve={reserve} />
-            {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
+            {/* Narrow frames: the small print stays under the price. */}
+            {config.showJunkFeeDisclaimer && (
+              <div className="sl-lc-fee-inline"><JunkFeeDisclaimer config={config} /></div>
+            )}
           </div>
           <CtaButton unit={selected} config={config} full colClass="sl-lc-btn-col" />
         </div>
+        {/* Desktop: the small print sits in the LEFT column — under the promo
+            when there is one, in its place at the top when there is not. AFTER
+            the price row in the DOM so the narrow frame's
+            `.sl-lc-promo-wrap + .sl-lc-price-button` slide still matches; the
+            grid places it. Only one of the two copies is ever displayed. */}
+        {config.showJunkFeeDisclaimer && (
+          <div className="sl-lc-fee"><JunkFeeDisclaimer config={config} /></div>
+        )}
       </div>
     </div>
   );
