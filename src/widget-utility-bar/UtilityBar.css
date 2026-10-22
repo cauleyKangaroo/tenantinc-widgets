@@ -407,8 +407,10 @@
     font-size: 16px;
   }
 
+  /* 24, with the close mark below — the spacer matches the close track so the
+     message stays centred on the BAR. */
   .ub-spacer {
-    flex-basis: 32px;
+    flex-basis: 24px;
   }
 
   .ub-inner {
@@ -416,10 +418,33 @@
   }
 
   .ub-close-wrap {
-    /* 32, not 28: the mark is the same 32 here as on desktop and a 28px track
-       would squeeze it. The spacer above is 32 too, which is what keeps the
-       message centred. */
-    flex-basis: 32px;
+    flex-basis: 24px;
+  }
+
+  /* A smaller close mark on mobile. The SVG is drawn at 32 and scaled. */
+  .ub-close,
+  .ub-close svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  /* The info mark follows the last word of the message instead of wrapping
+     onto a line of its own: the wrap becomes a centred text block and the mark
+     sits inline in it. A CTA, when shown, still takes its own centred line. */
+  .ub-message-wrap {
+    display: block;
+    text-align: center;
+  }
+
+  .ub-message-wrap .ub-info {
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+
+  .ub-message-wrap .ub-cta {
+    display: flex;
+    width: fit-content;
+    margin: 12px auto 0;
   }
 
   .ub-tooltip {
