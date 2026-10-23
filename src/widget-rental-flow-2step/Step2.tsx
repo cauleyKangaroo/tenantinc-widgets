@@ -1178,16 +1178,20 @@ export function Step2({
           <OneStepIdv key={`${oneStepIdv.scope.companyId}:${oneStepIdv.scope.propertyId}`} config={oneStepIdv} contact={idvContact} onReady={setIdvReadyContact} onDetails={setIdvDetails} showErrors={payAttempted} />
         )}
 
-        {/* Additional Information */}
+        {/* Additional Information — ONE-STEP ONLY (client, 2026-10-23). On
+            2step this used to show the three ticks here with the fields asked
+            post-purchase; now the whole section lives on the post-purchase
+            screen, which carries its own copies of these checkboxes, so the
+            payment page asks nothing it cannot also collect. One-step keeps
+            it: there is no post-purchase screen to defer to. */}
+        {oneStep && (
         <section className="rf2-plain">
           <span className="rf2-h">Additional Information</span>
           <div className="rf2-checks">
-            {/* On 2step these are ticks only and the fields are answered on the
-                post-purchase screen — choosing here, filling there. On 1step
-                each tick opens its own fields directly beneath it, rather than
-                the three ticks sitting together and the fields appearing lower
-                down: a section's question and its answers belong next to each
-                other.
+            {/* On 1step each tick opens its own fields directly beneath it,
+                rather than the three ticks sitting together and the fields
+                appearing lower down: a section's question and its answers
+                belong next to each other.
 
                 The groups come from ./additionalInfo, shared with the
                 post-purchase screen, which asks for exactly the same things
@@ -1206,6 +1210,7 @@ export function Step2({
             </div>
           </div>
         </section>
+        )}
 
         {/* Rental Agreement. Ringed in the CTA colour once agreed — the tick
             is 18px in a tall section, so the box itself confirms the state. */}
