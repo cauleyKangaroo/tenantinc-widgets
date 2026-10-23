@@ -1067,12 +1067,16 @@ export function NavigationBar({
                   </span>
                   <span className="nav-mm-quick-label">Phone</span>
                 </a>
+                {/* Map hidden for now (2026-10-23): it only opens Google Maps
+                    once the nav's propertyId matches a Properties row with
+                    coordinates, which it does not on this site yet. Uncomment
+                    to bring it back — the mapsHref logic above is untouched.
                 <a className="nav-mm-quick-item" href={mapsHref}>
                   <span className="nav-mm-circle">
                     <MapPinIcon size={22} />
                   </span>
                   <span className="nav-mm-quick-label">Map</span>
-                </a>
+                </a> */}
                 <a className="nav-mm-quick-item" href="/login">
                   <span className="nav-mm-circle">
                     <CreditCardIcon size={22} />
