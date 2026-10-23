@@ -1984,6 +1984,15 @@
      same order keeps it second). */
   .ma-main > .ma-promo,
   .ma-main > .ma-balance--home { order: 1; }
+  /* MAKE A PAYMENT on a phone: the payment panel and Payment Activity come
+     FIRST, above the property cards. Both only render on that screen, so
+     Account Info keeps its properties-first order. */
+  .ma-main > .ma-pay,
+  .ma-main > .ma-activity { order: 1; }
+  /* …and the payment panel sits straight under the greeting bar: it is the
+     first item there (no promo on that screen), so the grid's 20px row gap
+     above it is cancelled. */
+  .ma-main > .ma-pay { margin-top: -20px; }
   .ma-main > :not(.ma-promo):not(.ma-balance--home) + * { margin-top: 4px; }
   /* The grid's 20px gap and the frame's 24px between the two cards. */
   .ma-main > .ma-balance--home { display: grid; margin-top: 4px; }
