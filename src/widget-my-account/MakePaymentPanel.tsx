@@ -954,7 +954,7 @@ export function MakePaymentPanel({
                   carries no coverage charge, so the mapped $0.00 was never a real
                   figure to print. The sample (no handlers) keeps its line. */}
               {(!coverage || !!liveFor(sp)?.current) && (<>
-                <div className="ma-line">
+                <div className="ma-line ma-line--coverage">
                   {/* "Coverage ($2,000)" — the plan's own dollar amount beside
                       the word, so the line says WHAT is covered, not just that
                       something is. Live it comes from the coverage read; in
