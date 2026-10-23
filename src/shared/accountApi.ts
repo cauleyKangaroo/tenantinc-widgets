@@ -266,8 +266,11 @@ export async function verifyCode(
 /** A read that needs the session token. */
 export type AuthedResult<T> =
   | { ok: true; data: T }
-  | { ok: false; unauthorized: true; message: string; detail?: string }
-  | { ok: false; unauthorized?: false; message: string; detail?: string };
+  | { ok: false; unauthorized: true; message: string; detail?: string; retryable?: boolean }
+  /** `retryable`: the OUTCOME IS UNKNOWN (network drop, 502/503/504) — a
+   *  retry must reuse the same Idempotency-Key. A definite failure gets a
+   *  fresh key next attempt (client contract, 2026-10-23). */
+  | { ok: false; unauthorized?: false; message: string; detail?: string; retryable?: boolean };
 
 async function getJson<T>(
   cfg: LoginApiConfig,
@@ -874,6 +877,10 @@ export async function applyCoverage(
 export type LeasePaymentMethod =
   | { type: 'saved'; id: string }
   | { type: 'hosted-card'; token: string; zip: string; saveToAccount: boolean; autopay: boolean }
+  /* A Stripe property's bank payment: the routing/account never leave the
+     browser raw — Stripe mints a us_bank_account PaymentMethod and this
+     carries its single-use pm_… (client contract, 2026-10-23). */
+  | { type: 'hosted-ach'; token: string; saveToAccount: boolean; autopay: boolean }
   | LeaseBankPaymentMethod
   | LeaseWalletPaymentMethod;
 
@@ -985,7 +992,8 @@ export async function payLease(
     });
     json = await res.json().catch(() => undefined);
   } catch (err) {
-    return { ok: false, message: 'We could not reach the server. Check your connection and try again.', detail: err instanceof Error ? err.message : String(err) };
+    // Outcome unknown: the request may have landed. The retry keeps its key.
+    return { ok: false, retryable: true, message: 'We could not reach the server. Check your connection and try again.', detail: err instanceof Error ? err.message : String(err) };
   }
   if (res.status === 401) {
     return { ok: false, unauthorized: true, message: 'Your session has expired. Please sign in again.', detail: failureDetail(json, res) };
@@ -993,7 +1001,9 @@ export async function payLease(
   if (!res.ok) {
     const err = (json as { error?: { message?: unknown } } | undefined)?.error;
     const said = typeof err?.message === 'string' ? err.message.trim() : '';
-    return { ok: false, message: said || 'Your payment could not be processed. Please try a different payment method or contact your bank for assistance.', detail: failureDetail(json, res) };
+    // A bad gateway is "outcome unknown" too; any other status is a definite no.
+    const retryable = res.status === 502 || res.status === 503 || res.status === 504;
+    return { ok: false, retryable, message: said || 'Your payment could not be processed. Please try a different payment method or contact your bank for assistance.', detail: failureDetail(json, res) };
   }
   const data = (json as { data?: Record<string, unknown> } | undefined)?.data;
   return { ok: true, data: readReceipt(data ?? {}) };

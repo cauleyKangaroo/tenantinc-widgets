@@ -444,6 +444,10 @@ export function MyAccount({
   /** The gateway's NAME per property — the wallets are offered only on
    *  tenant_payments, as in the rental flow. */
   const [gatewayNames, setGatewayNames] = useState<Record<string, string>>({});
+  /** Per property too: the Stripe config when THAT property's gateway is
+   *  tenant_payments_stripe — each property answers its own gateway call,
+   *  so one account can mix GP and Stripe facilities. */
+  const [gatewayStripe, setGatewayStripe] = useState<Record<string, import('@shared/stripeHostedFields').StripeGatewayConfig | null>>({});
   useEffect(() => {
     if (!record || gpPublicKeyProp) return undefined;
     if (!creds.baseUrl || !creds.appId || !creds.apiKey || !resolvedCompanyId) return undefined;
@@ -457,6 +461,7 @@ export function MyAccount({
         if (cancelled) return;
         setGatewayKeys((prev) => ({ ...prev, [pid]: g?.publicKey ?? '' }));
         setGatewayNames((prev) => ({ ...prev, [pid]: g?.gateway ?? '' }));
+        setGatewayStripe((prev) => ({ ...prev, [pid]: g?.stripe ?? null }));
       });
     }
     return () => { cancelled = true; };
@@ -613,6 +618,10 @@ export function MyAccount({
     return {
       gpPublicKey: explicit || (looked !== undefined ? looked : (canLookUp ? undefined : '')),
       gatewayPending: !explicit && looked === undefined && canLookUp,
+      /* THIS property's Stripe config - the gateway call is per property, so
+         the panel mounts the right card fields when the tenant switches
+         between a GP facility and a Stripe one. */
+      stripe: gatewayStripe[space.propertyId] ?? null,
       wallet: {
         config: walletConfig,
         ctx: { companyId: resolvedCompanyId, propertyId: space.propertyId },
@@ -639,12 +648,14 @@ export function MyAccount({
           return { ok: true, receipt: r.data };
         }
         if (r.unauthorized) signOut();
-        return { ok: false, message: r.message };
+        /* `retryable` rides through: outcome-unknown failures (network, 502)
+           must reuse their Idempotency-Key; definite ones get a fresh one. */
+        return { ok: false, message: r.message, retryable: r.retryable };
       },
     };
     // signOut is stable for the life of the session; the token is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gated, session?.token, api, record, space, gatewayKeys, gatewayNames, creds, resolvedCompanyId, gpPublicKeyProp, walletConfig]);
+  }, [gated, session?.token, api, record, space, gatewayKeys, gatewayNames, gatewayStripe, creds, resolvedCompanyId, gpPublicKeyProp, walletConfig]);
   const [activityOpen, setActivityOpen] = useState(false);
   /* Make a Payment lists every space AT THE SAME PROPERTY as the unit whose
      Pay Now was clicked — all of them, each with its own tick, so the tenant
