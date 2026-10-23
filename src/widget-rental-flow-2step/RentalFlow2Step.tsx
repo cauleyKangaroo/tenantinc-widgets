@@ -3765,6 +3765,10 @@ export function RentalFlow2Step({
                   coverageAmount: [...shownPlans, ...PREVIEW_PLANS]
                     .find((p) => p.id === insuranceId)?.coverage,
                   nokeTier: info.keyShareTier,
+                  /* The tier selection's signed pricing — the lease charges
+                     the tier rate only when it sees the same dossier the
+                     quote was priced with. */
+                  offerToken: selection?.offerToken,
                   extras: info.extras,
                   idvId: info.idvId,
                   idvRequired: formMode === '1step' && Boolean(idvApi) && idvRequirement === 'required',

@@ -2019,6 +2019,11 @@ export interface RentArgs {
   coverageAmount?: number;
   /** The chosen Nokē key-share tier (`noke_configs[].tier`). */
   nokeTier?: number;
+  /** `dossier.token` from the offer — the engine's own signed pricing for a
+   *  value-tier selection. The LEASE must carry it too (see finalizeLease):
+   *  without it the engine re-prices from the unit's base rate and refuses
+   *  `payment.amount` with "Please provide payment for the amount of $…". */
+  offerToken?: string;
   /** Reserve first, then rent: the lease attaches to the reservation. */
   reservationId?: string;
   platform?: string;
@@ -2481,6 +2486,18 @@ async function finalizeLease(
   // reservation, hold_token rents the held unit directly (guide, API 10).
   if (args.reservationId) body.reservation_id = args.reservationId;
   else body.hold_token = args.holdToken;
+  /*
+   * VALUE-TIER PRICING RIDES ON THE TOKEN, and the lease needs it as much as
+   * lease-set-up does. Verified live 2026-10-23 on Bellflower: a "better"-tier
+   * rental quoted rent 177.10 (the token's price, un-prorated) while the lease
+   * — sent without the token — priced the unit's own 161.00 prorated, and
+   * refused our amount ($227.68 sent, "$211.42" demanded; the gap is exactly
+   * (177.10−161)×1.01). The lease parses this field as a JWT (a garbage value
+   * answers JsonWebTokenError), so it is the same dossier the quote was priced
+   * with, not a number we assert. Absent on non-tier rentals — omitted, and
+   * nothing changes.
+   */
+  if (args.offerToken) body.token = args.offerToken;
   if (args.promotionIds?.length) {
     body.promotions = args.promotionIds.map((id) => ({ promotion_id: id }));
   }
