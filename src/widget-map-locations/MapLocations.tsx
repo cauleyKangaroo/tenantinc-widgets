@@ -894,8 +894,6 @@ export function MapLocations({
   // Filter panel (Figma 10557:146492) — a centred lightbox, like #05's.
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
-  /** The mobile header's search box, so its magnifier can focus it. */
-  const searchRef = useRef<HTMLInputElement>(null);
 
   // Both reads, so a card paints with its rating row or without one — never
   // gains it afterwards (see the ratings effect above).
@@ -1007,7 +1005,7 @@ export function MapLocations({
 
   const filterCount = activeFilterCount(filters);
 
-  // Mobile is a different composition, not just a reflow: a search field, a
+  // Mobile is a different composition, not just a reflow: the breadcrumb, a
   // Map/List toggle and "Filter & Sort" replace the desktop header, and only
   // one of the map or the list is on screen at a time (Figma 10609:72429 /
   // 10609:72649). That's DOM structure, so it needs a JS breakpoint rather
@@ -1251,32 +1249,12 @@ export function MapLocations({
           frames are drawn separately (10609:*) — see the note on RfSkeleton's
           mobile branch for why a desktop shape is not just a narrower one. */}
       {isMobile ? (
-        /* Mobile — search, then a Map/List toggle beside "Filter & Sort",
-           then the count. Figma 10609:72429 / 10609:72649. */
+        /* Mobile — the breadcrumb (the same trail as desktop; it replaced the
+           search bar that used to sit here), then a Map/List toggle beside
+           "Filter & Sort", then the count. Figma 10609:72429 / 10609:72649. */
         <>
           <div className="ml-mcontrols">
-            {/* Writes to the SAME `filters.search` the panel's box uses, so
-                the two can never disagree — and filters as you type, so the
-                magnifier focuses rather than submits. */}
-            <div className="ml-search">
-              <input
-                ref={searchRef}
-                className="ml-search-input"
-                type="search"
-                placeholder="Enter ZIP, City, State"
-                aria-label="Search by ZIP, city or state"
-                value={filters.search}
-                onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-              />
-              <button
-                type="button"
-                className="ml-search-btn"
-                aria-label="Search"
-                onClick={() => searchRef.current?.focus()}
-              >
-                {Icon.search}
-              </button>
-            </div>
+            <Breadcrumb items={crumbs} />
 
             <div className="ml-mtoggles">
               {/* Names the view you'd switch TO, as the frames do. */}

@@ -144,6 +144,15 @@ export interface StripeBankDetails {
   accountNumber: string;
   /** 'checking' | 'savings' — lower-case, Stripe's spelling. */
   accountType: 'checking' | 'savings';
+  /** The billing address, from the bank form. The processor REQUIRES the
+   *  zip — "Payment Method billing address zip code is required" (live,
+   *  2026-10-23) — so it rides in billing_details like the card path's. */
+  zip: string;
+  /** ISO-2; the caller maps its country select. */
+  country?: string;
+  line1?: string;
+  city?: string;
+  state?: string;
 }
 
 /**
@@ -168,7 +177,17 @@ export async function createStripeBankAccount(
         account_holder_type: 'individual',
         account_type: d.accountType,
       },
-      billing_details: { name: d.name, ...(d.email ? { email: d.email } : {}) },
+      billing_details: {
+        name: d.name,
+        ...(d.email ? { email: d.email } : {}),
+        address: {
+          postal_code: d.zip,
+          country: d.country || 'US',
+          ...(d.line1?.trim() ? { line1: d.line1.trim() } : {}),
+          ...(d.city?.trim() ? { city: d.city.trim() } : {}),
+          ...(d.state?.trim() ? { state: d.state.trim() } : {}),
+        },
+      },
     });
     if (error || !paymentMethod?.id) {
       return { ok: false, message: error?.message || 'The bank account could not be verified. Please check the details and try again.' };
