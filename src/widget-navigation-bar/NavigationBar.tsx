@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import './NavigationBar.css';
 import storelocalLogo from './Storelocal_logo.png';
 import { LanguageMenu } from './LanguageMenu';
@@ -482,6 +483,17 @@ export function NavigationBar({
      position: sticky, and an overflow-hidden ancestor would take away the
      scrollport it sticks against. */
   const mmOverlayRef = useRef<HTMLDivElement>(null);
+  /* Mobile menu: the Reservation Code field + Go show only once "Find my
+     Reservation" is tapped, with the caret already in the field. */
+  const [resOpen, setResOpen] = useState(false);
+  const resInputRef = useRef<HTMLInputElement>(null);
+  const toggleRes = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // flushSync renders the field NOW, so it can be focused inside the tap
+    // itself — iOS only raises the keyboard for a focus made in the gesture.
+    flushSync(() => setResOpen((o) => !o));
+    if (!resOpen) resInputRef.current?.focus();
+  };
   useEffect(() => {
     const el = mmOverlayRef.current;
     if (!menuOpen || !el) return undefined;
@@ -1131,15 +1143,17 @@ export function NavigationBar({
                   </a>
                 </li> */}
                 <li>
-                  <a href="#">
+                  <a href="#" onClick={toggleRes} aria-expanded={resOpen}>
                     <CreditCardIcon size={24} />
                     <span>Find my Reservation</span>
                   </a>
                 </li>
+                {resOpen && (
                 <li>
                   {/* Reservation-code lookup, same field + Go as #03's (Figma 9697-22507). */}
                   <form className="nav-mm-res-form" onSubmit={(e) => e.preventDefault()}>
                     <input
+                      ref={resInputRef}
                       className="nav-mm-res-input"
                       type="text"
                       placeholder="Reservation Code"
@@ -1148,6 +1162,7 @@ export function NavigationBar({
                     <button type="submit" className="nav-mm-res-go">Go</button>
                   </form>
                 </li>
+                )}
               </ul>
             </div>
 
