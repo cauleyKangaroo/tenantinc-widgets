@@ -692,6 +692,12 @@ export function MakePaymentPanel({
         routingNumber: bank.routingNumber,
         accountNumber: bank.accountNumber,
         accountType: /savings/i.test(bank.accountType) ? 'savings' : 'checking',
+        // The form's own billing address — the processor requires the zip.
+        zip: bank.zip,
+        country: /canada/i.test(bank.country) ? 'CA' : 'US',
+        line1: [bank.address, bank.address2].filter(Boolean).join(', '),
+        city: bank.city,
+        state: bank.state,
       });
       if (!r.ok) { setPaying(false); finishPayment('failed', null, r.message); return false; }
       bankPm = r.paymentMethodId;
