@@ -5082,16 +5082,23 @@
   background: color-mix(in srgb, var(--color_1, #f45f30) 78%, #000);
 }
 
-/* On phones let the lightbox use the full width comfortably */
+/* On phones the popup is a FULL-SCREEN sheet: edge to edge, no rounded
+   corners, no border, so none of the page shows around it. */
 @media (max-width: 480px) {
-  .sl-wrapper .sl-modal-overlay { padding: 12px; align-items: flex-start; }
-  .sl-wrapper .sl-filter-modal { max-height: calc(100vh - 24px); }
+  .sl-wrapper .sl-modal-overlay { padding: 0; align-items: stretch; }
+  .sl-wrapper .sl-filter-modal {
+    max-width: none;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
   /* ONE height at every property. The popup's content is built from the
      property's own units, so a facility with no Space Features (Chula Vista)
      opened a popup half the size of one that has them. Always the full
-     height it was already capped at; the body takes the spare room, so a
-     short list leaves space above Apply Filters, which stays at the foot. */
-  .sl-wrapper .sl-filter-modal { height: calc(100vh - 24px); }
+     screen; the body takes the spare room, so a short list leaves space above
+     Apply Filters, which stays at the foot. dvh where supported, so the
+     sheet tracks the phone's visible height as its toolbars show and hide. */
+  .sl-wrapper .sl-filter-modal { height: 100vh; height: 100dvh; }
   .sl-wrapper .sl-modal-body { flex: 1 1 auto; min-height: 0; }
 }
 
