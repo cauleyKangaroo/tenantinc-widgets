@@ -2025,12 +2025,9 @@
 
   .ma-edit__body { padding: 24px 20px; }
   .ma-edit__title { font-size: 22px !important; } /* = .ma-account__title here; was 28px */
-  /* The title-row Cancel/Save, compact so they sit beside "Space #n" on a
-     phone. The action bar's pair below keeps its full size. */
+  /* The title-row Cancel/Save keep the action bar's full size; only the gap
+     to the title tightens so they fit beside "Space #n" on a phone. */
   .ma-edit__top { gap: 12px; }
-  .ma-edit__topActions { gap: 12px; }
-  .ma-edit__topActions .ma-edit__cancel { padding: 6px 2px; font-size: 14px; line-height: 18px; }
-  .ma-edit__topActions .ma-paynow { min-width: 64px; height: 32px; padding: 0 12px; font-size: 14px; line-height: 14px; }
   /* Two 56px fields will not sit side by side on a phone, and three certainly
      will not. Every row shape collapses to one column. */
   .ma-edit__row,
