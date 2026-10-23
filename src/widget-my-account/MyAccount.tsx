@@ -72,6 +72,16 @@ import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROPERTIES, SPACES, USER } from './dat
 import { AccountInfoIcon, CreditCardIcon, LogoutIcon, SubmenuIcon } from './icons';
 import { AccountSheet } from './AccountSheet';
 
+/** "$120.00" → 120. The mobile Balance Due breakdown totals these strings. */
+function moneyValue(v: string): number {
+  const n = Number(String(v).replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+/** 350 → "$350.00", the way the design writes a total. */
+function formatMoneyValue(n: number): string {
+  return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+}
+
 /** The three panels that share the middle slot. */
 export type View = 'account' | 'payment' | 'edit';
 
@@ -444,6 +454,10 @@ export function MyAccount({
   /** The gateway's NAME per property — the wallets are offered only on
    *  tenant_payments, as in the rental flow. */
   const [gatewayNames, setGatewayNames] = useState<Record<string, string>>({});
+  /** Per property too: the Stripe config when THAT property's gateway is
+   *  tenant_payments_stripe — each property answers its own gateway call,
+   *  so one account can mix GP and Stripe facilities. */
+  const [gatewayStripe, setGatewayStripe] = useState<Record<string, import('@shared/stripeHostedFields').StripeGatewayConfig | null>>({});
   useEffect(() => {
     if (!record || gpPublicKeyProp) return undefined;
     if (!creds.baseUrl || !creds.appId || !creds.apiKey || !resolvedCompanyId) return undefined;
@@ -457,6 +471,7 @@ export function MyAccount({
         if (cancelled) return;
         setGatewayKeys((prev) => ({ ...prev, [pid]: g?.publicKey ?? '' }));
         setGatewayNames((prev) => ({ ...prev, [pid]: g?.gateway ?? '' }));
+        setGatewayStripe((prev) => ({ ...prev, [pid]: g?.stripe ?? null }));
       });
     }
     return () => { cancelled = true; };
@@ -613,6 +628,10 @@ export function MyAccount({
     return {
       gpPublicKey: explicit || (looked !== undefined ? looked : (canLookUp ? undefined : '')),
       gatewayPending: !explicit && looked === undefined && canLookUp,
+      /* THIS property's Stripe config - the gateway call is per property, so
+         the panel mounts the right card fields when the tenant switches
+         between a GP facility and a Stripe one. */
+      stripe: gatewayStripe[space.propertyId] ?? null,
       wallet: {
         config: walletConfig,
         ctx: { companyId: resolvedCompanyId, propertyId: space.propertyId },
@@ -639,12 +658,14 @@ export function MyAccount({
           return { ok: true, receipt: r.data };
         }
         if (r.unauthorized) signOut();
-        return { ok: false, message: r.message };
+        /* `retryable` rides through: outcome-unknown failures (network, 502)
+           must reuse their Idempotency-Key; definite ones get a fresh one. */
+        return { ok: false, message: r.message, retryable: r.retryable };
       },
     };
     // signOut is stable for the life of the session; the token is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gated, session?.token, api, record, space, gatewayKeys, gatewayNames, creds, resolvedCompanyId, gpPublicKeyProp, walletConfig]);
+  }, [gated, session?.token, api, record, space, gatewayKeys, gatewayNames, gatewayStripe, creds, resolvedCompanyId, gpPublicKeyProp, walletConfig]);
   const [activityOpen, setActivityOpen] = useState(false);
   /* Make a Payment lists every space AT THE SAME PROPERTY as the unit whose
      Pay Now was clicked — all of them, each with its own tick, so the tenant
@@ -840,7 +861,50 @@ export function MyAccount({
               Payment opens on — with Pay Now taking the same route as the
               account card's own Pay Now. Built from .ma-balance so it is the
               same box as Make a Payment's. */}
-          {space && view === 'account' && (
+          {/* SEVERAL spaces: the same card broken down — one row per space
+              (its property's name and balance), then the summed Total Balance
+              Due, Past Due if any space is, and the same Pay Now. One space
+              keeps the card below, unchanged. A property holding two of the
+              spaces gets the space number on each row so they can be told
+              apart. */}
+          {space && view === 'account' && spaces.length > 1 && (() => {
+            const nameOf = (id: string) => properties.find((p) => p.id === id)?.name ?? '';
+            const total = spaces.reduce((sum, s) => sum + moneyValue(s.balance.amount), 0);
+            return (
+              <section className="ma-balance ma-balance--home ma-balance--multi" aria-label="Balance due">
+                <ul className="ma-balance__breakdown">
+                  {spaces.map((s) => {
+                    const shared = spaces.filter((o) => o.propertyId === s.propertyId).length > 1;
+                    const label = `${nameOf(s.propertyId) || s.title}${shared ? ` ${s.number}` : ''}`;
+                    return (
+                      <li key={s.id} className="ma-balance__row">
+                        <span className="ma-balance__rowName">{label}</span>
+                        <span className="ma-balance__rowAmount">{s.balance.amount}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="ma-balance__left">
+                  <div className="ma-balance__heading">
+                    <span className="ma-balance__title">Total Balance Due</span>
+                    <InfoIcon size={16} className="ma-balance__info" />
+                  </div>
+                </div>
+                <div className="ma-balance__right">
+                  <p className="ma-balance__amount">{formatMoneyValue(total)}</p>
+                  {spaces.some((s) => s.balance.pastDue) && <p className="ma-balance__past">Past Due</p>}
+                  <button
+                    type="button"
+                    className="ma-paynow ma-balance__paynow"
+                    onClick={() => { setEnrollAutopay(false); setView('payment'); }}
+                  >
+                    Pay Now
+                  </button>
+                </div>
+              </section>
+            );
+          })()}
+          {space && view === 'account' && spaces.length <= 1 && (
             <section className="ma-balance ma-balance--home" aria-label="Balance due">
               <div className="ma-balance__left">
                 <div className="ma-balance__heading">

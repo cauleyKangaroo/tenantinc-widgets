@@ -134,6 +134,53 @@ export interface StripeCardHandle {
 
 const GENERIC_DECLINE = 'The card could not be verified. Please check the details and try again.';
 
+/** The bank form's values, as Stripe's us_bank_account wants them. */
+export interface StripeBankDetails {
+  /** Account holder, "First Last". */
+  name: string;
+  email?: string;
+  /** Nine digits. */
+  routingNumber: string;
+  accountNumber: string;
+  /** 'checking' | 'savings' — lower-case, Stripe's spelling. */
+  accountType: 'checking' | 'savings';
+}
+
+/**
+ * Pay-by-Bank on a Stripe property: the typed routing/account go STRAIGHT to
+ * Stripe (never to our server), which mints a us_bank_account PaymentMethod —
+ * the account payments API then takes `{type: 'hosted-ach', token: pm_…}`
+ * (client contract, 2026-10-23). Same single-attempt rules as a card pm.
+ */
+export async function createStripeBankAccount(
+  config: StripeGatewayConfig,
+  d: StripeBankDetails,
+): Promise<{ ok: true; paymentMethodId: string; last4: string } | { ok: false; message: string }> {
+  const Ctor = await loadStripeJs();
+  if (!Ctor) return { ok: false, message: 'The secure payment service could not load. Please refresh and try again.' };
+  try {
+    const stripe = Ctor(config.publicKey, { stripeAccount: config.merchantAccount });
+    const { paymentMethod, error } = await stripe.createPaymentMethod({
+      type: 'us_bank_account',
+      us_bank_account: {
+        routing_number: d.routingNumber,
+        account_number: d.accountNumber,
+        account_holder_type: 'individual',
+        account_type: d.accountType,
+      },
+      billing_details: { name: d.name, ...(d.email ? { email: d.email } : {}) },
+    });
+    if (error || !paymentMethod?.id) {
+      return { ok: false, message: error?.message || 'The bank account could not be verified. Please check the details and try again.' };
+    }
+    const pm = paymentMethod as { id: string; us_bank_account?: { last4?: string } };
+    return { ok: true, paymentMethodId: pm.id, last4: pm.us_bank_account?.last4 ?? '' };
+  } catch (err) {
+    console.warn('[stripeHostedFields] bank createPaymentMethod threw:', err);
+    return { ok: false, message: 'The bank account could not be verified. Please check the details and try again.' };
+  }
+}
+
 export async function mountStripeCard(opts: {
   config: StripeGatewayConfig;
   /** Ignored by the Card Element — see StripeCardHandle.updateAmount. */

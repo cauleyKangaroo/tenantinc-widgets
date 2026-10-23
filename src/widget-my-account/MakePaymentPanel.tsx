@@ -60,6 +60,7 @@ import type { RentalCtx, WalletPayment } from '../widget-rental-flow-2step/api';
 import type { WalletConfig } from '../widget-rental-flow-2step/walletConfig';
 import { AlertIcon, Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
 import { BankForm, CardForm, PaymentFormSkeleton, type BankFormValue, type CardFormValue } from '@shared/paymentForms';
+import { createStripeBankAccount } from '@shared/stripeHostedFields';
 import {
   BankIcon, ChevronBigLeft24Icon, ChevronBigRight24Icon, CreditCardIcon, CreditCardRemoveIcon,
   CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
@@ -108,11 +109,15 @@ export interface WalletHandlers {
 export interface PaymentHandlers {
   gpPublicKey: string | undefined;
   gatewayPending: boolean;
+  /** Set when THIS property's gateway is tenant_payments_stripe: the card row
+   *  becomes Stripe's Card Element and Pay by Bank mints a us_bank_account
+   *  PaymentMethod - see payLive. Null/absent means GP as before. */
+  stripe?: import('@shared/stripeHostedFields').StripeGatewayConfig | null;
   wallet?: WalletHandlers;
   /** Cards on file at this property, for one-tap "saved" payments. */
   savedCards: SavedCard[];
   pay: (leaseId: string, body: LeasePaymentRequest, idempotencyKey: string) =>
-    Promise<{ ok: true; receipt: LeasePaymentReceipt } | { ok: false; message: string }>;
+    Promise<{ ok: true; receipt: LeasePaymentReceipt } | { ok: false; message: string; retryable?: boolean }>;
   /** What N months ahead would cost on a lease — the figure the prepay sends. */
   quotePrepay: (leaseId: string, months: number) => Promise<PrepayQuote | null>;
 }
@@ -668,11 +673,28 @@ export function MakePaymentPanel({
       finishPayment('failed', null, 'You have not been charged. Apple Pay and Google Pay can pay one space at a time.');
       return false;
     }
-    if (!saved && !card?.token && !bank && !wallet) {
+    if (!saved && !card?.token && !card?.stripePaymentMethodId && !bank && !wallet) {
       // Plain inputs would mean a card number in this bundle, which the API
       // does not take and this page must never hold.
       finishPayment('failed', null, 'Card payments need the secure card fields, which did not load. Please refresh and try again.');
       return false;
+    }
+    /* STRIPE PAY-BY-BANK: the typed routing/account go straight to Stripe,
+       which mints a single-use us_bank_account pm - the payments API then
+       takes `hosted-ach` with its token (client contract, 2026-10-23). GP
+       properties keep posting the plain ACH object below. */
+    let bankPm = '';
+    const stripeBankCfg = payment.stripe ?? null;
+    if (bank && stripeBankCfg) {
+      setPaying(true);
+      const r = await createStripeBankAccount(stripeBankCfg, {
+        name: (bank.firstName + ' ' + bank.lastName).trim(),
+        routingNumber: bank.routingNumber,
+        accountNumber: bank.accountNumber,
+        accountType: /savings/i.test(bank.accountType) ? 'savings' : 'checking',
+      });
+      if (!r.ok) { setPaying(false); finishPayment('failed', null, r.message); return false; }
+      bankPm = r.paymentMethodId;
     }
     setPaying(true);
     setPayingCardId(saved?.id ?? '');
@@ -687,13 +709,22 @@ export function MakePaymentPanel({
         : wallet
           ? walletMethod(wallet)
           : bank
-            ? achMethod(bank, autopayFor(step.sp))
-            : { type: 'hosted-card', token: card!.token!, zip: card!.zip, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) };
+            ? (bankPm
+              ? { type: 'hosted-ach', token: bankPm, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) }
+              : achMethod(bank, autopayFor(step.sp)))
+            : { type: 'hosted-card', token: (card!.stripePaymentMethodId ?? card!.token)!, zip: card!.zip, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) };
       const r = await payment.pay(step.sp.id, { ...step.body, paymentMethod: method }, idemKeyFor(step.key));
-      if (!r.ok) { failure = r.message; break; }
+      if (!r.ok) {
+        /* Definite refusal: the next attempt is a NEW payment and gets a new
+           key. Outcome-unknown (network, 502) keeps the key, so a retry that
+           raced a success cannot charge twice (client contract, 2026-10-23). */
+        if (!r.retryable) idemKeys.current.delete(step.key);
+        failure = r.message; break;
+      }
       idemKeys.current.delete(step.key);
       paidTotal += step.body.amount; last = r.receipt; paid.push(step);
-      // A bank account can be sent again; only a card TOKEN is single-use.
+      // A PLAIN bank account can be sent again; a card token and a Stripe
+      // bank pm are single-use, so later steps ride the saved method.
       if (bank && !savedId && r.receipt.savedPaymentMethodId) savedId = r.receipt.savedPaymentMethodId;
       if (!bank && !savedId && paid.length < steps.length) {
         if (r.receipt.savedPaymentMethodId) savedId = r.receipt.savedPaymentMethodId;
@@ -718,7 +749,9 @@ export function MakePaymentPanel({
     return false;
   };
   const liveCardKey = payment?.gpPublicKey;
-  const cardUnavailable = !!payment && !payment.gatewayPending && !liveCardKey;
+  /* A Stripe property has no GP key and needs none - its card row is the
+     Stripe element. "Unavailable" is only a property with NEITHER. */
+  const cardUnavailable = !!payment && !payment.gatewayPending && !liveCardKey && !payment.stripe;
   /* "Pay through" is per space; with several selected they can disagree, so the
      bar shows the FURTHEST date — that is what paying this total covers. */
   /* The OLDEST due date among the ticked spaces — anniversary billing gives
@@ -1226,6 +1259,9 @@ export function MakePaymentPanel({
                 busy={paying}
                 gpPublicKey={liveCardKey}
                 gatewayPending={payment?.gatewayPending}
+                /* Stripe property: ONE inline Card Element, as the rental
+                   flow draws it; the pm lands in v.stripePaymentMethodId. */
+                stripe={payment?.stripe ?? null}
                 zipOnlyBilling={!!payment}
                 /* The form will not submit without a billing country; the
                    account is a US tenant's. */

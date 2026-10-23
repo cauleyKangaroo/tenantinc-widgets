@@ -1989,6 +1989,42 @@
   .ma-main > .ma-balance--home { display: grid; margin-top: 4px; }
   .ma-balance--home .ma-balance__paynow { margin-top: 10px; }
 
+  /* SEVERAL spaces: the per-space rows run across both columns on top, and
+     the Total Balance Due row (label left, total + Past Due + Pay Now right)
+     moves beneath them. One space never gets --multi. */
+  .ma-balance--multi .ma-balance__breakdown {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+  }
+  .ma-balance--multi .ma-balance__left { grid-row: 2; align-self: start; }
+  .ma-balance--multi .ma-balance__right { grid-row: 2; }
+  .ma-balance__row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .ma-balance__rowName {
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    color: var(--hb-text-night);
+  }
+  .ma-balance__rowAmount {
+    flex: none;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 22px;
+    color: var(--hb-text-night);
+  }
+
   .ma-promo {
     flex-direction: column;
     align-items: stretch;
