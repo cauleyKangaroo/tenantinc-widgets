@@ -608,7 +608,7 @@
 .ma-lines {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   width: 724px;
   max-width: 100%;
   margin: 20px auto 0;
@@ -622,6 +622,9 @@
 }
 
 .ma-line--total { margin-top: 8px; }
+/* Coverage's right side (shield icon + Upgrade Coverage + amount) is taller
+   than its label, so top-aligned the label sat high. Centred on that row. */
+.ma-line--coverage { align-items: center; }
 
 .ma-line__label {
   min-width: 0;
