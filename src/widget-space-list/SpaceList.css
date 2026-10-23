@@ -701,6 +701,14 @@
   line-height: 16px;
   text-transform: uppercase;
 }
+/* GRID card: "IN-STORE" level with "STARTING AT". Each column was centred in
+   the 50px row, but the in-store one is a fixed 45px and the starting one is
+   as tall as its figures — a few px shorter at the grid card's sizes — so
+   their tops, and the two labels, landed at different heights. Both start at
+   the top instead, and the labels share the 16px line. */
+.sl-wrapper .sl-unit-card .sl-price-left,
+.sl-wrapper .sl-unit-card .sl-price-main { align-self: flex-start; }
+.sl-wrapper .sl-unit-card .sl-instore-label { line-height: 16px; }
 .sl-wrapper .sl-main-price {
   font-size: 24px;
   font-weight: 700;
