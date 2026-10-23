@@ -709,6 +709,20 @@
 .sl-wrapper .sl-unit-card .sl-price-left,
 .sl-wrapper .sl-unit-card .sl-price-main { align-self: flex-start; }
 .sl-wrapper .sl-unit-card .sl-instore-label { line-height: 16px; }
+/* LIST card, phone frame only: "IN-STORE" level with "STARTING AT" by moving
+   the IN-STORE column only — STARTING AT stays where it is. The in-store
+   column was a fixed 45px against a starting column of 16px label + the price
+   line (24px at 1.2 here), so the two centred at different heights. Given
+   exactly that height, both centre the same way and their tops line up; the
+   strike stays at the column's foot, level with the price. */
+@container (max-width: 480px) {
+  .sl-wrapper .sl-list-card .sl-instore-label { line-height: 16px; }
+  .sl-wrapper .sl-list-card .sl-price-left { height: calc(16px + 24px * 1.2); }
+}
+/* The list card's price drops to 20px at 330px and under (rule further down). */
+@container (max-width: 330px) {
+  .sl-wrapper .sl-list-card .sl-price-left { height: calc(16px + 20px * 1.2); }
+}
 .sl-wrapper .sl-main-price {
   font-size: 24px;
   font-weight: 700;
