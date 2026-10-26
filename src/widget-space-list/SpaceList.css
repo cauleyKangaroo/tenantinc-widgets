@@ -1729,8 +1729,24 @@
   .sl-wrapper .sl-card-action-panel .sl-card-pricing:has(.sl-note-row) { margin-bottom: 0; }
   .sl-wrapper .sl-card-top { gap: 16px; align-items: flex-start; }
   .sl-wrapper .sl-card-info { width: auto; flex: 1 1 auto; min-width: 0; }
-  .sl-wrapper .sl-card-image-col { flex: 0 0 auto; width: 132px; }
-  .sl-wrapper .sl-unit-img { max-width: 132px; }
+  /* The column stretches to the info's height so "See what fits" can sit at
+     its bottom, under a larger image. */
+  .sl-wrapper .sl-unit-card .sl-card-top { align-items: stretch; }
+  .sl-wrapper .sl-card-image-col { flex: 0 0 auto; width: min(190px, 52%); }
+  .sl-wrapper .sl-unit-img { max-width: 100%; }
+  /* The image's box takes all the height above "See what fits". contain, not
+     cover: cover cropped wide artwork (vehicle/parking spaces) at the sides.
+     The min-height (the old 132px box at 380:300) keeps a box before the file
+     arrives. */
+  .sl-wrapper .sl-unit-card .sl-unit-img {
+    flex: 1 1 0;
+    aspect-ratio: auto;
+    min-height: 104px;
+    object-fit: contain;
+    /* Sits on "See what fits" rather than floating mid-box. */
+    object-position: center bottom;
+  }
+  .sl-wrapper .sl-unit-card .sl-see-fits { margin-top: auto; }
   /* Kept, not dropped. The frame omits it at this width, but it is the only
      way into the fit visualiser and there is nowhere else on the card to reach
      it from. It already sits under the image — .sl-card-image-col is a flex
