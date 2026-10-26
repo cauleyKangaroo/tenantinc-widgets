@@ -57,7 +57,7 @@
 
 .pi-reviews {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 400;
   color: #101318;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -75,7 +75,7 @@
   align-items: center;
   gap: 8px;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.5;
   color: #101318;
   text-decoration: none;
@@ -132,7 +132,7 @@
 
 .pi-see-hours {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 400;
   color: #101318;
   background: none;
   border: none;
@@ -140,6 +140,9 @@
   cursor: pointer;
   text-decoration: underline;
 }
+/* A little clear of the hours above it (the stack is a tight 2px). The ROW
+   moves, since the link is inline and would ignore a margin of its own. */
+.pi-contact-row--indent:has(> .pi-see-hours) { margin-top: 6px; }
 
 /* ── Media column ───────────────────────────────────────────────────────── */
 
@@ -293,8 +296,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 18px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 400;
   color: #101318;
   text-decoration: none;
   background: none;
@@ -1249,6 +1252,28 @@ iframe.pi-m-hero-img { border: 0; z-index: 0; }
    it differently from the page-top trail. */
 .pi-m-breadcrumb { min-width: 0; }
 
+
+/* ── Every other link in the widget, the same rule ────────────────────────
+   Address, phones, Send us a Message, Reviews, See all Hours, Find my
+   Reservation. The underline is drawn by .pi-underline (the text inside the
+   link) or by the link itself (.pi-reviews, the See all Hours links).
+   Desktop: none until the LINK is hovered or keyboard-focused.
+   Phone layout (.pi-mobile): always underlined — no hover there to find them. */
+.pi-wrapper .pi-underline,
+.pi-wrapper .pi-reviews,
+.pi-wrapper .pi-see-hours { text-decoration: none !important; }
+.pi-wrapper :is(a, button):hover .pi-underline,
+.pi-wrapper :is(a, button):focus-visible .pi-underline,
+.pi-wrapper a.pi-underline:hover,
+.pi-wrapper a.pi-underline:focus-visible,
+.pi-wrapper .pi-reviews:hover,
+.pi-wrapper .pi-reviews:focus-visible,
+.pi-wrapper .pi-see-hours:hover,
+.pi-wrapper .pi-see-hours:focus-visible { text-decoration: underline !important; }
+.pi-mobile .pi-underline,
+.pi-mobile .pi-reviews,
+.pi-mobile .pi-m-seehours { text-decoration: underline !important; }
+
 .pi-m-expand {
   flex-shrink: 0;
   display: flex;
@@ -1412,8 +1437,9 @@ iframe.pi-m-hero-img { border: 0; z-index: 0; }
 }
 
 .pi-m-seehours {
-  margin-top: 8px;
+  margin-top: 12px;
   font-size: 16px;
+  font-weight: 400;
   color: #101318;
   text-decoration: underline;
 }
