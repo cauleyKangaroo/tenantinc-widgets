@@ -809,11 +809,11 @@
   cursor: pointer;
 }
 .ts-o2m-animated-card .ts-o2m-head { cursor: pointer; }
-/* Mobile: the badge sits on the card's top edge LEFT-aligned with the card's
-   content (its 22px inline padding) instead of centred. Only the horizontal
-   placement changes — translateY keeps it straddling the border as before.
-   .ts-o2m-badge is the mobile card's own class, so desktop is untouched. */
-.ts-o2m-badge { left: 22px; transform: translateY(-50%); }
+/* Mobile: the badge straddles the card's top edge CENTRED, as on desktop
+   (2026-10-26 — it had been left-aligned to the card's 22px content inset).
+   .ts-o2m-badge is the mobile card's own class; centring restates the base
+   .ts-o2-badge placement so the mobile card can't drift from it. */
+.ts-o2m-badge { left: 50%; transform: translate(-50%, -50%); }
 .ts-o2m-animated-card .ts-o2m-badge { opacity: 0; transition: opacity 200ms ease; }
 .ts-o2m-animated-card.ts-o2m-card--expanded .ts-o2m-badge { opacity: 1; }
 .ts-o2m-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
@@ -1119,7 +1119,9 @@
 .ts-modal-title { font-size: 36px !important; font-weight: 700 !important; line-height: 1 !important; margin: 0 0 4px !important; color: var(--ts-title-color, #101318) !important; text-transform: none !important; letter-spacing: normal !important; }
 .ts-modal-subtitle { font-size: 20px; font-weight: 400; line-height: 28px; margin: 0; color: #000; }
 .ts-modal-urgency { margin: 0; font-size: 24px; font-weight: 700; line-height: 40px; color: #d32f2f; }
-.ts-modal-admin { box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 20px 0 0; text-align: center; font-size: 18px; line-height: 1.5; font-weight: 400; color: #101318; }
+/* Small print, so small type: 14px (was 18px), and 12px under the cards (was
+   20px) so it reads as part of them rather than a separate block. */
+.ts-modal-admin { box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 12px 0 0; text-align: center; font-size: 14px; line-height: 1.5; font-weight: 400; color: #101318; }
 .ts-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 32px 32px; background: #f4f6f8; }
 /*
  * PINNED to the header's top-right corner, not laid out in it.
@@ -1259,7 +1261,11 @@
   }
   .ts-modal-subtitle { font-size: 18px; overflow-wrap: anywhere; }
   .ts-modal-urgency { text-align: center; width: 100%; min-height: 1.25em; font-size: 16px; line-height: 1.25; }
-  .ts-modal-admin { font-size: 14pt; padding: 0 20px calc(24px + env(safe-area-inset-bottom)); }
+  .ts-modal-admin { font-size: 14px; margin-top: 8px; padding: 0 20px calc(24px + env(safe-area-inset-bottom)); }
+  /* The cards' own 32px bottom padding sat above the fee line as well, a 40px
+     gap. With the fee below it, 8px — 16px in all, so the line reads as part
+     of the cards. A popup with no fee keeps the 32px. */
+  .ts-modal-body > .ts-wrapper:has(+ .ts-modal-admin) .ts-m { padding-bottom: 8px; }
 }
 
 /* Promo two-price (STANDARD struck + PROMO RATE) */
