@@ -325,6 +325,7 @@ const KEY_SHARE_BLURB = 'Keyshares let tenants securely share temporary or ongoi
 
 export function Step2({
   moveIn, plans = [], leaseDocName, onEditDate, payNowTotal, onPaymentComplete,
+  onKeyShareChange, cardUnavailable = false,
   brochureUrl, onPlanChange, onCycleChange, paying, payError, contact, leasePreviewUrl, leasePreviewHtml, leasePreviewUpdating, gpPublicKey, autopayMode, paymentCycles, keyShareOptions,
   gatewayPending, zipOnlyBilling, defaultCountry, stripeGateway = null, oneStep = false,
   showApplePay = false, showGooglePay = false, walletCtx, walletConfig = WALLET_DEFAULTS,
@@ -374,6 +375,13 @@ export function Step2({
   /** Nokē key-share tiers. Omitted → the frame's single "2 Key-shares —
    *  Included" row. */
   keyShareOptions?: KeyShareOption[];
+  /** The chosen Key-Share tier changed - the parent re-quotes with it, so the
+   *  rail total and the lease price the same tier. */
+  onKeyShareChange?: (tier: number | undefined) => void;
+  /** The property names a secure gateway whose config cannot mount (Stripe
+   *  with no publishable key): the card panel shows a notice instead of ever
+   *  falling through to plain inputs. */
+  cardUnavailable?: boolean;
   /** Protection plans to choose between, already narrowed to the space type
    *  being rented. Empty → the "confirmed at checkout" note, which now means
    *  the property has no coverage products configured for that type. */
@@ -682,6 +690,10 @@ export function Step2({
   const [ksTipOpen, setKsTipOpen] = useState(false);
   const ksRef = useRef<HTMLDivElement>(null);
   const chosenKeyShare = keyShares.find((k) => k.id === ksChoice) ?? keyShares[0];
+  // Report the TIER upward on every change (and the preselect) - the quote
+  // follows it the way it follows the coverage choice.
+  const chosenTier = chosenKeyShare?.tier;
+  useEffect(() => { onKeyShareChange?.(chosenTier); }, [chosenTier, onKeyShareChange]);
   /* The tiers land a beat after first paint (they ride the property call), and
      the operator's default is first in the list, so adopt it once it arrives.
      Keyed on the ids so a property switch re-adopts the new default rather
@@ -1470,7 +1482,14 @@ export function Step2({
               {formLoading ? (
                 <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
               ) : payMethod === 'card' ? (
-                <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} stripe={stripeGateway} defaultCountry={defaultCountry} payLabel={agreeLabel} floatHostedNumberLabel />
+                cardUnavailable ? (
+                  <p className="rf2-card-blocked" role="alert">
+                    Card payments are temporarily unavailable for this facility.
+                    Please use another payment method or contact the office.
+                  </p>
+                ) : (
+                  <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} stripe={stripeGateway} defaultCountry={defaultCountry} payLabel={agreeLabel} floatHostedNumberLabel />
+                )
               ) : (
                 <BankForm total={payNowTotal ?? 0} onPay={(bank) => payStatically(undefined, bank)} busy={paying} defaultCountry={defaultCountry} payLabel={agreeLabel} />
               )}

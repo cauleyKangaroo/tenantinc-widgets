@@ -1115,6 +1115,11 @@ export interface QuoteOptions {
    * is load-bearing.
    */
   paymentCycle?: PaymentCycleKey;
+  /** The chosen Key-Share tier (noke_configs[].tier). Priced by lease-set-up
+   *  like the lease prices it - omitting it here while the lease carried it
+   *  left the quote on the default tier and payment.amount refused (review
+   *  finding, 2026-10-26). */
+  nokeTier?: number;
 }
 
 /** The documented lease-set-up payload, omitting anything not chosen. */
@@ -1135,6 +1140,7 @@ function leaseSetUpBody(opts: QuoteOptions): Record<string, unknown> {
   if (opts.paymentCycle && opts.paymentCycle !== 'monthly') {
     body.payment_cycle = PAYMENT_CYCLE_NAMES[opts.paymentCycle];
   }
+  if (opts.nokeTier != null) body.noke_tier = opts.nokeTier;
   return body;
 }
 

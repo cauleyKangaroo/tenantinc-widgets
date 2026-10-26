@@ -3167,3 +3167,16 @@
 /* An email or a lease id has no spaces to break at, so a long one would push
    the column wide instead of wrapping. */
 .rfc-info-break { overflow-wrap: anywhere; }
+
+/* Card payments blocked: the gateway names Stripe but its config cannot mount
+   (no publishable key) — a notice instead of ever falling through to plain
+   card inputs. Red text in the method panel, where the form would have been. */
+.rf2-card-blocked {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--hb-field-border-error, #d32f2f);
+  border-radius: 8px;
+  color: var(--hb-field-border-error, #d32f2f);
+  font-size: 16px;
+  line-height: 1.5;
+}

@@ -1571,6 +1571,11 @@ export function RentalFlow2Step({
   /** Stripe config, only on a tenant_payments_stripe property — the card row
    *  then becomes Stripe's Payment Element (see CardForm). */
   const stripeGateway = gateway === TENANT_PAYMENTS_STRIPE ? (gatewayInfo?.stripe ?? null) : null;
+  /* The gateway NAMED Stripe but its config is unusable (no publishable key):
+     without this the card row fell through to the PLAIN inputs - a PAN typed
+     into this bundle with nowhere lawful to go (review finding, 2026-10-26).
+     The identity says "block", only a mountable config says "Stripe". */
+  const stripeMisconfigured = gateway === TENANT_PAYMENTS_STRIPE && !gatewayInfo?.stripe;
   const gpKey = gateway === TENANT_PAYMENTS
     ? (gatewayInfo?.publicKey || (configuredGpKey && (console.warn(`${logTag} gateway reply carried no public_api_key — falling back to the bundled key`), configuredGpKey)) || '')
     : '';
@@ -1601,6 +1606,9 @@ export function RentalFlow2Step({
   // Lives here rather than in Step2 because it changes the QUOTE, not just the
   // card: lease-set-up prices the selected plan as its own invoice line.
   const [insuranceId, setInsuranceId] = useState<string | undefined>(undefined);
+  /** The Key-Share card's chosen tier - re-quoted like coverage, so the total
+   *  and the lease price the same tier. */
+  const [nokeTier, setNokeTier] = useState<number | undefined>(undefined);
   // Only the plans for the space type being rented. Before the unit resolves
   // (or if its type is unknown) this is the full list — showing every plan is
   // recoverable, showing none would re-create the "confirmed at checkout" bug.
@@ -2285,6 +2293,7 @@ export function RentalFlow2Step({
     fetchMoveInQuote(ctx, { id: quoteAnchor.unitId, number: quoteAnchor.unitNumber }, {
       ...quoteAnchor.idOpts,
       insuranceId,
+      nokeTier,
       promotionIds: selection?.promotionIds,
       startDate: ymd(moveIn),
       offerToken: selection?.offerToken,
@@ -2300,7 +2309,7 @@ export function RentalFlow2Step({
         if (!cancelled) { setQuote(undefined); setQuoteFailed(true); }
       });
     return () => { cancelled = true; };
-  }, [quoteAnchor, quote, ctx, inEditor, insuranceId, selection, moveIn, paymentCycle, logTag]);
+  }, [quoteAnchor, quote, ctx, inEditor, insuranceId, nokeTier, selection, moveIn, paymentCycle, logTag]);
 
   // Re-quote when a choice that changes the money changes — coverage or the
   // move-in date. Only while holding: lease-set-up will not price either of them
@@ -2321,7 +2330,7 @@ export function RentalFlow2Step({
   const [leasePreviewUrl, setLeasePreviewUrl] = useState('');
   const [leasePreviewHtml, setLeasePreviewHtml] = useState('');
 
-  const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}|${paymentCycle}`;
+  const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}|${paymentCycle}|${nokeTier ?? ''}`;
   const quotedChoice = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!quoteAnchor || step !== 2 || !ctx.companyId) return undefined;
@@ -2334,6 +2343,7 @@ export function RentalFlow2Step({
     fetchMoveInQuote(ctx, { id: quoteAnchor.unitId, number: quoteAnchor.unitNumber }, {
       ...quoteAnchor.idOpts,
       insuranceId,
+      nokeTier,
       promotionIds: selection?.promotionIds,
       startDate: ymd(moveIn),
       offerToken: selection?.offerToken,
@@ -2345,7 +2355,7 @@ export function RentalFlow2Step({
       // last figure the API actually stood behind.
       .catch((err) => console.warn(`${logTag} re-quote after a choice change failed — keeping the previous total:`, err));
     return () => { cancelled = true; };
-  }, [quoteAnchor, step, choiceKey, insuranceId, moveIn, paymentCycle, selection, ctx, logTag]);
+  }, [quoteAnchor, step, choiceKey, insuranceId, nokeTier, moveIn, paymentCycle, selection, ctx, logTag]);
 
   /*
    * Fetch the lease preview as soon as the NUMBERS exist — a hold and a quote,
@@ -3604,6 +3614,8 @@ export function RentalFlow2Step({
             leaseDocName={leaseDoc?.name}
             brochureUrl={brochureUrl}
             onPlanChange={setInsuranceId}
+            onKeyShareChange={setNokeTier}
+            cardUnavailable={stripeMisconfigured}
               onCycleChange={setPaymentCycle}
             onEditDate={() => setDateModalOpen(true)}
             payNowTotal={railQuote?.totalDue}

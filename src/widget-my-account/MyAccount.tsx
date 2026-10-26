@@ -896,7 +896,19 @@ export function MyAccount({
                   <button
                     type="button"
                     className="ma-paynow ma-balance__paynow"
-                    onClick={() => { setEnrollAutopay(false); setView('payment'); }}
+                    onClick={() => {
+                      setEnrollAutopay(false);
+                      /* The total above spans EVERY property, but the payment
+                         panel is scoped to the selected unit's property - so
+                         land on one that actually owes, or Pay Now on a
+                         paid-up selection opened a prepay for the wrong
+                         property while another's bill sat unpaid (review
+                         finding, 2026-10-26). Nothing owed anywhere keeps the
+                         current selection (the zero-balance prepay path). */
+                      const owing = spaces.find((s) => moneyValue(s.balance.amount) > 0);
+                      if (owing && owing.id !== space.id) selectUnit(owing.id);
+                      setView('payment');
+                    }}
                   >
                     Pay Now
                   </button>
