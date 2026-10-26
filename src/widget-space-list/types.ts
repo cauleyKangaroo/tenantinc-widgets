@@ -313,7 +313,7 @@ export interface SpaceListProps extends ApiCredProps {
   junkFeeCopy?: string;
   /** Toggle: show "Only X left" urgency messages on eligible units. Default true. */
   showUrgencyMessage?: boolean;
-  /** Toggle: Select skips the tier popup when only one tier is available. Default false. */
+  /** Toggle: Select skips the tier popup when only one tier is available. Default TRUE (was false until 2026-10-26). */
   skipTierPopupForSingle?: boolean | string;
   /**
    * Show the urgency message when a tier has this many units vacant or fewer.

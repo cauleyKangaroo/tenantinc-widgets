@@ -173,12 +173,14 @@
   display: flex; align-items: center; justify-content: center;
   padding: 0;
   border: none; background: none; border-radius: 50%;
-  font: 500 15px var(--hb-font);
+  /* Selectable days are BOLD; unavailable ones drop back to regular below,
+     so weight as well as colour says which can be picked. */
+  font: 700 15px var(--hb-font);
   color: var(--hb-text-night);
   cursor: pointer;
 }
 .hb-cal-cell--empty { visibility: hidden; }
-.hb-cal-cell--disabled { color: #c4cdd5; cursor: default; }
+.hb-cal-cell--disabled { color: #c4cdd5; font-weight: 400; cursor: default; }
 .hb-cal-cell:not(.hb-cal-cell--disabled):not(.hb-cal-cell--selected):hover { background: #f4f6f8; }
 .hb-cal-cell--selected { background: var(--hb-text-night); color: var(--hb-white); }
 

@@ -36,11 +36,32 @@ export function VideoModal({
   onClose: () => void;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   const open = isPlayableVideoId(videoId ?? undefined);
 
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    // The thumbnail (or whatever opened us) gets the keyboard back on close -
+    // aria-modal alone neither contains focus nor restores it.
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key !== 'Tab') return;
+      // CONTAIN Tab/Shift+Tab inside the dialog: wrap at either end instead
+      // of letting the caret escape to the page behind the overlay.
+      const root = modalRef.current;
+      if (!root) return;
+      const focusables = Array.from(root.querySelectorAll<HTMLElement>(
+        'button, [href], iframe, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )).filter((el) => !el.hasAttribute('disabled'));
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      const inside = root.contains(active);
+      if (e.shiftKey && (!inside || active === first)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (!inside || active === last)) { e.preventDefault(); first.focus(); }
+    };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -49,6 +70,7 @@ export function VideoModal({
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
+      opener?.focus?.();
     };
   }, [open, onClose]);
 
@@ -59,6 +81,7 @@ export function VideoModal({
   return createPortal(
     <div className="hb-video-overlay" onMouseDown={onClose}>
       <div
+        ref={modalRef}
         className="hb-video-modal"
         role="dialog"
         aria-modal="true"
