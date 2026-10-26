@@ -16,6 +16,7 @@ import './StorageTypes.css';
 import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
 import { hasSitePagesApi } from '@shared/sitePages';
+import { Breadcrumb } from '@shared/Breadcrumb';
 import { fetchStorageTypes, FEATURE_PAGE_COLLECTION, type StorageType } from './storageTypeSource';
 
 export type StorageTypesVariant = 'index' | 'related';
@@ -39,6 +40,15 @@ export interface StorageTypesProps {
   /** Mirror the nav exactly, dropping pages hidden from it. Default false. */
   skipHiddenPages?: boolean | string;
   inEditor?: boolean | string;
+  /**
+   * Index only: the "Home / Storage Types" trail above the heading — the same
+   * props, defaults and desktop-only behaviour as #15's. Default true.
+   */
+  showBreadcrumb?: boolean | string;
+  homeLabel?: string;
+  homeHref?: string;
+  /** The trail's last crumb (this page). Defaults to the heading. */
+  listingLabel?: string;
 }
 
 const PREVIEW: StorageType[] = [
@@ -162,6 +172,10 @@ export function StorageTypes({
   limit,
   skipHiddenPages,
   inEditor,
+  showBreadcrumb = true,
+  homeLabel,
+  homeHref,
+  listingLabel,
 }: StorageTypesProps) {
   const [types, setTypes] = useState<StorageType[] | null>(null);
   const isRelated = variant === 'related';
@@ -255,11 +269,29 @@ export function StorageTypes({
     [heading, isRelated],
   );
 
+  // Duda sends unfilled text fields as null or '', so each falls back here.
+  const text = (v: string | undefined, fallback: string) =>
+    (typeof v === 'string' && v.trim() ? v.trim() : fallback);
+  const crumbsOn = !(showBreadcrumb === false || showBreadcrumb === 'false');
+
+  /* Breadcrumb, h1, intro — #15's page head, styled identically (see the CSS),
+     with #15's trail above it. Index only: the related row sits mid-page. */
   const indexHeader = (
-    <header className="st-index-header">
-      <h1 className="st-index-title">{title}</h1>
-      <p className="st-index-subheading">{resolvedIndexSubheading}</p>
-    </header>
+    <>
+      {crumbsOn && (
+        <Breadcrumb
+          className="st-crumbs"
+          items={[
+            { label: text(homeLabel, 'Home'), href: text(homeHref, '/') },
+            { label: text(listingLabel, title) },
+          ]}
+        />
+      )}
+      <header className="st-index-header">
+        <h1 className="st-index-title">{title}</h1>
+        <p className="st-index-subheading">{resolvedIndexSubheading}</p>
+      </header>
+    </>
   );
   const relatedHeading = <h2 className="st-heading"><StorageTypesMark /><span>{title}</span></h2>;
 

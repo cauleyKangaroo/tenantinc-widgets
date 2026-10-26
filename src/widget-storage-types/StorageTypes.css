@@ -21,9 +21,14 @@
 }
 .st-heading-mark { display: none; }
 
-/* ── index header (Facility Landing Page FAQS (1), desktop) ─────────────── */
+/* ── index header ─────────────────────────────────────────────────────────
+   IDENTICAL to #15's page head (.bpg-head / .bpg-title / .bpg-intro in
+   BlogsPage.css, 2026-10-26) — the two index pages read as one family. If
+   one changes, change both. The trail above it is @shared/Breadcrumb with
+   #15's 24px gap and the same desktop-only rule. */
+.st-crumbs { margin-bottom: 24px; }
 .st-index-header {
-  margin: 0 0 80px;
+  margin: 0 0 40px;
   text-align: center;
 }
 .st--index {
@@ -41,21 +46,32 @@
   background: #f4f6f8;
 }
 .st-index-title {
-  margin: 0 0 16px !important;
-  font-size: 80px !important;
+  margin: 0 !important;
+  font-size: clamp(32px, 4.2vw, 80px) !important;
   font-weight: 600 !important;
-  line-height: 1.2 !important;
+  line-height: 1.25 !important;
   color: #101318 !important;
+  text-wrap: balance !important;
   text-transform: none !important;
   letter-spacing: 0 !important;
 }
 .st-index-subheading {
-  margin: 0;
+  max-width: 760px;
+  margin: 16px auto 0;
   font-size: 18px;
   font-weight: 400;
-  line-height: 1.5;
-  color: #000000;
+  line-height: 1.6;
+  color: #101318;
   letter-spacing: 0;
+  text-wrap: pretty;
+}
+/* After the base rules on purpose — same specificity, so order decides. */
+@media (max-width: 900px) {
+  /* Two classes: the shared sheet's display:flex is injected at run time. */
+  .st--index .st-crumbs { display: none; }
+  /* #15's narrow head: the trail is hidden, so the heading leads. */
+  .st-index-header { margin-bottom: 32px; }
+  .st-index-subheading { font-size: 16px; margin-top: 12px; }
 }
 
 /* ── Card (identical in both layouts) ─────────────────────────────────────── */
@@ -263,12 +279,8 @@
     height: 20px;
     color: #111111;
   }
-  .st-index-header { margin-bottom: 24px; }
-  .st-index-title {
-    margin-bottom: 8px !important;
-    font-size: 28px !important;
-  }
-  .st-index-subheading { font-size: 12px; }
+  /* Index head: see the 900px block under the index header rules — it
+     matches #15 there, so nothing is restated at this width. */
   .st--related .st-heading { text-align: center !important; }
   .st-grid { grid-template-columns: 1fr; gap: 32px; }
   .st--related .st-track {
