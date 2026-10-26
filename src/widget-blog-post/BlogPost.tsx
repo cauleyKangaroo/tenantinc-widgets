@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './BlogPost.css';
-import { ShareIcon, ChevronRight } from './icons';
+import { ShareIcon } from './icons';
+import { Breadcrumb } from '@shared/Breadcrumb';
 import { cover } from '@shared/demoImages';
 import { hasCollectionsApi, logSource } from '@shared/dudaCollections';
 import {
@@ -170,11 +171,11 @@ function PostSkeleton({ showBreadcrumb, homeLabel, listingLabel }: {
           trailing one (the post title) waits on the row. Plain text, not links:
           the whole skeleton is aria-hidden and shouldn't take focus. */}
       {showBreadcrumb && (
-        <div className="bpp-crumbs">
-          <span className="bpp-crumb-link">{homeLabel}</span>
-          <ChevronRight size={24} />
-          <span className="bpp-crumb-link">{listingLabel}</span>
-          <ChevronRight size={24} />
+        <div className="bpp-crumbs bpp-crumbs--skel">
+          <span>{homeLabel}</span>
+          <span className="bpp-skel-sep">/</span>
+          <span>{listingLabel}</span>
+          <span className="bpp-skel-sep">/</span>
           <span className="bpp-skel bpp-skel--crumb" />
         </div>
       )}
@@ -372,14 +373,17 @@ export function BlogPost({
       {/* ── Breadcrumb ───────────────────────────────────────────────────────
           Owned by this widget, not the Duda page element: the trailing crumb is
           the post title, which only the resolved row knows.                  */}
+      {/* The shared trail (2026-10-26), so it is styled exactly like every
+          other widget's — it used to be hand-built here with chevrons. */}
       {showBreadcrumb && (
-        <nav className="bpp-crumbs" aria-label="Breadcrumb">
-          <a className="bpp-crumb-link" href={homeHref}>{homeLabel}</a>
-          <ChevronRight size={24} />
-          <a className="bpp-crumb-link" href={blogBasePath}>{listingLabel}</a>
-          <ChevronRight size={24} />
-          <span className="bpp-crumb-current" aria-current="page">{post.title}</span>
-        </nav>
+        <Breadcrumb
+          className="bpp-crumbs"
+          items={[
+            { label: homeLabel, href: homeHref },
+            { label: listingLabel, href: blogBasePath },
+            { label: post.title },
+          ]}
+        />
       )}
 
       {/* ── Title ────────────────────────────────────────────────────────── */}

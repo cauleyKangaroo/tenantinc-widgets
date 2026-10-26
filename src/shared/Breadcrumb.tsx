@@ -34,8 +34,23 @@ function ensureStyles() {
 .ti-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
   font-size: 16px; line-height: 20px; color: #101318; }
 .ti-crumb { display: flex; align-items: center; gap: 4px; }
-.ti-crumb-link { color: inherit; text-decoration: underline; }
-.ti-crumb-link:hover { text-decoration: none; }
+/* THE breadcrumb style (2026-10-26), the same in every widget that has one —
+   #03 property info, #08 city page, #15 blog listing, #16 blog post, #21
+   storage types: links plain at rest and underlined on hover/keyboard focus;
+   on a phone (no hover) ALWAYS underlined so they read as links. 16/20px and
+   the inherited Poppins 400; "/" separators in the site primary, 10px either
+   side (see .ti-crumb-sep--text).
+   !important because a Duda theme's own a / a:hover rules land on these links
+   too, and this sheet is injected at runtime with no specificity to spare. */
+.ti-crumb-link { color: inherit; text-decoration: none !important; }
+.ti-crumb-link:hover,
+.ti-crumb-link:focus-visible { text-decoration: underline !important; }
+@media (max-width: 768px) {
+  .ti-crumb-link,
+  .ti-crumb-link:hover,
+  .ti-crumb-link:focus,
+  .ti-crumb-link:active { text-decoration: underline !important; }
+}
 /* The action crumb is a real <button> — it opens a panel, so it must not be a
    link — and #02 renders its own "Find Storage" trigger the same way. A button
    therefore needs a FULL host reset to look identical to the <a> crumbs beside
@@ -56,6 +71,12 @@ function ensureStyles() {
   width: auto; min-width: 0; height: auto; min-height: 0; cursor: pointer;
   -webkit-tap-highlight-color: transparent; }
 .ti-crumb-sep { flex-shrink: 0; color: #101318; }
+/* A text separator (the separator prop): the site primary, !important so a
+   theme's span colour cannot override it. */
+.ti-crumb-sep--text { color: var(--color_1, #101318) !important; line-height: 1;
+  /* 6px on top of the trail's 4px flex gaps: 10px between each word and the
+     slash, which a chevron's own side bearing used to provide. */
+  margin: 0 6px; }
 /* 2px, not the page-top trail's 4px. A truncated crumb already leaves a blank of
    up to one character between its ellipsis and the next slash — the leftover when
    text-overflow clips at a whole character but flex sized the box to a fraction.
@@ -85,18 +106,18 @@ function ensureStyles() {
    reads as a rendering fault rather than as a collapsed step. The named crumbs
    absorb it instead, longest first, which is what flex shrinking does by size. */
 .ti-crumbs--hero .ti-crumb--ellipsis { flex: 0 0 auto; }
-/* No underline here, unlike the page-top trail: over a photo it reads as
-   clutter, and the frame draws none.
-   Pinned across hover/focus/active as well. The base rule flips decoration on
-   hover, and a host stylesheet's own a:hover — Duda themes all ship one — lands
-   on these too, which is what made a single crumb light up differently from the
-   rest. Nothing about a hero crumb changes on hover now. */
+/* The hero trail only ever appears on a phone, so its links are ALWAYS
+   underlined (2026-10-26 — the frame drew none, but on a screen with no hover
+   an un-underlined crumb does not read as a link).
+   Pinned across hover/focus/active as well: a host stylesheet's own a:hover —
+   Duda themes all ship one — lands on these too, which is what made a single
+   crumb light up differently from the rest. */
 .ti-crumbs--hero .ti-crumb-link,
 .ti-crumbs--hero .ti-crumb-link:hover,
 .ti-crumbs--hero .ti-crumb-link:focus,
 .ti-crumbs--hero .ti-crumb-link:active {
   color: inherit;
-  text-decoration: none;
+  text-decoration: underline !important;
   background: none;
 }
 .ti-crumbs--hero .ti-crumb-slash { flex-shrink: 0; }
@@ -169,6 +190,13 @@ export interface BreadcrumbProps {
    * themselves — see `collapseMiddle`.
    */
   variant?: 'default' | 'hero';
+  /**
+   * The `default` variant's separator: a text glyph drawn in the site primary
+   * (--color_1), "/" unless given. 'chevron' brings back the design-system
+   * chevron the trail used before 2026-10-26. The `hero` variant keeps its
+   * own white "/".
+   */
+  separator?: string;
   /** Extra class on the <nav>, for a widget that needs its own spacing. */
   className?: string;
 }
@@ -180,7 +208,7 @@ export interface BreadcrumbProps {
  *
  * Renders nothing below two items: "Home" alone is not a trail.
  */
-export function Breadcrumb({ items, variant = 'default', className }: BreadcrumbProps) {
+export function Breadcrumb({ items, variant = 'default', separator = '/', className }: BreadcrumbProps) {
   useEffect(ensureStyles, []);
   if (items.length < 2) return null;
   const hero = variant === 'hero';
@@ -210,7 +238,9 @@ export function Breadcrumb({ items, variant = 'default', className }: Breadcrumb
           >
             {showSep && (hero
               ? <span className="ti-crumb-slash" aria-hidden="true">/</span>
-              : <ChevronRight className="ti-crumb-sep" />)}
+              : separator === 'chevron'
+                ? <ChevronRight className="ti-crumb-sep" />
+                : <span className="ti-crumb-sep ti-crumb-sep--text" aria-hidden="true">{separator}</span>)}
             {isLast || (!c.href && !c.onSelect)
               ? (
                 <span

@@ -50,24 +50,11 @@
   flex-wrap: wrap;
 }
 
-.bpp-crumbs svg {
-  flex-shrink: 0;
-  color: #101318;
-}
-
-.bpp-crumb-link {
-  color: #101318;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.bpp-crumb-link:hover {
-  color: var(--color_1, #f45f30);
-}
-
-.bpp-crumb-current {
-  color: #101318;
-}
+/* The trail itself is @shared/Breadcrumb (type, links, "/" separators) — this
+   rule only places it. The loading skeleton draws the same row by hand, so
+   its slashes copy .ti-crumb-sep--text: site primary, 10px either side. */
+.bpp-crumbs--skel { color: #101318; }
+.bpp-skel-sep { flex-shrink: 0; color: var(--color_1, #101318); margin: 0 6px; line-height: 1; }
 
 /* ── Title ─────────────────────────────────────────────────────────────────── */
 
@@ -553,9 +540,9 @@
 
   /* No breadcrumb on a phone — the Figma draws none, on this page or on the
      blog listing (#15 hides its own at this width for the same reason).
-     Replaces a shrunk-down treatment (14px text, 18px chevrons and an
-     ellipsised post title) that is dead once the row is hidden. */
-  .bpp-crumbs {
+     Two classes deep: @shared/Breadcrumb injects `.ti-crumbs { display: flex }`
+     at run time, after this sheet, and a single class would lose to it. */
+  .bpp-wrapper .bpp-crumbs {
     display: none;
   }
 
