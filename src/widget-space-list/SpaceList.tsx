@@ -68,7 +68,7 @@ export function SpaceList({
   showJunkFeeDisclaimer = false,
   junkFeeCopy = '',
   showUrgencyMessage = true,
-  skipTierPopupForSingle = false,
+  skipTierPopupForSingle = true,
   urgencyThreshold = 5,
   sortBy = 'sizeAsc',
   categoryOrdering = 'spaces',
@@ -205,7 +205,10 @@ export function SpaceList({
       junkFeeCopy.trim() ||
       '* Prices shown exclude applicable taxes and admin fees. Final price confirmed at checkout.',
     showUrgencyMessage,
-    skipTierPopupForSingle: skipTierPopupForSingle === true || skipTierPopupForSingle === 'true',
+    // ON unless the editor turns it off (2026-10-26; was off by default): one
+    // tier means nothing to choose, so Select goes straight to the rental.
+    // Only an explicit false / 'false' from the Duda toggle shows the popup.
+    skipTierPopupForSingle: !(skipTierPopupForSingle === false || skipTierPopupForSingle === 'false'),
     // Duda content-menu numbers can arrive as strings ("5") or blank, so floor it
     // to a positive integer and fall back to 5 on anything unusable.
     urgencyThreshold: (() => {
