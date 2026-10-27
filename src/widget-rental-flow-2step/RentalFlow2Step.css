@@ -1629,6 +1629,10 @@
     /* With no box left there is nothing for a side gutter to hold content away
        from — this is what lets the method panel below span the card. */
     padding-inline: 0;
+    /* Flat on the white page, so no top inset above the "Payment" heading. */
+    padding-top: 0;
+    /* 12px between the stacked items on mobile (22px on desktop). */
+    gap: 12px;
   }
   /* The method panel KEEPS its box (Figma 8538-21125): #F9FAFB behind a 2px
      primary border at radius 12. It was in the rule above and should not have
@@ -1677,7 +1681,7 @@
   .rf2-link-long { display: none; }
   .rf2-link-short { display: inline; }
   .rf2-agree-doc { margin: 0; }
-  .rf2-paygrid { grid-template-columns: 1fr; }
+  .rf2-paygrid { grid-template-columns: 1fr; gap: 12px; }
 }
 
 /* ── Two-column layout: flow + order-summary rail (Figma 01–13) ─────────── */
