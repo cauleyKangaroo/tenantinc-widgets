@@ -1143,7 +1143,9 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px 30px;
+  /* No right padding on desktop: "Account Info" runs to the strip's edge.
+     The mobile block below sets its own padding, so it is unaffected. */
+  padding: 16px 0 16px 30px;
   background: var(--ma-panel);
 }
 

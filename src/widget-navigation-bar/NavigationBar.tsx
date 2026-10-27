@@ -1097,7 +1097,7 @@ export function NavigationBar({
                   <span className="nav-mm-circle">
                     <CreditCardIcon size={22} />
                   </span>
-                  <span className="nav-mm-quick-label">Billpay</span>
+                  <span className="nav-mm-quick-label">Pay Bill</span>
                 </a>
               </div>
 
