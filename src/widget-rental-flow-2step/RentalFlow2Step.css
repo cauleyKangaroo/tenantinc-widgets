@@ -630,6 +630,12 @@
      the 16px .rf2-link asks for was never applied. Pinned here. */
   font-size: 16px;
 }
+/* The protection-plan and key-share "Learn More" links at 12px on a phone.
+   Scoped by their wrappers so the lease "View Document" button keeps 16px. */
+@media (max-width: 640px) {
+  .rf2-learn .rf2-link--btn,
+  .rf2-tip-anchor .rf2-link--btn { font-size: 12px; }
+}
 
 /* Contact form (label-above fields) */
 .rf2-form { display: flex; flex-direction: column; gap: 13px; margin-bottom: 30px; }
