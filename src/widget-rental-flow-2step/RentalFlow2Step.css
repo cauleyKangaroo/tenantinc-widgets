@@ -3080,7 +3080,10 @@
    rail in this very widget keeps the 14px — only the sheet is tight enough to
    need the smaller line. */
 .rfm-sheet .ts-feat { font-size: 12px; }
-.rfm-sheet .ts-card-top { flex-wrap: wrap; gap: 12px; }
+/* nowrap: with cents ($64.00) the prices column no longer fit beside the
+   amenities and wrapped beneath them. The left column (min-width: 0) narrows
+   and its lines wrap instead. */
+.rfm-sheet .ts-card-top { flex-wrap: nowrap; gap: 12px; }
 .rfm-sheet .ts-card-prices { height: auto; }
 /* Prices drop to sit on the last amenity tick rather than hanging near the top
    with dead space beneath them. The right column already stretches to the
