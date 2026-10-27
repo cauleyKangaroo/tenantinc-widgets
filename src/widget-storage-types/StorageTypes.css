@@ -46,8 +46,13 @@
   background: #f4f6f8;
 }
 .st-index-title {
-  margin: 0 !important;
-  font-size: clamp(32px, 4.2vw, 80px) !important;
+  /* auto, so the 1000px measure centres in the widget. Matches .bpg-title on
+     the blog listing page — the two are the same kind of page heading. */
+  margin: 0 auto !important;
+  max-width: 1000px !important;
+  /* Capped at 50 rather than fixed: see .bpg-title in BlogsPage.css. The vw
+     middle still shrinks the heading in a narrow Duda column. */
+  font-size: clamp(32px, 4.2vw, 50px) !important;
   font-weight: 600 !important;
   line-height: 1.25 !important;
   color: #101318 !important;
