@@ -338,8 +338,8 @@
   display: flex;
   /* Box per the error frame (W 703, padding 12 / 39 / 12 / 15, 10px between
      the mark and the text): a pale red tint rather than a white card, icon
-     centred on the line. */
-  align-items: center;
+     at the top. */
+  align-items: flex-start;
   gap: 10px;
   padding: 12px 39px 12px 15px;
   background: #f3e7e9;

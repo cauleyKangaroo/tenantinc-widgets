@@ -284,10 +284,10 @@
 
 /* The site's error tag, as the payment / rental-flow banners: #f3e7e9,
    padding 12 / 39 / 12 / 15, 10px between the 24px alert mark and the text,
-   10px radius, icon centred. Full width of the footer, so no side inset. */
+   10px radius, icon at the top. Full width of the footer, so no side inset. */
 .pi-msg-error {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   margin: 0;
   padding: 12px 39px 12px 15px;
