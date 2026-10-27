@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { UserCircleIcon } from './icons';
 import { clearSession, readSession } from '@shared/accountSession';
+import { accountLinkProps } from '@shared/accountLink';
 
 // ===========================================================================
 // The top bar's "My Account" item — a menu of My Account, Pay Bill and Logout.
@@ -29,13 +30,18 @@ export function AccountMenu({
   accountHref = '/my-account',
   payBillHref,
   loginHref = '/login',
+  gated = false,
 }: {
   label?: string;
   accountHref?: string;
   /** Defaults to the account page's payment view. */
   payBillHref?: string;
-  /** Where Logout lands once the session is cleared. */
+  /** Where Logout lands once the session is cleared, and where My Account and
+   *  Pay Bill go instead of the account page when there is no session. */
   loginHref?: string;
+  /** Mirrors #19's gate. False (the default) keeps the old behaviour: the rows
+   *  point at the account page and #19 decides. */
+  gated?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
@@ -76,8 +82,11 @@ export function AccountMenu({
 
       {open && (
         <div className="nav-acct-menu" role="menu">
-          <a role="menuitem" className="nav-acct-opt" href={accountHref}>My Account</a>
-          <a role="menuitem" className="nav-acct-opt" href={payHref}>Pay Bill</a>
+          {/* Same destinations as before, but resolved against the session so a
+              signed-out reader goes straight to login instead of loading the
+              account page and being bounced. */}
+          <a role="menuitem" className="nav-acct-opt" {...accountLinkProps(accountHref, loginHref, gated)}>My Account</a>
+          <a role="menuitem" className="nav-acct-opt" {...accountLinkProps(payHref, loginHref, gated)}>Pay Bill</a>
           {signedIn ? (
             <a
               role="menuitem"
