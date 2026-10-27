@@ -630,6 +630,12 @@
      the 16px .rf2-link asks for was never applied. Pinned here. */
   font-size: 16px;
 }
+/* The protection-plan and key-share "Learn More" links at 12px on a phone.
+   Scoped by their wrappers so the lease "View Document" button keeps 16px. */
+@media (max-width: 640px) {
+  .rf2-learn .rf2-link--btn,
+  .rf2-tip-anchor .rf2-link--btn { font-size: 12px; }
+}
 
 /* Contact form (label-above fields) */
 .rf2-form { display: flex; flex-direction: column; gap: 13px; margin-bottom: 30px; }
@@ -1629,6 +1635,10 @@
     /* With no box left there is nothing for a side gutter to hold content away
        from — this is what lets the method panel below span the card. */
     padding-inline: 0;
+    /* Flat on the white page, so no top inset above the "Payment" heading. */
+    padding-top: 0;
+    /* 12px between the stacked items on mobile (22px on desktop). */
+    gap: 12px;
   }
   /* The method panel KEEPS its box (Figma 8538-21125): #F9FAFB behind a 2px
      primary border at radius 12. It was in the rule above and should not have
@@ -1677,7 +1687,17 @@
   .rf2-link-long { display: none; }
   .rf2-link-short { display: inline; }
   .rf2-agree-doc { margin: 0; }
-  .rf2-paygrid { grid-template-columns: 1fr; }
+  .rf2-paygrid { grid-template-columns: 1fr; gap: 12px; }
+  /* "I have my own insurance" in the closed control at the 15px the selected
+     coverage options show at this width. */
+  .rf2-plan-own-sel { font-size: 15px; }
+  /* Move-in cost line items (Admin Fee, Protection, Total Tax…) sit on the
+     bottom of their row, with line-height 1 so no leading pads the text off
+     it — except Rent (Prorated), whose label/dates pair (.hb-money-label)
+     keeps its spacing. !important for the same Duda-theme reason as their
+     14px size below. Scoped to .rf-wrapper: .hb-money is shared with #14. */
+  .rf-wrapper .hb-money-row:not(.hb-money-total) { align-items: flex-end; }
+  .rf-wrapper .hb-money-row:not(.hb-money-total):not(:has(.hb-money-label)) { line-height: 1 !important; }
 }
 
 /* ── Two-column layout: flow + order-summary rail (Figma 01–13) ─────────── */
@@ -2513,7 +2533,7 @@
 .rfc-error-panel {
   /* The site's error tag (as the other flow banners), the message and its
      sub-line stacked beside the alert mark. */
-  display: flex; align-items: center; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 39px 12px 15px; border-radius: 10px; background: #f3e7e9;
   margin-bottom: 18px;
 }
 .rfc-error-ico { flex: 0 0 auto; color: #d32f2f; }
@@ -2569,11 +2589,11 @@
 .rf2-gp-note--error { color: #d32f2f; }
 /* An error note as the site's error tag (the other flow banners): #f3e7e9,
    padding 12 / 39 / 12 / 15, 10px between the 24px alert mark and the text,
-   10px radius, icon centred. A modifier, so the error notes not yet converted
+   10px radius, icon at the top. A modifier, so the error notes not yet converted
    keep their plain line. The payment section's own 22px gap spaces it. */
 .rf2-gp-note--tag {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 12px 39px 12px 15px;
   border-radius: 10px;
@@ -2623,11 +2643,11 @@
 .rf-form-error { font-size: 14px; color: #d32f2f; margin: 4px 0 0; }
 /* As the site's error tag (the payment / space banners): #f3e7e9, padding
    12 / 39 / 12 / 15, 10px between the 24px alert mark and the text, 10px
-   radius, icon centred. A modifier, so the plain .rf-form-error lines that
+   radius, icon at the top. A modifier, so the plain .rf-form-error lines that
    have not been converted keep their look. */
 .rf-form-error--tag {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   /* Clear of the Rent / Reserve buttons above it; the plain line's 4px read
      as part of the button group once it became a filled box. */
@@ -2656,7 +2676,7 @@
    loading line; centred text beside a left-hand icon reads as misaligned. */
 .rf-availability--error {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 12px 39px 12px 15px;
   border-radius: 10px;
@@ -2683,10 +2703,10 @@
    #d32f2f the other validation messages use (.rf-form-error). */
 /* The site's error tag, as the other flow banners: #f3e7e9, padding
    12 / 39 / 12 / 15, 10px between the 24px alert mark and the text, 10px
-   radius, icon centred; 16px clear of the "I agree" bar above it. */
+   radius, icon at the top; 16px clear of the "I agree" bar above it. */
 .rf2-agree-error {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   margin: 16px 0 0;
   padding: 12px 39px 12px 15px;
