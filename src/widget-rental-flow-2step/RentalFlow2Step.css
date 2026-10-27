@@ -1682,6 +1682,9 @@
   .rf2-link-short { display: inline; }
   .rf2-agree-doc { margin: 0; }
   .rf2-paygrid { grid-template-columns: 1fr; gap: 12px; }
+  /* "I have my own insurance" in the closed control at the 15px the selected
+     coverage options show at this width. */
+  .rf2-plan-own-sel { font-size: 15px; }
 }
 
 /* ── Two-column layout: flow + order-summary rail (Figma 01–13) ─────────── */
