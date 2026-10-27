@@ -79,12 +79,21 @@
 }
 
 .bpg-title {
-  margin: 0 !important;
+  /* auto, not 0, so the 1000px measure below sits in the middle of the widget
+     rather than against its left edge. */
+  margin: 0 auto !important;
+  /* A full-width 60px line ran the whole 1330px column. 1000px is a measure a
+     heading can be read across in one go. */
+  max-width: 1000px !important;
   /* The frame is 80px on a 1347px canvas, and this widget can sit in a much
      narrower Duda column where 80px is unreadable. Same clamp as #16's
      .bpp-title, which came from the same 80px origin — one scale across both
-     blog pages, and no breakpoint per size. */
-  font-size: clamp(32px, 4.2vw, 80px) !important;
+     blog pages, and no breakpoint per size.
+     CAPPED AT 50, not set to a flat 50px: the cap is what was too big (60px at
+     1440, 80 on a wide screen), while the 4.2vw middle is what keeps the
+     heading readable in a narrow column. A flat 50px would put 50px type on a
+     390px phone. */
+  font-size: clamp(32px, 4.2vw, 50px) !important;
   font-weight: 600 !important;
   line-height: 1.25 !important;
   color: #101318 !important;

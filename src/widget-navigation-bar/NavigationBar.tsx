@@ -36,6 +36,7 @@ import { INTERNAL_PROPERTIES_COLLECTION } from '@shared/internalProperties';
 import { imageUrl } from '@shared/dudaCollections';
 import { fetchDudaNavigation, hasNavApi, type DudaNavItem } from '@shared/dudaNav';
 import { Shimmer } from '@shared/Shimmer';
+import { accountLinkProps } from '@shared/accountLink';
 import { navTreeToLinks } from './navigationMapper';
 import { FindStorageMegaMenu, demoLocationTree, type DemoPortfolio } from './FindStorageMegaMenu';
 
@@ -326,8 +327,14 @@ export interface NavigationBarProps extends ApiCredProps {
   /** Property whose phone number is pulled from the `Properties` collection.
    *  The `phone` prop/default remains the fallback. */
   propertyId?: string;
-  /** Duda's data.siteId — feeds the Find Storage menu's live ratings. */
+  /** Duda's data.siteId — feeds the Find Storage menu's live ratings, and is
+   *  half of the login API's readiness check. */
   siteId?: string;
+  /** Where a signed-out visitor goes instead of the account page. */
+  loginUrl?: string;
+  /** Duda's data.inEditor. An editor arranging the page has no session and
+   *  must not be bounced to /login — the same exemption #19 makes. */
+  inEditor?: boolean;
   /** The proxy base (the site's `login_api_base`) that answers the reviews
    *  route the Find Storage menu's ratings come from. */
   login_api_base?: string;
@@ -436,6 +443,8 @@ export function NavigationBar({
   api_key,
   siteId,
   login_api_base,
+  loginUrl = '/login',
+  inEditor = false,
 }: NavigationBarProps) {
   // REST creds for the Email circle's "Send us a Message" modal, as #03 does.
   useMemo(
@@ -868,8 +877,15 @@ export function NavigationBar({
 
   // A Duda JS tab can still pass '' or '#' for these, so the default alone is
   // not enough.
-  const payBillHref = urlOr(payBillUrl, MY_ACCOUNT_PATH);
-  const accountHref = urlOr(accountUrl, MY_ACCOUNT_PATH);
+  /* Mirrors #19's own gate, `loginApiReady(api) && !inEditor` — with the login
+     API unconfigured #19 is not gated and shows the account page to everyone,
+     so sending anyone to /login would be inventing a rule it does not apply. */
+  const accountGated = !!(login_api_base && siteId) && !inEditor;
+  /* Resolved now AND re-asked on click: a signed-out visitor goes straight to
+     /login instead of loading the account page, watching it render nothing,
+     and being redirected. See @shared/accountLink. */
+  const payBillLink = accountLinkProps(urlOr(payBillUrl, MY_ACCOUNT_PATH), loginUrl, accountGated);
+  const accountLink = accountLinkProps(urlOr(accountUrl, MY_ACCOUNT_PATH), loginUrl, accountGated);
 
   // Secondary-bar utility row (also reused in the mobile drawer when the top bar is on).
   // Each item is gated by its own visibility toggle from the content menu.
@@ -888,13 +904,13 @@ export function NavigationBar({
         </a>
       )}
       {showPayBill && (
-        <a className="nav-top-item" href={payBillHref}>
+        <a className="nav-top-item" {...payBillLink}>
           <CreditCardIcon size={24} />
           <span>{payBillLabel}</span>
         </a>
       )}
       {showLanguage && <LanguageMenu enLabel={language} />}
-      {showAccount && <AccountMenu label={accountLabel} />}
+      {showAccount && <AccountMenu label={accountLabel} loginHref={loginUrl} gated={accountGated} />}
     </div>
   );
 
@@ -908,7 +924,7 @@ export function NavigationBar({
         </a>
       )}
       {showPayBill && (
-        <a className="nav-paybill" href={payBillHref}>
+        <a className="nav-paybill" {...payBillLink}>
           {payBillLabel}
         </a>
       )}
@@ -924,7 +940,7 @@ export function NavigationBar({
         </button>
       )}
       {showAccount && (
-        <a className="nav-icon-btn" href={accountHref} aria-label="Account">
+        <a className="nav-icon-btn" {...accountLink} aria-label="Account">
           <UserCircleIcon size={40} />
         </a>
       )}
