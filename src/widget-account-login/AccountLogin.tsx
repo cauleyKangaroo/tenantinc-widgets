@@ -1022,12 +1022,17 @@ export function AccountLogin({
                 label still rises when a password manager fills the field
                 without firing a change event. */}
             <div className={`al-field${filled ? ' al-field--filled' : ''}${identifierValid ? ' al-field--valid' : ''}`}>
+              {/* Keyboard from fieldMode (what the field ACCEPTS), never from
+                  `kind` (what's typed so far): empty reads as 'phone', and a
+                  tel keypad has no letters — on a phone an email could never
+                  be STARTED. The mixed mode gets the email keyboard, which
+                  carries @ and digits. */}
               <input
                 id="al-identifier"
                 className="al-field-input"
-                type={kind === 'email' ? 'email' : 'tel'}
-                inputMode={kind === 'email' ? 'email' : 'tel'}
-                autoComplete={kind === 'email' ? 'email' : 'tel'}
+                type={fieldMode === 'phone' ? 'tel' : fieldMode === 'email' ? 'email' : 'text'}
+                inputMode={fieldMode === 'phone' ? 'tel' : 'email'}
+                autoComplete={fieldMode === 'phone' ? 'tel' : fieldMode === 'email' ? 'email' : 'username'}
                 value={identifier}
                 onChange={(e) => handleIdentifierChange(e.target.value)}
                 aria-invalid={!!identifyError}
