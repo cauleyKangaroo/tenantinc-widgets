@@ -1685,6 +1685,13 @@
   /* "I have my own insurance" in the closed control at the 15px the selected
      coverage options show at this width. */
   .rf2-plan-own-sel { font-size: 15px; }
+  /* Move-in cost line items (Admin Fee, Protection, Total Tax…) sit on the
+     bottom of their row, with line-height 1 so no leading pads the text off
+     it — except Rent (Prorated), whose label/dates pair (.hb-money-label)
+     keeps its spacing. !important for the same Duda-theme reason as their
+     14px size below. Scoped to .rf-wrapper: .hb-money is shared with #14. */
+  .rf-wrapper .hb-money-row:not(.hb-money-total) { align-items: flex-end; }
+  .rf-wrapper .hb-money-row:not(.hb-money-total):not(:has(.hb-money-label)) { line-height: 1 !important; }
 }
 
 /* ── Two-column layout: flow + order-summary rail (Figma 01–13) ─────────── */

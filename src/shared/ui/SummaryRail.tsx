@@ -38,6 +38,9 @@ export interface SummaryRailProps {
   promoPrice?: number;
   /** Price column labels; default STANDARD / PROMO RATE. */
   priceLabels?: { standard: string; promo: string };
+  /** Always show cents ("$64.00"), as the money breakdown does. Off by
+   *  default, so whole prices stay "$64" where the rail does not opt in. */
+  priceDecimals?: boolean;
   /** Promo banner text. */
   promo?: string;
   /** Seconds left on a unit hold; renders the countdown bar (rental only). */
@@ -68,12 +71,14 @@ export function SummaryRail({
   standardPrice,
   promoPrice,
   priceLabels = { standard: 'STANDARD', promo: 'PROMO RATE' },
+  priceDecimals = false,
   promo,
   holdRemaining,
   showPayments = true,
   heroSlot,
   children,
 }: SummaryRailProps) {
+  const fmt = (n: number) => (priceDecimals ? `$${n.toFixed(2)}` : formatPrice(n));
   return (
     <aside className="ts-card">
       {holdRemaining != null && (
@@ -131,17 +136,17 @@ export function SummaryRail({
                   <>
                     <div className="ts-price-instore">
                       <span className="ts-price-label">{priceLabels.standard}</span>
-                      <span className="ts-price-strike">{standardPrice != null ? formatPrice(standardPrice) : null}</span>
+                      <span className="ts-price-strike">{standardPrice != null ? fmt(standardPrice) : null}</span>
                     </div>
                     <span className="ts-price-sep" />
                     <div className="ts-price-online">
                       <span className="ts-price-label">{priceLabels.promo}</span>
-                      <span className="ts-price-amount">{formatPrice(promoPrice)}</span>
+                      <span className="ts-price-amount">{fmt(promoPrice)}</span>
                     </div>
                   </>
                 ) : (
                   <div className="ts-price-online">
-                    <span className="ts-price-amount">{standardPrice != null ? formatPrice(standardPrice) : null}</span>
+                    <span className="ts-price-amount">{standardPrice != null ? fmt(standardPrice) : null}</span>
                   </div>
                 )}
               </div>

@@ -138,6 +138,8 @@ export function OrderRail({
          pages read the same. "ONLINE" is ours — the listing has no label for
          that column. */
       priceLabels={{ standard: instoreLabel || 'IN-STORE', promo: 'ONLINE' }}
+      /* Cents, as the money breakdown beneath shows them. */
+      priceDecimals
       promo={selection?.promo}
     >
       <div className="ts-card-breakdown">
