@@ -771,7 +771,7 @@ export function PropertyInfo(props: Props) {
      Pointer events rather than touch: one code path covers finger, mouse and
      pen. `touch-action: pan-y` on the frame is what keeps the page scrollable
      — the browser hands us horizontal gestures and keeps vertical ones. */
-  const galleryRef = useRef<HTMLButtonElement>(null);
+  const galleryRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<
     { x: number; y: number; w: number; axis: 'none' | 'x' | 'y'; dx: number } | null
   >(null);
@@ -780,7 +780,7 @@ export function PropertyInfo(props: Props) {
   /* A drag ends in a click on the button, which would open the lightbox. */
   const draggedRef = useRef(false);
 
-  const onGalleryDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+  const onGalleryDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     // Arrows and dots are inside the frame and have their own jobs.
     if ((e.target as HTMLElement).closest?.('.pi-gallery-nav')) return;
@@ -791,7 +791,7 @@ export function PropertyInfo(props: Props) {
     draggedRef.current = false;
   };
 
-  const onGalleryMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+  const onGalleryMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = dragRef.current;
     if (!d) return;
     const dx = e.clientX - d.x;
@@ -818,7 +818,7 @@ export function PropertyInfo(props: Props) {
     setDragDx(d.dx);
   };
 
-  const onGalleryUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+  const onGalleryUp = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = dragRef.current;
     dragRef.current = null;
     setDragDx(0);
@@ -1065,7 +1065,7 @@ export function PropertyInfo(props: Props) {
             <PhotoExpandIcon size={48} />
           </button>
           <div className="pi-hero-content">
-            <p className="pi-hero-name">{displayName}</p>
+            <h2 className="pi-hero-name">{displayName}</h2>
             <div className="pi-hero-meta">
               <div className="pi-hero-rating">
                 <span className="pi-hero-score">{displayRating}</span>
@@ -1092,7 +1092,7 @@ export function PropertyInfo(props: Props) {
     <div className="pi-row">
       {/* Info column */}
       <div className="pi-info">
-        <p className="pi-name">{displayName}</p>
+        <h2 className="pi-name">{displayName}</h2>
 
         <div className="pi-rating">
           <span className="pi-rating-score">{displayRating}</span>
@@ -1161,7 +1161,13 @@ export function PropertyInfo(props: Props) {
                 <span className="pi-skel-block pi-gallery-skel" />
               </div>
             ) : (
-            <button
+            /* A DIV, not a button (axe: nested-interactive, 13 pages). It held
+               the prev/next arrows and the dots, so a button contained three
+               more controls — invalid, and ambiguous to a screen reader.
+               Keyboard access to the lightbox is not lost: .pi-gallery-open
+               below is a real button that does the same thing, invisible until
+               focused. Mouse and touch behaviour is unchanged. */
+            <div
               className="pi-gallery"
               ref={galleryRef}
               onClick={() => {
@@ -1203,19 +1209,28 @@ export function PropertyInfo(props: Props) {
               <span className="pi-gallery-overlay" />
               <span className="pi-gallery-expand"><PhotoExpandIcon size={48} /></span>
               <span className="pi-gallery-nav" onClick={(e) => e.stopPropagation()}>
-                <span className="pi-gallery-arrow pi-gallery-arrow--prev" role="button" tabIndex={0} aria-label="Previous photo" onClick={prev}>
+                <button type="button" className="pi-gallery-arrow pi-gallery-arrow--prev" aria-label="Previous photo" onClick={prev}>
                   <ChevronRight size={32} />
-                </span>
+                </button>
                 <span className="pi-gallery-dots">
                   {slides.map((_, i) => (
                     <span key={i} className={`pi-gallery-dot${i === index ? ' active' : ''}`} onClick={() => setIndex(i)} />
                   ))}
                 </span>
-                <span className="pi-gallery-arrow" role="button" tabIndex={0} aria-label="Next photo" onClick={next}>
+                <button type="button" className="pi-gallery-arrow" aria-label="Next photo" onClick={next}>
                   <ChevronRight size={32} />
-                </span>
+                </button>
               </span>
-            </button>
+              {/* The keyboard route into the lightbox, now that the container
+                  is not itself a button. Invisible until focused. */}
+              <button
+                type="button"
+                className="pi-gallery-open"
+                onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
+              >
+                Open photo gallery
+              </button>
+            </div>
             )}
             {/* Clicking the link swaps it for the reservation-code lookup
                 (Figma 9697-22507); Escape puts the link back. */}
@@ -1316,7 +1331,7 @@ export function PropertyInfo(props: Props) {
           </button>
         </div>
         <div className="pi-m-hero-content">
-          <p className="pi-m-name">{displayName}</p>
+          <h2 className="pi-m-name">{displayName}</h2>
           <div className="pi-m-rating">
             <span className="pi-m-score">{displayRating}</span>
             <Stars rating={displayRating} width={77} />

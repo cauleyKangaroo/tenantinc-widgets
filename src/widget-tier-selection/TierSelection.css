@@ -1251,8 +1251,8 @@
      single class. */
   .ts-modal-title {
     display: block !important;
-    min-width: 0;
-    margin: 0;
+    min-width: 0 !important;
+    margin: 0 !important;
     text-align: left !important;
     font-size: clamp(16px, calc((100vw - 80px) / 13.3), 24px) !important;
     white-space: nowrap !important;

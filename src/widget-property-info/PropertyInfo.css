@@ -36,11 +36,11 @@
 }
 
 .pi-name {
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1.2;
-  margin: 0 0 4px;
-  color: #101318;
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  margin: 0 0 4px !important;
+  color: #101318 !important;
 }
 
 .pi-rating {
@@ -1026,11 +1026,11 @@ button.pi-lb-img { display: flex; }
 }
 
 .pi-hero-name {
-  margin: 0 0 8px;
-  font-size: 40px;
-  font-weight: 700;
-  line-height: 50px;
-  color: #fff;
+  margin: 0 0 8px !important;
+  font-size: 40px !important;
+  font-weight: 700 !important;
+  line-height: 50px !important;
+  color: #fff !important;
 }
 
 .pi-hero-meta {
@@ -1308,15 +1308,15 @@ iframe.pi-m-hero-img { border: 0; z-index: 0; }
 }
 
 .pi-m-name {
-  margin: 0;
-  min-width: 0;
+  margin: 0 !important;
+  min-width: 0 !important;
   /* Wraps — the frame runs a long name onto a second line — but never past the
      edge, and a third line is cut rather than pushing the rating off. */
-  overflow-wrap: anywhere;
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: #fff;
+  overflow-wrap: anywhere !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: #fff !important;
 }
 
 .pi-m-rating {
@@ -1546,4 +1546,48 @@ iframe.pi-lb-img { position: relative; inset: auto; }
   border-left: 7px solid #fff;
   border-top: 5px solid transparent;
   border-bottom: 5px solid transparent;
+}
+
+/* The gallery is a <div> now, not a <button> (it contained the arrows and dots,
+   which axe flags as nested interactive controls). These two rules keep that
+   change invisible. */
+/* The arrows were <span role=button>; as real <button>s they would inherit the
+   UA's border, background, padding and font. */
+.pi-wrapper .pi-gallery-arrow {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+/* Keyboard-only route into the lightbox, replacing the one lost when the
+   container stopped being a button. Off-screen until focused, then it lands
+   as a visible control rather than moving focus somewhere invisible. */
+.pi-wrapper .pi-gallery-open {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 3;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  background: none;
+  color: transparent;
+}
+.pi-wrapper .pi-gallery-open:focus-visible {
+  width: auto;
+  height: auto;
+  clip: auto;
+  overflow: visible;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #101318;
+  color: #ffffff;
+  font: 600 14px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  cursor: pointer;
 }

@@ -391,7 +391,7 @@ export function StorageTypeLocations({
   // Built from props alone, so it is shown while the rows load as well.
   const header = (
     <>
-      <h2 className="stl-heading">{title}</h2>
+      <h1 className="stl-heading">{title}</h1>
       <p className="stl-sub">
         {emphasizedCopy ? <strong className="stl-sub-emphasis">{emphasizedCopy}</strong> : null}
         {emphasizedCopy && regularCopy ? ' ' : null}

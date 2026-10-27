@@ -222,7 +222,24 @@ function SourceColumn({ source }: { source: ReviewSource }) {
           }}
         >
           {pages.map((page, i) => (
-            <div className="rw-track-page" key={i} aria-hidden={i === carousel.index ? undefined : true}>
+            /* aria-hidden alone left the off-screen pages TABBABLE: the cards
+               carry a "See more" button and a "Read more" link, so a keyboard
+               user tabbed into controls no screen reader would announce (axe:
+               aria-hidden-focus, 13 elements across 10 pages).
+               `inert` is set on the node rather than passed as a prop because
+               React 18 does not know the attribute; it takes the whole subtree
+               out of the tab order AND out of the a11y tree, which is exactly
+               what an off-screen carousel page should be. */
+            <div
+              className="rw-track-page"
+              key={i}
+              aria-hidden={i === carousel.index ? undefined : true}
+              ref={(el) => {
+                if (!el) return;
+                if (i === carousel.index) el.removeAttribute('inert');
+                else el.setAttribute('inert', '');
+              }}
+            >
               <div className="rw-column-cards">
                 {page.map((review) => (
                   <ReviewCard key={review.id} review={review} source={source} />

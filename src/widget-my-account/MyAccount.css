@@ -2531,13 +2531,13 @@
   border-bottom: 1px solid var(--hb-cloud-darker, #dfe3e8);
 }
 .ma-confirm__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: #101318;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #101318 !important;
 }
 .ma-confirm__warn { width: 20px; height: 20px; flex: 0 0 auto; color: var(--hb-text-night, #101318); }
 .ma-confirm__close {
