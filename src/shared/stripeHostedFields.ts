@@ -313,6 +313,13 @@ export async function mountStripeBankElement(opts: {
       },
       async submit(zip?: string) {
         try {
+          /* NEVER mint without the ZIP: the payments API rejects a pm whose
+             billing_details carry no postal code, and a pm is single-use —
+             minting one that cannot be charged just burns it. The form gates
+             on the ZIP anyway; this catches the dev skipValidation() bypass
+             and any future caller that forgets. */
+          const postalCode = zip?.trim();
+          if (!postalCode) return { ok: false, message: 'Enter your billing ZIP code.' };
           const s = await elements.submit();
           if (s?.error) return { ok: false, message: s.error.message || GENERIC_BANK_DECLINE };
           const r = await stripe.createPaymentMethod({
@@ -320,7 +327,7 @@ export async function mountStripeBankElement(opts: {
             // The billing ZIP from OUR field — see the handle's submit() doc.
             // Only the address: name/email are the element's own fields, and
             // params must not repeat what the element collects.
-            ...(zip?.trim() ? { params: { billing_details: { address: { postal_code: zip.trim() } } } } : {}),
+            params: { billing_details: { address: { postal_code: postalCode } } },
           });
           if (r.error || !r.paymentMethod?.id) {
             return { ok: false, message: r.error?.message || GENERIC_BANK_DECLINE };
