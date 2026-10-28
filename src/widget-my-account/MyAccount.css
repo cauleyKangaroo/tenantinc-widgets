@@ -1003,7 +1003,7 @@
   align-items: center;
   gap: 8px;
   min-height: 30px;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
   color: #fff;
@@ -1183,6 +1183,9 @@
      card whatever the amount beside it. Inset 30px, mirroring the strip's
      left padding. */
   .ma-unit__footer .ma-btn-40 { margin-left: auto; margin-right: 30px; }
+  /* No button: the amount is last, and with the strip's zero right padding it
+     ran under the selection ring and was clipped. Same 30px inset. */
+  .ma-unit__dueAmount:last-child { margin-right: 30px; }
 }
 
 .ma-unit__dueAmount {
@@ -1229,6 +1232,10 @@
   line-height: 1.2 !important;
   color: var(--hb-text-night) !important;
 }
+
+/* Phone-only space picker on "Space #n" (AccountInfoPanel's SpacePicker);
+   shown in the ≤720px block. Desktop switches spaces from the sidebar. */
+.ma-spacepick { display: none; }
 
 .ma-account__rule {
   height: 0;
@@ -1511,6 +1518,8 @@
   line-height: 1.2;
   color: var(--hb-grayscale-medium);
   white-space: nowrap;
+  /* Centred in the 42px bar; the shared cell rule above tops it. */
+  vertical-align: middle;
 }
 .ma-act__head th:first-child { border-radius: 12px 0 0 12px; }
 .ma-act__head th:last-child { border-radius: 0 12px 12px 0; }
@@ -2082,6 +2091,26 @@
     background: #fff;
   }
   .ma-account__title { font-size: 22px !important; }
+  /* More than one space: the title becomes the picker (title + chevron). */
+  .ma-account__title--desk { display: none; }
+  .ma-spacepick { display: block; position: relative; }
+  .ma-spacepick__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    background: none;
+    border: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+  .ma-spacepick__btn:focus-visible { outline: 2px solid var(--hb-text-night); outline-offset: 2px; border-radius: 4px; }
+  /* Down closed, up open — the same chevron and turn as Show Billing Details. */
+  .ma-spacepick__chev { width: 24px; height: 24px; transform: rotate(90deg); transition: transform 150ms ease; }
+  .ma-spacepick__chev--up { transform: rotate(-90deg); }
+  /* Opens under the title, from its left edge. */
+  .ma-spacepick__menu { left: 0; right: auto; min-width: 200px; }
   /* NOT flex-direction: column any more. The columns wrap on their own now (see
      .ma-account__cols), and in a column-direction container a flex-basis is a
      HEIGHT — the 367px basis would have become a 367px-tall contact block.

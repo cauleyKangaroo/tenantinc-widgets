@@ -38,15 +38,20 @@ const STRIPE_JS_URL = 'https://js.stripe.com/v3/';
 interface StripeElementLike {
   mount(selector: string): void;
   unmount(): void;
-  on(event: 'ready' | 'change', handler: (e?: { complete?: boolean }) => void): void;
+  on(event: 'ready' | 'change' | 'loaderror', handler: (e?: { complete?: boolean; error?: { message?: string } }) => void): void;
 }
 interface StripeElementsLike {
-  create(type: 'card', options: Record<string, unknown>): StripeElementLike;
+  create(type: 'card' | 'payment', options: Record<string, unknown>): StripeElementLike;
+  /** Deferred mode only: re-prices the element (e.g. the quote changed). */
+  update(options: Record<string, unknown>): void;
+  /** Deferred mode only: validates the element before createPaymentMethod. */
+  submit(): Promise<{ error?: { message?: string } } | undefined>;
 }
 interface StripePaymentMethodResult {
   paymentMethod?: {
     id: string;
     card?: { brand?: string; last4?: string; exp_month?: number; exp_year?: number };
+    us_bank_account?: { last4?: string; bank_name?: string };
   };
   error?: { message?: string };
 }
@@ -199,6 +204,136 @@ export async function createStripeBankAccount(
     return { ok: false, message: 'The bank account could not be verified. Please check the details and try again.' };
   }
 }
+
+export interface StripeBankElementHandle {
+  /** Deferred mode prices the element, so a changed quote re-prices it here. */
+  updateAmount(amountCents: number): void;
+  /** elements.submit() + createPaymentMethod({elements}). One attempt per call. */
+  submit(): Promise<
+    { ok: true; paymentMethodId: string; last4: string; bankName: string } | { ok: false; message: string }
+  >;
+  unmount(): void;
+}
+
+/**
+ * Stripe's OWN Pay-by-Bank UI — the Payment Element restricted to
+ * `us_bank_account`, in deferred-intent mode (`mode: 'payment'`,
+ * `paymentMethodCreation: 'manual'`), which needs ONLY the publishable key:
+ * no server-made intent or client secret. Verified live against the sandbox
+ * gateway's own keys, 2026-10-28: the element renders Stripe's bank search
+ * (Financial Connections — log into the bank, pick the account) plus its
+ * "enter details manually" fallback and the ACH mandate text, and
+ * createPaymentMethod({elements}) mints a us_bank_account pm with a
+ * financial_connections_account attached — the linked kind
+ * `verification_method=instant` requires, which raw-detail pms are not.
+ *
+ * Same fail-soft contract as mountStripeCard: resolves null when Stripe.js
+ * cannot load or the element errors at mount, and the caller falls back.
+ */
+export async function mountStripeBankElement(opts: {
+  config: StripeGatewayConfig;
+  /** Deferred mode requires a positive integer amount. */
+  amountCents: number;
+  /** CSS selector of the host the element mounts into — must be in the DOM. */
+  target: string;
+  /** Prefill for the element's own Full name / Email fields (it collects
+   *  both itself for us_bank_account). */
+  defaultName?: string;
+  defaultEmail?: string;
+  /** The element has rendered; the caller can drop its skeleton. */
+  onReady(): void;
+  /** Stripe's own completeness — true once an account is connected/entered. */
+  onComplete?(complete: boolean): void;
+}): Promise<StripeBankElementHandle | null> {
+  const Ctor = await loadStripeJs();
+  if (!Ctor) return null;
+
+  let stripe: StripeLike;
+  let elements: StripeElementsLike;
+  let element: StripeElementLike;
+  try {
+    stripe = Ctor(opts.config.publicKey, { stripeAccount: opts.config.merchantAccount });
+    elements = stripe.elements({
+      mode: 'payment',
+      amount: Math.max(50, Math.round(opts.amountCents)),
+      currency: opts.config.currency || 'usd',
+      // Lets createPaymentMethod run without an intent — the pm id is all the
+      // lease API wants.
+      paymentMethodCreation: 'manual',
+      // Exactly as verified by the 2026-10-28 spike (the element honoured it
+      // and rendered bank-only).
+      payment_method_types: ['us_bank_account'],
+      appearance: {
+        variables: {
+          colorText: '#101318',
+          colorDanger: '#d32f2f',
+          fontSizeBase: '16px',
+        },
+      },
+    });
+    element = elements.create('payment', {
+      fields: { billingDetails: { name: 'auto', email: 'auto' } },
+      defaultValues: {
+        billingDetails: {
+          ...(opts.defaultName?.trim() ? { name: opts.defaultName.trim() } : {}),
+          ...(opts.defaultEmail?.trim() ? { email: opts.defaultEmail.trim() } : {}),
+        },
+      },
+    });
+  } catch (err) {
+    console.warn('[stripeHostedFields] bank element create threw:', err);
+    return null;
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    element.on('ready', () => {
+      if (!settled) {
+        settled = true;
+        opts.onReady();
+        resolve(handle);
+      }
+    });
+    // A mount-time failure (bad key, unsupported config) must fall back, not
+    // hang the panel on a skeleton forever.
+    element.on('loaderror', (e) => {
+      console.warn('[stripeHostedFields] bank element loaderror:', e?.error?.message);
+      if (!settled) { settled = true; resolve(null); }
+    });
+    element.on('change', (e) => opts.onComplete?.(!!e?.complete));
+    const handle: StripeBankElementHandle = {
+      updateAmount(amountCents: number) {
+        try { elements.update({ amount: Math.max(50, Math.round(amountCents)) }); } catch { /* keep the old price */ }
+      },
+      async submit() {
+        try {
+          const s = await elements.submit();
+          if (s?.error) return { ok: false, message: s.error.message || GENERIC_BANK_DECLINE };
+          const r = await stripe.createPaymentMethod({ elements });
+          if (r.error || !r.paymentMethod?.id) {
+            return { ok: false, message: r.error?.message || GENERIC_BANK_DECLINE };
+          }
+          return {
+            ok: true,
+            paymentMethodId: r.paymentMethod.id,
+            last4: r.paymentMethod.us_bank_account?.last4 ?? '',
+            bankName: r.paymentMethod.us_bank_account?.bank_name ?? '',
+          };
+        } catch (err) {
+          console.warn('[stripeHostedFields] bank element submit threw:', err);
+          return { ok: false, message: GENERIC_BANK_DECLINE };
+        }
+      },
+      unmount() { try { element.unmount(); } catch { /* already gone */ } },
+    };
+    try { element.mount(opts.target); } catch (err) {
+      console.warn('[stripeHostedFields] bank element mount threw:', err);
+      if (!settled) { settled = true; resolve(null); }
+    }
+  });
+}
+
+const GENERIC_BANK_DECLINE = 'The bank account could not be verified. Please check the details and try again.';
 
 export async function mountStripeCard(opts: {
   config: StripeGatewayConfig;

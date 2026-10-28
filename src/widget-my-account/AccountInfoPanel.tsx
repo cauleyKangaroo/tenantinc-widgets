@@ -12,9 +12,10 @@
 // of the very few places in the kit where those two differ deliberately.
 // ===========================================================================
 
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button, MapPinIcon, PhoneIcon } from '@shared/ui';
 import {
-  CarFrontIcon, EnvelopeIcon, FileTextIcon, UserArrowRightIcon, UserSettingsIcon,
+  CarFrontIcon, ChevronBigRight24Icon, EnvelopeIcon, FileTextIcon, UserArrowRightIcon, UserSettingsIcon,
 } from './icons';
 import type { AccountDocument, AccountSpace, Contact } from './data';
 
@@ -58,6 +59,69 @@ function canOpen(doc: AccountDocument): boolean {
   return !!(doc.leaseId && doc.documentId && doc.available !== false);
 }
 
+/**
+ * PHONE ONLY (CSS hides it above 720px, where the sidebar cards switch
+ * spaces): "Space #41" with a chevron, opening the account's spaces. Picking
+ * one re-renders the panel for it. Same list look as Change Coverage.
+ */
+function SpacePicker({ space, spaces, onSelect }: {
+  space: AccountSpace;
+  spaces: AccountSpace[];
+  onSelect: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+
+  // Closes on a press outside or Escape. Listeners only while open.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="ma-spacepick" ref={rootRef}>
+      <button
+        type="button"
+        className="ma-spacepick__btn"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span role="heading" aria-level={2} className="ma-account__title">{space.title}</span>
+        <ChevronBigRight24Icon className={`ma-spacepick__chev${open ? ' ma-spacepick__chev--up' : ''}`} />
+      </button>
+      {open && (
+        <ul className="ma-coverage__menu ma-spacepick__menu" id={listId} role="listbox" aria-label="Spaces">
+          {spaces.map((s) => (
+            <li key={s.id} role="presentation">
+              <button
+                type="button"
+                role="option"
+                aria-selected={s.id === space.id}
+                className={`ma-coverage__opt${s.id === space.id ? ' ma-coverage__opt--on' : ''}`}
+                onClick={() => { setOpen(false); if (s.id !== space.id) onSelect(s.id); }}
+              >
+                {s.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function AccountInfoPanel({
   space,
   onPayNow,
@@ -68,8 +132,13 @@ export function AccountInfoPanel({
   alternate,
   emergency,
   documents,
+  spaces,
+  onSelectSpace,
 }: {
   space: AccountSpace;
+  /** Every space on the account; with more than one, the phone's title is a picker. */
+  spaces?: AccountSpace[];
+  onSelectSpace?: (id: string) => void;
   onPayNow: () => void;
   /** Opens the Edit panel (8815-115876) in this panel's place. */
   onEdit: () => void;
@@ -106,7 +175,14 @@ export function AccountInfoPanel({
     <section className="ma-account">
       <div className="ma-account__body">
         <header className="ma-account__head">
-          <p role="heading" aria-level={2} className="ma-account__title">{space.title}</p>
+          {spaces && spaces.length > 1 && onSelectSpace ? (
+            <>
+              <p role="heading" aria-level={2} className="ma-account__title ma-account__title--desk">{space.title}</p>
+              <SpacePicker space={space} spaces={spaces} onSelect={onSelectSpace} />
+            </>
+          ) : (
+            <p role="heading" aria-level={2} className="ma-account__title">{space.title}</p>
+          )}
           <Button tone="dark" className="ma-btn-40" onClick={onEdit}>Edit</Button>
         </header>
         <hr className="ma-account__rule" />
@@ -189,10 +265,10 @@ export function AccountInfoPanel({
       <div className="ma-action">
         <div className="ma-action__due">
           {/* "Balance Due (Due Jun 5,2026)" — the bracketed part goes on its
-              own smaller line under the label. A label with no brackets is
-              printed as it is. */}
+              own smaller line under the label, without the brackets. A label
+              with no brackets is printed as it is. */}
           {(() => {
-            const m = /^(.*?)\s*(\(.*\))$/.exec(space.dueLabel);
+            const m = /^(.*?)\s*\((.*)\)$/.exec(space.dueLabel);
             return (
               <p className="ma-action__dueLabel">
                 {m ? m[1] : space.dueLabel}

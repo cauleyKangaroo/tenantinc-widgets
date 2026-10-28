@@ -609,3 +609,36 @@ GP property is untouched (regression-probed the same day).
 - If js.stripe.com fails to load there is NO plain-input fallback (a typed
   PAN has nowhere lawful to go): the row shows "the secure card form could
   not load" and payment waits.
+
+### Pay by Bank on Stripe: `hosted-ach` (added 2026-10-28)
+
+On `tenant_payments_stripe` ONLY, the Pay by Bank panel is STRIPE'S OWN bank
+UI: the Payment Element restricted to `us_bank_account`, in deferred-intent
+mode (`mode:'payment'`, `paymentMethodCreation:'manual'`) — which needs only
+the gateway reply's publishable key, no server-made intent. It renders
+Stripe's Financial Connections bank search (log into the bank, pick the
+account) with manual entry as its own fallback and the ACH mandate text, and
+Pay mints the pm via `elements.submit()` + `createPaymentMethod({elements})`.
+The connected-account pm carries a `financial_connections_account`, i.e. the
+LINKED kind `verification_method=instant` accepts — unlike a raw-details pm
+(the refusal reported 2026-10-23). Our only remaining field is Billing ZIP
+(the payload carries it), same zip-only billing as the Stripe card row.
+
+Both documents/finalize and the lease carry the token-only object:
+
+```
+{ "type": "hosted-ach", "token": "pm_…", "zip": "…",
+  "save_to_account": true, "auto_charge": false }
+```
+
+The lease's `payment` block mirrors the card path with
+`"type": "hosted-ach"` (same `amount` + `attempt_key` rules).
+
+Fallback ladder: element fails to mount (script blocked) → the typed
+routing/account fields return and are exchanged client-side for a raw
+`us_bank_account` pm (same payload; bank numbers are not PANs, so typed
+fields are lawful here, unlike cards). Every other gateway keeps the plain
+`type: 'ach'` object with account/routing exactly as before — verified by
+probe both ways through the live element, 2026-10-28. My Account's Pay by
+Bank uses the same element on Stripe properties (`hosted-ach` camelCase
+contract unchanged).

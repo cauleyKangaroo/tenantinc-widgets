@@ -693,8 +693,12 @@ export function MyAccount({
    * target the panel of the previous view.
    */
   const [scrollRequest, setScrollRequest] = useState(0);
+  // Which panel the next scroll lands on: Account Info, or — after the phone's
+  // Pay Now, tapped from the bottom of the long account panel — Make a Payment.
+  const scrollTarget = useRef('.ma-account');
   const rootRef = useRef<HTMLDivElement>(null);
   const selectUnit = (id: string) => {
+    scrollTarget.current = '.ma-account';
     setSelectedId(id);
     // Never lands on the payment or edit screen of whichever unit happened to
     // be open, so from either of those this doubles as the way back.
@@ -707,7 +711,7 @@ export function MyAccount({
   };
   useEffect(() => {
     if (!scrollRequest) return;
-    const el = rootRef.current?.querySelector('.ma-account');
+    const el = rootRef.current?.querySelector(scrollTarget.current);
     if (!el) return;
     /*
      * window.scrollTo, not scrollIntoView. The two should be the same, but in
@@ -963,7 +967,18 @@ export function MyAccount({
           {space && view === 'account' && (
             <AccountInfoPanel
               space={space}
-              onPayNow={() => { setEnrollAutopay(false); setView('payment'); }}
+              spaces={spaces}
+              onSelectSpace={selectUnit}
+              onPayNow={() => {
+                setEnrollAutopay(false);
+                setView('payment');
+                // Phone only: the button is at the foot of a long panel, so
+                // without this the payment screen opened scrolled to its bottom.
+                if (window.matchMedia?.('(max-width: 720px)').matches) {
+                  scrollTarget.current = '.ma-pay';
+                  setScrollRequest((n) => n + 1);
+                }
+              }}
               onEdit={() => setView('edit')}
               contact={realContact}
               // null, not undefined, once a record is in: a lease with no

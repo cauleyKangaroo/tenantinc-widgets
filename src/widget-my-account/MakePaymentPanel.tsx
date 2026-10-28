@@ -679,13 +679,15 @@ export function MakePaymentPanel({
       finishPayment('failed', null, 'Card payments need the secure card fields, which did not load. Please refresh and try again.');
       return false;
     }
-    /* STRIPE PAY-BY-BANK: the typed routing/account go straight to Stripe,
-       which mints a single-use us_bank_account pm - the payments API then
-       takes `hosted-ach` with its token (client contract, 2026-10-23). GP
-       properties keep posting the plain ACH object below. */
-    let bankPm = '';
+    /* STRIPE PAY-BY-BANK: the payments API takes `hosted-ach` with a pm token
+       (client contract, 2026-10-23). Normally the BankForm's Stripe element
+       has ALREADY minted it (Financial Connections — bank.stripePaymentMethodId);
+       only the element-failed fallback still carries typed routing/account,
+       exchanged for a raw us_bank_account pm here. GP properties keep posting
+       the plain ACH object below. */
+    let bankPm = bank?.stripePaymentMethodId ?? '';
     const stripeBankCfg = payment.stripe ?? null;
-    if (bank && stripeBankCfg) {
+    if (bank && stripeBankCfg && !bankPm) {
       setPaying(true);
       const r = await createStripeBankAccount(stripeBankCfg, {
         name: (bank.firstName + ' ' + bank.lastName).trim(),
@@ -740,7 +742,9 @@ export function MakePaymentPanel({
     setPaying(false);
     setPayingCardId('');
     const last4 = saved?.last4
-      || (bank ? bank.accountNumber.slice(-4) : (card?.maskedCardNumber ?? '').replace(/\D/g, '').slice(-4));
+      // Stripe-element bank: the number stayed inside Stripe, so the mint's
+      // own last4 is all there is to show.
+      || (bank ? (bank.bankLast4 || bank.accountNumber.slice(-4)) : (card?.maskedCardNumber ?? '').replace(/\D/g, '').slice(-4));
     const walletName = wallet ? (wallet.type === 'googlepay' ? 'Google Pay' : 'Apple Pay') : '';
     const summary: PaymentReceipt = {
       number: last?.number || '—',
@@ -1276,12 +1280,16 @@ export function MakePaymentPanel({
             )
           ) : (
             /* #99's bank form, and its ACH object goes to the account
-               payments API exactly as #99 sends it (achMethod above). */
+               payments API exactly as #99 sends it (achMethod above). On a
+               tenant_payments_stripe property the form shows Stripe's own
+               bank element instead (Financial Connections) and hands back a
+               minted pm — payLive then skips its raw mint. */
             <BankForm
               total={balanceTotal}
               onPay={(v) => (payment ? void payLive(undefined, undefined, v) : pay())}
               busy={paying}
               defaultCountry="United States"
+              stripe={payment?.stripe ?? null}
             />
           )}
         </section>
