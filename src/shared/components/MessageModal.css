@@ -150,7 +150,8 @@
   position: relative;
   display: block;
   box-sizing: border-box;
-  height: 200px;
+  /* Was 200px; shorter so Submit comes into view sooner on a short screen. */
+  height: 120px;
   background: var(--hb-field-bg, #fff);
   border: var(--hb-field-border-width, 1px) solid var(--hb-field-border, #a5b4bf);
   border-radius: var(--hb-field-radius, 8px);
