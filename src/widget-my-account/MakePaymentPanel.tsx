@@ -53,10 +53,10 @@
 // ===========================================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CoveragePlan, LeaseBankPaymentMethod, LeaseCoverage, LeasePaymentMethod, LeasePaymentReceipt, LeasePaymentRequest, LeaseWalletPaymentMethod, PrepayQuote } from '@shared/accountApi';
+import type { CoveragePlan, LeaseBankPaymentMethod, LeaseCardPaymentMethod, LeaseCoverage, LeasePaymentMethod, LeasePaymentReceipt, LeasePaymentRequest, LeaseWalletPaymentMethod, PrepayQuote } from '@shared/accountApi';
 import { GooglePayButton } from '../widget-rental-flow-2step/GooglePayButton';
 import { ApplePayButton } from '../widget-rental-flow-2step/ApplePayButton';
-import type { RentalCtx, WalletPayment } from '../widget-rental-flow-2step/api';
+import { TENANT_PAYMENTS, TENANT_PAYMENTS_STRIPE, type RentalCtx, type WalletPayment } from '../widget-rental-flow-2step/api';
 import type { WalletConfig } from '../widget-rental-flow-2step/walletConfig';
 import { AlertIcon, Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
 import { BankForm, CardForm, PaymentFormSkeleton, type BankFormValue, type CardFormValue } from '@shared/paymentForms';
@@ -84,11 +84,15 @@ const FORM_SKELETON_MS = 700;
  *
  * `gpPublicKey` is the Global Payments public key for the listed spaces'
  * PROPERTY (every space on the panel is at one property): a string mounts
- * the hosted card fields, '' means the facility takes no card online and the
- * card option is replaced by a notice, undefined means the lookup is still
- * out. The account payments API takes a hosted-field TOKEN, a saved method
- * or a bank account (#99's ACH object) — never card digits — so there is no
- * plain-input card fallback here on purpose.
+ * the hosted card fields, undefined means the lookup is still out. '' with
+ * the gateway answered means a gateway with NO hosted-fields integration
+ * (authorizenet today) — the card is then collected in the form's own typed
+ * inputs and the real digits go to the account API as `type: 'card'`,
+ * exactly as the rental flow pays a move-in on the same gateway (2026-10-28,
+ * client request; it used to show a "contact the office" notice instead).
+ * The one blocked case is a gateway NAMED tenant_payments_stripe whose
+ * config is unusable: falling to plain inputs there would type a PAN with
+ * nowhere lawful to go, so the notice stays for that alone.
  */
 /**
  * Apple Pay / Google Pay, as #99 offers them: #99's own buttons, #99's
@@ -109,6 +113,11 @@ export interface WalletHandlers {
 export interface PaymentHandlers {
   gpPublicKey: string | undefined;
   gatewayPending: boolean;
+  /** The gateway's NAME from the property's gateway reply ("tenant_payments",
+   *  "authorizenet", …; undefined while the lookup is out or it named none).
+   *  Decides whether the card row may fall back to typed inputs and whether
+   *  billing is ZIP-only — the rental flow's rules. */
+  gateway?: string;
   /** Set when THIS property's gateway is tenant_payments_stripe: the card row
    *  becomes Stripe's Card Element and Pay by Bank mints a us_bank_account
    *  PaymentMethod - see payLive. Null/absent means GP as before. */
@@ -598,6 +607,29 @@ export function MakePaymentPanel({
     },
   });
   /*
+   * A TYPED card, for a gateway with no hosted fields (authorizenet): the
+   * real digits, camelCase with the address as one object like the ach
+   * method above — the account API's convention. Saved for the same reason
+   * the bank account is: autopay enrolment needs a stored method.
+   */
+  const cardMethod = (card: CardFormValue, autopay: boolean): LeaseCardPaymentMethod => ({
+    type: 'card',
+    cardNumber: card.cardNumber.replace(/\D/g, ''),
+    expMonth: card.expMonth,
+    expYear: card.expYear,
+    cvv: card.cvv,
+    nameOnCard: card.nameOnCard.trim(),
+    saveToAccount: true,
+    autopay,
+    address: {
+      line1: card.address.trim(),
+      city: card.city.trim(),
+      state: card.state.trim(),
+      zip: card.zip.trim(),
+      country: card.country.trim() || 'United States',
+    },
+  });
+  /*
    * The wallet payment method as the proxy's contract spells it (2026-10-15):
    * the type as 'google-pay' / 'apple-pay' and the token EXACTLY as #99's
    * buttons hand it over — Google's token string, Apple's whole token object
@@ -673,9 +705,15 @@ export function MakePaymentPanel({
       finishPayment('failed', null, 'You have not been charged. Apple Pay and Google Pay can pay one space at a time.');
       return false;
     }
-    if (!saved && !card?.token && !card?.stripePaymentMethodId && !bank && !wallet) {
-      // Plain inputs would mean a card number in this bundle, which the API
-      // does not take and this page must never hold.
+    /* A card with NO token/pm but real typed digits is the plain-input path —
+       a gateway with no hosted fields (authorizenet), where the digits
+       themselves go to the API as `type: 'card'`. Like the plain bank
+       account, the details can be re-sent for a second step. */
+    const plainCard = !!card && !card.token && !card.stripePaymentMethodId
+      && card.cardNumber.replace(/\D/g, '').length > 0;
+    if (!saved && !card?.token && !card?.stripePaymentMethodId && !plainCard && !bank && !wallet) {
+      // A card with neither a token nor digits: the hosted fields were meant
+      // to produce one and did not.
       finishPayment('failed', null, 'Card payments need the secure card fields, which did not load. Please refresh and try again.');
       return false;
     }
@@ -720,7 +758,9 @@ export function MakePaymentPanel({
             ? (bankPm
               ? { type: 'hosted-ach', token: bankPm, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) }
               : achMethod(bank, autopayFor(step.sp)))
-            : { type: 'hosted-card', token: (card!.stripePaymentMethodId ?? card!.token)!, zip: card!.zip, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) };
+            : plainCard
+              ? cardMethod(card!, autopayFor(step.sp))
+              : { type: 'hosted-card', token: (card!.stripePaymentMethodId ?? card!.token)!, zip: card!.zip, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) };
       const r = await payment.pay(step.sp.id, { ...step.body, paymentMethod: method }, idemKeyFor(step.key));
       if (!r.ok) {
         /* Definite refusal: the next attempt is a NEW payment and gets a new
@@ -731,10 +771,11 @@ export function MakePaymentPanel({
       }
       idemKeys.current.delete(step.key);
       paidTotal += step.body.amount; last = r.receipt; paid.push(step);
-      // A PLAIN bank account can be sent again; a card token and a Stripe
-      // bank pm are single-use, so later steps ride the saved method.
-      if (bank && !savedId && r.receipt.savedPaymentMethodId) savedId = r.receipt.savedPaymentMethodId;
-      if (!bank && !savedId && paid.length < steps.length) {
+      // PLAIN details (a bank account, a typed card) can be sent again; a
+      // card token and a Stripe bank pm are single-use, so later steps ride
+      // the saved method.
+      if ((bank || plainCard) && !savedId && r.receipt.savedPaymentMethodId) savedId = r.receipt.savedPaymentMethodId;
+      if (!bank && !plainCard && !savedId && paid.length < steps.length) {
         if (r.receipt.savedPaymentMethodId) savedId = r.receipt.savedPaymentMethodId;
         else { failure = 'The card could only be charged once in this session. Please pay the remaining item(s) separately.'; break; }
       }
@@ -744,7 +785,10 @@ export function MakePaymentPanel({
     const last4 = saved?.last4
       // Stripe-element bank: the number stayed inside Stripe, so the mint's
       // own last4 is all there is to show.
-      || (bank ? (bank.bankLast4 || bank.accountNumber.slice(-4)) : (card?.maskedCardNumber ?? '').replace(/\D/g, '').slice(-4));
+      || (bank
+        ? (bank.bankLast4 || bank.accountNumber.slice(-4))
+        // Typed card: the digits are in hand; hosted: the gateway's mask is.
+        : (card?.maskedCardNumber ?? card?.cardNumber ?? '').replace(/\D/g, '').slice(-4));
     const walletName = wallet ? (wallet.type === 'googlepay' ? 'Google Pay' : 'Apple Pay') : '';
     const summary: PaymentReceipt = {
       number: last?.number || '—',
@@ -759,9 +803,21 @@ export function MakePaymentPanel({
     return false;
   };
   const liveCardKey = payment?.gpPublicKey;
-  /* A Stripe property has no GP key and needs none - its card row is the
-     Stripe element. "Unavailable" is only a property with NEITHER. */
-  const cardUnavailable = !!payment && !payment.gatewayPending && !liveCardKey && !payment.stripe;
+  /* The rental flow's rule (2026-10-28): no GP key and no Stripe config means
+     the TYPED inputs — the gateway (authorizenet) wants the real digits and
+     CardForm already falls back to them on its own. The one gateway that must
+     NOT fall through is one NAMED Stripe whose config is unusable: a PAN
+     typed there has nowhere lawful to go, so only that keeps the notice. */
+  const cardUnavailable = !!payment && payment.gateway === TENANT_PAYMENTS_STRIPE && !payment.stripe;
+  /* ZIP-only wherever the card never reaches us (GP's iframe, Stripe's
+     element) — the gateway verifies on the postcode. A typed-card gateway is
+     billed against the address, so it keeps the full block, as in #99. The
+     demo path (no `payment`) keeps the full block it always drew, and a
+     pending lookup stays ZIP-only — the form is still in its loading hold. */
+  const zipOnlyBilling = !!payment && (
+    payment.gatewayPending || !!liveCardKey || !!payment.stripe
+    || payment.gateway === TENANT_PAYMENTS || payment.gateway === TENANT_PAYMENTS_STRIPE
+  );
   /* "Pay through" is per space; with several selected they can disagree, so the
      bar shows the FURTHEST date — that is what paying this total covers. */
   /* The OLDEST due date among the ticked spaces — anniversary billing gives
@@ -1258,7 +1314,8 @@ export function MakePaymentPanel({
             <PaymentFormSkeleton rows={payMethod === 'bank' ? 3 : 2} />
           ) : payMethod === 'card' ? (
             cardUnavailable ? (
-              /* No key ⇒ no hosted fields ⇒ no honest way to take a card. */
+              /* A gateway named Stripe with an unusable config — the one case
+                 with no honest way to take a card (see cardUnavailable). */
               <p className="ma-pay__notice" role="status">
                 Card payments are not available online for this facility. Please contact the office to pay.
               </p>
@@ -1270,9 +1327,11 @@ export function MakePaymentPanel({
                 gpPublicKey={liveCardKey}
                 gatewayPending={payment?.gatewayPending}
                 /* Stripe property: ONE inline Card Element, as the rental
-                   flow draws it; the pm lands in v.stripePaymentMethodId. */
+                   flow draws it; the pm lands in v.stripePaymentMethodId.
+                   Neither key nor Stripe config: CardForm's own typed inputs,
+                   and payLive sends the digits as `type: 'card'`. */
                 stripe={payment?.stripe ?? null}
-                zipOnlyBilling={!!payment}
+                zipOnlyBilling={zipOnlyBilling}
                 /* The form will not submit without a billing country; the
                    account is a US tenant's. */
                 defaultCountry="United States"

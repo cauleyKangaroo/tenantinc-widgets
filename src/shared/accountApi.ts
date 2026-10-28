@@ -849,6 +849,11 @@ export async function applyCoverage(
 //     paymentMethod: { type: "saved", id }                       a card on file
 //                    { type: "hosted-card", token, zip,
 //                      saveToAccount, autopay }                  a GP token
+//                    { type: "card", cardNumber, expMonth, expYear,
+//                      cvv, nameOnCard, saveToAccount, autopay,
+//                      address: { line1, city, state, zip, country } }
+//                                              a typed card — gateways with no
+//                                              hosted fields (authorizenet)
 //                    { type: "ach", accountNumber, routingNumber,
 //                      accountType: "checking" | "savings",
 //                      firstName, lastName, saveToAccount, autopay,
@@ -881,8 +886,32 @@ export type LeasePaymentMethod =
      browser raw — Stripe mints a us_bank_account PaymentMethod and this
      carries its single-use pm_… (client contract, 2026-10-23). */
   | { type: 'hosted-ach'; token: string; saveToAccount: boolean; autopay: boolean }
+  | LeaseCardPaymentMethod
   | LeaseBankPaymentMethod
   | LeaseWalletPaymentMethod;
+
+/**
+ * A TYPED card — a property whose gateway has no hosted-fields integration
+ * (`authorizenet` today, per its gateway reply: hosted GP key and Stripe
+ * config both null). The real digits go to the API, exactly as the rental
+ * flow's typed-card path sends them for a move-in on the same gateway.
+ * Spelled camelCase with the address as one object, matching the ach method
+ * beside it — the proxy's convention for every payment method it lists.
+ */
+export interface LeaseCardPaymentMethod {
+  type: 'card';
+  /** Digits only. */
+  cardNumber: string;
+  /** "09" */
+  expMonth: string;
+  /** Full year — "2027". */
+  expYear: string;
+  cvv: string;
+  nameOnCard: string;
+  saveToAccount: boolean;
+  autopay: boolean;
+  address: { line1: string; line2?: string; city: string; state: string; zip: string; country: string };
+}
 
 /** Google Pay / Apple Pay — the proxy's wallet payment method. */
 export interface LeaseWalletPaymentMethod {
