@@ -641,6 +641,10 @@ export interface CardFormValue {
   city: string;
   state: string;
   zip: string;
+  /** The Billing Country select's value — the form has always collected it,
+   *  but only the account API's typed-card method sends it (its address
+   *  object requires one, like the ach method's). */
+  country: string;
 }
 
 export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipOnlyBilling, defaultCountry = '', payLabel, floatHostedNumberLabel = false, stripe = null }: {
@@ -1115,6 +1119,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
       city: city.trim(),
       state: stateCode.trim(),
       zip: zip.trim(),
+      country: country.trim(),
     };
   };
 
