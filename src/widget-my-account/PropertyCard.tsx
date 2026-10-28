@@ -129,7 +129,13 @@ export function PropertyCard({
             <div className="ma-unit__footer">
               <div className="ma-unit__due">
                 <p className="ma-unit__dueLabel">Balance Due</p>
-                <p className="ma-unit__dueDate">{space.unit.balanceDate}</p>
+                {/* Each space prints its own date. Nothing owed ⇒ the date is
+                    how far it is paid, so it says so. */}
+                <p className="ma-unit__dueDate">
+                  {space.unit.balanceDate && Number(space.unit.balanceAmount.replace(/[^0-9.-]/g, '')) === 0
+                    ? `Paid through ${space.unit.balanceDate}`
+                    : space.unit.balanceDate}
+                </p>
               </div>
               <p className="ma-unit__dueAmount">{space.unit.balanceAmount}</p>
               {showAccountInfo && (

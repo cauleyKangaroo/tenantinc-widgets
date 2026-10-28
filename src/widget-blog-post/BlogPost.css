@@ -71,7 +71,10 @@
   /* Figma is 80px/100px on a 1347px canvas. The widget can sit in a much
      narrower column, and 80px there is unreadable — clamp scales it down
      without needing a breakpoint per size. */
-  font-size: clamp(32px, 4.2vw, 80px) !important;
+  /* 56px on desktop and at most 1000px wide (2026-10-26; was a clamp up to
+     80px across the full column). Phones scale it down — see the 900px block. */
+  font-size: 56px !important;
+  max-width: 1000px;
   font-weight: 600 !important;
   line-height: 1.25 !important;
   color: #101318 !important;
@@ -92,6 +95,10 @@
 .bpp-hero {
   display: block;
   width: 100%;
+  /* 60% of the column on desktop, centred (2026-10-26); full width on a
+     phone — see the 900px block. */
+  max-width: 60%;
+  margin-inline: auto;
   /* Figma's 1347x743 box, held as a ratio so it scales with the column. */
   aspect-ratio: 1347 / 743;
   object-fit: cover;
@@ -478,7 +485,7 @@
    fixed 56px bars with a 20px gap between them came up ~24px short of a
    two-line title at 1440. */
 .bpp-skel--title {
-  height: calc(clamp(32px, 4.2vw, 80px) * 1.25 - 12px);
+  height: calc(56px * 1.25 - 12px);
   margin: 6px 0;
   width: 80%;
 }
@@ -490,7 +497,7 @@
 /* The trailing crumb's 20px line inside the 24px-tall row. */
 .bpp-skel--crumb { height: 20px; width: 320px; max-width: 40%; }
 .bpp-skel--social { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; }
-.bpp-skel--hero { width: 100%; aspect-ratio: 1347 / 743; border-radius: 16px; }
+.bpp-skel--hero { width: 100%; max-width: 60%; margin-inline: auto; aspect-ratio: 1347 / 743; border-radius: 16px; }
 .bpp-skel--text { height: 16px; margin-bottom: 12px; }
 
 @keyframes bpp-skel-shimmer {
@@ -534,6 +541,13 @@
 /* ── Mobile ────────────────────────────────────────────────────────────────── */
 
 @media (max-width: 900px) {
+  /* Title and image back to the phone sizes: the title scales from ~45px at
+     900px down to 32px, the image takes the full width. Skeletons follow. */
+  .bpp-title { font-size: clamp(32px, 5vw, 56px) !important; }
+  .bpp-skel--title { height: calc(clamp(32px, 5vw, 56px) * 1.25 - 12px); }
+  .bpp-hero,
+  .bpp-skel--hero { max-width: 100%; }
+
   .bpp-wrapper {
     gap: 28px;
   }
