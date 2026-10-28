@@ -944,7 +944,7 @@ export function Step2({
     <div className="rf-card rf2-card">
       <div className="rf-title">
         <p className="rf-eyebrow">Great choice!</p>
-        <h2 className="rf-heading">Secure your space now</h2>
+        <h1 className="rf-heading">Secure your space now</h1>
       </div>
 
       <RfCheckbox checked={business} onChange={setBusiness} className="rf-business">

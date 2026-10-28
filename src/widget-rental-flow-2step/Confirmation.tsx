@@ -309,7 +309,7 @@ export function Confirmation({
       <div className="rf-card rfc-card">
         <div className="rf-title">
           {name && <p className="rf-eyebrow rfc-error-eyebrow">{name},</p>}
-          <h2 className="rf-heading">We couldn&rsquo;t complete your {kind}</h2>
+          <h1 className="rf-heading">We couldn&rsquo;t complete your {kind}</h1>
         </div>
         <div className="rfc-error-panel">
           <AlertIcon size={24} className="rfc-error-ico" />
@@ -331,9 +331,9 @@ export function Confirmation({
     <div className="rf-card rfc-card">
       <div className="rf-title">
         {name && <p className="rf-eyebrow">{name},</p>}
-        <h2 className="rf-heading">
+        <h1 className="rf-heading">
           {confirmedHeading ?? (isReservation ? 'Your reservation is confirmed!' : 'Your Space is ready!')}
-        </h2>
+        </h1>
       </div>
 
       {/* Renders unconditionally so the block is visible without a backend that

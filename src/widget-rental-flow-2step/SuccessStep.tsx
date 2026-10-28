@@ -501,7 +501,7 @@ export function SuccessStep({
           .rf-sx-* pair this replaces had drifted to 30px and --hb-secondary. */}
       <div className="rf-title">
         <p className="rf-eyebrow">You&rsquo;ve got your space!</p>
-        <h2 className="rf-heading">Finish up below for access</h2>
+        <h1 className="rf-heading">Finish up below for access</h1>
       </div>
 
       {/* ID VERIFICATION. The connected controller owns lookup/start/poll;

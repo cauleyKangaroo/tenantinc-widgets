@@ -730,7 +730,7 @@ function Step1Form({
     <div className="rf-card">
       <div className="rf-title">
         <p className="rf-eyebrow">{eyebrow}</p>
-        <h2 className="rf-heading">{heading}</h2>
+        <h1 className="rf-heading">{heading}</h1>
       </div>
 
       <RfCheckbox checked={business} onChange={setBusiness} className="rf-business">
@@ -898,7 +898,7 @@ export function UnavailableStep({ similar, submitLead, property, spaceLabel }: {
     <div className="rf-card rf-ua">
       <div className="rf-title">
         <p className="rf-eyebrow">Oops ...</p>
-        <h2 className="rf-heading">This space is no longer available</h2>
+        <h1 className="rf-heading">This space is no longer available</h1>
       </div>
       <p className="rf-ua-text">
         It looks like someone else just rented this space. Share your contact information, and a
@@ -964,7 +964,7 @@ export function RentalErrorStep({ phone }: { phone?: string }) {
     <div className="rf-card rf-err">
       <div className="rf-title">
         <p className="rf-eyebrow">Hmm ...</p>
-        <h2 className="rf-heading">This space is playing hard to get</h2>
+        <h1 className="rf-heading">This space is playing hard to get</h1>
       </div>
       <p className="rf-err-text">
         Something went wrong while completing your rental. Please call the facility, and our team
