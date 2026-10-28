@@ -1892,6 +1892,14 @@ export interface BankPayment extends RentAddress {
   country?: string;
   /** Enrol this account for recurring rent (drives API 11). */
   autoCharge?: boolean;
+  /**
+   * Stripe PaymentMethod id (pm_…) minted from the typed routing/account on a
+   * `tenant_payments_stripe` property — the numbers went to Stripe, never to
+   * our server. Set ⇒ the payment_method is `type: 'hosted-ach'` with this
+   * token and no account fields. Unset (every other gateway) keeps the plain
+   * ACH object exactly as before. SINGLE-USE, like the card pm.
+   */
+  stripePaymentMethodId?: string;
 }
 
 /**
@@ -2234,6 +2242,23 @@ function cardPaymentMethod(card: CardPayment, autoCharge: boolean): Record<strin
  * rejects.
  */
 function achPaymentMethod(bank: BankPayment, autoCharge: boolean): Record<string, unknown> {
+  /*
+   * STRIPE FIRST (tenant_payments_stripe only): the routing/account were
+   * exchanged for a us_bank_account pm client-side, so the payload is the
+   * token-only object — mirroring the card path's `hosted-card` branch. No
+   * account_number/routing_number: Stripe holds them and Hummingbird charges
+   * from the pm. Every other gateway falls through to the plain ACH object
+   * below, unchanged.
+   */
+  if (bank.stripePaymentMethodId) {
+    return {
+      type: 'hosted-ach',
+      token: bank.stripePaymentMethodId,
+      zip: bank.zip,
+      save_to_account: true,
+      auto_charge: autoCharge,
+    };
+  }
   const body: Record<string, unknown> = {
     type: 'ach',
     account_number: bank.accountNumber.replace(/\D/g, ''),
@@ -2514,9 +2539,11 @@ async function finalizeLease(
    * across retries of the same move-in (unit + start date) so a retry after a
    * timeout cannot charge twice. ≤64 chars of [A-Za-z0-9_-].
    */
-  if (args.card?.stripePaymentMethodId) {
+  const stripePayType = args.card?.stripePaymentMethodId ? 'hosted-card'
+    : args.bank?.stripePaymentMethodId ? 'hosted-ach' : null;
+  if (stripePayType) {
     body.payment = {
-      type: 'hosted-card',
+      type: stripePayType,
       /* The hand-off marks `amount` optional; the API disagrees — the lease
          answers 400 `"payment.amount" is required` without it (live
          2026-10-21). The same move-in total the documents body sends, in the
