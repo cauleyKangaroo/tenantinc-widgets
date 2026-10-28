@@ -1511,6 +1511,8 @@
   line-height: 1.2;
   color: var(--hb-grayscale-medium);
   white-space: nowrap;
+  /* Centred in the 42px bar; the shared cell rule above tops it. */
+  vertical-align: middle;
 }
 .ma-act__head th:first-child { border-radius: 12px 0 0 12px; }
 .ma-act__head th:last-child { border-radius: 0 12px 12px 0; }
