@@ -208,8 +208,14 @@ export async function createStripeBankAccount(
 export interface StripeBankElementHandle {
   /** Deferred mode prices the element, so a changed quote re-prices it here. */
   updateAmount(amountCents: number): void;
-  /** elements.submit() + createPaymentMethod({elements}). One attempt per call. */
-  submit(): Promise<
+  /** elements.submit() + createPaymentMethod({elements}). One attempt per call.
+   *  `zip` goes into the pm's billing_details.address.postal_code — the
+   *  account proxy REQUIRES the zip yet its hosted-ach schema takes no zip
+   *  key ("Unrecognized key", verified live 2026-10-28), so the pm itself is
+   *  the only place it can travel. The element collects name and email but
+   *  never an address for us_bank_account, so passing it in params is the
+   *  documented way and cannot collide with the element's own fields. */
+  submit(zip?: string): Promise<
     { ok: true; paymentMethodId: string; last4: string; bankName: string } | { ok: false; message: string }
   >;
   unmount(): void;
@@ -305,11 +311,17 @@ export async function mountStripeBankElement(opts: {
       updateAmount(amountCents: number) {
         try { elements.update({ amount: Math.max(50, Math.round(amountCents)) }); } catch { /* keep the old price */ }
       },
-      async submit() {
+      async submit(zip?: string) {
         try {
           const s = await elements.submit();
           if (s?.error) return { ok: false, message: s.error.message || GENERIC_BANK_DECLINE };
-          const r = await stripe.createPaymentMethod({ elements });
+          const r = await stripe.createPaymentMethod({
+            elements,
+            // The billing ZIP from OUR field — see the handle's submit() doc.
+            // Only the address: name/email are the element's own fields, and
+            // params must not repeat what the element collects.
+            ...(zip?.trim() ? { params: { billing_details: { address: { postal_code: zip.trim() } } } } : {}),
+          });
           if (r.error || !r.paymentMethod?.id) {
             return { ok: false, message: r.error?.message || GENERIC_BANK_DECLINE };
           }

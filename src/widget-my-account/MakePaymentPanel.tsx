@@ -756,11 +756,12 @@ export function MakePaymentPanel({
           ? walletMethod(wallet)
           : bank
             ? (bankPm
-              /* `zip` is required: without it the server answers
-                 payment_rejected "billing address zip code is required"
-                 (verified live on Bellflower, 2026-10-28) — same as the
-                 rental flow's hosted-ach, whose payload always carried it. */
-              ? { type: 'hosted-ach', token: bankPm, zip: bank.zip.trim(), saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) }
+              /* NO zip key — the proxy's schema rejects it ("Unrecognized
+                 key", live 2026-10-28). The billing ZIP the server requires
+                 travels inside the pm itself: the mint attaches it as
+                 billing_details.address.postal_code (see paymentForms /
+                 mountStripeBankElement.submit). */
+              ? { type: 'hosted-ach', token: bankPm, saveToAccount: steps.length > 1, autopay: autopayFor(step.sp) }
               : achMethod(bank, autopayFor(step.sp)))
             : plainCard
               ? cardMethod(card!, autopayFor(step.sp))

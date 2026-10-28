@@ -431,7 +431,10 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel, st
       // One submit per click — the pm is single-use, so a refusal comes back
       // to a fresh Pay, never a reused id.
       setBankSubmitting(true);
-      void bankElRef.current.submit().then((r) => {
+      // The ZIP rides INSIDE the pm (billing_details.address.postal_code):
+      // the account proxy requires one but its hosted-ach schema has no zip
+      // key, so the mint is where it has to be attached.
+      void bankElRef.current.submit(zip.trim()).then((r) => {
         setBankSubmitting(false);
         if (!r.ok) { setBankElError(r.message); return; }
         onPay({
