@@ -884,8 +884,10 @@ export type LeasePaymentMethod =
   | { type: 'hosted-card'; token: string; zip: string; saveToAccount: boolean; autopay: boolean }
   /* A Stripe property's bank payment: the routing/account never leave the
      browser raw — Stripe mints a us_bank_account PaymentMethod and this
-     carries its single-use pm_… (client contract, 2026-10-23). */
-  | { type: 'hosted-ach'; token: string; saveToAccount: boolean; autopay: boolean }
+     carries its single-use pm_… (client contract, 2026-10-23). `zip` is
+     REQUIRED: omitting it is payment_rejected "billing address zip code is
+     required" (verified live on Bellflower, 2026-10-28). */
+  | { type: 'hosted-ach'; token: string; zip: string; saveToAccount: boolean; autopay: boolean }
   | LeaseCardPaymentMethod
   | LeaseBankPaymentMethod
   | LeaseWalletPaymentMethod;
