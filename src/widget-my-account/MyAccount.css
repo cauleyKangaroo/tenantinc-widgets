@@ -789,6 +789,12 @@
 
 .ma-balance__right { margin-left: auto; text-align: right; }
 
+/* With prepay ticked the stepper makes the card taller; keep the amount at the
+   top beside "Balance Due" rather than floating mid-card. Desktop only. */
+@media (min-width: 721px) {
+  .ma-balance:has(.ma-stepper) .ma-balance__right { align-self: flex-start; }
+}
+
 .ma-balance__amount {
   font-size: 24px;
   font-weight: 600;
@@ -1112,6 +1118,7 @@
 /* Mobile: 13px between the size line and the ticks. Prefixed with .ma-wrapper
    because the `.ma-wrapper ul { margin: 0 }` reset outranks a bare
    .ma-unit__features — which is why the 16px above never applied. */
+.ma-wrapper .ma-unit__features { margin-top: 16px; }
 @media (max-width: 720px) {
   .ma-wrapper .ma-unit__features { margin-top: 13px; }
 }
