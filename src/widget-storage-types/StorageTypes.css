@@ -8,6 +8,7 @@
   margin-inline: auto;
   box-sizing: border-box;
   color: var(--st-text);
+  background: transparent !important;
 }
 .st *, .st *::before, .st *::after { box-sizing: border-box; }
 .st-heading {
@@ -253,21 +254,11 @@
     padding-inline: 24px;
   }
   .st--index::before { background: #f9fafb; }
+  /* No background of its own: the Duda section behind it shows through, so
+     the editor sets the colour, not the widget. */
   .st--related {
-    position: relative;
-    isolation: isolate;
     max-width: none;
     padding: 32px 0;
-  }
-  .st--related::before {
-    content: '';
-    position: absolute;
-    z-index: -1;
-    inset-block: 0;
-    left: 50%;
-    width: 100vw;
-    transform: translateX(-50%);
-    background: #f9fafb;
   }
   .st-heading {
     display: flex !important;
