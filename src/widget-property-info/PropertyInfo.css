@@ -1588,6 +1588,6 @@ iframe.pi-lb-img { position: relative; inset: auto; }
   border-radius: 8px;
   background: #101318;
   color: #ffffff;
-  font: 600 14px 'Montserrat', 'Montserrat Fallback', sans-serif;
+  font: 600 14px 'Poppins', 'Poppins Fallback', sans-serif;
   cursor: pointer;
 }
