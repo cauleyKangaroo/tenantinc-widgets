@@ -789,6 +789,12 @@
 
 .ma-balance__right { margin-left: auto; text-align: right; }
 
+/* With prepay ticked the stepper makes the card taller; keep the amount at the
+   top beside "Balance Due" rather than floating mid-card. Desktop only. */
+@media (min-width: 721px) {
+  .ma-balance:has(.ma-stepper) .ma-balance__right { align-self: flex-start; }
+}
+
 .ma-balance__amount {
   font-size: 24px;
   font-weight: 600;
@@ -1112,6 +1118,7 @@
 /* Mobile: 13px between the size line and the ticks. Prefixed with .ma-wrapper
    because the `.ma-wrapper ul { margin: 0 }` reset outranks a bare
    .ma-unit__features — which is why the 16px above never applied. */
+.ma-wrapper .ma-unit__features { margin-top: 16px; }
 @media (max-width: 720px) {
   .ma-wrapper .ma-unit__features { margin-top: 13px; }
 }
@@ -1166,6 +1173,16 @@
   font-weight: 400;
   line-height: 16px;
   color: var(--hb-text-night);
+}
+/* Desktop: the date takes no width of its own, so the block is as wide as
+   "Balance Due" and a longer "Paid through …" line runs on under the amount
+   instead of pushing Account Info to the right. */
+@media (min-width: 721px) {
+  .ma-unit__dueDate { width: 0; white-space: nowrap; }
+  /* Account Info pinned to the right, so it sits in the same place on every
+     card whatever the amount beside it. Inset 30px, mirroring the strip's
+     left padding. */
+  .ma-unit__footer .ma-btn-40 { margin-left: auto; margin-right: 30px; }
 }
 
 .ma-unit__dueAmount {

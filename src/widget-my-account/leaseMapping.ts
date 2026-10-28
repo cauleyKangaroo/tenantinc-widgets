@@ -228,7 +228,8 @@ export function spacesFrom(
           .slice(0, 4),
         images: unitImages(u, media.siteId),
         balanceAmount: money(balance),
-        balanceDate: paidThrough,
+        // mm/dd/yyyy, as Make a Payment's Balance Due prints it.
+        balanceDate: shortDate(l.paidThroughDate),
       },
       primaryContact: primary,
       alternateContact: alternateContactFrom(record, str(l.id)) ?? undefined,
