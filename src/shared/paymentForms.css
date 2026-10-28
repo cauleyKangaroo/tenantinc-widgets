@@ -559,3 +559,19 @@
   padding: 0 15px;
 }
 .rf-stripe-host { width: 100%; }
+
+/* Stripe Pay-by-Bank: the Payment Element (us_bank_account) replaces the
+   typed account fields. Unboxed — the element draws its own fields — but held
+   open while loading so the panel does not jump when it arrives. */
+.rf-bankel {
+  position: relative;
+  width: 100%;
+  margin-bottom: 16px;
+}
+.rf-bankel--loading { min-height: 220px; }
+.rf-bankel-host { width: 100%; }
+.rf-bankel-shimmer {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+}
