@@ -229,7 +229,7 @@ export const SPACES: AccountSpace[] = [
       features: ['24 Hour Access', 'Drive Up', 'Near Entrances', 'No Late Fees'],
       images: mediaManagerImagesFor('small', { amenity: 'Climate Controlled' }),
       balanceAmount: '$123.00',
-      balanceDate: '04/20/2026',
+      balanceDate: 'Apr 20, 2026',
     },
 
     primaryContact: SNEHA,
@@ -291,7 +291,7 @@ export const SPACES: AccountSpace[] = [
       features: ['24 Hour Access', 'Ground Floor', 'Vehicle Parking', 'Wide Aisle'],
       images: mediaManagerImagesFor('medium', { amenity: 'Drive-Up Access' }),
       balanceAmount: '$248.00',
-      balanceDate: '05/03/2026',
+      balanceDate: 'May 03, 2026',
     },
 
     primaryContact: SNEHA,
