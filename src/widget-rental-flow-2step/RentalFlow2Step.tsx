@@ -25,6 +25,7 @@ import { canRenderLiveIdvHarness } from './LiveIdvHarness';
 import cfg from './config.json';
 import { Confirmation, type EntryMode } from './Confirmation';
 import { tokenizeCard } from './gpTokenize';
+import { createStripeBankAccount } from '@shared/stripeHostedFields';
 import rentalErrorArt from './assets/rental-error.svg';
 import { ContactConfirmationModal, type ConfirmationFacility } from '@shared/components/ContactConfirmation';
 import type { LeadInput } from '@shared/leadsApi';
@@ -3691,8 +3692,10 @@ export function RentalFlow2Step({
                 // ask is fail-soft, because the lease succeeds on the number
                 // alone today and a gateway outage must not stop a rental.
                 //
-                // ACH has nothing to tokenize: the gateway mints card tokens,
-                // and an account/routing pair is posted as it stands.
+                // ACH on GP/typed gateways has nothing to tokenize — the
+                // account/routing pair is posted as it stands. On
+                // tenant_payments_stripe it is exchanged for a Stripe pm
+                // below (withBankPm) instead.
                 const withToken: Promise<{ token?: string; masked?: string } | null | undefined> = !card
                   ? Promise.resolve(undefined)
                   : card.stripePaymentMethodId
@@ -3707,7 +3710,42 @@ export function RentalFlow2Step({
                       expMonth: card.expMonth,
                       expYear: card.expYear,
                     });
-                return withToken.then((tok) => rentSpace(ctx, {
+                /*
+                 * STRIPE PAY-BY-BANK — tenant_payments_stripe ONLY (the config
+                 * is null on every other gateway, so GP and typed-card
+                 * properties keep posting the plain ACH object untouched).
+                 * The typed routing/account go straight to Stripe, which mints
+                 * a single-use us_bank_account pm; the lease then carries
+                 * `type: 'hosted-ach'` with its token and the numbers never
+                 * reach our server. Mirrors My Account's payLive (client
+                 * contract, 2026-10-23). A mint failure stops BEFORE anything
+                 * is held against the lease: same recovery as a card decline —
+                 * lightbox down, error beside the button, details intact.
+                 */
+                const withBankPm: Promise<{ pm?: string; error?: string } | undefined> = (bank && stripeGateway)
+                  ? createStripeBankAccount(stripeGateway, {
+                    name: `${bank.firstName} ${bank.lastName}`.trim(),
+                    email: c?.email?.trim() || undefined,
+                    routingNumber: bank.routingNumber,
+                    accountNumber: bank.accountNumber,
+                    accountType: /savings/i.test(bank.accountType) ? 'savings' : 'checking',
+                    // The form's own billing address — the processor requires
+                    // the zip (live, 2026-10-23).
+                    zip: bank.zip,
+                    country: /canada/i.test(bank.country) ? 'CA' : 'US',
+                    line1: [bank.address, bank.address2].filter(Boolean).join(', '),
+                    city: bank.city,
+                    state: bank.state,
+                  }).then((r) => (r.ok ? { pm: r.paymentMethodId } : { error: r.message }))
+                  : Promise.resolve(undefined);
+                return withBankPm.then((bankTok) => {
+                  if (bankTok?.error) {
+                    setPaying(false);
+                    setFinalizing(undefined);
+                    setPayError(bankTok.error);
+                    return false;
+                  }
+                  return withToken.then((tok) => rentSpace(ctx, {
                   unit: hold
                     ? { id: hold.unitId, number: hold.unitNumber }
                     : { id: unitIdProp as string, number: resolvedUnitNumberRef.current },
@@ -3745,7 +3783,11 @@ export function RentalFlow2Step({
                     // number it actually sends — in hosted mode there is no
                     // PAN here to read a brand from.
                   },
-                  bank: bank && { ...bank, autoCharge: info.autopay },
+                  // On tenant_payments_stripe the pm minted above rides along
+                  // and achPaymentMethod() sends the token-only hosted-ach
+                  // object; everywhere else bankTok is undefined and the plain
+                  // ACH payload is exactly what it always was.
+                  bank: bank && { ...bank, autoCharge: info.autopay, stripePaymentMethodId: bankTok?.pm },
                   // Single-use: it travels in this call and nowhere else. No
                   // autopay, whatever info.autopay says — a wallet token is a
                   // one-time payment (see walletPaymentMethod in api.ts).
@@ -3838,6 +3880,7 @@ export function RentalFlow2Step({
                     setPayError('Something went wrong completing your rental. Please try again.');
                     return false;
                   }));
+                });
               }
               // Published checkout must never fall through to the harness
               // completion when the authoritative hold failed or is pending.

@@ -609,3 +609,24 @@ GP property is untouched (regression-probed the same day).
 - If js.stripe.com fails to load there is NO plain-input fallback (a typed
   PAN has nowhere lawful to go): the row shows "the secure card form could
   not load" and payment waits.
+
+### Pay by Bank on Stripe: `hosted-ach` (added 2026-10-28)
+
+On `tenant_payments_stripe` ONLY, the Pay by Bank form's routing/account are
+exchanged client-side for a Stripe `us_bank_account` PaymentMethod
+(`createPaymentMethod` with the gateway reply's keys; the numbers go to
+Stripe, never to Hummingbird), and both documents/finalize and the lease
+carry the token-only object:
+
+```
+{ "type": "hosted-ach", "token": "pm_…", "zip": "…",
+  "save_to_account": true, "auto_charge": false }
+```
+
+The lease's `payment` block mirrors the card path with
+`"type": "hosted-ach"` (same `amount` + `attempt_key` rules). Every other
+gateway keeps the plain `type: 'ach'` object with account/routing exactly as
+before — verified by probe both ways, 2026-10-28. NOTE: charging these pms
+needs TenantInc's `verification_method` fix (raw-detail bank pms are refused
+under `verification_method=instant` — reported 2026-10-23); the widget side
+is ready either way.
