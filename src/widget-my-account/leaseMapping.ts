@@ -281,8 +281,9 @@ export function spacesFrom(
       total: money(balance),
       balance: {
         amount: money(balance),
-        // mm/dd/yyyy under "Balance Due" on Make a Payment.
-        payThrough: shortDate(l.paidThroughDate),
+        // "Mar 31, 2027" under "Balance Due" on Make a Payment (was
+        // mm/dd/yyyy until 2026-10-28, client request).
+        payThrough: longDate(l.paidThroughDate),
         pastDue,
         dueSort,
       },
