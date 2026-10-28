@@ -1183,6 +1183,9 @@
      card whatever the amount beside it. Inset 30px, mirroring the strip's
      left padding. */
   .ma-unit__footer .ma-btn-40 { margin-left: auto; margin-right: 30px; }
+  /* No button: the amount is last, and with the strip's zero right padding it
+     ran under the selection ring and was clipped. Same 30px inset. */
+  .ma-unit__dueAmount:last-child { margin-right: 30px; }
 }
 
 .ma-unit__dueAmount {
