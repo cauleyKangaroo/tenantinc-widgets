@@ -967,6 +967,8 @@ export function MyAccount({
           {space && view === 'account' && (
             <AccountInfoPanel
               space={space}
+              spaces={spaces}
+              onSelectSpace={selectUnit}
               onPayNow={() => {
                 setEnrollAutopay(false);
                 setView('payment');
