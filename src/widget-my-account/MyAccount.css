@@ -1174,6 +1174,16 @@
   line-height: 16px;
   color: var(--hb-text-night);
 }
+/* Desktop: the date takes no width of its own, so the block is as wide as
+   "Balance Due" and a longer "Paid through …" line runs on under the amount
+   instead of pushing Account Info to the right. */
+@media (min-width: 721px) {
+  .ma-unit__dueDate { width: 0; white-space: nowrap; }
+  /* Account Info pinned to the right, so it sits in the same place on every
+     card whatever the amount beside it. Inset 30px, mirroring the strip's
+     left padding. */
+  .ma-unit__footer .ma-btn-40 { margin-left: auto; margin-right: 30px; }
+}
 
 .ma-unit__dueAmount {
   align-self: flex-start;
