@@ -179,14 +179,13 @@ export const USER = {
   email: 'sneha.jose@storelocal.com',
 };
 
-/** The promo card swaps with the view. Both frames carry the same body copy. */
 const PROMO_BODY = 'Qorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc vulputate '
   + 'libero et velit interdum, ac aliquet odio mattis. Class aptent';
 
 /** Default view — the tenant is not on autopay yet, so the card sells it. */
 export const PROMO_AUTOPAY = {
   title: 'Enroll in Autopay',
-  body: PROMO_BODY,
+  body: 'Make life a little easier—set up Autopay and avoid late fees.',
   cta: 'Enroll',
 };
 
