@@ -3714,15 +3714,19 @@ export function RentalFlow2Step({
                  * STRIPE PAY-BY-BANK — tenant_payments_stripe ONLY (the config
                  * is null on every other gateway, so GP and typed-card
                  * properties keep posting the plain ACH object untouched).
-                 * The typed routing/account go straight to Stripe, which mints
-                 * a single-use us_bank_account pm; the lease then carries
-                 * `type: 'hosted-ach'` with its token and the numbers never
-                 * reach our server. Mirrors My Account's payLive (client
-                 * contract, 2026-10-23). A mint failure stops BEFORE anything
-                 * is held against the lease: same recovery as a card decline —
-                 * lightbox down, error beside the button, details intact.
+                 * Normally the BankForm's Stripe element has ALREADY minted
+                 * the pm (bank.stripePaymentMethodId set — Financial
+                 * Connections, Stripe's own UI) and this is a no-op. Only the
+                 * element-failed fallback still carries typed routing/account,
+                 * which go straight to Stripe here for a raw us_bank_account
+                 * pm; the lease then carries `type: 'hosted-ach'` with the
+                 * token either way and the numbers never reach our server.
+                 * Mirrors My Account's payLive (client contract, 2026-10-23).
+                 * A mint failure stops BEFORE anything is held against the
+                 * lease: same recovery as a card decline — lightbox down,
+                 * error beside the button, details intact.
                  */
-                const withBankPm: Promise<{ pm?: string; error?: string } | undefined> = (bank && stripeGateway)
+                const withBankPm: Promise<{ pm?: string; error?: string } | undefined> = (bank && stripeGateway && !bank.stripePaymentMethodId)
                   ? createStripeBankAccount(stripeGateway, {
                     name: `${bank.firstName} ${bank.lastName}`.trim(),
                     email: c?.email?.trim() || undefined,
@@ -3783,11 +3787,12 @@ export function RentalFlow2Step({
                     // number it actually sends — in hosted mode there is no
                     // PAN here to read a brand from.
                   },
-                  // On tenant_payments_stripe the pm minted above rides along
-                  // and achPaymentMethod() sends the token-only hosted-ach
-                  // object; everywhere else bankTok is undefined and the plain
-                  // ACH payload is exactly what it always was.
-                  bank: bank && { ...bank, autoCharge: info.autopay, stripePaymentMethodId: bankTok?.pm },
+                  // On tenant_payments_stripe the pm — minted by the form's
+                  // Stripe element, or above as its fallback — rides along and
+                  // achPaymentMethod() sends the token-only hosted-ach object;
+                  // everywhere else both are undefined and the plain ACH
+                  // payload is exactly what it always was.
+                  bank: bank && { ...bank, autoCharge: info.autopay, stripePaymentMethodId: bank.stripePaymentMethodId ?? bankTok?.pm },
                   // Single-use: it travels in this call and nowhere else. No
                   // autopay, whatever info.autopay says — a wallet token is a
                   // one-time payment (see walletPaymentMethod in api.ts).

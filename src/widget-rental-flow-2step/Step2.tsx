@@ -1491,7 +1491,7 @@ export function Step2({
                   <CardForm total={payNowTotal ?? 0} onPay={payStatically} busy={paying} gpPublicKey={gpPublicKey} gatewayPending={gatewayPending} zipOnlyBilling={zipOnlyBilling} stripe={stripeGateway} defaultCountry={defaultCountry} payLabel={agreeLabel} floatHostedNumberLabel />
                 )
               ) : (
-                <BankForm total={payNowTotal ?? 0} onPay={(bank) => payStatically(undefined, bank)} busy={paying} defaultCountry={defaultCountry} payLabel={agreeLabel} />
+                <BankForm total={payNowTotal ?? 0} onPay={(bank) => payStatically(undefined, bank)} busy={paying} defaultCountry={defaultCountry} payLabel={agreeLabel} stripe={stripeGateway} defaultName={`${first} ${last}`.trim()} defaultEmail={email} />
               )}
             </section>
           )}

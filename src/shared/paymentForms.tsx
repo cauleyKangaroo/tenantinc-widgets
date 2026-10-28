@@ -33,7 +33,7 @@ import {
   COUNTRY_OPTIONS, placesCountryFor, postalCodeOk, postalLabel, regionLabel,
 } from '@shared/addressCountry';
 import { mountHostedCard, type HostedCardHandle } from '@shared/gpHostedFields';
-import { mountStripeCard, type StripeCardHandle, type StripeGatewayConfig } from '@shared/stripeHostedFields';
+import { mountStripeCard, mountStripeBankElement, type StripeCardHandle, type StripeBankElementHandle, type StripeGatewayConfig } from '@shared/stripeHostedFields';
 import { useMediaQuery } from '@shared/stickyStack';
 import './paymentForms.css';
 import { skipValidation } from '@shared/devBypass';
@@ -211,11 +211,11 @@ export type BillingCountry = '' | 'United States' | 'Canada';
 
 /** What the rental APIs need from the Pay by Bank form. */
 export interface BankFormValue {
-  /** Digits only. */
+  /** Digits only. Empty on the Stripe-element path — Stripe holds the number. */
   accountNumber: string;
-  /** Digits only — nine of them. */
+  /** Digits only — nine of them. Empty on the Stripe-element path. */
   routingNumber: string;
-  /** 'Checking' | 'Savings'. */
+  /** 'Checking' | 'Savings'. Empty on the Stripe-element path. */
   accountType: string;
   firstName: string;
   lastName: string;
@@ -225,9 +225,15 @@ export interface BankFormValue {
   state: string;
   zip: string;
   country: string;
+  /** Set when Stripe's own bank element collected the account and minted a
+   *  us_bank_account pm — the payload is then `hosted-ach` + this token and
+   *  the fields above except `zip` are empty. SINGLE-USE. */
+  stripePaymentMethodId?: string;
+  /** Display only — "•••• 6789" on receipts. Never sent as an account number. */
+  bankLast4?: string;
 }
 
-export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: {
+export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel, stripe = null, defaultName = '', defaultEmail = '' }: {
   total: number;
   /** Receives the entered account when the form is complete. */
   onPay: (bank: BankFormValue) => void;
@@ -236,6 +242,15 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
   /** Country the billing select opens on — see `BillingCountry`. */
   defaultCountry?: BillingCountry;
   payLabel?: string;
+  /** The property's Stripe gateway_config (tenant_payments_stripe only).
+   *  Set ⇒ the account fields are STRIPE'S OWN bank element — Financial
+   *  Connections bank search + manual entry, all inside Stripe's iframe — and
+   *  Pay mints a us_bank_account pm. Null keeps the typed fields exactly as
+   *  they were. */
+  stripe?: StripeGatewayConfig | null;
+  /** Prefill for the element's own Full name / Email fields. */
+  defaultName?: string;
+  defaultEmail?: string;
 }) {
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
@@ -284,6 +299,54 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
     setCountry(c);
     if (c !== country) { setAddress(''); setCity(''); setStateCode(''); setZip(''); setAddressPicked(false); }
   };
+
+  /* ── Stripe bank element (tenant_payments_stripe) ────────────────────────
+     Stripe's OWN Pay-by-Bank UI replaces the typed account fields: the
+     Payment Element restricted to us_bank_account, which renders the
+     Financial Connections bank search (log into the bank, pick the account)
+     with manual entry as ITS fallback, shows the ACH mandate, and mints the
+     pm on Pay. Needs only the publishable key — verified 2026-10-28. If the
+     element cannot mount (script blocked, config rejected) the form falls
+     back to the typed fields below, which the parent exchanges for a raw
+     us_bank_account pm — degraded, never dead. Bank numbers are not PANs:
+     the typed fallback is lawful here, unlike the card form's. */
+  const bankElMode = !!(stripe && stripe.publicKey);
+  const [bankElReady, setBankElReady] = useState(false);
+  const [bankElComplete, setBankElComplete] = useState(false);
+  const [bankElFailed, setBankElFailed] = useState(false);
+  /** A submit round-trip is out — locks the button like `busy`. */
+  const [bankSubmitting, setBankSubmitting] = useState(false);
+  /** Stripe's own message when the mint is refused — shown in the banner. */
+  const [bankElError, setBankElError] = useState('');
+  const bankElRef = useRef<StripeBankElementHandle | null>(null);
+  const bankHostId = `stripe-bank-${useId().replace(/:/g, '')}`;
+  const stripeBankActive = bankElMode && !bankElFailed;
+  useEffect(() => {
+    if (!bankElMode) return undefined;
+    let dead = false;
+    let mounted: StripeBankElementHandle | null = null;
+    void mountStripeBankElement({
+      config: stripe!,
+      amountCents: Math.round(total * 100),
+      target: `#${bankHostId}`,
+      defaultName,
+      defaultEmail,
+      onReady: () => { if (!dead) setBankElReady(true); },
+      onComplete: (c) => { if (!dead) setBankElComplete(c); },
+    }).then((h) => {
+      if (dead) { h?.unmount(); return; }
+      mounted = h;
+      bankElRef.current = h;
+      if (!h) setBankElFailed(true); // typed fields take over
+    });
+    return () => { dead = true; mounted?.unmount(); bankElRef.current = null; setBankElReady(false); setBankElComplete(false); };
+    /* Mounted once per key/account; the amount follows `total` below rather
+       than remounting (which would drop a connected bank account). */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bankElMode, stripe?.publicKey, stripe?.merchantAccount]);
+  useEffect(() => {
+    if (stripeBankActive) bankElRef.current?.updateAmount(Math.round(total * 100));
+  }, [stripeBankActive, total]);
 
   /* ── Account number / confirm ────────────────────────────────────────────
      The PAIR validates, never either field alone. The left one used to turn
@@ -351,6 +414,69 @@ export function BankForm({ total, onPay, busy, defaultCountry = '', payLabel }: 
       country: country.trim(),
     });
   };
+
+  /* ── Stripe element panel ──────────────────────────────────────────────────
+     The element collects name, email and the bank itself; ZIP stays OUR field
+     because the hosted-ach payload carries it (same zip-only billing the
+     Stripe card row uses). us_bank_account is US-only, so no country select. */
+  if (stripeBankActive) {
+    const zipOk = postalCodeOk(zip, 'United States');
+    const stripePayError = bankElError
+      || (payAttempted && !bankElComplete ? 'Connect or enter your bank account to continue' : '')
+      || (payAttempted && !zipOk ? 'Enter your billing ZIP code' : '');
+    const payStripeBank = () => {
+      setBankElError('');
+      if (!(skipValidation() || (bankElComplete && zipOk))) { setPayAttempted(true); return; }
+      if (bankSubmitting || busy || !bankElRef.current) return;
+      // One submit per click — the pm is single-use, so a refusal comes back
+      // to a fresh Pay, never a reused id.
+      setBankSubmitting(true);
+      void bankElRef.current.submit().then((r) => {
+        setBankSubmitting(false);
+        if (!r.ok) { setBankElError(r.message); return; }
+        onPay({
+          // Stripe holds the account — nothing of it belongs in these fields.
+          accountNumber: '',
+          routingNumber: '',
+          accountType: '',
+          firstName: '',
+          lastName: '',
+          address: '',
+          address2: '',
+          city: '',
+          state: '',
+          zip: zip.trim(),
+          country: 'United States',
+          stripePaymentMethodId: r.paymentMethodId,
+          bankLast4: r.last4,
+        });
+      });
+    };
+    return (
+      <>
+        {stripePayError && (
+          <div className="rf-payerr" role="alert">
+            <AlertIcon size={24} className="rf-payerr-ico" />
+            <span>{stripePayError}</span>
+          </div>
+        )}
+        <div className={`rf-bankel${!bankElReady ? ' rf-bankel--loading' : ''}`}>
+          <div id={bankHostId} className="rf-bankel-host" />
+          {!bankElReady && <Shimmer className="rf-bankel-shimmer" />}
+        </div>
+        <div className="rf-pay-grid">
+          <FormField
+            label="Billing ZIP" required value={zip} onChange={setZip} autoComplete="postal-code"
+            state={ok(postalCodeOk(zip, 'United States'))}
+            error={payAttempted && !zipOk ? 'Enter your billing ZIP code' : undefined}
+          />
+        </div>
+        <button type="button" className="rf-paynow" onClick={payStripeBank} disabled={busy || bankSubmitting}>
+          {busy || bankSubmitting ? 'Processing…' : (payLabel ?? `Pay Now ${money(total)}`)}
+        </button>
+      </>
+    );
+  }
 
   return (
     <>
