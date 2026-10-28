@@ -1746,6 +1746,15 @@
   font-weight: 600 !important;
   line-height: 1.2 !important;
   color: var(--hb-text-night) !important;
+  /* Up to two lines beside Cancel/Save: a long number breaks onto the second
+     line (anywhere, not only after "Space"), and "…" only past two. */
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /* Section headings — "Account Settings", "Mailing Address", "Additional
@@ -2120,7 +2129,7 @@
   .ma-account__alt--emergency { flex: 1 1 100%; }
 
   .ma-edit__body { padding: 24px 20px; }
-  .ma-edit__title { font-size: 22px !important; } /* = .ma-account__title here; was 28px */
+  .ma-edit__title { font-size: 20px !important; } /* was 22px (= .ma-account__title here) */
   /* The title-row Cancel/Save keep the action bar's full size; only the gap
      to the title tightens so they fit beside "Space #n" on a phone. */
   .ma-edit__top { gap: 12px; }

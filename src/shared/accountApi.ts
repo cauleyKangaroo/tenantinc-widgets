@@ -884,10 +884,13 @@ export type LeasePaymentMethod =
   | { type: 'hosted-card'; token: string; zip: string; saveToAccount: boolean; autopay: boolean }
   /* A Stripe property's bank payment: the routing/account never leave the
      browser raw — Stripe mints a us_bank_account PaymentMethod and this
-     carries its single-use pm_… (client contract, 2026-10-23). `zip` is
-     REQUIRED: omitting it is payment_rejected "billing address zip code is
-     required" (verified live on Bellflower, 2026-10-28). */
-  | { type: 'hosted-ach'; token: string; zip: string; saveToAccount: boolean; autopay: boolean }
+     carries its single-use pm_… (client contract, 2026-10-23). The server
+     REQUIRES a billing zip (payment_rejected without one) yet the schema
+     takes NO zip key ("Unrecognized key: zip" — both verified live on
+     Bellflower, 2026-10-28), so the zip must be minted INTO the pm as
+     billing_details.address.postal_code. The element and raw-detail mints
+     both do that. */
+  | { type: 'hosted-ach'; token: string; saveToAccount: boolean; autopay: boolean }
   | LeaseCardPaymentMethod
   | LeaseBankPaymentMethod
   | LeaseWalletPaymentMethod;
