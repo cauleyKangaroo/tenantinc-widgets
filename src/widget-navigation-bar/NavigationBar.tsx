@@ -680,7 +680,9 @@ export function NavigationBar({
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const active = document.activeElement as HTMLElement | null;
-        const typing = !!active && active.matches('input, textarea') && !!active.closest('.al-wrapper');
+        // Mobile only: the bar's own mobile layout starts at 1024px.
+        const mobile = window.matchMedia('(max-width: 1024px)').matches;
+        const typing = mobile && !!active && active.matches('input, textarea') && !!active.closest('.al-wrapper');
         let next = 0;
         if (typing) {
           // Where the bar sits without our shift, against the top of what is
