@@ -10,7 +10,7 @@ import {
   loginApiReady,
   type LoginApiConfig, type Identifier, type AccountContact,
 } from '@shared/accountApi';
-import { saveSession, expiresAtFrom } from '@shared/accountSession';
+import { saveSession, readSession, expiresAtFrom } from '@shared/accountSession';
 
 // ===========================================================================
 // Widget #17 — Account Login
@@ -479,6 +479,18 @@ export function AccountLogin({
    */
   const live = loginApiReady(api) && !inEditor;
   const [step, setStep] = useState<Step>('identify');
+
+  /*
+   * Already signed in — straight to the account page instead of asking again.
+   * Reaching /login with a live session happens via bookmarks, the back
+   * button, or any link that doesn't resolve through @shared/accountLink.
+   * No loop is possible: #19 clears a server-rejected token BEFORE it sends
+   * anyone back here, so a bounced visitor always arrives signed out.
+   * `live` keeps the editor and the harness on the walkable login card.
+   */
+  useEffect(() => {
+    if (live && successUrl && readSession()) window.location.href = successUrl;
+  }, [live, successUrl]);
 
   // 'phone' mode can be switched to email in-session by the "Login with Email"
   // button, so the prop seeds this rather than driving it.

@@ -1093,7 +1093,12 @@ export function NavigationBar({
                   </span>
                   <span className="nav-mm-quick-label">Map</span>
                 </a> */}
-                <a className="nav-mm-quick-item" href="/login">
+                {/* Session-aware, like the desktop bar's Pay Bill: signed in
+                    goes straight to the account page, signed out to /login.
+                    Hardcoding /login here showed a signed-in reader the login
+                    screen again — mobile only, since desktop already resolved
+                    through accountLinkProps. */}
+                <a className="nav-mm-quick-item" {...payBillLink}>
                   <span className="nav-mm-circle">
                     <CreditCardIcon size={22} />
                   </span>
@@ -1138,14 +1143,18 @@ export function NavigationBar({
             {/* Account / utility links — inset on the wrapping div, see below */}
             <div className="nav-mm-account-inset">
               <ul className="nav-mm-account">
+                {/* Both rows resolve through accountLinkProps like the desktop
+                    AccountMenu: a live session lands on the account page,
+                    otherwise /login. They pointed at /login unconditionally,
+                    so a signed-in reader kept getting the login screen. */}
                 <li>
-                  <a href="/login">
+                  <a {...accountLink}>
                     <LoginIcon size={24} />
                     <span>Login</span>
                   </a>
                 </li>
                 <li>
-                  <a href="/login">
+                  <a {...accountLink}>
                     <UserCircleIcon size={24} />
                     <span>{accountLabel}</span>
                   </a>
