@@ -661,6 +661,58 @@ export function NavigationBar({
     };
   }, []);
 
+  /* iPHONE SAFARI, LOGIN PAGE: keep the bar on screen while typing. The
+     site's header is not sticky on mobile, so when the keyboard opens and
+     Safari scrolls (and slides the visible area, visualViewport.offsetTop) to
+     the field, the bar goes out of view with the page. While a login field
+     (.al-wrapper) has focus, the bar is moved down to the top of what is
+     actually visible; it snaps back on blur. Measured, not assumed: if the
+     bar is already in view it does not move, and every other page and field
+     is untouched. */
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = navRef.current;
+    if (!vv || !el) return undefined;
+    let frame = 0;
+    let shift = 0;
+    const sync = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const active = document.activeElement as HTMLElement | null;
+        const typing = !!active && active.matches('input, textarea') && !!active.closest('.al-wrapper');
+        let next = 0;
+        if (typing) {
+          // Where the bar sits without our shift, against the top of what is
+          // visible. Only a bar that has gone above it is brought down.
+          const naturalTop = el.getBoundingClientRect().top - shift;
+          next = Math.max(0, Math.round(vv.offsetTop - naturalTop));
+        }
+        if (next === shift) return;
+        shift = next;
+        el.style.transform = shift ? `translateY(${shift}px)` : '';
+        // Over the page content it now sits on, only while shifted (.nav-bar
+        // is already position: relative).
+        el.style.zIndex = shift ? '1000' : '';
+      });
+    };
+    vv.addEventListener('resize', sync);
+    vv.addEventListener('scroll', sync);
+    window.addEventListener('scroll', sync, { passive: true });
+    document.addEventListener('focusin', sync);
+    document.addEventListener('focusout', sync);
+    return () => {
+      cancelAnimationFrame(frame);
+      vv.removeEventListener('resize', sync);
+      vv.removeEventListener('scroll', sync);
+      window.removeEventListener('scroll', sync);
+      document.removeEventListener('focusin', sync);
+      document.removeEventListener('focusout', sync);
+      el.style.transform = '';
+      el.style.zIndex = '';
+    };
+  }, []);
+
   const displayPhone = livePhone?.phone || phone;
   const telHref = phoneHref ?? `tel:${(livePhone?.digits || displayPhone).replace(/[^0-9+]/g, '')}`;
   // The SMS / "message" utility item was removed at the client's request — the
@@ -964,7 +1016,7 @@ export function NavigationBar({
     .join(' ');
 
   return (
-    <nav className={barClass}>
+    <nav className={barClass} ref={navRef}>
       {showTopBar && (
         <div className="nav-topbar">
           <div className="nav-topbar-inner">{topItems}</div>
