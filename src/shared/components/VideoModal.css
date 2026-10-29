@@ -1,5 +1,13 @@
-/* The size guide video popup — see VideoModal.tsx. Portaled to <body>, so
-   every rule is scoped to its own classes and nothing inherits from a widget. */
+/* The size guide / "See what fits" video popup — see VideoModal.tsx. Portaled
+   to <body>, so every rule is scoped to its own classes and nothing inherits
+   from a widget.
+
+   DESIGN: #03 property-info's gallery lightbox (client request, 2026-10-29) —
+   the same near-black backdrop (.pi-lightbox's rgba(0,0,0,.88)) with the video
+   floating on it, no card chrome, and the OUTLINED close ring inset from the
+   screen's top-right corner exactly like .pi-lb-close (70px → 28px at 900px →
+   14px at 560px; icon 52px → 32px at 768px). Change #03's numbers, change
+   these. */
 
 .hb-video-overlay {
   position: fixed;
@@ -9,18 +17,16 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(16, 19, 24, 0.72);
+  background: rgba(0, 0, 0, 0.88);
   box-sizing: border-box;
 }
 
+/* No card: the player floats on the backdrop, like the lightbox photo. */
 .hb-video-modal {
   position: relative;
   width: min(960px, 100%);
-  background: #101318;
-  border-radius: 12px;
-  padding: 16px;
+  background: none;
   box-sizing: border-box;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
 }
 
 /* 16:9 box the player fills. */
@@ -40,37 +46,63 @@
   border: 0;
 }
 
+/* Centred under the player, like the lightbox's photo counter. */
 .hb-video-title {
-  margin: 12px 0 0 !important;
+  margin: 14px 0 0 !important;
   font: 600 18px/1.3 'Poppins', 'Poppins Fallback', sans-serif !important;
   color: #fff !important;
   text-align: center;
 }
 
-/* Sits on the corner, outside the player so it never covers its controls. */
+/* The lightbox close: the bare outlined ring, inset from the SCREEN's corner.
+   `fixed` rather than absolute so it sits at the viewport corner like
+   .pi-lb-close does, while staying inside the dialog for the focus trap.
+   Background pinned across states — this is a <button>, and a host
+   `button:hover` would otherwise paint one back (same note as #03's). */
 .hb-video-close {
-  position: absolute;
-  top: -14px;
-  right: -14px;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: #fff;
-  color: #101318;
-  cursor: pointer;
-  display: inline-flex;
+  position: fixed;
+  top: 70px;
+  right: 70px;
+  z-index: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+}
+.hb-video-close:hover,
+.hb-video-close:focus,
+.hb-video-close:active {
+  background: none;
 }
 .hb-video-close:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.hb-video-close svg { display: block; width: 32px; height: 32px; }
+.hb-video-close svg { display: block; }
 
+/* The icon's two Figma sizes: the 52 above 768px, the 32 below — swapped, not
+   scaled, so the ring keeps its true stroke (see the JSX note). Toggled on
+   these classes only — a generic `.hb-video-close span` rule would outrank
+   them (0,1,1 vs 0,1,0) and draw both marks at once. */
+.hb-video-close-lg { display: flex; }
+.hb-video-close-sm { display: none; }
+
+@media (max-width: 900px) {
+  .hb-video-close { top: 28px; right: 28px; }
+}
+@media (max-width: 768px) {
+  .hb-video-close { width: 32px; height: 32px; }
+  .hb-video-close-lg { display: none; }
+  .hb-video-close-sm { display: flex; }
+}
 @media (max-width: 640px) {
   .hb-video-overlay { padding: 16px; }
-  .hb-video-modal { padding: 10px; border-radius: 10px; }
-  .hb-video-close { top: -12px; right: -8px; }
   .hb-video-title { font-size: 16px !important; }
+}
+@media (max-width: 560px) {
+  .hb-video-close { top: 14px; right: 14px; }
 }

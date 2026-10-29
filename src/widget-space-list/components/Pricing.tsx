@@ -194,7 +194,7 @@ export function PriceBlock({ unit, config, reserve }: {
         <div className="sl-price-main">
           <div className="sl-starting-label">{PROMO_RATE_LABEL}</div>
           <div className="sl-main-price"><Figure value={fig.main} all={reserve?.main} /></div>
-          <AdminFeeLine unit={unit} config={config} />
+          <AdminFeeLine config={config} />
         </div>
       </div>
     );
@@ -218,7 +218,7 @@ export function PriceBlock({ unit, config, reserve }: {
       <div className="sl-price-main">
         <div className="sl-starting-label">{config.startingAtLabel}</div>
         <div className="sl-main-price"><Figure value={fig.main} all={reserve?.main} /></div>
-        <AdminFeeLine unit={unit} config={config} />
+        <AdminFeeLine config={config} />
       </div>
     </div>
   );
@@ -226,13 +226,13 @@ export function PriceBlock({ unit, config, reserve }: {
 
 /**
  * The admin-fee small print under the price: the property's own
- * `admin_fees_text` (PropertiesInternal) verbatim when the operator wrote one,
- * else the demo units' numeric line (harness only — live units carry no
- * `adminFee`), else nothing. An empty cell must show NO message.
+ * `admin_fees_text` (PropertiesInternal) verbatim — and from NOWHERE else.
+ * Column missing, cell blank, no dmAPI, demo units standing in: NO line.
+ * There is deliberately no numeric fallback; a fee the operator didn't
+ * write must never be invented.
  */
-function AdminFeeLine({ unit, config }: { unit: Unit; config: WidgetConfig }) {
+function AdminFeeLine({ config }: { config: WidgetConfig }) {
   if (config.adminFeesText) return <div className="sl-admin-fee">{config.adminFeesText}</div>;
-  if (unit.adminFee != null) return <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>;
   return null;
 }
 
@@ -292,6 +292,10 @@ export function FeatureList({ features }: { features: string[] }) {
 }
 
 /**
+ * RETIRED 2026-10-29 — no card renders this any more: the only small print is
+ * the property's `admin_fees_text` (PropertiesInternal). Kept, with its
+ * commented-out call sites, in case it has to come back.
+ *
  * Editor-authored disclaimer under the price. Copy comes from `junkFeeCopy`,
  * which SpaceList has already defaulted — so an empty string here means the
  * editor deliberately cleared it, and we render nothing rather than an empty box.
@@ -469,7 +473,11 @@ export function CtaButton({ unit, config, full, colClass, aside }: {
       channel: config.valueTiersChannel || undefined,
       // Mirror the operator's Space List config so #14 doesn't need it re-entered.
       ctaLabel: config.ctaButtonCopy || undefined,
-      feeText: config.showJunkFeeDisclaimer ? (config.junkFeeCopy || '') : '',
+      // The popup's line below the cards is the PROPERTY's own admin_fees_text
+      // (PropertiesInternal), not the junk-fee disclaimer. '' — not undefined —
+      // when the property has none, so the popup shows NOTHING rather than
+      // falling back to #14's own '$30 Admin fee…' default.
+      feeText: config.adminFeesText || '',
       showPricingDetails: config.showJunkFeeDisclaimer,
       showUrgency: config.showUrgencyMessage,
       enablePromoLogic: config.enablePromoLogic,
