@@ -169,6 +169,12 @@ export interface WidgetConfig {
    *  (dynamic pages vary both; the target can't infer them). */
   propertyId?: string;
   companyId?: string;
+  /**
+   * "See what fits" under a card's image: opens the matching Sizes-collection
+   * video in a popup (see SpaceList's handler). Absent → the link stays the
+   * no-op it has always been (dev harness, site without the collection).
+   */
+  onSeeWhatFits?: (unit: Unit) => void;
 }
 
 // ---------------------------------------------------------------------------

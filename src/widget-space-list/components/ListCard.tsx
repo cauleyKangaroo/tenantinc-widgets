@@ -108,7 +108,12 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
                 onError={unitImageOnError(selected)}
               />
             )}
-            <a href="#" className="sl-lc-see-fits">
+            {/* The video follows the SELECTED pill, like the image beside it. */}
+            <a
+              href="#"
+              className="sl-lc-see-fits"
+              onClick={(e) => { e.preventDefault(); config.onSeeWhatFits?.(selected); }}
+            >
               See what fits <PlayCircleIcon />
             </a>
           </div>
