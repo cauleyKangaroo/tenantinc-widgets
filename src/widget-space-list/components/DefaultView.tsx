@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import type { Unit, SpaceType, UnitSize, WidgetConfig } from '../types';
 import { groupBySizeSorted, sortUnits, orderTypes } from '../filters';
-// JunkFeeDisclaimer deliberately no longer imported — retired 2026-10-29.
 import {
   PriceBlock,
   CtaButton,
   FeatureList,
   PromoBadge,
+  AdminFeesNote,
   PlayCircleIcon,
 } from './Pricing';
 import { unitImageSrc, unitImageOnError } from './unitImage';
@@ -94,18 +94,15 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
             {unit.features.length > 0 && (
               <div className="sl-dv-features-line">{unit.features.join(', ')}</div>
             )}
-            {/* The property's own admin_fees_text, VERBATIM, and from nowhere
-                else — no column / blank cell / demo data means NO line. */}
-            {config.adminFeesText && (
-              <div className="sl-dv-admin">{config.adminFeesText}</div>
-            )}
+            {/* No fee restatement here any more: admin_fees_text renders once,
+                in the junk-fee slot under the price (AdminFeesNote below) —
+                a second copy in this grey block read as two different fees. */}
           </div>
           <div className="sl-dv-price-button">
             <div className="sl-dv-price">
               <PriceBlock unit={unit} config={config} />
-              {/* Junk-fee disclaimer retired 2026-10-29: the only small print
-                  is the property's admin_fees_text, rendered by PriceBlock.
-              {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />} */}
+              {/* The junk-fee disclaimer's slot, now fed by admin_fees_text. */}
+              <AdminFeesNote config={config} />
             </div>
             <CtaButton unit={unit} config={config} full colClass="sl-dv-btn-col" />
           </div>
