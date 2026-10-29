@@ -384,7 +384,7 @@ export interface AccountLoginProps {
 
 export function AccountLogin({
   heading = 'Account Login',
-  subheading = 'Enter the mobile number or email associated with your storage account.',
+  subheading = "Enter the mobile number or email associated with your storage account. We'll send you a 6-digit code. No password needed.",
   identifierMode = 'phoneOrEmail',
   showPropertySelect = false,
   propertiesCollection = PROPERTIES_COLLECTION,
@@ -448,8 +448,8 @@ export function AccountLogin({
       nodes.push(n);
     }
 
-    const props = ['height', 'min-height'] as const;
-    const previous = nodes.map((node) => props.map((p) => ({
+    const heightProps = ['height', 'min-height'] as const;
+    const previous = nodes.map((node) => heightProps.map((p) => ({
       value: node.style.getPropertyValue(p),
       priority: node.style.getPropertyPriority(p),
     })));
@@ -460,7 +460,7 @@ export function AccountLogin({
     });
     return () => {
       nodes.forEach((node, i) => {
-        props.forEach((p, j) => {
+        heightProps.forEach((p, j) => {
           const { value, priority } = previous[i][j];
           if (value) node.style.setProperty(p, value, priority);
           else node.style.removeProperty(p);
@@ -758,7 +758,7 @@ export function AccountLogin({
     } finally {
       setChecking(false);
     }
-  }, [checking, bypassCode, successUrl, live, api, identifierPayload, finish, demoAccountCount]);
+  }, [checking, bypassCode, successUrl, live, api, identifier, identifierPayload, finish, demoAccountCount]);
 
   /*
    * A row of the picker was chosen (step 1c).
@@ -980,9 +980,30 @@ export function AccountLogin({
             {checking ? 'Checking…' : 'Continue'}
           </button>
 
-          <button type="button" className="al-resend" onClick={resend} disabled={resendIn > 0}>
-            {resendIn > 0 ? `Resend Code in ${resendIn}s` : 'Resend Code'}
-          </button>
+          {/* Back to the plain login step. The label names the OTHER channel
+              (a code sent to a phone offers email, and the reverse), but the
+              field it returns to takes either, as it did the first time. */}
+          <div className="al-verify-links">
+            <button
+              type="button"
+              className="al-resend"
+              onClick={() => {
+                setForceEmail(false);
+                setIdentifier('');
+                setIdentifyError('');
+                setCode('');
+                setCodeError('');
+                setResent(false);
+                setStep('identify');
+              }}
+            >
+              {kind === 'email' ? 'Login with number' : 'Login with email'}
+            </button>
+            <span className="al-verify-sep" aria-hidden="true" />
+            <button type="button" className="al-resend" onClick={resend} disabled={resendIn > 0}>
+              {resendIn > 0 ? `Resend Code in ${resendIn}s` : 'Resend Code'}
+            </button>
+          </div>
         </div>
       </div>
     );
