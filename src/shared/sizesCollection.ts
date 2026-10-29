@@ -164,13 +164,21 @@ export function pickSizeForUnit(
   const exactIn = (pool: SizeItem[]): SizeItem | undefined => pool.find((s) =>
     (s.width === width && s.length === length) || (s.width === length && s.length === width));
 
+  // The live collection labels its parking rows "Other" — parking falls outside
+  // the Extra Small … Extra Large band set, so that's its catch-all. "Parking"
+  // is kept too in case the collection ever says what it means.
+  const isParkingRow = (s: SizeItem) =>
+    /parking/i.test(s.category) || /parking/i.test(s.sizeLabel)
+    || s.category.trim().toLowerCase() === 'other'
+    || s.sizeLabel.trim().toLowerCase() === 'other';
+
   if (unit.parking) {
-    const parkingRows = sizes.filter((s) => /parking/i.test(s.category) || /parking/i.test(s.sizeLabel));
+    const parkingRows = sizes.filter(isParkingRow);
     // Exact first here too: two parking rows can TIE on area (10x20 vs 5x40),
     // and the tie-break would open the other one's video.
     return exactIn(parkingRows) ?? nearest(parkingRows);
   }
-  const rows = sizes.filter((s) => !/parking/i.test(s.category) && !/parking/i.test(s.sizeLabel));
+  const rows = sizes.filter((s) => !isParkingRow(s));
 
   const band = unit.band.toLowerCase();
   const sameBand = rows.filter((s) => s.category.toLowerCase() === band);
