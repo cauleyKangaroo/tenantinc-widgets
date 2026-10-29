@@ -65,8 +65,8 @@ export interface Unit {
   inStorePrice: number;
   /** Main "starting at" price */
   startingPrice: number;
-  /** Optional "+ Plus $X Admin Fee" line */
-  adminFee?: number;
+  /* The old numeric `adminFee` line is gone: the admin-fee message comes only
+     from PropertiesInternal's `admin_fees_text` (config.adminFeesText). */
   /** Optional promo badge text */
   promo?: string;
   /** Allocated promotion id — matches the Promotions widget's promo id for cross-widget filtering */

@@ -94,12 +94,10 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
             {unit.features.length > 0 && (
               <div className="sl-dv-features-line">{unit.features.join(', ')}</div>
             )}
-            {/* The property's own admin_fees_text wins and renders VERBATIM —
-                the operator writes the whole message, so no "added" rewording. */}
-            {config.adminFeesText ? (
+            {/* The property's own admin_fees_text, VERBATIM, and from nowhere
+                else — no column / blank cell / demo data means NO line. */}
+            {config.adminFeesText && (
               <div className="sl-dv-admin">{config.adminFeesText}</div>
-            ) : unit.adminFee != null && (
-              <div className="sl-dv-admin">${unit.adminFee} Admin Fee added</div>
             )}
           </div>
           <div className="sl-dv-price-button">
