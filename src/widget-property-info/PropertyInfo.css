@@ -1559,7 +1559,10 @@ iframe.pi-lb-img { position: relative; inset: auto; }
   border: 0;
   background: none;
   font: inherit;
-  color: inherit;
+  /* NOT `inherit`: this reset outranks the base .pi-gallery-arrow rule, and
+     inheriting would paint the chevrons the wrapper's near-black over the
+     photo. They are always on the photo, so they are always white. */
+  color: #fff;
 }
 /* Keyboard-only route into the lightbox, replacing the one lost when the
    container stopped being a button. Off-screen until focused, then it lands

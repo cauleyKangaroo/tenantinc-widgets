@@ -810,10 +810,15 @@ export function MakePaymentPanel({
   const liveCardKey = payment?.gpPublicKey;
   /* The rental flow's rule (2026-10-28): no GP key and no Stripe config means
      the TYPED inputs — the gateway (authorizenet) wants the real digits and
-     CardForm already falls back to them on its own. The one gateway that must
-     NOT fall through is one NAMED Stripe whose config is unusable: a PAN
-     typed there has nowhere lawful to go, so only that keeps the notice. */
-  const cardUnavailable = !!payment && payment.gateway === TENANT_PAYMENTS_STRIPE && !payment.stripe;
+     CardForm already falls back to them on its own. Two gateways must NOT
+     fall through to typed digits: one NAMED Stripe whose config is unusable,
+     and one the lookup FAILED to name at all — it could be Stripe, so a PAN
+     typed there has nowhere lawful to go either. A looked-up non-Stripe name
+     (authorizenet, GP without a key) still gets the typed inputs. */
+  const cardUnavailable = !!payment && !payment.stripe && (
+    payment.gateway === TENANT_PAYMENTS_STRIPE
+    || (!payment.gatewayPending && !payment.gateway && !liveCardKey)
+  );
   /* ZIP-only wherever the card never reaches us (GP's iframe, Stripe's
      element) — the gateway verifies on the postcode. A typed-card gateway is
      billed against the address, so it keeps the full block, as in #99. The
