@@ -4,7 +4,7 @@ import { PROPERTY_IMAGES, cover, propertyImage } from '@shared/demoImages';
 import { fetchPropertyHeroImages } from '@shared/propertyImages';
 import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { fetchPlaceRating } from '@shared/googlePlaceRating';
-import { fetchPlaceIds } from '@shared/internalProperties';
+import { fetchPlaceIds, fetchAdminFeesTextMap } from '@shared/internalProperties';
 import {
   StarRating,
   PhoneIcon,
@@ -50,7 +50,11 @@ type Space = NearbySpace;
 interface Property extends Omit<NearbyProperty, 'spaces'> {
   /** CSS gradient / demo cover — Images aren't in the API yet. */
   image: string;
-  adminFee: number;
+  /** The property's own `admin_fees_text` (PropertiesInternal), verbatim.
+   *  Absent/blank cell ⇒ the card shows NO admin-fee line. */
+  adminFeeText?: string;
+  /** Demo rows only — live cards carry `adminFeeText` or nothing. */
+  adminFee?: number;
   /** Not in the properties API — joined by name from the `GoogleReviews`
    *  collection (as #08 does). Absent ⇒ the card has no rating row. */
   rating?: number;
@@ -513,7 +517,14 @@ function PropertyCard({
             point, and the base path alone would land on a page that is not this
             facility. */}
         <a className="nl-card-footer" href={propertyHref}>
-          <span className="nl-admin-fee">+ Plus ${property.adminFee} Admin Fee</span>
+          {/* The property's own admin_fees_text, verbatim; the numeric form is
+              the demo rows' only. No value ⇒ NO line — "See All Spaces" keeps
+              its right edge via the CSS margin, not an empty spacer. */}
+          {(property.adminFeeText || property.adminFee != null) && (
+            <span className="nl-admin-fee">
+              {property.adminFeeText ?? `+ Plus $${property.adminFee} Admin Fee`}
+            </span>
+          )}
           <span className="nl-see-all">See All Spaces</span>
         </a>
       </div>
@@ -602,7 +613,9 @@ export interface NearbyLocationsProps extends ApiCredProps {
   subheading?: string;
   /** Duda setting: only show properties within this many miles. 0/unset = nearest-first. */
   radiusMiles?: number;
-  /** Fixed admin fee shown on each card (not per-property in the API). */
+  /** DEPRECATED, ignored. The card line now comes from each property's
+   *  `admin_fees_text` on PropertiesInternal; anything the JS tab still
+   *  passes here does nothing. */
   adminFee?: number;
   /**
    * The page's own property, if Duda passes one — used to anchor distances when
@@ -706,7 +719,6 @@ export function NearbyLocations({
   heading = 'Nearby Properties',
   subheading = 'Browse other storage facilities in the area and compare available spaces and prices.',
   radiusMiles = 0,
-  adminFee = 20,
   propertyId = '',
   rows = 1,
   sortMode = 'nearest',
@@ -966,10 +978,13 @@ export function NearbyLocations({
         // photos do: a rating row arriving after the card would push the name
         // up inside its bottom-pinned block. A collection read, so it costs no
         // more than the photo read it runs beside. Fails soft to no ratings.
-        const [heroes, ratings, placeIds] = await Promise.all([
+        const [heroes, ratings, placeIds, adminFees] = await Promise.all([
           fetchPropertyHeroImages(internalCollection).catch(() => new Map<string, string>()),
           fetchGoogleRatingsByPlace('#07 nearby').catch(() => ({ byPlace: new Map(), overall: null })),
           fetchPlaceIds(internalCollection).catch(() => new Map<string, string>()),
+          // Per-property `admin_fees_text` — same collection read the others
+          // share. Properties with a blank cell are absent: no line, no $20.
+          fetchAdminFeesTextMap(internalCollection).catch(() => new Map<string, string>()),
         ]);
         /*
          * THE LIVE RATING, PER PROPERTY. Each card's property has its own
@@ -1021,7 +1036,9 @@ export function NearbyLocations({
             // heroimage wins over the API's own Images field, which is the
             // one the operator actually chose for this property.
             image: propertyImage(heroes.get(p.id) || p.imageUrl, i),
-            adminFee,
+            // The operator's own line or nothing — never a hardcoded $20. The
+            // demo rows keep their numeric `adminFee`; live cards don't get one.
+            adminFeeText: adminFees.get(p.id),
             promo: cached?.promo,
             spaces: cached ? cached.spaces : null,
           };
@@ -1040,7 +1057,7 @@ export function NearbyLocations({
     })();
 
     return () => { cancelled = true; clearTimeout(deadline); };
-  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection, companyId, reviewsBase, siteId]);
+  }, [radiusMiles, propertyId, featured, cap, internalCollection, companyId, reviewsBase, siteId]);
 
   // While loading we render skeleton cards — showing DEMO_PROPERTIES here meant
   // real-looking names/prices flashed up and were then replaced. Demo data is
@@ -1130,7 +1147,7 @@ export function NearbyLocations({
   useEffect(() => {
     deskGoTo(0);
     mobileGoTo(0);
-  }, [radiusMiles, adminFee, propertyId, featured, cap, internalCollection, deskGoTo, mobileGoTo]);
+  }, [radiusMiles, propertyId, featured, cap, internalCollection, deskGoTo, mobileGoTo]);
 
   /**
    * The ids on screen right now — the desktop page's cards plus the one card the

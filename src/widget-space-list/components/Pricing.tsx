@@ -194,9 +194,7 @@ export function PriceBlock({ unit, config, reserve }: {
         <div className="sl-price-main">
           <div className="sl-starting-label">{PROMO_RATE_LABEL}</div>
           <div className="sl-main-price"><Figure value={fig.main} all={reserve?.main} /></div>
-          {unit.adminFee != null && (
-            <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
-          )}
+          <AdminFeeLine unit={unit} config={config} />
         </div>
       </div>
     );
@@ -220,12 +218,22 @@ export function PriceBlock({ unit, config, reserve }: {
       <div className="sl-price-main">
         <div className="sl-starting-label">{config.startingAtLabel}</div>
         <div className="sl-main-price"><Figure value={fig.main} all={reserve?.main} /></div>
-        {unit.adminFee != null && (
-          <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
-        )}
+        <AdminFeeLine unit={unit} config={config} />
       </div>
     </div>
   );
+}
+
+/**
+ * The admin-fee small print under the price: the property's own
+ * `admin_fees_text` (PropertiesInternal) verbatim when the operator wrote one,
+ * else the demo units' numeric line (harness only — live units carry no
+ * `adminFee`), else nothing. An empty cell must show NO message.
+ */
+function AdminFeeLine({ unit, config }: { unit: Unit; config: WidgetConfig }) {
+  if (config.adminFeesText) return <div className="sl-admin-fee">{config.adminFeesText}</div>;
+  if (unit.adminFee != null) return <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>;
+  return null;
 }
 
 // Filled tag — exact Figma vector (node 429:46379). Shared by the grid promo

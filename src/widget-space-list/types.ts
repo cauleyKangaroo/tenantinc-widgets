@@ -170,6 +170,13 @@ export interface WidgetConfig {
   propertyId?: string;
   companyId?: string;
   /**
+   * The property's admin-fee line, verbatim from PropertiesInternal's
+   * `admin_fees_text` (e.g. "+ Plus $20 Admin Fee"). Rendered under the price
+   * on every card when set; absent/blank → no line (the demo units' numeric
+   * `adminFee` stays the harness-only fallback).
+   */
+  adminFeesText?: string;
+  /**
    * "See what fits" under a card's image: opens the matching Sizes-collection
    * video in a popup (see SpaceList's handler). Absent → the link stays the
    * no-op it has always been (dev harness, site without the collection).

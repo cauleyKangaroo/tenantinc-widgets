@@ -367,10 +367,25 @@
   min-height: 18px;
 }
 
-.al-fields > .al-msg-slot { margin: -16px 0; }  /* 24px gap → 8px each side */
-.al-card > .al-msg-slot { margin: -20px 0; }    /* 32px gap → 12px each side */
+.al-fields > .al-msg-slot { margin: -20px 0; }  /* 24px gap → 4px each side */
+.al-card > .al-msg-slot { margin: -28px 0; }    /* 32px gap → 4px each side */
 
 /* ── Resend ────────────────────────────────────────────────────────────────── */
+
+/* "Login with email / number" | "Resend Code" — one centred row. */
+.al-verify-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.al-verify-sep {
+  width: 1px;
+  height: 12px;
+  background: #101318;
+}
 
 .al-resend {
   border: none;
@@ -514,6 +529,9 @@
     border-left: none;
     border-right: none;
   }
+
+  /* 24px gap here, so -20 keeps the phone's 4px each side (unchanged). */
+  .al-card > .al-msg-slot { margin: -20px 0; }
 
   .al-title {
     font-size: 28px !important;
