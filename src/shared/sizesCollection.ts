@@ -87,9 +87,11 @@ export async function fetchSizes(widgetTag: string): Promise<SizeItem[] | null> 
         sizeLabel: plainText(r.sizeLabel),
         category: str(r.category),
         // The columns are authoritative; `dimensions` covers rows where the
-        // editor filled one but not the other.
-        width: num(r.width, 0) || parsed.width,
-        length: num(r.length, 0) || parsed.length,
+        // editor filled one but not the other. plainText() first: a native
+        // cell edited by hand can arrive rteBlock-wrapped, and num() on
+        // '<p ...>5</p>' would silently discard the authoritative value.
+        width: num(plainText(r.width), 0) || parsed.width,
+        length: num(plainText(r.length), 0) || parsed.length,
         sortOrder: num(r.sortOrder, i),
         videoUrl: str(r.videoUrl),
         videoId: str(r.videoId),
@@ -158,16 +160,21 @@ export function pickSizeForUnit(
     return scored[0].s;
   };
 
+  // The unit's exact W×L, either orientation.
+  const exactIn = (pool: SizeItem[]): SizeItem | undefined => pool.find((s) =>
+    (s.width === width && s.length === length) || (s.width === length && s.length === width));
+
   if (unit.parking) {
     const parkingRows = sizes.filter((s) => /parking/i.test(s.category) || /parking/i.test(s.sizeLabel));
-    return nearest(parkingRows);
+    // Exact first here too: two parking rows can TIE on area (10x20 vs 5x40),
+    // and the tie-break would open the other one's video.
+    return exactIn(parkingRows) ?? nearest(parkingRows);
   }
   const rows = sizes.filter((s) => !/parking/i.test(s.category) && !/parking/i.test(s.sizeLabel));
 
   const band = unit.band.toLowerCase();
   const sameBand = rows.filter((s) => s.category.toLowerCase() === band);
-  const exact = sameBand.find((s) =>
-    (s.width === width && s.length === length) || (s.width === length && s.length === width));
+  const exact = exactIn(sameBand);
   if (exact) return exact;
   const inBand = nearest(sameBand);
   if (inBand) return inBand;
