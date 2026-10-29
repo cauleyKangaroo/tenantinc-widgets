@@ -58,12 +58,12 @@ import { GooglePayButton } from '../widget-rental-flow-2step/GooglePayButton';
 import { ApplePayButton } from '../widget-rental-flow-2step/ApplePayButton';
 import { TENANT_PAYMENTS, TENANT_PAYMENTS_STRIPE, type RentalCtx, type WalletPayment } from '../widget-rental-flow-2step/api';
 import type { WalletConfig } from '../widget-rental-flow-2step/walletConfig';
-import { AlertIcon, Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
+import { AlertIcon, Button, Checkbox, InfoIcon } from '@shared/ui';
 import { BankForm, CardForm, PaymentFormSkeleton, type BankFormValue, type CardFormValue } from '@shared/paymentForms';
 import { createStripeBankAccount } from '@shared/stripeHostedFields';
 import {
   BankIcon, ChevronBigLeft24Icon, ChevronBigRight24Icon, CreditCardIcon, CreditCardRemoveIcon,
-  CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
+  ApplePayLockup, CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
   MinusIcon, PlusIcon, ShieldSettingsIcon,
 } from './icons';
 import { AUTOPAY_CANCELLED_NOTE, AUTOPAY_UPDATE_NOTE, COVERAGE_OPTIONS, PAYMENT_RECEIPT_DEMO } from './data';
@@ -1263,6 +1263,7 @@ export function MakePaymentPanel({
                 canOpen={canOpenWallet}
                 onToken={payWithWallet}
                 onError={setWalletError}
+                label={<ApplePayLockup />}
               />
             )}
           </>
@@ -1272,9 +1273,7 @@ export function MakePaymentPanel({
               <GooglePayLockup />
             </button>
             <button type="button" className="ma-method ma-method--dark">
-              <span className="ma-applepay" role="img" aria-label="Apple Pay">
-                <ApplePayMark />
-              </span>
+              <ApplePayLockup />
             </button>
           </>
         )}
