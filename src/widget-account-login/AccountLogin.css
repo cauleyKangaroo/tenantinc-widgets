@@ -367,8 +367,8 @@
   min-height: 18px;
 }
 
-.al-fields > .al-msg-slot { margin: -16px 0; }  /* 24px gap → 8px each side */
-.al-card > .al-msg-slot { margin: -20px 0; }    /* 32px gap → 12px each side */
+.al-fields > .al-msg-slot { margin: -20px 0; }  /* 24px gap → 4px each side */
+.al-card > .al-msg-slot { margin: -28px 0; }    /* 32px gap → 4px each side */
 
 /* ── Resend ────────────────────────────────────────────────────────────────── */
 
@@ -529,6 +529,9 @@
     border-left: none;
     border-right: none;
   }
+
+  /* 24px gap here, so -20 keeps the phone's 4px each side (unchanged). */
+  .al-card > .al-msg-slot { margin: -20px 0; }
 
   .al-title {
     font-size: 28px !important;
