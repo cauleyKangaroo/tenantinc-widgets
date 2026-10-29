@@ -981,25 +981,37 @@ export function AccountLogin({
           </button>
 
           {/* Back to the plain login step. The label names the OTHER channel
-              (a code sent to a phone offers email, and the reverse), but the
-              field it returns to takes either, as it did the first time. */}
+              (a code sent to a phone offers email, and the reverse), and the
+              click must LAND on that channel's field: in phone mode the email
+              field only exists behind forceEmail, so the link sets it to match
+              the label rather than just clearing it. In email mode there is no
+              other channel to offer, so the link isn't rendered at all.
+              DISABLED while a verify or resend is in flight: submitCode fires
+              itself on the sixth digit, and leaving the step mid-check let a
+              late success save the abandoned identity's session and redirect
+              over the login the reader had switched to. */}
           <div className="al-verify-links">
-            <button
-              type="button"
-              className="al-resend"
-              onClick={() => {
-                setForceEmail(false);
-                setIdentifier('');
-                setIdentifyError('');
-                setCode('');
-                setCodeError('');
-                setResent(false);
-                setStep('identify');
-              }}
-            >
-              {kind === 'email' ? 'Login with number' : 'Login with email'}
-            </button>
-            <span className="al-verify-sep" aria-hidden="true" />
+            {identifierMode !== 'email' && (
+              <>
+                <button
+                  type="button"
+                  className="al-resend"
+                  disabled={checking || sending}
+                  onClick={() => {
+                    setForceEmail(identifierMode === 'phone' && kind === 'phone');
+                    setIdentifier('');
+                    setIdentifyError('');
+                    setCode('');
+                    setCodeError('');
+                    setResent(false);
+                    setStep('identify');
+                  }}
+                >
+                  {kind === 'email' ? 'Login with number' : 'Login with email'}
+                </button>
+                <span className="al-verify-sep" aria-hidden="true" />
+              </>
+            )}
             <button type="button" className="al-resend" onClick={resend} disabled={resendIn > 0}>
               {resendIn > 0 ? `Resend Code in ${resendIn}s` : 'Resend Code'}
             </button>
