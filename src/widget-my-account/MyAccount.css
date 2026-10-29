@@ -2159,9 +2159,13 @@
   .ma-edit__actions { padding: 20px; }
 
   .ma-action { padding: 24px 20px; }
-  /* The amount and Pay Now would otherwise crush the label. */
-  .ma-action__due { flex-wrap: wrap; row-gap: 12px; }
-  .ma-action__pay { margin-left: auto; }
+  /* Label, amount and Pay Now on ONE line. Gaps and type step down so the
+     three fit a 320px content width; the label (min-width: 0) is what gives
+     way, wrapping its own words, if an amount is unusually long. */
+  .ma-action__due { flex-wrap: nowrap; gap: 12px; }
+  .ma-action__pay { margin-left: auto; gap: 12px; }
+  .ma-action__dueLabel { font-size: 16px; }
+  .ma-action__amount { font-size: 20px; }
 
   .ma-autopay { flex-direction: column; }
   .ma-autopay__actions { width: 100%; }
