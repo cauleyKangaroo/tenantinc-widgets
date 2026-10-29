@@ -88,11 +88,14 @@ function phonesFromSiteObject(): PhoneEntry[] {
 
 /** The "Main" entry when there is one; otherwise the first with a number. */
 function pickPhone(phones: PhoneEntry[], widgetTag: string, source: string): SitePhone | null {
-  const entry = phones.find((p) => /main/i.test(p.label)) ?? phones[0];
+  // Exact label match — a substring test would let "Maintenance" beat "Main".
+  const entry = phones.find((p) => p.label.trim().toLowerCase() === 'main') ?? phones[0];
   if (!entry) return null;
   const phone: SitePhone = {
     phone: formatPhone(entry.phoneNumber),
-    digits: entry.phoneNumber.replace(/\D/g, ''),
+    // Keep a leading + — "+44 20 7183 8750" must dial tel:+44…, and the
+    // callers' own sanitizers keep it too.
+    digits: entry.phoneNumber.replace(/[^0-9+]/g, ''),
     label: entry.label,
   };
   logSource(widgetTag, 'site phone', true, `${source} → ${phone.phone}${phone.label ? ` (${phone.label})` : ''}`);

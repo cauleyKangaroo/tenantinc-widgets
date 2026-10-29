@@ -534,21 +534,27 @@ export function NavigationBar({
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      fetchSitePhone('#02 nav').catch(() => null),
-      fetchPropertyContact('#02 nav', propertyId).catch((err) => {
-        console.error('[NavigationBar] property contact error:', err);
-        return null;
-      }),
-    ])
-      .then(([site, c]) => {
+    // Independent, not Promise.all'd: siteObject usually answers instantly,
+    // and a stalled collection read must not hold the bar on its hardcoded
+    // fallback meanwhile. `siteWon` keeps the later collection answer from
+    // overwriting the authoritative one.
+    let siteWon = false;
+    fetchSitePhone('#02 nav')
+      .then((site) => {
+        if (cancelled || !site) return;
+        siteWon = true;
+        setLivePhone({ phone: site.phone, digits: site.digits });
+      })
+      .catch(() => { /* fails soft — the collection/prop fallbacks stand */ });
+    fetchPropertyContact('#02 nav', propertyId)
+      .then((c) => {
         if (cancelled) return;
-        if (site) setLivePhone({ phone: site.phone, digits: site.digits });
-        else if (c?.phone) setLivePhone({ phone: c.phone, digits: c.phoneDigits });
+        if (!siteWon && c?.phone) setLivePhone({ phone: c.phone, digits: c.phoneDigits });
         if (c && c.lat != null && c.lng != null) {
           setMapsHref(`https://www.google.com/maps?q=${c.lat},${c.lng}`);
         }
-      });
+      })
+      .catch((err) => console.error('[NavigationBar] property contact error:', err));
     return () => {
       cancelled = true;
     };
