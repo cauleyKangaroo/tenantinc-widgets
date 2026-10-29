@@ -175,6 +175,10 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
   const [reviewsUrl, setReviewsUrl] = useState('');
   useEffect(() => {
     let cancelled = false;
+    // A re-run means the bound property changed: drop the old property's URL
+    // NOW, or the stars keep sending shoppers to the previous facility while
+    // the new lookup is in flight — and forever, if it comes back empty.
+    setReviewsUrl('');
     const live = leadPropertyId
       ? fetchPropertyReviewSources(leadPropertyId, { base: reviewsProxy.base, siteId: reviewsProxy.siteId }).then((r) => r.google)
       : Promise.resolve(null);
