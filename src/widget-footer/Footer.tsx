@@ -3,6 +3,7 @@ import './Footer.css';
 import tenantLogo from './tenant-logo.svg';
 import { SOCIALS, PhoneIcon, AiSparkleIcon, ChevronBigRightIcon } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID, type PropertyContact } from '@shared/propertyContact';
+import { fetchSitePhone, type SitePhone } from '@shared/contentLibrary';
 import { boundText, boundLink } from '@shared/propertyBinding';
 import { RichText } from '@shared/richText';
 import { readSitePages, pageColumnFor, parseRoutes, type SitePage } from '@shared/sitePages';
@@ -290,6 +291,19 @@ export function Footer({
     return () => { cancelled = true; };
   }, [propertyId]);
 
+  // The site's own main number from Duda's Business Info (content library /
+  // siteObject) — site-wide chrome shows the SITE's line, so when the owner
+  // has set one it outranks the Properties row above. Not property-keyed, so
+  // it reads once.
+  const [sitePhone, setSitePhone] = useState<SitePhone | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchSitePhone('#13 footer')
+      .then((p) => { if (!cancelled && p) setSitePhone(p); })
+      .catch((err) => console.error('[Footer] site phone error:', err));
+    return () => { cancelled = true; };
+  }, []);
+
   // ── The two route-driven columns ──────────────────────────────────────────
   // ONE read of the page tree feeds both. Two effects would each call
   // getNavItemsAsync for the same answer.
@@ -475,11 +489,12 @@ export function Footer({
     }
   };
 
-  const displayPhone = contact?.phone || phone;
+  // Business Info's number first, the Properties row next, the prop/default last.
+  const displayPhone = sitePhone?.phone || contact?.phone || phone;
   // "Follow <name>" takes the property name from the collection; the copyright
   // line below deliberately keeps the `companyName` prop (see note there).
   const displayFollowName = contact?.name || companyName;
-  const telHref = `tel:${(contact?.phoneDigits || displayPhone).replace(/[^0-9+]/g, '')}`;
+  const telHref = `tel:${(sitePhone?.digits || contact?.phoneDigits || displayPhone).replace(/[^0-9+]/g, '')}`;
 
   /*
    * Which icons, and where they go.
