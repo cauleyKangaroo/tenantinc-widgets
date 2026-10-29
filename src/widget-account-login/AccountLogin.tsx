@@ -384,7 +384,7 @@ export interface AccountLoginProps {
 
 export function AccountLogin({
   heading = 'Account Login',
-  subheading = 'Enter the mobile number associated with your storage account.',
+  subheading = 'Enter the mobile number or email associated with your storage account.',
   identifierMode = 'phoneOrEmail',
   showPropertySelect = false,
   propertiesCollection = PROPERTIES_COLLECTION,

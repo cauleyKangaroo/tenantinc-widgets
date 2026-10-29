@@ -460,7 +460,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 0 16px 24px;
+  padding: 0 16px;
 }
 /* Gate and office (plus the call centre when it shows — the same flag as the
    real block), then the underlined link below them. 19.5px is 16px Poppins
@@ -1425,7 +1425,7 @@ iframe.pi-m-hero-img { border: 0; z-index: 0; }
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 0 16px 24px;
+  padding: 0 16px;
   text-align: center;
   font-size: 16px;
   font-weight: 500;
@@ -1559,7 +1559,10 @@ iframe.pi-lb-img { position: relative; inset: auto; }
   border: 0;
   background: none;
   font: inherit;
-  color: inherit;
+  /* NOT `inherit`: this reset outranks the base .pi-gallery-arrow rule, and
+     inheriting would paint the chevrons the wrapper's near-black over the
+     photo. They are always on the photo, so they are always white. */
+  color: #fff;
 }
 /* Keyboard-only route into the lightbox, replacing the one lost when the
    container stopped being a button. Off-screen until focused, then it lands

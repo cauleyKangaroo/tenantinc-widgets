@@ -45,6 +45,8 @@ import { ACCORDION_SECTIONS, type AccordionConfig } from './accordionSections';
 import { instanceKey, readAccordionConfig, saveAccordionConfig } from './accordionConfigApi';
 import { PROMO_EVENT, readPromoFromUrl, clearPromoInUrl, scrollToSpaceList, wantsSpaceList, type PromoSelection } from '@shared/promoBus';
 import { SIZE_FILTER_EVENT, unitMatchesSize, type SizeFilterSelection } from '@shared/sizeFilterBus';
+import { fetchSizes, pickSizeForUnit, formatSizeDimensions, type SizeItem } from '@shared/sizesCollection';
+import { VideoModal, isPlayableVideoId } from '@shared/components/VideoModal';
 import { RichText } from '@shared/richText';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
 import { PromoTagIcon } from './components/Pricing';
@@ -190,6 +192,29 @@ export function SpaceList({
      case has to fall back to config rather than shimmer forever. */
   const [propertySettled, setPropertySettled] = useState(false);
 
+  // "See what fits" (under every card's image): the Sizes-collection row that
+  // best matches the clicked unit, played in the same popup the Size Guide
+  // uses. The collection is read on the FIRST click, then kept — most visits
+  // never click it, so reading on mount would be a wasted request. No match
+  // (dev harness, no collection, no playable videos) → the click stays the
+  // no-op the link has always been.
+  const sizesRead = useRef<Promise<SizeItem[] | null> | null>(null);
+  const [fitsVideo, setFitsVideo] = useState<{ videoId: string; title: string } | null>(null);
+  const onSeeWhatFits = useCallback((unit: Unit) => {
+    sizesRead.current ??= fetchSizes('#05 see what fits');
+    void sizesRead.current.then((all) => {
+      const playable = (all ?? []).filter((s) => isPlayableVideoId(s.videoId));
+      const hit = pickSizeForUnit(playable, {
+        dimensions: unit.dimensions,
+        band: unit.size,
+        parking: unit.type === 'parking',
+      });
+      // Same title rule as the Size Guide's cards.
+      if (hit) setFitsVideo({ videoId: hit.videoId, title: hit.name ? formatSizeDimensions(hit.name) : hit.dimensionsLabel });
+    });
+  }, []);
+  const closeFitsVideo = useCallback(() => setFitsVideo(null), []);
+
   // Section visibility + order are managed entirely in the "Manage accordions"
   // modal (persisted to the collection), not via content-panel isX toggles.
   // Declared after propertyExtras so the sold-out "Call" CTA can carry the same
@@ -251,6 +276,7 @@ export function SpaceList({
     enablePromoLogic: enablePromoLogic === true || enablePromoLogic === 'true',
     contactPhone: propertyExtras?.phones[0]?.number ?? '',
     facilityName: propertyExtras?.name ?? '',
+    onSeeWhatFits,
   };
 
   // Effective property for this instance: the dynamic-page binding if the editor
@@ -893,6 +919,7 @@ export function SpaceList({
       {/* Mobile only (CSS): the sidebar is hidden there, so the sections with no
           widget of their own follow the listing instead. */}
       {showSideAccordions && mobileSectionPanel}
+      <VideoModal videoId={fitsVideo?.videoId} title={fitsVideo?.title} onClose={closeFitsVideo} />
       {reorderOpen && (
         <ReorderModal
           sections={ACCORDION_SECTIONS}

@@ -58,12 +58,12 @@ import { GooglePayButton } from '../widget-rental-flow-2step/GooglePayButton';
 import { ApplePayButton } from '../widget-rental-flow-2step/ApplePayButton';
 import { TENANT_PAYMENTS, TENANT_PAYMENTS_STRIPE, type RentalCtx, type WalletPayment } from '../widget-rental-flow-2step/api';
 import type { WalletConfig } from '../widget-rental-flow-2step/walletConfig';
-import { AlertIcon, Button, Checkbox, InfoIcon, ApplePayMark } from '@shared/ui';
+import { AlertIcon, Button, Checkbox, InfoIcon } from '@shared/ui';
 import { BankForm, CardForm, PaymentFormSkeleton, type BankFormValue, type CardFormValue } from '@shared/paymentForms';
 import { createStripeBankAccount } from '@shared/stripeHostedFields';
 import {
   BankIcon, ChevronBigLeft24Icon, ChevronBigRight24Icon, CreditCardIcon, CreditCardRemoveIcon,
-  CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
+  ApplePayLockup, CreditCardRepeatIcon, GooglePayLockup, InfoFilledIcon, InfoNoticeIcon,
   MinusIcon, PlusIcon, ShieldSettingsIcon,
 } from './icons';
 import { AUTOPAY_CANCELLED_NOTE, AUTOPAY_UPDATE_NOTE, COVERAGE_OPTIONS, PAYMENT_RECEIPT_DEMO } from './data';
@@ -810,10 +810,15 @@ export function MakePaymentPanel({
   const liveCardKey = payment?.gpPublicKey;
   /* The rental flow's rule (2026-10-28): no GP key and no Stripe config means
      the TYPED inputs — the gateway (authorizenet) wants the real digits and
-     CardForm already falls back to them on its own. The one gateway that must
-     NOT fall through is one NAMED Stripe whose config is unusable: a PAN
-     typed there has nowhere lawful to go, so only that keeps the notice. */
-  const cardUnavailable = !!payment && payment.gateway === TENANT_PAYMENTS_STRIPE && !payment.stripe;
+     CardForm already falls back to them on its own. Two gateways must NOT
+     fall through to typed digits: one NAMED Stripe whose config is unusable,
+     and one the lookup FAILED to name at all — it could be Stripe, so a PAN
+     typed there has nowhere lawful to go either. A looked-up non-Stripe name
+     (authorizenet, GP without a key) still gets the typed inputs. */
+  const cardUnavailable = !!payment && !payment.stripe && (
+    payment.gateway === TENANT_PAYMENTS_STRIPE
+    || (!payment.gatewayPending && !payment.gateway && !liveCardKey)
+  );
   /* ZIP-only wherever the card never reaches us (GP's iframe, Stripe's
      element) — the gateway verifies on the postcode. A typed-card gateway is
      billed against the address, so it keeps the full block, as in #99. The
@@ -1258,6 +1263,7 @@ export function MakePaymentPanel({
                 canOpen={canOpenWallet}
                 onToken={payWithWallet}
                 onError={setWalletError}
+                label={<ApplePayLockup />}
               />
             )}
           </>
@@ -1267,9 +1273,7 @@ export function MakePaymentPanel({
               <GooglePayLockup />
             </button>
             <button type="button" className="ma-method ma-method--dark">
-              <span className="ma-applepay" role="img" aria-label="Apple Pay">
-                <ApplePayMark />
-              </span>
+              <ApplePayLockup />
             </button>
           </>
         )}

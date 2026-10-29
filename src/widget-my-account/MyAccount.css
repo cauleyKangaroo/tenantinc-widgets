@@ -874,8 +874,7 @@
 .ma-methods .rf2-pay.rf2-wallet--apple:focus { background: #000 !important; }
 .ma-methods .rf2-pay.rf2-wallet--apple:hover { background: #3c4043 !important; }
 .ma-methods .rf2-pay.rf2-wallet--apple:active { background: #5f6368 !important; }
-.ma-methods .rf2-pay.rf2-wallet--apple:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
-.ma-methods > .rf2-wallet:first-child:not(:has(+ .rf2-wallet)):not(:has(~ .ma-method)) { grid-column: 1 / -1; }
+.ma-methods .rf2-pay.rf2-wallet--apple:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }.ma-methods > .rf2-wallet:first-child:not(:has(+ .rf2-wallet)):not(:has(~ .ma-method)) { grid-column: 1 / -1; }
 .ma-methods:empty { display: none; }
 .ma-pay__notice.ma-pay__notice--error {
   color: var(--hb-ada-red, #d32f2f);
@@ -886,12 +885,19 @@
 /* The 24px alert mark on every My Account error tag. */
 .ma-alert-ico { flex: 0 0 auto; color: var(--hb-ada-red, #d32f2f); }
 
-/* Apple's lockup is currentColor, so the dark tile's white carries it. */
+/* Apple's lockup on Google's exact metrics: the glyph at the G's 24.69px
+   width, its bottom on the G's (top -5.33 = 25.04 - 30.37, so the leaf rises
+   above the box), then the shared "Pay" typeface at Google's 33.1px / 1.59px
+   offset. The glyph is currentColor, so the dark tile's white carries it. */
 .ma-applepay {
-  display: inline-flex;
+  position: relative;
+  display: block;
+  width: 76.977px;   /* 33.1 + 43.877, as .ma-gpay */
+  height: 30px;      /* 1.59 + 28.406, as .ma-gpay */
   color: #fff;
 }
-.ma-applepay svg { width: 62px; height: 26.3px; }
+.ma-applepay__mark { position: absolute; left: 0; top: -5.33px; overflow: visible; }
+.ma-applepay__type { position: absolute; left: 33.1px; top: 1.59px; }
 
 /* Google's two leaves overlap exactly as the frame stacks them: the mark at
    the origin, the typeface 33.1px right and 1.59px down. */

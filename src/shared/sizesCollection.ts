@@ -31,6 +31,10 @@ export interface SizeItem {
   sizeLabel: string;
   /** Band key, e.g. "extra_small". */
   category: string;
+  /** Numeric feet from the row's own width/length columns, falling back to
+   *  `dimensions`; 0 when neither parses ("Storage Locker"). */
+  width: number;
+  length: number;
   sortOrder: number;
   /** Wistia (or other) embed URL; '' when absent. */
   videoUrl: string;
@@ -74,6 +78,7 @@ export async function fetchSizes(widgetTag: string): Promise<SizeItem[] | null> 
     .filter((r) => bool(r.active, true))
     .map((r, i) => {
       const dimensions = str(r.dimensions);
+      const parsed = parseDimensions(dimensions);
       return {
         id: str(r.sizeId) || str(r.__rowId) || `size-${i}`,
         name: plainText(r.name),
@@ -81,6 +86,10 @@ export async function fetchSizes(widgetTag: string): Promise<SizeItem[] | null> 
         dimensionsLabel: formatSizeDimensions(dimensions),
         sizeLabel: plainText(r.sizeLabel),
         category: str(r.category),
+        // The columns are authoritative; `dimensions` covers rows where the
+        // editor filled one but not the other.
+        width: num(r.width, 0) || parsed.width,
+        length: num(r.length, 0) || parsed.length,
         sortOrder: num(r.sortOrder, i),
         videoUrl: str(r.videoUrl),
         videoId: str(r.videoId),
@@ -99,6 +108,76 @@ export async function fetchSizes(widgetTag: string): Promise<SizeItem[] | null> 
 
   logSource(widgetTag, 'sizes', true, `${SIZES_COLLECTION}, ${sizes.length} active of ${rows.length}`);
   return sizes;
+}
+
+/**
+ * Width/length out of any "W x L" spelling — "5 x 4", "5' x 4'", "10X20",
+ * "10 × 15", decimals. {0, 0} when the text is not a size ("Storage Locker").
+ */
+export function parseDimensions(raw: string): { width: number; length: number } {
+  const m = String(raw).match(/(\d+(?:\.\d+)?)\s*['’′]?\s*[x×]\s*(\d+(?:\.\d+)?)/i);
+  return m
+    ? { width: parseFloat(m[1]), length: parseFloat(m[2]) }
+    : { width: 0, length: 0 };
+}
+
+/** Canonical band order — matches both the collection's `category` keys and
+ *  the space list's `UnitSize`, which are the same key space by design. */
+const BAND_ORDER = ['extra_small', 'small', 'medium', 'large', 'extra_large'];
+
+/**
+ * The Sizes row whose video "See what fits" should play for one unit:
+ *
+ *   1. the unit's own band (`category`): its exact W×L (either orientation),
+ *   2. else the band's nearest row by W×L area,
+ *   3. else the nearest row from the NEXT bands up, in order,
+ *   4. else the nearest row anywhere (bands below — better than nothing).
+ *
+ * A parking space only ever matches a parking row — a 10x20 parking spot
+ * playing the 10x20 storage-unit video would be confidently wrong.
+ *
+ * `sizes` should already be narrowed to rows that can actually play (a video
+ * id the caller's player accepts). Null when nothing fits.
+ */
+export function pickSizeForUnit(
+  sizes: SizeItem[],
+  unit: { dimensions: string; band: string; parking?: boolean },
+): SizeItem | null {
+  if (!sizes.length) return null;
+  const { width, length } = parseDimensions(unit.dimensions);
+  const area = width * length;
+
+  // Nearest by footprint; rows with no footprint rank last, ties by sortOrder.
+  const nearest = (pool: SizeItem[]): SizeItem | null => {
+    if (!pool.length) return null;
+    const scored = pool.map((s) => {
+      const sArea = s.width * s.length;
+      return { s, d: sArea > 0 && area > 0 ? Math.abs(sArea - area) : Number.MAX_SAFE_INTEGER };
+    });
+    scored.sort((a, b) => a.d - b.d || a.s.sortOrder - b.s.sortOrder);
+    return scored[0].s;
+  };
+
+  if (unit.parking) {
+    const parkingRows = sizes.filter((s) => /parking/i.test(s.category) || /parking/i.test(s.sizeLabel));
+    return nearest(parkingRows);
+  }
+  const rows = sizes.filter((s) => !/parking/i.test(s.category) && !/parking/i.test(s.sizeLabel));
+
+  const band = unit.band.toLowerCase();
+  const sameBand = rows.filter((s) => s.category.toLowerCase() === band);
+  const exact = sameBand.find((s) =>
+    (s.width === width && s.length === length) || (s.width === length && s.length === width));
+  if (exact) return exact;
+  const inBand = nearest(sameBand);
+  if (inBand) return inBand;
+
+  const from = BAND_ORDER.indexOf(band);
+  for (let i = from + 1; i < BAND_ORDER.length; i++) {
+    const next = nearest(rows.filter((s) => s.category.toLowerCase() === BAND_ORDER[i]));
+    if (next) return next;
+  }
+  return nearest(rows);
 }
 
 /** Group by `sizeLabel` (the tab set), preserving sortOrder within each band. */

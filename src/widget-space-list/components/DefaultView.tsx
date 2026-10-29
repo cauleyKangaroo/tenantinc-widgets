@@ -58,7 +58,11 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
               onError={unitImageOnError(unit)}
             />
           )}
-          <a href="#" className="sl-dv-see-fits">
+          <a
+            href="#"
+            className="sl-dv-see-fits"
+            onClick={(e) => { e.preventDefault(); config.onSeeWhatFits?.(unit); }}
+          >
             See what fits <PlayCircleIcon />
           </a>
         </div>
