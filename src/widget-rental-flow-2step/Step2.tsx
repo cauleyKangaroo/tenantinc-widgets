@@ -989,7 +989,7 @@ export function Step2({
         {/* Protection Plan */}
         <section className="rf2-panel">
           <div className="rf2-rowhead">
-            <span className="rf2-h">Select Protection Plan</span>
+            <span className="rf2-h rf2-h--plan">Select Protection Plan</span>
             {/* The card is a CHILD of the hover target, not a sibling, so
                 moving the pointer onto it keeps :hover true — there is no gap
                 to cross and nothing to flicker. It is also positioned OVER the
@@ -1118,7 +1118,7 @@ export function Step2({
         {keyShares.length > 0 && (
         <section className="rf2-panel">
           <div className="rf2-rowhead">
-            <span className="rf2-h">Select Nokē Key-Share Plan</span>
+            <span className="rf2-h rf2-h--plan">Select Nokē Key-Share Plan</span>
             {/* The dark card from 12285-189509. Hover and focus both reveal
                 it; on a touch screen, where neither happens, the tap does. */}
             <span className="rf2-tip-anchor">

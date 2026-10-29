@@ -610,6 +610,8 @@
 
 /* ═══ Step 2 — "Secure your space now" ═══════════════════════════════════ */
 .rf2-h { font-size: 20px; font-weight: 700; color: #101318; }
+/* The two plan pickers (Protection, Nokē Key-Share) are 600, not 700. */
+.rf2-h--plan { font-weight: 600; }
 /* 18px on a phone. One rule covers every step-2 section heading — .rf2-h is
    the only rf2-h* class there is. 640px is MOBILE_BP in RentalFlow2Step.tsx,
    the same width the rail collapses at. */
