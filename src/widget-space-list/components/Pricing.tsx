@@ -469,7 +469,11 @@ export function CtaButton({ unit, config, full, colClass, aside }: {
       channel: config.valueTiersChannel || undefined,
       // Mirror the operator's Space List config so #14 doesn't need it re-entered.
       ctaLabel: config.ctaButtonCopy || undefined,
-      feeText: config.showJunkFeeDisclaimer ? (config.junkFeeCopy || '') : '',
+      // The popup's line below the cards is the PROPERTY's own admin_fees_text
+      // (PropertiesInternal), not the junk-fee disclaimer. '' — not undefined —
+      // when the property has none, so the popup shows NOTHING rather than
+      // falling back to #14's own '$30 Admin fee…' default.
+      feeText: config.adminFeesText || '',
       showPricingDetails: config.showJunkFeeDisclaimer,
       showUrgency: config.showUrgencyMessage,
       enablePromoLogic: config.enablePromoLogic,

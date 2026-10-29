@@ -380,9 +380,6 @@ export async function fetchCitySpaces(
 // Assembling a card
 // ---------------------------------------------------------------------------
 
-/** Admin fee — not on the API, same placeholder constant #05's nearby uses. */
-export const DEFAULT_ADMIN_FEE = 20;
-
 /**
  * A property + its spaces → the card shape the components already render.
  *
@@ -390,12 +387,17 @@ export const DEFAULT_ADMIN_FEE = 20;
  * property has no coordinates). Not 0: the sort treats a missing distance as
  * Infinity so it sinks rather than floating to the top of "Closest Distance",
  * and the card hides the line instead of claiming "0.0 mi away".
+ *
+ * `adminFeeText` is the property's own `admin_fees_text` (PropertiesInternal),
+ * verbatim; undefined ⇒ the card shows no admin-fee line. The old hardcoded
+ * $20 placeholder is gone — a missing cell must never invent a fee.
  */
 export function toCityFacility(
   p: NearbyBaseProperty,
   spaces: CitySpace[],
   promo: string | undefined,
   ref: { lat: number; lng: number } | null,
+  adminFeeText?: string,
 ): CityFacility {
   const cheapest = spaces.length
     ? spaces.reduce((min, s) => (s.startingPrice > 0 && s.startingPrice < min ? s.startingPrice : min), Infinity)
@@ -415,7 +417,7 @@ export function toCityFacility(
     rating: 0,
     reviewCount: 0,
     promo: promo ?? '',
-    adminFee: DEFAULT_ADMIN_FEE,
+    adminFeeText,
     priceLabel: Number.isFinite(cheapest) ? `$${Math.round(cheapest)}` : '',
     units: spaces,
     imageUrl: p.imageUrl,

@@ -42,7 +42,11 @@ export interface CityFacility {
   reviewCount: number;
   /** Dashed promo banner above the unit rows. Empty = no banner. */
   promo?: string;
-  adminFee: number;
+  /** The property's own `admin_fees_text` (PropertiesInternal), verbatim.
+   *  Absent/blank cell ⇒ the card shows NO admin-fee line. */
+  adminFeeText?: string;
+  /** Demo rows only — live cards carry `adminFeeText` or nothing. */
+  adminFee?: number;
   /** Map bubble label, e.g. "$25". Empty when no priced space is available. */
   priceLabel: string;
   /** Green outline + "Featured Property" ribbon. */
