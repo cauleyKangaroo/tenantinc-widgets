@@ -478,7 +478,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 18px;
+  font-size: 16px;   /* matches Find Storage */
   font-weight: 600;
   line-height: 1.5;
   color: #000;

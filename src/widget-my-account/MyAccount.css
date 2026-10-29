@@ -2125,7 +2125,17 @@
   .ma-spacepick__chev { width: 24px; height: 24px; transform: rotate(90deg); transition: transform 150ms ease; }
   .ma-spacepick__chev--up { transform: rotate(-90deg); }
   /* Opens under the title, from its left edge. */
-  .ma-spacepick__menu { left: 0; right: auto; min-width: 200px; }
+  /* A tenant with many spaces ran the list off the screen with no way to reach
+     the rest. Capped at ~7 rows (or half the viewport on a short phone) and
+     scrolls inside itself; overscroll-behavior keeps the page from scrolling
+     once the list hits its end. */
+  .ma-spacepick__menu {
+    left: 0; right: auto; min-width: 200px;
+    max-height: min(320px, 50vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   /* NOT flex-direction: column any more. The columns wrap on their own now (see
      .ma-account__cols), and in a column-direction container a flex-basis is a
      HEIGHT — the 367px basis would have become a 367px-tall contact block.
