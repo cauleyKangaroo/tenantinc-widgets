@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import type { Unit, SpaceType, UnitSize, WidgetConfig } from '../types';
 import { groupBySizeSorted, sortUnits, orderTypes } from '../filters';
+// JunkFeeDisclaimer deliberately no longer imported — retired 2026-10-29.
 import {
   PriceBlock,
   CtaButton,
   FeatureList,
   PromoBadge,
-  JunkFeeDisclaimer,
   PlayCircleIcon,
 } from './Pricing';
 import { unitImageSrc, unitImageOnError } from './unitImage';
@@ -103,7 +103,9 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
           <div className="sl-dv-price-button">
             <div className="sl-dv-price">
               <PriceBlock unit={unit} config={config} />
-              {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
+              {/* Junk-fee disclaimer retired 2026-10-29: the only small print
+                  is the property's admin_fees_text, rendered by PriceBlock.
+              {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />} */}
             </div>
             <CtaButton unit={unit} config={config} full colClass="sl-dv-btn-col" />
           </div>

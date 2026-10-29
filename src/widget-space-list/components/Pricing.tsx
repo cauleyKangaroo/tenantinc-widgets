@@ -292,6 +292,10 @@ export function FeatureList({ features }: { features: string[] }) {
 }
 
 /**
+ * RETIRED 2026-10-29 — no card renders this any more: the only small print is
+ * the property's `admin_fees_text` (PropertiesInternal). Kept, with its
+ * commented-out call sites, in case it has to come back.
+ *
  * Editor-authored disclaimer under the price. Copy comes from `junkFeeCopy`,
  * which SpaceList has already defaulted — so an empty string here means the
  * editor deliberately cleared it, and we render nothing rather than an empty box.
