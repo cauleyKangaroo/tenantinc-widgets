@@ -41,7 +41,7 @@ const PAGE_SIZE = 4;
 /**
  * How many promotions this property had last time, per browser. The live count
  * is unknown until the fetch lands, and the layouts differ a lot by count — one
- * is a 171px full-bleed band on desktop, two to four a ~140px row, five or more
+ * is a ~120px full-bleed band on desktop, two to four a ~140px row, five or more
  * add a pager row — so a placeholder of the wrong count shifts the page when
  * the bars arrive. Remembering it makes a repeat visit exact.
  * Default 1: the shape the live data has today. Storage can throw (private

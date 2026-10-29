@@ -197,9 +197,9 @@ img.promo-banner-img {
   .promo-bars[data-cols='1'] .promo-bar {
     border-radius: 0;
     box-shadow: none;
-    /* 48px is the frame's; the 24px replaces the gutter given up above, so the
+    /* 25px top/bottom; the 24px replaces the gutter given up above, so the
        text still clears the edge. */
-    padding: 48px 24px;
+    padding: 25px 24px;
   }
 }
 .promo-bars[data-cols='1'] .promo-bar-inner {
@@ -234,18 +234,20 @@ img.promo-banner-img {
   /* The TITLE's size, set on the row and inherited by it — nothing else in
      here is text. Held one level up so the row's own line box matches the
      heading's, which is what `align-items: flex-start` aligns the marks to.
-     42px, down from 50: a single promotion runs the full width, so the cap is
-     reached on any ordinary desktop and 50 was the largest type on the page. */
-  font-size: clamp(24px, 4.5vw, 42px);
+     36px, down from 42 (and 50 before that): a single promotion runs the full
+     width, so the cap is reached on any ordinary desktop, and at 42 the band
+     out-shouted the page it sits on. Still a step above the 34px 2-across
+     title, so one promotion keeps more weight than one of a pair. */
+  font-size: clamp(24px, 4.5vw, 36px);
 }
 /* Tablet, 2px off. The band between this file's own two boundaries — 560 is
    where the bars become a one-per-slide carousel, 901 where the desktop rules
    start — so it lines up with how the rest of the widget is split.
-   The cap is untouched: 4.5vw never reaches 42px below 900px anyway, so the
-   subtraction has to come off the fluid middle term to have any effect. */
+   The subtraction comes off the fluid middle term, not the cap, which only
+   binds from ~845px up. */
 @media (min-width: 561px) and (max-width: 900px) {
   .promo-bars[data-cols='1'] .promo-bar-titlerow {
-    font-size: clamp(24px, calc(4.5vw - 2px), 42px);
+    font-size: clamp(24px, calc(4.5vw - 2px), 36px);
   }
 }
 .promo-bars[data-cols='1'] .promo-bar-titlewrap {
@@ -259,10 +261,12 @@ img.promo-banner-img {
 /* TOP-aligned against the first line of the heading — not centred on it, and
    never centred on the heading BLOCK. `align-items: flex-start` on the row and
    the wrap is the whole mechanism; no margin offsets, so a heading that wraps
-   to two lines leaves both marks exactly where a one-line heading puts them. */
+   to two lines leaves both marks exactly where a one-line heading puts them.
+   Both marks scale with the 36px title cap, keeping their old proportion to
+   it (tag ~0.95×, info ~0.85×). */
 .promo-bars[data-cols='1'] .promo-bar-titlewrap svg {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
 }
 .promo-bars[data-cols='1'] .promo-bar-info {
   /* `font-size: inherit` is doing the work here. This is a <button>, and the UA
@@ -272,7 +276,7 @@ img.promo-banner-img {
      <svg>, which does inherit) was placed correctly. */
   font-size: inherit;
 }
-.promo-bars[data-cols='1'] .promo-bar-info svg { width: 36px; height: 36px; }
+.promo-bars[data-cols='1'] .promo-bar-info svg { width: 30px; height: 30px; }
 
 .promo-bars[data-cols='3'] .promo-bar { padding: 26px; }
 .promo-bars[data-cols='3'] .promo-bar-title { font-size: clamp(18px, 1.8vw, 26px); }
