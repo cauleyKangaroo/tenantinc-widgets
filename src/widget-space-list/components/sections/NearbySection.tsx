@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { propertyImage } from '@shared/demoImages';
 import { fetchPropertyHeroImages } from '@shared/propertyImages';
+import { fetchAdminFeesTextMap } from '@shared/internalProperties';
 import {
   fetchProperties,
   extractNearbyProperties,
@@ -59,11 +60,14 @@ interface NearbyProperty {
    * the block is then omitted, as before. Same convention as #07's `spaces`.
    */
   units: NearbyUnit[] | null;
-  adminFee: number;
+  /** The property's own `admin_fees_text` (PropertiesInternal), verbatim.
+   *  Absent/blank cell ⇒ the card shows NO admin-fee line. */
+  adminFeeText?: string;
+  /** Demo rows only — live cards carry `adminFeeText` or nothing. */
+  adminFee?: number;
 }
 
 const MAX_NEARBY = 6;
-const DEFAULT_ADMIN_FEE = 20;
 /** Where the property pages live. Matches #02's `locationBasePath` and #07's. */
 const PROPERTY_BASE_PATH = '/storage-units';
 
@@ -216,8 +220,12 @@ function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
 
         {/* Footer */}
         <div className="sl-nb2-footer">
-          {p.adminFee > 0 && (
-            <span className="sl-nb2-admin-fee">+ Plus ${p.adminFee} Admin Fee</span>
+          {/* The property's own admin_fees_text, verbatim; the numeric form is
+              the demo rows' only. No value ⇒ NO line. */}
+          {(p.adminFeeText || (p.adminFee ?? 0) > 0) && (
+            <span className="sl-nb2-admin-fee">
+              {p.adminFeeText ?? `+ Plus $${p.adminFee} Admin Fee`}
+            </span>
           )}
           <a href="#" className="sl-nb2-see-all">
             See All Spaces
@@ -353,9 +361,13 @@ export function NearbySection() {
               .map((p) => ({ p, distanceMiles: null as number | null }))
               .slice(0, MAX_NEARBY);
 
-        // Hero photos for the whole list in one read (see @shared/propertyImages).
-        // Fails soft: without it each card keeps the API's own image.
-        const heroes = await fetchPropertyHeroImages().catch(() => new Map<string, string>());
+        // Hero photos + per-property admin_fees_text for the whole list in one
+        // pass (both PropertiesInternal, both promise-cached). Fail soft: no
+        // photo keeps the API's image; no text means NO admin-fee line.
+        const [heroes, adminFees] = await Promise.all([
+          fetchPropertyHeroImages().catch(() => new Map<string, string>()),
+          fetchAdminFeesTextMap().catch(() => new Map<string, string>()),
+        ]);
 
         // Stage 1: paint cards with distance/name/address/phone immediately.
         const base: NearbyProperty[] = ranked.map(({ p, distanceMiles }) => ({
@@ -374,7 +386,8 @@ export function NearbySection() {
           // block. `null` says the stage-2 call below is still out, which is
           // what keeps the placeholders up. See the field's note.
           units: null,
-          adminFee: DEFAULT_ADMIN_FEE,
+          // The operator's own line or nothing — never a hardcoded $20.
+          adminFeeText: adminFees.get(p.id),
         }));
         // No ref ⇒ no map centre either. The map keys off refLoc, so leaving it
         // null keeps the list view rather than centring the map on nothing.
