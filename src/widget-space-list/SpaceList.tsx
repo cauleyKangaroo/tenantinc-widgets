@@ -30,7 +30,7 @@ import {
   writeFeatureToUrl,
   type FeatureHighlight,
 } from './featureHighlights';
-import { fetchPropertyNotes, fetchPropertyAbout, type PropertyAbout } from '@shared/internalProperties';
+import { fetchPropertyNotes, fetchPropertyAbout, fetchAdminFeesText, type PropertyAbout } from '@shared/internalProperties';
 import { FEATURE_PAGE_COLLECTION, fetchFeaturePageCopy } from './featurePageSource';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { FilterModal } from './components/FilterModal';
@@ -215,6 +215,12 @@ export function SpaceList({
   }, []);
   const closeFitsVideo = useCallback(() => setFitsVideo(null), []);
 
+  // This property's admin-fee line (`admin_fees_text` on PropertiesInternal),
+  // shown under the price on every card. Undefined — no dmAPI, no row, blank
+  // cell — means NO line; a missing cell must never invent a fee. The effect
+  // lives next to the notes/about reads below.
+  const [adminFeesText, setAdminFeesText] = useState<string | undefined>(undefined);
+
   // Section visibility + order are managed entirely in the "Manage accordions"
   // modal (persisted to the collection), not via content-panel isX toggles.
   // Declared after propertyExtras so the sold-out "Call" CTA can carry the same
@@ -276,6 +282,7 @@ export function SpaceList({
     enablePromoLogic: enablePromoLogic === true || enablePromoLogic === 'true',
     contactPhone: propertyExtras?.phones[0]?.number ?? '',
     facilityName: propertyExtras?.name ?? '',
+    adminFeesText,
     onSeeWhatFits,
   };
 
@@ -366,6 +373,16 @@ export function SpaceList({
     fetchPropertyNotes(effectivePropertyId)
       .then((n) => { if (!cancelled) setCollectionNotes(n); })
       .catch((err) => console.error('[SpaceList] notes read failed:', err));
+    return () => { cancelled = true; };
+  }, [effectivePropertyId]);
+  // Admin-fee line, same collection and property (state declared above config).
+  // Reset on a property change so a previous property's fee never lingers.
+  useEffect(() => {
+    let cancelled = false;
+    setAdminFeesText(undefined);
+    fetchAdminFeesText(effectivePropertyId)
+      .then((t) => { if (!cancelled) setAdminFeesText(t); })
+      .catch((err) => console.error('[SpaceList] admin fees read failed:', err));
     return () => { cancelled = true; };
   }, [effectivePropertyId]);
   const sidebarNotes = collectionNotes;
