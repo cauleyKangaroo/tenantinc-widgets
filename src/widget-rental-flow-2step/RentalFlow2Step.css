@@ -983,6 +983,23 @@
   .rf2-plan-menu { right: 0; }
 }
 
+/* Phone, protection plan WITH the Best Value badge: one row — "$2,000" over
+   "Coverage", the badge stacked "Best" / "Value", then the price. The shared
+   wrapping above dropped the badge under the coverage and the price under
+   both, tripling the control's height. Scoped by :has(), so a plan without
+   the badge (and the key-share row, --ks) keeps its own layout. */
+@media (max-width: 640px) {
+  .rf2-plan-body:not(.rf2-plan-body--ks):has(.rf2-plan-best) { flex-wrap: nowrap; }
+  .rf2-plan-body:not(.rf2-plan-body--ks) .rf2-plan-left:has(.rf2-plan-best) { flex-wrap: nowrap; }
+  .rf2-plan-body:not(.rf2-plan-body--ks) .rf2-plan-left:has(.rf2-plan-best) .rf2-plan-cov b { display: block; }
+  .rf2-plan-body:not(.rf2-plan-body--ks) .rf2-plan-best { width: min-content; }
+  /* The open list's Best Value row, too: coverage, badge and price on one
+     line rather than the price dropping beneath them. */
+  .rf2-plan-opt--best,
+  .rf2-plan-opt--best .rf2-plan-opt-left { flex-wrap: nowrap; }
+  .rf2-plan-opt--best .rf2-plan-best { white-space: nowrap; flex-shrink: 0; font-size: 14px; }
+}
+
 /* ── Additional-info dropdowns (Select in additionalInfo.tsx) ─────────────
    Vehicle Type / Country / State open the plan menu above instead of the
    native picker. A size container so the menu's cqi type scales against the
