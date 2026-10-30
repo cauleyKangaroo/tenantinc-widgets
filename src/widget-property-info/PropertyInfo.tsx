@@ -126,7 +126,7 @@ function PropertySkeleton({ displayMode, showCallCenter }: { displayMode: 'full'
       <div className="pi-desktop">
       {displayMode === 'hero' ? (
         /* Banner beside a map. Reuses the real .pi-hero-wrap / .pi-hero-row —
-           plain flex boxes with a gap — so the placeholder stacks at 1180px
+           plain flex boxes with a gap — so the placeholder shrinks below 1180px
            off the same rule the content does, rather than a copy of it. */
         <div className="pi-hero-wrap" aria-hidden="true">
           <span className="pi-skel-bar pi-skel-crumb" />

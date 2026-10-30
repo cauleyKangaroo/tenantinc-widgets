@@ -155,9 +155,9 @@
 
 /* Desktop only: the crumb above the gallery and map sits RIGHT. Scoped to the
    media column with a child combinator, so the hero view's own breadcrumb —
-   which leads a different layout — is untouched. Reverts to left at 1180,
-   where the columns stack; mobile renders .pi-m-breadcrumb instead and never
-   sees this. */
+   which leads a different layout — is untouched. Stays right on tablet too,
+   where the columns no longer stack; mobile renders .pi-m-breadcrumb instead
+   and never sees this. */
 /* `justify-content`, not `text-align`: the trail is a FLEX row now (it comes
    from @shared/Breadcrumb), and text-align only moves inline content inside a
    flex item — it cannot move the items themselves. The rule below used to say
@@ -391,11 +391,6 @@
   .pi-skel-block { animation: none; }
 }
 
-/* Stacked, the real crumb goes back to the left; so does its stand-in. */
-@media (max-width: 1180px) {
-  .pi-media > .pi-skel-crumb { align-self: flex-start; }
-}
-
 /* ── Hero-mode skeleton ───────────────────────────────────────────────────
    The hero layout is a banner beside a map, not an info column beside two
    cards, so it needs its own placeholder. It reuses the REAL .pi-hero-wrap
@@ -412,11 +407,6 @@
   width: 422px;
   max-width: 100%;
   height: 302px;
-}
-@media (max-width: 1180px) {
-  /* Both halves of the tablet fix above, for the same reasons. */
-  .pi-skel-hero-card { flex: 0 0 auto; }
-  .pi-skel-hero-map { width: auto; }
 }
 
 /* ── Mobile skeleton ──────────────────────────────────────────────────────
@@ -1084,36 +1074,23 @@ button.pi-lb-img { display: flex; }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
+/* Tablet (769–1180px): the DESKTOP layout, shrunk — not stacked. The client's
+   ask: "keep shrinking the images and the map until the mobile breakpoint."
+   This band used to turn .pi-row into a column and drop the gallery and map
+   under the info. Now everything stays side by side and scales down; at 768px
+   and below .pi-desktop is display:none and the mobile composition takes over,
+   so nothing here reaches a phone. */
 @media (max-width: 1180px) {
-  /* Back to the left once the layout stacks — right-aligned over a full-width
-     column reads as stranded rather than placed. */
-  .pi-media > .pi-breadcrumb { justify-content: flex-start; }
-
-  /* `align-items: stretch` is doing the work here, not the direction change.
-     .pi-row is align-items: flex-start for the side-by-side layout, and once
-     it turns to a column that sizes both children SHRINK-TO-FIT on the cross
-     axis: .pi-info fell back to its 280px min-width and .pi-media — which is
-     flex-shrink: 0 — took whatever .pi-cards happened to measure. So the whole
-     widget stopped a few hundred pixels short of the column it was given.
-     Same fault, same fix as .pi-skel in d448e40; I assumed there that the real
-     row survived it because its columns hold real content. It does not — it
-     just lands on a content width instead of collapsing, which is harder to
-     see than an empty skeleton doing the same thing. */
-  .pi-row {
-    flex-direction: column;
-    align-items: stretch;
+  /* The media column gives up its fixed 2 × 422px and shares the row with the
+     info column, two parts to one. The info column keeps its 280px floor, so
+     its text never squeezes; the media column absorbs the shrinking. */
+  .pi-media {
+    flex: 2 1 0;
+    min-width: 0;
   }
 
-  /* Gallery and map stay side by side, half each. They used to be `1 1 360px`
-     in a wrapping row, which needs 360 + 360 + 24 = 744px of column before
-     both fit — so anything narrower than that dropped the map under the
-     gallery, and anything wider gave the two unequal widths (each grew from a
-     360px basis, so the free space split evenly on top of it rather than
-     producing halves).
-     A zero basis with min-width: 0 is what makes them true halves: nothing to
-     distribute unevenly, and each can shrink under its content. Only this
-     block below 768px, where .pi-desktop is display:none and the mobile
-     composition takes over entirely. */
+  /* Gallery and map, true halves of whatever the media column has: a zero
+     basis with min-width: 0 leaves nothing to distribute unevenly. */
   .pi-cards {
     flex-wrap: nowrap;
   }
@@ -1124,25 +1101,34 @@ button.pi-lb-img { display: flex; }
     width: auto;
   }
 
-  .pi-hero-row {
-    flex-direction: column;
+  /* Shrink, don't squash: the desktop 422 × 317 proportion, so the two cards
+     scale down as pictures rather than becoming tall slivers at a fixed 317px.
+     The skeleton blocks follow suit so the swap doesn't shift the page. */
+  .pi-card-col .pi-gallery,
+  .pi-card-col .pi-map,
+  .pi-card-col > .pi-skel-block {
+    height: auto;
+    aspect-ratio: 422 / 317;
   }
 
-  /* `flex: 1 1 0` sets the basis on the MAIN axis, and the row just became a
-     column — so that zero basis started governing HEIGHT and overrode the
-     302px below it, collapsing the banner to nothing. There is no free space
-     for flex-grow to give back either, because .pi-hero-row has no height of
-     its own. Basis auto hands the 302px back.
-     The map never hit this: it only sets flex-shrink, so its basis stayed
-     auto and its own height kept applying — which is why the map was there
-     and the banner above it was not. */
-  .pi-hero-card {
-    flex: 0 0 auto;
+  /* Hero mode, same idea: banner and map stay side by side. The map keeps its
+     422px until that would be more than 40% of the row, then shrinks with it;
+     the banner (flex: 1 1 0) takes the rest. */
+  .pi-hero-map,
+  .pi-skel-hero-map {
+    width: min(422px, 40%);
   }
 
-  .pi-hero-map {
-    width: auto;
-  }
+  /* The info column's type a step down, so the narrower column carries the
+     name, address, phones and hours without wrapping every line. Icons and
+     spacing are unchanged. Scoped to .pi-desktop: the phone layout reuses
+     .pi-reviews for its own link, and must keep its size. !important on the
+     name because the host-resilience block pins .pi-name with !important. */
+  .pi-desktop .pi-name { font-size: 24px !important; }
+  .pi-desktop .pi-rating-score { font-size: 24px; }
+  .pi-desktop .pi-reviews,
+  .pi-desktop .pi-contact-row,
+  .pi-desktop .pi-see-hours { font-size: 14px; }
 }
 
 @media (max-width: 560px) {
