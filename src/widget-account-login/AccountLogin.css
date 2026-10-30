@@ -84,6 +84,18 @@
   color: #101318;
 }
 
+/* The login step's subheading, inset from the card's sides so it does not
+   end on an orphaned "needed.": at 20px the first line still ends "…with
+   your", "We'll send you" stays together on the second, and "password
+   needed." takes the third. Plain wrapping, not `balance` — balancing evened
+   the lines by pushing "you" down to the third. Desktop only; see the phone
+   block. */
+.al-sub--login {
+  padding-inline: 20px;
+}
+/* A hyphenated word in the subheading ("6-digit") — see keepHyphenatedWhole. */
+.al-nowrap { white-space: nowrap; }
+
 /* ── Form column ───────────────────────────────────────────────────────────── */
 
 .al-form {
@@ -529,6 +541,10 @@
     border-left: none;
     border-right: none;
   }
+
+  /* The card's own 24px sides are inset enough on a phone; more would push
+     the subheading to four lines. */
+  .al-sub--login { padding-inline: 0; }
 
   /* 24px gap here, so -20 keeps the phone's 4px each side (unchanged). */
   .al-card > .al-msg-slot { margin: -20px 0; }

@@ -136,6 +136,18 @@ function keepCtaVisibleOnFocus(e: React.FocusEvent<HTMLElement>): void {
   setTimeout(run, 350);
 }
 
+/**
+ * The subheading with every hyphenated word ("6-digit") held on one line.
+ * Browsers may break after a hyphen, which left "6-" at the end of a line and
+ * "digit" on the next on a phone. A span rather than U+2011 (non-breaking
+ * hyphen): Poppins has no glyph for it, so it would render in a fallback font.
+ */
+function keepHyphenatedWhole(text: string): React.ReactNode {
+  return text.split(/(\S+-\S+)/).map((part, i) => (
+    i % 2 ? <span key={i} className="al-nowrap">{part}</span> : part
+  ));
+}
+
 // ---------------------------------------------------------------------------
 // Identifier parsing
 // ---------------------------------------------------------------------------
@@ -1028,7 +1040,7 @@ export function AccountLogin({
       <div className="al-card">
         <div className="al-head">
           <h1 className="al-title">{heading}</h1>
-          <p className="al-sub">{subheading}</p>
+          <p className="al-sub al-sub--login">{keepHyphenatedWhole(subheading)}</p>
         </div>
 
         <form
