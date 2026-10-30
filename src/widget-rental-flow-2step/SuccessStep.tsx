@@ -514,7 +514,7 @@ export function SuccessStep({
             <div className="rf-sx-idv-actions">
               <button
                 type="button"
-                className="rf-sx-btn rf-sx-btn--solid"
+                className="rf-sx-btn rf-sx-btn--solid rf-sx-btn--primary"
                 onClick={verifyNow}
                 disabled={idvServiceConnected && remoteKind !== 'ready' && remoteKind !== 'pending'}
               >
