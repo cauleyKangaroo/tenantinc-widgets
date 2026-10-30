@@ -1314,7 +1314,12 @@ export function PropertyInfo(props: Props) {
             the other direction (its slide autoplays only off a phone). Same
             query as the CSS switch, so the two cannot disagree. */}
         {isMobileViewport && collectionVideos[0]
-          ? <VideoSlide className="pi-m-hero-img" src={collectionVideos[0]} active autoPlay interactive title={displayName} />
+          ? (
+            /* Sized box for the player to COVER — see .pi-m-hero-media. */
+            <span className="pi-m-hero-media">
+              <VideoSlide className="pi-m-hero-img" src={collectionVideos[0]} active autoPlay interactive title={displayName} />
+            </span>
+          )
           : <ImageFill className="pi-m-hero-img" src={heroSlide} w={640} />}
         <span className="pi-m-hero-overlay" style={{ background: `rgba(16, 19, 24, ${overlay})` }} />
         <div className="pi-m-hero-top">

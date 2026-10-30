@@ -1232,6 +1232,33 @@ button.pi-lb-img { display: flex; }
 iframe.pi-m-hero-img { border: 0; z-index: 0; }
 .pi-video-poster.pi-m-hero-img { z-index: 0; }
 
+/* The player COVERS the hero, as the photo does. An iframe has no object-fit:
+   YouTube letterboxes its 16:9 video inside whatever box it gets, so in the
+   wide, short hero of a tablet (768 × 250) the video sat small in the middle
+   with grey bars either side. The wrapper is a sized box (inset: 0, so its size
+   comes from the hero, not its content — safe for size containment), and the
+   iframe is sized to the LARGER of "fill the width" and "fill the height" at
+   16:9, centred, with the excess clipped. Behind @supports, so a browser
+   without container units keeps the plain 100% × 100% player above rather
+   than a half-applied, off-centre one. */
+.pi-m-hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  container-type: size;
+}
+@supports (width: 1cqw) {
+  .pi-m-hero-media iframe.pi-m-hero-img {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    width: max(100cqw, 100cqh * 16 / 9);
+    height: max(100cqh, 100cqw * 9 / 16);
+    transform: translate(-50%, -50%);
+  }
+}
+
 .pi-m-hero-top {
   position: relative;
   z-index: 1;
