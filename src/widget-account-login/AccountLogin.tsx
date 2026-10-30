@@ -1116,8 +1116,10 @@ export function AccountLogin({
 
           {/* With Google/Apple removed, the only thing left below the divider is
               the phone-only variant's email escape hatch (Figma 9503:122933) —
-              so the divider goes with it rather than ruling off nothing. */}
-          {identifierMode === 'phone' && !forceEmail && (
+              so the divider goes with it rather than ruling off nothing.
+              The hatch swings both ways: once switched to email, the same
+              button reads "Login with Phone" so the choice is never one-way. */}
+          {identifierMode === 'phone' && (
             <>
               <div className="al-or">
                 <span className="al-or-rule" />
@@ -1129,9 +1131,9 @@ export function AccountLogin({
                 <button
                   type="button"
                   className="al-social-btn"
-                  onClick={() => { setForceEmail(true); setIdentifier(''); setIdentifyError(''); }}
+                  onClick={() => { setForceEmail(!forceEmail); setIdentifier(''); setIdentifyError(''); }}
                 >
-                  Login with Email
+                  {forceEmail ? 'Login with Phone' : 'Login with Email'}
                 </button>
               </div>
             </>
