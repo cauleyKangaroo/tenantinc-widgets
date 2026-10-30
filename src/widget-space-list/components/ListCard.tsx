@@ -1,7 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { Unit, UnitSize, WidgetConfig } from '../types';
-// JunkFeeDisclaimer deliberately no longer imported — retired 2026-10-29.
-import { PriceBlock, CtaButton, FeatureList, CheckIcon, PromoTagIcon, priceFigures } from './Pricing';
+import { PriceBlock, CtaButton, FeatureList, CheckIcon, AdminFeesNote, PromoTagIcon, priceFigures } from './Pricing';
 import { unitImageSrc, unitImageOnError } from './unitImage';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
@@ -188,19 +187,22 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
         <div className="sl-lc-price-button">
           <div className="sl-lc-price">
             <PriceBlock unit={selected} config={config} reserve={reserve} />
-            {/* Junk-fee disclaimer retired 2026-10-29: the only small print is
-                the property's admin_fees_text (PropertiesInternal), rendered by
-                PriceBlock above. Kept commented in case it has to come back.
-            {config.showJunkFeeDisclaimer && (
-              <div className="sl-lc-fee-inline"><JunkFeeDisclaimer config={config} /></div>
-            )} */}
+            {/* Narrow frames: the small print stays under the price — the
+                junk-fee disclaimer's slot, now fed by admin_fees_text. */}
+            {config.adminFeesText && (
+              <div className="sl-lc-fee-inline"><AdminFeesNote config={config} /></div>
+            )}
           </div>
           <CtaButton unit={selected} config={config} full colClass="sl-lc-btn-col" />
         </div>
-        {/* Junk-fee disclaimer retired 2026-10-29 (see the inline copy above).
-        {config.showJunkFeeDisclaimer && (
-          <div className="sl-lc-fee"><JunkFeeDisclaimer config={config} /></div>
-        )} */}
+        {/* Desktop: the small print sits in the LEFT column — under the promo
+            when there is one, in its place at the top when there is not. AFTER
+            the price row in the DOM so the narrow frame's
+            `.sl-lc-promo-wrap + .sl-lc-price-button` slide still matches; the
+            grid places it. Only one of the two copies is ever displayed. */}
+        {config.adminFeesText && (
+          <div className="sl-lc-fee"><AdminFeesNote config={config} /></div>
+        )}
       </div>
     </div>
   );

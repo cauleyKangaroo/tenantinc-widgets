@@ -174,9 +174,10 @@ export interface WidgetConfig {
   companyId?: string;
   /**
    * The property's admin-fee line, verbatim from PropertiesInternal's
-   * `admin_fees_text` (e.g. "+ Plus $20 Admin Fee"). Rendered under the price
-   * on every card when set; absent/blank → no line (the demo units' numeric
-   * `adminFee` stays the harness-only fallback).
+   * `admin_fees_text` (e.g. "+ Plus $20 Admin Fee"). Rendered IN THE JUNK-FEE
+   * DISCLAIMER'S OLD SLOT on every card (AdminFeesNote, class
+   * `sl-junk-disclaimer`) — it replaced that disclaimer, it does not sit
+   * beside it. Absent/blank → no line anywhere.
    */
   adminFeesText?: string;
   /**

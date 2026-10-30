@@ -403,6 +403,22 @@
   color: var(--hb-white, #fff);
 }
 
+/* "Verify ID Now" on the ID card: the site PRIMARY (Duda --color_1), not the
+   CTA. Only that button carries it — "Save time and skip the office!" and the
+   modal's Resend keep --color_2. Same hover/press/disabled treatment as
+   .rf-sx-btn--solid, one class higher so it wins. */
+.rf-sx-btn--solid.rf-sx-btn--primary { background: var(--color_1, #10666d); }
+.rf-sx-btn--solid.rf-sx-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color_1, #10666d) 88%, #000);
+}
+.rf-sx-btn--solid.rf-sx-btn--primary:active:not(:disabled) {
+  background: color-mix(in srgb, var(--color_1, #10666d) 78%, #000);
+}
+.rf-sx-btn--solid.rf-sx-btn--primary:disabled,
+.rf-sx-btn--solid.rf-sx-btn--primary:disabled:hover {
+  background: var(--color_1, #10666d) !important;
+}
+
 .rf-sx-idv-note {
   margin: 20px 0 0;
   color: var(--hb-text-night, #101318);

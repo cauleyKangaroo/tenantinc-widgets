@@ -194,7 +194,6 @@ export function PriceBlock({ unit, config, reserve }: {
         <div className="sl-price-main">
           <div className="sl-starting-label">{PROMO_RATE_LABEL}</div>
           <div className="sl-main-price"><Figure value={fig.main} all={reserve?.main} /></div>
-          <AdminFeeLine config={config} />
         </div>
       </div>
     );
@@ -218,22 +217,9 @@ export function PriceBlock({ unit, config, reserve }: {
       <div className="sl-price-main">
         <div className="sl-starting-label">{config.startingAtLabel}</div>
         <div className="sl-main-price"><Figure value={fig.main} all={reserve?.main} /></div>
-        <AdminFeeLine config={config} />
       </div>
     </div>
   );
-}
-
-/**
- * The admin-fee small print under the price: the property's own
- * `admin_fees_text` (PropertiesInternal) verbatim — and from NOWHERE else.
- * Column missing, cell blank, no dmAPI, demo units standing in: NO line.
- * There is deliberately no numeric fallback; a fee the operator didn't
- * write must never be invented.
- */
-function AdminFeeLine({ config }: { config: WidgetConfig }) {
-  if (config.adminFeesText) return <div className="sl-admin-fee">{config.adminFeesText}</div>;
-  return null;
 }
 
 // Filled tag — exact Figma vector (node 429:46379). Shared by the grid promo
@@ -292,17 +278,19 @@ export function FeatureList({ features }: { features: string[] }) {
 }
 
 /**
- * RETIRED 2026-10-29 — no card renders this any more: the only small print is
- * the property's `admin_fees_text` (PropertiesInternal). Kept, with its
- * commented-out call sites, in case it has to come back.
+ * The small print in the junk-fee disclaimer's old slot — SAME position and
+ * styling (`sl-junk-disclaimer`), different source: the property's own
+ * `admin_fees_text` (PropertiesInternal), verbatim, and from NOWHERE else.
+ * Column missing, cell blank, no dmAPI, demo units standing in: NO line —
+ * a fee the operator didn't write must never be invented.
  *
- * Editor-authored disclaimer under the price. Copy comes from `junkFeeCopy`,
- * which SpaceList has already defaulted — so an empty string here means the
- * editor deliberately cleared it, and we render nothing rather than an empty box.
+ * This REPLACED the editor-authored junk-fee disclaimer (2026-10-29, client
+ * request): `showJunkFeeDisclaimer`/`junkFeeCopy` no longer render anywhere
+ * on the cards.
  */
-export function JunkFeeDisclaimer({ config }: { config: WidgetConfig }) {
-  if (!config.junkFeeCopy) return null;
-  return <div className="sl-junk-disclaimer">{withLineBreaks(config.junkFeeCopy)}</div>;
+export function AdminFeesNote({ config }: { config: WidgetConfig }) {
+  if (!config.adminFeesText) return null;
+  return <div className="sl-junk-disclaimer">{withLineBreaks(config.adminFeesText)}</div>;
 }
 
 /**

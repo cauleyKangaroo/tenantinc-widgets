@@ -1,7 +1,6 @@
 ﻿import React from 'react';
 import type { Unit, WidgetConfig } from '../types';
-// JunkFeeDisclaimer deliberately no longer imported — retired 2026-10-29.
-import { PriceBlock, PromoBadge, FeatureList, CtaButton } from './Pricing';
+import { PriceBlock, PromoBadge, FeatureList, CtaButton, AdminFeesNote } from './Pricing';
 import { unitImageSrc, unitImageOnError } from './unitImage';
 
 export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig }) {
@@ -55,11 +54,9 @@ export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig })
             unit={unit}
             config={config}
             colClass="sl-cta-col"
-            /* Junk-fee disclaimer retired 2026-10-29: the only small print is
-               the property's admin_fees_text, rendered by PriceBlock above.
-               aside={config.showJunkFeeDisclaimer && config.junkFeeCopy
-                 ? <JunkFeeDisclaimer config={config} />
-                 : null} */
+            /* The junk-fee disclaimer's slot, now fed by admin_fees_text —
+               AdminFeesNote renders nothing when the property has none. */
+            aside={<AdminFeesNote config={config} />}
           />
         </div>
       </div>
