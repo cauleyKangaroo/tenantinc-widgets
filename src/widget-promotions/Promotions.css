@@ -281,6 +281,21 @@ img.promo-banner-img {
 .promo-bars[data-cols='3'] .promo-bar { padding: 26px; }
 .promo-bars[data-cols='3'] .promo-bar-title { font-size: clamp(18px, 1.8vw, 26px); }
 
+/* Desktop, 2- and 3-across: tightened in the same proportion as the single
+   band above (top/bottom padding ~52%, title cap ~86%, tag and info 30px), so
+   the bars stay a step smaller than one promotion. Sides keep their padding;
+   the link is untouched. Tablet and phone keep their own rules. */
+@media (min-width: 901px) {
+  .promo-bars[data-cols='2'] .promo-bar { padding-block: 16px; }
+  .promo-bars[data-cols='2'] .promo-bar-title { font-size: clamp(20px, 2.4vw, 29px); }
+  .promo-bars[data-cols='3'] .promo-bar { padding-block: 14px; }
+  .promo-bars[data-cols='3'] .promo-bar-title { font-size: clamp(18px, 1.8vw, 22px); }
+  .promo-bars:is([data-cols='2'], [data-cols='3']) .promo-bar-titlewrap svg,
+  .promo-bars:is([data-cols='2'], [data-cols='3']) .promo-bar-info svg { width: 30px; height: 30px; }
+  /* 3-across: the tag a step down again, to sit with the 22px title. */
+  .promo-bars[data-cols='3'] .promo-bar-titlewrap svg { width: 26px; height: 26px; }
+}
+
 .promo-bars[data-cols='4'] .promo-bar { padding: 22px; }
 .promo-bars[data-cols='4'] .promo-bar-inner { gap: 12px; }
 .promo-bars[data-cols='4'] .promo-bar-title { font-size: clamp(16px, 1.4vw, 22px); }
