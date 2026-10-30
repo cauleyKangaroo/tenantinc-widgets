@@ -1131,6 +1131,11 @@ export function AccountLogin({
                 <button
                   type="button"
                   className="al-social-btn"
+                  /* Locked while a code send is in flight — switching mid-send
+                     clears the identifier, and the pending success would open
+                     verification against the wrong (now empty) channel. Same
+                     guard as the verify step's method-switch link. */
+                  disabled={sending}
                   onClick={() => { setForceEmail(!forceEmail); setIdentifier(''); setIdentifyError(''); }}
                 >
                   {forceEmail ? 'Login with Phone' : 'Login with Email'}
