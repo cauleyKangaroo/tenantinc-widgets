@@ -27,12 +27,14 @@ export interface MoneyBreakdownProps extends MoneyBreakdownData {
   /** Render the "Total Cost to Move-In:" row. Defaults to true. */
   showTotal?: boolean;
   className?: string;
+  /** Display form of the Rent line's dates. Defaults to printing them as given. */
+  formatDate?: (date: string) => string;
 }
 
 const lineAmt = (n: number) => (n < 0 ? `−$ ${Math.abs(n).toFixed(2)}` : `$ ${n.toFixed(2)}`);
 
 export function MoneyBreakdown({
-  totalDue, totalTax, unitNumber, lines, showTotal = true, className,
+  totalDue, totalTax, unitNumber, lines, showTotal = true, className, formatDate = (d) => d,
 }: MoneyBreakdownProps) {
   return (
     <div className={['hb-money', className ?? ''].filter(Boolean).join(' ')}>
@@ -47,7 +49,7 @@ export function MoneyBreakdown({
           {l.name === 'Rent' && l.startDate ? (
             <span className="hb-money-label">
               Rent (Prorated)
-              <span className="hb-money-dates">({l.startDate} – {l.endDate ?? ''})</span>
+              <span className="hb-money-dates">({formatDate(l.startDate)} – {l.endDate ? formatDate(l.endDate) : ''})</span>
             </span>
           ) : (
             <span>{l.name}</span>

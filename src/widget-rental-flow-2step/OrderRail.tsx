@@ -26,6 +26,18 @@ function railMoneyNote(hasSelection: boolean, failed: boolean): string {
     : 'Select a space to see your move-in cost.';
 }
 
+/** "May 6, 2026" from the quote's "05/06/2026" (or "2026-05-06"); anything
+ *  else as given. Display only — the quote keeps its own form, which the
+ *  rental payload converts back to the API's dates. */
+function railDate(v: string): string {
+  const us = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v);
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(v);
+  const [y, m, d] = us ? [us[3], us[1], us[2]] : iso ? [iso[1], iso[2], iso[3]] : [];
+  if (!y) return v;
+  return new Date(Number(y), Number(m) - 1, Number(d))
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export function OrderRail({
   property,
   selection,
@@ -155,6 +167,7 @@ export function OrderRail({
               totalTax={quote.totalTax}
               lines={quote.lines}
               showTotal={false}
+              formatDate={railDate}
             />
             <div className="ts-bd-row ts-bd-row--total">
               <span className="ts-bd-total-label">{totalLabel}</span>
