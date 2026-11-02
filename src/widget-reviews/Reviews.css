@@ -99,9 +99,12 @@
   min-height: 0;
   overflow: hidden;
 }
+/* flex-start, not stretch: a stretched page took the TALLEST page's height, so
+   a last page holding a single review grew that one card to fill it and pushed
+   the time far below the text. */
 .rw-track {
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   will-change: transform;
 }
 .rw-track-page {
