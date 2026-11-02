@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './AccountLogin.css';
 import { CheckTick, CaretDown, UserCircle, InfoSolid } from './icons';
-import { AlertIcon } from '@shared/ui';
+import { AlertIcon, Checkbox } from '@shared/ui';
 import { hasCollectionsApi, logSource, str } from '@shared/dudaCollections';
 import { readPropertiesFromCollection, PROPERTIES_COLLECTION } from '@shared/propertiesSource';
 import { skipValidation } from '@shared/devBypass';
@@ -520,6 +520,8 @@ export function AccountLogin({
   const [resendIn, setResendIn] = useState(0);
   /** A send is in flight — the identify button shows it and cannot re-fire. */
   const [sending, setSending] = useState(false);
+  /** "Keep me logged in on this device" — ticked, the session outlives the tab. */
+  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   /*
    * Contacts returned by a `select_contact` verify.
    *
@@ -756,7 +758,7 @@ export function AccountLogin({
         // What they typed — the account page says "logged in as" and nothing
         // in the verify response or /me carries it.
         signedInAs: identifier.trim(),
-      });
+      }, keepLoggedIn);
       if (!stored) {
         // Blocked site data. Sending them on would land an account page that
         // cannot read the session and bounces straight back here.
@@ -770,7 +772,7 @@ export function AccountLogin({
     } finally {
       setChecking(false);
     }
-  }, [checking, bypassCode, successUrl, live, api, identifier, identifierPayload, finish, demoAccountCount]);
+  }, [checking, bypassCode, successUrl, live, api, identifier, identifierPayload, finish, demoAccountCount, keepLoggedIn]);
 
   /*
    * A row of the picker was chosen (step 1c).
@@ -808,7 +810,7 @@ export function AccountLogin({
         name: r.contact.name ?? account.name,
         // Same as the single-account path: what they typed is the "logged in as".
         signedInAs: identifier.trim(),
-      });
+      }, keepLoggedIn);
       if (!stored) {
         setPickError(
           'Your browser is blocking site storage, so we cannot keep you signed in. '
@@ -820,6 +822,17 @@ export function AccountLogin({
     } finally {
       setPicking(false);
     }
+  };
+
+  /** Code step → plain login, landing on the email field when `toEmail`. */
+  const backToLogin = (toEmail: boolean) => {
+    setForceEmail(toEmail);
+    setIdentifier('');
+    setIdentifyError('');
+    setCode('');
+    setCodeError('');
+    setResent(false);
+    setStep('identify');
   };
 
   const resend = () => {
@@ -952,12 +965,12 @@ export function AccountLogin({
         <div className="al-card">
           <div className="al-head">
             <h1 className="al-title" tabIndex={-1} ref={otpHeadingRef}>
-              {kind === 'email' ? 'Verify Email' : 'Verify Phone Number'}
+              {kind === 'email' ? 'Check your email' : 'Check your texts'}
             </h1>
             <p className="al-sub">
-              Enter the one time code we sent to
+              {kind === 'email' ? 'We emailed' : 'We texted'} a 6-digit code to {destination}.
               <br />
-              {destination}
+              It expires in 10 minutes.
             </p>
           </div>
 
@@ -989,8 +1002,15 @@ export function AccountLogin({
             disabled={(!skipValidation() && !complete) || checking}
             onClick={() => submitCode(code)}
           >
-            {checking ? 'Checking…' : 'Continue'}
+            {checking ? 'Checking…' : 'Log me in'}
           </button>
+
+          <p className="al-resend-row">
+            Did not get the code?{' '}
+            <button type="button" className="al-resend al-resend--inline" onClick={resend} disabled={resendIn > 0}>
+              {resendIn > 0 ? `Resending in ${resendIn}s` : 'Resend code'}
+            </button>
+          </p>
 
           {/* Back to the plain login step. The label names the OTHER channel
               (a code sent to a phone offers email, and the reverse), and the
@@ -1007,25 +1027,24 @@ export function AccountLogin({
               <>
                 <button
                   type="button"
-                  className="al-resend"
+                  className="al-verify-link"
                   disabled={checking || sending}
-                  onClick={() => {
-                    setForceEmail(identifierMode === 'phone' && kind === 'phone');
-                    setIdentifier('');
-                    setIdentifyError('');
-                    setCode('');
-                    setCodeError('');
-                    setResent(false);
-                    setStep('identify');
-                  }}
+                  onClick={() => backToLogin(identifierMode === 'phone' && kind === 'phone')}
                 >
-                  {kind === 'email' ? 'Login with number' : 'Login with email'}
+                  {kind === 'email' ? 'Text me the code instead' : 'Email me the code instead'}
                 </button>
                 <span className="al-verify-sep" aria-hidden="true" />
               </>
             )}
-            <button type="button" className="al-resend" onClick={resend} disabled={resendIn > 0}>
-              {resendIn > 0 ? `Resend Code in ${resendIn}s` : 'Resend Code'}
+            {/* Same channel, different address: back to the login on the field
+                the code went to. */}
+            <button
+              type="button"
+              className="al-verify-link"
+              disabled={checking || sending}
+              onClick={() => backToLogin(identifierMode === 'phone' && kind === 'email')}
+            >
+              {kind === 'email' ? 'Send it to a different email' : 'Send it to a different number'}
             </button>
           </div>
         </div>
@@ -1110,8 +1129,12 @@ export function AccountLogin({
             </div>
 
             <button type="submit" className="al-cta" disabled={!canContinue}>
-              {sending ? 'Sending…' : 'Continue'}
+              {sending ? 'Sending…' : 'Send my code'}
             </button>
+
+            <Checkbox className="al-keep" checked={keepLoggedIn} onChange={setKeepLoggedIn}>
+              Keep me logged in on this device
+            </Checkbox>
           </div>
 
           {/* With Google/Apple removed, the only thing left below the divider is
