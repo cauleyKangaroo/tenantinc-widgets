@@ -622,3 +622,18 @@
   font-size: 14px;
   color: #101318;
 }
+
+/* ── Code step's "Text me… | Send it to a different…" — one line on a phone ──
+   At 14px the pair runs ~385px against ~327px of card, so it wrapped. Kept on
+   one row: tighter gap, and the type scales down with the viewport (never
+   above the desktop 14px). */
+@media (max-width: 560px) {
+  .al-verify-links {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .al-verify-link {
+    font-size: min(14px, 3.1vw);
+    white-space: nowrap;
+  }
+}
