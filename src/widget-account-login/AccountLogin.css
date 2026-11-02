@@ -530,16 +530,21 @@
     padding: 0;
     /* The two-row picker at this width (no wrapper padding here). */
     min-height: 491px;
+    /* White behind the card too (client request, mobile only): the wrapper was
+       transparent, so the host page's grey showed in the strip the min-height
+       above reserves under the shorter steps. */
+    background: #fff;
   }
 
   .al-card {
     gap: 24px;
     padding: 32px 24px;
     /* Full-bleed on a phone: the 16px radius on a card that spans the viewport
-       reads as a rendering artifact rather than a card. */
+       reads as a rendering artifact rather than a card. No border at all: on
+       a white ground the top and bottom hairlines were the only edge left,
+       ruling the card off from nothing. */
     border-radius: 0;
-    border-left: none;
-    border-right: none;
+    border: none;
   }
 
   /* The card's own 24px sides are inset enough on a phone; more would push
