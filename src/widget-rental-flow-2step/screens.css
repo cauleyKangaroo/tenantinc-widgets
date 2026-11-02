@@ -351,7 +351,7 @@
    on every site whatever the theme's CTA was. This one class covers three
    controls Josh named — "Verify ID Now", "Save time and skip the office!"
    (same class, plus --stack) and the ID modal's Resend, which reuses it. */
-.rf-sx-btn--solid { border: 0; background: var(--color_2, #509e2f); color: var(--color_3, #fff); }
+.rf-sx-btn--solid { border: 0; background: var(--color_2, #509e2f); color: var(--color_9, var(--color_3, #fff)); }
 /* Disabled keeps its own colours. The hover/active rules above are
    :not(:disabled), so without this a disabled button fell through to the page's
    generic button:hover (a pale grey in the harness, whatever a Duda theme says
@@ -360,7 +360,7 @@
 .rf-sx-btn--solid:disabled,
 .rf-sx-btn--solid:disabled:hover {
   background: var(--color_2, #509e2f) !important;
-  color: var(--color_3, #fff) !important;
+  color: var(--color_9, var(--color_3, #fff)) !important;
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -396,7 +396,7 @@
 .rf-sx-btn--outline:hover:not(:disabled) {
   filter: none;
   background: var(--color_2, #509e2f);
-  color: var(--hb-white, #fff);
+  color: var(--color_9, var(--hb-white, #fff));
 }
 .rf-sx-btn--outline:active:not(:disabled) {
   background: color-mix(in srgb, var(--color_2, #509e2f) 78%, #000);
@@ -766,7 +766,7 @@
   border: 0;
   border-radius: 8px;
   background: var(--hb-cta, #f45f30);
-  color: var(--color_3, #fff);
+  color: var(--color_9, var(--color_3, #fff));
   font-family: inherit;
   font-size: 16px;
   font-weight: 700;
