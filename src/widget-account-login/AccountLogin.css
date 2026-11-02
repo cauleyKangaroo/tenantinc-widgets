@@ -422,6 +422,38 @@
   text-decoration: none;
 }
 
+/* "Did not get the code? Resend code" */
+.al-resend-row {
+  margin: 0;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
+  font-size: 14px;
+  color: #101318;
+  text-align: center;
+}
+
+.al-resend--inline {
+  font-weight: 400;
+  color: var(--color_1, #10666d);
+}
+
+.al-verify-link {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color_1, #10666d);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.al-verify-link:disabled {
+  color: #a5b4bf;
+  cursor: default;
+}
+
 /* ── Account picker (Figma 12667:34621) ────────────────────────────────────── */
 /* A wider card than the code steps: 475px rows inside 60px sides. The frame's
    gaps are uneven (15 under the copy, 13 between rows, 20 above the note), so
@@ -578,4 +610,15 @@
   .al-title--choose { margin: 0; font-size: 22px; line-height: 26px; }
   .al-account { gap: 12px; padding: 12px 14px; }
   .al-account-avatar { width: 36px; height: 36px; }
+}
+
+/* ── "Keep me logged in on this device" — centred under Send my code ──────── */
+.al-fields > .al-keep {
+  align-self: center;
+  margin-top: -7px; /* 24px column gap → 17px under the button */
+}
+.al-keep .hb-check__label {
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
+  font-size: 14px;
+  color: #101318;
 }

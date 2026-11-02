@@ -10,6 +10,10 @@
 // has signed out, which is what someone looking at their storage account on a
 // shared machine would expect.
 //
+// The exception is the login's "Keep me logged in on this device" box: ticked,
+// the session goes to localStorage instead and survives closing the browser
+// (still bounded by the token's own expiry). Reads look in both.
+//
 // EVERY ACCESS IS GUARDED. sessionStorage throws outright in a private window
 // with site data blocked, and returns null when storage was cleared between
 // pages. Both are normal, and both mean "not signed in" rather than an error:
@@ -42,10 +46,19 @@ export interface AccountSession {
   signedInAs?: string;
 }
 
-/** Store the session. Returns false when storage refused it. */
-export function saveSession(session: AccountSession): boolean {
+/**
+ * Store the session. Returns false when storage refused it.
+ *
+ * `remember` → localStorage (survives the browser closing); otherwise
+ * sessionStorage. Any copy in the other store is dropped so only one exists.
+ */
+export function saveSession(session: AccountSession, remember = false): boolean {
   try {
-    window.sessionStorage.setItem(KEY, JSON.stringify(session));
+    const keep = remember ? window.localStorage : window.sessionStorage;
+    keep.setItem(KEY, JSON.stringify(session));
+    try {
+      (remember ? window.sessionStorage : window.localStorage).removeItem(KEY);
+    } catch { /* the save itself succeeded */ }
     return true;
   } catch {
     // Private window, blocked site data, or a full quota. The caller decides
@@ -63,7 +76,7 @@ export function saveSession(session: AccountSession): boolean {
  */
 export function readSession(): AccountSession | null {
   try {
-    const raw = window.sessionStorage.getItem(KEY);
+    const raw = window.sessionStorage.getItem(KEY) ?? readRemembered();
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as Partial<AccountSession> | null;
@@ -87,11 +100,26 @@ export function readSession(): AccountSession | null {
   }
 }
 
+/** The "keep me logged in" copy; null when absent or localStorage is blocked. */
+function readRemembered(): string | null {
+  try {
+    return window.localStorage.getItem(KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Signs out of both stores, so a remembered session cannot outlive "Log out". */
 export function clearSession(): void {
   try {
     window.sessionStorage.removeItem(KEY);
   } catch {
     /* nothing we can do, and nothing that needs saying */
+  }
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    /* same */
   }
 }
 
