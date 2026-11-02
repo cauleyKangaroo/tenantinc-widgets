@@ -14,10 +14,10 @@
      --ma-panel     #f9fafb  Primary/Cloud/Lighter — page + inset panels
      --ma-panel-bd  #c4cdd5  Primary/Cloud/Dark    — the autopay panel's rule
      --ma-chip      #f4f6f8  the "Signed" pill
-     --ma-notify    #f26500  Primary/Notifications — three jobs: the past-due
-                             ring, the SELECTED card's ring, and "Pay Now".
+     --ma-notify    #f26500  Primary/Notifications — the past-due ring.
                              Deliberately not --hb-ada-red (which already means
-                             "error") and not --hb-cta (which means "go").
+                             "error"). The SELECTED card's ring and "Pay Now"
+                             use --hb-cta, so they follow the site's CTA colour.
      --ma-notify-bg #fffaf7  its tint
 
    Note on greens: `--hb-cta` only. The Aug-2026 pass removed every literal
@@ -1040,7 +1040,7 @@
   position: absolute;
   inset: 0;
   z-index: 3;
-  border: 4px solid var(--ma-notify);
+  border: 4px solid var(--hb-cta);
   pointer-events: none;
 }
 
@@ -1333,6 +1333,11 @@
   align-self: flex-start;
   margin-top: 3px;
 }
+/* Account Info's contact + document icons are 20×20; the 5px top keeps the
+   glyph centred on a single 30px row, as the 24px one was at 3px. */
+.ma-account__body .ma-info__icon { width: 20px; height: 20px; margin-top: 5px; }
+.ma-account__body .ma-info__icon svg,
+.ma-account__body .ma-info__icon img { display: block; width: 20px; height: 20px; }
 
 .ma-info__text {
   min-width: 0;
@@ -1342,6 +1347,8 @@
   color: var(--hb-text-night);
   overflow-wrap: anywhere;
 }
+/* Account Info's contact blocks (Primary / Alternate / Emergency) read at 400. */
+.ma-account__body .ma-info__text { font-weight: 400; }
 
 /* The address arrives as separate lines and keeps them. */
 .ma-info__line { display: block; }
@@ -1369,7 +1376,7 @@
   text-align: left;
   font-family: inherit;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.5;
   color: var(--hb-text-night);
   text-decoration: underline;
@@ -1456,7 +1463,7 @@
   min-width: 96px;
   height: 40px;
   padding: 0 8px;
-  background: var(--ma-notify);
+  background: var(--hb-cta);
   border: 0;
   border-radius: 8px;
   cursor: pointer;
@@ -1471,11 +1478,11 @@
   color: var(--color_3, #fff);
   transition: background var(--hb-transition);
 }
-.ma-paynow:hover { background: color-mix(in srgb, var(--ma-notify) 88%, #000); }
-.ma-paynow:active { background: color-mix(in srgb, var(--ma-notify) 78%, #000); }
+.ma-paynow:hover { background: color-mix(in srgb, var(--hb-cta) 88%, #000); }
+.ma-paynow:active { background: color-mix(in srgb, var(--hb-cta) 78%, #000); }
 .ma-paynow:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ma-notify) 35%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hb-cta) 35%, transparent);
 }
 
 .ma-action__links { gap: 8px; }

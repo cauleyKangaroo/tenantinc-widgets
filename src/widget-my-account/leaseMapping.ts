@@ -250,7 +250,7 @@ export function spacesFrom(
       },
       /*
        * ONE LINE PER OPEN INVOICE when there is something to pay — "Monthly
-       * Rent #301 (07/01/2026 to 07/30/2026)  $100.00", the period beside the
+       * Rent #301 (Jul 1, 2026 to Jul 30, 2026)  $100.00", the period beside the
        * label as the frame draws it, the amount the invoice's own balance.
        * Nothing owed ⇒ the single rent line as before, so the breakdown is
        * never empty. The period field names are read defensively: the proxy
@@ -267,8 +267,8 @@ export function spacesFrom(
         // itself is on the space card.
         if (!open.length) return [{ label, note: paidThrough ? `(paid through ${paidThrough})` : undefined, amount: money(0) }];
         return open.map((i) => {
-          const from = shortDate(i.periodStart ?? i.period_start ?? i.startDate ?? i.start_date);
-          const to = shortDate(i.periodEnd ?? i.period_end ?? i.endDate ?? i.end_date);
+          const from = longDate(i.periodStart ?? i.period_start ?? i.startDate ?? i.start_date);
+          const to = longDate(i.periodEnd ?? i.period_end ?? i.endDate ?? i.end_date);
           return {
             label,
             note: from && to ? `(${from} to ${to})` : from ? `(from ${from})` : undefined,
