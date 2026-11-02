@@ -455,6 +455,18 @@
 
 .ma-wrapper .ma-result__sub--failed { margin: 10px 0 0; max-width: 621px; }
 
+/* Type as every other error tag: #d32f2f at 14/20, the title only bolder.
+   After the mobile block's title size too, so it holds at every width. */
+.ma-wrapper .ma-result--failed .ma-result__title,
+.ma-wrapper .ma-result--failed .ma-result__sub--failed {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--hb-ada-red, #d32f2f);
+}
+.ma-wrapper .ma-result--failed .ma-result__title { font-weight: 600; }
+.ma-wrapper .ma-result--failed .ma-result__sub--failed { font-weight: 400; }
+
 .ma-wrapper .ma-result__details {
   margin-top: 13px;
   margin-left: 6px;
