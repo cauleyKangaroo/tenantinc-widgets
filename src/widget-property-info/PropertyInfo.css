@@ -1068,6 +1068,232 @@ button.pi-lb-img { display: flex; }
   height: 302px;
 }
 
+/* ── Small (compact) view — Figma 13462:78106 ──────────────────────────────
+   displayMode 'small'. Every rule for this mode is .pi-small-* and lives in
+   this section (bar the host-resilience pin on the title at the foot of the
+   file). Desktop only, by design: Small has NO mobile layout of its own — on
+   a phone it shows the shared one (.pi-mobile), the same one Full shows, so
+   nothing here needs a mobile override.
+
+   The frame measures, at its 1322px container:
+     crumb (24px) → 14 → title (32px) → 22 → ONE row:
+     photo 254.67 · 30 · details 386 · 30 · map 254.67 · 36.33 · hours 277
+   which is 1268.67px, so the row stops there and the rest of the container
+   is left empty on the right, as in the frame. The hours column is exactly as
+   wide as its widest pill (251 + the clock's 26), so its track is 283.33 with
+   the extra 6.33 of gap taken inside it as a margin. */
+
+.pi-small-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pi-small-name {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #101318;
+}
+
+/* Proportional tracks capped at the frame's 1268px, so the frame's widths are
+   exact at full size and every column shrinks in step below it (tablet keeps
+   the desktop layout and shrinks it, like the other modes). */
+.pi-small-row {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 254.67fr) minmax(0, 386fr) minmax(0, 254.67fr) minmax(0, 283.33fr);
+  column-gap: 30px;
+  align-items: start;
+  max-width: 1268.67px;
+  /* 14 of the wrap's gap + 8 = the frame's 22 under the title. */
+  margin-top: 8px;
+}
+
+/* The trail at this frame's size (14257:129772): 14px on a 24px line, 6px
+   either side of every slash, the slash itself 13px. The shared Breadcrumb
+   draws the page-top trail at 16px with 10px round each slash; these
+   override it for this view only. */
+.pi-small-wrap > .pi-breadcrumb,
+.pi-small-wrap > .pi-breadcrumb .ti-crumb { gap: 6px; }
+.pi-small-wrap > .pi-breadcrumb { font-size: 14px; line-height: 24px; }
+.pi-small-wrap > .pi-breadcrumb .ti-crumb-sep--text { margin: 0; font-size: 13px; }
+
+/* Photo and map: the same box (Figma: "same size as image"). */
+.pi-small-media {
+  display: block;
+  width: 100%;
+  aspect-ratio: 254.67 / 191;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.pi-small-media .pi-gallery,
+.pi-small-media .pi-map {
+  height: 100%;
+  border-radius: inherit;
+}
+
+/* The gallery's furniture at the small frame's scale (13462:78211). */
+.pi-small-media .pi-gallery-expand { top: 12px; right: 13px; }
+.pi-small-media .pi-gallery-nav { bottom: 9px; gap: 7px; }
+.pi-small-media .pi-gallery-dots { gap: 5px; }
+.pi-small-media .pi-gallery-dot { width: 7px; height: 7px; }
+
+/* ── Details: rating, address, phones, message ── */
+
+.pi-small-details {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-width: 0;
+}
+
+.pi-small-rating {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pi-small-score {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.pi-small-reviews {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #101318;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pi-small-reviews:hover { color: var(--color_1, #f45f30); }
+
+.pi-small-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 30px rows, as the frame's: the 24px icon and a 24px line of text centred
+   in each. */
+.pi-small-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #101318;
+  text-decoration: none;
+}
+.pi-small-line svg { flex-shrink: 0; color: #101318; }
+.pi-small-line:hover .pi-underline { color: var(--color_1, #f45f30); }
+
+/* A flex column, so the skeleton's inset bars keep both their margins
+   rather than collapsing them together. */
+.pi-small-phones { display: flex; flex-direction: column; }
+
+/* The second number sits under the first's text, clear of the phone icon. */
+.pi-small-line--indent { padding-left: 32px; }
+
+/* ── Hours: status pills, See all Hours, Find my Reservation ── */
+
+.pi-small-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  min-width: 0;
+  /* The 36.33px before this column (30px gap + 6.33). */
+  margin-left: 6.33px;
+}
+
+.pi-small-statuses {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+/* Centred on the first pill's 28px row. */
+.pi-small-statuses > svg { flex-shrink: 0; margin-top: 5px; }
+
+.pi-small-pills {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+}
+
+/* Tinted pills (14778:107884 / 107886). Colour from the shared .pi-status--*
+   class; the whole label takes it, at the regular weight the frame uses. */
+.pi-small-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 1.5;
+  /* One line at full size, as in the frame; it may wrap once the row has
+     shrunk (below). */
+  white-space: nowrap;
+}
+.pi-small-pill.pi-status--open { background: #e1fae3; font-weight: 400; }
+.pi-small-pill.pi-status--closed { background: rgba(229, 57, 53, 0.09); font-weight: 400; }
+
+/* No underline at rest, on hover instead — the rule every desktop link in
+   this widget follows (see "Every other link in the widget" below). */
+.pi-small-quiet { text-decoration: none; }
+.pi-small-seehours {
+  /* Flush with the pills' tinted edge, not their text (14778:107890). */
+  font-size: 16px;
+  line-height: 1.5;
+  color: #101318;
+}
+.pi-small-seehours:hover,
+.pi-small-hours .pi-reservation:hover .pi-small-quiet {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: var(--color_1, #f45f30);
+}
+
+/* Skeleton (PropertySkeleton). It sits in the real .pi-small-* boxes, so
+   these only size the bars — each the height of the line it stands in for and
+   about as wide as its text at full size, capped by the column below that.
+   Bars in the 30px contact rows and the 24px+3 hours links are inset by the
+   difference, so the stacks come out the same height as the content's. */
+/* .pi-skel-block is the full view's 317px card; here it takes the photo and
+   map box's aspect ratio instead. */
+.pi-small-media.pi-skel-block { height: auto; flex: none; }
+.pi-skel-sm-crumb { height: 24px; width: 507px; max-width: 100%; }
+.pi-skel-sm-name { height: 38px; width: 560px; max-width: 100%; }
+.pi-skel-sm-rating { height: 45px; width: 227px; max-width: 100%; }
+.pi-skel-sm-line { height: 24px; width: 336px; max-width: 100%; margin: 3px 0; }
+.pi-skel-sm-line.short { width: 290px; }
+.pi-skel-sm-line.shorter { width: 155px; }
+.pi-skel-sm-line.indent { margin-left: 32px; max-width: calc(100% - 32px); }
+.pi-skel-sm-clock { flex-shrink: 0; width: 18px; height: 18px; margin-top: 5px; border-radius: 50%; }
+.pi-skel-sm-pill { height: 28px; width: 235px; max-width: 100%; border-radius: 8px; }
+.pi-skel-sm-seehours { height: 24px; width: 96px; }
+.pi-skel-sm-reservation { height: 25px; width: 186px; max-width: 100%; }
+
+/* Tablet: the row shrinks rather than stacks, so the text steps down with
+   it, as the full view's does at the same width. */
+@media (max-width: 1180px) {
+  .pi-small-line,
+  .pi-small-reviews,
+  .pi-small-pill,
+  .pi-small-seehours,
+  .pi-small-hours .pi-reservation { font-size: 14px; }
+  .pi-small-score { font-size: 24px; }
+  .pi-small-pill { white-space: normal; }
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 /* Tablet (769–1180px): the DESKTOP layout, shrunk — not stacked. The client's
@@ -1301,6 +1527,7 @@ iframe.pi-m-hero-img { border: 0; z-index: 0; }
    Phone layout (.pi-mobile): always underlined — no hover there to find them. */
 .pi-wrapper .pi-underline,
 .pi-wrapper .pi-reviews,
+.pi-wrapper .pi-small-reviews,
 .pi-wrapper .pi-see-hours { text-decoration: none !important; }
 .pi-wrapper :is(a, button):hover .pi-underline,
 .pi-wrapper :is(a, button):focus-visible .pi-underline,
@@ -1308,6 +1535,8 @@ iframe.pi-m-hero-img { border: 0; z-index: 0; }
 .pi-wrapper a.pi-underline:focus-visible,
 .pi-wrapper .pi-reviews:hover,
 .pi-wrapper .pi-reviews:focus-visible,
+.pi-wrapper .pi-small-reviews:hover,
+.pi-wrapper .pi-small-reviews:focus-visible,
 .pi-wrapper .pi-see-hours:hover,
 .pi-wrapper .pi-see-hours:focus-visible { text-decoration: underline !important; }
 .pi-mobile .pi-underline,
@@ -1499,6 +1728,14 @@ iframe.pi-m-hero-img { border: 0; z-index: 0; }
   font-size: 40px !important;
   font-weight: 700 !important;
   line-height: 50px !important;
+}
+
+.pi-small-name {
+  color: #101318 !important;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
 }
 
 .pi-m-name {
