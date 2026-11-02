@@ -2802,6 +2802,19 @@
   flex: 1 1 422px;
   min-width: 0;
   max-width: 100%;
+  /* Stays in view while the listing scrolls past (.sl-row is align-items:
+     flex-start, so the panel is only as tall as its content and has room to
+     travel). A short panel pins by its top; a panel taller than the window
+     pins by its bottom instead, so every section can still be scrolled to —
+     --sl-panel-h is measured in SpaceList.tsx; --sl-sticky-offset is the
+     stickyOffsetTop prop (a theme's fixed header). Inert once the panel has wrapped below the
+     listing: the row ends with it, so there is nothing left to stick through.
+     A Duda ancestor with overflow:hidden would also switch it off. */
+  position: sticky;
+  top: min(
+    calc(var(--sl-sticky-offset, 0px) + 24px),
+    calc(100vh - var(--sl-panel-h, 0px) - 24px)
+  );
 }
 
 /* Figma 9403-48439. Three states: flat by default, grey outline on hover,
@@ -2981,7 +2994,7 @@
 
 /* The below-the-listing copy (SectionAccordion `mobile`) is mobile-only.
    (0,3,0), and before the media block, so the show rule inside it wins there. */
-.sl-wrapper .sl-sa-panel.sl-sa-panel--mobile { display: none; }
+.sl-wrapper .sl-sa-panel.sl-sa-panel--mobile { display: none; position: static; }
 
 /* Mobile: the "side" accordions become full-width bottom accordions. These
    overrides must live AFTER the base .sl-sa-* rules above — @container/@media
@@ -4670,6 +4683,41 @@
      becomes the container itself — otherwise none of them would apply and the
      search field would reappear mid-pin. */
   container-type: inline-size;
+}
+
+/* ── Sticky headers (desktop) ────────────────────────────────────────────────
+   The left column keeps the filter bar pinned at the top for the whole
+   listing, and the current section's header (Small, Medium, Large, Parking…)
+   pinned directly BELOW it. Each header is sticky within its own .sl-accordion,
+   so it lets go when its section ends and the next one takes its place.
+   --sl-bar-h is the bar slot's height, measured in SpaceList.tsx, so a bar
+   that wraps to two rows still leaves the header clear of it.
+   Transparent at rest, like the rest of the widget. Only while one is actually
+   PINNED (.sl-is-stuck, set in SpaceList.tsx) does it take a ground, or the
+   cards would show through as they scroll beneath. That ground is
+   --sl-sticky-bg: the colour of the Duda section behind the widget, read off
+   the page, so it matches whatever the editor set; white if none is found.
+   Mobile has its own pinned bar (@shared/stickyStack), so this is desktop
+   only, at the same 768px line. */
+@media (min-width: 769px) {
+  .sl-wrapper .sl-top-bar-slot {
+    position: sticky;
+    top: var(--sl-sticky-offset, 0px);
+    z-index: 4;
+    /* Room above and below the bar for its pinned ground, cancelled by the
+       margins so the layout at rest is unchanged. */
+    padding-block: 12px;
+    margin-block: -12px;
+  }
+  .sl-wrapper .sl-accordion-header {
+    position: sticky;
+    top: calc(var(--sl-sticky-offset, 0px) + var(--sl-bar-h, 0px));
+    z-index: 3;
+  }
+  .sl-wrapper .sl-top-bar-slot.sl-is-stuck,
+  .sl-wrapper .sl-accordion-header.sl-is-stuck {
+    background: var(--sl-sticky-bg, #fff);
+  }
 }
 
 /* Out of flow: as a plain flex child of .sl-listing-area (gap: 20px) a

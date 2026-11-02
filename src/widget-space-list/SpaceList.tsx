@@ -5,6 +5,7 @@ import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import { configureApi } from './apiCreds';
 import cfg from './config.json';
 import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
+import { DEMO_UNITS } from './data';
 import { boundText, resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { PropertyIdProvider, PropertyExtrasProvider, ReviewsProxyProvider } from './propertyContext';
@@ -183,6 +184,70 @@ export function SpaceList({
     className: 'sl-wrapper sl-top-bar-pinned',
   });
 
+  /* Desktop: the accordion sidebar is `position: sticky` (see .sl-sa-panel in
+     SpaceList.css). CSS alone pins it by its TOP, which is wrong for a panel
+     taller than the window — its lower sections could never be scrolled to. So
+     its height is published as --sl-panel-h, and the CSS pins it by whichever
+     is lower: its top, or its bottom at the foot of the window. */
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    const panel = wrapper?.querySelector<HTMLElement>('.sl-sa-panel:not(.sl-sa-panel--mobile)');
+    if (!wrapper || !panel || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => {
+      wrapper.style.setProperty('--sl-panel-h', `${panel.offsetHeight}px`);
+    });
+    ro.observe(panel);
+    return () => ro.disconnect();
+  }, [showSideAccordions, apLocation]);
+
+  /* Desktop: the left column's sticky filter bar and section headers are
+     transparent until they are actually PINNED, then take the colour of the
+     Duda section behind the widget (see "Sticky headers" in SpaceList.css).
+     CSS cannot ask "am I stuck?" in every browser, so this marks them
+     .sl-is-stuck on scroll. The section colour is the nearest ancestor with an
+     opaque background — the widget itself paints none. */
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper || typeof window.matchMedia !== 'function') return undefined;
+    const desktop = window.matchMedia('(min-width: 769px)');
+
+    for (let el = wrapper.parentElement; el; el = el.parentElement) {
+      const bg = getComputedStyle(el).backgroundColor;
+      if (bg && bg !== 'transparent' && !/^rgba\(.*,\s*0\)$/.test(bg)) {
+        wrapper.style.setProperty('--sl-sticky-bg', bg);
+        break;
+      }
+    }
+
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      // Section headers pin below the bar, so publish its height for the CSS
+      // and use it as their line. The slot has no box on a feature page.
+      const bar = wrapper.querySelector<HTMLElement>('.sl-top-bar-slot');
+      const barH = bar ? bar.offsetHeight : 0;
+      wrapper.style.setProperty('--sl-bar-h', `${barH}px`);
+      wrapper.querySelectorAll<HTMLElement>('.sl-top-bar-slot, .sl-accordion-header').forEach((el) => {
+        const section = el.parentElement;
+        const line = stickyOffsetTop + (el === bar ? 0 : barH);
+        // Pinned = sitting on its line while its section has scrolled above it.
+        const stuck = desktop.matches && !!section
+          && Math.abs(el.getBoundingClientRect().top - line) < 1
+          && section.getBoundingClientRect().top < line - 1;
+        el.classList.toggle('sl-is-stuck', stuck);
+      });
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    update();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+    };
+  }, [stickyOffsetTop]);
+
   // Second API call: property FAQ / phone / socials for the sidebar accordion.
   // Null until loaded (or on failure) → sections fall back to their demo data.
   const [propertyExtras, setPropertyExtras] = useState<PropertyExtras | null>(null);
@@ -353,7 +418,16 @@ export function SpaceList({
         // forward it — every card simply keeps its bundled render.
         if (raw && !cancelled) setLiveUnits(mapApiToUnits(raw, { siteId, baseUrl: spaceImageBaseUrl }));
       })
-      .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
+      .catch((err) => {
+        console.error('[SpaceList] fetchSpaceGroups error:', err);
+        // TEMPORARY, dev harness only: while the Hummingbird key is down the
+        // harness gets the sample spaces in data.ts instead of an empty list.
+        // The hostname test keeps them off every Duda page, editor included.
+        if (!cancelled && /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(window.location.hostname)) {
+          console.info('[SpaceList] harness: showing DEMO_UNITS sample spaces');
+          setLiveUnits(DEMO_UNITS);
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [effectivePropertyId, effectiveCompanyId, spaceGroupId, isDynamicTarget]);
@@ -845,7 +919,11 @@ export function SpaceList({
     <ReviewsProxyProvider siteId={siteId ?? ''} base={login_api_base ?? ''}>
     <PropertyExtrasProvider extras={propertyExtras}>
      <CompanyIdProvider companyId={effectiveCompanyId ?? ''}>
-    <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
+    <div
+      className={`sl-wrapper filter-top ap-${apLocation}`}
+      ref={wrapperRef}
+      style={{ '--sl-sticky-offset': `${stickyOffsetTop}px` } as React.CSSProperties}
+    >
       {/* Off when #18 draws the heading instead — see showHeading. */}
       {showHeading && (
       <div className="sl-heading">
