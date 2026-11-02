@@ -380,6 +380,9 @@
 }
 
 .al-fields > .al-msg-slot { margin: -20px 0; }  /* 24px gap → 4px each side */
+/* With an error showing, 10px each side so the banner doesn't butt the field
+   and the button. Only then — the empty slot keeps its reserved height. */
+.al-fields > .al-msg-slot:not(:empty) { padding-block: 6px; }
 .al-card > .al-msg-slot { margin: -28px 0; }    /* 32px gap → 4px each side */
 
 /* ── Resend ────────────────────────────────────────────────────────────────── */
