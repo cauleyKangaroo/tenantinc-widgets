@@ -1089,6 +1089,14 @@ button.pi-lb-img { display: flex; }
     min-width: 0;
   }
 
+  /* The map column can shrink to ~190px here, while six non-shrinking icons
+     and their 12px gaps need more — unwrapped, the right-aligned row walked
+     across the gutter into the reservation column. Wrapping keeps every icon
+     inside its own column; flex-end keeps each line right-aligned. */
+  .pi-socials {
+    flex-wrap: wrap;
+  }
+
   /* Gallery and map, true halves of whatever the media column has: a zero
      basis with min-width: 0 leaves nothing to distribute unevenly. */
   .pi-cards {
@@ -1099,6 +1107,29 @@ button.pi-lb-img { display: flex; }
     flex: 1 1 0;
     min-width: 0;
     width: auto;
+  }
+
+  /* The gallery can shrink to ~190px here while its centred nav is two arrows
+     plus one dot per slide — 256px at twelve slides — so the frame's
+     overflow:hidden cut the arrows off. Cap the nav inside the frame and let
+     the DOT STRIP absorb the shortfall: it scrolls (scrollbar hidden, like the
+     lightbox thumb rail) between the two arrows, which stay visible and
+     clickable at either end. */
+  .pi-gallery-nav {
+    max-width: calc(100% - 24px);
+  }
+
+  .pi-gallery-dots {
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .pi-gallery-dots::-webkit-scrollbar { display: none; }
+
+  .pi-gallery-dot {
+    flex-shrink: 0;
   }
 
   /* Shrink, don't squash: the desktop 422 × 317 proportion, so the two cards
