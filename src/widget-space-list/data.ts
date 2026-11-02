@@ -112,7 +112,6 @@ export const DEMO_UNITS: Unit[] = [
     image: unitImg,
     inStorePrice: 199.5,
     startingPrice: 184.5,
-    adminFee: 20,
   },
   {
     id: 'md-7x12',
@@ -142,7 +141,6 @@ export const DEMO_UNITS: Unit[] = [
     inStorePrice: 199.5,
     startingPrice: 184.5,
     promo: 'Short Promotion Title',
-    adminFee: 20,
     availability: 'waitlist',
   },
   {

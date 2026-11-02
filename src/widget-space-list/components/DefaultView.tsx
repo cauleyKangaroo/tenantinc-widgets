@@ -6,7 +6,7 @@ import {
   CtaButton,
   FeatureList,
   PromoBadge,
-  JunkFeeDisclaimer,
+  AdminFeesNote,
   PlayCircleIcon,
 } from './Pricing';
 import { unitImageSrc, unitImageOnError } from './unitImage';
@@ -58,7 +58,11 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
               onError={unitImageOnError(unit)}
             />
           )}
-          <a href="#" className="sl-dv-see-fits">
+          <a
+            href="#"
+            className="sl-dv-see-fits"
+            onClick={(e) => { e.preventDefault(); config.onSeeWhatFits?.(unit); }}
+          >
             See what fits <PlayCircleIcon />
           </a>
         </div>
@@ -90,14 +94,15 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
             {unit.features.length > 0 && (
               <div className="sl-dv-features-line">{unit.features.join(', ')}</div>
             )}
-            {unit.adminFee != null && (
-              <div className="sl-dv-admin">${unit.adminFee} Admin Fee added</div>
-            )}
+            {/* No fee restatement here any more: admin_fees_text renders once,
+                in the junk-fee slot under the price (AdminFeesNote below) —
+                a second copy in this grey block read as two different fees. */}
           </div>
           <div className="sl-dv-price-button">
             <div className="sl-dv-price">
               <PriceBlock unit={unit} config={config} />
-              {config.showJunkFeeDisclaimer && <JunkFeeDisclaimer config={config} />}
+              {/* The junk-fee disclaimer's slot, now fed by admin_fees_text. */}
+              <AdminFeesNote config={config} />
             </div>
             <CtaButton unit={unit} config={config} full colClass="sl-dv-btn-col" />
           </div>

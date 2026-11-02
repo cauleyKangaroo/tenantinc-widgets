@@ -3,6 +3,7 @@ import './SizeGuide.css';
 import { ChevronRight, PlayButton } from './icons';
 import { SIZE_IMAGES, cover } from '@shared/demoImages';
 import { fetchSizes, groupSizesByLabel, formatSizeDimensions } from '@shared/sizesCollection';
+import { optimizedImageUrl } from '@shared/dudaCollections';
 import { Shimmer } from '@shared/Shimmer';
 import { useCarousel, usePrefersReducedMotion } from '@shared/useCarousel';
 import { CarouselDots } from '@shared/CarouselDots';
@@ -162,8 +163,10 @@ export function SizeGuide({
             title: s.name ? formatSizeDimensions(s.name) : s.dimensionsLabel,
             dims: s.dimensions,
             // thumbnailImage is empty on every row so far, so fall back to the
-            // bundled demo art rather than rendering an empty tile.
-            image: s.thumbnail ? cover(s.thumbnail) : (CATEGORIES[0].units[i % CATEGORIES[0].units.length]?.image ?? ''),
+            // bundled demo art rather than rendering an empty tile. A real URL
+            // goes through Duda's resizer (640px, like the blog cards) so the
+            // card never loads the full-size upload.
+            image: s.thumbnail ? cover(optimizedImageUrl(s.thumbnail, 640)) : (CATEGORIES[0].units[i % CATEGORIES[0].units.length]?.image ?? ''),
             videoId: s.videoId,
           })),
         }));

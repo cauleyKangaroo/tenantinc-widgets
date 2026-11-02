@@ -28,6 +28,7 @@ import {
   SearchIcon,
 } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID } from '@shared/propertyContact';
+import { fetchSitePhone } from '@shared/contentLibrary';
 import { MessageModal } from '@shared/components/MessageModal';
 // Same contact-modal plumbing as #03's Email circle — its creds + lead call.
 import { createLead, fetchFacilityOptions, configureApi, type FacilityOption, type ApiCredProps } from '../widget-property-info/api';
@@ -523,18 +524,33 @@ export function NavigationBar({
   // (state › city › facility) accordions each open independently.
   const [mobileOpen, setMobileOpen] = useState<Record<string, boolean>>({});
   const toggleMobile = (key: string) => setMobileOpen((prev) => ({ ...prev, [key]: !prev[key] }));
-  // Phone from the Duda `Properties` collection when available; the prop/default
-  // stays as the fallback (this bundle holds no API key — collection only).
+  // Phone: Duda's Business Info (content library / siteObject) first — the
+  // bar is site-wide chrome, so it shows the SITE's main line — then the
+  // `Properties` collection row, then the prop/default (this bundle holds no
+  // API key — no REST anywhere).
   const [livePhone, setLivePhone] = useState<{ phone: string; digits: string } | null>(null);
   // Map circle → Google Maps at the property's coordinates, as #03's Map does.
   const [mapsHref, setMapsHref] = useState('#');
 
   useEffect(() => {
     let cancelled = false;
+    // Independent, not Promise.all'd: siteObject usually answers instantly,
+    // and a stalled collection read must not hold the bar on its hardcoded
+    // fallback meanwhile. `siteWon` keeps the later collection answer from
+    // overwriting the authoritative one.
+    let siteWon = false;
+    fetchSitePhone('#02 nav')
+      .then((site) => {
+        if (cancelled || !site) return;
+        siteWon = true;
+        setLivePhone({ phone: site.phone, digits: site.digits });
+      })
+      .catch(() => { /* fails soft — the collection/prop fallbacks stand */ });
     fetchPropertyContact('#02 nav', propertyId)
       .then((c) => {
-        if (!cancelled && c?.phone) setLivePhone({ phone: c.phone, digits: c.phoneDigits });
-        if (!cancelled && c && c.lat != null && c.lng != null) {
+        if (cancelled) return;
+        if (!siteWon && c?.phone) setLivePhone({ phone: c.phone, digits: c.phoneDigits });
+        if (c && c.lat != null && c.lng != null) {
           setMapsHref(`https://www.google.com/maps?q=${c.lat},${c.lng}`);
         }
       })

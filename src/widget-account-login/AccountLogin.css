@@ -84,6 +84,18 @@
   color: #101318;
 }
 
+/* The login step's subheading, inset from the card's sides so it does not
+   end on an orphaned "needed.": at 20px the first line still ends "…with
+   your", "We'll send you" stays together on the second, and "password
+   needed." takes the third. Plain wrapping, not `balance` — balancing evened
+   the lines by pushing "you" down to the third. Desktop only; see the phone
+   block. */
+.al-sub--login {
+  padding-inline: 20px;
+}
+/* A hyphenated word in the subheading ("6-digit") — see keepHyphenatedWhole. */
+.al-nowrap { white-space: nowrap; }
+
 /* ── Form column ───────────────────────────────────────────────────────────── */
 
 .al-form {
@@ -367,10 +379,28 @@
   min-height: 18px;
 }
 
-.al-fields > .al-msg-slot { margin: -16px 0; }  /* 24px gap → 8px each side */
-.al-card > .al-msg-slot { margin: -20px 0; }    /* 32px gap → 12px each side */
+.al-fields > .al-msg-slot { margin: -20px 0; }  /* 24px gap → 4px each side */
+/* With an error showing, 10px each side so the banner doesn't butt the field
+   and the button. Only then — the empty slot keeps its reserved height. */
+.al-fields > .al-msg-slot:not(:empty) { padding-block: 6px; }
+.al-card > .al-msg-slot { margin: -28px 0; }    /* 32px gap → 4px each side */
 
 /* ── Resend ────────────────────────────────────────────────────────────────── */
+
+/* "Login with email / number" | "Resend Code" — one centred row. */
+.al-verify-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.al-verify-sep {
+  width: 1px;
+  height: 12px;
+  background: #101318;
+}
 
 .al-resend {
   border: none;
@@ -393,6 +423,38 @@
   color: #a5b4bf;
   cursor: default;
   text-decoration: none;
+}
+
+/* "Did not get the code? Resend code" */
+.al-resend-row {
+  margin: 0;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
+  font-size: 14px;
+  color: #101318;
+  text-align: center;
+}
+
+.al-resend--inline {
+  font-weight: 400;
+  color: var(--color_1, #10666d);
+}
+
+.al-verify-link {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color_1, #10666d);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.al-verify-link:disabled {
+  color: #a5b4bf;
+  cursor: default;
 }
 
 /* ── Account picker (Figma 12667:34621) ────────────────────────────────────── */
@@ -503,17 +565,29 @@
     padding: 0;
     /* The two-row picker at this width (no wrapper padding here). */
     min-height: 491px;
+    /* White behind the card too (client request, mobile only): the wrapper was
+       transparent, so the host page's grey showed in the strip the min-height
+       above reserves under the shorter steps. */
+    background: #fff;
   }
 
   .al-card {
     gap: 24px;
     padding: 32px 24px;
     /* Full-bleed on a phone: the 16px radius on a card that spans the viewport
-       reads as a rendering artifact rather than a card. */
+       reads as a rendering artifact rather than a card. No border at all: on
+       a white ground the top and bottom hairlines were the only edge left,
+       ruling the card off from nothing. */
     border-radius: 0;
-    border-left: none;
-    border-right: none;
+    border: none;
   }
+
+  /* The card's own 24px sides are inset enough on a phone; more would push
+     the subheading to four lines. */
+  .al-sub--login { padding-inline: 0; }
+
+  /* 24px gap here, so -20 keeps the phone's 4px each side (unchanged). */
+  .al-card > .al-msg-slot { margin: -20px 0; }
 
   .al-title {
     font-size: 28px !important;
@@ -539,4 +613,30 @@
   .al-title--choose { margin: 0; font-size: 22px; line-height: 26px; }
   .al-account { gap: 12px; padding: 12px 14px; }
   .al-account-avatar { width: 36px; height: 36px; }
+}
+
+/* ── "Keep me logged in on this device" — centred under Send my code ──────── */
+.al-fields > .al-keep {
+  align-self: center;
+  margin-top: -7px; /* 24px column gap → 17px under the button */
+}
+.al-keep .hb-check__label {
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
+  font-size: 14px;
+  color: #101318;
+}
+
+/* ── Code step's "Text me… | Send it to a different…" — one line on a phone ──
+   At 14px the pair runs ~385px against ~327px of card, so it wrapped. Kept on
+   one row: tighter gap, and the type scales down with the viewport (never
+   above the desktop 14px). */
+@media (max-width: 560px) {
+  .al-verify-links {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .al-verify-link {
+    font-size: min(14px, 3.1vw);
+    white-space: nowrap;
+  }
 }

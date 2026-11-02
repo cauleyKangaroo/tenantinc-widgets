@@ -3562,7 +3562,7 @@ export function RentalFlow2Step({
           {step === 2 && holdExpired && (
             <div className="rf-hold-expired" role="alert">
               <span>Your hold expired — your space wasn’t reserved. Reacquire it to continue.</span>
-              <Button tone="cta" onClick={() => setHoldExpired(false)}>Reacquire space</Button>
+              <Button tone="cta" onClick={() => setHoldExpired(false)}>Select a Space</Button>
             </div>
           )}
           <div className={`rf-step rf-step--${phase}`}>

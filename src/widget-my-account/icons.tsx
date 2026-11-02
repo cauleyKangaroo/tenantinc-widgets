@@ -171,6 +171,29 @@ export function GooglePayLockup() {
   );
 }
 
+/**
+ * Apple Pay lockup set to match the Google one beside it: Apple's glyph, then
+ * the SAME "Pay" typeface leaf at the same size, gap and drop, so both buttons
+ * read as one typographic pair (Google's SDK button can't be restyled, so
+ * Apple's side follows it). The glyph is Apple's vector, cut from the rental
+ * flow's mark, at the Google G's 24.69px width, its body sitting on the
+ * G's bottom edge. Matched on the body, not the whole glyph: the leaf is a
+ * separate shape, and sizing leaf + body to the G left the apple itself
+ * visibly smaller (20.3 × 19 against 24.7 × 25). The leaf rises above.
+ */
+export function ApplePayLockup() {
+  return (
+    <span className="ma-applepay" role="img" aria-label="Apple Pay">
+      <svg width={24.6881} height={30.37} viewBox="0 0 7.52 9.25" className="ma-applepay__mark"
+           xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M5.11121 1.47941C5.42961 1.08116 5.64568 0.54643 5.58869 0C5.1226 0.023176 4.55383 0.307496 4.22453 0.706057C3.92886 1.04736 3.66717 1.60448 3.73539 2.128C4.25861 2.17339 4.78133 1.86648 5.11121 1.47941Z" fill="currentColor" />
+        <path d="M5.58275 2.23023C4.82292 2.18497 4.17688 2.66147 3.81402 2.66147C3.45097 2.66147 2.89531 2.25303 2.29433 2.26404C1.51211 2.27553 0.786303 2.7178 0.38936 3.42123C-0.427083 4.82841 0.173901 6.91577 0.967849 8.06184C1.35341 8.62884 1.81807 9.25315 2.43034 9.23072C3.00883 9.20802 3.23557 8.85614 3.93875 8.85614C4.64141 8.85614 4.84566 9.23072 5.45803 9.21938C6.09307 9.20802 6.49008 8.65209 6.87563 8.08454C7.31794 7.43819 7.49901 6.81409 7.51039 6.77983C7.499 6.76848 6.28586 6.30309 6.27461 4.90759C6.26316 3.73913 7.22707 3.18334 7.27243 3.14887C6.7281 2.34381 5.8776 2.25303 5.58275 2.23023Z" fill="currentColor" />
+      </svg>
+      <img src={gpayTypefaceAsset} alt="" width={43.8769} height={28.4063} className="ma-applepay__type" />
+    </span>
+  );
+}
+
 /* ── Account Info view (8815-115354) ─────────────────────────────────────── */
 
 export function UserSettingsIcon({ className }: AssetIconProps) {

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './AccountLogin.css';
 import { CheckTick, CaretDown, UserCircle, InfoSolid } from './icons';
-import { AlertIcon } from '@shared/ui';
+import { AlertIcon, Checkbox } from '@shared/ui';
 import { hasCollectionsApi, logSource, str } from '@shared/dudaCollections';
 import { readPropertiesFromCollection, PROPERTIES_COLLECTION } from '@shared/propertiesSource';
 import { skipValidation } from '@shared/devBypass';
@@ -134,6 +134,18 @@ function keepCtaVisibleOnFocus(e: React.FocusEvent<HTMLElement>): void {
   const run = () => liftCtaAboveAddressBar(field);
   window.visualViewport?.addEventListener('resize', () => setTimeout(run, 50), { once: true });
   setTimeout(run, 350);
+}
+
+/**
+ * The subheading with every hyphenated word ("6-digit") held on one line.
+ * Browsers may break after a hyphen, which left "6-" at the end of a line and
+ * "digit" on the next on a phone. A span rather than U+2011 (non-breaking
+ * hyphen): Poppins has no glyph for it, so it would render in a fallback font.
+ */
+function keepHyphenatedWhole(text: string): React.ReactNode {
+  return text.split(/(\S+-\S+)/).map((part, i) => (
+    i % 2 ? <span key={i} className="al-nowrap">{part}</span> : part
+  ));
 }
 
 // ---------------------------------------------------------------------------
@@ -384,7 +396,7 @@ export interface AccountLoginProps {
 
 export function AccountLogin({
   heading = 'Account Login',
-  subheading = 'Enter the mobile number associated with your storage account.',
+  subheading = "Enter the mobile number or email associated with your storage account. We'll send you a 6-digit code. No password needed.",
   identifierMode = 'phoneOrEmail',
   showPropertySelect = false,
   propertiesCollection = PROPERTIES_COLLECTION,
@@ -448,8 +460,8 @@ export function AccountLogin({
       nodes.push(n);
     }
 
-    const props = ['height', 'min-height'] as const;
-    const previous = nodes.map((node) => props.map((p) => ({
+    const heightProps = ['height', 'min-height'] as const;
+    const previous = nodes.map((node) => heightProps.map((p) => ({
       value: node.style.getPropertyValue(p),
       priority: node.style.getPropertyPriority(p),
     })));
@@ -460,7 +472,7 @@ export function AccountLogin({
     });
     return () => {
       nodes.forEach((node, i) => {
-        props.forEach((p, j) => {
+        heightProps.forEach((p, j) => {
           const { value, priority } = previous[i][j];
           if (value) node.style.setProperty(p, value, priority);
           else node.style.removeProperty(p);
@@ -508,6 +520,8 @@ export function AccountLogin({
   const [resendIn, setResendIn] = useState(0);
   /** A send is in flight — the identify button shows it and cannot re-fire. */
   const [sending, setSending] = useState(false);
+  /** "Keep me logged in on this device" — ticked, the session outlives the tab. */
+  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   /*
    * Contacts returned by a `select_contact` verify.
    *
@@ -744,7 +758,7 @@ export function AccountLogin({
         // What they typed — the account page says "logged in as" and nothing
         // in the verify response or /me carries it.
         signedInAs: identifier.trim(),
-      });
+      }, keepLoggedIn);
       if (!stored) {
         // Blocked site data. Sending them on would land an account page that
         // cannot read the session and bounces straight back here.
@@ -758,7 +772,7 @@ export function AccountLogin({
     } finally {
       setChecking(false);
     }
-  }, [checking, bypassCode, successUrl, live, api, identifierPayload, finish, demoAccountCount]);
+  }, [checking, bypassCode, successUrl, live, api, identifier, identifierPayload, finish, demoAccountCount, keepLoggedIn]);
 
   /*
    * A row of the picker was chosen (step 1c).
@@ -796,7 +810,7 @@ export function AccountLogin({
         name: r.contact.name ?? account.name,
         // Same as the single-account path: what they typed is the "logged in as".
         signedInAs: identifier.trim(),
-      });
+      }, keepLoggedIn);
       if (!stored) {
         setPickError(
           'Your browser is blocking site storage, so we cannot keep you signed in. '
@@ -808,6 +822,17 @@ export function AccountLogin({
     } finally {
       setPicking(false);
     }
+  };
+
+  /** Code step → plain login, landing on the email field when `toEmail`. */
+  const backToLogin = (toEmail: boolean) => {
+    setForceEmail(toEmail);
+    setIdentifier('');
+    setIdentifyError('');
+    setCode('');
+    setCodeError('');
+    setResent(false);
+    setStep('identify');
   };
 
   const resend = () => {
@@ -940,12 +965,12 @@ export function AccountLogin({
         <div className="al-card">
           <div className="al-head">
             <h1 className="al-title" tabIndex={-1} ref={otpHeadingRef}>
-              {kind === 'email' ? 'Verify Email' : 'Verify Phone Number'}
+              {kind === 'email' ? 'Check your email' : 'Check your texts'}
             </h1>
             <p className="al-sub">
-              Enter the one time code we sent to
+              {kind === 'email' ? 'We emailed' : 'We texted'} a 6-digit code to {destination}.
               <br />
-              {destination}
+              It expires in 10 minutes.
             </p>
           </div>
 
@@ -977,12 +1002,51 @@ export function AccountLogin({
             disabled={(!skipValidation() && !complete) || checking}
             onClick={() => submitCode(code)}
           >
-            {checking ? 'Checking…' : 'Continue'}
+            {checking ? 'Checking…' : 'Log me in'}
           </button>
 
-          <button type="button" className="al-resend" onClick={resend} disabled={resendIn > 0}>
-            {resendIn > 0 ? `Resend Code in ${resendIn}s` : 'Resend Code'}
-          </button>
+          <p className="al-resend-row">
+            Did not get the code?{' '}
+            <button type="button" className="al-resend al-resend--inline" onClick={resend} disabled={resendIn > 0}>
+              {resendIn > 0 ? `Resending in ${resendIn}s` : 'Resend code'}
+            </button>
+          </p>
+
+          {/* Back to the plain login step. The label names the OTHER channel
+              (a code sent to a phone offers email, and the reverse), and the
+              click must LAND on that channel's field: in phone mode the email
+              field only exists behind forceEmail, so the link sets it to match
+              the label rather than just clearing it. In email mode there is no
+              other channel to offer, so the link isn't rendered at all.
+              DISABLED while a verify or resend is in flight: submitCode fires
+              itself on the sixth digit, and leaving the step mid-check let a
+              late success save the abandoned identity's session and redirect
+              over the login the reader had switched to. */}
+          <div className="al-verify-links">
+            {identifierMode !== 'email' && (
+              <>
+                <button
+                  type="button"
+                  className="al-verify-link"
+                  disabled={checking || sending}
+                  onClick={() => backToLogin(identifierMode === 'phone' && kind === 'phone')}
+                >
+                  {kind === 'email' ? 'Text me the code instead' : 'Email me the code instead'}
+                </button>
+                <span className="al-verify-sep" aria-hidden="true" />
+              </>
+            )}
+            {/* Same channel, different address: back to the login on the field
+                the code went to. */}
+            <button
+              type="button"
+              className="al-verify-link"
+              disabled={checking || sending}
+              onClick={() => backToLogin(identifierMode === 'phone' && kind === 'email')}
+            >
+              {kind === 'email' ? 'Send it to a different email' : 'Send it to a different number'}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -995,7 +1059,7 @@ export function AccountLogin({
       <div className="al-card">
         <div className="al-head">
           <h1 className="al-title">{heading}</h1>
-          <p className="al-sub">{subheading}</p>
+          <p className="al-sub al-sub--login">{keepHyphenatedWhole(subheading)}</p>
         </div>
 
         <form
@@ -1065,14 +1129,20 @@ export function AccountLogin({
             </div>
 
             <button type="submit" className="al-cta" disabled={!canContinue}>
-              {sending ? 'Sending…' : 'Continue'}
+              {sending ? 'Sending…' : 'Send my code'}
             </button>
+
+            <Checkbox className="al-keep" checked={keepLoggedIn} onChange={setKeepLoggedIn}>
+              Keep me logged in on this device
+            </Checkbox>
           </div>
 
           {/* With Google/Apple removed, the only thing left below the divider is
               the phone-only variant's email escape hatch (Figma 9503:122933) —
-              so the divider goes with it rather than ruling off nothing. */}
-          {identifierMode === 'phone' && !forceEmail && (
+              so the divider goes with it rather than ruling off nothing.
+              The hatch swings both ways: once switched to email, the same
+              button reads "Login with Phone" so the choice is never one-way. */}
+          {identifierMode === 'phone' && (
             <>
               <div className="al-or">
                 <span className="al-or-rule" />
@@ -1084,9 +1154,14 @@ export function AccountLogin({
                 <button
                   type="button"
                   className="al-social-btn"
-                  onClick={() => { setForceEmail(true); setIdentifier(''); setIdentifyError(''); }}
+                  /* Locked while a code send is in flight — switching mid-send
+                     clears the identifier, and the pending success would open
+                     verification against the wrong (now empty) channel. Same
+                     guard as the verify step's method-switch link. */
+                  disabled={sending}
+                  onClick={() => { setForceEmail(!forceEmail); setIdentifier(''); setIdentifyError(''); }}
                 >
-                  Login with Email
+                  {forceEmail ? 'Login with Phone' : 'Login with Email'}
                 </button>
               </div>
             </>

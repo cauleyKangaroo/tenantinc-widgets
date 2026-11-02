@@ -849,6 +849,11 @@ export async function applyCoverage(
 //     paymentMethod: { type: "saved", id }                       a card on file
 //                    { type: "hosted-card", token, zip,
 //                      saveToAccount, autopay }                  a GP token
+//                    { type: "card", cardNumber, expMonth, expYear,
+//                      cvv, nameOnCard, saveToAccount, autopay,
+//                      address: { line1, city, state, zip, country } }
+//                                              a typed card — gateways with no
+//                                              hosted fields (authorizenet)
 //                    { type: "ach", accountNumber, routingNumber,
 //                      accountType: "checking" | "savings",
 //                      firstName, lastName, saveToAccount, autopay,
@@ -879,10 +884,39 @@ export type LeasePaymentMethod =
   | { type: 'hosted-card'; token: string; zip: string; saveToAccount: boolean; autopay: boolean }
   /* A Stripe property's bank payment: the routing/account never leave the
      browser raw — Stripe mints a us_bank_account PaymentMethod and this
-     carries its single-use pm_… (client contract, 2026-10-23). */
+     carries its single-use pm_… (client contract, 2026-10-23). The server
+     REQUIRES a billing zip (payment_rejected without one) yet the schema
+     takes NO zip key ("Unrecognized key: zip" — both verified live on
+     Bellflower, 2026-10-28), so the zip must be minted INTO the pm as
+     billing_details.address.postal_code. The element and raw-detail mints
+     both do that. */
   | { type: 'hosted-ach'; token: string; saveToAccount: boolean; autopay: boolean }
+  | LeaseCardPaymentMethod
   | LeaseBankPaymentMethod
   | LeaseWalletPaymentMethod;
+
+/**
+ * A TYPED card — a property whose gateway has no hosted-fields integration
+ * (`authorizenet` today, per its gateway reply: hosted GP key and Stripe
+ * config both null). The real digits go to the API, exactly as the rental
+ * flow's typed-card path sends them for a move-in on the same gateway.
+ * Spelled camelCase with the address as one object, matching the ach method
+ * beside it — the proxy's convention for every payment method it lists.
+ */
+export interface LeaseCardPaymentMethod {
+  type: 'card';
+  /** Digits only. */
+  cardNumber: string;
+  /** "09" */
+  expMonth: string;
+  /** Full year — "2027". */
+  expYear: string;
+  cvv: string;
+  nameOnCard: string;
+  saveToAccount: boolean;
+  autopay: boolean;
+  address: { line1: string; line2?: string; city: string; state: string; zip: string; country: string };
+}
 
 /** Google Pay / Apple Pay — the proxy's wallet payment method. */
 export interface LeaseWalletPaymentMethod {

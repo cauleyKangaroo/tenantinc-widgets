@@ -628,6 +628,10 @@ export function MyAccount({
     return {
       gpPublicKey: explicit || (looked !== undefined ? looked : (canLookUp ? undefined : '')),
       gatewayPending: !explicit && looked === undefined && canLookUp,
+      /* The NAME too: the panel needs it to tell a typed-card gateway
+         (authorizenet — plain inputs, digits to the API) from a Stripe one
+         whose config failed (card blocked). An explicit key prop means GP. */
+      gateway: explicit ? TENANT_PAYMENTS : (gatewayNames[space.propertyId] || undefined),
       /* THIS property's Stripe config - the gateway call is per property, so
          the panel mounts the right card fields when the tenant switches
          between a GP facility and a Stripe one. */

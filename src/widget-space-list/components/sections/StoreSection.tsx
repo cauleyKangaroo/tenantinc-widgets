@@ -3,8 +3,10 @@ import { SOCIAL_ICONS } from '@shared/socialIcons';
 import type { HoursStatus, ScheduleRow } from '@shared/accessHours';
 import { MessageModal } from '@shared/components/MessageModal';
 import { createLead } from '../../propertyApi';
-import { usePropertyId } from '../../propertyContext';
+import { usePropertyId, useReviewsProxy } from '../../propertyContext';
 import { fetchFacilities, type FacilityOption } from '@shared/facilities';
+import { fetchReviewSource } from '@shared/reviewsCollections';
+import { fetchPropertyReviewSources } from '@shared/liveReviews';
 import cfg from '../../config.json';
 import { CloseCircleIcon } from '@shared/ui';
 
@@ -65,7 +67,7 @@ function CalendarCheckIcon() {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function StarRatingInput() {
+function StarRatingInput({ reviewsUrl }: { reviewsUrl?: string }) {
   const [hovered, setHovered] = useState(0);
   const [selected, setSelected] = useState(0);
   const active = hovered || selected;
@@ -79,8 +81,16 @@ function StarRatingInput() {
           className="sl-pi-star-btn"
           onMouseEnter={() => setHovered(i)}
           onMouseLeave={() => setHovered(0)}
-          onClick={() => setSelected(i === selected ? 0 : i)}
-          aria-label={`Rate ${i} star${i > 1 ? 's' : ''}`}
+          onClick={() => {
+            setSelected(i === selected ? 0 : i);
+            // The stars don't collect the rating themselves — the real rating
+            // happens on Google, so they hand the shopper to the property's
+            // reviews page there (the same destination as #03's "N Reviews"
+            // link). Without a URL — dev harness, Duda editor, collection
+            // missing — they stay the local toggle they have always been.
+            if (reviewsUrl) window.open(reviewsUrl, '_blank', 'noopener,noreferrer');
+          }}
+          aria-label={`Rate ${i} star${i > 1 ? 's' : ''}${reviewsUrl ? ' on Google' : ''}`}
         >
           <svg width="28" height="28" viewBox="0 0 24 24" fill={i <= active ? '#FBBC05' : 'none'} stroke={i <= active ? '#FBBC05' : '#a5b4bf'} strokeWidth="1.5" strokeLinejoin="round">
             <path d={path}/>
@@ -153,6 +163,31 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
   const [hoursOpen, setHoursOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
   const [reservationCode, setReservationCode] = useState('');
+
+  // Where "Rate and Review" sends the shopper — resolved exactly like #03's
+  // "N Reviews" link: THIS property's own Google reviews page through the proxy
+  // (from `placeId` on PropertiesInternal), else the site-wide GoogleReviews
+  // collection. Both modules promise-cache, so when the Reviews accordion
+  // section is on the same page the two share one flight. Resolved up front
+  // rather than on click: window.open after an await is what popup blockers
+  // exist to kill.
+  const reviewsProxy = useReviewsProxy();
+  const [reviewsUrl, setReviewsUrl] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    // A re-run means the bound property changed: drop the old property's URL
+    // NOW, or the stars keep sending shoppers to the previous facility while
+    // the new lookup is in flight — and forever, if it comes back empty.
+    setReviewsUrl('');
+    const live = leadPropertyId
+      ? fetchPropertyReviewSources(leadPropertyId, { base: reviewsProxy.base, siteId: reviewsProxy.siteId }).then((r) => r.google)
+      : Promise.resolve(null);
+    void live
+      .then((src) => src ?? fetchReviewSource('google', '#05 rate-review'))
+      .then((src) => { if (!cancelled && src?.reviewsUrl) setReviewsUrl(src.reviewsUrl); })
+      .catch(() => { /* fails soft — the stars stay a local toggle */ });
+    return () => { cancelled = true; };
+  }, [leadPropertyId, reviewsProxy.base, reviewsProxy.siteId]);
 
   useEffect(() => {
     if (!messageOpen || facilityOptions.length) return undefined;
@@ -284,7 +319,7 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
           <span className="sl-pi-card-title">Rate and Review</span>
         </div>
         <div className="sl-pi-card-body sl-pi-card-body--stars">
-          <StarRatingInput />
+          <StarRatingInput reviewsUrl={reviewsUrl || undefined} />
         </div>
       </div>
 

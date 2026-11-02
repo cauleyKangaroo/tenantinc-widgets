@@ -134,7 +134,7 @@ function applePaySupported(Session: ApplePaySessionCtor | null): boolean {
 }
 
 export function ApplePayButton({
-  config, total, ctx, canOpen, onToken, onError, onAvailabilityChange,
+  config, total, ctx, canOpen, onToken, onError, onAvailabilityChange, label,
 }: {
   /** The content panel's wallet settings, already validated. */
   config: WalletConfig;
@@ -162,6 +162,8 @@ export function ApplePayButton({
    * check), and copy about wallets must not appear when none is offered.
    */
   onAvailabilityChange?: (available: boolean) => void;
+  /** The button's visible lockup. Defaults to the rental flow's mark. */
+  label?: React.ReactNode;
 }) {
   /* Safari answers synchronously; elsewhere the SDK has to arrive first, so
      the button appears a beat later rather than being drawn and withdrawn. */
@@ -311,7 +313,7 @@ export function ApplePayButton({
     >
       {/* The mark alone (" Pay"), matching Google's plain button beside it.
           The label above still says "Pay with Apple Pay" to screen readers. */}
-      <ApplePayMark />
+      {label ?? <ApplePayMark />}
     </button>
   );
 }

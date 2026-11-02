@@ -126,7 +126,7 @@ function PropertySkeleton({ displayMode, showCallCenter }: { displayMode: 'full'
       <div className="pi-desktop">
       {displayMode === 'hero' ? (
         /* Banner beside a map. Reuses the real .pi-hero-wrap / .pi-hero-row —
-           plain flex boxes with a gap — so the placeholder stacks at 1180px
+           plain flex boxes with a gap — so the placeholder shrinks below 1180px
            off the same rule the content does, rather than a copy of it. */
         <div className="pi-hero-wrap" aria-hidden="true">
           <span className="pi-skel-bar pi-skel-crumb" />
@@ -1314,7 +1314,12 @@ export function PropertyInfo(props: Props) {
             the other direction (its slide autoplays only off a phone). Same
             query as the CSS switch, so the two cannot disagree. */}
         {isMobileViewport && collectionVideos[0]
-          ? <VideoSlide className="pi-m-hero-img" src={collectionVideos[0]} active autoPlay interactive title={displayName} />
+          ? (
+            /* Sized box for the player to COVER — see .pi-m-hero-media. */
+            <span className="pi-m-hero-media">
+              <VideoSlide className="pi-m-hero-img" src={collectionVideos[0]} active autoPlay interactive title={displayName} />
+            </span>
+          )
           : <ImageFill className="pi-m-hero-img" src={heroSlide} w={640} />}
         <span className="pi-m-hero-overlay" style={{ background: `rgba(16, 19, 24, ${overlay})` }} />
         <div className="pi-m-hero-top">

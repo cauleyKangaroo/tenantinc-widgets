@@ -15,6 +15,11 @@ import './VideoModal.css';
 // iframe, which is what stops the video; hiding it would leave the sound
 // running behind the page.
 //
+// DESIGN: matches #03 property-info's gallery lightbox (client request,
+// 2026-10-29) — the near-black full-screen backdrop with the OUTLINED
+// close ring inset at the screen's top-right corner, not a card with a
+// disc on its shoulder. Same icon sizes and insets as .pi-lb-close.
+//
 // Portaled to <body>, so a widget's overflow or stacking context cannot clip
 // it, and its styles are its own (VideoModal.css) for the same reason.
 // ===========================================================================
@@ -89,7 +94,12 @@ export function VideoModal({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <button ref={closeRef} type="button" className="hb-video-close" aria-label="Close video" onClick={onClose}>
-          <CloseCircleIcon size={32} />
+          {/* The outlined ring at its two Figma sizes; CSS swaps them at 768px.
+              Two renders rather than one scaled: the ring is stroke 3/inset 1.5
+              on the 52 but stroke 2/inset 1 on the 32, so CSS-scaling the 52
+              down would draw the wrong ring (same reasoning as #03's close). */}
+          <span className="hb-video-close-lg"><CloseCircleIcon outlined size={52} /></span>
+          <span className="hb-video-close-sm"><CloseCircleIcon outlined size={32} /></span>
         </button>
         <div className="hb-video-frame">
           <iframe

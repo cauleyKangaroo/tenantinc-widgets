@@ -14,10 +14,10 @@
      --ma-panel     #f9fafb  Primary/Cloud/Lighter — page + inset panels
      --ma-panel-bd  #c4cdd5  Primary/Cloud/Dark    — the autopay panel's rule
      --ma-chip      #f4f6f8  the "Signed" pill
-     --ma-notify    #f26500  Primary/Notifications — three jobs: the past-due
-                             ring, the SELECTED card's ring, and "Pay Now".
+     --ma-notify    #f26500  Primary/Notifications — the past-due ring.
                              Deliberately not --hb-ada-red (which already means
-                             "error") and not --hb-cta (which means "go").
+                             "error"). The SELECTED card's ring and "Pay Now"
+                             use --hb-cta, so they follow the site's CTA colour.
      --ma-notify-bg #fffaf7  its tint
 
    Note on greens: `--hb-cta` only. The Aug-2026 pass removed every literal
@@ -455,6 +455,18 @@
 
 .ma-wrapper .ma-result__sub--failed { margin: 10px 0 0; max-width: 621px; }
 
+/* Type as every other error tag: #d32f2f at 14/20, the title only bolder.
+   After the mobile block's title size too, so it holds at every width. */
+.ma-wrapper .ma-result--failed .ma-result__title,
+.ma-wrapper .ma-result--failed .ma-result__sub--failed {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--hb-ada-red, #d32f2f);
+}
+.ma-wrapper .ma-result--failed .ma-result__title { font-weight: 600; }
+.ma-wrapper .ma-result--failed .ma-result__sub--failed { font-weight: 400; }
+
 .ma-wrapper .ma-result__details {
   margin-top: 13px;
   margin-left: 6px;
@@ -874,8 +886,7 @@
 .ma-methods .rf2-pay.rf2-wallet--apple:focus { background: #000 !important; }
 .ma-methods .rf2-pay.rf2-wallet--apple:hover { background: #3c4043 !important; }
 .ma-methods .rf2-pay.rf2-wallet--apple:active { background: #5f6368 !important; }
-.ma-methods .rf2-pay.rf2-wallet--apple:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }
-.ma-methods > .rf2-wallet:first-child:not(:has(+ .rf2-wallet)):not(:has(~ .ma-method)) { grid-column: 1 / -1; }
+.ma-methods .rf2-pay.rf2-wallet--apple:focus-visible { outline: 2px solid #101318; outline-offset: 2px; }.ma-methods > .rf2-wallet:first-child:not(:has(+ .rf2-wallet)):not(:has(~ .ma-method)) { grid-column: 1 / -1; }
 .ma-methods:empty { display: none; }
 .ma-pay__notice.ma-pay__notice--error {
   color: var(--hb-ada-red, #d32f2f);
@@ -886,12 +897,19 @@
 /* The 24px alert mark on every My Account error tag. */
 .ma-alert-ico { flex: 0 0 auto; color: var(--hb-ada-red, #d32f2f); }
 
-/* Apple's lockup is currentColor, so the dark tile's white carries it. */
+/* Apple's lockup on Google's exact metrics: the glyph at the G's 24.69px
+   width, its bottom on the G's (top -5.33 = 25.04 - 30.37, so the leaf rises
+   above the box), then the shared "Pay" typeface at Google's 33.1px / 1.59px
+   offset. The glyph is currentColor, so the dark tile's white carries it. */
 .ma-applepay {
-  display: inline-flex;
+  position: relative;
+  display: block;
+  width: 76.977px;   /* 33.1 + 43.877, as .ma-gpay */
+  height: 30px;      /* 1.59 + 28.406, as .ma-gpay */
   color: #fff;
 }
-.ma-applepay svg { width: 62px; height: 26.3px; }
+.ma-applepay__mark { position: absolute; left: 0; top: -5.33px; overflow: visible; }
+.ma-applepay__type { position: absolute; left: 33.1px; top: 1.59px; }
 
 /* Google's two leaves overlap exactly as the frame stacks them: the mark at
    the origin, the typeface 33.1px right and 1.59px down. */
@@ -1034,7 +1052,7 @@
   position: absolute;
   inset: 0;
   z-index: 3;
-  border: 4px solid var(--ma-notify);
+  border: 4px solid var(--hb-cta);
   pointer-events: none;
 }
 
@@ -1327,6 +1345,11 @@
   align-self: flex-start;
   margin-top: 3px;
 }
+/* Account Info's contact + document icons are 20×20; the 5px top keeps the
+   glyph centred on a single 30px row, as the 24px one was at 3px. */
+.ma-account__body .ma-info__icon { width: 20px; height: 20px; margin-top: 5px; }
+.ma-account__body .ma-info__icon svg,
+.ma-account__body .ma-info__icon img { display: block; width: 20px; height: 20px; }
 
 .ma-info__text {
   min-width: 0;
@@ -1336,6 +1359,8 @@
   color: var(--hb-text-night);
   overflow-wrap: anywhere;
 }
+/* Account Info's contact blocks (Primary / Alternate / Emergency) read at 400. */
+.ma-account__body .ma-info__text { font-weight: 400; }
 
 /* The address arrives as separate lines and keeps them. */
 .ma-info__line { display: block; }
@@ -1363,7 +1388,7 @@
   text-align: left;
   font-family: inherit;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.5;
   color: var(--hb-text-night);
   text-decoration: underline;
@@ -1450,7 +1475,7 @@
   min-width: 96px;
   height: 40px;
   padding: 0 8px;
-  background: var(--ma-notify);
+  background: var(--hb-cta);
   border: 0;
   border-radius: 8px;
   cursor: pointer;
@@ -1465,11 +1490,11 @@
   color: var(--color_3, #fff);
   transition: background var(--hb-transition);
 }
-.ma-paynow:hover { background: color-mix(in srgb, var(--ma-notify) 88%, #000); }
-.ma-paynow:active { background: color-mix(in srgb, var(--ma-notify) 78%, #000); }
+.ma-paynow:hover { background: color-mix(in srgb, var(--hb-cta) 88%, #000); }
+.ma-paynow:active { background: color-mix(in srgb, var(--hb-cta) 78%, #000); }
 .ma-paynow:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ma-notify) 35%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hb-cta) 35%, transparent);
 }
 
 .ma-action__links { gap: 8px; }
@@ -1746,6 +1771,15 @@
   font-weight: 600 !important;
   line-height: 1.2 !important;
   color: var(--hb-text-night) !important;
+  /* Up to two lines beside Cancel/Save: a long number breaks onto the second
+     line (anywhere, not only after "Space"), and "…" only past two. */
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /* Section headings — "Account Settings", "Mailing Address", "Additional
@@ -2110,7 +2144,17 @@
   .ma-spacepick__chev { width: 24px; height: 24px; transform: rotate(90deg); transition: transform 150ms ease; }
   .ma-spacepick__chev--up { transform: rotate(-90deg); }
   /* Opens under the title, from its left edge. */
-  .ma-spacepick__menu { left: 0; right: auto; min-width: 200px; }
+  /* A tenant with many spaces ran the list off the screen with no way to reach
+     the rest. Capped at ~7 rows (or half the viewport on a short phone) and
+     scrolls inside itself; overscroll-behavior keeps the page from scrolling
+     once the list hits its end. */
+  .ma-spacepick__menu {
+    left: 0; right: auto; min-width: 200px;
+    max-height: min(320px, 50vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   /* NOT flex-direction: column any more. The columns wrap on their own now (see
      .ma-account__cols), and in a column-direction container a flex-basis is a
      HEIGHT — the 367px basis would have become a 367px-tall contact block.
@@ -2120,7 +2164,7 @@
   .ma-account__alt--emergency { flex: 1 1 100%; }
 
   .ma-edit__body { padding: 24px 20px; }
-  .ma-edit__title { font-size: 22px !important; } /* = .ma-account__title here; was 28px */
+  .ma-edit__title { font-size: 20px !important; } /* was 22px (= .ma-account__title here) */
   /* The title-row Cancel/Save keep the action bar's full size; only the gap
      to the title tightens so they fit beside "Space #n" on a phone. */
   .ma-edit__top { gap: 12px; }
@@ -2134,9 +2178,13 @@
   .ma-edit__actions { padding: 20px; }
 
   .ma-action { padding: 24px 20px; }
-  /* The amount and Pay Now would otherwise crush the label. */
-  .ma-action__due { flex-wrap: wrap; row-gap: 12px; }
-  .ma-action__pay { margin-left: auto; }
+  /* Label, amount and Pay Now on ONE line. Gaps and type step down so the
+     three fit a 320px content width; the label (min-width: 0) is what gives
+     way, wrapping its own words, if an amount is unusually long. */
+  .ma-action__due { flex-wrap: nowrap; gap: 12px; }
+  .ma-action__pay { margin-left: auto; gap: 12px; }
+  .ma-action__dueLabel { font-size: 16px; }
+  .ma-action__amount { font-size: 20px; }
 
   .ma-autopay { flex-direction: column; }
   .ma-autopay__actions { width: 100%; }

@@ -36,7 +36,7 @@ import { slugLabel } from '@shared/propertyNav';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
 import { hasCollectionsApi } from '@shared/dudaCollections';
-import { fetchFeaturedIds, fetchPlaceIds } from '@shared/internalProperties';
+import { fetchFeaturedIds, fetchPlaceIds, fetchAdminFeesTextMap } from '@shared/internalProperties';
 import { fetchLocationCopy, type LocationCopy } from '@shared/locationCopy';
 import { fetchPlaceRating } from '@shared/googlePlaceRating';
 import { Shimmer } from '@shared/Shimmer';
@@ -328,7 +328,13 @@ function PropertyCard({
             </div>
 
             <div className="ml-card-foot">
-              <span className="ml-admin-fee">+ Plus ${facility.adminFee} Admin Fee</span>
+              {/* The property's own admin_fees_text, verbatim; the numeric form
+                  is the demo rows' only. No value ⇒ NO line. */}
+              {(facility.adminFeeText || facility.adminFee != null) && (
+                <span className="ml-admin-fee">
+                  {facility.adminFeeText ?? `+ Plus $${facility.adminFee} Admin Fee`}
+                </span>
+              )}
               {/* Always offered, however few spaces the card lists — the link
                   goes to the property's own page, not just "more of this list",
                   so it is worth having even when nothing is hidden. Absent only
@@ -862,12 +868,15 @@ export function MapLocations({
       try {
         // Not named `props` — eslint-plugin-react reads `props.map(…)` inside a
         // component as prop access and demands prop-types for it.
-        const [cityProps, userLoc] = await Promise.all([
+        const [cityProps, userLoc, adminFees] = await Promise.all([
           fetchPlaceProperties(api, scope),
           // Distances are only meaningful from somewhere. Declined geolocation
           // is normal, not an error: the cards then omit the distance line and
           // "Closest Distance" degrades to the API's own order.
           getUserLocation(),
+          // Per-property `admin_fees_text` — a collection read the other
+          // PropertiesInternal consumers share. A blank cell means NO line.
+          fetchAdminFeesTextMap().catch(() => new Map<string, string>()),
         ]);
         if (cancelled) return;
 
@@ -878,7 +887,7 @@ export function MapLocations({
         // rows rather than failing the whole batch here.
         const withSpaces = await Promise.all(
           cityProps.map((p) => fetchCitySpaces(api, p.id)
-            .then(({ promo, spaces }) => toCityFacility(p, spaces, promo, ref))),
+            .then(({ promo, spaces }) => toCityFacility(p, spaces, promo, ref, adminFees.get(p.id)))),
         );
         if (cancelled) return;
         setLiveFacilities(withSpaces);

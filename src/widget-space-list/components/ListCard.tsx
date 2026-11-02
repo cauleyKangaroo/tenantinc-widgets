@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { Unit, UnitSize, WidgetConfig } from '../types';
-import { PriceBlock, CtaButton, FeatureList, CheckIcon, JunkFeeDisclaimer, PromoTagIcon, priceFigures } from './Pricing';
+import { PriceBlock, CtaButton, FeatureList, CheckIcon, AdminFeesNote, PromoTagIcon, priceFigures } from './Pricing';
 import { unitImageSrc, unitImageOnError } from './unitImage';
 
 const SIZE_LABEL: Record<UnitSize, string> = {
@@ -108,7 +108,12 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
                 onError={unitImageOnError(selected)}
               />
             )}
-            <a href="#" className="sl-lc-see-fits">
+            {/* The video follows the SELECTED pill, like the image beside it. */}
+            <a
+              href="#"
+              className="sl-lc-see-fits"
+              onClick={(e) => { e.preventDefault(); config.onSeeWhatFits?.(selected); }}
+            >
               See what fits <PlayCircleIcon />
             </a>
           </div>
@@ -182,9 +187,10 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
         <div className="sl-lc-price-button">
           <div className="sl-lc-price">
             <PriceBlock unit={selected} config={config} reserve={reserve} />
-            {/* Narrow frames: the small print stays under the price. */}
-            {config.showJunkFeeDisclaimer && (
-              <div className="sl-lc-fee-inline"><JunkFeeDisclaimer config={config} /></div>
+            {/* Narrow frames: the small print stays under the price — the
+                junk-fee disclaimer's slot, now fed by admin_fees_text. */}
+            {config.adminFeesText && (
+              <div className="sl-lc-fee-inline"><AdminFeesNote config={config} /></div>
             )}
           </div>
           <CtaButton unit={selected} config={config} full colClass="sl-lc-btn-col" />
@@ -194,8 +200,8 @@ export function ListCard({ size, units, config }: { size: UnitSize; units: Unit[
             the price row in the DOM so the narrow frame's
             `.sl-lc-promo-wrap + .sl-lc-price-button` slide still matches; the
             grid places it. Only one of the two copies is ever displayed. */}
-        {config.showJunkFeeDisclaimer && (
-          <div className="sl-lc-fee"><JunkFeeDisclaimer config={config} /></div>
+        {config.adminFeesText && (
+          <div className="sl-lc-fee"><AdminFeesNote config={config} /></div>
         )}
       </div>
     </div>

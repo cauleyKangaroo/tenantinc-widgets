@@ -65,8 +65,8 @@ export interface Unit {
   inStorePrice: number;
   /** Main "starting at" price */
   startingPrice: number;
-  /** Optional "+ Plus $X Admin Fee" line */
-  adminFee?: number;
+  /* The old numeric `adminFee` line is gone: the admin-fee message comes only
+     from PropertiesInternal's `admin_fees_text` (config.adminFeesText). */
   /** Optional promo badge text */
   promo?: string;
   /** Allocated promotion id — matches the Promotions widget's promo id for cross-widget filtering */
@@ -116,8 +116,11 @@ export interface WidgetConfig {
   instorePriceLabel: string;
   /** How the in-store price relates to the web price (calc wired with real data). */
   instorePriceMode: InstorePriceMode;
+  /** RETIRED 2026-10-29: the cards no longer render the junk-fee disclaimer —
+   *  the only small print is `adminFeesText`. The toggle still feeds the tier
+   *  popup's `showPricingDetails` mirror, so both fields remain carried. */
   showJunkFeeDisclaimer: boolean;
-  /** Disclaimer copy shown when `showJunkFeeDisclaimer` is on. Empty = render nothing. */
+  /** Disclaimer copy; unused while the disclaimer is retired (see above). */
   junkFeeCopy: string;
   showUrgencyMessage: boolean;
   skipTierPopupForSingle: boolean;
@@ -169,6 +172,20 @@ export interface WidgetConfig {
    *  (dynamic pages vary both; the target can't infer them). */
   propertyId?: string;
   companyId?: string;
+  /**
+   * The property's admin-fee line, verbatim from PropertiesInternal's
+   * `admin_fees_text` (e.g. "+ Plus $20 Admin Fee"). Rendered IN THE JUNK-FEE
+   * DISCLAIMER'S OLD SLOT on every card (AdminFeesNote, class
+   * `sl-junk-disclaimer`) — it replaced that disclaimer, it does not sit
+   * beside it. Absent/blank → no line anywhere.
+   */
+  adminFeesText?: string;
+  /**
+   * "See what fits" under a card's image: opens the matching Sizes-collection
+   * video in a popup (see SpaceList's handler). Absent → the link stays the
+   * no-op it has always been (dev harness, site without the collection).
+   */
+  onSeeWhatFits?: (unit: Unit) => void;
 }
 
 // ---------------------------------------------------------------------------

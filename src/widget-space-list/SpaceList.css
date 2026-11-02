@@ -3734,6 +3734,9 @@
 .sl-wrapper .sl-nb2-see-all {
   display: flex;
   align-items: center;
+  /* Pinned right even when the admin-fee line is absent (blank
+     admin_fees_text cell) — space-between alone would walk it left. */
+  margin-left: auto;
   font-size: 16px;
   font-weight: 600;
   color: var(--color_2, #509e2f);

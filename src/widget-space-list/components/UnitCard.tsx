@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import type { Unit, WidgetConfig } from '../types';
-import { PriceBlock, PromoBadge, FeatureList, CtaButton, JunkFeeDisclaimer } from './Pricing';
+import { PriceBlock, PromoBadge, FeatureList, CtaButton, AdminFeesNote } from './Pricing';
 import { unitImageSrc, unitImageOnError } from './unitImage';
 
 export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig }) {
@@ -25,7 +25,11 @@ export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig })
             {unitImageSrc(unit) && (
               <img className="sl-unit-img" src={unitImageSrc(unit)} alt="Storage Unit" onError={unitImageOnError(unit)} />
             )}
-            <a href="#" className="sl-see-fits">
+            <a
+              href="#"
+              className="sl-see-fits"
+              onClick={(e) => { e.preventDefault(); config.onSeeWhatFits?.(unit); }}
+            >
               See what fits
               {/* Pika play/play-circle (outline) — inherits currentColor from .sl-see-fits. */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -50,9 +54,9 @@ export function UnitCard({ unit, config }: { unit: Unit; config: WidgetConfig })
             unit={unit}
             config={config}
             colClass="sl-cta-col"
-            aside={config.showJunkFeeDisclaimer && config.junkFeeCopy
-              ? <JunkFeeDisclaimer config={config} />
-              : null}
+            /* The junk-fee disclaimer's slot, now fed by admin_fees_text —
+               AdminFeesNote renders nothing when the property has none. */
+            aside={<AdminFeesNote config={config} />}
           />
         </div>
       </div>

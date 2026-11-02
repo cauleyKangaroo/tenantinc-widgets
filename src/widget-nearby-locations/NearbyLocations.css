@@ -553,6 +553,9 @@ a.nl-card-footer {
 .nl-see-all {
   display: inline-flex;
   align-items: center;
+  /* Pinned right even when the admin-fee line is absent (blank
+     admin_fees_text cell) — space-between alone would walk it left. */
+  margin-left: auto;
   gap: 2px;
   color: var(--color_2, #509e2f);
   font-size: 16px;

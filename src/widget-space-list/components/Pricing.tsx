@@ -194,9 +194,6 @@ export function PriceBlock({ unit, config, reserve }: {
         <div className="sl-price-main">
           <div className="sl-starting-label">{PROMO_RATE_LABEL}</div>
           <div className="sl-main-price"><Figure value={fig.main} all={reserve?.main} /></div>
-          {unit.adminFee != null && (
-            <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
-          )}
         </div>
       </div>
     );
@@ -220,9 +217,6 @@ export function PriceBlock({ unit, config, reserve }: {
       <div className="sl-price-main">
         <div className="sl-starting-label">{config.startingAtLabel}</div>
         <div className="sl-main-price"><Figure value={fig.main} all={reserve?.main} /></div>
-        {unit.adminFee != null && (
-          <div className="sl-admin-fee">+ Plus ${unit.adminFee} Admin Fee</div>
-        )}
       </div>
     </div>
   );
@@ -284,13 +278,19 @@ export function FeatureList({ features }: { features: string[] }) {
 }
 
 /**
- * Editor-authored disclaimer under the price. Copy comes from `junkFeeCopy`,
- * which SpaceList has already defaulted — so an empty string here means the
- * editor deliberately cleared it, and we render nothing rather than an empty box.
+ * The small print in the junk-fee disclaimer's old slot — SAME position and
+ * styling (`sl-junk-disclaimer`), different source: the property's own
+ * `admin_fees_text` (PropertiesInternal), verbatim, and from NOWHERE else.
+ * Column missing, cell blank, no dmAPI, demo units standing in: NO line —
+ * a fee the operator didn't write must never be invented.
+ *
+ * This REPLACED the editor-authored junk-fee disclaimer (2026-10-29, client
+ * request): `showJunkFeeDisclaimer`/`junkFeeCopy` no longer render anywhere
+ * on the cards.
  */
-export function JunkFeeDisclaimer({ config }: { config: WidgetConfig }) {
-  if (!config.junkFeeCopy) return null;
-  return <div className="sl-junk-disclaimer">{withLineBreaks(config.junkFeeCopy)}</div>;
+export function AdminFeesNote({ config }: { config: WidgetConfig }) {
+  if (!config.adminFeesText) return null;
+  return <div className="sl-junk-disclaimer">{withLineBreaks(config.adminFeesText)}</div>;
 }
 
 /**
@@ -461,7 +461,11 @@ export function CtaButton({ unit, config, full, colClass, aside }: {
       channel: config.valueTiersChannel || undefined,
       // Mirror the operator's Space List config so #14 doesn't need it re-entered.
       ctaLabel: config.ctaButtonCopy || undefined,
-      feeText: config.showJunkFeeDisclaimer ? (config.junkFeeCopy || '') : '',
+      // The popup's line below the cards is the PROPERTY's own admin_fees_text
+      // (PropertiesInternal), not the junk-fee disclaimer. '' — not undefined —
+      // when the property has none, so the popup shows NOTHING rather than
+      // falling back to #14's own '$30 Admin fee…' default.
+      feeText: config.adminFeesText || '',
       showPricingDetails: config.showJunkFeeDisclaimer,
       showUrgency: config.showUrgencyMessage,
       enablePromoLogic: config.enablePromoLogic,

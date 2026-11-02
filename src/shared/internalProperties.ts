@@ -538,6 +538,48 @@ export async function fetchPropertyAbout(
 }
 
 /**
+ * `admin_fees_text` — the operator's admin-fee line for a property, e.g.
+ * "+ Plus $20 Admin Fee", shown under prices on #05's unit cards and #07's
+ * facility cards. The operator writes the WHOLE message, so it renders
+ * verbatim (plain-texted — the column is Rich Text on a native collection).
+ *
+ * `undefined` means UNANSWERED — no dmAPI (editor, harness), no row, no
+ * column, or a blank cell — and the caller shows NO admin-fee line at all;
+ * a missing cell must never invent a fee.
+ */
+const ADMIN_FEES_TEXT_FIELD = 'admin_fees_text';
+export async function fetchAdminFeesText(
+  propertyId: string,
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<string | undefined> {
+  const wanted = propertyId.trim();
+  if (!wanted) return undefined;
+  const row = (await readInternalProperties(collectionName).catch(() => [] as CollectionRow[]))
+    .find((r) => str(r.id).trim() === wanted);
+  if (!row) return undefined;
+  const text = plainText(row[ADMIN_FEES_TEXT_FIELD]).trim();
+  return text || undefined;
+}
+
+/**
+ * `admin_fees_text` per property id for the whole collection, in ONE read —
+ * for #07, which renders many facilities at once. Properties with a blank or
+ * missing cell are simply absent from the map (no line on their card).
+ */
+export async function fetchAdminFeesTextMap(
+  collectionName: string = INTERNAL_PROPERTIES_COLLECTION,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const rows = await readInternalProperties(collectionName).catch(() => [] as CollectionRow[]);
+  for (const r of rows) {
+    const id = str(r.id).trim();
+    const text = plainText(r[ADMIN_FEES_TEXT_FIELD]).trim();
+    if (id && text) out.set(id, text);
+  }
+  return out;
+}
+
+/**
  * `placeId` — the property's Google Business place id on PropertiesInternal,
  * keyed by property id. What the live rating and review count are fetched
  * with (@shared/googlePlaceRating). Only well-formed ids are kept; a blank
