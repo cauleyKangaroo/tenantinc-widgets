@@ -1130,7 +1130,7 @@ export function MakePaymentPanel({
               </div>
 
               <div className="ma-line ma-line--total">
-                <p className="ma-line__label ma-line__label--total">Total:</p>
+                <p className="ma-line__label ma-line__label--total">Balance Due:</p>
                 <p className="ma-line__amount ma-line__amount--total">
                   {prepayAmount(sp) ? formatMoney(money(sp.total) + prepayAmount(sp)) : scaleMoney(sp.total, monthsFactor)}
                 </p>
@@ -1159,7 +1159,7 @@ export function MakePaymentPanel({
       <div className="ma-balance">
         <div className="ma-balance__left">
           <div className="ma-balance__heading">
-            <span className="ma-balance__title">Balance Due</span>
+            <span className="ma-balance__title">Total Balance Due</span>
             <InfoIcon size={16} className="ma-balance__info" />
           </div>
           <p className="ma-balance__through">{payThrough}</p>
