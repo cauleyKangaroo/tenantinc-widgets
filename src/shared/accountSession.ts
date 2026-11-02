@@ -75,14 +75,36 @@ export function saveSession(session: AccountSession, remember = false): boolean 
  * every request then 401s.
  */
 export function readSession(): AccountSession | null {
-  try {
-    const raw = window.sessionStorage.getItem(KEY) ?? readRemembered();
-    if (!raw) return null;
+  // Each store on its own: a sessionStorage that THROWS (not just empty) must
+  // not stop the remembered copy being read — saveSession(session, true)
+  // tolerates exactly that failure, so a remembered login can exist behind a
+  // blocked sessionStorage.
+  return readFrom(() => window.sessionStorage) ?? readFrom(() => window.localStorage);
+}
 
+/** One store's session: parsed, validated, expiry-checked. */
+function readFrom(getStore: () => Storage): AccountSession | null {
+  let store: Storage;
+  let raw: string | null;
+  try {
+    store = getStore();
+    raw = store.getItem(KEY);
+  } catch {
+    // Private window / blocked site data — this store is unreadable; the
+    // caller tries the other one.
+    return null;
+  }
+  if (!raw) return null;
+
+  try {
     const parsed = JSON.parse(raw) as Partial<AccountSession> | null;
     if (!parsed || typeof parsed.token !== 'string' || !parsed.token) return null;
     if (typeof parsed.expiresAt !== 'number' || Date.now() >= parsed.expiresAt) {
-      clearSession();
+      // Only THIS store's entry. sessionStorage is per-tab, so a sign-in with
+      // "keep me logged in" from another tab cannot clean this tab's stale
+      // copy — clearing BOTH stores here was letting that stale copy erase
+      // the newer remembered login. Clearing both is sign-out's job.
+      try { store.removeItem(KEY); } catch { /* read-only storage */ }
       return null;
     }
 
@@ -96,15 +118,6 @@ export function readSession(): AccountSession | null {
   } catch {
     // Unreadable or not the JSON we wrote. Treat as signed out rather than
     // letting a parse error escape into a render.
-    return null;
-  }
-}
-
-/** The "keep me logged in" copy; null when absent or localStorage is blocked. */
-function readRemembered(): string | null {
-  try {
-    return window.localStorage.getItem(KEY);
-  } catch {
     return null;
   }
 }
