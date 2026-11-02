@@ -487,7 +487,7 @@
   justify-content: center;
   box-sizing: border-box;
   background: var(--color_2, #509e2f);
-  color: var(--color_3, #fff);
+  color: var(--color_9, var(--color_3, #fff));
   text-decoration: none;
   font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 14px;

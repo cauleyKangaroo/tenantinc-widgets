@@ -499,7 +499,7 @@
   border: none;
   border-radius: 8px;
   background: var(--color_2, #509e2f);
-  color: var(--color_3, #fff);
+  color: var(--color_9, var(--color_3, #fff));
   font-family: inherit;
   font-size: 16px;
   font-weight: 700;
@@ -550,7 +550,7 @@
   border: none;
   border-radius: 8px;
   background: var(--color_2, #509e2f);
-  color: var(--color_3, #fff);
+  color: var(--color_9, var(--color_3, #fff));
   font-family: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -574,7 +574,7 @@
 .ml-cta:focus,
 .ml-cta:active {
   background: var(--color_2, #509e2f);
-  color: var(--color_3, #fff);
+  color: var(--color_9, var(--color_3, #fff));
   text-decoration: none;
   filter: brightness(0.94);
 }
@@ -924,7 +924,7 @@
   border: none;
   border-radius: 4px;
   background: var(--color_2, #509e2f);
-  color: var(--color_3, #fff);
+  color: var(--color_9, var(--color_3, #fff));
   font-family: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -940,7 +940,7 @@
    visit, which is most of the time. */
 .ml-select:hover,
 .ml-select:focus,
-.ml-select:visited { color: var(--color_3, #fff); text-decoration: none; }
+.ml-select:visited { color: var(--color_9, var(--color_3, #fff)); text-decoration: none; }
 
 .ml-select:hover { filter: brightness(0.94); }
 

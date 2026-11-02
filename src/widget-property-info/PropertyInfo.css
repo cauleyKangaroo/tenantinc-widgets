@@ -11,6 +11,8 @@
   box-sizing: border-box;
   padding-inline: clamp(16px, 4vw, 64px);
   color: #101318;
+  /* No background of its own: the Duda section sets it, at every width. */
+  background: transparent !important;
 }
 
 .pi-wrapper *,
@@ -933,12 +935,6 @@ button.pi-lb-img { display: flex; }
 
 .pi-mobile {
   display: none;
-  /* White ground for the whole mobile view. .pi-wrapper paints nothing, so
-     until now this showed the host page through — which on a Duda page is
-     whatever the section behind it happens to be, not the white the design
-     assumes. Scoped to .pi-mobile, so desktop and tablet keep inheriting the
-     page as before. */
-  background: #fff;
 }
 
 /* ── Hero (image-led) view ──────────────────────────────────────────────── */

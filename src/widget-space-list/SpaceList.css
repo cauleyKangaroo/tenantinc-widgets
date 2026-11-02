@@ -766,7 +766,7 @@
 }
 .sl-wrapper .sl-select-btn {
   background: var(--color_2, #509e2f);
-  color: var(--color_3, #fff);
+  color: var(--color_9, var(--color_3, #fff));
   border: none;
   border-radius: 8px;
   height: 50px;
@@ -2377,7 +2377,7 @@
 .sl-wrapper .sl-nb-starting-price { font-size: 16px; font-weight: 700; color: #101318; }
 .sl-wrapper .sl-nb-select-btn {
   background: var(--color_2, #509e2f);
-  color: var(--color_3, #fff);
+  color: var(--color_9, var(--color_3, #fff));
   border: none;
   border-radius: 8px;
   font-size: 13px;
@@ -3697,7 +3697,7 @@
 /* Select button */
 .sl-wrapper .sl-nb2-select {
   background: var(--color_2, #509e2f);
-  color: var(--color_3, #fff);
+  color: var(--color_9, var(--color_3, #fff));
   font-size: 14px;
   font-weight: 700;
   font-family: 'Poppins', 'Poppins Fallback', sans-serif;
@@ -4319,7 +4319,7 @@
   padding: 12px 24px;
   border-radius: 8px;
   background: var(--color_1, #f45f30);
-  color: var(--color_3, #fff);
+  color: var(--color_8, var(--color_3, #fff));
   font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 15px;
   font-weight: 600;
@@ -4328,7 +4328,7 @@
 
 .sl-wrapper .sl-blog2-see-all:hover {
   background: color-mix(in srgb, var(--color_1, #f45f30) 88%, black);
-  color: var(--color_3, #fff);
+  color: var(--color_8, var(--color_3, #fff));
 }
 
 /* ── Skeleton (while the BlogPosts collection read is in flight) ── */
@@ -5105,7 +5105,7 @@
   /* Duda's primary, like the other 31 places in this widget — not the frame's
      flat #f26500, which would ignore the site's theme. */
   background: var(--color_1, #f45f30);
-  color: var(--color_3, #fff);
+  color: var(--color_8, var(--color_3, #fff));
   font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 700;
@@ -5346,7 +5346,7 @@
 .sl-wrapper .sl-reorder-save {
   background: var(--color_1, #f45f30);
   border: 1px solid var(--color_1, #f45f30);
-  color: var(--color_3, #fff);
+  color: var(--color_8, var(--color_3, #fff));
 }
 .sl-wrapper .sl-reorder-save:hover { background: #468a29; }
 .sl-wrapper .sl-reorder-cancel:disabled,
