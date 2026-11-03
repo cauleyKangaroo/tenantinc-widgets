@@ -14,6 +14,7 @@ import {
   type PropertiesSourceOptions,
 } from './propertiesSource';
 import { withTimeout, timeoutSignal, TIMEOUTS } from './withTimeout';
+import { tidyDimensions } from './dimensions';
 
 export interface NearbyApiConfig {
   baseUrl: string;
@@ -516,7 +517,8 @@ function spacesFromGroups(groups: ApiGroup[]): PropertySpaceData {
     const startingPrice = t.sell_rate ?? t.units?.min_price ?? 0;
     if (startingPrice <= 0) continue;
     spaces.push({
-      size: t.description,
+      // tidyDimensions: some tiers write whole feet as "4.0' x 5'".
+      size: tidyDimensions(t.description),
       subtype: mainAmenity(t),
       inStorePrice: t.set_rate ?? t.units?.max_price ?? 0,
       startingPrice,

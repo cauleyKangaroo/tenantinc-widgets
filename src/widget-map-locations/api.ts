@@ -32,6 +32,7 @@ import {
 } from '@shared/nearbyProperties';
 import { sameState } from '@shared/usStates';
 import { fetchWebsiteSpaceGroupId } from '@shared/spaceGroups';
+import { tidyDimensions } from '@shared/dimensions';
 import type { CityFacility, CityUnit } from './data';
 // Build-time defaults only. Deliberately NOT named `cfg`: four functions below
 // take a `cfg: CityApiConfig` PARAMETER, and a module-level `cfg` would be
@@ -354,7 +355,8 @@ export async function fetchCitySpaces(
 
           spaces.push({
             id: t.id,
-            dimensions: t.description,
+            // tidyDimensions: some tiers write whole feet as "4.0' x 5'".
+            dimensions: tidyDimensions(t.description),
             subtype: subtypeSource[0] ? amenityLabel(subtypeSource[0]) : group.name,
             inStorePrice: t.set_rate ?? t.units?.max_price ?? 0,
             startingPrice,

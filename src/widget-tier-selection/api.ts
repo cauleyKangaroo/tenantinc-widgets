@@ -2,6 +2,7 @@ import cfg from './config.json';
 import { createApiCredsStore, type ApiCredProps } from '@shared/apiConfig';
 import { memoGet, MEMO_TTL } from '@shared/requestMemo';
 import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
+import { tidyDimensions } from '@shared/dimensions';
 import type { TierKey } from './types';
 
 // ---------------------------------------------------------------------------
@@ -129,7 +130,11 @@ export interface ValueTierData {
   featureLabels: string[];
 }
 
-export const normalizeSize = (s: string): string => s.toLowerCase().replace(/[^0-9x.]/g, '');
+// The trailing replace folds a whole-foot ".0" ("4.0x5" → "4x5"), so a size
+// tidied for display (tidyDimensions) still matches one straight from the API
+// — and a stale hand-off URL from an older bundle keeps matching too.
+export const normalizeSize = (s: string): string =>
+  s.toLowerCase().replace(/[^0-9x.]/g, '').replace(/(\d)\.0+(?!\d)/g, '$1');
 
 /** Decode space_mix_id ("unitTypeId,sqft,w,l,h" base64) → "W' x L'". */
 function sizeFromMix(mix?: string): string | undefined {
@@ -157,7 +162,8 @@ export async function fetchUnitGroups(ctx: TierContext): Promise<UnitGroup[]> {
   const out: UnitGroup[] = [];
   for (const prof of Object.values(profiles)) {
     for (const g of prof.groups ?? []) for (const t of g.tiers ?? []) {
-      if (t.tier_id && t.description) out.push({ unitGroupId: t.tier_id, size: t.description.trim(), vacant: t.vacant?.count ?? 0 });
+      // tidyDimensions: some tiers write whole feet as "4.0' x 5'".
+      if (t.tier_id && t.description) out.push({ unitGroupId: t.tier_id, size: tidyDimensions(t.description.trim()), vacant: t.vacant?.count ?? 0 });
     }
   }
   return out;

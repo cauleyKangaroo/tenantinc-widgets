@@ -2,6 +2,7 @@ import cfg from './config.json';
 import { createApiCredsStore, type ApiCredProps, type ApiCreds } from '@shared/apiConfig';
 import { memoGet, memoInvalidate, MEMO_TTL } from '@shared/requestMemo';
 import { normalizePhone } from '@shared/ui/phone';
+import { tidyDimensions } from '@shared/dimensions';
 import { cardBrand } from './gpTokenize';
 import { leaseIdvProblem } from './idvLinking';
 
@@ -597,7 +598,11 @@ export interface SelectionContext {
 }
 
 /** "10' x 10'" / "10x10" → "10x10" for comparisons. */
-const normalizeSize = (s: string): string => s.toLowerCase().replace(/[^0-9x.]/g, '');
+// The trailing replace folds a whole-foot ".0" ("4.0x5" → "4x5"), so a size
+// tidied for display (tidyDimensions) still matches one straight from the API
+// — and a stale hand-off URL from an older bundle keeps matching too.
+const normalizeSize = (s: string): string =>
+  s.toLowerCase().replace(/[^0-9x.]/g, '').replace(/(\d)\.0+(?!\d)/g, '$1');
 
 interface CtxTier {
   id?: string;
@@ -636,7 +641,9 @@ export function extractSelectionContext(
         .map((s) => s.trim())
         .filter((s) => s && !/^(all units|no .*)$/i.test(s));
       for (const t of g.tiers ?? []) {
-        const desc = t.description?.trim();
+        // tidyDimensions: some tiers write whole feet as "4.0' x 5'"; the rail
+        // must print the same label the space-list card showed.
+        const desc = tidyDimensions(t.description?.trim() ?? '');
         if (!desc) continue;
         const price = (t.vacant?.count ? t.vacant?.min_price : undefined)
           ?? t.units?.min_price ?? t.sell_rate ?? undefined;
