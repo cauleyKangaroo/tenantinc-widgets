@@ -5,6 +5,7 @@ import {
   resolveBoundProperty, resolvePropertyId, resolveRequireId, type BoundPropertyProps,
 } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { parseFaqList } from '@shared/faqCell';
 
 export type { BoundPropertyProps };
 
@@ -42,17 +43,11 @@ export function credsWithCompany(companyId: string) {
 const COMPANY_ID = cfg.companyId;
 const PROPERTY_ID = cfg.propertyId;
 
-// question/answer are localized maps, e.g. { en: "...", es: "" }.
-interface ApiLocalized { en?: string; es?: string; }
-
-interface ApiFaq {
-  question?: ApiLocalized;
-  answer?: ApiLocalized;
-}
-
 interface ApiProperty {
   id: string;
-  Faq?: ApiFaq[] | '';
+  /** Localized maps from REST, plain strings — possibly still unparsed text —
+   *  from the collection. parseFaqList accepts all of it. */
+  Faq?: unknown;
 }
 
 interface ApiResponse {
@@ -96,7 +91,8 @@ export async function fetchProperties(
  * using the EFFECTIVE id rather than the stale config.json one.
  *
  * Note there is no `propertyFaq` content-menu binding: `Faq` is an array of
- * localized {question, answer} maps, which a text field cannot carry usefully.
+ * {question, answer} entries (localized maps from REST, plain strings from the
+ * collection — see @shared/faqCell), which a text field cannot carry usefully.
  * FAQs need the `propertyId` route.
  */
 export async function fetchFaqsForProperty(bound: BoundPropertyProps = {}): Promise<FaqItem[]> {
@@ -145,9 +141,7 @@ export function extractFaqs(raw: unknown, propertyId: string = PROPERTY_ID): Faq
   const response = raw as ApiResponse;
   const list = response?.applicationData?.[creds().appId]?.[0]?.data?.properties ?? [];
   const prop = list.find((p) => p.id === propertyId);
-  if (!prop || !Array.isArray(prop.Faq)) return [];
-
-  return prop.Faq
-    .map((f) => ({ question: f.question?.en ?? '', answer: f.answer?.en ?? '' }))
-    .filter((f) => f.question && f.answer);
+  // Shared parser: REST's localized maps AND the collection's plain-string
+  // cell (even unparsed, with its literal line breaks) — see @shared/faqCell.
+  return prop ? parseFaqList(prop.Faq) : [];
 }

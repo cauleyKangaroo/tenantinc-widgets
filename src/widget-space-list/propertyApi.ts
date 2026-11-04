@@ -11,6 +11,7 @@ import {
 import { createLead as submitLead, type LeadInput } from '@shared/leadsApi';
 import { fetchPropertiesPreferCollection } from '@shared/propertiesSource';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { parseFaqList } from '@shared/faqCell';
 import { creds } from './apiCreds';
 
 const COMPANY_ID = cfg.companyId;
@@ -52,14 +53,6 @@ interface ApiPhone {
   status?: number;
 }
 
-// question/answer are localized maps, e.g. { en: "...", es: "" }.
-interface ApiLocalized { en?: string; es?: string; }
-
-interface ApiFaq {
-  question?: ApiLocalized;
-  answer?: ApiLocalized;
-}
-
 interface ApiSocialMedia {
   platform?: string;
   type?: string;
@@ -87,7 +80,9 @@ interface ApiProperty {
   Address?: ApiAddress | '';
   utc_offset?: string;      // IANA tz, e.g. "America/Los_Angeles"
   Phones?: ApiPhone[] | '';
-  Faq?: ApiFaq[] | '';
+  /** Localized maps from REST, plain strings — possibly still unparsed text —
+   *  from the collection. parseFaqList accepts all of it. */
+  Faq?: unknown;
   SocialMedia?: ApiSocialMedia[] | '';
   AccessHours?: AccessHoursSection[] | '';
   Amenities?: ApiAmenity[] | '';
@@ -223,11 +218,9 @@ export function extractPropertyExtras(raw: unknown, propertyId: string = PROPERT
         .filter((s) => s.platform && s.url)
     : [];
 
-  const faqs = Array.isArray(prop.Faq)
-    ? prop.Faq
-        .map((f) => ({ question: f.question?.en ?? '', answer: f.answer?.en ?? '' }))
-        .filter((f) => f.question && f.answer)
-    : [];
+  // Shared parser: REST's localized maps AND the collection's plain-string
+  // cell (even unparsed, with its literal line breaks) — see @shared/faqCell.
+  const faqs = parseFaqList(prop.Faq);
 
   // Live gate/office status + grouped weekly schedule, in the property's own tz.
   const access = Array.isArray(prop.AccessHours) ? prop.AccessHours : [];
