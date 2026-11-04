@@ -207,5 +207,18 @@ export function groupSizesByLabel(sizes: SizeItem[]): { label: string; category:
     }
     band.items.push(s);
   }
-  return bands;
+  /*
+   * The TABS are in canonical band order, whatever order the rows came in.
+   * Band order used to be encounter order, i.e. the collection's `sortOrder`
+   * column — but that column orders the UNITS, and on a live site (2026-11-04)
+   * its values interleaved the bands, so the tabs read "… Large, Extra Large,
+   * Medium". A category outside the five bands (Parking) keeps its encounter
+   * position after them — sort() is stable — and sortOrder still orders the
+   * units inside each band.
+   */
+  const rank = (category: string) => {
+    const i = BAND_ORDER.indexOf(category.toLowerCase());
+    return i === -1 ? BAND_ORDER.length : i;
+  };
+  return bands.sort((a, b) => rank(a.category) - rank(b.category));
 }
