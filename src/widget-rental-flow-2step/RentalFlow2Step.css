@@ -2756,6 +2756,10 @@
    same reason as the size above: .hb-money is shared with #14. */
 .rf-wrapper .hb-money { gap: 6px; }
 
+/* The rail's "#111 | 5' x 7'" heading on desktop, 24px -> 21px. Scoped to
+   .rf-wrapper because .ts-card-size is shared with #14. */
+.rf-wrapper .ts-card-size { font-size: 21px; }
+
 /* "Change Space", 16px -> 14px on a phone. Same .rf-wrapper scope and the same
    reason as the heading above: .ts-card-change is shared with #14, which keeps
    its own 16px copy in TierSelection.css, so a (0,2,0) scope is what keeps the
