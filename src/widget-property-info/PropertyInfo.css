@@ -1654,6 +1654,15 @@ iframe.pi-m-hero-img { border: 0; z-index: 0; }
 .pi-wrapper.pi-m-circles-pinned {
   max-width: none;
   padding-inline: 0;
+  /* Pinned, the row floats over the page, so it needs a surface of its own —
+     without this the whole page scrolled visibly underneath it.
+     .pi-wrapper is deliberately `background: transparent !important` (the Duda
+     section paints behind it), and the sticky stack puts that same class on
+     the portaled slot so the row keeps the widget's fonts. The wrapper's
+     !important then beat #ti-sticky-stack > .ti-sticky-slot's white, even
+     though that selector is far more specific. Hence !important here too, on a
+     two-class selector so it outranks the one-class rule it has to beat. */
+  background: #ffffff !important;
 }
 
 /* Items share the row equally and can shrink to 0, so 5 fixed circles can never
