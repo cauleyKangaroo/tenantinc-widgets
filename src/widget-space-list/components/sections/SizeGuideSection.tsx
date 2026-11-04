@@ -43,13 +43,13 @@ const CATEGORIES: SizeCategory[] = [
 ];
 
 /**
- * The trailing "All" option — one more card like the size bands, not a summary
+ * The leading "All" option — one more card like the size bands, not a summary
  * of them: its own image, "All Spaces", and the same CTA underneath.
  *
  * Deliberately NOT a member of CATEGORIES: that array is only the fallback, and
  * the tab set is rebuilt from the Duda `Sizes` collection at runtime, so
  * anything listed there would vanish the moment real data arrives. It is
- * appended to whichever set is in play instead.
+ * prepended to whichever set is in play instead.
  */
 const ALL_CATEGORY: SizeCategory = {
   tab: 'All',
@@ -116,8 +116,8 @@ export function SizeGuideSection({ showVideos = true }: { showVideos?: boolean }
   // Demo bands are the fallback for an EMPTY/failed read only.
   /* Appended, so it renders through the same tab loop and the same card as
      every size band — no special case anywhere below. */
-  const cats = [...(live ?? CATEGORIES), ALL_CATEGORY];
-  const category = cats.find((c) => c.tab === activeTab) ?? cats[0];
+  const cats = [ALL_CATEGORY, ...(live ?? CATEGORIES)];
+  const category = cats.find((c) => c.tab === activeTab) ?? cats[1] ?? cats[0];
 
   if (loading) {
     return (
