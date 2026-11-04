@@ -3,6 +3,7 @@ import { usePropertyId } from '../propertyContext';
 import { useCompanyId } from '../companyContext';
 import { fetchProperties, extractNearbyProperties } from '@shared/nearbyProperties';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
+import { hasCollectionsApi } from '@shared/dudaCollections';
 import cfg from '../config.json';
 import { credsWithCompany } from '../apiCreds';
 import { ReviewsSection } from './sections/ReviewsSection';
@@ -294,13 +295,15 @@ export function SectionAccordion({
   // About: its TITLE (about_content_title on PropertiesInternal) decides —
   // no title, no row; a title with an empty body still shows.
   const hasAbout = !!(aboutTitle ?? '').trim();
-  // FAQ only when the property actually HAS some. While extras are still
-  // null — loading, or the editor/harness where no property resolves — the
-  // row stays (FaqsSection then shows its demo set), so the section remains
-  // designable; once the property is known to carry none, no row. Generic
-  // fallback questions stated policies (fees, discounts) a facility may not
-  // actually have.
-  const hasFaqs = propertyExtras === null || propertyExtras.faqs.length > 0;
+  // FAQ only when the property actually HAS some — the generic fallback
+  // questions state policies (fees, discounts) a facility may not have.
+  // What separates "preview" from "published" is the EDITOR FLAG and the
+  // Collections API, not whether extras resolved: on a published page a
+  // null extras (still loading, or a failed lookup) must hide the row, or
+  // a lookup that never settles shows the generic set indefinitely; in the
+  // editor/harness a lookup that DOES settle empty must still keep the row,
+  // or the section becomes undesignable. (Copilot, PR #87.)
+  const hasFaqs = inEditor || !hasCollectionsApi() || (propertyExtras?.faqs.length ?? 0) > 0;
   const allKeys = ACCORDION_SECTIONS.map((s) => s.key).filter(
     (k) => (k !== 'highlights' || featureHighlights.length > 0)
       && (k !== 'notes' || hasNotes)
