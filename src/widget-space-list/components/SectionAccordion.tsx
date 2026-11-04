@@ -294,10 +294,18 @@ export function SectionAccordion({
   // About: its TITLE (about_content_title on PropertiesInternal) decides —
   // no title, no row; a title with an empty body still shows.
   const hasAbout = !!(aboutTitle ?? '').trim();
+  // FAQ only when the property actually HAS some. While extras are still
+  // null — loading, or the editor/harness where no property resolves — the
+  // row stays (FaqsSection then shows its demo set), so the section remains
+  // designable; once the property is known to carry none, no row. Generic
+  // fallback questions stated policies (fees, discounts) a facility may not
+  // actually have.
+  const hasFaqs = propertyExtras === null || propertyExtras.faqs.length > 0;
   const allKeys = ACCORDION_SECTIONS.map((s) => s.key).filter(
     (k) => (k !== 'highlights' || featureHighlights.length > 0)
       && (k !== 'notes' || hasNotes)
       && (k !== 'about' || hasAbout)
+      && (k !== 'faq' || hasFaqs)
       && (!mobile || MOBILE_SECTION_KEYS.has(k)),
   );
 
