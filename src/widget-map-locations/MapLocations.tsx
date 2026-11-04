@@ -35,7 +35,8 @@ import { stateNameFromCode, stateCodeFromName } from '@shared/usStates';
 import { slugLabel } from '@shared/propertyNav';
 import { rentalHref, saveUnitSelection } from '@shared/unitHandoff';
 import { fetchGoogleRatingsByPlace, matchedRatingForProperty, type RatingSummary } from '@shared/reviewsCollections';
-import { hasCollectionsApi } from '@shared/dudaCollections';
+import { hasCollectionsApi, optimizedImageUrl } from '@shared/dudaCollections';
+import { fetchPropertyHeroImages } from '@shared/propertyImages';
 import { fetchFeaturedIds, fetchPlaceIds, fetchAdminFeesTextMap } from '@shared/internalProperties';
 import { fetchLocationCopy, type LocationCopy } from '@shared/locationCopy';
 import { fetchPlaceRating } from '@shared/googlePlaceRating';
@@ -150,6 +151,23 @@ function UnitRow({
 
 // ── Property card ───────────────────────────────────────────────────────────
 
+/**
+ * The facility's own photo — its `heroimage` from `PropertiesInternal`, stamped
+ * onto `imageUrl` by the load effect — else the cycled demo photo, so the
+ * editor/harness (no dmAPI, no collection) and a property with no upload keep
+ * a picture rather than a broken <img>.
+ *
+ * 640 is one of Duda's STANDARD resize widths (generated at upload, so no
+ * visitor pays for the resize) and the smallest that still covers the 417px
+ * card head on a retina screen; the 156px popup shares it rather than forcing
+ * a second, on-demand size of the same photo. Non-Duda URLs (the demo imports)
+ * pass through optimizedImageUrl unchanged.
+ */
+const facilityPhoto = (f: CityFacility, index: number): string =>
+  (f.imageUrl
+    ? optimizedImageUrl(f.imageUrl, 640)
+    : PROPERTY_IMAGES[index % PROPERTY_IMAGES.length]);
+
 function PropertyCard({
   facility,
   index,
@@ -219,7 +237,7 @@ function PropertyCard({
       )}
       {/* Photo header — image, dark scrim, distance, and the property details */}
       <div className="ml-card-head">
-        <img className="ml-card-photo" src={PROPERTY_IMAGES[index % PROPERTY_IMAGES.length]} alt="" />
+        <img className="ml-card-photo" src={facilityPhoto(facility, index)} alt="" />
         <span className="ml-card-scrim" />
 
         {facility.featured && (
@@ -868,7 +886,7 @@ export function MapLocations({
       try {
         // Not named `props` — eslint-plugin-react reads `props.map(…)` inside a
         // component as prop access and demands prop-types for it.
-        const [cityProps, userLoc, adminFees] = await Promise.all([
+        const [cityProps, userLoc, adminFees, heroes] = await Promise.all([
           fetchPlaceProperties(api, scope),
           // Distances are only meaningful from somewhere. Declined geolocation
           // is normal, not an error: the cards then omit the distance line and
@@ -877,6 +895,12 @@ export function MapLocations({
           // Per-property `admin_fees_text` — a collection read the other
           // PropertiesInternal consumers share. A blank cell means NO line.
           fetchAdminFeesTextMap().catch(() => new Map<string, string>()),
+          // The card photos: `heroimage` per property id, ONE read for the
+          // whole list (the same cached PropertiesInternal read the fees use).
+          // In this batch so a card paints with its real photo, never swaps
+          // the demo one in front of the visitor. Fails soft to an empty map,
+          // and each card then keeps the cycled demo photo (see facilityPhoto).
+          fetchPropertyHeroImages().catch(() => new Map<string, string>()),
         ]);
         if (cancelled) return;
 
@@ -887,7 +911,12 @@ export function MapLocations({
         // rows rather than failing the whole batch here.
         const withSpaces = await Promise.all(
           cityProps.map((p) => fetchCitySpaces(api, p.id)
-            .then(({ promo, spaces }) => toCityFacility(p, spaces, promo, ref, adminFees.get(p.id)))),
+            // heroimage wins over the API's own Images field — it is the photo
+            // the operator actually chose for this property (same rule as #07).
+            .then(({ promo, spaces }) => toCityFacility(
+              { ...p, imageUrl: heroes.get(p.id) || p.imageUrl },
+              spaces, promo, ref, adminFees.get(p.id),
+            ))),
         );
         if (cancelled) return;
         setLiveFacilities(withSpaces);
@@ -1169,7 +1198,7 @@ export function MapLocations({
         )}
         <img
           className="ml-popup-photo"
-          src={PROPERTY_IMAGES[facilities.indexOf(facility) % PROPERTY_IMAGES.length]}
+          src={facilityPhoto(facility, facilities.indexOf(facility))}
           alt=""
         />
         {/* The address and the review count are TEXT here, not links.
