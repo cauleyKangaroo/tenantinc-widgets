@@ -6,7 +6,7 @@ import { fetchPropertyContact, DEFAULT_PROPERTY_ID, type PropertyContact } from 
 import { fetchSitePhone, type SitePhone } from '@shared/contentLibrary';
 import { boundText, boundLink } from '@shared/propertyBinding';
 import { RichText } from '@shared/richText';
-import { readSitePages, pageColumnFor, parseRoutes, type SitePage } from '@shared/sitePages';
+import { readSitePages, pageColumnFor, parseRoutes, findSitePage, type SitePage } from '@shared/sitePages';
 import { openFindStorage } from '@shared/findStorageBus';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { fetchAllLocations, normalizeBasePath, type FooterLocation } from './allLocations';
@@ -382,16 +382,34 @@ export function Footer({
     [pages, skipHidden, storageTypesRoute, storageTypesHeading],
   );
 
+  /**
+   * Contact us goes to the real contact PAGE when the site has one — the page
+   * carrying #23 widget-contact-form's inline copy of this same form — and
+   * opens the modal only when it does not. Matched against the tree the footer
+   * already reads, by `contactHref`'s path/alias/tail (so the page is found
+   * wherever the editor parked it). No tree — the Duda editor, the dev
+   * harness, a site without the page — means no match, so the modal keeps the
+   * link from ever 404ing. The href follows the MATCHED page's own path, in
+   * case the real page lives at a different route than the prop says.
+   */
+  const contactPage = useMemo(
+    () => (contactHref ? findSitePage(pages ?? [], contactHref) : null),
+    [pages, contactHref],
+  );
+
   /** Two account actions, not pages under any route — so never tree-driven. */
   const connectColumn = useMemo<LinkColumn>(() => ({
     heading: 'Connect',
     links: [
       { label: 'Login', href: loginHref },
-      // Opens the shared "Send us a Message" modal, as #02's Email circle and
-      // #03 do, rather than leaving for a contact page.
-      { label: 'Contact us', href: contactHref, onClick: () => setMessageOpen(true) },
+      contactPage?.path
+        // The page exists: an ordinary link, no modal.
+        ? { label: 'Contact us', href: contactPage.path }
+        // Opens the shared "Send us a Message" modal, as #02's Email circle and
+        // #03 do, rather than leaving for a page that is not there.
+        : { label: 'Contact us', href: contactHref, onClick: () => setMessageOpen(true) },
     ],
-  }), [loginHref, contactHref]);
+  }), [loginHref, contactHref, contactPage]);
 
   // The tree WAS readable but a route is not in it — a typo in the field, or the
   // pages have not been created yet. Worth saying: the column is now simply
