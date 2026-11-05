@@ -33,6 +33,8 @@ const widgetEntries = {
   'widget-storage-type-locations':'./src/widget-storage-type-locations/index.tsx',// #20
   'widget-storage-types':    './src/widget-storage-types/index.tsx',    // #21
   'widget-locations-banner': './src/widget-locations-banner/index.tsx', // #22
+  // The footer modal's "Send us a Message" form, inline, for the contact page.
+  'widget-contact-form':     './src/widget-contact-form/index.tsx',     // #23
   'widget-rental-flow-2step':'./src/widget-rental-flow-2step/index.tsx',// #99 (TBD)
   // Living styleguide for @shared/ui — DEV HARNESS ONLY, never a Duda widget.
   // Deliberately unnumbered so it can't be mistaken for one.

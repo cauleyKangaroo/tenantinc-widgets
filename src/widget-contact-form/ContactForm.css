@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+/* ── Root ──────────────────────────────────────────────────────────────── */
+
+.cf-wrapper {
+  font-family: 'Poppins', 'Poppins Fallback', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+  color: #101318;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+  overflow-wrap: break-word;
+}
+
+.cf-wrapper *,
+.cf-wrapper *::before,
+.cf-wrapper *::after {
+  box-sizing: border-box;
+}
+
+/* ── Heading — same scale as #10's, so the two page headers match ───────── */
+
+.cf-heading-block {
+  text-align: center;
+  width: 100%;
+  max-width: 900px;
+}
+
+.cf-title {
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 60px;
+  margin: 0 0 13px;
+  text-wrap: balance;
+}
+
+.cf-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 28px;
+  margin: 0;
+  color: #394150;
+}
+
+/* ── The form card ──────────────────────────────────────────────────────────
+   LeadForm brings the modal's own .pi-msg-body / .pi-msg-foot (white form,
+   grey consent strip); this card gives them the dialog's border and radius so
+   the inline form reads as the same surface the lightbox shows, sitting on
+   the page instead of over it. */
+
+.cf-card {
+  width: 100%;
+  max-width: 640px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .cf-wrapper { gap: 28px; }
+  .cf-title {
+    font-size: 32px;
+    line-height: 42px;
+  }
+  .cf-subtitle {
+    font-size: 16px;
+    line-height: 24px;
+  }
+}
