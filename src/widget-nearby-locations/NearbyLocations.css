@@ -137,6 +137,12 @@
    of them and their footers (margin-top: auto) line up across the row. */
 .nl-track-col > .nl-card { flex: 1 1 auto; }
 
+/* Two rows: every card is already the same size (each reserves the full space
+   rows and the promo bar), so none needs to grow — and one that did would
+   stretch a LONE card (the last column of an odd count, e.g. 7 properties)
+   down to the height of the two stacked beside it. */
+.nl-track--rows2 .nl-track-col > .nl-card { flex: 0 0 auto; }
+
 /* A column off screen contributes NO height, so a fuller card elsewhere in the
    list cannot hold the row open under the visible ones. Its card still paints
    (overflow is visible) — needed while it slides in or out — and the window's

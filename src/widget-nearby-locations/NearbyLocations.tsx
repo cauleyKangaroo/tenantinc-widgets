@@ -1436,7 +1436,7 @@ export function NearbyLocations({
                  animate. */
               <div className="nl-track-window" style={{ '--nl-per-view': COLUMNS } as React.CSSProperties}>
                 <div
-                  className="nl-track"
+                  className={`nl-track${rowCount === 2 ? ' nl-track--rows2' : ''}`}
                   style={{
                     /* Pixels, not a percentage. A translateX percentage resolves
                        against the TRACK's own width, and the items are sized off
@@ -1454,10 +1454,19 @@ export function NearbyLocations({
                       key={col[0]?.id ?? i}
                     >
                       {col.map((property) => (
+                        /* TWO ROWS ⇒ EVERY CARD THE SAME SIZE. Natural heights
+                           only line up in one row, where the cards side by side
+                           stretch to the tallest. Stacked two to a column, the
+                           column's spare height is split between its own two
+                           cards, so the top row stopped aligning across columns
+                           and a promo-less or half-stocked card came out a
+                           different size from its neighbours. So the grid
+                           reserves the full SPACE_SLOTS and the promo bar on
+                           every card — the fullest card's shape, everywhere. */
                         <PropertyCard
                           key={property.id}
-                          slots={naturalSlots(property)}
-                          reservePromo={false}
+                          slots={rowCount === 2 ? SPACE_SLOTS : naturalSlots(property)}
+                          reservePromo={rowCount === 2}
                           property={property}
                           propertyBasePath={propertyBase}
                           rentalPageUrl={rentalPath}
