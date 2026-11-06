@@ -132,6 +132,8 @@
     <button class="page-tab" data-page="homepage" onclick="showPage('homepage')">Homepage</button>
     <button class="page-tab" data-page="storage-type" onclick="showPage('storage-type')">Storage Type page</button>
     <button class="page-tab" data-page="storage-types-index" onclick="showPage('storage-types-index')">Storage Types index</button>
+    <button class="page-tab" data-page="contact" onclick="showPage('contact')">Contact page</button>
+    <button class="page-tab" data-page="sl-settings" onclick="showPage('sl-settings')">SL Settings (editor)</button>
     <button class="page-tab" data-page="ui-kit" onclick="showPage('ui-kit')">UI Kit (forms &amp; buttons)</button>
     <button class="page-tab" data-page="static-screens" onclick="showPage('static-screens')">Static screens</button>
   </div>
@@ -289,6 +291,7 @@
           <select id="pi-display-mode" onchange="reinitPropertyInfo()">
             <option value="full">Full — detailed layout</option>
             <option value="hero">Hero — image-led banner</option>
+            <option value="small">Small — compact single row</option>
           </select>
         </label>
       </div>
@@ -1158,6 +1161,88 @@ Special</textarea>
     </div>
   </div><!-- /#page-storage-types-index -->
 
+  <div id="page-contact" class="page" hidden>
+
+    <!-- ── widget-contact-form ──────────────────────────────────────────── -->
+    <div class="widget-section">
+      <h2>widget-contact-form (#23)</h2>
+      <div id="contact-form-container" class="widget-container"></div>
+
+      <div class="controls">
+        <div class="controls-group">
+          <span class="controls-group-label">Preselect</span>
+          <label>propertyId (blank = none):
+            <input id="cf-property-id" type="text" value="" placeholder="e.g. 340079517"
+                   style="width:160px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+                   oninput="reinitContactForm()" />
+          </label>
+        </div>
+      </div>
+      <p class="subtitle" style="margin-top:12px">
+        The footer modal's "Send us a Message" form, inline, for the
+        <code>/contact-us</code> page. Same shared <code>LeadForm</code> the
+        lightbox renders, so the two cannot drift. The property dropdown is the
+        portfolio from <code>fetchFacilityOptions()</code> (config.json creds
+        here — on a live site the site texts' creds and the
+        <code>Company</code> collection take over), and <strong>Submit requires
+        a property</strong>: this page sits on none, and an unselected submit
+        would otherwise file the lead against config.json's stale id.
+        Submitting here <strong>creates a real lead</strong> on the dev
+        company, like the footer modal does.
+      </p>
+    </div>
+
+  </div><!-- /#page-contact -->
+
+  <!-- ── Spacelist-Ordering external widget settings (Widget Builder iframe) ── -->
+  <div id="page-sl-settings" class="page" hidden>
+
+    <div class="widget-section">
+      <h2>settings-spacelist-ordering (Widget Builder settings iframe)</h2>
+      <div id="sl-settings-container" class="widget-container"></div>
+
+      <div class="controls">
+        <div class="controls-group">
+          <span class="controls-group-label">hb-proxy mode (what Duda uses)</span>
+          <label>hb (login_api_base):
+            <input id="sls-hb" type="text" value="" placeholder="https://proxy-host"
+                   style="width:220px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+                   oninput="reinitSlSettings()" />
+          </label>
+          <label>siteId:
+            <input id="sls-site" type="text" value="" placeholder="e.g. 91076993"
+                   style="width:120px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+                   oninput="reinitSlSettings()" />
+          </label>
+        </div>
+        <div class="controls-group">
+          <span class="controls-group-label">direct edge preview (needs a live key)</span>
+          <label>apiKey:
+            <input id="sls-key" type="text" value="" placeholder="x-storageapi-key"
+                   style="width:220px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+                   oninput="reinitSlSettings()" />
+          </label>
+          <label>companyId:
+            <input id="sls-co" type="text" value="" placeholder="e.g. kQoBXA8vpn"
+                   style="width:120px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+                   oninput="reinitSlSettings()" />
+          </label>
+        </div>
+      </div>
+      <p class="subtitle" style="margin-top:12px">
+        NOT a page widget: this is the app inside the Widget Builder's
+        <em>"Embed your own external widget settings"</em> iframe
+        (<code>spacelist-ordering-settings.html</code> at the repo root is the
+        hosted shell; Duda appends <code>siteId</code>/<code>elementId</code>
+        to its URL). Unconfigured it shows its setup message; fill the hb-proxy
+        fields to see the live tabs — Company (space-type catalogue),
+        Property Group (space groups, Website Group badged), and Property
+        (<strong>the property's storage types with unit counts</strong>).
+      </p>
+    </div>
+
+  </div><!-- /#page-sl-settings -->
+
   <!-- ── Shared UI kit styleguide ─────────────────────────────────────────── -->
   <div id="page-ui-kit" class="page" hidden>
     <div class="widget-section">
@@ -1509,7 +1594,7 @@ Special</textarea>
   <script>
     // Harness page switcher — all widgets stay initialised; we just show/hide pages.
     // The active tab is persisted to the URL (?page=…) so a refresh keeps it.
-    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'my-account', 'value-tiers', 'rental-flow', 'city', 'homepage', 'storage-type', 'storage-types-index', 'ui-kit', 'static-screens'];
+    var PAGES = ['property', 'blogs-listing', 'blog-post', 'login', 'my-account', 'value-tiers', 'rental-flow', 'city', 'homepage', 'storage-type', 'storage-types-index', 'contact', 'sl-settings', 'ui-kit', 'static-screens'];
 
     // Per-page container ids for the widgets that appear on more than one page.
     var NAV_CONTAINERS = {
@@ -2086,6 +2171,64 @@ Special</textarea>
     require(['/dist/widget-account-login.js'], function (widget) {
       accountLoginWidget = widget;
       widget.init({ container: document.getElementById('account-login-container'), props: getAccountLoginProps() });
+    });
+
+    // ── Contact Form (#23) ───────────────────────────────────────────────
+    // The inline "Send us a Message" form for the contact page. Its only
+    // harness control is an optional propertyId to preselect in the dropdown,
+    // the same prop a Duda dynamic page would bind.
+    var contactFormWidget = null;
+
+    function getContactFormProps() {
+      return {
+        propertyId: document.getElementById('cf-property-id').value.trim() || undefined,
+      };
+    }
+
+    function reinitContactForm() {
+      if (contactFormWidget) {
+        contactFormWidget.init({
+          container: document.getElementById('contact-form-container'),
+          props: getContactFormProps(),
+        });
+      }
+    }
+
+    require(['/dist/widget-contact-form.js'], function (widget) {
+      contactFormWidget = widget;
+      widget.init({ container: document.getElementById('contact-form-container'), props: getContactFormProps() });
+    });
+
+    // ── Spacelist-Ordering external settings (Widget Builder iframe app) ──
+    // The shell page forwards Duda's iframe query params as props; here the
+    // inputs stand in for them. elementId is fixed — it only labels the
+    // instance line and the future persistence key.
+    var slSettingsWidget = null;
+
+    function getSlSettingsProps() {
+      var v = function (id) { return document.getElementById(id).value.trim() || undefined; };
+      return {
+        hb: v('sls-hb'),
+        siteId: v('sls-site'),
+        elementId: '1234567890',
+        page: 'dev-harness',
+        apiKey: v('sls-key'),
+        companyId: v('sls-co'),
+      };
+    }
+
+    function reinitSlSettings() {
+      if (slSettingsWidget) {
+        slSettingsWidget.init({
+          container: document.getElementById('sl-settings-container'),
+          props: getSlSettingsProps(),
+        });
+      }
+    }
+
+    require(['/dist/settings-spacelist-ordering.js'], function (widget) {
+      slSettingsWidget = widget;
+      widget.init({ container: document.getElementById('sl-settings-container'), props: getSlSettingsProps() });
     });
 
     // ── My Account (#19) ─────────────────────────────────────────────────

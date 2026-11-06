@@ -3,10 +3,10 @@ import './Footer.css';
 import tenantLogo from './tenant-logo.svg';
 import { SOCIALS, PhoneIcon, AiSparkleIcon, ChevronBigRightIcon } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID, type PropertyContact } from '@shared/propertyContact';
-import { fetchSitePhone, type SitePhone } from '@shared/contentLibrary';
+import { fetchSitePhone, fetchBusinessName, type SitePhone } from '@shared/contentLibrary';
 import { boundText, boundLink } from '@shared/propertyBinding';
 import { RichText } from '@shared/richText';
-import { readSitePages, pageColumnFor, parseRoutes, type SitePage } from '@shared/sitePages';
+import { readSitePages, pageColumnFor, parseRoutes, findSitePage, type SitePage } from '@shared/sitePages';
 import { openFindStorage } from '@shared/findStorageBus';
 import { hasCollectionsApi } from '@shared/dudaCollections';
 import { fetchAllLocations, normalizeBasePath, type FooterLocation } from './allLocations';
@@ -295,6 +295,17 @@ export function Footer({
   // siteObject) — site-wide chrome shows the SITE's line, so when the owner
   // has set one it outranks the Properties row above. Not property-keyed, so
   // it reads once.
+  // The copyright line's name: Business Info's `business_data.name`. None set
+  // → no name at all ("© 2026, All Rights Reserved."), never a hardcoded one.
+  const [businessName, setBusinessName] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    fetchBusinessName('#13 footer')
+      .then((n) => { if (!cancelled) setBusinessName(n); })
+      .catch((err) => console.error('[Footer] business name error:', err));
+    return () => { cancelled = true; };
+  }, []);
+
   const [sitePhone, setSitePhone] = useState<SitePhone | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -382,16 +393,34 @@ export function Footer({
     [pages, skipHidden, storageTypesRoute, storageTypesHeading],
   );
 
+  /**
+   * Contact us goes to the real contact PAGE when the site has one — the page
+   * carrying #23 widget-contact-form's inline copy of this same form — and
+   * opens the modal only when it does not. Matched against the tree the footer
+   * already reads, by `contactHref`'s path/alias/tail (so the page is found
+   * wherever the editor parked it). No tree — the Duda editor, the dev
+   * harness, a site without the page — means no match, so the modal keeps the
+   * link from ever 404ing. The href follows the MATCHED page's own path, in
+   * case the real page lives at a different route than the prop says.
+   */
+  const contactPage = useMemo(
+    () => (contactHref ? findSitePage(pages ?? [], contactHref) : null),
+    [pages, contactHref],
+  );
+
   /** Two account actions, not pages under any route — so never tree-driven. */
   const connectColumn = useMemo<LinkColumn>(() => ({
     heading: 'Connect',
     links: [
       { label: 'Login', href: loginHref },
-      // Opens the shared "Send us a Message" modal, as #02's Email circle and
-      // #03 do, rather than leaving for a contact page.
-      { label: 'Contact us', href: contactHref, onClick: () => setMessageOpen(true) },
+      contactPage?.path
+        // The page exists: an ordinary link, no modal.
+        ? { label: 'Contact us', href: contactPage.path }
+        // Opens the shared "Send us a Message" modal, as #02's Email circle and
+        // #03 do, rather than leaving for a page that is not there.
+        : { label: 'Contact us', href: contactHref, onClick: () => setMessageOpen(true) },
     ],
-  }), [loginHref, contactHref]);
+  }), [loginHref, contactHref, contactPage]);
 
   // The tree WAS readable but a route is not in it — a typo in the field, or the
   // pages have not been created yet. Worth saying: the column is now simply
@@ -491,9 +520,9 @@ export function Footer({
 
   // Business Info's number first, the Properties row next, the prop/default last.
   const displayPhone = sitePhone?.phone || contact?.phone || phone;
-  // "Follow <name>" takes the property name from the collection; the copyright
-  // line below deliberately keeps the `companyName` prop (see note there).
-  const displayFollowName = contact?.name || companyName;
+  // "Follow <name>" uses Business Info's name too, like the copyright line.
+  // None set → just "Follow".
+  const displayFollowName = businessName;
   const telHref = `tel:${(sitePhone?.digits || contact?.phoneDigits || displayPhone).replace(/[^0-9+]/g, '')}`;
 
   /*
@@ -624,7 +653,7 @@ export function Footer({
             if that read brings nothing either. */}
         {(anyConfigured || !contactSettled || socialLinks.length > 0) && (
         <div className="ft-follow-left">
-          <span className="ft-follow-label">Follow {displayFollowName}</span>
+          <span className="ft-follow-label">{displayFollowName ? `Follow ${displayFollowName}` : 'Follow'}</span>
           <div
             className="ft-socials"
             style={anyConfigured || contactSettled ? undefined : { visibility: 'hidden' }}
@@ -646,10 +675,9 @@ export function Footer({
 
       <div className="ft-bottom">
         <div className="ft-inner ft-bottom-row">
-          {/* Left on the prop on purpose: the collection's `name` is the FACILITY
-              ("Storelocal Dove Mountain"), and a copyright line should name the
-              company. Swap to displayFollowName if that's wanted. */}
-          <span className="ft-copy">© {year}, {companyName}. All Rights Reserved.</span>
+          {/* The site's business name from Duda's Business Info — not the
+              collection's `name`, which is the FACILITY. */}
+          <span className="ft-copy">© {year}, {businessName ? `${businessName}. ` : ''}All Rights Reserved.</span>
           <span className="ft-session">Session: {sessionId}</span>
         </div>
       </div>

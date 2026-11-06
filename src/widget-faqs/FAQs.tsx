@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './FAQs.css';
 import { SearchIcon, ChevronDown, ChevronRight } from './icons';
 import { fetchFaqsForProperty, configureApi, type BoundPropertyProps, type ApiCredProps } from './faqApi';
+import { hasCollectionsApi } from '@shared/dudaCollections';
+import { collapseEmptyHost } from '@shared/collapseEmptyHost';
 import { Shimmer } from '@shared/Shimmer';
 import { RichText } from '@shared/richText';
 import { withLineBreaks } from '@shared/lineBreaks';
@@ -133,6 +135,10 @@ export function FAQs({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    // The previous property's FAQs go with it. Kept, a lookup that FAILED for
+    // the new property left them on screen — one facility's answers on
+    // another's page — and stopped an empty property hiding the section.
+    setApiFaqs([]);
     fetchFaqsForProperty({ propertyId, companyId })
       .then((faqs) => {
         if (cancelled) return;
@@ -143,7 +149,11 @@ export function FAQs({
     return () => { cancelled = true; };
   }, [propertyId, companyId]);
 
-  // Demo set is the fallback for an EMPTY result only (also covers the harness).
+  // The demo set stands in ONLY where no real lookup is possible — the Duda
+  // editor and the dev harness (no dmAPI), so the widget stays visible while
+  // someone is designing the page. On a published site a property with no
+  // FAQs renders nothing at all (below): the generic questions state policies
+  // (fees, discounts, wifi) that may simply be untrue of this facility.
   const source = apiFaqs.length ? apiFaqs : FAQS;
 
   const filtered = useMemo(() => {
@@ -160,6 +170,29 @@ export function FAQs({
       return next;
     });
   }
+
+  // A property with no FAQs gets NO section, heading included — not the
+  // generic set. Gated on the Collections API because that is what separates
+  // a real published page from the editor/harness, where the lookup can
+  // never succeed and hiding would just make the widget undesignable.
+  const empty = !loading && apiFaqs.length === 0 && hasCollectionsApi();
+
+  /*
+   * ...and no WHITESPACE either. Rendering nothing still left the Duda section
+   * around the widget — its padding, row spacing and background — as a blank
+   * band under the blog. So the wrappers that hold only this widget are hidden
+   * too (see collapseEmptyHost), and shown again if FAQs arrive. A layout
+   * effect, so the band is never painted first. The marker is the one element
+   * rendered, there only to find this widget's place in the page.
+   */
+  const markerRef = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const mount = empty ? markerRef.current?.parentElement : null;
+    return mount ? collapseEmptyHost(mount) : undefined;
+  }, [empty]);
+
+  // After every hook, as an early return must be.
+  if (empty) return <span ref={markerRef} hidden />;
 
   return (
     <div className="faq-wrapper">

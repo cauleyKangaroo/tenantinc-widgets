@@ -295,6 +295,14 @@ export interface RentalFlow2StepProps extends ApiCredProps, WalletConfigProps {
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
+/* First / last name: letters (any language), spaces, hyphens, apostrophes and
+   periods — "Mary-Jane", "O'Brien", "St. John", "José". Anything else is
+   dropped as typed, and the value is capped at NAME_MAX characters. */
+const NAME_MAX = 50;
+const cleanName = (v: string) => v.replace(/[^\p{L}\p{M} '’.-]/gu, '').slice(0, NAME_MAX);
+// Must start with a letter, so "-" or "." alone is not a name.
+const isValidName = (v: string) => /^\p{L}[\p{L}\p{M} '’.-]*$/u.test(v.trim()) && v.trim().length <= NAME_MAX;
+
 // ---------------------------------------------------------------------------
 // PREVIEW-ONLY rail content (Figma 8507-23233).
 //
@@ -683,8 +691,8 @@ function Step1Form({
     ['rf-phone', skip || isPossiblePhone(phone, 'US')],
     ...(business
       ? [['rf-bizname', skip || bizName.trim().length > 0]] as Array<[string, boolean]>
-      : [['rf-first', skip || first.trim().length > 0],
-        ['rf-last', skip || last.trim().length > 0]] as Array<[string, boolean]>),
+      : [['rf-first', skip || isValidName(first)],
+        ['rf-last', skip || isValidName(last)]] as Array<[string, boolean]>),
   ];
   /* ONE builder for what leaves this form: the buttons and the draft below
      both use it, so the draft the preview was personalised for is exactly
@@ -766,9 +774,9 @@ function Step1Form({
         ) : (
           <div className="rf-row">
             <Field id="rf-first" label="First Name" value={first}
-              valid={first.trim().length > 0} error={bad('rf-first')} onChange={(v) => setFirst(capitalizeFirst(v))} />
+              valid={isValidName(first)} error={bad('rf-first')} onChange={(v) => setFirst(capitalizeFirst(cleanName(v)))} />
             <Field id="rf-last" label="Last Name" value={last}
-              valid={last.trim().length > 0} error={bad('rf-last')} onChange={(v) => setLast(capitalizeFirst(v))} />
+              valid={isValidName(last)} error={bad('rf-last')} onChange={(v) => setLast(capitalizeFirst(cleanName(v)))} />
           </div>
         )}
       </div>
@@ -2865,6 +2873,56 @@ export function RentalFlow2Step({
   if (confirmationRef.current === 'unread') confirmationRef.current = readConfirmationPayload(inEditor, entryMode);
   const confirmation = confirmationRef.current;
 
+  /*
+   * RESERVATION FAST-PATH — straight into the payment form.
+   *
+   * "Find my Reservation" already collected everything step 1 asks for: the
+   * reservation names its contact and its exact unit, and there is nothing to
+   * Reserve — Rent is the only enabled action. Making the customer press it
+   * and confirm a date they can still change on step 2 (Edit date) added no
+   * information, so once the page is genuinely ready the advance happens by
+   * itself, exactly as if Rent had been pressed.
+   *
+   * Two gates, both the REAL ones rather than approximations:
+   *   - the stored contact must pass the same checks Step1Form's gate()
+   *     applies — a URL-only arrival (storage unavailable, so no contact)
+   *     still lands on step 1 to collect the details;
+   *   - the readiness clauses mirror `transactionReady` (which is computed
+   *     below the confirmation early-return and cannot be read from a hook
+   *     up here), minus the group clause the reservation satisfies by
+   *     existing. A failed quote therefore keeps step 1's boxed error
+   *     instead of presenting a payment form with nothing priced.
+   *
+   * Fires once: anything after the advance — editing the date, the fields,
+   * backing out — is the shopper's.
+   */
+  const autoAdvancedRef = useRef(false);
+  useEffect(() => {
+    if (autoAdvancedRef.current || !reservationIdProp || step !== 1 || confirmation) return;
+    const c = contact;
+    const contactComplete = !!c && (skipValidation() || (
+      isValidEmail(c.email) && isPossiblePhone(c.phone, 'US')
+      && (c.business ? !!c.businessName?.trim() : isValidName(c.first) && isValidName(c.last))
+    ));
+    const ready = !!(
+      selection?.unitId
+      && quote?.unitId
+      && selection.unitId === quote.unitId
+      && (!unitIdProp || quote.unitId === unitIdProp || quote.unitId === hold?.unitId)
+      && propertyInfo
+      && effectiveCompanyId
+      && effectivePropertyId
+      && !quoteFailed
+      && !holdFailed
+      && !holdExpired
+    );
+    if (!contactComplete || !ready) return;
+    autoAdvancedRef.current = true;
+    setIntent('rent');
+    goToStep(2);
+  }, [reservationIdProp, step, confirmation, contact, selection, quote, unitIdProp, hold,
+    propertyInfo, effectiveCompanyId, effectivePropertyId, quoteFailed, holdFailed, holdExpired, goToStep]);
+
   // Fill missing office/gate hours on the confirmation page (snapshot may predate
   // the property load). Read-only, fail-soft; runs only when hours are absent.
   useEffect(() => {
@@ -3562,7 +3620,7 @@ export function RentalFlow2Step({
           {step === 2 && holdExpired && (
             <div className="rf-hold-expired" role="alert">
               <span>Your hold expired — your space wasn’t reserved. Reacquire it to continue.</span>
-              <Button tone="cta" onClick={() => setHoldExpired(false)}>Reacquire space</Button>
+              <Button tone="cta" onClick={() => setHoldExpired(false)}>Select a Space</Button>
             </div>
           )}
           <div className={`rf-step rf-step--${phase}`}>

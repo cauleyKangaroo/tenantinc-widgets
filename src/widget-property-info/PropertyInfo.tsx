@@ -32,9 +32,14 @@ import { boundText } from '@shared/propertyBinding';
 
 interface PhoneEntry { number: string; note?: string; }
 
+/** Desktop display mode. 'full' = detailed layout (default), 'hero' = image-led
+ *  banner, 'small' = one compact row of photo, details, map and hours (Figma
+ *  13462:78106). Phones get the same single layout in every mode. */
+export type DisplayMode = 'full' | 'hero' | 'small';
+
 export interface PropertyInfoProps {
-  /** Desktop display mode. 'full' = detailed layout (default), 'hero' = image-led banner. */
-  displayMode?: 'full' | 'hero';
+  /** Desktop display mode — see DisplayMode. */
+  displayMode?: DisplayMode;
   /** Primary/featured image — the hero-view background and first gallery slide. */
   heroImage?: string;
   /** Additional gallery images (the "Other Images" list). */
@@ -114,7 +119,7 @@ type Props = PropertyInfoProps & BoundPropertyProps & ApiCredProps;
  * property loads it is the prop's answer, which is all the real layout knows
  * then too — so both draw the same number of hours lines.
  */
-function PropertySkeleton({ displayMode, showCallCenter }: { displayMode: 'full' | 'hero'; showCallCenter: boolean }) {
+function PropertySkeleton({ displayMode, showCallCenter }: { displayMode: DisplayMode; showCallCenter: boolean }) {
   return (
     <>
       {/* Wrapped in the SAME .pi-desktop / .pi-mobile switch the real layouts
@@ -124,9 +129,46 @@ function PropertySkeleton({ displayMode, showCallCenter }: { displayMode: 'full'
           PropertyInfo. The desktop skeleton was being drawn at every width,
           which is why a phone got two big cards and no hero. */}
       <div className="pi-desktop">
-      {displayMode === 'hero' ? (
+      {displayMode === 'small' ? (
+        /* The REAL .pi-small-* boxes — the wrap, the four-column grid, the
+           details and hours stacks — so every column, gap and shrink below
+           1180px is the content's own. Only the lines are stood in for, one
+           bar per line at that line's height (see .pi-skel-sm-*). */
+        <div className="pi-small-wrap" aria-hidden="true">
+          <span className="pi-skel-bar pi-skel-sm-crumb" />
+          <span className="pi-skel-bar pi-skel-sm-name" />
+          <div className="pi-small-row">
+            <span className="pi-skel-block pi-small-media" />
+            <div className="pi-small-details">
+              <span className="pi-skel-bar pi-skel-sm-rating" />
+              <div className="pi-small-contact">
+                {/* Address, the two phones (one block), Send us a Message. */}
+                <span className="pi-skel-bar pi-skel-sm-line" />
+                <div className="pi-small-phones">
+                  <span className="pi-skel-bar pi-skel-sm-line short" />
+                  <span className="pi-skel-bar pi-skel-sm-line short indent" />
+                </div>
+                <span className="pi-skel-bar pi-skel-sm-line shorter" />
+              </div>
+            </div>
+            <span className="pi-skel-block pi-small-media" />
+            <div className="pi-small-hours">
+              <div className="pi-small-statuses">
+                <span className="pi-skel-bar pi-skel-sm-clock" />
+                <div className="pi-small-pills">
+                  <span className="pi-skel-bar pi-skel-sm-pill" />
+                  <span className="pi-skel-bar pi-skel-sm-pill" />
+                  {showCallCenter && <span className="pi-skel-bar pi-skel-sm-pill" />}
+                  <span className="pi-skel-bar pi-skel-sm-seehours" />
+                </div>
+              </div>
+              <span className="pi-skel-bar pi-skel-sm-reservation" />
+            </div>
+          </div>
+        </div>
+      ) : displayMode === 'hero' ? (
         /* Banner beside a map. Reuses the real .pi-hero-wrap / .pi-hero-row —
-           plain flex boxes with a gap — so the placeholder stacks at 1180px
+           plain flex boxes with a gap — so the placeholder shrinks below 1180px
            off the same rule the content does, rather than a copy of it. */
         <div className="pi-hero-wrap" aria-hidden="true">
           <span className="pi-skel-bar pi-skel-crumb" />
@@ -1087,6 +1129,203 @@ export function PropertyInfo(props: Props) {
     </div>
   );
 
+  // ── Shared by the full and small views ─────────────────────────────────
+  // The photo gallery and the reservation lookup, written once. Only one
+  // desktop layout renders at a time, so the single galleryRef is never on
+  // two elements. `compact` is the small view's scale (Figma 13462:78211 /
+  // 14778:107891): smaller expand mark, chevrons and calendar icon.
+  const renderGallery = (compact: boolean) => (
+    imagesLoading ? (
+      // The photos are still resolving. A skeleton in the gallery's own
+      // footprint, so the card keeps its size and nothing shifts when
+      // the real images arrive.
+      <div className="pi-gallery pi-gallery--loading" aria-hidden="true">
+        <span className="pi-skel-block pi-gallery-skel" />
+      </div>
+    ) : (
+      /* A DIV, not a button (axe: nested-interactive, 13 pages). It held
+         the prev/next arrows and the dots, so a button contained three
+         more controls — invalid, and ambiguous to a screen reader.
+         Keyboard access to the lightbox is not lost: .pi-gallery-open
+         below is a real button that does the same thing, invisible until
+         focused. Mouse and touch behaviour is unchanged. */
+      <div
+        className="pi-gallery"
+        ref={galleryRef}
+        onClick={() => {
+          /* Swallow the click that ends a drag — otherwise every swipe
+             would also open the lightbox. */
+          if (draggedRef.current) { draggedRef.current = false; return; }
+          setLightbox(true);
+        }}
+        onPointerDown={onGalleryDown}
+        onPointerMove={onGalleryMove}
+        onPointerUp={onGalleryUp}
+        onPointerCancel={onGalleryUp}
+        aria-label="Open photo gallery"
+      >
+        {/* Every slide, side by side. `current` is still what the
+            lightbox opens on; this is only what is on screen. */}
+        <span
+          className="pi-gallery-track"
+          style={{
+            transform: `translate3d(calc(${-index * 100}% + ${dragDx}px), 0, 0)`,
+            ...(dragging ? { transition: 'none' } : null),
+          }}
+        >
+          {slides.map((src, i) => (
+            <span className="pi-gallery-slide" key={`${src}-${i}`}>
+              {videoSlides.has(src)
+                /* Muted autoplay HERE only. The lightbox keeps its
+                   poster: a full-screen video starting on its own is
+                   jarring, and nobody opens it by accident. */
+                ? <VideoSlide className="pi-gallery-img" src={src} active={i === index} title={displayName}
+                    /* Not on a phone: this gallery is display:none there and
+                       the mobile hero plays the video instead. Autoplaying
+                       here too would mount a second, invisible player. */
+                    autoPlay={!isMobileViewport} />
+                : <ImageFill className="pi-gallery-img" src={src} w={640} />}
+            </span>
+          ))}
+        </span>
+        <span className="pi-gallery-overlay" />
+        <span className="pi-gallery-expand"><PhotoExpandIcon size={compact ? 29 : 48} /></span>
+        <span className="pi-gallery-nav" onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="pi-gallery-arrow pi-gallery-arrow--prev" aria-label="Previous photo" onClick={prev}>
+            <ChevronRight size={compact ? 19 : 32} />
+          </button>
+          <span className="pi-gallery-dots">
+            {slides.map((_, i) => (
+              <span key={i} className={`pi-gallery-dot${i === index ? ' active' : ''}`} onClick={() => setIndex(i)} />
+            ))}
+          </span>
+          <button type="button" className="pi-gallery-arrow" aria-label="Next photo" onClick={next}>
+            <ChevronRight size={compact ? 19 : 32} />
+          </button>
+        </span>
+        {/* The keyboard route into the lightbox, now that the container
+            is not itself a button. Invisible until focused. */}
+        <button
+          type="button"
+          className="pi-gallery-open"
+          onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
+        >
+          Open photo gallery
+        </button>
+      </div>
+    )
+  );
+
+  // Clicking the link swaps it for the reservation-code lookup
+  // (Figma 9697-22507); Escape puts the link back.
+  const renderReservation = (compact: boolean) => (
+    reservationOpen ? (
+      <form className="pi-res-form" onSubmit={(e) => void submitReservation(e)} noValidate>
+        <input
+          className={`pi-res-input${reservationError ? ' pi-res-input--error' : ''}`}
+          type="text"
+          placeholder="Reservation Code"
+          aria-label="Reservation Code"
+          aria-invalid={reservationError ? true : undefined}
+          aria-describedby={reservationError ? 'pi-res-error' : undefined}
+          value={reservationCode}
+          autoFocus
+          autoCapitalize="characters"
+          autoComplete="off"
+          onChange={(e) => { setReservationCode(e.target.value); if (reservationError) setReservationError(''); }}
+          onKeyDown={(e) => { if (e.key === 'Escape') setReservationOpen(false); }}
+        />
+        <button type="submit" className="pi-res-go" disabled={reservationBusy} aria-busy={reservationBusy}>
+          {reservationBusy ? 'Finding…' : 'Go'}
+        </button>
+        {reservationError && (
+          <div id="pi-res-error" className="pi-res-error" role="alert">
+            <AlertIcon size={24} className="pi-res-error-ico" />
+            <span>{reservationError}</span>
+          </div>
+        )}
+      </form>
+    ) : (
+      <button
+        type="button"
+        className="pi-reservation"
+        onClick={() => setReservationOpen(true)}
+      >
+        <CalendarCheckIcon size={compact ? 20 : 24} />
+        <span className={compact ? 'pi-small-quiet' : 'pi-underline'}>Find my Reservation</span>
+      </button>
+    )
+  );
+
+  // ── Desktop: small (compact) view — Figma 13462:78106 ──────────────────
+  // Breadcrumb and title, then ONE row: photo, details, map, hours. The photo
+  // and map are the same size (Figma: 254.67 x 191). Desktop only — on a phone
+  // Small shows `mobile` below, the same as Full.
+  const smallDesktop = (
+    <div className="pi-small-wrap">
+      {breadcrumbNav}
+      <h2 className="pi-small-name">{displayName}</h2>
+
+      <div className="pi-small-row">
+        <div className="pi-small-media">{renderGallery(true)}</div>
+
+        <div className="pi-small-details">
+          <div className="pi-small-rating">
+            <span className="pi-small-score">{displayRating}</span>
+            <Stars rating={displayRating} width={77} />
+            <a className="pi-small-reviews" href={displayReviewsUrl}>{displayReviewCount} Reviews</a>
+          </div>
+
+          <div className="pi-small-contact">
+            <a className="pi-small-line" href={mapsHref}>
+              <MapPinIcon size={24} />
+              <span className="pi-underline">{displayAddress}</span>
+            </a>
+
+            <div className="pi-small-phones">
+              {displayPhones.map((p, i) => (
+                <a
+                  key={p.number}
+                  className={`pi-small-line${i > 0 ? ' pi-small-line--indent' : ''}`}
+                  href={`tel:${p.number.replace(/[^0-9+]/g, '')}`}
+                >
+                  {i === 0 && <PhoneIcon size={24} />}
+                  <span><span className="pi-underline">{p.number}</span>{p.note ? ` (${p.note})` : ''}</span>
+                </a>
+              ))}
+            </div>
+
+            <a className="pi-small-line" href={messageHref}
+              onClick={(e) => { e.preventDefault(); setMessageOpen(true); }}>
+              <EnvelopeIcon size={24} />
+              <span className="pi-underline">Send us a Message</span>
+            </a>
+          </div>
+        </div>
+
+        <div className="pi-small-media">{mapEl}</div>
+
+        {/* Hours as tinted pills, green when open and red when closed, with
+            the clock beside the first. Same data and modal as the full view. */}
+        <div className="pi-small-hours">
+          <div className="pi-small-statuses">
+            <ClockIcon size={18} />
+            <div className="pi-small-pills">
+              <span className={`pi-small-pill ${gateStatusClass}`}>{displayGateStatus}{hoursText(displayGateNote)}</span>
+              <span className={`pi-small-pill ${officeStatusClass}`}>{displayOfficeStatus}{hoursText(displayOfficeNote)}</span>
+              {showCallCenter && (
+                <span className={`pi-small-pill ${callCenterStatusClass}`}>{displayCallCenterStatus}{hoursText(displayCallCenterNote)}</span>
+              )}
+              <a className="pi-small-seehours pi-small-quiet" href="#"
+                onClick={(e) => { e.preventDefault(); setHoursOpen(true); }}>See all Hours</a>
+            </div>
+          </div>
+          {renderReservation(true)}
+        </div>
+      </div>
+    </div>
+  );
+
   // ── Desktop: full view (default) ───────────────────────────────────────
   const fullDesktop = (
     <div className="pi-row">
@@ -1153,123 +1392,8 @@ export function PropertyInfo(props: Props) {
         <div className="pi-cards">
           {/* Gallery */}
           <div className="pi-card-col">
-            {imagesLoading ? (
-              // The photos are still resolving. A skeleton in the gallery's own
-              // footprint, so the card keeps its size and nothing shifts when
-              // the real images arrive.
-              <div className="pi-gallery pi-gallery--loading" aria-hidden="true">
-                <span className="pi-skel-block pi-gallery-skel" />
-              </div>
-            ) : (
-            /* A DIV, not a button (axe: nested-interactive, 13 pages). It held
-               the prev/next arrows and the dots, so a button contained three
-               more controls — invalid, and ambiguous to a screen reader.
-               Keyboard access to the lightbox is not lost: .pi-gallery-open
-               below is a real button that does the same thing, invisible until
-               focused. Mouse and touch behaviour is unchanged. */
-            <div
-              className="pi-gallery"
-              ref={galleryRef}
-              onClick={() => {
-                /* Swallow the click that ends a drag — otherwise every swipe
-                   would also open the lightbox. */
-                if (draggedRef.current) { draggedRef.current = false; return; }
-                setLightbox(true);
-              }}
-              onPointerDown={onGalleryDown}
-              onPointerMove={onGalleryMove}
-              onPointerUp={onGalleryUp}
-              onPointerCancel={onGalleryUp}
-              aria-label="Open photo gallery"
-            >
-              {/* Every slide, side by side. `current` is still what the
-                  lightbox opens on; this is only what is on screen. */}
-              <span
-                className="pi-gallery-track"
-                style={{
-                  transform: `translate3d(calc(${-index * 100}% + ${dragDx}px), 0, 0)`,
-                  ...(dragging ? { transition: 'none' } : null),
-                }}
-              >
-                {slides.map((src, i) => (
-                  <span className="pi-gallery-slide" key={`${src}-${i}`}>
-                    {videoSlides.has(src)
-                      /* Muted autoplay HERE only. The lightbox keeps its
-                         poster: a full-screen video starting on its own is
-                         jarring, and nobody opens it by accident. */
-                      ? <VideoSlide className="pi-gallery-img" src={src} active={i === index} title={displayName}
-                          /* Not on a phone: this gallery is display:none there and
-                             the mobile hero plays the video instead. Autoplaying
-                             here too would mount a second, invisible player. */
-                          autoPlay={!isMobileViewport} />
-                      : <ImageFill className="pi-gallery-img" src={src} w={640} />}
-                  </span>
-                ))}
-              </span>
-              <span className="pi-gallery-overlay" />
-              <span className="pi-gallery-expand"><PhotoExpandIcon size={48} /></span>
-              <span className="pi-gallery-nav" onClick={(e) => e.stopPropagation()}>
-                <button type="button" className="pi-gallery-arrow pi-gallery-arrow--prev" aria-label="Previous photo" onClick={prev}>
-                  <ChevronRight size={32} />
-                </button>
-                <span className="pi-gallery-dots">
-                  {slides.map((_, i) => (
-                    <span key={i} className={`pi-gallery-dot${i === index ? ' active' : ''}`} onClick={() => setIndex(i)} />
-                  ))}
-                </span>
-                <button type="button" className="pi-gallery-arrow" aria-label="Next photo" onClick={next}>
-                  <ChevronRight size={32} />
-                </button>
-              </span>
-              {/* The keyboard route into the lightbox, now that the container
-                  is not itself a button. Invisible until focused. */}
-              <button
-                type="button"
-                className="pi-gallery-open"
-                onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
-              >
-                Open photo gallery
-              </button>
-            </div>
-            )}
-            {/* Clicking the link swaps it for the reservation-code lookup
-                (Figma 9697-22507); Escape puts the link back. */}
-            {reservationOpen ? (
-              <form className="pi-res-form" onSubmit={(e) => void submitReservation(e)} noValidate>
-                <input
-                  className={`pi-res-input${reservationError ? ' pi-res-input--error' : ''}`}
-                  type="text"
-                  placeholder="Reservation Code"
-                  aria-label="Reservation Code"
-                  aria-invalid={reservationError ? true : undefined}
-                  aria-describedby={reservationError ? 'pi-res-error' : undefined}
-                  value={reservationCode}
-                  autoFocus
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  onChange={(e) => { setReservationCode(e.target.value); if (reservationError) setReservationError(''); }}
-                  onKeyDown={(e) => { if (e.key === 'Escape') setReservationOpen(false); }}
-                />
-                <button type="submit" className="pi-res-go" disabled={reservationBusy} aria-busy={reservationBusy}>
-                  {reservationBusy ? 'Finding…' : 'Go'}
-                </button>
-                {reservationError && (
-                  <div id="pi-res-error" className="pi-res-error" role="alert">
-                    <AlertIcon size={24} className="pi-res-error-ico" />
-                    <span>{reservationError}</span>
-                  </div>
-                )}
-              </form>
-            ) : (
-              <button
-                type="button"
-                className="pi-reservation"
-                onClick={() => setReservationOpen(true)}
-              >
-                <CalendarCheckIcon size={24} />
-                <span className="pi-underline">Find my Reservation</span>
-              </button>
-            )}
+            {renderGallery(false)}
+            {renderReservation(false)}
           </div>
 
           {/* Map (fake) */}
@@ -1314,7 +1438,12 @@ export function PropertyInfo(props: Props) {
             the other direction (its slide autoplays only off a phone). Same
             query as the CSS switch, so the two cannot disagree. */}
         {isMobileViewport && collectionVideos[0]
-          ? <VideoSlide className="pi-m-hero-img" src={collectionVideos[0]} active autoPlay interactive title={displayName} />
+          ? (
+            /* Sized box for the player to COVER — see .pi-m-hero-media. */
+            <span className="pi-m-hero-media">
+              <VideoSlide className="pi-m-hero-img" src={collectionVideos[0]} active autoPlay interactive title={displayName} />
+            </span>
+          )
           : <ImageFill className="pi-m-hero-img" src={heroSlide} w={640} />}
         <span className="pi-m-hero-overlay" style={{ background: `rgba(16, 19, 24, ${overlay})` }} />
         <div className="pi-m-hero-top">
@@ -1417,7 +1546,7 @@ export function PropertyInfo(props: Props) {
   return (
     <div className="pi-wrapper">
       <div className="pi-desktop">
-        {displayMode === 'hero' ? heroDesktop : fullDesktop}
+        {displayMode === 'small' ? smallDesktop : displayMode === 'hero' ? heroDesktop : fullDesktop}
       </div>
       {mobile}
       {lightboxEl}

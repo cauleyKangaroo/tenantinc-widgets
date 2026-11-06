@@ -246,7 +246,7 @@
    button is already solid, so it has no .hb-btn--outline and is unaffected.) */
 .ts-o2-card:hover .ts-tier-cta.hb-btn--outline {
   background: var(--hb-cta);
-  color: #fff;
+  color: var(--color_9, #fff);
   border-color: var(--hb-cta);
 }
 

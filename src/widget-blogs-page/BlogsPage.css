@@ -524,7 +524,7 @@
   border: 0;
   border-radius: 8px;
   background: var(--color_1, #f45f30);
-  color: var(--color_3, #fff);
+  color: var(--color_8, var(--color_3, #fff));
   font-family: 'Poppins', 'Poppins Fallback', sans-serif;
   font-size: 16px;
   font-weight: 700;

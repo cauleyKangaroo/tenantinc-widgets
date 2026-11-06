@@ -115,7 +115,7 @@
   padding: 0;
   border-radius: 999px;
   background: var(--hs-accent);
-  color: var(--color_3, #fff);
+  color: var(--color_9, var(--color_3, #fff));
   font-family: inherit;
   font-size: 18px;
   font-weight: 700;
@@ -127,7 +127,7 @@
 .hs-find[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
 /* The icon IS the label on the narrow layouts, where .hs-find-label is
    visually hidden and this shows instead — so it follows --color_3 too. */
-.hs-find .hs-search-icon { display: none; color: var(--color_3, #fff); }
+.hs-find .hs-search-icon { display: none; color: var(--color_9, var(--color_3, #fff)); }
 
 /* Accessible city-only autocomplete. It overlays the hero rather than moving
    the locations strip, and never contains states/facilities outside served cities. */

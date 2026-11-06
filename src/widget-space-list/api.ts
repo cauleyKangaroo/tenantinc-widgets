@@ -2,6 +2,7 @@ import type { Unit, UnitSize } from './types';
 import cfg from './config.json';
 import { spaceImageFor, mediaManagerImagesFor } from './spaceImages';
 import { classifySize } from '@shared/unitArtwork';
+import { tidyDimensions } from '@shared/dimensions';
 import { fetchWebsiteSpaceGroupId as findWebsiteSpaceGroupId } from '@shared/spaceGroups';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { creds } from './apiCreds';
@@ -306,7 +307,8 @@ export function mapApiToUnits(raw: unknown, media?: { siteId?: string; baseUrl?:
           unitGroupId: tier.tier_id,
           type,
           size,
-          dimensions: tier.description,
+          // tidyDimensions: some tiers write whole feet as "4.0' x 5'".
+          dimensions: tidyDimensions(tier.description),
           subtype,
           features,
           amenities: amenityNames,
@@ -314,7 +316,7 @@ export function mapApiToUnits(raw: unknown, media?: { siteId?: string; baseUrl?:
           vacantCount,
           // DEMO: derive card image from dimensions/size/type until the API
           // returns one per unit — see spaceImages.ts.
-          image: spaceImageFor({ type, dimensions: tier.description, size, subtype }),
+          image: spaceImageFor({ type, dimensions: tidyDimensions(tier.description), size, subtype }),
           // Tried first by the cards; `image` above is the fallback. Parking
           // is excluded: the bands describe storage, and a parking bay has
           // its own covered/open render that a size file would not match.

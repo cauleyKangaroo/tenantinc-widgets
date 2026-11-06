@@ -10,6 +10,10 @@
 // has signed out, which is what someone looking at their storage account on a
 // shared machine would expect.
 //
+// The exception is the login's "Keep me logged in on this device" box: ticked,
+// the session goes to localStorage instead and survives closing the browser
+// (still bounded by the token's own expiry). Reads look in both.
+//
 // EVERY ACCESS IS GUARDED. sessionStorage throws outright in a private window
 // with site data blocked, and returns null when storage was cleared between
 // pages. Both are normal, and both mean "not signed in" rather than an error:
@@ -42,10 +46,19 @@ export interface AccountSession {
   signedInAs?: string;
 }
 
-/** Store the session. Returns false when storage refused it. */
-export function saveSession(session: AccountSession): boolean {
+/**
+ * Store the session. Returns false when storage refused it.
+ *
+ * `remember` → localStorage (survives the browser closing); otherwise
+ * sessionStorage. Any copy in the other store is dropped so only one exists.
+ */
+export function saveSession(session: AccountSession, remember = false): boolean {
   try {
-    window.sessionStorage.setItem(KEY, JSON.stringify(session));
+    const keep = remember ? window.localStorage : window.sessionStorage;
+    keep.setItem(KEY, JSON.stringify(session));
+    try {
+      (remember ? window.sessionStorage : window.localStorage).removeItem(KEY);
+    } catch { /* the save itself succeeded */ }
     return true;
   } catch {
     // Private window, blocked site data, or a full quota. The caller decides
@@ -62,14 +75,36 @@ export function saveSession(session: AccountSession): boolean {
  * every request then 401s.
  */
 export function readSession(): AccountSession | null {
-  try {
-    const raw = window.sessionStorage.getItem(KEY);
-    if (!raw) return null;
+  // Each store on its own: a sessionStorage that THROWS (not just empty) must
+  // not stop the remembered copy being read — saveSession(session, true)
+  // tolerates exactly that failure, so a remembered login can exist behind a
+  // blocked sessionStorage.
+  return readFrom(() => window.sessionStorage) ?? readFrom(() => window.localStorage);
+}
 
+/** One store's session: parsed, validated, expiry-checked. */
+function readFrom(getStore: () => Storage): AccountSession | null {
+  let store: Storage;
+  let raw: string | null;
+  try {
+    store = getStore();
+    raw = store.getItem(KEY);
+  } catch {
+    // Private window / blocked site data — this store is unreadable; the
+    // caller tries the other one.
+    return null;
+  }
+  if (!raw) return null;
+
+  try {
     const parsed = JSON.parse(raw) as Partial<AccountSession> | null;
     if (!parsed || typeof parsed.token !== 'string' || !parsed.token) return null;
     if (typeof parsed.expiresAt !== 'number' || Date.now() >= parsed.expiresAt) {
-      clearSession();
+      // Only THIS store's entry. sessionStorage is per-tab, so a sign-in with
+      // "keep me logged in" from another tab cannot clean this tab's stale
+      // copy — clearing BOTH stores here was letting that stale copy erase
+      // the newer remembered login. Clearing both is sign-out's job.
+      try { store.removeItem(KEY); } catch { /* read-only storage */ }
       return null;
     }
 
@@ -87,11 +122,17 @@ export function readSession(): AccountSession | null {
   }
 }
 
+/** Signs out of both stores, so a remembered session cannot outlive "Log out". */
 export function clearSession(): void {
   try {
     window.sessionStorage.removeItem(KEY);
   } catch {
     /* nothing we can do, and nothing that needs saying */
+  }
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    /* same */
   }
 }
 

@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+/* ── Tokens — the UI kit's palette, so the panel reads as one of ours ─────── */
+.sos-wrap {
+  --night: #101318;
+  --slate: #394150;
+  --quiet: #6c737f;
+  --line:  #e5e7eb;
+  --warn:  #c81e1e;
+  --badge: #eef2ff;
+
+  font-family: 'Poppins', 'Poppins Fallback', system-ui, sans-serif;
+  color: var(--night);
+  background: #fff;
+  font-size: 14px;
+  line-height: 1.5;
+  /* Duda's panel widths: Small 344 / Medium 688 / Large 963 — fluid between. */
+  min-width: 320px;
+  min-height: 100vh;
+}
+.sos-wrap *, .sos-wrap *::before, .sos-wrap *::after { box-sizing: border-box; }
+
+/* ── Header ── */
+.sos-hd { padding: 20px 20px 0; }
+.sos-hd h1 { font-size: 18px; font-weight: 700; margin: 0 0 2px; }
+.sos-inst { font-size: 12px; color: var(--quiet); margin: 0; word-break: break-all; }
+
+/* ── Tabs — the tier-selection pill treatment: 2px night outline on the
+     selected pill, quiet 1px line otherwise ── */
+.sos-tabs { display: flex; gap: 8px; padding: 16px 20px 0; flex-wrap: wrap; }
+.sos-tab {
+  font: inherit; font-weight: 600; font-size: 13px;
+  padding: 8px 16px; border-radius: 999px; cursor: pointer;
+  background: #fff; color: var(--slate);
+  border: 1px solid var(--line);
+}
+.sos-tab:hover { border-color: var(--slate); }
+.sos-tab[aria-selected="true"] {
+  border: 2px solid var(--night); color: var(--night);
+  padding: 7px 15px; /* keep the pill the same size as the 1px ones */
+}
+
+/* ── Panels / cards ── */
+.sos-panel { padding: 16px 20px 88px; }
+.sos-card {
+  border: 1px solid var(--line); border-radius: 12px;
+  padding: 16px; background: #fff;
+}
+.sos-card + .sos-card { margin-top: 12px; }
+.sos-card h2 { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
+.sos-sub { font-size: 12.5px; color: var(--quiet); margin: 0 0 12px; }
+
+/* ── Property picker (shared by the Group + Property tabs) ── */
+.sos-picker { margin: 0 0 12px; }
+.sos-picker label { display: block; font-size: 12px; font-weight: 600; color: var(--slate); margin-bottom: 4px; }
+.sos-picker select {
+  font: inherit; width: 100%; padding: 9px 12px;
+  border: 1px solid var(--line); border-radius: 8px; background: #fff;
+  color: var(--night);
+}
+.sos-picker select:focus { outline: none; border-color: var(--night); box-shadow: 0 0 0 1px var(--night); }
+
+/* ── Rows (a storage type / a space group) ── */
+.sos-rows { display: flex; flex-direction: column; gap: 8px; }
+.sos-row {
+  display: flex; align-items: center; gap: 12px;
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 14px; background: #fff;
+}
+.sos-name { font-weight: 600; font-size: 13.5px; flex: 1 1 auto; min-width: 0; }
+.sos-name small { display: block; font-weight: 400; font-size: 11.5px; color: var(--quiet); }
+.sos-stat { text-align: right; white-space: nowrap; }
+.sos-stat b { display: block; font-size: 15px; font-weight: 700; }
+.sos-stat span { font-size: 11px; color: var(--quiet); }
+.sos-badge {
+  font-size: 11px; font-weight: 600; color: var(--night);
+  background: var(--badge); border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+}
+.sos-badge--public { background: #def7ec; color: #046c4e; }
+
+.sos-count-line { font-size: 13px; color: var(--slate); margin: 0 0 10px; }
+.sos-count-line b { color: var(--night); }
+
+/* ── States ── */
+.sos-state { padding: 18px 4px; font-size: 13px; color: var(--quiet); }
+.sos-state--error { color: var(--warn); }
+.sos-spin {
+  display: inline-block; width: 14px; height: 14px; margin-right: 8px;
+  border: 2px solid var(--line); border-top-color: var(--night);
+  border-radius: 50%; vertical-align: -2px;
+  animation: sos-spin .7s linear infinite;
+}
+@keyframes sos-spin { to { transform: rotate(360deg); } }
+
+/* ── Save bar (disabled until persistence lands) ── */
+.sos-savebar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px; background: #fff; border-top: 1px solid var(--line);
+  font-family: inherit;
+}
+.sos-note { font-size: 11.5px; color: var(--quiet); flex: 1; }
+.sos-savebar button {
+  font: inherit; font-weight: 600; font-size: 13px;
+  padding: 9px 22px; border-radius: 999px; border: none;
+  background: var(--night); color: #fff; cursor: pointer;
+}
+.sos-savebar button:disabled { opacity: .35; cursor: not-allowed; }
+
+@media (max-width: 420px) {
+  .sos-hd, .sos-tabs, .sos-panel, .sos-savebar { padding-left: 14px; padding-right: 14px; }
+  .sos-row { flex-wrap: wrap; }
+}

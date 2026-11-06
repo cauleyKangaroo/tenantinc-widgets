@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space List Ordering — Settings</title>
+<!-- ===========================================================================
+  spacelist-ordering-settings.html — the thin SHELL for the Widget Builder's
+  "Embed your own external widget settings" (Spacelist-Ordering widget).
+
+  All the UI lives in the React bundle built from
+  src/settings-spacelist-ordering/ (webpack entry `settings-spacelist-ordering`)
+  and is loaded here exactly the way the dev harness loads every widget:
+  require.js over the AMD bundle, then init({ container, props }).
+
+  HOW DUDA LOADS THIS
+    The Widget Builder iframes this URL every time the widget is added or
+    edited, appending the instance as query params —
+      ?siteId=…&elementId=…&widgetId=…&page=…&locale=…&version=…&accountId=…
+    (https://developer.duda.co/docs/iframed-configuration). There is NO
+    postMessage/data.config bridge: settings are stored in OUR backend keyed by
+    `{siteId}_{elementId}` (the accordionConfig pattern) and the widget's page
+    JS reads them back with the same data.siteId/data.elementId.
+
+  CONFIGURE THE EMBED URL in the Widget Builder as
+      …/spacelist-ordering-settings.html?hb=<login_api_base>
+  — the hb-proxy origin the widgets already use as a site text. Every other
+  param is appended by Duda. Panel width: Medium (688px).
+
+  HOSTING
+    Upload this file AND dist/settings-spacelist-ordering.js into the same
+    folder on Plesk (next to accordion-sync.php):
+      https://kangaroodev.co.uk/server/tenantinc/
+    The bundle is looked up NEXT TO this file by default; serving it from
+    somewhere else takes ?bundle=<path-or-url>. Filename avoids the word
+    "config" — the Plesk/nginx WAF 403s any filename containing it.
+=========================================================================== -->
+<style>
+  html, body { margin: 0; padding: 0; background: #fff; }
+  #boot-error {
+    font-family: system-ui, sans-serif; font-size: 13px; color: #c81e1e;
+    padding: 20px; display: none;
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<p id="boot-error"></p>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var qs = new URLSearchParams(location.search);
+
+  // Everything the React app needs: Duda's own iframe params plus our embed
+  // additions (hb; or apiKey/companyId for a standalone dev preview).
+  var props = {};
+  ['hb', 'siteId', 'elementId', 'widgetId', 'page', 'locale',
+   'base', 'appId', 'apiKey', 'companyId'].forEach(function (k) {
+    var v = qs.get(k);
+    if (v) props[k] = v;
+  });
+
+  var bundle = qs.get('bundle') || 'settings-spacelist-ordering.js';
+  require([bundle], function (app) {
+    app.init({ container: document.getElementById('app'), props: props });
+  }, function (err) {
+    var p = document.getElementById('boot-error');
+    p.style.display = 'block';
+    p.textContent = 'Could not load the settings bundle (' + bundle + '): ' + err.message
+      + ' — upload dist/settings-spacelist-ordering.js next to this file, or pass ?bundle=.';
+  });
+}());
+</script>
+</body>
+</html>

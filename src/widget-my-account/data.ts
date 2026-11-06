@@ -265,14 +265,14 @@ export const SPACES: AccountSpace[] = [
       schedule: 'Charged on the 1st of each month',
     },
     lines: [
-      { label: 'Monthly Rent #301', note: '(06/01/2026 to 06/30/2026)', amount: '$ 100.00' },
+      { label: 'Monthly Rent #301', note: '(Jun 1, 2026 to Jun 30, 2026)', amount: '$ 100.00' },
     ],
     coverage: { label: 'Coverage', amount: '$ 13.00' },
     taxes: { label: 'Taxes', amount: '$ 10.00' },
     total: '$123.00',
     balance: {
       amount: '$350.00',
-      payThrough: 'Pay through 06/30/2026',
+      payThrough: 'Pay through Jun 30, 2026',
       pastDue: true,
     },
   },
@@ -315,14 +315,14 @@ export const SPACES: AccountSpace[] = [
       schedule: 'Charged on the 1st of each month',
     },
     lines: [
-      { label: 'Monthly Rent #42', note: '(07/01/2026 to 07/31/2026)', amount: '$ 215.00' },
+      { label: 'Monthly Rent #42', note: '(Jul 1, 2026 to Jul 31, 2026)', amount: '$ 215.00' },
     ],
     coverage: { label: 'Coverage', amount: '$ 23.00' },
     taxes: { label: 'Taxes', amount: '$ 10.00' },
     total: '$248.00',
     balance: {
       amount: '$248.00',
-      payThrough: 'Pay through 07/31/2026',
+      payThrough: 'Pay through Jul 31, 2026',
       pastDue: false,
     },
   },

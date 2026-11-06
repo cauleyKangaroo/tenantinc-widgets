@@ -33,7 +33,13 @@ const widgetEntries = {
   'widget-storage-type-locations':'./src/widget-storage-type-locations/index.tsx',// #20
   'widget-storage-types':    './src/widget-storage-types/index.tsx',    // #21
   'widget-locations-banner': './src/widget-locations-banner/index.tsx', // #22
+  // The footer modal's "Send us a Message" form, inline, for the contact page.
+  'widget-contact-form':     './src/widget-contact-form/index.tsx',     // #23
   'widget-rental-flow-2step':'./src/widget-rental-flow-2step/index.tsx',// #99 (TBD)
+  // The Widget Builder's "external widget settings" iframe app for the
+  // Spacelist-Ordering widget — loaded by spacelist-ordering-settings.html
+  // (repo root), NOT by a Duda page. Unnumbered: not a page widget.
+  'settings-spacelist-ordering': './src/settings-spacelist-ordering/index.tsx',
   // Living styleguide for @shared/ui — DEV HARNESS ONLY, never a Duda widget.
   // Deliberately unnumbered so it can't be mistaken for one.
   'ui-kit':                  './src/ui-kit/index.tsx',

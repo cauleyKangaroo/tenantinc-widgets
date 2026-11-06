@@ -25,9 +25,10 @@ export type SpaceType = 'storage' | 'parking' | (string & NonNullable<unknown>);
 export type FilterType = SpaceType;
 
 /**
- * Size categories derived from length × height area (sq ft):
- *   0 → other | 1 → extra_small | 2–24 → small | 25–76 → medium
- *   77–151 → large | 152+ → extra_large
+ * Size categories derived from length × height area (sq ft) — see
+ * classifySize() in @shared/unitArtwork for the thresholds:
+ *   ≤0 → other | 1–24 → extra_small | 25–76 → small | 77–151 → medium
+ *   152–299 → large | >299 → extra_large
  */
 export type UnitSize = 'other' | 'extra_small' | 'small' | 'medium' | 'large' | 'extra_large';
 
