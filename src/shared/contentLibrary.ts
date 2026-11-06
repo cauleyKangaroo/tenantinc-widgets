@@ -158,3 +158,62 @@ export function fetchSitePhone(widgetTag: string): Promise<SitePhone | null> {
 export function clearSitePhoneCache(): void {
   cached = null;
 }
+
+// ── Business name ───────────────────────────────────────────────────────────
+// `business_data.name` — the name the site owner sets in Duda's Business Info.
+// Same two sources and order as the phone: siteObject first (either shape),
+// then dmAPI.loadContentLibrary().
+
+function nameFromLibrary(lib: unknown): string {
+  if (!lib || typeof lib !== 'object') return '';
+  const bd = (lib as Record<string, unknown>).business_data;
+  if (!bd || typeof bd !== 'object') return '';
+  return str((bd as Record<string, unknown>).name).trim();
+}
+
+function nameFromSiteObject(): string {
+  const so = (window as unknown as { siteObject?: unknown }).siteObject;
+  if (!so) return '';
+  if (typeof so === 'object') return nameFromLibrary(so);
+  // Java toString: "…business_data={name=Storage Outlet, logo_url=…}…"
+  const m = String(so).match(/business_data=\{name=([^,}]*)/);
+  const name = m ? m[1].trim() : '';
+  return name === 'null' ? '' : name;
+}
+
+async function readBusinessName(widgetTag: string): Promise<string> {
+  try {
+    const fromSiteObject = nameFromSiteObject();
+    if (fromSiteObject) {
+      logSource(widgetTag, 'business name', true, `siteObject → ${fromSiteObject}`);
+      return fromSiteObject;
+    }
+  } catch { /* fall through to the API */ }
+
+  if (!(await waitForContentLibrary())) {
+    logSource(widgetTag, 'business name', false, 'no siteObject name and no dmAPI.loadContentLibrary — Duda editor, dev harness, or an older site');
+    return '';
+  }
+  try {
+    const lib = await withTimeout(
+      getDm()!.loadContentLibrary!(), TIMEOUTS.collection, null, 'content library',
+    );
+    const name = nameFromLibrary(lib);
+    logSource(widgetTag, 'business name', !!name, name ? `content library → ${name}` : 'content library has no business_data.name');
+    return name;
+  } catch (err) {
+    logSource(widgetTag, 'business name', false, `content library read failed: ${String(err)}`);
+    return '';
+  }
+}
+
+let cachedName: Promise<string> | null = null;
+
+/**
+ * The site's business name from Duda's Business Info (`business_data.name`).
+ * '' outside a published Duda site, or when none is set.
+ */
+export function fetchBusinessName(widgetTag: string): Promise<string> {
+  cachedName ??= readBusinessName(widgetTag);
+  return cachedName;
+}

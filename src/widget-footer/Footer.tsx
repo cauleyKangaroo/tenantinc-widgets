@@ -3,7 +3,7 @@ import './Footer.css';
 import tenantLogo from './tenant-logo.svg';
 import { SOCIALS, PhoneIcon, AiSparkleIcon, ChevronBigRightIcon } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID, type PropertyContact } from '@shared/propertyContact';
-import { fetchSitePhone, type SitePhone } from '@shared/contentLibrary';
+import { fetchSitePhone, fetchBusinessName, type SitePhone } from '@shared/contentLibrary';
 import { boundText, boundLink } from '@shared/propertyBinding';
 import { RichText } from '@shared/richText';
 import { readSitePages, pageColumnFor, parseRoutes, findSitePage, type SitePage } from '@shared/sitePages';
@@ -295,6 +295,17 @@ export function Footer({
   // siteObject) — site-wide chrome shows the SITE's line, so when the owner
   // has set one it outranks the Properties row above. Not property-keyed, so
   // it reads once.
+  // The copyright line's name: Business Info's `business_data.name`. None set
+  // → no name at all ("© 2026, All Rights Reserved."), never a hardcoded one.
+  const [businessName, setBusinessName] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    fetchBusinessName('#13 footer')
+      .then((n) => { if (!cancelled) setBusinessName(n); })
+      .catch((err) => console.error('[Footer] business name error:', err));
+    return () => { cancelled = true; };
+  }, []);
+
   const [sitePhone, setSitePhone] = useState<SitePhone | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -509,9 +520,9 @@ export function Footer({
 
   // Business Info's number first, the Properties row next, the prop/default last.
   const displayPhone = sitePhone?.phone || contact?.phone || phone;
-  // "Follow <name>" takes the property name from the collection; the copyright
-  // line below deliberately keeps the `companyName` prop (see note there).
-  const displayFollowName = contact?.name || companyName;
+  // "Follow <name>" uses Business Info's name too, like the copyright line.
+  // None set → just "Follow".
+  const displayFollowName = businessName;
   const telHref = `tel:${(sitePhone?.digits || contact?.phoneDigits || displayPhone).replace(/[^0-9+]/g, '')}`;
 
   /*
@@ -642,7 +653,7 @@ export function Footer({
             if that read brings nothing either. */}
         {(anyConfigured || !contactSettled || socialLinks.length > 0) && (
         <div className="ft-follow-left">
-          <span className="ft-follow-label">Follow {displayFollowName}</span>
+          <span className="ft-follow-label">{displayFollowName ? `Follow ${displayFollowName}` : 'Follow'}</span>
           <div
             className="ft-socials"
             style={anyConfigured || contactSettled ? undefined : { visibility: 'hidden' }}
@@ -664,10 +675,9 @@ export function Footer({
 
       <div className="ft-bottom">
         <div className="ft-inner ft-bottom-row">
-          {/* Left on the prop on purpose: the collection's `name` is the FACILITY
-              ("Storelocal Dove Mountain"), and a copyright line should name the
-              company. Swap to displayFollowName if that's wanted. */}
-          <span className="ft-copy">© {year}, {companyName}. All Rights Reserved.</span>
+          {/* The site's business name from Duda's Business Info — not the
+              collection's `name`, which is the FACILITY. */}
+          <span className="ft-copy">© {year}, {businessName ? `${businessName}. ` : ''}All Rights Reserved.</span>
           <span className="ft-session">Session: {sessionId}</span>
         </div>
       </div>
