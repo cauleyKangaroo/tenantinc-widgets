@@ -238,7 +238,7 @@
 /* Text + its "See more" / "Read more on Yelp" link. Sized to content, not
    flex: 1 — a stretched clamp box let the card's height, not the clamp, decide
    where the text stopped, which cut the last line through the middle on
-   mobile. The time keeps to the bottom with its own margin-top: auto. */
+   mobile. */
 .rw-card-text-wrap {
   display: flex;
   flex-direction: column;
@@ -255,10 +255,10 @@
   margin: 0;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 9;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   /* Whole lines only, even where line-clamp is flaky (iOS in a flex parent). */
-  max-height: calc(20px * 9);
+  max-height: calc(20px * 4);
   overflow-wrap: anywhere;
 }
 
@@ -293,7 +293,8 @@
   font-weight: 400;
   color: #101318;
   line-height: 20px;
-  margin-top: auto;
+  /* Right under the text (the card's 12px gap), never pinned to the card's
+     bottom — a 1-line review keeps the same spacing as a 4-line one. */
   flex-shrink: 0;
 }
 
