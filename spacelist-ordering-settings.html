@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space List Ordering — Settings</title>
+<!-- ===========================================================================
+  spacelist-ordering-settings.html — the "Embed your own external widget
+  settings" page for the Spacelist-Ordering widget (Duda Widget Builder).
+
+  HOW DUDA LOADS THIS
+    The Widget Builder's content panel iframes this URL every time the widget
+    is added or edited, appending query params that identify the instance:
+      ?siteId=…&elementId=…&widgetId=…&page=…&locale=…&version=…&accountId=…
+    There is NO postMessage/data.config bridge for this input type: settings
+    made here are stored in OUR backend keyed by `{siteId}_{elementId}` (the
+    accordion-sync.php pattern) and the widget reads them back client-side via
+    the Duda Collections JS API. This page is therefore hosted next to
+    accordion-sync.php on Plesk:
+      https://kangaroodev.co.uk/server/tenantinc/spacelist-ordering-settings.html
+    (Filename deliberately avoids the word "config" — the Plesk/nginx WAF 403s
+    any filename containing it.)
+
+  WHAT THIS VERSION DOES (design + dynamic data; persistence comes next)
+    Three tabs — Company, Property Group, Property — matching the Hummingbird
+    hierarchy. All data is fetched live from the same edge API the widgets use:
+      Company        → the company's space-type catalogue
+                       (GET v1/companies/{co}/space-management/space-types)
+      Property Group → the selected property's space groups
+                       (GET v2/companies/{co}/properties/{pid}/space-groups),
+                       with the "Website Group" badged — it is the public list
+      Property       → the selected property's STORAGE TYPES with unit counts
+                       (GET v1/companies/{co}/properties?unit_type_counts=true,
+                       joined to the catalogue's display names by unit_type_id)
+    The Save bar is present but disabled: it will POST to a write-proxy
+    (accordion-sync.php pattern) once the configuration schema is settled.
+
+  WHERE THE DATA COMES FROM — two modes, picked by the embed URL
+    hb-proxy (the real one, matching the client bundles):
+      Configure the embed URL in the Widget Builder as
+        …/spacelist-ordering-settings.html?hb=<login_api_base>
+      where <login_api_base> is the site-text value the widgets already use.
+      Calls go to {hb}/api/hb/{v1|v2}/{path}?siteId={siteId} — the siteId is the
+      one Duda appends to this iframe's URL, the proxy resolves it to the site's
+      company/application/key server-side, and NO secret ever reaches this page.
+      (The proxy strips siteId from the query before forwarding; using the query
+      param instead of the X-Duda-Site-Id header keeps the GET preflight-free.)
+    direct edge (dev preview only):
+      ?apiKey=…&companyId=… (optionally &base=…&appId=…) calls edge.tenant.dev
+      directly, the way the bundles' config.json fallback used to. The baked
+      bundle key has been rotated, so this mode needs a key supplied by hand.
+=========================================================================== -->
+<style>
+  /* ── Tokens — the UI kit's palette, so the panel reads as one of ours ── */
+  :root {
+    --night: #101318;
+    --slate: #394150;
+    --quiet: #6c737f;
+    --line:  #e5e7eb;
+    --paper: #f9fafb;
+    --cta:   #101318;
+    --good:  #0e9f6e;
+    --warn:  #c81e1e;
+    --badge: #eef2ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Poppins', system-ui, sans-serif;
+    color: var(--night);
+    background: #fff;
+    font-size: 14px;
+    line-height: 1.5;
+    /* Duda's panel widths: Small 344 / Medium 688 / Large 963 — fluid between. */
+    min-width: 320px;
+  }
+
+  /* ── Header ── */
+  .hd { padding: 20px 20px 0; }
+  .hd h1 { font-size: 18px; font-weight: 700; margin: 0 0 2px; }
+  .hd .inst { font-size: 12px; color: var(--quiet); margin: 0; word-break: break-all; }
+
+  /* ── Tabs — the tier-selection pill treatment: 2px night outline on the
+       selected pill, quiet 1px line otherwise ── */
+  .tabs { display: flex; gap: 8px; padding: 16px 20px 0; flex-wrap: wrap; }
+  .tab {
+    font: inherit; font-weight: 600; font-size: 13px;
+    padding: 8px 16px; border-radius: 999px; cursor: pointer;
+    background: #fff; color: var(--slate);
+    border: 1px solid var(--line);
+  }
+  .tab:hover { border-color: var(--slate); }
+  .tab[aria-selected="true"] {
+    border: 2px solid var(--night); color: var(--night);
+    padding: 7px 15px; /* keep the pill the same size as the 1px ones */
+  }
+
+  /* ── Panels ── */
+  .panel { padding: 16px 20px 88px; }
+  .panel[hidden] { display: none; }
+  .card {
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; background: #fff;
+  }
+  .card + .card { margin-top: 12px; }
+  .card h2 { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
+  .card .sub { font-size: 12.5px; color: var(--quiet); margin: 0 0 12px; }
+
+  /* ── Property picker (shared by the Group + Property tabs) ── */
+  .picker { margin: 0 0 12px; }
+  .picker label { display: block; font-size: 12px; font-weight: 600; color: var(--slate); margin-bottom: 4px; }
+  .picker select {
+    font: inherit; width: 100%; padding: 9px 12px;
+    border: 1px solid var(--line); border-radius: 8px; background: #fff;
+    color: var(--night);
+  }
+  .picker select:focus { outline: none; border-color: var(--night); box-shadow: 0 0 0 1px var(--night); }
+
+  /* ── Rows (a storage type / a space group) ── */
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 14px; background: #fff;
+  }
+  .row .name { font-weight: 600; font-size: 13.5px; flex: 1 1 auto; min-width: 0; }
+  .row .name small { display: block; font-weight: 400; font-size: 11.5px; color: var(--quiet); }
+  .row .stat { text-align: right; white-space: nowrap; }
+  .row .stat b { display: block; font-size: 15px; font-weight: 700; }
+  .row .stat span { font-size: 11px; color: var(--quiet); }
+  .badge {
+    font-size: 11px; font-weight: 600; color: var(--night);
+    background: var(--badge); border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+  }
+  .badge--public { background: #def7ec; color: #046c4e; }
+
+  .count-line { font-size: 13px; color: var(--slate); margin: 0 0 10px; }
+  .count-line b { color: var(--night); }
+
+  /* ── States ── */
+  .state { padding: 18px 4px; font-size: 13px; color: var(--quiet); }
+  .state--error { color: var(--warn); }
+  .spin {
+    display: inline-block; width: 14px; height: 14px; margin-right: 8px;
+    border: 2px solid var(--line); border-top-color: var(--night);
+    border-radius: 50%; vertical-align: -2px;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Save bar (disabled until persistence lands) ── */
+  .savebar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 20px; background: #fff; border-top: 1px solid var(--line);
+  }
+  .savebar .note { font-size: 11.5px; color: var(--quiet); flex: 1; }
+  .savebar button {
+    font: inherit; font-weight: 600; font-size: 13px;
+    padding: 9px 22px; border-radius: 999px; border: none;
+    background: var(--cta); color: #fff; cursor: pointer;
+  }
+  .savebar button:disabled { opacity: .35; cursor: not-allowed; }
+
+  @media (max-width: 420px) {
+    .hd, .tabs, .panel, .savebar { padding-left: 14px; padding-right: 14px; }
+    .row { flex-wrap: wrap; }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header class="hd">
+  <h1>Space List Ordering</h1>
+  <p class="inst" id="inst">Loading instance…</p>
+</header>
+
+<div class="tabs" role="tablist" aria-label="Settings sections">
+  <button class="tab" role="tab" id="tab-company"  aria-selected="true"  aria-controls="panel-company">Company</button>
+  <button class="tab" role="tab" id="tab-group"    aria-selected="false" aria-controls="panel-group">Property Group</button>
+  <button class="tab" role="tab" id="tab-property" aria-selected="false" aria-controls="panel-property">Property</button>
+</div>
+
+<!-- ── Company ─────────────────────────────────────────────────────────── -->
+<section class="panel" id="panel-company" role="tabpanel" aria-labelledby="tab-company">
+  <div class="card">
+    <h2>Company</h2>
+    <p class="sub" id="company-sub">The company every request on this site is scoped to.</p>
+    <div id="company-body"><div class="state"><span class="spin"></span>Loading company…</div></div>
+  </div>
+  <div class="card">
+    <h2>Space type catalogue</h2>
+    <p class="sub">Every space type this company can sell. Which of these a property actually offers is on the Property tab.</p>
+    <div id="catalogue-body"><div class="state"><span class="spin"></span>Loading space types…</div></div>
+  </div>
+</section>
+
+<!-- ── Property Group ──────────────────────────────────────────────────── -->
+<section class="panel" id="panel-group" role="tabpanel" aria-labelledby="tab-group" hidden>
+  <div class="card">
+    <h2>Space groups</h2>
+    <p class="sub">Each property sells its units through one of several groups — only the “Website Group” is the public list.</p>
+    <div class="picker">
+      <label for="group-prop">Property</label>
+      <select id="group-prop" data-role="property-select"></select>
+    </div>
+    <div id="groups-body"><div class="state">Pick a property to see its groups.</div></div>
+  </div>
+</section>
+
+<!-- ── Property ────────────────────────────────────────────────────────── -->
+<section class="panel" id="panel-property" role="tabpanel" aria-labelledby="tab-property" hidden>
+  <div class="card">
+    <h2>Storage types at this property</h2>
+    <p class="sub">What the selected property offers, live from Hummingbird — the dynamic property page renders one of these rows per type.</p>
+    <div class="picker">
+      <label for="property-prop">Property</label>
+      <select id="property-prop" data-role="property-select"></select>
+    </div>
+    <div id="types-body"><div class="state">Pick a property to see its storage types.</div></div>
+  </div>
+</section>
+
+<div class="savebar">
+  <span class="note" id="save-note">Settings persistence comes next — this build is the design + live data.</span>
+  <button id="save" disabled>Save</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── The Duda instance this panel is editing (supplied by the iframe URL).
+       `{siteId}_{elementId}` is the persistence key, same as accordionConfig. ── */
+  var qs = new URLSearchParams(location.search);
+  var DUDA = {
+    siteId:    qs.get('siteId')    || '',
+    elementId: qs.get('elementId') || '',
+    widgetId:  qs.get('widgetId')  || '',
+    page:      qs.get('page')      || '',
+    locale:    qs.get('locale')    || ''
+  };
+  document.getElementById('inst').textContent = DUDA.siteId
+    ? 'Instance ' + DUDA.siteId + '_' + DUDA.elementId + (DUDA.page ? ' · page: ' + DUDA.page : '')
+    : 'Not inside Duda — design preview (no siteId/elementId in the URL).';
+
+  /* ── Data source. hb-proxy when the embed URL carries ?hb= (no secrets, the
+       proxy resolves this site's company and key from the siteId Duda already
+       put on this URL); direct edge only as a hand-configured dev preview. ── */
+  var HB = (qs.get('hb') || '').replace(/\/+$/, '');
+  var CFG = {
+    baseUrl:   qs.get('base')      || 'https://edge.tenant.dev/api/v3',
+    appId:     qs.get('appId')     || 'appbc35600a675841eea5893df84231789e',
+    apiKey:    qs.get('apiKey')    || '',
+    companyId: qs.get('companyId') || ''
+  };
+  var MODE = HB && DUDA.siteId ? 'hb' : (CFG.apiKey && CFG.companyId ? 'direct' : '');
+  var SETUP_MSG = !HB
+    ? 'Not configured: append ?hb=<login_api_base> to the embed URL in the Widget Builder '
+      + '(the same site-text value the widgets use). For a standalone preview, '
+      + '?apiKey=…&companyId=… calls the edge API directly.'
+    : 'Waiting for Duda: this page needs the siteId Duda appends to the iframe URL. '
+      + 'Open it from the widget editing panel, or add &siteId=<site> by hand to preview.';
+
+  /**
+   * One call either way, same envelope back:
+   *   hb     → {hb}/api/hb/{v}/{path}?…&siteId={siteId}   (key stays server-side)
+   *   direct → {base}/applications/{appId}/{v}/companies/{co}/{path} + key headers
+   * The gateway's body comes back verbatim from the proxy, so both unwrap the
+   * same: applicationData.<appId>[0] — by FIRST key, because in hb mode this
+   * page has no reason to know the site's application id.
+   */
+  function api(version, path) {
+    var url, headers = {};
+    if (MODE === 'hb') {
+      url = HB + '/api/hb/' + version + '/' + path
+          + (path.indexOf('?') >= 0 ? '&' : '?') + 'siteId=' + encodeURIComponent(DUDA.siteId);
+    } else {
+      url = CFG.baseUrl + '/applications/' + CFG.appId + '/' + version
+          + '/companies/' + CFG.companyId + '/' + path;
+      headers['x-storageapi-date'] = String(Math.floor(Date.now() / 1000));
+      headers['x-storageapi-key'] = CFG.apiKey;
+    }
+    return fetch(url, { headers: headers }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }).then(function (json) {
+      var apps = json && json.applicationData;
+      var firstKey = apps && Object.keys(apps)[0];
+      var inner = firstKey && apps[firstKey] && apps[firstKey][0];
+      if (!inner || (inner.status && inner.status !== 200)) {
+        throw new Error('API status ' + (inner && inner.status) + (inner && inner.msg ? ' — ' + inner.msg : ''));
+      }
+      return inner.data;
+    });
+  }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function state(host, msg, isError, loading) {
+    host.textContent = '';
+    var s = el('div', 'state' + (isError ? ' state--error' : ''));
+    if (loading) s.appendChild(el('span', 'spin'));
+    s.appendChild(document.createTextNode(msg));
+    host.appendChild(s);
+  }
+
+  /* "commercial_storage" → "Commercial Storage" (catalogue display_name wins). */
+  function prettyType(raw) {
+    return String(raw || '').replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); }).trim();
+  }
+
+  /* ── Data, fetched once. Unconfigured ⇒ a rejected promise whose message is
+       the setup hint, so every panel explains itself instead of spinning. ── */
+  var notConfigured = MODE ? null : Promise.reject(new Error(SETUP_MSG));
+  if (notConfigured) notConfigured.catch(function () { /* consumed per panel */ });
+
+  var propertiesP = notConfigured || api('v1', 'properties?unit_type_counts=true')
+    .then(function (d) { return (d && d.properties) || []; });
+  // This endpoint's `data` is an ARRAY, unlike the object every other read returns.
+  var catalogueP = notConfigured || api('v2', 'space-management/space-types')
+    .then(function (d) { return Array.isArray(d) ? d : []; });
+  var groupsCache = {}; // propertyId → Promise<[{id,name}]>
+  function groupsFor(pid) {
+    groupsCache[pid] = groupsCache[pid] || api('v2', 'properties/' + pid + '/space-groups')
+      .then(function (d) { return (d && d.spaceGroups) || []; });
+    return groupsCache[pid];
+  }
+
+  /* ── Tabs ─────────────────────────────────────────────────────────────── */
+  var tabs = ['company', 'group', 'property'];
+  tabs.forEach(function (key) {
+    document.getElementById('tab-' + key).addEventListener('click', function () {
+      tabs.forEach(function (k) {
+        document.getElementById('tab-' + k).setAttribute('aria-selected', String(k === key));
+        document.getElementById('panel-' + k).hidden = (k !== key);
+      });
+    });
+  });
+
+  /* ── Shared property selection (one state, two <select>s) ─────────────── */
+  var selectedPropertyId = '';
+  var propertySelects = Array.prototype.slice.call(document.querySelectorAll('[data-role="property-select"]'));
+  function fillSelects(props) {
+    propertySelects.forEach(function (sel) {
+      sel.textContent = '';
+      sel.appendChild(new Option('— choose a property —', ''));
+      props.forEach(function (p) { sel.appendChild(new Option(p.name || p.id, p.id)); });
+      sel.value = selectedPropertyId;
+      sel.addEventListener('change', function () {
+        selectedPropertyId = sel.value;
+        propertySelects.forEach(function (other) { other.value = selectedPropertyId; });
+        renderGroups();
+        renderTypes();
+      });
+    });
+  }
+
+  /* ── Company tab ──────────────────────────────────────────────────────── */
+  var companyBody = document.getElementById('company-body');
+  var catalogueBody = document.getElementById('catalogue-body');
+
+  propertiesP.then(function (props) {
+    companyBody.textContent = '';
+    var rows = el('div', 'rows');
+    var r = el('div', 'row');
+    var name = el('div', 'name', MODE === 'hb'
+      ? 'Company of site ' + DUDA.siteId
+      : 'Company ' + CFG.companyId);
+    name.appendChild(el('small', null, props.length + ' propert' + (props.length === 1 ? 'y' : 'ies') + ' on this account'));
+    r.appendChild(name);
+    r.appendChild(el('span', 'badge', MODE === 'hb' ? 'resolved by the proxy' : 'direct edge (preview)'));
+    rows.appendChild(r);
+    companyBody.appendChild(rows);
+  }).catch(function (err) {
+    state(companyBody, 'Could not load the company: ' + err.message, true);
+  });
+
+  catalogueP.then(function (types) {
+    if (!types.length) return state(catalogueBody, 'This company has no space types configured.');
+    catalogueBody.textContent = '';
+    var rows = el('div', 'rows');
+    types.forEach(function (t) {
+      var r = el('div', 'row');
+      var name = el('div', 'name', t.display_name || prettyType(t.unit_type_name));
+      name.appendChild(el('small', null, t.unit_type_name || ''));
+      r.appendChild(name);
+      if (t.have_coverage === 1) r.appendChild(el('span', 'badge', 'coverage'));
+      rows.appendChild(r);
+    });
+    catalogueBody.appendChild(rows);
+  }).catch(function (err) {
+    state(catalogueBody, 'Could not load the space-type catalogue: ' + err.message, true);
+  });
+
+  /* ── Property Group tab ───────────────────────────────────────────────── */
+  var groupsBody = document.getElementById('groups-body');
+  function renderGroups() {
+    if (!selectedPropertyId) return state(groupsBody, 'Pick a property to see its groups.');
+    state(groupsBody, 'Loading space groups…', false, true);
+    var forId = selectedPropertyId;
+    groupsFor(forId).then(function (groups) {
+      if (selectedPropertyId !== forId) return; // stale reply — a newer pick won
+      if (!groups.length) return state(groupsBody, 'This property has no space groups.');
+      groupsBody.textContent = '';
+      var rows = el('div', 'rows');
+      groups.forEach(function (g) {
+        var r = el('div', 'row');
+        r.appendChild(el('div', 'name', g.name || g.id));
+        if (/website/i.test(g.name || '')) r.appendChild(el('span', 'badge badge--public', 'public unit list'));
+        rows.appendChild(r);
+      });
+      groupsBody.appendChild(rows);
+    }).catch(function (err) {
+      if (selectedPropertyId === forId) state(groupsBody, 'Could not load space groups: ' + err.message, true);
+    });
+  }
+
+  /* ── Property tab — the storage types this property offers ────────────── */
+  var typesBody = document.getElementById('types-body');
+  function renderTypes() {
+    if (!selectedPropertyId) return state(typesBody, 'Pick a property to see its storage types.');
+    state(typesBody, 'Loading storage types…', false, true);
+    var forId = selectedPropertyId;
+    Promise.all([propertiesP, catalogueP]).then(function (both) {
+      if (selectedPropertyId !== forId) return;
+      var props = both[0], types = both[1];
+      var prop = props.filter(function (p) { return p.id === forId; })[0];
+      if (!prop) return state(typesBody, 'Property not found in the company list.', true);
+
+      var counts = Array.isArray(prop.unit_type_counts) ? prop.unit_type_counts : [];
+      if (!counts.length) return state(typesBody, 'No unit-type counts for this property — the API returned none.');
+
+      // Catalogue display names, joined by unit_type_id.
+      var displayById = {};
+      types.forEach(function (t) { displayById[t.unit_type_id || t.id] = t.display_name; });
+
+      typesBody.textContent = '';
+      var line = el('p', 'count-line');
+      line.innerHTML = '<b>' + counts.length + '</b> storage type' + (counts.length === 1 ? '' : 's') + ' at <b></b>';
+      line.querySelector('b + b').textContent = prop.name || forId;
+      typesBody.appendChild(line);
+
+      var rows = el('div', 'rows');
+      counts.forEach(function (c) {
+        var r = el('div', 'row');
+        var name = el('div', 'name', displayById[c.unit_type_id] || prettyType(c.unit_type));
+        name.appendChild(el('small', null, c.unit_type || ''));
+        r.appendChild(name);
+        var total = el('div', 'stat');
+        total.appendChild(el('b', null, String(c.total_count != null ? c.total_count : '—')));
+        total.appendChild(el('span', null, 'units'));
+        r.appendChild(total);
+        var vacant = el('div', 'stat');
+        vacant.appendChild(el('b', null, String(c.vacant_count != null ? c.vacant_count : '—')));
+        vacant.appendChild(el('span', null, 'vacant'));
+        r.appendChild(vacant);
+        rows.appendChild(r);
+      });
+      typesBody.appendChild(rows);
+    }).catch(function (err) {
+      if (selectedPropertyId === forId) state(typesBody, 'Could not load storage types: ' + err.message, true);
+    });
+  }
+
+  /* ── Boot: fill both property selects once the list lands ─────────────── */
+  propertiesP.then(function (props) {
+    fillSelects(props);
+    // One property on the account (or a future per-page binding): preselect it.
+    if (props.length === 1) {
+      selectedPropertyId = props[0].id;
+      propertySelects.forEach(function (sel) { sel.value = selectedPropertyId; });
+      renderGroups();
+      renderTypes();
+    }
+  }).catch(function (err) {
+    propertySelects.forEach(function (sel) {
+      sel.textContent = '';
+      sel.appendChild(new Option('Could not load properties — ' + err.message, ''));
+    });
+  });
+}());
+</script>
+</body>
+</html>
