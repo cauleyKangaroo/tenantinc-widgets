@@ -13,37 +13,59 @@
 // accordionConfig pattern. The shell forwards those params here as props, the
 // same way the Duda JS tab forwards data.config to a page widget.
 //
-// WHERE THE DATA COMES FROM — two modes, picked by the props:
-//   hb-proxy (the real one, matching the client bundles): prop `hb` is the
-//     site-text `login_api_base`. Calls go to
-//       {hb}/api/hb/{v1|v2}/{path}?…&siteId={siteId}
-//     — the proxy resolves the site's company/application/key server-side, so
-//     no secret ever reaches this public page. siteId rides as a query param
-//     rather than the X-Duda-Site-Id header to keep the GETs preflight-free;
-//     the proxy strips it before forwarding (verified against hb.routes.ts
-//     and its GET allowlist).
-//   direct edge (dev preview only): `apiKey` + `companyId` call edge.tenant.dev
-//     the way the bundles' config.json fallback used to. The baked bundle key
-//     has been rotated, so this mode needs a key supplied by hand.
+// WHO SUPPLIES THE PROPERTY LIST — the `PropertiesInternal` collection.
+//   The widget sits on the DYNAMIC property page, so the panel cannot know
+//   which property a visit will render; the editor picks one here first, and
+//   the pick list is the site's own curated roster — the same rows the dynamic
+//   pages are built from. `dmAPI` does not exist in this iframe (published
+//   pages only) and Duda's REST read needs Partner auth, so the read goes
+//   through collection-read.php (repo root, deployed next to accordion-sync.php
+//   and sharing its credentials file). By default that proxy is looked up NEXT
+//   TO the shell page; the `collections` prop overrides. The collection is
+//   NATIVE: text cells arrive `<p class="rteBlock">…</p>`-wrapped and JSON
+//   cells as text, so rows go through the same plainText/boundJson treatment
+//   @shared/internalProperties applies on published pages.
+//
+// WHERE THE COUNTS COME FROM — live, per the picked property.
+//   `PropertiesInternal.id` IS the Hummingbird property id (the join key every
+//   widget uses), so the picked row's storage types come from the live API:
+//     hb-proxy (the real one, matching the client bundles): prop `hb` is the
+//       site-text `login_api_base`; calls go to
+//       {hb}/api/hb/{v1|v2}/{path}?…&siteId={siteId} — the proxy resolves the
+//       site's company/application/key server-side, so no secret ever reaches
+//       this public page. siteId rides as a query param rather than the
+//       X-Duda-Site-Id header to keep the GETs preflight-free (verified
+//       against hb.routes.ts and its GET allowlist).
+//     direct edge (dev preview only): `apiKey` + `companyId` call
+//       edge.tenant.dev the way the bundles' config.json fallback used to.
+//       The baked bundle key has been rotated, so this needs a key by hand.
+//   When the live read cannot answer for the picked id, the row's own
+//   `unit_type_counts` column stands in (synced, so possibly stale — the badge
+//   says which source is showing). When the collection read fails, the live
+//   property list stands in for the roster. Each source covers the other.
 //
 // Three tabs mirror the Hummingbird hierarchy:
 //   Company        — the company's space-type catalogue (what it CAN sell)
 //   Property Group — the picked property's space groups; "Website Group" is
 //                    badged — it is the public unit list (see @shared/spaceGroups)
 //   Property       — the picked property's storage types with total/vacant
-//                    counts (unit_type_counts), display names joined from the
-//                    catalogue by unit_type_id
+//                    counts, display names joined from the catalogue by
+//                    unit_type_id
 //
 // The Save bar is rendered but disabled: persistence (a write-proxy upserting
 // a collection row per `{siteId}_{elementId}`) is the next step.
 // ===========================================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { plainText, str } from '@shared/dudaCollections';
+import { boundJson } from '@shared/propertyBinding';
 import './SpacelistSettings.css';
 
 export interface SpacelistSettingsProps {
   /** The hb-proxy origin — the `login_api_base` site text. */
   hb?: string;
+  /** The collection read-proxy (collection-read.php). Default: next to the shell. */
+  collections?: string;
   /** Duda's iframe params, forwarded by the shell. */
   siteId?: string;
   elementId?: string;
@@ -58,9 +80,10 @@ export interface SpacelistSettingsProps {
 }
 
 interface UnitTypeCount { unit_type?: string; total_count?: number; vacant_count?: number; unit_type_id?: string }
-interface PropertyRow { id: string; name?: string; unit_type_counts?: UnitTypeCount[] }
 interface CatalogueType { unit_type_id?: string; id?: string; unit_type_name?: string; display_name?: string; have_coverage?: number }
 interface SpaceGroup { id?: string; name?: string }
+/** One pick-list entry, whichever source produced it. */
+interface RosterItem { id: string; name: string; counts?: UnitTypeCount[] }
 
 type Loadable<T> =
   | { status: 'loading' }
@@ -80,7 +103,7 @@ const TABS = [
 type TabKey = (typeof TABS)[number]['key'];
 
 export function SpacelistSettings({
-  hb = '', siteId = '', elementId = '', page = '',
+  hb = '', collections = '', siteId = '', elementId = '', page = '',
   base = 'https://edge.tenant.dev/api/v3',
   appId = 'appbc35600a675841eea5893df84231789e',
   apiKey = '', companyId = '',
@@ -94,8 +117,15 @@ export function SpacelistSettings({
     : 'Waiting for Duda: this page needs the siteId Duda appends to the iframe URL. '
       + 'Open it from the widget editing panel, or add &siteId=<site> by hand to preview.';
 
+  /** The collection read-proxy URL — explicit prop, else next to the shell page. */
+  const collectionsUrl = useMemo(() => {
+    const explicit = collections.trim();
+    if (explicit) return explicit;
+    try { return new URL('collection-read.php', window.location.href).toString(); } catch { return ''; }
+  }, [collections]);
+
   /**
-   * One call either way, same envelope back:
+   * One live-API call either way, same envelope back:
    *   hb     → {hb}/api/hb/{v}/{path}?…&siteId={siteId}   (key stays server-side)
    *   direct → {base}/applications/{appId}/{v}/companies/{co}/{path} + key headers
    * The gateway's body comes back verbatim from the proxy, so both unwrap the
@@ -128,33 +158,84 @@ export function SpacelistSettings({
   }, [mode, hbBase, siteId, base, appId, apiKey, companyId]);
 
   const [tab, setTab] = useState<TabKey>('company');
-  const [properties, setProperties] = useState<Loadable<PropertyRow[]>>({ status: 'loading' });
+  /** The live API's property list — the source of LIVE counts, and the roster fallback. */
+  const [liveProps, setLiveProps] = useState<Loadable<RosterItem[]>>({ status: 'loading' });
+  /** The `PropertiesInternal` roster — what the dropdown prefers. */
+  const [internal, setInternal] = useState<Loadable<RosterItem[]>>({ status: 'loading' });
   const [catalogue, setCatalogue] = useState<Loadable<CatalogueType[]>>({ status: 'loading' });
   const [selectedId, setSelectedId] = useState('');
   const [groups, setGroups] = useState<Loadable<SpaceGroup[]> | null>(null);
   const groupsCache = useRef(new Map<string, Promise<SpaceGroup[]>>());
 
-  // The two company-wide reads, once per creds change.
+  // The two live company-wide reads, once per creds change.
   useEffect(() => {
     let cancelled = false;
-    setProperties({ status: 'loading' });
+    setLiveProps({ status: 'loading' });
     setCatalogue({ status: 'loading' });
     groupsCache.current.clear();
     api('v1', 'properties?unit_type_counts=true')
       .then((d) => {
         if (cancelled) return;
-        const list = ((d as { properties?: PropertyRow[] })?.properties ?? []).filter((p) => p && p.id);
-        setProperties({ status: 'ready', data: list });
-        // One property on the account (or a future per-page binding): preselect it.
-        if (list.length === 1) setSelectedId(list[0].id);
+        const rows = ((d as { properties?: Array<Record<string, unknown>> })?.properties ?? []);
+        const items: RosterItem[] = rows
+          .filter((p) => typeof p?.id === 'string' && p.id)
+          .map((p) => ({
+            id: p.id as string,
+            name: str(p.name) || (p.id as string),
+            counts: Array.isArray(p.unit_type_counts) ? p.unit_type_counts as UnitTypeCount[] : undefined,
+          }));
+        setLiveProps({ status: 'ready', data: items });
       })
-      .catch((err: Error) => { if (!cancelled) setProperties({ status: 'error', message: err.message }); });
+      .catch((err: Error) => { if (!cancelled) setLiveProps({ status: 'error', message: err.message }); });
     // This endpoint's `data` is an ARRAY, unlike the object every other read returns.
     api('v2', 'space-management/space-types')
       .then((d) => { if (!cancelled) setCatalogue({ status: 'ready', data: Array.isArray(d) ? d as CatalogueType[] : [] }); })
       .catch((err: Error) => { if (!cancelled) setCatalogue({ status: 'error', message: err.message }); });
     return () => { cancelled = true; };
   }, [api]);
+
+  /*
+   * The `PropertiesInternal` roster, via collection-read.php.
+   *
+   * Rows come back as Duda hands them over — fields nested under `data` with a
+   * row-level id — and this is a NATIVE collection, so the same treatment
+   * @shared/internalProperties applies on published pages happens here: the
+   * COLUMN id (plainText-stripped) must win over Duda's own row id, names lose
+   * their rteBlock wrapper, and `unit_type_counts` parses from JSON text. A row
+   * without a column id cannot be joined to anything and is skipped.
+   */
+  useEffect(() => {
+    if (!collectionsUrl || !siteId) {
+      setInternal({ status: 'error', message: 'collection read needs the siteId Duda appends to the iframe URL' });
+      return undefined;
+    }
+    let cancelled = false;
+    setInternal({ status: 'loading' });
+    const url = `${collectionsUrl}${collectionsUrl.includes('?') ? '&' : '?'}collection=PropertiesInternal&siteId=${encodeURIComponent(siteId)}`;
+    fetch(url)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json() as Promise<{ rows?: Array<Record<string, unknown>> }>;
+      })
+      .then((json) => {
+        if (cancelled) return;
+        const items: RosterItem[] = (json.rows ?? [])
+          .map((row): RosterItem | null => {
+            const fields = (row && typeof row.data === 'object' && row.data ? row.data : row) as Record<string, unknown>;
+            const id = plainText(fields.id).trim();
+            if (!id) return null;
+            const counts = Array.isArray(fields.unit_type_counts)
+              ? fields.unit_type_counts as UnitTypeCount[]
+              : boundJson<UnitTypeCount[]>(plainText(fields.unit_type_counts)) ?? undefined;
+            return { id, name: plainText(fields.name).trim() || id, counts };
+          })
+          .filter((r): r is RosterItem => r !== null)
+          .sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true, sensitivity: 'base' }));
+        setInternal({ status: 'ready', data: items });
+      })
+      .catch((err: Error) => { if (!cancelled) setInternal({ status: 'error', message: err.message }); });
+    return () => { cancelled = true; };
+  }, [collectionsUrl, siteId]);
 
   // The picked property's space groups — cached per property, stale replies dropped.
   useEffect(() => {
@@ -175,8 +256,41 @@ export function SpacelistSettings({
     return () => { cancelled = true; };
   }, [selectedId, api]);
 
-  const props_ = properties.status === 'ready' ? properties.data : [];
-  const selected = props_.find((p) => p.id === selectedId);
+  /*
+   * THE pick list: the collection roster when it answered with rows, else the
+   * live list. Loading only while the preferred source could still improve the
+   * answer; both failed ⇒ one combined error.
+   */
+  const roster: Loadable<RosterItem[]> & { source?: 'collection' | 'live' } = useMemo(() => {
+    if (internal.status === 'ready' && internal.data.length) return { ...internal, source: 'collection' as const };
+    if (internal.status === 'loading') return { status: 'loading' as const };
+    if (liveProps.status === 'ready') return { ...liveProps, source: 'live' as const };
+    if (liveProps.status === 'loading') return { status: 'loading' as const };
+    return {
+      status: 'error' as const,
+      message: internal.status === 'ready'
+        ? `the PropertiesInternal collection is empty, and the live list failed too (${liveProps.message})`
+        : `${internal.message}; live list: ${liveProps.message}`,
+    };
+  }, [internal, liveProps]);
+  const rosterItems = roster.status === 'ready' ? roster.data : [];
+
+  // One property on the roster (or a future per-page binding): preselect it.
+  useEffect(() => {
+    if (!selectedId && roster.status === 'ready' && rosterItems.length === 1) setSelectedId(rosterItems[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roster.status]);
+
+  /** Live counts by property id — what the Property tab prefers. */
+  const liveCounts = useMemo(() => {
+    const out = new Map<string, UnitTypeCount[]>();
+    if (liveProps.status === 'ready') {
+      for (const p of liveProps.data) if (p.counts?.length) out.set(p.id, p.counts);
+    }
+    return out;
+  }, [liveProps]);
+
+  const selected = rosterItems.find((p) => p.id === selectedId);
   const displayById = useMemo(() => {
     const out = new Map<string, string>();
     if (catalogue.status === 'ready') {
@@ -196,20 +310,28 @@ export function SpacelistSettings({
 
   const propertyPicker = (idPrefix: string) => (
     <div className="sos-picker">
-      <label htmlFor={`${idPrefix}-prop`}>Property</label>
+      <label htmlFor={`${idPrefix}-prop`}>
+        Property
+        {roster.status === 'ready' && roster.source && (
+          <em className="sos-src">{roster.source === 'collection' ? 'from PropertiesInternal' : 'from the live API'}</em>
+        )}
+      </label>
       <select
         id={`${idPrefix}-prop`}
         value={selectedId}
         onChange={(e) => setSelectedId(e.target.value)}
-        disabled={properties.status !== 'ready'}
+        disabled={roster.status !== 'ready'}
       >
         <option value="">
-          {properties.status === 'ready' ? '— choose a property —'
-            : properties.status === 'loading' ? 'Loading properties…'
+          {roster.status === 'ready' ? '— choose a property —'
+            : roster.status === 'loading' ? 'Loading properties…'
               : 'Properties unavailable'}
         </option>
-        {props_.map((p) => <option key={p.id} value={p.id}>{p.name || p.id}</option>)}
+        {rosterItems.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
       </select>
+      {roster.status === 'error' && (
+        <div className="sos-state sos-state--error" role="alert">Could not load properties: {roster.message}</div>
+      )}
     </div>
   );
 
@@ -244,14 +366,16 @@ export function SpacelistSettings({
           <div className="sos-card">
             <h2>Company</h2>
             <p className="sos-sub">The company every request on this site is scoped to.</p>
-            {properties.status !== 'ready' ? stateLine(properties, 'the company') : (
+            {roster.status !== 'ready' ? stateLine(roster, 'the company') : (
               <div className="sos-rows">
                 <div className="sos-row">
                   <div className="sos-name">
-                    {mode === 'hb' ? `Company of site ${siteId}` : `Company ${companyId}`}
-                    <small>{props_.length} propert{props_.length === 1 ? 'y' : 'ies'} on this account</small>
+                    {mode === 'hb' ? `Company of site ${siteId}` : mode === 'direct' ? `Company ${companyId}` : `Site ${siteId}`}
+                    <small>{rosterItems.length} propert{rosterItems.length === 1 ? 'y' : 'ies'} on this site</small>
                   </div>
-                  <span className="sos-badge">{mode === 'hb' ? 'resolved by the proxy' : 'direct edge (preview)'}</span>
+                  <span className="sos-badge">
+                    {roster.source === 'collection' ? 'roster: PropertiesInternal' : 'roster: live API'}
+                  </span>
                 </div>
               </div>
             )}
@@ -305,21 +429,36 @@ export function SpacelistSettings({
         <section className="sos-panel" role="tabpanel">
           <div className="sos-card">
             <h2>Storage types at this property</h2>
-            <p className="sos-sub">What the selected property offers, live from Hummingbird — the dynamic property page renders one of these rows per type.</p>
+            <p className="sos-sub">
+              The widget sits on the dynamic property page, so pick the property first —
+              its storage types load live from Hummingbird by the collection row’s id.
+            </p>
             {propertyPicker('sos-property')}
             {!selectedId ? (
-              properties.status === 'error'
-                ? stateLine(properties, 'properties')
-                : <div className="sos-state">Pick a property to see its storage types.</div>
+              roster.status !== 'error' && <div className="sos-state">Pick a property to see its storage types.</div>
             ) : !selected ? (
-              <div className="sos-state sos-state--error" role="alert">Property not found in the company list.</div>
+              <div className="sos-state sos-state--error" role="alert">Property not found in the roster.</div>
             ) : (() => {
-              const counts = Array.isArray(selected.unit_type_counts) ? selected.unit_type_counts : [];
-              if (!counts.length) return <div className="sos-state">No unit-type counts for this property — the API returned none.</div>;
+              /* Live counts for the picked id first; the collection row's own
+                 (synced) unit_type_counts only when the live read cannot answer
+                 for it — and the badge says which one is showing. */
+              const live = liveCounts.get(selectedId);
+              const counts = live ?? selected.counts ?? [];
+              if (!counts.length) {
+                return liveProps.status === 'loading'
+                  ? <div className="sos-state"><span className="sos-spin" aria-hidden="true" />Loading storage types…</div>
+                  : (
+                    <div className="sos-state">
+                      No storage types found for this property
+                      {liveProps.status === 'error' ? ` — the live read failed (${liveProps.message}) and the collection row carries no unit_type_counts.` : '.'}
+                    </div>
+                  );
+              }
               return (
                 <>
                   <p className="sos-count-line">
-                    <b>{counts.length}</b> storage type{counts.length === 1 ? '' : 's'} at <b>{selected.name || selected.id}</b>
+                    <b>{counts.length}</b> storage type{counts.length === 1 ? '' : 's'} at <b>{selected.name}</b>
+                    {' '}<span className={`sos-badge${live ? ' sos-badge--public' : ''}`}>{live ? 'live' : 'from the collection (synced)'}</span>
                   </p>
                   <div className="sos-rows">
                     {counts.map((c, i) => (

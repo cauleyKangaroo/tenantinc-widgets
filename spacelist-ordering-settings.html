@@ -28,8 +28,10 @@
   param is appended by Duda. Panel width: Medium (688px).
 
   HOSTING
-    Upload this file AND dist/settings-spacelist-ordering.js into the same
-    folder on Plesk (next to accordion-sync.php):
+    Upload this file, dist/settings-spacelist-ordering.js AND
+    collection-read.php (the PropertiesInternal read-proxy — it shares
+    accordion-creds.php) into the same folder on Plesk (next to
+    accordion-sync.php):
       https://kangaroodev.co.uk/server/tenantinc/
     The bundle is looked up NEXT TO this file by default; serving it from
     somewhere else takes ?bundle=<path-or-url>. Filename avoids the word
@@ -55,7 +57,7 @@
   // Everything the React app needs: Duda's own iframe params plus our embed
   // additions (hb; or apiKey/companyId for a standalone dev preview).
   var props = {};
-  ['hb', 'siteId', 'elementId', 'widgetId', 'page', 'locale',
+  ['hb', 'collections', 'siteId', 'elementId', 'widgetId', 'page', 'locale',
    'base', 'appId', 'apiKey', 'companyId'].forEach(function (k) {
     var v = qs.get(k);
     if (v) props[k] = v;

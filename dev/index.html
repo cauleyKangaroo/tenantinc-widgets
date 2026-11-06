@@ -1214,6 +1214,12 @@ Special</textarea>
                    style="width:120px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
                    oninput="reinitSlSettings()" />
           </label>
+          <label>collections proxy (collection-read.php URL):
+            <input id="sls-coll" type="text" value=""
+                   placeholder="https://kangaroodev.co.uk/server/tenantinc/collection-read.php"
+                   style="width:300px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;"
+                   oninput="reinitSlSettings()" />
+          </label>
         </div>
         <div class="controls-group">
           <span class="controls-group-label">direct edge preview (needs a live key)</span>
@@ -2209,6 +2215,7 @@ Special</textarea>
       var v = function (id) { return document.getElementById(id).value.trim() || undefined; };
       return {
         hb: v('sls-hb'),
+        collections: v('sls-coll'),
         siteId: v('sls-site'),
         elementId: '1234567890',
         page: 'dev-harness',
