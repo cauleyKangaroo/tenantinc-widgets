@@ -2873,6 +2873,56 @@ export function RentalFlow2Step({
   if (confirmationRef.current === 'unread') confirmationRef.current = readConfirmationPayload(inEditor, entryMode);
   const confirmation = confirmationRef.current;
 
+  /*
+   * RESERVATION FAST-PATH — straight into the payment form.
+   *
+   * "Find my Reservation" already collected everything step 1 asks for: the
+   * reservation names its contact and its exact unit, and there is nothing to
+   * Reserve — Rent is the only enabled action. Making the customer press it
+   * and confirm a date they can still change on step 2 (Edit date) added no
+   * information, so once the page is genuinely ready the advance happens by
+   * itself, exactly as if Rent had been pressed.
+   *
+   * Two gates, both the REAL ones rather than approximations:
+   *   - the stored contact must pass the same checks Step1Form's gate()
+   *     applies — a URL-only arrival (storage unavailable, so no contact)
+   *     still lands on step 1 to collect the details;
+   *   - the readiness clauses mirror `transactionReady` (which is computed
+   *     below the confirmation early-return and cannot be read from a hook
+   *     up here), minus the group clause the reservation satisfies by
+   *     existing. A failed quote therefore keeps step 1's boxed error
+   *     instead of presenting a payment form with nothing priced.
+   *
+   * Fires once: anything after the advance — editing the date, the fields,
+   * backing out — is the shopper's.
+   */
+  const autoAdvancedRef = useRef(false);
+  useEffect(() => {
+    if (autoAdvancedRef.current || !reservationIdProp || step !== 1 || confirmation) return;
+    const c = contact;
+    const contactComplete = !!c && (skipValidation() || (
+      isValidEmail(c.email) && isPossiblePhone(c.phone, 'US')
+      && (c.business ? !!c.businessName?.trim() : isValidName(c.first) && isValidName(c.last))
+    ));
+    const ready = !!(
+      selection?.unitId
+      && quote?.unitId
+      && selection.unitId === quote.unitId
+      && (!unitIdProp || quote.unitId === unitIdProp || quote.unitId === hold?.unitId)
+      && propertyInfo
+      && effectiveCompanyId
+      && effectivePropertyId
+      && !quoteFailed
+      && !holdFailed
+      && !holdExpired
+    );
+    if (!contactComplete || !ready) return;
+    autoAdvancedRef.current = true;
+    setIntent('rent');
+    goToStep(2);
+  }, [reservationIdProp, step, confirmation, contact, selection, quote, unitIdProp, hold,
+    propertyInfo, effectiveCompanyId, effectivePropertyId, quoteFailed, holdFailed, holdExpired, goToStep]);
+
   // Fill missing office/gate hours on the confirmation page (snapshot may predate
   // the property load). Read-only, fail-soft; runs only when hours are absent.
   useEffect(() => {
