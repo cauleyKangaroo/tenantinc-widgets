@@ -295,6 +295,14 @@ export interface RentalFlow2StepProps extends ApiCredProps, WalletConfigProps {
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
+/* First / last name: letters (any language), spaces, hyphens, apostrophes and
+   periods — "Mary-Jane", "O'Brien", "St. John", "José". Anything else is
+   dropped as typed, and the value is capped at NAME_MAX characters. */
+const NAME_MAX = 50;
+const cleanName = (v: string) => v.replace(/[^\p{L}\p{M} '’.-]/gu, '').slice(0, NAME_MAX);
+// Must start with a letter, so "-" or "." alone is not a name.
+const isValidName = (v: string) => /^\p{L}[\p{L}\p{M} '’.-]*$/u.test(v.trim()) && v.trim().length <= NAME_MAX;
+
 // ---------------------------------------------------------------------------
 // PREVIEW-ONLY rail content (Figma 8507-23233).
 //
@@ -683,8 +691,8 @@ function Step1Form({
     ['rf-phone', skip || isPossiblePhone(phone, 'US')],
     ...(business
       ? [['rf-bizname', skip || bizName.trim().length > 0]] as Array<[string, boolean]>
-      : [['rf-first', skip || first.trim().length > 0],
-        ['rf-last', skip || last.trim().length > 0]] as Array<[string, boolean]>),
+      : [['rf-first', skip || isValidName(first)],
+        ['rf-last', skip || isValidName(last)]] as Array<[string, boolean]>),
   ];
   /* ONE builder for what leaves this form: the buttons and the draft below
      both use it, so the draft the preview was personalised for is exactly
@@ -766,9 +774,9 @@ function Step1Form({
         ) : (
           <div className="rf-row">
             <Field id="rf-first" label="First Name" value={first}
-              valid={first.trim().length > 0} error={bad('rf-first')} onChange={(v) => setFirst(capitalizeFirst(v))} />
+              valid={isValidName(first)} error={bad('rf-first')} onChange={(v) => setFirst(capitalizeFirst(cleanName(v)))} />
             <Field id="rf-last" label="Last Name" value={last}
-              valid={last.trim().length > 0} error={bad('rf-last')} onChange={(v) => setLast(capitalizeFirst(v))} />
+              valid={isValidName(last)} error={bad('rf-last')} onChange={(v) => setLast(capitalizeFirst(cleanName(v)))} />
           </div>
         )}
       </div>
